@@ -22,4 +22,19 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls", "http2"] }
+futures-util = "0.3"
+blake3 = "1"
+sanitize-filename = "0.5"
+thiserror = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+urlencoding = "2"
+tauri-plugin-dialog = "2"
+mimalloc = "0.1.48"
+
+[dev-dependencies]
+axum = "0.8"
+tempfile = "3"
 

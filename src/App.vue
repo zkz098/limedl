@@ -1,160 +1,239 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
+import { ref, computed } from "vue";
+import Button from "primevue/button";
+import Dialog from "primevue/dialog";
 
-const greetMsg = ref("");
-const name = ref("");
+import DownloadComposer from "./components/downloader/DownloadComposer.vue";
+import DownloadInspector from "./components/downloader/DownloadInspector.vue";
+import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
+import { formatSpeed, stateLabel } from "./lib/download-format";
+import { useDownloader } from "./composables/useDownloader";
+import type { ChecksumMode } from "./types/download";
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
-}
+const checksumOptions: { label: string; value: ChecksumMode }[] = [
+  { label: "BLAKE3", value: "blake3" },
+  { label: "None", value: "none" },
+];
+
+const {
+  actionName,
+  canCancel,
+  canPause,
+  canResume,
+  downloads,
+  errorMessage,
+  form,
+  infoMessage,
+  isAutoRefreshing,
+  isPickingDirectory,
+  isRefreshingList,
+  isRefreshingStatus,
+  isStarting,
+  pickDestinationDirectory,
+  refreshList,
+  refreshStatus,
+  runCancel,
+  runPause,
+  runResume,
+  selectDownload,
+  selectedId,
+  selectedSnapshot,
+  selectedSummary,
+  submitStart,
+} = useDownloader();
+
+const showComposerDialog = ref(false);
+
+const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
+const selectedStateLabel = computed(() => stateLabel(selectedOverview.value?.state));
+const activeSpeedLabel = computed(() => formatSpeed(selectedOverview.value?.speedBytesPerSecond));
+
+const handleSubmitStart = async () => {
+  await submitStart();
+  showComposerDialog.value = false;
+};
 </script>
 
 <template>
-  <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <h1>Downloader</h1>
+      </div>
+      <div class="sidebar-actions">
+        <Button class="new-task-btn" icon="pi pi-plus" label="新建任务" @click="showComposerDialog = true" />
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active">
+          任务列表
+        </div>
+      </nav>
+      <div class="sidebar-stats">
+        <div class="stat-item">
+          <span>总任务</span>
+          <strong>{{ downloads.length }}</strong>
+        </div>
+        <div class="stat-item">
+          <span>当前速度</span>
+          <strong>{{ activeSpeedLabel }}</strong>
+        </div>
+        <div class="stat-item">
+          <span>选中状态</span>
+          <strong>{{ selectedStateLabel }}</strong>
+        </div>
+      </div>
+    </aside>
 
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
-    </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
+    <section class="main-content">
+      <DownloadQueueTable
+        :downloads="downloads"
+        :error-message="errorMessage"
+        :info-message="infoMessage"
+        :is-auto-refreshing="isAutoRefreshing"
+        :is-refreshing-list="isRefreshingList"
+        :selected-id="selectedId"
+        @refresh="refreshList"
+        @select="selectDownload"
+      />
+      <transition name="slide-up">
+        <DownloadInspector
+          v-if="selectedId"
+          class="floating-inspector"
+          :action-name="actionName"
+          :can-cancel="canCancel"
+          :can-pause="canPause"
+          :can-resume="canResume"
+          :is-refreshing-status="isRefreshingStatus"
+          :selected-overview="selectedOverview"
+          :selected-snapshot="selectedSnapshot"
+          @cancel="runCancel"
+          @pause="runPause"
+          @refresh="refreshStatus"
+          @resume="runResume"
+          @close="selectDownload(null)"
+        />
+      </transition>
+    </section>
 
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
+    <Dialog v-model:visible="showComposerDialog" modal header="新建任务" :style="{ width: '50vw' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
+      <DownloadComposer
+        :checksum-options="checksumOptions"
+        :form="form"
+        :is-picking-directory="isPickingDirectory"
+        :is-starting="isStarting"
+        @pick-directory="pickDestinationDirectory"
+        @submit="handleSubmitStart"
+      />
+    </Dialog>
   </main>
 </template>
 
 <style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
+.app-shell {
+  display: flex;
+  height: 100vh;
+  width: 100%;
 }
 
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
-}
-
-</style>
-<style>
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-bg-sidebar);
+  border-right: var(--border-width-thin) solid var(--color-border);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  padding: var(--space-4);
+  gap: var(--space-5);
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
+.sidebar-brand h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-hero);
+  color: var(--color-accent-strong);
+  line-height: var(--line-height-display);
 }
 
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
+.new-task-btn {
+  width: 100%;
+  border-radius: var(--radius-round) !important;
+  font-weight: bold;
 }
 
-.row {
+.sidebar-nav {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
+.nav-item {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
+  transition: background var(--duration-fast);
 }
 
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
+.nav-item:hover {
+  background: var(--color-surface-hover);
 }
 
-input,
-button {
-  outline: none;
+.nav-item.active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
 }
 
-#greet-input {
-  margin-right: 5px;
+.sidebar-stats {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: var(--border-width-thin) solid var(--color-border);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
 }
 
+.stat-item strong {
+  color: var(--color-text-main);
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-5);
+  background: var(--color-bg-base);
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.floating-inspector {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--color-bg-panel);
+  border-top: var(--border-width-thin) solid var(--color-border);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08); /* light floating shadow */
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+}
 </style>
