@@ -3,7 +3,7 @@
 /**
  * Polling composable for auto-refresh.
  * Automatically cleans up intervals on component unmount.
- * 
+ *
  * Usage:
  * const { isPolling, start, stop } = usePolling(async () => {
  *   await refreshList();
@@ -11,7 +11,7 @@
  */
 export function usePolling(
   callback: () => Promise<void>,
-  interval: number = 2000
+  interval: number = 2000,
 ): {
   isPolling: Ref<boolean>;
   start: () => void;
@@ -35,10 +35,10 @@ export function usePolling(
     }
 
     isPolling.value = true;
-    
+
     // Execute immediately on start
     poll().catch(console.error);
-    
+
     // Then set interval for subsequent calls
     intervalId = setInterval(() => {
       poll().catch(console.error);

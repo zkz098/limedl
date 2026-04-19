@@ -4,7 +4,7 @@ use tauri::Manager;
 
 use download::{
     download_cancel, download_list, download_pause, download_resume, download_start,
-    download_status, AppState, DownloadManager,
+    download_status, settings_proxy_get, settings_proxy_save, AppState, DownloadManager,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -33,7 +33,9 @@ pub fn run() {
             download_resume,
             download_cancel,
             download_status,
-            download_list
+            download_list,
+            settings_proxy_get,
+            settings_proxy_save
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

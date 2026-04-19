@@ -1,11 +1,21 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import Column from "primevue/column";
-import DataTable from "primevue/datatable";
-import ProgressBar from "primevue/progressbar";
+import { computed, ref, watch } from "vue";
+import { debounce, throttle } from "es-toolkit";
 
-import { formatBytes, formatEta, formatSpeed, progressLabel, progressValue, stateLabel } from "../../lib/download-format";
+import {
+  formatBytes,
+  formatEta,
+  formatSpeed,
+  progressLabel,
+  progressValue,
+  stateLabel,
+} from "../../lib/download-format";
 import type { DownloadSummary } from "../../types/download";
+import UiBadge from "../ui/UiBadge.vue";
+import UiButton from "../ui/UiButton.vue";
+import UiProgress from "../ui/UiProgress.vue";
+
+type ColumnKey = "file" | "status" | "progress" | "speed" | "eta";
 
 const props = defineProps<{
   downloads: DownloadSummary[];
@@ -16,82 +26,278 @@ const props = defineProps<{
   selectedId: string | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   refresh: [];
   select: [downloadId: string];
 }>();
+
+const pageSize = 10;
+const syncShowDelayMs = 240;
+const syncHideDelayMs = 420;
+const currentPage = ref(1);
+const columnMenuOpen = ref(false);
+const isRefreshLabelVisible = ref(false);
+const isSyncIndicatorVisible = ref(false);
+const visibleColumns = ref<ColumnKey[]>(["file", "status", "progress", "speed", "eta"]);
+
+const columnOptions: Array<{ key: ColumnKey; label: string; alwaysVisible?: boolean }> = [
+  { key: "file", label: "文件", alwaysVisible: true },
+  { key: "status", label: "状态" },
+  { key: "progress", label: "进度" },
+  { key: "speed", label: "速度" },
+  { key: "eta", label: "剩余时间" },
+];
+
+const totalPages = computed(() => Math.max(1, Math.ceil(props.downloads.length / pageSize)));
+const pagedDownloads = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return props.downloads.slice(start, start + pageSize);
+});
+const pageStart = computed(() =>
+  props.downloads.length ? (currentPage.value - 1) * pageSize + 1 : 0,
+);
+const pageEnd = computed(() =>
+  props.downloads.length ? Math.min(currentPage.value * pageSize, props.downloads.length) : 0,
+);
+
+watch(
+  () => props.downloads.length,
+  () => {
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value;
+    }
+  },
+);
+
+const syncRefreshIndicator = debounce((value: boolean) => {
+  isRefreshLabelVisible.value = value;
+}, 140);
+
+const showAutoRefreshIndicator = debounce(() => {
+  isSyncIndicatorVisible.value = true;
+}, syncShowDelayMs);
+
+const hideAutoRefreshIndicator = debounce(() => {
+  isSyncIndicatorVisible.value = false;
+}, syncHideDelayMs);
+
+watch(
+  () => props.isRefreshingList,
+  (value) => {
+    syncRefreshIndicator(value);
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.isAutoRefreshing,
+  (value) => {
+    if (value) {
+      hideAutoRefreshIndicator.cancel();
+      showAutoRefreshIndicator();
+      return;
+    }
+
+    showAutoRefreshIndicator.cancel();
+    hideAutoRefreshIndicator();
+  },
+  { immediate: true },
+);
+
+function toneForState(state: DownloadSummary["state"]): "info" | "success" | "warning" | "danger" {
+  if (state === "completed") return "success";
+  if (state === "failed" || state === "canceled") return "danger";
+  if (state === "queued" || state === "paused") return "warning";
+  return "info";
+}
+
+function isColumnVisible(key: ColumnKey) {
+  return visibleColumns.value.includes(key);
+}
+
+function toggleColumn(key: ColumnKey) {
+  const option = columnOptions.find((item) => item.key === key);
+  if (option?.alwaysVisible) {
+    return;
+  }
+
+  if (visibleColumns.value.includes(key)) {
+    visibleColumns.value = visibleColumns.value.filter((column) => column !== key);
+    return;
+  }
+
+  visibleColumns.value = columnOptions
+    .map((item) => item.key)
+    .filter((column) => column === key || visibleColumns.value.includes(column));
+}
+
+function goToPreviousPage() {
+  currentPage.value = Math.max(1, currentPage.value - 1);
+}
+
+function goToNextPage() {
+  currentPage.value = Math.min(totalPages.value, currentPage.value + 1);
+}
+
+const triggerRefresh = throttle(() => {
+  emit("refresh");
+}, 600);
 </script>
 
 <template>
-  <section class="queue-panel desk-panel">
-    <div class="desk-panel__header">
+  <section class="queue-panel">
+    <div class="desk-panel__header queue-panel__header">
       <div>
+        <p class="section-kicker">Queue</p>
         <h2 class="panel-title">任务列表</h2>
       </div>
 
       <div class="queue-panel__actions">
-        <Button type="button" size="small" severity="secondary" @click="$emit('refresh')">
-          {{ isRefreshingList ? "刷新中…" : "刷新" }}
-        </Button>
+        <span class="sync-pill" :data-active="isSyncIndicatorVisible">{{
+          isSyncIndicatorVisible ? "Auto Syncing" : "Idle"
+        }}</span>
+        <div class="column-menu">
+          <UiButton
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon="i-ri-layout-column-line"
+            @click="columnMenuOpen = !columnMenuOpen"
+          >
+            列
+          </UiButton>
+          <div v-if="columnMenuOpen" class="column-menu__panel">
+            <label
+              v-for="column in columnOptions"
+              :key="column.key"
+              class="column-menu__item"
+              :class="{
+                'column-menu__item--checked': isColumnVisible(column.key),
+                'column-menu__item--locked': column.alwaysVisible,
+              }"
+            >
+              <input
+                :checked="isColumnVisible(column.key)"
+                type="checkbox"
+                :disabled="column.alwaysVisible"
+                @change="toggleColumn(column.key)"
+              />
+              <span
+                class="column-menu__indicator"
+                :class="isColumnVisible(column.key) ? 'i-ri-check-line' : 'i-ri-add-line'"
+                aria-hidden="true"
+              />
+              <span>{{ column.label }}</span>
+            </label>
+          </div>
+        </div>
+        <UiButton
+          type="button"
+          size="sm"
+          variant="secondary"
+          icon="i-ri-refresh-line"
+          @click="triggerRefresh"
+        >
+          {{ isRefreshLabelVisible ? "刷新中…" : "刷新" }}
+        </UiButton>
       </div>
     </div>
 
     <p v-if="infoMessage" class="status-banner status-banner--info">{{ infoMessage }}</p>
     <p v-if="errorMessage" class="status-banner status-banner--error">{{ errorMessage }}</p>
 
-    <div class="queue-panel__table">
-      <DataTable
-        :value="downloads"
-        data-key="id"
-        scrollable
-        scroll-height="flex"
-        size="small"
-        class="queue-table"
-        :rowClass="(data) => data.id === selectedId ? 'queue-row--active' : ''"
-        @row-click="(e) => $emit('select', e.data.id)"
-      >
-        <Column field="fileName" header="文件名" style="min-width: 15rem" />
-        <Column field="destinationPath" header="保存路径" style="min-width: 15rem" />
+    <div v-if="downloads.length" class="queue-panel__table">
+      <div class="queue-table-shell">
+        <table class="queue-table">
+          <thead>
+            <tr>
+              <th v-if="isColumnVisible('file')">文件</th>
+              <th v-if="isColumnVisible('status')">状态</th>
+              <th v-if="isColumnVisible('progress')">进度</th>
+              <th v-if="isColumnVisible('speed')">速度</th>
+              <th v-if="isColumnVisible('eta')">剩余时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="download in pagedDownloads"
+              :key="download.id"
+              class="queue-row"
+              :class="{ 'queue-row--active': download.id === selectedId }"
+              @click="$emit('select', download.id)"
+            >
+              <td v-if="isColumnVisible('file')" class="queue-cell queue-cell--file">
+                <div class="queue-file">
+                  <span class="queue-file__name">{{ download.fileName }}</span>
+                  <span class="queue-file__path">{{ download.destinationPath }}</span>
+                </div>
+              </td>
 
-        <Column header="状态">
-          <template #body="{ data }">
-            <span class="state-pill" :data-state="data.state">{{ stateLabel(data.state) }}</span>
-          </template>
-        </Column>
+              <td v-if="isColumnVisible('status')" class="queue-cell queue-cell--status">
+                <UiBadge size="sm" :tone="toneForState(download.state)">{{
+                  stateLabel(download.state)
+                }}</UiBadge>
+              </td>
 
-        <Column header="进度">
-          <template #body="{ data }">
-            <div class="queue-progress">
-              <div class="queue-progress__copy">
-                <span>{{ progressLabel(data) }}</span>
-                <span>{{ formatBytes(data.downloadedBytes) }} / {{ formatBytes(data.totalBytes) }}</span>
-              </div>
-              <ProgressBar :value="progressValue(data)" :show-value="false" />
-            </div>
-          </template>
-        </Column>
+              <td v-if="isColumnVisible('progress')" class="queue-cell queue-cell--progress">
+                <div class="queue-progress">
+                  <div class="queue-progress__copy">
+                    <span>{{ progressLabel(download) }}</span>
+                    <span>
+                      {{ formatBytes(download.downloadedBytes) }} /
+                      {{ formatBytes(download.totalBytes) }}
+                    </span>
+                  </div>
+                  <UiProgress :value="progressValue(download)" />
+                </div>
+              </td>
 
-        <Column header="速度">
-          <template #body="{ data }">
-            <span class="queue-meta">{{ formatSpeed(data.speedBytesPerSecond) }}</span>
-          </template>
-        </Column>
+              <td v-if="isColumnVisible('speed')" class="queue-cell queue-cell--meta">
+                {{ formatSpeed(download.speedBytesPerSecond) }}
+              </td>
 
-        <Column header="剩余时间">
-          <template #body="{ data }">
-            <span class="queue-meta">{{ formatEta(data.etaSeconds) }}</span>
-          </template>
-        </Column>
+              <td v-if="isColumnVisible('eta')" class="queue-cell queue-cell--meta">
+                {{ formatEta(download.etaSeconds) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
+      <div class="queue-pagination">
+        <p class="queue-pagination__summary">
+          显示 {{ pageStart }}-{{ pageEnd }} / {{ downloads.length }}
+        </p>
+        <div class="queue-pagination__actions">
+          <UiButton
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon="i-ri-arrow-left-s-line"
+            :disabled="currentPage === 1"
+            @click="goToPreviousPage"
+          >
+            上一页
+          </UiButton>
+          <span class="queue-pagination__page">第 {{ currentPage }} / {{ totalPages }} 页</span>
+          <UiButton
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon-right="i-ri-arrow-right-s-line"
+            :disabled="currentPage === totalPages"
+            @click="goToNextPage"
+          >
+            下一页
+          </UiButton>
+        </div>
+      </div>
+    </div>
 
-
-        <template #empty>
-          <div class="queue-empty">
-            <h3>暂无下载任务</h3>
-            <p>点击左侧“新建任务”开始下载。</p>
-          </div>
-        </template>
-      </DataTable>
+    <div v-else class="queue-empty">
+      <span class="queue-empty__icon i-ri-inbox-archive-line" aria-hidden="true" />
+      <h3>暂无下载任务</h3>
+      <p>点击左侧“新建任务”开始下载。</p>
     </div>
   </section>
 </template>
@@ -100,22 +306,28 @@ defineEmits<{
 .queue-panel {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-5);
+}
+
+.queue-panel__header {
+  padding: 0.25rem 0;
 }
 
 .queue-panel__actions {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .sync-pill {
   display: inline-flex;
   align-items: center;
-  min-height: var(--control-height-compact);
+  justify-content: center;
+  min-height: 2.125rem;
+  min-width: 7.5rem;
   padding-inline: var(--space-3);
-  border-radius: var(--radius-round);
-  border: var(--border-width-thin) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
   background: var(--color-surface-muted);
   color: var(--color-text-muted);
   font-size: var(--font-size-label);
@@ -129,44 +341,244 @@ defineEmits<{
   background: var(--color-accent-soft);
 }
 
+.sync-pill:not([data-active="true"]) {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.column-menu {
+  position: relative;
+}
+
+.column-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 5;
+  min-width: 9rem;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.column-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  color: var(--color-text-main);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.column-menu__item:hover {
+  background: var(--color-surface-muted);
+}
+
+.column-menu__item--checked {
+  background: color-mix(in srgb, var(--color-accent-soft) 58%, var(--color-panel));
+  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  color: var(--color-accent-strong);
+}
+
+.column-menu__item--locked {
+  cursor: not-allowed;
+}
+
+.column-menu__indicator {
+  width: 1rem;
+  display: inline-flex;
+  justify-content: center;
+  color: inherit;
+  font-size: 0.9rem;
+}
+
+.column-menu__item input {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0;
+  accent-color: var(--color-accent-strong);
+}
+
+.column-menu__item span:last-child {
+  flex: 1;
+}
+
 .queue-panel__table {
-  min-height: 0;
-  height: var(--queue-height);
+  display: grid;
+  gap: 0.625rem;
 }
 
-.queue-panel__table :deep(.queue-row--active) {
-  background-color: var(--color-accent-soft) !important;
-  color: var(--color-accent-strong) !important;
+.queue-table-shell {
+  min-height: 27.5rem;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+  background: transparent;
 }
 
-.queue-panel__table :deep(.queue-row--active) td {
+.queue-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.queue-table thead th {
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-soft);
+  font-size: 0.74rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.queue-table tbody tr {
+  height: 2.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.queue-table tbody tr + tr td {
+  border-top: 1px solid var(--color-border);
+}
+
+.queue-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-accent-soft) 28%, var(--color-panel));
+}
+
+.queue-row--active {
+  background: color-mix(in srgb, var(--color-accent-soft) 60%, var(--color-panel));
+}
+
+.queue-cell {
+  padding: 0.3rem 0.75rem;
+  vertical-align: middle;
+}
+
+.queue-cell--file {
+  width: 32%;
+}
+
+.queue-cell--status {
+  width: 12%;
+}
+
+.queue-cell--progress {
+  width: 30%;
+}
+
+.queue-cell--meta {
+  width: 13%;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.queue-file {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.queue-file__name {
+  color: var(--color-heading);
+  font-weight: 600;
+  font-size: 0.84rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-file__path {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .queue-progress {
   display: grid;
-  gap: var(--space-2);
+  gap: 0.25rem;
 }
 
 .queue-progress__copy {
   display: flex;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--font-size-small);
+  font-size: 0.72rem;
 }
 
 .queue-empty {
   display: grid;
   gap: var(--space-2);
   place-items: center;
-  min-height: var(--queue-height);
+  min-height: 18rem;
   text-align: center;
   color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel-muted);
 }
 
 .queue-empty h3,
 .queue-empty p {
   margin: 0;
+}
+
+.queue-empty__icon {
+  font-size: 1.75rem;
+  color: var(--color-accent-strong);
+}
+
+.queue-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.queue-pagination__summary,
+.queue-pagination__page {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.queue-pagination__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1160px) {
+  .queue-table-shell {
+    overflow-x: auto;
+  }
+
+  .queue-table {
+    min-width: 48rem;
+  }
 }
 </style>

@@ -2,7 +2,7 @@ use tauri::State;
 
 use super::{
     manager::AppState,
-    types::{DownloadSnapshot, DownloadSummary, StartDownloadRequest},
+    types::{DownloadSnapshot, DownloadSummary, ProxySettings, StartDownloadRequest},
 };
 
 #[tauri::command]
@@ -70,6 +70,27 @@ pub async fn download_list(state: State<'_, AppState>) -> Result<Vec<DownloadSum
     state
         .manager
         .list()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn settings_proxy_get(state: State<'_, AppState>) -> Result<ProxySettings, String> {
+    state
+        .manager
+        .proxy_settings()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn settings_proxy_save(
+    state: State<'_, AppState>,
+    settings: ProxySettings,
+) -> Result<ProxySettings, String> {
+    state
+        .manager
+        .update_proxy_settings(settings)
         .await
         .map_err(|error| error.to_string())
 }

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import Button from "primevue/button";
-import ProgressBar from "primevue/progressbar";
 
+import UiBadge from "../ui/UiBadge.vue";
+import UiButton from "../ui/UiButton.vue";
+import UiProgress from "../ui/UiProgress.vue";
 import {
   formatTokenLabel,
   formatBytes,
@@ -54,25 +55,72 @@ const detailRows = computed(() => {
     { label: "更新时间", value: formatTimestamp(snapshot.updatedAtMs) },
   ];
 });
+
+const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger">(() => {
+  const state = props.selectedOverview?.state;
+
+  if (!state) return "neutral";
+  if (state === "completed") return "success";
+  if (state === "failed" || state === "canceled") return "danger";
+  if (state === "queued" || state === "paused") return "warning";
+  return "info";
+});
 </script>
 
 <template>
   <section class="inspector-panel">
     <div class="inspector-header">
+      <div>
+        <p class="section-kicker">Inspector</p>
+        <h2 class="panel-title">任务详情</h2>
+      </div>
       <div class="inspector-actions">
-        <Button type="button" size="small" severity="secondary" @click="$emit('refresh')">
+        <UiButton
+          type="button"
+          size="sm"
+          variant="secondary"
+          icon="i-ri-refresh-line"
+          @click="$emit('refresh')"
+        >
           {{ isRefreshingStatus ? "刷新中…" : "刷新" }}
-        </Button>
-        <Button type="button" size="small" text :disabled="!canPause" @click="$emit('pause')">
+        </UiButton>
+        <UiButton
+          type="button"
+          size="sm"
+          variant="ghost"
+          icon="i-ri-pause-line"
+          :disabled="!canPause"
+          @click="$emit('pause')"
+        >
           {{ actionName === "Pause" ? "暂停中…" : "暂停" }}
-        </Button>
-        <Button type="button" size="small" text :disabled="!canResume" @click="$emit('resume')">
+        </UiButton>
+        <UiButton
+          type="button"
+          size="sm"
+          variant="ghost"
+          icon="i-ri-play-line"
+          :disabled="!canResume"
+          @click="$emit('resume')"
+        >
           {{ actionName === "Resume" ? "恢复中…" : "恢复" }}
-        </Button>
-        <Button type="button" size="small" severity="danger" text :disabled="!canCancel" @click="$emit('cancel')">
+        </UiButton>
+        <UiButton
+          type="button"
+          size="sm"
+          variant="danger"
+          icon="i-ri-close-circle-line"
+          :disabled="!canCancel"
+          @click="$emit('cancel')"
+        >
           {{ actionName === "Cancel" ? "取消中…" : "取消" }}
-        </Button>
-        <Button type="button" size="small" text icon="pi pi-times" aria-label="Close" @click="$emit('close')" />
+        </UiButton>
+        <UiButton
+          type="button"
+          size="sm"
+          variant="ghost"
+          icon="i-ri-close-line"
+          @click="$emit('close')"
+        />
       </div>
     </div>
 
@@ -81,29 +129,28 @@ const detailRows = computed(() => {
         <div class="inspector-summary__copy">
           <div class="inspector-summary__header">
             <h3>{{ selectedOverview.fileName }}</h3>
-            <span class="state-pill" :data-state="selectedOverview.state">
-              {{ stateLabel(selectedOverview.state) }}
-            </span>
+            <UiBadge :tone="stateTone">{{ stateLabel(selectedOverview.state) }}</UiBadge>
           </div>
           <p>{{ selectedOverview.destinationPath }}</p>
         </div>
 
         <div class="metric-grid">
-          <div class="text-item">
+          <div class="text-row">
             <span class="text-label">已传输:</span>
             <span class="text-value">
-              {{ formatBytes(selectedOverview.downloadedBytes) }} / {{ formatBytes(selectedOverview.totalBytes) }}
+              {{ formatBytes(selectedOverview.downloadedBytes) }} /
+              {{ formatBytes(selectedOverview.totalBytes) }}
             </span>
           </div>
-          <div class="text-item">
+          <div class="text-row">
             <span class="text-label">速度:</span>
             <span class="text-value">{{ formatSpeed(selectedOverview.speedBytesPerSecond) }}</span>
           </div>
-          <div class="text-item">
+          <div class="text-row">
             <span class="text-label">剩余时间:</span>
             <span class="text-value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
           </div>
-          <div class="text-item">
+          <div class="text-row">
             <span class="text-label">连接数:</span>
             <span class="text-value">{{ selectedOverview.connectionCount }}</span>
           </div>
@@ -114,7 +161,7 @@ const detailRows = computed(() => {
             <span>进度</span>
             <span>{{ progressValue(selectedOverview).toFixed(1) }}%</span>
           </div>
-          <ProgressBar :value="progressValue(selectedOverview)" :show-value="false" />
+          <UiProgress :value="progressValue(selectedOverview)" />
         </div>
       </div>
 
@@ -122,8 +169,8 @@ const detailRows = computed(() => {
         <div
           v-for="row in detailRows"
           :key="row.label"
-          class="text-item"
-          :class="{ 'text-item--wide': row.wide }"
+          class="text-row"
+          :class="{ 'text-row--wide': row.wide }"
         >
           <dt class="text-label">{{ row.label }}:</dt>
           <dd class="text-value">{{ row.value }}</dd>
@@ -145,18 +192,16 @@ const detailRows = computed(() => {
 <style scoped>
 .inspector-panel {
   display: grid;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  background: var(--color-bg-panel);
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
 }
 
 .inspector-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: var(--border-width-thin) solid var(--color-border);
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-2);
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .inspector-actions {
@@ -169,7 +214,11 @@ const detailRows = computed(() => {
 .inspector-content,
 .inspector-summary {
   display: grid;
-  gap: var(--space-4);
+  gap: 0.75rem;
+}
+
+.inspector-summary {
+  gap: 0.65rem;
 }
 
 .inspector-summary__header {
@@ -190,34 +239,47 @@ const detailRows = computed(() => {
 .inspector-summary__copy p,
 .inspector-empty p {
   color: var(--color-text-muted);
+  font-size: 0.84rem;
+}
+
+.inspector-summary__copy h3,
+.inspector-empty h3 {
+  color: var(--color-heading);
+  font-size: 1rem;
 }
 
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: 0.35rem 0.9rem;
 }
 
-.text-item {
+.text-row {
   display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
+  gap: 0.45rem;
+  align-items: flex-start;
+  min-width: 0;
 }
 
 .text-label {
   color: var(--color-text-muted);
   font-weight: 500;
   white-space: nowrap;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .text-value {
   color: var(--color-text-main);
   word-break: break-all;
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .summary-progress {
   display: grid;
-  gap: var(--space-2);
+  gap: 0.35rem;
 }
 
 .summary-progress__copy {
@@ -225,17 +287,19 @@ const detailRows = computed(() => {
   justify-content: space-between;
   gap: var(--space-3);
   color: var(--color-text-muted);
-  font-size: var(--font-size-small);
+  font-size: 0.76rem;
 }
 
 .detail-grid {
   margin: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: 0.35rem 0.9rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--color-border);
 }
 
-.text-item--wide {
+.text-row--wide {
   grid-column: 1 / -1;
 }
 
@@ -250,7 +314,7 @@ const detailRows = computed(() => {
 .inspector-empty {
   display: grid;
   gap: var(--space-2);
-  min-height: var(--empty-panel-height);
+  min-height: 14rem;
   place-content: center;
   text-align: center;
 }
@@ -261,7 +325,7 @@ const detailRows = computed(() => {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .text-item--wide {
+  .text-row--wide {
     grid-column: auto;
   }
 }

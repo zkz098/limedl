@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::{self, OpenOptions},
+    fs,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -8,11 +8,10 @@ use std::{
 
 use futures_util::StreamExt;
 use reqwest::{
-    header::{self, HeaderMap, HeaderValue},
+    header,
     redirect::Policy,
-    Client, Response, StatusCode, Url,
+    Client, Proxy, Response, StatusCode, Url,
 };
-use serde::{Deserialize, Serialize};
 use tokio::{
     sync::{Mutex as AsyncMutex, RwLock},
     time::sleep,
@@ -22,12 +21,22 @@ use uuid::Uuid;
 
 use super::{
     error::{DownloadError, Result},
+    file_alloc::{finalize_temp_file, open_download_file, reset_download_file, write_all_at},
+    http::{
+        build_segment_request, classify_download_response, extract_total_bytes, header_string,
+        if_range_header, infer_file_name, supports_ranges, validate_probe_response,
+        validate_segment_response, ResponseDisposition,
+    },
+    manifest::{
+        compute_connection_count, contiguous_prefix_end, has_partial_segment_progress, plan_segments,
+        snapshot_from_manifest, validators_changed, Manifest, RemoteMetadata, SegmentManifest,
+    },
     types::{ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, StartDownloadRequest},
+    types::{ProxyMode, ProxySettings},
 };
 
 const DEFAULT_CONNECTIONS: usize = 8;
 const DEFAULT_RETRIES: u32 = 4;
-const MIN_SEGMENT_SIZE: u64 = 4 * 1024 * 1024;
 const PERSIST_INTERVAL: Duration = Duration::from_millis(300);
 
 #[derive(Clone)]
@@ -44,9 +53,11 @@ impl AppState {
 }
 
 pub struct DownloadManager {
-    client: Client,
+    client: Arc<RwLock<Client>>,
     state_dir: PathBuf,
-    downloads: RwLock<HashMap<String, Arc<ManagedDownload>>>,
+    settings_path: PathBuf,
+    proxy_settings: Arc<RwLock<ProxySettings>>,
+    downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
     persist_lock: Arc<AsyncMutex<()>>,
 }
 
@@ -55,50 +66,6 @@ struct ManagedDownload {
     manifest: Mutex<Manifest>,
     runtime: Mutex<Option<CancellationToken>>,
     persist_lock: Arc<AsyncMutex<()>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Manifest {
-    id: String,
-    url: String,
-    final_url: String,
-    destination_dir: String,
-    file_name: String,
-    destination_path: String,
-    temp_path: String,
-    manifest_path: String,
-    total_bytes: Option<u64>,
-    downloaded_bytes: u64,
-    supports_ranges: bool,
-    connection_count: usize,
-    etag: Option<String>,
-    last_modified: Option<String>,
-    state: DownloadState,
-    checksum_mode: ChecksumMode,
-    checksum: Option<String>,
-    error: Option<String>,
-    created_at_ms: u64,
-    updated_at_ms: u64,
-    segments: Vec<SegmentManifest>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SegmentManifest {
-    index: usize,
-    start: u64,
-    end: u64,
-    downloaded: u64,
-    completed: bool,
-}
-
-#[derive(Debug, Clone)]
-struct RemoteMetadata {
-    final_url: String,
-    file_name: String,
-    total_bytes: Option<u64>,
-    etag: Option<String>,
-    last_modified: Option<String>,
-    supports_ranges: bool,
 }
 
 #[derive(Debug)]
@@ -120,23 +87,40 @@ impl DownloadManager {
     pub fn new(state_dir: PathBuf) -> Result<Self> {
         fs::create_dir_all(&state_dir)?;
 
-        let client = Client::builder()
-            .redirect(Policy::limited(10))
-            .tcp_nodelay(true)
-            .read_timeout(Duration::from_secs(15))
-            .user_agent("downloader/0.1")
-            .build()?;
+        let settings_path = state_dir
+            .parent()
+            .unwrap_or(state_dir.as_path())
+            .join("settings.json");
+        let proxy_settings = load_proxy_settings(&settings_path)?;
+        let client = build_http_client(&proxy_settings)?;
 
         let manager = Self {
-            client,
+            client: Arc::new(RwLock::new(client)),
             state_dir,
-            downloads: RwLock::new(HashMap::new()),
+            settings_path,
+            proxy_settings: Arc::new(RwLock::new(proxy_settings)),
+            downloads: Arc::new(RwLock::new(HashMap::new())),
             persist_lock: Arc::new(AsyncMutex::new(())),
         };
 
         manager.load_existing_manifests()?;
 
         Ok(manager)
+    }
+
+    pub async fn proxy_settings(&self) -> Result<ProxySettings> {
+        Ok(self.proxy_settings.read().await.clone())
+    }
+
+    pub async fn update_proxy_settings(&self, settings: ProxySettings) -> Result<ProxySettings> {
+        let normalized = normalize_proxy_settings(settings)?;
+        let next_client = build_http_client(&normalized)?;
+
+        persist_proxy_settings(&self.settings_path, &normalized).await?;
+        *self.proxy_settings.write().await = normalized.clone();
+        *self.client.write().await = next_client;
+
+        Ok(normalized)
     }
 
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
@@ -365,11 +349,12 @@ impl DownloadManager {
     }
 
     async fn probe(&self, url: &str) -> Result<RemoteMetadata> {
-        let head = self.client.head(url).send().await;
+        let client = self.client.read().await.clone();
+        let head = client.head(url).send().await;
         let response = match head {
             Ok(response) if response.status().is_success() => response,
             _ => {
-                self.client
+                client
                     .get(url)
                     .header(header::RANGE, "bytes=0-0")
                     .send()
@@ -422,7 +407,7 @@ impl DownloadManager {
 
         self.persist(managed.clone()).await?;
 
-        let client = self.client.clone();
+        let client = self.client.read().await.clone();
         let manager = self.clone_arc();
         let token = managed
             .runtime
@@ -633,15 +618,12 @@ impl DownloadManager {
                 start_offset
             } else {
                 if start_offset > 0 {
-                    file.set_len(0)?;
-                    if let Some(total) = managed
+                    let total_bytes = managed
                         .manifest
                         .lock()
                         .expect("manifest poisoned")
-                        .total_bytes
-                    {
-                        file.set_len(total)?;
-                    }
+                        .total_bytes;
+                    reset_download_file(&file, total_bytes)?;
                     self.reset_progress(&managed, false);
                 }
                 0
@@ -916,10 +898,7 @@ impl DownloadManager {
         if temp_path.exists() {
             fs::remove_file(&temp_path)?;
         }
-        let file = open_download_file(&temp_path, manifest.total_bytes)?;
-        if let Some(total) = manifest.total_bytes {
-            file.set_len(total)?;
-        }
+        let _file = open_download_file(&temp_path, manifest.total_bytes)?;
         Ok(())
     }
 
@@ -945,10 +924,83 @@ impl DownloadManager {
         Arc::new(Self {
             client: self.client.clone(),
             state_dir: self.state_dir.clone(),
-            downloads: RwLock::new(HashMap::new()),
+            settings_path: self.settings_path.clone(),
+            proxy_settings: self.proxy_settings.clone(),
+            downloads: self.downloads.clone(),
             persist_lock: self.persist_lock.clone(),
         })
     }
+}
+
+fn normalize_proxy_settings(settings: ProxySettings) -> Result<ProxySettings> {
+    match settings.mode {
+        ProxyMode::Disabled | ProxyMode::System => Ok(ProxySettings {
+            mode: settings.mode,
+            manual_url: String::new(),
+        }),
+        ProxyMode::Manual => {
+            let manual_url = settings.manual_url.trim().to_string();
+            if manual_url.is_empty() {
+                return Err(DownloadError::InvalidProxy(String::from(
+                    "manual proxy url is required",
+                )));
+            }
+
+            Url::parse(&manual_url)
+                .map_err(|error| DownloadError::InvalidProxy(error.to_string()))?;
+
+            Ok(ProxySettings {
+                mode: ProxyMode::Manual,
+                manual_url,
+            })
+        }
+    }
+}
+
+fn build_http_client(settings: &ProxySettings) -> Result<Client> {
+    let mut builder = Client::builder()
+        .redirect(Policy::limited(10))
+        .tcp_nodelay(true)
+        .read_timeout(Duration::from_secs(15))
+        .user_agent("downloader/0.1");
+
+    match settings.mode {
+        ProxyMode::Disabled => {
+            builder = builder.no_proxy();
+        }
+        ProxyMode::System => {}
+        ProxyMode::Manual => {
+            let proxy = Proxy::all(&settings.manual_url)
+                .map_err(|error| DownloadError::InvalidProxy(error.to_string()))?;
+            builder = builder.proxy(proxy);
+        }
+    }
+
+    builder.build().map_err(DownloadError::from)
+}
+
+fn load_proxy_settings(settings_path: &Path) -> Result<ProxySettings> {
+    let content = match fs::read_to_string(settings_path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ProxySettings::default())
+        }
+        Err(error) => return Err(error.into()),
+    };
+
+    let parsed = serde_json::from_str::<ProxySettings>(&content)?;
+    normalize_proxy_settings(parsed)
+}
+
+async fn persist_proxy_settings(settings_path: &Path, settings: &ProxySettings) -> Result<()> {
+    if let Some(parent) = settings_path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+
+    let temp_path = settings_path.with_extension("json.tmp");
+    tokio::fs::write(&temp_path, serde_json::to_vec_pretty(settings)?).await?;
+    tokio::fs::rename(&temp_path, settings_path).await?;
+    Ok(())
 }
 
 async fn download_segment(
@@ -1116,259 +1168,6 @@ fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
     destination_dir.join(format!("{}-{}{}", stem, Uuid::new_v4(), extension))
 }
 
-fn compute_connection_count(total: Option<u64>, supports_ranges: bool, requested: usize) -> usize {
-    if !supports_ranges {
-        return 1;
-    }
-    let requested = requested.clamp(1, 16);
-    match total {
-        Some(total) if total >= MIN_SEGMENT_SIZE * 2 => requested,
-        _ => 1,
-    }
-}
-
-fn plan_segments(
-    total: Option<u64>,
-    supports_ranges: bool,
-    connections: usize,
-) -> Vec<SegmentManifest> {
-    if !supports_ranges || connections <= 1 {
-        return vec![];
-    }
-    let total = match total {
-        Some(total) => total,
-        None => return vec![],
-    };
-    let chunk_count = connections.max(1) as u64;
-    let size = (total / chunk_count).max(MIN_SEGMENT_SIZE);
-    let mut segments = Vec::new();
-    let mut start = 0;
-    let mut index = 0;
-    while start < total {
-        let end = (start + size - 1).min(total - 1);
-        segments.push(SegmentManifest {
-            index,
-            start,
-            end,
-            downloaded: 0,
-            completed: false,
-        });
-        index += 1;
-        start = end + 1;
-    }
-    segments
-}
-
-fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
-    DownloadSnapshot {
-        id: manifest.id.clone(),
-        state: manifest.state,
-        url: manifest.url.clone(),
-        final_url: manifest.final_url.clone(),
-        file_name: manifest.file_name.clone(),
-        destination_path: manifest.destination_path.clone(),
-        temp_path: manifest.temp_path.clone(),
-        total_bytes: manifest.total_bytes,
-        downloaded_bytes: manifest.downloaded_bytes,
-        supports_ranges: manifest.supports_ranges,
-        connection_count: manifest.connection_count,
-        checksum: manifest.checksum.clone(),
-        checksum_mode: manifest.checksum_mode.clone(),
-        etag: manifest.etag.clone(),
-        last_modified: manifest.last_modified.clone(),
-        error: manifest.error.clone(),
-        speed_bytes_per_second: None,
-        eta_seconds: None,
-        created_at_ms: manifest.created_at_ms,
-        updated_at_ms: manifest.updated_at_ms,
-    }
-}
-
-fn extract_total_bytes(status: StatusCode, headers: &HeaderMap) -> Option<u64> {
-    if status == StatusCode::PARTIAL_CONTENT {
-        if let Some(content_range) = header_string(headers, header::CONTENT_RANGE) {
-            return content_range
-                .rsplit('/')
-                .next()
-                .and_then(|value| value.parse::<u64>().ok());
-        }
-    }
-    header_string(headers, header::CONTENT_LENGTH).and_then(|value| value.parse::<u64>().ok())
-}
-
-fn supports_ranges(status: StatusCode, headers: &HeaderMap) -> bool {
-    if status == StatusCode::PARTIAL_CONTENT || headers.contains_key(header::CONTENT_RANGE) {
-        return true;
-    }
-    header_string(headers, header::ACCEPT_RANGES)
-        .map(|value| value.eq_ignore_ascii_case("bytes"))
-        .unwrap_or(false)
-}
-
-fn infer_file_name(final_url: &str, headers: &HeaderMap) -> Option<String> {
-    if let Some(header) = headers.get(header::CONTENT_DISPOSITION) {
-        if let Ok(value) = header.to_str() {
-            if let Some(decoded) = parse_content_disposition(value) {
-                let clean = sanitize_filename::sanitize(decoded);
-                if !clean.is_empty() {
-                    return Some(clean);
-                }
-            }
-        }
-    }
-
-    Url::parse(final_url)
-        .ok()
-        .and_then(|url| {
-            url.path_segments()
-                .and_then(|segments| segments.last().map(ToOwned::to_owned))
-        })
-        .map(sanitize_filename::sanitize)
-        .filter(|value| !value.is_empty())
-        .or_else(|| Some(String::from("download")))
-}
-
-fn parse_content_disposition(value: &str) -> Option<String> {
-    for part in value.split(';').map(str::trim) {
-        if let Some(rest) = part.strip_prefix("filename*=") {
-            let rest = rest.trim_matches('"');
-            let encoded = rest.split("''").nth(1).unwrap_or(rest);
-            if let Ok(decoded) = urlencoding::decode(encoded) {
-                return Some(decoded.into_owned());
-            }
-        }
-    }
-
-    for part in value.split(';').map(str::trim) {
-        if let Some(rest) = part.strip_prefix("filename=") {
-            return Some(rest.trim_matches('"').to_string());
-        }
-    }
-    None
-}
-
-fn header_string(headers: &HeaderMap, name: header::HeaderName) -> Option<String> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(ToOwned::to_owned)
-}
-
-fn validators_changed(manifest: &Manifest, metadata: &RemoteMetadata) -> bool {
-    match (&manifest.etag, &metadata.etag) {
-        (Some(left), Some(right)) => left != right,
-        _ => match (&manifest.last_modified, &metadata.last_modified) {
-            (Some(left), Some(right)) => left != right,
-            _ => false,
-        },
-    }
-}
-
-fn validate_probe_response(response: &Response) -> Result<()> {
-    let status = response.status();
-    if status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT {
-        return Ok(());
-    }
-    Err(DownloadError::InvalidResponse(format!(
-        "probe returned http status {status}"
-    )))
-}
-
-fn has_partial_segment_progress(manifest: &Manifest) -> bool {
-    manifest
-        .segments
-        .iter()
-        .any(|segment| segment.downloaded > 0 && !segment.completed)
-}
-
-fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
-    if manifest.segments.is_empty() {
-        return manifest.downloaded_bytes;
-    }
-
-    let mut expected_start = 0;
-    let mut contiguous = 0;
-    for segment in &manifest.segments {
-        if segment.start != expected_start {
-            break;
-        }
-        if !segment.completed {
-            break;
-        }
-        contiguous = segment.end.saturating_add(1);
-        expected_start = contiguous;
-    }
-    contiguous
-}
-
-fn validate_segment_response(
-    response: &Response,
-    expected_start: u64,
-    expected_end: u64,
-) -> Result<()> {
-    let Some(content_range) = header_string(response.headers(), header::CONTENT_RANGE) else {
-        return Err(DownloadError::InvalidResponse(String::from(
-            "segment response missing content-range",
-        )));
-    };
-
-    let Some(range_part) = content_range.strip_prefix("bytes ") else {
-        return Err(DownloadError::InvalidResponse(String::from(
-            "invalid content-range format",
-        )));
-    };
-    let Some((range, _total)) = range_part.split_once('/') else {
-        return Err(DownloadError::InvalidResponse(String::from(
-            "invalid content-range payload",
-        )));
-    };
-    let Some((start, end)) = range.split_once('-') else {
-        return Err(DownloadError::InvalidResponse(String::from(
-            "invalid content-range bounds",
-        )));
-    };
-
-    let parsed_start = start
-        .parse::<u64>()
-        .map_err(|_| DownloadError::InvalidResponse(String::from("invalid content-range start")))?;
-    let parsed_end = end
-        .parse::<u64>()
-        .map_err(|_| DownloadError::InvalidResponse(String::from("invalid content-range end")))?;
-
-    if parsed_start != expected_start || parsed_end > expected_end {
-        return Err(DownloadError::InvalidResponse(format!(
-            "unexpected content-range {parsed_start}-{parsed_end}, expected {expected_start}-{expected_end}"
-        )));
-    }
-
-    Ok(())
-}
-
-fn if_range_header(manifest: &Manifest) -> Option<(header::HeaderName, HeaderValue)> {
-    manifest
-        .etag
-        .as_deref()
-        .or(manifest.last_modified.as_deref())
-        .and_then(|value| HeaderValue::from_str(value).ok())
-        .map(|value| (header::IF_RANGE, value))
-}
-
-fn build_segment_request(
-    client: &Client,
-    url: &str,
-    start: u64,
-    end: u64,
-    validator: Option<(header::HeaderName, HeaderValue)>,
-) -> reqwest::RequestBuilder {
-    let mut builder = client
-        .get(url)
-        .header(header::RANGE, format!("bytes={start}-{end}"));
-    if let Some((name, value)) = validator {
-        builder = builder.header(name, value);
-    }
-    builder
-}
-
 async fn request_with_retry<F, Fut>(
     mut factory: F,
     token: CancellationToken,
@@ -1445,26 +1244,6 @@ where
     }
 }
 
-enum ResponseDisposition {
-    Use(Response),
-    Retryable(StatusCode),
-    Invalid(StatusCode),
-}
-
-fn classify_download_response(response: Response) -> ResponseDisposition {
-    let status = response.status();
-    if status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT {
-        return ResponseDisposition::Use(response);
-    }
-    if status == StatusCode::REQUEST_TIMEOUT
-        || status == StatusCode::TOO_MANY_REQUESTS
-        || status.is_server_error()
-    {
-        return ResponseDisposition::Retryable(status);
-    }
-    ResponseDisposition::Invalid(status)
-}
-
 async fn persist_manifest_snapshot(managed: &Arc<ManagedDownload>) -> Result<()> {
     let _guard = managed.persist_lock.lock().await;
     let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
@@ -1496,32 +1275,6 @@ fn backoff_delay(attempt: u32) -> Duration {
     Duration::from_millis((250_u64).saturating_mul(2_u64.saturating_pow(attempt.min(4))))
 }
 
-fn open_download_file(path: &Path, total_size: Option<u64>) -> Result<std::fs::File> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let file = OpenOptions::new()
-        .create(true)
-        .read(true)
-        .write(true)
-        .open(path)?;
-    if let Some(total_size) = total_size {
-        file.set_len(total_size)?;
-    }
-    Ok(file)
-}
-
-fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<()> {
-    match fs::rename(temp_path, destination_path) {
-        Ok(()) => Ok(()),
-        Err(_) => {
-            fs::copy(temp_path, destination_path)?;
-            fs::remove_file(temp_path)?;
-            Ok(())
-        }
-    }
-}
-
 async fn calculate_blake3(path: PathBuf) -> Result<String> {
     tokio::task::spawn_blocking(move || -> Result<String> {
         use std::io::Read;
@@ -1547,34 +1300,6 @@ fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_millis() as u64
-}
-
-fn write_all_at(file: &std::fs::File, mut buffer: &[u8], mut offset: u64) -> Result<()> {
-    while !buffer.is_empty() {
-        let written = write_once_at(file, buffer, offset)?;
-        if written == 0 {
-            return Err(DownloadError::InvalidResponse(String::from(
-                "failed to write download data",
-            )));
-        }
-        offset += written as u64;
-        buffer = &buffer[written..];
-    }
-    Ok(())
-}
-
-#[cfg(unix)]
-fn write_once_at(file: &std::fs::File, buffer: &[u8], offset: u64) -> std::io::Result<usize> {
-    use std::os::unix::fs::FileExt;
-
-    file.write_at(buffer, offset)
-}
-
-#[cfg(windows)]
-fn write_once_at(file: &std::fs::File, buffer: &[u8], offset: u64) -> std::io::Result<usize> {
-    use std::os::windows::fs::FileExt;
-
-    file.seek_write(buffer, offset)
 }
 
 #[cfg(test)]

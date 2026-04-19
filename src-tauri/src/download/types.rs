@@ -93,3 +93,24 @@ impl From<&DownloadSnapshot> for DownloadSummary {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxyMode {
+    Disabled,
+    System,
+    Manual,
+}
+
+impl Default for ProxyMode {
+    fn default() -> Self {
+        Self::Disabled
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxySettings {
+    pub mode: ProxyMode,
+    pub manual_url: String,
+}

@@ -65,6 +65,7 @@ export function useDownloader() {
   const isPickingDirectory = ref(false);
   const isAutoRefreshing = ref(false);
   const actionName = ref("");
+  const allowAutoSelect = ref(true);
 
   let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
   let autoRefreshInFlight = false;
@@ -148,6 +149,12 @@ export function useDownloader() {
       return;
     }
 
+    if (!allowAutoSelect.value) {
+      selectedId.value = null;
+      selectedSnapshot.value = null;
+      return;
+    }
+
     selectedId.value = downloads.value[0]?.id ?? null;
 
     if (!selectedId.value) {
@@ -198,7 +205,11 @@ export function useDownloader() {
       downloads.value = await listDownloads();
       ensureSelection();
 
-      if (selectedId.value && selectedSnapshot.value && selectedSnapshot.value.id !== selectedId.value) {
+      if (
+        selectedId.value &&
+        selectedSnapshot.value &&
+        selectedSnapshot.value.id !== selectedId.value
+      ) {
         selectedSnapshot.value = null;
       }
 
@@ -216,10 +227,7 @@ export function useDownloader() {
     }
   }
 
-  async function refreshStatus(
-    downloadId = selectedId.value,
-    options?: { silent?: boolean },
-  ) {
+  async function refreshStatus(downloadId = selectedId.value, options?: { silent?: boolean }) {
     if (!downloadId) {
       return;
     }
@@ -232,9 +240,11 @@ export function useDownloader() {
 
     try {
       const snapshot = await getDownloadStatus(downloadId);
-      selectedId.value = snapshot.id;
-      selectedSnapshot.value = snapshot;
       upsertSummary(toSummary(snapshot));
+
+      if (selectedId.value === downloadId) {
+        selectedSnapshot.value = snapshot;
+      }
 
       if (!options?.silent) {
         setMessage(`Status refreshed for ${snapshot.fileName}.`);
@@ -309,9 +319,12 @@ export function useDownloader() {
   }
 
   async function selectDownload(downloadId: string | null) {
+    allowAutoSelect.value = downloadId !== null;
     selectedId.value = downloadId;
     if (downloadId) {
       await refreshStatus(downloadId, { silent: true });
+    } else {
+      selectedSnapshot.value = null;
     }
   }
 
@@ -327,6 +340,7 @@ export function useDownloader() {
       clearMessage();
 
       const downloadId = await startDownload(buildStartRequest());
+      allowAutoSelect.value = true;
       selectedId.value = downloadId;
       await refreshList();
       await refreshStatus(downloadId, { silent: true });
@@ -354,6 +368,13 @@ export function useDownloader() {
       const snapshot = await action(selectedId.value);
       selectedSnapshot.value = snapshot;
       upsertSummary(toSummary(snapshot));
+
+      if (name === "Cancel") {
+        allowAutoSelect.value = false;
+        selectedId.value = null;
+        selectedSnapshot.value = null;
+      }
+
       setMessage(`${name} complete for ${snapshot.fileName}.`);
     } catch (error) {
       setError(toMessage(error));

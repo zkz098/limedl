@@ -1,10 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type {
-  DownloadSnapshot,
-  DownloadSummary,
-  StartDownloadRequest,
-} from "../../types/download";
+import type { DownloadSnapshot, DownloadSummary, StartDownloadRequest } from "../../types/download";
 
 export function startDownload(request: StartDownloadRequest) {
   return invoke<string>("download_start", { request });

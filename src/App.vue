@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import Button from "primevue/button";
-import Dialog from "primevue/dialog";
+import { computed, ref, watch } from "vue";
 
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
 import DownloadInspector from "./components/downloader/DownloadInspector.vue";
 import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
+import SettingsPage from "./components/settings/SettingsPage.vue";
+import UiButton from "./components/ui/UiButton.vue";
+import UiDialog from "./components/ui/UiDialog.vue";
 import { formatSpeed, stateLabel } from "./lib/download-format";
 import { useDownloader } from "./composables/useDownloader";
 import type { ChecksumMode } from "./types/download";
@@ -43,49 +44,113 @@ const {
 } = useDownloader();
 
 const showComposerDialog = ref(false);
+const inspectorCollapsed = ref(false);
+const currentView = ref<"home" | "settings">("home");
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
 const selectedStateLabel = computed(() => stateLabel(selectedOverview.value?.state));
 const activeSpeedLabel = computed(() => formatSpeed(selectedOverview.value?.speedBytesPerSecond));
+const activeCount = computed(
+  () =>
+    downloads.value.filter((download) =>
+      ["downloading", "retrying", "verifying"].includes(download.state),
+    ).length,
+);
+const completedCount = computed(
+  () => downloads.value.filter((download) => download.state === "completed").length,
+);
 
 const handleSubmitStart = async () => {
   await submitStart();
-  showComposerDialog.value = false;
+  if (!errorMessage.value) {
+    showComposerDialog.value = false;
+  }
 };
+
+const handleRefreshSelected = async () => {
+  if (!selectedId.value) {
+    return;
+  }
+
+  await refreshStatus(selectedId.value);
+};
+
+watch(
+  () => selectedId.value,
+  (nextId) => {
+    if (!nextId) {
+      inspectorCollapsed.value = false;
+    }
+  },
+);
 </script>
 
 <template>
-  <main class="app-shell">
+  <main class="app-shell min-h-screen text-[var(--color-text-main)]">
+    <div class="app-shell__backdrop" aria-hidden="true" />
+
     <aside class="sidebar">
-      <div class="sidebar-brand">
-        <h1>Downloader</h1>
-      </div>
-      <div class="sidebar-actions">
-        <Button class="new-task-btn" icon="pi pi-plus" label="新建任务" @click="showComposerDialog = true" />
-      </div>
-      <nav class="sidebar-nav">
-        <div class="nav-item active">
-          任务列表
+      <div class="sidebar__brand">
+        <div class="sidebar__logo-mark" aria-hidden="true">
+          <span class="i-ri-download-cloud-2-line" />
         </div>
+        <div>
+          <p class="section-kicker">Transfer Desk</p>
+          <h1>Downloader</h1>
+        </div>
+      </div>
+
+      <UiButton icon="i-ri-add-line" block @click="showComposerDialog = true"> 新建任务 </UiButton>
+
+      <nav class="sidebar-nav" aria-label="Primary">
+        <button
+          type="button"
+          class="sidebar-nav__item"
+          :class="{ 'sidebar-nav__item--active': currentView === 'home' }"
+          @click="currentView = 'home'"
+        >
+          <span class="sidebar-nav__icon i-ri-home-5-line" aria-hidden="true" />
+          <span>首页</span>
+        </button>
+        <button
+          type="button"
+          class="sidebar-nav__item"
+          :class="{ 'sidebar-nav__item--active': currentView === 'settings' }"
+          @click="currentView = 'settings'"
+        >
+          <span class="sidebar-nav__icon i-ri-settings-3-line" aria-hidden="true" />
+          <span>设置</span>
+        </button>
       </nav>
-      <div class="sidebar-stats">
-        <div class="stat-item">
-          <span>总任务</span>
-          <strong>{{ downloads.length }}</strong>
-        </div>
-        <div class="stat-item">
-          <span>当前速度</span>
-          <strong>{{ activeSpeedLabel }}</strong>
-        </div>
-        <div class="stat-item">
-          <span>选中状态</span>
-          <strong>{{ selectedStateLabel }}</strong>
+
+      <div class="sidebar__divider" aria-hidden="true" />
+
+      <div class="sidebar-overview">
+        <p class="section-kicker">Overview</p>
+        <div class="sidebar-overview__list">
+          <p>
+            <span>总任务</span><strong>{{ downloads.length }}</strong>
+          </p>
+          <p>
+            <span>活跃中</span><strong>{{ activeCount }}</strong>
+          </p>
+          <p>
+            <span>已完成</span><strong>{{ completedCount }}</strong>
+          </p>
+          <p>
+            <span>当前速度</span><strong>{{ activeSpeedLabel }}</strong>
+          </p>
+          <p>
+            <span>选中状态</span>
+            <strong>{{ selectedStateLabel }}</strong>
+          </p>
         </div>
       </div>
     </aside>
 
     <section class="main-content">
       <DownloadQueueTable
+        v-if="currentView === 'home'"
         :downloads="downloads"
         :error-message="errorMessage"
         :info-message="infoMessage"
@@ -95,27 +160,64 @@ const handleSubmitStart = async () => {
         @refresh="refreshList"
         @select="selectDownload"
       />
-      <transition name="slide-up">
-        <DownloadInspector
-          v-if="selectedId"
-          class="floating-inspector"
-          :action-name="actionName"
-          :can-cancel="canCancel"
-          :can-pause="canPause"
-          :can-resume="canResume"
-          :is-refreshing-status="isRefreshingStatus"
-          :selected-overview="selectedOverview"
-          :selected-snapshot="selectedSnapshot"
-          @cancel="runCancel"
-          @pause="runPause"
-          @refresh="refreshStatus"
-          @resume="runResume"
-          @close="selectDownload(null)"
-        />
-      </transition>
+      <SettingsPage v-else />
     </section>
 
-    <Dialog v-model:visible="showComposerDialog" modal header="新建任务" :style="{ width: '50vw' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
+    <Transition name="floating-inspector">
+      <div
+        v-if="currentView === 'home' && selectedOverview"
+        class="floating-inspector"
+        :class="{ 'is-collapsed': inspectorCollapsed }"
+      >
+        <button
+          type="button"
+          class="floating-inspector__tab"
+          @click="inspectorCollapsed = !inspectorCollapsed"
+        >
+          <div class="floating-inspector__tab-copy">
+            <span class="floating-inspector__tab-kicker">任务详情</span>
+            <strong>{{ selectedOverview.fileName }}</strong>
+          </div>
+          <div class="floating-inspector__tab-meta">
+            <span>{{ selectedStateLabel }}</span>
+            <span
+              class="floating-inspector__tab-icon"
+              :class="inspectorCollapsed ? 'i-ri-arrow-up-s-line' : 'i-ri-arrow-down-s-line'"
+              aria-hidden="true"
+            />
+          </div>
+        </button>
+
+        <div v-show="!inspectorCollapsed" class="floating-inspector__body">
+          <DownloadInspector
+            :action-name="actionName"
+            :can-cancel="canCancel"
+            :can-pause="canPause"
+            :can-resume="canResume"
+            :is-refreshing-status="isRefreshingStatus"
+            :selected-overview="selectedOverview"
+            :selected-snapshot="selectedSnapshot"
+            @cancel="runCancel"
+            @pause="runPause"
+            @refresh="handleRefreshSelected"
+            @resume="runResume"
+            @close="selectDownload(null)"
+          />
+        </div>
+      </div>
+    </Transition>
+
+    <UiDialog v-model="showComposerDialog" width="min(46rem, calc(100vw - 1.5rem))">
+      <template #title>
+        <div class="dialog-heading">
+          <div>
+            <p class="section-kicker">New Transfer</p>
+            <h2>新建下载任务</h2>
+          </div>
+          <span class="dialog-heading__icon i-ri-download-cloud-2-line" aria-hidden="true" />
+        </div>
+      </template>
+
       <DownloadComposer
         :checksum-options="checksumOptions"
         :form="form"
@@ -124,116 +226,361 @@ const handleSubmitStart = async () => {
         @pick-directory="pickDestinationDirectory"
         @submit="handleSubmitStart"
       />
-    </Dialog>
+    </UiDialog>
   </main>
 </template>
 
 <style scoped>
 .app-shell {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(14.5rem, 16rem) minmax(0, 1fr);
   height: 100vh;
-  width: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--color-accent-soft) 100%, transparent) 0,
+      transparent 26rem
+    ),
+    linear-gradient(180deg, var(--color-bg-base), var(--color-bg-base));
+}
+
+.app-shell__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 85% 12%,
+      color-mix(in srgb, var(--color-accent) 10%, transparent) 0,
+      transparent 18rem
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-panel) 75%, transparent),
+      transparent 18rem
+    );
+}
+
+.sidebar,
+.main-content {
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar {
-  width: var(--sidebar-width);
-  background: var(--color-bg-sidebar);
-  border-right: var(--border-width-thin) solid var(--color-border);
   display: flex;
   flex-direction: column;
-  padding: var(--space-4);
-  gap: var(--space-5);
+  gap: 1rem;
+  height: 100vh;
+  padding: 1.25rem;
+  border-right: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-panel-muted) 82%, transparent);
+  backdrop-filter: blur(0.875rem);
+  overflow: hidden;
 }
 
-.sidebar-brand h1 {
-  margin: 0;
+.sidebar__brand h1 {
+  margin: 0.2rem 0 0;
   font-family: var(--font-display);
-  font-size: var(--font-size-hero);
-  color: var(--color-accent-strong);
-  line-height: var(--line-height-display);
+  font-size: 2rem;
+  line-height: 1.08;
+  color: var(--color-heading);
 }
 
-.new-task-btn {
-  width: 100%;
-  border-radius: var(--radius-round) !important;
-  font-weight: bold;
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.sidebar__logo-mark {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-alt));
+  color: var(--color-accent-contrast);
+  box-shadow: var(--shadow-accent);
+  font-size: 1.4rem;
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.875rem;
+}
+
+.panel-head__icon,
+.dialog-heading__icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-muted));
+  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
 }
 
 .sidebar-nav {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sidebar-nav__item {
+  width: 100%;
+  min-height: 2.75rem;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  flex: 1;
-}
-
-.nav-item {
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: transparent;
   color: var(--color-text-muted);
-  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background var(--duration-fast);
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.nav-item:hover {
-  background: var(--color-surface-hover);
+.sidebar-nav__item:hover {
+  background: color-mix(in srgb, var(--color-accent-soft) 36%, var(--color-panel));
+  color: var(--color-heading);
+  transform: translateX(0.125rem);
 }
 
-.nav-item.active {
-  background: var(--color-accent-soft);
+.sidebar-nav__item--active {
+  background: color-mix(in srgb, var(--color-accent-soft) 55%, var(--color-panel));
+  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
   color: var(--color-accent-strong);
 }
 
-.sidebar-stats {
+.sidebar-nav__icon {
+  font-size: 1rem;
+}
+
+.sidebar__divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-border) 0%, transparent) 0,
+    var(--color-border) 16%,
+    var(--color-border) 84%,
+    color-mix(in srgb, var(--color-border) 0%, transparent) 100%
+  );
+}
+
+.sidebar-overview {
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+.sidebar-overview__list {
   display: grid;
-  gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: var(--border-width-thin) solid var(--color-border);
+  gap: 0.4rem;
+  margin-top: 0.55rem;
 }
 
-.stat-item {
+.sidebar-overview__list p {
+  margin: 0;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: var(--font-size-small);
+  justify-content: space-between;
+  gap: 0.75rem;
   color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
-.stat-item strong {
-  color: var(--color-text-main);
+.sidebar-overview__list strong {
+  color: var(--color-heading);
+  font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .main-content {
-  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  height: 100vh;
+  padding: 1.25rem 1.25rem 19rem;
   min-width: 0;
-  padding: var(--space-5);
-  background: var(--color-bg-base);
   overflow-y: auto;
-  position: relative;
-  display: flex;
-  flex-direction: column;
+  overscroll-behavior: contain;
 }
 
 .floating-inspector {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  background: var(--color-bg-panel);
-  border-top: var(--border-width-thin) solid var(--color-border);
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08); /* light floating shadow */
-  max-height: 50vh;
-  overflow-y: auto;
+  position: fixed;
+  left: calc(clamp(14.5rem, 18vw, 16rem) + 1rem);
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+  box-shadow: var(--shadow-card-hover);
+  backdrop-filter: blur(1rem);
+  overflow: hidden;
 }
 
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.floating-inspector.is-collapsed {
+  box-shadow: var(--shadow-card);
 }
 
-.slide-up-enter-from,
-.slide-up-leave-to {
-  transform: translateY(100%);
+.floating-inspector__tab {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-accent-soft) 60%, var(--color-panel)) 0,
+    var(--color-panel) 100%
+  );
+  cursor: pointer;
+  text-align: left;
+}
+
+.floating-inspector.is-collapsed .floating-inspector__tab {
+  border-bottom: 0;
+}
+
+.floating-inspector__tab-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.floating-inspector__tab-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.floating-inspector__tab-copy strong {
+  color: var(--color-heading);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-inspector__tab-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  color: var(--color-accent-strong);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.floating-inspector__tab-icon {
+  font-size: 1rem;
+}
+
+.floating-inspector__body {
+  max-height: min(24rem, calc(100vh - 10rem));
+  overflow: auto;
+}
+
+.floating-inspector-enter-active,
+.floating-inspector-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.floating-inspector-enter-from,
+.floating-inspector-leave-to {
+  opacity: 0;
+  transform: translateY(1rem);
+}
+
+.dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.dialog-heading h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.25rem;
+  color: var(--color-heading);
+}
+
+@media (max-width: 1080px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .sidebar {
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    overflow: visible;
+  }
+
+  .main-content {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .floating-inspector {
+    left: 1rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebar,
+  .main-content {
+    padding: 0.875rem;
+  }
+
+  .sidebar__brand {
+    align-items: flex-start;
+  }
+
+  .main-content {
+    padding-bottom: 16rem;
+  }
+
+  .floating-inspector {
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  .floating-inspector__tab {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .floating-inspector__tab-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 </style>

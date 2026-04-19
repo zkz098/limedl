@@ -21,62 +21,65 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
   --space-6: 2rem;
+  --space-7: 2.5rem;
 
   --radius-sm: 0.3rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.8rem;
-  --radius-round: 999px;
+  --radius-xl: 1rem;
+  --radius-pill: 999px;
 
   --border-width-thin: 1px;
   --duration-fast: 150ms;
 
-  --sidebar-width: 240px;
-  --control-height: 2.5rem;
-  --control-height-compact: 2rem;
-  --control-height-micro: 1.5rem;
+  --color-bg-base: oklch(0.995 0 0);
+  --color-panel: oklch(1 0 0);
+  --color-panel-muted: oklch(0.995 0 0);
+  --color-input-bg: oklch(1 0 0);
+  --color-surface-muted: oklch(0.975 0 0);
+  --color-surface-hover: oklch(0.995 0 0);
 
-  /* OKLCH Color Palette - Light Mode Motrix Style */
-  --color-bg-base: oklch(0.98 0.01 240); /* App background */
-  --color-bg-sidebar: oklch(0.95 0.01 240); /* Sidebar background */
-  --color-bg-panel: oklch(1 0 0); /* White panels */
-  
-  --color-text-main: oklch(0.2 0.02 240);
-  --color-text-muted: oklch(0.45 0.02 240);
-  
-  --color-border: oklch(0.85 0.01 240);
-  --color-border-strong: oklch(0.7 0.01 240);
-  
-  --color-control-bg: oklch(0.98 0.01 240);
-  --color-surface-muted: oklch(0.97 0.01 240);
-  --color-surface-hover: oklch(0.94 0.01 240);
-  
-  /* Accents */
-  --color-accent-soft: oklch(0.92 0.05 250);
-  --color-accent-border: oklch(0.8 0.1 250);
-  --color-accent-strong: oklch(0.4 0.15 250); /* WCAG AA Blue */
-  
-  /* Statuses */
-  --color-danger-bg: oklch(0.95 0.05 20);
-  --color-danger-border: oklch(0.8 0.1 20);
-  --color-danger-text: oklch(0.4 0.15 20);
-  
-  --color-info-bg: oklch(0.95 0.05 250);
-  --color-info-border: oklch(0.8 0.1 250);
-  --color-info-text: oklch(0.4 0.15 250);
-  
-  --color-success-bg: oklch(0.95 0.05 140);
-  --color-success-border: oklch(0.8 0.1 140);
-  --color-success-text: oklch(0.4 0.1 140);
-  
-  --color-warning-bg: oklch(0.95 0.05 80);
-  --color-warning-border: oklch(0.8 0.1 80);
-  --color-warning-text: oklch(0.4 0.1 80);
+  --color-heading: oklch(0.321 0 0);
+  --color-text-main: oklch(0.321 0 0);
+  --color-text-muted: oklch(0.597 0 0);
+  --color-text-soft: oklch(0.845 0 0);
 
-  --color-progress-track: oklch(0.85 0.01 240);
-  --color-progress-fill: oklch(0.4 0.15 250); /* WCAG AA Blue */
+  --color-border: oklch(0.952 0.004 240);
+  --color-border-strong: oklch(0.845 0 0);
 
-  --shadow-sm: 0 2px 4px oklch(0 0 0 / 0.05);
-  --shadow-panel: 0 4px 12px oklch(0 0 0 / 0.08);
+  --color-accent-soft: oklch(0.646 0.2 22 / 0.1);
+  --color-accent-soft-border: oklch(0.709 0.168 351.2 / 0.3);
+  --color-accent-border: oklch(0.709 0.168 351.2 / 0.3);
+  --color-accent-strong: oklch(0.579 0.24 22.2);
+  --color-accent: oklch(0.709 0.168 351.2);
+  --color-accent-alt: oklch(0.721 0.176 42.4);
+  --color-accent-contrast: oklch(1 0 0);
+
+  --color-focus-ring: oklch(0.646 0.2 22 / 0.18);
+
+  --color-danger-bg: oklch(0.646 0.2 22 / 0.1);
+  --color-danger-border: oklch(0.646 0.2 22 / 0.3);
+  --color-danger-text: oklch(0.579 0.24 22.2);
+
+  --color-info-bg: color-mix(in srgb, oklch(0.679 0.142 240.7) 10%, oklch(0.995 0 0));
+  --color-info-border: color-mix(in srgb, oklch(0.679 0.142 240.7) 18%, oklch(0.952 0.004 240));
+  --color-info-text: oklch(0.679 0.142 240.7);
+
+  --color-success-bg: color-mix(in srgb, oklch(0.517 0.178 143.2) 10%, oklch(0.995 0 0));
+  --color-success-border: color-mix(in srgb, oklch(0.517 0.178 143.2) 18%, oklch(0.952 0.004 240));
+  --color-success-text: oklch(0.517 0.178 143.2);
+
+  --color-warning-bg: color-mix(in srgb, oklch(0.791 0.182 91.8) 16%, oklch(0.995 0 0));
+  --color-warning-border: color-mix(in srgb, oklch(0.721 0.176 42.4) 22%, oklch(0.952 0.004 240));
+  --color-warning-text: oklch(0.721 0.176 42.4);
+
+  --color-progress-track: oklch(0.952 0.004 240);
+
+  --shadow-soft: 0 2px 8px oklch(0 0 0 / 0.08);
+  --shadow-card: 0 2px 8px oklch(0 0 0 / 0.1);
+  --shadow-card-hover: 0 8px 16px oklch(0 0 0 / 0.15);
+  --shadow-accent: 0 0.75rem 1.5rem oklch(0.593 0.209 13.9 / 0.12);
+  --shadow-accent-soft: 0 0 2rem oklch(0 0 0 / 0.1);
 }
 
 * {
@@ -105,13 +108,15 @@ body {
 body,
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
 button,
 input,
-select {
+select,
+textarea {
   appearance: none;
 }
 
@@ -125,21 +130,12 @@ a {
 }
 
 #app {
-  height: 100vh;
-  display: flex;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
 ::selection {
   background: var(--color-accent-soft);
   color: var(--color-accent-strong);
-}
-
-.desk-panel {
-  background: var(--color-bg-panel);
-  border: var(--border-width-thin) solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-panel);
 }
 
 .desk-panel__header {
@@ -159,7 +155,6 @@ a {
 }
 
 .panel-title,
-.titlebar h1,
 .inspector-summary__copy h3,
 .inspector-empty h3,
 .queue-empty h3 {
@@ -169,16 +164,12 @@ a {
   letter-spacing: -0.02em;
 }
 
-.titlebar h1 {
-  font-size: var(--font-size-hero);
-  line-height: 1.08;
-}
-
 .status-banner {
   margin: 0;
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  line-height: 1.6;
 }
 
 .status-banner--info {
@@ -193,124 +184,6 @@ a {
   color: var(--color-danger-text);
 }
 
-.state-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--control-height-compact);
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-round);
-  border: var(--border-width-thin) solid var(--color-border-strong);
-  background: var(--color-surface-muted);
-  font-size: var(--font-size-label);
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-.state-pill[data-state="queued"],
-.state-pill[data-state="paused"] {
-  background: var(--color-warning-bg);
-  color: var(--color-warning-text);
-  border-color: var(--color-warning-border);
-}
-
-.state-pill[data-state="downloading"],
-.state-pill[data-state="retrying"],
-.state-pill[data-state="verifying"] {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
-  border-color: var(--color-accent-border);
-}
-
-.state-pill[data-state="completed"] {
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-  border-color: var(--color-success-border);
-}
-
-.state-pill[data-state="failed"],
-.state-pill[data-state="canceled"] {
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
-  border-color: var(--color-danger-border);
-}
-
-.p-button {
-  min-height: var(--control-height);
-  border-radius: var(--radius-md);
-}
-
-.p-button.p-button-sm {
-  min-height: var(--control-height-compact);
-}
-
-.p-button.p-button-text {
-  color: var(--color-accent-strong);
-}
-
-.p-inputtext,
-.p-inputnumber-input,
-.p-select {
-  width: 100%;
-  min-height: var(--control-height);
-  border-radius: var(--radius-md);
-  border-color: var(--color-border-strong);
-  background: var(--color-control-bg);
-  color: var(--color-text-main);
-  box-shadow: none;
-}
-
-.p-inputtext::placeholder,
-.p-inputnumber-input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.p-inputtext:enabled:focus,
-.p-inputnumber-input:enabled:focus,
-.p-select:not(.p-disabled).p-focus {
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 var(--border-width-thin) var(--color-accent-border);
-}
-
-.p-select-label {
-  color: var(--color-text-main);
-}
-
-.p-datatable {
-  border: var(--border-width-thin) solid var(--color-border);
-  border-radius: var(--radius-md);
+body.dialog-open {
   overflow: hidden;
-}
-
-.p-datatable-table-container {
-  background: transparent;
-}
-
-.p-datatable-header-cell,
-.p-datatable-thead > tr > th {
-  background: var(--color-surface-muted);
-  color: var(--color-text-muted);
-  border-color: var(--color-border);
-  font-size: var(--font-size-label);
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-.p-datatable-tbody > tr {
-  background: transparent;
-}
-
-.p-datatable-tbody > tr > td {
-  border-color: var(--color-border);
-  vertical-align: top;
-}
-
-.p-progressbar {
-  height: 0.55rem;
-  border-radius: var(--radius-round);
-  background: var(--color-progress-track);
-}
-
-.p-progressbar-value {
-  background: var(--color-progress-fill);
 }

@@ -24,6 +24,8 @@ pub enum DownloadError {
     Serde(#[from] serde_json::Error),
     #[error("invalid server response: {0}")]
     InvalidResponse(String),
+    #[error("invalid proxy configuration: {0}")]
+    InvalidProxy(String),
 }
 
 pub type Result<T> = std::result::Result<T, DownloadError>;

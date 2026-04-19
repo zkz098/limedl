@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 /**
  * Tauri file dialog composable.
  * Opens a native directory picker and returns the selected path.
- * 
+ *
  * Usage:
  * const { selectedPath, isOpen, pick } = useFileDialog();
  * await pick(); // Opens dialog
@@ -22,7 +22,7 @@ export function useFileDialog(): {
   async function pick() {
     try {
       isOpen.value = true;
-      
+
       const result = await open({
         directory: true,
         multiple: false,
