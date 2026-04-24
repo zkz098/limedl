@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
-    fs,
-    io,
+    fs, io,
     path::{Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
@@ -9,11 +8,7 @@ use std::{
 };
 
 use futures_util::StreamExt;
-use reqwest::{
-    header,
-    redirect::Policy,
-    Client, Proxy, Response, StatusCode, Url,
-};
+use reqwest::{header, redirect::Policy, Client, Proxy, Response, StatusCode, Url};
 use tokio::{
     sync::{Mutex as AsyncMutex, Notify, RwLock},
     task::JoinSet,
@@ -35,11 +30,11 @@ use super::{
         validators_changed, ChunkManifest, Manifest, RemoteMetadata, CHUNK_SIZE,
     },
     types::{
-        AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, ChecksumMode,
-        DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
-        DownloadSummary, NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile,
-        ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest,
-        ThreadMode, TraditionalSchedulerSettings,
+        AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, ChecksumMode, DeviceLearningMode,
+        DownloadDefaultsSettings, DownloadSnapshot, DownloadState, DownloadSummary,
+        NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, ProxyMode,
+        ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, ThreadMode,
+        TraditionalSchedulerSettings,
     },
 };
 
@@ -177,7 +172,8 @@ impl DownloadManager {
         let destination_path = unique_destination_path(&destination_dir, &safe_name);
         let temp_path = self.state_dir.join(format!("{download_id}.part"));
         let manifest_path = self.state_dir.join(format!("{download_id}.json"));
-        let supports_parallel = supports_parallelism(metadata.total_bytes, metadata.supports_ranges);
+        let supports_parallel =
+            supports_parallelism(metadata.total_bytes, metadata.supports_ranges);
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);
         let thread_note = thread_note(supports_parallel, thread_mode, adaptive_profile);
@@ -374,7 +370,8 @@ impl DownloadManager {
             }
         }
 
-        self.spawn_download(managed.clone(), DEFAULT_RETRIES).await?;
+        self.spawn_download(managed.clone(), DEFAULT_RETRIES)
+            .await?;
         self.rebalance_allocations().await?;
         self.rebalance_notify.notify_waiters();
         Ok(self.build_snapshot(managed))
@@ -576,7 +573,8 @@ impl DownloadManager {
         let current_manifest = { managed.manifest.lock().expect("manifest poisoned").clone() };
         let metadata = self.probe(&current_manifest.url).await?;
 
-        let supports_parallel = supports_parallelism(metadata.total_bytes, metadata.supports_ranges);
+        let supports_parallel =
+            supports_parallelism(metadata.total_bytes, metadata.supports_ranges);
         let mut reset_progress = false;
         let mut force_single_stream_restart = false;
         {
@@ -718,7 +716,8 @@ impl DownloadManager {
                     async move {
                         let mut builder = client.get(url);
                         if start_offset > 0 {
-                            builder = builder.header(header::RANGE, format!("bytes={start_offset}-"));
+                            builder =
+                                builder.header(header::RANGE, format!("bytes={start_offset}-"));
                             if let Some((name, value)) = validator {
                                 builder = builder.header(name, value);
                             }
@@ -798,7 +797,10 @@ impl DownloadManager {
     ) -> Result<RunOutcome> {
         let (file_path, total_size) = {
             let manifest = managed.manifest.lock().expect("manifest poisoned");
-            (PathBuf::from(manifest.temp_path.clone()), manifest.total_bytes)
+            (
+                PathBuf::from(manifest.temp_path.clone()),
+                manifest.total_bytes,
+            )
         };
         let file = Arc::new(open_download_file(&file_path, total_size)?);
         let mut workers = JoinSet::new();
@@ -917,7 +919,7 @@ impl DownloadManager {
 
         let checksum = match checksum_mode {
             ChecksumMode::None => None,
-            ChecksumMode::Blake3 => Some(calculate_blake3(temp_path.clone()).await?),
+            mode => Some(calculate_checksum(temp_path.clone(), mode).await?),
         };
 
         if let Some(parent) = destination_path.parent() {
@@ -988,8 +990,8 @@ impl DownloadManager {
 
             let mut aimd = managed.aimd.lock().expect("aimd poisoned");
             let now = Instant::now();
-            let throughput =
-                sample_throughput(&mut aimd, manifest.downloaded_bytes, now).unwrap_or_else(|| {
+            let throughput = sample_throughput(&mut aimd, manifest.downloaded_bytes, now)
+                .unwrap_or_else(|| {
                     manifest
                         .allocated_thread_count
                         .unwrap_or(0)
@@ -1071,8 +1073,7 @@ impl DownloadManager {
                     aimd.consecutive_good_samples = aimd.consecutive_good_samples.saturating_add(1);
                     aimd.consecutive_bad_samples = 0;
                     if aimd.consecutive_good_samples >= samples_needed {
-                        let next = (current + 1)
-                            .min(adaptive_cap.max(1));
+                        let next = (current + 1).min(adaptive_cap.max(1));
                         manifest.desired_thread_count = Some(next);
                         manifest.updated_at_ms = now_ms();
                         aimd.consecutive_good_samples = 0;
@@ -1101,16 +1102,12 @@ impl DownloadManager {
             return Ok(());
         }
 
-        let scene_index = settings
-            .network_learning
-            .scenes
-            .iter()
-            .position(|scene| {
-                scene.id == settings.network_learning.current_scene_id && scene.learning_enabled
-            });
-        let Some(scene_index) = scene_index else {
+        let Some(scene) = settings.network_learning.scenes.first() else {
             return Ok(());
         };
+        if !scene.learning_enabled {
+            return Ok(());
+        }
 
         let sample = {
             let aimd = managed.aimd.lock().expect("aimd poisoned");
@@ -1125,13 +1122,9 @@ impl DownloadManager {
         let scheduler_cap = settings.scheduler.automatic.max_threads_per_task.max(1);
         let now = now_ms();
         let mut next_settings = settings.clone();
-        let scene = &mut next_settings.network_learning.scenes[scene_index];
-        let next_metrics = blend_learning_metrics(
-            scene.learned_metrics.as_ref(),
-            sample,
-            alpha,
-            scheduler_cap,
-        );
+        let scene = &mut next_settings.network_learning.scenes[0];
+        let next_metrics =
+            blend_learning_metrics(scene.learned_metrics.as_ref(), sample, alpha, scheduler_cap);
         scene.learned_metrics = Some(next_metrics);
         scene.updated_at_ms = now;
 
@@ -1321,7 +1314,10 @@ impl DownloadManager {
             manifest.error = None;
             manifest.updated_at_ms = now;
             if let Some(index) = chunk_index {
-                if let Some(chunk) = manifest.chunks.iter_mut().find(|candidate| candidate.index == index)
+                if let Some(chunk) = manifest
+                    .chunks
+                    .iter_mut()
+                    .find(|candidate| candidate.index == index)
                 {
                     chunk.downloaded = chunk.downloaded.saturating_add(bytes);
                     if chunk.downloaded >= chunk.end.saturating_sub(chunk.start) + 1 {
@@ -1417,7 +1413,11 @@ impl DownloadManager {
         }
     }
 
-    async fn remove_internal(&self, download_id: &str, purge_file: bool) -> Result<DownloadSnapshot> {
+    async fn remove_internal(
+        &self,
+        download_id: &str,
+        purge_file: bool,
+    ) -> Result<DownloadSnapshot> {
         let managed = self.get(download_id).await?;
         let snapshot_before = self.build_snapshot(managed.clone());
         let needs_cancel_state = matches!(
@@ -1520,7 +1520,12 @@ fn resolve_thread_settings(
     settings: &AppSettings,
     request: &StartDownloadRequest,
     supports_parallel: bool,
-) -> (ThreadMode, Option<usize>, Option<usize>, Option<AdaptiveProfile>) {
+) -> (
+    ThreadMode,
+    Option<usize>,
+    Option<usize>,
+    Option<AdaptiveProfile>,
+) {
     if !supports_parallel {
         return (ThreadMode::Fixed, Some(1), Some(1), None);
     }
@@ -1544,7 +1549,12 @@ fn resolve_thread_settings(
                     .unwrap_or_else(|| initial_desired_threads(profile))
                     .min(learned_cap.max(1))
                     .min(settings.scheduler.automatic.max_threads_per_task.max(1));
-                (ThreadMode::Adaptive, None, Some(desired.max(1)), Some(profile))
+                (
+                    ThreadMode::Adaptive,
+                    None,
+                    Some(desired.max(1)),
+                    Some(profile),
+                )
             }
             ThreadMode::Fixed => {
                 let requested = request
@@ -1603,7 +1613,9 @@ fn initial_desired_threads(profile: AdaptiveProfile) -> usize {
 fn reduce_threads(current: usize, profile: AdaptiveProfile) -> usize {
     let reduced = match profile {
         AdaptiveProfile::Conservative => ((current as f64) * 0.7).ceil() as usize,
-        AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => ((current as f64) * 0.5).ceil() as usize,
+        AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => {
+            ((current as f64) * 0.5).ceil() as usize
+        }
     };
     reduced.max(1)
 }
@@ -1676,8 +1688,8 @@ fn active_learning_metrics(settings: &NetworkLearningSettings) -> Option<&Networ
 
     settings
         .scenes
-        .iter()
-        .find(|scene| scene.id == settings.current_scene_id && scene.learning_enabled)
+        .first()
+        .filter(|scene| scene.learning_enabled)
         .and_then(|scene| scene.learned_metrics.as_ref())
 }
 
@@ -1725,7 +1737,11 @@ fn claim_next_chunk(manifest: &mut Manifest, worker_id: usize) -> Option<ChunkMa
 
 fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize) {
     let mut manifest = managed.manifest.lock().expect("manifest poisoned");
-    if let Some(chunk) = manifest.chunks.iter_mut().find(|chunk| chunk.index == chunk_index) {
+    if let Some(chunk) = manifest
+        .chunks
+        .iter_mut()
+        .find(|chunk| chunk.index == chunk_index)
+    {
         chunk.claimed_by = None;
     }
 }
@@ -1747,7 +1763,11 @@ fn sync_snapshot_with_manifest(managed: &Arc<ManagedDownload>, manifest: &Manife
     snapshot.updated_at_ms = manifest.updated_at_ms;
 }
 
-fn record_progress_on_managed(managed: &Arc<ManagedDownload>, chunk_index: Option<usize>, bytes: u64) {
+fn record_progress_on_managed(
+    managed: &Arc<ManagedDownload>,
+    chunk_index: Option<usize>,
+    bytes: u64,
+) {
     let now = now_ms();
     {
         let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
@@ -1761,7 +1781,11 @@ fn record_progress_on_managed(managed: &Arc<ManagedDownload>, chunk_index: Optio
         manifest.error = None;
         manifest.updated_at_ms = now;
         if let Some(index) = chunk_index {
-            if let Some(chunk) = manifest.chunks.iter_mut().find(|candidate| candidate.index == index) {
+            if let Some(chunk) = manifest
+                .chunks
+                .iter_mut()
+                .find(|candidate| candidate.index == index)
+            {
                 chunk.downloaded = chunk.downloaded.saturating_add(bytes);
                 if chunk.downloaded >= chunk.end.saturating_sub(chunk.start) + 1 {
                     chunk.completed = true;
@@ -1786,48 +1810,24 @@ fn normalize_network_learning_settings(
     settings: NetworkLearningSettings,
     scheduler_cap: usize,
 ) -> NetworkLearningSettings {
-    let mut scenes = settings
-        .scenes
-        .into_iter()
-        .enumerate()
-        .map(|(index, mut scene)| {
-            if scene.id.trim().is_empty() {
-                scene.id = if index == 0 {
-                    String::from("default")
-                } else {
-                    format!("scene-{}", index + 1)
-                };
-            } else {
-                scene.id = scene.id.trim().to_string();
-            }
+    let mut scenes = settings.scenes;
+    let selected_scene = scenes
+        .iter()
+        .position(|scene| scene.id == settings.current_scene_id)
+        .map(|index| scenes.remove(index))
+        .or_else(|| scenes.into_iter().next());
 
-            scene.name = if scene.name.trim().is_empty() {
-                format!("场景 {}", index + 1)
-            } else {
-                scene.name.trim().to_string()
-            };
-
-            scene.learned_metrics = scene
-                .learned_metrics
-                .map(|metrics| normalize_learning_metrics(metrics, scheduler_cap));
-            scene
-        })
-        .collect::<Vec<_>>();
-
-    if scenes.is_empty() {
-        scenes.push(default_network_scene());
-    }
-
-    let current_scene_id = if scenes.iter().any(|scene| scene.id == settings.current_scene_id) {
-        settings.current_scene_id
-    } else {
-        scenes[0].id.clone()
-    };
+    let mut scene = selected_scene.unwrap_or_else(default_network_scene);
+    scene.id = String::from("default");
+    scene.name = String::from("默认场景");
+    scene.learned_metrics = scene
+        .learned_metrics
+        .map(|metrics| normalize_learning_metrics(metrics, scheduler_cap));
 
     NetworkLearningSettings {
         device_mode: settings.device_mode,
-        current_scene_id,
-        scenes,
+        current_scene_id: String::from("default"),
+        scenes: vec![scene],
     }
 }
 
@@ -1880,8 +1880,9 @@ fn build_learning_sample(
     };
 
     let base_threads = recommended_threads_from_bandwidth(throughput, profile);
-    let recommended_initial_threads = adjust_threads_for_stability(base_threads, stability_score, penalty_rate)
-        .clamp(1, scheduler_cap);
+    let recommended_initial_threads =
+        adjust_threads_for_stability(base_threads, stability_score, penalty_rate)
+            .clamp(1, scheduler_cap);
     let recommended_max_threads_per_task_cap = derive_recommended_cap(
         recommended_initial_threads,
         stability_score,
@@ -2003,7 +2004,11 @@ fn normalize_proxy_settings(settings: ProxySettings) -> Result<ProxySettings> {
 
 fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let proxy = normalize_proxy_settings(settings.proxy)?;
-    let max_parallel_tasks = settings.scheduler.traditional.max_parallel_tasks.clamp(1, 32);
+    let max_parallel_tasks = settings
+        .scheduler
+        .traditional
+        .max_parallel_tasks
+        .clamp(1, 32);
     let max_parallel_threads = settings
         .scheduler
         .automatic
@@ -2022,9 +2027,7 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         proxy,
         scheduler: SchedulerSettings {
             mode: settings.scheduler.mode,
-            traditional: TraditionalSchedulerSettings {
-                max_parallel_tasks,
-            },
+            traditional: TraditionalSchedulerSettings { max_parallel_tasks },
             automatic: AutomaticSchedulerSettings {
                 max_parallel_threads,
                 max_threads_per_task,
@@ -2071,8 +2074,15 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         Err(error) => return Err(error.into()),
     };
 
-    if let Ok(parsed) = serde_json::from_str::<AppSettings>(&content) {
-        return normalize_settings(parsed);
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
+        if value.get("proxy").is_some()
+            || value.get("scheduler").is_some()
+            || value.get("download").is_some()
+            || value.get("networkLearning").is_some()
+        {
+            let parsed = serde_json::from_value::<AppSettings>(value)?;
+            return normalize_settings(parsed);
+        }
     }
 
     let legacy_proxy = serde_json::from_str::<ProxySettings>(&content)?;
@@ -2114,10 +2124,12 @@ async fn download_chunk(
     while current <= end {
         if token.is_cancelled() {
             mark_chunk_released(&managed, chunk.index);
-            return Ok(match managed.snapshot.lock().expect("snapshot poisoned").state {
-                DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
-                _ => ChunkWorkerOutcome::Paused,
-            });
+            return Ok(
+                match managed.snapshot.lock().expect("snapshot poisoned").state {
+                    DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
+                    _ => ChunkWorkerOutcome::Paused,
+                },
+            );
         }
 
         let (url, validator) = {
@@ -2130,7 +2142,11 @@ async fn download_chunk(
                 let client = client.clone();
                 let url = url.clone();
                 let validator = validator.clone();
-                async move { build_segment_request(&client, &url, current, end, validator).send().await }
+                async move {
+                    build_segment_request(&client, &url, current, end, validator)
+                        .send()
+                        .await
+                }
             },
             token.clone(),
             max_retries,
@@ -2175,7 +2191,11 @@ async fn download_chunk(
 
     {
         let mut manifest = managed.manifest.lock().expect("manifest poisoned");
-        if let Some(target) = manifest.chunks.iter_mut().find(|candidate| candidate.index == chunk.index) {
+        if let Some(target) = manifest
+            .chunks
+            .iter_mut()
+            .find(|candidate| candidate.index == chunk.index)
+        {
             target.completed = true;
             target.downloaded = target.end.saturating_sub(target.start) + 1;
             target.claimed_by = None;
@@ -2237,7 +2257,9 @@ where
                 ResponseDisposition::Use(response) => return Ok(response),
                 ResponseDisposition::Retryable(status) => {
                     if attempt >= max_retries {
-                        return Err(DownloadError::InvalidResponse(format!("http status {status}")));
+                        return Err(DownloadError::InvalidResponse(format!(
+                            "http status {status}"
+                        )));
                     }
                     attempt += 1;
                     register_retry_penalty(&managed, format!("http status {status}"));
@@ -2247,7 +2269,9 @@ where
                     }
                 }
                 ResponseDisposition::Invalid(status) => {
-                    return Err(DownloadError::InvalidResponse(format!("http status {status}")));
+                    return Err(DownloadError::InvalidResponse(format!(
+                        "http status {status}"
+                    )));
                 }
             },
             Err(error) => {
@@ -2314,12 +2338,12 @@ fn backoff_delay(attempt: u32) -> Duration {
     Duration::from_millis((250_u64).saturating_mul(2_u64.saturating_pow(attempt.min(4))))
 }
 
-async fn calculate_blake3(path: PathBuf) -> Result<String> {
+async fn calculate_checksum(path: PathBuf, mode: ChecksumMode) -> Result<String> {
     tokio::task::spawn_blocking(move || -> Result<String> {
         use std::io::Read;
 
         let mut file = std::fs::File::open(path)?;
-        let mut hasher = blake3::Hasher::new();
+        let mut hasher = ChecksumHasher::new(mode);
         let mut buffer = vec![0_u8; 1024 * 1024];
         loop {
             let read = file.read(&mut buffer)?;
@@ -2328,10 +2352,56 @@ async fn calculate_blake3(path: PathBuf) -> Result<String> {
             }
             hasher.update(&buffer[..read]);
         }
-        Ok(hasher.finalize().to_hex().to_string())
+        Ok(hasher.finalize())
     })
     .await
     .map_err(|error| DownloadError::InvalidResponse(error.to_string()))?
+}
+
+enum ChecksumHasher {
+    Blake3(Box<blake3::Hasher>),
+    Sha256(sha2::Sha256),
+    Xxh3_128(xxhash_rust::xxh3::Xxh3),
+}
+
+impl ChecksumHasher {
+    fn new(mode: ChecksumMode) -> Self {
+        match mode {
+            ChecksumMode::None => unreachable!("none checksum mode is handled before hashing"),
+            ChecksumMode::Blake3 => Self::Blake3(Box::new(blake3::Hasher::new())),
+            ChecksumMode::Sha256 => {
+                use sha2::Digest;
+                Self::Sha256(sha2::Sha256::new())
+            }
+            ChecksumMode::Xxh3128 => Self::Xxh3_128(xxhash_rust::xxh3::Xxh3::new()),
+        }
+    }
+
+    fn update(&mut self, bytes: &[u8]) {
+        match self {
+            Self::Blake3(hasher) => {
+                hasher.update(bytes);
+            }
+            Self::Sha256(hasher) => {
+                use sha2::Digest;
+                hasher.update(bytes);
+            }
+            Self::Xxh3_128(hasher) => {
+                hasher.update(bytes);
+            }
+        }
+    }
+
+    fn finalize(self) -> String {
+        match self {
+            Self::Blake3(hasher) => hasher.finalize().to_hex().to_string(),
+            Self::Sha256(hasher) => {
+                use sha2::Digest;
+                format!("{:x}", hasher.finalize())
+            }
+            Self::Xxh3_128(hasher) => format!("{:032x}", hasher.digest128()),
+        }
+    }
 }
 
 fn now_ms() -> u64 {
@@ -2412,8 +2482,10 @@ mod tests {
         })
         .unwrap();
 
-        assert_eq!(settings.network_learning.current_scene_id, "office");
-        assert_eq!(settings.network_learning.scenes[0].name, "场景 1");
+        assert_eq!(settings.network_learning.current_scene_id, "default");
+        assert_eq!(settings.network_learning.scenes.len(), 1);
+        assert_eq!(settings.network_learning.scenes[0].id, "default");
+        assert_eq!(settings.network_learning.scenes[0].name, "默认场景");
         let metrics = settings.network_learning.scenes[0]
             .learned_metrics
             .as_ref()

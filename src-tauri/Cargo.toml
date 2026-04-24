@@ -27,6 +27,8 @@ tokio-util = { version = "0.7", features = ["rt"] }
 reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls", "http2"] }
 futures-util = "0.3"
 blake3 = "1"
+sha2 = "0.10"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
 sanitize-filename = "0.5"
 thiserror = "1"
 uuid = { version = "1", features = ["v4", "serde"] }

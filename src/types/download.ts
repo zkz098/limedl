@@ -1,4 +1,4 @@
-export type ChecksumMode = "none" | "blake3";
+export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
 export type ThreadMode = "fixed" | "adaptive";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 

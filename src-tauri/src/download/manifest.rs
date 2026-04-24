@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::types::{
-    AdaptiveProfile, ChecksumMode, DownloadSnapshot, DownloadState, ThreadMode,
-};
+use super::types::{AdaptiveProfile, ChecksumMode, DownloadSnapshot, DownloadState, ThreadMode};
 
 pub(super) const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
 

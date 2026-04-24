@@ -9,6 +9,7 @@ import type {
   AdaptiveProfile,
   AppSettings,
   DeviceLearningMode,
+  NetworkLearningSettings,
   NetworkSceneProfile,
   ProxyMode,
   SchedulerMode,
@@ -45,6 +46,8 @@ const adaptiveProfileOptions: Array<{ label: string; value: AdaptiveProfile }> =
 
 const checksumOptions: Array<{ label: string; value: ChecksumMode }> = [
   { label: "BLAKE3", value: "blake3" },
+  { label: "SHA-256", value: "sha256" },
+  { label: "XXH3-128", value: "xxh3_128" },
   { label: "None", value: "none" },
 ];
 
@@ -93,23 +96,10 @@ const form = reactive<AppSettings>({
 const isSaving = ref(false);
 const isPickingDirectory = ref(false);
 const notificationMessage = ref("");
-const newSceneName = ref("");
-const renameSceneName = ref("");
 let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 
-const sceneOptions = computed(() => {
-  return form.networkLearning.scenes.map((scene) => ({
-    label: scene.name,
-    value: scene.id,
-  }));
-});
-
 const currentScene = computed(() => {
-  return (
-    form.networkLearning.scenes.find((scene) => scene.id === form.networkLearning.currentSceneId) ??
-    form.networkLearning.scenes[0] ??
-    null
-  );
+  return form.networkLearning.scenes[0] ?? null;
 });
 
 const pageSummary = computed(() => {
@@ -117,8 +107,7 @@ const pageSummary = computed(() => {
     return `传统模式下最多同时运行 ${form.scheduler.traditional.maxParallelTasks} 个任务；当前网络模式为${deviceModeLabel(form.networkLearning.deviceMode)}。`;
   }
 
-  const sceneName = currentScene.value?.name ?? "未选择场景";
-  return `自动模式下总线程预算 ${form.scheduler.automatic.maxParallelThreads}，单任务上限 ${form.scheduler.automatic.maxThreadsPerTask}，当前策略为${profileLabel(form.scheduler.automatic.adaptiveProfile)}；当前场景：${sceneName}。`;
+  return `自动模式下总线程预算 ${form.scheduler.automatic.maxParallelThreads}，单任务上限 ${form.scheduler.automatic.maxThreadsPerTask}，当前策略为${profileLabel(form.scheduler.automatic.adaptiveProfile)}。`;
 });
 
 const proxySummary = computed(() => {
@@ -147,7 +136,7 @@ const downloadSummary = computed(() => {
 const networkLearningSummary = computed(() => {
   const scene = currentScene.value;
   if (!scene) {
-    return "请先创建并选择一个网络场景。";
+    return "当前暂无网络学习画像。";
   }
 
   if (form.networkLearning.deviceMode === "mobile") {
@@ -155,14 +144,14 @@ const networkLearningSummary = computed(() => {
   }
 
   if (!scene.learningEnabled) {
-    return `当前场景“${scene.name}”已暂停学习，自动调度将回退到静态自适应策略。`;
+    return "网络学习已暂停，自动调度将回退到静态自适应策略。";
   }
 
   if (!scene.learnedMetrics) {
-    return `当前场景“${scene.name}”暂无学习样本；后续自动模式下载会逐步建立画像。`;
+    return "暂无学习样本；后续自动模式下载会逐步建立网络画像。";
   }
 
-  return `${deviceModeLabel(form.networkLearning.deviceMode)}；当前场景“${scene.name}”已累计 ${scene.learnedMetrics.sampleCount} 个样本，推荐初始线程 ${scene.learnedMetrics.recommendedInitialThreads}。`;
+  return `${deviceModeLabel(form.networkLearning.deviceMode)}；已累计 ${scene.learnedMetrics.sampleCount} 个样本，推荐初始线程 ${scene.learnedMetrics.recommendedInitialThreads}。`;
 });
 
 const networkMetricsCards = computed(() => {
@@ -226,11 +215,8 @@ watch(
     form.download.defaultMaxRetries = nextSettings.download.defaultMaxRetries;
     form.download.defaultChecksum = nextSettings.download.defaultChecksum;
     form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
-    form.networkLearning.currentSceneId = nextSettings.networkLearning.currentSceneId;
-    form.networkLearning.scenes = nextSettings.networkLearning.scenes.map((scene) => ({
-      ...scene,
-      learnedMetrics: scene.learnedMetrics ? { ...scene.learnedMetrics } : null,
-    }));
+    form.networkLearning.currentSceneId = "default";
+    form.networkLearning.scenes = [copySingleNetworkScene(nextSettings.networkLearning)];
   },
   { immediate: true },
 );
@@ -243,18 +229,6 @@ watch(
     }
   },
 );
-
-watch(
-  currentScene,
-  (scene) => {
-    renameSceneName.value = scene?.name ?? "";
-  },
-  { immediate: true },
-);
-
-function createSceneId() {
-  return `scene-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
 
 function profileLabel(profile: AdaptiveProfile) {
   return adaptiveProfileOptions.find((option) => option.value === profile)?.label ?? profile;
@@ -289,43 +263,16 @@ function showNotification(message: string) {
   }, 2200);
 }
 
-function addScene() {
-  const name = newSceneName.value.trim();
-  if (!name) {
-    showNotification("请输入新的场景名称");
-    return;
-  }
-
-  const scene: NetworkSceneProfile = {
-    id: createSceneId(),
-    name,
-    learningEnabled: true,
-    learnedMetrics: null,
-    updatedAtMs: Date.now(),
+function copySingleNetworkScene(settings: NetworkLearningSettings): NetworkSceneProfile {
+  const selectedScene =
+    settings.scenes.find((scene) => scene.id === settings.currentSceneId) ?? settings.scenes[0];
+  return {
+    id: "default",
+    name: "默认场景",
+    learningEnabled: selectedScene?.learningEnabled ?? true,
+    learnedMetrics: selectedScene?.learnedMetrics ? { ...selectedScene.learnedMetrics } : null,
+    updatedAtMs: selectedScene?.updatedAtMs ?? 0,
   };
-  form.networkLearning.scenes.push(scene);
-  form.networkLearning.currentSceneId = scene.id;
-  newSceneName.value = "";
-  renameSceneName.value = scene.name;
-  showNotification("已添加网络场景");
-}
-
-function renameCurrentScene() {
-  const scene = currentScene.value;
-  if (!scene) {
-    showNotification("当前没有可重命名的场景");
-    return;
-  }
-
-  const nextName = renameSceneName.value.trim();
-  if (!nextName) {
-    showNotification("场景名称不能为空");
-    return;
-  }
-
-  scene.name = nextName;
-  scene.updatedAtMs = Date.now();
-  showNotification("场景名称已更新");
 }
 
 async function pickDefaultDownloadDirectory() {
@@ -378,11 +325,8 @@ async function persistSettings() {
       },
       networkLearning: {
         deviceMode: form.networkLearning.deviceMode,
-        currentSceneId: form.networkLearning.currentSceneId,
-        scenes: form.networkLearning.scenes.map((scene) => ({
-          ...scene,
-          learnedMetrics: scene.learnedMetrics ? { ...scene.learnedMetrics } : null,
-        })),
+        currentSceneId: "default",
+        scenes: [copySingleNetworkScene(form.networkLearning)],
       },
     });
 
@@ -505,14 +449,8 @@ onBeforeUnmount(() => {
           </p>
         </label>
 
-        <label class="settings-field">
-          <span class="settings-field__label">当前场景</span>
-          <UiSelect v-model="form.networkLearning.currentSceneId" :options="sceneOptions" />
-          <p class="settings-field__hint">自动模式会参考当前场景的学习结果来调整线程策略。</p>
-        </label>
-
         <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">当前场景是否允许学习</span>
+          <span class="settings-field__label">是否允许学习</span>
           <span class="settings-toggle">
             <input
               v-if="currentScene"
@@ -521,27 +459,9 @@ onBeforeUnmount(() => {
               type="checkbox"
             />
             <span class="settings-toggle__text">
-              {{ currentScene?.learningEnabled ? "允许更新当前场景画像" : "暂停更新当前场景画像" }}
+              {{ currentScene?.learningEnabled ? "允许更新网络画像" : "暂停更新网络画像" }}
             </span>
           </span>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">新增场景</span>
-          <div class="settings-inline-field">
-            <UiInput v-model="newSceneName" type="text" placeholder="例如 家庭宽带 / 办公网络" />
-            <UiButton type="button" variant="secondary" size="sm" @click="addScene">添加</UiButton>
-          </div>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">重命名当前场景</span>
-          <div class="settings-inline-field">
-            <UiInput v-model="renameSceneName" type="text" placeholder="修改当前场景名称" />
-            <UiButton type="button" variant="secondary" size="sm" @click="renameCurrentScene">
-              重命名
-            </UiButton>
-          </div>
         </label>
       </div>
 

@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 pub enum ChecksumMode {
     None,
     Blake3,
+    Sha256,
+    #[serde(rename = "xxh3_128")]
+    Xxh3128,
 }
 
 impl Default for ChecksumMode {
