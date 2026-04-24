@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 
-import { formatSpeed, formatTimestamp } from "../../lib/download-format";
+import { formatBytes, formatSpeed, formatTimestamp } from "../../lib/download-format";
 import { useI18n } from "../../i18n";
 import { pickDirectory } from "../../lib/tauri/dialog-api";
 import { saveAppSettings } from "../../lib/tauri/settings-api";
@@ -9,12 +9,14 @@ import type { ChecksumMode } from "../../types/download";
 import type { SupportedLanguage } from "../../i18n/resources";
 import type {
   AdaptiveProfile,
+  AppearanceSettings,
   AppSettings,
   DeviceLearningMode,
   NetworkLearningSettings,
   NetworkSceneProfile,
   ProxyMode,
   SchedulerMode,
+  ThemeColor,
 } from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
 import UiInput from "../ui/UiInput.vue";
@@ -62,6 +64,9 @@ const deviceModeOptions = computed<Array<{ label: string; value: DeviceLearningM
 ]);
 
 const form = reactive<AppSettings>({
+  appearance: {
+    themeColor: "default",
+  },
   proxy: {
     mode: "disabled",
     manualUrl: "",
@@ -81,6 +86,11 @@ const form = reactive<AppSettings>({
     defaultDownloadDir: "",
     defaultMaxRetries: 5,
     defaultChecksum: "blake3",
+  },
+  bt: {
+    pauseUploadWhenLimitReached: false,
+    uploadLimitBytes: 0,
+    uploadRatioLimit: 0,
   },
   networkLearning: {
     deviceMode: "fixed",
@@ -145,6 +155,31 @@ const downloadSummary = computed(() => {
     location,
     retries: form.download.defaultMaxRetries,
     checksum: checksumLabel,
+  });
+});
+
+const btUploadLimitMiB = computed({
+  get() {
+    return Math.round(form.bt.uploadLimitBytes / 1024 / 1024);
+  },
+  set(value: number | null) {
+    form.bt.uploadLimitBytes = Math.max(0, Math.trunc(value ?? 0)) * 1024 * 1024;
+  },
+});
+
+const btSummary = computed(() => {
+  if (!form.bt.pauseUploadWhenLimitReached) {
+    return t("settings.summaries.btDisabled");
+  }
+
+  const uploadLimit =
+    form.bt.uploadLimitBytes > 0 ? formatBytes(form.bt.uploadLimitBytes) : t("common.disabled");
+  const ratioLimit =
+    form.bt.uploadRatioLimit > 0 ? `${form.bt.uploadRatioLimit.toFixed(2)}x` : t("common.disabled");
+
+  return t("settings.summaries.bt", {
+    uploadLimit,
+    ratioLimit,
   });
 });
 
@@ -223,6 +258,7 @@ watch(
       return;
     }
 
+    form.appearance.themeColor = nextSettings.appearance?.themeColor ?? "default";
     form.proxy.mode = nextSettings.proxy.mode;
     form.proxy.manualUrl = nextSettings.proxy.manualUrl;
     form.scheduler.mode = nextSettings.scheduler.mode;
@@ -235,6 +271,9 @@ watch(
     form.download.defaultDownloadDir = nextSettings.download.defaultDownloadDir;
     form.download.defaultMaxRetries = nextSettings.download.defaultMaxRetries;
     form.download.defaultChecksum = nextSettings.download.defaultChecksum;
+    form.bt.pauseUploadWhenLimitReached = nextSettings.bt.pauseUploadWhenLimitReached;
+    form.bt.uploadLimitBytes = nextSettings.bt.uploadLimitBytes;
+    form.bt.uploadRatioLimit = nextSettings.bt.uploadRatioLimit;
     form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
     form.networkLearning.currentSceneId = "default";
     form.networkLearning.scenes = [copySingleNetworkScene(nextSettings.networkLearning)];
@@ -330,6 +369,9 @@ async function persistSettings() {
 
   try {
     const saved = await saveAppSettings({
+      appearance: {
+        themeColor: form.appearance.themeColor,
+      },
       proxy: {
         mode: form.proxy.mode,
         manualUrl: form.proxy.manualUrl,
@@ -349,6 +391,11 @@ async function persistSettings() {
         defaultDownloadDir: form.download.defaultDownloadDir,
         defaultMaxRetries: form.download.defaultMaxRetries,
         defaultChecksum: form.download.defaultChecksum,
+      },
+      bt: {
+        pauseUploadWhenLimitReached: form.bt.pauseUploadWhenLimitReached,
+        uploadLimitBytes: form.bt.uploadLimitBytes,
+        uploadRatioLimit: form.bt.uploadRatioLimit,
       },
       networkLearning: {
         deviceMode: form.networkLearning.deviceMode,
@@ -409,6 +456,35 @@ onBeforeUnmount(() => {
             :options="languageOptions"
             @update:model-value="changeLanguage($event as SupportedLanguage)"
           />
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.appearanceKicker") }}</p>
+          <h3>{{ t("settings.appearanceTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
+      </div>
+
+      <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.themeColor") }}</span>
+          <div class="theme-color-options">
+            <button
+              v-for="color in ['default', 'amber', 'sky', 'lime']"
+              :key="color"
+              type="button"
+              class="theme-color-button"
+              :class="['theme-color-button--' + color, { 'is-active': form.appearance.themeColor === color }]"
+              :aria-label="t(`settings.themeColorNames.${color}`)"
+              @click="form.appearance.themeColor = color as ThemeColor"
+            >
+              <span v-if="form.appearance.themeColor === color" class="i-ri-check-line" aria-hidden="true" />
+            </button>
+          </div>
         </label>
       </div>
     </section>
@@ -583,6 +659,74 @@ onBeforeUnmount(() => {
           <span class="settings-field__label">{{ t("settings.globalChecksum") }}</span>
           <UiSelect v-model="form.download.defaultChecksum" :options="checksumOptions" />
           <p class="settings-field__hint">{{ t("settings.checksumHint") }}</p>
+        </label>
+      </div>
+
+      <div class="settings-actions">
+        <UiButton
+          type="button"
+          variant="secondary"
+          icon="i-ri-save-line"
+          :disabled="isSaving"
+          @click="persistSettings"
+        >
+          {{ isSaving ? t("common.saving") : t("common.save") }}
+        </UiButton>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.bt") }}</p>
+          <h3>{{ t("settings.btTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-seedling-line" aria-hidden="true" />
+      </div>
+
+      <p class="settings-section__summary">{{ btSummary }}</p>
+
+      <div class="settings-grid">
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">{{ t("settings.btPauseUpload") }}</span>
+          <span class="settings-toggle">
+            <input
+              v-model="form.bt.pauseUploadWhenLimitReached"
+              class="settings-toggle__control"
+              type="checkbox"
+            />
+            <span class="settings-toggle__text">
+              {{
+                form.bt.pauseUploadWhenLimitReached
+                  ? t("settings.btPauseUploadEnabled")
+                  : t("settings.btPauseUploadDisabled")
+              }}
+            </span>
+          </span>
+          <p class="settings-field__hint">{{ t("settings.btPauseUploadHint") }}</p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.btUploadLimit") }}</span>
+          <UiNumberField
+            v-model="btUploadLimitMiB"
+            :min="0"
+            :max="10485760"
+            :disabled="!form.bt.pauseUploadWhenLimitReached"
+          />
+          <p class="settings-field__hint">{{ t("settings.btUploadLimitHint") }}</p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.btRatioLimit") }}</span>
+          <UiNumberField
+            v-model="form.bt.uploadRatioLimit"
+            :min="0"
+            :max="100"
+            :step="0.1"
+            :disabled="!form.bt.pauseUploadWhenLimitReached"
+          />
+          <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
         </label>
       </div>
 

@@ -62,6 +62,7 @@ function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     etaSeconds: snapshot.etaSeconds,
     uploadedBytes: snapshot.uploadedBytes,
     peerCount: snapshot.peerCount,
+    uploadStatus: snapshot.uploadStatus,
     error: snapshot.error,
   };
 }
@@ -225,6 +226,9 @@ export function useDownloader() {
   }
 
   function applyAppSettingsDefaults(settings: AppSettings) {
+    if (settings.appearance?.themeColor) {
+      document.documentElement.dataset.theme = settings.appearance.themeColor;
+    }
     form.destinationDir = settings.download.defaultDownloadDir;
     form.maxRetries = settings.download.defaultMaxRetries;
     form.checksum = settings.download.defaultChecksum;

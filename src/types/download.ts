@@ -2,6 +2,7 @@ export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
 export type ThreadMode = "fixed" | "adaptive";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 export type TaskKind = "http" | "bt";
+export type BtUploadStatus = "idle" | "uploading" | "paused" | "paused_by_limit";
 
 export type DownloadState =
   | "queued"
@@ -54,6 +55,7 @@ export interface DownloadSummary {
   etaSeconds?: number;
   uploadedBytes?: number;
   peerCount?: number;
+  uploadStatus?: BtUploadStatus;
   error?: string;
 }
 
@@ -85,6 +87,7 @@ export interface DownloadSnapshot {
   etaSeconds?: number;
   uploadedBytes?: number;
   peerCount?: number;
+  uploadStatus?: BtUploadStatus;
   createdAtMs: number;
   updatedAtMs: number;
 }

@@ -8,7 +8,7 @@ use std::{
 };
 
 use futures_util::StreamExt;
-use reqwest::{header, redirect::Policy, Client, Proxy, Response, StatusCode, Url};
+use reqwest::{Client, Proxy, Response, StatusCode, Url, header, redirect::Policy};
 use tokio::{
     sync::{Mutex as AsyncMutex, Notify, RwLock},
     task::JoinSet,
@@ -21,21 +21,21 @@ use super::{
     error::{DownloadError, Result},
     file_alloc::{finalize_temp_file, open_download_file, reset_download_file, write_all_at},
     http::{
-        build_segment_request, classify_download_response, extract_total_bytes, header_string,
-        if_range_header, infer_file_name, supports_ranges, validate_probe_response,
-        validate_segment_response, ResponseDisposition,
+        ResponseDisposition, build_segment_request, classify_download_response,
+        extract_total_bytes, header_string, if_range_header, infer_file_name, supports_ranges,
+        validate_probe_response, validate_segment_response,
     },
     manifest::{
-        contiguous_prefix_end, has_partial_chunk_progress, plan_chunks, snapshot_from_manifest,
-        validators_changed, ChunkManifest, Manifest, RemoteMetadata, CHUNK_SIZE,
+        CHUNK_SIZE, ChunkManifest, Manifest, RemoteMetadata, contiguous_prefix_end,
+        has_partial_chunk_progress, plan_chunks, snapshot_from_manifest, validators_changed,
     },
     torrent::TorrentManager,
     types::{
-        AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, ChecksumMode, DeviceLearningMode,
-        DownloadDefaultsSettings, DownloadSnapshot, DownloadState, DownloadSummary,
-        NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, ProxyMode,
-        ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, ThreadMode,
-        TraditionalSchedulerSettings,
+        AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, BtSettings, ChecksumMode,
+        DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
+        DownloadSummary, NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile,
+        ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest,
+        ThreadMode, TraditionalSchedulerSettings,
     },
 };
 
@@ -2031,8 +2031,10 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         .min(max_parallel_threads);
     let network_learning =
         normalize_network_learning_settings(settings.network_learning, max_threads_per_task.max(1));
+    let bt = normalize_bt_settings(settings.bt);
 
     Ok(AppSettings {
+        appearance: settings.appearance,
         proxy,
         scheduler: SchedulerSettings {
             mode: settings.scheduler.mode,
@@ -2048,8 +2050,23 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             default_max_retries: settings.download.default_max_retries.clamp(0, 20),
             default_checksum: settings.download.default_checksum,
         },
+        bt,
         network_learning,
     })
+}
+
+fn normalize_bt_settings(settings: BtSettings) -> BtSettings {
+    const MAX_UPLOAD_LIMIT_BYTES: u64 = 10 * 1024 * 1024 * 1024 * 1024;
+
+    BtSettings {
+        pause_upload_when_limit_reached: settings.pause_upload_when_limit_reached,
+        upload_limit_bytes: settings.upload_limit_bytes.min(MAX_UPLOAD_LIMIT_BYTES),
+        upload_ratio_limit: if settings.upload_ratio_limit.is_finite() {
+            settings.upload_ratio_limit.clamp(0.0, 100.0)
+        } else {
+            0.0
+        },
+    }
 }
 
 fn build_http_client(settings: &AppSettings) -> Result<Client> {
@@ -2078,7 +2095,7 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     let content = match fs::read_to_string(settings_path) {
         Ok(content) => content,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(AppSettings::default())
+            return Ok(AppSettings::default());
         }
         Err(error) => return Err(error.into()),
     };
@@ -2087,6 +2104,7 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         if value.get("proxy").is_some()
             || value.get("scheduler").is_some()
             || value.get("download").is_some()
+            || value.get("bt").is_some()
             || value.get("networkLearning").is_some()
         {
             let parsed = serde_json::from_value::<AppSettings>(value)?;
@@ -2096,9 +2114,11 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
 
     let legacy_proxy = serde_json::from_str::<ProxySettings>(&content)?;
     normalize_settings(AppSettings {
+        appearance: Default::default(),
         proxy: legacy_proxy,
         scheduler: SchedulerSettings::default(),
         download: DownloadDefaultsSettings::default(),
+        bt: BtSettings::default(),
         network_learning: NetworkLearningSettings::default(),
     })
 }
@@ -2425,11 +2445,11 @@ mod tests {
     use std::sync::Arc;
 
     use axum::{
+        Router,
         extract::State,
         http::{HeaderMap, HeaderValue, StatusCode},
         response::IntoResponse,
         routing::get,
-        Router,
     };
     use tempfile::tempdir;
 
@@ -2469,6 +2489,7 @@ mod tests {
             proxy: ProxySettings::default(),
             scheduler: SchedulerSettings::default(),
             download: DownloadDefaultsSettings::default(),
+            bt: BtSettings::default(),
             network_learning: NetworkLearningSettings {
                 device_mode: DeviceLearningMode::SemiMobile,
                 current_scene_id: String::from("missing"),
@@ -2519,6 +2540,7 @@ mod tests {
                 },
             },
             download: DownloadDefaultsSettings::default(),
+            bt: BtSettings::default(),
             network_learning: NetworkLearningSettings {
                 device_mode: DeviceLearningMode::Fixed,
                 current_scene_id: String::from("home"),
@@ -2590,6 +2612,7 @@ mod tests {
                     automatic: AutomaticSchedulerSettings::default(),
                 },
                 download: DownloadDefaultsSettings::default(),
+                bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
             })
             .await
@@ -2666,6 +2689,7 @@ mod tests {
                     },
                 },
                 download: DownloadDefaultsSettings::default(),
+                bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
             })
             .await
@@ -2739,6 +2763,7 @@ mod tests {
                     },
                 },
                 download: DownloadDefaultsSettings::default(),
+                bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
             })
             .await

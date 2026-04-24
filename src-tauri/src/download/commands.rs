@@ -3,8 +3,8 @@ use tauri::State;
 use super::{
     manager::AppState,
     torrent::{
-        classify_download_source, http_task_id, is_bt_task_id, normalize_http_task_id,
-        DownloadSourceKind,
+        DownloadSourceKind, classify_download_source, http_task_id, is_bt_task_id,
+        normalize_http_task_id,
     },
     types::{AppSettings, DownloadSnapshot, DownloadSummary, StartDownloadRequest},
 };
@@ -213,11 +213,13 @@ pub async fn settings_save(
     state: State<'_, AppState>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
-    state
+    let saved = state
         .manager
         .update_settings(settings)
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    state.torrent_manager.update_settings(&saved);
+    Ok(saved)
 }
 
 fn prefix_http_snapshot(mut snapshot: DownloadSnapshot) -> DownloadSnapshot {

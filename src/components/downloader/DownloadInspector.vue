@@ -55,6 +55,12 @@ const detailRows = computed<DetailRow[]>(() => {
   if (snapshot.kind === "bt") {
     return [
       ...commonRows,
+      {
+        label: t("inspector.fields.uploadStatus"),
+        value: snapshot.uploadStatus
+          ? t(`uploadStatus.${snapshot.uploadStatus}`)
+          : t("uploadStatus.idle"),
+      },
       { label: t("inspector.fields.peerCount"), value: String(snapshot.peerCount ?? 0) },
       { label: t("inspector.fields.uploadedBytes"), value: formatBytes(snapshot.uploadedBytes) },
       { label: t("inspector.fields.createdAt"), value: formatTimestamp(snapshot.createdAtMs) },

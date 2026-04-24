@@ -25,6 +25,9 @@ export const resources = {
         home: "首页",
         settings: "设置",
       },
+      appearance: {
+        label: "外观",
+      },
       language: {
         label: "语言",
         zhCN: "简体中文",
@@ -130,6 +133,7 @@ export const resources = {
           url: "下载链接",
           finalUrl: "最终链接",
           destinationPath: "保存路径",
+          uploadStatus: "上传状态",
           peerCount: "Peer 数",
           uploadedBytes: "已上传",
           tempPath: "临时文件",
@@ -153,6 +157,15 @@ export const resources = {
         kicker: "设置",
         title: "设置",
         languageTitle: "界面语言",
+        appearanceKicker: "外观",
+        appearanceTitle: "主题颜色",
+        themeColor: "主题色",
+        themeColorNames: {
+          default: "默认 (樱桃)",
+          amber: "琥珀",
+          sky: "天蓝",
+          lime: "青柠"
+        },
         scheduler: "调度器",
         schedulerTitle: "线程分配",
         allocationMode: "分配模式",
@@ -171,6 +184,16 @@ export const resources = {
         pauseUpdateProfile: "暂停更新网络画像",
         downloads: "下载",
         downloadsTitle: "下载默认值",
+        bt: "BT",
+        btTitle: "上传控制",
+        btPauseUpload: "上传限制",
+        btPauseUploadEnabled: "达到限制后暂停上传",
+        btPauseUploadDisabled: "不自动暂停上传",
+        btPauseUploadHint: "满足上传量上限或分享率上限任一条件后，会暂停对应 BT 任务。",
+        btUploadLimit: "上传量上限（MiB）",
+        btUploadLimitHint: "填 0 表示不按上传量限制。",
+        btRatioLimit: "分享率上限",
+        btRatioLimitHint: "例如 2 表示上传量达到已下载量的 2 倍后暂停；填 0 表示不按倍数限制。",
         defaultDownloadLocation: "默认下载位置",
         defaultDownloadPlaceholder: "未设置时创建任务仍需手动选择",
         defaultDownloadHint: "新建任务时会自动带入该目录，你仍然可以在任务里临时改掉。",
@@ -194,6 +217,8 @@ export const resources = {
           proxyManualEmpty: "请输入代理地址，例如 http://127.0.0.1:7890",
           download:
             "默认位置：{{location}}；默认重试次数：{{retries}}；全局校验方式：{{checksum}}。",
+          btDisabled: "BT 上传不会自动暂停。",
+          bt: "达到上传量 {{uploadLimit}} 或分享率 {{ratioLimit}} 后暂停上传。",
           noNetworkProfile: "当前暂无网络学习画像。",
           mobile: "当前为{{deviceMode}}，不会累计网络画像；自动调度将回退到静态自适应策略。",
           learningPaused: "网络学习已暂停，自动调度将回退到静态自适应策略。",
@@ -247,6 +272,12 @@ export const resources = {
         failed: "失败",
         canceled: "已取消",
       },
+      uploadStatus: {
+        idle: "未上传",
+        uploading: "上传中",
+        paused: "已暂停",
+        paused_by_limit: "达到限制",
+      },
       tokens: {
         fixed: "固定",
         adaptive: "自适应",
@@ -294,8 +325,9 @@ export const resources = {
         newTask: "New task",
         home: "Home",
         settings: "Settings",
-      },
-      language: {
+      }, appearance: {
+        label: "Appearance",
+      }, language: {
         label: "Language",
         zhCN: "简体中文",
         enUS: "English",
@@ -404,6 +436,7 @@ export const resources = {
           url: "Download URL",
           finalUrl: "Final URL",
           destinationPath: "Save path",
+          uploadStatus: "Upload status",
           peerCount: "Peers",
           uploadedBytes: "Uploaded",
           tempPath: "Temporary file",
@@ -427,6 +460,15 @@ export const resources = {
         kicker: "Settings",
         title: "Settings",
         languageTitle: "Interface Language",
+        appearanceKicker: "Appearance",
+        appearanceTitle: "Theme Color",
+        themeColor: "Interface Color",
+        themeColorNames: {
+          default: "Default (Cherry)",
+          amber: "Amber",
+          sky: "Sky Blue",
+          lime: "Lime"
+        },
         scheduler: "Scheduler",
         schedulerTitle: "Thread Allocation",
         allocationMode: "Allocation mode",
@@ -447,6 +489,18 @@ export const resources = {
         pauseUpdateProfile: "Pause network profile updates",
         downloads: "Downloads",
         downloadsTitle: "Download Defaults",
+        bt: "BT",
+        btTitle: "Upload Control",
+        btPauseUpload: "Upload limit",
+        btPauseUploadEnabled: "Pause upload after reaching a limit",
+        btPauseUploadDisabled: "Do not pause upload automatically",
+        btPauseUploadHint:
+          "When either the uploaded amount or share ratio limit is reached, the matching BT task is paused.",
+        btUploadLimit: "Upload limit (MiB)",
+        btUploadLimitHint: "Use 0 to disable the uploaded amount limit.",
+        btRatioLimit: "Share ratio limit",
+        btRatioLimitHint:
+          "For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit.",
         defaultDownloadLocation: "Default download location",
         defaultDownloadPlaceholder: "Tasks still require a folder when this is empty",
         defaultDownloadHint:
@@ -473,6 +527,8 @@ export const resources = {
           proxyManualEmpty: "Enter a proxy URL, for example http://127.0.0.1:7890",
           download:
             "Default location: {{location}}; default retries: {{retries}}; global checksum: {{checksum}}.",
+          btDisabled: "BT upload will not be paused automatically.",
+          bt: "Pause upload after {{uploadLimit}} uploaded or share ratio {{ratioLimit}}.",
           noNetworkProfile: "No network learning profile is available.",
           mobile:
             "Current mode is {{deviceMode}}. Network profiles will not be accumulated, and automatic scheduling falls back to static adaptive behavior.",
@@ -530,6 +586,12 @@ export const resources = {
         completed: "Completed",
         failed: "Failed",
         canceled: "Canceled",
+      },
+      uploadStatus: {
+        idle: "Idle",
+        uploading: "Uploading",
+        paused: "Paused",
+        paused_by_limit: "Limit reached",
       },
       tokens: {
         fixed: "Fixed",

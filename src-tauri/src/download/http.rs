@@ -1,6 +1,6 @@
 use reqwest::{
-    header::{self, HeaderMap, HeaderValue},
     Client, Response, StatusCode, Url,
+    header::{self, HeaderMap, HeaderValue},
 };
 
 use super::{

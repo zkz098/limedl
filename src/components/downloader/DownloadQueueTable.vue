@@ -275,9 +275,14 @@ function labelForTaskKind(kind: DownloadSummary["kind"]) {
   return kind === "bt" ? t("tokens.bt") : t("tokens.http");
 }
 
+function labelForUploadStatus(status?: DownloadSummary["uploadStatus"]) {
+  return status ? t(`uploadStatus.${status}`) : t("uploadStatus.idle");
+}
+
 function metaForDownload(download: DownloadSummary) {
   if (download.kind === "bt") {
     return [
+      labelForUploadStatus(download.uploadStatus),
       t("queue.peerCount", { count: download.peerCount ?? 0 }),
       t("queue.uploaded", { size: formatBytes(download.uploadedBytes) }),
     ].join(" · ");

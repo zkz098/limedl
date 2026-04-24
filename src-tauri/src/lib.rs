@@ -3,9 +3,9 @@ mod download;
 use tauri::Manager;
 
 use download::{
-    download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
-    download_remove, download_resume, download_start, download_status, settings_get, settings_save,
-    AppState, DownloadManager, TorrentManager,
+    AppState, DownloadManager, TorrentManager, download_cancel, download_list,
+    download_open_in_explorer, download_pause, download_purge, download_remove, download_resume,
+    download_start, download_status, settings_get, settings_save,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -115,6 +115,7 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         eta_seconds: None,
         uploaded_bytes: None,
         peer_count: None,
+        upload_status: None,
         created_at_ms: manifest.created_at_ms,
         updated_at_ms: manifest.updated_at_ms,
     }
@@ -156,7 +157,7 @@ pub(super) fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{plan_chunks, CHUNK_SIZE};
+    use super::{CHUNK_SIZE, plan_chunks};
 
     #[test]
     fn plans_stable_chunk_boundaries() {

@@ -26,6 +26,16 @@ pub enum DownloadState {
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+pub enum BtUploadStatus {
+    #[default]
+    Idle,
+    Uploading,
+    Paused,
+    PausedByLimit,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum TaskKind {
     #[default]
     Http,
@@ -120,6 +130,7 @@ pub struct DownloadSnapshot {
     pub eta_seconds: Option<u64>,
     pub uploaded_bytes: Option<u64>,
     pub peer_count: Option<usize>,
+    pub upload_status: Option<BtUploadStatus>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
@@ -146,6 +157,7 @@ pub struct DownloadSummary {
     pub eta_seconds: Option<u64>,
     pub uploaded_bytes: Option<u64>,
     pub peer_count: Option<usize>,
+    pub upload_status: Option<BtUploadStatus>,
     pub error: Option<String>,
 }
 
@@ -170,6 +182,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             eta_seconds: value.eta_seconds,
             uploaded_bytes: value.uploaded_bytes,
             peer_count: value.peer_count,
+            upload_status: value.upload_status,
             error: value.error.clone(),
         }
     }
@@ -230,6 +243,24 @@ pub struct DownloadDefaultsSettings {
     pub default_checksum: ChecksumMode,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtSettings {
+    pub pause_upload_when_limit_reached: bool,
+    pub upload_limit_bytes: u64,
+    pub upload_ratio_limit: f64,
+}
+
+impl Default for BtSettings {
+    fn default() -> Self {
+        Self {
+            pause_upload_when_limit_reached: false,
+            upload_limit_bytes: 0,
+            upload_ratio_limit: 0.0,
+        }
+    }
+}
+
 impl Default for DownloadDefaultsSettings {
     fn default() -> Self {
         Self {
@@ -286,15 +317,41 @@ impl Default for NetworkLearningSettings {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ThemeColor {
+    Default,
+    Amber,
+    Sky,
+    Lime,
+}
+
+impl Default for ThemeColor {
+    fn default() -> Self {
+        Self::Default
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppearanceSettings {
+    #[serde(default)]
+    pub theme_color: ThemeColor,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
+    #[serde(default)]
+    pub appearance: AppearanceSettings,
     #[serde(default)]
     pub proxy: ProxySettings,
     #[serde(default)]
     pub scheduler: SchedulerSettings,
     #[serde(default)]
     pub download: DownloadDefaultsSettings,
+    #[serde(default)]
+    pub bt: BtSettings,
     #[serde(default)]
     pub network_learning: NetworkLearningSettings,
 }

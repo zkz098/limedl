@@ -4,6 +4,11 @@ export type ProxyMode = "disabled" | "system" | "manual";
 export type SchedulerMode = "traditional" | "automatic";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 export type DeviceLearningMode = "fixed" | "mobile" | "semi_mobile";
+export type ThemeColor = "default" | "amber" | "sky" | "lime";
+
+export interface AppearanceSettings {
+  themeColor: ThemeColor;
+}
 
 export interface ProxySettings {
   mode: ProxyMode;
@@ -32,6 +37,12 @@ export interface DownloadDefaultsSettings {
   defaultChecksum: ChecksumMode;
 }
 
+export interface BtSettings {
+  pauseUploadWhenLimitReached: boolean;
+  uploadLimitBytes: number;
+  uploadRatioLimit: number;
+}
+
 export interface NetworkLearningMetrics {
   estimatedBandwidthBps: number;
   stabilityScore: number;
@@ -57,8 +68,10 @@ export interface NetworkLearningSettings {
 }
 
 export interface AppSettings {
+  appearance: AppearanceSettings;
   proxy: ProxySettings;
   scheduler: SchedulerSettings;
   download: DownloadDefaultsSettings;
+  bt: BtSettings;
   networkLearning: NetworkLearningSettings;
 }

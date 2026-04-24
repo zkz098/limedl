@@ -82,6 +82,39 @@
   --shadow-accent-soft: 0 0 2rem oklch(0 0 0 / 0.1);
 }
 
+:root[data-theme="amber"] {
+  --color-accent-soft: oklch(0.85 0.15 70 / 0.1);
+  --color-accent-soft-border: oklch(0.85 0.15 70 / 0.3);
+  --color-accent-border: oklch(0.8 0.18 70 / 0.3);
+  --color-accent-strong: oklch(0.65 0.22 70);
+  --color-accent: oklch(0.72 0.2 70);
+  --color-accent-alt: oklch(0.75 0.18 75);
+  --color-focus-ring: oklch(0.85 0.15 70 / 0.2);
+  --shadow-accent: 0 0.75rem 1.5rem oklch(0.65 0.22 70 / 0.12);
+}
+
+:root[data-theme="sky"] {
+  --color-accent-soft: oklch(0.85 0.1 240 / 0.1);
+  --color-accent-soft-border: oklch(0.85 0.1 240 / 0.3);
+  --color-accent-border: oklch(0.8 0.12 240 / 0.3);
+  --color-accent-strong: oklch(0.65 0.15 240);
+  --color-accent: oklch(0.72 0.13 240);
+  --color-accent-alt: oklch(0.75 0.12 245);
+  --color-focus-ring: oklch(0.85 0.1 240 / 0.2);
+  --shadow-accent: 0 0.75rem 1.5rem oklch(0.65 0.15 240 / 0.12);
+}
+
+:root[data-theme="lime"] {
+  --color-accent-soft: oklch(0.85 0.15 130 / 0.1);
+  --color-accent-soft-border: oklch(0.85 0.15 130 / 0.3);
+  --color-accent-border: oklch(0.8 0.18 130 / 0.3);
+  --color-accent-strong: oklch(0.65 0.2 130);
+  --color-accent: oklch(0.72 0.18 130);
+  --color-accent-alt: oklch(0.75 0.16 135);
+  --color-focus-ring: oklch(0.85 0.15 130 / 0.2);
+  --shadow-accent: 0 0.75rem 1.5rem oklch(0.65 0.2 130 / 0.12);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -131,6 +164,56 @@ a {
 
 #app {
   min-height: 100vh;
+}
+
+.theme-color-options {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-2);
+}
+
+.theme-color-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-bg-base);
+  box-shadow:
+    0 0 0 2px transparent,
+    var(--shadow-card);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.theme-color-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+.theme-color-button.is-active {
+  box-shadow:
+    0 0 0 2px var(--color-text-main),
+    var(--shadow-card);
+  transform: scale(1.05);
+}
+
+/* Hardcoded to preview colors accurately */
+.theme-color-button--default {
+  background-color: oklch(0.709 0.168 351.2);
+}
+.theme-color-button--amber {
+  background-color: oklch(0.72 0.2 70);
+}
+.theme-color-button--sky {
+  background-color: oklch(0.72 0.13 240);
+}
+.theme-color-button--lime {
+  background-color: oklch(0.72 0.18 130);
 }
 
 ::selection {

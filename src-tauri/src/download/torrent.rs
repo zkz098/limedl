@@ -8,15 +8,15 @@ use std::{
 };
 
 use librqbit::{
-    api::TorrentIdOrHash, AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, ManagedTorrent,
-    Session, SessionOptions, SessionPersistenceConfig, TorrentStatsState,
+    AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, ManagedTorrent, Session,
+    SessionOptions, SessionPersistenceConfig, TorrentStatsState, api::TorrentIdOrHash,
 };
 
 use super::{
     error::{DownloadError, Result},
     types::{
-        AppSettings, ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, ProxyMode,
-        StartDownloadRequest, TaskKind, ThreadMode,
+        AppSettings, BtSettings, BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState,
+        DownloadSummary, ProxyMode, StartDownloadRequest, TaskKind, ThreadMode,
     },
 };
 
@@ -34,6 +34,7 @@ pub struct TorrentManager {
     api: Api,
     state_dir: PathBuf,
     default_output_dir: PathBuf,
+    bt_settings: Arc<Mutex<BtSettings>>,
     output_folders: Arc<Mutex<HashMap<usize, PathBuf>>>,
 }
 
@@ -74,8 +75,13 @@ impl TorrentManager {
             api,
             state_dir: state_dir.clone(),
             default_output_dir: output_dir,
+            bt_settings: Arc::new(Mutex::new(settings.bt.clone())),
             output_folders: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+
+    pub fn update_settings(&self, settings: &AppSettings) {
+        *self.bt_settings.lock().expect("bt settings poisoned") = settings.bt.clone();
     }
 
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
@@ -106,7 +112,7 @@ impl TorrentManager {
             AddTorrentResponse::ListOnly(_) => {
                 return Err(DownloadError::Torrent(String::from(
                     "torrent was opened in list-only mode",
-                )))
+                )));
             }
         };
 
@@ -177,15 +183,25 @@ impl TorrentManager {
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
         let id = parse_bt_task_id(download_id)?;
         let handle = self.get_handle(id)?;
-        Ok(self.snapshot_from_handle(id, &handle))
+        let limit_reached = self.apply_upload_policy(&handle).await?;
+        Ok(self.snapshot_from_handle(id, &handle, limit_reached))
     }
 
     pub async fn list(&self) -> Result<Vec<DownloadSummary>> {
-        let mut summaries = self.session.with_torrents(|torrents| {
+        let handles = self.session.with_torrents(|torrents| {
             torrents
-                .map(|(id, handle)| DownloadSummary::from(&self.snapshot_from_handle(id, handle)))
+                .map(|(id, handle)| (id, handle.clone()))
                 .collect::<Vec<_>>()
         });
+        let mut summaries = Vec::with_capacity(handles.len());
+        for (id, handle) in handles {
+            let limit_reached = self.apply_upload_policy(&handle).await?;
+            summaries.push(DownloadSummary::from(&self.snapshot_from_handle(
+                id,
+                &handle,
+                limit_reached,
+            )));
+        }
         summaries.sort_by(|left, right| right.id.cmp(&left.id));
         Ok(summaries)
     }
@@ -209,7 +225,35 @@ impl TorrentManager {
         Ok(())
     }
 
-    fn snapshot_from_handle(&self, id: usize, handle: &Arc<ManagedTorrent>) -> DownloadSnapshot {
+    async fn apply_upload_policy(&self, handle: &Arc<ManagedTorrent>) -> Result<bool> {
+        let stats = handle.stats();
+        let settings = self
+            .bt_settings
+            .lock()
+            .expect("bt settings poisoned")
+            .clone();
+        let limit_reached =
+            upload_limit_reached(&settings, stats.uploaded_bytes, stats.progress_bytes);
+
+        if settings.pause_upload_when_limit_reached
+            && limit_reached
+            && matches!(stats.state, TorrentStatsState::Live)
+        {
+            self.session
+                .pause(handle)
+                .await
+                .map_err(|error| DownloadError::Torrent(error.to_string()))?;
+        }
+
+        Ok(settings.pause_upload_when_limit_reached && limit_reached)
+    }
+
+    fn snapshot_from_handle(
+        &self,
+        id: usize,
+        handle: &Arc<ManagedTorrent>,
+        upload_limit_reached: bool,
+    ) -> DownloadSnapshot {
         let stats = handle.stats();
         let state = map_torrent_state(stats.state, stats.finished);
         let now = now_ms();
@@ -243,6 +287,7 @@ impl TorrentManager {
             .as_ref()
             .map(|live| live.snapshot.peer_stats.live + live.snapshot.peer_stats.connecting);
         let peer_count = peer_count.unwrap_or(0);
+        let upload_status = upload_status_from_stats(&stats, upload_limit_reached);
 
         DownloadSnapshot {
             id: bt_task_id(id),
@@ -272,6 +317,7 @@ impl TorrentManager {
             eta_seconds: estimate_eta(stats.total_bytes, downloaded, speed),
             uploaded_bytes: Some(stats.uploaded_bytes),
             peer_count: Some(peer_count),
+            upload_status: Some(upload_status),
             created_at_ms: now,
             updated_at_ms: now,
         }
@@ -363,6 +409,39 @@ fn estimate_eta(total: u64, downloaded: u64, speed: Option<f64>) -> Option<u64> 
     Some(((total - downloaded) as f64 / speed).ceil() as u64)
 }
 
+fn upload_limit_reached(settings: &BtSettings, uploaded: u64, downloaded: u64) -> bool {
+    let bytes_reached = settings.upload_limit_bytes > 0 && uploaded >= settings.upload_limit_bytes;
+    let ratio_reached = settings.upload_ratio_limit > 0.0
+        && downloaded > 0
+        && uploaded as f64 >= downloaded as f64 * settings.upload_ratio_limit;
+
+    bytes_reached || ratio_reached
+}
+
+fn upload_status_from_stats(
+    stats: &librqbit::api::TorrentStats,
+    upload_limit_reached: bool,
+) -> BtUploadStatus {
+    if upload_limit_reached {
+        return BtUploadStatus::PausedByLimit;
+    }
+
+    if matches!(stats.state, TorrentStatsState::Paused) {
+        return BtUploadStatus::Paused;
+    }
+
+    let upload_speed = stats
+        .live
+        .as_ref()
+        .map(|live| live.upload_speed.mbps)
+        .unwrap_or(0.0);
+    if upload_speed > 0.0 {
+        return BtUploadStatus::Uploading;
+    }
+
+    BtUploadStatus::Idle
+}
+
 fn mib_per_second_to_bytes_per_second(value: f64) -> f64 {
     value * 1024.0 * 1024.0
 }
@@ -377,10 +456,10 @@ fn now_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_add_torrent, classify_download_source, is_bt_task_id,
-        mib_per_second_to_bytes_per_second, normalize_http_task_id, DownloadSourceKind, BT_PREFIX,
+        BT_PREFIX, DownloadSourceKind, build_add_torrent, classify_download_source, is_bt_task_id,
+        mib_per_second_to_bytes_per_second, normalize_http_task_id, upload_limit_reached,
     };
-    use crate::download::types::{StartDownloadRequest, TaskKind};
+    use crate::download::types::{BtSettings, StartDownloadRequest, TaskKind};
 
     fn request(url: &str, kind: Option<TaskKind>) -> StartDownloadRequest {
         StartDownloadRequest {
@@ -449,5 +528,18 @@ mod tests {
     #[test]
     fn converts_rqbit_mib_speed_to_bytes_per_second() {
         assert_eq!(mib_per_second_to_bytes_per_second(1.5), 1_572_864.0);
+    }
+
+    #[test]
+    fn upload_policy_uses_byte_limit_or_ratio_limit() {
+        let settings = BtSettings {
+            pause_upload_when_limit_reached: true,
+            upload_limit_bytes: 1024,
+            upload_ratio_limit: 2.0,
+        };
+
+        assert!(upload_limit_reached(&settings, 1024, 10_000));
+        assert!(upload_limit_reached(&settings, 1000, 500));
+        assert!(!upload_limit_reached(&settings, 1000, 600));
     }
 }
