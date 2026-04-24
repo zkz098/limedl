@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use super::types::{AdaptiveProfile, ChecksumMode, DownloadSnapshot, DownloadState, ThreadMode};
+use super::types::{
+    AdaptiveProfile, ChecksumMode, DownloadSnapshot, DownloadState, TaskKind, ThreadMode,
+};
 
 pub(super) const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
 
@@ -87,6 +89,7 @@ pub(super) fn plan_chunks(total: Option<u64>, supports_ranges: bool) -> Vec<Chun
 pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
     DownloadSnapshot {
         id: manifest.id.clone(),
+        kind: TaskKind::Http,
         state: manifest.state,
         url: manifest.url.clone(),
         final_url: manifest.final_url.clone(),
@@ -110,6 +113,8 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         error: manifest.error.clone(),
         speed_bytes_per_second: None,
         eta_seconds: None,
+        uploaded_bytes: None,
+        peer_count: None,
         created_at_ms: manifest.created_at_ms,
         updated_at_ms: manifest.updated_at_ms,
     }

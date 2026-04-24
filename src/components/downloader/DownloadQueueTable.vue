@@ -271,6 +271,34 @@ function labelForProgress(download: DownloadSummary) {
   return `${progressValue(download).toFixed(1)}%`;
 }
 
+function labelForTaskKind(kind: DownloadSummary["kind"]) {
+  return kind === "bt" ? t("tokens.bt") : t("tokens.http");
+}
+
+function metaForDownload(download: DownloadSummary) {
+  if (download.kind === "bt") {
+    return [
+      t("queue.peerCount", { count: download.peerCount ?? 0 }),
+      t("queue.uploaded", { size: formatBytes(download.uploadedBytes) }),
+    ].join(" · ");
+  }
+
+  const parts = [
+    download.threadMode === "adaptive" ? t("queue.adaptive") : t("queue.fixedThread"),
+    t("queue.currentThreads", { count: download.connectionCount }),
+  ];
+
+  if (download.adaptiveProfile) {
+    parts.push(t(`tokens.${download.adaptiveProfile}`));
+  }
+
+  if (download.threadNote) {
+    parts.push(download.threadNote);
+  }
+
+  return parts.join(" · ");
+}
+
 onMounted(() => {
   window.addEventListener("pointerdown", handleGlobalPointerDown);
   window.addEventListener("resize", closeMenus);
@@ -374,20 +402,12 @@ onUnmounted(() => {
             >
               <td v-if="isColumnVisible('file')" class="queue-cell queue-cell--file">
                 <div class="queue-file">
-                  <span class="queue-file__name">{{ download.fileName }}</span>
-                  <span class="queue-file__path">{{ download.destinationPath }}</span>
-                  <span class="queue-file__meta">
-                    {{
-                      download.threadMode === "adaptive"
-                        ? t("queue.adaptive")
-                        : t("queue.fixedThread")
-                    }}
-                    · {{ t("queue.currentThreads", { count: download.connectionCount }) }}
-                    <template v-if="download.adaptiveProfile">
-                      · {{ t(`tokens.${download.adaptiveProfile}`) }}
-                    </template>
-                    <template v-if="download.threadNote"> · {{ download.threadNote }} </template>
+                  <span class="queue-file__title">
+                    <span class="queue-file__name">{{ download.fileName }}</span>
+                    <span class="queue-file__kind">{{ labelForTaskKind(download.kind) }}</span>
                   </span>
+                  <span class="queue-file__path">{{ download.destinationPath }}</span>
+                  <span class="queue-file__meta">{{ metaForDownload(download) }}</span>
                 </div>
               </td>
 
@@ -689,7 +709,15 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+.queue-file__title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
 .queue-file__name {
+  min-width: 0;
   color: var(--color-heading);
   font-weight: 600;
   font-size: 0.84rem;
@@ -697,6 +725,18 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.queue-file__kind {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 16%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-soft) 40%, var(--color-panel));
+  color: var(--color-accent-strong);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .queue-file__path {

@@ -26,6 +26,14 @@ pub enum DownloadState {
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+pub enum TaskKind {
+    #[default]
+    Http,
+    Bt,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum ThreadMode {
     Fixed,
     #[default]
@@ -70,6 +78,8 @@ pub enum DeviceLearningMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartDownloadRequest {
+    #[serde(default)]
+    pub kind: Option<TaskKind>,
     pub url: String,
     pub destination_dir: String,
     pub file_name: Option<String>,
@@ -83,6 +93,8 @@ pub struct StartDownloadRequest {
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSnapshot {
     pub id: String,
+    #[serde(default)]
+    pub kind: TaskKind,
     pub state: DownloadState,
     pub url: String,
     pub final_url: String,
@@ -106,6 +118,8 @@ pub struct DownloadSnapshot {
     pub error: Option<String>,
     pub speed_bytes_per_second: Option<f64>,
     pub eta_seconds: Option<u64>,
+    pub uploaded_bytes: Option<u64>,
+    pub peer_count: Option<usize>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
@@ -114,6 +128,8 @@ pub struct DownloadSnapshot {
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSummary {
     pub id: String,
+    #[serde(default)]
+    pub kind: TaskKind,
     pub state: DownloadState,
     pub file_name: String,
     pub destination_path: String,
@@ -128,6 +144,8 @@ pub struct DownloadSummary {
     pub thread_note: Option<String>,
     pub speed_bytes_per_second: Option<f64>,
     pub eta_seconds: Option<u64>,
+    pub uploaded_bytes: Option<u64>,
+    pub peer_count: Option<usize>,
     pub error: Option<String>,
 }
 
@@ -135,6 +153,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
     fn from(value: &DownloadSnapshot) -> Self {
         Self {
             id: value.id.clone(),
+            kind: value.kind,
             state: value.state,
             file_name: value.file_name.clone(),
             destination_path: value.destination_path.clone(),
@@ -149,6 +168,8 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             thread_note: value.thread_note.clone(),
             speed_bytes_per_second: value.speed_bytes_per_second,
             eta_seconds: value.eta_seconds,
+            uploaded_bytes: value.uploaded_bytes,
+            peer_count: value.peer_count,
             error: value.error.clone(),
         }
     }

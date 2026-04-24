@@ -1,6 +1,7 @@
 export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
 export type ThreadMode = "fixed" | "adaptive";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
+export type TaskKind = "http" | "bt";
 
 export type DownloadState =
   | "queued"
@@ -13,6 +14,7 @@ export type DownloadState =
   | "canceled";
 
 export interface StartDownloadRequest {
+  kind?: TaskKind;
   url: string;
   destinationDir: string;
   fileName?: string;
@@ -23,6 +25,7 @@ export interface StartDownloadRequest {
 }
 
 export interface DownloadFormState {
+  kind: TaskKind;
   url: string;
   destinationDir: string;
   fileName: string;
@@ -34,6 +37,7 @@ export interface DownloadFormState {
 
 export interface DownloadSummary {
   id: string;
+  kind: TaskKind;
   state: DownloadState;
   fileName: string;
   destinationPath: string;
@@ -48,11 +52,14 @@ export interface DownloadSummary {
   threadNote?: string;
   speedBytesPerSecond?: number;
   etaSeconds?: number;
+  uploadedBytes?: number;
+  peerCount?: number;
   error?: string;
 }
 
 export interface DownloadSnapshot {
   id: string;
+  kind: TaskKind;
   state: DownloadState;
   url: string;
   finalUrl: string;
@@ -76,6 +83,8 @@ export interface DownloadSnapshot {
   error?: string;
   speedBytesPerSecond?: number;
   etaSeconds?: number;
+  uploadedBytes?: number;
+  peerCount?: number;
   createdAtMs: number;
   updatedAtMs: number;
 }

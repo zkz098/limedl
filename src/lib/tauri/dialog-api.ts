@@ -17,3 +17,22 @@ export async function pickDirectory() {
 
   return null;
 }
+
+export async function pickTorrentFile() {
+  const result = await open({
+    directory: false,
+    multiple: false,
+    title: "Choose torrent file",
+    filters: [{ name: "Torrent", extensions: ["torrent"] }],
+  });
+
+  if (typeof result === "string") {
+    return result;
+  }
+
+  if (Array.isArray(result)) {
+    return result[0] ?? null;
+  }
+
+  return null;
+}

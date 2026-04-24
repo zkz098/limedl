@@ -26,6 +26,8 @@ pub enum DownloadError {
     InvalidResponse(String),
     #[error("invalid proxy configuration: {0}")]
     InvalidProxy(String),
+    #[error("torrent error: {0}")]
+    Torrent(String),
 }
 
 pub type Result<T> = std::result::Result<T, DownloadError>;

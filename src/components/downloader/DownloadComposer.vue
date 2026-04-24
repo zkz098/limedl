@@ -14,11 +14,13 @@ const props = defineProps<{
   form: DownloadFormState;
   isStarting: boolean;
   isPickingDirectory: boolean;
+  isPickingTorrent: boolean;
   settings: AppSettings | null;
 }>();
 
 defineEmits<{
   pickDirectory: [];
+  pickTorrent: [];
   submit: [];
 }>();
 
@@ -27,6 +29,7 @@ const schedulerMode = computed(() => props.settings?.scheduler.mode ?? "automati
 const maxThreadsPerTask = computed(
   () => props.settings?.scheduler.automatic.maxThreadsPerTask ?? 8,
 );
+const isBtTask = computed(() => props.form.kind === "bt");
 
 const fixedThreadOptions = computed(() => {
   const cap = Math.max(1, maxThreadsPerTask.value);
@@ -47,6 +50,10 @@ const threadModeOptions = computed<Array<{ label: string; value: ThreadMode }>>(
 });
 
 const threadHint = computed(() => {
+  if (isBtTask.value) {
+    return t("composer.btHint");
+  }
+
   if (schedulerMode.value === "traditional") {
     return t("composer.traditionalHint");
   }
@@ -68,12 +75,55 @@ const threadHint = computed(() => {
           <h3>{{ t("composer.sourceTitle") }}</h3>
         </div>
 
-        <label class="field field--full">
-          <span class="field__label">{{ t("composer.url") }}</span>
-          <UiInput v-model="form.url" type="url" placeholder="https://example.com/archive.iso" />
-        </label>
+        <div class="source-tabs">
+          <button
+            type="button"
+            class="source-tab"
+            :class="{ 'source-tab--active': form.kind === 'http' }"
+            @click="form.kind = 'http'"
+          >
+            <span class="i-ri-links-line" aria-hidden="true" />
+            <span>{{ t("composer.httpSource") }}</span>
+          </button>
+          <button
+            type="button"
+            class="source-tab"
+            :class="{ 'source-tab--active': form.kind === 'bt' }"
+            @click="form.kind = 'bt'"
+          >
+            <span class="i-ri-seedling-line" aria-hidden="true" />
+            <span>{{ t("composer.btSource") }}</span>
+          </button>
+        </div>
 
         <label class="field field--full">
+          <span class="field__label">{{
+            isBtTask ? t("composer.torrentSource") : t("composer.url")
+          }}</span>
+          <div class="source-field" :class="{ 'source-field--with-picker': isBtTask }">
+            <UiInput
+              v-model="form.url"
+              :type="isBtTask ? 'text' : 'url'"
+              :placeholder="
+                isBtTask
+                  ? 'magnet:?xt=urn:btih:... / https://example.com/file.torrent'
+                  : 'https://example.com/archive.iso'
+              "
+            />
+            <UiButton
+              v-if="isBtTask"
+              type="button"
+              variant="secondary"
+              size="sm"
+              :loading="isPickingTorrent"
+              @click="$emit('pickTorrent')"
+            >
+              {{ isPickingTorrent ? t("common.browsing") : t("composer.chooseTorrent") }}
+            </UiButton>
+          </div>
+        </label>
+
+        <label v-if="!isBtTask" class="field field--full">
           <span class="field__label">{{ t("composer.fileName") }}</span>
           <UiInput
             v-model="form.fileName"
@@ -106,7 +156,7 @@ const threadHint = computed(() => {
         </label>
       </section>
 
-      <section class="group field--full group--split">
+      <section v-if="!isBtTask" class="group field--full group--split">
         <div class="group__head group__head--full">
           <p class="section-kicker">{{ t("composer.strategy") }}</p>
           <h3>{{ t("composer.strategyTitle") }}</h3>
@@ -132,6 +182,14 @@ const threadHint = computed(() => {
           <span class="field__label">{{ t("composer.retries") }}</span>
           <UiNumberField v-model="form.maxRetries" :min="0" />
         </label>
+      </section>
+
+      <section v-else class="group field--full">
+        <div class="group__head">
+          <p class="section-kicker">{{ t("composer.strategy") }}</p>
+          <h3>{{ t("composer.btStrategyTitle") }}</h3>
+        </div>
+        <p class="field__hint field__hint--wide">{{ threadHint }}</p>
       </section>
 
       <div class="composer-actions field--full">
@@ -198,6 +256,41 @@ const threadHint = computed(() => {
   color: var(--color-heading);
 }
 
+.source-tabs {
+  grid-column: 1 / -1;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
+}
+
+.source-tab {
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.84rem;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.source-tab--active {
+  color: var(--color-accent-strong);
+  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-soft) 52%, var(--color-panel));
+}
+
 .field__label {
   font-size: var(--font-size-label);
   letter-spacing: var(--letter-spacing-wide);
@@ -223,6 +316,15 @@ const threadHint = computed(() => {
   gap: var(--space-2);
 }
 
+.source-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.source-field--with-picker {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .composer-actions {
   padding-top: var(--space-1);
 }
@@ -245,6 +347,10 @@ const threadHint = computed(() => {
   }
 
   .destination-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .source-field--with-picker {
     grid-template-columns: minmax(0, 1fr);
   }
 }

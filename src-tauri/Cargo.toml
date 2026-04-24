@@ -36,6 +36,7 @@ urlencoding = "2"
 tauri-plugin-dialog = "2"
 mimalloc = "0.1.48"
 fs4 = { version = "0.13", features = ["sync"] }
+librqbit = "8.1.1"
 
 [dev-dependencies]
 axum = "0.8"

@@ -26,11 +26,13 @@ const {
   infoMessage,
   isAutoRefreshing,
   isPickingDirectory,
+  isPickingTorrent,
   isRefreshingList,
   isRefreshingStatus,
   isStarting,
   applyAppSettingsDefaults,
   pickDestinationDirectory,
+  pickTorrentSourceFile,
   refreshList,
   refreshStatus,
   runCancel,
@@ -313,9 +315,11 @@ watch(
       <DownloadComposer
         :form="form"
         :is-picking-directory="isPickingDirectory"
+        :is-picking-torrent="isPickingTorrent"
         :is-starting="isStarting"
         :settings="appSettings"
         @pick-directory="pickDestinationDirectory"
+        @pick-torrent="pickTorrentSourceFile"
         @submit="handleSubmitStart"
       />
     </UiDialog>

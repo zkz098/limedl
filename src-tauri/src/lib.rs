@@ -5,7 +5,7 @@ use tauri::Manager;
 use download::{
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
     download_remove, download_resume, download_start, download_status, settings_get, settings_save,
-    AppState, DownloadManager,
+    AppState, DownloadManager, TorrentManager,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -23,7 +23,14 @@ pub fn run() {
             std::fs::create_dir_all(&state_dir)
                 .map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) })?;
 
-            app.manage(AppState::new(DownloadManager::new(state_dir)?));
+            let download_manager = DownloadManager::new(state_dir.clone())?;
+            let settings = download_manager.initial_settings();
+            let torrent_manager = tauri::async_runtime::block_on(TorrentManager::new(
+                state_dir.join("torrents"),
+                &settings,
+            ))?;
+
+            app.manage(AppState::new(download_manager, torrent_manager));
 
             Ok(())
         })

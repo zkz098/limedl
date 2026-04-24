@@ -34,17 +34,37 @@ defineEmits<{
 
 const { t } = useI18n();
 
-const detailRows = computed(() => {
+interface DetailRow {
+  label: string;
+  value: string;
+  wide?: boolean;
+}
+
+const detailRows = computed<DetailRow[]>(() => {
   const snapshot = props.selectedSnapshot;
 
   if (!snapshot) {
     return [];
   }
 
-  return [
+  const commonRows = [
     { label: t("inspector.fields.url"), value: snapshot.url, wide: true },
-    { label: t("inspector.fields.finalUrl"), value: snapshot.finalUrl, wide: true },
     { label: t("inspector.fields.destinationPath"), value: snapshot.destinationPath, wide: true },
+  ];
+
+  if (snapshot.kind === "bt") {
+    return [
+      ...commonRows,
+      { label: t("inspector.fields.peerCount"), value: String(snapshot.peerCount ?? 0) },
+      { label: t("inspector.fields.uploadedBytes"), value: formatBytes(snapshot.uploadedBytes) },
+      { label: t("inspector.fields.createdAt"), value: formatTimestamp(snapshot.createdAtMs) },
+      { label: t("inspector.fields.updatedAt"), value: formatTimestamp(snapshot.updatedAtMs) },
+    ];
+  }
+
+  return [
+    ...commonRows,
+    { label: t("inspector.fields.finalUrl"), value: snapshot.finalUrl, wide: true },
     { label: t("inspector.fields.tempPath"), value: snapshot.tempPath, wide: true },
     {
       label: t("inspector.fields.supportsRanges"),
@@ -181,10 +201,22 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
             <span class="text-value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
           </div>
           <div class="text-row">
-            <span class="text-label">{{ t("inspector.threads") }}:</span>
+            <span class="text-label"
+              >{{
+                selectedOverview.kind === "bt" ? t("inspector.peers") : t("inspector.threads")
+              }}:</span
+            >
             <span class="text-value">
-              {{ selectedOverview.connectionCount }}
-              <template v-if="selectedOverview.threadMode === 'adaptive'">
+              {{
+                selectedOverview.kind === "bt"
+                  ? (selectedOverview.peerCount ?? 0)
+                  : selectedOverview.connectionCount
+              }}
+              <template
+                v-if="
+                  selectedOverview.kind === 'http' && selectedOverview.threadMode === 'adaptive'
+                "
+              >
                 / {{ t("tokens.adaptive") }}
               </template>
             </span>

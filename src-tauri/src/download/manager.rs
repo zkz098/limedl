@@ -29,6 +29,7 @@ use super::{
         contiguous_prefix_end, has_partial_chunk_progress, plan_chunks, snapshot_from_manifest,
         validators_changed, ChunkManifest, Manifest, RemoteMetadata, CHUNK_SIZE,
     },
+    torrent::TorrentManager,
     types::{
         AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, ChecksumMode, DeviceLearningMode,
         DownloadDefaultsSettings, DownloadSnapshot, DownloadState, DownloadSummary,
@@ -47,13 +48,17 @@ const MAX_TRADITIONAL_THREADS: usize = 32;
 #[derive(Clone)]
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
+    pub torrent_manager: Arc<TorrentManager>,
 }
 
 impl AppState {
-    pub fn new(manager: DownloadManager) -> Self {
+    pub fn new(manager: DownloadManager, torrent_manager: TorrentManager) -> Self {
         let manager = Arc::new(manager);
         manager.clone().start_scheduler_loop();
-        Self { manager }
+        Self {
+            manager,
+            torrent_manager: Arc::new(torrent_manager),
+        }
     }
 }
 
@@ -132,6 +137,10 @@ impl DownloadManager {
 
     pub async fn settings(&self) -> Result<AppSettings> {
         Ok(self.settings.read().await.clone())
+    }
+
+    pub fn initial_settings(&self) -> AppSettings {
+        self.settings.blocking_read().clone()
     }
 
     pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings> {
@@ -2534,6 +2543,7 @@ mod tests {
         let (_, _, desired_thread_count, _) = resolve_thread_settings(
             &settings,
             &StartDownloadRequest {
+                kind: None,
                 url: String::from("https://example.com/file.bin"),
                 destination_dir: String::from("E:/tmp"),
                 file_name: None,
@@ -2587,6 +2597,7 @@ mod tests {
 
         let first = manager
             .start(StartDownloadRequest {
+                kind: None,
                 url: format!("http://{address}/file.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("first.bin")),
@@ -2600,6 +2611,7 @@ mod tests {
 
         let second = manager
             .start(StartDownloadRequest {
+                kind: None,
                 url: format!("http://{address}/file.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("second.bin")),
@@ -2625,8 +2637,6 @@ mod tests {
     #[tokio::test]
     async fn automatic_mode_prioritizes_larger_file() {
         let big_payload = Arc::new(vec![7_u8; 24 * 1024 * 1024]);
-        let small_payload = Arc::new(vec![9_u8; 8 * 1024 * 1024]);
-
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let app = Router::new()
@@ -2663,6 +2673,7 @@ mod tests {
 
         let big = manager
             .start(StartDownloadRequest {
+                kind: None,
                 url: format!("http://{address}/big.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("big.bin")),
@@ -2676,6 +2687,7 @@ mod tests {
 
         let small = manager
             .start(StartDownloadRequest {
+                kind: None,
                 url: format!("http://{address}/small.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("small.bin")),
@@ -2734,6 +2746,7 @@ mod tests {
 
         let id = manager
             .start(StartDownloadRequest {
+                kind: None,
                 url: format!("http://{address}/file.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("aimd.bin")),

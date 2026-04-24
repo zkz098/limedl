@@ -11,7 +11,7 @@ import {
   resumeDownload,
   startDownload,
 } from "../lib/tauri/download-api";
-import { pickDirectory } from "../lib/tauri/dialog-api";
+import { pickDirectory, pickTorrentFile } from "../lib/tauri/dialog-api";
 import { t } from "../i18n";
 import type {
   ChecksumMode,
@@ -45,6 +45,7 @@ function toMessage(error: unknown) {
 function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
   return {
     id: snapshot.id,
+    kind: snapshot.kind,
     state: snapshot.state,
     fileName: snapshot.fileName,
     destinationPath: snapshot.destinationPath,
@@ -59,12 +60,15 @@ function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     threadNote: snapshot.threadNote,
     speedBytesPerSecond: snapshot.speedBytesPerSecond,
     etaSeconds: snapshot.etaSeconds,
+    uploadedBytes: snapshot.uploadedBytes,
+    peerCount: snapshot.peerCount,
     error: snapshot.error,
   };
 }
 
 export function useDownloader() {
   const form = reactive<DownloadFormState>({
+    kind: "http",
     url: "",
     destinationDir: "",
     fileName: "",
@@ -83,6 +87,7 @@ export function useDownloader() {
   const isRefreshingList = ref(false);
   const isRefreshingStatus = ref(false);
   const isPickingDirectory = ref(false);
+  const isPickingTorrent = ref(false);
   const isAutoRefreshing = ref(false);
   const actionName = ref("");
   const allowAutoSelect = ref(true);
@@ -187,6 +192,10 @@ export function useDownloader() {
   }
 
   function applySchedulerDefaults(mode: SchedulerMode, maxThreadsPerTask?: number) {
+    if (form.kind === "bt") {
+      return;
+    }
+
     if (mode === "automatic") {
       form.threadMode = "adaptive";
       if (
@@ -224,33 +233,37 @@ export function useDownloader() {
 
   function buildStartRequest(): StartDownloadRequest {
     const request: StartDownloadRequest = {
+      kind: form.kind,
       url: form.url.trim(),
       destinationDir: form.destinationDir.trim(),
-      threadMode: form.threadMode,
     };
 
-    const fileName = form.fileName.trim();
-    if (fileName) {
-      request.fileName = fileName;
-    }
+    if (form.kind === "http") {
+      request.threadMode = form.threadMode;
 
-    if (typeof form.threadCount === "number" && Number.isFinite(form.threadCount)) {
-      const threadCount = Math.trunc(form.threadCount);
-
-      if (threadCount > 0) {
-        request.threadCount = threadCount;
+      const fileName = form.fileName.trim();
+      if (fileName) {
+        request.fileName = fileName;
       }
-    }
 
-    if (typeof form.maxRetries === "number" && Number.isFinite(form.maxRetries)) {
-      const maxRetries = Math.trunc(form.maxRetries);
+      if (typeof form.threadCount === "number" && Number.isFinite(form.threadCount)) {
+        const threadCount = Math.trunc(form.threadCount);
 
-      if (maxRetries >= 0) {
-        request.maxRetries = maxRetries;
+        if (threadCount > 0) {
+          request.threadCount = threadCount;
+        }
       }
-    }
 
-    request.checksum = form.checksum;
+      if (typeof form.maxRetries === "number" && Number.isFinite(form.maxRetries)) {
+        const maxRetries = Math.trunc(form.maxRetries);
+
+        if (maxRetries >= 0) {
+          request.maxRetries = maxRetries;
+        }
+      }
+
+      request.checksum = form.checksum;
+    }
 
     return request;
   }
@@ -339,6 +352,27 @@ export function useDownloader() {
     }
   }
 
+  async function pickTorrentSourceFile() {
+    if (isPickingTorrent.value) {
+      return;
+    }
+
+    isPickingTorrent.value = true;
+
+    try {
+      const selectedPath = await pickTorrentFile();
+
+      if (selectedPath) {
+        form.kind = "bt";
+        form.url = selectedPath;
+      }
+    } catch (error) {
+      setError(toMessage(error));
+    } finally {
+      isPickingTorrent.value = false;
+    }
+  }
+
   async function runAutoRefresh() {
     if (autoRefreshInFlight || isStarting.value || Boolean(actionName.value)) {
       return;
@@ -391,7 +425,9 @@ export function useDownloader() {
 
   async function submitStart() {
     if (!form.url.trim() || !form.destinationDir.trim()) {
-      setError(t("messages.startRequired"));
+      setError(
+        form.kind === "bt" ? t("messages.torrentStartRequired") : t("messages.startRequired"),
+      );
       return;
     }
 
@@ -525,12 +561,14 @@ export function useDownloader() {
     infoMessage,
     isAutoRefreshing,
     isPickingDirectory,
+    isPickingTorrent,
     isRefreshingList,
     isRefreshingStatus,
     isStarting,
     applySchedulerDefaults,
     applyAppSettingsDefaults,
     pickDestinationDirectory,
+    pickTorrentSourceFile,
     refreshList,
     refreshStatus,
     runCancel: () => runAction("Cancel", cancelDownload),
