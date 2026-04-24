@@ -35,7 +35,8 @@ use super::{
         DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
         DownloadSummary, NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile,
         ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest,
-        ThreadMode, TraditionalSchedulerSettings,
+        ThreadMode, TraditionalSchedulerSettings, default_http_user_agent,
+        default_tracker_list_url,
     },
 };
 
@@ -165,7 +166,11 @@ impl DownloadManager {
 
         let settings = self.settings.read().await.clone();
         let download_id = Uuid::new_v4().to_string();
-        let metadata = self.probe(&request.url).await?;
+        let user_agent = resolve_user_agent(
+            request.user_agent.as_deref(),
+            &settings.download.default_user_agent,
+        )?;
+        let metadata = self.probe(&request.url, &user_agent).await?;
         let destination_dir = PathBuf::from(&request.destination_dir);
         fs::create_dir_all(&destination_dir)?;
 
@@ -191,6 +196,7 @@ impl DownloadManager {
             id: download_id.clone(),
             url: request.url.clone(),
             final_url: metadata.final_url.clone(),
+            user_agent,
             destination_dir: destination_dir.to_string_lossy().to_string(),
             file_name: safe_name.clone(),
             destination_path: destination_path.to_string_lossy().to_string(),
@@ -410,8 +416,12 @@ impl DownloadManager {
                     _ = self.rebalance_notify.notified() => {}
                 }
 
-                let _ = self.update_adaptive_targets().await;
-                let _ = self.rebalance_allocations().await;
+                if let Err(error) = self.update_adaptive_targets().await {
+                    log_background_error("update adaptive targets", &error);
+                }
+                if let Err(error) = self.rebalance_allocations().await {
+                    log_background_error("rebalance allocations", &error);
+                }
             }
         });
     }
@@ -426,11 +436,23 @@ impl DownloadManager {
 
             let content = match fs::read_to_string(&path) {
                 Ok(content) => content,
-                Err(_) => continue,
+                Err(error) => {
+                    eprintln!(
+                        "[downloader] skip unreadable manifest {}: {error}",
+                        path.display()
+                    );
+                    continue;
+                }
             };
             let mut manifest = match serde_json::from_str::<Manifest>(&content) {
                 Ok(manifest) => manifest,
-                Err(_) => continue,
+                Err(error) => {
+                    eprintln!(
+                        "[downloader] skip invalid manifest {}: {error}",
+                        path.display()
+                    );
+                    continue;
+                }
             };
 
             let destination_exists = Path::new(&manifest.destination_path).exists();
@@ -473,14 +495,19 @@ impl DownloadManager {
         Ok(())
     }
 
-    async fn probe(&self, url: &str) -> Result<RemoteMetadata> {
+    async fn probe(&self, url: &str, user_agent: &str) -> Result<RemoteMetadata> {
         let client = self.client.read().await.clone();
-        let head = client.head(url).send().await;
+        let head = client
+            .head(url)
+            .header(header::USER_AGENT, user_agent)
+            .send()
+            .await;
         let response = match head {
             Ok(response) if response.status().is_success() => response,
             _ => {
                 client
                     .get(url)
+                    .header(header::USER_AGENT, user_agent)
                     .header(header::RANGE, "bytes=0-0")
                     .send()
                     .await?
@@ -554,7 +581,9 @@ impl DownloadManager {
                     manifest.allocated_thread_count = Some(0);
                     manifest.updated_at_ms = now_ms();
                 }
-                let _ = manager.learn_from_download(managed.clone()).await;
+                if let Err(error) = manager.learn_from_download(managed.clone()).await {
+                    log_background_error("learn from failed download", &error);
+                }
             }
 
             let should_persist = {
@@ -562,7 +591,9 @@ impl DownloadManager {
                 snapshot.state != DownloadState::Canceled
             };
             if should_persist {
-                let _ = manager.persist(managed.clone()).await;
+                if let Err(error) = manager.persist(managed.clone()).await {
+                    log_background_error("persist background download state", &error);
+                }
             }
             let mut runtime = managed.runtime.lock().expect("runtime poisoned");
             *runtime = None;
@@ -580,7 +611,9 @@ impl DownloadManager {
         max_retries: u32,
     ) -> Result<()> {
         let current_manifest = { managed.manifest.lock().expect("manifest poisoned").clone() };
-        let metadata = self.probe(&current_manifest.url).await?;
+        let metadata = self
+            .probe(&current_manifest.url, &current_manifest.user_agent)
+            .await?;
 
         let supports_parallel =
             supports_parallelism(metadata.total_bytes, metadata.supports_ranges);
@@ -633,7 +666,9 @@ impl DownloadManager {
         match outcome {
             RunOutcome::Finished => {
                 self.finalize_download(managed.clone()).await?;
-                self.learn_from_download(managed.clone()).await?;
+                if let Err(error) = self.learn_from_download(managed.clone()).await {
+                    log_background_error("learn from completed download", &error);
+                }
             }
             RunOutcome::Paused => {
                 {
@@ -651,7 +686,9 @@ impl DownloadManager {
                     manifest.allocated_thread_count = Some(0);
                     manifest.updated_at_ms = now_ms();
                 }
-                self.learn_from_download(managed.clone()).await?;
+                if let Err(error) = self.learn_from_download(managed.clone()).await {
+                    log_background_error("learn from paused download", &error);
+                }
             }
             RunOutcome::Canceled => {
                 self.cleanup_files(&managed)?;
@@ -697,10 +734,11 @@ impl DownloadManager {
                 WaitState::Canceled => return Ok(RunOutcome::Canceled),
             }
 
-            let (url, validator, state) = {
+            let (url, user_agent, validator, state) = {
                 let manifest = managed.manifest.lock().expect("manifest poisoned");
                 (
                     manifest.final_url.clone(),
+                    manifest.user_agent.clone(),
                     if_range_header(&manifest),
                     manifest.state,
                 )
@@ -721,9 +759,10 @@ impl DownloadManager {
                 || {
                     let client = client.clone();
                     let url = url.clone();
+                    let user_agent = user_agent.clone();
                     let validator = validator.clone();
                     async move {
-                        let mut builder = client.get(url);
+                        let mut builder = client.get(url).header(header::USER_AGENT, user_agent);
                         if start_offset > 0 {
                             builder =
                                 builder.header(header::RANGE, format!("bytes={start_offset}-"));
@@ -1022,8 +1061,8 @@ impl DownloadManager {
 
             let mut degrade_threshold: f64 = match profile {
                 AdaptiveProfile::Conservative => 0.18,
-                AdaptiveProfile::Balanced => 0.12,
-                AdaptiveProfile::Aggressive => 0.08,
+                AdaptiveProfile::Balanced => 0.16,
+                AdaptiveProfile::Aggressive => 0.20,
             };
             let mut increase_threshold: f64 = match profile {
                 AdaptiveProfile::Conservative => 0.08,
@@ -1054,12 +1093,20 @@ impl DownloadManager {
                 }
             }
 
-            let mut should_decrease = aimd.recent_penalty && current > 1;
-            if let Some(last) = aimd.last_throughput {
-                if last > 0.0 && throughput < last * (1.0 - degrade_threshold) && current > 1 {
-                    should_decrease = true;
-                }
-            }
+            degrade_threshold = match profile {
+                AdaptiveProfile::Conservative => degrade_threshold,
+                AdaptiveProfile::Balanced => degrade_threshold.max(0.16),
+                AdaptiveProfile::Aggressive => degrade_threshold.max(0.20),
+            };
+
+            let throughput_drop = aimd
+                .last_throughput
+                .is_some_and(|last| last > 0.0 && throughput < last * (1.0 - degrade_threshold));
+            let should_decrease = current > 1
+                && match profile {
+                    AdaptiveProfile::Conservative => aimd.recent_penalty || throughput_drop,
+                    AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => throughput_drop,
+                };
 
             if should_decrease {
                 manifest.desired_thread_count = Some(reduce_threads(current, profile));
@@ -1275,8 +1322,17 @@ impl DownloadManager {
             }
         }
 
+        let mut first_error = None;
         for managed in downloads.values() {
-            let _ = persist_manifest_snapshot(managed).await;
+            if let Err(error) = persist_manifest_snapshot(managed).await {
+                log_background_error("persist rebalanced manifest", &error);
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            }
+        }
+        if let Some(error) = first_error {
+            return Err(error);
         }
         Ok(())
     }
@@ -1377,10 +1433,10 @@ impl DownloadManager {
         let temp_path = PathBuf::from(manifest.temp_path);
         let manifest_path = PathBuf::from(manifest.manifest_path);
         if temp_path.exists() {
-            let _ = fs::remove_file(temp_path);
+            remove_file_if_exists(&temp_path)?;
         }
         if manifest_path.exists() {
-            let _ = fs::remove_file(manifest_path);
+            remove_file_if_exists(&manifest_path)?;
         }
         Ok(())
     }
@@ -2031,7 +2087,8 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         .min(max_parallel_threads);
     let network_learning =
         normalize_network_learning_settings(settings.network_learning, max_threads_per_task.max(1));
-    let bt = normalize_bt_settings(settings.bt);
+    let bt = normalize_bt_settings(settings.bt)?;
+    let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
 
     Ok(AppSettings {
         appearance: settings.appearance,
@@ -2049,16 +2106,23 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             default_download_dir: settings.download.default_download_dir.trim().to_string(),
             default_max_retries: settings.download.default_max_retries.clamp(0, 20),
             default_checksum: settings.download.default_checksum,
+            default_user_agent,
         },
         bt,
         network_learning,
     })
 }
 
-fn normalize_bt_settings(settings: BtSettings) -> BtSettings {
+fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
     const MAX_UPLOAD_LIMIT_BYTES: u64 = 10 * 1024 * 1024 * 1024 * 1024;
+    let tracker_list = normalize_tracker_list(&settings.tracker_list)?;
+    let tracker_list_url = normalize_tracker_list_url(&settings.tracker_list_url)?;
 
-    BtSettings {
+    Ok(BtSettings {
+        dht_enabled: settings.dht_enabled,
+        pex_enabled: settings.pex_enabled,
+        tracker_list,
+        tracker_list_url,
         pause_upload_when_limit_reached: settings.pause_upload_when_limit_reached,
         upload_limit_bytes: settings.upload_limit_bytes.min(MAX_UPLOAD_LIMIT_BYTES),
         upload_ratio_limit: if settings.upload_ratio_limit.is_finite() {
@@ -2066,15 +2130,106 @@ fn normalize_bt_settings(settings: BtSettings) -> BtSettings {
         } else {
             0.0
         },
+    })
+}
+
+fn normalize_user_agent(user_agent: &str) -> Result<String> {
+    let normalized = user_agent.trim();
+    if normalized.is_empty() {
+        return Ok(default_http_user_agent());
+    }
+    if normalized.len() > 512 || header::HeaderValue::from_str(normalized).is_err() {
+        return Err(DownloadError::InvalidResponse(String::from(
+            "invalid user-agent value",
+        )));
+    }
+
+    Ok(normalized.to_string())
+}
+
+fn resolve_user_agent(
+    request_user_agent: Option<&str>,
+    default_user_agent: &str,
+) -> Result<String> {
+    match request_user_agent
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        Some(user_agent) => normalize_user_agent(user_agent),
+        None => normalize_user_agent(default_user_agent),
     }
 }
 
+pub(super) fn normalize_tracker_list(tracker_list: &str) -> Result<String> {
+    let mut normalized = Vec::new();
+
+    for raw_tracker in tracker_list.lines() {
+        let tracker = raw_tracker.trim();
+        if tracker.is_empty() {
+            continue;
+        }
+
+        normalized.push(parse_tracker_url(tracker)?);
+    }
+
+    Ok(finalize_tracker_list(normalized))
+}
+
+pub(super) fn normalize_tracker_list_lossy(tracker_list: &str) -> String {
+    let normalized = tracker_list
+        .lines()
+        .map(str::trim)
+        .filter(|tracker| !tracker.is_empty())
+        .filter_map(|tracker| parse_tracker_url(tracker).ok())
+        .collect::<Vec<_>>();
+
+    finalize_tracker_list(normalized)
+}
+
+fn parse_tracker_url(tracker: &str) -> Result<String> {
+    let parsed =
+        Url::parse(tracker).map_err(|error| DownloadError::InvalidResponse(error.to_string()))?;
+    if !matches!(parsed.scheme(), "http" | "https" | "udp") {
+        return Err(DownloadError::InvalidResponse(format!(
+            "unsupported tracker scheme: {}",
+            parsed.scheme()
+        )));
+    }
+
+    Ok(parsed.to_string())
+}
+
+fn finalize_tracker_list(mut normalized: Vec<String>) -> String {
+    normalized.sort();
+    normalized.dedup();
+    normalized.join("\n")
+}
+
+pub(super) fn normalize_tracker_list_url(tracker_list_url: &str) -> Result<String> {
+    let tracker_list_url = tracker_list_url.trim();
+    if tracker_list_url.is_empty() {
+        return Ok(default_tracker_list_url());
+    }
+
+    let parsed = Url::parse(tracker_list_url)
+        .map_err(|error| DownloadError::InvalidResponse(error.to_string()))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(DownloadError::InvalidResponse(format!(
+            "unsupported tracker list url scheme: {}",
+            parsed.scheme()
+        )));
+    }
+
+    Ok(parsed.to_string())
+}
+
 fn build_http_client(settings: &AppSettings) -> Result<Client> {
+    let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
     let mut builder = Client::builder()
         .redirect(Policy::limited(10))
         .tcp_nodelay(true)
         .read_timeout(Duration::from_secs(15))
-        .user_agent("downloader/0.1");
+        .user_agent(default_user_agent);
 
     match settings.proxy.mode {
         ProxyMode::Disabled => {
@@ -2161,18 +2316,23 @@ async fn download_chunk(
             );
         }
 
-        let (url, validator) = {
+        let (url, user_agent, validator) = {
             let manifest = managed.manifest.lock().expect("manifest poisoned");
-            (manifest.final_url.clone(), if_range_header(&manifest))
+            (
+                manifest.final_url.clone(),
+                manifest.user_agent.clone(),
+                if_range_header(&manifest),
+            )
         };
 
         let response = request_with_retry(
             || {
                 let client = client.clone();
                 let url = url.clone();
+                let user_agent = user_agent.clone();
                 let validator = validator.clone();
                 async move {
-                    build_segment_request(&client, &url, current, end, validator)
+                    build_segment_request(&client, &url, &user_agent, current, end, validator)
                         .send()
                         .await
                 }
@@ -2258,6 +2418,14 @@ fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
     }
 
     destination_dir.join(format!("{}-{}{}", stem, Uuid::new_v4(), extension))
+}
+
+fn remove_file_if_exists(path: &Path) -> Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
 }
 
 async fn request_with_retry<F, Fut>(
@@ -2347,6 +2515,10 @@ async fn persist_manifest_snapshot(managed: &Arc<ManagedDownload>) -> Result<()>
     tokio::fs::write(&temp_path, serde_json::to_vec_pretty(&manifest)?).await?;
     tokio::fs::rename(&temp_path, &manifest_path).await?;
     Ok(())
+}
+
+fn log_background_error(context: &str, error: impl std::fmt::Display) {
+    eprintln!("[downloader] {context}: {error}");
 }
 
 fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
@@ -2569,6 +2741,7 @@ mod tests {
                 url: String::from("https://example.com/file.bin"),
                 destination_dir: String::from("E:/tmp"),
                 file_name: None,
+                user_agent: None,
                 thread_mode: Some(ThreadMode::Adaptive),
                 thread_count: None,
                 max_retries: None,
@@ -2624,6 +2797,7 @@ mod tests {
                 url: format!("http://{address}/file.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("first.bin")),
+                user_agent: None,
                 thread_mode: Some(ThreadMode::Fixed),
                 thread_count: Some(4),
                 max_retries: Some(1),
@@ -2638,6 +2812,7 @@ mod tests {
                 url: format!("http://{address}/file.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("second.bin")),
+                user_agent: None,
                 thread_mode: Some(ThreadMode::Fixed),
                 thread_count: Some(4),
                 max_retries: Some(1),
@@ -2701,6 +2876,7 @@ mod tests {
                 url: format!("http://{address}/big.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("big.bin")),
+                user_agent: None,
                 thread_mode: Some(ThreadMode::Fixed),
                 thread_count: Some(3),
                 max_retries: Some(1),
@@ -2715,6 +2891,7 @@ mod tests {
                 url: format!("http://{address}/small.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("small.bin")),
+                user_agent: None,
                 thread_mode: Some(ThreadMode::Fixed),
                 thread_count: Some(3),
                 max_retries: Some(1),
@@ -2775,6 +2952,7 @@ mod tests {
                 url: format!("http://{address}/file.bin"),
                 destination_dir: temp.path().join("out").to_string_lossy().to_string(),
                 file_name: Some(String::from("aimd.bin")),
+                user_agent: None,
                 thread_mode: Some(ThreadMode::Adaptive),
                 thread_count: None,
                 max_retries: Some(1),

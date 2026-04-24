@@ -19,6 +19,7 @@ export interface StartDownloadRequest {
   url: string;
   destinationDir: string;
   fileName?: string;
+  userAgent?: string;
   threadMode?: ThreadMode;
   threadCount?: number;
   maxRetries?: number;
@@ -30,6 +31,7 @@ export interface DownloadFormState {
   url: string;
   destinationDir: string;
   fileName: string;
+  userAgent: string;
   threadMode: ThreadMode;
   threadCount: number | null;
   maxRetries: number | null;

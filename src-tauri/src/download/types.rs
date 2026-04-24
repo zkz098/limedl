@@ -93,6 +93,8 @@ pub struct StartDownloadRequest {
     pub url: String,
     pub destination_dir: String,
     pub file_name: Option<String>,
+    #[serde(default)]
+    pub user_agent: Option<String>,
     pub thread_mode: Option<ThreadMode>,
     pub thread_count: Option<usize>,
     pub max_retries: Option<u32>,
@@ -241,11 +243,21 @@ pub struct DownloadDefaultsSettings {
     pub default_download_dir: String,
     pub default_max_retries: u32,
     pub default_checksum: ChecksumMode,
+    #[serde(default = "default_http_user_agent")]
+    pub default_user_agent: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {
+    #[serde(default = "default_true")]
+    pub dht_enabled: bool,
+    #[serde(default = "default_true")]
+    pub pex_enabled: bool,
+    #[serde(default)]
+    pub tracker_list: String,
+    #[serde(default = "default_tracker_list_url")]
+    pub tracker_list_url: String,
     pub pause_upload_when_limit_reached: bool,
     pub upload_limit_bytes: u64,
     pub upload_ratio_limit: f64,
@@ -254,11 +266,29 @@ pub struct BtSettings {
 impl Default for BtSettings {
     fn default() -> Self {
         Self {
+            dht_enabled: true,
+            pex_enabled: true,
+            tracker_list: String::new(),
+            tracker_list_url: default_tracker_list_url(),
             pause_upload_when_limit_reached: false,
             upload_limit_bytes: 0,
             upload_ratio_limit: 0.0,
         }
     }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+pub fn default_tracker_list_url() -> String {
+    String::from("https://cf.trackerslist.com/best.txt")
+}
+
+pub fn default_http_user_agent() -> String {
+    String::from(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    )
 }
 
 impl Default for DownloadDefaultsSettings {
@@ -267,6 +297,7 @@ impl Default for DownloadDefaultsSettings {
             default_download_dir: String::new(),
             default_max_retries: 5,
             default_checksum: ChecksumMode::Blake3,
+            default_user_agent: default_http_user_agent(),
         }
     }
 }

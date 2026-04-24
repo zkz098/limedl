@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
 import DownloadInspector from "./components/downloader/DownloadInspector.vue";
@@ -56,8 +56,15 @@ const inspectorCollapsed = ref(false);
 const currentView = ref<"home" | "settings">("home");
 const appSettings = ref<AppSettings | null>(null);
 const pendingPermanentDeleteId = ref<string | null>(null);
+const pendingView = ref<"home" | "settings" | null>(null);
+const settingsHasUnsavedChanges = ref(false);
+const notificationMessage = ref("");
+const knownFailedDownloadIds = new Set<string>();
+let notificationTimer: ReturnType<typeof setTimeout> | null = null;
+let hasSeenInitialDownloadList = false;
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
+const showUnsavedSettingsDialog = computed(() => pendingView.value !== null);
 const pendingPermanentDeleteTask = computed(
   () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
 );
@@ -74,6 +81,17 @@ const activeCount = computed(
 const completedCount = computed(
   () => downloads.value.filter((download) => download.state === "completed").length,
 );
+
+function showNotification(message: string) {
+  notificationMessage.value = message;
+  if (notificationTimer) {
+    clearTimeout(notificationTimer);
+  }
+  notificationTimer = setTimeout(() => {
+    notificationMessage.value = "";
+    notificationTimer = null;
+  }, 3600);
+}
 
 const handleSubmitStart = async () => {
   await submitStart();
@@ -111,6 +129,33 @@ function requestPermanentDelete(downloadId: string) {
   pendingPermanentDeleteId.value = downloadId;
 }
 
+function navigateTo(view: "home" | "settings") {
+  if (view === currentView.value) {
+    return;
+  }
+
+  if (currentView.value === "settings" && settingsHasUnsavedChanges.value) {
+    pendingView.value = view;
+    return;
+  }
+
+  currentView.value = view;
+}
+
+function cancelDiscardSettings() {
+  pendingView.value = null;
+}
+
+function confirmDiscardSettings() {
+  const nextView = pendingView.value;
+  pendingView.value = null;
+  settingsHasUnsavedChanges.value = false;
+
+  if (nextView) {
+    currentView.value = nextView;
+  }
+}
+
 function cancelPermanentDelete() {
   if (actionName.value === "Purge") {
     return;
@@ -131,7 +176,12 @@ async function confirmPermanentDelete() {
 
 function handleSettingsSaved(nextSettings: AppSettings) {
   appSettings.value = nextSettings;
+  settingsHasUnsavedChanges.value = false;
   applyAppSettingsDefaults(nextSettings);
+}
+
+function handleSettingsDirtyChange(isDirty: boolean) {
+  settingsHasUnsavedChanges.value = isDirty;
 }
 
 async function loadSettings() {
@@ -166,11 +216,59 @@ watch(
     applyAppSettingsDefaults(appSettings.value);
   },
 );
+
+watch(
+  downloads,
+  (nextDownloads) => {
+    if (!hasSeenInitialDownloadList) {
+      for (const download of nextDownloads) {
+        if (download.state === "failed") {
+          knownFailedDownloadIds.add(download.id);
+        }
+      }
+      hasSeenInitialDownloadList = true;
+      return;
+    }
+
+    for (const download of nextDownloads) {
+      if (download.state !== "failed") {
+        knownFailedDownloadIds.delete(download.id);
+        continue;
+      }
+
+      if (knownFailedDownloadIds.has(download.id)) {
+        continue;
+      }
+
+      knownFailedDownloadIds.add(download.id);
+      showNotification(
+        t("messages.downloadFailed", {
+          fileName: download.fileName,
+          reason: download.error || t("common.unknown"),
+        }),
+      );
+    }
+  },
+  { deep: true },
+);
+
+onBeforeUnmount(() => {
+  if (notificationTimer) {
+    clearTimeout(notificationTimer);
+  }
+});
 </script>
 
 <template>
   <main class="app-shell min-h-screen text-[var(--color-text-main)]">
     <div class="app-shell__backdrop" aria-hidden="true" />
+
+    <Transition name="app-notification">
+      <div v-if="notificationMessage" class="app-notification" role="alert">
+        <span class="i-ri-error-warning-line" aria-hidden="true" />
+        <span>{{ notificationMessage }}</span>
+      </div>
+    </Transition>
 
     <aside class="sidebar">
       <div class="sidebar__brand">
@@ -192,7 +290,7 @@ watch(
           type="button"
           class="sidebar-nav__item"
           :class="{ 'sidebar-nav__item--active': currentView === 'home' }"
-          @click="currentView = 'home'"
+          @click="navigateTo('home')"
         >
           <span class="sidebar-nav__icon i-ri-home-5-line" aria-hidden="true" />
           <span>{{ t("nav.home") }}</span>
@@ -201,7 +299,7 @@ watch(
           type="button"
           class="sidebar-nav__item"
           :class="{ 'sidebar-nav__item--active': currentView === 'settings' }"
-          @click="currentView = 'settings'"
+          @click="navigateTo('settings')"
         >
           <span class="sidebar-nav__icon i-ri-settings-3-line" aria-hidden="true" />
           <span>{{ t("nav.settings") }}</span>
@@ -254,7 +352,12 @@ watch(
         @refresh="refreshList"
         @select="selectDownload"
       />
-      <SettingsPage v-else :settings="appSettings" @saved="handleSettingsSaved" />
+      <SettingsPage
+        v-else
+        :settings="appSettings"
+        @dirty-change="handleSettingsDirtyChange"
+        @saved="handleSettingsSaved"
+      />
     </section>
 
     <Transition name="floating-inspector">
@@ -376,6 +479,45 @@ watch(
         </div>
       </div>
     </UiDialog>
+
+    <UiDialog
+      :model-value="showUnsavedSettingsDialog"
+      width="min(32rem, calc(100vw - 1.5rem))"
+      @update:model-value="
+        (value) => {
+          if (!value) cancelDiscardSettings();
+        }
+      "
+    >
+      <template #title>
+        <div class="dialog-heading">
+          <div>
+            <p class="section-kicker">{{ t("settings.kicker") }}</p>
+            <h2>{{ t("dialog.unsavedSettingsTitle") }}</h2>
+          </div>
+          <span class="dialog-heading__icon i-ri-error-warning-line" aria-hidden="true" />
+        </div>
+      </template>
+
+      <div class="confirm-delete">
+        <p class="confirm-delete__message">
+          {{ t("dialog.unsavedSettingsMessage") }}
+        </p>
+        <div class="confirm-delete__actions">
+          <UiButton type="button" variant="secondary" @click="cancelDiscardSettings">
+            {{ t("dialog.keepEditing") }}
+          </UiButton>
+          <UiButton
+            type="button"
+            variant="danger"
+            icon="i-ri-arrow-right-line"
+            @click="confirmDiscardSettings"
+          >
+            {{ t("dialog.discardSettings") }}
+          </UiButton>
+        </div>
+      </div>
+    </UiDialog>
   </main>
 </template>
 
@@ -416,6 +558,45 @@ watch(
 .main-content {
   position: relative;
   z-index: 1;
+}
+
+.app-notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 50;
+  max-width: min(30rem, calc(100vw - 2rem));
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-panel) 96%, transparent);
+  box-shadow: var(--shadow-card-hover);
+  color: var(--color-danger-text);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  backdrop-filter: blur(0.875rem);
+}
+
+.app-notification span:first-child {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  font-size: 1rem;
+}
+
+.app-notification-enter-active,
+.app-notification-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.app-notification-enter-from,
+.app-notification-leave-to {
+  opacity: 0;
+  transform: translateY(-0.45rem);
 }
 
 .sidebar {

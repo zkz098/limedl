@@ -1,7 +1,9 @@
+use std::time::Duration;
+
 use tauri::State;
 
 use super::{
-    manager::AppState,
+    manager::{AppState, normalize_tracker_list_lossy, normalize_tracker_list_url},
     torrent::{
         DownloadSourceKind, classify_download_source, http_task_id, is_bt_task_id,
         normalize_http_task_id,
@@ -220,6 +222,34 @@ pub async fn settings_save(
         .map_err(|error| error.to_string())?;
     state.torrent_manager.update_settings(&saved);
     Ok(saved)
+}
+
+#[tauri::command]
+pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> Result<String, String> {
+    const MAX_TRACKER_LIST_BYTES: usize = 1024 * 1024;
+
+    let tracker_list_url =
+        normalize_tracker_list_url(&tracker_list_url).map_err(|error| error.to_string())?;
+    let response = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .timeout(Duration::from_secs(15))
+        .user_agent("downloader/0.1")
+        .build()
+        .map_err(|error| error.to_string())?
+        .get(tracker_list_url)
+        .send()
+        .await
+        .map_err(|error| error.to_string())?
+        .error_for_status()
+        .map_err(|error| error.to_string())?;
+
+    let bytes = response.bytes().await.map_err(|error| error.to_string())?;
+    if bytes.len() > MAX_TRACKER_LIST_BYTES {
+        return Err(String::from("tracker list is larger than 1 MiB"));
+    }
+
+    let content = String::from_utf8(bytes.to_vec()).map_err(|error| error.to_string())?;
+    Ok(normalize_tracker_list_lossy(&content))
 }
 
 fn prefix_http_snapshot(mut snapshot: DownloadSnapshot) -> DownloadSnapshot {

@@ -131,6 +131,16 @@ const threadHint = computed(() => {
             :placeholder="t('composer.fileNamePlaceholder')"
           />
         </label>
+
+        <label v-if="!isBtTask" class="field field--full">
+          <span class="field__label">{{ t("composer.userAgent") }}</span>
+          <UiInput
+            v-model="form.userAgent"
+            type="text"
+            :placeholder="t('composer.userAgentPlaceholder')"
+          />
+          <p class="field__hint">{{ t("composer.userAgentHint") }}</p>
+        </label>
       </section>
 
       <section class="group field--full">

@@ -138,12 +138,14 @@ pub(super) fn if_range_header(manifest: &Manifest) -> Option<(header::HeaderName
 pub(super) fn build_segment_request(
     client: &Client,
     url: &str,
+    user_agent: &str,
     start: u64,
     end: u64,
     validator: Option<(header::HeaderName, HeaderValue)>,
 ) -> reqwest::RequestBuilder {
     let mut builder = client
         .get(url)
+        .header(header::USER_AGENT, user_agent)
         .header(header::RANGE, format!("bytes={start}-{end}"));
     if let Some((name, value)) = validator {
         builder = builder.header(name, value);

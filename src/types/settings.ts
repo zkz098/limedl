@@ -35,12 +35,17 @@ export interface DownloadDefaultsSettings {
   defaultDownloadDir: string;
   defaultMaxRetries: number;
   defaultChecksum: ChecksumMode;
+  defaultUserAgent: string;
 }
 
 export interface BtSettings {
   pauseUploadWhenLimitReached: boolean;
   uploadLimitBytes: number;
   uploadRatioLimit: number;
+  dhtEnabled: boolean;
+  pexEnabled: boolean;
+  trackerList: string;
+  trackerListUrl: string;
 }
 
 export interface NetworkLearningMetrics {

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::types::{
     AdaptiveProfile, ChecksumMode, DownloadSnapshot, DownloadState, TaskKind, ThreadMode,
+    default_http_user_agent,
 };
 
 pub(super) const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
@@ -11,6 +12,8 @@ pub(super) struct Manifest {
     pub(super) id: String,
     pub(super) url: String,
     pub(super) final_url: String,
+    #[serde(default = "default_http_user_agent")]
+    pub(super) user_agent: String,
     pub(super) destination_dir: String,
     pub(super) file_name: String,
     pub(super) destination_path: String,

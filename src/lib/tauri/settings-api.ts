@@ -9,3 +9,7 @@ export function getAppSettings() {
 export function saveAppSettings(settings: AppSettings) {
   return invoke<AppSettings>("settings_save", { settings });
 }
+
+export function fetchTrackerList(trackerListUrl: string) {
+  return invoke<string>("settings_fetch_tracker_list", { trackerListUrl });
+}

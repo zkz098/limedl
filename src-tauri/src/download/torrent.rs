@@ -47,6 +47,7 @@ impl TorrentManager {
         fs::create_dir_all(&persistence_dir)?;
 
         let mut options = SessionOptions {
+            disable_dht: !settings.bt.dht_enabled,
             fastresume: true,
             persistence: Some(SessionPersistenceConfig::Json {
                 folder: Some(persistence_dir),
@@ -96,9 +97,15 @@ impl TorrentManager {
         fs::create_dir_all(&destination_dir)?;
 
         let add = build_add_torrent(source)?;
+        let bt_settings = self
+            .bt_settings
+            .lock()
+            .expect("bt settings poisoned")
+            .clone();
         let options = AddTorrentOptions {
             output_folder: Some(destination_dir.to_string_lossy().to_string()),
             overwrite: true,
+            trackers: tracker_list_entries(&bt_settings.tracker_list),
             ..AddTorrentOptions::default()
         };
 
@@ -418,6 +425,17 @@ fn upload_limit_reached(settings: &BtSettings, uploaded: u64, downloaded: u64) -
     bytes_reached || ratio_reached
 }
 
+fn tracker_list_entries(tracker_list: &str) -> Option<Vec<String>> {
+    let trackers = tracker_list
+        .lines()
+        .map(str::trim)
+        .filter(|tracker| !tracker.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+
+    (!trackers.is_empty()).then_some(trackers)
+}
+
 fn upload_status_from_stats(
     stats: &librqbit::api::TorrentStats,
     upload_limit_reached: bool,
@@ -467,6 +485,7 @@ mod tests {
             url: String::from(url),
             destination_dir: String::from("E:/tmp"),
             file_name: None,
+            user_agent: None,
             thread_mode: None,
             thread_count: None,
             max_retries: None,
@@ -533,6 +552,10 @@ mod tests {
     #[test]
     fn upload_policy_uses_byte_limit_or_ratio_limit() {
         let settings = BtSettings {
+            dht_enabled: true,
+            pex_enabled: true,
+            tracker_list: String::new(),
+            tracker_list_url: crate::download::types::default_tracker_list_url(),
             pause_upload_when_limit_reached: true,
             upload_limit_bytes: 1024,
             upload_ratio_limit: 2.0,

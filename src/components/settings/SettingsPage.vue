@@ -4,12 +4,11 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { formatBytes, formatSpeed, formatTimestamp } from "../../lib/download-format";
 import { useI18n } from "../../i18n";
 import { pickDirectory } from "../../lib/tauri/dialog-api";
-import { saveAppSettings } from "../../lib/tauri/settings-api";
+import { fetchTrackerList, saveAppSettings } from "../../lib/tauri/settings-api";
 import type { ChecksumMode } from "../../types/download";
 import type { SupportedLanguage } from "../../i18n/resources";
 import type {
   AdaptiveProfile,
-  AppearanceSettings,
   AppSettings,
   DeviceLearningMode,
   NetworkLearningSettings,
@@ -23,12 +22,17 @@ import UiInput from "../ui/UiInput.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 
+const DEFAULT_TRACKER_LIST_URL = "https://cf.trackerslist.com/best.txt";
+const DEFAULT_HTTP_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 const props = defineProps<{
   settings: AppSettings | null;
 }>();
 
 const emit = defineEmits<{
   saved: [settings: AppSettings];
+  dirtyChange: [isDirty: boolean];
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
@@ -86,8 +90,13 @@ const form = reactive<AppSettings>({
     defaultDownloadDir: "",
     defaultMaxRetries: 5,
     defaultChecksum: "blake3",
+    defaultUserAgent: DEFAULT_HTTP_USER_AGENT,
   },
   bt: {
+    dhtEnabled: true,
+    pexEnabled: true,
+    trackerList: "",
+    trackerListUrl: DEFAULT_TRACKER_LIST_URL,
     pauseUploadWhenLimitReached: false,
     uploadLimitBytes: 0,
     uploadRatioLimit: 0,
@@ -109,7 +118,9 @@ const form = reactive<AppSettings>({
 
 const isSaving = ref(false);
 const isPickingDirectory = ref(false);
+const isFetchingTrackerList = ref(false);
 const notificationMessage = ref("");
+const savedSettingsSnapshot = ref("");
 let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 
 const currentScene = computed(() => {
@@ -155,6 +166,7 @@ const downloadSummary = computed(() => {
     location,
     retries: form.download.defaultMaxRetries,
     checksum: checksumLabel,
+    userAgent: form.download.defaultUserAgent.trim() || DEFAULT_HTTP_USER_AGENT,
   });
 });
 
@@ -168,8 +180,16 @@ const btUploadLimitMiB = computed({
 });
 
 const btSummary = computed(() => {
+  const dhtLabel = form.bt.dhtEnabled ? t("common.enabled") : t("common.disabled");
+  const pexLabel = form.bt.pexEnabled ? t("common.enabled") : t("common.disabled");
+  const trackerCount = trackerListEntries.value.length;
+
   if (!form.bt.pauseUploadWhenLimitReached) {
-    return t("settings.summaries.btDisabled");
+    return t("settings.summaries.btDisabled", {
+      dht: dhtLabel,
+      pex: pexLabel,
+      trackers: trackerCount,
+    });
   }
 
   const uploadLimit =
@@ -178,10 +198,22 @@ const btSummary = computed(() => {
     form.bt.uploadRatioLimit > 0 ? `${form.bt.uploadRatioLimit.toFixed(2)}x` : t("common.disabled");
 
   return t("settings.summaries.bt", {
+    dht: dhtLabel,
+    pex: pexLabel,
+    trackers: trackerCount,
     uploadLimit,
     ratioLimit,
   });
 });
+
+const trackerListEntries = computed(() =>
+  form.bt.trackerList
+    .split(/\r?\n/)
+    .map((tracker) => tracker.trim())
+    .filter(Boolean),
+);
+
+const settingsDraftSnapshot = computed(() => serializeSettings(buildSettingsPayload()));
 
 const networkLearningSummary = computed(() => {
   const scene = currentScene.value;
@@ -271,12 +303,31 @@ watch(
     form.download.defaultDownloadDir = nextSettings.download.defaultDownloadDir;
     form.download.defaultMaxRetries = nextSettings.download.defaultMaxRetries;
     form.download.defaultChecksum = nextSettings.download.defaultChecksum;
+    form.download.defaultUserAgent = nextSettings.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
+    form.bt.dhtEnabled = nextSettings.bt.dhtEnabled;
+    form.bt.pexEnabled = nextSettings.bt.pexEnabled;
+    form.bt.trackerList = nextSettings.bt.trackerList;
+    form.bt.trackerListUrl = nextSettings.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL;
     form.bt.pauseUploadWhenLimitReached = nextSettings.bt.pauseUploadWhenLimitReached;
     form.bt.uploadLimitBytes = nextSettings.bt.uploadLimitBytes;
     form.bt.uploadRatioLimit = nextSettings.bt.uploadRatioLimit;
     form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
     form.networkLearning.currentSceneId = "default";
     form.networkLearning.scenes = [copySingleNetworkScene(nextSettings.networkLearning)];
+    savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
+    emit("dirtyChange", false);
+  },
+  { immediate: true },
+);
+
+watch(
+  settingsDraftSnapshot,
+  (snapshot) => {
+    if (!savedSettingsSnapshot.value) {
+      return;
+    }
+
+    emit("dirtyChange", snapshot !== savedSettingsSnapshot.value);
   },
   { immediate: true },
 );
@@ -339,6 +390,53 @@ function copySingleNetworkScene(settings: NetworkLearningSettings): NetworkScene
   };
 }
 
+function buildSettingsPayload(): AppSettings {
+  return {
+    appearance: {
+      themeColor: form.appearance.themeColor,
+    },
+    proxy: {
+      mode: form.proxy.mode,
+      manualUrl: form.proxy.manualUrl,
+    },
+    scheduler: {
+      mode: form.scheduler.mode,
+      traditional: {
+        maxParallelTasks: form.scheduler.traditional.maxParallelTasks,
+      },
+      automatic: {
+        maxParallelThreads: form.scheduler.automatic.maxParallelThreads,
+        maxThreadsPerTask: form.scheduler.automatic.maxThreadsPerTask,
+        adaptiveProfile: form.scheduler.automatic.adaptiveProfile,
+      },
+    },
+    download: {
+      defaultDownloadDir: form.download.defaultDownloadDir,
+      defaultMaxRetries: form.download.defaultMaxRetries,
+      defaultChecksum: form.download.defaultChecksum,
+      defaultUserAgent: form.download.defaultUserAgent,
+    },
+    bt: {
+      dhtEnabled: form.bt.dhtEnabled,
+      pexEnabled: form.bt.pexEnabled,
+      trackerList: form.bt.trackerList,
+      trackerListUrl: form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
+      pauseUploadWhenLimitReached: form.bt.pauseUploadWhenLimitReached,
+      uploadLimitBytes: form.bt.uploadLimitBytes,
+      uploadRatioLimit: form.bt.uploadRatioLimit,
+    },
+    networkLearning: {
+      deviceMode: form.networkLearning.deviceMode,
+      currentSceneId: "default",
+      scenes: [copySingleNetworkScene(form.networkLearning)],
+    },
+  };
+}
+
+function serializeSettings(settings: AppSettings) {
+  return JSON.stringify(settings);
+}
+
 async function pickDefaultDownloadDirectory() {
   if (isPickingDirectory.value) {
     return;
@@ -360,6 +458,29 @@ async function pickDefaultDownloadDirectory() {
   }
 }
 
+async function updateTrackerListFromUrl() {
+  if (isFetchingTrackerList.value) {
+    return;
+  }
+
+  isFetchingTrackerList.value = true;
+
+  try {
+    form.bt.trackerList = await fetchTrackerList(form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL);
+    showNotification(
+      t("settings.notifications.trackerListUpdated", {
+        count: trackerListEntries.value.length,
+      }),
+    );
+  } catch (error) {
+    showNotification(
+      error instanceof Error ? error.message : t("settings.notifications.trackerListUpdateFailed"),
+    );
+  } finally {
+    isFetchingTrackerList.value = false;
+  }
+}
+
 async function persistSettings() {
   if (isSaving.value) {
     return;
@@ -368,43 +489,11 @@ async function persistSettings() {
   isSaving.value = true;
 
   try {
-    const saved = await saveAppSettings({
-      appearance: {
-        themeColor: form.appearance.themeColor,
-      },
-      proxy: {
-        mode: form.proxy.mode,
-        manualUrl: form.proxy.manualUrl,
-      },
-      scheduler: {
-        mode: form.scheduler.mode,
-        traditional: {
-          maxParallelTasks: form.scheduler.traditional.maxParallelTasks,
-        },
-        automatic: {
-          maxParallelThreads: form.scheduler.automatic.maxParallelThreads,
-          maxThreadsPerTask: form.scheduler.automatic.maxThreadsPerTask,
-          adaptiveProfile: form.scheduler.automatic.adaptiveProfile,
-        },
-      },
-      download: {
-        defaultDownloadDir: form.download.defaultDownloadDir,
-        defaultMaxRetries: form.download.defaultMaxRetries,
-        defaultChecksum: form.download.defaultChecksum,
-      },
-      bt: {
-        pauseUploadWhenLimitReached: form.bt.pauseUploadWhenLimitReached,
-        uploadLimitBytes: form.bt.uploadLimitBytes,
-        uploadRatioLimit: form.bt.uploadRatioLimit,
-      },
-      networkLearning: {
-        deviceMode: form.networkLearning.deviceMode,
-        currentSceneId: "default",
-        scenes: [copySingleNetworkScene(form.networkLearning)],
-      },
-    });
+    const saved = await saveAppSettings(buildSettingsPayload());
 
+    savedSettingsSnapshot.value = serializeSettings(saved);
     emit("saved", saved);
+    emit("dirtyChange", false);
     showNotification(t("settings.notifications.saved"));
   } catch (error) {
     showNotification(
@@ -436,7 +525,18 @@ onBeforeUnmount(() => {
         <p class="section-kicker">{{ t("settings.kicker") }}</p>
         <h2 class="panel-title">{{ t("settings.title") }}</h2>
       </div>
-      <p class="settings-page__summary">{{ pageSummary }}</p>
+      <div class="settings-page__header-meta">
+        <p class="settings-page__summary">{{ pageSummary }}</p>
+        <UiButton
+          type="button"
+          variant="secondary"
+          icon="i-ri-save-line"
+          :disabled="isSaving"
+          @click="persistSettings"
+        >
+          {{ isSaving ? t("common.saving") : t("common.save") }}
+        </UiButton>
+      </div>
     </div>
 
     <section class="settings-section">
@@ -541,18 +641,6 @@ onBeforeUnmount(() => {
           </label>
         </template>
       </div>
-
-      <div class="settings-actions">
-        <UiButton
-          type="button"
-          variant="secondary"
-          icon="i-ri-save-line"
-          :disabled="isSaving"
-          @click="persistSettings"
-        >
-          {{ isSaving ? t("common.saving") : t("common.save") }}
-        </UiButton>
-      </div>
     </section>
 
     <section class="settings-section">
@@ -577,12 +665,22 @@ onBeforeUnmount(() => {
 
         <label class="settings-field settings-field--wide">
           <span class="settings-field__label">{{ t("settings.allowLearning") }}</span>
-          <span class="settings-toggle">
-            <input
-              v-if="currentScene"
-              v-model="currentScene.learningEnabled"
-              class="settings-toggle__control"
-              type="checkbox"
+          <button
+            v-if="currentScene"
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': currentScene.learningEnabled }"
+            :aria-pressed="currentScene.learningEnabled"
+            @click="currentScene.learningEnabled = !currentScene.learningEnabled"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                currentScene.learningEnabled
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
             />
             <span class="settings-toggle__text">
               {{
@@ -591,7 +689,7 @@ onBeforeUnmount(() => {
                   : t("settings.pauseUpdateProfile")
               }}
             </span>
-          </span>
+          </button>
         </label>
       </div>
 
@@ -600,18 +698,6 @@ onBeforeUnmount(() => {
           <span class="settings-metric-card__label">{{ item.label }}</span>
           <strong class="settings-metric-card__value">{{ item.value }}</strong>
         </article>
-      </div>
-
-      <div class="settings-actions">
-        <UiButton
-          type="button"
-          variant="secondary"
-          icon="i-ri-save-line"
-          :disabled="isSaving"
-          @click="persistSettings"
-        >
-          {{ isSaving ? t("common.saving") : t("common.save") }}
-        </UiButton>
       </div>
     </section>
 
@@ -660,18 +746,16 @@ onBeforeUnmount(() => {
           <UiSelect v-model="form.download.defaultChecksum" :options="checksumOptions" />
           <p class="settings-field__hint">{{ t("settings.checksumHint") }}</p>
         </label>
-      </div>
 
-      <div class="settings-actions">
-        <UiButton
-          type="button"
-          variant="secondary"
-          icon="i-ri-save-line"
-          :disabled="isSaving"
-          @click="persistSettings"
-        >
-          {{ isSaving ? t("common.saving") : t("common.save") }}
-        </UiButton>
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">{{ t("settings.defaultUserAgent") }}</span>
+          <UiInput
+            v-model="form.download.defaultUserAgent"
+            type="text"
+            :placeholder="DEFAULT_HTTP_USER_AGENT"
+          />
+          <p class="settings-field__hint">{{ t("settings.defaultUserAgentHint") }}</p>
+        </label>
       </div>
     </section>
 
@@ -687,13 +771,114 @@ onBeforeUnmount(() => {
       <p class="settings-section__summary">{{ btSummary }}</p>
 
       <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.btDht") }}</span>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': form.bt.dhtEnabled }"
+            :aria-pressed="form.bt.dhtEnabled"
+            @click="form.bt.dhtEnabled = !form.bt.dhtEnabled"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                form.bt.dhtEnabled
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
+            />
+            <span class="settings-toggle__text">
+              {{ form.bt.dhtEnabled ? t("settings.btDhtEnabled") : t("settings.btDhtDisabled") }}
+            </span>
+          </button>
+          <p class="settings-field__hint">{{ t("settings.btDhtHint") }}</p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.btPex") }}</span>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': form.bt.pexEnabled }"
+            :aria-pressed="form.bt.pexEnabled"
+            @click="form.bt.pexEnabled = !form.bt.pexEnabled"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                form.bt.pexEnabled
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
+            />
+            <span class="settings-toggle__text">
+              {{ form.bt.pexEnabled ? t("settings.btPexEnabled") : t("settings.btPexDisabled") }}
+            </span>
+          </button>
+          <p class="settings-field__hint">{{ t("settings.btPexHint") }}</p>
+        </label>
+
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">{{ t("settings.btTrackerListUrl") }}</span>
+          <div class="settings-inline-field">
+            <UiInput
+              v-model="form.bt.trackerListUrl"
+              type="url"
+              inputmode="url"
+              :placeholder="DEFAULT_TRACKER_LIST_URL"
+            />
+            <UiButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon="i-ri-refresh-line"
+              :loading="isFetchingTrackerList"
+              @click="updateTrackerListFromUrl"
+            >
+              {{
+                isFetchingTrackerList
+                  ? t("settings.btTrackerListUpdating")
+                  : t("settings.btTrackerListUpdate")
+              }}
+            </UiButton>
+          </div>
+          <p class="settings-field__hint">{{ t("settings.btTrackerListUrlHint") }}</p>
+        </label>
+
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">{{ t("settings.btTrackerList") }}</span>
+          <textarea
+            v-model="form.bt.trackerList"
+            class="settings-textarea"
+            :placeholder="t('settings.btTrackerListPlaceholder')"
+            rows="5"
+            spellcheck="false"
+          />
+          <p class="settings-field__hint">
+            {{ t("settings.btTrackerListHint", { count: trackerListEntries.length }) }}
+          </p>
+        </label>
+
         <label class="settings-field settings-field--wide">
           <span class="settings-field__label">{{ t("settings.btPauseUpload") }}</span>
-          <span class="settings-toggle">
-            <input
-              v-model="form.bt.pauseUploadWhenLimitReached"
-              class="settings-toggle__control"
-              type="checkbox"
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': form.bt.pauseUploadWhenLimitReached }"
+            :aria-pressed="form.bt.pauseUploadWhenLimitReached"
+            @click="form.bt.pauseUploadWhenLimitReached = !form.bt.pauseUploadWhenLimitReached"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                form.bt.pauseUploadWhenLimitReached
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
             />
             <span class="settings-toggle__text">
               {{
@@ -702,7 +887,7 @@ onBeforeUnmount(() => {
                   : t("settings.btPauseUploadDisabled")
               }}
             </span>
-          </span>
+          </button>
           <p class="settings-field__hint">{{ t("settings.btPauseUploadHint") }}</p>
         </label>
 
@@ -728,18 +913,6 @@ onBeforeUnmount(() => {
           />
           <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
         </label>
-      </div>
-
-      <div class="settings-actions">
-        <UiButton
-          type="button"
-          variant="secondary"
-          icon="i-ri-save-line"
-          :disabled="isSaving"
-          @click="persistSettings"
-        >
-          {{ isSaving ? t("common.saving") : t("common.save") }}
-        </UiButton>
       </div>
     </section>
 
@@ -767,18 +940,6 @@ onBeforeUnmount(() => {
             {{ t("settings.proxyHint") }}
           </p>
         </label>
-      </div>
-
-      <div class="settings-actions">
-        <UiButton
-          type="button"
-          variant="secondary"
-          icon="i-ri-save-line"
-          :disabled="isSaving"
-          @click="persistSettings"
-        >
-          {{ isSaving ? t("common.saving") : t("common.save") }}
-        </UiButton>
       </div>
     </section>
   </section>
@@ -810,6 +971,14 @@ onBeforeUnmount(() => {
 
 .settings-page__header {
   align-items: flex-end;
+}
+
+.settings-page__header-meta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 1rem;
+  min-width: 0;
 }
 
 .settings-page__summary,
@@ -894,15 +1063,6 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
-.settings-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border);
-}
-
 .settings-directory-field,
 .settings-inline-field {
   display: grid;
@@ -919,17 +1079,74 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-panel) 92%, transparent);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
 }
 
-.settings-toggle__control {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--color-accent);
+.settings-toggle:hover {
+  border-color: var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-panel-muted) 72%, var(--color-panel));
+}
+
+.settings-toggle:focus-visible {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
+}
+
+.settings-toggle--active {
+  border-color: color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-soft) 45%, var(--color-panel));
+  color: var(--color-accent-strong);
+}
+
+.settings-toggle__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 1.1rem;
 }
 
 .settings-toggle__text {
   color: var(--color-heading);
   font-size: 0.9rem;
+}
+
+.settings-textarea {
+  width: 100%;
+  min-height: 8.5rem;
+  padding: 0.8rem 0.9375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-input-bg);
+  color: var(--color-text-main);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    background-color 0.25s ease;
+}
+
+.settings-textarea::placeholder {
+  color: var(--color-text-soft);
+}
+
+.settings-textarea:hover:not(:focus-visible) {
+  border-color: var(--color-border-strong);
+}
+
+.settings-textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
 }
 
 .settings-metrics-grid {
@@ -980,6 +1197,12 @@ onBeforeUnmount(() => {
     text-align: left;
   }
 
+  .settings-page__header-meta {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .settings-grid,
   .settings-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -994,11 +1217,6 @@ onBeforeUnmount(() => {
 
   .settings-field--wide {
     grid-column: auto;
-  }
-
-  .settings-actions {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .settings-directory-field,

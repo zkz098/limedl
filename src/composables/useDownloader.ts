@@ -73,6 +73,7 @@ export function useDownloader() {
     url: "",
     destinationDir: "",
     fileName: "",
+    userAgent: "",
     threadMode: "adaptive",
     threadCount: 8,
     maxRetries: 5,
@@ -232,6 +233,7 @@ export function useDownloader() {
     form.destinationDir = settings.download.defaultDownloadDir;
     form.maxRetries = settings.download.defaultMaxRetries;
     form.checksum = settings.download.defaultChecksum;
+    form.userAgent = settings.download.defaultUserAgent;
     applySchedulerDefaults(settings.scheduler.mode, settings.scheduler.automatic.maxThreadsPerTask);
   }
 
@@ -248,6 +250,11 @@ export function useDownloader() {
       const fileName = form.fileName.trim();
       if (fileName) {
         request.fileName = fileName;
+      }
+
+      const userAgent = form.userAgent.trim();
+      if (userAgent) {
+        request.userAgent = userAgent;
       }
 
       if (typeof form.threadCount === "number" && Number.isFinite(form.threadCount)) {
