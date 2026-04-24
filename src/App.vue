@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
 import DownloadInspector from "./components/downloader/DownloadInspector.vue";
@@ -8,19 +8,17 @@ import SettingsPage from "./components/settings/SettingsPage.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
 import { formatSpeed, stateLabel } from "./lib/download-format";
+import { getAppSettings } from "./lib/tauri/settings-api";
 import { useDownloader } from "./composables/useDownloader";
-import type { ChecksumMode } from "./types/download";
-
-const checksumOptions: { label: string; value: ChecksumMode }[] = [
-  { label: "BLAKE3", value: "blake3" },
-  { label: "None", value: "none" },
-];
+import type { AppSettings } from "./types/settings";
 
 const {
   actionName,
   canCancel,
   canPause,
   canResume,
+  canPauseDownload,
+  canResumeDownload,
   downloads,
   errorMessage,
   form,
@@ -30,12 +28,18 @@ const {
   isRefreshingList,
   isRefreshingStatus,
   isStarting,
+  applyAppSettingsDefaults,
   pickDestinationDirectory,
   refreshList,
   refreshStatus,
   runCancel,
+  runDeleteTask,
+  runDeleteTaskPermanently,
+  runOpenInExplorer,
   runPause,
+  runPauseFor,
   runResume,
+  runResumeFor,
   selectDownload,
   selectedId,
   selectedSnapshot,
@@ -46,6 +50,7 @@ const {
 const showComposerDialog = ref(false);
 const inspectorCollapsed = ref(false);
 const currentView = ref<"home" | "settings">("home");
+const appSettings = ref<AppSettings | null>(null);
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
 const selectedStateLabel = computed(() => stateLabel(selectedOverview.value?.state));
@@ -75,12 +80,58 @@ const handleRefreshSelected = async () => {
   await refreshStatus(selectedId.value);
 };
 
+const handleTaskPauseOrResume = async (downloadId: string) => {
+  const target = downloads.value.find((download) => download.id === downloadId);
+
+  if (!target) {
+    return;
+  }
+
+  if (canPauseDownload(target)) {
+    await runPauseFor(downloadId);
+    return;
+  }
+
+  if (canResumeDownload(target)) {
+    await runResumeFor(downloadId);
+  }
+};
+
+function handleSettingsSaved(nextSettings: AppSettings) {
+  appSettings.value = nextSettings;
+  applyAppSettingsDefaults(nextSettings);
+}
+
+async function loadSettings() {
+  try {
+    appSettings.value = await getAppSettings();
+    applyAppSettingsDefaults(appSettings.value);
+  } catch (error) {
+    console.error("Failed to load app settings", error);
+  }
+}
+
+onMounted(() => {
+  void loadSettings();
+});
+
 watch(
   () => selectedId.value,
   (nextId) => {
     if (!nextId) {
       inspectorCollapsed.value = false;
     }
+  },
+);
+
+watch(
+  () => showComposerDialog.value,
+  (isOpen) => {
+    if (!isOpen || !appSettings.value) {
+      return;
+    }
+
+    applyAppSettingsDefaults(appSettings.value);
   },
 );
 </script>
@@ -157,10 +208,15 @@ watch(
         :is-auto-refreshing="isAutoRefreshing"
         :is-refreshing-list="isRefreshingList"
         :selected-id="selectedId"
+        :task-action-name="actionName"
+        @delete-task="runDeleteTask"
+        @delete-task-permanently="runDeleteTaskPermanently"
+        @open-in-explorer="runOpenInExplorer"
+        @pause-or-resume="handleTaskPauseOrResume"
         @refresh="refreshList"
         @select="selectDownload"
       />
-      <SettingsPage v-else />
+      <SettingsPage v-else :settings="appSettings" @saved="handleSettingsSaved" />
     </section>
 
     <Transition name="floating-inspector">
@@ -219,10 +275,10 @@ watch(
       </template>
 
       <DownloadComposer
-        :checksum-options="checksumOptions"
         :form="form"
         :is-picking-directory="isPickingDirectory"
         :is-starting="isStarting"
+        :settings="appSettings"
         @pick-directory="pickDestinationDirectory"
         @submit="handleSubmitStart"
       />

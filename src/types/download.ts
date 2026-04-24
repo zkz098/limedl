@@ -1,4 +1,6 @@
 export type ChecksumMode = "none" | "blake3";
+export type ThreadMode = "fixed" | "adaptive";
+export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 
 export type DownloadState =
   | "queued"
@@ -14,7 +16,8 @@ export interface StartDownloadRequest {
   url: string;
   destinationDir: string;
   fileName?: string;
-  maxConnections?: number;
+  threadMode?: ThreadMode;
+  threadCount?: number;
   maxRetries?: number;
   checksum?: ChecksumMode;
 }
@@ -23,7 +26,8 @@ export interface DownloadFormState {
   url: string;
   destinationDir: string;
   fileName: string;
-  maxConnections: number | null;
+  threadMode: ThreadMode;
+  threadCount: number | null;
   maxRetries: number | null;
   checksum: ChecksumMode;
 }
@@ -36,6 +40,12 @@ export interface DownloadSummary {
   totalBytes?: number;
   downloadedBytes: number;
   connectionCount: number;
+  threadMode: ThreadMode;
+  requestedThreadCount?: number;
+  desiredThreadCount?: number;
+  allocatedThreadCount?: number;
+  adaptiveProfile?: AdaptiveProfile;
+  threadNote?: string;
   speedBytesPerSecond?: number;
   etaSeconds?: number;
   error?: string;
@@ -53,6 +63,12 @@ export interface DownloadSnapshot {
   downloadedBytes: number;
   supportsRanges: boolean;
   connectionCount: number;
+  threadMode: ThreadMode;
+  requestedThreadCount?: number;
+  desiredThreadCount?: number;
+  allocatedThreadCount?: number;
+  adaptiveProfile?: AdaptiveProfile;
+  threadNote?: string;
   checksum?: string;
   checksumMode: ChecksumMode;
   etag?: string;

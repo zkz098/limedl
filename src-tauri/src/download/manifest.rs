@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use super::types::{ChecksumMode, DownloadSnapshot, DownloadState};
+use super::types::{
+    AdaptiveProfile, ChecksumMode, DownloadSnapshot, DownloadState, ThreadMode,
+};
 
-const MIN_SEGMENT_SIZE: u64 = 4 * 1024 * 1024;
+pub(super) const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct Manifest {
@@ -18,6 +20,12 @@ pub(super) struct Manifest {
     pub(super) downloaded_bytes: u64,
     pub(super) supports_ranges: bool,
     pub(super) connection_count: usize,
+    pub(super) thread_mode: ThreadMode,
+    pub(super) requested_thread_count: Option<usize>,
+    pub(super) desired_thread_count: Option<usize>,
+    pub(super) allocated_thread_count: Option<usize>,
+    pub(super) adaptive_profile_snapshot: Option<AdaptiveProfile>,
+    pub(super) thread_note: Option<String>,
     pub(super) etag: Option<String>,
     pub(super) last_modified: Option<String>,
     pub(super) state: DownloadState,
@@ -26,16 +34,17 @@ pub(super) struct Manifest {
     pub(super) error: Option<String>,
     pub(super) created_at_ms: u64,
     pub(super) updated_at_ms: u64,
-    pub(super) segments: Vec<SegmentManifest>,
+    pub(super) chunks: Vec<ChunkManifest>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct SegmentManifest {
+pub(super) struct ChunkManifest {
     pub(super) index: usize,
     pub(super) start: u64,
     pub(super) end: u64,
     pub(super) downloaded: u64,
     pub(super) completed: bool,
+    pub(super) claimed_by: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,55 +57,33 @@ pub(super) struct RemoteMetadata {
     pub(super) supports_ranges: bool,
 }
 
-pub(super) fn compute_connection_count(
-    total: Option<u64>,
-    supports_ranges: bool,
-    requested: usize,
-) -> usize {
+pub(super) fn plan_chunks(total: Option<u64>, supports_ranges: bool) -> Vec<ChunkManifest> {
     if !supports_ranges {
-        return 1;
-    }
-
-    let requested = requested.clamp(1, 16);
-    match total {
-        Some(total) if total >= MIN_SEGMENT_SIZE * 2 => requested,
-        _ => 1,
-    }
-}
-
-pub(super) fn plan_segments(
-    total: Option<u64>,
-    supports_ranges: bool,
-    connections: usize,
-) -> Vec<SegmentManifest> {
-    if !supports_ranges || connections <= 1 {
         return vec![];
     }
 
-    let total = match total {
-        Some(total) => total,
-        None => return vec![],
+    let Some(total) = total else {
+        return vec![];
     };
-    let chunk_count = connections.max(1) as u64;
-    let size = (total / chunk_count).max(MIN_SEGMENT_SIZE);
-    let mut segments = Vec::new();
+
+    let mut chunks = Vec::new();
     let mut start = 0;
     let mut index = 0;
-
     while start < total {
-        let end = (start + size - 1).min(total - 1);
-        segments.push(SegmentManifest {
+        let end = (start + CHUNK_SIZE - 1).min(total - 1);
+        chunks.push(ChunkManifest {
             index,
             start,
             end,
             downloaded: 0,
             completed: false,
+            claimed_by: None,
         });
         index += 1;
         start = end + 1;
     }
 
-    segments
+    chunks
 }
 
 pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
@@ -112,6 +99,12 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         downloaded_bytes: manifest.downloaded_bytes,
         supports_ranges: manifest.supports_ranges,
         connection_count: manifest.connection_count,
+        thread_mode: manifest.thread_mode,
+        requested_thread_count: manifest.requested_thread_count,
+        desired_thread_count: manifest.desired_thread_count,
+        allocated_thread_count: manifest.allocated_thread_count,
+        adaptive_profile: manifest.adaptive_profile_snapshot,
+        thread_note: manifest.thread_note.clone(),
         checksum: manifest.checksum.clone(),
         checksum_mode: manifest.checksum_mode.clone(),
         etag: manifest.etag.clone(),
@@ -134,25 +127,25 @@ pub(super) fn validators_changed(manifest: &Manifest, metadata: &RemoteMetadata)
     }
 }
 
-pub(super) fn has_partial_segment_progress(manifest: &Manifest) -> bool {
+pub(super) fn has_partial_chunk_progress(manifest: &Manifest) -> bool {
     manifest
-        .segments
+        .chunks
         .iter()
-        .any(|segment| segment.downloaded > 0 && !segment.completed)
+        .any(|chunk| chunk.downloaded > 0 && !chunk.completed)
 }
 
 pub(super) fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
-    if manifest.segments.is_empty() {
+    if manifest.chunks.is_empty() {
         return manifest.downloaded_bytes;
     }
 
     let mut expected_start = 0;
     let mut contiguous = 0;
-    for segment in &manifest.segments {
-        if segment.start != expected_start || !segment.completed {
+    for chunk in &manifest.chunks {
+        if chunk.start != expected_start || !chunk.completed {
             break;
         }
-        contiguous = segment.end.saturating_add(1);
+        contiguous = chunk.end.saturating_add(1);
         expected_start = contiguous;
     }
     contiguous
@@ -160,24 +153,16 @@ pub(super) fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_connection_count, plan_segments};
+    use super::{plan_chunks, CHUNK_SIZE};
 
     #[test]
-    fn disables_parallelism_without_ranges() {
-        assert_eq!(
-            compute_connection_count(Some(64 * 1024 * 1024), false, 8),
-            1
-        );
-    }
+    fn plans_stable_chunk_boundaries() {
+        let chunks = plan_chunks(Some(16 * 1024 * 1024), true);
 
-    #[test]
-    fn plans_stable_segment_boundaries() {
-        let segments = plan_segments(Some(16 * 1024 * 1024), true, 4);
-
-        assert_eq!(segments.len(), 4);
-        assert_eq!(segments[0].start, 0);
-        assert_eq!(segments[0].end, 4 * 1024 * 1024 - 1);
-        assert_eq!(segments[3].start, 12 * 1024 * 1024);
-        assert_eq!(segments[3].end, 16 * 1024 * 1024 - 1);
+        assert_eq!(chunks.len(), 4);
+        assert_eq!(chunks[0].start, 0);
+        assert_eq!(chunks[0].end, CHUNK_SIZE - 1);
+        assert_eq!(chunks[3].start, CHUNK_SIZE * 3);
+        assert_eq!(chunks[3].end, 16 * 1024 * 1024 - 1);
     }
 }

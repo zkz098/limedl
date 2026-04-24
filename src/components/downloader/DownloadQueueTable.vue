@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { debounce, throttle } from "es-toolkit";
 
 import {
@@ -24,9 +24,14 @@ const props = defineProps<{
   isAutoRefreshing: boolean;
   isRefreshingList: boolean;
   selectedId: string | null;
+  taskActionName: string;
 }>();
 
 const emit = defineEmits<{
+  deleteTask: [downloadId: string];
+  deleteTaskPermanently: [downloadId: string];
+  openInExplorer: [downloadId: string];
+  pauseOrResume: [downloadId: string];
   refresh: [];
   select: [downloadId: string];
 }>();
@@ -36,6 +41,7 @@ const syncShowDelayMs = 240;
 const syncHideDelayMs = 420;
 const currentPage = ref(1);
 const columnMenuOpen = ref(false);
+const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
 const isRefreshLabelVisible = ref(false);
 const isSyncIndicatorVisible = ref(false);
 const visibleColumns = ref<ColumnKey[]>(["file", "status", "progress", "speed", "eta"]);
@@ -59,12 +65,59 @@ const pageStart = computed(() =>
 const pageEnd = computed(() =>
   props.downloads.length ? Math.min(currentPage.value * pageSize, props.downloads.length) : 0,
 );
+const contextMenuDownload = computed(
+  () => props.downloads.find((download) => download.id === contextMenu.value?.downloadId) ?? null,
+);
+const canTogglePauseOrResume = computed(() => {
+  const state = contextMenuDownload.value?.state;
+  return Boolean(
+    state &&
+    (state === "paused" || ["queued", "downloading", "retrying", "verifying"].includes(state)),
+  );
+});
+const contextActionLabel = computed(() => {
+  if (contextMenuDownload.value?.state === "paused") {
+    return "继续";
+  }
+
+  if (canTogglePauseOrResume.value) {
+    return "暂停";
+  }
+
+  return "暂停/继续";
+});
+const contextActionIcon = computed(() =>
+  contextMenuDownload.value?.state === "paused" ? "i-ri-play-line" : "i-ri-pause-line",
+);
 
 watch(
   () => props.downloads.length,
   () => {
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value;
+    }
+  },
+);
+
+watch(
+  () => props.downloads,
+  (downloads) => {
+    if (!contextMenu.value) {
+      return;
+    }
+
+    if (!downloads.some((download) => download.id === contextMenu.value?.downloadId)) {
+      contextMenu.value = null;
+    }
+  },
+  { deep: true },
+);
+
+watch(
+  () => props.taskActionName,
+  (value) => {
+    if (value) {
+      contextMenu.value = null;
     }
   },
 );
@@ -139,9 +192,93 @@ function goToNextPage() {
   currentPage.value = Math.min(totalPages.value, currentPage.value + 1);
 }
 
+function closeMenus() {
+  columnMenuOpen.value = false;
+  contextMenu.value = null;
+}
+
+function clampMenuPosition(clientX: number, clientY: number) {
+  const menuWidth = 220;
+  const menuHeight = 196;
+  const gutter = 12;
+
+  return {
+    x: Math.max(gutter, Math.min(clientX, window.innerWidth - menuWidth - gutter)),
+    y: Math.max(gutter, Math.min(clientY, window.innerHeight - menuHeight - gutter)),
+  };
+}
+
+function openTaskContextMenu(event: MouseEvent, downloadId: string) {
+  emit("select", downloadId);
+  columnMenuOpen.value = false;
+
+  const { x, y } = clampMenuPosition(event.clientX, event.clientY);
+  contextMenu.value = { downloadId, x, y };
+}
+
+function handleGlobalPointerDown() {
+  closeMenus();
+}
+
+function handleEscape(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    closeMenus();
+  }
+}
+
+function handlePauseOrResume() {
+  if (!contextMenu.value || !canTogglePauseOrResume.value) {
+    return;
+  }
+
+  emit("pauseOrResume", contextMenu.value.downloadId);
+  contextMenu.value = null;
+}
+
+function handleDeleteTask() {
+  if (!contextMenu.value) {
+    return;
+  }
+
+  emit("deleteTask", contextMenu.value.downloadId);
+  contextMenu.value = null;
+}
+
+function handleDeleteTaskPermanently() {
+  if (!contextMenu.value) {
+    return;
+  }
+
+  emit("deleteTaskPermanently", contextMenu.value.downloadId);
+  contextMenu.value = null;
+}
+
+function handleOpenInExplorer() {
+  if (!contextMenu.value) {
+    return;
+  }
+
+  emit("openInExplorer", contextMenu.value.downloadId);
+  contextMenu.value = null;
+}
+
 const triggerRefresh = throttle(() => {
   emit("refresh");
 }, 600);
+
+onMounted(() => {
+  window.addEventListener("pointerdown", handleGlobalPointerDown);
+  window.addEventListener("resize", closeMenus);
+  window.addEventListener("scroll", closeMenus, true);
+  window.addEventListener("keydown", handleEscape);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("pointerdown", handleGlobalPointerDown);
+  window.removeEventListener("resize", closeMenus);
+  window.removeEventListener("scroll", closeMenus, true);
+  window.removeEventListener("keydown", handleEscape);
+});
 </script>
 
 <template>
@@ -162,11 +299,14 @@ const triggerRefresh = throttle(() => {
             size="sm"
             variant="ghost"
             icon="i-ri-layout-column-line"
-            @click="columnMenuOpen = !columnMenuOpen"
+            @click.stop="
+              contextMenu = null;
+              columnMenuOpen = !columnMenuOpen;
+            "
           >
             列
           </UiButton>
-          <div v-if="columnMenuOpen" class="column-menu__panel">
+          <div v-if="columnMenuOpen" class="column-menu__panel" @pointerdown.stop>
             <label
               v-for="column in columnOptions"
               :key="column.key"
@@ -225,11 +365,20 @@ const triggerRefresh = throttle(() => {
               class="queue-row"
               :class="{ 'queue-row--active': download.id === selectedId }"
               @click="$emit('select', download.id)"
+              @contextmenu.prevent.stop="openTaskContextMenu($event, download.id)"
             >
               <td v-if="isColumnVisible('file')" class="queue-cell queue-cell--file">
                 <div class="queue-file">
                   <span class="queue-file__name">{{ download.fileName }}</span>
                   <span class="queue-file__path">{{ download.destinationPath }}</span>
+                  <span class="queue-file__meta">
+                    {{ download.threadMode === "adaptive" ? "自适应" : "固定线程" }}
+                    · 当前 {{ download.connectionCount }} 线程
+                    <template v-if="download.adaptiveProfile">
+                      · {{ stateLabel(download.adaptiveProfile as never) }}
+                    </template>
+                    <template v-if="download.threadNote"> · {{ download.threadNote }} </template>
+                  </span>
                 </div>
               </td>
 
@@ -291,6 +440,39 @@ const triggerRefresh = throttle(() => {
             下一页
           </UiButton>
         </div>
+      </div>
+
+      <div
+        v-if="contextMenu && contextMenuDownload"
+        class="task-context-menu"
+        :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+        @pointerdown.stop
+      >
+        <button
+          type="button"
+          class="task-context-menu__item"
+          :disabled="!canTogglePauseOrResume"
+          @click="handlePauseOrResume"
+        >
+          <span :class="contextActionIcon" aria-hidden="true" />
+          <span>{{ contextActionLabel }}</span>
+        </button>
+        <button type="button" class="task-context-menu__item" @click="handleDeleteTask">
+          <span class="i-ri-delete-bin-6-line" aria-hidden="true" />
+          <span>删除任务</span>
+        </button>
+        <button
+          type="button"
+          class="task-context-menu__item task-context-menu__item--danger"
+          @click="handleDeleteTaskPermanently"
+        >
+          <span class="i-ri-delete-bin-line" aria-hidden="true" />
+          <span>彻底删除</span>
+        </button>
+        <button type="button" class="task-context-menu__item" @click="handleOpenInExplorer">
+          <span class="i-ri-folder-open-line" aria-hidden="true" />
+          <span>在资源管理器中打开</span>
+        </button>
       </div>
     </div>
 
@@ -515,6 +697,15 @@ const triggerRefresh = throttle(() => {
   text-overflow: ellipsis;
 }
 
+.queue-file__meta {
+  color: var(--color-text-soft);
+  font-size: 0.7rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .queue-progress {
   display: grid;
   gap: 0.25rem;
@@ -570,6 +761,51 @@ const triggerRefresh = throttle(() => {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.task-context-menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 12.5rem;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.35rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-panel) 96%, white 4%);
+  box-shadow: var(--shadow-card-hover);
+  backdrop-filter: blur(0.875rem);
+}
+
+.task-context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-main);
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-align: left;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.task-context-menu__item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent-soft) 42%, var(--color-panel));
+}
+
+.task-context-menu__item:disabled {
+  color: var(--color-text-soft);
+  cursor: not-allowed;
+}
+
+.task-context-menu__item--danger {
+  color: var(--color-danger-text, #b42318);
 }
 
 @media (max-width: 1160px) {

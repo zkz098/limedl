@@ -1,4 +1,4 @@
-﻿import { onUnmounted, ref, type Ref } from "vue";
+import { onUnmounted, ref, type Ref } from "vue";
 
 /**
  * Polling composable for auto-refresh.

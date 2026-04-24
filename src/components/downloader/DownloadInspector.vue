@@ -46,7 +46,25 @@ const detailRows = computed(() => {
     { label: "保存路径", value: snapshot.destinationPath, wide: true },
     { label: "临时文件", value: snapshot.tempPath, wide: true },
     { label: "断点续传", value: snapshot.supportsRanges ? "支持" : "不支持" },
-    { label: "连接数", value: String(snapshot.connectionCount) },
+    { label: "当前线程数", value: String(snapshot.connectionCount) },
+    { label: "线程策略", value: formatTokenLabel(snapshot.threadMode) },
+    {
+      label: "请求线程数",
+      value: snapshot.requestedThreadCount ? String(snapshot.requestedThreadCount) : "—",
+    },
+    {
+      label: "目标线程数",
+      value: snapshot.desiredThreadCount ? String(snapshot.desiredThreadCount) : "—",
+    },
+    {
+      label: "分配线程数",
+      value: snapshot.allocatedThreadCount ? String(snapshot.allocatedThreadCount) : "—",
+    },
+    {
+      label: "自适应模式",
+      value: snapshot.adaptiveProfile ? formatTokenLabel(snapshot.adaptiveProfile) : "—",
+    },
+    { label: "线程说明", value: snapshot.threadNote ?? "—", wide: true },
     { label: "校验方式", value: formatTokenLabel(snapshot.checksumMode) },
     { label: "校验码", value: snapshot.checksum ?? "—" },
     { label: "ETag", value: snapshot.etag ?? "—" },
@@ -151,8 +169,11 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
             <span class="text-value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
           </div>
           <div class="text-row">
-            <span class="text-label">连接数:</span>
-            <span class="text-value">{{ selectedOverview.connectionCount }}</span>
+            <span class="text-label">线程:</span>
+            <span class="text-value">
+              {{ selectedOverview.connectionCount }}
+              <template v-if="selectedOverview.threadMode === 'adaptive'"> / 自适应 </template>
+            </span>
           </div>
         </div>
 

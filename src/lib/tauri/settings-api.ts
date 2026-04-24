@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { ProxySettings } from "../../types/settings";
+import type { AppSettings } from "../../types/settings";
 
-export function getProxySettings() {
-  return invoke<ProxySettings>("settings_proxy_get");
+export function getAppSettings() {
+  return invoke<AppSettings>("settings_get");
 }
 
-export function saveProxySettings(settings: ProxySettings) {
-  return invoke<ProxySettings>("settings_proxy_save", { settings });
+export function saveAppSettings(settings: AppSettings) {
+  return invoke<AppSettings>("settings_save", { settings });
 }

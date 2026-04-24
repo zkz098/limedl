@@ -4,7 +4,10 @@ import {
   cancelDownload,
   getDownloadStatus,
   listDownloads,
+  openDownloadInExplorer,
   pauseDownload,
+  purgeDownload,
+  removeDownload,
   resumeDownload,
   startDownload,
 } from "../lib/tauri/download-api";
@@ -17,9 +20,18 @@ import type {
   DownloadSummary,
   StartDownloadRequest,
 } from "../types/download";
+import type { AppSettings, SchedulerMode } from "../types/settings";
 
 const terminalStates: DownloadState[] = ["completed", "failed", "canceled"];
 const autoRefreshIntervalMs = 1500;
+
+function canPauseState(state?: DownloadState | null) {
+  return Boolean(state && ["queued", "downloading", "retrying", "verifying"].includes(state));
+}
+
+function canResumeState(state?: DownloadState | null) {
+  return state === "paused";
+}
 
 function toMessage(error: unknown) {
   if (error instanceof Error) {
@@ -38,6 +50,12 @@ function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     totalBytes: snapshot.totalBytes,
     downloadedBytes: snapshot.downloadedBytes,
     connectionCount: snapshot.connectionCount,
+    threadMode: snapshot.threadMode,
+    requestedThreadCount: snapshot.requestedThreadCount,
+    desiredThreadCount: snapshot.desiredThreadCount,
+    allocatedThreadCount: snapshot.allocatedThreadCount,
+    adaptiveProfile: snapshot.adaptiveProfile,
+    threadNote: snapshot.threadNote,
     speedBytesPerSecond: snapshot.speedBytesPerSecond,
     etaSeconds: snapshot.etaSeconds,
     error: snapshot.error,
@@ -49,7 +67,8 @@ export function useDownloader() {
     url: "",
     destinationDir: "",
     fileName: "",
-    maxConnections: 8,
+    threadMode: "adaptive",
+    threadCount: 8,
     maxRetries: 5,
     checksum: "blake3" as ChecksumMode,
   });
@@ -81,16 +100,10 @@ export function useDownloader() {
   const selectedDownload = computed(() => selectedSnapshot.value ?? selectedSummary.value);
 
   const canPause = computed(() => {
-    const state = selectedDownload.value?.state;
-
-    if (!state) {
-      return false;
-    }
-
-    return ["queued", "downloading", "retrying", "verifying"].includes(state);
+    return canPauseState(selectedDownload.value?.state);
   });
 
-  const canResume = computed(() => selectedDownload.value?.state === "paused");
+  const canResume = computed(() => canResumeState(selectedDownload.value?.state));
 
   const canCancel = computed(() => {
     const state = selectedDownload.value?.state;
@@ -144,6 +157,16 @@ export function useDownloader() {
     downloads.value = next;
   }
 
+  function removeSummary(downloadId: string) {
+    downloads.value = downloads.value.filter((download) => download.id !== downloadId);
+
+    if (selectedId.value === downloadId) {
+      allowAutoSelect.value = false;
+      selectedId.value = null;
+      selectedSnapshot.value = null;
+    }
+  }
+
   function ensureSelection() {
     if (selectedId.value && downloads.value.some((download) => download.id === selectedId.value)) {
       return;
@@ -162,10 +185,47 @@ export function useDownloader() {
     }
   }
 
+  function applySchedulerDefaults(mode: SchedulerMode, maxThreadsPerTask?: number) {
+    if (mode === "automatic") {
+      form.threadMode = "adaptive";
+      if (
+        typeof maxThreadsPerTask === "number" &&
+        Number.isFinite(maxThreadsPerTask) &&
+        form.threadCount &&
+        form.threadCount > maxThreadsPerTask
+      ) {
+        form.threadCount = maxThreadsPerTask;
+      }
+      return;
+    }
+
+    form.threadMode = "fixed";
+    if (
+      typeof maxThreadsPerTask === "number" &&
+      Number.isFinite(maxThreadsPerTask) &&
+      (!form.threadCount || form.threadCount > maxThreadsPerTask)
+    ) {
+      form.threadCount = maxThreadsPerTask;
+      return;
+    }
+
+    if (!form.threadCount) {
+      form.threadCount = 8;
+    }
+  }
+
+  function applyAppSettingsDefaults(settings: AppSettings) {
+    form.destinationDir = settings.download.defaultDownloadDir;
+    form.maxRetries = settings.download.defaultMaxRetries;
+    form.checksum = settings.download.defaultChecksum;
+    applySchedulerDefaults(settings.scheduler.mode, settings.scheduler.automatic.maxThreadsPerTask);
+  }
+
   function buildStartRequest(): StartDownloadRequest {
     const request: StartDownloadRequest = {
       url: form.url.trim(),
       destinationDir: form.destinationDir.trim(),
+      threadMode: form.threadMode,
     };
 
     const fileName = form.fileName.trim();
@@ -173,11 +233,11 @@ export function useDownloader() {
       request.fileName = fileName;
     }
 
-    if (typeof form.maxConnections === "number" && Number.isFinite(form.maxConnections)) {
-      const maxConnections = Math.trunc(form.maxConnections);
+    if (typeof form.threadCount === "number" && Number.isFinite(form.threadCount)) {
+      const threadCount = Math.trunc(form.threadCount);
 
-      if (maxConnections > 0) {
-        request.maxConnections = maxConnections;
+      if (threadCount > 0) {
+        request.threadCount = threadCount;
       }
     }
 
@@ -356,7 +416,15 @@ export function useDownloader() {
     name: string,
     action: (downloadId: string) => Promise<DownloadSnapshot>,
   ) {
-    if (!selectedId.value) {
+    await runActionFor(selectedId.value, name, action);
+  }
+
+  async function runActionFor(
+    downloadId: string | null,
+    name: string,
+    action: (downloadId: string) => Promise<DownloadSnapshot>,
+  ) {
+    if (!downloadId) {
       return;
     }
 
@@ -365,17 +433,53 @@ export function useDownloader() {
     try {
       clearMessage();
 
-      const snapshot = await action(selectedId.value);
-      selectedSnapshot.value = snapshot;
-      upsertSummary(toSummary(snapshot));
+      const snapshot = await action(downloadId);
 
       if (name === "Cancel") {
-        allowAutoSelect.value = false;
-        selectedId.value = null;
-        selectedSnapshot.value = null;
+        removeSummary(downloadId);
+      } else {
+        if (selectedId.value === downloadId) {
+          selectedSnapshot.value = snapshot;
+        }
+        upsertSummary(toSummary(snapshot));
       }
 
       setMessage(`${name} complete for ${snapshot.fileName}.`);
+    } catch (error) {
+      setError(toMessage(error));
+    } finally {
+      actionName.value = "";
+    }
+  }
+
+  async function runTaskMaintenance(
+    downloadId: string,
+    name: string,
+    action: (downloadId: string) => Promise<DownloadSnapshot>,
+  ) {
+    actionName.value = name;
+
+    try {
+      clearMessage();
+
+      const snapshot = await action(downloadId);
+      removeSummary(downloadId);
+
+      setMessage(`${name} complete for ${snapshot.fileName}.`);
+    } catch (error) {
+      setError(toMessage(error));
+    } finally {
+      actionName.value = "";
+    }
+  }
+
+  async function runOpenInExplorer(downloadId: string) {
+    actionName.value = "OpenInExplorer";
+
+    try {
+      clearMessage();
+      await openDownloadInExplorer(downloadId);
+      setMessage("Opened download location in Explorer.");
     } catch (error) {
       setError(toMessage(error));
     } finally {
@@ -402,6 +506,8 @@ export function useDownloader() {
     canCancel,
     canPause,
     canResume,
+    canPauseDownload: (download: DownloadSummary) => canPauseState(download.state),
+    canResumeDownload: (download: DownloadSummary) => canResumeState(download.state),
     downloads,
     errorMessage,
     form,
@@ -411,12 +517,20 @@ export function useDownloader() {
     isRefreshingList,
     isRefreshingStatus,
     isStarting,
+    applySchedulerDefaults,
+    applyAppSettingsDefaults,
     pickDestinationDirectory,
     refreshList,
     refreshStatus,
     runCancel: () => runAction("Cancel", cancelDownload),
+    runDeleteTask: (downloadId: string) => runTaskMaintenance(downloadId, "Delete", removeDownload),
+    runDeleteTaskPermanently: (downloadId: string) =>
+      runTaskMaintenance(downloadId, "Purge", purgeDownload),
+    runOpenInExplorer,
     runPause: () => runAction("Pause", pauseDownload),
+    runPauseFor: (downloadId: string) => runActionFor(downloadId, "Pause", pauseDownload),
     runResume: () => runAction("Resume", resumeDownload),
+    runResumeFor: (downloadId: string) => runActionFor(downloadId, "Resume", resumeDownload),
     selectDownload,
     selectedDownload,
     selectedId,

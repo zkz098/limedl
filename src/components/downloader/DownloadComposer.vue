@@ -1,31 +1,60 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 import UiButton from "../ui/UiButton.vue";
 import UiInput from "../ui/UiInput.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 
-import type { ChecksumMode, DownloadFormState } from "../../types/download";
+import type { DownloadFormState, ThreadMode } from "../../types/download";
+import type { AppSettings } from "../../types/settings";
 
-const connectionOptions = [
-  { label: "1", value: 1 },
-  { label: "2", value: 2 },
-  { label: "4", value: 4 },
-  { label: "8", value: 8 },
-  { label: "16", value: 16 },
-  { label: "32", value: 32 },
-];
-
-defineProps<{
+const props = defineProps<{
   form: DownloadFormState;
   isStarting: boolean;
   isPickingDirectory: boolean;
-  checksumOptions: { label: string; value: ChecksumMode }[];
+  settings: AppSettings | null;
 }>();
 
 defineEmits<{
   pickDirectory: [];
   submit: [];
 }>();
+
+const schedulerMode = computed(() => props.settings?.scheduler.mode ?? "automatic");
+const maxThreadsPerTask = computed(
+  () => props.settings?.scheduler.automatic.maxThreadsPerTask ?? 8,
+);
+
+const fixedThreadOptions = computed(() => {
+  const cap = Math.max(1, maxThreadsPerTask.value);
+  return [1, 2, 4, 8, 16, 32]
+    .filter((value) => value <= cap)
+    .map((value) => ({ label: String(value), value }));
+});
+
+const threadModeOptions = computed<Array<{ label: string; value: ThreadMode }>>(() => {
+  if (schedulerMode.value === "traditional") {
+    return [{ label: "固定线程数", value: "fixed" }];
+  }
+
+  return [
+    { label: "自适应", value: "adaptive" },
+    { label: "固定线程数", value: "fixed" },
+  ];
+});
+
+const threadHint = computed(() => {
+  if (schedulerMode.value === "traditional") {
+    return "传统模式按任务数并发，任务内使用固定线程数。";
+  }
+
+  if (props.form.threadMode === "adaptive") {
+    return "自动模式下会根据网络表现、全局线程预算和当前网络场景画像动态调整线程数。";
+  }
+
+  return `自动模式下固定线程数仍会受全局预算和单任务上限 ${maxThreadsPerTask.value} 约束。`;
+});
 </script>
 
 <template>
@@ -74,22 +103,28 @@ defineEmits<{
       <section class="group field--full group--split">
         <div class="group__head group__head--full">
           <p class="section-kicker">Transfer Strategy</p>
-          <h3>连接与校验</h3>
+          <h3>线程与重试</h3>
         </div>
 
         <label class="field">
-          <span class="field__label">最大连接数</span>
-          <UiSelect v-model="form.maxConnections" :options="connectionOptions" />
+          <span class="field__label">线程策略</span>
+          <UiSelect v-model="form.threadMode" :options="threadModeOptions" />
         </label>
+
+        <label class="field">
+          <span class="field__label">线程数</span>
+          <UiSelect
+            v-model="form.threadCount"
+            :options="fixedThreadOptions"
+            :disabled="form.threadMode === 'adaptive'"
+          />
+        </label>
+
+        <p class="field__hint field__hint--wide">{{ threadHint }}</p>
 
         <label class="field">
           <span class="field__label">重试次数</span>
           <UiNumberField v-model="form.maxRetries" :min="0" />
-        </label>
-
-        <label class="field field--full">
-          <span class="field__label">校验方式</span>
-          <UiSelect v-model="form.checksum" :options="checksumOptions" />
         </label>
       </section>
 
@@ -158,6 +193,18 @@ defineEmits<{
   letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
   color: var(--color-text-muted);
+}
+
+.field__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.field__hint--wide {
+  grid-column: 1 / -1;
+  margin-top: -0.25rem;
 }
 
 .destination-field {

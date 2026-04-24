@@ -1,11 +1,30 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 
-import { getProxySettings, saveProxySettings } from "../../lib/tauri/settings-api";
+import { formatSpeed, formatTimestamp } from "../../lib/download-format";
+import { pickDirectory } from "../../lib/tauri/dialog-api";
+import { saveAppSettings } from "../../lib/tauri/settings-api";
+import type { ChecksumMode } from "../../types/download";
+import type {
+  AdaptiveProfile,
+  AppSettings,
+  DeviceLearningMode,
+  NetworkSceneProfile,
+  ProxyMode,
+  SchedulerMode,
+} from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
 import UiInput from "../ui/UiInput.vue";
+import UiNumberField from "../ui/UiNumberField.vue";
 import UiSelect from "../ui/UiSelect.vue";
-import type { ProxyMode, ProxySettings } from "../../types/settings";
+
+const props = defineProps<{
+  settings: AppSettings | null;
+}>();
+
+const emit = defineEmits<{
+  saved: [settings: AppSettings];
+}>();
 
 const proxyModeOptions: Array<{ label: string; value: ProxyMode }> = [
   { label: "不使用代理", value: "disabled" },
@@ -13,28 +32,251 @@ const proxyModeOptions: Array<{ label: string; value: ProxyMode }> = [
   { label: "手动设置代理", value: "manual" },
 ];
 
-const proxySettings = reactive<ProxySettings>({
-  mode: "disabled",
-  manualUrl: "",
+const schedulerModeOptions: Array<{ label: string; value: SchedulerMode }> = [
+  { label: "自动", value: "automatic" },
+  { label: "传统", value: "traditional" },
+];
+
+const adaptiveProfileOptions: Array<{ label: string; value: AdaptiveProfile }> = [
+  { label: "保守", value: "conservative" },
+  { label: "平衡", value: "balanced" },
+  { label: "激进", value: "aggressive" },
+];
+
+const checksumOptions: Array<{ label: string; value: ChecksumMode }> = [
+  { label: "BLAKE3", value: "blake3" },
+  { label: "None", value: "none" },
+];
+
+const deviceModeOptions: Array<{ label: string; value: DeviceLearningMode }> = [
+  { label: "固定使用", value: "fixed" },
+  { label: "移动使用", value: "mobile" },
+  { label: "半移动使用", value: "semi_mobile" },
+];
+
+const form = reactive<AppSettings>({
+  proxy: {
+    mode: "disabled",
+    manualUrl: "",
+  },
+  scheduler: {
+    mode: "automatic",
+    traditional: {
+      maxParallelTasks: 3,
+    },
+    automatic: {
+      maxParallelThreads: 16,
+      maxThreadsPerTask: 8,
+      adaptiveProfile: "balanced",
+    },
+  },
+  download: {
+    defaultDownloadDir: "",
+    defaultMaxRetries: 5,
+    defaultChecksum: "blake3",
+  },
+  networkLearning: {
+    deviceMode: "fixed",
+    currentSceneId: "default",
+    scenes: [
+      {
+        id: "default",
+        name: "默认场景",
+        learningEnabled: true,
+        learnedMetrics: null,
+        updatedAtMs: 0,
+      },
+    ],
+  },
 });
-const isLoading = ref(true);
+
 const isSaving = ref(false);
+const isPickingDirectory = ref(false);
 const notificationMessage = ref("");
+const newSceneName = ref("");
+const renameSceneName = ref("");
 let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 
+const sceneOptions = computed(() => {
+  return form.networkLearning.scenes.map((scene) => ({
+    label: scene.name,
+    value: scene.id,
+  }));
+});
+
+const currentScene = computed(() => {
+  return (
+    form.networkLearning.scenes.find((scene) => scene.id === form.networkLearning.currentSceneId) ??
+    form.networkLearning.scenes[0] ??
+    null
+  );
+});
+
+const pageSummary = computed(() => {
+  if (form.scheduler.mode === "traditional") {
+    return `传统模式下最多同时运行 ${form.scheduler.traditional.maxParallelTasks} 个任务；当前网络模式为${deviceModeLabel(form.networkLearning.deviceMode)}。`;
+  }
+
+  const sceneName = currentScene.value?.name ?? "未选择场景";
+  return `自动模式下总线程预算 ${form.scheduler.automatic.maxParallelThreads}，单任务上限 ${form.scheduler.automatic.maxThreadsPerTask}，当前策略为${profileLabel(form.scheduler.automatic.adaptiveProfile)}；当前场景：${sceneName}。`;
+});
+
 const proxySummary = computed(() => {
-  if (proxySettings.mode === "disabled") {
+  if (form.proxy.mode === "disabled") {
     return "当前直接连接，不经过代理。";
   }
 
-  if (proxySettings.mode === "system") {
+  if (form.proxy.mode === "system") {
     return "当前将跟随系统代理配置。";
   }
 
-  return proxySettings.manualUrl.trim()
-    ? `当前手动代理：${proxySettings.manualUrl.trim()}`
+  return form.proxy.manualUrl.trim()
+    ? `当前手动代理：${form.proxy.manualUrl.trim()}`
     : "请输入代理地址，例如 http://127.0.0.1:7890";
 });
+
+const downloadSummary = computed(() => {
+  const location = form.download.defaultDownloadDir.trim() || "未设置默认路径";
+  const checksumLabel =
+    checksumOptions.find((option) => option.value === form.download.defaultChecksum)?.label ??
+    form.download.defaultChecksum;
+
+  return `默认位置：${location}；默认重试次数：${form.download.defaultMaxRetries}；全局校验方式：${checksumLabel}。`;
+});
+
+const networkLearningSummary = computed(() => {
+  const scene = currentScene.value;
+  if (!scene) {
+    return "请先创建并选择一个网络场景。";
+  }
+
+  if (form.networkLearning.deviceMode === "mobile") {
+    return `当前为${deviceModeLabel(form.networkLearning.deviceMode)}，不会累计网络画像；自动调度将回退到静态自适应策略。`;
+  }
+
+  if (!scene.learningEnabled) {
+    return `当前场景“${scene.name}”已暂停学习，自动调度将回退到静态自适应策略。`;
+  }
+
+  if (!scene.learnedMetrics) {
+    return `当前场景“${scene.name}”暂无学习样本；后续自动模式下载会逐步建立画像。`;
+  }
+
+  return `${deviceModeLabel(form.networkLearning.deviceMode)}；当前场景“${scene.name}”已累计 ${scene.learnedMetrics.sampleCount} 个样本，推荐初始线程 ${scene.learnedMetrics.recommendedInitialThreads}。`;
+});
+
+const networkMetricsCards = computed(() => {
+  const metrics = currentScene.value?.learnedMetrics;
+  const learningOpen =
+    form.networkLearning.deviceMode !== "mobile" && Boolean(currentScene.value?.learningEnabled);
+
+  return [
+    {
+      label: "学习状态",
+      value: learningOpen ? "启用" : "停用",
+    },
+    {
+      label: "估计带宽",
+      value: metrics ? formatSpeed(metrics.estimatedBandwidthBps) : "—",
+    },
+    {
+      label: "稳定性",
+      value: metrics ? stabilityLabel(metrics.stabilityScore) : "—",
+    },
+    {
+      label: "异常率",
+      value: metrics ? formatPercent(metrics.penaltyRate) : "—",
+    },
+    {
+      label: "推荐初始线程",
+      value: metrics ? String(metrics.recommendedInitialThreads) : "—",
+    },
+    {
+      label: "建议线程上限",
+      value: metrics ? String(metrics.recommendedMaxThreadsPerTaskCap) : "—",
+    },
+    {
+      label: "样本数",
+      value: metrics ? String(metrics.sampleCount) : "0",
+    },
+    {
+      label: "最近学习时间",
+      value: metrics ? formatTimestamp(metrics.lastObservedAtMs) : "—",
+    },
+  ];
+});
+
+watch(
+  () => props.settings,
+  (nextSettings) => {
+    if (!nextSettings) {
+      return;
+    }
+
+    form.proxy.mode = nextSettings.proxy.mode;
+    form.proxy.manualUrl = nextSettings.proxy.manualUrl;
+    form.scheduler.mode = nextSettings.scheduler.mode;
+    form.scheduler.traditional.maxParallelTasks =
+      nextSettings.scheduler.traditional.maxParallelTasks;
+    form.scheduler.automatic.maxParallelThreads =
+      nextSettings.scheduler.automatic.maxParallelThreads;
+    form.scheduler.automatic.maxThreadsPerTask = nextSettings.scheduler.automatic.maxThreadsPerTask;
+    form.scheduler.automatic.adaptiveProfile = nextSettings.scheduler.automatic.adaptiveProfile;
+    form.download.defaultDownloadDir = nextSettings.download.defaultDownloadDir;
+    form.download.defaultMaxRetries = nextSettings.download.defaultMaxRetries;
+    form.download.defaultChecksum = nextSettings.download.defaultChecksum;
+    form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
+    form.networkLearning.currentSceneId = nextSettings.networkLearning.currentSceneId;
+    form.networkLearning.scenes = nextSettings.networkLearning.scenes.map((scene) => ({
+      ...scene,
+      learnedMetrics: scene.learnedMetrics ? { ...scene.learnedMetrics } : null,
+    }));
+  },
+  { immediate: true },
+);
+
+watch(
+  () => form.scheduler.automatic.maxParallelThreads,
+  (value) => {
+    if (form.scheduler.automatic.maxThreadsPerTask > value) {
+      form.scheduler.automatic.maxThreadsPerTask = value;
+    }
+  },
+);
+
+watch(
+  currentScene,
+  (scene) => {
+    renameSceneName.value = scene?.name ?? "";
+  },
+  { immediate: true },
+);
+
+function createSceneId() {
+  return `scene-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function profileLabel(profile: AdaptiveProfile) {
+  return adaptiveProfileOptions.find((option) => option.value === profile)?.label ?? profile;
+}
+
+function deviceModeLabel(mode: DeviceLearningMode) {
+  return deviceModeOptions.find((option) => option.value === mode)?.label ?? mode;
+}
+
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(value >= 0.1 ? 0 : 1)}%`;
+}
+
+function stabilityLabel(score: number) {
+  if (score >= 0.88) {
+    return "高";
+  }
+  if (score >= 0.68) {
+    return "中";
+  }
+  return "低";
+}
 
 function showNotification(message: string) {
   notificationMessage.value = message;
@@ -47,15 +289,61 @@ function showNotification(message: string) {
   }, 2200);
 }
 
-async function loadSettings() {
+function addScene() {
+  const name = newSceneName.value.trim();
+  if (!name) {
+    showNotification("请输入新的场景名称");
+    return;
+  }
+
+  const scene: NetworkSceneProfile = {
+    id: createSceneId(),
+    name,
+    learningEnabled: true,
+    learnedMetrics: null,
+    updatedAtMs: Date.now(),
+  };
+  form.networkLearning.scenes.push(scene);
+  form.networkLearning.currentSceneId = scene.id;
+  newSceneName.value = "";
+  renameSceneName.value = scene.name;
+  showNotification("已添加网络场景");
+}
+
+function renameCurrentScene() {
+  const scene = currentScene.value;
+  if (!scene) {
+    showNotification("当前没有可重命名的场景");
+    return;
+  }
+
+  const nextName = renameSceneName.value.trim();
+  if (!nextName) {
+    showNotification("场景名称不能为空");
+    return;
+  }
+
+  scene.name = nextName;
+  scene.updatedAtMs = Date.now();
+  showNotification("场景名称已更新");
+}
+
+async function pickDefaultDownloadDirectory() {
+  if (isPickingDirectory.value) {
+    return;
+  }
+
+  isPickingDirectory.value = true;
+
   try {
-    const settings = await getProxySettings();
-    proxySettings.mode = settings.mode;
-    proxySettings.manualUrl = settings.manualUrl;
+    const selectedPath = await pickDirectory();
+    if (selectedPath) {
+      form.download.defaultDownloadDir = selectedPath;
+    }
   } catch (error) {
-    showNotification(error instanceof Error ? error.message : "读取代理设置失败");
+    showNotification(error instanceof Error ? error.message : "选择目录失败");
   } finally {
-    isLoading.value = false;
+    isPickingDirectory.value = false;
   }
 }
 
@@ -67,23 +355,45 @@ async function persistSettings() {
   isSaving.value = true;
 
   try {
-    const saved = await saveProxySettings({
-      mode: proxySettings.mode,
-      manualUrl: proxySettings.manualUrl,
+    const saved = await saveAppSettings({
+      proxy: {
+        mode: form.proxy.mode,
+        manualUrl: form.proxy.manualUrl,
+      },
+      scheduler: {
+        mode: form.scheduler.mode,
+        traditional: {
+          maxParallelTasks: form.scheduler.traditional.maxParallelTasks,
+        },
+        automatic: {
+          maxParallelThreads: form.scheduler.automatic.maxParallelThreads,
+          maxThreadsPerTask: form.scheduler.automatic.maxThreadsPerTask,
+          adaptiveProfile: form.scheduler.automatic.adaptiveProfile,
+        },
+      },
+      download: {
+        defaultDownloadDir: form.download.defaultDownloadDir,
+        defaultMaxRetries: form.download.defaultMaxRetries,
+        defaultChecksum: form.download.defaultChecksum,
+      },
+      networkLearning: {
+        deviceMode: form.networkLearning.deviceMode,
+        currentSceneId: form.networkLearning.currentSceneId,
+        scenes: form.networkLearning.scenes.map((scene) => ({
+          ...scene,
+          learnedMetrics: scene.learnedMetrics ? { ...scene.learnedMetrics } : null,
+        })),
+      },
     });
-    proxySettings.mode = saved.mode;
-    proxySettings.manualUrl = saved.manualUrl;
-    showNotification("代理设置已保存");
+
+    emit("saved", saved);
+    showNotification("设置已保存");
   } catch (error) {
-    showNotification(error instanceof Error ? error.message : "保存代理设置失败");
+    showNotification(error instanceof Error ? error.message : "保存设置失败");
   } finally {
     isSaving.value = false;
   }
 }
-
-onMounted(() => {
-  void loadSettings();
-});
 
 onBeforeUnmount(() => {
   if (notificationTimer) {
@@ -106,8 +416,214 @@ onBeforeUnmount(() => {
         <p class="section-kicker">Settings</p>
         <h2 class="panel-title">设置</h2>
       </div>
-      <p class="settings-page__summary">{{ proxySummary }}</p>
+      <p class="settings-page__summary">{{ pageSummary }}</p>
     </div>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">Scheduler</p>
+          <h3>线程分配</h3>
+        </div>
+        <span class="settings-section__icon i-ri-git-branch-line" aria-hidden="true" />
+      </div>
+
+      <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">分配模式</span>
+          <UiSelect v-model="form.scheduler.mode" :options="schedulerModeOptions" />
+        </label>
+
+        <label v-if="form.scheduler.mode === 'traditional'" class="settings-field">
+          <span class="settings-field__label">最大并行任务数</span>
+          <UiNumberField v-model="form.scheduler.traditional.maxParallelTasks" :min="1" :max="32" />
+          <p class="settings-field__hint">超过上限的任务会进入排队状态。</p>
+        </label>
+
+        <template v-else>
+          <label class="settings-field">
+            <span class="settings-field__label">最大并行线程数</span>
+            <UiNumberField
+              v-model="form.scheduler.automatic.maxParallelThreads"
+              :min="1"
+              :max="64"
+            />
+          </label>
+
+          <label class="settings-field">
+            <span class="settings-field__label">单任务线程数上限</span>
+            <UiNumberField
+              v-model="form.scheduler.automatic.maxThreadsPerTask"
+              :min="1"
+              :max="Math.max(1, form.scheduler.automatic.maxParallelThreads)"
+            />
+          </label>
+
+          <label class="settings-field settings-field--wide">
+            <span class="settings-field__label">自适应模式</span>
+            <UiSelect
+              v-model="form.scheduler.automatic.adaptiveProfile"
+              :options="adaptiveProfileOptions"
+            />
+            <p class="settings-field__hint">
+              保守更偏节制线程，平衡兼顾开销与速度，激进优先追求下载速度。
+            </p>
+          </label>
+        </template>
+      </div>
+
+      <div class="settings-actions">
+        <UiButton
+          type="button"
+          variant="secondary"
+          icon="i-ri-save-line"
+          :disabled="isSaving"
+          @click="persistSettings"
+        >
+          {{ isSaving ? "保存中…" : "保存设置" }}
+        </UiButton>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">Network Learning</p>
+          <h3>网络环境学习</h3>
+        </div>
+        <span class="settings-section__icon i-ri-radar-line" aria-hidden="true" />
+      </div>
+
+      <p class="settings-section__summary">{{ networkLearningSummary }}</p>
+
+      <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">设备模式</span>
+          <UiSelect v-model="form.networkLearning.deviceMode" :options="deviceModeOptions" />
+          <p class="settings-field__hint">
+            固定使用会积极学习，移动使用不学习，半移动使用会更保守地累计画像。
+          </p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">当前场景</span>
+          <UiSelect v-model="form.networkLearning.currentSceneId" :options="sceneOptions" />
+          <p class="settings-field__hint">自动模式会参考当前场景的学习结果来调整线程策略。</p>
+        </label>
+
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">当前场景是否允许学习</span>
+          <span class="settings-toggle">
+            <input
+              v-if="currentScene"
+              v-model="currentScene.learningEnabled"
+              class="settings-toggle__control"
+              type="checkbox"
+            />
+            <span class="settings-toggle__text">
+              {{ currentScene?.learningEnabled ? "允许更新当前场景画像" : "暂停更新当前场景画像" }}
+            </span>
+          </span>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">新增场景</span>
+          <div class="settings-inline-field">
+            <UiInput v-model="newSceneName" type="text" placeholder="例如 家庭宽带 / 办公网络" />
+            <UiButton type="button" variant="secondary" size="sm" @click="addScene">添加</UiButton>
+          </div>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">重命名当前场景</span>
+          <div class="settings-inline-field">
+            <UiInput v-model="renameSceneName" type="text" placeholder="修改当前场景名称" />
+            <UiButton type="button" variant="secondary" size="sm" @click="renameCurrentScene">
+              重命名
+            </UiButton>
+          </div>
+        </label>
+      </div>
+
+      <div class="settings-metrics-grid">
+        <article v-for="item in networkMetricsCards" :key="item.label" class="settings-metric-card">
+          <span class="settings-metric-card__label">{{ item.label }}</span>
+          <strong class="settings-metric-card__value">{{ item.value }}</strong>
+        </article>
+      </div>
+
+      <div class="settings-actions">
+        <UiButton
+          type="button"
+          variant="secondary"
+          icon="i-ri-save-line"
+          :disabled="isSaving"
+          @click="persistSettings"
+        >
+          {{ isSaving ? "保存中…" : "保存设置" }}
+        </UiButton>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">Downloads</p>
+          <h3>下载默认值</h3>
+        </div>
+        <span class="settings-section__icon i-ri-download-2-line" aria-hidden="true" />
+      </div>
+
+      <p class="settings-section__summary">{{ downloadSummary }}</p>
+
+      <div class="settings-grid">
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">默认下载位置</span>
+          <div class="settings-directory-field">
+            <UiInput
+              v-model="form.download.defaultDownloadDir"
+              type="text"
+              placeholder="未设置时创建任务仍需手动选择"
+            />
+            <UiButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              :loading="isPickingDirectory"
+              @click="pickDefaultDownloadDirectory"
+            >
+              {{ isPickingDirectory ? "打开中…" : "浏览" }}
+            </UiButton>
+          </div>
+          <p class="settings-field__hint">
+            新建任务时会自动带入该目录，你仍然可以在任务里临时改掉。
+          </p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">默认重试次数</span>
+          <UiNumberField v-model="form.download.defaultMaxRetries" :min="0" :max="20" />
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">全局校验方式</span>
+          <UiSelect v-model="form.download.defaultChecksum" :options="checksumOptions" />
+          <p class="settings-field__hint">新建任务中不再单独显示校验方式，统一使用这里的设置。</p>
+        </label>
+      </div>
+
+      <div class="settings-actions">
+        <UiButton
+          type="button"
+          variant="secondary"
+          icon="i-ri-save-line"
+          :disabled="isSaving"
+          @click="persistSettings"
+        >
+          {{ isSaving ? "保存中…" : "保存设置" }}
+        </UiButton>
+      </div>
+    </section>
 
     <section class="settings-section">
       <div class="settings-section__head">
@@ -118,24 +634,17 @@ onBeforeUnmount(() => {
         <span class="settings-section__icon i-ri-global-line" aria-hidden="true" />
       </div>
 
+      <p class="settings-section__summary">{{ proxySummary }}</p>
+
       <div class="settings-grid">
         <label class="settings-field">
           <span class="settings-field__label">代理模式</span>
-          <UiSelect
-            v-model="proxySettings.mode"
-            :options="proxyModeOptions"
-            :disabled="isLoading"
-          />
+          <UiSelect v-model="form.proxy.mode" :options="proxyModeOptions" />
         </label>
 
-        <label v-if="proxySettings.mode === 'manual'" class="settings-field settings-field--wide">
+        <label v-if="form.proxy.mode === 'manual'" class="settings-field settings-field--wide">
           <span class="settings-field__label">代理地址</span>
-          <UiInput
-            v-model="proxySettings.manualUrl"
-            type="text"
-            placeholder="http://127.0.0.1:7890"
-            :disabled="isLoading"
-          />
+          <UiInput v-model="form.proxy.manualUrl" type="text" placeholder="http://127.0.0.1:7890" />
           <p class="settings-field__hint">
             支持常见 HTTP / HTTPS / SOCKS 代理地址，按完整 URL 填写。
           </p>
@@ -147,7 +656,7 @@ onBeforeUnmount(() => {
           type="button"
           variant="secondary"
           icon="i-ri-save-line"
-          :disabled="isLoading || isSaving"
+          :disabled="isSaving"
           @click="persistSettings"
         >
           {{ isSaving ? "保存中…" : "保存设置" }}
@@ -185,12 +694,16 @@ onBeforeUnmount(() => {
   align-items: flex-end;
 }
 
-.settings-page__summary {
+.settings-page__summary,
+.settings-section__summary {
   margin: 0;
-  max-width: 28rem;
   color: var(--color-text-muted);
   font-size: 0.88rem;
   line-height: 1.55;
+}
+
+.settings-page__summary {
+  max-width: 40rem;
   text-align: right;
 }
 
@@ -269,6 +782,64 @@ onBeforeUnmount(() => {
   border-top: 1px solid var(--color-border);
 }
 
+.settings-directory-field,
+.settings-inline-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+}
+
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-panel) 92%, transparent);
+}
+
+.settings-toggle__control {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent);
+}
+
+.settings-toggle__text {
+  color: var(--color-heading);
+  font-size: 0.9rem;
+}
+
+.settings-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.settings-metric-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-panel-muted) 78%, transparent);
+}
+
+.settings-metric-card__label {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settings-metric-card__value {
+  color: var(--color-heading);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
 .settings-notification-enter-active,
 .settings-notification-leave-active {
   transition:
@@ -282,13 +853,21 @@ onBeforeUnmount(() => {
   transform: translateY(-0.45rem);
 }
 
-@media (max-width: 840px) {
+@media (max-width: 960px) {
   .settings-page__summary {
     max-width: none;
     text-align: left;
   }
 
-  .settings-grid {
+  .settings-grid,
+  .settings-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 840px) {
+  .settings-grid,
+  .settings-metrics-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -299,6 +878,11 @@ onBeforeUnmount(() => {
   .settings-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .settings-directory-field,
+  .settings-inline-field {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

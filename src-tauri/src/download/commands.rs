@@ -2,7 +2,7 @@ use tauri::State;
 
 use super::{
     manager::AppState,
-    types::{DownloadSnapshot, DownloadSummary, ProxySettings, StartDownloadRequest},
+    types::{AppSettings, DownloadSnapshot, DownloadSummary, StartDownloadRequest},
 };
 
 #[tauri::command]
@@ -54,6 +54,42 @@ pub async fn download_cancel(
 }
 
 #[tauri::command]
+pub async fn download_remove(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> Result<DownloadSnapshot, String> {
+    state
+        .manager
+        .remove(&download_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn download_purge(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> Result<DownloadSnapshot, String> {
+    state
+        .manager
+        .purge(&download_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn download_open_in_explorer(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> Result<(), String> {
+    state
+        .manager
+        .open_in_explorer(&download_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,
@@ -75,22 +111,22 @@ pub async fn download_list(state: State<'_, AppState>) -> Result<Vec<DownloadSum
 }
 
 #[tauri::command]
-pub async fn settings_proxy_get(state: State<'_, AppState>) -> Result<ProxySettings, String> {
+pub async fn settings_get(state: State<'_, AppState>) -> Result<AppSettings, String> {
     state
         .manager
-        .proxy_settings()
+        .settings()
         .await
         .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub async fn settings_proxy_save(
+pub async fn settings_save(
     state: State<'_, AppState>,
-    settings: ProxySettings,
-) -> Result<ProxySettings, String> {
+    settings: AppSettings,
+) -> Result<AppSettings, String> {
     state
         .manager
-        .update_proxy_settings(settings)
+        .update_settings(settings)
         .await
         .map_err(|error| error.to_string())
 }
