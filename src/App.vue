@@ -36,6 +36,7 @@ const {
   refreshList,
   refreshStatus,
   runCancel,
+  runCopyLink,
   runDeleteTask,
   runDeleteTaskPermanently,
   runOpenInExplorer,
@@ -345,6 +346,7 @@ onBeforeUnmount(() => {
         :is-refreshing-list="isRefreshingList"
         :selected-id="selectedId"
         :task-action-name="actionName"
+        @copy-link="runCopyLink"
         @delete-task="runDeleteTask"
         @delete-task-permanently="requestPermanentDelete"
         @open-in-explorer="runOpenInExplorer"

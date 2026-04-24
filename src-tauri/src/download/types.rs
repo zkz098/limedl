@@ -144,6 +144,7 @@ pub struct DownloadSummary {
     #[serde(default)]
     pub kind: TaskKind,
     pub state: DownloadState,
+    pub url: String,
     pub file_name: String,
     pub destination_path: String,
     pub total_bytes: Option<u64>,
@@ -169,6 +170,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             id: value.id.clone(),
             kind: value.kind,
             state: value.state,
+            url: value.url.clone(),
             file_name: value.file_name.clone(),
             destination_path: value.destination_path.clone(),
             total_bytes: value.total_bytes,

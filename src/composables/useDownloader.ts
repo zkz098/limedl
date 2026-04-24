@@ -31,7 +31,7 @@ function canPauseState(state?: DownloadState | null) {
 }
 
 function canResumeState(state?: DownloadState | null) {
-  return state === "paused";
+  return state === "paused" || state === "failed";
 }
 
 function toMessage(error: unknown) {
@@ -47,6 +47,7 @@ function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     id: snapshot.id,
     kind: snapshot.kind,
     state: snapshot.state,
+    url: snapshot.url,
     fileName: snapshot.fileName,
     destinationPath: snapshot.destinationPath,
     totalBytes: snapshot.totalBytes,
@@ -545,6 +546,25 @@ export function useDownloader() {
     }
   }
 
+  async function runCopyLink(downloadId: string) {
+    const target =
+      selectedSnapshot.value?.id === downloadId
+        ? selectedSnapshot.value
+        : downloads.value.find((download) => download.id === downloadId);
+
+    if (!target?.url) {
+      setError(t("messages.copyLinkFailed"));
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(target.url);
+      setMessage(t("messages.linkCopied"));
+    } catch (error) {
+      setError(toMessage(error));
+    }
+  }
+
   onMounted(async () => {
     await refreshList({ silent: true });
 
@@ -586,6 +606,7 @@ export function useDownloader() {
     runDeleteTask: (downloadId: string) => runTaskMaintenance(downloadId, "Delete", removeDownload),
     runDeleteTaskPermanently: (downloadId: string) =>
       runTaskMaintenance(downloadId, "Purge", purgeDownload),
+    runCopyLink,
     runOpenInExplorer,
     runPause: () => runAction("Pause", pauseDownload),
     runPauseFor: (downloadId: string) => runActionFor(downloadId, "Pause", pauseDownload),

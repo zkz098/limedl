@@ -22,6 +22,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  copyLink: [downloadId: string];
   deleteTask: [downloadId: string];
   deleteTaskPermanently: [downloadId: string];
   openInExplorer: [downloadId: string];
@@ -69,11 +70,12 @@ const canTogglePauseOrResume = computed(() => {
   const state = contextMenuDownload.value?.state;
   return Boolean(
     state &&
-    (state === "paused" || ["queued", "downloading", "retrying", "verifying"].includes(state)),
+    (["paused", "failed"].includes(state) ||
+      ["queued", "downloading", "retrying", "verifying"].includes(state)),
   );
 });
 const contextActionLabel = computed(() => {
-  if (contextMenuDownload.value?.state === "paused") {
+  if (["paused", "failed"].includes(contextMenuDownload.value?.state ?? "")) {
     return t("queue.continue");
   }
 
@@ -84,7 +86,9 @@ const contextActionLabel = computed(() => {
   return t("queue.pauseOrResume");
 });
 const contextActionIcon = computed(() =>
-  contextMenuDownload.value?.state === "paused" ? "i-ri-play-line" : "i-ri-pause-line",
+  ["paused", "failed"].includes(contextMenuDownload.value?.state ?? "")
+    ? "i-ri-play-line"
+    : "i-ri-pause-line",
 );
 
 watch(
@@ -196,7 +200,7 @@ function closeMenus() {
 
 function clampMenuPosition(clientX: number, clientY: number) {
   const menuWidth = 220;
-  const menuHeight = 196;
+  const menuHeight = 236;
   const gutter = 12;
 
   return {
@@ -247,6 +251,15 @@ function handleDeleteTaskPermanently() {
   }
 
   emit("deleteTaskPermanently", contextMenu.value.downloadId);
+  contextMenu.value = null;
+}
+
+function handleCopyLink() {
+  if (!contextMenu.value) {
+    return;
+  }
+
+  emit("copyLink", contextMenu.value.downloadId);
   contextMenu.value = null;
 }
 
@@ -496,6 +509,10 @@ onUnmounted(() => {
         <button type="button" class="task-context-menu__item" @click="handleDeleteTask">
           <span class="i-ri-delete-bin-6-line" aria-hidden="true" />
           <span>{{ t("queue.deleteTask") }}</span>
+        </button>
+        <button type="button" class="task-context-menu__item" @click="handleCopyLink">
+          <span class="i-ri-file-copy-line" aria-hidden="true" />
+          <span>{{ t("queue.copyLink") }}</span>
         </button>
         <button
           type="button"

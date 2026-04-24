@@ -42,6 +42,7 @@ export interface DownloadSummary {
   id: string;
   kind: TaskKind;
   state: DownloadState;
+  url: string;
   fileName: string;
   destinationPath: string;
   totalBytes?: number;
