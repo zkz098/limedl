@@ -14,6 +14,7 @@ pub(super) fn open_download_file(path: &Path, total_size: Option<u64>) -> Result
 
     let file = OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(path)?;
@@ -60,7 +61,7 @@ fn preallocate_file(file: &File, total_size: Option<u64>) -> Result<()> {
     match file.allocate(total_size) {
         Ok(()) => Ok(()),
         Err(error) => match error.raw_os_error() {
-            Some(code) if matches!(code, 38 | 45 | 95 | 524) => {
+            Some(38 | 45 | 95 | 524) => {
                 file.set_len(total_size)?;
                 Ok(())
             }

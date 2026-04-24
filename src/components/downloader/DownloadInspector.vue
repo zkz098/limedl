@@ -4,14 +4,13 @@ import { computed } from "vue";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
+import { useI18n } from "../../i18n";
 import {
-  formatTokenLabel,
   formatBytes,
   formatEta,
   formatSpeed,
   formatTimestamp,
   progressValue,
-  stateLabel,
 } from "../../lib/download-format";
 import type { DownloadSnapshot, DownloadSummary } from "../../types/download";
 
@@ -33,6 +32,8 @@ defineEmits<{
   close: [];
 }>();
 
+const { t } = useI18n();
+
 const detailRows = computed(() => {
   const snapshot = props.selectedSnapshot;
 
@@ -41,36 +42,47 @@ const detailRows = computed(() => {
   }
 
   return [
-    { label: "下载链接", value: snapshot.url, wide: true },
-    { label: "最终链接", value: snapshot.finalUrl, wide: true },
-    { label: "保存路径", value: snapshot.destinationPath, wide: true },
-    { label: "临时文件", value: snapshot.tempPath, wide: true },
-    { label: "断点续传", value: snapshot.supportsRanges ? "支持" : "不支持" },
-    { label: "当前线程数", value: String(snapshot.connectionCount) },
-    { label: "线程策略", value: formatTokenLabel(snapshot.threadMode) },
+    { label: t("inspector.fields.url"), value: snapshot.url, wide: true },
+    { label: t("inspector.fields.finalUrl"), value: snapshot.finalUrl, wide: true },
+    { label: t("inspector.fields.destinationPath"), value: snapshot.destinationPath, wide: true },
+    { label: t("inspector.fields.tempPath"), value: snapshot.tempPath, wide: true },
     {
-      label: "请求线程数",
-      value: snapshot.requestedThreadCount ? String(snapshot.requestedThreadCount) : "—",
+      label: t("inspector.fields.supportsRanges"),
+      value: snapshot.supportsRanges ? t("common.supported") : t("common.unsupported"),
+    },
+    { label: t("inspector.fields.connectionCount"), value: String(snapshot.connectionCount) },
+    { label: t("inspector.fields.threadMode"), value: t(`tokens.${snapshot.threadMode}`) },
+    {
+      label: t("inspector.fields.requestedThreadCount"),
+      value: snapshot.requestedThreadCount
+        ? String(snapshot.requestedThreadCount)
+        : t("common.dash"),
     },
     {
-      label: "目标线程数",
-      value: snapshot.desiredThreadCount ? String(snapshot.desiredThreadCount) : "—",
+      label: t("inspector.fields.desiredThreadCount"),
+      value: snapshot.desiredThreadCount ? String(snapshot.desiredThreadCount) : t("common.dash"),
     },
     {
-      label: "分配线程数",
-      value: snapshot.allocatedThreadCount ? String(snapshot.allocatedThreadCount) : "—",
+      label: t("inspector.fields.allocatedThreadCount"),
+      value: snapshot.allocatedThreadCount
+        ? String(snapshot.allocatedThreadCount)
+        : t("common.dash"),
     },
     {
-      label: "自适应模式",
-      value: snapshot.adaptiveProfile ? formatTokenLabel(snapshot.adaptiveProfile) : "—",
+      label: t("inspector.fields.adaptiveProfile"),
+      value: snapshot.adaptiveProfile ? t(`tokens.${snapshot.adaptiveProfile}`) : t("common.dash"),
     },
-    { label: "线程说明", value: snapshot.threadNote ?? "—", wide: true },
-    { label: "校验方式", value: formatTokenLabel(snapshot.checksumMode) },
-    { label: "校验码", value: snapshot.checksum ?? "—" },
-    { label: "ETag", value: snapshot.etag ?? "—" },
-    { label: "最后修改时间", value: snapshot.lastModified ?? "—" },
-    { label: "创建时间", value: formatTimestamp(snapshot.createdAtMs) },
-    { label: "更新时间", value: formatTimestamp(snapshot.updatedAtMs) },
+    {
+      label: t("inspector.fields.threadNote"),
+      value: snapshot.threadNote ?? t("common.dash"),
+      wide: true,
+    },
+    { label: t("inspector.fields.checksumMode"), value: t(`tokens.${snapshot.checksumMode}`) },
+    { label: t("inspector.fields.checksum"), value: snapshot.checksum ?? t("common.dash") },
+    { label: t("inspector.fields.etag"), value: snapshot.etag ?? t("common.dash") },
+    { label: t("inspector.fields.lastModified"), value: snapshot.lastModified ?? t("common.dash") },
+    { label: t("inspector.fields.createdAt"), value: formatTimestamp(snapshot.createdAtMs) },
+    { label: t("inspector.fields.updatedAt"), value: formatTimestamp(snapshot.updatedAtMs) },
   ];
 });
 
@@ -89,8 +101,8 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
   <section class="inspector-panel">
     <div class="inspector-header">
       <div>
-        <p class="section-kicker">Inspector</p>
-        <h2 class="panel-title">任务详情</h2>
+        <p class="section-kicker">{{ t("inspector.kicker") }}</p>
+        <h2 class="panel-title">{{ t("inspector.title") }}</h2>
       </div>
       <div class="inspector-actions">
         <UiButton
@@ -100,7 +112,7 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
           icon="i-ri-refresh-line"
           @click="$emit('refresh')"
         >
-          {{ isRefreshingStatus ? "刷新中…" : "刷新" }}
+          {{ isRefreshingStatus ? t("common.refreshing") : t("common.refresh") }}
         </UiButton>
         <UiButton
           type="button"
@@ -110,7 +122,7 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
           :disabled="!canPause"
           @click="$emit('pause')"
         >
-          {{ actionName === "Pause" ? "暂停中…" : "暂停" }}
+          {{ actionName === "Pause" ? t("inspector.pausing") : t("inspector.pause") }}
         </UiButton>
         <UiButton
           type="button"
@@ -120,7 +132,7 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
           :disabled="!canResume"
           @click="$emit('resume')"
         >
-          {{ actionName === "Resume" ? "恢复中…" : "恢复" }}
+          {{ actionName === "Resume" ? t("inspector.resuming") : t("inspector.resume") }}
         </UiButton>
         <UiButton
           type="button"
@@ -130,7 +142,7 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
           :disabled="!canCancel"
           @click="$emit('cancel')"
         >
-          {{ actionName === "Cancel" ? "取消中…" : "取消" }}
+          {{ actionName === "Cancel" ? t("inspector.canceling") : t("inspector.cancel") }}
         </UiButton>
         <UiButton
           type="button"
@@ -147,39 +159,41 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
         <div class="inspector-summary__copy">
           <div class="inspector-summary__header">
             <h3>{{ selectedOverview.fileName }}</h3>
-            <UiBadge :tone="stateTone">{{ stateLabel(selectedOverview.state) }}</UiBadge>
+            <UiBadge :tone="stateTone">{{ t(`states.${selectedOverview.state}`) }}</UiBadge>
           </div>
           <p>{{ selectedOverview.destinationPath }}</p>
         </div>
 
         <div class="metric-grid">
           <div class="text-row">
-            <span class="text-label">已传输:</span>
+            <span class="text-label">{{ t("inspector.transferred") }}:</span>
             <span class="text-value">
               {{ formatBytes(selectedOverview.downloadedBytes) }} /
               {{ formatBytes(selectedOverview.totalBytes) }}
             </span>
           </div>
           <div class="text-row">
-            <span class="text-label">速度:</span>
+            <span class="text-label">{{ t("inspector.speed") }}:</span>
             <span class="text-value">{{ formatSpeed(selectedOverview.speedBytesPerSecond) }}</span>
           </div>
           <div class="text-row">
-            <span class="text-label">剩余时间:</span>
+            <span class="text-label">{{ t("inspector.eta") }}:</span>
             <span class="text-value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
           </div>
           <div class="text-row">
-            <span class="text-label">线程:</span>
+            <span class="text-label">{{ t("inspector.threads") }}:</span>
             <span class="text-value">
               {{ selectedOverview.connectionCount }}
-              <template v-if="selectedOverview.threadMode === 'adaptive'"> / 自适应 </template>
+              <template v-if="selectedOverview.threadMode === 'adaptive'">
+                / {{ t("tokens.adaptive") }}
+              </template>
             </span>
           </div>
         </div>
 
         <div class="summary-progress">
           <div class="summary-progress__copy">
-            <span>进度</span>
+            <span>{{ t("inspector.progress") }}</span>
             <span>{{ progressValue(selectedOverview).toFixed(1) }}%</span>
           </div>
           <UiProgress :value="progressValue(selectedOverview)" />
@@ -204,8 +218,8 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
     </div>
 
     <div v-else class="inspector-empty">
-      <h3>未选择任务</h3>
-      <p>请选择一个任务以查看进度和详情。</p>
+      <h3>{{ t("inspector.noSelectionTitle") }}</h3>
+      <p>{{ t("inspector.noSelectionDescription") }}</p>
     </div>
   </section>
 </template>

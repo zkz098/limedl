@@ -1,19 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ChecksumMode {
     None,
+    #[default]
     Blake3,
     Sha256,
     #[serde(rename = "xxh3_128")]
     Xxh3128,
-}
-
-impl Default for ChecksumMode {
-    fn default() -> Self {
-        Self::Blake3
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,72 +24,47 @@ pub enum DownloadState {
     Canceled,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ThreadMode {
     Fixed,
+    #[default]
     Adaptive,
 }
 
-impl Default for ThreadMode {
-    fn default() -> Self {
-        Self::Adaptive
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AdaptiveProfile {
     Conservative,
+    #[default]
     Balanced,
     Aggressive,
 }
 
-impl Default for AdaptiveProfile {
-    fn default() -> Self {
-        Self::Balanced
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProxyMode {
+    #[default]
     Disabled,
     System,
     Manual,
 }
 
-impl Default for ProxyMode {
-    fn default() -> Self {
-        Self::Disabled
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SchedulerMode {
     Traditional,
+    #[default]
     Automatic,
 }
 
-impl Default for SchedulerMode {
-    fn default() -> Self {
-        Self::Automatic
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DeviceLearningMode {
+    #[default]
     Fixed,
     Mobile,
     SemiMobile,
-}
-
-impl Default for DeviceLearningMode {
-    fn default() -> Self {
-        Self::Fixed
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

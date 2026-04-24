@@ -7,9 +7,10 @@ import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
-import { formatSpeed, stateLabel } from "./lib/download-format";
+import { formatSpeed } from "./lib/download-format";
 import { getAppSettings } from "./lib/tauri/settings-api";
 import { useDownloader } from "./composables/useDownloader";
+import { useI18n } from "./i18n";
 import type { AppSettings } from "./types/settings";
 
 const {
@@ -47,13 +48,20 @@ const {
   submitStart,
 } = useDownloader();
 
+const { t } = useI18n();
 const showComposerDialog = ref(false);
 const inspectorCollapsed = ref(false);
 const currentView = ref<"home" | "settings">("home");
 const appSettings = ref<AppSettings | null>(null);
+const pendingPermanentDeleteId = ref<string | null>(null);
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
-const selectedStateLabel = computed(() => stateLabel(selectedOverview.value?.state));
+const pendingPermanentDeleteTask = computed(
+  () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
+);
+const selectedStateLabel = computed(() =>
+  selectedOverview.value?.state ? t(`states.${selectedOverview.value.state}`) : t("common.unknown"),
+);
 const activeSpeedLabel = computed(() => formatSpeed(selectedOverview.value?.speedBytesPerSecond));
 const activeCount = computed(
   () =>
@@ -96,6 +104,28 @@ const handleTaskPauseOrResume = async (downloadId: string) => {
     await runResumeFor(downloadId);
   }
 };
+
+function requestPermanentDelete(downloadId: string) {
+  pendingPermanentDeleteId.value = downloadId;
+}
+
+function cancelPermanentDelete() {
+  if (actionName.value === "Purge") {
+    return;
+  }
+
+  pendingPermanentDeleteId.value = null;
+}
+
+async function confirmPermanentDelete() {
+  const downloadId = pendingPermanentDeleteId.value;
+  if (!downloadId) {
+    return;
+  }
+
+  await runDeleteTaskPermanently(downloadId);
+  pendingPermanentDeleteId.value = null;
+}
 
 function handleSettingsSaved(nextSettings: AppSettings) {
   appSettings.value = nextSettings;
@@ -151,9 +181,11 @@ watch(
         </div>
       </div>
 
-      <UiButton icon="i-ri-add-line" block @click="showComposerDialog = true"> 新建任务 </UiButton>
+      <UiButton icon="i-ri-add-line" block @click="showComposerDialog = true">
+        {{ t("nav.newTask") }}
+      </UiButton>
 
-      <nav class="sidebar-nav" aria-label="Primary">
+      <nav class="sidebar-nav" :aria-label="t('nav.primary')">
         <button
           type="button"
           class="sidebar-nav__item"
@@ -161,7 +193,7 @@ watch(
           @click="currentView = 'home'"
         >
           <span class="sidebar-nav__icon i-ri-home-5-line" aria-hidden="true" />
-          <span>首页</span>
+          <span>{{ t("nav.home") }}</span>
         </button>
         <button
           type="button"
@@ -170,29 +202,33 @@ watch(
           @click="currentView = 'settings'"
         >
           <span class="sidebar-nav__icon i-ri-settings-3-line" aria-hidden="true" />
-          <span>设置</span>
+          <span>{{ t("nav.settings") }}</span>
         </button>
       </nav>
 
       <div class="sidebar__divider" aria-hidden="true" />
 
       <div class="sidebar-overview">
-        <p class="section-kicker">Overview</p>
+        <p class="section-kicker">{{ t("sidebar.overview") }}</p>
         <div class="sidebar-overview__list">
           <p>
-            <span>总任务</span><strong>{{ downloads.length }}</strong>
+            <span>{{ t("sidebar.totalTasks") }}</span
+            ><strong>{{ downloads.length }}</strong>
           </p>
           <p>
-            <span>活跃中</span><strong>{{ activeCount }}</strong>
+            <span>{{ t("sidebar.active") }}</span
+            ><strong>{{ activeCount }}</strong>
           </p>
           <p>
-            <span>已完成</span><strong>{{ completedCount }}</strong>
+            <span>{{ t("sidebar.completed") }}</span
+            ><strong>{{ completedCount }}</strong>
           </p>
           <p>
-            <span>当前速度</span><strong>{{ activeSpeedLabel }}</strong>
+            <span>{{ t("sidebar.currentSpeed") }}</span
+            ><strong>{{ activeSpeedLabel }}</strong>
           </p>
           <p>
-            <span>选中状态</span>
+            <span>{{ t("sidebar.selectedState") }}</span>
             <strong>{{ selectedStateLabel }}</strong>
           </p>
         </div>
@@ -210,7 +246,7 @@ watch(
         :selected-id="selectedId"
         :task-action-name="actionName"
         @delete-task="runDeleteTask"
-        @delete-task-permanently="runDeleteTaskPermanently"
+        @delete-task-permanently="requestPermanentDelete"
         @open-in-explorer="runOpenInExplorer"
         @pause-or-resume="handleTaskPauseOrResume"
         @refresh="refreshList"
@@ -231,7 +267,7 @@ watch(
           @click="inspectorCollapsed = !inspectorCollapsed"
         >
           <div class="floating-inspector__tab-copy">
-            <span class="floating-inspector__tab-kicker">任务详情</span>
+            <span class="floating-inspector__tab-kicker">{{ t("inspector.taskDetails") }}</span>
             <strong>{{ selectedOverview.fileName }}</strong>
           </div>
           <div class="floating-inspector__tab-meta">
@@ -267,8 +303,8 @@ watch(
       <template #title>
         <div class="dialog-heading">
           <div>
-            <p class="section-kicker">New Transfer</p>
-            <h2>新建下载任务</h2>
+            <p class="section-kicker">{{ t("dialog.newTransfer") }}</p>
+            <h2>{{ t("dialog.newTaskTitle") }}</h2>
           </div>
           <span class="dialog-heading__icon i-ri-download-cloud-2-line" aria-hidden="true" />
         </div>
@@ -282,6 +318,59 @@ watch(
         @pick-directory="pickDestinationDirectory"
         @submit="handleSubmitStart"
       />
+    </UiDialog>
+
+    <UiDialog
+      :model-value="Boolean(pendingPermanentDeleteId)"
+      width="min(32rem, calc(100vw - 1.5rem))"
+      :close-on-overlay="actionName !== 'Purge'"
+      @update:model-value="
+        (value) => {
+          if (!value) cancelPermanentDelete();
+        }
+      "
+    >
+      <template #title>
+        <div class="dialog-heading">
+          <div>
+            <p class="section-kicker">{{ t("dialog.confirmDelete") }}</p>
+            <h2>{{ t("dialog.permanentDeleteTitle") }}</h2>
+          </div>
+          <span
+            class="dialog-heading__icon dialog-heading__icon--danger i-ri-delete-bin-line"
+            aria-hidden="true"
+          />
+        </div>
+      </template>
+
+      <div class="confirm-delete">
+        <p class="confirm-delete__message">
+          {{ t("dialog.permanentDeleteMessage") }}
+        </p>
+        <div v-if="pendingPermanentDeleteTask" class="confirm-delete__target">
+          <span>{{ t("dialog.targetFile") }}</span>
+          <strong>{{ pendingPermanentDeleteTask.fileName }}</strong>
+        </div>
+        <div class="confirm-delete__actions">
+          <UiButton
+            type="button"
+            variant="secondary"
+            :disabled="actionName === 'Purge'"
+            @click="cancelPermanentDelete"
+          >
+            {{ t("common.cancel") }}
+          </UiButton>
+          <UiButton
+            type="button"
+            variant="danger"
+            icon="i-ri-delete-bin-line"
+            :loading="actionName === 'Purge'"
+            @click="confirmPermanentDelete"
+          >
+            {{ actionName === "Purge" ? t("dialog.deleting") : t("dialog.confirmPermanentDelete") }}
+          </UiButton>
+        </div>
+      </div>
     </UiDialog>
   </main>
 </template>
@@ -382,6 +471,12 @@ watch(
   color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-muted));
   border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+}
+
+.dialog-heading__icon--danger {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
 }
 
 .sidebar-nav {
@@ -581,6 +676,50 @@ watch(
   margin: 0.25rem 0 0;
   font-size: 1.25rem;
   color: var(--color-heading);
+}
+
+.confirm-delete {
+  display: grid;
+  gap: 1rem;
+}
+
+.confirm-delete__message {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.confirm-delete__target {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel-muted);
+}
+
+.confirm-delete__target span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.confirm-delete__target strong {
+  min-width: 0;
+  color: var(--color-heading);
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.confirm-delete__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
 }
 
 @media (max-width: 1080px) {

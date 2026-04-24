@@ -200,7 +200,7 @@ impl DownloadManager {
             etag: metadata.etag.clone(),
             last_modified: metadata.last_modified.clone(),
             state: DownloadState::Queued,
-            checksum_mode: request.checksum.clone().unwrap_or_default(),
+            checksum_mode: request.checksum.unwrap_or_default(),
             checksum: None,
             error: None,
             created_at_ms: now_ms(),
@@ -913,7 +913,7 @@ impl DownloadManager {
             (
                 PathBuf::from(manifest.temp_path.clone()),
                 PathBuf::from(manifest.destination_path.clone()),
-                manifest.checksum_mode.clone(),
+                manifest.checksum_mode,
             )
         };
 
@@ -983,7 +983,7 @@ impl DownloadManager {
             let mut manifest = managed.manifest.lock().expect("manifest poisoned");
             if manifest.thread_mode != ThreadMode::Adaptive
                 || manifest.state != DownloadState::Downloading
-                || manifest.supports_ranges == false
+                || !manifest.supports_ranges
             {
                 continue;
             }
@@ -1320,7 +1320,7 @@ impl DownloadManager {
                     .find(|candidate| candidate.index == index)
                 {
                     chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-                    if chunk.downloaded >= chunk.end.saturating_sub(chunk.start) + 1 {
+                    if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
                         chunk.completed = true;
                         chunk.claimed_by = None;
                     }
@@ -1787,7 +1787,7 @@ fn record_progress_on_managed(
                 .find(|candidate| candidate.index == index)
             {
                 chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-                if chunk.downloaded >= chunk.end.saturating_sub(chunk.start) + 1 {
+                if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
                     chunk.completed = true;
                     chunk.claimed_by = None;
                 }
@@ -2361,7 +2361,7 @@ async fn calculate_checksum(path: PathBuf, mode: ChecksumMode) -> Result<String>
 enum ChecksumHasher {
     Blake3(Box<blake3::Hasher>),
     Sha256(sha2::Sha256),
-    Xxh3_128(xxhash_rust::xxh3::Xxh3),
+    Xxh3_128(Box<xxhash_rust::xxh3::Xxh3>),
 }
 
 impl ChecksumHasher {
@@ -2373,7 +2373,7 @@ impl ChecksumHasher {
                 use sha2::Digest;
                 Self::Sha256(sha2::Sha256::new())
             }
-            ChecksumMode::Xxh3128 => Self::Xxh3_128(xxhash_rust::xxh3::Xxh3::new()),
+            ChecksumMode::Xxh3128 => Self::Xxh3_128(Box::new(xxhash_rust::xxh3::Xxh3::new())),
         }
     }
 

@@ -2,14 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { debounce, throttle } from "es-toolkit";
 
-import {
-  formatBytes,
-  formatEta,
-  formatSpeed,
-  progressLabel,
-  progressValue,
-  stateLabel,
-} from "../../lib/download-format";
+import { formatBytes, formatEta, formatSpeed, progressValue } from "../../lib/download-format";
+import { useI18n } from "../../i18n";
 import type { DownloadSummary } from "../../types/download";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
@@ -39,6 +33,7 @@ const emit = defineEmits<{
 const pageSize = 10;
 const syncShowDelayMs = 240;
 const syncHideDelayMs = 420;
+const { t } = useI18n();
 const currentPage = ref(1);
 const columnMenuOpen = ref(false);
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
@@ -46,13 +41,15 @@ const isRefreshLabelVisible = ref(false);
 const isSyncIndicatorVisible = ref(false);
 const visibleColumns = ref<ColumnKey[]>(["file", "status", "progress", "speed", "eta"]);
 
-const columnOptions: Array<{ key: ColumnKey; label: string; alwaysVisible?: boolean }> = [
-  { key: "file", label: "文件", alwaysVisible: true },
-  { key: "status", label: "状态" },
-  { key: "progress", label: "进度" },
-  { key: "speed", label: "速度" },
-  { key: "eta", label: "剩余时间" },
-];
+const columnOptions = computed<Array<{ key: ColumnKey; label: string; alwaysVisible?: boolean }>>(
+  () => [
+    { key: "file", label: t("queue.file"), alwaysVisible: true },
+    { key: "status", label: t("queue.status") },
+    { key: "progress", label: t("queue.progress") },
+    { key: "speed", label: t("queue.speed") },
+    { key: "eta", label: t("queue.eta") },
+  ],
+);
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.downloads.length / pageSize)));
 const pagedDownloads = computed(() => {
@@ -77,14 +74,14 @@ const canTogglePauseOrResume = computed(() => {
 });
 const contextActionLabel = computed(() => {
   if (contextMenuDownload.value?.state === "paused") {
-    return "继续";
+    return t("queue.continue");
   }
 
   if (canTogglePauseOrResume.value) {
-    return "暂停";
+    return t("queue.pause");
   }
 
-  return "暂停/继续";
+  return t("queue.pauseOrResume");
 });
 const contextActionIcon = computed(() =>
   contextMenuDownload.value?.state === "paused" ? "i-ri-play-line" : "i-ri-pause-line",
@@ -169,7 +166,7 @@ function isColumnVisible(key: ColumnKey) {
 }
 
 function toggleColumn(key: ColumnKey) {
-  const option = columnOptions.find((item) => item.key === key);
+  const option = columnOptions.value.find((item) => item.key === key);
   if (option?.alwaysVisible) {
     return;
   }
@@ -179,7 +176,7 @@ function toggleColumn(key: ColumnKey) {
     return;
   }
 
-  visibleColumns.value = columnOptions
+  visibleColumns.value = columnOptions.value
     .map((item) => item.key)
     .filter((column) => column === key || visibleColumns.value.includes(column));
 }
@@ -266,6 +263,14 @@ const triggerRefresh = throttle(() => {
   emit("refresh");
 }, 600);
 
+function labelForProgress(download: DownloadSummary) {
+  if (!download.totalBytes || download.totalBytes <= 0) {
+    return t("queue.pendingSize");
+  }
+
+  return `${progressValue(download).toFixed(1)}%`;
+}
+
 onMounted(() => {
   window.addEventListener("pointerdown", handleGlobalPointerDown);
   window.addEventListener("resize", closeMenus);
@@ -285,13 +290,13 @@ onUnmounted(() => {
   <section class="queue-panel">
     <div class="desk-panel__header queue-panel__header">
       <div>
-        <p class="section-kicker">Queue</p>
-        <h2 class="panel-title">任务列表</h2>
+        <p class="section-kicker">{{ t("queue.kicker") }}</p>
+        <h2 class="panel-title">{{ t("queue.title") }}</h2>
       </div>
 
       <div class="queue-panel__actions">
         <span class="sync-pill" :data-active="isSyncIndicatorVisible">{{
-          isSyncIndicatorVisible ? "Auto Syncing" : "Idle"
+          isSyncIndicatorVisible ? t("queue.autoSyncing") : t("queue.idle")
         }}</span>
         <div class="column-menu">
           <UiButton
@@ -304,7 +309,7 @@ onUnmounted(() => {
               columnMenuOpen = !columnMenuOpen;
             "
           >
-            列
+            {{ t("queue.columns") }}
           </UiButton>
           <div v-if="columnMenuOpen" class="column-menu__panel" @pointerdown.stop>
             <label
@@ -338,7 +343,7 @@ onUnmounted(() => {
           icon="i-ri-refresh-line"
           @click="triggerRefresh"
         >
-          {{ isRefreshLabelVisible ? "刷新中…" : "刷新" }}
+          {{ isRefreshLabelVisible ? t("common.refreshing") : t("common.refresh") }}
         </UiButton>
       </div>
     </div>
@@ -351,11 +356,11 @@ onUnmounted(() => {
         <table class="queue-table">
           <thead>
             <tr>
-              <th v-if="isColumnVisible('file')">文件</th>
-              <th v-if="isColumnVisible('status')">状态</th>
-              <th v-if="isColumnVisible('progress')">进度</th>
-              <th v-if="isColumnVisible('speed')">速度</th>
-              <th v-if="isColumnVisible('eta')">剩余时间</th>
+              <th v-if="isColumnVisible('file')">{{ t("queue.file") }}</th>
+              <th v-if="isColumnVisible('status')">{{ t("queue.status") }}</th>
+              <th v-if="isColumnVisible('progress')">{{ t("queue.progress") }}</th>
+              <th v-if="isColumnVisible('speed')">{{ t("queue.speed") }}</th>
+              <th v-if="isColumnVisible('eta')">{{ t("queue.eta") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -372,10 +377,14 @@ onUnmounted(() => {
                   <span class="queue-file__name">{{ download.fileName }}</span>
                   <span class="queue-file__path">{{ download.destinationPath }}</span>
                   <span class="queue-file__meta">
-                    {{ download.threadMode === "adaptive" ? "自适应" : "固定线程" }}
-                    · 当前 {{ download.connectionCount }} 线程
+                    {{
+                      download.threadMode === "adaptive"
+                        ? t("queue.adaptive")
+                        : t("queue.fixedThread")
+                    }}
+                    · {{ t("queue.currentThreads", { count: download.connectionCount }) }}
                     <template v-if="download.adaptiveProfile">
-                      · {{ stateLabel(download.adaptiveProfile as never) }}
+                      · {{ t(`tokens.${download.adaptiveProfile}`) }}
                     </template>
                     <template v-if="download.threadNote"> · {{ download.threadNote }} </template>
                   </span>
@@ -384,14 +393,14 @@ onUnmounted(() => {
 
               <td v-if="isColumnVisible('status')" class="queue-cell queue-cell--status">
                 <UiBadge size="sm" :tone="toneForState(download.state)">{{
-                  stateLabel(download.state)
+                  t(`states.${download.state}`)
                 }}</UiBadge>
               </td>
 
               <td v-if="isColumnVisible('progress')" class="queue-cell queue-cell--progress">
                 <div class="queue-progress">
                   <div class="queue-progress__copy">
-                    <span>{{ progressLabel(download) }}</span>
+                    <span>{{ labelForProgress(download) }}</span>
                     <span>
                       {{ formatBytes(download.downloadedBytes) }} /
                       {{ formatBytes(download.totalBytes) }}
@@ -415,7 +424,7 @@ onUnmounted(() => {
 
       <div class="queue-pagination">
         <p class="queue-pagination__summary">
-          显示 {{ pageStart }}-{{ pageEnd }} / {{ downloads.length }}
+          {{ t("queue.showing", { start: pageStart, end: pageEnd, total: downloads.length }) }}
         </p>
         <div class="queue-pagination__actions">
           <UiButton
@@ -426,9 +435,11 @@ onUnmounted(() => {
             :disabled="currentPage === 1"
             @click="goToPreviousPage"
           >
-            上一页
+            {{ t("queue.previous") }}
           </UiButton>
-          <span class="queue-pagination__page">第 {{ currentPage }} / {{ totalPages }} 页</span>
+          <span class="queue-pagination__page">{{
+            t("queue.page", { current: currentPage, total: totalPages })
+          }}</span>
           <UiButton
             type="button"
             size="sm"
@@ -437,7 +448,7 @@ onUnmounted(() => {
             :disabled="currentPage === totalPages"
             @click="goToNextPage"
           >
-            下一页
+            {{ t("queue.next") }}
           </UiButton>
         </div>
       </div>
@@ -459,7 +470,7 @@ onUnmounted(() => {
         </button>
         <button type="button" class="task-context-menu__item" @click="handleDeleteTask">
           <span class="i-ri-delete-bin-6-line" aria-hidden="true" />
-          <span>删除任务</span>
+          <span>{{ t("queue.deleteTask") }}</span>
         </button>
         <button
           type="button"
@@ -467,19 +478,19 @@ onUnmounted(() => {
           @click="handleDeleteTaskPermanently"
         >
           <span class="i-ri-delete-bin-line" aria-hidden="true" />
-          <span>彻底删除</span>
+          <span>{{ t("queue.permanentDelete") }}</span>
         </button>
         <button type="button" class="task-context-menu__item" @click="handleOpenInExplorer">
           <span class="i-ri-folder-open-line" aria-hidden="true" />
-          <span>在资源管理器中打开</span>
+          <span>{{ t("queue.openInExplorer") }}</span>
         </button>
       </div>
     </div>
 
     <div v-else class="queue-empty">
       <span class="queue-empty__icon i-ri-inbox-archive-line" aria-hidden="true" />
-      <h3>暂无下载任务</h3>
-      <p>点击左侧“新建任务”开始下载。</p>
+      <h3>{{ t("queue.emptyTitle") }}</h3>
+      <p>{{ t("queue.emptyDescription") }}</p>
     </div>
   </section>
 </template>

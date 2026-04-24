@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, watch } from "vue";
 
+import { useI18n } from "../../i18n";
+
 const props = withDefaults(
   defineProps<{
     modelValue: boolean;
@@ -19,6 +21,7 @@ const emit = defineEmits<{
   "update:modelValue": [value: boolean];
 }>();
 
+const { t } = useI18n();
 const dialogStyle = computed(() => ({ width: props.width }));
 
 function close() {
@@ -61,7 +64,12 @@ onBeforeUnmount(() => {
                 <h2>{{ title }}</h2>
               </slot>
             </div>
-            <button type="button" class="ui-dialog__close" aria-label="Close" @click="close">
+            <button
+              type="button"
+              class="ui-dialog__close"
+              :aria-label="t('common.close')"
+              @click="close"
+            >
               <span class="i-ri-close-line" aria-hidden="true" />
             </button>
           </div>

@@ -5,6 +5,7 @@ import UiButton from "../ui/UiButton.vue";
 import UiInput from "../ui/UiInput.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
 import UiSelect from "../ui/UiSelect.vue";
+import { useI18n } from "../../i18n";
 
 import type { DownloadFormState, ThreadMode } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
@@ -21,6 +22,7 @@ defineEmits<{
   submit: [];
 }>();
 
+const { t } = useI18n();
 const schedulerMode = computed(() => props.settings?.scheduler.mode ?? "automatic");
 const maxThreadsPerTask = computed(
   () => props.settings?.scheduler.automatic.maxThreadsPerTask ?? 8,
@@ -35,25 +37,25 @@ const fixedThreadOptions = computed(() => {
 
 const threadModeOptions = computed<Array<{ label: string; value: ThreadMode }>>(() => {
   if (schedulerMode.value === "traditional") {
-    return [{ label: "固定线程数", value: "fixed" }];
+    return [{ label: t("composer.fixedThreads"), value: "fixed" }];
   }
 
   return [
-    { label: "自适应", value: "adaptive" },
-    { label: "固定线程数", value: "fixed" },
+    { label: t("composer.adaptive"), value: "adaptive" },
+    { label: t("composer.fixedThreads"), value: "fixed" },
   ];
 });
 
 const threadHint = computed(() => {
   if (schedulerMode.value === "traditional") {
-    return "传统模式按任务数并发，任务内使用固定线程数。";
+    return t("composer.traditionalHint");
   }
 
   if (props.form.threadMode === "adaptive") {
-    return "自动模式下会根据网络表现、全局线程预算和当前网络场景画像动态调整线程数。";
+    return t("composer.adaptiveHint");
   }
 
-  return `自动模式下固定线程数仍会受全局预算和单任务上限 ${maxThreadsPerTask.value} 约束。`;
+  return t("composer.fixedHint", { count: maxThreadsPerTask.value });
 });
 </script>
 
@@ -62,31 +64,35 @@ const threadHint = computed(() => {
     <form class="composer-form" @submit.prevent="$emit('submit')">
       <section class="group field--full">
         <div class="group__head">
-          <p class="section-kicker">Source</p>
-          <h3>下载来源</h3>
+          <p class="section-kicker">{{ t("composer.source") }}</p>
+          <h3>{{ t("composer.sourceTitle") }}</h3>
         </div>
 
         <label class="field field--full">
-          <span class="field__label">下载链接</span>
+          <span class="field__label">{{ t("composer.url") }}</span>
           <UiInput v-model="form.url" type="url" placeholder="https://example.com/archive.iso" />
         </label>
 
         <label class="field field--full">
-          <span class="field__label">文件名（可选）</span>
-          <UiInput v-model="form.fileName" type="text" placeholder="重命名文件" />
+          <span class="field__label">{{ t("composer.fileName") }}</span>
+          <UiInput
+            v-model="form.fileName"
+            type="text"
+            :placeholder="t('composer.fileNamePlaceholder')"
+          />
         </label>
       </section>
 
       <section class="group field--full">
         <div class="group__head">
-          <p class="section-kicker">Destination</p>
-          <h3>保存位置</h3>
+          <p class="section-kicker">{{ t("composer.destination") }}</p>
+          <h3>{{ t("composer.destinationTitle") }}</h3>
         </div>
 
         <label class="field field--full">
-          <span class="field__label">保存路径</span>
+          <span class="field__label">{{ t("composer.savePath") }}</span>
           <div class="destination-field">
-            <UiInput :model-value="form.destinationDir || '选择文件夹来保存文件'" readonly />
+            <UiInput :model-value="form.destinationDir || t('composer.chooseFolder')" readonly />
             <UiButton
               type="button"
               variant="secondary"
@@ -94,7 +100,7 @@ const threadHint = computed(() => {
               :loading="isPickingDirectory"
               @click="$emit('pickDirectory')"
             >
-              {{ isPickingDirectory ? "打开中…" : "浏览" }}
+              {{ isPickingDirectory ? t("common.browsing") : t("common.browse") }}
             </UiButton>
           </div>
         </label>
@@ -102,17 +108,17 @@ const threadHint = computed(() => {
 
       <section class="group field--full group--split">
         <div class="group__head group__head--full">
-          <p class="section-kicker">Transfer Strategy</p>
-          <h3>线程与重试</h3>
+          <p class="section-kicker">{{ t("composer.strategy") }}</p>
+          <h3>{{ t("composer.strategyTitle") }}</h3>
         </div>
 
         <label class="field">
-          <span class="field__label">线程策略</span>
+          <span class="field__label">{{ t("composer.threadStrategy") }}</span>
           <UiSelect v-model="form.threadMode" :options="threadModeOptions" />
         </label>
 
         <label class="field">
-          <span class="field__label">线程数</span>
+          <span class="field__label">{{ t("composer.threadCount") }}</span>
           <UiSelect
             v-model="form.threadCount"
             :options="fixedThreadOptions"
@@ -123,7 +129,7 @@ const threadHint = computed(() => {
         <p class="field__hint field__hint--wide">{{ threadHint }}</p>
 
         <label class="field">
-          <span class="field__label">重试次数</span>
+          <span class="field__label">{{ t("composer.retries") }}</span>
           <UiNumberField v-model="form.maxRetries" :min="0" />
         </label>
       </section>
@@ -136,7 +142,7 @@ const threadHint = computed(() => {
           :loading="isStarting"
           icon="i-ri-download-2-line"
         >
-          {{ isStarting ? "启动中…" : "开始下载" }}
+          {{ isStarting ? t("composer.starting") : t("composer.start") }}
         </UiButton>
       </div>
     </form>
@@ -151,6 +157,7 @@ const threadHint = computed(() => {
 
 .composer-form {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
 }
@@ -158,6 +165,8 @@ const threadHint = computed(() => {
 .field {
   display: grid;
   gap: var(--space-2);
+  align-content: start;
+  grid-auto-rows: max-content;
 }
 
 .field--full {
@@ -166,6 +175,7 @@ const threadHint = computed(() => {
 
 .group {
   display: grid;
+  align-items: start;
   grid-template-columns: inherit;
   gap: var(--space-4);
   padding: 1rem;

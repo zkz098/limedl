@@ -1,16 +1,14 @@
 import type { DownloadState, DownloadSummary } from "../types/download";
+import { t } from "../i18n";
 
 type ProgressShape = Pick<DownloadSummary, "downloadedBytes" | "totalBytes">;
 
 export function formatTokenLabel(value?: string) {
   if (!value) {
-    return "Unknown";
+    return t("common.unknown");
   }
 
-  return value
-    .split("_")
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
+  return t(`tokens.${value}`);
 }
 
 export function formatBytes(value?: number) {
@@ -70,7 +68,7 @@ export function formatTimestamp(value?: number) {
 }
 
 export function stateLabel(state?: DownloadState) {
-  return formatTokenLabel(state);
+  return state ? t(`states.${state}`) : formatTokenLabel(state);
 }
 
 export function progressValue(download: ProgressShape) {
@@ -83,7 +81,7 @@ export function progressValue(download: ProgressShape) {
 
 export function progressLabel(download: ProgressShape) {
   if (!download.totalBytes || download.totalBytes <= 0) {
-    return "Pending size";
+    return t("queue.pendingSize");
   }
 
   return `${progressValue(download).toFixed(1)}%`;

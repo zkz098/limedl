@@ -76,7 +76,7 @@ pub(super) fn infer_file_name(final_url: &str, headers: &HeaderMap) -> Option<St
         .ok()
         .and_then(|url| {
             url.path_segments()
-                .and_then(|segments| segments.last().map(ToOwned::to_owned))
+                .and_then(|mut segments| segments.next_back().map(ToOwned::to_owned))
         })
         .map(sanitize_filename::sanitize)
         .filter(|value| !value.is_empty())

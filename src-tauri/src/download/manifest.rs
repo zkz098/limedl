@@ -104,7 +104,7 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         adaptive_profile: manifest.adaptive_profile_snapshot,
         thread_note: manifest.thread_note.clone(),
         checksum: manifest.checksum.clone(),
-        checksum_mode: manifest.checksum_mode.clone(),
+        checksum_mode: manifest.checksum_mode,
         etag: manifest.etag.clone(),
         last_modified: manifest.last_modified.clone(),
         error: manifest.error.clone(),

@@ -12,6 +12,7 @@ import {
   startDownload,
 } from "../lib/tauri/download-api";
 import { pickDirectory } from "../lib/tauri/dialog-api";
+import { t } from "../i18n";
 import type {
   ChecksumMode,
   DownloadFormState,
@@ -274,9 +275,9 @@ export function useDownloader() {
       }
 
       if (!downloads.value.length && !options?.silent) {
-        setMessage("No downloads yet. Start one from the form.");
+        setMessage(t("messages.noDownloads"));
       } else if (!options?.silent && downloads.value.length) {
-        setMessage(`Queue refreshed. ${downloads.value.length} item(s) loaded.`);
+        setMessage(t("messages.queueRefreshed", { count: downloads.value.length }));
       }
     } catch (error) {
       if (!options?.silent) {
@@ -307,7 +308,7 @@ export function useDownloader() {
       }
 
       if (!options?.silent) {
-        setMessage(`Status refreshed for ${snapshot.fileName}.`);
+        setMessage(t("messages.statusRefreshed", { fileName: snapshot.fileName }));
       }
     } catch (error) {
       if (!options?.silent) {
@@ -390,7 +391,7 @@ export function useDownloader() {
 
   async function submitStart() {
     if (!form.url.trim() || !form.destinationDir.trim()) {
-      setError("URL and destination directory are required.");
+      setError(t("messages.startRequired"));
       return;
     }
 
@@ -404,7 +405,7 @@ export function useDownloader() {
       selectedId.value = downloadId;
       await refreshList();
       await refreshStatus(downloadId, { silent: true });
-      setMessage(`Download queued with id ${downloadId}.`);
+      setMessage(t("messages.downloadQueued", { id: downloadId }));
     } catch (error) {
       setError(toMessage(error));
     } finally {
@@ -444,7 +445,12 @@ export function useDownloader() {
         upsertSummary(toSummary(snapshot));
       }
 
-      setMessage(`${name} complete for ${snapshot.fileName}.`);
+      setMessage(
+        t("messages.actionComplete", {
+          action: t(`actions.${name}`),
+          fileName: snapshot.fileName,
+        }),
+      );
     } catch (error) {
       setError(toMessage(error));
     } finally {
@@ -465,7 +471,12 @@ export function useDownloader() {
       const snapshot = await action(downloadId);
       removeSummary(downloadId);
 
-      setMessage(`${name} complete for ${snapshot.fileName}.`);
+      setMessage(
+        t("messages.actionComplete", {
+          action: t(`actions.${name}`),
+          fileName: snapshot.fileName,
+        }),
+      );
     } catch (error) {
       setError(toMessage(error));
     } finally {
@@ -479,7 +490,7 @@ export function useDownloader() {
     try {
       clearMessage();
       await openDownloadInExplorer(downloadId);
-      setMessage("Opened download location in Explorer.");
+      setMessage(t("messages.openedInExplorer"));
     } catch (error) {
       setError(toMessage(error));
     } finally {
