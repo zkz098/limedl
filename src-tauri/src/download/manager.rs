@@ -26,6 +26,7 @@ use super::{
         extract_total_bytes, header_string, if_range_header, infer_file_name, supports_ranges,
         validate_probe_response, validate_segment_response,
     },
+    logging::apply_logging_settings,
     manifest::{
         CHUNK_SIZE, ChunkManifest, Manifest, RemoteMetadata, contiguous_prefix_end,
         has_partial_chunk_progress, plan_chunks, snapshot_from_manifest, validators_changed,
@@ -35,10 +36,10 @@ use super::{
     types::{
         AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, BtSettings, ChecksumMode,
         DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
-        DownloadSummary, NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile,
-        ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, TaskKind,
-        ThreadMode, TraditionalSchedulerSettings, default_http_user_agent,
-        default_tracker_list_url,
+        DownloadSummary, LogSettings, NetworkLearningMetrics, NetworkLearningSettings,
+        NetworkSceneProfile, ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings,
+        StartDownloadRequest, TaskKind, ThreadMode, TraditionalSchedulerSettings,
+        default_http_user_agent, default_tracker_list_url,
     },
 };
 
@@ -159,6 +160,9 @@ impl DownloadManager {
         persist_settings(&self.settings_path, &normalized).await?;
         *self.settings.write().await = normalized.clone();
         *self.client.write().await = next_client;
+        apply_logging_settings(&normalized.logging, &self.state_dir).map_err(|error| {
+            DownloadError::InvalidResponse(format!("failed to apply logging settings: {error}"))
+        })?;
         self.rebalance_allocations().await?;
         self.rebalance_notify.notify_waiters();
 
@@ -2202,6 +2206,7 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let network_learning =
         normalize_network_learning_settings(settings.network_learning, max_threads_per_task.max(1));
     let bt = normalize_bt_settings(settings.bt)?;
+    let logging = normalize_logging_settings(settings.logging);
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
 
     Ok(AppSettings {
@@ -2226,7 +2231,16 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         },
         bt,
         network_learning,
+        logging,
     })
+}
+
+fn normalize_logging_settings(settings: LogSettings) -> LogSettings {
+    LogSettings {
+        enabled: settings.enabled,
+        level: settings.level,
+        file_path: settings.file_path.trim().to_string(),
+    }
 }
 
 fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
@@ -2391,6 +2405,7 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         download: DownloadDefaultsSettings::default(),
         bt: BtSettings::default(),
         network_learning: NetworkLearningSettings::default(),
+        logging: LogSettings::default(),
     })
 }
 
@@ -2756,6 +2771,7 @@ mod tests {
         response::IntoResponse,
         routing::get,
     };
+    use ntest::timeout;
     use tempfile::tempdir;
 
     use super::*;
@@ -2802,6 +2818,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[timeout(30_000)]
     async fn loads_legacy_proxy_settings() -> TestResult {
         let temp = tempdir()?;
         let settings_path = temp.path().join("settings.json");
@@ -2821,6 +2838,7 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn normalize_settings_recovers_missing_scene_selection() -> TestResult {
         let settings = normalize_settings(AppSettings {
@@ -2848,6 +2866,7 @@ mod tests {
                     updated_at_ms: 9,
                 }],
             },
+            logging: LogSettings::default(),
         })?;
 
         assert_eq!(settings.network_learning.current_scene_id, "default");
@@ -2865,6 +2884,7 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
         let settings = AppSettings {
@@ -2900,6 +2920,7 @@ mod tests {
                     updated_at_ms: 42,
                 }],
             },
+            logging: LogSettings::default(),
         };
 
         let (_, _, desired_thread_count, _) = resolve_thread_settings(
@@ -2923,6 +2944,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[timeout(30_000)]
     async fn traditional_mode_limits_running_tasks() -> TestResult {
         let payload = Arc::new(vec![42_u8; 12 * 1024 * 1024]);
         let state = single_file_state("/file.bin", payload, "\"test-etag\"", 180);
@@ -2955,6 +2977,7 @@ mod tests {
                 download: DownloadDefaultsSettings::default(),
                 bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
+                logging: LogSettings::default(),
             })
             .await?;
 
@@ -2999,6 +3022,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[timeout(30_000)]
     async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         let big_payload = Arc::new(vec![7_u8; 24 * 1024 * 1024]);
         let small_payload = Arc::new(vec![3_u8; 8 * 1024 * 1024]);
@@ -3038,6 +3062,7 @@ mod tests {
                 download: DownloadDefaultsSettings::default(),
                 bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
+                logging: LogSettings::default(),
             })
             .await?;
 
@@ -3078,6 +3103,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[timeout(30_000)]
     async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
         let payload = Arc::new(vec![11_u8; 96 * 1024 * 1024]);
         let state = single_file_state("/file.bin", payload, "\"aimd\"", 500);
@@ -3111,6 +3137,7 @@ mod tests {
                 download: DownloadDefaultsSettings::default(),
                 bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
+                logging: LogSettings::default(),
             })
             .await?;
 

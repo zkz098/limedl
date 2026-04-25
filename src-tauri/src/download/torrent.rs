@@ -3,7 +3,7 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
     process::Command,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -104,7 +104,7 @@ impl TorrentManager {
     }
 
     pub fn update_settings(&self, settings: &AppSettings) {
-        *self.bt_settings.lock().expect("bt settings poisoned") = settings.bt.clone();
+        *lock_or_recover(&self.bt_settings, "bt settings") = settings.bt.clone();
     }
 
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
@@ -122,11 +122,17 @@ impl TorrentManager {
         let bt_settings = self
             .bt_settings
             .lock()
-            .expect("bt settings poisoned")
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("bt settings lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            })
             .clone();
         self.pending
             .lock()
-            .expect("pending torrents poisoned")
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("pending torrents lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            })
             .insert(
                 pending_id.clone(),
                 PendingTorrent {
@@ -146,7 +152,10 @@ impl TorrentManager {
         if let Some(task) = self
             .pending
             .lock()
-            .expect("pending torrents poisoned")
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("pending torrents lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            })
             .get_mut(&pending_id)
         {
             task.join = Some(join);
@@ -172,7 +181,12 @@ impl TorrentManager {
                 .map(|id| {
                     output_folders
                         .lock()
-                        .expect("output folders poisoned")
+                        .unwrap_or_else(|poisoned| {
+                            tracing::warn!(
+                                "output folders lock poisoned, recovering with inner state"
+                            );
+                            poisoned.into_inner()
+                        })
                         .insert(id, destination_dir);
                     id
                 })
@@ -180,7 +194,7 @@ impl TorrentManager {
 
             let mut added_without_owner = None;
             {
-                let mut pending = pending.lock().expect("pending torrents poisoned");
+                let mut pending = lock_or_recover(&pending, "pending torrents");
                 if let Some(task) = pending.get_mut(&pending_id) {
                     task.join = None;
                     task.state = match result {
@@ -196,7 +210,10 @@ impl TorrentManager {
                 let _ = session.delete(TorrentIdOrHash::Id(id), false).await;
                 output_folders
                     .lock()
-                    .expect("output folders poisoned")
+                    .unwrap_or_else(|poisoned| {
+                        tracing::warn!("output folders lock poisoned, recovering with inner state");
+                        poisoned.into_inner()
+                    })
                     .remove(&id);
             }
         })
@@ -205,7 +222,7 @@ impl TorrentManager {
     async fn restart_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
         let mut managed_id = None;
         let (source, destination_dir, created_at_ms) = {
-            let mut pending = self.pending.lock().expect("pending torrents poisoned");
+            let mut pending = lock_or_recover(&self.pending, "pending torrents");
             let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
 
             match task.state {
@@ -231,7 +248,10 @@ impl TorrentManager {
         let bt_settings = self
             .bt_settings
             .lock()
-            .expect("bt settings poisoned")
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("bt settings lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            })
             .clone();
         let join = self.spawn_add_torrent(
             pending_id.to_string(),
@@ -240,7 +260,7 @@ impl TorrentManager {
             bt_settings,
         );
 
-        let mut pending = self.pending.lock().expect("pending torrents poisoned");
+        let mut pending = lock_or_recover(&self.pending, "pending torrents");
         let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
         task.state = PendingTorrentState::Resolving;
         task.join = Some(join);
@@ -250,7 +270,7 @@ impl TorrentManager {
 
     async fn pause_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
         let managed_id = {
-            let mut pending = self.pending.lock().expect("pending torrents poisoned");
+            let mut pending = lock_or_recover(&self.pending, "pending torrents");
             let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
             if let PendingTorrentState::Added(id) = task.state {
                 Some(id)
@@ -406,7 +426,7 @@ impl TorrentManager {
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
         if is_pending_bt_task_id(download_id) {
             let managed_id = {
-                let pending = self.pending.lock().expect("pending torrents poisoned");
+                let pending = lock_or_recover(&self.pending, "pending torrents");
                 let task = pending.get(download_id).ok_or(DownloadError::NotFound)?;
                 match task.state {
                     PendingTorrentState::Added(id) => Some(id),
@@ -432,7 +452,7 @@ impl TorrentManager {
         let mut pending_snapshots = Vec::new();
         let mut represented_ids = HashSet::new();
         {
-            let pending = self.pending.lock().expect("pending torrents poisoned");
+            let pending = lock_or_recover(&self.pending, "pending torrents");
             for (pending_id, task) in pending.iter() {
                 if let PendingTorrentState::Added(id) = task.state {
                     represented_ids.insert(id);
@@ -477,7 +497,7 @@ impl TorrentManager {
     }
 
     fn pending_managed_id(&self, pending_id: &str) -> Option<usize> {
-        let pending = self.pending.lock().expect("pending torrents poisoned");
+        let pending = lock_or_recover(&self.pending, "pending torrents");
         pending.get(pending_id).and_then(|task| match task.state {
             PendingTorrentState::Added(id) => Some(id),
             _ => None,
@@ -545,7 +565,10 @@ impl TorrentManager {
             .map_err(|error| DownloadError::Torrent(error.to_string()))?;
         self.output_folders
             .lock()
-            .expect("output folders poisoned")
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("output folders lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            })
             .remove(&id);
         Ok(())
     }
@@ -554,7 +577,10 @@ impl TorrentManager {
         let mut task = self
             .pending
             .lock()
-            .expect("pending torrents poisoned")
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("pending torrents lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            })
             .remove(pending_id)
             .ok_or(DownloadError::NotFound)?;
 
@@ -569,7 +595,10 @@ impl TorrentManager {
                 .map_err(|error| DownloadError::Torrent(error.to_string()))?;
             self.output_folders
                 .lock()
-                .expect("output folders poisoned")
+                .unwrap_or_else(|poisoned| {
+                    tracing::warn!("output folders lock poisoned, recovering with inner state");
+                    poisoned.into_inner()
+                })
                 .remove(&id);
         }
 
@@ -581,7 +610,10 @@ impl TorrentManager {
         let settings = self
             .bt_settings
             .lock()
-            .expect("bt settings poisoned")
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("bt settings lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            })
             .clone();
         let limit_reached =
             upload_limit_reached(&settings, stats.uploaded_bytes, stats.progress_bytes);
@@ -627,7 +659,10 @@ impl TorrentManager {
             .or_else(|| {
                 self.output_folders
                     .lock()
-                    .expect("output folders poisoned")
+                    .unwrap_or_else(|poisoned| {
+                        tracing::warn!("output folders lock poisoned, recovering with inner state");
+                        poisoned.into_inner()
+                    })
                     .get(&id)
                     .cloned()
                     .map(|path| path.to_string_lossy().to_string())
@@ -856,8 +891,20 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+fn lock_or_recover<'a, T>(mutex: &'a Mutex<T>, name: &str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::warn!("{name} lock poisoned, recovering with inner state");
+            poisoned.into_inner()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use ntest::timeout;
+
     use super::{
         BT_PREFIX, DownloadSourceKind, build_add_torrent, classify_download_source, is_bt_task_id,
         mib_per_second_to_bytes_per_second, normalize_http_task_id, upload_limit_reached,
@@ -880,6 +927,7 @@ mod tests {
         }
     }
 
+    #[timeout(30_000)]
     #[test]
     fn classifies_download_sources() -> TestResult {
         assert_eq!(
@@ -915,6 +963,7 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn explicit_kind_overrides_source_detection() -> TestResult {
         assert_eq!(
@@ -925,7 +974,9 @@ mod tests {
             DownloadSourceKind::Http
         );
         assert_eq!(
-            classify_download_source(&request("https://example.com/file.zip", Some(TaskKind::Bt),))?,
+            classify_download_source(
+                &request("https://example.com/file.zip", Some(TaskKind::Bt),)
+            )?,
             DownloadSourceKind::Torrent
         );
         assert_eq!(
@@ -945,6 +996,7 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn routes_prefixed_ids() {
         assert!(is_bt_task_id(&format!("{BT_PREFIX}1")));
@@ -952,17 +1004,20 @@ mod tests {
         assert_eq!(normalize_http_task_id("abc"), "abc");
     }
 
+    #[timeout(30_000)]
     #[test]
     fn accepts_torrent_sources_for_add() {
         assert!(build_add_torrent("magnet:?xt=urn:btih:abc").is_ok());
         assert!(build_add_torrent("https://example.com/file.torrent").is_ok());
     }
 
+    #[timeout(30_000)]
     #[test]
     fn converts_rqbit_mib_speed_to_bytes_per_second() {
         assert_eq!(mib_per_second_to_bytes_per_second(1.5), 1_572_864.0);
     }
 
+    #[timeout(30_000)]
     #[test]
     fn upload_policy_uses_byte_limit_or_ratio_limit() {
         let settings = BtSettings {

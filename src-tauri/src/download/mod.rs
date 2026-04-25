@@ -2,6 +2,7 @@ mod commands;
 mod error;
 mod file_alloc;
 mod http;
+mod logging;
 mod manager;
 mod manifest;
 mod metalink;
@@ -14,6 +15,7 @@ pub use commands::{
     download_remove, download_resume, download_start, download_status, settings_fetch_tracker_list,
     settings_get, settings_save,
 };
+pub use logging::init_logging;
 pub use manager::{AppState, DownloadManager};
 pub use sftp::SftpManager;
 pub use torrent::TorrentManager;

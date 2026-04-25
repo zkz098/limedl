@@ -5,6 +5,7 @@ export type SchedulerMode = "traditional" | "automatic";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 export type DeviceLearningMode = "fixed" | "mobile" | "semi_mobile";
 export type ThemeColor = "default" | "amber" | "sky" | "lime";
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
 export interface AppearanceSettings {
   themeColor: ThemeColor;
@@ -74,6 +75,12 @@ export interface NetworkLearningSettings {
   scenes: NetworkSceneProfile[];
 }
 
+export interface LogSettings {
+  enabled: boolean;
+  level: LogLevel;
+  filePath: string;
+}
+
 export interface AppSettings {
   appearance: AppearanceSettings;
   proxy: ProxySettings;
@@ -81,4 +88,5 @@ export interface AppSettings {
   download: DownloadDefaultsSettings;
   bt: BtSettings;
   networkLearning: NetworkLearningSettings;
+  logging: LogSettings;
 }

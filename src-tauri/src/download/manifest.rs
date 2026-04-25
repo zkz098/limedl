@@ -160,8 +160,11 @@ pub(super) fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use ntest::timeout;
+
     use super::{CHUNK_SIZE, plan_chunks};
 
+    #[timeout(30_000)]
     #[test]
     fn plans_stable_chunk_boundaries() {
         let chunks = plan_chunks(Some(16 * 1024 * 1024), true);

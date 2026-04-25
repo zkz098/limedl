@@ -235,11 +235,14 @@ fn decode_xml_entities(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use ntest::timeout;
+
     use super::parse_metalink;
     use crate::download::types::ChecksumMode;
 
     type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
+    #[timeout(30_000)]
     #[test]
     fn parses_meta4_file_urls() -> TestResult {
         let entries = parse_metalink(
@@ -262,6 +265,7 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn parses_namespaced_tags_and_entities() -> TestResult {
         let entries = parse_metalink(

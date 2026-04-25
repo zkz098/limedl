@@ -88,12 +88,14 @@ fn write_once_at(file: &File, buffer: &[u8], offset: u64) -> std::io::Result<usi
 mod tests {
     use std::fs;
 
+    use ntest::timeout;
     use tempfile::tempdir;
 
     use super::{open_download_file, reset_download_file, write_all_at};
 
     type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
+    #[timeout(30_000)]
     #[test]
     fn open_download_file_sizes_known_length() -> TestResult {
         let temp = tempdir()?;
@@ -105,6 +107,7 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn reset_download_file_restores_target_length() -> TestResult {
         let temp = tempdir()?;
@@ -118,6 +121,7 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn write_after_preallocation_preserves_file() -> TestResult {
         let temp = tempdir()?;

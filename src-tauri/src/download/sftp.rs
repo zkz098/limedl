@@ -4,7 +4,7 @@ use std::{
     io::{self, Read, Seek, SeekFrom, Write},
     net::{TcpStream, ToSocketAddrs},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -145,7 +145,7 @@ impl SftpManager {
 
     pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
         let task = self.get(download_id).await?;
-        let state = task.snapshot.lock().expect("sftp snapshot poisoned").state;
+        let state = lock_or_recover(&task.snapshot, "sftp snapshot").state;
         if matches!(state, DownloadState::Canceled | DownloadState::Completed) {
             return Err(DownloadError::NotResumable);
         }
@@ -244,7 +244,7 @@ fn spawn_transfer(task: Arc<SftpTask>) {
     let token = CancellationToken::new();
     let runtime_id = Uuid::new_v4();
     {
-        let mut runtime = task.runtime.lock().expect("sftp runtime poisoned");
+        let mut runtime = lock_or_recover(&task.runtime, "sftp runtime");
         if runtime
             .as_ref()
             .is_some_and(|runtime| !runtime.token.is_cancelled())
@@ -261,7 +261,7 @@ fn spawn_transfer(task: Arc<SftpTask>) {
     tokio::task::spawn_blocking(move || {
         let outcome = download_sftp_file(&task, &token);
         {
-            let mut runtime = task.runtime.lock().expect("sftp runtime poisoned");
+            let mut runtime = lock_or_recover(&task.runtime, "sftp runtime");
             if runtime
                 .as_ref()
                 .is_some_and(|runtime| runtime.id == runtime_id)
@@ -273,7 +273,7 @@ fn spawn_transfer(task: Arc<SftpTask>) {
         match outcome {
             Ok(()) => update_snapshot(&task, DownloadState::Completed, None),
             Err(DownloadError::Interrupted) => {
-                let state = task.snapshot.lock().expect("sftp snapshot poisoned").state;
+                let state = lock_or_recover(&task.snapshot, "sftp snapshot").state;
                 if !matches!(state, DownloadState::Paused | DownloadState::Canceled) {
                     update_snapshot(
                         &task,
@@ -316,7 +316,7 @@ fn download_sftp_file(task: &SftpTask, token: &CancellationToken) -> Result<()> 
         .and_then(|stat| stat.size)
         .filter(|size| *size > 0);
     if let Some(total_bytes) = total_bytes {
-        let mut snapshot = task.snapshot.lock().expect("sftp snapshot poisoned");
+        let mut snapshot = lock_or_recover(&task.snapshot, "sftp snapshot");
         snapshot.total_bytes = Some(total_bytes);
     }
 
@@ -463,7 +463,7 @@ fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
 }
 
 fn cancel_runtime(task: &SftpTask) {
-    let mut runtime = task.runtime.lock().expect("sftp runtime poisoned");
+    let mut runtime = lock_or_recover(&task.runtime, "sftp runtime");
     if let Some(runtime) = runtime.take() {
         runtime.token.cancel();
     }
@@ -471,17 +471,14 @@ fn cancel_runtime(task: &SftpTask) {
 
 fn current_snapshot(task: &SftpTask) -> DownloadSnapshot {
     refresh_progress(task);
-    task.snapshot
-        .lock()
-        .expect("sftp snapshot poisoned")
-        .clone()
+    lock_or_recover(&task.snapshot, "sftp snapshot").clone()
 }
 
 fn refresh_progress(task: &SftpTask) {
     let now = now_ms();
     let downloaded = existing_file_len(&task.destination_path);
     let speed = {
-        let mut speed = task.speed.lock().expect("sftp speed poisoned");
+        let mut speed = lock_or_recover(&task.speed, "sftp speed");
         let elapsed = now.saturating_sub(speed.at_ms);
         let next = if elapsed > 0 && downloaded >= speed.bytes {
             Some((downloaded - speed.bytes) as f64 * 1000.0 / elapsed as f64)
@@ -493,7 +490,7 @@ fn refresh_progress(task: &SftpTask) {
         next
     };
 
-    let mut snapshot = task.snapshot.lock().expect("sftp snapshot poisoned");
+    let mut snapshot = lock_or_recover(&task.snapshot, "sftp snapshot");
     snapshot.downloaded_bytes = downloaded;
     snapshot.speed_bytes_per_second = speed.filter(|value| *value > 0.0);
     snapshot.eta_seconds = estimate_eta(
@@ -505,7 +502,7 @@ fn refresh_progress(task: &SftpTask) {
 }
 
 fn update_snapshot(task: &SftpTask, state: DownloadState, error: Option<String>) {
-    let mut snapshot = task.snapshot.lock().expect("sftp snapshot poisoned");
+    let mut snapshot = lock_or_recover(&task.snapshot, "sftp snapshot");
     snapshot.state = state;
     snapshot.downloaded_bytes = existing_file_len(&task.destination_path);
     snapshot.connection_count = usize::from(matches!(state, DownloadState::Downloading));
@@ -542,6 +539,16 @@ fn percent_decode(value: &str) -> String {
         .unwrap_or_else(|_| value.to_string())
 }
 
+fn lock_or_recover<'a, T>(mutex: &'a Mutex<T>, name: &str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::warn!("{name} lock poisoned, recovering with inner state");
+            poisoned.into_inner()
+        }
+    }
+}
+
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -551,10 +558,13 @@ fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use ntest::timeout;
+
     use super::{infer_file_name, parse_sftp_url};
 
     type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
+    #[timeout(30_000)]
     #[test]
     fn parses_sftp_url() -> TestResult {
         let parsed = parse_sftp_url("sftp://alice:secret@example.com:2222/path/file.zip")?;
@@ -567,12 +577,14 @@ mod tests {
         Ok(())
     }
 
+    #[timeout(30_000)]
     #[test]
     fn rejects_non_sftp_url() {
         assert!(parse_sftp_url("ftp://example.com/file.zip").is_err());
         assert!(parse_sftp_url("ftps://example.com/file.zip").is_err());
     }
 
+    #[timeout(30_000)]
     #[test]
     fn infers_remote_file_name() {
         assert_eq!(

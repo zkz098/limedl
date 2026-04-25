@@ -87,6 +87,17 @@ pub enum DeviceLearningMode {
     SemiMobile,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    #[default]
+    Info,
+    Warn,
+    Error,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartDownloadRequest {
@@ -342,6 +353,27 @@ pub struct NetworkLearningSettings {
     pub scenes: Vec<NetworkSceneProfile>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub level: LogLevel,
+    #[serde(default)]
+    pub file_path: String,
+}
+
+impl Default for LogSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            level: LogLevel::Info,
+            file_path: String::new(),
+        }
+    }
+}
+
 impl Default for NetworkLearningSettings {
     fn default() -> Self {
         Self {
@@ -395,4 +427,6 @@ pub struct AppSettings {
     pub bt: BtSettings,
     #[serde(default)]
     pub network_learning: NetworkLearningSettings,
+    #[serde(default)]
+    pub logging: LogSettings,
 }

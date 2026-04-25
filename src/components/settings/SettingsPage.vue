@@ -11,6 +11,7 @@ import type {
   AdaptiveProfile,
   AppSettings,
   DeviceLearningMode,
+  LogLevel,
   NetworkLearningSettings,
   NetworkSceneProfile,
   ProxyMode,
@@ -67,6 +68,14 @@ const deviceModeOptions = computed<Array<{ label: string; value: DeviceLearningM
   { label: t("tokens.semi_mobile"), value: "semi_mobile" },
 ]);
 
+const logLevelOptions = computed<Array<{ label: string; value: LogLevel }>>(() => [
+  { label: t("tokens.trace"), value: "trace" },
+  { label: t("tokens.debug"), value: "debug" },
+  { label: t("tokens.info"), value: "info" },
+  { label: t("tokens.warn"), value: "warn" },
+  { label: t("tokens.error"), value: "error" },
+]);
+
 const form = reactive<AppSettings>({
   appearance: {
     themeColor: "default",
@@ -116,6 +125,11 @@ const form = reactive<AppSettings>({
       },
     ],
   },
+  logging: {
+    enabled: true,
+    level: "info",
+    filePath: "",
+  },
 });
 
 const isSaving = ref(false);
@@ -156,6 +170,17 @@ const proxySummary = computed(() => {
   return form.proxy.manualUrl.trim()
     ? t("settings.summaries.proxyManual", { url: form.proxy.manualUrl.trim() })
     : t("settings.summaries.proxyManualEmpty");
+});
+
+const loggingSummary = computed(() => {
+  const levelLabel =
+    logLevelOptions.value.find((option) => option.value === form.logging.level)?.label ??
+    form.logging.level;
+  const path = form.logging.filePath.trim() || t("settings.loggingAutoPath");
+
+  return form.logging.enabled
+    ? t("settings.summaries.loggingEnabled", { level: levelLabel, path })
+    : t("settings.summaries.loggingDisabled");
 });
 
 const downloadSummary = computed(() => {
@@ -319,6 +344,9 @@ watch(
     form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
     form.networkLearning.currentSceneId = "default";
     form.networkLearning.scenes = [copySingleNetworkScene(nextSettings.networkLearning)];
+    form.logging.enabled = nextSettings.logging?.enabled ?? true;
+    form.logging.level = nextSettings.logging?.level ?? "info";
+    form.logging.filePath = nextSettings.logging?.filePath ?? "";
     savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
     emit("dirtyChange", false);
   },
@@ -436,6 +464,11 @@ function buildSettingsPayload(): AppSettings {
       deviceMode: form.networkLearning.deviceMode,
       currentSceneId: "default",
       scenes: [copySingleNetworkScene(form.networkLearning)],
+    },
+    logging: {
+      enabled: form.logging.enabled,
+      level: form.logging.level,
+      filePath: form.logging.filePath.trim(),
     },
   };
 }
@@ -982,6 +1015,63 @@ onBeforeUnmount(() => {
             :disabled="!form.bt.pauseUploadWhenLimitReached"
           />
           <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.logging") }}</p>
+          <h3>{{ t("settings.loggingTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-file-list-3-line" aria-hidden="true" />
+      </div>
+
+      <p class="settings-section__summary">{{ loggingSummary }}</p>
+
+      <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.loggingEnabled") }}</span>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': form.logging.enabled }"
+            :aria-pressed="form.logging.enabled"
+            @click="form.logging.enabled = !form.logging.enabled"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                form.logging.enabled
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
+            />
+            <span class="settings-toggle__text">
+              {{
+                form.logging.enabled
+                  ? t("settings.loggingEnabledText")
+                  : t("settings.loggingDisabledText")
+              }}
+            </span>
+          </button>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.loggingLevel") }}</span>
+          <UiSelect v-model="form.logging.level" :options="logLevelOptions" />
+        </label>
+
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">{{ t("settings.loggingPath") }}</span>
+          <UiInput
+            v-model="form.logging.filePath"
+            type="text"
+            :placeholder="t('settings.loggingPathPlaceholder')"
+          />
+          <p class="settings-field__hint">{{ t("settings.loggingPathHint") }}</p>
         </label>
       </div>
     </section>
