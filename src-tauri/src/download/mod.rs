@@ -4,6 +4,8 @@ mod file_alloc;
 mod http;
 mod manager;
 mod manifest;
+mod metalink;
+mod sftp;
 mod torrent;
 mod types;
 
@@ -13,4 +15,5 @@ pub use commands::{
     settings_get, settings_save,
 };
 pub use manager::{AppState, DownloadManager};
+pub use sftp::SftpManager;
 pub use torrent::TorrentManager;

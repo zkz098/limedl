@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs, io,
     path::{Path, PathBuf},
     process::Command,
@@ -11,6 +11,8 @@ use librqbit::{
     AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, ManagedTorrent, Session,
     SessionOptions, SessionPersistenceConfig, TorrentStatsState, api::TorrentIdOrHash,
 };
+use tokio::task::JoinHandle;
+use uuid::Uuid;
 
 use super::{
     error::{DownloadError, Result},
@@ -22,11 +24,14 @@ use super::{
 
 pub(super) const HTTP_PREFIX: &str = "http:";
 pub(super) const BT_PREFIX: &str = "bt:";
+const BT_PENDING_PREFIX: &str = "bt:pending:";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum DownloadSourceKind {
     Http,
     Torrent,
+    Metalink,
+    Sftp,
 }
 
 pub struct TorrentManager {
@@ -36,6 +41,22 @@ pub struct TorrentManager {
     default_output_dir: PathBuf,
     bt_settings: Arc<Mutex<BtSettings>>,
     output_folders: Arc<Mutex<HashMap<usize, PathBuf>>>,
+    pending: Arc<Mutex<HashMap<String, PendingTorrent>>>,
+}
+
+struct PendingTorrent {
+    source: String,
+    destination_dir: PathBuf,
+    created_at_ms: u64,
+    state: PendingTorrentState,
+    join: Option<JoinHandle<()>>,
+}
+
+enum PendingTorrentState {
+    Resolving,
+    Paused,
+    Failed(String),
+    Added(usize),
 }
 
 impl TorrentManager {
@@ -78,6 +99,7 @@ impl TorrentManager {
             default_output_dir: output_dir,
             bt_settings: Arc::new(Mutex::new(settings.bt.clone())),
             output_folders: Arc::new(Mutex::new(HashMap::new())),
+            pending: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -96,42 +118,220 @@ impl TorrentManager {
         let destination_dir = PathBuf::from(request.destination_dir.trim());
         fs::create_dir_all(&destination_dir)?;
 
-        let add = build_add_torrent(source)?;
+        let pending_id = pending_bt_task_id();
         let bt_settings = self
             .bt_settings
             .lock()
             .expect("bt settings poisoned")
             .clone();
-        let options = AddTorrentOptions {
-            output_folder: Some(destination_dir.to_string_lossy().to_string()),
-            overwrite: true,
-            trackers: tracker_list_entries(&bt_settings.tracker_list),
-            ..AddTorrentOptions::default()
-        };
-
-        let id = match self
-            .session
-            .add_torrent(add, Some(options))
-            .await
-            .map_err(|error| DownloadError::Torrent(error.to_string()))?
+        self.pending
+            .lock()
+            .expect("pending torrents poisoned")
+            .insert(
+                pending_id.clone(),
+                PendingTorrent {
+                    source: source.to_string(),
+                    destination_dir: destination_dir.clone(),
+                    created_at_ms: now_ms(),
+                    state: PendingTorrentState::Resolving,
+                    join: None,
+                },
+            );
+        let join = self.spawn_add_torrent(
+            pending_id.clone(),
+            source.to_string(),
+            destination_dir,
+            bt_settings,
+        );
+        if let Some(task) = self
+            .pending
+            .lock()
+            .expect("pending torrents poisoned")
+            .get_mut(&pending_id)
         {
-            AddTorrentResponse::Added(id, _) | AddTorrentResponse::AlreadyManaged(id, _) => id,
-            AddTorrentResponse::ListOnly(_) => {
-                return Err(DownloadError::Torrent(String::from(
-                    "torrent was opened in list-only mode",
-                )));
+            task.join = Some(join);
+        }
+
+        Ok(pending_id)
+    }
+
+    fn spawn_add_torrent(
+        &self,
+        pending_id: String,
+        source: String,
+        destination_dir: PathBuf,
+        bt_settings: BtSettings,
+    ) -> JoinHandle<()> {
+        let session = self.session.clone();
+        let pending = self.pending.clone();
+        let output_folders = self.output_folders.clone();
+
+        tokio::spawn(async move {
+            let result = add_torrent_to_session(&session, &source, &destination_dir, &bt_settings)
+                .await
+                .map(|id| {
+                    output_folders
+                        .lock()
+                        .expect("output folders poisoned")
+                        .insert(id, destination_dir);
+                    id
+                })
+                .map_err(|error| error.to_string());
+
+            let mut added_without_owner = None;
+            {
+                let mut pending = pending.lock().expect("pending torrents poisoned");
+                if let Some(task) = pending.get_mut(&pending_id) {
+                    task.join = None;
+                    task.state = match result {
+                        Ok(id) => PendingTorrentState::Added(id),
+                        Err(error) => PendingTorrentState::Failed(error),
+                    };
+                } else if let Ok(id) = result {
+                    added_without_owner = Some(id);
+                }
+            }
+
+            if let Some(id) = added_without_owner {
+                let _ = session.delete(TorrentIdOrHash::Id(id), false).await;
+                output_folders
+                    .lock()
+                    .expect("output folders poisoned")
+                    .remove(&id);
+            }
+        })
+    }
+
+    async fn restart_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
+        let mut managed_id = None;
+        let (source, destination_dir, created_at_ms) = {
+            let mut pending = self.pending.lock().expect("pending torrents poisoned");
+            let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
+
+            match task.state {
+                PendingTorrentState::Resolving => {
+                    return Ok(self.pending_snapshot(pending_id, task));
+                }
+                PendingTorrentState::Added(id) => {
+                    managed_id = Some(id);
+                    (String::new(), PathBuf::new(), 0)
+                }
+                PendingTorrentState::Paused | PendingTorrentState::Failed(_) => (
+                    task.source.clone(),
+                    task.destination_dir.clone(),
+                    task.created_at_ms,
+                ),
             }
         };
 
-        self.output_folders
-            .lock()
-            .expect("output folders poisoned")
-            .insert(id, destination_dir);
+        if let Some(id) = managed_id {
+            return self.status_for_managed(pending_id, id).await;
+        }
 
-        Ok(bt_task_id(id))
+        let bt_settings = self
+            .bt_settings
+            .lock()
+            .expect("bt settings poisoned")
+            .clone();
+        let join = self.spawn_add_torrent(
+            pending_id.to_string(),
+            source,
+            destination_dir.clone(),
+            bt_settings,
+        );
+
+        let mut pending = self.pending.lock().expect("pending torrents poisoned");
+        let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
+        task.state = PendingTorrentState::Resolving;
+        task.join = Some(join);
+        task.created_at_ms = created_at_ms;
+        Ok(self.pending_snapshot(pending_id, task))
     }
 
+    async fn pause_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
+        let managed_id = {
+            let mut pending = self.pending.lock().expect("pending torrents poisoned");
+            let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
+            if let PendingTorrentState::Added(id) = task.state {
+                Some(id)
+            } else {
+                if let Some(join) = task.join.take() {
+                    join.abort();
+                }
+                task.state = PendingTorrentState::Paused;
+                return Ok(self.pending_snapshot(pending_id, task));
+            }
+        };
+
+        if let Some(id) = managed_id {
+            let handle = self.get_handle(id)?;
+            self.session
+                .pause(&handle)
+                .await
+                .map_err(|error| DownloadError::Torrent(error.to_string()))?;
+            return self.status_for_managed(pending_id, id).await;
+        }
+
+        Err(DownloadError::NotFound)
+    }
+
+    async fn cancel_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
+        let snapshot = self.status(pending_id).await?;
+        self.delete_pending(pending_id, false).await?;
+        Ok(DownloadSnapshot {
+            state: DownloadState::Canceled,
+            updated_at_ms: now_ms(),
+            ..snapshot
+        })
+    }
+
+    async fn remove_pending(
+        &self,
+        pending_id: &str,
+        delete_files: bool,
+    ) -> Result<DownloadSnapshot> {
+        let snapshot = self.status(pending_id).await?;
+        self.delete_pending(pending_id, delete_files).await?;
+        Ok(snapshot)
+    }
+}
+
+async fn add_torrent_to_session(
+    session: &Arc<Session>,
+    source: &str,
+    destination_dir: &Path,
+    bt_settings: &BtSettings,
+) -> Result<usize> {
+    let add = build_add_torrent(source)?;
+    let options = AddTorrentOptions {
+        output_folder: Some(destination_dir.to_string_lossy().to_string()),
+        overwrite: true,
+        trackers: tracker_list_entries(&bt_settings.tracker_list),
+        ..AddTorrentOptions::default()
+    };
+
+    let id = match session
+        .add_torrent(add, Some(options))
+        .await
+        .map_err(|error| DownloadError::Torrent(error.to_string()))?
+    {
+        AddTorrentResponse::Added(id, _) | AddTorrentResponse::AlreadyManaged(id, _) => id,
+        AddTorrentResponse::ListOnly(_) => {
+            return Err(DownloadError::Torrent(String::from(
+                "torrent was opened in list-only mode",
+            )));
+        }
+    };
+
+    Ok(id)
+}
+
+impl TorrentManager {
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        if is_pending_bt_task_id(download_id) {
+            return self.pause_pending(download_id).await;
+        }
+
         let id = parse_bt_task_id(download_id)?;
         let handle = self.get_handle(id)?;
         self.session
@@ -142,6 +342,10 @@ impl TorrentManager {
     }
 
     pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        if is_pending_bt_task_id(download_id) {
+            return self.restart_pending(download_id).await;
+        }
+
         let id = parse_bt_task_id(download_id)?;
         let handle = self.get_handle(id)?;
         self.session
@@ -152,6 +356,10 @@ impl TorrentManager {
     }
 
     pub async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        if is_pending_bt_task_id(download_id) {
+            return self.cancel_pending(download_id).await;
+        }
+
         let snapshot = self.status(download_id).await?;
         self.delete(download_id, false).await?;
         Ok(DownloadSnapshot {
@@ -162,12 +370,20 @@ impl TorrentManager {
     }
 
     pub async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        if is_pending_bt_task_id(download_id) {
+            return self.remove_pending(download_id, false).await;
+        }
+
         let snapshot = self.status(download_id).await?;
         self.delete(download_id, false).await?;
         Ok(snapshot)
     }
 
     pub async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        if is_pending_bt_task_id(download_id) {
+            return self.remove_pending(download_id, true).await;
+        }
+
         let snapshot = self.status(download_id).await?;
         self.delete(download_id, true).await?;
         Ok(snapshot)
@@ -188,10 +404,23 @@ impl TorrentManager {
     }
 
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        if is_pending_bt_task_id(download_id) {
+            let managed_id = {
+                let pending = self.pending.lock().expect("pending torrents poisoned");
+                let task = pending.get(download_id).ok_or(DownloadError::NotFound)?;
+                match task.state {
+                    PendingTorrentState::Added(id) => Some(id),
+                    _ => return Ok(self.pending_snapshot(download_id, task)),
+                }
+            };
+
+            if let Some(id) = managed_id {
+                return self.status_for_managed(download_id, id).await;
+            }
+        }
+
         let id = parse_bt_task_id(download_id)?;
-        let handle = self.get_handle(id)?;
-        let limit_reached = self.apply_upload_policy(&handle).await?;
-        Ok(self.snapshot_from_handle(id, &handle, limit_reached))
+        self.status_for_managed(download_id, id).await
     }
 
     pub async fn list(&self) -> Result<Vec<DownloadSummary>> {
@@ -200,8 +429,34 @@ impl TorrentManager {
                 .map(|(id, handle)| (id, handle.clone()))
                 .collect::<Vec<_>>()
         });
-        let mut summaries = Vec::with_capacity(handles.len());
+        let mut pending_snapshots = Vec::new();
+        let mut represented_ids = HashSet::new();
+        {
+            let pending = self.pending.lock().expect("pending torrents poisoned");
+            for (pending_id, task) in pending.iter() {
+                if let PendingTorrentState::Added(id) = task.state {
+                    represented_ids.insert(id);
+                }
+                pending_snapshots
+                    .push((pending_id.clone(), self.pending_snapshot(pending_id, task)));
+            }
+        }
+
+        let mut summaries = Vec::with_capacity(handles.len() + pending_snapshots.len());
+        for snapshot in pending_snapshots {
+            let (pending_id, mut snapshot) = snapshot;
+            if let Some(id) = self.pending_managed_id(&pending_id) {
+                if let Ok(managed) = self.status_for_managed(&pending_id, id).await {
+                    snapshot = managed;
+                }
+            }
+            summaries.push(DownloadSummary::from(&snapshot));
+        }
+
         for (id, handle) in handles {
+            if represented_ids.contains(&id) {
+                continue;
+            }
             let limit_reached = self.apply_upload_policy(&handle).await?;
             summaries.push(DownloadSummary::from(&self.snapshot_from_handle(
                 id,
@@ -213,6 +468,65 @@ impl TorrentManager {
         Ok(summaries)
     }
 
+    async fn status_for_managed(&self, download_id: &str, id: usize) -> Result<DownloadSnapshot> {
+        let handle = self.get_handle(id)?;
+        let limit_reached = self.apply_upload_policy(&handle).await?;
+        let mut snapshot = self.snapshot_from_handle(id, &handle, limit_reached);
+        snapshot.id = download_id.to_string();
+        Ok(snapshot)
+    }
+
+    fn pending_managed_id(&self, pending_id: &str) -> Option<usize> {
+        let pending = self.pending.lock().expect("pending torrents poisoned");
+        pending.get(pending_id).and_then(|task| match task.state {
+            PendingTorrentState::Added(id) => Some(id),
+            _ => None,
+        })
+    }
+
+    fn pending_snapshot(&self, pending_id: &str, task: &PendingTorrent) -> DownloadSnapshot {
+        let now = now_ms();
+        let (state, error) = match &task.state {
+            PendingTorrentState::Resolving => (DownloadState::Queued, None),
+            PendingTorrentState::Paused => (DownloadState::Paused, None),
+            PendingTorrentState::Failed(error) => (DownloadState::Failed, Some(error.clone())),
+            PendingTorrentState::Added(_) => (DownloadState::Queued, None),
+        };
+
+        DownloadSnapshot {
+            id: pending_id.to_string(),
+            kind: TaskKind::Bt,
+            state,
+            url: task.source.clone(),
+            final_url: task.source.clone(),
+            file_name: display_torrent_source(&task.source),
+            destination_path: task.destination_dir.to_string_lossy().to_string(),
+            temp_path: self.state_dir.to_string_lossy().to_string(),
+            total_bytes: None,
+            downloaded_bytes: 0,
+            supports_ranges: false,
+            connection_count: 0,
+            thread_mode: ThreadMode::Fixed,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile: None,
+            thread_note: Some(String::from("Resolving BT metadata in background")),
+            checksum: None,
+            checksum_mode: ChecksumMode::None,
+            etag: None,
+            last_modified: None,
+            error,
+            speed_bytes_per_second: None,
+            eta_seconds: None,
+            uploaded_bytes: Some(0),
+            peer_count: Some(0),
+            upload_status: Some(BtUploadStatus::Idle),
+            created_at_ms: task.created_at_ms,
+            updated_at_ms: now,
+        }
+    }
+
     fn get_handle(&self, id: usize) -> Result<Arc<ManagedTorrent>> {
         self.session
             .get(TorrentIdOrHash::Id(id))
@@ -220,6 +534,10 @@ impl TorrentManager {
     }
 
     async fn delete(&self, download_id: &str, delete_files: bool) -> Result<()> {
+        if is_pending_bt_task_id(download_id) {
+            return self.delete_pending(download_id, delete_files).await;
+        }
+
         let id = parse_bt_task_id(download_id)?;
         self.session
             .delete(TorrentIdOrHash::Id(id), delete_files)
@@ -229,6 +547,32 @@ impl TorrentManager {
             .lock()
             .expect("output folders poisoned")
             .remove(&id);
+        Ok(())
+    }
+
+    async fn delete_pending(&self, pending_id: &str, delete_files: bool) -> Result<()> {
+        let mut task = self
+            .pending
+            .lock()
+            .expect("pending torrents poisoned")
+            .remove(pending_id)
+            .ok_or(DownloadError::NotFound)?;
+
+        if let Some(join) = task.join.take() {
+            join.abort();
+        }
+
+        if let PendingTorrentState::Added(id) = task.state {
+            self.session
+                .delete(TorrentIdOrHash::Id(id), delete_files)
+                .await
+                .map_err(|error| DownloadError::Torrent(error.to_string()))?;
+            self.output_folders
+                .lock()
+                .expect("output folders poisoned")
+                .remove(&id);
+        }
+
         Ok(())
     }
 
@@ -338,6 +682,8 @@ pub(super) fn classify_download_source(
         return Ok(match kind {
             TaskKind::Http => DownloadSourceKind::Http,
             TaskKind::Bt => DownloadSourceKind::Torrent,
+            TaskKind::Metalink => DownloadSourceKind::Metalink,
+            TaskKind::Sftp => DownloadSourceKind::Sftp,
         });
     }
 
@@ -346,6 +692,14 @@ pub(super) fn classify_download_source(
 
     if lower.starts_with("magnet:") || lower.ends_with(".torrent") {
         return Ok(DownloadSourceKind::Torrent);
+    }
+
+    if lower.ends_with(".metalink") || lower.ends_with(".meta4") {
+        return Ok(DownloadSourceKind::Metalink);
+    }
+
+    if lower.starts_with("sftp://") {
+        return Ok(DownloadSourceKind::Sftp);
     }
 
     if lower.starts_with("http://") || lower.starts_with("https://") {
@@ -357,6 +711,15 @@ pub(super) fn classify_download_source(
         return Ok(DownloadSourceKind::Torrent);
     }
 
+    if matches!(
+        path.extension()
+            .and_then(|value| value.to_str())
+            .map(|value| value.to_ascii_lowercase()),
+        Some(extension) if extension == "metalink" || extension == "meta4"
+    ) {
+        return Ok(DownloadSourceKind::Metalink);
+    }
+
     Err(DownloadError::UnsupportedScheme)
 }
 
@@ -366,6 +729,10 @@ pub(super) fn normalize_http_task_id(download_id: &str) -> &str {
 
 pub(super) fn is_bt_task_id(download_id: &str) -> bool {
     download_id.starts_with(BT_PREFIX)
+}
+
+fn is_pending_bt_task_id(download_id: &str) -> bool {
+    download_id.starts_with(BT_PENDING_PREFIX)
 }
 
 pub(super) fn http_task_id(download_id: String) -> String {
@@ -393,6 +760,24 @@ fn parse_bt_task_id(download_id: &str) -> Result<usize> {
 
 fn bt_task_id(id: usize) -> String {
     format!("{BT_PREFIX}{id}")
+}
+
+fn pending_bt_task_id() -> String {
+    format!("{BT_PENDING_PREFIX}{}", Uuid::new_v4())
+}
+
+fn display_torrent_source(source: &str) -> String {
+    let trimmed = source.trim();
+    if trimmed.to_ascii_lowercase().starts_with("magnet:") {
+        return String::from("Resolving magnet link");
+    }
+
+    Path::new(trimmed)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| String::from("Torrent metadata"))
 }
 
 fn map_torrent_state(state: TorrentStatsState, finished: bool) -> DownloadState {
@@ -479,6 +864,8 @@ mod tests {
     };
     use crate::download::types::{BtSettings, StartDownloadRequest, TaskKind};
 
+    type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
     fn request(url: &str, kind: Option<TaskKind>) -> StartDownloadRequest {
         StartDownloadRequest {
             kind,
@@ -494,41 +881,68 @@ mod tests {
     }
 
     #[test]
-    fn classifies_download_sources() {
+    fn classifies_download_sources() -> TestResult {
         assert_eq!(
-            classify_download_source(&request("https://example.com/file.zip", None)).unwrap(),
+            classify_download_source(&request("https://example.com/file.zip", None))?,
             DownloadSourceKind::Http
         );
         assert_eq!(
-            classify_download_source(&request("magnet:?xt=urn:btih:abc", None)).unwrap(),
+            classify_download_source(&request("magnet:?xt=urn:btih:abc", None))?,
             DownloadSourceKind::Torrent
         );
         assert_eq!(
-            classify_download_source(&request("https://example.com/file.torrent", None)).unwrap(),
+            classify_download_source(&request("https://example.com/file.torrent", None))?,
             DownloadSourceKind::Torrent
         );
         assert_eq!(
-            classify_download_source(&request("E:/tmp/file.torrent", None)).unwrap(),
+            classify_download_source(&request("https://example.com/file.meta4", None))?,
+            DownloadSourceKind::Metalink
+        );
+        assert_eq!(
+            classify_download_source(&request("sftp://example.com/file.zip", None))?,
+            DownloadSourceKind::Sftp
+        );
+        assert_eq!(
+            classify_download_source(&request("E:/tmp/file.torrent", None))?,
             DownloadSourceKind::Torrent
+        );
+        assert_eq!(
+            classify_download_source(&request("E:/tmp/file.metalink", None))?,
+            DownloadSourceKind::Metalink
         );
         assert!(classify_download_source(&request("ftp://example.com/file.zip", None)).is_err());
+        assert!(classify_download_source(&request("ftps://example.com/file.zip", None)).is_err());
+        Ok(())
     }
 
     #[test]
-    fn explicit_kind_overrides_source_detection() {
+    fn explicit_kind_overrides_source_detection() -> TestResult {
         assert_eq!(
             classify_download_source(&request(
                 "https://example.com/file.torrent",
                 Some(TaskKind::Http),
-            ))
-            .unwrap(),
+            ))?,
             DownloadSourceKind::Http
         );
         assert_eq!(
-            classify_download_source(&request("https://example.com/file.zip", Some(TaskKind::Bt),))
-                .unwrap(),
+            classify_download_source(&request("https://example.com/file.zip", Some(TaskKind::Bt),))?,
             DownloadSourceKind::Torrent
         );
+        assert_eq!(
+            classify_download_source(&request(
+                "https://example.com/file.zip",
+                Some(TaskKind::Metalink),
+            ))?,
+            DownloadSourceKind::Metalink
+        );
+        assert_eq!(
+            classify_download_source(&request(
+                "https://example.com/file.zip",
+                Some(TaskKind::Sftp),
+            ))?,
+            DownloadSourceKind::Sftp
+        );
+        Ok(())
     }
 
     #[test]

@@ -92,38 +92,43 @@ mod tests {
 
     use super::{open_download_file, reset_download_file, write_all_at};
 
+    type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
     #[test]
-    fn open_download_file_sizes_known_length() {
-        let temp = tempdir().unwrap();
+    fn open_download_file_sizes_known_length() -> TestResult {
+        let temp = tempdir()?;
         let path = temp.path().join("download.part");
 
-        let file = open_download_file(&path, Some(1024 * 1024)).unwrap();
+        let file = open_download_file(&path, Some(1024 * 1024))?;
 
-        assert_eq!(file.metadata().unwrap().len(), 1024 * 1024);
+        assert_eq!(file.metadata()?.len(), 1024 * 1024);
+        Ok(())
     }
 
     #[test]
-    fn reset_download_file_restores_target_length() {
-        let temp = tempdir().unwrap();
+    fn reset_download_file_restores_target_length() -> TestResult {
+        let temp = tempdir()?;
         let path = temp.path().join("download.part");
-        let file = open_download_file(&path, Some(4096)).unwrap();
+        let file = open_download_file(&path, Some(4096))?;
 
-        file.set_len(128).unwrap();
-        reset_download_file(&file, Some(8192)).unwrap();
+        file.set_len(128)?;
+        reset_download_file(&file, Some(8192))?;
 
-        assert_eq!(file.metadata().unwrap().len(), 8192);
+        assert_eq!(file.metadata()?.len(), 8192);
+        Ok(())
     }
 
     #[test]
-    fn write_after_preallocation_preserves_file() {
-        let temp = tempdir().unwrap();
+    fn write_after_preallocation_preserves_file() -> TestResult {
+        let temp = tempdir()?;
         let path = temp.path().join("download.part");
-        let file = open_download_file(&path, Some(4096)).unwrap();
+        let file = open_download_file(&path, Some(4096))?;
 
-        write_all_at(&file, b"test data", 0).unwrap();
+        write_all_at(&file, b"test data", 0)?;
 
-        assert_eq!(file.metadata().unwrap().len(), 4096);
-        let bytes = fs::read(path).unwrap();
+        assert_eq!(file.metadata()?.len(), 4096);
+        let bytes = fs::read(path)?;
         assert_eq!(&bytes[..9], b"test data");
+        Ok(())
     }
 }

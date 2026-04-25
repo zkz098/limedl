@@ -1,7 +1,7 @@
 export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
 export type ThreadMode = "fixed" | "adaptive";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
-export type TaskKind = "http" | "bt";
+export type TaskKind = "http" | "bt" | "metalink" | "sftp";
 export type BtUploadStatus = "idle" | "uploading" | "paused" | "paused_by_limit";
 
 export type DownloadState =

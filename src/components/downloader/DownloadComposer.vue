@@ -14,12 +14,14 @@ const props = defineProps<{
   form: DownloadFormState;
   isStarting: boolean;
   isPickingDirectory: boolean;
+  isPickingMetalink: boolean;
   isPickingTorrent: boolean;
   settings: AppSettings | null;
 }>();
 
 defineEmits<{
   pickDirectory: [];
+  pickMetalink: [];
   pickTorrent: [];
   submit: [];
 }>();
@@ -30,6 +32,11 @@ const maxThreadsPerTask = computed(
   () => props.settings?.scheduler.automatic.maxThreadsPerTask ?? 8,
 );
 const isBtTask = computed(() => props.form.kind === "bt");
+const isMetalinkTask = computed(() => props.form.kind === "metalink");
+const isSftpTask = computed(() => props.form.kind === "sftp");
+const isHttpTask = computed(() => props.form.kind === "http");
+const showMetalinkSource = computed(() => props.settings?.download.enableMetalink ?? false);
+const showSftpSource = computed(() => props.settings?.download.enableSftp ?? false);
 
 const fixedThreadOptions = computed(() => {
   const cap = Math.max(1, maxThreadsPerTask.value);
@@ -52,6 +59,14 @@ const threadModeOptions = computed<Array<{ label: string; value: ThreadMode }>>(
 const threadHint = computed(() => {
   if (isBtTask.value) {
     return t("composer.btHint");
+  }
+
+  if (isMetalinkTask.value) {
+    return t("composer.metalinkHint");
+  }
+
+  if (isSftpTask.value) {
+    return t("composer.sftpHint");
   }
 
   if (schedulerMode.value === "traditional") {
@@ -94,20 +109,53 @@ const threadHint = computed(() => {
             <span class="i-ri-seedling-line" aria-hidden="true" />
             <span>{{ t("composer.btSource") }}</span>
           </button>
+          <button
+            v-if="showMetalinkSource"
+            type="button"
+            class="source-tab"
+            :class="{ 'source-tab--active': form.kind === 'metalink' }"
+            @click="form.kind = 'metalink'"
+          >
+            <span class="i-ri-node-tree" aria-hidden="true" />
+            <span>{{ t("composer.metalinkSource") }}</span>
+          </button>
+          <button
+            v-if="showSftpSource"
+            type="button"
+            class="source-tab"
+            :class="{ 'source-tab--active': form.kind === 'sftp' }"
+            @click="form.kind = 'sftp'"
+          >
+            <span class="i-ri-server-line" aria-hidden="true" />
+            <span>{{ t("composer.sftpSource") }}</span>
+          </button>
         </div>
 
         <label class="field field--full">
           <span class="field__label">{{
-            isBtTask ? t("composer.torrentSource") : t("composer.url")
+            isBtTask
+              ? t("composer.torrentSource")
+              : isMetalinkTask
+                ? t("composer.metalinkSourceLabel")
+                : isSftpTask
+                  ? t("composer.sftpSourceLabel")
+                  : t("composer.url")
           }}</span>
-          <div class="source-field" :class="{ 'source-field--with-picker': isBtTask }">
+          <div
+            class="source-field"
+            :class="{ 'source-field--with-picker': isBtTask || isMetalinkTask }"
+          >
             <UiInput
               v-model="form.url"
-              :type="isBtTask ? 'text' : 'url'"
+              :type="isBtTask || isMetalinkTask ? 'text' : 'url'"
               :placeholder="
                 isBtTask
                   ? 'magnet:?xt=urn:btih:... / https://example.com/file.torrent'
-                  : 'https://example.com/archive.iso'
+                  : isMetalinkTask
+                    ? 'https://example.com/file.meta4 / E:\\Downloads\\file.metalink'
+                    : isSftpTask
+                      ? 'sftp://user:password@example.com/path/file.zip'
+                      : 'https://example.com/archive.iso'
               "
             />
             <UiButton
@@ -120,10 +168,20 @@ const threadHint = computed(() => {
             >
               {{ isPickingTorrent ? t("common.browsing") : t("composer.chooseTorrent") }}
             </UiButton>
+            <UiButton
+              v-else-if="isMetalinkTask"
+              type="button"
+              variant="secondary"
+              size="sm"
+              :loading="isPickingMetalink"
+              @click="$emit('pickMetalink')"
+            >
+              {{ isPickingMetalink ? t("common.browsing") : t("composer.chooseMetalink") }}
+            </UiButton>
           </div>
         </label>
 
-        <label v-if="!isBtTask" class="field field--full">
+        <label v-if="isHttpTask" class="field field--full">
           <span class="field__label">{{ t("composer.fileName") }}</span>
           <UiInput
             v-model="form.fileName"
@@ -132,7 +190,7 @@ const threadHint = computed(() => {
           />
         </label>
 
-        <label v-if="!isBtTask" class="field field--full">
+        <label v-if="isHttpTask || isMetalinkTask" class="field field--full">
           <span class="field__label">{{ t("composer.userAgent") }}</span>
           <UiInput
             v-model="form.userAgent"
@@ -166,7 +224,7 @@ const threadHint = computed(() => {
         </label>
       </section>
 
-      <section v-if="!isBtTask" class="group field--full group--split">
+      <section v-if="isHttpTask || isMetalinkTask" class="group field--full group--split">
         <div class="group__head group__head--full">
           <p class="section-kicker">{{ t("composer.strategy") }}</p>
           <h3>{{ t("composer.strategyTitle") }}</h3>
@@ -197,7 +255,9 @@ const threadHint = computed(() => {
       <section v-else class="group field--full">
         <div class="group__head">
           <p class="section-kicker">{{ t("composer.strategy") }}</p>
-          <h3>{{ t("composer.btStrategyTitle") }}</h3>
+          <h3>
+            {{ isSftpTask ? t("composer.sftpStrategyTitle") : t("composer.btStrategyTitle") }}
+          </h3>
         </div>
         <p class="field__hint field__hint--wide">{{ threadHint }}</p>
       </section>
@@ -269,7 +329,7 @@ const threadHint = computed(() => {
 .source-tabs {
   grid-column: 1 / -1;
   display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 0.35rem;
   padding: 0.25rem;
   border: 1px solid var(--color-border);

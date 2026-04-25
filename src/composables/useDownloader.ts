@@ -11,7 +11,7 @@ import {
   resumeDownload,
   startDownload,
 } from "../lib/tauri/download-api";
-import { pickDirectory, pickTorrentFile } from "../lib/tauri/dialog-api";
+import { pickDirectory, pickMetalinkFile, pickTorrentFile } from "../lib/tauri/dialog-api";
 import { t } from "../i18n";
 import type {
   ChecksumMode,
@@ -90,6 +90,7 @@ export function useDownloader() {
   const isRefreshingList = ref(false);
   const isRefreshingStatus = ref(false);
   const isPickingDirectory = ref(false);
+  const isPickingMetalink = ref(false);
   const isPickingTorrent = ref(false);
   const isAutoRefreshing = ref(false);
   const actionName = ref("");
@@ -195,7 +196,7 @@ export function useDownloader() {
   }
 
   function applySchedulerDefaults(mode: SchedulerMode, maxThreadsPerTask?: number) {
-    if (form.kind === "bt") {
+    if (form.kind !== "http") {
       return;
     }
 
@@ -231,6 +232,12 @@ export function useDownloader() {
     if (settings.appearance?.themeColor) {
       document.documentElement.dataset.theme = settings.appearance.themeColor;
     }
+    if (
+      (form.kind === "metalink" && !settings.download.enableMetalink) ||
+      (form.kind === "sftp" && !settings.download.enableSftp)
+    ) {
+      form.kind = "http";
+    }
     form.destinationDir = settings.download.defaultDownloadDir;
     form.maxRetries = settings.download.defaultMaxRetries;
     form.checksum = settings.download.defaultChecksum;
@@ -245,12 +252,14 @@ export function useDownloader() {
       destinationDir: form.destinationDir.trim(),
     };
 
-    if (form.kind === "http") {
+    if (form.kind === "http" || form.kind === "metalink" || form.kind === "sftp") {
       request.threadMode = form.threadMode;
 
-      const fileName = form.fileName.trim();
-      if (fileName) {
-        request.fileName = fileName;
+      if (form.kind === "http") {
+        const fileName = form.fileName.trim();
+        if (fileName) {
+          request.fileName = fileName;
+        }
       }
 
       const userAgent = form.userAgent.trim();
@@ -274,7 +283,9 @@ export function useDownloader() {
         }
       }
 
-      request.checksum = form.checksum;
+      if (form.kind === "http") {
+        request.checksum = form.checksum;
+      }
     }
 
     return request;
@@ -385,6 +396,27 @@ export function useDownloader() {
     }
   }
 
+  async function pickMetalinkSourceFile() {
+    if (isPickingMetalink.value) {
+      return;
+    }
+
+    isPickingMetalink.value = true;
+
+    try {
+      const selectedPath = await pickMetalinkFile();
+
+      if (selectedPath) {
+        form.kind = "metalink";
+        form.url = selectedPath;
+      }
+    } catch (error) {
+      setError(toMessage(error));
+    } finally {
+      isPickingMetalink.value = false;
+    }
+  }
+
   async function runAutoRefresh() {
     if (autoRefreshInFlight || isStarting.value || Boolean(actionName.value)) {
       return;
@@ -438,7 +470,13 @@ export function useDownloader() {
   async function submitStart() {
     if (!form.url.trim() || !form.destinationDir.trim()) {
       setError(
-        form.kind === "bt" ? t("messages.torrentStartRequired") : t("messages.startRequired"),
+        form.kind === "bt"
+          ? t("messages.torrentStartRequired")
+          : form.kind === "metalink"
+            ? t("messages.metalinkStartRequired")
+            : form.kind === "sftp"
+              ? t("messages.sftpStartRequired")
+              : t("messages.startRequired"),
       );
       return;
     }
@@ -592,6 +630,7 @@ export function useDownloader() {
     infoMessage,
     isAutoRefreshing,
     isPickingDirectory,
+    isPickingMetalink,
     isPickingTorrent,
     isRefreshingList,
     isRefreshingStatus,
@@ -599,6 +638,7 @@ export function useDownloader() {
     applySchedulerDefaults,
     applyAppSettingsDefaults,
     pickDestinationDirectory,
+    pickMetalinkSourceFile,
     pickTorrentSourceFile,
     refreshList,
     refreshStatus,

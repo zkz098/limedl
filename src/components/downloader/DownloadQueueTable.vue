@@ -285,7 +285,19 @@ function labelForProgress(download: DownloadSummary) {
 }
 
 function labelForTaskKind(kind: DownloadSummary["kind"]) {
-  return kind === "bt" ? t("tokens.bt") : t("tokens.http");
+  if (kind === "bt") {
+    return t("tokens.bt");
+  }
+
+  if (kind === "metalink") {
+    return t("tokens.metalink");
+  }
+
+  if (kind === "sftp") {
+    return t("tokens.sftp");
+  }
+
+  return t("tokens.http");
 }
 
 function labelForUploadStatus(status?: DownloadSummary["uploadStatus"]) {

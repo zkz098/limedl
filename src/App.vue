@@ -26,12 +26,14 @@ const {
   infoMessage,
   isAutoRefreshing,
   isPickingDirectory,
+  isPickingMetalink,
   isPickingTorrent,
   isRefreshingList,
   isRefreshingStatus,
   isStarting,
   applyAppSettingsDefaults,
   pickDestinationDirectory,
+  pickMetalinkSourceFile,
   pickTorrentSourceFile,
   refreshList,
   refreshStatus,
@@ -420,10 +422,12 @@ onBeforeUnmount(() => {
       <DownloadComposer
         :form="form"
         :is-picking-directory="isPickingDirectory"
+        :is-picking-metalink="isPickingMetalink"
         :is-picking-torrent="isPickingTorrent"
         :is-starting="isStarting"
         :settings="appSettings"
         @pick-directory="pickDestinationDirectory"
+        @pick-metalink="pickMetalinkSourceFile"
         @pick-torrent="pickTorrentSourceFile"
         @submit="handleSubmitStart"
       />

@@ -36,3 +36,22 @@ export async function pickTorrentFile() {
 
   return null;
 }
+
+export async function pickMetalinkFile() {
+  const result = await open({
+    directory: false,
+    multiple: false,
+    title: "Choose Metalink file",
+    filters: [{ name: "Metalink", extensions: ["metalink", "meta4"] }],
+  });
+
+  if (typeof result === "string") {
+    return result;
+  }
+
+  if (Array.isArray(result)) {
+    return result[0] ?? null;
+  }
+
+  return null;
+}

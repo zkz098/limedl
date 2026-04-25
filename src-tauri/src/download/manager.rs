@@ -10,6 +10,7 @@ use std::{
 use futures_util::StreamExt;
 use reqwest::{Client, Proxy, Response, StatusCode, Url, header, redirect::Policy};
 use tokio::{
+    fs as async_fs,
     sync::{Mutex as AsyncMutex, Notify, RwLock},
     task::JoinSet,
     time::sleep,
@@ -29,12 +30,13 @@ use super::{
         CHUNK_SIZE, ChunkManifest, Manifest, RemoteMetadata, contiguous_prefix_end,
         has_partial_chunk_progress, plan_chunks, snapshot_from_manifest, validators_changed,
     },
+    metalink::parse_metalink,
     torrent::TorrentManager,
     types::{
         AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, BtSettings, ChecksumMode,
         DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
         DownloadSummary, NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile,
-        ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest,
+        ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, TaskKind,
         ThreadMode, TraditionalSchedulerSettings, default_http_user_agent,
         default_tracker_list_url,
     },
@@ -50,15 +52,21 @@ const MAX_TRADITIONAL_THREADS: usize = 32;
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
     pub torrent_manager: Arc<TorrentManager>,
+    pub sftp_manager: Arc<super::sftp::SftpManager>,
 }
 
 impl AppState {
-    pub fn new(manager: DownloadManager, torrent_manager: TorrentManager) -> Self {
+    pub fn new(
+        manager: DownloadManager,
+        torrent_manager: TorrentManager,
+        sftp_manager: super::sftp::SftpManager,
+    ) -> Self {
         let manager = Arc::new(manager);
         manager.clone().start_scheduler_loop();
         Self {
             manager,
             torrent_manager: Arc::new(torrent_manager),
+            sftp_manager: Arc::new(sftp_manager),
         }
     }
 }
@@ -244,6 +252,112 @@ impl DownloadManager {
         self.rebalance_notify.notify_waiters();
 
         Ok(download_id)
+    }
+
+    pub async fn start_metalink(&self, request: StartDownloadRequest) -> Result<String> {
+        let settings = self.settings.read().await.clone();
+        if !settings.download.enable_metalink {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "metalink support is disabled in settings",
+            )));
+        }
+
+        let user_agent = resolve_user_agent(
+            request.user_agent.as_deref(),
+            &settings.download.default_user_agent,
+        )?;
+        let content = self
+            .load_metalink_source(request.url.trim(), &user_agent)
+            .await?;
+        let entries = parse_metalink(&content)?;
+        let is_single_file = entries.len() == 1;
+        let mut first_id = None;
+        let mut errors = Vec::new();
+
+        for (index, entry) in entries.into_iter().enumerate() {
+            let mut next = request.clone();
+            next.kind = Some(TaskKind::Http);
+            next.url = entry.url;
+            next.file_name = if is_single_file {
+                request.file_name.clone().or(entry.file_name)
+            } else {
+                entry.file_name.or_else(|| {
+                    request
+                        .file_name
+                        .as_ref()
+                        .map(|name| numbered_file_name(name, index + 1))
+                })
+            };
+            next.checksum = request.checksum.or(entry.checksum_mode);
+
+            match self.start(next).await {
+                Ok(id) if first_id.is_none() => first_id = Some(id),
+                Ok(_) => {}
+                Err(error) => errors.push(error.to_string()),
+            }
+        }
+
+        first_id.ok_or_else(|| {
+            DownloadError::InvalidResponse(format!(
+                "metalink did not start any downloads{}",
+                if errors.is_empty() {
+                    String::new()
+                } else {
+                    format!(": {}", errors.join("; "))
+                }
+            ))
+        })
+    }
+
+    async fn load_metalink_source(&self, source: &str, user_agent: &str) -> Result<String> {
+        if source.is_empty() {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "metalink source is empty",
+            )));
+        }
+
+        if let Ok(url) = Url::parse(source) {
+            return match url.scheme() {
+                "http" | "https" => {
+                    const MAX_METALINK_BYTES: usize = 8 * 1024 * 1024;
+
+                    let response = self
+                        .client
+                        .read()
+                        .await
+                        .get(source)
+                        .header(header::USER_AGENT, user_agent)
+                        .send()
+                        .await?
+                        .error_for_status()?;
+                    let bytes = response.bytes().await?;
+                    if bytes.len() > MAX_METALINK_BYTES {
+                        return Err(DownloadError::InvalidResponse(String::from(
+                            "metalink document is larger than 8 MiB",
+                        )));
+                    }
+
+                    String::from_utf8(bytes.to_vec()).map_err(|error| {
+                        DownloadError::InvalidResponse(format!(
+                            "metalink document is not utf-8: {error}"
+                        ))
+                    })
+                }
+                "file" => {
+                    let path = url.to_file_path().map_err(|_| {
+                        DownloadError::InvalidResponse(String::from("invalid metalink file url"))
+                    })?;
+                    async_fs::read_to_string(path)
+                        .await
+                        .map_err(DownloadError::Io)
+                }
+                _ => Err(DownloadError::UnsupportedScheme),
+            };
+        }
+
+        async_fs::read_to_string(source)
+            .await
+            .map_err(DownloadError::Io)
     }
 
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
@@ -2107,6 +2221,8 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             default_max_retries: settings.download.default_max_retries.clamp(0, 20),
             default_checksum: settings.download.default_checksum,
             default_user_agent,
+            enable_metalink: settings.download.enable_metalink,
+            enable_sftp: settings.download.enable_sftp,
         },
         bt,
         network_learning,
@@ -2420,6 +2536,23 @@ fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
     destination_dir.join(format!("{}-{}{}", stem, Uuid::new_v4(), extension))
 }
 
+fn numbered_file_name(file_name: &str, index: usize) -> String {
+    let path = Path::new(file_name);
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or(file_name);
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .map(|value| format!(".{value}"))
+        .unwrap_or_default();
+
+    format!("{stem}-{index}{extension}")
+}
+
 fn remove_file_if_exists(path: &Path) -> Result<()> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
@@ -2614,11 +2747,11 @@ fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
 
     use axum::{
         Router,
-        extract::State,
+        extract::{OriginalUri, State},
         http::{HeaderMap, HeaderValue, StatusCode},
         response::IntoResponse,
         routing::get,
@@ -2627,37 +2760,71 @@ mod tests {
 
     use super::*;
 
+    type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
     #[derive(Clone)]
     struct TestState {
-        bytes: Arc<Vec<u8>>,
-        etag: String,
+        files: Arc<HashMap<String, TestFile>>,
         delay_ms: u64,
     }
 
+    #[derive(Clone)]
+    struct TestFile {
+        bytes: Arc<Vec<u8>>,
+        etag: String,
+    }
+
+    fn single_file_state(path: &str, bytes: Arc<Vec<u8>>, etag: &str, delay_ms: u64) -> TestState {
+        file_state([(path, bytes, etag)], delay_ms)
+    }
+
+    fn file_state<const N: usize>(
+        files: [(&str, Arc<Vec<u8>>, &str); N],
+        delay_ms: u64,
+    ) -> TestState {
+        TestState {
+            files: Arc::new(
+                files
+                    .into_iter()
+                    .map(|(path, bytes, etag)| {
+                        (
+                            path.to_string(),
+                            TestFile {
+                                bytes,
+                                etag: etag.to_string(),
+                            },
+                        )
+                    })
+                    .collect(),
+            ),
+            delay_ms,
+        }
+    }
+
     #[tokio::test]
-    async fn loads_legacy_proxy_settings() {
-        let temp = tempdir().unwrap();
+    async fn loads_legacy_proxy_settings() -> TestResult {
+        let temp = tempdir()?;
         let settings_path = temp.path().join("settings.json");
         fs::write(
             &settings_path,
             serde_json::to_vec_pretty(&ProxySettings {
                 mode: ProxyMode::System,
                 manual_url: String::new(),
-            })
-            .unwrap(),
-        )
-        .unwrap();
+            })?,
+        )?;
 
-        let settings = load_settings(&settings_path).unwrap();
+        let settings = load_settings(&settings_path)?;
         assert_eq!(settings.proxy.mode, ProxyMode::System);
         assert_eq!(settings.scheduler.mode, SchedulerMode::Automatic);
         assert_eq!(settings.network_learning.current_scene_id, "default");
         assert_eq!(settings.network_learning.scenes.len(), 1);
+        Ok(())
     }
 
     #[test]
-    fn normalize_settings_recovers_missing_scene_selection() {
+    fn normalize_settings_recovers_missing_scene_selection() -> TestResult {
         let settings = normalize_settings(AppSettings {
+            appearance: Default::default(),
             proxy: ProxySettings::default(),
             scheduler: SchedulerSettings::default(),
             download: DownloadDefaultsSettings::default(),
@@ -2681,8 +2848,7 @@ mod tests {
                     updated_at_ms: 9,
                 }],
             },
-        })
-        .unwrap();
+        })?;
 
         assert_eq!(settings.network_learning.current_scene_id, "default");
         assert_eq!(settings.network_learning.scenes.len(), 1);
@@ -2691,16 +2857,18 @@ mod tests {
         let metrics = settings.network_learning.scenes[0]
             .learned_metrics
             .as_ref()
-            .unwrap();
+            .ok_or("expected normalized learning metrics")?;
         assert_eq!(metrics.recommended_max_threads_per_task_cap, 8);
         assert_eq!(metrics.recommended_initial_threads, 8);
         assert_eq!(metrics.penalty_rate, 0.0);
         assert_eq!(metrics.stability_score, 1.0);
+        Ok(())
     }
 
     #[test]
-    fn learned_scene_profile_changes_initial_adaptive_threads() {
+    fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
         let settings = AppSettings {
+            appearance: Default::default(),
             proxy: ProxySettings::default(),
             scheduler: SchedulerSettings {
                 mode: SchedulerMode::Automatic,
@@ -2751,31 +2919,31 @@ mod tests {
         );
 
         assert_eq!(desired_thread_count, Some(6));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn traditional_mode_limits_running_tasks() {
+    async fn traditional_mode_limits_running_tasks() -> TestResult {
         let payload = Arc::new(vec![42_u8; 12 * 1024 * 1024]);
-        let state = TestState {
-            bytes: payload,
-            etag: String::from("\"test-etag\""),
-            delay_ms: 180,
-        };
+        let state = single_file_state("/file.bin", payload, "\"test-etag\"", 180);
 
         let app = Router::new()
             .route("/file.bin", get(file_get).head(file_head))
             .with_state(state);
 
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
         tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            if let Err(error) = axum::serve(listener, app).await {
+                eprintln!("[downloader:test] server stopped: {error}");
+            }
         });
 
-        let temp = tempdir().unwrap();
-        let manager = DownloadManager::new(temp.path().join("state")).unwrap();
+        let temp = tempdir()?;
+        let manager = DownloadManager::new(temp.path().join("state"))?;
         manager
             .update_settings(AppSettings {
+                appearance: Default::default(),
                 proxy: ProxySettings::default(),
                 scheduler: SchedulerSettings {
                     mode: SchedulerMode::Traditional,
@@ -2788,8 +2956,7 @@ mod tests {
                 bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
             })
-            .await
-            .unwrap();
+            .await?;
 
         let first = manager
             .start(StartDownloadRequest {
@@ -2803,8 +2970,7 @@ mod tests {
                 max_retries: Some(1),
                 checksum: Some(ChecksumMode::None),
             })
-            .await
-            .unwrap();
+            .await?;
 
         let second = manager
             .start(StartDownloadRequest {
@@ -2818,41 +2984,47 @@ mod tests {
                 max_retries: Some(1),
                 checksum: Some(ChecksumMode::None),
             })
-            .await
-            .unwrap();
+            .await?;
 
         sleep(Duration::from_millis(400)).await;
-        let first_status = manager.status(&first).await.unwrap();
-        let second_status = manager.status(&second).await.unwrap();
+        let first_status = manager.status(&first).await?;
+        let second_status = manager.status(&second).await?;
 
         assert!(matches!(
             first_status.state,
             DownloadState::Downloading | DownloadState::Retrying | DownloadState::Completed
         ));
         assert_eq!(second_status.state, DownloadState::Queued);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn automatic_mode_prioritizes_larger_file() {
+    async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         let big_payload = Arc::new(vec![7_u8; 24 * 1024 * 1024]);
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
+        let small_payload = Arc::new(vec![3_u8; 8 * 1024 * 1024]);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
         let app = Router::new()
             .route("/big.bin", get(file_get).head(file_head))
             .route("/small.bin", get(file_get).head(file_head))
-            .with_state(TestState {
-                bytes: big_payload.clone(),
-                etag: String::from("\"big\""),
-                delay_ms: 120,
-            });
+            .with_state(file_state(
+                [
+                    ("/big.bin", big_payload.clone(), "\"big\""),
+                    ("/small.bin", small_payload, "\"small\""),
+                ],
+                250,
+            ));
         tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            if let Err(error) = axum::serve(listener, app).await {
+                eprintln!("[downloader:test] server stopped: {error}");
+            }
         });
 
-        let temp = tempdir().unwrap();
-        let manager = DownloadManager::new(temp.path().join("state")).unwrap();
+        let temp = tempdir()?;
+        let manager = DownloadManager::new(temp.path().join("state"))?;
         manager
             .update_settings(AppSettings {
+                appearance: Default::default(),
                 proxy: ProxySettings::default(),
                 scheduler: SchedulerSettings {
                     mode: SchedulerMode::Automatic,
@@ -2867,8 +3039,7 @@ mod tests {
                 bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
             })
-            .await
-            .unwrap();
+            .await?;
 
         let big = manager
             .start(StartDownloadRequest {
@@ -2882,8 +3053,7 @@ mod tests {
                 max_retries: Some(1),
                 checksum: Some(ChecksumMode::None),
             })
-            .await
-            .unwrap();
+            .await?;
 
         let small = manager
             .start(StartDownloadRequest {
@@ -2897,38 +3067,37 @@ mod tests {
                 max_retries: Some(1),
                 checksum: Some(ChecksumMode::None),
             })
-            .await
-            .unwrap();
+            .await?;
 
         sleep(Duration::from_millis(500)).await;
-        let big_status = manager.status(&big).await.unwrap();
-        let small_status = manager.status(&small).await.unwrap();
+        let big_status = manager.status(&big).await?;
+        let small_status = manager.status(&small).await?;
 
         assert!(big_status.connection_count >= small_status.connection_count);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn adaptive_mode_increases_threads_on_stable_transfer() {
-        let payload = Arc::new(vec![11_u8; 24 * 1024 * 1024]);
-        let state = TestState {
-            bytes: payload,
-            etag: String::from("\"aimd\""),
-            delay_ms: 80,
-        };
+    async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
+        let payload = Arc::new(vec![11_u8; 96 * 1024 * 1024]);
+        let state = single_file_state("/file.bin", payload, "\"aimd\"", 500);
 
         let app = Router::new()
             .route("/file.bin", get(file_get).head(file_head))
             .with_state(state);
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
         tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            if let Err(error) = axum::serve(listener, app).await {
+                eprintln!("[downloader:test] server stopped: {error}");
+            }
         });
 
-        let temp = tempdir().unwrap();
-        let manager = DownloadManager::new(temp.path().join("state")).unwrap();
+        let temp = tempdir()?;
+        let manager = DownloadManager::new(temp.path().join("state"))?;
         manager
             .update_settings(AppSettings {
+                appearance: Default::default(),
                 proxy: ProxySettings::default(),
                 scheduler: SchedulerSettings {
                     mode: SchedulerMode::Automatic,
@@ -2943,8 +3112,7 @@ mod tests {
                 bt: BtSettings::default(),
                 network_learning: NetworkLearningSettings::default(),
             })
-            .await
-            .unwrap();
+            .await?;
 
         let id = manager
             .start(StartDownloadRequest {
@@ -2958,34 +3126,58 @@ mod tests {
                 max_retries: Some(1),
                 checksum: Some(ChecksumMode::None),
             })
-            .await
-            .unwrap();
+            .await?;
 
-        sleep(Duration::from_secs(5)).await;
-        let snapshot = manager.status(&id).await.unwrap();
-        assert!(snapshot.desired_thread_count.unwrap_or(1) >= 3);
+        sleep(Duration::from_secs(2)).await;
+        manager.update_adaptive_targets().await?;
+        manager.rebalance_allocations().await?;
+        let snapshot = manager.status(&id).await?;
+        assert!(matches!(
+            snapshot.desired_thread_count,
+            Some(thread_count) if thread_count >= 3
+        ));
+        Ok(())
     }
 
-    async fn file_head(State(state): State<TestState>) -> impl IntoResponse {
+    async fn file_head(
+        State(state): State<TestState>,
+        OriginalUri(uri): OriginalUri,
+    ) -> impl IntoResponse {
+        let Some(file) = state.files.get(uri.path()) else {
+            return StatusCode::NOT_FOUND.into_response();
+        };
         let mut headers = HeaderMap::new();
         headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-        headers.insert(
-            header::CONTENT_LENGTH,
-            HeaderValue::from_str(&state.bytes.len().to_string()).unwrap(),
-        );
-        headers.insert(header::ETAG, HeaderValue::from_str(&state.etag).unwrap());
+        let Ok(content_length) = HeaderValue::from_str(&file.bytes.len().to_string()) else {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        };
+        headers.insert(header::CONTENT_LENGTH, content_length);
+        let Ok(etag) = HeaderValue::from_str(&file.etag) else {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        };
+        headers.insert(header::ETAG, etag);
         headers.insert(
             header::CONTENT_DISPOSITION,
             HeaderValue::from_static("attachment; filename*=UTF-8''server-name.bin"),
         );
-        (StatusCode::OK, headers)
+        (StatusCode::OK, headers).into_response()
     }
 
-    async fn file_get(State(state): State<TestState>, headers: HeaderMap) -> impl IntoResponse {
+    async fn file_get(
+        State(state): State<TestState>,
+        OriginalUri(uri): OriginalUri,
+        headers: HeaderMap,
+    ) -> impl IntoResponse {
         sleep(Duration::from_millis(state.delay_ms)).await;
+        let Some(file) = state.files.get(uri.path()) else {
+            return StatusCode::NOT_FOUND.into_response();
+        };
 
         let mut response_headers = HeaderMap::new();
-        response_headers.insert(header::ETAG, HeaderValue::from_str(&state.etag).unwrap());
+        let Ok(etag) = HeaderValue::from_str(&file.etag) else {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        };
+        response_headers.insert(header::ETAG, etag);
         response_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
         response_headers.insert(
             header::CONTENT_DISPOSITION,
@@ -2996,9 +3188,16 @@ mod tests {
             .get(header::RANGE)
             .and_then(|value| value.to_str().ok());
         if let Some(requested) = requested {
-            let range = requested.strip_prefix("bytes=").unwrap();
+            let Some(range) = requested.strip_prefix("bytes=") else {
+                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+            };
             let mut pieces = range.split('-');
-            let start = pieces.next().unwrap().parse::<usize>().unwrap();
+            let Some(start_text) = pieces.next() else {
+                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+            };
+            let Ok(start) = start_text.parse::<usize>() else {
+                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+            };
             let end = pieces
                 .next()
                 .and_then(|value| {
@@ -3008,28 +3207,33 @@ mod tests {
                         value.parse::<usize>().ok()
                     }
                 })
-                .unwrap_or(state.bytes.len() - 1);
-            let body = state.bytes[start..=end].to_vec();
-            response_headers.insert(
-                header::CONTENT_RANGE,
-                HeaderValue::from_str(&format!("bytes {start}-{end}/{}", state.bytes.len()))
-                    .unwrap(),
-            );
-            response_headers.insert(
-                header::CONTENT_LENGTH,
-                HeaderValue::from_str(&body.len().to_string()).unwrap(),
-            );
+                .unwrap_or(file.bytes.len() - 1);
+            if start >= file.bytes.len() {
+                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+            }
+            let end = end.min(file.bytes.len() - 1);
+            let body = file.bytes[start..=end].to_vec();
+            let Ok(content_range) =
+                HeaderValue::from_str(&format!("bytes {start}-{end}/{}", file.bytes.len()))
+            else {
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            };
+            response_headers.insert(header::CONTENT_RANGE, content_range);
+            let Ok(content_length) = HeaderValue::from_str(&body.len().to_string()) else {
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            };
+            response_headers.insert(header::CONTENT_LENGTH, content_length);
             return (StatusCode::PARTIAL_CONTENT, response_headers, body).into_response();
         }
 
-        response_headers.insert(
-            header::CONTENT_LENGTH,
-            HeaderValue::from_str(&state.bytes.len().to_string()).unwrap(),
-        );
+        let Ok(content_length) = HeaderValue::from_str(&file.bytes.len().to_string()) else {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        };
+        response_headers.insert(header::CONTENT_LENGTH, content_length);
         (
             StatusCode::OK,
             response_headers,
-            state.bytes.as_ref().clone(),
+            file.bytes.as_ref().clone(),
         )
             .into_response()
     }

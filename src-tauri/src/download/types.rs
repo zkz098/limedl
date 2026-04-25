@@ -40,6 +40,8 @@ pub enum TaskKind {
     #[default]
     Http,
     Bt,
+    Metalink,
+    Sftp,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -247,6 +249,10 @@ pub struct DownloadDefaultsSettings {
     pub default_checksum: ChecksumMode,
     #[serde(default = "default_http_user_agent")]
     pub default_user_agent: String,
+    #[serde(default)]
+    pub enable_metalink: bool,
+    #[serde(default)]
+    pub enable_sftp: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +306,8 @@ impl Default for DownloadDefaultsSettings {
             default_max_retries: 5,
             default_checksum: ChecksumMode::Blake3,
             default_user_agent: default_http_user_agent(),
+            enable_metalink: false,
+            enable_sftp: false,
         }
     }
 }

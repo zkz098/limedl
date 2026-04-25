@@ -62,8 +62,13 @@ export const resources = {
         url: "下载链接",
         httpSource: "普通下载",
         btSource: "BT 下载",
+        metalinkSource: "Metalink",
+        sftpSource: "SFTP",
         torrentSource: "磁力链接 / .torrent",
         chooseTorrent: "选择 .torrent",
+        metalinkSourceLabel: "Metalink 链接 / 文件",
+        sftpSourceLabel: "SFTP 链接",
+        chooseMetalink: "选择 Metalink",
         fileName: "文件名（可选）",
         fileNamePlaceholder: "重命名文件",
         userAgent: "User-Agent",
@@ -85,6 +90,10 @@ export const resources = {
         fixedHint: "自动模式下固定线程数仍会受全局预算和单任务上限 {{count}} 约束。",
         btStrategyTitle: "BT 传输",
         btHint: "BT 任务由 rqbit 管理连接、分片和做种状态，线程、重试和校验设置不适用于该任务。",
+        metalinkHint:
+          "Metalink 会展开为一个或多个 HTTP 下载任务，并优先使用文件内提供的文件名、镜像链接和可识别校验方式。",
+        sftpStrategyTitle: "SFTP 传输",
+        sftpHint: "SFTP 使用内置 Rust SSH 客户端传输，支持密码 URL 或本机 SSH Agent 身份认证。",
         starting: "启动中...",
         start: "开始下载",
       },
@@ -172,7 +181,7 @@ export const resources = {
           default: "默认 (樱桃)",
           amber: "琥珀",
           sky: "天蓝",
-          lime: "青柠"
+          lime: "青柠",
         },
         scheduler: "调度器",
         schedulerTitle: "线程分配",
@@ -227,6 +236,15 @@ export const resources = {
         checksumHint: "新建任务中不再单独显示校验方式，统一使用这里的设置。",
         defaultUserAgent: "默认 User-Agent",
         defaultUserAgentHint: "新建 HTTP 任务会自动带入该 UA，也可以在任务里单独覆盖。",
+        metalinkSupport: "Metalink 支持",
+        metalinkSupportEnabled: "新建任务中显示 Metalink",
+        metalinkSupportDisabled: "隐藏 Metalink",
+        metalinkSupportHint:
+          "默认关闭。开启后新建任务弹窗会显示 Metalink 来源，并允许解析 .metalink / .meta4。",
+        sftpSupport: "SFTP 支持",
+        sftpSupportEnabled: "新建任务中显示 SFTP",
+        sftpSupportDisabled: "隐藏 SFTP",
+        sftpSupportHint: "默认关闭。开启后新建任务弹窗会显示 SFTP 来源，只接受 sftp:// 链接。",
         network: "网络",
         proxyTitle: "代理",
         proxyMode: "代理模式",
@@ -244,10 +262,8 @@ export const resources = {
           proxyManualEmpty: "请输入代理地址，例如 http://127.0.0.1:7890",
           download:
             "默认位置：{{location}}；默认重试次数：{{retries}}；全局校验方式：{{checksum}}；UA：{{userAgent}}。",
-          btDisabled:
-            "DHT：{{dht}}；PEX：{{pex}}；Tracker：{{trackers}} 条；BT 上传不会自动暂停。",
-          bt:
-            "DHT：{{dht}}；PEX：{{pex}}；Tracker：{{trackers}} 条；达到上传量 {{uploadLimit}} 或分享率 {{ratioLimit}} 后暂停上传。",
+          btDisabled: "DHT：{{dht}}；PEX：{{pex}}；Tracker：{{trackers}} 条；BT 上传不会自动暂停。",
+          bt: "DHT：{{dht}}；PEX：{{pex}}；Tracker：{{trackers}} 条；达到上传量 {{uploadLimit}} 或分享率 {{ratioLimit}} 后暂停上传。",
           noNetworkProfile: "当前暂无网络学习画像。",
           mobile: "当前为{{deviceMode}}，不会累计网络画像；自动调度将回退到静态自适应策略。",
           learningPaused: "网络学习已暂停，自动调度将回退到静态自适应策略。",
@@ -281,6 +297,9 @@ export const resources = {
         statusRefreshed: "已刷新 {{fileName}} 的状态。",
         startRequired: "请填写下载链接和保存目录。",
         torrentStartRequired: "请填写磁力链接或选择 .torrent 文件，并设置保存目录。",
+        metalinkStartRequired:
+          "请填写 Metalink 链接或选择 .metalink / .meta4 文件，并设置保存目录。",
+        sftpStartRequired: "请填写 SFTP 链接，并设置保存目录。",
         downloadQueued: "下载任务已加入队列，ID：{{id}}。",
         downloadFailed: "下载失败：{{fileName}}。{{reason}}",
         linkCopied: "下载链接已复制。",
@@ -328,6 +347,8 @@ export const resources = {
         none: "None",
         http: "HTTP",
         bt: "BT",
+        metalink: "Metalink",
+        sftp: "SFTP",
         blake3: "BLAKE3",
         sha256: "SHA-256",
         xxh3_128: "XXH3-128",
@@ -359,9 +380,11 @@ export const resources = {
         newTask: "New task",
         home: "Home",
         settings: "Settings",
-      }, appearance: {
+      },
+      appearance: {
         label: "Appearance",
-      }, language: {
+      },
+      language: {
         label: "Language",
         zhCN: "简体中文",
         enUS: "English",
@@ -396,8 +419,13 @@ export const resources = {
         url: "Download URL",
         httpSource: "HTTP",
         btSource: "BT",
+        metalinkSource: "Metalink",
+        sftpSource: "SFTP",
         torrentSource: "Magnet / .torrent",
         chooseTorrent: "Choose .torrent",
+        metalinkSourceLabel: "Metalink URL / file",
+        sftpSourceLabel: "SFTP URL",
+        chooseMetalink: "Choose Metalink",
         fileName: "File name (optional)",
         fileNamePlaceholder: "Rename file",
         userAgent: "User-Agent",
@@ -424,6 +452,11 @@ export const resources = {
         btStrategyTitle: "BT Transfer",
         btHint:
           "BT tasks are managed by rqbit for connections, pieces, and seeding. Thread, retry, and checksum settings do not apply.",
+        metalinkHint:
+          "Metalink expands into one or more HTTP download tasks, using file names, mirror URLs, and recognized checksum modes from the document.",
+        sftpStrategyTitle: "SFTP Transfer",
+        sftpHint:
+          "SFTP uses the built-in Rust SSH client and supports password URLs or local SSH Agent identities.",
         starting: "Starting...",
         start: "Start download",
       },
@@ -511,7 +544,7 @@ export const resources = {
           default: "Default (Cherry)",
           amber: "Amber",
           sky: "Sky Blue",
-          lime: "Lime"
+          lime: "Lime",
         },
         scheduler: "Scheduler",
         schedulerTitle: "Thread Allocation",
@@ -538,11 +571,13 @@ export const resources = {
         btDht: "DHT",
         btDhtEnabled: "Enable DHT",
         btDhtDisabled: "Disable DHT",
-        btDhtHint: "DHT discovers peers from the distributed network. Changes apply to the BT session after restart.",
+        btDhtHint:
+          "DHT discovers peers from the distributed network. Changes apply to the BT session after restart.",
         btPex: "PEX",
         btPexEnabled: "Enable PEX",
         btPexDisabled: "Disable PEX",
-        btPexHint: "PEX exchanges peer information with connected peers. The current engine stores this preference.",
+        btPexHint:
+          "PEX exchanges peer information with connected peers. The current engine stores this preference.",
         btTrackerList: "Tracker List",
         btTrackerListUrl: "Tracker List URL",
         btTrackerListUpdate: "Update",
@@ -551,7 +586,8 @@ export const resources = {
           "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward.",
         btTrackerListPlaceholder:
           "udp://tracker.opentrackr.org:1337/announce\nhttps://tracker.example.com/announce",
-        btTrackerListHint: "One tracker per line. {{count}} tracker(s) will be appended to new BT tasks.",
+        btTrackerListHint:
+          "One tracker per line. {{count}} tracker(s) will be appended to new BT tasks.",
         btPauseUpload: "Upload limit",
         btPauseUploadEnabled: "Pause upload after reaching a limit",
         btPauseUploadDisabled: "Do not pause upload automatically",
@@ -571,8 +607,17 @@ export const resources = {
         checksumHint:
           "New tasks no longer show checksum mode separately. This setting is used globally.",
         defaultUserAgent: "Default User-Agent",
-        defaultUserAgentHint:
-          "New HTTP tasks prefill this UA, and each task can override it.",
+        defaultUserAgentHint: "New HTTP tasks prefill this UA, and each task can override it.",
+        metalinkSupport: "Metalink support",
+        metalinkSupportEnabled: "Show Metalink in new tasks",
+        metalinkSupportDisabled: "Hide Metalink",
+        metalinkSupportHint:
+          "Disabled by default. When enabled, the new-task dialog shows Metalink and accepts .metalink / .meta4 documents.",
+        sftpSupport: "SFTP support",
+        sftpSupportEnabled: "Show SFTP in new tasks",
+        sftpSupportDisabled: "Hide SFTP",
+        sftpSupportHint:
+          "Disabled by default. When enabled, the new-task dialog shows SFTP and only accepts sftp:// URLs.",
         network: "Network",
         proxyTitle: "Proxy",
         proxyMode: "Proxy mode",
@@ -593,8 +638,7 @@ export const resources = {
             "Default location: {{location}}; default retries: {{retries}}; global checksum: {{checksum}}; UA: {{userAgent}}.",
           btDisabled:
             "DHT: {{dht}}; PEX: {{pex}}; trackers: {{trackers}}; BT upload will not be paused automatically.",
-          bt:
-            "DHT: {{dht}}; PEX: {{pex}}; trackers: {{trackers}}; pause upload after {{uploadLimit}} uploaded or share ratio {{ratioLimit}}.",
+          bt: "DHT: {{dht}}; PEX: {{pex}}; trackers: {{trackers}}; pause upload after {{uploadLimit}} uploaded or share ratio {{ratioLimit}}.",
           noNetworkProfile: "No network learning profile is available.",
           mobile:
             "Current mode is {{deviceMode}}. Network profiles will not be accumulated, and automatic scheduling falls back to static adaptive behavior.",
@@ -633,6 +677,9 @@ export const resources = {
         startRequired: "URL and destination directory are required.",
         torrentStartRequired:
           "Enter a magnet link or choose a .torrent file, then set a destination folder.",
+        metalinkStartRequired:
+          "Enter a Metalink URL or choose a .metalink / .meta4 file, then set a destination folder.",
+        sftpStartRequired: "Enter an SFTP URL and set a destination folder.",
         downloadQueued: "Download queued with id {{id}}.",
         downloadFailed: "Download failed: {{fileName}}. {{reason}}",
         linkCopied: "Download link copied.",
@@ -680,6 +727,8 @@ export const resources = {
         none: "None",
         http: "HTTP",
         bt: "BT",
+        metalink: "Metalink",
+        sftp: "SFTP",
         blake3: "BLAKE3",
         sha256: "SHA-256",
         xxh3_128: "XXH3-128",

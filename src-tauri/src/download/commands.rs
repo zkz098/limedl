@@ -4,6 +4,7 @@ use tauri::State;
 
 use super::{
     manager::{AppState, normalize_tracker_list_lossy, normalize_tracker_list_url},
+    sftp::is_sftp_task_id,
     torrent::{
         DownloadSourceKind, classify_download_source, http_task_id, is_bt_task_id,
         normalize_http_task_id,
@@ -28,6 +29,30 @@ pub async fn download_start(
             .start(request)
             .await
             .map_err(|error| error.to_string()),
+        DownloadSourceKind::Metalink => state
+            .manager
+            .start_metalink(request)
+            .await
+            .map(http_task_id)
+            .map_err(|error| error.to_string()),
+        DownloadSourceKind::Sftp => {
+            if state
+                .manager
+                .settings()
+                .await
+                .map_err(|error| error.to_string())?
+                .download
+                .enable_sftp
+            {
+                state
+                    .sftp_manager
+                    .start(request)
+                    .await
+                    .map_err(|error| error.to_string())
+            } else {
+                Err(String::from("SFTP support is disabled in settings"))
+            }
+        }
     }
 }
 
@@ -39,6 +64,13 @@ pub async fn download_pause(
     if is_bt_task_id(&download_id) {
         return state
             .torrent_manager
+            .pause(&download_id)
+            .await
+            .map_err(|error| error.to_string());
+    }
+    if is_sftp_task_id(&download_id) {
+        return state
+            .sftp_manager
             .pause(&download_id)
             .await
             .map_err(|error| error.to_string());
@@ -64,6 +96,13 @@ pub async fn download_resume(
             .await
             .map_err(|error| error.to_string());
     }
+    if is_sftp_task_id(&download_id) {
+        return state
+            .sftp_manager
+            .resume(&download_id)
+            .await
+            .map_err(|error| error.to_string());
+    }
 
     state
         .manager
@@ -81,6 +120,13 @@ pub async fn download_cancel(
     if is_bt_task_id(&download_id) {
         return state
             .torrent_manager
+            .cancel(&download_id)
+            .await
+            .map_err(|error| error.to_string());
+    }
+    if is_sftp_task_id(&download_id) {
+        return state
+            .sftp_manager
             .cancel(&download_id)
             .await
             .map_err(|error| error.to_string());
@@ -106,6 +152,13 @@ pub async fn download_remove(
             .await
             .map_err(|error| error.to_string());
     }
+    if is_sftp_task_id(&download_id) {
+        return state
+            .sftp_manager
+            .remove(&download_id)
+            .await
+            .map_err(|error| error.to_string());
+    }
 
     state
         .manager
@@ -123,6 +176,13 @@ pub async fn download_purge(
     if is_bt_task_id(&download_id) {
         return state
             .torrent_manager
+            .purge(&download_id)
+            .await
+            .map_err(|error| error.to_string());
+    }
+    if is_sftp_task_id(&download_id) {
+        return state
+            .sftp_manager
             .purge(&download_id)
             .await
             .map_err(|error| error.to_string());
@@ -148,6 +208,13 @@ pub async fn download_open_in_explorer(
             .await
             .map_err(|error| error.to_string());
     }
+    if is_sftp_task_id(&download_id) {
+        return state
+            .sftp_manager
+            .open_in_explorer(&download_id)
+            .await
+            .map_err(|error| error.to_string());
+    }
 
     state
         .manager
@@ -164,6 +231,13 @@ pub async fn download_status(
     if is_bt_task_id(&download_id) {
         return state
             .torrent_manager
+            .status(&download_id)
+            .await
+            .map_err(|error| error.to_string());
+    }
+    if is_sftp_task_id(&download_id) {
+        return state
+            .sftp_manager
             .status(&download_id)
             .await
             .map_err(|error| error.to_string());
@@ -193,6 +267,13 @@ pub async fn download_list(state: State<'_, AppState>) -> Result<Vec<DownloadSum
     downloads.extend(
         state
             .torrent_manager
+            .list()
+            .await
+            .map_err(|error| error.to_string())?,
+    );
+    downloads.extend(
+        state
+            .sftp_manager
             .list()
             .await
             .map_err(|error| error.to_string())?,

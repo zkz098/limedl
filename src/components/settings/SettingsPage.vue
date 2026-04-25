@@ -91,6 +91,8 @@ const form = reactive<AppSettings>({
     defaultMaxRetries: 5,
     defaultChecksum: "blake3",
     defaultUserAgent: DEFAULT_HTTP_USER_AGENT,
+    enableMetalink: false,
+    enableSftp: false,
   },
   bt: {
     dhtEnabled: true,
@@ -303,7 +305,10 @@ watch(
     form.download.defaultDownloadDir = nextSettings.download.defaultDownloadDir;
     form.download.defaultMaxRetries = nextSettings.download.defaultMaxRetries;
     form.download.defaultChecksum = nextSettings.download.defaultChecksum;
-    form.download.defaultUserAgent = nextSettings.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
+    form.download.defaultUserAgent =
+      nextSettings.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
+    form.download.enableMetalink = nextSettings.download.enableMetalink ?? false;
+    form.download.enableSftp = nextSettings.download.enableSftp ?? false;
     form.bt.dhtEnabled = nextSettings.bt.dhtEnabled;
     form.bt.pexEnabled = nextSettings.bt.pexEnabled;
     form.bt.trackerList = nextSettings.bt.trackerList;
@@ -415,6 +420,8 @@ function buildSettingsPayload(): AppSettings {
       defaultMaxRetries: form.download.defaultMaxRetries,
       defaultChecksum: form.download.defaultChecksum,
       defaultUserAgent: form.download.defaultUserAgent,
+      enableMetalink: form.download.enableMetalink,
+      enableSftp: form.download.enableSftp,
     },
     bt: {
       dhtEnabled: form.bt.dhtEnabled,
@@ -466,7 +473,9 @@ async function updateTrackerListFromUrl() {
   isFetchingTrackerList.value = true;
 
   try {
-    form.bt.trackerList = await fetchTrackerList(form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL);
+    form.bt.trackerList = await fetchTrackerList(
+      form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
+    );
     showNotification(
       t("settings.notifications.trackerListUpdated", {
         count: trackerListEntries.value.length,
@@ -578,11 +587,18 @@ onBeforeUnmount(() => {
               :key="color"
               type="button"
               class="theme-color-button"
-              :class="['theme-color-button--' + color, { 'is-active': form.appearance.themeColor === color }]"
+              :class="[
+                'theme-color-button--' + color,
+                { 'is-active': form.appearance.themeColor === color },
+              ]"
               :aria-label="t(`settings.themeColorNames.${color}`)"
               @click="form.appearance.themeColor = color as ThemeColor"
             >
-              <span v-if="form.appearance.themeColor === color" class="i-ri-check-line" aria-hidden="true" />
+              <span
+                v-if="form.appearance.themeColor === color"
+                class="i-ri-check-line"
+                aria-hidden="true"
+              />
             </button>
           </div>
         </label>
@@ -756,6 +772,64 @@ onBeforeUnmount(() => {
           />
           <p class="settings-field__hint">{{ t("settings.defaultUserAgentHint") }}</p>
         </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.metalinkSupport") }}</span>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': form.download.enableMetalink }"
+            :aria-pressed="form.download.enableMetalink"
+            @click="form.download.enableMetalink = !form.download.enableMetalink"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                form.download.enableMetalink
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
+            />
+            <span class="settings-toggle__text">
+              {{
+                form.download.enableMetalink
+                  ? t("settings.metalinkSupportEnabled")
+                  : t("settings.metalinkSupportDisabled")
+              }}
+            </span>
+          </button>
+          <p class="settings-field__hint">{{ t("settings.metalinkSupportHint") }}</p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.sftpSupport") }}</span>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': form.download.enableSftp }"
+            :aria-pressed="form.download.enableSftp"
+            @click="form.download.enableSftp = !form.download.enableSftp"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                form.download.enableSftp
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
+            />
+            <span class="settings-toggle__text">
+              {{
+                form.download.enableSftp
+                  ? t("settings.sftpSupportEnabled")
+                  : t("settings.sftpSupportDisabled")
+              }}
+            </span>
+          </button>
+          <p class="settings-field__hint">{{ t("settings.sftpSupportHint") }}</p>
+        </label>
       </div>
     </section>
 
@@ -783,9 +857,7 @@ onBeforeUnmount(() => {
             <span
               class="settings-toggle__icon"
               :class="
-                form.bt.dhtEnabled
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
+                form.bt.dhtEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'
               "
               aria-hidden="true"
             />
@@ -808,9 +880,7 @@ onBeforeUnmount(() => {
             <span
               class="settings-toggle__icon"
               :class="
-                form.bt.pexEnabled
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
+                form.bt.pexEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'
               "
               aria-hidden="true"
             />

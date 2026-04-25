@@ -3,7 +3,7 @@ mod download;
 use tauri::Manager;
 
 use download::{
-    AppState, DownloadManager, TorrentManager, download_cancel, download_list,
+    AppState, DownloadManager, SftpManager, TorrentManager, download_cancel, download_list,
     download_open_in_explorer, download_pause, download_purge, download_remove, download_resume,
     download_start, download_status, settings_fetch_tracker_list, settings_get, settings_save,
 };
@@ -29,8 +29,13 @@ pub fn run() {
                 state_dir.join("torrents"),
                 &settings,
             ))?;
+            let sftp_manager = SftpManager::new(state_dir.join("sftp"))?;
 
-            app.manage(AppState::new(download_manager, torrent_manager));
+            app.manage(AppState::new(
+                download_manager,
+                torrent_manager,
+                sftp_manager,
+            ));
 
             Ok(())
         })
