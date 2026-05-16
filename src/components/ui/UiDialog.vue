@@ -89,18 +89,19 @@ onBeforeUnmount(() => {
   z-index: 100;
   display: grid;
   place-items: center;
-  background: rgba(31, 24, 20, 0.38);
+  background: var(--surface-overlay-bg);
   padding: 0.75rem;
-  backdrop-filter: blur(0.375rem);
+  backdrop-filter: blur(var(--surface-dialog-blur));
 }
 
 .ui-dialog__panel {
   max-height: calc(100vh - 1.5rem);
   overflow: auto;
-  background: var(--color-panel);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-dialog-alpha), transparent);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: 0 1.5rem 4rem rgba(48, 34, 24, 0.22);
+  backdrop-filter: blur(var(--surface-dialog-blur));
 }
 
 .ui-dialog__header {

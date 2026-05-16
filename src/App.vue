@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
 import DownloadInspector from "./components/downloader/DownloadInspector.vue";
 import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
+import SidebarBtStatus from "./components/sidebar/SidebarBtStatus.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
@@ -11,7 +12,7 @@ import { formatSpeed } from "./lib/download-format";
 import { getAppSettings } from "./lib/tauri/settings-api";
 import { useDownloader } from "./composables/useDownloader";
 import { useI18n } from "./i18n";
-import type { AppSettings } from "./types/settings";
+import type { AppSettings, ColorMode } from "./types/settings";
 
 const {
   actionName,
@@ -20,6 +21,7 @@ const {
   canResume,
   canPauseDownload,
   canResumeDownload,
+  btRuntimeStatus,
   downloads,
   errorMessage,
   form,
@@ -61,10 +63,17 @@ const appSettings = ref<AppSettings | null>(null);
 const pendingPermanentDeleteId = ref<string | null>(null);
 const pendingView = ref<"home" | "settings" | null>(null);
 const settingsHasUnsavedChanges = ref(false);
+const isSavingBeforeNavigation = ref(false);
 const notificationMessage = ref("");
+const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
 const knownFailedDownloadIds = new Set<string>();
 let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 let hasSeenInitialDownloadList = false;
+let colorSchemeQuery: MediaQueryList | null = null;
+
+function handleSystemColorSchemeChange() {
+  applyColorMode(appSettings.value?.appearance?.colorMode ?? "system");
+}
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
 const showUnsavedSettingsDialog = computed(() => pendingView.value !== null);
@@ -159,6 +168,29 @@ function confirmDiscardSettings() {
   }
 }
 
+async function saveSettingsAndNavigate() {
+  if (isSavingBeforeNavigation.value) {
+    return;
+  }
+
+  isSavingBeforeNavigation.value = true;
+  try {
+    const saved = await settingsPageRef.value?.persistSettings();
+    if (!saved) {
+      return;
+    }
+
+    const nextView = pendingView.value;
+    pendingView.value = null;
+    settingsHasUnsavedChanges.value = false;
+    if (nextView) {
+      currentView.value = nextView;
+    }
+  } finally {
+    isSavingBeforeNavigation.value = false;
+  }
+}
+
 function cancelPermanentDelete() {
   if (actionName.value === "Purge") {
     return;
@@ -180,6 +212,7 @@ async function confirmPermanentDelete() {
 function handleSettingsSaved(nextSettings: AppSettings) {
   appSettings.value = nextSettings;
   settingsHasUnsavedChanges.value = false;
+  applyAppearanceSettings(nextSettings);
   applyAppSettingsDefaults(nextSettings);
 }
 
@@ -190,13 +223,36 @@ function handleSettingsDirtyChange(isDirty: boolean) {
 async function loadSettings() {
   try {
     appSettings.value = await getAppSettings();
+    applyAppearanceSettings(appSettings.value);
     applyAppSettingsDefaults(appSettings.value);
   } catch (error) {
     console.error("Failed to load app settings", error);
   }
 }
 
+function applyAppearanceSettings(settings: AppSettings) {
+  document.documentElement.dataset.theme = settings.appearance?.themeColor ?? "default";
+  document.documentElement.dataset.surface = settings.appearance?.backgroundOpacity ?? "default";
+  applyColorMode(settings.appearance?.colorMode ?? "system");
+}
+
+function resolveColorMode(mode: ColorMode) {
+  if (mode !== "system") {
+    return mode;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyColorMode(mode: ColorMode) {
+  document.documentElement.dataset.colorModePreference = mode;
+  document.documentElement.dataset.colorMode = resolveColorMode(mode);
+}
+
 onMounted(() => {
+  colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  colorSchemeQuery.addEventListener("change", handleSystemColorSchemeChange);
+  applyColorMode("system");
   void loadSettings();
 });
 
@@ -256,6 +312,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  colorSchemeQuery?.removeEventListener("change", handleSystemColorSchemeChange);
   if (notificationTimer) {
     clearTimeout(notificationTimer);
   }
@@ -336,6 +393,8 @@ onBeforeUnmount(() => {
           </p>
         </div>
       </div>
+
+      <SidebarBtStatus :status="btRuntimeStatus" />
     </aside>
 
     <section class="main-content">
@@ -358,6 +417,7 @@ onBeforeUnmount(() => {
       />
       <SettingsPage
         v-else
+        ref="settingsPage"
         :settings="appSettings"
         @dirty-change="handleSettingsDirtyChange"
         @saved="handleSettingsSaved"
@@ -515,6 +575,14 @@ onBeforeUnmount(() => {
           </UiButton>
           <UiButton
             type="button"
+            icon="i-ri-save-line"
+            :loading="isSavingBeforeNavigation"
+            @click="saveSettingsAndNavigate"
+          >
+            {{ isSavingBeforeNavigation ? t("common.saving") : t("dialog.saveSettingsAndLeave") }}
+          </UiButton>
+          <UiButton
+            type="button"
             variant="danger"
             icon="i-ri-arrow-right-line"
             @click="confirmDiscardSettings"
@@ -578,12 +646,12 @@ onBeforeUnmount(() => {
   padding: 0.8rem 0.9rem;
   border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) 96%, transparent);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
   box-shadow: var(--shadow-card-hover);
   color: var(--color-danger-text);
   font-size: 0.85rem;
   line-height: 1.45;
-  backdrop-filter: blur(0.875rem);
+  backdrop-filter: blur(var(--surface-blur));
 }
 
 .app-notification span:first-child {
@@ -612,8 +680,8 @@ onBeforeUnmount(() => {
   height: 100vh;
   padding: 1.25rem;
   border-right: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-panel-muted) 82%, transparent);
-  backdrop-filter: blur(0.875rem);
+  background: color-mix(in srgb, var(--color-panel-muted) var(--surface-muted-alpha), transparent);
+  backdrop-filter: blur(var(--surface-blur));
   overflow: hidden;
 }
 
@@ -770,9 +838,9 @@ onBeforeUnmount(() => {
   z-index: 20;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
   box-shadow: var(--shadow-card-hover);
-  backdrop-filter: blur(1rem);
+  backdrop-filter: blur(var(--surface-blur));
   overflow: hidden;
 }
 

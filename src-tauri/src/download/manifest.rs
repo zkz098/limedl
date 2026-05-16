@@ -16,6 +16,8 @@ pub(super) struct Manifest {
     pub(super) user_agent: String,
     pub(super) destination_dir: String,
     pub(super) file_name: String,
+    #[serde(default = "default_true")]
+    pub(super) file_name_locked: bool,
     pub(super) destination_path: String,
     pub(super) temp_path: String,
     pub(super) manifest_path: String,
@@ -38,6 +40,10 @@ pub(super) struct Manifest {
     pub(super) created_at_ms: u64,
     pub(super) updated_at_ms: u64,
     pub(super) chunks: Vec<ChunkManifest>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

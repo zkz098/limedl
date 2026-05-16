@@ -177,6 +177,19 @@ pub struct DownloadSummary {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtRuntimeStatus {
+    pub connected: bool,
+    pub dht_enabled: bool,
+    pub dht_nodes: Option<usize>,
+    pub torrent_count: usize,
+    pub peer_count: usize,
+    pub upload_speed_bytes_per_second: Option<f64>,
+    pub uploaded_bytes: u64,
+    pub updated_at_ms: u64,
+}
+
 impl From<&DownloadSnapshot> for DownloadSummary {
     fn from(value: &DownloadSnapshot) -> Self {
         Self {
@@ -405,11 +418,43 @@ impl Default for ThemeColor {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BackgroundOpacityPreset {
+    Default,
+    Acrylic,
+    Frosted,
+}
+
+impl Default for BackgroundOpacityPreset {
+    fn default() -> Self {
+        Self::Default
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColorMode {
+    Light,
+    Dark,
+    System,
+}
+
+impl Default for ColorMode {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSettings {
     #[serde(default)]
     pub theme_color: ThemeColor,
+    #[serde(default)]
+    pub background_opacity: BackgroundOpacityPreset,
+    #[serde(default)]
+    pub color_mode: ColorMode,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

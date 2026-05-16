@@ -334,7 +334,7 @@ const threadHint = computed(() => {
   padding: 0.25rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-panel);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
 }
 
 .source-tab {

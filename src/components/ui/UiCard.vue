@@ -14,10 +14,11 @@
 
 <style scoped>
 .ui-card {
-  background: var(--color-panel);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
+  backdrop-filter: blur(var(--surface-blur));
   overflow: hidden;
   transition:
     transform 0.25s ease,

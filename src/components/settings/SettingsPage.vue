@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 
-import { formatBytes, formatSpeed, formatTimestamp } from "../../lib/download-format";
 import { useI18n } from "../../i18n";
 import { pickDirectory } from "../../lib/tauri/dialog-api";
 import { fetchTrackerList, saveAppSettings } from "../../lib/tauri/settings-api";
@@ -10,22 +9,34 @@ import type { SupportedLanguage } from "../../i18n/resources";
 import type {
   AdaptiveProfile,
   AppSettings,
+  BackgroundOpacityPreset,
+  ColorMode,
   DeviceLearningMode,
   LogLevel,
   NetworkLearningSettings,
-  NetworkSceneProfile,
   ProxyMode,
   SchedulerMode,
-  ThemeColor,
 } from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
-import UiInput from "../ui/UiInput.vue";
-import UiNumberField from "../ui/UiNumberField.vue";
-import UiSelect from "../ui/UiSelect.vue";
 
-const DEFAULT_TRACKER_LIST_URL = "https://cf.trackerslist.com/best.txt";
-const DEFAULT_HTTP_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+import SettingsAppearancePanel from "./SettingsAppearancePanel.vue";
+import SettingsBtPanel from "./SettingsBtPanel.vue";
+import SettingsDownloadDefaultsPanel from "./SettingsDownloadDefaultsPanel.vue";
+import SettingsLoggingPanel from "./SettingsLoggingPanel.vue";
+import SettingsNetworkLearningPanel from "./SettingsNetworkLearningPanel.vue";
+import SettingsProxyPanel from "./SettingsProxyPanel.vue";
+import SettingsSchedulerPanel from "./SettingsSchedulerPanel.vue";
+
+import {
+  copySingleNetworkScene,
+  DEFAULT_HTTP_USER_AGENT,
+  DEFAULT_TRACKER_LIST_URL,
+  serializeSettings,
+  settingsDraftSnapshot,
+  useSettingsNotification,
+  useSettingsSummaries,
+  type SettingsOptionArrays,
+} from "./settingsComposables";
 
 const props = defineProps<{
   settings: AppSettings | null;
@@ -37,6 +48,9 @@ const emit = defineEmits<{
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
+const { notificationMessage, showNotification } = useSettingsNotification();
+
+// ── Option arrays ────────────────────────────────────────────────
 
 const proxyModeOptions = computed<Array<{ label: string; value: ProxyMode }>>(() => [
   { label: t("tokens.disabled"), value: "disabled" },
@@ -76,9 +90,27 @@ const logLevelOptions = computed<Array<{ label: string; value: LogLevel }>>(() =
   { label: t("tokens.error"), value: "error" },
 ]);
 
+const backgroundOpacityOptions = computed<Array<{ label: string; value: BackgroundOpacityPreset }>>(
+  () => [
+    { label: t("settings.backgroundOpacityNames.default"), value: "default" },
+    { label: t("settings.backgroundOpacityNames.acrylic"), value: "acrylic" },
+    { label: t("settings.backgroundOpacityNames.frosted"), value: "frosted" },
+  ],
+);
+
+const colorModeOptions = computed<Array<{ label: string; value: ColorMode }>>(() => [
+  { label: t("settings.colorModeNames.system"), value: "system" },
+  { label: t("settings.colorModeNames.light"), value: "light" },
+  { label: t("settings.colorModeNames.dark"), value: "dark" },
+]);
+
+// ── Reactive form ─────────────────────────────────────────────────
+
 const form = reactive<AppSettings>({
   appearance: {
     themeColor: "default",
+    backgroundOpacity: "default",
+    colorMode: "system",
   },
   proxy: {
     mode: "disabled",
@@ -132,183 +164,40 @@ const form = reactive<AppSettings>({
   },
 });
 
+// ── State──────────────────────────────────────────────────────────
+
 const isSaving = ref(false);
 const isPickingDirectory = ref(false);
 const isFetchingTrackerList = ref(false);
-const notificationMessage = ref("");
 const savedSettingsSnapshot = ref("");
-let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 
-const currentScene = computed(() => {
-  return form.networkLearning.scenes[0] ?? null;
-});
+// ── Summaries (from composable)────────────────────────────────────
 
-const pageSummary = computed(() => {
-  if (form.scheduler.mode === "traditional") {
-    return t("settings.summaries.traditional", {
-      tasks: form.scheduler.traditional.maxParallelTasks,
-      deviceMode: deviceModeLabel(form.networkLearning.deviceMode),
-    });
-  }
+const optionArrays: SettingsOptionArrays = {
+  adaptiveProfileOptions,
+  deviceModeOptions,
+  checksumOptions,
+  logLevelOptions,
+};
 
-  return t("settings.summaries.automatic", {
-    threads: form.scheduler.automatic.maxParallelThreads,
-    perTask: form.scheduler.automatic.maxThreadsPerTask,
-    profile: profileLabel(form.scheduler.automatic.adaptiveProfile),
-  });
-});
+const {
+  pageSummary,
+  proxySummary,
+  loggingSummary,
+  downloadSummary,
+  btUploadLimitMiB,
+  setBtUploadLimitMiB,
+  trackerListEntries,
+  btSummary,
+  networkLearningSummary,
+  networkMetricsCards,
+} = useSettingsSummaries(form, t, optionArrays);
 
-const proxySummary = computed(() => {
-  if (form.proxy.mode === "disabled") {
-    return t("settings.summaries.proxyDisabled");
-  }
-
-  if (form.proxy.mode === "system") {
-    return t("settings.summaries.proxySystem");
-  }
-
-  return form.proxy.manualUrl.trim()
-    ? t("settings.summaries.proxyManual", { url: form.proxy.manualUrl.trim() })
-    : t("settings.summaries.proxyManualEmpty");
-});
-
-const loggingSummary = computed(() => {
-  const levelLabel =
-    logLevelOptions.value.find((option) => option.value === form.logging.level)?.label ??
-    form.logging.level;
-  const path = form.logging.filePath.trim() || t("settings.loggingAutoPath");
-
-  return form.logging.enabled
-    ? t("settings.summaries.loggingEnabled", { level: levelLabel, path })
-    : t("settings.summaries.loggingDisabled");
-});
-
-const downloadSummary = computed(() => {
-  const location = form.download.defaultDownloadDir.trim() || t("settings.unsetDefaultPath");
-  const checksumLabel =
-    checksumOptions.value.find((option) => option.value === form.download.defaultChecksum)?.label ??
-    form.download.defaultChecksum;
-
-  return t("settings.summaries.download", {
-    location,
-    retries: form.download.defaultMaxRetries,
-    checksum: checksumLabel,
-    userAgent: form.download.defaultUserAgent.trim() || DEFAULT_HTTP_USER_AGENT,
-  });
-});
-
-const btUploadLimitMiB = computed({
-  get() {
-    return Math.round(form.bt.uploadLimitBytes / 1024 / 1024);
-  },
-  set(value: number | null) {
-    form.bt.uploadLimitBytes = Math.max(0, Math.trunc(value ?? 0)) * 1024 * 1024;
-  },
-});
-
-const btSummary = computed(() => {
-  const dhtLabel = form.bt.dhtEnabled ? t("common.enabled") : t("common.disabled");
-  const pexLabel = form.bt.pexEnabled ? t("common.enabled") : t("common.disabled");
-  const trackerCount = trackerListEntries.value.length;
-
-  if (!form.bt.pauseUploadWhenLimitReached) {
-    return t("settings.summaries.btDisabled", {
-      dht: dhtLabel,
-      pex: pexLabel,
-      trackers: trackerCount,
-    });
-  }
-
-  const uploadLimit =
-    form.bt.uploadLimitBytes > 0 ? formatBytes(form.bt.uploadLimitBytes) : t("common.disabled");
-  const ratioLimit =
-    form.bt.uploadRatioLimit > 0 ? `${form.bt.uploadRatioLimit.toFixed(2)}x` : t("common.disabled");
-
-  return t("settings.summaries.bt", {
-    dht: dhtLabel,
-    pex: pexLabel,
-    trackers: trackerCount,
-    uploadLimit,
-    ratioLimit,
-  });
-});
-
-const trackerListEntries = computed(() =>
-  form.bt.trackerList
-    .split(/\r?\n/)
-    .map((tracker) => tracker.trim())
-    .filter(Boolean),
+const settingsDraftSnapshotComputed = computed(() =>
+  settingsDraftSnapshot(buildSettingsPayload()),
 );
 
-const settingsDraftSnapshot = computed(() => serializeSettings(buildSettingsPayload()));
-
-const networkLearningSummary = computed(() => {
-  const scene = currentScene.value;
-  if (!scene) {
-    return t("settings.summaries.noNetworkProfile");
-  }
-
-  if (form.networkLearning.deviceMode === "mobile") {
-    return t("settings.summaries.mobile", {
-      deviceMode: deviceModeLabel(form.networkLearning.deviceMode),
-    });
-  }
-
-  if (!scene.learningEnabled) {
-    return t("settings.summaries.learningPaused");
-  }
-
-  if (!scene.learnedMetrics) {
-    return t("settings.summaries.noLearningSamples");
-  }
-
-  return t("settings.summaries.learning", {
-    deviceMode: deviceModeLabel(form.networkLearning.deviceMode),
-    samples: scene.learnedMetrics.sampleCount,
-    threads: scene.learnedMetrics.recommendedInitialThreads,
-  });
-});
-
-const networkMetricsCards = computed(() => {
-  const metrics = currentScene.value?.learnedMetrics;
-  const learningOpen =
-    form.networkLearning.deviceMode !== "mobile" && Boolean(currentScene.value?.learningEnabled);
-
-  return [
-    {
-      label: t("settings.metrics.learningStatus"),
-      value: learningOpen ? t("common.enabled") : t("common.disabled"),
-    },
-    {
-      label: t("settings.metrics.estimatedBandwidth"),
-      value: metrics ? formatSpeed(metrics.estimatedBandwidthBps) : t("common.dash"),
-    },
-    {
-      label: t("settings.metrics.stability"),
-      value: metrics ? stabilityLabel(metrics.stabilityScore) : t("common.dash"),
-    },
-    {
-      label: t("settings.metrics.penaltyRate"),
-      value: metrics ? formatPercent(metrics.penaltyRate) : t("common.dash"),
-    },
-    {
-      label: t("settings.metrics.recommendedInitialThreads"),
-      value: metrics ? String(metrics.recommendedInitialThreads) : t("common.dash"),
-    },
-    {
-      label: t("settings.metrics.recommendedThreadCap"),
-      value: metrics ? String(metrics.recommendedMaxThreadsPerTaskCap) : t("common.dash"),
-    },
-    {
-      label: t("settings.metrics.sampleCount"),
-      value: metrics ? String(metrics.sampleCount) : "0",
-    },
-    {
-      label: t("settings.metrics.lastLearnedAt"),
-      value: metrics ? formatTimestamp(metrics.lastObservedAtMs) : t("common.dash"),
-    },
-  ];
-});
+// ── Settings sync watcher ─────────────────────────────────────────
 
 watch(
   () => props.settings,
@@ -318,6 +207,8 @@ watch(
     }
 
     form.appearance.themeColor = nextSettings.appearance?.themeColor ?? "default";
+    form.appearance.backgroundOpacity = nextSettings.appearance?.backgroundOpacity ?? "default";
+    form.appearance.colorMode = nextSettings.appearance?.colorMode ?? "system";
     form.proxy.mode = nextSettings.proxy.mode;
     form.proxy.manualUrl = nextSettings.proxy.manualUrl;
     form.scheduler.mode = nextSettings.scheduler.mode;
@@ -343,7 +234,7 @@ watch(
     form.bt.uploadRatioLimit = nextSettings.bt.uploadRatioLimit;
     form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
     form.networkLearning.currentSceneId = "default";
-    form.networkLearning.scenes = [copySingleNetworkScene(nextSettings.networkLearning)];
+    form.networkLearning.scenes = [copyNetworkScene(nextSettings.networkLearning)];
     form.logging.enabled = nextSettings.logging?.enabled ?? true;
     form.logging.level = nextSettings.logging?.level ?? "info";
     form.logging.filePath = nextSettings.logging?.filePath ?? "";
@@ -353,8 +244,10 @@ watch(
   { immediate: true },
 );
 
+// ── Dirty tracking ────────────────────────────────────────────────
+
 watch(
-  settingsDraftSnapshot,
+  settingsDraftSnapshotComputed,
   (snapshot) => {
     if (!savedSettingsSnapshot.value) {
       return;
@@ -365,6 +258,8 @@ watch(
   { immediate: true },
 );
 
+// ── Constraint: maxThreadsPerTask ≤ maxParallelThreads ────────────
+
 watch(
   () => form.scheduler.automatic.maxParallelThreads,
   (value) => {
@@ -374,59 +269,22 @@ watch(
   },
 );
 
-function profileLabel(profile: AdaptiveProfile) {
-  return adaptiveProfileOptions.value.find((option) => option.value === profile)?.label ?? profile;
-}
+// ── Helpers ───────────────────────────────────────────────────────
 
-function deviceModeLabel(mode: DeviceLearningMode) {
-  return deviceModeOptions.value.find((option) => option.value === mode)?.label ?? mode;
-}
-
-function formatPercent(value: number) {
-  return `${(value * 100).toFixed(value >= 0.1 ? 0 : 1)}%`;
-}
-
-function stabilityLabel(score: number) {
-  if (score >= 0.88) {
-    return t("settings.metrics.high");
-  }
-  if (score >= 0.68) {
-    return t("settings.metrics.medium");
-  }
-  return t("settings.metrics.low");
-}
-
-function showNotification(message: string) {
-  notificationMessage.value = message;
-  if (notificationTimer) {
-    clearTimeout(notificationTimer);
-  }
-  notificationTimer = setTimeout(() => {
-    notificationMessage.value = "";
-    notificationTimer = null;
-  }, 2200);
+function copyNetworkScene(settings: NetworkLearningSettings) {
+  return copySingleNetworkScene(settings, t);
 }
 
 function changeLanguage(nextLanguage: SupportedLanguage) {
   void setLanguage(nextLanguage);
 }
 
-function copySingleNetworkScene(settings: NetworkLearningSettings): NetworkSceneProfile {
-  const selectedScene =
-    settings.scenes.find((scene) => scene.id === settings.currentSceneId) ?? settings.scenes[0];
-  return {
-    id: "default",
-    name: t("settings.defaultScene"),
-    learningEnabled: selectedScene?.learningEnabled ?? true,
-    learnedMetrics: selectedScene?.learnedMetrics ? { ...selectedScene.learnedMetrics } : null,
-    updatedAtMs: selectedScene?.updatedAtMs ?? 0,
-  };
-}
-
 function buildSettingsPayload(): AppSettings {
   return {
     appearance: {
       themeColor: form.appearance.themeColor,
+      backgroundOpacity: form.appearance.backgroundOpacity,
+      colorMode: form.appearance.colorMode,
     },
     proxy: {
       mode: form.proxy.mode,
@@ -463,7 +321,7 @@ function buildSettingsPayload(): AppSettings {
     networkLearning: {
       deviceMode: form.networkLearning.deviceMode,
       currentSceneId: "default",
-      scenes: [copySingleNetworkScene(form.networkLearning)],
+      scenes: [copyNetworkScene(form.networkLearning)],
     },
     logging: {
       enabled: form.logging.enabled,
@@ -473,9 +331,7 @@ function buildSettingsPayload(): AppSettings {
   };
 }
 
-function serializeSettings(settings: AppSettings) {
-  return JSON.stringify(settings);
-}
+// ── Actions ───────────────────────────────────────────────────────
 
 async function pickDefaultDownloadDirectory() {
   if (isPickingDirectory.value) {
@@ -525,7 +381,7 @@ async function updateTrackerListFromUrl() {
 
 async function persistSettings() {
   if (isSaving.value) {
-    return;
+    return false;
   }
 
   isSaving.value = true;
@@ -537,19 +393,19 @@ async function persistSettings() {
     emit("saved", saved);
     emit("dirtyChange", false);
     showNotification(t("settings.notifications.saved"));
+    return true;
   } catch (error) {
     showNotification(
       error instanceof Error ? error.message : t("settings.notifications.saveFailed"),
     );
+    return false;
   } finally {
     isSaving.value = false;
   }
 }
 
-onBeforeUnmount(() => {
-  if (notificationTimer) {
-    clearTimeout(notificationTimer);
-  }
+defineExpose({
+  persistSettings,
 });
 </script>
 
@@ -569,539 +425,75 @@ onBeforeUnmount(() => {
       </div>
       <div class="settings-page__header-meta">
         <p class="settings-page__summary">{{ pageSummary }}</p>
-        <UiButton
-          type="button"
-          variant="secondary"
-          icon="i-ri-save-line"
-          :disabled="isSaving"
-          @click="persistSettings"
-        >
-          {{ isSaving ? t("common.saving") : t("common.save") }}
-        </UiButton>
       </div>
     </div>
 
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("language.label") }}</p>
-          <h3>{{ t("settings.languageTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-translate-2" aria-hidden="true" />
-      </div>
+    <SettingsAppearancePanel
+      :draft="form"
+      :t="t"
+      :language="language"
+      :language-options="languageOptions"
+      :color-mode-options="colorModeOptions"
+      :background-opacity-options="backgroundOpacityOptions"
+      @change-language="changeLanguage"
+    />
 
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("language.label") }}</span>
-          <UiSelect
-            :model-value="language"
-            :options="languageOptions"
-            @update:model-value="changeLanguage($event as SupportedLanguage)"
-          />
-        </label>
-      </div>
-    </section>
+    <SettingsSchedulerPanel
+      :draft="form"
+      :t="t"
+      :scheduler-mode-options="schedulerModeOptions"
+      :adaptive-profile-options="adaptiveProfileOptions"
+    />
 
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.appearanceKicker") }}</p>
-          <h3>{{ t("settings.appearanceTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
-      </div>
+    <SettingsNetworkLearningPanel
+      :draft="form"
+      :t="t"
+      :device-mode-options="deviceModeOptions"
+      :network-learning-summary="networkLearningSummary"
+      :network-metrics-cards="networkMetricsCards"
+    />
 
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.themeColor") }}</span>
-          <div class="theme-color-options">
-            <button
-              v-for="color in ['default', 'amber', 'sky', 'lime']"
-              :key="color"
-              type="button"
-              class="theme-color-button"
-              :class="[
-                'theme-color-button--' + color,
-                { 'is-active': form.appearance.themeColor === color },
-              ]"
-              :aria-label="t(`settings.themeColorNames.${color}`)"
-              @click="form.appearance.themeColor = color as ThemeColor"
-            >
-              <span
-                v-if="form.appearance.themeColor === color"
-                class="i-ri-check-line"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
-        </label>
-      </div>
-    </section>
+    <SettingsDownloadDefaultsPanel
+      :draft="form"
+      :t="t"
+      :checksum-options="checksumOptions"
+      :download-summary="downloadSummary"
+      :is-picking-directory="isPickingDirectory"
+      :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
+      @pick-directory="pickDefaultDownloadDirectory"
+    />
 
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.scheduler") }}</p>
-          <h3>{{ t("settings.schedulerTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-git-branch-line" aria-hidden="true" />
-      </div>
+    <SettingsBtPanel
+      :draft="form"
+      :t="t"
+      :bt-summary="btSummary"
+      :bt-upload-limit-mi-b="btUploadLimitMiB"
+      :is-fetching-tracker-list="isFetchingTrackerList"
+      :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL"
+      @update:btUploadLimitMiB="setBtUploadLimitMiB"
+      @fetch-tracker-list="updateTrackerListFromUrl"
+    />
 
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.allocationMode") }}</span>
-          <UiSelect v-model="form.scheduler.mode" :options="schedulerModeOptions" />
-        </label>
+    <SettingsLoggingPanel
+      :draft="form"
+      :t="t"
+      :log-level-options="logLevelOptions"
+      :logging-summary="loggingSummary"
+    />
 
-        <label v-if="form.scheduler.mode === 'traditional'" class="settings-field">
-          <span class="settings-field__label">{{ t("settings.maxParallelTasks") }}</span>
-          <UiNumberField v-model="form.scheduler.traditional.maxParallelTasks" :min="1" :max="32" />
-          <p class="settings-field__hint">{{ t("settings.traditionalHint") }}</p>
-        </label>
+    <SettingsProxyPanel
+      :draft="form"
+      :t="t"
+      :proxy-mode-options="proxyModeOptions"
+      :proxy-summary="proxySummary"
+    />
 
-        <template v-else>
-          <label class="settings-field">
-            <span class="settings-field__label">{{ t("settings.maxParallelThreads") }}</span>
-            <UiNumberField
-              v-model="form.scheduler.automatic.maxParallelThreads"
-              :min="1"
-              :max="64"
-            />
-          </label>
-
-          <label class="settings-field">
-            <span class="settings-field__label">{{ t("settings.maxThreadsPerTask") }}</span>
-            <UiNumberField
-              v-model="form.scheduler.automatic.maxThreadsPerTask"
-              :min="1"
-              :max="Math.max(1, form.scheduler.automatic.maxParallelThreads)"
-            />
-          </label>
-
-          <label class="settings-field settings-field--wide">
-            <span class="settings-field__label">{{ t("settings.adaptiveProfile") }}</span>
-            <UiSelect
-              v-model="form.scheduler.automatic.adaptiveProfile"
-              :options="adaptiveProfileOptions"
-            />
-            <p class="settings-field__hint">
-              {{ t("settings.adaptiveProfileHint") }}
-            </p>
-          </label>
-        </template>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.networkLearning") }}</p>
-          <h3>{{ t("settings.networkLearningTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-radar-line" aria-hidden="true" />
-      </div>
-
-      <p class="settings-section__summary">{{ networkLearningSummary }}</p>
-
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.deviceMode") }}</span>
-          <UiSelect v-model="form.networkLearning.deviceMode" :options="deviceModeOptions" />
-          <p class="settings-field__hint">
-            {{ t("settings.deviceModeHint") }}
-          </p>
-        </label>
-
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.allowLearning") }}</span>
-          <button
-            v-if="currentScene"
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': currentScene.learningEnabled }"
-            :aria-pressed="currentScene.learningEnabled"
-            @click="currentScene.learningEnabled = !currentScene.learningEnabled"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                currentScene.learningEnabled
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">
-              {{
-                currentScene?.learningEnabled
-                  ? t("settings.allowUpdateProfile")
-                  : t("settings.pauseUpdateProfile")
-              }}
-            </span>
-          </button>
-        </label>
-      </div>
-
-      <div class="settings-metrics-grid">
-        <article v-for="item in networkMetricsCards" :key="item.label" class="settings-metric-card">
-          <span class="settings-metric-card__label">{{ item.label }}</span>
-          <strong class="settings-metric-card__value">{{ item.value }}</strong>
-        </article>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.downloads") }}</p>
-          <h3>{{ t("settings.downloadsTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-download-2-line" aria-hidden="true" />
-      </div>
-
-      <p class="settings-section__summary">{{ downloadSummary }}</p>
-
-      <div class="settings-grid">
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.defaultDownloadLocation") }}</span>
-          <div class="settings-directory-field">
-            <UiInput
-              v-model="form.download.defaultDownloadDir"
-              type="text"
-              :placeholder="t('settings.defaultDownloadPlaceholder')"
-            />
-            <UiButton
-              type="button"
-              variant="secondary"
-              size="sm"
-              :loading="isPickingDirectory"
-              @click="pickDefaultDownloadDirectory"
-            >
-              {{ isPickingDirectory ? t("common.browsing") : t("common.browse") }}
-            </UiButton>
-          </div>
-          <p class="settings-field__hint">
-            {{ t("settings.defaultDownloadHint") }}
-          </p>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.defaultRetries") }}</span>
-          <UiNumberField v-model="form.download.defaultMaxRetries" :min="0" :max="20" />
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.globalChecksum") }}</span>
-          <UiSelect v-model="form.download.defaultChecksum" :options="checksumOptions" />
-          <p class="settings-field__hint">{{ t("settings.checksumHint") }}</p>
-        </label>
-
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.defaultUserAgent") }}</span>
-          <UiInput
-            v-model="form.download.defaultUserAgent"
-            type="text"
-            :placeholder="DEFAULT_HTTP_USER_AGENT"
-          />
-          <p class="settings-field__hint">{{ t("settings.defaultUserAgentHint") }}</p>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.metalinkSupport") }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': form.download.enableMetalink }"
-            :aria-pressed="form.download.enableMetalink"
-            @click="form.download.enableMetalink = !form.download.enableMetalink"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                form.download.enableMetalink
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">
-              {{
-                form.download.enableMetalink
-                  ? t("settings.metalinkSupportEnabled")
-                  : t("settings.metalinkSupportDisabled")
-              }}
-            </span>
-          </button>
-          <p class="settings-field__hint">{{ t("settings.metalinkSupportHint") }}</p>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.sftpSupport") }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': form.download.enableSftp }"
-            :aria-pressed="form.download.enableSftp"
-            @click="form.download.enableSftp = !form.download.enableSftp"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                form.download.enableSftp
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">
-              {{
-                form.download.enableSftp
-                  ? t("settings.sftpSupportEnabled")
-                  : t("settings.sftpSupportDisabled")
-              }}
-            </span>
-          </button>
-          <p class="settings-field__hint">{{ t("settings.sftpSupportHint") }}</p>
-        </label>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.bt") }}</p>
-          <h3>{{ t("settings.btTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-seedling-line" aria-hidden="true" />
-      </div>
-
-      <p class="settings-section__summary">{{ btSummary }}</p>
-
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.btDht") }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': form.bt.dhtEnabled }"
-            :aria-pressed="form.bt.dhtEnabled"
-            @click="form.bt.dhtEnabled = !form.bt.dhtEnabled"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                form.bt.dhtEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">
-              {{ form.bt.dhtEnabled ? t("settings.btDhtEnabled") : t("settings.btDhtDisabled") }}
-            </span>
-          </button>
-          <p class="settings-field__hint">{{ t("settings.btDhtHint") }}</p>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.btPex") }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': form.bt.pexEnabled }"
-            :aria-pressed="form.bt.pexEnabled"
-            @click="form.bt.pexEnabled = !form.bt.pexEnabled"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                form.bt.pexEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">
-              {{ form.bt.pexEnabled ? t("settings.btPexEnabled") : t("settings.btPexDisabled") }}
-            </span>
-          </button>
-          <p class="settings-field__hint">{{ t("settings.btPexHint") }}</p>
-        </label>
-
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.btTrackerListUrl") }}</span>
-          <div class="settings-inline-field">
-            <UiInput
-              v-model="form.bt.trackerListUrl"
-              type="url"
-              inputmode="url"
-              :placeholder="DEFAULT_TRACKER_LIST_URL"
-            />
-            <UiButton
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon="i-ri-refresh-line"
-              :loading="isFetchingTrackerList"
-              @click="updateTrackerListFromUrl"
-            >
-              {{
-                isFetchingTrackerList
-                  ? t("settings.btTrackerListUpdating")
-                  : t("settings.btTrackerListUpdate")
-              }}
-            </UiButton>
-          </div>
-          <p class="settings-field__hint">{{ t("settings.btTrackerListUrlHint") }}</p>
-        </label>
-
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.btTrackerList") }}</span>
-          <textarea
-            v-model="form.bt.trackerList"
-            class="settings-textarea"
-            :placeholder="t('settings.btTrackerListPlaceholder')"
-            rows="5"
-            spellcheck="false"
-          />
-          <p class="settings-field__hint">
-            {{ t("settings.btTrackerListHint", { count: trackerListEntries.length }) }}
-          </p>
-        </label>
-
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.btPauseUpload") }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': form.bt.pauseUploadWhenLimitReached }"
-            :aria-pressed="form.bt.pauseUploadWhenLimitReached"
-            @click="form.bt.pauseUploadWhenLimitReached = !form.bt.pauseUploadWhenLimitReached"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                form.bt.pauseUploadWhenLimitReached
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">
-              {{
-                form.bt.pauseUploadWhenLimitReached
-                  ? t("settings.btPauseUploadEnabled")
-                  : t("settings.btPauseUploadDisabled")
-              }}
-            </span>
-          </button>
-          <p class="settings-field__hint">{{ t("settings.btPauseUploadHint") }}</p>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.btUploadLimit") }}</span>
-          <UiNumberField
-            v-model="btUploadLimitMiB"
-            :min="0"
-            :max="10485760"
-            :disabled="!form.bt.pauseUploadWhenLimitReached"
-          />
-          <p class="settings-field__hint">{{ t("settings.btUploadLimitHint") }}</p>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.btRatioLimit") }}</span>
-          <UiNumberField
-            v-model="form.bt.uploadRatioLimit"
-            :min="0"
-            :max="100"
-            :step="0.1"
-            :disabled="!form.bt.pauseUploadWhenLimitReached"
-          />
-          <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
-        </label>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.logging") }}</p>
-          <h3>{{ t("settings.loggingTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-file-list-3-line" aria-hidden="true" />
-      </div>
-
-      <p class="settings-section__summary">{{ loggingSummary }}</p>
-
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.loggingEnabled") }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': form.logging.enabled }"
-            :aria-pressed="form.logging.enabled"
-            @click="form.logging.enabled = !form.logging.enabled"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                form.logging.enabled
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">
-              {{
-                form.logging.enabled
-                  ? t("settings.loggingEnabledText")
-                  : t("settings.loggingDisabledText")
-              }}
-            </span>
-          </button>
-        </label>
-
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.loggingLevel") }}</span>
-          <UiSelect v-model="form.logging.level" :options="logLevelOptions" />
-        </label>
-
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.loggingPath") }}</span>
-          <UiInput
-            v-model="form.logging.filePath"
-            type="text"
-            :placeholder="t('settings.loggingPathPlaceholder')"
-          />
-          <p class="settings-field__hint">{{ t("settings.loggingPathHint") }}</p>
-        </label>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.network") }}</p>
-          <h3>{{ t("settings.proxyTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-global-line" aria-hidden="true" />
-      </div>
-
-      <p class="settings-section__summary">{{ proxySummary }}</p>
-
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.proxyMode") }}</span>
-          <UiSelect v-model="form.proxy.mode" :options="proxyModeOptions" />
-        </label>
-
-        <label v-if="form.proxy.mode === 'manual'" class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.proxyAddress") }}</span>
-          <UiInput v-model="form.proxy.manualUrl" type="text" placeholder="http://127.0.0.1:7890" />
-          <p class="settings-field__hint">
-            {{ t("settings.proxyHint") }}
-          </p>
-        </label>
-      </div>
-    </section>
+    <div class="settings-save-bar">
+      <p class="settings-save-bar__hint">{{ t("settings.saveHint") }}</p>
+      <UiButton type="button" icon="i-ri-save-line" :loading="isSaving" @click="persistSettings">
+        {{ isSaving ? t("common.saving") : t("common.save") }}
+      </UiButton>
+    </div>
   </section>
 </template>
 
@@ -1109,24 +501,25 @@ onBeforeUnmount(() => {
 .settings-page {
   display: grid;
   gap: 1rem;
+  padding-bottom: 5.75rem;
 }
 
 .settings-notification {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 40;
+  z-index: 120;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--color-success-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) 96%, transparent);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
   box-shadow: var(--shadow-card-hover);
   color: var(--color-success-text);
   font-size: 0.85rem;
-  backdrop-filter: blur(0.875rem);
+  backdrop-filter: blur(var(--surface-blur));
 }
 
 .settings-page__header {
@@ -1141,18 +534,82 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.settings-page__summary,
-.settings-section__summary {
+.settings-page__summary {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.88rem;
   line-height: 1.55;
-}
-
-.settings-page__summary {
   max-width: 40rem;
   text-align: right;
 }
+
+.settings-save-bar {
+  position: fixed;
+  left: calc(clamp(14.5rem, 18vw, 16rem) + 1.25rem);
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
+  box-shadow: var(--shadow-card-hover);
+  backdrop-filter: blur(var(--surface-blur));
+}
+
+.settings-save-bar__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.settings-notification-enter-active,
+.settings-notification-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.settings-notification-enter-from,
+.settings-notification-leave-to {
+  opacity: 0;
+  transform: translateY(-0.45rem);
+}
+
+@media (max-width: 960px) {
+  .settings-save-bar {
+    left: 1rem;
+    right: 1rem;
+  }
+
+  .settings-page__summary {
+    max-width: none;
+    text-align: left;
+  }
+
+  .settings-page__header-meta {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 840px) {
+  .settings-save-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+</style>
+
+<style>
+/* Shared structural styles for all settings panels */
+/* NOTE: non-scoped so child panels inherit these classes */
 
 .settings-section {
   display: grid;
@@ -1160,7 +617,7 @@ onBeforeUnmount(() => {
   padding: 1rem 1.1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -1187,6 +644,13 @@ onBeforeUnmount(() => {
   color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-muted));
   border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+}
+
+.settings-section__summary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 .settings-grid {
@@ -1238,7 +702,7 @@ onBeforeUnmount(() => {
   padding: 0 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-panel) 92%, transparent);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
   color: var(--color-text-muted);
   cursor: pointer;
   font: inherit;
@@ -1321,7 +785,7 @@ onBeforeUnmount(() => {
   padding: 0.85rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel-muted) 78%, transparent);
+  background: color-mix(in srgb, var(--color-panel-muted) var(--surface-muted-alpha), transparent);
 }
 
 .settings-metric-card__label {
@@ -1338,31 +802,7 @@ onBeforeUnmount(() => {
   line-height: 1.4;
 }
 
-.settings-notification-enter-active,
-.settings-notification-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.settings-notification-enter-from,
-.settings-notification-leave-to {
-  opacity: 0;
-  transform: translateY(-0.45rem);
-}
-
 @media (max-width: 960px) {
-  .settings-page__summary {
-    max-width: none;
-    text-align: left;
-  }
-
-  .settings-page__header-meta {
-    width: 100%;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .settings-grid,
   .settings-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

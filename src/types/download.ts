@@ -94,3 +94,14 @@ export interface DownloadSnapshot {
   createdAtMs: number;
   updatedAtMs: number;
 }
+
+export interface BtRuntimeStatus {
+  connected: boolean;
+  dhtEnabled: boolean;
+  dhtNodes?: number;
+  torrentCount: number;
+  peerCount: number;
+  uploadSpeedBytesPerSecond?: number;
+  uploadedBytes: number;
+  updatedAtMs: number;
+}

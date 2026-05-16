@@ -5,10 +5,14 @@ export type SchedulerMode = "traditional" | "automatic";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 export type DeviceLearningMode = "fixed" | "mobile" | "semi_mobile";
 export type ThemeColor = "default" | "amber" | "sky" | "lime";
+export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
+export type ColorMode = "light" | "dark" | "system";
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
 export interface AppearanceSettings {
   themeColor: ThemeColor;
+  backgroundOpacity: BackgroundOpacityPreset;
+  colorMode: ColorMode;
 }
 
 export interface ProxySettings {

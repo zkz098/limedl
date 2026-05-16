@@ -10,7 +10,7 @@ use super::{
         DownloadSourceKind, classify_download_source, http_task_id, is_bt_task_id,
         normalize_http_task_id,
     },
-    types::{AppSettings, DownloadSnapshot, DownloadSummary, StartDownloadRequest},
+    types::{AppSettings, BtRuntimeStatus, DownloadSnapshot, DownloadSummary, StartDownloadRequest},
 };
 
 type CommandResult<T> = std::result::Result<T, String>;
@@ -32,6 +32,39 @@ fn format_anyhow_error(error: anyhow::Error) -> String {
         }
     }
     messages.join(": ")
+}
+
+/// Routes a download action to the correct manager based on task ID prefix.
+/// Eliminates the copy-paste `if bt → else if sftp → else http` pattern across all commands.
+macro_rules! dispatch_download_action {
+    ($state:expr, $download_id:expr, $action:ident, $http_err:literal, $bt_err:literal, $sftp_err:literal) => {{
+        if is_bt_task_id(&$download_id) {
+            return into_command_result(
+                $state
+                    .torrent_manager
+                    .$action(&$download_id)
+                    .await
+                    .context($bt_err),
+            );
+        }
+        if is_sftp_task_id(&$download_id) {
+            return into_command_result(
+                $state
+                    .sftp_manager
+                    .$action(&$download_id)
+                    .await
+                    .context($sftp_err),
+            );
+        }
+        into_command_result(
+            $state
+                .manager
+                .$action(normalize_http_task_id(&$download_id))
+                .await
+                .map(prefix_http_snapshot)
+                .context($http_err),
+        )
+    }};
 }
 
 #[tauri::command]
@@ -85,32 +118,13 @@ pub async fn download_pause(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    if is_bt_task_id(&download_id) {
-        return into_command_result(
-            state
-                .torrent_manager
-                .pause(&download_id)
-                .await
-                .context("暂停 BT 下载失败"),
-        );
-    }
-    if is_sftp_task_id(&download_id) {
-        return into_command_result(
-            state
-                .sftp_manager
-                .pause(&download_id)
-                .await
-                .context("暂停 SFTP 下载失败"),
-        );
-    }
-
-    into_command_result(
-        state
-            .manager
-            .pause(normalize_http_task_id(&download_id))
-            .await
-            .map(prefix_http_snapshot)
-            .context("暂停 HTTP 下载失败"),
+    dispatch_download_action!(
+        state,
+        download_id,
+        pause,
+        "暂停 HTTP 下载失败",
+        "暂停 BT 下载失败",
+        "暂停 SFTP 下载失败"
     )
 }
 
@@ -119,32 +133,13 @@ pub async fn download_resume(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    if is_bt_task_id(&download_id) {
-        return into_command_result(
-            state
-                .torrent_manager
-                .resume(&download_id)
-                .await
-                .context("恢复 BT 下载失败"),
-        );
-    }
-    if is_sftp_task_id(&download_id) {
-        return into_command_result(
-            state
-                .sftp_manager
-                .resume(&download_id)
-                .await
-                .context("恢复 SFTP 下载失败"),
-        );
-    }
-
-    into_command_result(
-        state
-            .manager
-            .resume(normalize_http_task_id(&download_id))
-            .await
-            .map(prefix_http_snapshot)
-            .context("恢复 HTTP 下载失败"),
+    dispatch_download_action!(
+        state,
+        download_id,
+        resume,
+        "恢复 HTTP 下载失败",
+        "恢复 BT 下载失败",
+        "恢复 SFTP 下载失败"
     )
 }
 
@@ -153,32 +148,13 @@ pub async fn download_cancel(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    if is_bt_task_id(&download_id) {
-        return into_command_result(
-            state
-                .torrent_manager
-                .cancel(&download_id)
-                .await
-                .context("取消 BT 下载失败"),
-        );
-    }
-    if is_sftp_task_id(&download_id) {
-        return into_command_result(
-            state
-                .sftp_manager
-                .cancel(&download_id)
-                .await
-                .context("取消 SFTP 下载失败"),
-        );
-    }
-
-    into_command_result(
-        state
-            .manager
-            .cancel(normalize_http_task_id(&download_id))
-            .await
-            .map(prefix_http_snapshot)
-            .context("取消 HTTP 下载失败"),
+    dispatch_download_action!(
+        state,
+        download_id,
+        cancel,
+        "取消 HTTP 下载失败",
+        "取消 BT 下载失败",
+        "取消 SFTP 下载失败"
     )
 }
 
@@ -187,32 +163,13 @@ pub async fn download_remove(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    if is_bt_task_id(&download_id) {
-        return into_command_result(
-            state
-                .torrent_manager
-                .remove(&download_id)
-                .await
-                .context("移除 BT 下载失败"),
-        );
-    }
-    if is_sftp_task_id(&download_id) {
-        return into_command_result(
-            state
-                .sftp_manager
-                .remove(&download_id)
-                .await
-                .context("移除 SFTP 下载失败"),
-        );
-    }
-
-    into_command_result(
-        state
-            .manager
-            .remove(normalize_http_task_id(&download_id))
-            .await
-            .map(prefix_http_snapshot)
-            .context("移除 HTTP 下载失败"),
+    dispatch_download_action!(
+        state,
+        download_id,
+        remove,
+        "移除 HTTP 下载失败",
+        "移除 BT 下载失败",
+        "移除 SFTP 下载失败"
     )
 }
 
@@ -221,32 +178,13 @@ pub async fn download_purge(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    if is_bt_task_id(&download_id) {
-        return into_command_result(
-            state
-                .torrent_manager
-                .purge(&download_id)
-                .await
-                .context("彻底删除 BT 下载失败"),
-        );
-    }
-    if is_sftp_task_id(&download_id) {
-        return into_command_result(
-            state
-                .sftp_manager
-                .purge(&download_id)
-                .await
-                .context("彻底删除 SFTP 下载失败"),
-        );
-    }
-
-    into_command_result(
-        state
-            .manager
-            .purge(normalize_http_task_id(&download_id))
-            .await
-            .map(prefix_http_snapshot)
-            .context("彻底删除 HTTP 下载失败"),
+    dispatch_download_action!(
+        state,
+        download_id,
+        purge,
+        "彻底删除 HTTP 下载失败",
+        "彻底删除 BT 下载失败",
+        "彻底删除 SFTP 下载失败"
     )
 }
 
@@ -257,28 +195,18 @@ pub async fn download_open_in_explorer(
 ) -> CommandResult<()> {
     if is_bt_task_id(&download_id) {
         return into_command_result(
-            state
-                .torrent_manager
-                .open_in_explorer(&download_id)
-                .await
+            state.torrent_manager.open_in_explorer(&download_id).await
                 .context("在资源管理器打开 BT 下载失败"),
         );
     }
     if is_sftp_task_id(&download_id) {
         return into_command_result(
-            state
-                .sftp_manager
-                .open_in_explorer(&download_id)
-                .await
+            state.sftp_manager.open_in_explorer(&download_id).await
                 .context("在资源管理器打开 SFTP 下载失败"),
         );
     }
-
     into_command_result(
-        state
-            .manager
-            .open_in_explorer(normalize_http_task_id(&download_id))
-            .await
+        state.manager.open_in_explorer(normalize_http_task_id(&download_id)).await
             .context("在资源管理器打开 HTTP 下载失败"),
     )
 }
@@ -288,32 +216,13 @@ pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    if is_bt_task_id(&download_id) {
-        return into_command_result(
-            state
-                .torrent_manager
-                .status(&download_id)
-                .await
-                .context("查询 BT 下载状态失败"),
-        );
-    }
-    if is_sftp_task_id(&download_id) {
-        return into_command_result(
-            state
-                .sftp_manager
-                .status(&download_id)
-                .await
-                .context("查询 SFTP 下载状态失败"),
-        );
-    }
-
-    into_command_result(
-        state
-            .manager
-            .status(normalize_http_task_id(&download_id))
-            .await
-            .map(prefix_http_snapshot)
-            .context("查询 HTTP 下载状态失败"),
+    dispatch_download_action!(
+        state,
+        download_id,
+        status,
+        "查询 HTTP 下载状态失败",
+        "查询 BT 下载状态失败",
+        "查询 SFTP 下载状态失败"
     )
 }
 
@@ -351,6 +260,11 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
         }
         .await,
     )
+}
+
+#[tauri::command]
+pub async fn bt_runtime_status(state: State<'_, AppState>) -> CommandResult<BtRuntimeStatus> {
+    Ok(state.torrent_manager.runtime_status())
 }
 
 #[tauri::command]

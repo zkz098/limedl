@@ -182,14 +182,13 @@ impl DownloadManager {
             request.user_agent.as_deref(),
             &settings.download.default_user_agent,
         )?;
-        let metadata = self.probe(&request.url, &user_agent).await?;
         let destination_dir = PathBuf::from(&request.destination_dir);
         fs::create_dir_all(&destination_dir)?;
 
         let chosen_name = request
             .file_name
             .clone()
-            .unwrap_or(metadata.file_name.clone());
+            .unwrap_or_else(|| initial_file_name_from_url(&request.url));
         let safe_name = sanitize_filename::sanitize(&chosen_name);
         if safe_name.is_empty() {
             return Err(DownloadError::MissingFileName);
@@ -198,25 +197,26 @@ impl DownloadManager {
         let destination_path = unique_destination_path(&destination_dir, &safe_name);
         let temp_path = self.state_dir.join(format!("{download_id}.part"));
         let manifest_path = self.state_dir.join(format!("{download_id}.json"));
-        let supports_parallel =
-            supports_parallelism(metadata.total_bytes, metadata.supports_ranges);
+        let supports_parallel = true;
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);
-        let thread_note = thread_note(supports_parallel, thread_mode, adaptive_profile);
+        let thread_note = Some(String::from("等待服务器响应"));
+        let now = now_ms();
 
         let manifest = Manifest {
             id: download_id.clone(),
             url: request.url.clone(),
-            final_url: metadata.final_url.clone(),
+            final_url: request.url.clone(),
             user_agent,
             destination_dir: destination_dir.to_string_lossy().to_string(),
             file_name: safe_name.clone(),
+            file_name_locked: request.file_name.is_some(),
             destination_path: destination_path.to_string_lossy().to_string(),
             temp_path: temp_path.to_string_lossy().to_string(),
             manifest_path: manifest_path.to_string_lossy().to_string(),
-            total_bytes: metadata.total_bytes,
+            total_bytes: None,
             downloaded_bytes: 0,
-            supports_ranges: supports_parallel,
+            supports_ranges: false,
             connection_count: 0,
             thread_mode,
             requested_thread_count,
@@ -224,15 +224,15 @@ impl DownloadManager {
             allocated_thread_count: Some(0),
             adaptive_profile_snapshot: adaptive_profile,
             thread_note,
-            etag: metadata.etag.clone(),
-            last_modified: metadata.last_modified.clone(),
+            etag: None,
+            last_modified: None,
             state: DownloadState::Queued,
             checksum_mode: request.checksum.unwrap_or_default(),
             checksum: None,
             error: None,
-            created_at_ms: now_ms(),
-            updated_at_ms: now_ms(),
-            chunks: plan_chunks(metadata.total_bytes, supports_parallel),
+            created_at_ms: now,
+            updated_at_ms: now,
+            chunks: Vec::new(),
         };
 
         let snapshot = snapshot_from_manifest(&manifest);
@@ -735,11 +735,47 @@ impl DownloadManager {
 
         let supports_parallel =
             supports_parallelism(metadata.total_bytes, metadata.supports_ranges);
+        let settings = self.settings.read().await.clone();
+        let request = StartDownloadRequest {
+            kind: Some(TaskKind::Http),
+            url: current_manifest.url.clone(),
+            destination_dir: current_manifest.destination_dir.clone(),
+            file_name: Some(current_manifest.file_name.clone()),
+            user_agent: Some(current_manifest.user_agent.clone()),
+            thread_mode: Some(current_manifest.thread_mode),
+            thread_count: current_manifest.requested_thread_count,
+            max_retries: None,
+            checksum: Some(current_manifest.checksum_mode),
+        };
+        let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
+            resolve_thread_settings(&settings, &request, supports_parallel);
         let mut reset_progress = false;
         let mut force_single_stream_restart = false;
+        let mut refresh_aimd = false;
         {
             let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            if !manifest.file_name_locked && manifest.downloaded_bytes == 0 {
+                let safe_name = sanitize_filename::sanitize(&metadata.file_name);
+                if !safe_name.is_empty() && safe_name != manifest.file_name {
+                    let destination_dir = PathBuf::from(&manifest.destination_dir);
+                    manifest.file_name = safe_name.clone();
+                    manifest.destination_path =
+                        unique_destination_path(&destination_dir, &safe_name)
+                            .to_string_lossy()
+                            .to_string();
+                }
+                manifest.file_name_locked = true;
+            }
             if validators_changed(&manifest, &metadata) {
+                manifest.downloaded_bytes = 0;
+                manifest.chunks = plan_chunks(metadata.total_bytes, supports_parallel);
+                manifest.checksum = None;
+                manifest.supports_ranges = supports_parallel;
+                reset_progress = true;
+            } else if manifest.total_bytes != metadata.total_bytes
+                || manifest.supports_ranges != supports_parallel
+                || (supports_parallel && manifest.chunks.is_empty())
+            {
                 manifest.downloaded_bytes = 0;
                 manifest.chunks = plan_chunks(metadata.total_bytes, supports_parallel);
                 manifest.checksum = None;
@@ -759,13 +795,30 @@ impl DownloadManager {
             manifest.total_bytes = metadata.total_bytes;
             manifest.etag = metadata.etag.clone();
             manifest.last_modified = metadata.last_modified.clone();
+            manifest.thread_mode = thread_mode;
+            manifest.requested_thread_count = requested_thread_count;
+            if manifest.desired_thread_count != desired_thread_count
+                || manifest.adaptive_profile_snapshot != adaptive_profile
+            {
+                refresh_aimd = true;
+            }
+            manifest.desired_thread_count = desired_thread_count;
+            manifest.adaptive_profile_snapshot = adaptive_profile;
+            manifest.thread_note = thread_note(supports_parallel, thread_mode, adaptive_profile);
             manifest.updated_at_ms = now_ms();
             manifest.error = None;
             if !supports_parallel {
                 manifest.thread_note = Some(String::from("单线程（服务器不支持分段）"));
                 manifest.desired_thread_count = Some(1);
             }
+            sync_snapshot_with_manifest(&managed, &manifest);
         }
+        if refresh_aimd {
+            let mut aimd = managed.aimd.lock().expect("aimd poisoned");
+            *aimd = initial_aimd_state(adaptive_profile, desired_thread_count);
+        }
+        self.rebalance_allocations().await?;
+        self.rebalance_notify.notify_waiters();
         if reset_progress {
             self.prepare_fresh_temp_file(&managed)?;
             if force_single_stream_restart {
@@ -1588,7 +1641,7 @@ impl DownloadManager {
     }
 
     async fn wait_until_stopped(&self, managed: &Arc<ManagedDownload>) {
-        for _ in 0..200 {
+        for _ in 0..1000 {
             if managed.runtime.lock().expect("runtime poisoned").is_none() {
                 return;
             }
@@ -1932,6 +1985,9 @@ fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize) {
 fn sync_snapshot_with_manifest(managed: &Arc<ManagedDownload>, manifest: &Manifest) {
     let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
     snapshot.state = manifest.state;
+    snapshot.final_url = manifest.final_url.clone();
+    snapshot.file_name = manifest.file_name.clone();
+    snapshot.destination_path = manifest.destination_path.clone();
     snapshot.total_bytes = manifest.total_bytes;
     snapshot.downloaded_bytes = manifest.downloaded_bytes;
     snapshot.supports_ranges = manifest.supports_ranges;
@@ -1942,6 +1998,8 @@ fn sync_snapshot_with_manifest(managed: &Arc<ManagedDownload>, manifest: &Manife
     snapshot.allocated_thread_count = manifest.allocated_thread_count;
     snapshot.adaptive_profile = manifest.adaptive_profile_snapshot;
     snapshot.thread_note = manifest.thread_note.clone();
+    snapshot.etag = manifest.etag.clone();
+    snapshot.last_modified = manifest.last_modified.clone();
     snapshot.error = manifest.error.clone();
     snapshot.updated_at_ms = manifest.updated_at_ms;
 }
@@ -2386,11 +2444,13 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     };
 
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
-        if value.get("proxy").is_some()
+        if value.get("appearance").is_some()
+            || value.get("proxy").is_some()
             || value.get("scheduler").is_some()
             || value.get("download").is_some()
             || value.get("bt").is_some()
             || value.get("networkLearning").is_some()
+            || value.get("logging").is_some()
         {
             let parsed = serde_json::from_value::<AppSettings>(value)?;
             return normalize_settings(parsed);
@@ -2549,6 +2609,18 @@ fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
     }
 
     destination_dir.join(format!("{}-{}{}", stem, Uuid::new_v4(), extension))
+}
+
+fn initial_file_name_from_url(url: &str) -> String {
+    Url::parse(url)
+        .ok()
+        .and_then(|url| {
+            url.path_segments()
+                .and_then(|mut segments| segments.next_back().map(ToOwned::to_owned))
+        })
+        .map(sanitize_filename::sanitize)
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| String::from("download"))
 }
 
 fn numbered_file_name(file_name: &str, index: usize) -> String {
@@ -2761,507 +2833,5 @@ fn now_ms() -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{collections::HashMap, sync::Arc};
-
-    use axum::{
-        Router,
-        extract::{OriginalUri, State},
-        http::{HeaderMap, HeaderValue, StatusCode},
-        response::IntoResponse,
-        routing::get,
-    };
-    use ntest::timeout;
-    use tempfile::tempdir;
-
-    use super::*;
-
-    type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
-    #[derive(Clone)]
-    struct TestState {
-        files: Arc<HashMap<String, TestFile>>,
-        delay_ms: u64,
-    }
-
-    #[derive(Clone)]
-    struct TestFile {
-        bytes: Arc<Vec<u8>>,
-        etag: String,
-    }
-
-    fn single_file_state(path: &str, bytes: Arc<Vec<u8>>, etag: &str, delay_ms: u64) -> TestState {
-        file_state([(path, bytes, etag)], delay_ms)
-    }
-
-    fn file_state<const N: usize>(
-        files: [(&str, Arc<Vec<u8>>, &str); N],
-        delay_ms: u64,
-    ) -> TestState {
-        TestState {
-            files: Arc::new(
-                files
-                    .into_iter()
-                    .map(|(path, bytes, etag)| {
-                        (
-                            path.to_string(),
-                            TestFile {
-                                bytes,
-                                etag: etag.to_string(),
-                            },
-                        )
-                    })
-                    .collect(),
-            ),
-            delay_ms,
-        }
-    }
-
-    #[tokio::test]
-    #[timeout(30_000)]
-    async fn loads_legacy_proxy_settings() -> TestResult {
-        let temp = tempdir()?;
-        let settings_path = temp.path().join("settings.json");
-        fs::write(
-            &settings_path,
-            serde_json::to_vec_pretty(&ProxySettings {
-                mode: ProxyMode::System,
-                manual_url: String::new(),
-            })?,
-        )?;
-
-        let settings = load_settings(&settings_path)?;
-        assert_eq!(settings.proxy.mode, ProxyMode::System);
-        assert_eq!(settings.scheduler.mode, SchedulerMode::Automatic);
-        assert_eq!(settings.network_learning.current_scene_id, "default");
-        assert_eq!(settings.network_learning.scenes.len(), 1);
-        Ok(())
-    }
-
-    #[timeout(30_000)]
-    #[test]
-    fn normalize_settings_recovers_missing_scene_selection() -> TestResult {
-        let settings = normalize_settings(AppSettings {
-            appearance: Default::default(),
-            proxy: ProxySettings::default(),
-            scheduler: SchedulerSettings::default(),
-            download: DownloadDefaultsSettings::default(),
-            bt: BtSettings::default(),
-            network_learning: NetworkLearningSettings {
-                device_mode: DeviceLearningMode::SemiMobile,
-                current_scene_id: String::from("missing"),
-                scenes: vec![NetworkSceneProfile {
-                    id: String::from("office"),
-                    name: String::new(),
-                    learning_enabled: true,
-                    learned_metrics: Some(NetworkLearningMetrics {
-                        estimated_bandwidth_bps: 8.0 * 1024.0 * 1024.0,
-                        stability_score: 1.4,
-                        penalty_rate: -0.5,
-                        recommended_initial_threads: 12,
-                        recommended_max_threads_per_task_cap: 99,
-                        sample_count: 2,
-                        last_observed_at_ms: 12,
-                    }),
-                    updated_at_ms: 9,
-                }],
-            },
-            logging: LogSettings::default(),
-        })?;
-
-        assert_eq!(settings.network_learning.current_scene_id, "default");
-        assert_eq!(settings.network_learning.scenes.len(), 1);
-        assert_eq!(settings.network_learning.scenes[0].id, "default");
-        assert_eq!(settings.network_learning.scenes[0].name, "默认场景");
-        let metrics = settings.network_learning.scenes[0]
-            .learned_metrics
-            .as_ref()
-            .ok_or("expected normalized learning metrics")?;
-        assert_eq!(metrics.recommended_max_threads_per_task_cap, 8);
-        assert_eq!(metrics.recommended_initial_threads, 8);
-        assert_eq!(metrics.penalty_rate, 0.0);
-        assert_eq!(metrics.stability_score, 1.0);
-        Ok(())
-    }
-
-    #[timeout(30_000)]
-    #[test]
-    fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
-        let settings = AppSettings {
-            appearance: Default::default(),
-            proxy: ProxySettings::default(),
-            scheduler: SchedulerSettings {
-                mode: SchedulerMode::Automatic,
-                traditional: TraditionalSchedulerSettings::default(),
-                automatic: AutomaticSchedulerSettings {
-                    max_parallel_threads: 16,
-                    max_threads_per_task: 8,
-                    adaptive_profile: AdaptiveProfile::Balanced,
-                },
-            },
-            download: DownloadDefaultsSettings::default(),
-            bt: BtSettings::default(),
-            network_learning: NetworkLearningSettings {
-                device_mode: DeviceLearningMode::Fixed,
-                current_scene_id: String::from("home"),
-                scenes: vec![NetworkSceneProfile {
-                    id: String::from("home"),
-                    name: String::from("家庭网络"),
-                    learning_enabled: true,
-                    learned_metrics: Some(NetworkLearningMetrics {
-                        estimated_bandwidth_bps: 24.0 * 1024.0 * 1024.0,
-                        stability_score: 0.92,
-                        penalty_rate: 0.02,
-                        recommended_initial_threads: 6,
-                        recommended_max_threads_per_task_cap: 7,
-                        sample_count: 5,
-                        last_observed_at_ms: 42,
-                    }),
-                    updated_at_ms: 42,
-                }],
-            },
-            logging: LogSettings::default(),
-        };
-
-        let (_, _, desired_thread_count, _) = resolve_thread_settings(
-            &settings,
-            &StartDownloadRequest {
-                kind: None,
-                url: String::from("https://example.com/file.bin"),
-                destination_dir: String::from("E:/tmp"),
-                file_name: None,
-                user_agent: None,
-                thread_mode: Some(ThreadMode::Adaptive),
-                thread_count: None,
-                max_retries: None,
-                checksum: None,
-            },
-            true,
-        );
-
-        assert_eq!(desired_thread_count, Some(6));
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[timeout(30_000)]
-    async fn traditional_mode_limits_running_tasks() -> TestResult {
-        let payload = Arc::new(vec![42_u8; 12 * 1024 * 1024]);
-        let state = single_file_state("/file.bin", payload, "\"test-etag\"", 180);
-
-        let app = Router::new()
-            .route("/file.bin", get(file_get).head(file_head))
-            .with_state(state);
-
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        let address = listener.local_addr()?;
-        tokio::spawn(async move {
-            if let Err(error) = axum::serve(listener, app).await {
-                eprintln!("[downloader:test] server stopped: {error}");
-            }
-        });
-
-        let temp = tempdir()?;
-        let manager = DownloadManager::new(temp.path().join("state"))?;
-        manager
-            .update_settings(AppSettings {
-                appearance: Default::default(),
-                proxy: ProxySettings::default(),
-                scheduler: SchedulerSettings {
-                    mode: SchedulerMode::Traditional,
-                    traditional: TraditionalSchedulerSettings {
-                        max_parallel_tasks: 1,
-                    },
-                    automatic: AutomaticSchedulerSettings::default(),
-                },
-                download: DownloadDefaultsSettings::default(),
-                bt: BtSettings::default(),
-                network_learning: NetworkLearningSettings::default(),
-                logging: LogSettings::default(),
-            })
-            .await?;
-
-        let first = manager
-            .start(StartDownloadRequest {
-                kind: None,
-                url: format!("http://{address}/file.bin"),
-                destination_dir: temp.path().join("out").to_string_lossy().to_string(),
-                file_name: Some(String::from("first.bin")),
-                user_agent: None,
-                thread_mode: Some(ThreadMode::Fixed),
-                thread_count: Some(4),
-                max_retries: Some(1),
-                checksum: Some(ChecksumMode::None),
-            })
-            .await?;
-
-        let second = manager
-            .start(StartDownloadRequest {
-                kind: None,
-                url: format!("http://{address}/file.bin"),
-                destination_dir: temp.path().join("out").to_string_lossy().to_string(),
-                file_name: Some(String::from("second.bin")),
-                user_agent: None,
-                thread_mode: Some(ThreadMode::Fixed),
-                thread_count: Some(4),
-                max_retries: Some(1),
-                checksum: Some(ChecksumMode::None),
-            })
-            .await?;
-
-        sleep(Duration::from_millis(400)).await;
-        let first_status = manager.status(&first).await?;
-        let second_status = manager.status(&second).await?;
-
-        assert!(matches!(
-            first_status.state,
-            DownloadState::Downloading | DownloadState::Retrying | DownloadState::Completed
-        ));
-        assert_eq!(second_status.state, DownloadState::Queued);
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[timeout(30_000)]
-    async fn automatic_mode_prioritizes_larger_file() -> TestResult {
-        let big_payload = Arc::new(vec![7_u8; 24 * 1024 * 1024]);
-        let small_payload = Arc::new(vec![3_u8; 8 * 1024 * 1024]);
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        let address = listener.local_addr()?;
-        let app = Router::new()
-            .route("/big.bin", get(file_get).head(file_head))
-            .route("/small.bin", get(file_get).head(file_head))
-            .with_state(file_state(
-                [
-                    ("/big.bin", big_payload.clone(), "\"big\""),
-                    ("/small.bin", small_payload, "\"small\""),
-                ],
-                250,
-            ));
-        tokio::spawn(async move {
-            if let Err(error) = axum::serve(listener, app).await {
-                eprintln!("[downloader:test] server stopped: {error}");
-            }
-        });
-
-        let temp = tempdir()?;
-        let manager = DownloadManager::new(temp.path().join("state"))?;
-        manager
-            .update_settings(AppSettings {
-                appearance: Default::default(),
-                proxy: ProxySettings::default(),
-                scheduler: SchedulerSettings {
-                    mode: SchedulerMode::Automatic,
-                    traditional: TraditionalSchedulerSettings::default(),
-                    automatic: AutomaticSchedulerSettings {
-                        max_parallel_threads: 3,
-                        max_threads_per_task: 3,
-                        adaptive_profile: AdaptiveProfile::Balanced,
-                    },
-                },
-                download: DownloadDefaultsSettings::default(),
-                bt: BtSettings::default(),
-                network_learning: NetworkLearningSettings::default(),
-                logging: LogSettings::default(),
-            })
-            .await?;
-
-        let big = manager
-            .start(StartDownloadRequest {
-                kind: None,
-                url: format!("http://{address}/big.bin"),
-                destination_dir: temp.path().join("out").to_string_lossy().to_string(),
-                file_name: Some(String::from("big.bin")),
-                user_agent: None,
-                thread_mode: Some(ThreadMode::Fixed),
-                thread_count: Some(3),
-                max_retries: Some(1),
-                checksum: Some(ChecksumMode::None),
-            })
-            .await?;
-
-        let small = manager
-            .start(StartDownloadRequest {
-                kind: None,
-                url: format!("http://{address}/small.bin"),
-                destination_dir: temp.path().join("out").to_string_lossy().to_string(),
-                file_name: Some(String::from("small.bin")),
-                user_agent: None,
-                thread_mode: Some(ThreadMode::Fixed),
-                thread_count: Some(3),
-                max_retries: Some(1),
-                checksum: Some(ChecksumMode::None),
-            })
-            .await?;
-
-        sleep(Duration::from_millis(500)).await;
-        let big_status = manager.status(&big).await?;
-        let small_status = manager.status(&small).await?;
-
-        assert!(big_status.connection_count >= small_status.connection_count);
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[timeout(30_000)]
-    async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
-        let payload = Arc::new(vec![11_u8; 96 * 1024 * 1024]);
-        let state = single_file_state("/file.bin", payload, "\"aimd\"", 500);
-
-        let app = Router::new()
-            .route("/file.bin", get(file_get).head(file_head))
-            .with_state(state);
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        let address = listener.local_addr()?;
-        tokio::spawn(async move {
-            if let Err(error) = axum::serve(listener, app).await {
-                eprintln!("[downloader:test] server stopped: {error}");
-            }
-        });
-
-        let temp = tempdir()?;
-        let manager = DownloadManager::new(temp.path().join("state"))?;
-        manager
-            .update_settings(AppSettings {
-                appearance: Default::default(),
-                proxy: ProxySettings::default(),
-                scheduler: SchedulerSettings {
-                    mode: SchedulerMode::Automatic,
-                    traditional: TraditionalSchedulerSettings::default(),
-                    automatic: AutomaticSchedulerSettings {
-                        max_parallel_threads: 4,
-                        max_threads_per_task: 4,
-                        adaptive_profile: AdaptiveProfile::Balanced,
-                    },
-                },
-                download: DownloadDefaultsSettings::default(),
-                bt: BtSettings::default(),
-                network_learning: NetworkLearningSettings::default(),
-                logging: LogSettings::default(),
-            })
-            .await?;
-
-        let id = manager
-            .start(StartDownloadRequest {
-                kind: None,
-                url: format!("http://{address}/file.bin"),
-                destination_dir: temp.path().join("out").to_string_lossy().to_string(),
-                file_name: Some(String::from("aimd.bin")),
-                user_agent: None,
-                thread_mode: Some(ThreadMode::Adaptive),
-                thread_count: None,
-                max_retries: Some(1),
-                checksum: Some(ChecksumMode::None),
-            })
-            .await?;
-
-        sleep(Duration::from_secs(2)).await;
-        manager.update_adaptive_targets().await?;
-        manager.rebalance_allocations().await?;
-        let snapshot = manager.status(&id).await?;
-        assert!(matches!(
-            snapshot.desired_thread_count,
-            Some(thread_count) if thread_count >= 3
-        ));
-        Ok(())
-    }
-
-    async fn file_head(
-        State(state): State<TestState>,
-        OriginalUri(uri): OriginalUri,
-    ) -> impl IntoResponse {
-        let Some(file) = state.files.get(uri.path()) else {
-            return StatusCode::NOT_FOUND.into_response();
-        };
-        let mut headers = HeaderMap::new();
-        headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-        let Ok(content_length) = HeaderValue::from_str(&file.bytes.len().to_string()) else {
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        };
-        headers.insert(header::CONTENT_LENGTH, content_length);
-        let Ok(etag) = HeaderValue::from_str(&file.etag) else {
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        };
-        headers.insert(header::ETAG, etag);
-        headers.insert(
-            header::CONTENT_DISPOSITION,
-            HeaderValue::from_static("attachment; filename*=UTF-8''server-name.bin"),
-        );
-        (StatusCode::OK, headers).into_response()
-    }
-
-    async fn file_get(
-        State(state): State<TestState>,
-        OriginalUri(uri): OriginalUri,
-        headers: HeaderMap,
-    ) -> impl IntoResponse {
-        sleep(Duration::from_millis(state.delay_ms)).await;
-        let Some(file) = state.files.get(uri.path()) else {
-            return StatusCode::NOT_FOUND.into_response();
-        };
-
-        let mut response_headers = HeaderMap::new();
-        let Ok(etag) = HeaderValue::from_str(&file.etag) else {
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        };
-        response_headers.insert(header::ETAG, etag);
-        response_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-        response_headers.insert(
-            header::CONTENT_DISPOSITION,
-            HeaderValue::from_static("attachment; filename*=UTF-8''server-name.bin"),
-        );
-
-        let requested = headers
-            .get(header::RANGE)
-            .and_then(|value| value.to_str().ok());
-        if let Some(requested) = requested {
-            let Some(range) = requested.strip_prefix("bytes=") else {
-                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
-            };
-            let mut pieces = range.split('-');
-            let Some(start_text) = pieces.next() else {
-                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
-            };
-            let Ok(start) = start_text.parse::<usize>() else {
-                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
-            };
-            let end = pieces
-                .next()
-                .and_then(|value| {
-                    if value.is_empty() {
-                        None
-                    } else {
-                        value.parse::<usize>().ok()
-                    }
-                })
-                .unwrap_or(file.bytes.len() - 1);
-            if start >= file.bytes.len() {
-                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
-            }
-            let end = end.min(file.bytes.len() - 1);
-            let body = file.bytes[start..=end].to_vec();
-            let Ok(content_range) =
-                HeaderValue::from_str(&format!("bytes {start}-{end}/{}", file.bytes.len()))
-            else {
-                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-            };
-            response_headers.insert(header::CONTENT_RANGE, content_range);
-            let Ok(content_length) = HeaderValue::from_str(&body.len().to_string()) else {
-                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-            };
-            response_headers.insert(header::CONTENT_LENGTH, content_length);
-            return (StatusCode::PARTIAL_CONTENT, response_headers, body).into_response();
-        }
-
-        let Ok(content_length) = HeaderValue::from_str(&file.bytes.len().to_string()) else {
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        };
-        response_headers.insert(header::CONTENT_LENGTH, content_length);
-        (
-            StatusCode::OK,
-            response_headers,
-            file.bytes.as_ref().clone(),
-        )
-            .into_response()
-    }
-}
+#[path = "tests/manager_tests.rs"]
+mod tests;

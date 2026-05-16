@@ -80,6 +80,14 @@
   --shadow-card-hover: 0 8px 16px oklch(0 0 0 / 0.15);
   --shadow-accent: 0 0.75rem 1.5rem oklch(0.593 0.209 13.9 / 0.12);
   --shadow-accent-soft: 0 0 2rem oklch(0 0 0 / 0.1);
+
+  --surface-panel-alpha: 94%;
+  --surface-muted-alpha: 82%;
+  --surface-card-alpha: 94%;
+  --surface-dialog-alpha: 100%;
+  --surface-overlay-bg: rgba(31, 24, 20, 0.38);
+  --surface-blur: 0.875rem;
+  --surface-dialog-blur: 0.375rem;
 }
 
 :root[data-theme="amber"] {
@@ -115,6 +123,75 @@
   --shadow-accent: 0 0.75rem 1.5rem oklch(0.65 0.2 130 / 0.12);
 }
 
+:root[data-color-mode="dark"] {
+  --color-bg-base: oklch(0.18 0.006 248);
+  --color-panel: oklch(0.235 0.008 248);
+  --color-panel-muted: oklch(0.205 0.008 248);
+  --color-input-bg: oklch(0.19 0.008 248);
+  --color-surface-muted: oklch(0.28 0.01 248);
+  --color-surface-hover: oklch(0.3 0.012 248);
+
+  --color-heading: oklch(0.93 0.006 248);
+  --color-text-main: oklch(0.875 0.006 248);
+  --color-text-muted: oklch(0.69 0.012 248);
+  --color-text-soft: oklch(0.52 0.014 248);
+
+  --color-border: oklch(0.335 0.012 248);
+  --color-border-strong: oklch(0.46 0.012 248);
+
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  --color-accent-soft-border: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  --color-accent-border: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  --color-accent-strong: color-mix(in srgb, var(--color-accent) 82%, white);
+  --color-focus-ring: color-mix(in srgb, var(--color-accent) 24%, transparent);
+
+  --color-danger-bg: oklch(0.34 0.092 25 / 0.36);
+  --color-danger-border: oklch(0.64 0.18 25 / 0.45);
+  --color-danger-text: oklch(0.78 0.14 25);
+
+  --color-info-bg: color-mix(in srgb, oklch(0.679 0.142 240.7) 18%, var(--color-panel));
+  --color-info-border: color-mix(in srgb, oklch(0.679 0.142 240.7) 35%, var(--color-border));
+  --color-info-text: oklch(0.78 0.11 240.7);
+
+  --color-success-bg: color-mix(in srgb, oklch(0.65 0.16 143.2) 18%, var(--color-panel));
+  --color-success-border: color-mix(in srgb, oklch(0.65 0.16 143.2) 35%, var(--color-border));
+  --color-success-text: oklch(0.78 0.13 143.2);
+
+  --color-warning-bg: color-mix(in srgb, oklch(0.8 0.17 91.8) 18%, var(--color-panel));
+  --color-warning-border: color-mix(in srgb, oklch(0.8 0.17 91.8) 35%, var(--color-border));
+  --color-warning-text: oklch(0.84 0.14 91.8);
+
+  --color-progress-track: oklch(0.33 0.012 248);
+
+  --shadow-soft: 0 2px 8px oklch(0 0 0 / 0.28);
+  --shadow-card: 0 2px 8px oklch(0 0 0 / 0.34);
+  --shadow-card-hover: 0 10px 22px oklch(0 0 0 / 0.42);
+  --shadow-accent: 0 0.75rem 1.5rem color-mix(in srgb, var(--color-accent) 18%, transparent);
+  --shadow-accent-soft: 0 0 2rem oklch(0 0 0 / 0.32);
+
+  --surface-overlay-bg: rgba(3, 7, 18, 0.62);
+}
+
+:root[data-surface="acrylic"] {
+  --surface-panel-alpha: 88%;
+  --surface-muted-alpha: 72%;
+  --surface-card-alpha: 86%;
+  --surface-dialog-alpha: 90%;
+  --surface-overlay-bg: rgba(31, 24, 20, 0.3);
+  --surface-blur: 1.15rem;
+  --surface-dialog-blur: 0.9rem;
+}
+
+:root[data-surface="frosted"] {
+  --surface-panel-alpha: 78%;
+  --surface-muted-alpha: 62%;
+  --surface-card-alpha: 76%;
+  --surface-dialog-alpha: 82%;
+  --surface-overlay-bg: rgba(31, 24, 20, 0.24);
+  --surface-blur: 1.5rem;
+  --surface-dialog-blur: 1.25rem;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -128,6 +205,10 @@ body,
 html {
   color-scheme: light;
   background: var(--color-bg-base);
+}
+
+html[data-color-mode="dark"] {
+  color-scheme: dark;
 }
 
 body {

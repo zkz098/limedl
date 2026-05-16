@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { DownloadSnapshot, DownloadSummary, StartDownloadRequest } from "../../types/download";
+import type {
+  BtRuntimeStatus,
+  DownloadSnapshot,
+  DownloadSummary,
+  StartDownloadRequest,
+} from "../../types/download";
 
 export function startDownload(request: StartDownloadRequest) {
   return invoke<string>("download_start", { request });
@@ -36,4 +41,8 @@ export function getDownloadStatus(downloadId: string) {
 
 export function listDownloads() {
   return invoke<DownloadSummary[]>("download_list");
+}
+
+export function getBtRuntimeStatus() {
+  return invoke<BtRuntimeStatus>("bt_runtime_status");
 }

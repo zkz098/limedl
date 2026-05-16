@@ -152,11 +152,13 @@ pub fn apply_logging_settings(settings: &LogSettings, state_dir: &Path) -> anyho
     };
     runtime.enabled = settings.enabled;
     runtime.file_path = resolve_log_file_path(settings, state_dir);
+    let log_path = runtime.file_path.clone();
+    drop(runtime);
 
     tracing::info!(
         enabled = settings.enabled,
         level = ?settings.level,
-        path = %runtime.file_path.display(),
+        path = %log_path.display(),
         "logging settings updated"
     );
     Ok(())

@@ -610,7 +610,7 @@ onUnmounted(() => {
   padding: 0.55rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-panel);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -857,9 +857,9 @@ onUnmounted(() => {
   padding: 0.35rem;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) 96%, white 4%);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
   box-shadow: var(--shadow-card-hover);
-  backdrop-filter: blur(0.875rem);
+  backdrop-filter: blur(var(--surface-blur));
 }
 
 .task-context-menu__item {

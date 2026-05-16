@@ -17,8 +17,8 @@ use uuid::Uuid;
 use super::{
     error::{DownloadError, Result},
     types::{
-        AppSettings, BtSettings, BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState,
-        DownloadSummary, ProxyMode, StartDownloadRequest, TaskKind, ThreadMode,
+        AppSettings, BtRuntimeStatus, BtSettings, BtUploadStatus, ChecksumMode, DownloadSnapshot,
+        DownloadState, DownloadSummary, ProxyMode, StartDownloadRequest, TaskKind, ThreadMode,
     },
 };
 
@@ -488,6 +488,54 @@ impl TorrentManager {
         Ok(summaries)
     }
 
+    pub fn runtime_status(&self) -> BtRuntimeStatus {
+        let dht_enabled = lock_or_recover(&self.bt_settings, "bt settings").dht_enabled;
+        let dht_nodes = self
+            .api
+            .api_dht_stats()
+            .ok()
+            .map(|stats| stats.routing_table_size);
+        let session_stats = self.session.stats_snapshot();
+        let upload_speed = mib_per_second_to_bytes_per_second(session_stats.upload_speed.mbps);
+        let uploaded_bytes = session_stats.uploaded_bytes;
+
+        let handles = self.session.with_torrents(|torrents| {
+            torrents
+                .map(|(_, handle)| handle.clone())
+                .collect::<Vec<_>>()
+        });
+        let mut peer_count = 0;
+        for handle in &handles {
+            let stats = handle.stats();
+            if let Some(live) = stats.live.as_ref() {
+                peer_count += live.snapshot.peer_stats.live + live.snapshot.peer_stats.connecting;
+            }
+        }
+
+        let pending_count = lock_or_recover(&self.pending, "pending torrents")
+            .values()
+            .filter(|task| {
+                matches!(
+                    task.state,
+                    PendingTorrentState::Resolving | PendingTorrentState::Paused
+                )
+            })
+            .count();
+        let torrent_count = handles.len() + pending_count;
+        let connected = peer_count > 0 || dht_nodes.unwrap_or(0) > 0 || upload_speed > 0.0;
+
+        BtRuntimeStatus {
+            connected,
+            dht_enabled,
+            dht_nodes,
+            torrent_count,
+            peer_count,
+            upload_speed_bytes_per_second: (upload_speed > 0.0).then_some(upload_speed),
+            uploaded_bytes,
+            updated_at_ms: now_ms(),
+        }
+    }
+
     async fn status_for_managed(&self, download_id: &str, id: usize) -> Result<DownloadSnapshot> {
         let handle = self.get_handle(id)?;
         let limit_reached = self.apply_upload_policy(&handle).await?;
@@ -761,6 +809,9 @@ pub(super) fn classify_download_source(
 pub(super) fn normalize_http_task_id(download_id: &str) -> &str {
     download_id.strip_prefix(HTTP_PREFIX).unwrap_or(download_id)
 }
+
+/// Task ID lookups: IDs are prefixed strings routing between HTTP/BT/SFTP managers.
+/// Prefer `commands.rs`'s `dispatch_download_action!` macro for new commands.
 
 pub(super) fn is_bt_task_id(download_id: &str) -> bool {
     download_id.starts_with(BT_PREFIX)
