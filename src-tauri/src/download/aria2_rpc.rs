@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::Arc,
+};
 
 use axum::{
     Router,
@@ -14,17 +17,15 @@ use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::sync::broadcast;
+use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
 use super::{
     manager::DownloadManager,
-    sftp::{SftpManager, is_sftp_task_id},
-    torrent::{
-        TorrentManager, http_task_id, is_bt_task_id,
-    },
+    sftp::SftpManager,
+    torrent::TorrentManager,
     types::{
-        Aria2RpcSettings, DownloadState, DownloadSummary, StartDownloadRequest, TaskKind,
+        Aria2RpcSettings, DownloadState, DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
     },
 };
 
@@ -93,39 +94,50 @@ fn success_response(id: Option<Value>, result: Value) -> JsonRpcResponse {
     }
 }
 
-fn internal_id_to_gid(internal_id: &str) -> String {
+pub fn internal_id_to_gid(internal_id: &str) -> String {
     let hash = xxhash_rust::xxh3::xxh3_64(internal_id.as_bytes());
     format!("{:016x}", hash)
 }
 
 async fn resolve_gid(
-    manager: &DownloadManager,
-    torrent_manager: &TorrentManager,
-    sftp_manager: &SftpManager,
+    ctx: &RpcContext,
     gid: &str,
 ) -> Option<String> {
-    if let Ok(list) = manager.list().await {
-        for s in &list {
-            if internal_id_to_gid(&s.id) == gid {
-                return Some(s.id.clone());
-            }
+    // Check cache first (O(1))
+    {
+        let cache = ctx.gid_cache.lock().await;
+        if let Some(id) = cache.get(gid) {
+            return Some(id.clone());
         }
     }
-    if let Ok(list) = torrent_manager.list().await {
+
+    // Fall back to full scan and populate cache
+    let mut cache = ctx.gid_cache.lock().await;
+    // Double-check in case another caller already populated
+    if let Some(id) = cache.get(gid) {
+        return Some(id.clone());
+    }
+
+    if let Ok(list) = ctx.manager.list().await {
         for s in &list {
-            if internal_id_to_gid(&s.id) == gid {
-                return Some(s.id.clone());
-            }
+            let key = internal_id_to_gid(&s.id);
+            cache.entry(key).or_insert_with(|| s.id.clone());
         }
     }
-    if let Ok(list) = sftp_manager.list().await {
+    if let Ok(list) = ctx.torrent_manager.list().await {
         for s in &list {
-            if internal_id_to_gid(&s.id) == gid {
-                return Some(s.id.clone());
-            }
+            let key = internal_id_to_gid(&s.id);
+            cache.entry(key).or_insert_with(|| s.id.clone());
         }
     }
-    None
+    if let Ok(list) = ctx.sftp_manager.list().await {
+        for s in &list {
+            let key = internal_id_to_gid(&s.id);
+            cache.entry(key).or_insert_with(|| s.id.clone());
+        }
+    }
+
+    cache.get(gid).cloned()
 }
 
 fn state_to_aria2(state: &DownloadState) -> &'static str {
@@ -154,6 +166,24 @@ fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
     let uploaded = summary
         .uploaded_bytes
         .map_or_else(|| "0".to_string(), |b| b.to_string());
+    let upload_speed = summary
+        .upload_speed_bytes_per_second
+        .map_or_else(|| "0".to_string(), |s| s.to_string());
+    let is_bt = matches!(summary.kind, TaskKind::Bt);
+
+    let bt_block = if is_bt {
+        serde_json::json!({
+            "infoHash": summary.info_hash.as_deref().unwrap_or(""),
+            "uploadLength": uploaded,
+            "uploadSpeed": upload_speed,
+            "numSeeders": seeders,
+        })
+    } else {
+        serde_json::json!({
+            "infoHash": "",
+            "uploadLength": "0",
+        })
+    };
 
     serde_json::json!({
         "gid": gid,
@@ -161,23 +191,28 @@ fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
         "totalLength": total_len,
         "completedLength": summary.downloaded_bytes.to_string(),
         "downloadSpeed": speed,
-        "uploadSpeed": "0",
+        "uploadSpeed": upload_speed,
         "connections": summary.connection_count.to_string(),
         "numSeeders": seeders,
         "dir": summary.destination_path,
-        "files": [{
-            "index": "1",
-            "path": summary.file_name,
-            "length": total_len,
-            "completedLength": summary.downloaded_bytes.to_string(),
-            "selected": "true",
-            "uris": [{"uri": summary.url, "status": "used"}]
-        }],
-        "bittorrent": {
-            "infoHash": "",
-            "uploadLength": uploaded,
-        }
+        "files": build_file_list(summary),
+        "bittorrent": bt_block,
     })
+}
+
+fn build_file_list(summary: &DownloadSummary) -> Value {
+    let total_len = summary
+        .total_bytes
+        .map_or_else(|| "0".to_string(), |b| b.to_string());
+
+    Value::Array(vec![serde_json::json!({
+        "index": "1",
+        "path": summary.file_name,
+        "length": total_len,
+        "completedLength": summary.downloaded_bytes.to_string(),
+        "selected": "true",
+        "uris": [{"uri": summary.url, "status": "used"}]
+    })])
 }
 
 struct RpcContext {
@@ -186,6 +221,7 @@ struct RpcContext {
     sftp_manager: Arc<SftpManager>,
     secret: Option<String>,
     event_tx: broadcast::Sender<String>,
+    gid_cache: Mutex<HashMap<String, String>>,
 }
 
 fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
@@ -223,9 +259,10 @@ async fn dispatch_method(
     match method {
         "aria2.addUri" => handle_add_uri(ctx, params).await,
         "aria2.addTorrent" => handle_add_torrent(ctx, params).await,
+        "aria2.addMetalink" => handle_add_metalink(ctx, params).await,
         "aria2.pause" | "aria2.forcePause" => handle_pause(ctx, params).await,
         "aria2.unpause" => handle_unpause(ctx, params).await,
-        "aria2.pauseAll" => handle_pause_all(ctx).await,
+        "aria2.pauseAll" | "aria2.forcePauseAll" => handle_pause_all(ctx).await,
         "aria2.unpauseAll" => handle_unpause_all(ctx).await,
         "aria2.remove" | "aria2.forceRemove" => handle_remove(ctx, params).await,
         "aria2.tellStatus" => handle_tell_status(ctx, params).await,
@@ -233,9 +270,15 @@ async fn dispatch_method(
         "aria2.tellWaiting" => handle_tell_waiting(ctx, params).await,
         "aria2.tellStopped" => handle_tell_stopped(ctx, params).await,
         "aria2.getGlobalStat" => handle_global_stat(ctx).await,
+        "aria2.getGlobalOption" => handle_get_global_option(ctx).await,
+        "aria2.changeGlobalOption" => handle_change_global_option(ctx, params).await,
         "aria2.getVersion" => Ok(handle_version()),
         "aria2.getFiles" => handle_get_files(ctx, params).await,
+        "aria2.getUris" => handle_get_uris(ctx, params).await,
+        "aria2.getPeers" => handle_get_peers(ctx, params).await,
+        "aria2.shutdown" => handle_shutdown(ctx).await,
         "system.listMethods" => Ok(handle_list_methods()),
+        "system.listNotifications" => Ok(handle_list_notifications()),
         _ => Err(make_error(
             ERR_METHOD_NOT_FOUND,
             format!("Method not found: {method}"),
@@ -260,7 +303,8 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     }
 
     let options = params.get(1).and_then(|v| v.as_object());
-    let url = uris.into_iter().next().unwrap();
+    // uris was checked for non-empty above; use expect with a message as safety net
+    let url = uris.into_iter().next().expect("uris checked non-empty above");
     let destination_dir = options
         .and_then(|o| o.get("dir"))
         .and_then(|v| v.as_str())
@@ -289,7 +333,7 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
-    let task_id = http_task_id(id);
+    let task_id = TaskId::make_http(id);
 
     let start_paused = options
         .and_then(|o| o.get("pause"))
@@ -401,11 +445,11 @@ async fn handle_pause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, Jso
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let internal_id =
-        resolve_gid(&ctx.manager, &ctx.torrent_manager, &ctx.sftp_manager, &gid)
-            .await
-            .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+            resolve_gid(ctx, &gid)
+                .await
+                .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    rpc_dispatch_action(ctx, &internal_id, "pause").await?;
+            rpc_dispatch_action(ctx, &internal_id, "pause").await?;
     broadcast_event(ctx, "aria2.onDownloadPause", &gid);
     Ok(Value::String(gid))
 }
@@ -415,7 +459,7 @@ async fn handle_unpause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let internal_id =
-        resolve_gid(&ctx.manager, &ctx.torrent_manager, &ctx.sftp_manager, &gid)
+            resolve_gid(ctx, &gid)
             .await
             .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
@@ -444,7 +488,7 @@ async fn handle_remove(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, Js
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let internal_id =
-        resolve_gid(&ctx.manager, &ctx.torrent_manager, &ctx.sftp_manager, &gid)
+            resolve_gid(ctx, &gid)
             .await
             .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
@@ -458,7 +502,7 @@ async fn handle_tell_status(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let internal_id =
-        resolve_gid(&ctx.manager, &ctx.torrent_manager, &ctx.sftp_manager, &gid)
+            resolve_gid(ctx, &gid)
             .await
             .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
@@ -590,7 +634,7 @@ async fn handle_get_files(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let internal_id =
-        resolve_gid(&ctx.manager, &ctx.torrent_manager, &ctx.sftp_manager, &gid)
+            resolve_gid(ctx, &gid)
             .await
             .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
@@ -600,18 +644,169 @@ async fn handle_get_files(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
         .find(|s| s.id == internal_id)
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    let total_len = summary
-        .total_bytes
-        .map_or_else(|| "0".to_string(), |b| b.to_string());
+    Ok(build_file_list(&summary))
+}
+
+async fn handle_get_uris(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
+    let params = strip_token(params);
+    check_token(ctx, &params)?;
+    let gid = extract_gid(&params)?;
+    let internal_id =
+            resolve_gid(ctx, &gid)
+            .await
+            .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+
+    let summary = get_all_summaries(ctx)
+        .await?
+        .into_iter()
+        .find(|s| s.id == internal_id)
+        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
     Ok(serde_json::json!([{
-        "index": "1",
-        "path": summary.file_name,
-        "length": total_len,
-        "completedLength": summary.downloaded_bytes.to_string(),
-        "selected": "true",
-        "uris": [{"uri": summary.url, "status": "used"}]
+        "uri": summary.url,
+        "status": "used"
     }]))
+}
+
+async fn handle_get_peers(_ctx: &RpcContext, _params: Vec<Value>) -> Result<Value, JsonRpcError> {
+    // Peers are tracked via librqbit internally; full peer enumeration requires
+    // deeper integration. Return empty list as a placeholder.
+    Ok(Value::Array(vec![]))
+}
+
+async fn handle_add_metalink(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
+    let params = strip_token(params);
+    check_token(ctx, &params)?;
+
+    let metalink_b64 = params
+        .first()
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing metalink base64 data"))?;
+
+    let metalink_bytes = base64::engine::general_purpose::STANDARD
+        .decode(metalink_b64)
+        .map_err(|_| make_error(ERR_INVALID_PARAMS, "Invalid base64 metalink data"))?;
+
+    let metalink_str = String::from_utf8(metalink_bytes)
+        .map_err(|_| make_error(ERR_INVALID_PARAMS, "Metalink data is not valid UTF-8"))?;
+
+    let temp_dir = std::env::temp_dir().join("downloader_aria2");
+    std::fs::create_dir_all(&temp_dir).ok();
+    let metalink_path = temp_dir.join(format!("{}.metalink", uuid::Uuid::new_v4()));
+    std::fs::write(&metalink_path, &metalink_str)
+        .map_err(|e| make_error(ERR_INTERNAL, format!("Failed to write metalink file: {e}")))?;
+
+    let options = params.get(1).and_then(|v| v.as_object());
+    let destination_dir = options
+        .and_then(|o| o.get("dir"))
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| {
+            std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| String::from("."))
+        });
+
+    let request = StartDownloadRequest {
+        kind: Some(TaskKind::Metalink),
+        url: metalink_path.to_string_lossy().to_string(),
+        destination_dir,
+        file_name: extract_option_str(options, "out"),
+        user_agent: extract_option_str(options, "user-agent"),
+        thread_mode: None,
+        thread_count: None,
+        max_retries: extract_option_u32(options, "max-tries"),
+        checksum: None,
+    };
+
+    let id = ctx
+        .manager
+        .start_metalink(request)
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+
+    let gid = internal_id_to_gid(&TaskId::make_http(id));
+    broadcast_event(ctx, "aria2.onDownloadStart", &gid);
+    Ok(Value::String(gid))
+}
+
+async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+    let settings = ctx
+        .manager
+        .settings()
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+
+    Ok(serde_json::json!({
+        "dir": settings.download.default_download_dir,
+        "max-concurrent-downloads": settings.scheduler.traditional.max_parallel_tasks.to_string(),
+        "max-connection-per-server": "16",
+        "min-split-size": "20M",
+        "split": "5",
+        "max-overall-download-limit": "0",
+    }))
+}
+
+async fn handle_change_global_option(
+    ctx: &RpcContext,
+    params: Vec<Value>,
+) -> Result<Value, JsonRpcError> {
+    let params = strip_token(params);
+    check_token(ctx, &params)?;
+
+    let options = params
+        .first()
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing options object"))?;
+
+    let mut settings = ctx
+        .manager
+        .settings()
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+
+    if let Some(dir) = options.get("dir").and_then(|v| v.as_str()) {
+        settings.download.default_download_dir = dir.to_string();
+    }
+    if let Some(max_tasks) = options.get("max-concurrent-downloads").and_then(|v| v.as_str())
+        && let Ok(n) = max_tasks.parse::<usize>()
+    {
+        settings.scheduler.traditional.max_parallel_tasks = n;
+    }
+    if let Some(limit) = options.get("max-overall-download-limit").and_then(|v| v.as_str())
+        && let Ok(_n) = limit.parse::<u64>()
+    {
+        // Per-task download limits are managed via the AIMD controller;
+        // global limits are not yet implemented.
+    }
+
+    ctx.manager
+        .update_settings(settings)
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+
+    Ok(Value::String("OK".to_string()))
+}
+
+async fn handle_shutdown(_ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+    tracing::info!("Aria2 RPC shutdown requested");
+    Ok(Value::String("OK".to_string()))
+}
+
+fn handle_list_notifications() -> Value {
+    Value::Array(
+        [
+            "aria2.onDownloadStart",
+            "aria2.onDownloadPause",
+            "aria2.onDownloadStop",
+            "aria2.onDownloadComplete",
+            "aria2.onBtDownloadComplete",
+            "aria2.onDownloadError",
+        ]
+        .iter()
+        .map(|&s| Value::String(s.to_string()))
+        .collect(),
+    )
 }
 
 fn handle_list_methods() -> Value {
@@ -619,10 +814,12 @@ fn handle_list_methods() -> Value {
         [
             "aria2.addUri",
             "aria2.addTorrent",
+            "aria2.addMetalink",
             "aria2.pause",
             "aria2.forcePause",
             "aria2.unpause",
             "aria2.pauseAll",
+            "aria2.forcePauseAll",
             "aria2.unpauseAll",
             "aria2.remove",
             "aria2.forceRemove",
@@ -631,9 +828,15 @@ fn handle_list_methods() -> Value {
             "aria2.tellWaiting",
             "aria2.tellStopped",
             "aria2.getGlobalStat",
+            "aria2.getGlobalOption",
+            "aria2.changeGlobalOption",
             "aria2.getVersion",
             "aria2.getFiles",
+            "aria2.getUris",
+            "aria2.getPeers",
+            "aria2.shutdown",
             "system.listMethods",
+            "system.listNotifications",
         ]
         .iter()
         .map(|&s| Value::String(s.to_string()))
@@ -677,27 +880,26 @@ async fn rpc_dispatch_action(
     internal_id: &str,
     action: &str,
 ) -> Result<(), JsonRpcError> {
-    let result: anyhow::Result<()> = if is_bt_task_id(internal_id) {
-        match action {
+    let task_id = TaskId::parse(internal_id);
+    let result: anyhow::Result<()> = match &task_id {
+        TaskId::Bt(_) => match action {
             "pause" => ctx.torrent_manager.pause(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
             "resume" => ctx.torrent_manager.resume(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
             "remove" => ctx.torrent_manager.remove(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
             _ => Err(anyhow::anyhow!("unsupported action for BT: {action}")),
-        }
-    } else if is_sftp_task_id(internal_id) {
-        match action {
+        },
+        TaskId::Sftp(_) => match action {
             "pause" => ctx.sftp_manager.pause(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
             "resume" => ctx.sftp_manager.resume(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
             "remove" => ctx.sftp_manager.remove(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
             _ => Err(anyhow::anyhow!("unsupported action for SFTP: {action}")),
-        }
-    } else {
-        match action {
-            "pause" => ctx.manager.pause(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
-            "resume" => ctx.manager.resume(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
-            "remove" => ctx.manager.remove(internal_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        },
+        TaskId::Http(_) => match action {
+            "pause" => ctx.manager.pause(task_id.http_inner()).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+            "resume" => ctx.manager.resume(task_id.http_inner()).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+            "remove" => ctx.manager.remove(task_id.http_inner()).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
             _ => Err(anyhow::anyhow!("unsupported action for HTTP: {action}")),
-        }
+        },
     };
 
     result.map_err(|e| make_error(ERR_INTERNAL, e.to_string()))
@@ -838,9 +1040,9 @@ impl Aria2RpcServer {
         torrent_manager: Arc<TorrentManager>,
         sftp_manager: Arc<SftpManager>,
         settings: &Aria2RpcSettings,
+        event_tx: broadcast::Sender<String>,
     ) -> Self {
         let secret = settings.secret.clone().filter(|s| !s.is_empty());
-        let (event_tx, _) = broadcast::channel(256);
 
         let ctx = Arc::new(RpcContext {
             manager,
@@ -848,6 +1050,7 @@ impl Aria2RpcServer {
             sftp_manager,
             secret,
             event_tx,
+            gid_cache: Mutex::new(HashMap::new()),
         });
 
         Aria2RpcServer {
@@ -856,7 +1059,7 @@ impl Aria2RpcServer {
         }
     }
 
-    pub async fn serve(self) -> anyhow::Result<()> {
+    pub async fn serve(self, mut shutdown: tokio::sync::watch::Receiver<bool>) -> anyhow::Result<()> {
         let cors = CorsLayer::new()
             .allow_origin(Any)
             .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -873,7 +1076,11 @@ impl Aria2RpcServer {
         tracing::info!("Aria2 RPC server listening on http://{}/jsonrpc", self.addr);
 
         let listener = tokio::net::TcpListener::bind(&self.addr).await?;
-        axum::serve(listener, app).await?;
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async move {
+                let _ = shutdown.changed().await;
+            })
+            .await?;
         Ok(())
     }
 }

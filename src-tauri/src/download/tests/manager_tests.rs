@@ -103,6 +103,7 @@ fn normalize_settings_recovers_missing_scene_selection() -> TestResult {
             }],
         },
         logging: LogSettings::default(),
+        aria2_rpc: Aria2RpcSettings::default(),
     })?;
 
     assert_eq!(settings.network_learning.current_scene_id, "default");
@@ -132,6 +133,7 @@ fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
             automatic: AutomaticSchedulerSettings {
                 max_parallel_threads: 16,
                 max_threads_per_task: 8,
+                min_threads_per_task: 0,
                 adaptive_profile: AdaptiveProfile::Balanced,
             },
         },
@@ -157,6 +159,7 @@ fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
             }],
         },
         logging: LogSettings::default(),
+        aria2_rpc: Aria2RpcSettings::default(),
     };
 
     let (_, _, desired_thread_count, _) = resolve_thread_settings(
@@ -272,6 +275,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             bt: BtSettings::default(),
             network_learning: NetworkLearningSettings::default(),
             logging: LogSettings::default(),
+            aria2_rpc: Aria2RpcSettings::default(),
         })
         .await?;
 
@@ -352,6 +356,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
                 automatic: AutomaticSchedulerSettings {
                     max_parallel_threads: 3,
                     max_threads_per_task: 3,
+                    min_threads_per_task: 0,
                     adaptive_profile: AdaptiveProfile::Balanced,
                 },
             },
@@ -359,6 +364,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             bt: BtSettings::default(),
             network_learning: NetworkLearningSettings::default(),
             logging: LogSettings::default(),
+            aria2_rpc: Aria2RpcSettings::default(),
         })
         .await?;
 
@@ -429,6 +435,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
                 automatic: AutomaticSchedulerSettings {
                     max_parallel_threads: 4,
                     max_threads_per_task: 4,
+                    min_threads_per_task: 0,
                     adaptive_profile: AdaptiveProfile::Balanced,
                 },
             },
@@ -436,6 +443,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             bt: BtSettings::default(),
             network_learning: NetworkLearningSettings::default(),
             logging: LogSettings::default(),
+            aria2_rpc: Aria2RpcSettings::default(),
         })
         .await?;
 

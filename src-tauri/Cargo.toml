@@ -1,8 +1,8 @@
 [package]
 name = "downloader"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Tauri v2 desktop download manager — HTTP, BitTorrent, Metalink, SFTP"
+authors = ["downloader contributors"]
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,7 +12,7 @@ edition = "2024"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "downloader_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -39,12 +39,13 @@ fs4 = { version = "0.13", features = ["sync"] }
 librqbit = "8.1.1"
 ssh2 = "0.9"
 anyhow = "1"
-time = ">=0.3.2, <0.3.36"
+time = ">=0.3.2, <0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
 axum = { version = "0.8", features = ["ws"] }
 tower-http = { version = "0.6", features = ["cors"] }
 base64 = "0.22"
+rusqlite = { version = "0.34", features = ["bundled"] }
 
 [dev-dependencies]
 tempfile = "3"

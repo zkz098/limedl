@@ -3,7 +3,7 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
     process::Command,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -11,18 +11,19 @@ use librqbit::{
     AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, ManagedTorrent, Session,
     SessionOptions, SessionPersistenceConfig, TorrentStatsState, api::TorrentIdOrHash,
 };
+use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use super::{
     error::{DownloadError, Result},
+    lock_or_recover,
     types::{
         AppSettings, BtRuntimeStatus, BtSettings, BtUploadStatus, ChecksumMode, DownloadSnapshot,
         DownloadState, DownloadSummary, ProxyMode, StartDownloadRequest, TaskKind, ThreadMode,
     },
 };
 
-pub(super) const HTTP_PREFIX: &str = "http:";
 pub(super) const BT_PREFIX: &str = "bt:";
 const BT_PENDING_PREFIX: &str = "bt:pending:";
 
@@ -42,6 +43,8 @@ pub struct TorrentManager {
     bt_settings: Arc<Mutex<BtSettings>>,
     output_folders: Arc<Mutex<HashMap<usize, PathBuf>>>,
     pending: Arc<Mutex<HashMap<String, PendingTorrent>>>,
+    event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
+    last_states: Arc<Mutex<HashMap<usize, DownloadState>>>,
 }
 
 struct PendingTorrent {
@@ -100,11 +103,17 @@ impl TorrentManager {
             bt_settings: Arc::new(Mutex::new(settings.bt.clone())),
             output_folders: Arc::new(Mutex::new(HashMap::new())),
             pending: Arc::new(Mutex::new(HashMap::new())),
+            event_tx: Arc::new(Mutex::new(None)),
+            last_states: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
     pub fn update_settings(&self, settings: &AppSettings) {
         *lock_or_recover(&self.bt_settings, "bt settings") = settings.bt.clone();
+    }
+
+    pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
+        *lock_or_recover(&self.event_tx, "torrent event tx") = Some(tx);
     }
 
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
@@ -412,7 +421,8 @@ impl TorrentManager {
         let snapshot = self.status(download_id).await?;
         let path = PathBuf::from(&snapshot.destination_path);
         if path.exists() {
-            Command::new("explorer").arg(&path).spawn()?;
+            #[cfg(windows)]
+            { Command::new("explorer").arg(&path).spawn()?; }
             return Ok(());
         }
 
@@ -587,8 +597,10 @@ impl TorrentManager {
             speed_bytes_per_second: None,
             eta_seconds: None,
             uploaded_bytes: Some(0),
+            upload_speed_bytes_per_second: None,
             peer_count: Some(0),
             upload_status: Some(BtUploadStatus::Idle),
+            info_hash: None,
             created_at_ms: task.created_at_ms,
             updated_at_ms: now,
             chunks: vec![],
@@ -678,7 +690,13 @@ impl TorrentManager {
 
         Ok(settings.pause_upload_when_limit_reached && limit_reached)
     }
+}
 
+fn is_terminal(state: DownloadState) -> bool {
+    matches!(state, DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled)
+}
+
+impl TorrentManager {
     fn snapshot_from_handle(
         &self,
         id: usize,
@@ -722,6 +740,33 @@ impl TorrentManager {
             .map(|live| live.snapshot.peer_stats.live + live.snapshot.peer_stats.connecting);
         let peer_count = peer_count.unwrap_or(0);
         let upload_status = upload_status_from_stats(&stats, upload_limit_reached);
+        let upload_speed = stats
+            .live
+            .as_ref()
+            .map(|live| mib_per_second_to_bytes_per_second(live.upload_speed.mbps))
+            .filter(|speed| *speed > 0.0);
+
+        // Detect terminal state transitions and broadcast events
+        {
+            let mut last_states = lock_or_recover(&self.last_states, "torrent last states");
+            let prev_state = last_states.get(&id).copied();
+            if prev_state != Some(state) {
+                last_states.insert(id, state);
+                if let Some(ref tx) = *lock_or_recover(&self.event_tx, "torrent event tx") {
+                    let gid = crate::download::aria2_rpc::internal_id_to_gid(&bt_task_id(id));
+                    match state {
+                        DownloadState::Completed => {
+                            let _ = tx.send(build_event_json("aria2.onDownloadComplete", &gid));
+                            let _ = tx.send(build_event_json("aria2.onBtDownloadComplete", &gid));
+                        }
+                        DownloadState::Failed => {
+                            let _ = tx.send(build_event_json("aria2.onDownloadError", &gid));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
 
         DownloadSnapshot {
             id: bt_task_id(id),
@@ -747,11 +792,17 @@ impl TorrentManager {
             etag: None,
             last_modified: None,
             error: stats.error,
-            speed_bytes_per_second: speed,
-            eta_seconds: estimate_eta(stats.total_bytes, downloaded, speed),
+            speed_bytes_per_second: if is_terminal(state) { None } else { speed },
+            eta_seconds: if is_terminal(state) {
+                None
+            } else {
+                estimate_eta(stats.total_bytes, downloaded, speed)
+            },
             uploaded_bytes: Some(stats.uploaded_bytes),
+            upload_speed_bytes_per_second: if is_terminal(state) { None } else { upload_speed },
             peer_count: Some(peer_count),
             upload_status: Some(upload_status),
+            info_hash: Some(handle.info_hash().as_string()),
             created_at_ms: now,
             updated_at_ms: now,
             chunks: vec![],
@@ -807,22 +858,8 @@ pub(super) fn classify_download_source(
     Err(DownloadError::UnsupportedScheme)
 }
 
-pub(super) fn normalize_http_task_id(download_id: &str) -> &str {
-    download_id.strip_prefix(HTTP_PREFIX).unwrap_or(download_id)
-}
-
-/// Task ID lookups: IDs are prefixed strings routing between HTTP/BT/SFTP managers.
-/// Prefer `commands.rs`'s `dispatch_download_action!` macro for new commands.
-pub(super) fn is_bt_task_id(download_id: &str) -> bool {
-    download_id.starts_with(BT_PREFIX)
-}
-
 fn is_pending_bt_task_id(download_id: &str) -> bool {
     download_id.starts_with(BT_PENDING_PREFIX)
-}
-
-pub(super) fn http_task_id(download_id: String) -> String {
-    format!("{HTTP_PREFIX}{download_id}")
 }
 
 pub(super) fn build_add_torrent(source: &str) -> Result<AddTorrent<'_>> {
@@ -942,14 +979,13 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-fn lock_or_recover<'a, T>(mutex: &'a Mutex<T>, name: &str) -> MutexGuard<'a, T> {
-    match mutex.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            tracing::warn!("{name} lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        }
-    }
+fn build_event_json(method: &str, gid: &str) -> String {
+    serde_json::to_string(&serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": method,
+        "params": [{"gid": gid}]
+    }))
+    .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -957,10 +993,10 @@ mod tests {
     use ntest::timeout;
 
     use super::{
-        BT_PREFIX, DownloadSourceKind, build_add_torrent, classify_download_source, is_bt_task_id,
-        mib_per_second_to_bytes_per_second, normalize_http_task_id, upload_limit_reached,
+        BT_PREFIX, DownloadSourceKind, build_add_torrent, classify_download_source,
+        mib_per_second_to_bytes_per_second, upload_limit_reached,
     };
-    use crate::download::types::{BtSettings, StartDownloadRequest, TaskKind};
+    use crate::download::types::{BtSettings, StartDownloadRequest, TaskId, TaskKind};
 
     type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -1050,9 +1086,11 @@ mod tests {
     #[timeout(30_000)]
     #[test]
     fn routes_prefixed_ids() {
-        assert!(is_bt_task_id(&format!("{BT_PREFIX}1")));
-        assert_eq!(normalize_http_task_id("http:abc"), "abc");
-        assert_eq!(normalize_http_task_id("abc"), "abc");
+        let bt = TaskId::parse(&format!("{BT_PREFIX}1"));
+        assert!(matches!(bt, TaskId::Bt(_)));
+        assert_eq!(TaskId::parse("http:abc").http_inner(), "abc");
+        assert_eq!(TaskId::parse("abc").http_inner(), "abc");
+        assert!(!matches!(TaskId::parse("http:abc"), TaskId::Bt(_)));
     }
 
     #[timeout(30_000)]

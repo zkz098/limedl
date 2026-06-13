@@ -5,6 +5,7 @@ import DownloadComposer from "./components/downloader/DownloadComposer.vue";
 import DownloadInspector from "./components/downloader/DownloadInspector.vue";
 import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
 import SidebarBtStatus from "./components/sidebar/SidebarBtStatus.vue";
+import LabsPage from "./components/labs/LabsPage.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
@@ -58,10 +59,10 @@ const {
 const { t } = useI18n();
 const showComposerDialog = ref(false);
 const inspectorCollapsed = ref(false);
-const currentView = ref<"home" | "settings">("home");
+const currentView = ref<"home" | "settings" | "labs">("home");
 const appSettings = ref<AppSettings | null>(null);
 const pendingPermanentDeleteId = ref<string | null>(null);
-const pendingView = ref<"home" | "settings" | null>(null);
+const pendingView = ref<"home" | "settings" | "labs" | null>(null);
 const settingsHasUnsavedChanges = ref(false);
 const isSavingBeforeNavigation = ref(false);
 const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
@@ -95,17 +96,6 @@ const activeCount = computed(
 const completedCount = computed(
   () => downloads.value.filter((download) => download.state === "completed").length,
 );
-
-function showNotification(message: string) {
-  notificationMessage.value = message;
-  if (notificationTimer) {
-    clearTimeout(notificationTimer);
-  }
-  notificationTimer = setTimeout(() => {
-    notificationMessage.value = "";
-    notificationTimer = null;
-  }, 3600);
-}
 
 const handleSubmitStart = async () => {
   await submitStart();
@@ -141,7 +131,7 @@ function requestPermanentDelete(downloadId: string) {
   pendingPermanentDeleteId.value = downloadId;
 }
 
-function navigateTo(view: "home" | "settings") {
+function navigateTo(view: "home" | "settings" | "labs") {
   if (view === currentView.value) {
     return;
   }
@@ -359,6 +349,15 @@ onBeforeUnmount(() => {
           <span class="sidebar-nav__icon i-ri-settings-3-line" aria-hidden="true" />
           <span>{{ t("nav.settings") }}</span>
         </button>
+        <button
+          type="button"
+          class="sidebar-nav__item"
+          :class="{ 'sidebar-nav__item--active': currentView === 'labs' }"
+          @click="navigateTo('labs')"
+        >
+          <span class="sidebar-nav__icon i-ri-flask-line" aria-hidden="true" />
+          <span>{{ t("nav.labs") }}</span>
+        </button>
       </nav>
 
       <div class="sidebar__divider" aria-hidden="true" />
@@ -409,12 +408,13 @@ onBeforeUnmount(() => {
         @select="selectDownload"
       />
       <SettingsPage
-        v-else
+        v-else-if="currentView === 'settings'"
         ref="settingsPage"
         :settings="appSettings"
         @dirty-change="handleSettingsDirtyChange"
         @saved="handleSettingsSaved"
       />
+      <LabsPage v-else />
     </section>
 
     <Transition name="floating-inspector">

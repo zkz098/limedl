@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializableError {
+    pub kind: String,
+    pub message: String,
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ChecksumMode {
@@ -42,6 +49,70 @@ pub enum TaskKind {
     Bt,
     Metalink,
     Sftp,
+}
+
+/// Typed task identifier replacing fragile string-prefix routing (`is_bt_task_id` / `is_sftp_task_id`).
+///
+/// All three variants hold the **external** (wire-format) string so that `as_str()` returns
+/// exactly what the frontend sent.  Use `parse()` to construct from a raw download id and
+/// `http_inner()` to strip the `"http:"` prefix before routing to the HTTP manager.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TaskId {
+    Http(String),
+    Bt(String),
+    Sftp(String),
+}
+
+impl TaskId {
+    /// Construct a `TaskId` by inspecting the string prefix.
+    ///
+    /// - Starts with `"bt:"`   → `Bt`
+    /// - Starts with `"sftp:"` → `Sftp`
+    /// - Everything else       → `Http`
+    pub fn parse(id: &str) -> Self {
+        if id.starts_with("bt:") {
+            TaskId::Bt(id.to_string())
+        } else if id.starts_with("sftp:") {
+            TaskId::Sftp(id.to_string())
+        } else {
+            TaskId::Http(id.to_string())
+        }
+    }
+
+    /// The external (wire-format) string that this `TaskId` was constructed from.
+    pub fn as_str(&self) -> &str {
+        match self {
+            TaskId::Http(id) | TaskId::Bt(id) | TaskId::Sftp(id) => id.as_str(),
+        }
+    }
+
+    /// Strip the `"http:"` prefix for routing to the HTTP download manager.
+    ///
+    /// # Panics
+    /// Panics if called on a non-`Http` variant.
+    pub fn http_inner(&self) -> &str {
+        match self {
+            TaskId::Http(id) => id.strip_prefix("http:").unwrap_or(id),
+            _ => panic!("TaskId::http_inner called on {:?}", self),
+        }
+    }
+
+    /// Produce an external (prefixed) HTTP task id from a raw internal UUID string.
+    pub fn make_http(uuid: String) -> String {
+        format!("http:{uuid}")
+    }
+}
+
+impl From<&str> for TaskId {
+    fn from(id: &str) -> Self {
+        TaskId::parse(id)
+    }
+}
+
+impl std::fmt::Display for TaskId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -155,8 +226,10 @@ pub struct DownloadSnapshot {
     pub speed_bytes_per_second: Option<f64>,
     pub eta_seconds: Option<u64>,
     pub uploaded_bytes: Option<u64>,
+    pub upload_speed_bytes_per_second: Option<f64>,
     pub peer_count: Option<usize>,
     pub upload_status: Option<BtUploadStatus>,
+    pub info_hash: Option<String>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -185,8 +258,10 @@ pub struct DownloadSummary {
     pub speed_bytes_per_second: Option<f64>,
     pub eta_seconds: Option<u64>,
     pub uploaded_bytes: Option<u64>,
+    pub upload_speed_bytes_per_second: Option<f64>,
     pub peer_count: Option<usize>,
     pub upload_status: Option<BtUploadStatus>,
+    pub info_hash: Option<String>,
     pub error: Option<String>,
 }
 
@@ -224,8 +299,10 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             speed_bytes_per_second: value.speed_bytes_per_second,
             eta_seconds: value.eta_seconds,
             uploaded_bytes: value.uploaded_bytes,
+            upload_speed_bytes_per_second: value.upload_speed_bytes_per_second,
             peer_count: value.peer_count,
             upload_status: value.upload_status,
+            info_hash: value.info_hash.clone(),
             error: value.error.clone(),
         }
     }
@@ -487,7 +564,7 @@ pub struct AppSettings {
     pub aria2_rpc: Aria2RpcSettings,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Aria2RpcSettings {
     #[serde(default)]

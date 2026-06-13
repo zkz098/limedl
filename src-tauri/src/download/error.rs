@@ -30,6 +30,36 @@ pub enum DownloadError {
     Torrent(String),
     #[error("sftp error: {0}")]
     Sftp(String),
+    #[error("internal error: {0}")]
+    Internal(String),
+}
+
+impl DownloadError {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::UnsupportedScheme => "unsupported_scheme",
+            Self::NotFound => "not_found",
+            Self::AlreadyRunning => "already_running",
+            Self::NotResumable => "not_resumable",
+            Self::Canceled => "canceled",
+            Self::MissingFileName => "missing_file_name",
+            Self::Interrupted => "interrupted",
+            Self::Http(_) => "http",
+            Self::Io(_) => "io",
+            Self::Serde(_) => "serde",
+            Self::InvalidResponse(_) => "invalid_response",
+            Self::InvalidProxy(_) => "invalid_proxy",
+            Self::Torrent(_) => "torrent",
+            Self::Sftp(_) => "sftp",
+            Self::Internal(_) => "internal",
+        }
+    }
+}
+
+impl From<anyhow::Error> for DownloadError {
+    fn from(error: anyhow::Error) -> Self {
+        Self::Internal(format!("{error:#}"))
+    }
 }
 
 pub type Result<T> = std::result::Result<T, DownloadError>;

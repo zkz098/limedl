@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { debounce, throttle } from "es-toolkit";
 
-import { formatBytes, formatEta, formatSpeed, progressValue } from "../../lib/download-format";
+import { formatBytes, formatEta, formatSpeed, progressLabel, progressValue } from "../../lib/download-format";
 import { useI18n } from "../../i18n";
 import type { DownloadSummary } from "../../types/download";
 import UiBadge from "../ui/UiBadge.vue";
@@ -274,13 +274,6 @@ const triggerRefresh = throttle(() => {
   emit("refresh");
 }, 600);
 
-function labelForProgress(download: DownloadSummary) {
-  if (!download.totalBytes || download.totalBytes <= 0) {
-    return t("queue.pendingSize");
-  }
-
-  return `${progressValue(download).toFixed(1)}%`;
-}
 
 function labelForTaskKind(kind: DownloadSummary["kind"]) {
   if (kind === "bt") {
@@ -445,7 +438,7 @@ onUnmounted(() => {
               <td v-if="isColumnVisible('progress')" class="queue-cell queue-cell--progress">
                 <div class="queue-progress">
                   <div class="queue-progress__copy">
-                    <span>{{ labelForProgress(download) }}</span>
+                    <span>{{ progressLabel(download) }}</span>
                     <span>
                       {{ formatBytes(download.downloadedBytes) }} /
                       {{ formatBytes(download.totalBytes) }}

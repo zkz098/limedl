@@ -1,10 +1,11 @@
 mod download;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Context;
 use tauri::Manager;
+use tokio::sync::broadcast;
 use tokio::time::sleep;
 
 use download::{
@@ -51,11 +52,22 @@ pub fn run() {
 
                 let app_handle = app.handle().clone();
 
+                let rpc_shutdown = Arc::new(Mutex::new(None::<tokio::sync::watch::Sender<bool>>));
+
+                // Create a shared broadcast channel for Aria2 RPC event notifications.
+                // The sender is injected into all three managers so they can broadcast
+                // download-complete / download-error events at their natural lifecycle points.
+                let (event_tx, _event_rx) = broadcast::channel(256);
+                download_manager.set_event_tx(event_tx.clone());
+                torrent_manager.set_event_tx(event_tx.clone());
+                sftp_manager.set_event_tx(event_tx.clone());
+
                 app.manage(AppState {
                     manager: download_manager.clone(),
                     torrent_manager: torrent_manager.clone(),
                     sftp_manager: sftp_manager.clone(),
                     app_handle: app_handle.clone(),
+                    rpc_shutdown: rpc_shutdown.clone(),
                 });
 
                 {
@@ -68,6 +80,7 @@ pub fn run() {
                             torrent_manager: tm,
                             sftp_manager: sm,
                             app_handle,
+                            rpc_shutdown: Default::default(),
                         };
                         loop {
                             sleep(Duration::from_secs(2)).await;
@@ -77,17 +90,20 @@ pub fn run() {
                 }
 
                 if settings.aria2_rpc.enabled {
+                    let (tx, rx) = tokio::sync::watch::channel(false);
                     let rpc_server = Aria2RpcServer::new(
-                        download_manager,
-                        torrent_manager,
-                        sftp_manager,
+                        download_manager.clone(),
+                        torrent_manager.clone(),
+                        sftp_manager.clone(),
                         &settings.aria2_rpc,
+                        event_tx,
                     );
                     tauri::async_runtime::spawn(async move {
-                        if let Err(error) = rpc_server.serve().await {
+                        if let Err(error) = rpc_server.serve(rx).await {
                             tracing::error!("Aria2 RPC server stopped: {error}");
                         }
                     });
+                    *rpc_shutdown.lock().unwrap() = Some(tx);
                     tracing::info!("Aria2 RPC 服务器已启动");
                 }
 

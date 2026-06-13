@@ -4,22 +4,30 @@ use anyhow::{Context, anyhow};
 use tauri::State;
 
 use super::{
+    error::DownloadError,
     manager::{AppState, normalize_tracker_list_lossy, normalize_tracker_list_url},
-    sftp::is_sftp_task_id,
-    torrent::{
-        DownloadSourceKind, classify_download_source, http_task_id, is_bt_task_id,
-        normalize_http_task_id,
+    torrent::{DownloadSourceKind, classify_download_source},
+    types::{
+        AppSettings, BtRuntimeStatus, DownloadSnapshot, DownloadSummary, SerializableError,
+        StartDownloadRequest, TaskId,
     },
-    types::{AppSettings, BtRuntimeStatus, DownloadSnapshot, DownloadSummary, StartDownloadRequest},
+    Aria2RpcServer,
 };
 
-type CommandResult<T> = std::result::Result<T, String>;
+type CommandResult<T> = std::result::Result<T, SerializableError>;
 
 fn into_command_result<T>(result: anyhow::Result<T>) -> CommandResult<T> {
-    result.map_err(format_anyhow_error)
+    result.map_err(|error| {
+        let kind = error
+            .downcast_ref::<DownloadError>()
+            .map(|de| de.kind().to_string())
+            .unwrap_or_else(|| "internal".to_string());
+        let message = format_anyhow_chain(error);
+        SerializableError { kind, message }
+    })
 }
 
-fn format_anyhow_error(error: anyhow::Error) -> String {
+fn format_anyhow_chain(error: anyhow::Error) -> String {
     let mut chain = error.chain();
     let mut messages = Vec::new();
     if let Some(first) = chain.next() {
@@ -38,31 +46,36 @@ fn format_anyhow_error(error: anyhow::Error) -> String {
 /// Eliminates the copy-paste `if bt → else if sftp → else http` pattern across all commands.
 macro_rules! dispatch_download_action {
     ($state:expr, $download_id:expr, $action:ident, $http_err:literal, $bt_err:literal, $sftp_err:literal) => {{
-        if is_bt_task_id(&$download_id) {
-            into_command_result(
-                $state
-                    .torrent_manager
-                    .$action(&$download_id)
-                    .await
-                    .context($bt_err),
-            )
-        } else if is_sftp_task_id(&$download_id) {
-            into_command_result(
-                $state
-                    .sftp_manager
-                    .$action(&$download_id)
-                    .await
-                    .context($sftp_err),
-            )
-        } else {
-            into_command_result(
-                $state
-                    .manager
-                    .$action(normalize_http_task_id(&$download_id))
-                    .await
-                    .map(prefix_http_snapshot)
-                    .context($http_err),
-            )
+        let task_id = TaskId::parse(&$download_id);
+        match &task_id {
+            TaskId::Bt(_) => {
+                into_command_result(
+                    $state
+                        .torrent_manager
+                        .$action(&$download_id)
+                        .await
+                        .context($bt_err),
+                )
+            }
+            TaskId::Sftp(_) => {
+                into_command_result(
+                    $state
+                        .sftp_manager
+                        .$action(&$download_id)
+                        .await
+                        .context($sftp_err),
+                )
+            }
+            TaskId::Http(_) => {
+                into_command_result(
+                    $state
+                        .manager
+                        .$action(task_id.http_inner())
+                        .await
+                        .map(prefix_http_snapshot)
+                        .context($http_err),
+                )
+            }
         }
     }};
 }
@@ -81,7 +94,7 @@ pub async fn download_start(
                         .start(request)
                         .await
                         .context("启动 HTTP 下载失败")?;
-                    Ok(http_task_id(id))
+                    Ok(TaskId::make_http(id))
                 }
                 DownloadSourceKind::Torrent => state
                     .torrent_manager
@@ -94,7 +107,7 @@ pub async fn download_start(
                         .start_metalink(request)
                         .await
                         .context("启动 Metalink 下载失败")?;
-                    Ok(http_task_id(id))
+                    Ok(TaskId::make_http(id))
                 }
                 DownloadSourceKind::Sftp => {
                     let settings = state.manager.settings().await.context("读取下载设置失败")?;
@@ -205,22 +218,27 @@ pub async fn download_open_in_explorer(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<()> {
-    if is_bt_task_id(&download_id) {
-        return into_command_result(
-            state.torrent_manager.open_in_explorer(&download_id).await
-                .context("在资源管理器打开 BT 下载失败"),
-        );
+    let task_id = TaskId::parse(&download_id);
+    match &task_id {
+        TaskId::Bt(_) => {
+            into_command_result(
+                state.torrent_manager.open_in_explorer(&download_id).await
+                    .context("在资源管理器打开 BT 下载失败"),
+            )
+        }
+        TaskId::Sftp(_) => {
+            into_command_result(
+                state.sftp_manager.open_in_explorer(&download_id).await
+                    .context("在资源管理器打开 SFTP 下载失败"),
+            )
+        }
+        TaskId::Http(_) => {
+            into_command_result(
+                state.manager.open_in_explorer(task_id.http_inner()).await
+                    .context("在资源管理器打开 HTTP 下载失败"),
+            )
+        }
     }
-    if is_sftp_task_id(&download_id) {
-        return into_command_result(
-            state.sftp_manager.open_in_explorer(&download_id).await
-                .context("在资源管理器打开 SFTP 下载失败"),
-        );
-    }
-    into_command_result(
-        state.manager.open_in_explorer(normalize_http_task_id(&download_id)).await
-            .context("在资源管理器打开 HTTP 下载失败"),
-    )
 }
 
 #[tauri::command]
@@ -249,7 +267,7 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
                 .context("读取 HTTP 下载列表失败")?
                 .into_iter()
                 .map(|mut summary| {
-                    summary.id = http_task_id(summary.id);
+                    summary.id = TaskId::make_http(summary.id);
                     summary
                 })
                 .collect::<Vec<_>>();
@@ -291,12 +309,48 @@ pub async fn settings_save(
 ) -> CommandResult<AppSettings> {
     into_command_result(
         async {
+            let old_rpc = state.manager.settings().await
+                .context("读取当前设置失败")?
+                .aria2_rpc;
+
             let saved = state
                 .manager
                 .update_settings(settings)
                 .await
                 .context("保存设置失败")?;
             state.torrent_manager.update_settings(&saved);
+
+            let new_rpc = &saved.aria2_rpc;
+            if old_rpc != *new_rpc {
+                // Signal existing RPC server to shut down gracefully
+                if let Some(tx) = state.rpc_shutdown.lock().unwrap().take() {
+                    let _ = tx.send(true);
+                }
+                if new_rpc.enabled {
+                    let (tx, rx) = tokio::sync::watch::channel(false);
+                    let (event_tx, _event_rx) = tokio::sync::broadcast::channel(256);
+                    state.manager.set_event_tx(event_tx.clone());
+                    state.torrent_manager.set_event_tx(event_tx.clone());
+                    state.sftp_manager.set_event_tx(event_tx.clone());
+                    let rpc_server = Aria2RpcServer::new(
+                        state.manager.clone(),
+                        state.torrent_manager.clone(),
+                        state.sftp_manager.clone(),
+                        new_rpc,
+                        event_tx,
+                    );
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(error) = rpc_server.serve(rx).await {
+                            tracing::error!("Aria2 RPC server stopped: {error}");
+                        }
+                    });
+                    *state.rpc_shutdown.lock().unwrap() = Some(tx);
+                    tracing::info!("Aria2 RPC 服务器已重启 (port: {})", new_rpc.port);
+                } else {
+                    tracing::info!("Aria2 RPC 服务器已停止");
+                }
+            }
+
             Ok(saved)
         }
         .await,
@@ -341,6 +395,6 @@ pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandRes
 }
 
 fn prefix_http_snapshot(mut snapshot: DownloadSnapshot) -> DownloadSnapshot {
-    snapshot.id = http_task_id(snapshot.id);
+    snapshot.id = TaskId::make_http(snapshot.id);
     snapshot
 }

@@ -8,7 +8,7 @@ use super::types::{
 pub(super) const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct Manifest {
+pub(crate) struct Manifest {
     pub(super) id: String,
     pub(super) url: String,
     pub(super) final_url: String,
@@ -20,7 +20,6 @@ pub(super) struct Manifest {
     pub(super) file_name_locked: bool,
     pub(super) destination_path: String,
     pub(super) temp_path: String,
-    pub(super) manifest_path: String,
     pub(super) total_bytes: Option<u64>,
     pub(super) downloaded_bytes: u64,
     pub(super) supports_ranges: bool,
@@ -47,7 +46,7 @@ fn default_true() -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct ChunkManifest {
+pub(crate) struct ChunkManifest {
     pub(super) index: usize,
     pub(super) start: u64,
     pub(super) end: u64,
@@ -123,8 +122,10 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         speed_bytes_per_second: None,
         eta_seconds: None,
         uploaded_bytes: None,
+        upload_speed_bytes_per_second: None,
         peer_count: None,
         upload_status: None,
+        info_hash: None,
         created_at_ms: manifest.created_at_ms,
         updated_at_ms: manifest.updated_at_ms,
         chunks: manifest

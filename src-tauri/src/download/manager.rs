@@ -3,16 +3,17 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
     process::Command,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use anyhow::Context;
 use futures_util::StreamExt;
 use reqwest::{Client, Proxy, Response, StatusCode, Url, header, redirect::Policy};
 use tauri::Emitter;
 use tokio::{
     fs as async_fs,
-    sync::{Mutex as AsyncMutex, Notify, RwLock},
+    sync::{Notify, RwLock, broadcast},
     task::JoinSet,
     time::sleep,
 };
@@ -20,6 +21,8 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use super::{
+    aimd::{self, AimdState},
+    database::Database,
     error::{DownloadError, Result},
     file_alloc::{finalize_temp_file, open_download_file, reset_download_file, write_all_at},
     http::{
@@ -33,15 +36,15 @@ use super::{
         has_partial_chunk_progress, plan_chunks, snapshot_from_manifest, validators_changed,
     },
     metalink::parse_metalink,
+    migration::migrate_json_manifests,
     torrent::TorrentManager,
-    torrent::http_task_id,
     types::{
         AdaptiveProfile, AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
         ChecksumMode, ChunkInfo,
         DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
         DownloadSummary, LogSettings, NetworkLearningMetrics, NetworkLearningSettings,
         NetworkSceneProfile, ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings,
-        StartDownloadRequest, TaskKind, ThreadMode, TraditionalSchedulerSettings,
+        StartDownloadRequest, TaskId, TaskKind, ThreadMode, TraditionalSchedulerSettings,
         default_http_user_agent, default_tracker_list_url,
     },
 };
@@ -58,6 +61,7 @@ pub struct AppState {
     pub torrent_manager: Arc<TorrentManager>,
     pub sftp_manager: Arc<super::sftp::SftpManager>,
     pub app_handle: tauri::AppHandle,
+    pub rpc_shutdown: Arc<std::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
 }
 
 impl AppState {
@@ -67,7 +71,7 @@ impl AppState {
         if let Ok(http) = self.manager.list().await {
             summaries.extend(
                 http.into_iter().map(|mut summary| {
-                    summary.id = http_task_id(summary.id);
+                    summary.id = TaskId::make_http(summary.id);
                     summary
                 }),
             );
@@ -91,8 +95,9 @@ pub struct DownloadManager {
     settings_path: PathBuf,
     settings: Arc<RwLock<AppSettings>>,
     downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
-    persist_lock: Arc<AsyncMutex<()>>,
+    db: Arc<Database>,
     rebalance_notify: Arc<Notify>,
+    event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
 }
 
 struct ManagedDownload {
@@ -100,22 +105,48 @@ struct ManagedDownload {
     manifest: Mutex<Manifest>,
     runtime: Mutex<Option<CancellationToken>>,
     aimd: Mutex<AimdState>,
-    persist_lock: Arc<AsyncMutex<()>>,
 }
 
-#[derive(Debug, Default)]
-struct AimdState {
-    last_sample_bytes: u64,
-    last_sample_at: Option<Instant>,
-    last_throughput: Option<f64>,
-    cooldown_until: Option<Instant>,
-    consecutive_good_samples: u32,
-    consecutive_bad_samples: u32,
-    recent_penalty: bool,
-    throughput_sample_count: u32,
-    throughput_sum: f64,
-    peak_throughput: f64,
-    penalty_count: u32,
+impl ManagedDownload {
+    fn lock_snapshot(&self) -> MutexGuard<'_, DownloadSnapshot> {
+        match self.snapshot.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("snapshot lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn lock_manifest(&self) -> MutexGuard<'_, Manifest> {
+        match self.manifest.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("manifest lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn lock_runtime(&self) -> MutexGuard<'_, Option<CancellationToken>> {
+        match self.runtime.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("runtime lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn lock_aimd(&self) -> MutexGuard<'_, AimdState> {
+        match self.aimd.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("aimd lock poisoned, recovering with inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -144,17 +175,24 @@ impl DownloadManager {
         let settings = load_settings(&settings_path)?;
         let client = build_http_client(&settings)?;
 
+        let db_path = state_dir.join("downloads.db");
+        let db = Database::open(&db_path)?;
+        let db = Arc::new(db);
+
+        migrate_json_manifests(&db, &state_dir)?;
+
         let manager = Self {
             client: Arc::new(RwLock::new(client)),
             state_dir,
             settings_path,
             settings: Arc::new(RwLock::new(settings)),
             downloads: Arc::new(RwLock::new(HashMap::new())),
-            persist_lock: Arc::new(AsyncMutex::new(())),
+            db,
             rebalance_notify: Arc::new(Notify::new()),
+            event_tx: Arc::new(Mutex::new(None)),
         };
 
-        manager.load_existing_manifests()?;
+        manager.load_downloads_from_db()?;
         Ok(manager)
     }
 
@@ -164,6 +202,13 @@ impl DownloadManager {
 
     pub fn initial_settings(&self) -> AppSettings {
         self.settings.blocking_read().clone()
+    }
+
+    pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
+        *self.event_tx.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("event_tx lock poisoned, recovering with inner state");
+            poisoned.into_inner()
+        }) = Some(tx);
     }
 
     pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings> {
@@ -209,7 +254,6 @@ impl DownloadManager {
 
         let destination_path = unique_destination_path(&destination_dir, &safe_name);
         let temp_path = self.state_dir.join(format!("{download_id}.part"));
-        let manifest_path = self.state_dir.join(format!("{download_id}.json"));
         let supports_parallel = true;
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);
@@ -226,7 +270,6 @@ impl DownloadManager {
             file_name_locked: request.file_name.is_some(),
             destination_path: destination_path.to_string_lossy().to_string(),
             temp_path: temp_path.to_string_lossy().to_string(),
-            manifest_path: manifest_path.to_string_lossy().to_string(),
             total_bytes: None,
             downloaded_bytes: 0,
             supports_ranges: false,
@@ -253,8 +296,7 @@ impl DownloadManager {
             snapshot: Mutex::new(snapshot),
             manifest: Mutex::new(manifest),
             runtime: Mutex::new(None),
-            aimd: Mutex::new(initial_aimd_state(adaptive_profile, desired_thread_count)),
-            persist_lock: self.persist_lock.clone(),
+            aimd: Mutex::new(AimdState::initial(adaptive_profile, desired_thread_count)),
         });
 
         self.persist(managed.clone()).await?;
@@ -380,7 +422,7 @@ impl DownloadManager {
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
         let managed = self.get(download_id).await?;
         {
-            let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let mut snapshot = managed.lock_snapshot();
             if !matches!(
                 snapshot.state,
                 DownloadState::Downloading | DownloadState::Retrying | DownloadState::Queued
@@ -393,14 +435,14 @@ impl DownloadManager {
             snapshot.updated_at_ms = now_ms();
         }
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             manifest.state = DownloadState::Paused;
             manifest.connection_count = 0;
             manifest.allocated_thread_count = Some(0);
             manifest.updated_at_ms = now_ms();
         }
 
-        let token = { managed.runtime.lock().expect("runtime poisoned").clone() };
+        let token = { managed.lock_runtime().clone() };
         if let Some(token) = token {
             token.cancel();
         }
@@ -415,20 +457,20 @@ impl DownloadManager {
     pub async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
         let managed = self.get(download_id).await?;
         {
-            let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let mut snapshot = managed.lock_snapshot();
             snapshot.state = DownloadState::Canceled;
             snapshot.connection_count = 0;
             snapshot.allocated_thread_count = Some(0);
             snapshot.updated_at_ms = now_ms();
         }
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             manifest.state = DownloadState::Canceled;
             manifest.connection_count = 0;
             manifest.allocated_thread_count = Some(0);
             manifest.updated_at_ms = now_ms();
         }
-        let token = { managed.runtime.lock().expect("runtime poisoned").clone() };
+        let token = { managed.lock_runtime().clone() };
         if let Some(token) = token {
             token.cancel();
             self.wait_until_stopped(&managed).await;
@@ -450,19 +492,22 @@ impl DownloadManager {
 
     pub async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
         let managed = self.get(download_id).await?;
-        let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
+        let manifest = managed.lock_manifest().clone();
         let destination_path = PathBuf::from(&manifest.destination_path);
         let directory_path = PathBuf::from(&manifest.destination_dir);
 
         if destination_path.exists() {
-            Command::new("explorer")
+            #[cfg(windows)]
+            { Command::new("explorer")
                 .arg(format!("/select,{}", destination_path.display()))
                 .spawn()?;
+            }
             return Ok(());
         }
 
         if directory_path.exists() {
-            Command::new("explorer").arg(&directory_path).spawn()?;
+            #[cfg(windows)]
+            { Command::new("explorer").arg(&directory_path).spawn()?; }
             return Ok(());
         }
 
@@ -475,7 +520,7 @@ impl DownloadManager {
     pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
         let managed = self.get(download_id).await?;
         {
-            let snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let snapshot = managed.lock_snapshot();
             if matches!(
                 snapshot.state,
                 DownloadState::Downloading
@@ -494,22 +539,22 @@ impl DownloadManager {
         }
 
         {
-            let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let mut snapshot = managed.lock_snapshot();
             snapshot.state = DownloadState::Queued;
             snapshot.error = None;
             snapshot.updated_at_ms = now_ms();
         }
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             manifest.state = DownloadState::Queued;
             manifest.error = None;
             manifest.updated_at_ms = now_ms();
         }
         {
-            let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
+            let manifest = managed.lock_manifest().clone();
             if manifest.thread_mode == ThreadMode::Adaptive {
-                let mut aimd = managed.aimd.lock().expect("aimd poisoned");
-                *aimd = initial_aimd_state(
+                let mut aimd = managed.lock_aimd();
+                *aimd = AimdState::initial(
                     manifest.adaptive_profile_snapshot,
                     manifest.desired_thread_count,
                 );
@@ -557,35 +602,13 @@ impl DownloadManager {
         });
     }
 
-    fn load_existing_manifests(&self) -> Result<()> {
-        for entry in fs::read_dir(&self.state_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().and_then(|value| value.to_str()) != Some("json") {
-                continue;
-            }
+    fn load_downloads_from_db(&self) -> Result<()> {
+        let manifests = self
+            .db
+            .list_downloads()
+            .context("failed to load downloads from database")?;
 
-            let content = match fs::read_to_string(&path) {
-                Ok(content) => content,
-                Err(error) => {
-                    eprintln!(
-                        "[downloader] skip unreadable manifest {}: {error}",
-                        path.display()
-                    );
-                    continue;
-                }
-            };
-            let mut manifest = match serde_json::from_str::<Manifest>(&content) {
-                Ok(manifest) => manifest,
-                Err(error) => {
-                    eprintln!(
-                        "[downloader] skip invalid manifest {}: {error}",
-                        path.display()
-                    );
-                    continue;
-                }
-            };
-
+        for mut manifest in manifests {
             let destination_exists = Path::new(&manifest.destination_path).exists();
             let temp_exists = Path::new(&manifest.temp_path).exists();
 
@@ -612,11 +635,10 @@ impl DownloadManager {
                 snapshot: Mutex::new(snapshot),
                 manifest: Mutex::new(manifest.clone()),
                 runtime: Mutex::new(None),
-                aimd: Mutex::new(initial_aimd_state(
+                aimd: Mutex::new(AimdState::initial(
                     manifest.adaptive_profile_snapshot,
                     manifest.desired_thread_count,
                 )),
-                persist_lock: self.persist_lock.clone(),
             });
 
             self.downloads
@@ -668,7 +690,7 @@ impl DownloadManager {
 
     async fn spawn_download(&self, managed: Arc<ManagedDownload>, max_retries: u32) -> Result<()> {
         {
-            let mut runtime = managed.runtime.lock().expect("runtime poisoned");
+            let mut runtime = managed.lock_runtime();
             if runtime.is_some() {
                 return Ok(());
             }
@@ -678,11 +700,9 @@ impl DownloadManager {
         let client = self.client.read().await.clone();
         let manager = self.clone_arc();
         let token = managed
-            .runtime
-            .lock()
-            .expect("runtime poisoned")
+            .lock_runtime()
             .clone()
-            .expect("runtime just set");
+            .ok_or_else(|| anyhow::anyhow!("runtime token not set after initialization"))?;
 
         self.persist(managed.clone()).await?;
 
@@ -692,12 +712,12 @@ impl DownloadManager {
                 .await;
             if let Err(error) = result {
                 if matches!(error, DownloadError::Interrupted) {
-                    let mut runtime = managed.runtime.lock().expect("runtime poisoned");
+                    let mut runtime = managed.lock_runtime();
                     *runtime = None;
                     return;
                 }
                 {
-                    let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+                    let mut snapshot = managed.lock_snapshot();
                     snapshot.state = DownloadState::Failed;
                     snapshot.error = Some(error.to_string());
                     snapshot.connection_count = 0;
@@ -705,7 +725,7 @@ impl DownloadManager {
                     snapshot.updated_at_ms = now_ms();
                 }
                 {
-                    let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                    let mut manifest = managed.lock_manifest();
                     manifest.state = DownloadState::Failed;
                     manifest.error = Some(error.to_string());
                     manifest.connection_count = 0;
@@ -715,10 +735,21 @@ impl DownloadManager {
                 if let Err(error) = manager.learn_from_download(managed.clone()).await {
                     log_background_error("learn from failed download", &error);
                 }
+
+                // Broadcast aria2.onDownloadError
+                let event_tx = manager.event_tx.lock().unwrap_or_else(|poisoned| {
+                    tracing::warn!("event_tx lock poisoned in spawn_download");
+                    poisoned.into_inner()
+                });
+                if let Some(ref tx) = *event_tx {
+                    let download_id = managed.lock_snapshot().id.clone();
+                    let gid = format!("{:016x}", xxhash_rust::xxh3::xxh3_64(download_id.as_bytes()));
+                    let _ = tx.send(build_rpc_notification("aria2.onDownloadError", &gid));
+                }
             }
 
             let should_persist = {
-                let snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+                let snapshot = managed.lock_snapshot();
                 snapshot.state != DownloadState::Canceled
             };
             if should_persist
@@ -726,7 +757,7 @@ impl DownloadManager {
             {
                 log_background_error("persist background download state", &error);
             }
-            let mut runtime = managed.runtime.lock().expect("runtime poisoned");
+            let mut runtime = managed.lock_runtime();
             *runtime = None;
             manager.rebalance_notify.notify_waiters();
         });
@@ -741,7 +772,7 @@ impl DownloadManager {
         token: CancellationToken,
         max_retries: u32,
     ) -> Result<()> {
-        let current_manifest = { managed.manifest.lock().expect("manifest poisoned").clone() };
+        let current_manifest = { managed.lock_manifest().clone() };
         let metadata = self
             .probe(&current_manifest.url, &current_manifest.user_agent)
             .await?;
@@ -766,7 +797,7 @@ impl DownloadManager {
         let mut force_single_stream_restart = false;
         let mut refresh_aimd = false;
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             if !manifest.file_name_locked && manifest.downloaded_bytes == 0 {
                 let safe_name = sanitize_filename::sanitize(&metadata.file_name);
                 if !safe_name.is_empty() && safe_name != manifest.file_name {
@@ -822,8 +853,8 @@ impl DownloadManager {
             sync_snapshot_with_manifest(&managed, &manifest);
         }
         if refresh_aimd {
-            let mut aimd = managed.aimd.lock().expect("aimd poisoned");
-            *aimd = initial_aimd_state(adaptive_profile, desired_thread_count);
+            let mut aimd = managed.lock_aimd();
+            *aimd = AimdState::initial(adaptive_profile, desired_thread_count);
         }
         self.rebalance_allocations().await?;
         self.rebalance_notify.notify_waiters();
@@ -851,7 +882,7 @@ impl DownloadManager {
             }
             RunOutcome::Paused => {
                 {
-                    let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+                    let mut snapshot = managed.lock_snapshot();
                     snapshot.state = DownloadState::Paused;
                     snapshot.connection_count = 0;
                     snapshot.allocated_thread_count = Some(0);
@@ -859,7 +890,7 @@ impl DownloadManager {
                 }
 
                 {
-                    let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                    let mut manifest = managed.lock_manifest();
                     manifest.state = DownloadState::Paused;
                     manifest.connection_count = 0;
                     manifest.allocated_thread_count = Some(0);
@@ -885,10 +916,7 @@ impl DownloadManager {
         max_retries: u32,
     ) -> Result<RunOutcome> {
         let file_path = PathBuf::from(
-            managed
-                .manifest
-                .lock()
-                .expect("manifest poisoned")
+            managed.lock_manifest()
                 .temp_path
                 .clone(),
         );
@@ -897,10 +925,7 @@ impl DownloadManager {
         }
         let file = open_download_file(
             &file_path,
-            managed
-                .manifest
-                .lock()
-                .expect("manifest poisoned")
+            managed.lock_manifest()
                 .total_bytes,
         )?;
 
@@ -914,7 +939,7 @@ impl DownloadManager {
             }
 
             let (url, user_agent, validator, state) = {
-                let manifest = managed.manifest.lock().expect("manifest poisoned");
+                let manifest = managed.lock_manifest();
                 (
                     manifest.final_url.clone(),
                     manifest.user_agent.clone(),
@@ -930,7 +955,7 @@ impl DownloadManager {
             }
 
             let start_offset = {
-                let manifest = managed.manifest.lock().expect("manifest poisoned");
+                let manifest = managed.lock_manifest();
                 contiguous_prefix_end(&manifest)
             };
 
@@ -966,10 +991,7 @@ impl DownloadManager {
                 if start_offset > 0 {
                     reset_download_file(
                         &file,
-                        managed
-                            .manifest
-                            .lock()
-                            .expect("manifest poisoned")
+                        managed.lock_manifest()
                             .total_bytes,
                     )?;
                     self.reset_progress(&managed, true);
@@ -978,11 +1000,11 @@ impl DownloadManager {
             };
 
             {
-                let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+                let mut snapshot = managed.lock_snapshot();
                 snapshot.state = DownloadState::Downloading;
                 snapshot.connection_count = 1;
                 snapshot.updated_at_ms = now_ms();
-                let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                let mut manifest = managed.lock_manifest();
                 manifest.state = DownloadState::Downloading;
                 manifest.connection_count = 1;
                 manifest.updated_at_ms = now_ms();
@@ -997,13 +1019,13 @@ impl DownloadManager {
                 absolute_offset += chunk.len() as u64;
                 self.record_progress(&managed, None, chunk.len() as u64);
                 if last_persist.elapsed() >= PERSIST_INTERVAL {
-                    persist_manifest_snapshot(&managed).await?;
+                    persist_manifest_snapshot(&self.db, &managed).await?;
                     last_persist = Instant::now();
                 }
             }
 
             let finished = {
-                let manifest = managed.manifest.lock().expect("manifest poisoned");
+                let manifest = managed.lock_manifest();
                 match manifest.total_bytes {
                     Some(total) => manifest.downloaded_bytes >= total,
                     None => true,
@@ -1023,7 +1045,7 @@ impl DownloadManager {
         max_retries: u32,
     ) -> Result<RunOutcome> {
         let (file_path, total_size) = {
-            let manifest = managed.manifest.lock().expect("manifest poisoned");
+            let manifest = managed.lock_manifest();
             (
                 PathBuf::from(manifest.temp_path.clone()),
                 manifest.total_bytes,
@@ -1055,7 +1077,7 @@ impl DownloadManager {
             while workers.len() < target_workers {
                 let worker_id = next_worker_id;
                 let chunk = {
-                    let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                    let mut manifest = managed.lock_manifest();
                     claim_next_chunk(&mut manifest, worker_id)
                 };
                 let Some(chunk) = chunk else {
@@ -1063,24 +1085,25 @@ impl DownloadManager {
                 };
 
                 {
-                    let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+                    let mut snapshot = managed.lock_snapshot();
                     snapshot.state = DownloadState::Downloading;
                     snapshot.connection_count = target_workers;
                     snapshot.updated_at_ms = now_ms();
                 }
                 {
-                    let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                    let mut manifest = managed.lock_manifest();
                     manifest.state = DownloadState::Downloading;
                     manifest.connection_count = target_workers;
                     manifest.updated_at_ms = now_ms();
                 }
 
+                let db = self.db.clone();
                 let managed = managed.clone();
                 let client = client.clone();
                 let token = token.clone();
                 let file = file.clone();
                 workers.spawn(async move {
-                    download_chunk(managed, client, token, file, chunk, max_retries).await
+                    download_chunk(managed, client, token, file, chunk, max_retries, db).await
                 });
                 next_worker_id = next_worker_id.saturating_add(1);
             }
@@ -1120,14 +1143,14 @@ impl DownloadManager {
 
     async fn finalize_download(&self, managed: Arc<ManagedDownload>) -> Result<()> {
         {
-            let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let mut snapshot = managed.lock_snapshot();
             snapshot.state = DownloadState::Verifying;
             snapshot.connection_count = 0;
             snapshot.allocated_thread_count = Some(0);
             snapshot.updated_at_ms = now_ms();
         }
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             manifest.state = DownloadState::Verifying;
             manifest.connection_count = 0;
             manifest.allocated_thread_count = Some(0);
@@ -1136,7 +1159,7 @@ impl DownloadManager {
         self.persist(managed.clone()).await?;
 
         let (temp_path, destination_path, checksum_mode) = {
-            let manifest = managed.manifest.lock().expect("manifest poisoned");
+            let manifest = managed.lock_manifest();
             (
                 PathBuf::from(manifest.temp_path.clone()),
                 PathBuf::from(manifest.destination_path.clone()),
@@ -1155,7 +1178,7 @@ impl DownloadManager {
         finalize_temp_file(&temp_path, &destination_path)?;
 
         {
-            let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let mut snapshot = managed.lock_snapshot();
             snapshot.state = DownloadState::Completed;
             snapshot.downloaded_bytes = snapshot.total_bytes.unwrap_or(snapshot.downloaded_bytes);
             snapshot.checksum = checksum.clone();
@@ -1164,7 +1187,7 @@ impl DownloadManager {
             snapshot.updated_at_ms = now_ms();
         }
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             manifest.state = DownloadState::Completed;
             manifest.downloaded_bytes = manifest.total_bytes.unwrap_or(manifest.downloaded_bytes);
             manifest.checksum = checksum;
@@ -1177,20 +1200,29 @@ impl DownloadManager {
                 chunk.claimed_by = None;
             }
         }
-        self.persist(managed).await?;
+        self.persist(managed.clone()).await?;
+
+        // Broadcast aria2.onDownloadComplete via RPC event channel
+        let event_tx = self.event_tx.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("event_tx lock poisoned in finalize_download");
+            poisoned.into_inner()
+        });
+        if let Some(ref tx) = *event_tx {
+            let download_id = managed.lock_snapshot().id.clone();
+            let gid = format!("{:016x}", xxhash_rust::xxh3::xxh3_64(download_id.as_bytes()));
+            let _ = tx.send(build_rpc_notification("aria2.onDownloadComplete", &gid));
+        }
+
         Ok(())
     }
 
     async fn persist(&self, managed: Arc<ManagedDownload>) -> Result<()> {
-        let _guard = self.persist_lock.lock().await;
-        let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
-        let manifest_path = PathBuf::from(&manifest.manifest_path);
-        if let Some(parent) = manifest_path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-        let temp_path = manifest_path.with_extension("json.tmp");
-        tokio::fs::write(&temp_path, serde_json::to_vec_pretty(&manifest)?).await?;
-        tokio::fs::rename(&temp_path, &manifest_path).await?;
+        let manifest = managed.lock_manifest().clone();
+        let db = self.db.clone();
+        tokio::task::spawn_blocking(move || db.insert_download(&manifest))
+            .await
+            .context("persist task panicked")?
+            .context("failed to persist download to database")?;
         Ok(())
     }
 
@@ -1212,7 +1244,7 @@ impl DownloadManager {
 
         let downloads = self.downloads.read().await;
         for managed in downloads.values() {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             if manifest.thread_mode != ThreadMode::Adaptive
                 || manifest.state != DownloadState::Downloading
                 || !manifest.supports_ranges
@@ -1220,9 +1252,9 @@ impl DownloadManager {
                 continue;
             }
 
-            let mut aimd = managed.aimd.lock().expect("aimd poisoned");
+            let mut aimd = managed.lock_aimd();
             let now = Instant::now();
-            let throughput = sample_throughput(&mut aimd, manifest.downloaded_bytes, now)
+            let throughput = aimd.sample_throughput( manifest.downloaded_bytes, now)
                 .unwrap_or_else(|| {
                     manifest
                         .allocated_thread_count
@@ -1258,7 +1290,7 @@ impl DownloadManager {
                 AdaptiveProfile::Balanced => 1,
                 AdaptiveProfile::Aggressive => 1,
             };
-            let mut cooldown = cooldown_for_profile(profile);
+            let mut cooldown = aimd::cooldown_for_profile(profile);
 
             if let Some(metrics) = learning_metrics {
                 if metrics.penalty_rate >= 0.2 || metrics.stability_score <= 0.6 {
@@ -1293,13 +1325,13 @@ impl DownloadManager {
                 };
 
             if should_decrease {
-                manifest.desired_thread_count = Some(reduce_threads(current, profile, min_threads));
+                manifest.desired_thread_count = Some(aimd::reduce_threads(current, profile, min_threads));
                 manifest.updated_at_ms = now_ms();
                 aimd.cooldown_until = Some(now + cooldown);
                 aimd.consecutive_good_samples = 0;
                 aimd.consecutive_bad_samples = aimd.consecutive_bad_samples.saturating_add(1);
                 aimd.recent_penalty = false;
-                record_throughput_sample(&mut aimd, throughput);
+                aimd.record_sample( throughput);
                 continue;
             }
 
@@ -1323,14 +1355,14 @@ impl DownloadManager {
 
             aimd.last_throughput = Some(throughput);
             aimd.recent_penalty = false;
-            record_throughput_sample(&mut aimd, throughput);
+            aimd.record_sample( throughput);
         }
 
         Ok(())
     }
 
     async fn learn_from_download(&self, managed: Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
+        let manifest = managed.lock_manifest().clone();
         if manifest.thread_mode != ThreadMode::Adaptive {
             return Ok(());
         }
@@ -1351,7 +1383,7 @@ impl DownloadManager {
         }
 
         let sample = {
-            let aimd = managed.aimd.lock().expect("aimd poisoned");
+            let aimd = managed.lock_aimd();
             build_learning_sample(&manifest, &aimd, &settings)?
         };
         let alpha = match settings.network_learning.device_mode {
@@ -1366,10 +1398,16 @@ impl DownloadManager {
         let scene = &mut next_settings.network_learning.scenes[0];
         let next_metrics =
             blend_learning_metrics(scene.learned_metrics.as_ref(), sample, alpha, scheduler_cap);
-        scene.learned_metrics = Some(next_metrics);
+        scene.learned_metrics = Some(next_metrics.clone());
         scene.updated_at_ms = now;
 
-        persist_settings(&self.settings_path, &next_settings).await?;
+        let db = self.db.clone();
+        let scene_id = scene.id.clone();
+        tokio::task::spawn_blocking(move || db.upsert_learning_metrics(&scene_id, &next_metrics))
+            .await
+            .context("learn metrics persist task panicked")?
+            .context("failed to persist learning metrics")?;
+
         *self.settings.write().await = next_settings;
         Ok(())
     }
@@ -1382,16 +1420,13 @@ impl DownloadManager {
         match settings.scheduler.mode {
             SchedulerMode::Traditional => {
                 entries.sort_by_key(|managed| {
-                    managed
-                        .manifest
-                        .lock()
-                        .expect("manifest poisoned")
+                    managed.lock_manifest()
                         .created_at_ms
                 });
 
                 let mut running = 0usize;
                 for managed in entries {
-                    let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                    let mut manifest = managed.lock_manifest();
                     let terminal = matches!(
                         manifest.state,
                         DownloadState::Paused
@@ -1426,7 +1461,7 @@ impl DownloadManager {
                 let mut candidates = entries
                     .into_iter()
                     .filter(|managed| {
-                        let manifest = managed.manifest.lock().expect("manifest poisoned");
+                        let manifest = managed.lock_manifest();
                         !matches!(
                             manifest.state,
                             DownloadState::Paused
@@ -1439,8 +1474,8 @@ impl DownloadManager {
                     .collect::<Vec<_>>();
 
                 candidates.sort_by(|left, right| {
-                    remaining_bytes(&right.manifest.lock().expect("manifest poisoned")).cmp(
-                        &remaining_bytes(&left.manifest.lock().expect("manifest poisoned")),
+                    remaining_bytes(&right.lock_manifest()).cmp(
+                        &remaining_bytes(&left.lock_manifest()),
                     )
                 });
 
@@ -1448,7 +1483,7 @@ impl DownloadManager {
                 let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
                 let mut allocations: HashMap<String, usize> = HashMap::new();
                 for managed in &candidates {
-                    let manifest = managed.manifest.lock().expect("manifest poisoned");
+                    let manifest = managed.lock_manifest();
                     if remaining_budget == 0 {
                         allocations.insert(manifest.id.clone(), 0);
                         continue;
@@ -1465,7 +1500,7 @@ impl DownloadManager {
                 while remaining_budget > 0 {
                     let mut granted = false;
                     for managed in &candidates {
-                        let manifest = managed.manifest.lock().expect("manifest poisoned");
+                        let manifest = managed.lock_manifest();
                         let entry = allocations.entry(manifest.id.clone()).or_insert(0);
                         let cap = effective_allocation_cap(&manifest, &settings);
                         if *entry < cap {
@@ -1484,7 +1519,7 @@ impl DownloadManager {
                 }
 
                 for managed in downloads.values() {
-                    let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                    let mut manifest = managed.lock_manifest();
                     let allocation = allocations.get(&manifest.id).copied().unwrap_or(0);
                     if matches!(
                         manifest.state,
@@ -1515,7 +1550,7 @@ impl DownloadManager {
 
         let mut first_error = None;
         for managed in downloads.values() {
-            if let Err(error) = persist_manifest_snapshot(managed).await {
+            if let Err(error) = persist_manifest_snapshot(&self.db, managed).await {
                 log_background_error("persist rebalanced manifest", &error);
                 if first_error.is_none() {
                     first_error = Some(error);
@@ -1527,23 +1562,28 @@ impl DownloadManager {
         }
         Ok(())
     }
+}
 
+fn is_terminal(state: DownloadState) -> bool {
+    matches!(state, DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled)
+}
+
+impl DownloadManager {
     fn build_snapshot(&self, managed: Arc<ManagedDownload>) -> DownloadSnapshot {
-        let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned").clone();
-        if let Ok(manifest) = managed.manifest.lock() {
-            snapshot.chunks = manifest
-                .chunks
-                .iter()
-                .map(|c| ChunkInfo {
-                    index: c.index,
-                    start: c.start,
-                    end: c.end,
-                    downloaded: c.downloaded,
-                    completed: c.completed,
-                    claimed_by: c.claimed_by,
-                })
-                .collect();
-        }
+        let mut snapshot = managed.lock_snapshot().clone();
+        let manifest = managed.lock_manifest();
+        snapshot.chunks = manifest
+            .chunks
+            .iter()
+            .map(|c| ChunkInfo {
+                index: c.index,
+                start: c.start,
+                end: c.end,
+                downloaded: c.downloaded,
+                completed: c.completed,
+                claimed_by: c.claimed_by,
+            })
+            .collect();
         let elapsed = (snapshot
             .updated_at_ms
             .saturating_sub(snapshot.created_at_ms))
@@ -1566,8 +1606,16 @@ impl DownloadManager {
             }
             _ => None,
         };
-        snapshot.speed_bytes_per_second = speed;
-        snapshot.eta_seconds = eta;
+        snapshot.speed_bytes_per_second = if is_terminal(snapshot.state) {
+            None
+        } else {
+            speed
+        };
+        snapshot.eta_seconds = if is_terminal(snapshot.state) {
+            None
+        } else {
+            eta
+        };
         snapshot
     }
 
@@ -1579,13 +1627,13 @@ impl DownloadManager {
     ) {
         let now = now_ms();
         {
-            let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let mut snapshot = managed.lock_snapshot();
             snapshot.downloaded_bytes = snapshot.downloaded_bytes.saturating_add(bytes);
             snapshot.error = None;
             snapshot.updated_at_ms = now;
         }
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             manifest.downloaded_bytes = manifest.downloaded_bytes.saturating_add(bytes);
             manifest.error = None;
             manifest.updated_at_ms = now;
@@ -1607,7 +1655,7 @@ impl DownloadManager {
     fn reset_progress(&self, managed: &Arc<ManagedDownload>, force_single_stream: bool) {
         let now = now_ms();
         {
-            let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+            let mut snapshot = managed.lock_snapshot();
             snapshot.downloaded_bytes = 0;
             snapshot.updated_at_ms = now;
             if force_single_stream {
@@ -1619,7 +1667,7 @@ impl DownloadManager {
             }
         }
         {
-            let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+            let mut manifest = managed.lock_manifest();
             manifest.downloaded_bytes = 0;
             manifest.updated_at_ms = now;
             for chunk in &mut manifest.chunks {
@@ -1639,20 +1687,16 @@ impl DownloadManager {
     }
 
     fn cleanup_files(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
+        let manifest = managed.lock_manifest().clone();
         let temp_path = PathBuf::from(manifest.temp_path);
-        let manifest_path = PathBuf::from(manifest.manifest_path);
         if temp_path.exists() {
             remove_file_if_exists(&temp_path)?;
-        }
-        if manifest_path.exists() {
-            remove_file_if_exists(&manifest_path)?;
         }
         Ok(())
     }
 
     fn cleanup_destination_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
+        let manifest = managed.lock_manifest().clone();
         let destination_path = PathBuf::from(manifest.destination_path);
         if destination_path.exists() {
             fs::remove_file(destination_path)?;
@@ -1661,7 +1705,7 @@ impl DownloadManager {
     }
 
     fn prepare_fresh_temp_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
+        let manifest = managed.lock_manifest().clone();
         let temp_path = PathBuf::from(manifest.temp_path);
         if temp_path.exists() {
             fs::remove_file(&temp_path)?;
@@ -1681,7 +1725,7 @@ impl DownloadManager {
 
     async fn wait_until_stopped(&self, managed: &Arc<ManagedDownload>) {
         for _ in 0..1000 {
-            if managed.runtime.lock().expect("runtime poisoned").is_none() {
+            if managed.lock_runtime().is_none() {
                 return;
             }
             sleep(Duration::from_millis(10)).await;
@@ -1706,14 +1750,14 @@ impl DownloadManager {
 
         if needs_cancel_state {
             {
-                let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+                let mut snapshot = managed.lock_snapshot();
                 snapshot.state = DownloadState::Canceled;
                 snapshot.connection_count = 0;
                 snapshot.allocated_thread_count = Some(0);
                 snapshot.updated_at_ms = now_ms();
             }
             {
-                let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+                let mut manifest = managed.lock_manifest();
                 manifest.state = DownloadState::Canceled;
                 manifest.connection_count = 0;
                 manifest.allocated_thread_count = Some(0);
@@ -1721,7 +1765,7 @@ impl DownloadManager {
             }
         }
 
-        let token = { managed.runtime.lock().expect("runtime poisoned").clone() };
+        let token = { managed.lock_runtime().clone() };
         if let Some(token) = token {
             token.cancel();
             self.wait_until_stopped(&managed).await;
@@ -1732,6 +1776,9 @@ impl DownloadManager {
             self.cleanup_destination_file(&managed)?;
         }
         self.downloads.write().await.remove(download_id);
+        self.db
+            .delete_download(download_id)
+            .context("failed to delete download from database")?;
         self.rebalance_allocations().await?;
         self.rebalance_notify.notify_waiters();
         Ok(self.build_snapshot(managed))
@@ -1744,7 +1791,7 @@ impl DownloadManager {
     ) -> WaitState {
         loop {
             {
-                let manifest = managed.manifest.lock().expect("manifest poisoned");
+                let manifest = managed.lock_manifest();
                 if manifest.state == DownloadState::Canceled {
                     return WaitState::Canceled;
                 }
@@ -1757,7 +1804,7 @@ impl DownloadManager {
             }
 
             tokio::select! {
-                _ = token.cancelled() => return match managed.snapshot.lock().expect("snapshot poisoned").state {
+                _ = token.cancelled() => return match managed.lock_snapshot().state {
                     DownloadState::Canceled => WaitState::Canceled,
                     _ => WaitState::Paused,
                 },
@@ -1774,8 +1821,9 @@ impl DownloadManager {
             settings_path: self.settings_path.clone(),
             settings: self.settings.clone(),
             downloads: self.downloads.clone(),
-            persist_lock: self.persist_lock.clone(),
+            db: self.db.clone(),
             rebalance_notify: self.rebalance_notify.clone(),
+            event_tx: self.event_tx.clone(),
         })
     }
 }
@@ -1821,7 +1869,7 @@ fn resolve_thread_settings(
                 let learned_cap = active_scene_thread_cap(&settings.network_learning)
                     .unwrap_or(settings.scheduler.automatic.max_threads_per_task.max(1));
                 let desired = learned_initial
-                    .unwrap_or_else(|| initial_desired_threads(profile))
+                    .unwrap_or_else(|| aimd::initial_desired_threads(profile))
                     .min(learned_cap.max(1))
                     .min(settings.scheduler.automatic.max_threads_per_task.max(1));
                 (
@@ -1859,66 +1907,6 @@ fn thread_note(
             AdaptiveProfile::Aggressive => String::from("自适应 / 激进"),
         }),
     }
-}
-
-fn initial_aimd_state(_profile: Option<AdaptiveProfile>, _desired: Option<usize>) -> AimdState {
-    AimdState {
-        last_sample_bytes: 0,
-        last_sample_at: None,
-        last_throughput: None,
-        cooldown_until: None,
-        consecutive_good_samples: 0,
-        consecutive_bad_samples: 0,
-        recent_penalty: false,
-        throughput_sample_count: 0,
-        throughput_sum: 0.0,
-        peak_throughput: 0.0,
-        penalty_count: 0,
-    }
-}
-
-fn initial_desired_threads(profile: AdaptiveProfile) -> usize {
-    match profile {
-        AdaptiveProfile::Conservative => 1,
-        AdaptiveProfile::Balanced => 2,
-        AdaptiveProfile::Aggressive => 4,
-    }
-}
-
-fn reduce_threads(current: usize, profile: AdaptiveProfile, min_threads: usize) -> usize {
-    let reduced = match profile {
-        AdaptiveProfile::Conservative => ((current as f64) * 0.7).ceil() as usize,
-        AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => {
-            ((current as f64) * 0.5).ceil() as usize
-        }
-    };
-    reduced.max(min_threads.max(1))
-}
-
-fn cooldown_for_profile(profile: AdaptiveProfile) -> Duration {
-    match profile {
-        AdaptiveProfile::Conservative => Duration::from_secs(8),
-        AdaptiveProfile::Balanced => Duration::from_secs(6),
-        AdaptiveProfile::Aggressive => Duration::from_secs(4),
-    }
-}
-
-fn sample_throughput(aimd: &mut AimdState, downloaded_bytes: u64, now: Instant) -> Option<f64> {
-    let throughput = match aimd.last_sample_at {
-        Some(last_at) => {
-            let elapsed = now.duration_since(last_at).as_secs_f64();
-            if elapsed > 0.0 {
-                Some(downloaded_bytes.saturating_sub(aimd.last_sample_bytes) as f64 / elapsed)
-            } else {
-                None
-            }
-        }
-        None => None,
-    };
-
-    aimd.last_sample_bytes = downloaded_bytes;
-    aimd.last_sample_at = Some(now);
-    throughput
 }
 
 fn remaining_bytes(manifest: &Manifest) -> u64 {
@@ -1972,30 +1960,14 @@ fn active_scene_thread_cap(settings: &NetworkLearningSettings) -> Option<usize> 
     active_learning_metrics(settings).map(|metrics| metrics.recommended_max_threads_per_task_cap)
 }
 
-fn record_throughput_sample(aimd: &mut AimdState, throughput: f64) {
-    if throughput <= 0.0 || !throughput.is_finite() {
-        return;
-    }
-
-    aimd.throughput_sample_count = aimd.throughput_sample_count.saturating_add(1);
-    aimd.throughput_sum += throughput;
-    aimd.peak_throughput = aimd.peak_throughput.max(throughput);
-}
-
 fn current_allocation(managed: &Arc<ManagedDownload>) -> usize {
-    managed
-        .manifest
-        .lock()
-        .expect("manifest poisoned")
+    managed.lock_manifest()
         .allocated_thread_count
         .unwrap_or(0)
 }
 
 fn all_chunks_completed(managed: &Arc<ManagedDownload>) -> bool {
-    managed
-        .manifest
-        .lock()
-        .expect("manifest poisoned")
+    managed.lock_manifest()
         .chunks
         .iter()
         .all(|chunk| chunk.completed)
@@ -2011,7 +1983,7 @@ fn claim_next_chunk(manifest: &mut Manifest, worker_id: usize) -> Option<ChunkMa
 }
 
 fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize) {
-    let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+    let mut manifest = managed.lock_manifest();
     if let Some(chunk) = manifest
         .chunks
         .iter_mut()
@@ -2022,7 +1994,7 @@ fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize) {
 }
 
 fn sync_snapshot_with_manifest(managed: &Arc<ManagedDownload>, manifest: &Manifest) {
-    let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+    let mut snapshot = managed.lock_snapshot();
     snapshot.state = manifest.state;
     snapshot.final_url = manifest.final_url.clone();
     snapshot.file_name = manifest.file_name.clone();
@@ -2062,13 +2034,13 @@ fn record_progress_on_managed(
 ) {
     let now = now_ms();
     {
-        let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+        let mut snapshot = managed.lock_snapshot();
         snapshot.downloaded_bytes = snapshot.downloaded_bytes.saturating_add(bytes);
         snapshot.error = None;
         snapshot.updated_at_ms = now;
     }
     {
-        let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+        let mut manifest = managed.lock_manifest();
         manifest.downloaded_bytes = manifest.downloaded_bytes.saturating_add(bytes);
         manifest.error = None;
         manifest.updated_at_ms = now;
@@ -2228,7 +2200,7 @@ fn blend_learning_metrics(
 
 fn recommended_threads_from_bandwidth(throughput: f64, profile: AdaptiveProfile) -> usize {
     if throughput <= 0.0 {
-        return initial_desired_threads(profile);
+        return aimd::initial_desired_threads(profile);
     }
 
     match throughput {
@@ -2550,6 +2522,7 @@ async fn download_chunk(
     file: Arc<std::fs::File>,
     chunk: ChunkManifest,
     max_retries: u32,
+    db: Arc<Database>,
 ) -> Result<ChunkWorkerOutcome> {
     let mut current = chunk.start + chunk.downloaded;
     let end = chunk.end;
@@ -2563,7 +2536,7 @@ async fn download_chunk(
         if token.is_cancelled() {
             mark_chunk_released(&managed, chunk.index);
             return Ok(
-                match managed.snapshot.lock().expect("snapshot poisoned").state {
+                match managed.lock_snapshot().state {
                     DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
                     _ => ChunkWorkerOutcome::Paused,
                 },
@@ -2571,7 +2544,7 @@ async fn download_chunk(
         }
 
         let (url, user_agent, validator) = {
-            let manifest = managed.manifest.lock().expect("manifest poisoned");
+            let manifest = managed.lock_manifest();
             (
                 manifest.final_url.clone(),
                 manifest.user_agent.clone(),
@@ -2626,14 +2599,14 @@ async fn download_chunk(
                 record_progress_on_managed(&managed, Some(chunk.index), bytes.len() as u64);
             }
             if last_persist.elapsed() >= PERSIST_INTERVAL {
-                persist_manifest_snapshot(&managed).await?;
+                persist_manifest_snapshot(&db, &managed).await?;
                 last_persist = Instant::now();
             }
         }
     }
 
     {
-        let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+        let mut manifest = managed.lock_manifest();
         if let Some(target) = manifest
             .chunks
             .iter_mut()
@@ -2771,32 +2744,41 @@ where
 
 fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: String) {
     {
-        let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned");
+        let mut snapshot = managed.lock_snapshot();
         snapshot.state = DownloadState::Retrying;
         snapshot.error = Some(error.clone());
         snapshot.updated_at_ms = now_ms();
     }
     {
-        let mut manifest = managed.manifest.lock().expect("manifest poisoned");
+        let mut manifest = managed.lock_manifest();
         manifest.state = DownloadState::Retrying;
         manifest.error = Some(error);
         manifest.updated_at_ms = now_ms();
     }
-    let mut aimd = managed.aimd.lock().expect("aimd poisoned");
+    let mut aimd = managed.lock_aimd();
     aimd.recent_penalty = true;
     aimd.penalty_count = aimd.penalty_count.saturating_add(1);
 }
 
-async fn persist_manifest_snapshot(managed: &Arc<ManagedDownload>) -> Result<()> {
-    let _guard = managed.persist_lock.lock().await;
-    let manifest = managed.manifest.lock().expect("manifest poisoned").clone();
-    let manifest_path = PathBuf::from(&manifest.manifest_path);
-    if let Some(parent) = manifest_path.parent() {
-        tokio::fs::create_dir_all(parent).await?;
-    }
-    let temp_path = manifest_path.with_extension("json.tmp");
-    tokio::fs::write(&temp_path, serde_json::to_vec_pretty(&manifest)?).await?;
-    tokio::fs::rename(&temp_path, &manifest_path).await?;
+async fn persist_manifest_snapshot(
+    db: &Arc<Database>,
+    managed: &Arc<ManagedDownload>,
+) -> Result<()> {
+    let manifest = managed.lock_manifest().clone();
+    let state_text = super::database::download_state_to_text(&manifest.state);
+    let db = db.clone();
+    tokio::task::spawn_blocking(move || {
+        db.update_download_progress(
+            &manifest.id,
+            manifest.downloaded_bytes,
+            &manifest.chunks,
+            state_text,
+            manifest.updated_at_ms,
+        )
+    })
+    .await
+    .context("persist snapshot task panicked")?
+    .context("failed to persist download snapshot")?;
     Ok(())
 }
 
@@ -2805,14 +2787,14 @@ fn log_background_error(context: &str, error: impl std::fmt::Display) {
 }
 
 fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
-    match managed.snapshot.lock().expect("snapshot poisoned").state {
+    match managed.lock_snapshot().state {
         DownloadState::Canceled => RunOutcome::Canceled,
         _ => RunOutcome::Paused,
     }
 }
 
 fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutcome {
-    match managed.snapshot.lock().expect("snapshot poisoned").state {
+    match managed.lock_snapshot().state {
         DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
         _ => ChunkWorkerOutcome::Paused,
     }
@@ -2886,6 +2868,15 @@ impl ChecksumHasher {
             Self::Xxh3_128(hasher) => format!("{:032x}", hasher.digest128()),
         }
     }
+}
+
+fn build_rpc_notification(method: &str, gid: &str) -> String {
+    serde_json::to_string(&serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": method,
+        "params": [{"gid": gid}]
+    }))
+    .unwrap_or_default()
 }
 
 fn now_ms() -> u64 {

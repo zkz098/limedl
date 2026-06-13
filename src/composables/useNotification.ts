@@ -6,12 +6,10 @@ export interface Notification {
   type: "info" | "success" | "error" | "warning";
 }
 
-let nextId = 0;
-
-const notifications = ref<Notification[]>([]);
-const timers = new Map<number, ReturnType<typeof setTimeout>>();
-
 export function useNotification() {
+  let nextId = 0;
+  const notifications = ref<Notification[]>([]);
+  const timers = new Map<number, ReturnType<typeof setTimeout>>();
   function notify(message: string, type: Notification["type"] = "info", durationMs = 3600) {
     const id = nextId++;
     const notification: Notification = { id, message, type };

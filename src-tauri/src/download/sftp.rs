@@ -4,18 +4,19 @@ use std::{
     io::{self, Read, Seek, SeekFrom, Write},
     net::{TcpStream, ToSocketAddrs},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use reqwest::Url;
 use ssh2::Session;
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::{Mutex as AsyncMutex, broadcast};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use super::{
     error::{DownloadError, Result},
+    lock_or_recover,
     types::{
         AdaptiveProfile, BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState,
         DownloadSummary, StartDownloadRequest, TaskKind, ThreadMode,
@@ -30,6 +31,7 @@ const BUFFER_SIZE: usize = 128 * 1024;
 pub struct SftpManager {
     state_dir: PathBuf,
     tasks: Arc<AsyncMutex<HashMap<String, Arc<SftpTask>>>>,
+    event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
 }
 
 struct SftpTask {
@@ -66,7 +68,12 @@ impl SftpManager {
         Ok(Self {
             state_dir,
             tasks: Arc::new(AsyncMutex::new(HashMap::new())),
+            event_tx: Arc::new(Mutex::new(None)),
         })
+    }
+
+    pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
+        *lock_or_recover(&self.event_tx, "sftp event tx") = Some(tx);
     }
 
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
@@ -113,8 +120,10 @@ impl SftpManager {
             speed_bytes_per_second: None,
             eta_seconds: None,
             uploaded_bytes: None,
+            upload_speed_bytes_per_second: None,
             peer_count: None,
             upload_status: None::<BtUploadStatus>,
+            info_hash: None,
             created_at_ms: now,
             updated_at_ms: now,
             chunks: vec![],
@@ -133,8 +142,10 @@ impl SftpManager {
         });
 
         self.tasks.lock().await.insert(id.clone(), task.clone());
-        spawn_transfer(task);
-        Ok(sftp_task_id(&id))
+        let event_tx = lock_or_recover(&self.event_tx, "sftp event tx").clone();
+        let task_id = sftp_task_id(&id);
+        spawn_transfer(task, event_tx, task_id.clone());
+        Ok(task_id)
     }
 
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
@@ -150,7 +161,8 @@ impl SftpManager {
         if matches!(state, DownloadState::Canceled | DownloadState::Completed) {
             return Err(DownloadError::NotResumable);
         }
-        spawn_transfer(task.clone());
+        let event_tx = lock_or_recover(&self.event_tx, "sftp event tx").clone();
+        spawn_transfer(task.clone(), event_tx, download_id.to_string());
         Ok(current_snapshot(&task))
     }
 
@@ -177,7 +189,8 @@ impl SftpManager {
             task.destination_dir.clone()
         };
         if path.exists() {
-            std::process::Command::new("explorer").arg(path).spawn()?;
+            #[cfg(windows)]
+            { std::process::Command::new("explorer").arg(path).spawn()?; }
             return Ok(());
         }
 
@@ -229,10 +242,6 @@ impl SftpManager {
     }
 }
 
-pub(super) fn is_sftp_task_id(download_id: &str) -> bool {
-    download_id.starts_with(SFTP_PREFIX)
-}
-
 pub(super) fn sftp_task_id(download_id: &str) -> String {
     format!("{SFTP_PREFIX}{download_id}")
 }
@@ -241,7 +250,11 @@ fn normalize_sftp_task_id(download_id: &str) -> &str {
     download_id.strip_prefix(SFTP_PREFIX).unwrap_or(download_id)
 }
 
-fn spawn_transfer(task: Arc<SftpTask>) {
+fn spawn_transfer(
+    task: Arc<SftpTask>,
+    event_tx: Option<broadcast::Sender<String>>,
+    task_id: String,
+) {
     let token = CancellationToken::new();
     let runtime_id = Uuid::new_v4();
     {
@@ -272,7 +285,13 @@ fn spawn_transfer(task: Arc<SftpTask>) {
         }
 
         match outcome {
-            Ok(()) => update_snapshot(&task, DownloadState::Completed, None),
+            Ok(()) => {
+                update_snapshot(&task, DownloadState::Completed, None);
+                if let Some(ref tx) = event_tx {
+                    let gid = xxhash_rust::xxh3::xxh3_64(task_id.as_bytes());
+                    let _ = tx.send(build_notification("aria2.onDownloadComplete", &format!("{gid:016x}")));
+                }
+            }
             Err(DownloadError::Interrupted) => {
                 let state = lock_or_recover(&task.snapshot, "sftp snapshot").state;
                 if !matches!(state, DownloadState::Paused | DownloadState::Canceled) {
@@ -281,9 +300,19 @@ fn spawn_transfer(task: Arc<SftpTask>) {
                         DownloadState::Failed,
                         Some(String::from("interrupted")),
                     );
+                    if let Some(ref tx) = event_tx {
+                        let gid = xxhash_rust::xxh3::xxh3_64(task_id.as_bytes());
+                        let _ = tx.send(build_notification("aria2.onDownloadError", &format!("{gid:016x}")));
+                    }
                 }
             }
-            Err(error) => update_snapshot(&task, DownloadState::Failed, Some(error.to_string())),
+            Err(error) => {
+                update_snapshot(&task, DownloadState::Failed, Some(error.to_string()));
+                if let Some(ref tx) = event_tx {
+                    let gid = xxhash_rust::xxh3::xxh3_64(task_id.as_bytes());
+                    let _ = tx.send(build_notification("aria2.onDownloadError", &format!("{gid:016x}")));
+                }
+            }
         }
     });
 }
@@ -493,12 +522,24 @@ fn refresh_progress(task: &SftpTask) {
 
     let mut snapshot = lock_or_recover(&task.snapshot, "sftp snapshot");
     snapshot.downloaded_bytes = downloaded;
-    snapshot.speed_bytes_per_second = speed.filter(|value| *value > 0.0);
-    snapshot.eta_seconds = estimate_eta(
-        snapshot.total_bytes,
-        downloaded,
-        snapshot.speed_bytes_per_second,
+    let terminal = matches!(
+        snapshot.state,
+        DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
     );
+    snapshot.speed_bytes_per_second = if terminal {
+        None
+    } else {
+        speed.filter(|value| *value > 0.0)
+    };
+    snapshot.eta_seconds = if terminal {
+        None
+    } else {
+        estimate_eta(
+            snapshot.total_bytes,
+            downloaded,
+            snapshot.speed_bytes_per_second,
+        )
+    };
     snapshot.updated_at_ms = now;
 }
 
@@ -540,21 +581,20 @@ fn percent_decode(value: &str) -> String {
         .unwrap_or_else(|_| value.to_string())
 }
 
-fn lock_or_recover<'a, T>(mutex: &'a Mutex<T>, name: &str) -> MutexGuard<'a, T> {
-    match mutex.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            tracing::warn!("{name} lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        }
-    }
-}
-
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .unwrap_or(0)
+}
+
+fn build_notification(method: &str, gid: &str) -> String {
+    serde_json::to_string(&serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": method,
+        "params": [{"gid": gid}]
+    }))
+    .unwrap_or_default()
 }
 
 #[cfg(test)]

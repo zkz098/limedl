@@ -710,8 +710,12 @@ defineExpose({
 </style>
 
 <style>
-/* Shared structural styles for all settings panels */
-/* NOTE: non-scoped so child panels inherit these classes */
+/* ── Shared structural classes for settings panels ───────────────── */
+/* NON-SCOPED: the 7 child panel components require these classes to render correctly.
+   This is a deliberate coupling tradeoff — renaming any class here will silently
+   break child panels (SettingsAppearancePanel, SettingsBtPanel, etc.).
+   When modifying, search for usages across all settings/*.vue files.            */
+/* ────────────────────────────────────────────────────────────────── */
 
 .settings-section {
   display: grid;

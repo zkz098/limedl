@@ -30,18 +30,15 @@ export function usePolling(
 
   function start() {
     if (isPolling.value) {
-      console.warn("[usePolling] Polling already running");
       return;
     }
 
     isPolling.value = true;
 
-    // Execute immediately on start
-    poll().catch(console.error);
+    poll().catch((err) => console.error("[usePolling]", err));
 
-    // Then set interval for subsequent calls
     intervalId = setInterval(() => {
-      poll().catch(console.error);
+      poll().catch((err) => console.error("[usePolling]", err));
     }, interval);
   }
 

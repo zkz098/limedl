@@ -16,7 +16,7 @@ import { useDownloadForm } from "./useDownloadForm";
 import { useDownloadList } from "./useDownloadList";
 import type { BtRuntimeStatus, DownloadSnapshot, DownloadSummary } from "../types/download";
 
-function clearMessage() {}
+function clearMessage() { }
 
 export function useDownloader() {
   const downloads = ref<DownloadSummary[]>([]);
