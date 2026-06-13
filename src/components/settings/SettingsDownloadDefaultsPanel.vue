@@ -95,13 +95,7 @@ const emit = defineEmits<{
             "
             aria-hidden="true"
           />
-          <span class="settings-toggle__text">
-            {{
-              draft.download.enableMetalink
-                ? t("settings.metalinkSupportEnabled")
-                : t("settings.metalinkSupportDisabled")
-            }}
-          </span>
+          <span class="settings-toggle__text">{{ t("settings.metalinkSupport") }}</span>
         </button>
         <p class="settings-field__hint">{{ t("settings.metalinkSupportHint") }}</p>
       </label>
@@ -124,13 +118,7 @@ const emit = defineEmits<{
             "
             aria-hidden="true"
           />
-          <span class="settings-toggle__text">
-            {{
-              draft.download.enableSftp
-                ? t("settings.sftpSupportEnabled")
-                : t("settings.sftpSupportDisabled")
-            }}
-          </span>
+          <span class="settings-toggle__text">{{ t("settings.sftpSupport") }}</span>
         </button>
         <p class="settings-field__hint">{{ t("settings.sftpSupportHint") }}</p>
       </label>

@@ -42,9 +42,11 @@ const enUS = {
       newTaskTitle: "New Download Task",
       confirmDelete: "Confirm Delete",
       permanentDeleteTitle: "Permanently Delete Task",
-      permanentDeleteMessage: "This removes the task record and attempts to delete completed and temporary files. It cannot be restored in the app.",
+      permanentDeleteMessage:
+        "This removes the task record and attempts to delete completed and temporary files. It cannot be restored in the app.",
       unsavedSettingsTitle: "Unsaved Settings",
-      unsavedSettingsMessage: "Leaving Settings will discard your unsaved changes. Save settings first, or confirm that you want to discard them.",
+      unsavedSettingsMessage:
+        "Leaving Settings will discard your unsaved changes. Save settings first, or confirm that you want to discard them.",
       keepEditing: "Keep editing",
       saveSettingsAndLeave: "Save and leave",
       discardSettings: "Discard changes",
@@ -82,13 +84,18 @@ const enUS = {
       fixedThreads: "Fixed threads",
       adaptive: "Adaptive",
       traditionalHint: "Traditional mode runs tasks concurrently and uses fixed threads per task.",
-      adaptiveHint: "Automatic mode adjusts threads dynamically from network performance, global thread budget, and the current network profile.",
-      fixedHint: "Fixed threads in automatic mode are still constrained by the global budget and per-task limit {{count}}.",
+      adaptiveHint:
+        "Automatic mode adjusts threads dynamically from network performance, global thread budget, and the current network profile.",
+      fixedHint:
+        "Fixed threads in automatic mode are still constrained by the global budget and per-task limit {{count}}.",
       btStrategyTitle: "BT Transfer",
-      btHint: "BT tasks are managed by rqbit for connections, pieces, and seeding. Thread, retry, and checksum settings do not apply.",
-      metalinkHint: "Metalink expands into one or more HTTP download tasks, using file names, mirror URLs, and recognized checksum modes from the document.",
+      btHint:
+        "BT tasks are managed by rqbit for connections, pieces, and seeding. Thread, retry, and checksum settings do not apply.",
+      metalinkHint:
+        "Metalink expands into one or more HTTP download tasks, using file names, mirror URLs, and recognized checksum modes from the document.",
       sftpStrategyTitle: "SFTP Transfer",
-      sftpHint: "SFTP uses the built-in Rust SSH client and supports password URLs or local SSH Agent identities.",
+      sftpHint:
+        "SFTP uses the built-in Rust SSH client and supports password URLs or local SSH Agent identities.",
       starting: "Starting...",
       start: "Start download",
     },
@@ -141,6 +148,7 @@ const enUS = {
       progress: "Progress",
       noSelectionTitle: "No task selected",
       noSelectionDescription: "Select a task to inspect progress and details.",
+      chunkProgress: "Chunk Progress",
       fields: {
         url: "Download URL",
         finalUrl: "Final URL",
@@ -175,10 +183,24 @@ const enUS = {
       colorModeHint: "Follow system switches automatically from the current Windows app theme.",
       themeColor: "Interface Color",
       backgroundOpacity: "Background opacity",
-      backgroundOpacityHint: "Controls transparency and background blur for app panels and dialogs.",
+      backgroundOpacityHint:
+        "Controls transparency and background blur for app panels and dialogs.",
+      infoPanelKicker: "Info Panel",
+      infoPanelTitle: "Task Detail Display",
+      detailInfo: "Detail Info",
+      detailInfoPanel: "Detail Info Panel",
+      detailInfoHint: "Show detailed fields like URL, checksum, threads in the download inspector.",
+      heatmap: "Heatmap",
+      heatmapPanel: "Chunk Heatmap",
+      heatmapHint: "Show chunk progress heatmap in the HTTP download inspector.",
       saveHint: "Saved settings are applied immediately.",
       colorModeNames: { system: "Follow system", light: "Light", dark: "Dark" },
-      themeColorNames: { default: "Default (Cherry)", amber: "Amber", sky: "Sky Blue", lime: "Lime" },
+      themeColorNames: {
+        default: "Default (Cherry)",
+        amber: "Amber",
+        sky: "Sky Blue",
+        lime: "Lime",
+      },
       backgroundOpacityNames: { default: "Default", acrylic: "Acrylic", frosted: "Frosted glass" },
       scheduler: "Scheduler",
       schedulerTitle: "Thread Allocation",
@@ -188,11 +210,16 @@ const enUS = {
       maxThreadsPerTask: "Per-task thread limit",
       adaptiveProfile: "Adaptive profile",
       traditionalHint: "Tasks beyond the limit stay queued.",
-      adaptiveProfileHint: "Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed.",
+      adaptiveProfileHint:
+        "Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed.",
+      minThreadsPerTask: "Min threads per task",
+      minThreadsHint:
+        "Set to 0 to default to 50% of the max. The adaptive scheduler will not drop below this floor.",
       networkLearning: "Network Learning",
       networkLearningTitle: "Network Learning",
       deviceMode: "Device mode",
-      deviceModeHint: "Fixed devices learn actively, mobile devices do not learn, and semi-mobile devices accumulate profiles more conservatively.",
+      deviceModeHint:
+        "Fixed devices learn actively, mobile devices do not learn, and semi-mobile devices accumulate profiles more conservatively.",
       allowLearning: "Allow learning",
       allowUpdateProfile: "Allow network profile updates",
       pauseUpdateProfile: "Pause network profile updates",
@@ -201,53 +228,80 @@ const enUS = {
       bt: "BT",
       btTitle: "BT Settings",
       btDht: "DHT",
+      btDhtNetwork: "DHT Network",
       btDhtEnabled: "Enable DHT",
       btDhtDisabled: "Disable DHT",
-      btDhtHint: "DHT discovers peers from the distributed network. Changes apply to the BT session after restart.",
+      btDhtHint:
+        "DHT discovers peers from the distributed network. Changes apply to the BT session after restart.",
       btPex: "PEX",
+      btPexExchange: "PEX Exchange",
       btPexEnabled: "Enable PEX",
       btPexDisabled: "Disable PEX",
-      btPexHint: "PEX exchanges peer information with connected peers. The current engine stores this preference.",
+      btPexHint:
+        "PEX exchanges peer information with connected peers. The current engine stores this preference.",
       btTrackerList: "Tracker List",
       btTrackerListUrl: "Tracker List URL",
       btTrackerListUpdate: "Update",
       btTrackerListUpdating: "Updating...",
-      btTrackerListUrlHint: "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward.",
-      btTrackerListPlaceholder: "udp://tracker.opentrackr.org:1337/announce\nhttps://tracker.example.com/announce",
-      btTrackerListHint: "One tracker per line. {{count}} tracker(s) will be appended to new BT tasks.",
+      btTrackerListUrlHint:
+        "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward.",
+      btTrackerListPlaceholder:
+        "udp://tracker.opentrackr.org:1337/announce\nhttps://tracker.example.com/announce",
+      btTrackerListHint:
+        "One tracker per line. {{count}} tracker(s) will be appended to new BT tasks.",
       btPauseUpload: "Upload limit",
+      btAutoPauseUpload: "Auto-pause upload",
       btPauseUploadEnabled: "Pause upload after reaching a limit",
       btPauseUploadDisabled: "Do not pause upload automatically",
-      btPauseUploadHint: "When either the uploaded amount or share ratio limit is reached, the matching BT task is paused.",
+      btPauseUploadHint:
+        "When either the uploaded amount or share ratio limit is reached, the matching BT task is paused.",
       btUploadLimit: "Upload limit (MiB)",
       btUploadLimitHint: "Use 0 to disable the uploaded amount limit.",
       btRatioLimit: "Share ratio limit",
-      btRatioLimitHint: "For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit.",
+      btRatioLimitHint:
+        "For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit.",
       defaultDownloadLocation: "Default download location",
       defaultDownloadPlaceholder: "Tasks still require a folder when this is empty",
-      defaultDownloadHint: "New tasks will prefill this folder, and you can still override it per task.",
+      defaultDownloadHint:
+        "New tasks will prefill this folder, and you can still override it per task.",
       defaultRetries: "Default retries",
       globalChecksum: "Global checksum mode",
-      checksumHint: "New tasks no longer show checksum mode separately. This setting is used globally.",
+      checksumHint:
+        "New tasks no longer show checksum mode separately. This setting is used globally.",
       defaultUserAgent: "Default User-Agent",
       defaultUserAgentHint: "New HTTP tasks prefill this UA, and each task can override it.",
       metalinkSupport: "Metalink support",
       metalinkSupportEnabled: "Show Metalink in new tasks",
       metalinkSupportDisabled: "Hide Metalink",
-      metalinkSupportHint: "Disabled by default. When enabled, the new-task dialog shows Metalink and accepts .metalink / .meta4 documents.",
+      metalinkSupportHint:
+        "Disabled by default. When enabled, the new-task dialog shows Metalink and accepts .metalink / .meta4 documents.",
       sftpSupport: "SFTP support",
       sftpSupportEnabled: "Show SFTP in new tasks",
       sftpSupportDisabled: "Hide SFTP",
-      sftpSupportHint: "Disabled by default. When enabled, the new-task dialog shows SFTP and only accepts sftp:// URLs.",
+      sftpSupportHint:
+        "Disabled by default. When enabled, the new-task dialog shows SFTP and only accepts sftp:// URLs.",
+      aria2Rpc: "Aria2 RPC",
+      aria2RpcTitle: "Aria2 RPC Integration",
+      aria2RpcService: "RPC Service",
+      aria2RpcServiceEnabled: "Enable RPC service",
+      aria2RpcServiceDisabled: "Disable RPC service",
+      aria2RpcPort: "RPC Port",
+      aria2RpcSecret: "RPC Secret (optional)",
+      aria2RpcHint:
+        "Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol.",
+      aria2RpcSecretHint:
+        "Leave empty to accept connections without a secret. Set a token and configure it in your extension if needed.",
       logging: "Logging",
       loggingTitle: "Logging System",
       loggingEnabled: "Logging switch",
+      loggingToggleText: "Logging",
       loggingEnabledText: "Enable logging",
       loggingDisabledText: "Disable logging",
       loggingLevel: "Log level",
       loggingPath: "Log file path",
       loggingPathPlaceholder: "Leave empty to use default (app-data/logs/downloader.log)",
-      loggingPathHint: "Supports absolute or relative paths. Leave empty to write to logs/downloader.log under app data.",
+      loggingPathHint:
+        "Supports absolute or relative paths. Leave empty to write to logs/downloader.log under app data.",
       loggingAutoPath: "Auto path",
       network: "Network",
       proxyTitle: "Proxy",
@@ -257,22 +311,30 @@ const enUS = {
       defaultScene: "Default scene",
       unsetDefaultPath: "No default path",
       summaries: {
-        traditional: "Traditional mode runs up to {{tasks}} tasks at once. Current device mode is {{deviceMode}}.",
-        automatic: "Automatic mode uses a {{threads}} thread budget, a {{perTask}} per-task limit, and the {{profile}} profile.",
+        traditional:
+          "Traditional mode runs up to {{tasks}} tasks at once. Current device mode is {{deviceMode}}.",
+        automatic:
+          "Automatic mode uses a {{threads}} thread budget, a {{perTask}} per-task limit, and the {{profile}} profile.",
         proxyDisabled: "Currently connecting directly without a proxy.",
         proxySystem: "Currently following the system proxy configuration.",
         proxyManual: "Current manual proxy: {{url}}",
         proxyManualEmpty: "Enter a proxy URL, for example http://127.0.0.1:7890",
-        download: "Default location: {{location}}; default retries: {{retries}}; global checksum: {{checksum}}; UA: {{userAgent}}.",
-        btDisabled: "DHT: {{dht}}; PEX: {{pex}}; trackers: {{trackers}}; BT upload will not be paused automatically.",
+        download:
+          "Default location: {{location}}; default retries: {{retries}}; global checksum: {{checksum}}; UA: {{userAgent}}.",
+        btDisabled:
+          "DHT: {{dht}}; PEX: {{pex}}; trackers: {{trackers}}; BT upload will not be paused automatically.",
         bt: "DHT: {{dht}}; PEX: {{pex}}; trackers: {{trackers}}; pause upload after {{uploadLimit}} uploaded or share ratio {{ratioLimit}}.",
         loggingDisabled: "Logging is currently disabled.",
         loggingEnabled: "Logging enabled (level: {{level}}, path: {{path}}).",
         noNetworkProfile: "No network learning profile is available.",
-        mobile: "Current mode is {{deviceMode}}. Network profiles will not be accumulated, and automatic scheduling falls back to static adaptive behavior.",
-        learningPaused: "Network learning is paused. Automatic scheduling will fall back to static adaptive behavior.",
-        noLearningSamples: "No learning samples yet. Future automatic-mode downloads will gradually build a network profile.",
-        learning: "{{deviceMode}}; {{samples}} samples collected, recommended initial threads: {{threads}}.",
+        mobile:
+          "Current mode is {{deviceMode}}. Network profiles will not be accumulated, and automatic scheduling falls back to static adaptive behavior.",
+        learningPaused:
+          "Network learning is paused. Automatic scheduling will fall back to static adaptive behavior.",
+        noLearningSamples:
+          "No learning samples yet. Future automatic-mode downloads will gradually build a network profile.",
+        learning:
+          "{{deviceMode}}; {{samples}} samples collected, recommended initial threads: {{threads}}.",
       },
       metrics: {
         learningStatus: "Learning",
@@ -300,8 +362,10 @@ const enUS = {
       queueRefreshed: "Queue refreshed. {{count}} item(s) loaded.",
       statusRefreshed: "Status refreshed for {{fileName}}.",
       startRequired: "URL and destination directory are required.",
-      torrentStartRequired: "Enter a magnet link or choose a .torrent file, then set a destination folder.",
-      metalinkStartRequired: "Enter a Metalink URL or choose a .metalink / .meta4 file, then set a destination folder.",
+      torrentStartRequired:
+        "Enter a magnet link or choose a .torrent file, then set a destination folder.",
+      metalinkStartRequired:
+        "Enter a Metalink URL or choose a .metalink / .meta4 file, then set a destination folder.",
       sftpStartRequired: "Enter an SFTP URL and set a destination folder.",
       downloadQueued: "Download queued with id {{id}}.",
       downloadFailed: "Download failed: {{fileName}}. {{reason}}",

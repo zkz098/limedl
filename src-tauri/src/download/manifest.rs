@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::types::{
-    AdaptiveProfile, ChecksumMode, DownloadSnapshot, DownloadState, TaskKind, ThreadMode,
+    AdaptiveProfile, ChecksumMode, ChunkInfo, DownloadSnapshot, DownloadState, TaskKind, ThreadMode,
     default_http_user_agent,
 };
 
@@ -127,6 +127,18 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         upload_status: None,
         created_at_ms: manifest.created_at_ms,
         updated_at_ms: manifest.updated_at_ms,
+        chunks: manifest
+            .chunks
+            .iter()
+            .map(|c| ChunkInfo {
+                index: c.index,
+                start: c.start,
+                end: c.end,
+                downloaded: c.downloaded,
+                completed: c.completed,
+                claimed_by: c.claimed_by,
+            })
+            .collect(),
     }
 }
 

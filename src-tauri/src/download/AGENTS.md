@@ -3,6 +3,7 @@
 **12 files, ~6400 lines.** Core download module handling HTTP, BitTorrent, and SFTP protocols.
 
 ## STRUCTURE
+
 ```
 download/
 ├── mod.rs           # Module declarations + re-exports
@@ -20,17 +21,19 @@ download/
 ```
 
 ## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| HTTP download flow | `manager.rs` → `impl DownloadManager` | ~1622-line impl block starting at ~line 123 |
-| AIMD rate control | `manager.rs` → `AimdState` | 8-field struct, embedded in manager |
-| Task ID routing | `commands.rs` → `is_bt_task_id()` / `is_sftp_task_id()` | Fragile string prefix matching |
-| Torrent lifecycle | `torrent.rs` → `impl TorrentManager` | Two separate impl blocks (line 62, line 349) |
-| SFTP connection | `sftp.rs` | CONNECT_TIMEOUT 20s, IO_TIMEOUT 45s, BUFFER_SIZE 128KB |
-| Settings persistence | `types.rs` → `AppSettings` + `manager.rs` persistence | Settings stored alongside download manifests |
-| Error conversion | `commands.rs` → `into_command_result()` | Wraps `anyhow::Result` → `Result<T, String>` |
+
+| Task                 | Location                                                | Notes                                                  |
+| -------------------- | ------------------------------------------------------- | ------------------------------------------------------ |
+| HTTP download flow   | `manager.rs` → `impl DownloadManager`                   | ~1622-line impl block starting at ~line 123            |
+| AIMD rate control    | `manager.rs` → `AimdState`                              | 8-field struct, embedded in manager                    |
+| Task ID routing      | `commands.rs` → `is_bt_task_id()` / `is_sftp_task_id()` | Fragile string prefix matching                         |
+| Torrent lifecycle    | `torrent.rs` → `impl TorrentManager`                    | Two separate impl blocks (line 62, line 349)           |
+| SFTP connection      | `sftp.rs`                                               | CONNECT_TIMEOUT 20s, IO_TIMEOUT 45s, BUFFER_SIZE 128KB |
+| Settings persistence | `types.rs` → `AppSettings` + `manager.rs` persistence   | Settings stored alongside download manifests           |
+| Error conversion     | `commands.rs` → `into_command_result()`                 | Wraps `anyhow::Result` → `Result<T, String>`           |
 
 ## CONVENTIONS
+
 - **Error handling**: Commands return `Result<T, String>`. Use `into_command_result()` + `.context()` for enrichment. Domain errors via `thiserror` (`DownloadError`).
 - **State management**: `AppState` holds `DownloadManager` + `TorrentManager` + `SftpManager`. Managed via `app.manage()` in `lib.rs`.
 - **Module visibility**: `mod.rs` re-exports only the public API. No `pub use *` — explicit per-item.
@@ -40,6 +43,7 @@ download/
 - **Serde**: `#[serde(rename_all = "camelCase")]` on all shared types for JSON interop with TypeScript.
 
 ## ANTI-PATTERNS
+
 - **manager.rs god object** — 3414 lines, 108 functions. NEVER add more to this file. Split into `scheduler.rs`, `aimd.rs`, `persistence.rs`, `http_client.rs`.
 - **Copy-paste dispatch** — all 13 commands in `commands.rs` repeat the same 3-branch `if is_bt → else if is_sftp → else` pattern. Extract to macro or trait-based router.
 - **No bare `.unwrap()` calls** — all usages are safe `.unwrap_or()` variants with fallbacks.

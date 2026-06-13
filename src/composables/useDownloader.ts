@@ -1,9 +1,10 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import { getBtRuntimeStatus, getDownloadStatus } from "../lib/tauri/download-api";
 import { t } from "../i18n";
+import { useNotification } from "./useNotification";
 import {
-  autoRefreshIntervalMs,
   canPauseState,
   canResumeState,
   terminalStates,
@@ -15,12 +16,12 @@ import { useDownloadForm } from "./useDownloadForm";
 import { useDownloadList } from "./useDownloadList";
 import type { BtRuntimeStatus, DownloadSnapshot, DownloadSummary } from "../types/download";
 
+function clearMessage() {}
+
 export function useDownloader() {
   const downloads = ref<DownloadSummary[]>([]);
   const selectedId = ref<string | null>(null);
   const selectedSnapshot = ref<DownloadSnapshot | null>(null);
-  const errorMessage = ref<string>("");
-  const infoMessage = ref<string>("");
   const isAutoRefreshing = ref(false);
   const btRuntimeStatus = ref<BtRuntimeStatus | null>(null);
   const isRefreshingStatus = ref(false);
@@ -28,19 +29,14 @@ export function useDownloader() {
   const actionName = ref("");
   const isStarting = ref(false);
 
+  const { notifyInfo, notifyError } = useNotification();
+
   function setMessage(message: string) {
-    infoMessage.value = message;
-    errorMessage.value = "";
+    notifyInfo(message);
   }
 
   function setError(message: string) {
-    errorMessage.value = message;
-    infoMessage.value = "";
-  }
-
-  function clearMessage() {
-    errorMessage.value = "";
-    infoMessage.value = "";
+    notifyError(message);
   }
 
   function upsertSummary(summary: DownloadSummary) {
@@ -208,8 +204,37 @@ export function useDownloader() {
     clearMessage,
   });
 
-  let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  let unlistenEvent: UnlistenFn | null = null;
+  let fallbackTimer: ReturnType<typeof setInterval> | null = null;
   let autoRefreshInFlight = false;
+  let refreshChunksTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function handleDownloadUpdated(summary: DownloadSummary) {
+    upsertSummary(summary);
+
+    if (selectedId.value === summary.id && selectedSnapshot.value) {
+      selectedSnapshot.value = {
+        ...selectedSnapshot.value,
+        downloadedBytes: summary.downloadedBytes,
+        totalBytes: summary.totalBytes,
+        state: summary.state,
+        speedBytesPerSecond: summary.speedBytesPerSecond,
+        etaSeconds: summary.etaSeconds,
+        connectionCount: summary.connectionCount,
+        error: summary.error,
+      };
+
+      // Debounced full snapshot refresh so chunk progress (heatmap) stays current
+      if (refreshChunksTimer) {
+        clearTimeout(refreshChunksTimer);
+      }
+      refreshChunksTimer = setTimeout(() => {
+        if (selectedId.value === summary.id && !terminalStates.includes(summary.state)) {
+          void refreshStatus(summary.id, { silent: true });
+        }
+      }, 2_000);
+    }
+  }
 
   async function runAutoRefresh() {
     if (autoRefreshInFlight || isStarting.value || Boolean(actionName.value)) {
@@ -220,7 +245,6 @@ export function useDownloader() {
     isAutoRefreshing.value = true;
 
     try {
-      await list.refreshList({ silent: true });
       await refreshBtRuntimeStatus({ silent: true });
 
       if (shouldRefreshSelectedStatus()) {
@@ -233,19 +257,31 @@ export function useDownloader() {
   }
 
   function startAutoRefresh() {
-    if (autoRefreshTimer) {
-      return;
-    }
+    listen<DownloadSummary>("download-updated", (event) => {
+      handleDownloadUpdated(event.payload);
+    }).then((unlisten) => {
+      unlistenEvent = unlisten;
+    });
 
-    autoRefreshTimer = setInterval(() => {
+    fallbackTimer = setInterval(() => {
       void runAutoRefresh();
-    }, autoRefreshIntervalMs);
+    }, 3_000);
   }
 
   function stopAutoRefresh() {
-    if (autoRefreshTimer) {
-      clearInterval(autoRefreshTimer);
-      autoRefreshTimer = null;
+    if (unlistenEvent) {
+      unlistenEvent();
+      unlistenEvent = null;
+    }
+
+    if (fallbackTimer) {
+      clearInterval(fallbackTimer);
+      fallbackTimer = null;
+    }
+
+    if (refreshChunksTimer) {
+      clearTimeout(refreshChunksTimer);
+      refreshChunksTimer = null;
     }
 
     autoRefreshInFlight = false;
@@ -276,9 +312,7 @@ export function useDownloader() {
     canResumeDownload: actions.canResumeDownload,
     btRuntimeStatus,
     downloads: list.downloads,
-    errorMessage,
     form: form.form,
-    infoMessage,
     isAutoRefreshing: list.isAutoRefreshing,
     isPickingDirectory: form.isPickingDirectory,
     isPickingMetalink: form.isPickingMetalink,

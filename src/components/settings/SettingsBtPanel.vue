@@ -58,9 +58,7 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
             "
             aria-hidden="true"
           />
-          <span class="settings-toggle__text">
-            {{ draft.bt.dhtEnabled ? t("settings.btDhtEnabled") : t("settings.btDhtDisabled") }}
-          </span>
+          <span class="settings-toggle__text">{{ t("settings.btDhtNetwork") }}</span>
         </button>
         <p class="settings-field__hint">{{ t("settings.btDhtHint") }}</p>
       </label>
@@ -81,9 +79,7 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
             "
             aria-hidden="true"
           />
-          <span class="settings-toggle__text">
-            {{ draft.bt.pexEnabled ? t("settings.btPexEnabled") : t("settings.btPexDisabled") }}
-          </span>
+          <span class="settings-toggle__text">{{ t("settings.btPexExchange") }}</span>
         </button>
         <p class="settings-field__hint">{{ t("settings.btPexHint") }}</p>
       </label>
@@ -140,20 +136,10 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
         >
           <span
             class="settings-toggle__icon"
-            :class="
-              pauseEnabled
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
+            :class="pauseEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'"
             aria-hidden="true"
           />
-          <span class="settings-toggle__text">
-            {{
-              pauseEnabled
-                ? t("settings.btPauseUploadEnabled")
-                : t("settings.btPauseUploadDisabled")
-            }}
-          </span>
+          <span class="settings-toggle__text">{{ t("settings.btAutoPauseUpload") }}</span>
         </button>
         <p class="settings-field__hint">{{ t("settings.btPauseUploadHint") }}</p>
       </label>

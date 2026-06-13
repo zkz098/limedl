@@ -30,7 +30,7 @@ export function useFileDialog(): {
       });
 
       if (result) {
-        selectedPath.value = result as string;
+        selectedPath.value = result;
       }
     } catch (error) {
       console.error("[useFileDialog] Error opening file picker:", error);

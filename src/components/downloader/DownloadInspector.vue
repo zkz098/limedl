@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import ChunkHeatmap from "./ChunkHeatmap.vue";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
@@ -22,6 +23,8 @@ const props = defineProps<{
   isRefreshingStatus: boolean;
   selectedOverview: DownloadSummary | DownloadSnapshot | null;
   selectedSnapshot: DownloadSnapshot | null;
+  showDetailInfo: boolean;
+  showHeatmap: boolean;
 }>();
 
 defineEmits<{
@@ -238,7 +241,19 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
         </div>
       </div>
 
-      <dl class="detail-grid" v-if="detailRows.length">
+      <ChunkHeatmap
+        v-if="
+          showHeatmap
+          && selectedSnapshot?.kind === 'http'
+          && selectedSnapshot.supportsRanges
+          && selectedSnapshot.chunks?.length
+        "
+        :chunks="selectedSnapshot.chunks"
+        :title="t('inspector.chunkProgress')"
+        :totalBytes="selectedSnapshot.totalBytes ?? 0"
+      />
+
+      <dl v-if="showDetailInfo && detailRows.length" class="detail-grid">
         <div
           v-for="row in detailRows"
           :key="row.label"

@@ -46,21 +46,23 @@ export const DEFAULT_TRACKER_LIST_URL = "https://cf.trackerslist.com/best.txt";
 export const DEFAULT_HTTP_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(value >= 0.1 ? 0 : 1)}%`;
+}
+
 export function useSettingsSummaries(
   draft: AppSettings,
   t: (key: string, options?: Record<string, unknown>) => string,
   opts: SettingsOptionArrays,
 ) {
   function profileLabel(profile: AdaptiveProfile) {
-    return opts.adaptiveProfileOptions.value.find((option) => option.value === profile)?.label ?? profile;
+    return (
+      opts.adaptiveProfileOptions.value.find((option) => option.value === profile)?.label ?? profile
+    );
   }
 
   function deviceModeLabel(mode: DeviceLearningMode) {
     return opts.deviceModeOptions.value.find((option) => option.value === mode)?.label ?? mode;
-  }
-
-  function formatPercent(value: number) {
-    return `${(value * 100).toFixed(value >= 0.1 ? 0 : 1)}%`;
   }
 
   function stabilityLabel(score: number) {
@@ -120,8 +122,8 @@ export function useSettingsSummaries(
   const downloadSummary = computed(() => {
     const location = draft.download.defaultDownloadDir.trim() || t("settings.unsetDefaultPath");
     const checksumLabel =
-      opts.checksumOptions.value.find((option) => option.value === draft.download.defaultChecksum)?.label ??
-      draft.download.defaultChecksum;
+      opts.checksumOptions.value.find((option) => option.value === draft.download.defaultChecksum)
+        ?.label ?? draft.download.defaultChecksum;
 
     return t("settings.summaries.download", {
       location,
@@ -131,9 +133,7 @@ export function useSettingsSummaries(
     });
   });
 
-  const btUploadLimitMiB = computed(() =>
-    Math.round(draft.bt.uploadLimitBytes / 1024 / 1024),
-  );
+  const btUploadLimitMiB = computed(() => Math.round(draft.bt.uploadLimitBytes / 1024 / 1024));
 
   function setBtUploadLimitMiB(value: number | null) {
     draft.bt.uploadLimitBytes = Math.max(0, Math.trunc(value ?? 0)) * 1024 * 1024;
@@ -162,7 +162,9 @@ export function useSettingsSummaries(
     const uploadLimit =
       draft.bt.uploadLimitBytes > 0 ? formatBytes(draft.bt.uploadLimitBytes) : t("common.disabled");
     const ratioLimit =
-      draft.bt.uploadRatioLimit > 0 ? `${draft.bt.uploadRatioLimit.toFixed(2)}x` : t("common.disabled");
+      draft.bt.uploadRatioLimit > 0
+        ? `${draft.bt.uploadRatioLimit.toFixed(2)}x`
+        : t("common.disabled");
 
     return t("settings.summaries.bt", {
       dht: dhtLabel,
@@ -203,7 +205,7 @@ export function useSettingsSummaries(
   const networkMetricsCards = computed(() => {
     const metrics = currentScene.value?.learnedMetrics;
     const learningOpen =
-      draft.networkLearning.deviceMode !== "mobile" && Boolean(currentScene.value?.learningEnabled);
+      draft.networkLearning.deviceMode !== "mobile" && currentScene.value?.learningEnabled;
 
     return [
       {

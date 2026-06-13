@@ -3,6 +3,7 @@
 **4 subdirectories, ~22 files.** Vue 3 SFCs — reusable design system primitives + domain-specific feature components.
 
 ## STRUCTURE
+
 ```
 components/
 ├── ui/              # 8 reusable primitives → design system
@@ -23,17 +24,19 @@ components/
 ```
 
 ## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Button API | `ui/UiButton.vue` | Props: `variant`, `size`, `icon`, `loading`, `block` |
-| Dialog behavior | `ui/UiDialog.vue` | `v-model` binding, `closeOnOverlay`, `width`, named slots |
-| Select pattern | `ui/UiSelect.vue` | `defineProps<{ options: { value: T; label: string }[] }>()` |
-| Queue actions | `downloader/DownloadQueueTable.vue` | Emits: `pauseOrResume`, `deleteTask`, `openInExplorer`, `select` |
-| Inspector layout | `downloader/DownloadInspector.vue` | Accepts `selectedOverview` (snapshot or summary), computed detail rows |
-| Settings form | `settings/SettingsPage.vue` | 7 panels, reactive draft with dirty tracking via JSON compare |
-| Composer tabs | `downloader/DownloadComposer.vue` | Source type switching (URL/bt/metalink), conditional form fields |
+
+| Task             | Location                            | Notes                                                                  |
+| ---------------- | ----------------------------------- | ---------------------------------------------------------------------- |
+| Button API       | `ui/UiButton.vue`                   | Props: `variant`, `size`, `icon`, `loading`, `block`                   |
+| Dialog behavior  | `ui/UiDialog.vue`                   | `v-model` binding, `closeOnOverlay`, `width`, named slots              |
+| Select pattern   | `ui/UiSelect.vue`                   | `defineProps<{ options: { value: T; label: string }[] }>()`            |
+| Queue actions    | `downloader/DownloadQueueTable.vue` | Emits: `pauseOrResume`, `deleteTask`, `openInExplorer`, `select`       |
+| Inspector layout | `downloader/DownloadInspector.vue`  | Accepts `selectedOverview` (snapshot or summary), computed detail rows |
+| Settings form    | `settings/SettingsPage.vue`         | 7 panels, reactive draft with dirty tracking via JSON compare          |
+| Composer tabs    | `downloader/DownloadComposer.vue`   | Source type switching (URL/bt/metalink), conditional form fields       |
 
 ## CONVENTIONS
+
 - **All `<script setup lang="ts">`** — Composition API exclusively. No Options API.
 - **Props**: `defineProps<T>()` with type-only generics. `withDefaults()` for optional props.
 - **Emits**: `defineEmits<{ event: [arg: Type] }>()` — type-only generics, never runtime arrays.
@@ -44,6 +47,7 @@ components/
 - **No Pinia imports** — state comes from `useDownloader()` composable passed via props/emits.
 
 ## ANTI-PATTERNS
+
 - **SettingsPage.vue is monolithic** — 1464 lines in one SFC. Split into `AppearancePanel.vue`, `ProxyPanel.vue`, `SchedulerPanel.vue`, etc.
 - **DownloadQueueTable.vue at 905 lines** — mix of rendering, context menu, column management. Extract composables for column state and context menu logic.
 - **No component tests** — despite being reusable primitives, zero vitest/Vue Test Utils files.

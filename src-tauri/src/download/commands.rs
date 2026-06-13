@@ -39,31 +39,31 @@ fn format_anyhow_error(error: anyhow::Error) -> String {
 macro_rules! dispatch_download_action {
     ($state:expr, $download_id:expr, $action:ident, $http_err:literal, $bt_err:literal, $sftp_err:literal) => {{
         if is_bt_task_id(&$download_id) {
-            return into_command_result(
+            into_command_result(
                 $state
                     .torrent_manager
                     .$action(&$download_id)
                     .await
                     .context($bt_err),
-            );
-        }
-        if is_sftp_task_id(&$download_id) {
-            return into_command_result(
+            )
+        } else if is_sftp_task_id(&$download_id) {
+            into_command_result(
                 $state
                     .sftp_manager
                     .$action(&$download_id)
                     .await
                     .context($sftp_err),
-            );
+            )
+        } else {
+            into_command_result(
+                $state
+                    .manager
+                    .$action(normalize_http_task_id(&$download_id))
+                    .await
+                    .map(prefix_http_snapshot)
+                    .context($http_err),
+            )
         }
-        into_command_result(
-            $state
-                .manager
-                .$action(normalize_http_task_id(&$download_id))
-                .await
-                .map(prefix_http_snapshot)
-                .context($http_err),
-        )
     }};
 }
 
@@ -72,7 +72,7 @@ pub async fn download_start(
     state: State<'_, AppState>,
     request: StartDownloadRequest,
 ) -> CommandResult<String> {
-    into_command_result(
+    let result = into_command_result(
         async {
             match classify_download_source(&request).context("无法识别下载任务类型")? {
                 DownloadSourceKind::Http => {
@@ -110,7 +110,9 @@ pub async fn download_start(
             }
         }
         .await,
-    )
+    );
+    state.emit_all_downloads().await;
+    result
 }
 
 #[tauri::command]
@@ -118,14 +120,16 @@ pub async fn download_pause(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    dispatch_download_action!(
+    let result = dispatch_download_action!(
         state,
         download_id,
         pause,
         "暂停 HTTP 下载失败",
         "暂停 BT 下载失败",
         "暂停 SFTP 下载失败"
-    )
+    );
+    state.emit_all_downloads().await;
+    result
 }
 
 #[tauri::command]
@@ -133,14 +137,16 @@ pub async fn download_resume(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    dispatch_download_action!(
+    let result = dispatch_download_action!(
         state,
         download_id,
         resume,
         "恢复 HTTP 下载失败",
         "恢复 BT 下载失败",
         "恢复 SFTP 下载失败"
-    )
+    );
+    state.emit_all_downloads().await;
+    result
 }
 
 #[tauri::command]
@@ -148,14 +154,16 @@ pub async fn download_cancel(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    dispatch_download_action!(
+    let result = dispatch_download_action!(
         state,
         download_id,
         cancel,
         "取消 HTTP 下载失败",
         "取消 BT 下载失败",
         "取消 SFTP 下载失败"
-    )
+    );
+    state.emit_all_downloads().await;
+    result
 }
 
 #[tauri::command]
@@ -163,14 +171,16 @@ pub async fn download_remove(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    dispatch_download_action!(
+    let result = dispatch_download_action!(
         state,
         download_id,
         remove,
         "移除 HTTP 下载失败",
         "移除 BT 下载失败",
         "移除 SFTP 下载失败"
-    )
+    );
+    state.emit_all_downloads().await;
+    result
 }
 
 #[tauri::command]
@@ -178,14 +188,16 @@ pub async fn download_purge(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    dispatch_download_action!(
+    let result = dispatch_download_action!(
         state,
         download_id,
         purge,
         "彻底删除 HTTP 下载失败",
         "彻底删除 BT 下载失败",
         "彻底删除 SFTP 下载失败"
-    )
+    );
+    state.emit_all_downloads().await;
+    result
 }
 
 #[tauri::command]

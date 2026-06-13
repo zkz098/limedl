@@ -62,6 +62,15 @@ export interface DownloadSummary {
   error?: string;
 }
 
+export interface ChunkInfo {
+  index: number;
+  start: number;
+  end: number;
+  downloaded: number;
+  completed: boolean;
+  claimedBy: number | null;
+}
+
 export interface DownloadSnapshot {
   id: string;
   kind: TaskKind;
@@ -93,6 +102,7 @@ export interface DownloadSnapshot {
   uploadStatus?: BtUploadStatus;
   createdAtMs: number;
   updatedAtMs: number;
+  chunks?: ChunkInfo[];
 }
 
 export interface BtRuntimeStatus {

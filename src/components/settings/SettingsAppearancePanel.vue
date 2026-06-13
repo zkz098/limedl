@@ -23,7 +23,8 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="settings-section">
+  <div class="appearance-panel">
+    <section class="settings-section">
     <div class="settings-section__head">
       <div>
         <p class="section-kicker">{{ t("language.label") }}</p>
@@ -64,7 +65,7 @@ const emit = defineEmits<{
         <span class="settings-field__label">{{ t("settings.themeColor") }}</span>
         <div class="theme-color-options">
           <button
-            v-for="color in (['default', 'amber', 'sky', 'lime'] as ThemeColor[])"
+            v-for="color in ['default', 'amber', 'sky', 'lime'] as ThemeColor[]"
             :key="color"
             type="button"
             class="theme-color-button"
@@ -94,9 +95,73 @@ const emit = defineEmits<{
       </label>
     </div>
   </section>
+
+  <section class="settings-section">
+    <div class="settings-section__head">
+      <div>
+        <p class="section-kicker">{{ t("settings.infoPanelKicker") }}</p>
+        <h3>{{ t("settings.infoPanelTitle") }}</h3>
+      </div>
+      <span class="settings-section__icon i-ri-information-line" aria-hidden="true" />
+    </div>
+
+    <div class="settings-grid">
+      <label class="settings-field">
+        <span class="settings-field__label">{{ t("settings.detailInfo") }}</span>
+        <button
+          type="button"
+          class="settings-toggle"
+          :class="{ 'settings-toggle--active': draft.appearance.showDetailInfo }"
+          :aria-pressed="draft.appearance.showDetailInfo"
+          @click="draft.appearance.showDetailInfo = !draft.appearance.showDetailInfo"
+        >
+          <span
+            class="settings-toggle__icon"
+            :class="
+              draft.appearance.showDetailInfo
+                ? 'i-ri-checkbox-circle-fill'
+                : 'i-ri-checkbox-blank-circle-line'
+            "
+            aria-hidden="true"
+          />
+          <span class="settings-toggle__text">{{ t("settings.detailInfoPanel") }}</span>
+        </button>
+        <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
+      </label>
+
+      <label class="settings-field">
+        <span class="settings-field__label">{{ t("settings.heatmap") }}</span>
+        <button
+          type="button"
+          class="settings-toggle"
+          :class="{ 'settings-toggle--active': draft.appearance.showHeatmap }"
+          :aria-pressed="draft.appearance.showHeatmap"
+          @click="draft.appearance.showHeatmap = !draft.appearance.showHeatmap"
+        >
+          <span
+            class="settings-toggle__icon"
+            :class="
+              draft.appearance.showHeatmap
+                ? 'i-ri-checkbox-circle-fill'
+                : 'i-ri-checkbox-blank-circle-line'
+            "
+            aria-hidden="true"
+          />
+          <span class="settings-toggle__text">{{ t("settings.heatmapPanel") }}</span>
+        </button>
+        <p class="settings-field__hint">{{ t("settings.heatmapHint") }}</p>
+      </label>
+    </div>
+  </section>
+  </div>
 </template>
 
 <style scoped>
+.appearance-panel {
+  display: grid;
+  gap: 1rem;
+}
+
 .theme-color-options {
   display: flex;
   flex-wrap: wrap;
@@ -137,7 +202,7 @@ const emit = defineEmits<{
 }
 
 .theme-color-button--default {
-  background: linear-gradient(135deg, #6366f1, #a855f7);
+  background: linear-gradient(135deg, #f472b6, #ec4899);
   color: #ffffff;
 }
 

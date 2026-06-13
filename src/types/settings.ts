@@ -13,6 +13,8 @@ export interface AppearanceSettings {
   themeColor: ThemeColor;
   backgroundOpacity: BackgroundOpacityPreset;
   colorMode: ColorMode;
+  showDetailInfo: boolean;
+  showHeatmap: boolean;
 }
 
 export interface ProxySettings {
@@ -27,6 +29,7 @@ export interface TraditionalSchedulerSettings {
 export interface AutomaticSchedulerSettings {
   maxParallelThreads: number;
   maxThreadsPerTask: number;
+  minThreadsPerTask: number;
   adaptiveProfile: AdaptiveProfile;
 }
 
@@ -85,6 +88,12 @@ export interface LogSettings {
   filePath: string;
 }
 
+export interface Aria2RpcSettings {
+  enabled: boolean;
+  port: number;
+  secret: string | null;
+}
+
 export interface AppSettings {
   appearance: AppearanceSettings;
   proxy: ProxySettings;
@@ -93,4 +102,5 @@ export interface AppSettings {
   bt: BtSettings;
   networkLearning: NetworkLearningSettings;
   logging: LogSettings;
+  aria2Rpc: Aria2RpcSettings;
 }

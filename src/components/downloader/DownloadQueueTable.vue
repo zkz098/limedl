@@ -13,8 +13,6 @@ type ColumnKey = "file" | "status" | "progress" | "speed" | "eta";
 
 const props = defineProps<{
   downloads: DownloadSummary[];
-  errorMessage: string;
-  infoMessage: string;
   isAutoRefreshing: boolean;
   isRefreshingList: boolean;
   selectedId: string | null;
@@ -405,9 +403,6 @@ onUnmounted(() => {
         </UiButton>
       </div>
     </div>
-
-    <p v-if="infoMessage" class="status-banner status-banner--info">{{ infoMessage }}</p>
-    <p v-if="errorMessage" class="status-banner status-banner--error">{{ errorMessage }}</p>
 
     <div v-if="downloads.length" class="queue-panel__table">
       <div class="queue-table-shell">

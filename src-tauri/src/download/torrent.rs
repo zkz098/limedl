@@ -178,7 +178,7 @@ impl TorrentManager {
         tokio::spawn(async move {
             let result = add_torrent_to_session(&session, &source, &destination_dir, &bt_settings)
                 .await
-                .map(|id| {
+                .inspect(|&id| {
                     output_folders
                         .lock()
                         .unwrap_or_else(|poisoned| {
@@ -188,7 +188,6 @@ impl TorrentManager {
                             poisoned.into_inner()
                         })
                         .insert(id, destination_dir);
-                    id
                 })
                 .map_err(|error| error.to_string());
 
@@ -465,10 +464,10 @@ impl TorrentManager {
         let mut summaries = Vec::with_capacity(handles.len() + pending_snapshots.len());
         for snapshot in pending_snapshots {
             let (pending_id, mut snapshot) = snapshot;
-            if let Some(id) = self.pending_managed_id(&pending_id) {
-                if let Ok(managed) = self.status_for_managed(&pending_id, id).await {
-                    snapshot = managed;
-                }
+            if let Some(id) = self.pending_managed_id(&pending_id)
+                && let Ok(managed) = self.status_for_managed(&pending_id, id).await
+            {
+                snapshot = managed;
             }
             summaries.push(DownloadSummary::from(&snapshot));
         }
@@ -592,6 +591,7 @@ impl TorrentManager {
             upload_status: Some(BtUploadStatus::Idle),
             created_at_ms: task.created_at_ms,
             updated_at_ms: now,
+            chunks: vec![],
         }
     }
 
@@ -754,6 +754,7 @@ impl TorrentManager {
             upload_status: Some(upload_status),
             created_at_ms: now,
             updated_at_ms: now,
+            chunks: vec![],
         }
     }
 }
@@ -812,7 +813,6 @@ pub(super) fn normalize_http_task_id(download_id: &str) -> &str {
 
 /// Task ID lookups: IDs are prefixed strings routing between HTTP/BT/SFTP managers.
 /// Prefer `commands.rs`'s `dispatch_download_action!` macro for new commands.
-
 pub(super) fn is_bt_task_id(download_id: &str) -> bool {
     download_id.starts_with(BT_PREFIX)
 }

@@ -9,6 +9,7 @@ use std::{
 
 use futures_util::StreamExt;
 use reqwest::{Client, Proxy, Response, StatusCode, Url, header, redirect::Policy};
+use tauri::Emitter;
 use tokio::{
     fs as async_fs,
     sync::{Mutex as AsyncMutex, Notify, RwLock},
@@ -33,8 +34,10 @@ use super::{
     },
     metalink::parse_metalink,
     torrent::TorrentManager,
+    torrent::http_task_id,
     types::{
-        AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, BtSettings, ChecksumMode,
+        AdaptiveProfile, AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
+        ChecksumMode, ChunkInfo,
         DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
         DownloadSummary, LogSettings, NetworkLearningMetrics, NetworkLearningSettings,
         NetworkSceneProfile, ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings,
@@ -54,20 +57,30 @@ pub struct AppState {
     pub manager: Arc<DownloadManager>,
     pub torrent_manager: Arc<TorrentManager>,
     pub sftp_manager: Arc<super::sftp::SftpManager>,
+    pub app_handle: tauri::AppHandle,
 }
 
 impl AppState {
-    pub fn new(
-        manager: DownloadManager,
-        torrent_manager: TorrentManager,
-        sftp_manager: super::sftp::SftpManager,
-    ) -> Self {
-        let manager = Arc::new(manager);
-        manager.clone().start_scheduler_loop();
-        Self {
-            manager,
-            torrent_manager: Arc::new(torrent_manager),
-            sftp_manager: Arc::new(sftp_manager),
+    pub async fn emit_all_downloads(&self) {
+        let mut summaries = Vec::new();
+
+        if let Ok(http) = self.manager.list().await {
+            summaries.extend(
+                http.into_iter().map(|mut summary| {
+                    summary.id = http_task_id(summary.id);
+                    summary
+                }),
+            );
+        }
+        if let Ok(bt) = self.torrent_manager.list().await {
+            summaries.extend(bt);
+        }
+        if let Ok(sftp) = self.sftp_manager.list().await {
+            summaries.extend(sftp);
+        }
+
+        for summary in &summaries {
+            let _ = self.app_handle.emit("download-updated", summary);
         }
     }
 }
@@ -526,7 +539,7 @@ impl DownloadManager {
         Ok(items)
     }
 
-    fn start_scheduler_loop(self: Arc<Self>) {
+    pub(crate) fn start_scheduler_loop(self: Arc<Self>) {
         tauri::async_runtime::spawn(async move {
             loop {
                 tokio::select! {
@@ -708,10 +721,10 @@ impl DownloadManager {
                 let snapshot = managed.snapshot.lock().expect("snapshot poisoned");
                 snapshot.state != DownloadState::Canceled
             };
-            if should_persist {
-                if let Err(error) = manager.persist(managed.clone()).await {
-                    log_background_error("persist background download state", &error);
-                }
+            if should_persist
+                && let Err(error) = manager.persist(managed.clone()).await
+            {
+                log_background_error("persist background download state", &error);
             }
             let mut runtime = managed.runtime.lock().expect("runtime poisoned");
             *runtime = None;
@@ -766,13 +779,8 @@ impl DownloadManager {
                 }
                 manifest.file_name_locked = true;
             }
-            if validators_changed(&manifest, &metadata) {
-                manifest.downloaded_bytes = 0;
-                manifest.chunks = plan_chunks(metadata.total_bytes, supports_parallel);
-                manifest.checksum = None;
-                manifest.supports_ranges = supports_parallel;
-                reset_progress = true;
-            } else if manifest.total_bytes != metadata.total_bytes
+            if validators_changed(&manifest, &metadata)
+                || manifest.total_bytes != metadata.total_bytes
                 || manifest.supports_ranges != supports_parallel
                 || (supports_parallel && manifest.chunks.is_empty())
             {
@@ -1192,10 +1200,15 @@ impl DownloadManager {
             return Ok(());
         }
 
+        if settings.proxy.mode != ProxyMode::Disabled {
+            return Ok(());
+        }
+
         let learning_metrics = active_learning_metrics(&settings.network_learning);
         let adaptive_cap = active_scene_thread_cap(&settings.network_learning)
             .unwrap_or(settings.scheduler.automatic.max_threads_per_task.max(1))
             .min(settings.scheduler.automatic.max_threads_per_task.max(1));
+        let min_threads = settings.scheduler.automatic.min_threads_per_task.max(1);
 
         let downloads = self.downloads.read().await;
         for managed in downloads.values() {
@@ -1223,11 +1236,11 @@ impl DownloadManager {
                 .adaptive_profile_snapshot
                 .unwrap_or(settings.scheduler.automatic.adaptive_profile);
 
-            if let Some(cooldown_until) = aimd.cooldown_until {
-                if now < cooldown_until {
-                    aimd.recent_penalty = false;
-                    continue;
-                }
+            if let Some(cooldown_until) = aimd.cooldown_until
+                && now < cooldown_until
+            {
+                aimd.recent_penalty = false;
+                continue;
             }
 
             let mut degrade_threshold: f64 = match profile {
@@ -1280,7 +1293,7 @@ impl DownloadManager {
                 };
 
             if should_decrease {
-                manifest.desired_thread_count = Some(reduce_threads(current, profile));
+                manifest.desired_thread_count = Some(reduce_threads(current, profile, min_threads));
                 manifest.updated_at_ms = now_ms();
                 aimd.cooldown_until = Some(now + cooldown);
                 aimd.consecutive_good_samples = 0;
@@ -1325,6 +1338,7 @@ impl DownloadManager {
         let settings = self.settings.read().await.clone();
         if settings.scheduler.mode != SchedulerMode::Automatic
             || settings.network_learning.device_mode == DeviceLearningMode::Mobile
+            || settings.proxy.mode != ProxyMode::Disabled
         {
             return Ok(());
         }
@@ -1431,6 +1445,7 @@ impl DownloadManager {
                 });
 
                 let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
+                let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
                 let mut allocations: HashMap<String, usize> = HashMap::new();
                 for managed in &candidates {
                     let manifest = managed.manifest.lock().expect("manifest poisoned");
@@ -1438,8 +1453,13 @@ impl DownloadManager {
                         allocations.insert(manifest.id.clone(), 0);
                         continue;
                     }
-                    allocations.insert(manifest.id.clone(), 1);
-                    remaining_budget = remaining_budget.saturating_sub(1);
+                    let start = if remaining_budget >= min_per_task {
+                        min_per_task
+                    } else {
+                        remaining_budget
+                    };
+                    allocations.insert(manifest.id.clone(), start);
+                    remaining_budget = remaining_budget.saturating_sub(start);
                 }
 
                 while remaining_budget > 0 {
@@ -1510,16 +1530,36 @@ impl DownloadManager {
 
     fn build_snapshot(&self, managed: Arc<ManagedDownload>) -> DownloadSnapshot {
         let mut snapshot = managed.snapshot.lock().expect("snapshot poisoned").clone();
+        if let Ok(manifest) = managed.manifest.lock() {
+            snapshot.chunks = manifest
+                .chunks
+                .iter()
+                .map(|c| ChunkInfo {
+                    index: c.index,
+                    start: c.start,
+                    end: c.end,
+                    downloaded: c.downloaded,
+                    completed: c.completed,
+                    claimed_by: c.claimed_by,
+                })
+                .collect();
+        }
         let elapsed = (snapshot
             .updated_at_ms
             .saturating_sub(snapshot.created_at_ms))
         .max(1) as f64
             / 1000.0;
-        let speed = if snapshot.downloaded_bytes == 0 {
+        let average_speed = if snapshot.downloaded_bytes == 0 {
             None
         } else {
             Some(snapshot.downloaded_bytes as f64 / elapsed)
         };
+        let speed = managed
+            .aimd
+            .lock()
+            .ok()
+            .and_then(|aimd| aimd.last_throughput)
+            .or(average_speed);
         let eta = match (snapshot.total_bytes, speed) {
             (Some(total), Some(speed)) if speed > 0.0 && total >= snapshot.downloaded_bytes => {
                 Some(((total - snapshot.downloaded_bytes) as f64 / speed).ceil() as u64)
@@ -1549,17 +1589,16 @@ impl DownloadManager {
             manifest.downloaded_bytes = manifest.downloaded_bytes.saturating_add(bytes);
             manifest.error = None;
             manifest.updated_at_ms = now;
-            if let Some(index) = chunk_index {
-                if let Some(chunk) = manifest
+            if let Some(index) = chunk_index
+                && let Some(chunk) = manifest
                     .chunks
                     .iter_mut()
                     .find(|candidate| candidate.index == index)
-                {
-                    chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-                    if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
-                        chunk.completed = true;
-                        chunk.claimed_by = None;
-                    }
+            {
+                chunk.downloaded = chunk.downloaded.saturating_add(bytes);
+                if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
+                    chunk.completed = true;
+                    chunk.claimed_by = None;
                 }
             }
         }
@@ -1846,14 +1885,14 @@ fn initial_desired_threads(profile: AdaptiveProfile) -> usize {
     }
 }
 
-fn reduce_threads(current: usize, profile: AdaptiveProfile) -> usize {
+fn reduce_threads(current: usize, profile: AdaptiveProfile, min_threads: usize) -> usize {
     let reduced = match profile {
         AdaptiveProfile::Conservative => ((current as f64) * 0.7).ceil() as usize,
         AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => {
             ((current as f64) * 0.5).ceil() as usize
         }
     };
-    reduced.max(1)
+    reduced.max(min_threads.max(1))
 }
 
 fn cooldown_for_profile(profile: AdaptiveProfile) -> Duration {
@@ -2002,6 +2041,18 @@ fn sync_snapshot_with_manifest(managed: &Arc<ManagedDownload>, manifest: &Manife
     snapshot.last_modified = manifest.last_modified.clone();
     snapshot.error = manifest.error.clone();
     snapshot.updated_at_ms = manifest.updated_at_ms;
+    snapshot.chunks = manifest
+        .chunks
+        .iter()
+        .map(|c| ChunkInfo {
+            index: c.index,
+            start: c.start,
+            end: c.end,
+            downloaded: c.downloaded,
+            completed: c.completed,
+            claimed_by: c.claimed_by,
+        })
+        .collect();
 }
 
 fn record_progress_on_managed(
@@ -2021,17 +2072,16 @@ fn record_progress_on_managed(
         manifest.downloaded_bytes = manifest.downloaded_bytes.saturating_add(bytes);
         manifest.error = None;
         manifest.updated_at_ms = now;
-        if let Some(index) = chunk_index {
-            if let Some(chunk) = manifest
+        if let Some(index) = chunk_index
+            && let Some(chunk) = manifest
                 .chunks
                 .iter_mut()
                 .find(|candidate| candidate.index == index)
-            {
-                chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-                if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
-                    chunk.completed = true;
-                    chunk.claimed_by = None;
-                }
+        {
+            chunk.downloaded = chunk.downloaded.saturating_add(bytes);
+            if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
+                chunk.completed = true;
+                chunk.claimed_by = None;
             }
         }
     }
@@ -2276,6 +2326,10 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             automatic: AutomaticSchedulerSettings {
                 max_parallel_threads,
                 max_threads_per_task,
+                min_threads_per_task: normalize_min_threads(
+                    settings.scheduler.automatic.min_threads_per_task,
+                    max_threads_per_task,
+                ),
                 adaptive_profile: settings.scheduler.automatic.adaptive_profile,
             },
         },
@@ -2290,7 +2344,16 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         bt,
         network_learning,
         logging,
+        aria2_rpc: settings.aria2_rpc.clone(),
     })
+}
+
+fn normalize_min_threads(raw: usize, max_per_task: usize) -> usize {
+    if raw == 0 {
+        (max_per_task / 2).max(1)
+    } else {
+        raw.clamp(1, max_per_task)
+    }
 }
 
 fn normalize_logging_settings(settings: LogSettings) -> LogSettings {
@@ -2443,18 +2506,17 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         Err(error) => return Err(error.into()),
     };
 
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
-        if value.get("appearance").is_some()
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content)
+        && (value.get("appearance").is_some()
             || value.get("proxy").is_some()
             || value.get("scheduler").is_some()
             || value.get("download").is_some()
             || value.get("bt").is_some()
             || value.get("networkLearning").is_some()
-            || value.get("logging").is_some()
-        {
-            let parsed = serde_json::from_value::<AppSettings>(value)?;
-            return normalize_settings(parsed);
-        }
+            || value.get("logging").is_some())
+    {
+        let parsed = serde_json::from_value::<AppSettings>(value)?;
+        return normalize_settings(parsed);
     }
 
     let legacy_proxy = serde_json::from_str::<ProxySettings>(&content)?;
@@ -2466,6 +2528,7 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         bt: BtSettings::default(),
         network_learning: NetworkLearningSettings::default(),
         logging: LogSettings::default(),
+        aria2_rpc: Aria2RpcSettings::default(),
     })
 }
 

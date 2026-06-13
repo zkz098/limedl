@@ -56,13 +56,7 @@ const currentScene = computed<NetworkSceneProfile | null>(() => {
             "
             aria-hidden="true"
           />
-          <span class="settings-toggle__text">
-            {{
-              currentScene?.learningEnabled
-                ? t("settings.allowUpdateProfile")
-                : t("settings.pauseUpdateProfile")
-            }}
-          </span>
+          <span class="settings-toggle__text">{{ t("settings.allowUpdateProfile") }}</span>
         </button>
       </label>
     </div>

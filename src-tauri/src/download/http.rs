@@ -40,13 +40,13 @@ pub(super) fn validate_probe_response(response: &Response) -> Result<()> {
 }
 
 pub(super) fn extract_total_bytes(status: StatusCode, headers: &HeaderMap) -> Option<u64> {
-    if status == StatusCode::PARTIAL_CONTENT {
-        if let Some(content_range) = header_string(headers, header::CONTENT_RANGE) {
-            return content_range
-                .rsplit('/')
-                .next()
-                .and_then(|value| value.parse::<u64>().ok());
-        }
+    if status == StatusCode::PARTIAL_CONTENT
+        && let Some(content_range) = header_string(headers, header::CONTENT_RANGE)
+    {
+        return content_range
+            .rsplit('/')
+            .next()
+            .and_then(|value| value.parse::<u64>().ok());
     }
     header_string(headers, header::CONTENT_LENGTH).and_then(|value| value.parse::<u64>().ok())
 }
@@ -61,14 +61,13 @@ pub(super) fn supports_ranges(status: StatusCode, headers: &HeaderMap) -> bool {
 }
 
 pub(super) fn infer_file_name(final_url: &str, headers: &HeaderMap) -> Option<String> {
-    if let Some(header) = headers.get(header::CONTENT_DISPOSITION) {
-        if let Ok(value) = header.to_str() {
-            if let Some(decoded) = parse_content_disposition(value) {
-                let clean = sanitize_filename::sanitize(decoded);
-                if !clean.is_empty() {
-                    return Some(clean);
-                }
-            }
+    if let Some(header) = headers.get(header::CONTENT_DISPOSITION)
+        && let Ok(value) = header.to_str()
+        && let Some(decoded) = parse_content_disposition(value)
+    {
+        let clean = sanitize_filename::sanitize(decoded);
+        if !clean.is_empty() {
+            return Some(clean);
         }
     }
 

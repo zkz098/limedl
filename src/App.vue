@@ -11,7 +11,9 @@ import UiDialog from "./components/ui/UiDialog.vue";
 import { formatSpeed } from "./lib/download-format";
 import { getAppSettings } from "./lib/tauri/settings-api";
 import { useDownloader } from "./composables/useDownloader";
+import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
+import NotificationToast from "./components/ui/NotificationToast.vue";
 import type { AppSettings, ColorMode } from "./types/settings";
 
 const {
@@ -23,9 +25,7 @@ const {
   canResumeDownload,
   btRuntimeStatus,
   downloads,
-  errorMessage,
   form,
-  infoMessage,
   isAutoRefreshing,
   isPickingDirectory,
   isPickingMetalink,
@@ -64,18 +64,20 @@ const pendingPermanentDeleteId = ref<string | null>(null);
 const pendingView = ref<"home" | "settings" | null>(null);
 const settingsHasUnsavedChanges = ref(false);
 const isSavingBeforeNavigation = ref(false);
-const notificationMessage = ref("");
 const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
 const knownFailedDownloadIds = new Set<string>();
-let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 let hasSeenInitialDownloadList = false;
 let colorSchemeQuery: MediaQueryList | null = null;
+
+const { notifications, notifyError, dismiss } = useNotification();
 
 function handleSystemColorSchemeChange() {
   applyColorMode(appSettings.value?.appearance?.colorMode ?? "system");
 }
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
+const showDetailInfo = computed(() => appSettings.value?.appearance?.showDetailInfo ?? true);
+const showHeatmap = computed(() => appSettings.value?.appearance?.showHeatmap ?? true);
 const showUnsavedSettingsDialog = computed(() => pendingView.value !== null);
 const pendingPermanentDeleteTask = computed(
   () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
@@ -107,9 +109,7 @@ function showNotification(message: string) {
 
 const handleSubmitStart = async () => {
   await submitStart();
-  if (!errorMessage.value) {
-    showComposerDialog.value = false;
-  }
+  showComposerDialog.value = false;
 };
 
 const handleRefreshSelected = async () => {
@@ -300,7 +300,7 @@ watch(
       }
 
       knownFailedDownloadIds.add(download.id);
-      showNotification(
+      notifyError(
         t("messages.downloadFailed", {
           fileName: download.fileName,
           reason: download.error || t("common.unknown"),
@@ -313,9 +313,6 @@ watch(
 
 onBeforeUnmount(() => {
   colorSchemeQuery?.removeEventListener("change", handleSystemColorSchemeChange);
-  if (notificationTimer) {
-    clearTimeout(notificationTimer);
-  }
 });
 </script>
 
@@ -323,12 +320,10 @@ onBeforeUnmount(() => {
   <main class="app-shell min-h-screen text-[var(--color-text-main)]">
     <div class="app-shell__backdrop" aria-hidden="true" />
 
-    <Transition name="app-notification">
-      <div v-if="notificationMessage" class="app-notification" role="alert">
-        <span class="i-ri-error-warning-line" aria-hidden="true" />
-        <span>{{ notificationMessage }}</span>
-      </div>
-    </Transition>
+    <NotificationToast
+      :notifications="notifications"
+      @dismiss="dismiss"
+    />
 
     <aside class="sidebar">
       <div class="sidebar__brand">
@@ -401,8 +396,6 @@ onBeforeUnmount(() => {
       <DownloadQueueTable
         v-if="currentView === 'home'"
         :downloads="downloads"
-        :error-message="errorMessage"
-        :info-message="infoMessage"
         :is-auto-refreshing="isAutoRefreshing"
         :is-refreshing-list="isRefreshingList"
         :selected-id="selectedId"
@@ -458,6 +451,8 @@ onBeforeUnmount(() => {
             :is-refreshing-status="isRefreshingStatus"
             :selected-overview="selectedOverview"
             :selected-snapshot="selectedSnapshot"
+            :show-detail-info="showDetailInfo"
+            :show-heatmap="showHeatmap"
             @cancel="runCancel"
             @pause="runPause"
             @refresh="handleRefreshSelected"
@@ -632,45 +627,6 @@ onBeforeUnmount(() => {
 .main-content {
   position: relative;
   z-index: 1;
-}
-
-.app-notification {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 50;
-  max-width: min(30rem, calc(100vw - 2rem));
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  padding: 0.8rem 0.9rem;
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
-  box-shadow: var(--shadow-card-hover);
-  color: var(--color-danger-text);
-  font-size: 0.85rem;
-  line-height: 1.45;
-  backdrop-filter: blur(var(--surface-blur));
-}
-
-.app-notification span:first-child {
-  flex: 0 0 auto;
-  margin-top: 0.1rem;
-  font-size: 1rem;
-}
-
-.app-notification-enter-active,
-.app-notification-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.app-notification-enter-from,
-.app-notification-leave-to {
-  opacity: 0;
-  transform: translateY(-0.45rem);
 }
 
 .sidebar {

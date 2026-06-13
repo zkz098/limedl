@@ -42,13 +42,7 @@ defineProps<{
             "
             aria-hidden="true"
           />
-          <span class="settings-toggle__text">
-            {{
-              draft.logging.enabled
-                ? t("settings.loggingEnabledText")
-                : t("settings.loggingDisabledText")
-            }}
-          </span>
+          <span class="settings-toggle__text">{{ t("settings.loggingToggleText") }}</span>
         </button>
       </label>
 

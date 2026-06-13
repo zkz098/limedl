@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 
 import { useI18n } from "../../i18n";
+import { useNotification } from "../../composables/useNotification";
 import { pickDirectory } from "../../lib/tauri/dialog-api";
 import { fetchTrackerList, saveAppSettings } from "../../lib/tauri/settings-api";
 import type { ChecksumMode } from "../../types/download";
@@ -20,6 +21,7 @@ import type {
 import UiButton from "../ui/UiButton.vue";
 
 import SettingsAppearancePanel from "./SettingsAppearancePanel.vue";
+import SettingsAria2RpcPanel from "./SettingsAria2RpcPanel.vue";
 import SettingsBtPanel from "./SettingsBtPanel.vue";
 import SettingsDownloadDefaultsPanel from "./SettingsDownloadDefaultsPanel.vue";
 import SettingsLoggingPanel from "./SettingsLoggingPanel.vue";
@@ -33,7 +35,6 @@ import {
   DEFAULT_TRACKER_LIST_URL,
   serializeSettings,
   settingsDraftSnapshot,
-  useSettingsNotification,
   useSettingsSummaries,
   type SettingsOptionArrays,
 } from "./settingsComposables";
@@ -48,7 +49,7 @@ const emit = defineEmits<{
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
-const { notificationMessage, showNotification } = useSettingsNotification();
+const { notifications, notifySuccess, notifyError, dismiss } = useNotification();
 
 // ── Option arrays ────────────────────────────────────────────────
 
@@ -107,11 +108,13 @@ const colorModeOptions = computed<Array<{ label: string; value: ColorMode }>>(()
 // ── Reactive form ─────────────────────────────────────────────────
 
 const form = reactive<AppSettings>({
-  appearance: {
-    themeColor: "default",
-    backgroundOpacity: "default",
-    colorMode: "system",
-  },
+    appearance: {
+      themeColor: "default",
+      backgroundOpacity: "default",
+      colorMode: "system",
+      showDetailInfo: true,
+      showHeatmap: true,
+    },
   proxy: {
     mode: "disabled",
     manualUrl: "",
@@ -124,6 +127,7 @@ const form = reactive<AppSettings>({
     automatic: {
       maxParallelThreads: 16,
       maxThreadsPerTask: 8,
+      minThreadsPerTask: 0,
       adaptiveProfile: "balanced",
     },
   },
@@ -162,6 +166,11 @@ const form = reactive<AppSettings>({
     level: "info",
     filePath: "",
   },
+  aria2Rpc: {
+    enabled: true,
+    port: 6800,
+    secret: null,
+  },
 });
 
 // ── State──────────────────────────────────────────────────────────
@@ -193,9 +202,7 @@ const {
   networkMetricsCards,
 } = useSettingsSummaries(form, t, optionArrays);
 
-const settingsDraftSnapshotComputed = computed(() =>
-  settingsDraftSnapshot(buildSettingsPayload()),
-);
+const settingsDraftSnapshotComputed = computed(() => settingsDraftSnapshot(buildSettingsPayload()));
 
 // ── Settings sync watcher ─────────────────────────────────────────
 
@@ -209,6 +216,8 @@ watch(
     form.appearance.themeColor = nextSettings.appearance?.themeColor ?? "default";
     form.appearance.backgroundOpacity = nextSettings.appearance?.backgroundOpacity ?? "default";
     form.appearance.colorMode = nextSettings.appearance?.colorMode ?? "system";
+    form.appearance.showDetailInfo = nextSettings.appearance?.showDetailInfo ?? true;
+    form.appearance.showHeatmap = nextSettings.appearance?.showHeatmap ?? true;
     form.proxy.mode = nextSettings.proxy.mode;
     form.proxy.manualUrl = nextSettings.proxy.manualUrl;
     form.scheduler.mode = nextSettings.scheduler.mode;
@@ -217,6 +226,8 @@ watch(
     form.scheduler.automatic.maxParallelThreads =
       nextSettings.scheduler.automatic.maxParallelThreads;
     form.scheduler.automatic.maxThreadsPerTask = nextSettings.scheduler.automatic.maxThreadsPerTask;
+    form.scheduler.automatic.minThreadsPerTask =
+      nextSettings.scheduler.automatic.minThreadsPerTask ?? 0;
     form.scheduler.automatic.adaptiveProfile = nextSettings.scheduler.automatic.adaptiveProfile;
     form.download.defaultDownloadDir = nextSettings.download.defaultDownloadDir;
     form.download.defaultMaxRetries = nextSettings.download.defaultMaxRetries;
@@ -238,6 +249,9 @@ watch(
     form.logging.enabled = nextSettings.logging?.enabled ?? true;
     form.logging.level = nextSettings.logging?.level ?? "info";
     form.logging.filePath = nextSettings.logging?.filePath ?? "";
+    form.aria2Rpc.enabled = nextSettings.aria2Rpc?.enabled ?? true;
+    form.aria2Rpc.port = nextSettings.aria2Rpc?.port ?? 6800;
+    form.aria2Rpc.secret = nextSettings.aria2Rpc?.secret ?? null;
     savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
     emit("dirtyChange", false);
   },
@@ -281,11 +295,13 @@ function changeLanguage(nextLanguage: SupportedLanguage) {
 
 function buildSettingsPayload(): AppSettings {
   return {
-    appearance: {
-      themeColor: form.appearance.themeColor,
-      backgroundOpacity: form.appearance.backgroundOpacity,
-      colorMode: form.appearance.colorMode,
-    },
+      appearance: {
+        themeColor: form.appearance.themeColor,
+        backgroundOpacity: form.appearance.backgroundOpacity,
+        colorMode: form.appearance.colorMode,
+        showDetailInfo: form.appearance.showDetailInfo,
+        showHeatmap: form.appearance.showHeatmap,
+      },
     proxy: {
       mode: form.proxy.mode,
       manualUrl: form.proxy.manualUrl,
@@ -298,6 +314,7 @@ function buildSettingsPayload(): AppSettings {
       automatic: {
         maxParallelThreads: form.scheduler.automatic.maxParallelThreads,
         maxThreadsPerTask: form.scheduler.automatic.maxThreadsPerTask,
+        minThreadsPerTask: form.scheduler.automatic.minThreadsPerTask,
         adaptiveProfile: form.scheduler.automatic.adaptiveProfile,
       },
     },
@@ -328,6 +345,11 @@ function buildSettingsPayload(): AppSettings {
       level: form.logging.level,
       filePath: form.logging.filePath.trim(),
     },
+    aria2Rpc: {
+      enabled: form.aria2Rpc.enabled,
+      port: form.aria2Rpc.port,
+      secret: form.aria2Rpc.secret?.trim() || null,
+    },
   };
 }
 
@@ -346,7 +368,7 @@ async function pickDefaultDownloadDirectory() {
       form.download.defaultDownloadDir = selectedPath;
     }
   } catch (error) {
-    showNotification(
+    notifyError(
       error instanceof Error ? error.message : t("settings.notifications.chooseDirectoryFailed"),
     );
   } finally {
@@ -365,13 +387,13 @@ async function updateTrackerListFromUrl() {
     form.bt.trackerList = await fetchTrackerList(
       form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
     );
-    showNotification(
+    notifySuccess(
       t("settings.notifications.trackerListUpdated", {
         count: trackerListEntries.value.length,
       }),
     );
   } catch (error) {
-    showNotification(
+    notifyError(
       error instanceof Error ? error.message : t("settings.notifications.trackerListUpdateFailed"),
     );
   } finally {
@@ -392,10 +414,10 @@ async function persistSettings() {
     savedSettingsSnapshot.value = serializeSettings(saved);
     emit("saved", saved);
     emit("dirtyChange", false);
-    showNotification(t("settings.notifications.saved"));
+    notifySuccess(t("settings.notifications.saved"));
     return true;
   } catch (error) {
-    showNotification(
+    notifyError(
       error instanceof Error ? error.message : t("settings.notifications.saveFailed"),
     );
     return false;
@@ -404,6 +426,19 @@ async function persistSettings() {
   }
 }
 
+const activeTab = ref("appearance");
+
+const tabs = [
+  { id: "appearance", icon: "i-ri-palette-line", labelKey: "settings.appearanceKicker" },
+  { id: "scheduler", icon: "i-ri-dashboard-line", labelKey: "settings.scheduler" },
+  { id: "networkLearning", icon: "i-ri-radar-line", labelKey: "settings.networkLearning" },
+  { id: "downloads", icon: "i-ri-download-line", labelKey: "settings.downloads" },
+  { id: "bt", icon: "i-ri-seedling-line", labelKey: "settings.bt" },
+  { id: "aria2Rpc", icon: "i-ri-terminal-box-line", labelKey: "settings.aria2Rpc" },
+  { id: "logging", icon: "i-ri-file-list-3-line", labelKey: "settings.logging" },
+  { id: "proxy", icon: "i-ri-global-line", labelKey: "settings.proxyTitle" },
+] as const;
+
 defineExpose({
   persistSettings,
 });
@@ -411,12 +446,6 @@ defineExpose({
 
 <template>
   <section class="settings-page">
-    <Transition name="settings-notification">
-      <div v-if="notificationMessage" class="settings-notification" role="status">
-        <span class="i-ri-checkbox-circle-line" aria-hidden="true" />
-        <span>{{ notificationMessage }}</span>
-      </div>
-    </Transition>
 
     <div class="desk-panel__header settings-page__header">
       <div>
@@ -428,65 +457,94 @@ defineExpose({
       </div>
     </div>
 
-    <SettingsAppearancePanel
-      :draft="form"
-      :t="t"
-      :language="language"
-      :language-options="languageOptions"
-      :color-mode-options="colorModeOptions"
-      :background-opacity-options="backgroundOpacityOptions"
-      @change-language="changeLanguage"
-    />
+    <div class="settings-tabs">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        type="button"
+        class="settings-tab"
+        :class="{ 'settings-tab--active': activeTab === tab.id }"
+        @click="activeTab = tab.id"
+      >
+        <span :class="tab.icon" aria-hidden="true" />
+        <span>{{ t(tab.labelKey) }}</span>
+      </button>
+    </div>
 
-    <SettingsSchedulerPanel
-      :draft="form"
-      :t="t"
-      :scheduler-mode-options="schedulerModeOptions"
-      :adaptive-profile-options="adaptiveProfileOptions"
-    />
+    <div class="settings-tab-content">
+      <SettingsAppearancePanel
+        v-show="activeTab === 'appearance'"
+        :draft="form"
+        :t="t"
+        :language="language"
+        :language-options="languageOptions"
+        :color-mode-options="colorModeOptions"
+        :background-opacity-options="backgroundOpacityOptions"
+        @change-language="changeLanguage"
+      />
 
-    <SettingsNetworkLearningPanel
-      :draft="form"
-      :t="t"
-      :device-mode-options="deviceModeOptions"
-      :network-learning-summary="networkLearningSummary"
-      :network-metrics-cards="networkMetricsCards"
-    />
+      <SettingsSchedulerPanel
+        v-show="activeTab === 'scheduler'"
+        :draft="form"
+        :t="t"
+        :scheduler-mode-options="schedulerModeOptions"
+        :adaptive-profile-options="adaptiveProfileOptions"
+      />
 
-    <SettingsDownloadDefaultsPanel
-      :draft="form"
-      :t="t"
-      :checksum-options="checksumOptions"
-      :download-summary="downloadSummary"
-      :is-picking-directory="isPickingDirectory"
-      :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
-      @pick-directory="pickDefaultDownloadDirectory"
-    />
+      <SettingsNetworkLearningPanel
+        v-show="activeTab === 'networkLearning'"
+        :draft="form"
+        :t="t"
+        :device-mode-options="deviceModeOptions"
+        :network-learning-summary="networkLearningSummary"
+        :network-metrics-cards="networkMetricsCards"
+      />
 
-    <SettingsBtPanel
-      :draft="form"
-      :t="t"
-      :bt-summary="btSummary"
-      :bt-upload-limit-mi-b="btUploadLimitMiB"
-      :is-fetching-tracker-list="isFetchingTrackerList"
-      :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL"
-      @update:btUploadLimitMiB="setBtUploadLimitMiB"
-      @fetch-tracker-list="updateTrackerListFromUrl"
-    />
+      <SettingsDownloadDefaultsPanel
+        v-show="activeTab === 'downloads'"
+        :draft="form"
+        :t="t"
+        :checksum-options="checksumOptions"
+        :download-summary="downloadSummary"
+        :is-picking-directory="isPickingDirectory"
+        :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
+        @pick-directory="pickDefaultDownloadDirectory"
+      />
 
-    <SettingsLoggingPanel
-      :draft="form"
-      :t="t"
-      :log-level-options="logLevelOptions"
-      :logging-summary="loggingSummary"
-    />
+      <SettingsBtPanel
+        v-show="activeTab === 'bt'"
+        :draft="form"
+        :t="t"
+        :bt-summary="btSummary"
+        :bt-upload-limit-mi-b="btUploadLimitMiB"
+        :is-fetching-tracker-list="isFetchingTrackerList"
+        :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL"
+        @update:btUploadLimitMiB="setBtUploadLimitMiB"
+        @fetch-tracker-list="updateTrackerListFromUrl"
+      />
 
-    <SettingsProxyPanel
-      :draft="form"
-      :t="t"
-      :proxy-mode-options="proxyModeOptions"
-      :proxy-summary="proxySummary"
-    />
+      <SettingsAria2RpcPanel
+        v-show="activeTab === 'aria2Rpc'"
+        :draft="form"
+        :t="t"
+      />
+
+      <SettingsLoggingPanel
+        v-show="activeTab === 'logging'"
+        :draft="form"
+        :t="t"
+        :log-level-options="logLevelOptions"
+        :logging-summary="loggingSummary"
+      />
+
+      <SettingsProxyPanel
+        v-show="activeTab === 'proxy'"
+        :draft="form"
+        :t="t"
+        :proxy-mode-options="proxyModeOptions"
+        :proxy-summary="proxySummary"
+      />
+    </div>
 
     <div class="settings-save-bar">
       <p class="settings-save-bar__hint">{{ t("settings.saveHint") }}</p>
@@ -502,24 +560,6 @@ defineExpose({
   display: grid;
   gap: 1rem;
   padding-bottom: 5.75rem;
-}
-
-.settings-notification {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 120;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--color-success-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
-  box-shadow: var(--shadow-card-hover);
-  color: var(--color-success-text);
-  font-size: 0.85rem;
-  backdrop-filter: blur(var(--surface-blur));
 }
 
 .settings-page__header {
@@ -568,19 +608,6 @@ defineExpose({
   line-height: 1.45;
 }
 
-.settings-notification-enter-active,
-.settings-notification-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.settings-notification-enter-from,
-.settings-notification-leave-to {
-  opacity: 0;
-  transform: translateY(-0.45rem);
-}
-
 @media (max-width: 960px) {
   .settings-save-bar {
     left: 1rem;
@@ -603,6 +630,81 @@ defineExpose({
   .settings-save-bar {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+.settings-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
+}
+
+.settings-tab {
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0 0.6rem;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.settings-tab:hover {
+  color: var(--color-heading);
+  background: color-mix(in srgb, var(--color-accent-soft) 24%, var(--color-panel));
+}
+
+.settings-tab--active {
+  color: var(--color-accent-strong);
+  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-soft) 52%, var(--color-panel));
+}
+
+.settings-tab-content {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 960px) {
+  .settings-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  }
+
+  .settings-tab {
+    font-size: 0.78rem;
+    padding: 0 0.35rem;
+  }
+}
+
+@media (max-width: 680px) {
+  .settings-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 }
 </style>

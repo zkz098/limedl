@@ -6,7 +6,7 @@ import { resources, supportedLanguages, type SupportedLanguage } from "./resourc
 const storageKey = "downloader.language";
 
 function isSupportedLanguage(value: string): value is SupportedLanguage {
-  return supportedLanguages.includes(value as SupportedLanguage);
+  return (supportedLanguages as readonly string[]).includes(value);
 }
 
 function normalizeLanguage(value?: string | null): SupportedLanguage {

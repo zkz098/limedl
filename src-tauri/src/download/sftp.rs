@@ -117,6 +117,7 @@ impl SftpManager {
             upload_status: None::<BtUploadStatus>,
             created_at_ms: now,
             updated_at_ms: now,
+            chunks: vec![],
         };
 
         let task = Arc::new(SftpTask {

@@ -1,3 +1,4 @@
+mod aria2_rpc;
 mod commands;
 mod error;
 mod file_alloc;
@@ -10,6 +11,7 @@ mod sftp;
 mod torrent;
 mod types;
 
+pub use aria2_rpc::Aria2RpcServer;
 pub use commands::{
     bt_runtime_status,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,

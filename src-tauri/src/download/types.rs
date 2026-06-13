@@ -116,6 +116,17 @@ pub struct StartDownloadRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ChunkInfo {
+    pub index: usize,
+    pub start: u64,
+    pub end: u64,
+    pub downloaded: u64,
+    pub completed: bool,
+    pub claimed_by: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadSnapshot {
     pub id: String,
     #[serde(default)]
@@ -148,6 +159,8 @@ pub struct DownloadSnapshot {
     pub upload_status: Option<BtUploadStatus>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chunks: Vec<ChunkInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,7 +257,13 @@ impl Default for TraditionalSchedulerSettings {
 pub struct AutomaticSchedulerSettings {
     pub max_parallel_threads: usize,
     pub max_threads_per_task: usize,
+    #[serde(default = "default_min_threads")]
+    pub min_threads_per_task: usize,
     pub adaptive_profile: AdaptiveProfile,
+}
+
+fn default_min_threads() -> usize {
+    0
 }
 
 impl Default for AutomaticSchedulerSettings {
@@ -252,6 +271,7 @@ impl Default for AutomaticSchedulerSettings {
         Self {
             max_parallel_threads: 16,
             max_threads_per_task: 8,
+            min_threads_per_task: 0,
             adaptive_profile: AdaptiveProfile::Balanced,
         }
     }
@@ -403,47 +423,32 @@ impl Default for NetworkLearningSettings {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ThemeColor {
+    #[default]
     Default,
     Amber,
     Sky,
     Lime,
 }
 
-impl Default for ThemeColor {
-    fn default() -> Self {
-        Self::Default
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BackgroundOpacityPreset {
+    #[default]
     Default,
     Acrylic,
     Frosted,
 }
 
-impl Default for BackgroundOpacityPreset {
-    fn default() -> Self {
-        Self::Default
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ColorMode {
     Light,
     Dark,
+    #[default]
     System,
-}
-
-impl Default for ColorMode {
-    fn default() -> Self {
-        Self::System
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -455,6 +460,10 @@ pub struct AppearanceSettings {
     pub background_opacity: BackgroundOpacityPreset,
     #[serde(default)]
     pub color_mode: ColorMode,
+    #[serde(default = "default_true")]
+    pub show_detail_info: bool,
+    #[serde(default = "default_true")]
+    pub show_heatmap: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -474,4 +483,31 @@ pub struct AppSettings {
     pub network_learning: NetworkLearningSettings,
     #[serde(default)]
     pub logging: LogSettings,
+    #[serde(default)]
+    pub aria2_rpc: Aria2RpcSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Aria2RpcSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_aria2_port")]
+    pub port: u16,
+    #[serde(default)]
+    pub secret: Option<String>,
+}
+
+fn default_aria2_port() -> u16 {
+    6800
+}
+
+impl Default for Aria2RpcSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            port: 6800,
+            secret: None,
+        }
+    }
 }

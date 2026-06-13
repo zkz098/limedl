@@ -59,6 +59,16 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
           />
         </label>
 
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.minThreadsPerTask") }}</span>
+          <UiNumberField
+            v-model="draft.scheduler.automatic.minThreadsPerTask"
+            :min="0"
+            :max="draft.scheduler.automatic.maxThreadsPerTask"
+          />
+          <p class="settings-field__hint">{{ t("settings.minThreadsHint") }}</p>
+        </label>
+
         <label class="settings-field settings-field--wide">
           <span class="settings-field__label">{{ t("settings.adaptiveProfile") }}</span>
           <UiSelect
