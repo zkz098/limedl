@@ -48,6 +48,7 @@ pub(crate) fn build_accelerated_client(
 /// **v1 stub**: always returns `true`. The user controls CDN acceleration via the
 /// enable/disable toggle in settings. A future version will parse the URL hostname
 /// and match against the Cloudflare IP ranges to auto-detect eligible domains.
+#[allow(dead_code)]
 pub(crate) fn is_cloudflare_domain(_url: &str) -> bool {
     true
 }

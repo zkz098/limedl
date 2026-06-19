@@ -591,7 +591,7 @@ impl Default for Aria2RpcSettings {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CdnAccelerationSettings {
     #[serde(default)]
@@ -604,18 +604,6 @@ pub struct CdnAccelerationSettings {
     pub last_test_at_ms: Option<u64>,
     #[serde(default)]
     pub last_error: Option<String>,
-}
-
-impl Default for CdnAccelerationSettings {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            active_ip: None,
-            active_speed_mbps: None,
-            last_test_at_ms: None,
-            last_error: None,
-        }
-    }
 }
 
 #[cfg(test)]
