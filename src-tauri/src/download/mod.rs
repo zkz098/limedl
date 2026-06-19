@@ -1,5 +1,6 @@
 mod aimd;
 mod aria2_rpc;
+mod cdn;
 mod commands;
 pub(crate) mod database;
 mod error;
