@@ -14,7 +14,10 @@
     "ses_12254b5abffeKZa4hlXhouLBxQ",
     "ses_1224ed65affeRmVbd3J6jdrZts",
     "ses_12249b835ffe5FNZST1Tz3SQgC",
-    "ses_122498674ffegvT1MXWI5ngmmg"
+    "ses_122498674ffegvT1MXWI5ngmmg",
+    "ses_12244168cffeHM8CVicfMkQTVP",
+    "ses_122444901ffeg9I8buTJ5tFgiB",
+    "ses_122442df4ffeK6MKId12g7IZv5"
   ],
   "plan_name": "active-acceleration",
   "agent": "atlas",
@@ -81,6 +84,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-06-19T02:34:49.584Z"
+    },
+    "todo:14": {
+      "task_key": "todo:14",
+      "task_label": "14",
+      "task_title": "SettingsCdnAccelerationPanel.vue",
+      "session_id": "ses_122444901ffeg9I8buTJ5tFgiB",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-06-19T02:37:18.691Z"
     }
   }
 }

@@ -1101,7 +1101,7 @@ Max Concurrent: 5 (Waves 2 & 3)
 
 ---
 
-- [ ] 14. SettingsCdnAccelerationPanel.vue
+- [x] 14. SettingsCdnAccelerationPanel.vue
 
   **What to do**:
   - Create `src/components/settings/SettingsCdnAccelerationPanel.vue`
@@ -1186,7 +1186,7 @@ Max Concurrent: 5 (Waves 2 & 3)
 
 ---
 
-- [ ] 15. SettingsPage.vue Integration
+- [x] 15. SettingsPage.vue Integration
 
   **What to do**:
   - In `src/components/settings/SettingsPage.vue`:
@@ -1269,7 +1269,7 @@ Max Concurrent: 5 (Waves 2 & 3)
 
 ---
 
-- [ ] 16. Frontend IPC Bridge (cdn-api.ts)
+- [x] 16. Frontend IPC Bridge (cdn-api.ts)
 
   **What to do**:
   - Create `src/lib/tauri/cdn-api.ts`

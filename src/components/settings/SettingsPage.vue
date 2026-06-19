@@ -26,6 +26,7 @@ import SettingsBtPanel from "./SettingsBtPanel.vue";
 import SettingsDownloadDefaultsPanel from "./SettingsDownloadDefaultsPanel.vue";
 import SettingsLoggingPanel from "./SettingsLoggingPanel.vue";
 import SettingsNetworkLearningPanel from "./SettingsNetworkLearningPanel.vue";
+import SettingsCdnAccelerationPanel from "./SettingsCdnAccelerationPanel.vue";
 import SettingsProxyPanel from "./SettingsProxyPanel.vue";
 import SettingsSchedulerPanel from "./SettingsSchedulerPanel.vue";
 
@@ -171,6 +172,13 @@ const form = reactive<AppSettings>({
     port: 6800,
     secret: null,
   },
+  cdnAcceleration: {
+    enabled: false,
+    activeIp: null,
+    activeSpeedMbps: null,
+    lastTestAtMs: null,
+    lastError: null,
+  },
 });
 
 // ── State──────────────────────────────────────────────────────────
@@ -252,6 +260,7 @@ watch(
     form.aria2Rpc.enabled = nextSettings.aria2Rpc?.enabled ?? true;
     form.aria2Rpc.port = nextSettings.aria2Rpc?.port ?? 6800;
     form.aria2Rpc.secret = nextSettings.aria2Rpc?.secret ?? null;
+    form.cdnAcceleration = { ...nextSettings.cdnAcceleration };
     savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
     emit("dirtyChange", false);
   },
@@ -350,6 +359,9 @@ function buildSettingsPayload(): AppSettings {
       port: form.aria2Rpc.port,
       secret: form.aria2Rpc.secret?.trim() || null,
     },
+    cdnAcceleration: {
+      ...form.cdnAcceleration,
+    },
   };
 }
 
@@ -437,6 +449,7 @@ const tabs = [
   { id: "aria2Rpc", icon: "i-ri-terminal-box-line", labelKey: "settings.aria2Rpc" },
   { id: "logging", icon: "i-ri-file-list-3-line", labelKey: "settings.logging" },
   { id: "proxy", icon: "i-ri-global-line", labelKey: "settings.proxyTitle" },
+  { id: "cdnAcceleration", icon: "i-ri-speed-up-line", labelKey: "settings.cdnAcceleration.title" },
 ] as const;
 
 defineExpose({
@@ -543,6 +556,12 @@ defineExpose({
         :t="t"
         :proxy-mode-options="proxyModeOptions"
         :proxy-summary="proxySummary"
+      />
+
+      <SettingsCdnAccelerationPanel
+        v-show="activeTab === 'cdnAcceleration'"
+        :draft="form"
+        :t="t"
       />
     </div>
 

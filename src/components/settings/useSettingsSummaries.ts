@@ -147,6 +147,21 @@ export function useSettingsSummaries(
     });
   });
 
+  const cdnAccelerationSummary = computed(() => {
+    if (!draft.cdnAcceleration.enabled) {
+      return t("settings.cdnAcceleration.statusIdle");
+    }
+    if (draft.cdnAcceleration.lastError) {
+      return t("settings.cdnAcceleration.statusError");
+    }
+    if (draft.cdnAcceleration.activeSpeedMbps != null) {
+      const mbps = draft.cdnAcceleration.activeSpeedMbps;
+      const speedStr = `${mbps.toFixed(mbps >= 100 ? 0 : 1)} MB/s`;
+      return `${t("settings.cdnAcceleration.statusReady")}: ${speedStr}`;
+    }
+    return t("settings.cdnAcceleration.statusIdle");
+  });
+
   const networkLearningSummary = computed(() => {
     const scene = currentScene.value;
     if (!scene) {
@@ -225,6 +240,7 @@ export function useSettingsSummaries(
     setBtUploadLimitMiB,
     trackerListEntries,
     btSummary,
+    cdnAccelerationSummary,
     networkLearningSummary,
     networkMetricsCards,
     deviceModeLabel,
