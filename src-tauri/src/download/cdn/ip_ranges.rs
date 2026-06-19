@@ -1,0 +1,158 @@
+use std::net::Ipv4Addr;
+
+/// Static fallback list of Cloudflare IPv4 CIDR ranges.
+///
+/// Source: <https://www.cloudflare.com/ips-v4> — verified June 2026.
+/// These are used when live HTTP fetching of the current ranges fails.
+pub(crate) const CLOUDFLARE_IPV4_RANGES: &[&str] = &[
+    "173.245.48.0/20",
+    "103.21.244.0/22",
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22",
+];
+
+/// Parse a single IPv4 address string into an [`Ipv4Addr`].
+///
+/// Returns `None` if the string is malformed or any octet is out of range.
+fn parse_ipv4(s: &str) -> Option<Ipv4Addr> {
+    let parts: Vec<&str> = s.split('.').collect();
+    if parts.len() != 4 {
+        return None;
+    }
+    let octets: [u8; 4] = [
+        parts[0].parse().ok()?,
+        parts[1].parse().ok()?,
+        parts[2].parse().ok()?,
+        parts[3].parse().ok()?,
+    ];
+    Some(Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3]))
+}
+
+/// Parse a CIDR notation string into an (address, prefix_length) tuple.
+///
+/// Returns `None` if the string is malformed or the prefix is out of range (>32).
+fn parse_cidr(cidr: &str) -> Option<(Ipv4Addr, u8)> {
+    let (ip_str, prefix_str) = cidr.split_once('/')?;
+    let prefix: u8 = prefix_str.parse().ok()?;
+    if prefix > 32 {
+        return None;
+    }
+    let ip = parse_ipv4(ip_str)?;
+    Some((ip, prefix))
+}
+
+/// Compute the network address by masking the given IP with the prefix length.
+fn network_address(ip: Ipv4Addr, prefix: u8) -> Ipv4Addr {
+    let raw = u32::from(ip);
+    let mask = if prefix == 0 {
+        0u32
+    } else {
+        !0u32 << (32 - prefix)
+    };
+    Ipv4Addr::from(raw & mask)
+}
+
+/// Expand a list of CIDR notation strings into sample IPv4 addresses.
+///
+/// For each CIDR, this generates up to `samples_per_cidr` IP addresses starting
+/// from `network_address + 1`. The number of samples is clamped to stay within
+/// the subnet (excluding the network address itself). Invalid CIDR strings are
+/// skipped with a `tracing::warn!` — the function never panics.
+///
+/// This is used as a static fallback when live HTTP fetching of Cloudflare IP
+/// ranges fails, providing probe targets for CDN acceleration.
+pub(crate) fn expand_ipv4_cidrs(ranges: &[&str], samples_per_cidr: usize) -> Vec<Ipv4Addr> {
+    let mut result = Vec::with_capacity(ranges.len() * samples_per_cidr);
+
+    for cidr in ranges {
+        let Some((ip, prefix)) = parse_cidr(cidr) else {
+            tracing::warn!("Invalid CIDR notation, skipping: {cidr}");
+            continue;
+        };
+
+        let network = network_address(ip, prefix);
+
+        // Total addresses in this subnet: 2^(32-prefix)
+        let total = 1u32 << (32 - prefix);
+        // Maximum offset excluding the network address itself
+        let max_offset = total.saturating_sub(1);
+        let count = (samples_per_cidr as u32).min(max_offset);
+
+        for offset in 1..=count {
+            let raw = u32::from(network) + offset;
+            result.push(Ipv4Addr::from(raw));
+        }
+    }
+
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_expand_cidrs() {
+        let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
+
+        // 15 CIDRs × 3 samples = 45 IPs
+        assert_eq!(
+            ips.len(),
+            45,
+            "Expected 45 IPs from 15 CIDRs × 3 samples"
+        );
+
+        // Verify first 3 IPs from first CIDR (173.245.48.0/20)
+        assert_eq!(ips[0], Ipv4Addr::new(173, 245, 48, 1));
+        assert_eq!(ips[1], Ipv4Addr::new(173, 245, 48, 2));
+        assert_eq!(ips[2], Ipv4Addr::new(173, 245, 48, 3));
+
+        // Verify every returned IP is a valid Ipv4Addr (nonzero, not unspecified)
+        for ip in &ips {
+            assert_ne!(*ip, Ipv4Addr::UNSPECIFIED, "Sample IP must not be 0.0.0.0");
+        }
+    }
+
+    #[test]
+    fn test_parse_cidr_invalid() {
+        // Non-CIDR string
+        assert!(parse_cidr("not-a-cidr").is_none());
+        // Out-of-range octet
+        assert!(parse_cidr("256.0.0.0/24").is_none());
+        // Prefix > 32
+        assert!(parse_cidr("1.2.3.4/33").is_none());
+        // Non-numeric prefix
+        assert!(parse_cidr("1.2.3.4/abc").is_none());
+        // Missing prefix
+        assert!(parse_cidr("1.2.3.4").is_none());
+    }
+
+    #[test]
+    fn test_expand_clamped_32() {
+        // /32 subnet has exactly 1 address — no room for host samples
+        let ips = expand_ipv4_cidrs(&["192.0.2.1/32"], 5);
+        assert!(
+            ips.is_empty(),
+            "/32 should yield 0 samples (only network address)"
+        );
+    }
+
+    #[test]
+    fn test_expand_clamped_31() {
+        // /31 subnet has 2 addresses — at most 1 host sample
+        let ips = expand_ipv4_cidrs(&["192.0.2.0/31"], 5);
+        assert_eq!(ips.len(), 1, "/31 should yield at most 1 sample");
+        assert_eq!(ips[0], Ipv4Addr::new(192, 0, 2, 1));
+    }
+}
