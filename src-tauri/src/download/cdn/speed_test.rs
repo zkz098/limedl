@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -21,6 +23,55 @@ pub(crate) const SPEED_TEST_URL: &str =
 
 /// Maximum duration for a single IP's throughput test.
 pub(crate) const SPEED_TEST_DURATION: Duration = Duration::from_secs(10);
+
+// ── Orchestrator types ────────────────────────────────────────
+
+/// Configuration for the two-phase speed test orchestrator.
+#[derive(Debug, Clone)]
+pub(crate) struct SpeedTestConfig {
+    /// Max concurrent TCP connections during screening.
+    pub(crate) concurrency: usize,
+    /// Per-IP TCP connect timeout.
+    pub(crate) tcp_timeout: Duration,
+    /// Max duration for a single IP's throughput test.
+    pub(crate) throughput_duration: Duration,
+    /// Number of fastest IPs (by TCP latency) to advance to Phase 2.
+    pub(crate) top_n_candidates: usize,
+}
+
+impl Default for SpeedTestConfig {
+    fn default() -> Self {
+        Self {
+            concurrency: 50,
+            tcp_timeout: Duration::from_secs(3),
+            throughput_duration: Duration::from_secs(10),
+            top_n_candidates: 5,
+        }
+    }
+}
+
+/// Result for a single IP after the two-phase speed test.
+#[derive(Debug, Clone)]
+pub(crate) struct SpeedTestResult {
+    pub(crate) ip: Ipv4Addr,
+    /// TCP connect latency in milliseconds.
+    pub(crate) tcp_latency_ms: f64,
+    /// Throughput in MB/s (bytes / seconds / 1_000_000), or None if Phase 2 failed.
+    pub(crate) throughput_mbps: Option<f64>,
+    /// Error message from Phase 2, if any.
+    pub(crate) error: Option<String>,
+}
+
+impl Default for SpeedTestResult {
+    fn default() -> Self {
+        Self {
+            ip: Ipv4Addr::UNSPECIFIED,
+            tcp_latency_ms: 0.0,
+            throughput_mbps: None,
+            error: None,
+        }
+    }
+}
 
 /// Build a throwaway `reqwest::Client` with DNS-override and settings mirrored
 /// from the main `build_http_client`.
@@ -159,7 +210,96 @@ pub(crate) async fn screen_candidates(
         }
     }
 
-    results.sort_by(|a, b| a.1.cmp(&b.1));
+    results.sort_by_key(|a| a.1);
+    results
+}
+
+/// Run the two-phase speed test orchestrator.
+///
+/// Phase 1 — TCP connect-latency screening of all `ips`.
+/// Phase 2 — HTTPS throughput measurement for the top N candidates
+/// (concurrent via `JoinSet`). Results are sorted by throughput
+/// descending (None sorts last), tie-broken by TCP latency ascending.
+pub(crate) async fn run_speed_test(
+    ips: &[Ipv4Addr],
+    config: &SpeedTestConfig,
+    settings: &AppSettings,
+) -> Vec<SpeedTestResult> {
+    // ── Phase 1: TCP screening ─────────────────────────────────
+    let candidates =
+        screen_candidates(ips, config.concurrency, config.tcp_timeout).await;
+
+    let top_n: Vec<(Ipv4Addr, Duration)> = candidates
+        .into_iter()
+        .take(config.top_n_candidates)
+        .collect();
+
+    if top_n.is_empty() {
+        return Vec::new();
+    }
+
+    // ── Phase 2: Concurrent throughput testing ─────────────────
+    let mut join_set = JoinSet::new();
+    for (ip, latency) in &top_n {
+        let ip = *ip;
+        let latency = *latency;
+        let s = settings.clone();
+        join_set.spawn(async move {
+            let result = measure_throughput(
+                ip,
+                "speed.cloudflare.com",
+                SPEED_TEST_URL,
+                &s,
+            )
+            .await;
+            (ip, latency, result)
+        });
+    }
+
+    let mut results = Vec::with_capacity(top_n.len());
+
+    while let Some(task_result) = join_set.join_next().await {
+        if let Ok((ip, latency, throughput_result)) = task_result {
+            let tcp_latency_ms = latency.as_secs_f64() * 1000.0;
+
+            match throughput_result {
+                Ok((bytes, elapsed_ms)) => {
+                    let elapsed_secs = elapsed_ms as f64 / 1000.0;
+                    let throughput_mbps = if elapsed_secs > 0.0 {
+                        Some((bytes / elapsed_secs) / 1_000_000.0)
+                    } else {
+                        None
+                    };
+                    results.push(SpeedTestResult {
+                        ip,
+                        tcp_latency_ms,
+                        throughput_mbps,
+                        error: None,
+                    });
+                }
+                Err(e) => {
+                    results.push(SpeedTestResult {
+                        ip,
+                        tcp_latency_ms,
+                        throughput_mbps: None,
+                        error: Some(e.to_string()),
+                    });
+                }
+            }
+        }
+    }
+
+    results.sort_by(|a, b| {
+        b.throughput_mbps
+            .partial_cmp(&a.throughput_mbps)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(
+                a.tcp_latency_ms
+                    .partial_cmp(&b.tcp_latency_ms)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
+    });
+
     results
 }
 
@@ -192,12 +332,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_screen_candidates_concurrent() {
-        let ips: Vec<Ipv4Addr> = (0..10).map(|_| Ipv4Addr::LOCALHOST).collect();
+        // Class-E reserved (240.0.0.0/4) — unroutable on any normal network.
+        let ips: Vec<Ipv4Addr> =
+            (0..10).map(|i| Ipv4Addr::new(240, 0, 0, i + 1)).collect();
 
-        let results = screen_candidates(&ips, 5, Duration::from_secs(5)).await;
+        let results = screen_candidates(&ips, 5, Duration::from_secs(2)).await;
         assert!(
             results.is_empty(),
-            "closed port should be unreachable, got {} results",
+            "class-E IPs should be unreachable, got {} results",
             results.len()
         );
     }
@@ -268,6 +410,139 @@ mod tests {
                     bytes < 1024.0 || elapsed >= 9000,
                     "unreachable IP should yield error or negligible data, got {bytes} bytes in {elapsed}ms"
                 );
+            }
+        }
+    }
+
+    // ── Orchestrator tests ────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_orchestrator_all_unreachable() {
+        // Class-E reserved (240.0.0.0/4) — unroutable on any normal network.
+        let ips: Vec<Ipv4Addr> =
+            (1..=5).map(|i| Ipv4Addr::new(240, 0, 0, i)).collect();
+        let config = SpeedTestConfig::default();
+        let settings = AppSettings::default();
+
+        let results = run_speed_test(&ips, &config, &settings).await;
+        assert!(
+            results.is_empty(),
+            "all class-E IPs unreachable → empty results, got {}",
+            results.len()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_orchestrator_with_mock_ips() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        // Bind on localhost:443 so Phase 1 TCP screening passes.
+        let listener = match tokio::net::TcpListener::bind("127.0.0.1:443").await
+        {
+            Ok(l) => l,
+            Err(_) => {
+                eprintln!("SKIP: cannot bind port 443");
+                return;
+            }
+        };
+
+        tokio::spawn(async move {
+            loop {
+                let (mut stream, _) = match listener.accept().await {
+                    Ok(c) => c,
+                    Err(_) => break,
+                };
+                tokio::spawn(async move {
+                    let mut buf = [0u8; 4];
+                    let n = stream.read(&mut buf).await.unwrap_or(0);
+                    // Serve plain HTTP if it's an HTTP request (Phase 2
+                    // will fail TLS anyway, but we keep the handler for
+                    // completeness).
+                    if n > 0 && &buf[..n] == b"GET " {
+                        let body = vec![b'X'; 512 * 1024];
+                        let headers = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            body.len()
+                        );
+                        let _ = stream.write_all(headers.as_bytes()).await;
+                        let _ = stream.write_all(&body).await;
+                        let _ = stream.flush().await;
+                        let _ = stream.read(&mut buf).await;
+                    }
+                });
+            }
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let ips = vec![
+            Ipv4Addr::LOCALHOST,
+            Ipv4Addr::LOCALHOST,
+            Ipv4Addr::LOCALHOST,
+        ];
+        let config = SpeedTestConfig {
+            top_n_candidates: 3,
+            ..SpeedTestConfig::default()
+        };
+        let settings = AppSettings::default();
+
+        let results = run_speed_test(&ips, &config, &settings).await;
+
+        assert!(
+            !results.is_empty(),
+            "Phase 1 should pass with listener on :443"
+        );
+
+        for r in &results {
+            assert_eq!(r.ip, Ipv4Addr::LOCALHOST);
+            assert!(r.tcp_latency_ms >= 0.0);
+            // Phase 2 fails because our server is plain TCP, not TLS.
+            assert!(
+                r.error.is_some(),
+                "Phase 2 should fail (TLS), got throughput={:?}",
+                r.throughput_mbps
+            );
+        }
+
+        // All throughputs are None → sorted by latency ascending.
+        for i in 1..results.len() {
+            assert!(
+                results[i - 1].tcp_latency_ms <= results[i].tcp_latency_ms,
+                "tiebreak sort: latency ascending"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_orchestrator_partial_failures() {
+        // Mix class-E (unreachable) + localhost (reachable if :443 open).
+        let ips: Vec<Ipv4Addr> = [
+            Ipv4Addr::new(240, 0, 0, 1),
+            Ipv4Addr::new(240, 0, 0, 2),
+            Ipv4Addr::LOCALHOST,
+            Ipv4Addr::new(240, 0, 0, 3),
+        ]
+        .to_vec();
+
+        let config = SpeedTestConfig::default();
+        let settings = AppSettings::default();
+
+        let results = run_speed_test(&ips, &config, &settings).await;
+
+        // Class-E IPs must never appear — they fail Phase 1.
+        for r in &results {
+            let octets = r.ip.octets();
+            assert!(
+                octets[0] != 240,
+                "class-E IP {:?} must not appear in results",
+                r.ip
+            );
+        }
+
+        // If localhost was reachable (port 443 open), results are non-empty.
+        if !results.is_empty() {
+            for r in &results {
+                assert!(r.tcp_latency_ms >= 0.0);
             }
         }
     }
