@@ -16,11 +16,15 @@ mod torrent;
 mod types;
 
 pub use aria2_rpc::Aria2RpcServer;
+pub(crate) use cdn::CdnAccelerator;
 pub use commands::{
     bt_runtime_status,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
     download_remove, download_resume, download_start, download_status, settings_fetch_tracker_list,
     settings_get, settings_save,
+};
+pub use cdn::commands::{
+    cdn_apply, cdn_cancel, cdn_clear, cdn_fetch_ranges, cdn_status, cdn_test,
 };
 pub use logging::init_logging;
 pub use manager::{AppState, DownloadManager};

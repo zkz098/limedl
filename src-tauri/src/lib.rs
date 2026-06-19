@@ -10,10 +10,12 @@ use tokio::time::sleep;
 
 use download::{
     AppState, Aria2RpcServer, DownloadManager, SftpManager, TorrentManager, bt_runtime_status,
+    cdn_apply, cdn_cancel, cdn_clear, cdn_fetch_ranges, cdn_status, cdn_test,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
     download_remove, download_resume, download_start, download_status, init_logging,
     settings_fetch_tracker_list, settings_get, settings_save,
 };
+use download::CdnAccelerator;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -50,6 +52,8 @@ pub fn run() {
                     SftpManager::new(state_dir.join("sftp")).context("初始化 SFTP 管理器失败")?;
                 let sftp_manager = Arc::new(sftp_manager);
 
+                let cdn_accelerator = Arc::new(CdnAccelerator::new());
+
                 let app_handle = app.handle().clone();
 
                 let rpc_shutdown = Arc::new(Mutex::new(None::<tokio::sync::watch::Sender<bool>>));
@@ -66,6 +70,7 @@ pub fn run() {
                     manager: download_manager.clone(),
                     torrent_manager: torrent_manager.clone(),
                     sftp_manager: sftp_manager.clone(),
+                    cdn_accelerator: cdn_accelerator.clone(),
                     app_handle: app_handle.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
                 });
@@ -74,11 +79,13 @@ pub fn run() {
                     let mgr = download_manager.clone();
                     let tm = torrent_manager.clone();
                     let sm = sftp_manager.clone();
+                    let cdna = cdn_accelerator.clone();
                     tauri::async_runtime::spawn(async move {
                         let state = AppState {
                             manager: mgr,
                             torrent_manager: tm,
                             sftp_manager: sm,
+                            cdn_accelerator: cdna,
                             app_handle,
                             rpc_shutdown: Default::default(),
                         };
@@ -127,7 +134,13 @@ pub fn run() {
             bt_runtime_status,
             settings_fetch_tracker_list,
             settings_get,
-            settings_save
+            settings_save,
+            cdn_fetch_ranges,
+            cdn_test,
+            cdn_apply,
+            cdn_clear,
+            cdn_status,
+            cdn_cancel,
         ])
         .run(tauri::generate_context!());
 

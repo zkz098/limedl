@@ -320,6 +320,11 @@ pub async fn settings_save(
                 .context("保存设置失败")?;
             state.torrent_manager.update_settings(&saved);
 
+            // Sync CDN acceleration settings — clear accelerator when disabled
+            if !saved.cdn_acceleration.enabled {
+                state.cdn_accelerator.clear().await;
+            }
+
             let new_rpc = &saved.aria2_rpc;
             if old_rpc != *new_rpc {
                 // Signal existing RPC server to shut down gracefully

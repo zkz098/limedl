@@ -650,4 +650,30 @@ mod tests {
         let settings: AppSettings = serde_json::from_str(json).unwrap();
         assert!(!settings.cdn_acceleration.enabled);
     }
+
+    #[test]
+    fn test_settings_round_trip_with_cdn() {
+        let original = AppSettings {
+            cdn_acceleration: CdnAccelerationSettings {
+                enabled: true,
+                active_ip: Some("10.0.0.1".into()),
+                active_speed_mbps: Some(88.3),
+                last_test_at_ms: Some(1700000000000),
+                last_error: None,
+            },
+            ..AppSettings::default()
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: AppSettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.cdn_acceleration, deserialized.cdn_acceleration);
+        assert!(deserialized.cdn_acceleration.enabled);
+        assert_eq!(
+            deserialized.cdn_acceleration.active_ip.as_deref(),
+            Some("10.0.0.1")
+        );
+        assert_eq!(
+            deserialized.cdn_acceleration.active_speed_mbps,
+            Some(88.3)
+        );
+    }
 }

@@ -60,6 +60,7 @@ pub struct AppState {
     pub manager: Arc<DownloadManager>,
     pub torrent_manager: Arc<TorrentManager>,
     pub sftp_manager: Arc<super::sftp::SftpManager>,
+    pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
     pub rpc_shutdown: Arc<std::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
 }
