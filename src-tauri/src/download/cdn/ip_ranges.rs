@@ -1,4 +1,9 @@
+#![allow(dead_code)]
+
 use std::net::Ipv4Addr;
+use std::time::{Duration, Instant};
+
+use tokio::sync::Mutex;
 
 /// Static fallback list of Cloudflare IPv4 CIDR ranges.
 ///
@@ -98,6 +103,69 @@ pub(crate) fn expand_ipv4_cidrs(ranges: &[&str], samples_per_cidr: usize) -> Vec
     result
 }
 
+const CLOUDFLARE_IPV4_URL: &str = "https://www.cloudflare.com/ips-v4";
+const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+
+#[derive(Clone, Debug)]
+pub(crate) struct IpRangesCache {
+    pub ips: Vec<Ipv4Addr>,
+    pub fetched_at: Instant,
+    pub from_fallback: bool,
+}
+
+pub(crate) async fn fetch_cloudflare_ipv4_ranges() -> anyhow::Result<Vec<Ipv4Addr>> {
+    fetch_ranges_from_url(CLOUDFLARE_IPV4_URL).await
+}
+
+pub(crate) async fn fetch_ranges_from_url(url: &str) -> anyhow::Result<Vec<Ipv4Addr>> {
+    let response = tokio::time::timeout(FETCH_TIMEOUT, reqwest::get(url))
+        .await
+        .map_err(|_| anyhow::anyhow!("fetch timed out after {}s", FETCH_TIMEOUT.as_secs()))?
+        .map_err(|e| anyhow::anyhow!("HTTP request failed: {e}"))?;
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| anyhow::anyhow!("failed to read response body: {e}"))?;
+
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return Err(anyhow::anyhow!("empty response body"));
+    }
+
+    let cidrs: Vec<&str> = trimmed.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+
+    if cidrs.is_empty() {
+        return Err(anyhow::anyhow!("no CIDR lines found in response"));
+    }
+
+    Ok(expand_ipv4_cidrs(&cidrs, 3))
+}
+
+pub(crate) async fn get_ip_ranges(cache: &Mutex<IpRangesCache>) -> IpRangesCache {
+    {
+        let cached = cache.lock().await;
+        if !cached.ips.is_empty() {
+            return cached.clone();
+        }
+    }
+
+    match fetch_cloudflare_ipv4_ranges().await {
+        Ok(ips) => {
+            let mut cached = cache.lock().await;
+            *cached = IpRangesCache { ips, fetched_at: Instant::now(), from_fallback: false };
+            cached.clone()
+        }
+        Err(e) => {
+            tracing::warn!("Failed to fetch Cloudflare IP ranges, using static fallback: {e}");
+            let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
+            let mut cached = cache.lock().await;
+            *cached = IpRangesCache { ips, fetched_at: Instant::now(), from_fallback: true };
+            cached.clone()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,5 +222,46 @@ mod tests {
         let ips = expand_ipv4_cidrs(&["192.0.2.0/31"], 5);
         assert_eq!(ips.len(), 1, "/31 should yield at most 1 sample");
         assert_eq!(ips[0], Ipv4Addr::new(192, 0, 2, 1));
+    }
+
+    #[test]
+    fn test_static_fallback_bundle_size() {
+        let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
+        assert_eq!(ips.len(), 45, "static fallback must produce 45 IPs (15 CIDRs × 3)");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_from_bad_url_fails() {
+        let result = fetch_ranges_from_url("http://127.0.0.1:1/nonexistent").await;
+        assert!(result.is_err(), "fetch from unreachable URL must fail");
+    }
+
+    #[tokio::test]
+    async fn test_caching_returns_cached_data() {
+        let cache = Mutex::new(IpRangesCache {
+            ips: vec![Ipv4Addr::new(1, 1, 1, 1), Ipv4Addr::new(2, 2, 2, 2)],
+            fetched_at: Instant::now(),
+            from_fallback: true,
+        });
+
+        let first = get_ip_ranges(&cache).await;
+        assert_eq!(first.ips.len(), 2);
+        assert_eq!(first.ips[0], Ipv4Addr::new(1, 1, 1, 1));
+        assert_eq!(first.ips[1], Ipv4Addr::new(2, 2, 2, 2));
+        assert!(first.from_fallback);
+
+        let second = get_ip_ranges(&cache).await;
+        assert_eq!(second.ips.len(), 2);
+        assert_eq!(second.ips[0], Ipv4Addr::new(1, 1, 1, 1));
+        assert_eq!(second.ips[1], Ipv4Addr::new(2, 2, 2, 2));
+    }
+
+    #[tokio::test]
+    async fn test_fallback_empty_cache_on_bad_url() {
+        let result = fetch_ranges_from_url("http://127.0.0.1:1/").await;
+        assert!(result.is_err());
+
+        let fallback_ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
+        assert_eq!(fallback_ips.len(), 45);
     }
 }
