@@ -40,7 +40,7 @@ use super::{
     torrent::TorrentManager,
     types::{
         AdaptiveProfile, AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        ChecksumMode, ChunkInfo,
+        CdnAccelerationSettings, ChecksumMode, ChunkInfo,
         DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
         DownloadSummary, LogSettings, NetworkLearningMetrics, NetworkLearningSettings,
         NetworkSceneProfile, ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings,
@@ -2317,6 +2317,7 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         network_learning,
         logging,
         aria2_rpc: settings.aria2_rpc.clone(),
+        cdn_acceleration: settings.cdn_acceleration.clone(),
     })
 }
 
@@ -2485,7 +2486,8 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             || value.get("download").is_some()
             || value.get("bt").is_some()
             || value.get("networkLearning").is_some()
-            || value.get("logging").is_some())
+            || value.get("logging").is_some()
+            || value.get("cdnAcceleration").is_some())
     {
         let parsed = serde_json::from_value::<AppSettings>(value)?;
         return normalize_settings(parsed);
@@ -2501,6 +2503,7 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         network_learning: NetworkLearningSettings::default(),
         logging: LogSettings::default(),
         aria2_rpc: Aria2RpcSettings::default(),
+        cdn_acceleration: CdnAccelerationSettings::default(),
     })
 }
 

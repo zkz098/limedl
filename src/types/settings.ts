@@ -95,6 +95,14 @@ export interface Aria2RpcSettings {
   secret: string | null;
 }
 
+export interface CdnAccelerationSettings {
+  enabled: boolean;
+  activeIp: string | null;
+  activeSpeedMbps: number | null;
+  lastTestAtMs: number | null;
+  lastError: string | null;
+}
+
 export interface AppSettings {
   appearance: AppearanceSettings;
   proxy: ProxySettings;
@@ -104,4 +112,5 @@ export interface AppSettings {
   networkLearning: NetworkLearningSettings;
   logging: LogSettings;
   aria2Rpc: Aria2RpcSettings;
+  cdnAcceleration: CdnAccelerationSettings;
 }

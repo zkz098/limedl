@@ -562,6 +562,8 @@ pub struct AppSettings {
     pub logging: LogSettings,
     #[serde(default)]
     pub aria2_rpc: Aria2RpcSettings,
+    #[serde(default)]
+    pub cdn_acceleration: CdnAccelerationSettings,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -586,5 +588,78 @@ impl Default for Aria2RpcSettings {
             port: 6800,
             secret: None,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CdnAccelerationSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub active_ip: Option<String>,
+    #[serde(default)]
+    pub active_speed_mbps: Option<f64>,
+    #[serde(default)]
+    pub last_test_at_ms: Option<u64>,
+    #[serde(default)]
+    pub last_error: Option<String>,
+}
+
+impl Default for CdnAccelerationSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            active_ip: None,
+            active_speed_mbps: None,
+            last_test_at_ms: None,
+            last_error: None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cdn_settings_round_trip() {
+        let original = CdnAccelerationSettings {
+            enabled: true,
+            active_ip: Some("192.168.1.100".into()),
+            active_speed_mbps: Some(45.5),
+            last_test_at_ms: Some(1700000000000),
+            last_error: Some("timeout".into()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: CdnAccelerationSettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_cdn_settings_defaults() {
+        let json = "{}";
+        let settings: CdnAccelerationSettings = serde_json::from_str(json).unwrap();
+        assert!(!settings.enabled);
+        assert!(settings.active_ip.is_none());
+        assert!(settings.active_speed_mbps.is_none());
+        assert!(settings.last_test_at_ms.is_none());
+        assert!(settings.last_error.is_none());
+    }
+
+    #[test]
+    fn test_app_settings_backward_compat() {
+        let json = r#"{
+            "appearance": {"themeColor": "default", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true},
+            "proxy": {"mode": "system", "manualUrl": ""},
+            "scheduler": {"mode": "traditional", "traditional": {"maxParallelTasks": 3}, "automatic": {"maxParallelThreads": 8, "maxThreadsPerTask": 4, "minThreadsPerTask": 1, "adaptiveProfile": "conservative"}},
+            "download": {"defaultDownloadDir": "", "defaultMaxRetries": 3, "defaultChecksum": "blake3", "defaultUserAgent": "", "enableMetalink": false, "enableSftp": false},
+            "bt": {"pauseUploadWhenLimitReached": false, "uploadLimitBytes": 0, "uploadRatioLimit": 0, "dhtEnabled": true, "pexEnabled": true, "trackerList": "", "trackerListUrl": ""},
+            "networkLearning": {"deviceMode": "fixed", "currentSceneId": "", "scenes": []},
+            "logging": {"enabled": false, "level": "info", "filePath": ""},
+            "aria2Rpc": {"enabled": false, "port": 6800, "secret": null}
+        }"#;
+        let settings: AppSettings = serde_json::from_str(json).unwrap();
+        assert!(!settings.cdn_acceleration.enabled);
     }
 }
