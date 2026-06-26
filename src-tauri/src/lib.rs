@@ -10,7 +10,7 @@ use tokio::time::sleep;
 
 use download::{
     AppState, Aria2RpcServer, DownloadManager, SftpManager, TorrentManager, bt_runtime_status,
-    cdn_apply, cdn_cancel, cdn_clear, cdn_fetch_ranges, cdn_status, cdn_test,
+    cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
     download_remove, download_resume, download_start, download_status, init_logging,
     settings_fetch_tracker_list, settings_get, settings_save,
@@ -53,6 +53,16 @@ pub fn run() {
                 let sftp_manager = Arc::new(sftp_manager);
 
                 let cdn_accelerator = Arc::new(CdnAccelerator::new());
+                download_manager.set_cdn_accelerator(cdn_accelerator.clone());
+
+                // Restore CDN acceleration state from persisted settings so
+                // downloads can use the previously-selected IP immediately on restart.
+                {
+                    let initial = download_manager.initial_settings();
+                    tauri::async_runtime::block_on(
+                        cdn_accelerator.init_from_settings(&initial),
+                    );
+                }
 
                 let app_handle = app.handle().clone();
 
@@ -141,6 +151,8 @@ pub fn run() {
             cdn_clear,
             cdn_status,
             cdn_cancel,
+            cdn_detail,
+            cdn_candidates,
         ])
         .run(tauri::generate_context!());
 

@@ -89,9 +89,21 @@ impl TorrentManager {
             options.socks_proxy_url = Some(settings.proxy.manual_url.clone());
         }
 
-        let session = Session::new_with_opts(output_dir.clone(), options)
-            .await
-            .map_err(|error| DownloadError::Torrent(error.to_string()))?;
+        let session = match Session::new_with_opts(output_dir.clone(), options).await {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("BT session init failed: {e}, retrying with DHT disabled and no persistence");
+                let fallback_options = SessionOptions {
+                    disable_dht: true,
+                    fastresume: false,
+                    persistence: None,
+                    ..SessionOptions::default()
+                };
+                Session::new_with_opts(output_dir.clone(), fallback_options)
+                    .await
+                    .map_err(|error| DownloadError::Torrent(error.to_string()))?
+            }
+        };
 
         let api = Api::new(session.clone(), None);
 
@@ -125,6 +137,16 @@ impl TorrentManager {
         }
 
         let destination_dir = PathBuf::from(request.destination_dir.trim());
+        if destination_dir.as_os_str().is_empty() {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "download destination directory is not set",
+            )));
+        }
+        if !destination_dir.is_absolute() {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "download destination directory must be an absolute path",
+            )));
+        }
         fs::create_dir_all(&destination_dir)?;
 
         let pending_id = pending_bt_task_id();
@@ -493,7 +515,7 @@ impl TorrentManager {
                 limit_reached,
             )));
         }
-        summaries.sort_by(|left, right| right.id.cmp(&left.id));
+        summaries.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(summaries)
     }
 
@@ -603,6 +625,7 @@ impl TorrentManager {
             info_hash: None,
             created_at_ms: task.created_at_ms,
             updated_at_ms: now,
+            cdn_accelerated: false,
             chunks: vec![],
         }
     }
@@ -805,6 +828,7 @@ impl TorrentManager {
             info_hash: Some(handle.info_hash().as_string()),
             created_at_ms: now,
             updated_at_ms: now,
+            cdn_accelerated: false,
             chunks: vec![],
         }
     }

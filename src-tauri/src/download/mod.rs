@@ -24,7 +24,8 @@ pub use commands::{
     settings_get, settings_save,
 };
 pub use cdn::commands::{
-    cdn_apply, cdn_cancel, cdn_clear, cdn_fetch_ranges, cdn_status, cdn_test,
+    cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status,
+    cdn_test,
 };
 pub use logging::init_logging;
 pub use manager::{AppState, DownloadManager};

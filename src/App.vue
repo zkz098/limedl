@@ -64,8 +64,10 @@ const appSettings = ref<AppSettings | null>(null);
 const pendingPermanentDeleteId = ref<string | null>(null);
 const pendingView = ref<"home" | "settings" | "labs" | null>(null);
 const settingsHasUnsavedChanges = ref(false);
+const labsHasUnsavedChanges = ref(false);
 const isSavingBeforeNavigation = ref(false);
 const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
+const labsPageRef = useTemplateRef<InstanceType<typeof LabsPage>>("labsPage");
 const knownFailedDownloadIds = new Set<string>();
 let hasSeenInitialDownloadList = false;
 let colorSchemeQuery: MediaQueryList | null = null;
@@ -80,6 +82,18 @@ const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummar
 const showDetailInfo = computed(() => appSettings.value?.appearance?.showDetailInfo ?? true);
 const showHeatmap = computed(() => appSettings.value?.appearance?.showHeatmap ?? true);
 const showUnsavedSettingsDialog = computed(() => pendingView.value !== null);
+const pendingViewIsLeavingLabs = computed(
+  () => currentView.value === "labs" && pendingView.value !== null,
+);
+const unsavedDialogKicker = computed(() =>
+  pendingViewIsLeavingLabs.value ? t("labs.kicker") : t("settings.kicker"),
+);
+const unsavedDialogTitle = computed(() =>
+  pendingViewIsLeavingLabs.value ? t("labs.unsavedTitle") : t("dialog.unsavedSettingsTitle"),
+);
+const unsavedDialogMessage = computed(() =>
+  pendingViewIsLeavingLabs.value ? t("labs.unsavedMessage") : t("dialog.unsavedSettingsMessage"),
+);
 const pendingPermanentDeleteTask = computed(
   () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
 );
@@ -136,7 +150,11 @@ function navigateTo(view: "home" | "settings" | "labs") {
     return;
   }
 
-  if (currentView.value === "settings" && settingsHasUnsavedChanges.value) {
+  const leavingDirtyView =
+    (currentView.value === "settings" && settingsHasUnsavedChanges.value) ||
+    (currentView.value === "labs" && labsHasUnsavedChanges.value);
+
+  if (leavingDirtyView) {
     pendingView.value = view;
     return;
   }
@@ -152,6 +170,7 @@ function confirmDiscardSettings() {
   const nextView = pendingView.value;
   pendingView.value = null;
   settingsHasUnsavedChanges.value = false;
+  labsHasUnsavedChanges.value = false;
 
   if (nextView) {
     currentView.value = nextView;
@@ -165,7 +184,13 @@ async function saveSettingsAndNavigate() {
 
   isSavingBeforeNavigation.value = true;
   try {
-    const saved = await settingsPageRef.value?.persistSettings();
+    let saved = false;
+    if (currentView.value === "settings") {
+      saved = (await settingsPageRef.value?.persistSettings()) ?? false;
+    } else if (currentView.value === "labs") {
+      saved = (await labsPageRef.value?.persistSettings()) ?? false;
+    }
+
     if (!saved) {
       return;
     }
@@ -173,6 +198,7 @@ async function saveSettingsAndNavigate() {
     const nextView = pendingView.value;
     pendingView.value = null;
     settingsHasUnsavedChanges.value = false;
+    labsHasUnsavedChanges.value = false;
     if (nextView) {
       currentView.value = nextView;
     }
@@ -208,6 +234,17 @@ function handleSettingsSaved(nextSettings: AppSettings) {
 
 function handleSettingsDirtyChange(isDirty: boolean) {
   settingsHasUnsavedChanges.value = isDirty;
+}
+
+function handleLabsSaved(nextSettings: AppSettings) {
+  appSettings.value = nextSettings;
+  labsHasUnsavedChanges.value = false;
+  applyAppearanceSettings(nextSettings);
+  applyAppSettingsDefaults(nextSettings);
+}
+
+function handleLabsDirtyChange(isDirty: boolean) {
+  labsHasUnsavedChanges.value = isDirty;
 }
 
 async function loadSettings() {
@@ -414,7 +451,13 @@ onBeforeUnmount(() => {
         @dirty-change="handleSettingsDirtyChange"
         @saved="handleSettingsSaved"
       />
-      <LabsPage v-else />
+      <LabsPage
+        v-else
+        ref="labsPage"
+        :settings="appSettings"
+        @dirty-change="handleLabsDirtyChange"
+        @saved="handleLabsSaved"
+      />
     </section>
 
     <Transition name="floating-inspector">
@@ -553,8 +596,8 @@ onBeforeUnmount(() => {
       <template #title>
         <div class="dialog-heading">
           <div>
-            <p class="section-kicker">{{ t("settings.kicker") }}</p>
-            <h2>{{ t("dialog.unsavedSettingsTitle") }}</h2>
+            <p class="section-kicker">{{ unsavedDialogKicker }}</p>
+            <h2>{{ unsavedDialogTitle }}</h2>
           </div>
           <span class="dialog-heading__icon i-ri-error-warning-line" aria-hidden="true" />
         </div>
@@ -562,7 +605,7 @@ onBeforeUnmount(() => {
 
       <div class="confirm-delete">
         <p class="confirm-delete__message">
-          {{ t("dialog.unsavedSettingsMessage") }}
+          {{ unsavedDialogMessage }}
         </p>
         <div class="confirm-delete__actions">
           <UiButton type="button" variant="secondary" @click="cancelDiscardSettings">

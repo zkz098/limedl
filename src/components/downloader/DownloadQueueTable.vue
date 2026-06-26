@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { debounce, throttle } from "es-toolkit";
 
-import { formatBytes, formatEta, formatSpeed, progressLabel, progressValue } from "../../lib/download-format";
+import { formatBytes, formatEta, formatSpeed, isSizeUnknown, progressLabel, progressValue } from "../../lib/download-format";
 import { useI18n } from "../../i18n";
 import type { DownloadSummary } from "../../types/download";
 import UiBadge from "../ui/UiBadge.vue";
@@ -423,6 +423,15 @@ onUnmounted(() => {
                   <span class="queue-file__title">
                     <span class="queue-file__name">{{ download.fileName }}</span>
                     <span class="queue-file__kind">{{ labelForTaskKind(download.kind) }}</span>
+                    <UiBadge
+                      v-if="download.cdnAccelerated"
+                      size="sm"
+                      tone="warning"
+                      class="queue-file__cdn"
+                    >
+                      <span class="i-ri-flashlight-fill" aria-hidden="true" />
+                      CDN
+                    </UiBadge>
                   </span>
                   <span class="queue-file__path">{{ download.destinationPath }}</span>
                   <span class="queue-file__meta">{{ metaForDownload(download) }}</span>
@@ -444,7 +453,10 @@ onUnmounted(() => {
                       {{ formatBytes(download.totalBytes) }}
                     </span>
                   </div>
-                  <UiProgress :value="progressValue(download)" />
+                  <UiProgress
+                    :value="progressValue(download)"
+                    :indeterminate="isSizeUnknown(download) && download.state !== 'completed'"
+                  />
                 </div>
               </td>
 
@@ -491,42 +503,44 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div
-        v-if="contextMenu && contextMenuDownload"
-        class="task-context-menu"
-        :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
-        @pointerdown.stop
-      >
-        <button
-          type="button"
-          class="task-context-menu__item"
-          :disabled="!canTogglePauseOrResume"
-          @click="handlePauseOrResume"
+      <Teleport to="body">
+        <div
+          v-if="contextMenu && contextMenuDownload"
+          class="task-context-menu"
+          :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+          @pointerdown.stop
         >
-          <span :class="contextActionIcon" aria-hidden="true" />
-          <span>{{ contextActionLabel }}</span>
-        </button>
-        <button type="button" class="task-context-menu__item" @click="handleDeleteTask">
-          <span class="i-ri-delete-bin-6-line" aria-hidden="true" />
-          <span>{{ t("queue.deleteTask") }}</span>
-        </button>
-        <button type="button" class="task-context-menu__item" @click="handleCopyLink">
-          <span class="i-ri-file-copy-line" aria-hidden="true" />
-          <span>{{ t("queue.copyLink") }}</span>
-        </button>
-        <button
-          type="button"
-          class="task-context-menu__item task-context-menu__item--danger"
-          @click="handleDeleteTaskPermanently"
-        >
-          <span class="i-ri-delete-bin-line" aria-hidden="true" />
-          <span>{{ t("queue.permanentDelete") }}</span>
-        </button>
-        <button type="button" class="task-context-menu__item" @click="handleOpenInExplorer">
-          <span class="i-ri-folder-open-line" aria-hidden="true" />
-          <span>{{ t("queue.openInExplorer") }}</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            class="task-context-menu__item"
+            :disabled="!canTogglePauseOrResume"
+            @click="handlePauseOrResume"
+          >
+            <span :class="contextActionIcon" aria-hidden="true" />
+            <span>{{ contextActionLabel }}</span>
+          </button>
+          <button type="button" class="task-context-menu__item" @click="handleDeleteTask">
+            <span class="i-ri-delete-bin-6-line" aria-hidden="true" />
+            <span>{{ t("queue.deleteTask") }}</span>
+          </button>
+          <button type="button" class="task-context-menu__item" @click="handleCopyLink">
+            <span class="i-ri-file-copy-line" aria-hidden="true" />
+            <span>{{ t("queue.copyLink") }}</span>
+          </button>
+          <button
+            type="button"
+            class="task-context-menu__item task-context-menu__item--danger"
+            @click="handleDeleteTaskPermanently"
+          >
+            <span class="i-ri-delete-bin-line" aria-hidden="true" />
+            <span>{{ t("queue.permanentDelete") }}</span>
+          </button>
+          <button type="button" class="task-context-menu__item" @click="handleOpenInExplorer">
+            <span class="i-ri-folder-open-line" aria-hidden="true" />
+            <span>{{ t("queue.openInExplorer") }}</span>
+          </button>
+        </div>
+      </Teleport>
     </div>
 
     <div v-else class="queue-empty">
@@ -759,6 +773,19 @@ onUnmounted(() => {
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1.3;
+}
+
+.queue-file__cdn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.queue-file__cdn .i-ri-flashlight-fill {
+  font-size: 0.7rem;
 }
 
 .queue-file__path {

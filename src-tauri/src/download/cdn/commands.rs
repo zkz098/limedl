@@ -1,9 +1,12 @@
 use std::net::Ipv4Addr;
 
+use serde::Serialize;
+use tauri::Emitter;
 use tauri::State;
 
 use super::accelerator::AccelState;
 use super::ip_ranges::CLOUDFLARE_IPV4_RANGES;
+use super::speed_test::{CdnTestPhase, DefaultNodeResult, SpeedTestResult};
 use crate::download::manager::AppState;
 
 /// Return the 15 static Cloudflare IPv4 CIDR range strings from the bundled fallback list.
@@ -20,8 +23,10 @@ pub async fn cdn_fetch_ranges(
 
 /// Kick off a CDN speed test in a background task.
 ///
-/// Returns immediately after spawning the test.  Progress can be monitored via
-/// [`cdn_status`].  Calling this when a test is already running is a no-op.
+/// Returns immediately after spawning the test. Progress can be monitored via
+/// [`cdn_status`]. When the test completes, results are auto-persisted to
+/// `AppSettings.cdnAcceleration` and a `cdn-test-complete` event is emitted.
+/// Calling this when a test is already running is a no-op.
 #[tauri::command]
 pub async fn cdn_test(
     state: State<'_, AppState>,
@@ -36,7 +41,110 @@ pub async fn cdn_test(
         .cdn_accelerator
         .start_test(settings)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    let acc = state.cdn_accelerator.clone();
+    let mgr = state.manager.clone();
+    let handle = state.app_handle.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let mut was_testing = true;
+
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+            let st = acc.status().await;
+            match st {
+                AccelState::Testing => {
+                    was_testing = true;
+                    // Emit progress events during testing.
+                    if let Some(phase) = acc.phase().await {
+                        let (current, total) = acc.phase_progress().await;
+                        let phase_str = match phase {
+                            CdnTestPhase::FetchingRanges => "fetchingRanges",
+                            CdnTestPhase::Screening => "screening",
+                            CdnTestPhase::MeasuringThroughput => "measuringThroughput",
+                        };
+                        tracing::debug!(
+                            "cdn poll: Testing phase={phase_str} progress={current}/{total}",
+                        );
+                        let _ = handle.emit(
+                            "cdn-test-progress",
+                            serde_json::json!({
+                                "phase": phase_str,
+                                "current": current,
+                                "total": total,
+                            }),
+                        );
+                    }
+                    continue;
+                }
+                AccelState::Idle => {
+                    if was_testing {
+                        tracing::info!("cdn poll: Idle (was testing) — test ended without Ready/Error");
+                        break;
+                    }
+                    continue;
+                }
+                AccelState::Ready => {
+                    tracing::info!("cdn poll: Ready — persisting results + emitting complete");
+                    let now_ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+                    let ip = acc.active_ip().await;
+                    let speed = acc.active_speed_mbps().await;
+
+                    if let Ok(mut current) = mgr.settings().await {
+                        current.cdn_acceleration.active_ip =
+                            ip.map(|i| i.to_string());
+                        current.cdn_acceleration.active_speed_mbps = speed;
+                        current.cdn_acceleration.last_test_at_ms =
+                            Some(now_ms);
+                        current.cdn_acceleration.last_error = None;
+                        let _ = mgr.update_settings(current).await;
+                    }
+
+                    let _ = handle.emit(
+                        "cdn-test-complete",
+                        serde_json::json!({
+                            "state": "Ready",
+                            "activeIp": ip.map(|i| i.to_string()),
+                            "activeSpeedMbps": speed,
+                        }),
+                    );
+                    break;
+                }
+                AccelState::Error(msg) => {
+                    tracing::info!("cdn poll: Error — {msg}");
+                    let now_ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+
+                    if let Ok(mut current) = mgr.settings().await {
+                        current.cdn_acceleration.last_error =
+                            Some(msg.clone());
+                        current.cdn_acceleration.last_test_at_ms =
+                            Some(now_ms);
+                        let _ = mgr.update_settings(current).await;
+                    }
+
+                    let _ = handle.emit(
+                        "cdn-test-complete",
+                        serde_json::json!({
+                            "state": format!("Error: {msg}"),
+                            "activeIp": null,
+                            "activeSpeedMbps": null,
+                        }),
+                    );
+                    break;
+                }
+            }
+        }
+    });
+
+    Ok(())
 }
 
 /// Build an accelerated reqwest client for the given IP and speed estimate.
@@ -64,7 +172,23 @@ pub async fn cdn_apply(
         .cdn_accelerator
         .apply_ip(ip, speed_mbps, &settings)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // Persist the applied IP to settings so it survives restart.
+    if let Ok(mut current) = state.manager.settings().await {
+        current.cdn_acceleration.active_ip = Some(ip.to_string());
+        current.cdn_acceleration.active_speed_mbps = Some(speed_mbps);
+        current.cdn_acceleration.last_test_at_ms = Some(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64,
+        );
+        current.cdn_acceleration.last_error = None;
+        let _ = state.manager.update_settings(current).await;
+    }
+
+    Ok(())
 }
 
 /// Reset the accelerator to idle state, dropping any accelerated client.
@@ -106,6 +230,73 @@ pub async fn cdn_cancel(
 ) -> Result<(), String> {
     state.cdn_accelerator.cancel_test();
     Ok(())
+}
+
+/// Progress counter for a CDN test phase.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhaseProgress {
+    pub current: u64,
+    pub total: u64,
+}
+
+/// Structured accelerator status returned to the frontend.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CdnDetail {
+    pub state: String,
+    pub active_ip: Option<String>,
+    pub active_speed_mbps: Option<f64>,
+    pub phase: Option<String>,
+    pub phase_progress: Option<PhaseProgress>,
+    pub candidates: Vec<SpeedTestResult>,
+    pub default_node: Option<DefaultNodeResult>,
+}
+
+/// Return structured accelerator status including IP and speed.
+#[tauri::command]
+pub async fn cdn_detail(
+    state: State<'_, AppState>,
+) -> Result<CdnDetail, String> {
+    let st = state.cdn_accelerator.status().await;
+    let ip = state.cdn_accelerator.active_ip().await.map(|i| i.to_string());
+    let speed = state.cdn_accelerator.active_speed_mbps().await;
+    let phase = state.cdn_accelerator.phase().await.map(|p| match p {
+        CdnTestPhase::FetchingRanges => "FetchingRanges".to_string(),
+        CdnTestPhase::Screening => "Screening".to_string(),
+        CdnTestPhase::MeasuringThroughput => "MeasuringThroughput".to_string(),
+    });
+    let (current, total) = state.cdn_accelerator.phase_progress().await;
+    let phase_progress = if total > 0 {
+        Some(PhaseProgress { current, total })
+    } else {
+        None
+    };
+    let candidates = state.cdn_accelerator.candidates().await;
+    let default_node = state.cdn_accelerator.default_node().await;
+
+    Ok(CdnDetail {
+        state: match &st {
+            AccelState::Idle => "Idle".to_string(),
+            AccelState::Testing => "Testing".to_string(),
+            AccelState::Ready => "Ready".to_string(),
+            AccelState::Error(msg) => format!("Error: {msg}"),
+        },
+        active_ip: ip,
+        active_speed_mbps: speed,
+        phase,
+        phase_progress,
+        candidates,
+        default_node,
+    })
+}
+
+/// Return all candidate IPs from the most recent CDN speed test.
+#[tauri::command]
+pub async fn cdn_candidates(
+    state: State<'_, AppState>,
+) -> Result<Vec<SpeedTestResult>, String> {
+    Ok(state.cdn_accelerator.candidates().await)
 }
 
 #[cfg(test)]

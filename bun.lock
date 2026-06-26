@@ -9,6 +9,7 @@
         "@tauri-apps/api": "^2.11.0",
         "@tauri-apps/plugin-dialog": "^2.7.1",
         "@tauri-apps/plugin-opener": "^2.5.4",
+        "@vueuse/core": "^14.3.0",
         "es-toolkit": "^1.47.1",
         "i18next": "^26.3.1",
         "unocss": "^66.7.2",
@@ -300,6 +301,8 @@
 
     "@types/estree": ["@types/estree@1.0.8", "https://registry.npmmirror.com@types/estree/-/estree-1.0.8.tgz", {}, ""],
 
+    "@types/web-bluetooth": ["@types/web-bluetooth@0.0.21", "https://registry.npmmirror.com/@types/web-bluetooth/-/web-bluetooth-0.0.21.tgz", {}, "sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA=="],
+
     "@unocss/cli": ["@unocss/cli@66.7.2", "https://registry.npmmirror.com/@unocss/cli/-/cli-66.7.2.tgz", { "dependencies": { "@jridgewell/remapping": "^2.3.5", "@unocss/config": "66.7.2", "@unocss/core": "66.7.2", "@unocss/preset-wind3": "66.7.2", "@unocss/preset-wind4": "66.7.2", "@unocss/transformer-directives": "66.7.2", "cac": "^7.0.0", "chokidar": "^5.0.0", "colorette": "^2.0.20", "consola": "^3.4.2", "magic-string": "^0.30.21", "pathe": "^2.0.3", "perfect-debounce": "^2.1.0", "tinyglobby": "^0.2.16", "unplugin-utils": "^0.3.1" }, "bin": { "unocss": "./bin/unocss.mjs" } }, "sha512-50vBptZyiyYzm5CBNSVs1WYIFX+7IKYFwLNrm6pVCOjHfrBmmpfvyCznPMzUcGEFKvP2VsyB2hf3k57GBCSS9Q=="],
 
     "@unocss/config": ["@unocss/config@66.7.2", "https://registry.npmmirror.com/@unocss/config/-/config-66.7.2.tgz", { "dependencies": { "@unocss/core": "66.7.2", "colorette": "^2.0.20", "consola": "^3.4.2", "unconfig": "^7.5.0" } }, "sha512-m8LZUZOFHBesViFOnC1MzMMQ1ovYbZ/F2ntkKSIWzLO/VvEYo2/HK8qhBhtI/FyL27+gvePL4sZ6a5ZChyl0Ug=="],
@@ -385,6 +388,12 @@
     "@vue/shared": ["@vue/shared@3.5.38", "https://registry.npmmirror.com/@vue/shared/-/shared-3.5.38.tgz", {}, "sha512-FTW0AFZNaK5/mOqvGBwVfUlNLU38TiQn4+DQgIFUnrBBJQ1crMJ82yeGQLV5jyKFsO8yRukpbuP7x+nRbH6aug=="],
 
     "@vue/test-utils": ["@vue/test-utils@2.4.11", "https://registry.npmmirror.com/@vue/test-utils/-/test-utils-2.4.11.tgz", { "dependencies": { "js-beautify": "^1.14.9", "vue-component-type-helpers": "^3.0.0" }, "peerDependencies": { "@vue/compiler-dom": "3.x", "@vue/server-renderer": "3.x", "vue": "3.x" }, "optionalPeers": ["@vue/server-renderer"] }, "sha512-GDqaqZsA6m2E5vNzej0aYiIb6BX8xV9pNSbbbXKOfEYwg7ZNblVX8suyqmUBThq8VIrgAJNxn+z72hVtUeiWHA=="],
+
+    "@vueuse/core": ["@vueuse/core@14.3.0", "https://registry.npmmirror.com/@vueuse/core/-/core-14.3.0.tgz", { "dependencies": { "@types/web-bluetooth": "^0.0.21", "@vueuse/metadata": "14.3.0", "@vueuse/shared": "14.3.0" }, "peerDependencies": { "vue": "^3.5.0" } }, "sha512-aHfz47g0ZhMtTVHmIzMVpJy8ePhhOy68GY5bv110+5DVtZ+W7BsOx+m61UNQqfrWyPztIHIanWa3E2tib3NFIw=="],
+
+    "@vueuse/metadata": ["@vueuse/metadata@14.3.0", "https://registry.npmmirror.com/@vueuse/metadata/-/metadata-14.3.0.tgz", {}, "sha512-BwxmbAzwAVF50+MW57GXOUEV61nFBGnlBvrTqj49PqWJu3uw7hdu72ztXeZ33RdZtDY6kO+bfCAE1PCn88Tktw=="],
+
+    "@vueuse/shared": ["@vueuse/shared@14.3.0", "https://registry.npmmirror.com/@vueuse/shared/-/shared-14.3.0.tgz", { "peerDependencies": { "vue": "^3.5.0" } }, "sha512-bZpge9eSXwa4ToSiqJ7j6KRwhAsneMFoSz3LMWKQDkqimm3D/tbFlrklrs/IOqC8tEcYmXQZJ6N0UrjhBirVCg=="],
 
     "abbrev": ["abbrev@2.0.0", "https://registry.npmmirror.com/abbrev/-/abbrev-2.0.0.tgz", {}, "sha512-6/mh1E2u2YgEsCHdY0Yx5oW+61gZU+1vXaoiHHrpKeuRNNgFvS+/jrwHiQhB5apAf5oB7UB7E19ol2R2LKH8hQ=="],
 

@@ -60,6 +60,8 @@ export interface DownloadSummary {
   peerCount?: number;
   uploadStatus?: BtUploadStatus;
   error?: string;
+  cdnAccelerated?: boolean;
+  createdAtMs: number;
 }
 
 export interface ChunkInfo {
@@ -102,6 +104,7 @@ export interface DownloadSnapshot {
   uploadStatus?: BtUploadStatus;
   createdAtMs: number;
   updatedAtMs: number;
+  cdnAccelerated?: boolean;
   chunks?: ChunkInfo[];
 }
 

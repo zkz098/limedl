@@ -285,7 +285,7 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
                     .await
                     .context("读取 SFTP 下载列表失败")?,
             );
-            downloads.sort_by(|left, right| right.id.cmp(&left.id));
+            downloads.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
             Ok(downloads)
         }
         .await,

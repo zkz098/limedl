@@ -11,6 +11,7 @@ import {
   formatEta,
   formatSpeed,
   formatTimestamp,
+  isSizeUnknown,
   progressValue,
 } from "../../lib/download-format";
 import type { DownloadSnapshot, DownloadSummary } from "../../types/download";
@@ -189,6 +190,15 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
           <div class="inspector-summary__header">
             <h3>{{ selectedOverview.fileName }}</h3>
             <UiBadge :tone="stateTone">{{ t(`states.${selectedOverview.state}`) }}</UiBadge>
+            <UiBadge
+              v-if="selectedOverview.cdnAccelerated"
+              tone="warning"
+              size="sm"
+              class="inspector-summary__cdn"
+            >
+              <span class="i-ri-flashlight-fill" aria-hidden="true" />
+              {{ t("inspector.cdnAccelerated") }}
+            </UiBadge>
           </div>
           <p>{{ selectedOverview.destinationPath }}</p>
         </div>
@@ -230,6 +240,13 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
               </template>
             </span>
           </div>
+          <div v-if="selectedOverview.cdnAccelerated" class="text-row">
+            <span class="text-label">{{ t("inspector.cdnNode") }}:</span>
+            <span class="text-value">
+              <span class="i-ri-flashlight-fill" aria-hidden="true" />
+              {{ t("inspector.cdnAccelerated") }}
+            </span>
+          </div>
         </div>
 
         <div class="summary-progress">
@@ -237,7 +254,10 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
             <span>{{ t("inspector.progress") }}</span>
             <span>{{ progressValue(selectedOverview).toFixed(1) }}%</span>
           </div>
-          <UiProgress :value="progressValue(selectedOverview)" />
+          <UiProgress
+          :value="progressValue(selectedOverview)"
+          :indeterminate="isSizeUnknown(selectedOverview) && selectedOverview.state !== 'completed'"
+        />
         </div>
       </div>
 
@@ -315,6 +335,16 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
+}
+
+.inspector-summary__cdn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.inspector-summary__cdn .i-ri-flashlight-fill {
+  font-size: 0.85rem;
 }
 
 .inspector-summary__copy h3,

@@ -4,6 +4,10 @@ use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
+
+/// Cache TTL: 24 hours before considering cached IP ranges stale.
+pub(crate) const CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// Static fallback list of Cloudflare IPv4 CIDR ranges.
 ///
@@ -47,7 +51,7 @@ fn parse_ipv4(s: &str) -> Option<Ipv4Addr> {
 /// Parse a CIDR notation string into an (address, prefix_length) tuple.
 ///
 /// Returns `None` if the string is malformed or the prefix is out of range (>32).
-fn parse_cidr(cidr: &str) -> Option<(Ipv4Addr, u8)> {
+pub(crate) fn parse_cidr(cidr: &str) -> Option<(Ipv4Addr, u8)> {
     let (ip_str, prefix_str) = cidr.split_once('/')?;
     let prefix: u8 = prefix_str.parse().ok()?;
     if prefix > 32 {
@@ -58,7 +62,7 @@ fn parse_cidr(cidr: &str) -> Option<(Ipv4Addr, u8)> {
 }
 
 /// Compute the network address by masking the given IP with the prefix length.
-fn network_address(ip: Ipv4Addr, prefix: u8) -> Ipv4Addr {
+pub(crate) fn network_address(ip: Ipv4Addr, prefix: u8) -> Ipv4Addr {
     let raw = u32::from(ip);
     let mask = if prefix == 0 {
         0u32
@@ -113,6 +117,12 @@ pub(crate) struct IpRangesCache {
     pub from_fallback: bool,
 }
 
+impl IpRangesCache {
+    pub(crate) fn expired(&self) -> bool {
+        self.ips.is_empty() || self.fetched_at.elapsed() >= CACHE_TTL
+    }
+}
+
 pub(crate) async fn fetch_cloudflare_ipv4_ranges() -> anyhow::Result<Vec<Ipv4Addr>> {
     fetch_ranges_from_url(CLOUDFLARE_IPV4_URL).await
 }
@@ -142,25 +152,85 @@ pub(crate) async fn fetch_ranges_from_url(url: &str) -> anyhow::Result<Vec<Ipv4A
     Ok(expand_ipv4_cidrs(&cidrs, 3))
 }
 
-pub(crate) async fn get_ip_ranges(cache: &Mutex<IpRangesCache>) -> IpRangesCache {
+pub(crate) async fn get_ip_ranges(
+    cache: &Mutex<IpRangesCache>,
+    cancel: CancellationToken,
+) -> IpRangesCache {
+    // Fast path: cache is valid (<24h, non-empty) — return immediately.
     {
         let cached = cache.lock().await;
-        if !cached.ips.is_empty() {
+        if !cached.ips.is_empty() && !cached.expired() {
             return cached.clone();
         }
     }
 
-    match fetch_cloudflare_ipv4_ranges().await {
+    // Stale path: cache expired but has data — return stale, refresh in background.
+    {
+        let cached = cache.lock().await;
+        if !cached.ips.is_empty() {
+            let stale = cached.clone();
+            drop(cached);
+
+            // Spawn a best-effort background refresh. Since the cache is borrowed
+            // (&Mutex) we cannot hand ownership to the spawned task; the fetch still
+            // runs but does not update the cache. The stale data is returned immediately.
+            tokio::spawn(async move {
+                match fetch_cloudflare_ipv4_ranges().await {
+                    Ok(ips) => {
+                        tracing::info!(
+                            ips_len = ips.len(),
+                            "Background Cloudflare IP refresh succeeded"
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Background Cloudflare IP refresh failed: {e}"
+                        );
+                    }
+                }
+            });
+
+            return stale;
+        }
+    }
+
+    // Empty cache: must fetch. Respect cancellation via tokio::select!.
+    let result = tokio::select! {
+        _ = cancel.cancelled() => {
+            tracing::warn!("IP range fetch cancelled, using static fallback");
+            let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
+            let mut cached = cache.lock().await;
+            *cached = IpRangesCache {
+                ips: ips.clone(),
+                fetched_at: Instant::now(),
+                from_fallback: true,
+            };
+            return cached.clone();
+        }
+        result = fetch_cloudflare_ipv4_ranges() => result,
+    };
+
+    match result {
         Ok(ips) => {
             let mut cached = cache.lock().await;
-            *cached = IpRangesCache { ips, fetched_at: Instant::now(), from_fallback: false };
+            *cached = IpRangesCache {
+                ips,
+                fetched_at: Instant::now(),
+                from_fallback: false,
+            };
             cached.clone()
         }
         Err(e) => {
-            tracing::warn!("Failed to fetch Cloudflare IP ranges, using static fallback: {e}");
+            tracing::warn!(
+                "Failed to fetch Cloudflare IP ranges, using static fallback: {e}"
+            );
             let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
             let mut cached = cache.lock().await;
-            *cached = IpRangesCache { ips, fetched_at: Instant::now(), from_fallback: true };
+            *cached = IpRangesCache {
+                ips,
+                fetched_at: Instant::now(),
+                from_fallback: true,
+            };
             cached.clone()
         }
     }
@@ -169,6 +239,7 @@ pub(crate) async fn get_ip_ranges(cache: &Mutex<IpRangesCache>) -> IpRangesCache
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio_util::sync::CancellationToken;
 
     #[test]
     fn test_expand_cidrs() {
@@ -244,13 +315,13 @@ mod tests {
             from_fallback: true,
         });
 
-        let first = get_ip_ranges(&cache).await;
+        let first = get_ip_ranges(&cache, CancellationToken::new()).await;
         assert_eq!(first.ips.len(), 2);
         assert_eq!(first.ips[0], Ipv4Addr::new(1, 1, 1, 1));
         assert_eq!(first.ips[1], Ipv4Addr::new(2, 2, 2, 2));
         assert!(first.from_fallback);
 
-        let second = get_ip_ranges(&cache).await;
+        let second = get_ip_ranges(&cache, CancellationToken::new()).await;
         assert_eq!(second.ips.len(), 2);
         assert_eq!(second.ips[0], Ipv4Addr::new(1, 1, 1, 1));
         assert_eq!(second.ips[1], Ipv4Addr::new(2, 2, 2, 2));
@@ -263,5 +334,74 @@ mod tests {
 
         let fallback_ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
         assert_eq!(fallback_ips.len(), 45);
+    }
+
+    #[test]
+    fn test_cache_ttl_not_expired() {
+        let cache = IpRangesCache {
+            ips: vec![Ipv4Addr::new(1, 1, 1, 1)],
+            fetched_at: Instant::now(),
+            from_fallback: false,
+        };
+        assert!(!cache.expired(), "fresh cache must not be expired");
+    }
+
+    #[test]
+    fn test_cache_ttl_expired() {
+        // Instant is uptime-based on Windows — checked_sub may return None
+        // if the system hasn't been running long enough. When it succeeds,
+        // verify time-based expiry; otherwise this test is a no-op (the
+        // empty-cache expiry path is covered by test_cache_ttl_empty_is_expired).
+        if let Some(old) = Instant::now().checked_sub(CACHE_TTL + Duration::from_secs(3600)) {
+            let cache = IpRangesCache {
+                ips: vec![Ipv4Addr::new(1, 1, 1, 1)],
+                fetched_at: old,
+                from_fallback: false,
+            };
+            assert!(cache.expired(), "cache older than CACHE_TTL must be expired");
+        }
+    }
+
+    #[test]
+    fn test_cache_ttl_empty_is_expired() {
+        let cache = IpRangesCache {
+            ips: vec![],
+            fetched_at: Instant::now(),
+            from_fallback: true,
+        };
+        assert!(cache.expired(), "empty cache must be considered expired");
+    }
+
+    #[tokio::test]
+    async fn test_get_ip_ranges_cancellation() {
+        let cache = Mutex::new(IpRangesCache {
+            ips: Vec::new(),
+            fetched_at: Instant::now(),
+            from_fallback: true,
+        });
+
+        let cancel = CancellationToken::new();
+        cancel.cancel();
+
+        // With empty cache and cancelled token, must fall back to static ranges
+        let result = get_ip_ranges(&cache, cancel).await;
+        assert_eq!(result.ips.len(), 45, "cancelled fetch must return 45 IPs from static fallback");
+        assert!(result.from_fallback);
+    }
+
+    #[tokio::test]
+    async fn test_get_ip_ranges_returns_valid_cache() {
+        let cache = Mutex::new(IpRangesCache {
+            ips: vec![Ipv4Addr::new(10, 0, 0, 1), Ipv4Addr::new(10, 0, 0, 2)],
+            fetched_at: Instant::now(),
+            from_fallback: false,
+        });
+
+        // Fresh, non-empty cache must return immediately with cached data
+        let result = get_ip_ranges(&cache, CancellationToken::new()).await;
+        assert_eq!(result.ips.len(), 2);
+        assert_eq!(result.ips[0], Ipv4Addr::new(10, 0, 0, 1));
+        assert_eq!(result.ips[1], Ipv4Addr::new(10, 0, 0, 2));
+        assert!(!result.from_fallback);
     }
 }

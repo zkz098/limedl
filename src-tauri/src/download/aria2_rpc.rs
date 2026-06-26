@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -224,6 +225,14 @@ struct RpcContext {
     gid_cache: Mutex<HashMap<String, String>>,
 }
 
+impl RpcContext {
+    fn settings_default_download_dir(&self) -> String {
+        self.manager
+            .settings_default_download_dir()
+            .unwrap_or_else(|| dirs_next().unwrap_or_else(default_downloads_dir))
+    }
+}
+
 fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
     let Some(secret) = &ctx.secret else {
         return Ok(());
@@ -308,11 +317,13 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     let destination_dir = options
         .and_then(|o| o.get("dir"))
         .and_then(|v| v.as_str())
+        .filter(|v| !v.trim().is_empty())
         .map(String::from)
         .unwrap_or_else(|| {
-            std::env::current_dir()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|_| String::from("."))
+            // Use the configured default download directory from settings
+            // instead of the process working directory, which is unreliable
+            // (changes on restart, may be relative, etc.)
+            ctx.settings_default_download_dir()
         });
 
     let request = StartDownloadRequest {
@@ -700,11 +711,10 @@ async fn handle_add_metalink(ctx: &RpcContext, params: Vec<Value>) -> Result<Val
     let destination_dir = options
         .and_then(|o| o.get("dir"))
         .and_then(|v| v.as_str())
+        .filter(|v| !v.trim().is_empty())
         .map(String::from)
         .unwrap_or_else(|| {
-            std::env::current_dir()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|_| String::from("."))
+            ctx.settings_default_download_dir()
         });
 
     let request = StartDownloadRequest {
@@ -766,6 +776,19 @@ async fn handle_change_global_option(
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
     if let Some(dir) = options.get("dir").and_then(|v| v.as_str()) {
+        let dir = dir.trim();
+        if dir.is_empty() {
+            return Err(make_error(
+                ERR_INVALID_PARAMS,
+                "dir cannot be empty",
+            ));
+        }
+        if !PathBuf::from(dir).is_absolute() {
+            return Err(make_error(
+                ERR_INVALID_PARAMS,
+                "dir must be an absolute path",
+            ));
+        }
         settings.download.default_download_dir = dir.to_string();
     }
     if let Some(max_tasks) = options.get("max-concurrent-downloads").and_then(|v| v.as_str())
@@ -1027,6 +1050,19 @@ async fn process_jsonrpc_message(ctx: &RpcContext, body: &str) -> String {
             serde_json::to_string(&resp).unwrap_or_default()
         }
     }
+}
+
+fn dirs_next() -> Option<String> {
+    let home = if cfg!(target_os = "windows") {
+        std::env::var("USERPROFILE").ok()
+    } else {
+        std::env::var("HOME").ok()
+    };
+    home.map(|p| PathBuf::from(p).join("Downloads").to_string_lossy().to_string())
+}
+
+fn default_downloads_dir() -> String {
+    dirs_next().unwrap_or_else(|| String::from("."))
 }
 
 pub struct Aria2RpcServer {

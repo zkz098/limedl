@@ -99,6 +99,7 @@ pub struct DownloadManager {
     db: Arc<Database>,
     rebalance_notify: Arc<Notify>,
     event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
+    cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
 }
 
 struct ManagedDownload {
@@ -191,6 +192,7 @@ impl DownloadManager {
             db,
             rebalance_notify: Arc::new(Notify::new()),
             event_tx: Arc::new(Mutex::new(None)),
+            cdn_accelerator: Arc::new(RwLock::new(None)),
         };
 
         manager.load_downloads_from_db()?;
@@ -205,11 +207,99 @@ impl DownloadManager {
         self.settings.blocking_read().clone()
     }
 
+    pub fn settings_default_download_dir(&self) -> Option<String> {
+        let dir = self
+            .settings
+            .blocking_read()
+            .download
+            .default_download_dir
+            .clone();
+        if dir.is_empty() { None } else { Some(dir) }
+    }
+
     pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
         *self.event_tx.lock().unwrap_or_else(|poisoned| {
             tracing::warn!("event_tx lock poisoned, recovering with inner state");
             poisoned.into_inner()
         }) = Some(tx);
+    }
+
+    /// Inject the CDN accelerator reference after both manager and accelerator are created.
+    pub fn set_cdn_accelerator(&self, acc: Arc<super::cdn::CdnAccelerator>) {
+        *self.cdn_accelerator.blocking_write() = Some(acc);
+    }
+
+    /// Resolve the HTTP client to use for a given URL.
+    ///
+    /// If CDN acceleration is enabled and an accelerated IP is available, this builds
+    /// a domain-specific client that resolves the URL's hostname to the best Cloudflare IP.
+    /// Otherwise falls back to the standard client.
+    async fn resolve_client(&self, url: &str) -> (Client, bool) {
+        // Clone CDN settings under the read lock, then drop it immediately.
+        // This prevents blocking update_settings() during the DNS lookup below.
+        let (cdn_enabled, cdn_active_ip) = {
+            let settings = self.settings.read().await;
+            (
+                settings.cdn_acceleration.enabled,
+                settings.cdn_acceleration.active_ip.clone(),
+            )
+        };
+
+        if !cdn_enabled {
+            tracing::debug!("resolve_client: CDN acceleration disabled");
+            return (self.client.read().await.clone(), false);
+        }
+
+        if !super::cdn::is_cloudflare_domain(url).await {
+            tracing::debug!("resolve_client: domain is not Cloudflare, using standard client");
+            return (self.client.read().await.clone(), false);
+        }
+
+        let Ok(parsed) = reqwest::Url::parse(url) else {
+            tracing::debug!("resolve_client: failed to parse URL: {url}");
+            return (self.client.read().await.clone(), false);
+        };
+        let Some(host) = parsed.host_str() else {
+            tracing::debug!("resolve_client: no host in URL: {url}");
+            return (self.client.read().await.clone(), false);
+        };
+
+        // IP resolution: in-memory accelerator → persisted settings fallback
+        let ip = match self.cdn_accelerator.read().await.as_ref() {
+            Some(acc) => match acc.active_ip().await {
+                Some(ip) => {
+                    tracing::debug!("resolve_client: using in-memory active IP: {ip}");
+                    Some(ip)
+                }
+                None => cdn_active_ip
+                    .as_deref()
+                    .and_then(|s| s.parse::<std::net::Ipv4Addr>().ok()),
+            },
+            None => cdn_active_ip
+                .as_deref()
+                .and_then(|s| s.parse::<std::net::Ipv4Addr>().ok()),
+        };
+
+        if let Some(ip) = ip {
+            // Briefly re-acquire settings read lock for build_accelerated_client
+            // which needs proxy and user-agent settings.
+            let settings = self.settings.read().await;
+            match super::cdn::build_accelerated_client(host, ip, &settings) {
+                Ok(accelerated) => {
+                    tracing::info!("resolve_client: CDN acceleration active for {host} via {ip}");
+                    return (accelerated, true);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "resolve_client: failed to build accelerated client for {host}: {e}, falling back to standard"
+                    );
+                }
+            }
+        } else {
+            tracing::debug!("resolve_client: no active IP available for {host}");
+        }
+
+        (self.client.read().await.clone(), false)
     }
 
     pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings> {
@@ -242,6 +332,16 @@ impl DownloadManager {
             &settings.download.default_user_agent,
         )?;
         let destination_dir = PathBuf::from(&request.destination_dir);
+        if destination_dir.as_os_str().is_empty() {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "download destination directory is not set",
+            )));
+        }
+        if !destination_dir.is_absolute() {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "download destination directory must be an absolute path",
+            )));
+        }
         fs::create_dir_all(&destination_dir)?;
 
         let chosen_name = request
@@ -290,6 +390,7 @@ impl DownloadManager {
             created_at_ms: now,
             updated_at_ms: now,
             chunks: Vec::new(),
+            cdn_accelerated: false,
         };
 
         let snapshot = snapshot_from_manifest(&manifest);
@@ -581,7 +682,7 @@ impl DownloadManager {
             .cloned()
             .map(|managed| DownloadSummary::from(&self.build_snapshot(managed)))
             .collect::<Vec<_>>();
-        items.sort_by(|left, right| right.id.cmp(&left.id));
+        items.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(items)
     }
 
@@ -650,7 +751,7 @@ impl DownloadManager {
     }
 
     async fn probe(&self, url: &str, user_agent: &str) -> Result<RemoteMetadata> {
-        let client = self.client.read().await.clone();
+        let (client, _) = self.resolve_client(url).await;
         let head = client
             .head(url)
             .header(header::USER_AGENT, user_agent)
@@ -698,7 +799,19 @@ impl DownloadManager {
             *runtime = Some(CancellationToken::new());
         }
 
-        let client = self.client.read().await.clone();
+        let url = {
+            let manifest = managed.lock_manifest();
+            manifest.url.clone()
+        };
+        let (client, cdn_accelerated) = self.resolve_client(&url).await;
+        {
+            let mut snap = managed.lock_snapshot();
+            snap.cdn_accelerated = cdn_accelerated;
+        }
+        {
+            let mut manifest = managed.lock_manifest();
+            manifest.cdn_accelerated = cdn_accelerated;
+        }
         let manager = self.clone_arc();
         let token = managed
             .lock_runtime()
@@ -1825,6 +1938,7 @@ impl DownloadManager {
             db: self.db.clone(),
             rebalance_notify: self.rebalance_notify.clone(),
             event_tx: self.event_tx.clone(),
+            cdn_accelerator: self.cdn_accelerator.clone(),
         })
     }
 }
@@ -2289,6 +2403,8 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let bt = normalize_bt_settings(settings.bt)?;
     let logging = normalize_logging_settings(settings.logging);
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
+    let default_download_dir =
+        normalize_download_dir(&settings.download.default_download_dir);
 
     Ok(AppSettings {
         appearance: settings.appearance,
@@ -2307,7 +2423,7 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             },
         },
         download: DownloadDefaultsSettings {
-            default_download_dir: settings.download.default_download_dir.trim().to_string(),
+            default_download_dir,
             default_max_retries: settings.download.default_max_retries.clamp(0, 20),
             default_checksum: settings.download.default_checksum,
             default_user_agent,
@@ -2336,6 +2452,18 @@ fn normalize_logging_settings(settings: LogSettings) -> LogSettings {
         level: settings.level,
         file_path: settings.file_path.trim().to_string(),
     }
+}
+
+fn normalize_download_dir(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let path = PathBuf::from(trimmed);
+    if !path.is_absolute() {
+        return String::new();
+    }
+    trimmed.to_string()
 }
 
 fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
@@ -2574,7 +2702,7 @@ async fn download_chunk(
         )
         .await?;
 
-        if response.status() == StatusCode::OK && current > chunk.start {
+        if response.status() == StatusCode::OK {
             mark_chunk_released(&managed, chunk.index);
             return Ok(ChunkWorkerOutcome::RestartSingle);
         }

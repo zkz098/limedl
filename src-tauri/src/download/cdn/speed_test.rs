@@ -17,12 +17,36 @@ use crate::download::types::{
     default_http_user_agent, AppSettings, ProxyMode,
 };
 
-/// Cloudflare CDN speed test endpoint (200MB file).
+/// Cloudflare CDN speed test endpoint (~100MB file).
+/// Cloudflare rejects requests for files larger than 99_999_999 bytes with HTTP 403.
 pub(crate) const SPEED_TEST_URL: &str =
-    "https://speed.cloudflare.com/__down?bytes=200000000";
+    "https://speed.cloudflare.com/__down?bytes=99999999";
 
 /// Maximum duration for a single IP's throughput test.
 pub(crate) const SPEED_TEST_DURATION: Duration = Duration::from_secs(10);
+
+// ── Progress reporting types ──────────────────────────────────
+
+/// Phases of the CDN speed test. Frontend consumes these as camelCase strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum CdnTestPhase {
+    FetchingRanges,
+    Screening,
+    MeasuringThroughput,
+}
+
+/// Progress snapshot emitted to the frontend during a CDN speed test.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CdnTestProgress {
+    pub phase: CdnTestPhase,
+    pub current: u64,
+    pub total: u64,
+}
+
+/// Erased progress callback for reporting phase transitions and per-IP progress.
+pub(crate) type ProgressFn = Box<dyn Fn(CdnTestPhase, u64, u64) + Send + Sync>;
 
 // ── Orchestrator types ────────────────────────────────────────
 
@@ -51,7 +75,8 @@ impl Default for SpeedTestConfig {
 }
 
 /// Result for a single IP after the two-phase speed test.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct SpeedTestResult {
     pub(crate) ip: Ipv4Addr,
     /// TCP connect latency in milliseconds.
@@ -73,6 +98,97 @@ impl Default for SpeedTestResult {
     }
 }
 
+/// Baseline measurement of the default DNS-resolved node (no IP override).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DefaultNodeResult {
+    pub(crate) ip: Option<String>,
+    pub(crate) tcp_latency_ms: f64,
+    pub(crate) throughput_mbps: Option<f64>,
+    pub(crate) error: Option<String>,
+}
+
+/// Measure the default DNS-resolved node for `speed.cloudflare.com`.
+///
+/// Resolves the hostname via standard DNS (no IP override), measures TCP latency
+/// to the first resolved IPv4, then measures download throughput with a normal
+/// client. This provides the "unoptimized" baseline for comparison.
+pub(crate) async fn measure_default_node(settings: &AppSettings) -> DefaultNodeResult {
+    const HOSTNAME: &str = "speed.cloudflare.com";
+
+    tracing::info!("default node: measuring baseline for {HOSTNAME}");
+
+    let resolved_ip = match tokio::net::lookup_host(format!("{HOSTNAME}:443")).await {
+        Ok(addrs) => addrs.into_iter().find_map(|a| match a.ip() {
+            std::net::IpAddr::V4(v4) => Some(v4),
+            _ => None,
+        }),
+        Err(e) => {
+            tracing::warn!("default node: DNS resolution failed: {e}");
+            return DefaultNodeResult {
+                ip: None,
+                tcp_latency_ms: 0.0,
+                throughput_mbps: None,
+                error: Some(format!("DNS resolution failed: {e}")),
+            };
+        }
+    };
+
+    let ip = match resolved_ip {
+        Some(ip) => ip,
+        None => {
+            tracing::warn!("default node: no IPv4 address resolved");
+            return DefaultNodeResult {
+                ip: None,
+                tcp_latency_ms: 0.0,
+                throughput_mbps: None,
+                error: Some("no IPv4 address resolved".into()),
+            };
+        }
+    };
+
+    tracing::info!("default node: DNS resolved to {ip}");
+
+    let latency = measure_tcp_latency(
+        SocketAddr::new(IpAddr::V4(ip), 443),
+        Duration::from_secs(5),
+    )
+    .await;
+
+    let tcp_latency_ms = latency
+        .map(|d| d.as_secs_f64() * 1000.0)
+        .unwrap_or(0.0);
+
+    let throughput_result = measure_throughput(ip, HOSTNAME, SPEED_TEST_URL, settings).await;
+
+    let (throughput_mbps, error) = match throughput_result {
+        Ok((bytes, elapsed_ms)) => {
+            let elapsed_secs = elapsed_ms as f64 / 1000.0;
+            let mbps = if elapsed_secs > 0.0 {
+                Some((bytes / elapsed_secs) / 1_000_000.0)
+            } else {
+                None
+            };
+            tracing::info!(
+                "default node: throughput={:.2} MB/s latency={tcp_latency_ms:.1}ms ip={ip}",
+                mbps.unwrap_or(0.0),
+            );
+            (mbps, None)
+        }
+        Err(e) => {
+            tracing::warn!("default node: throughput test failed: {e}");
+            (None, Some(e.to_string()))
+        }
+    };
+
+    DefaultNodeResult {
+        ip: Some(ip.to_string()),
+        tcp_latency_ms,
+        throughput_mbps,
+        error,
+    }
+}
+
 /// Build a throwaway `reqwest::Client` with DNS-override and settings mirrored
 /// from the main `build_http_client`.
 fn build_throughput_client(
@@ -90,8 +206,21 @@ fn build_throughput_client(
     let mut builder = Client::builder()
         .resolve_to_addrs(hostname, &[addr])
         .tcp_nodelay(true)
+        .connect_timeout(Duration::from_secs(5))
         .read_timeout(Duration::from_secs(15))
         .user_agent(user_agent)
+        .default_headers(
+            reqwest::header::HeaderMap::from_iter([
+                (
+                    reqwest::header::ACCEPT,
+                    reqwest::header::HeaderValue::from_static("*/*"),
+                ),
+                (
+                    reqwest::header::ACCEPT_LANGUAGE,
+                    reqwest::header::HeaderValue::from_static("en-US,en;q=0.9"),
+                ),
+            ]),
+        )
         .redirect(Policy::limited(10));
 
     match settings.proxy.mode {
@@ -121,6 +250,8 @@ pub(crate) async fn measure_throughput(
     url: &str,
     settings: &AppSettings,
 ) -> Result<(f64, u64)> {
+    tracing::info!("throughput test start: ip={ip} host={hostname}");
+
     let parsed = Url::parse(url).map_err(|e| {
         DownloadError::InvalidResponse(format!("invalid speed-test URL: {e}"))
     })?;
@@ -132,7 +263,32 @@ pub(crate) async fn measure_throughput(
     let client = build_throughput_client(hostname, addr, settings)?;
 
     let start = Instant::now();
-    let response = client.get(url).send().await?;
+
+    // Wrap send() in a timeout — it covers TCP connect + TLS handshake + request + response headers.
+    // Without this, a host that passes TCP screening but hangs on TLS will block forever.
+    let response = match timeout(Duration::from_secs(15), client.get(url).send()).await {
+        Ok(Ok(resp)) => resp,
+        Ok(Err(e)) => {
+            tracing::warn!("throughput test send failed: ip={ip} elapsed={}ms err={e}", start.elapsed().as_millis());
+            return Err(e.into());
+        }
+        Err(_) => {
+            tracing::warn!("throughput test send timed out: ip={ip} after 15s (connect+TLS+headers)");
+            return Err(DownloadError::InvalidResponse(
+                "send timed out after 15s (connect/TLS/headers)".into(),
+            ));
+        }
+    };
+
+    let status = response.status();
+    tracing::debug!("throughput test response: ip={ip} status={status} elapsed={}ms", start.elapsed().as_millis());
+
+    if !status.is_success() {
+        tracing::warn!("throughput test rejected: ip={ip} status={status} (non-2xx, skipping body stream)");
+        return Err(DownloadError::InvalidResponse(format!(
+            "HTTP {status} from speed test endpoint",
+        )));
+    }
 
     let bytes = Arc::new(AtomicU64::new(0));
     let bytes_ref = Arc::clone(&bytes);
@@ -144,7 +300,10 @@ pub(crate) async fn measure_throughput(
                 Ok(data) => {
                     bytes_ref.fetch_add(data.len() as u64, Ordering::Relaxed);
                 }
-                Err(_) => break,
+                Err(e) => {
+                    tracing::warn!("throughput test stream error: ip={ip} err={e}");
+                    break;
+                }
             }
         }
     };
@@ -153,6 +312,11 @@ pub(crate) async fn measure_throughput(
 
     let elapsed_ms = start.elapsed().as_millis() as u64;
     let total_bytes = bytes.load(Ordering::Relaxed) as f64;
+
+    tracing::info!(
+        "throughput test done: ip={ip} bytes={total_bytes:.0} elapsed={elapsed_ms}ms throughput={:.2} MB/s",
+        if elapsed_ms > 0 { total_bytes / (elapsed_ms as f64 / 1000.0) / 1_000_000.0 } else { 0.0 }
+    );
 
     Ok((total_bytes, elapsed_ms))
 }
@@ -184,6 +348,7 @@ pub(crate) async fn screen_candidates(
     concurrency: usize,
     connect_timeout: Duration,
 ) -> Vec<(Ipv4Addr, Duration)> {
+    tracing::info!("screening start: {} IPs, concurrency={concurrency}", ips.len());
     let mut join_set = JoinSet::new();
     let mut results = Vec::with_capacity(ips.len());
     let mut ip_iter = ips.iter().copied();
@@ -211,6 +376,14 @@ pub(crate) async fn screen_candidates(
     }
 
     results.sort_by_key(|a| a.1);
+
+    tracing::info!(
+        "screening done: {}/{} IPs reachable, top latency={}ms",
+        results.len(),
+        ips.len(),
+        results.first().map(|d| d.1.as_millis()).unwrap_or(0),
+    );
+
     results
 }
 
@@ -220,14 +393,30 @@ pub(crate) async fn screen_candidates(
 /// Phase 2 — HTTPS throughput measurement for the top N candidates
 /// (concurrent via `JoinSet`). Results are sorted by throughput
 /// descending (None sorts last), tie-broken by TCP latency ascending.
+///
+/// If `progress` is provided, it is called at phase transitions
+/// and as each candidate completes Phase 2 throughput testing.
 pub(crate) async fn run_speed_test(
     ips: &[Ipv4Addr],
     config: &SpeedTestConfig,
     settings: &AppSettings,
+    progress: Option<ProgressFn>,
 ) -> Vec<SpeedTestResult> {
+    let total_ips = ips.len() as u64;
+
+    tracing::info!("speed test orchestrator: {total_ips} candidate IPs");
+
     // ── Phase 1: TCP screening ─────────────────────────────────
+    if let Some(ref p) = progress {
+        p(CdnTestPhase::Screening, 0, total_ips);
+    }
+
     let candidates =
         screen_candidates(ips, config.concurrency, config.tcp_timeout).await;
+
+    if let Some(ref p) = progress {
+        p(CdnTestPhase::Screening, total_ips, total_ips);
+    }
 
     let top_n: Vec<(Ipv4Addr, Duration)> = candidates
         .into_iter()
@@ -235,10 +424,22 @@ pub(crate) async fn run_speed_test(
         .collect();
 
     if top_n.is_empty() {
+        tracing::warn!("speed test: no reachable IPs after screening, aborting");
         return Vec::new();
     }
 
+    let top_count = top_n.len() as u64;
+
+    tracing::info!(
+        "speed test: top {top_count} IPs advancing to throughput testing: {}",
+        top_n.iter().map(|(ip, d)| format!("{ip}({}ms", d.as_millis())).collect::<Vec<_>>().join(", "),
+    );
+
     // ── Phase 2: Concurrent throughput testing ─────────────────
+    if let Some(ref p) = progress {
+        p(CdnTestPhase::MeasuringThroughput, 0, top_count);
+    }
+
     let mut join_set = JoinSet::new();
     for (ip, latency) in &top_n {
         let ip = *ip;
@@ -257,37 +458,61 @@ pub(crate) async fn run_speed_test(
     }
 
     let mut results = Vec::with_capacity(top_n.len());
+    let mut completed: u64 = 0;
 
     while let Some(task_result) = join_set.join_next().await {
-        if let Ok((ip, latency, throughput_result)) = task_result {
-            let tcp_latency_ms = latency.as_secs_f64() * 1000.0;
-
-            match throughput_result {
-                Ok((bytes, elapsed_ms)) => {
-                    let elapsed_secs = elapsed_ms as f64 / 1000.0;
-                    let throughput_mbps = if elapsed_secs > 0.0 {
-                        Some((bytes / elapsed_secs) / 1_000_000.0)
-                    } else {
-                        None
-                    };
-                    results.push(SpeedTestResult {
-                        ip,
-                        tcp_latency_ms,
-                        throughput_mbps,
-                        error: None,
-                    });
-                }
-                Err(e) => {
-                    results.push(SpeedTestResult {
-                        ip,
-                        tcp_latency_ms,
-                        throughput_mbps: None,
-                        error: Some(e.to_string()),
-                    });
+        completed += 1;
+        match task_result {
+            Ok((ip, latency, throughput_result)) => {
+                let tcp_latency_ms = latency.as_secs_f64() * 1000.0;
+                match throughput_result {
+                    Ok((bytes, elapsed_ms)) => {
+                        let elapsed_secs = elapsed_ms as f64 / 1000.0;
+                        let throughput_mbps = if elapsed_secs > 0.0 {
+                            Some((bytes / elapsed_secs) / 1_000_000.0)
+                        } else {
+                            None
+                        };
+                        tracing::info!(
+                            "throughput candidate {completed}/{top_count}: ip={ip} {}bytes {elapsed_ms}ms {:.2}MB/s",
+                            if bytes > 1_000_000.0 { format!("{:.1}MB ", bytes / 1_000_000.0) } else { format!("{}B ", bytes as u64) },
+                            throughput_mbps.unwrap_or(0.0),
+                        );
+                        results.push(SpeedTestResult {
+                            ip,
+                            tcp_latency_ms,
+                            throughput_mbps,
+                            error: None,
+                        });
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "throughput candidate {completed}/{top_count}: ip={ip} FAILED: {e}",
+                        );
+                        results.push(SpeedTestResult {
+                            ip,
+                            tcp_latency_ms,
+                            throughput_mbps: None,
+                            error: Some(e.to_string()),
+                        });
+                    }
                 }
             }
+            Err(join_err) => {
+                tracing::error!("throughput task panicked (JoinError): {join_err}");
+            }
+        }
+        if let Some(ref p) = progress {
+            p(CdnTestPhase::MeasuringThroughput, completed, top_count);
         }
     }
+
+    tracing::info!(
+        "speed test orchestrator done: {}/{} throughput tests completed, {} with valid throughput",
+        results.len(),
+        top_count,
+        results.iter().filter(|r| r.throughput_mbps.is_some()).count(),
+    );
 
     results.sort_by(|a, b| {
         b.throughput_mbps
@@ -424,7 +649,7 @@ mod tests {
         let config = SpeedTestConfig::default();
         let settings = AppSettings::default();
 
-        let results = run_speed_test(&ips, &config, &settings).await;
+        let results = run_speed_test(&ips, &config, &settings, None).await;
         assert!(
             results.is_empty(),
             "all class-E IPs unreachable → empty results, got {}",
@@ -486,7 +711,7 @@ mod tests {
         };
         let settings = AppSettings::default();
 
-        let results = run_speed_test(&ips, &config, &settings).await;
+        let results = run_speed_test(&ips, &config, &settings, None).await;
 
         assert!(
             !results.is_empty(),
@@ -527,7 +752,7 @@ mod tests {
         let config = SpeedTestConfig::default();
         let settings = AppSettings::default();
 
-        let results = run_speed_test(&ips, &config, &settings).await;
+        let results = run_speed_test(&ips, &config, &settings, None).await;
 
         // Class-E IPs must never appear — they fail Phase 1.
         for r in &results {

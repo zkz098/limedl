@@ -232,6 +232,8 @@ pub struct DownloadSnapshot {
     pub info_hash: Option<String>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+    #[serde(default)]
+    pub cdn_accelerated: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chunks: Vec<ChunkInfo>,
 }
@@ -263,6 +265,9 @@ pub struct DownloadSummary {
     pub upload_status: Option<BtUploadStatus>,
     pub info_hash: Option<String>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub cdn_accelerated: bool,
+    pub created_at_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -304,6 +309,8 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             upload_status: value.upload_status,
             info_hash: value.info_hash.clone(),
             error: value.error.clone(),
+            cdn_accelerated: value.cdn_accelerated,
+            created_at_ms: value.created_at_ms,
         }
     }
 }

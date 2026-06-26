@@ -33,6 +33,8 @@ pub(crate) struct Manifest {
     pub(super) etag: Option<String>,
     pub(super) last_modified: Option<String>,
     pub(super) state: DownloadState,
+    #[serde(default)]
+    pub(super) cdn_accelerated: bool,
     pub(super) checksum_mode: ChecksumMode,
     pub(super) checksum: Option<String>,
     pub(super) error: Option<String>,
@@ -128,6 +130,7 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         info_hash: None,
         created_at_ms: manifest.created_at_ms,
         updated_at_ms: manifest.updated_at_ms,
+        cdn_accelerated: manifest.cdn_accelerated,
         chunks: manifest
             .chunks
             .iter()

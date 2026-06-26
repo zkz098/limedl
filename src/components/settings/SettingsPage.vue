@@ -25,8 +25,6 @@ import SettingsAria2RpcPanel from "./SettingsAria2RpcPanel.vue";
 import SettingsBtPanel from "./SettingsBtPanel.vue";
 import SettingsDownloadDefaultsPanel from "./SettingsDownloadDefaultsPanel.vue";
 import SettingsLoggingPanel from "./SettingsLoggingPanel.vue";
-import SettingsNetworkLearningPanel from "./SettingsNetworkLearningPanel.vue";
-import SettingsCdnAccelerationPanel from "./SettingsCdnAccelerationPanel.vue";
 import SettingsProxyPanel from "./SettingsProxyPanel.vue";
 import SettingsSchedulerPanel from "./SettingsSchedulerPanel.vue";
 
@@ -50,7 +48,7 @@ const emit = defineEmits<{
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
-const { notifications, notifySuccess, notifyError, dismiss } = useNotification();
+const { notifySuccess, notifyError } = useNotification();
 
 // ── Option arrays ────────────────────────────────────────────────
 
@@ -206,8 +204,6 @@ const {
   setBtUploadLimitMiB,
   trackerListEntries,
   btSummary,
-  networkLearningSummary,
-  networkMetricsCards,
 } = useSettingsSummaries(form, t, optionArrays);
 
 const settingsDraftSnapshotComputed = computed(() => settingsDraftSnapshot(buildSettingsPayload()));
@@ -443,13 +439,11 @@ const activeTab = ref("appearance");
 const tabs = [
   { id: "appearance", icon: "i-ri-palette-line", labelKey: "settings.appearanceKicker" },
   { id: "scheduler", icon: "i-ri-dashboard-line", labelKey: "settings.scheduler" },
-  { id: "networkLearning", icon: "i-ri-radar-line", labelKey: "settings.networkLearning" },
   { id: "downloads", icon: "i-ri-download-line", labelKey: "settings.downloads" },
   { id: "bt", icon: "i-ri-seedling-line", labelKey: "settings.bt" },
   { id: "aria2Rpc", icon: "i-ri-terminal-box-line", labelKey: "settings.aria2Rpc" },
   { id: "logging", icon: "i-ri-file-list-3-line", labelKey: "settings.logging" },
   { id: "proxy", icon: "i-ri-global-line", labelKey: "settings.proxyTitle" },
-  { id: "cdnAcceleration", icon: "i-ri-speed-up-line", labelKey: "settings.cdnAcceleration.title" },
 ] as const;
 
 defineExpose({
@@ -504,15 +498,6 @@ defineExpose({
         :adaptive-profile-options="adaptiveProfileOptions"
       />
 
-      <SettingsNetworkLearningPanel
-        v-show="activeTab === 'networkLearning'"
-        :draft="form"
-        :t="t"
-        :device-mode-options="deviceModeOptions"
-        :network-learning-summary="networkLearningSummary"
-        :network-metrics-cards="networkMetricsCards"
-      />
-
       <SettingsDownloadDefaultsPanel
         v-show="activeTab === 'downloads'"
         :draft="form"
@@ -558,12 +543,7 @@ defineExpose({
         :proxy-summary="proxySummary"
       />
 
-      <SettingsCdnAccelerationPanel
-        v-show="activeTab === 'cdnAcceleration'"
-        :draft="form"
-        :t="t"
-      />
-    </div>
+      </div>
 
     <div class="settings-save-bar">
       <p class="settings-save-bar__hint">{{ t("settings.saveHint") }}</p>
@@ -600,6 +580,12 @@ defineExpose({
   line-height: 1.55;
   max-width: 40rem;
   text-align: right;
+}
+
+.settings-page__summary--secondary {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  margin-top: var(--space-1);
 }
 
 .settings-save-bar {

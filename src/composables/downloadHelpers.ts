@@ -42,5 +42,7 @@ export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     peerCount: snapshot.peerCount,
     uploadStatus: snapshot.uploadStatus,
     error: snapshot.error,
+    cdnAccelerated: snapshot.cdnAccelerated,
+    createdAtMs: snapshot.createdAtMs,
   };
 }

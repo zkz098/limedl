@@ -257,6 +257,7 @@ fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
         created_at_ms: row.get::<_, i64>(25)? as u64,
         updated_at_ms: row.get::<_, i64>(26)? as u64,
         chunks: Vec::new(),
+        cdn_accelerated: false,
     })
 }
 

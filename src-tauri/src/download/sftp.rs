@@ -79,6 +79,16 @@ impl SftpManager {
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
         let parsed = parse_sftp_url(request.url.trim())?;
         let destination_dir = PathBuf::from(request.destination_dir.trim());
+        if destination_dir.as_os_str().is_empty() {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "download destination directory is not set",
+            )));
+        }
+        if !destination_dir.is_absolute() {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "download destination directory must be an absolute path",
+            )));
+        }
         fs::create_dir_all(&destination_dir)?;
         let file_name = request
             .file_name
@@ -126,6 +136,7 @@ impl SftpManager {
             info_hash: None,
             created_at_ms: now,
             updated_at_ms: now,
+            cdn_accelerated: false,
             chunks: vec![],
         };
 
@@ -211,7 +222,7 @@ impl SftpManager {
             .values()
             .map(|task| DownloadSummary::from(&current_snapshot(task)))
             .collect::<Vec<_>>();
-        summaries.sort_by(|left, right| right.id.cmp(&left.id));
+        summaries.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(summaries)
     }
 
