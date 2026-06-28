@@ -148,6 +148,7 @@ const pieceList = ref<BtPieceInfo[]>([]);
 const isFetchingPeers = ref(false);
 const isFetchingTrackers = ref(false);
 const isFetchingPieces = ref(false);
+const lastBtFetchAt = ref(0);
 
 function clearBtData() {
   peerList.value = [];
@@ -192,6 +193,9 @@ watch(
   () => props.selectedSnapshot?.id,
   (id) => {
     if (id && props.selectedSnapshot?.kind === "bt") {
+      const now = Date.now();
+      if (now - lastBtFetchAt.value < 5000) return;
+      lastBtFetchAt.value = now;
       void Promise.all([fetchBtPeers(id), fetchBtTrackers(id), fetchBtPieces(id)]);
     } else {
       clearBtData();

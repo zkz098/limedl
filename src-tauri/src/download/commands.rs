@@ -399,6 +399,9 @@ pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandRes
     )
 }
 
+/// Set per-torrent speed limits. The effective session limit is the minimum of
+/// all per-torrent limits since librqbit applies ratelimits at the session level.
+/// Passing `None` for both axes clears this torrent's override and recomputes.
 #[tauri::command]
 pub async fn bt_set_speed_limit(
     state: State<'_, AppState>,

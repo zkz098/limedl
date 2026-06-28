@@ -447,6 +447,13 @@ pub struct DownloadDefaultsSettings {
     pub enable_sftp: bool,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct BtPortRange {
+    pub start: u16,
+    pub end: u16,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {
@@ -459,6 +466,10 @@ pub struct BtSettings {
     pub pause_upload_when_limit_reached: bool,
     pub upload_limit_bytes: u64,
     pub upload_ratio_limit: f64,
+    #[serde(default)]
+    pub upnp_enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listen_port_range: Option<BtPortRange>,
 }
 
 impl Default for BtSettings {
@@ -470,6 +481,8 @@ impl Default for BtSettings {
             pause_upload_when_limit_reached: false,
             upload_limit_bytes: 0,
             upload_ratio_limit: 0.0,
+            upnp_enabled: false,
+            listen_port_range: None,
         }
     }
 }

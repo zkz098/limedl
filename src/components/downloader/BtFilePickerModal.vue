@@ -55,6 +55,7 @@ function buildSelections(files: TorrentFileEntry[]): Map<number, FileSelection> 
   return map;
 }
 
+// TODO L5: buildSelections replaces fileSelections entirely on files change, discarding user priority edits; preserve existing selections across updates
 watch(
   () => props.files,
   (files) => {

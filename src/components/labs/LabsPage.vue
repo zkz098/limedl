@@ -55,6 +55,7 @@ const logLevelOptions = computed<Array<{ label: string; value: LogLevel }>>(() =
 // ── Reactive form (full AppSettings; only CDN + networkLearning are edited here) ──────────
 
 const form = reactive<AppSettings>({
+  globalSpeedLimitBps: 0,
   appearance: {
     themeColor: "default",
     backgroundOpacity: "default",
@@ -222,6 +223,7 @@ function copyNetworkScene(settings: NetworkLearningSettings) {
 
 function buildSettingsPayload(): AppSettings {
   return {
+    globalSpeedLimitBps: form.globalSpeedLimitBps,
     appearance: {
       themeColor: form.appearance.themeColor,
       backgroundOpacity: form.appearance.backgroundOpacity,

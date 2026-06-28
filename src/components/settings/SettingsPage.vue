@@ -521,7 +521,7 @@ defineExpose({
         :t="t"
         :scheduler-mode-options="schedulerModeOptions"
         :adaptive-profile-options="adaptiveProfileOptions"
-        :global-speed-limit-mi-b-ps="globalSpeedLimitMiBps"
+        :global-speed-limit-mi-bps="globalSpeedLimitMiBps"
         @update:globalSpeedLimitMiBps="setGlobalSpeedLimitMiBps"
       />
 

@@ -257,7 +257,7 @@ export function useDownloader() {
   }
 
   function startAutoRefresh() {
-    listen<DownloadSummary>("download-updated", (event) => {
+    void listen<DownloadSummary>("download-updated", (event) => {
       handleDownloadUpdated(event.payload);
     }).then((unlisten) => {
       unlistenEvent = unlisten;

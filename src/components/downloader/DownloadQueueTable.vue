@@ -310,6 +310,7 @@ function metaForDownload(download: DownloadSummary) {
     const parts: string[] = [labelForUploadStatus(download.uploadStatus)];
     const hasSeedCount = download.seedCount != null;
     const hasLeechCount = download.leechCount != null;
+    // TODO L1: backend always returns null for seed/leech; consider hiding or using t('common.dash') here
     if (hasSeedCount || hasLeechCount) {
       parts.push(`${download.seedCount ?? "—"} S / ${download.leechCount ?? "—"} L`);
     }

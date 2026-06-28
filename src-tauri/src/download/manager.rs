@@ -2483,8 +2483,28 @@ fn normalize_download_dir(raw: &str) -> String {
 
 fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
     const MAX_UPLOAD_LIMIT_BYTES: u64 = 10 * 1024 * 1024 * 1024 * 1024;
+    const MIN_PORT: u16 = 1025;
     let tracker_list = normalize_tracker_list(&settings.tracker_list)?;
     let tracker_list_url = normalize_tracker_list_url(&settings.tracker_list_url)?;
+
+    let listen_port_range = match settings.listen_port_range {
+        Some(range) => {
+            if range.start > range.end {
+                return Err(DownloadError::InvalidResponse(format!(
+                    "listen_port_range: start ({}) must be <= end ({})",
+                    range.start, range.end
+                )));
+            }
+            if range.start < MIN_PORT || range.end < MIN_PORT {
+                return Err(DownloadError::InvalidResponse(format!(
+                    "listen_port_range: ports must be >= {} (got {}-{})",
+                    MIN_PORT, range.start, range.end
+                )));
+            }
+            Some(range)
+        }
+        None => None,
+    };
 
     Ok(BtSettings {
         dht_enabled: settings.dht_enabled,
@@ -2497,6 +2517,8 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
         } else {
             0.0
         },
+        upnp_enabled: settings.upnp_enabled,
+        listen_port_range,
     })
 }
 

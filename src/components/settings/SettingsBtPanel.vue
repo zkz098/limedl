@@ -147,7 +147,7 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
         <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
       </label>
 
-      <!-- TODO: These two speed-limit fields are frontend-only for now.
+      <!-- TODO M2 (Oracle): These two speed-limit fields are frontend-only for now.
            The Rust BtSettings in src-tauri/src/download/types.rs does not yet have
            default_download_speed_limit / default_upload_speed_limit fields.
            Values entered here are NOT persisted to the backend and will be lost on restart.

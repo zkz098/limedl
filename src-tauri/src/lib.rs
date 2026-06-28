@@ -53,6 +53,7 @@ pub fn run() {
                 ))
                 .context("初始化 BT 管理器失败")?;
                 let torrent_manager = Arc::new(torrent_manager);
+                torrent_manager.spawn_upload_policy_loop();
 
                 let sftp_manager = SftpManager::new(state_dir.join("sftp"), rate_limiter)
                     .context("初始化 SFTP 管理器失败")?;
@@ -135,6 +136,18 @@ pub fn run() {
             })
         })
         .plugin(tauri_plugin_opener::init())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let handle = window.app_handle().clone();
+                let state = window.state::<AppState>();
+                let tm = state.torrent_manager.clone();
+                tauri::async_runtime::spawn(async move {
+                    tm.shutdown().await;
+                    handle.exit(0);
+                });
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             download_start,
             download_pause,
