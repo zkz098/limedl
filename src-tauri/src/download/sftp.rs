@@ -17,6 +17,7 @@ use uuid::Uuid;
 use super::{
     error::{DownloadError, Result},
     lock_or_recover,
+    rate_limiter::RateLimiter,
     types::{
         AdaptiveProfile, BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState,
         DownloadSummary, StartDownloadRequest, TaskKind, ThreadMode,
@@ -32,6 +33,7 @@ pub struct SftpManager {
     state_dir: PathBuf,
     tasks: Arc<AsyncMutex<HashMap<String, Arc<SftpTask>>>>,
     event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
+    rate_limiter: Arc<RateLimiter>,
 }
 
 struct SftpTask {
@@ -41,6 +43,7 @@ struct SftpTask {
     snapshot: Mutex<DownloadSnapshot>,
     runtime: Mutex<Option<SftpRuntime>>,
     speed: Mutex<SpeedSample>,
+    rate_limiter: Arc<RateLimiter>,
 }
 
 struct SftpRuntime {
@@ -63,12 +66,13 @@ struct ParsedSftpUrl {
 }
 
 impl SftpManager {
-    pub fn new(state_dir: PathBuf) -> Result<Self> {
+    pub fn new(state_dir: PathBuf, rate_limiter: Arc<RateLimiter>) -> Result<Self> {
         fs::create_dir_all(&state_dir)?;
         Ok(Self {
             state_dir,
             tasks: Arc::new(AsyncMutex::new(HashMap::new())),
             event_tx: Arc::new(Mutex::new(None)),
+            rate_limiter,
         })
     }
 
@@ -138,6 +142,10 @@ impl SftpManager {
             updated_at_ms: now,
             cdn_accelerated: false,
             chunks: vec![],
+            seed_count: None,
+            leech_count: None,
+            download_limit_bps: None,
+            upload_limit_bps: None,
         };
 
         let task = Arc::new(SftpTask {
@@ -150,6 +158,7 @@ impl SftpManager {
                 bytes: 0,
                 at_ms: now,
             }),
+            rate_limiter: self.rate_limiter.clone(),
         });
 
         self.tasks.lock().await.insert(id.clone(), task.clone());
@@ -201,7 +210,9 @@ impl SftpManager {
         };
         if path.exists() {
             #[cfg(windows)]
-            { std::process::Command::new("explorer").arg(path).spawn()?; }
+            {
+                std::process::Command::new("explorer").arg(path).spawn()?;
+            }
             return Ok(());
         }
 
@@ -300,7 +311,10 @@ fn spawn_transfer(
                 update_snapshot(&task, DownloadState::Completed, None);
                 if let Some(ref tx) = event_tx {
                     let gid = xxhash_rust::xxh3::xxh3_64(task_id.as_bytes());
-                    let _ = tx.send(build_notification("aria2.onDownloadComplete", &format!("{gid:016x}")));
+                    let _ = tx.send(build_notification(
+                        "aria2.onDownloadComplete",
+                        &format!("{gid:016x}"),
+                    ));
                 }
             }
             Err(DownloadError::Interrupted) => {
@@ -313,7 +327,10 @@ fn spawn_transfer(
                     );
                     if let Some(ref tx) = event_tx {
                         let gid = xxhash_rust::xxh3::xxh3_64(task_id.as_bytes());
-                        let _ = tx.send(build_notification("aria2.onDownloadError", &format!("{gid:016x}")));
+                        let _ = tx.send(build_notification(
+                            "aria2.onDownloadError",
+                            &format!("{gid:016x}"),
+                        ));
                     }
                 }
             }
@@ -321,7 +338,10 @@ fn spawn_transfer(
                 update_snapshot(&task, DownloadState::Failed, Some(error.to_string()));
                 if let Some(ref tx) = event_tx {
                     let gid = xxhash_rust::xxh3::xxh3_64(task_id.as_bytes());
-                    let _ = tx.send(build_notification("aria2.onDownloadError", &format!("{gid:016x}")));
+                    let _ = tx.send(build_notification(
+                        "aria2.onDownloadError",
+                        &format!("{gid:016x}"),
+                    ));
                 }
             }
         }
@@ -390,6 +410,7 @@ fn download_sftp_file(task: &SftpTask, token: &CancellationToken) -> Result<()> 
         if read == 0 {
             break;
         }
+        task.rate_limiter.consume_blocking(read);
         local.write_all(&buffer[..read])?;
         refresh_progress(task);
     }

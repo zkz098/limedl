@@ -39,10 +39,16 @@ export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     speedBytesPerSecond: snapshot.speedBytesPerSecond,
     etaSeconds: snapshot.etaSeconds,
     uploadedBytes: snapshot.uploadedBytes,
+    uploadSpeedBytesPerSecond: snapshot.uploadSpeedBytesPerSecond,
     peerCount: snapshot.peerCount,
     uploadStatus: snapshot.uploadStatus,
+    infoHash: snapshot.infoHash,
     error: snapshot.error,
     cdnAccelerated: snapshot.cdnAccelerated,
     createdAtMs: snapshot.createdAtMs,
+    seedCount: snapshot.seedCount,
+    leechCount: snapshot.leechCount,
+    downloadLimitBps: snapshot.downloadLimitBps,
+    uploadLimitBps: snapshot.uploadLimitBps,
   };
 }

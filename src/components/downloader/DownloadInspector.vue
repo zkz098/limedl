@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
+import BtPeerTable from "./BtPeerTable.vue";
+import BtPieceHeatmap from "./BtPieceHeatmap.vue";
+import BtTrackerTable from "./BtTrackerTable.vue";
 import ChunkHeatmap from "./ChunkHeatmap.vue";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
@@ -14,7 +17,14 @@ import {
   isSizeUnknown,
   progressValue,
 } from "../../lib/download-format";
-import type { DownloadSnapshot, DownloadSummary } from "../../types/download";
+import { getBtPeers, getBtTrackers, getBtPieces } from "../../lib/tauri/download-api";
+import type {
+  BtPeerInfo,
+  BtPieceInfo,
+  BtTrackerInfo,
+  DownloadSnapshot,
+  DownloadSummary,
+} from "../../types/download";
 
 const props = defineProps<{
   actionName: string;
@@ -65,8 +75,12 @@ const detailRows = computed<DetailRow[]>(() => {
           ? t(`uploadStatus.${snapshot.uploadStatus}`)
           : t("uploadStatus.idle"),
       },
+      { label: t("inspector.fields.seedCount"), value: snapshot.seedCount?.toString() ?? t("common.dash") },
+      { label: t("inspector.fields.leechCount"), value: snapshot.leechCount?.toString() ?? t("common.dash") },
       { label: t("inspector.fields.peerCount"), value: String(snapshot.peerCount ?? 0) },
       { label: t("inspector.fields.uploadedBytes"), value: formatBytes(snapshot.uploadedBytes) },
+      { label: t("inspector.fields.downloadLimitBps"), value: formatSpeed(snapshot.downloadLimitBps) },
+      { label: t("inspector.fields.uploadLimitBps"), value: formatSpeed(snapshot.uploadLimitBps) },
       { label: t("inspector.fields.createdAt"), value: formatTimestamp(snapshot.createdAtMs) },
       { label: t("inspector.fields.updatedAt"), value: formatTimestamp(snapshot.updatedAtMs) },
     ];
@@ -125,6 +139,66 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
   if (state === "queued" || state === "paused") return "warning";
   return "info";
 });
+
+// ── BT on-demand data ──
+
+const peerList = ref<BtPeerInfo[]>([]);
+const trackerList = ref<BtTrackerInfo[]>([]);
+const pieceList = ref<BtPieceInfo[]>([]);
+const isFetchingPeers = ref(false);
+const isFetchingTrackers = ref(false);
+const isFetchingPieces = ref(false);
+
+function clearBtData() {
+  peerList.value = [];
+  trackerList.value = [];
+  pieceList.value = [];
+}
+
+async function fetchBtPeers(downloadId: string) {
+  isFetchingPeers.value = true;
+  try {
+    peerList.value = await getBtPeers(downloadId);
+  } catch {
+    peerList.value = [];
+  } finally {
+    isFetchingPeers.value = false;
+  }
+}
+
+async function fetchBtTrackers(downloadId: string) {
+  isFetchingTrackers.value = true;
+  try {
+    trackerList.value = await getBtTrackers(downloadId);
+  } catch {
+    trackerList.value = [];
+  } finally {
+    isFetchingTrackers.value = false;
+  }
+}
+
+async function fetchBtPieces(downloadId: string) {
+  isFetchingPieces.value = true;
+  try {
+    pieceList.value = await getBtPieces(downloadId);
+  } catch {
+    pieceList.value = [];
+  } finally {
+    isFetchingPieces.value = false;
+  }
+}
+
+watch(
+  () => props.selectedSnapshot?.id,
+  (id) => {
+    if (id && props.selectedSnapshot?.kind === "bt") {
+      void Promise.all([fetchBtPeers(id), fetchBtTrackers(id), fetchBtPieces(id)]);
+    } else {
+      clearBtData();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -240,6 +314,13 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
               </template>
             </span>
           </div>
+          <div
+            v-if="selectedOverview.kind === 'bt'"
+            class="text-row"
+          >
+            <span class="text-label">{{ t("inspector.fields.seedCount") }}:</span>
+            <span class="text-value">{{ selectedOverview.seedCount ?? 0 }} / {{ selectedOverview.leechCount ?? 0 }}</span>
+          </div>
           <div v-if="selectedOverview.cdnAccelerated" class="text-row">
             <span class="text-label">{{ t("inspector.cdnNode") }}:</span>
             <span class="text-value">
@@ -261,8 +342,13 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
         </div>
       </div>
 
+      <BtPieceHeatmap
+        v-if="showHeatmap && selectedSnapshot?.kind === 'bt'"
+        :pieces="pieceList"
+        :title="t('inspector.sections.pieces')"
+      />
       <ChunkHeatmap
-        v-if="
+        v-else-if="
           showHeatmap
           && selectedSnapshot?.kind === 'http'
           && selectedSnapshot.supportsRanges
@@ -272,6 +358,38 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
         :title="t('inspector.chunkProgress')"
         :totalBytes="selectedSnapshot.totalBytes ?? 0"
       />
+
+      <section v-if="selectedSnapshot?.kind === 'bt'" class="inspector-bt-section">
+        <div class="inspector-section-header">
+          <h3>{{ t("inspector.sections.peers") }} ({{ peerList.length }})</h3>
+          <UiButton
+            variant="ghost"
+            size="sm"
+            icon="i-ri-refresh-line"
+            :loading="isFetchingPeers"
+            @click="fetchBtPeers(selectedSnapshot!.id)"
+          >
+            {{ t("inspector.refreshPeers") }}
+          </UiButton>
+        </div>
+        <BtPeerTable :peers="peerList" />
+      </section>
+
+      <section v-if="selectedSnapshot?.kind === 'bt'" class="inspector-bt-section">
+        <div class="inspector-section-header">
+          <h3>{{ t("inspector.sections.trackers") }} ({{ trackerList.length }})</h3>
+          <UiButton
+            variant="ghost"
+            size="sm"
+            icon="i-ri-refresh-line"
+            :loading="isFetchingTrackers"
+            @click="fetchBtTrackers(selectedSnapshot!.id)"
+          >
+            {{ t("inspector.refreshTrackers") }}
+          </UiButton>
+        </div>
+        <BtTrackerTable :trackers="trackerList" />
+      </section>
 
       <dl v-if="showDetailInfo && detailRows.length" class="detail-grid">
         <div
@@ -427,6 +545,29 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
 
 .detail-grid dd {
   margin: 0;
+}
+
+.inspector-bt-section {
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.inspector-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inspector-section-header h3 {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .inspector-empty {

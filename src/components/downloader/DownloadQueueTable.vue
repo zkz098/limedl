@@ -27,6 +27,7 @@ const emit = defineEmits<{
   pauseOrResume: [downloadId: string];
   refresh: [];
   select: [downloadId: string];
+  setBtSpeedLimit: [downloadId: string];
 }>();
 
 const pageSize = 10;
@@ -197,9 +198,9 @@ function closeMenus() {
 }
 
 function clampMenuPosition(clientX: number, clientY: number) {
-  const menuWidth = 220;
-  const menuHeight = 236;
-  const gutter = 12;
+    const menuWidth = 220;
+    const menuHeight = 280;
+    const gutter = 12;
 
   return {
     x: Math.max(gutter, Math.min(clientX, window.innerWidth - menuWidth - gutter)),
@@ -270,6 +271,15 @@ function handleOpenInExplorer() {
   contextMenu.value = null;
 }
 
+function onSetBtSpeedLimit() {
+  if (!contextMenuDownload.value) {
+    return;
+  }
+
+  emit("setBtSpeedLimit", contextMenuDownload.value.id);
+  contextMenu.value = null;
+}
+
 const triggerRefresh = throttle(() => {
   emit("refresh");
 }, 600);
@@ -297,11 +307,15 @@ function labelForUploadStatus(status?: DownloadSummary["uploadStatus"]) {
 
 function metaForDownload(download: DownloadSummary) {
   if (download.kind === "bt") {
-    return [
-      labelForUploadStatus(download.uploadStatus),
-      t("queue.peerCount", { count: download.peerCount ?? 0 }),
-      t("queue.uploaded", { size: formatBytes(download.uploadedBytes) }),
-    ].join(" · ");
+    const parts: string[] = [labelForUploadStatus(download.uploadStatus)];
+    const hasSeedCount = download.seedCount != null;
+    const hasLeechCount = download.leechCount != null;
+    if (hasSeedCount || hasLeechCount) {
+      parts.push(`${download.seedCount ?? "—"} S / ${download.leechCount ?? "—"} L`);
+    }
+    parts.push(t("queue.peerCount", { count: download.peerCount ?? 0 }));
+    parts.push(t("queue.uploaded", { size: formatBytes(download.uploadedBytes) }));
+    return parts.join(" · ");
   }
 
   const parts = [
@@ -519,6 +533,16 @@ onUnmounted(() => {
             <span :class="contextActionIcon" aria-hidden="true" />
             <span>{{ contextActionLabel }}</span>
           </button>
+          <template v-if="contextMenuDownload?.kind === 'bt'">
+            <button
+              type="button"
+              class="task-context-menu__item"
+              @click="onSetBtSpeedLimit"
+            >
+              <span class="i-ri-speed-up-line" aria-hidden="true" />
+              <span>{{ t("queue.setSpeedLimit") }}</span>
+            </button>
+          </template>
           <button type="button" class="task-context-menu__item" @click="handleDeleteTask">
             <span class="i-ri-delete-bin-6-line" aria-hidden="true" />
             <span>{{ t("queue.deleteTask") }}</span>

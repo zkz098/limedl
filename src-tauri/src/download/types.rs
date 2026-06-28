@@ -183,6 +183,14 @@ pub struct StartDownloadRequest {
     pub thread_count: Option<usize>,
     pub max_retries: Option<u32>,
     pub checksum: Option<ChecksumMode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_limit_bps: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upload_limit_bps: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_file_indices: Option<Vec<usize>>,
+    #[serde(default)]
+    pub start_paused: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,6 +244,14 @@ pub struct DownloadSnapshot {
     pub cdn_accelerated: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chunks: Vec<ChunkInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leech_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_limit_bps: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upload_limit_bps: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -268,6 +284,14 @@ pub struct DownloadSummary {
     #[serde(default)]
     pub cdn_accelerated: bool,
     pub created_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leech_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_limit_bps: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upload_limit_bps: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -281,6 +305,42 @@ pub struct BtRuntimeStatus {
     pub upload_speed_bytes_per_second: Option<f64>,
     pub uploaded_bytes: u64,
     pub updated_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leech_count: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TorrentFileEntry {
+    pub index: usize,
+    pub path: String,
+    pub size: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtPeerInfo {
+    pub address: String,
+    pub client: String,
+    pub flags: String,
+    pub download_speed: f64,
+    pub upload_speed: f64,
+    pub progress: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtTrackerInfo {
+    pub url: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtPieceInfo {
+    pub index: u64,
+    pub completed: bool,
 }
 
 impl From<&DownloadSnapshot> for DownloadSummary {
@@ -311,6 +371,10 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             error: value.error.clone(),
             cdn_accelerated: value.cdn_accelerated,
             created_at_ms: value.created_at_ms,
+            seed_count: value.seed_count,
+            leech_count: value.leech_count,
+            download_limit_bps: value.download_limit_bps,
+            upload_limit_bps: value.upload_limit_bps,
         }
     }
 }
@@ -388,8 +452,6 @@ pub struct DownloadDefaultsSettings {
 pub struct BtSettings {
     #[serde(default = "default_true")]
     pub dht_enabled: bool,
-    #[serde(default = "default_true")]
-    pub pex_enabled: bool,
     #[serde(default)]
     pub tracker_list: String,
     #[serde(default = "default_tracker_list_url")]
@@ -403,7 +465,6 @@ impl Default for BtSettings {
     fn default() -> Self {
         Self {
             dht_enabled: true,
-            pex_enabled: true,
             tracker_list: String::new(),
             tracker_list_url: default_tracker_list_url(),
             pause_upload_when_limit_reached: false,
@@ -571,6 +632,8 @@ pub struct AppSettings {
     pub aria2_rpc: Aria2RpcSettings,
     #[serde(default)]
     pub cdn_acceleration: CdnAccelerationSettings,
+    #[serde(default)]
+    pub global_speed_limit_bps: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -649,7 +712,7 @@ mod tests {
             "proxy": {"mode": "system", "manualUrl": ""},
             "scheduler": {"mode": "traditional", "traditional": {"maxParallelTasks": 3}, "automatic": {"maxParallelThreads": 8, "maxThreadsPerTask": 4, "minThreadsPerTask": 1, "adaptiveProfile": "conservative"}},
             "download": {"defaultDownloadDir": "", "defaultMaxRetries": 3, "defaultChecksum": "blake3", "defaultUserAgent": "", "enableMetalink": false, "enableSftp": false},
-            "bt": {"pauseUploadWhenLimitReached": false, "uploadLimitBytes": 0, "uploadRatioLimit": 0, "dhtEnabled": true, "pexEnabled": true, "trackerList": "", "trackerListUrl": ""},
+            "bt": {"pauseUploadWhenLimitReached": false, "uploadLimitBytes": 0, "uploadRatioLimit": 0, "dhtEnabled": true, "trackerList": "", "trackerListUrl": ""},
             "networkLearning": {"deviceMode": "fixed", "currentSceneId": "", "scenes": []},
             "logging": {"enabled": false, "level": "info", "filePath": ""},
             "aria2Rpc": {"enabled": false, "port": 6800, "secret": null}
@@ -678,9 +741,6 @@ mod tests {
             deserialized.cdn_acceleration.active_ip.as_deref(),
             Some("10.0.0.1")
         );
-        assert_eq!(
-            deserialized.cdn_acceleration.active_speed_mbps,
-            Some(88.3)
-        );
+        assert_eq!(deserialized.cdn_acceleration.active_speed_mbps, Some(88.3));
     }
 }

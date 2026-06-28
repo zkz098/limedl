@@ -4,14 +4,14 @@ use anyhow::{Context, anyhow};
 use tauri::State;
 
 use super::{
+    Aria2RpcServer,
     error::DownloadError,
     manager::{AppState, normalize_tracker_list_lossy, normalize_tracker_list_url},
     torrent::{DownloadSourceKind, classify_download_source},
     types::{
-        AppSettings, BtRuntimeStatus, DownloadSnapshot, DownloadSummary, SerializableError,
-        StartDownloadRequest, TaskId,
+        AppSettings, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo, DownloadSnapshot,
+        DownloadSummary, SerializableError, StartDownloadRequest, TaskId, TorrentFileEntry,
     },
-    Aria2RpcServer,
 };
 
 type CommandResult<T> = std::result::Result<T, SerializableError>;
@@ -48,34 +48,28 @@ macro_rules! dispatch_download_action {
     ($state:expr, $download_id:expr, $action:ident, $http_err:literal, $bt_err:literal, $sftp_err:literal) => {{
         let task_id = TaskId::parse(&$download_id);
         match &task_id {
-            TaskId::Bt(_) => {
-                into_command_result(
-                    $state
-                        .torrent_manager
-                        .$action(&$download_id)
-                        .await
-                        .context($bt_err),
-                )
-            }
-            TaskId::Sftp(_) => {
-                into_command_result(
-                    $state
-                        .sftp_manager
-                        .$action(&$download_id)
-                        .await
-                        .context($sftp_err),
-                )
-            }
-            TaskId::Http(_) => {
-                into_command_result(
-                    $state
-                        .manager
-                        .$action(task_id.http_inner())
-                        .await
-                        .map(prefix_http_snapshot)
-                        .context($http_err),
-                )
-            }
+            TaskId::Bt(_) => into_command_result(
+                $state
+                    .torrent_manager
+                    .$action(&$download_id)
+                    .await
+                    .context($bt_err),
+            ),
+            TaskId::Sftp(_) => into_command_result(
+                $state
+                    .sftp_manager
+                    .$action(&$download_id)
+                    .await
+                    .context($sftp_err),
+            ),
+            TaskId::Http(_) => into_command_result(
+                $state
+                    .manager
+                    .$action(task_id.http_inner())
+                    .await
+                    .map(prefix_http_snapshot)
+                    .context($http_err),
+            ),
         }
     }};
 }
@@ -220,24 +214,27 @@ pub async fn download_open_in_explorer(
 ) -> CommandResult<()> {
     let task_id = TaskId::parse(&download_id);
     match &task_id {
-        TaskId::Bt(_) => {
-            into_command_result(
-                state.torrent_manager.open_in_explorer(&download_id).await
-                    .context("在资源管理器打开 BT 下载失败"),
-            )
-        }
-        TaskId::Sftp(_) => {
-            into_command_result(
-                state.sftp_manager.open_in_explorer(&download_id).await
-                    .context("在资源管理器打开 SFTP 下载失败"),
-            )
-        }
-        TaskId::Http(_) => {
-            into_command_result(
-                state.manager.open_in_explorer(task_id.http_inner()).await
-                    .context("在资源管理器打开 HTTP 下载失败"),
-            )
-        }
+        TaskId::Bt(_) => into_command_result(
+            state
+                .torrent_manager
+                .open_in_explorer(&download_id)
+                .await
+                .context("在资源管理器打开 BT 下载失败"),
+        ),
+        TaskId::Sftp(_) => into_command_result(
+            state
+                .sftp_manager
+                .open_in_explorer(&download_id)
+                .await
+                .context("在资源管理器打开 SFTP 下载失败"),
+        ),
+        TaskId::Http(_) => into_command_result(
+            state
+                .manager
+                .open_in_explorer(task_id.http_inner())
+                .await
+                .context("在资源管理器打开 HTTP 下载失败"),
+        ),
     }
 }
 
@@ -309,7 +306,10 @@ pub async fn settings_save(
 ) -> CommandResult<AppSettings> {
     into_command_result(
         async {
-            let old_rpc = state.manager.settings().await
+            let old_rpc = state
+                .manager
+                .settings()
+                .await
                 .context("读取当前设置失败")?
                 .aria2_rpc;
 
@@ -396,6 +396,83 @@ pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandRes
             Ok(normalize_tracker_list_lossy(&content))
         }
         .await,
+    )
+}
+
+#[tauri::command]
+pub async fn bt_set_speed_limit(
+    state: State<'_, AppState>,
+    download_id: String,
+    download_limit_bps: Option<u64>,
+    upload_limit_bps: Option<u64>,
+) -> CommandResult<()> {
+    let task_id = TaskId::parse(&download_id);
+    match &task_id {
+        TaskId::Bt(_) => {
+            state.torrent_manager.set_speed_limit(
+                &download_id,
+                download_limit_bps,
+                upload_limit_bps,
+            );
+            Ok(())
+        }
+        _ => Err(SerializableError {
+            kind: String::from("unsupported"),
+            message: String::from("speed limit only supported for BT tasks"),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn bt_preview_torrent(
+    state: State<'_, AppState>,
+    source: String,
+) -> CommandResult<Vec<TorrentFileEntry>> {
+    into_command_result(
+        state
+            .torrent_manager
+            .preview_torrent(&source)
+            .await
+            .context("预览 BT 种子文件失败"),
+    )
+}
+
+#[tauri::command]
+pub async fn bt_get_peers(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> CommandResult<Vec<BtPeerInfo>> {
+    into_command_result(
+        state
+            .torrent_manager
+            .get_peers(&download_id)
+            .context("查询 BT 节点信息失败"),
+    )
+}
+
+#[tauri::command]
+pub async fn bt_get_trackers(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> CommandResult<Vec<BtTrackerInfo>> {
+    into_command_result(
+        state
+            .torrent_manager
+            .get_trackers(&download_id)
+            .context("查询 BT 追踪器信息失败"),
+    )
+}
+
+#[tauri::command]
+pub async fn bt_get_pieces(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> CommandResult<Vec<BtPieceInfo>> {
+    into_command_result(
+        state
+            .torrent_manager
+            .get_pieces(&download_id)
+            .context("查询 BT 分片信息失败"),
     )
 }
 

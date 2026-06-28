@@ -1,10 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type {
+  BtPeerInfo,
+  BtPieceInfo,
   BtRuntimeStatus,
+  BtTrackerInfo,
   DownloadSnapshot,
   DownloadSummary,
   StartDownloadRequest,
+  TorrentFileEntry,
 } from "../../types/download";
 
 export function startDownload(request: StartDownloadRequest) {
@@ -45,4 +49,24 @@ export function listDownloads() {
 
 export function getBtRuntimeStatus() {
   return invoke<BtRuntimeStatus>("bt_runtime_status");
+}
+
+export function getBtPeers(downloadId: string) {
+  return invoke<BtPeerInfo[]>("bt_get_peers", { downloadId });
+}
+
+export function getBtTrackers(downloadId: string) {
+  return invoke<BtTrackerInfo[]>("bt_get_trackers", { downloadId });
+}
+
+export function getBtPieces(downloadId: string) {
+  return invoke<BtPieceInfo[]>("bt_get_pieces", { downloadId });
+}
+
+export function setBtSpeedLimit(downloadId: string, downloadLimitBps?: number, uploadLimitBps?: number) {
+  return invoke<void>("bt_set_speed_limit", { downloadId, downloadLimitBps, uploadLimitBps });
+}
+
+export function previewTorrent(source: string) {
+  return invoke<TorrentFileEntry[]>("bt_preview_torrent", { source });
 }

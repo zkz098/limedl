@@ -7,11 +7,11 @@ use std::time::Instant;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use crate::download::cdn::ip_ranges::{get_ip_ranges, IpRangesCache};
+use crate::download::cdn::ip_ranges::{IpRangesCache, get_ip_ranges};
 use crate::download::cdn::resolver::build_accelerated_client;
 use crate::download::cdn::speed_test::{
-    measure_default_node, run_speed_test, CdnTestPhase, DefaultNodeResult, SpeedTestConfig,
-    SpeedTestResult,
+    CdnTestPhase, DefaultNodeResult, SpeedTestConfig, SpeedTestResult, measure_default_node,
+    run_speed_test,
 };
 use crate::download::types::AppSettings;
 
@@ -70,10 +70,7 @@ impl CdnAccelerator {
     /// [`apply_ip`](Self::apply_ip) and the state moves to
     /// [`AccelState::Ready`].  On error the state moves to
     /// [`AccelState::Error`].
-    pub(crate) async fn start_test(
-        self: &Arc<Self>,
-        settings: AppSettings,
-    ) -> anyhow::Result<()> {
+    pub(crate) async fn start_test(self: &Arc<Self>, settings: AppSettings) -> anyhow::Result<()> {
         {
             let mut state = self.state.write().await;
             if *state == AccelState::Testing {
@@ -97,12 +94,11 @@ impl CdnAccelerator {
             *this.phase.write().await = Some(CdnTestPhase::FetchingRanges);
             *this.phase_progress.write().await = (0, 0);
 
-            let ip_cache =
-                tokio::sync::Mutex::new(IpRangesCache {
-                    ips: Vec::new(),
-                    fetched_at: Instant::now(),
-                    from_fallback: true,
-                });
+            let ip_cache = tokio::sync::Mutex::new(IpRangesCache {
+                ips: Vec::new(),
+                fetched_at: Instant::now(),
+                from_fallback: true,
+            });
             let range_data = get_ip_ranges(&ip_cache, token.child_token()).await;
 
             // Check cancellation before starting the heavy work.
@@ -123,15 +119,17 @@ impl CdnAccelerator {
 
             if ips.is_empty() {
                 tracing::error!("cdn test: no Cloudflare IPs available");
-                *this.state.write().await =
-                    AccelState::Error("no Cloudflare IPs available".into());
+                *this.state.write().await = AccelState::Error("no Cloudflare IPs available".into());
                 *this.phase.write().await = None;
                 *this.phase_progress.write().await = (0, 0);
                 return;
             }
 
             // ── Phase: Screening → MeasuringThroughput ──────────
-            tracing::info!("cdn test: phase=Screening → MeasuringThroughput, {} IPs", ips.len());
+            tracing::info!(
+                "cdn test: phase=Screening → MeasuringThroughput, {} IPs",
+                ips.len()
+            );
             let config = SpeedTestConfig::default();
             let acc_ref = Arc::clone(&this);
             let progress_cb: crate::download::cdn::speed_test::ProgressFn =
@@ -177,9 +175,7 @@ impl CdnAccelerator {
                     let speed = result.throughput_mbps.unwrap_or(0.0);
 
                     let should_fallback = if let Some(dn_speed) = default_node.throughput_mbps {
-                        let best_worse = result
-                            .throughput_mbps
-                            .is_none_or(|s| s < dn_speed);
+                        let best_worse = result.throughput_mbps.is_none_or(|s| s < dn_speed);
                         if best_worse {
                             tracing::info!(
                                 "cdn test: fallback — best candidate {speed:.2} MB/s < default {dn_speed:.2} MB/s, keeping default routing",
@@ -209,29 +205,27 @@ impl CdnAccelerator {
                                 result.tcp_latency_ms,
                             );
                         }
-                        match this
-                            .apply_ip(result.ip, speed, &settings)
-                            .await
-                        {
+                        match this.apply_ip(result.ip, speed, &settings).await {
                             Ok(()) => {
                                 tracing::info!("cdn test: state=Ready, accelerated client built");
                             }
                             Err(e) => {
-                                tracing::error!("cdn test: failed to build accelerated client: {e}");
-                                *this.state.write().await =
-                                    AccelState::Error(format!(
-                                        "failed to build accelerated client: {e}"
-                                    ));
+                                tracing::error!(
+                                    "cdn test: failed to build accelerated client: {e}"
+                                );
+                                *this.state.write().await = AccelState::Error(format!(
+                                    "failed to build accelerated client: {e}"
+                                ));
                             }
                         }
                     }
                 }
                 None => {
-                    tracing::error!("cdn test: no candidates at all — screening produced zero reachable IPs");
+                    tracing::error!(
+                        "cdn test: no candidates at all — screening produced zero reachable IPs"
+                    );
                     *this.state.write().await =
-                        AccelState::Error(
-                            "no reachable CDN IPs — all candidates failed".into(),
-                        );
+                        AccelState::Error("no reachable CDN IPs — all candidates failed".into());
                 }
             }
 
@@ -287,10 +281,7 @@ impl CdnAccelerator {
     ///
     /// Called at startup to re-apply the previously selected CDN IP so that
     /// downloads can use acceleration immediately without re-running the speed test.
-    pub(crate) async fn init_from_settings(
-        self: &Arc<Self>,
-        settings: &AppSettings,
-    ) {
+    pub(crate) async fn init_from_settings(self: &Arc<Self>, settings: &AppSettings) {
         let cdn = &settings.cdn_acceleration;
         if !cdn.enabled {
             return;
@@ -305,7 +296,9 @@ impl CdnAccelerator {
         let speed = cdn.active_speed_mbps.unwrap_or(0.0);
         match self.apply_ip(ip, speed, settings).await {
             Ok(()) => {
-                tracing::info!("cdn init: restored active IP {ip} at {speed:.2} MB/s from settings");
+                tracing::info!(
+                    "cdn init: restored active IP {ip} at {speed:.2} MB/s from settings"
+                );
             }
             Err(e) => {
                 tracing::warn!("cdn init: failed to restore active IP {ip}: {e}");

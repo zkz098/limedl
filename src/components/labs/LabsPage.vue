@@ -88,7 +88,6 @@ const form = reactive<AppSettings>({
   },
   bt: {
     dhtEnabled: true,
-    pexEnabled: true,
     trackerList: "",
     trackerListUrl: DEFAULT_TRACKER_LIST_URL,
     pauseUploadWhenLimitReached: false,
@@ -183,7 +182,6 @@ watch(
     form.download.enableMetalink = nextSettings.download.enableMetalink ?? false;
     form.download.enableSftp = nextSettings.download.enableSftp ?? false;
     form.bt.dhtEnabled = nextSettings.bt.dhtEnabled;
-    form.bt.pexEnabled = nextSettings.bt.pexEnabled;
     form.bt.trackerList = nextSettings.bt.trackerList;
     form.bt.trackerListUrl = nextSettings.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL;
     form.bt.pauseUploadWhenLimitReached = nextSettings.bt.pauseUploadWhenLimitReached;
@@ -257,7 +255,6 @@ function buildSettingsPayload(): AppSettings {
     },
     bt: {
       dhtEnabled: form.bt.dhtEnabled,
-      pexEnabled: form.bt.pexEnabled,
       trackerList: form.bt.trackerList,
       trackerListUrl: form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
       pauseUploadWhenLimitReached: form.bt.pauseUploadWhenLimitReached,

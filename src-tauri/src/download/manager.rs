@@ -37,15 +37,16 @@ use super::{
     },
     metalink::parse_metalink,
     migration::migrate_json_manifests,
+    rate_limiter::RateLimiter,
     torrent::TorrentManager,
     types::{
         AdaptiveProfile, AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        CdnAccelerationSettings, ChecksumMode, ChunkInfo,
-        DeviceLearningMode, DownloadDefaultsSettings, DownloadSnapshot, DownloadState,
-        DownloadSummary, LogSettings, NetworkLearningMetrics, NetworkLearningSettings,
-        NetworkSceneProfile, ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings,
-        StartDownloadRequest, TaskId, TaskKind, ThreadMode, TraditionalSchedulerSettings,
-        default_http_user_agent, default_tracker_list_url,
+        CdnAccelerationSettings, ChecksumMode, ChunkInfo, DeviceLearningMode,
+        DownloadDefaultsSettings, DownloadSnapshot, DownloadState, DownloadSummary, LogSettings,
+        NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, ProxyMode,
+        ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, TaskId, TaskKind,
+        ThreadMode, TraditionalSchedulerSettings, default_http_user_agent,
+        default_tracker_list_url,
     },
 };
 
@@ -70,12 +71,10 @@ impl AppState {
         let mut summaries = Vec::new();
 
         if let Ok(http) = self.manager.list().await {
-            summaries.extend(
-                http.into_iter().map(|mut summary| {
-                    summary.id = TaskId::make_http(summary.id);
-                    summary
-                }),
-            );
+            summaries.extend(http.into_iter().map(|mut summary| {
+                summary.id = TaskId::make_http(summary.id);
+                summary
+            }));
         }
         if let Ok(bt) = self.torrent_manager.list().await {
             summaries.extend(bt);
@@ -100,6 +99,7 @@ pub struct DownloadManager {
     rebalance_notify: Arc<Notify>,
     event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
+    rate_limiter: Arc<RateLimiter>,
 }
 
 struct ManagedDownload {
@@ -167,7 +167,7 @@ enum ChunkWorkerOutcome {
 }
 
 impl DownloadManager {
-    pub fn new(state_dir: PathBuf) -> Result<Self> {
+    pub fn new(state_dir: PathBuf, rate_limiter: Arc<RateLimiter>) -> Result<Self> {
         fs::create_dir_all(&state_dir)?;
 
         let settings_path = state_dir
@@ -193,6 +193,7 @@ impl DownloadManager {
             rebalance_notify: Arc::new(Notify::new()),
             event_tx: Arc::new(Mutex::new(None)),
             cdn_accelerator: Arc::new(RwLock::new(None)),
+            rate_limiter,
         };
 
         manager.load_downloads_from_db()?;
@@ -304,6 +305,8 @@ impl DownloadManager {
 
     pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings> {
         let normalized = normalize_settings(settings)?;
+        self.rate_limiter
+            .set_rate(normalized.global_speed_limit_bps);
         let next_client = build_http_client(&normalized)?;
 
         persist_settings(&self.settings_path, &normalized).await?;
@@ -600,16 +603,19 @@ impl DownloadManager {
 
         if destination_path.exists() {
             #[cfg(windows)]
-            { Command::new("explorer")
-                .arg(format!("/select,{}", destination_path.display()))
-                .spawn()?;
+            {
+                Command::new("explorer")
+                    .arg(format!("/select,{}", destination_path.display()))
+                    .spawn()?;
             }
             return Ok(());
         }
 
         if directory_path.exists() {
             #[cfg(windows)]
-            { Command::new("explorer").arg(&directory_path).spawn()?; }
+            {
+                Command::new("explorer").arg(&directory_path).spawn()?;
+            }
             return Ok(());
         }
 
@@ -857,7 +863,10 @@ impl DownloadManager {
                 });
                 if let Some(ref tx) = *event_tx {
                     let download_id = managed.lock_snapshot().id.clone();
-                    let gid = format!("{:016x}", xxhash_rust::xxh3::xxh3_64(download_id.as_bytes()));
+                    let gid = format!(
+                        "{:016x}",
+                        xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
+                    );
                     let _ = tx.send(build_rpc_notification("aria2.onDownloadError", &gid));
                 }
             }
@@ -866,9 +875,7 @@ impl DownloadManager {
                 let snapshot = managed.lock_snapshot();
                 snapshot.state != DownloadState::Canceled
             };
-            if should_persist
-                && let Err(error) = manager.persist(managed.clone()).await
-            {
+            if should_persist && let Err(error) = manager.persist(managed.clone()).await {
                 log_background_error("persist background download state", &error);
             }
             let mut runtime = managed.lock_runtime();
@@ -904,6 +911,10 @@ impl DownloadManager {
             thread_count: current_manifest.requested_thread_count,
             max_retries: None,
             checksum: Some(current_manifest.checksum_mode),
+            download_limit_bps: None,
+            upload_limit_bps: None,
+            selected_file_indices: None,
+            start_paused: false,
         };
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);
@@ -1029,19 +1040,11 @@ impl DownloadManager {
         token: CancellationToken,
         max_retries: u32,
     ) -> Result<RunOutcome> {
-        let file_path = PathBuf::from(
-            managed.lock_manifest()
-                .temp_path
-                .clone(),
-        );
+        let file_path = PathBuf::from(managed.lock_manifest().temp_path.clone());
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let file = open_download_file(
-            &file_path,
-            managed.lock_manifest()
-                .total_bytes,
-        )?;
+        let file = open_download_file(&file_path, managed.lock_manifest().total_bytes)?;
 
         let mut last_persist = Instant::now();
 
@@ -1103,11 +1106,7 @@ impl DownloadManager {
                 start_offset
             } else {
                 if start_offset > 0 {
-                    reset_download_file(
-                        &file,
-                        managed.lock_manifest()
-                            .total_bytes,
-                    )?;
+                    reset_download_file(&file, managed.lock_manifest().total_bytes)?;
                     self.reset_progress(&managed, true);
                 }
                 0
@@ -1129,6 +1128,7 @@ impl DownloadManager {
                 chunk = stream.next() => chunk,
             } {
                 let chunk = chunk?;
+                self.rate_limiter.consume(chunk.len()).await;
                 write_all_at(&file, &chunk, absolute_offset)?;
                 absolute_offset += chunk.len() as u64;
                 self.record_progress(&managed, None, chunk.len() as u64);
@@ -1212,12 +1212,23 @@ impl DownloadManager {
                 }
 
                 let db = self.db.clone();
+                let rate_limiter = self.rate_limiter.clone();
                 let managed = managed.clone();
                 let client = client.clone();
                 let token = token.clone();
                 let file = file.clone();
                 workers.spawn(async move {
-                    download_chunk(managed, client, token, file, chunk, max_retries, db).await
+                    download_chunk(
+                        managed,
+                        client,
+                        token,
+                        file,
+                        chunk,
+                        max_retries,
+                        db,
+                        rate_limiter,
+                    )
+                    .await
                 });
                 next_worker_id = next_worker_id.saturating_add(1);
             }
@@ -1323,7 +1334,10 @@ impl DownloadManager {
         });
         if let Some(ref tx) = *event_tx {
             let download_id = managed.lock_snapshot().id.clone();
-            let gid = format!("{:016x}", xxhash_rust::xxh3::xxh3_64(download_id.as_bytes()));
+            let gid = format!(
+                "{:016x}",
+                xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
+            );
             let _ = tx.send(build_rpc_notification("aria2.onDownloadComplete", &gid));
         }
 
@@ -1368,7 +1382,8 @@ impl DownloadManager {
 
             let mut aimd = managed.lock_aimd();
             let now = Instant::now();
-            let throughput = aimd.sample_throughput( manifest.downloaded_bytes, now)
+            let throughput = aimd
+                .sample_throughput(manifest.downloaded_bytes, now)
                 .unwrap_or_else(|| {
                     manifest
                         .allocated_thread_count
@@ -1439,13 +1454,14 @@ impl DownloadManager {
                 };
 
             if should_decrease {
-                manifest.desired_thread_count = Some(aimd::reduce_threads(current, profile, min_threads));
+                manifest.desired_thread_count =
+                    Some(aimd::reduce_threads(current, profile, min_threads));
                 manifest.updated_at_ms = now_ms();
                 aimd.cooldown_until = Some(now + cooldown);
                 aimd.consecutive_good_samples = 0;
                 aimd.consecutive_bad_samples = aimd.consecutive_bad_samples.saturating_add(1);
                 aimd.recent_penalty = false;
-                aimd.record_sample( throughput);
+                aimd.record_sample(throughput);
                 continue;
             }
 
@@ -1469,7 +1485,7 @@ impl DownloadManager {
 
             aimd.last_throughput = Some(throughput);
             aimd.recent_penalty = false;
-            aimd.record_sample( throughput);
+            aimd.record_sample(throughput);
         }
 
         Ok(())
@@ -1533,10 +1549,7 @@ impl DownloadManager {
 
         match settings.scheduler.mode {
             SchedulerMode::Traditional => {
-                entries.sort_by_key(|managed| {
-                    managed.lock_manifest()
-                        .created_at_ms
-                });
+                entries.sort_by_key(|managed| managed.lock_manifest().created_at_ms);
 
                 let mut running = 0usize;
                 for managed in entries {
@@ -1588,9 +1601,8 @@ impl DownloadManager {
                     .collect::<Vec<_>>();
 
                 candidates.sort_by(|left, right| {
-                    remaining_bytes(&right.lock_manifest()).cmp(
-                        &remaining_bytes(&left.lock_manifest()),
-                    )
+                    remaining_bytes(&right.lock_manifest())
+                        .cmp(&remaining_bytes(&left.lock_manifest()))
                 });
 
                 let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
@@ -1679,7 +1691,10 @@ impl DownloadManager {
 }
 
 fn is_terminal(state: DownloadState) -> bool {
-    matches!(state, DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled)
+    matches!(
+        state,
+        DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+    )
 }
 
 impl DownloadManager {
@@ -1939,6 +1954,7 @@ impl DownloadManager {
             rebalance_notify: self.rebalance_notify.clone(),
             event_tx: self.event_tx.clone(),
             cdn_accelerator: self.cdn_accelerator.clone(),
+            rate_limiter: self.rate_limiter.clone(),
         })
     }
 }
@@ -2076,13 +2092,12 @@ fn active_scene_thread_cap(settings: &NetworkLearningSettings) -> Option<usize> 
 }
 
 fn current_allocation(managed: &Arc<ManagedDownload>) -> usize {
-    managed.lock_manifest()
-        .allocated_thread_count
-        .unwrap_or(0)
+    managed.lock_manifest().allocated_thread_count.unwrap_or(0)
 }
 
 fn all_chunks_completed(managed: &Arc<ManagedDownload>) -> bool {
-    managed.lock_manifest()
+    managed
+        .lock_manifest()
         .chunks
         .iter()
         .all(|chunk| chunk.completed)
@@ -2403,8 +2418,7 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let bt = normalize_bt_settings(settings.bt)?;
     let logging = normalize_logging_settings(settings.logging);
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
-    let default_download_dir =
-        normalize_download_dir(&settings.download.default_download_dir);
+    let default_download_dir = normalize_download_dir(&settings.download.default_download_dir);
 
     Ok(AppSettings {
         appearance: settings.appearance,
@@ -2435,6 +2449,7 @@ fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         logging,
         aria2_rpc: settings.aria2_rpc.clone(),
         cdn_acceleration: settings.cdn_acceleration.clone(),
+        global_speed_limit_bps: settings.global_speed_limit_bps,
     })
 }
 
@@ -2473,7 +2488,6 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
 
     Ok(BtSettings {
         dht_enabled: settings.dht_enabled,
-        pex_enabled: settings.pex_enabled,
         tracker_list,
         tracker_list_url,
         pause_upload_when_limit_reached: settings.pause_upload_when_limit_reached,
@@ -2633,6 +2647,7 @@ fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         logging: LogSettings::default(),
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
+        global_speed_limit_bps: 0,
     })
 }
 
@@ -2647,6 +2662,7 @@ async fn persist_settings(settings_path: &Path, settings: &AppSettings) -> Resul
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn download_chunk(
     managed: Arc<ManagedDownload>,
     client: Client,
@@ -2655,6 +2671,7 @@ async fn download_chunk(
     chunk: ChunkManifest,
     max_retries: u32,
     db: Arc<Database>,
+    rate_limiter: Arc<RateLimiter>,
 ) -> Result<ChunkWorkerOutcome> {
     let mut current = chunk.start + chunk.downloaded;
     let end = chunk.end;
@@ -2667,12 +2684,10 @@ async fn download_chunk(
     while current <= end {
         if token.is_cancelled() {
             mark_chunk_released(&managed, chunk.index);
-            return Ok(
-                match managed.lock_snapshot().state {
-                    DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
-                    _ => ChunkWorkerOutcome::Paused,
-                },
-            );
+            return Ok(match managed.lock_snapshot().state {
+                DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
+                _ => ChunkWorkerOutcome::Paused,
+            });
         }
 
         let (url, user_agent, validator) = {
@@ -2718,6 +2733,7 @@ async fn download_chunk(
             next = stream.next() => next,
         } {
             let bytes = bytes?;
+            rate_limiter.consume(bytes.len()).await;
             if current + bytes.len() as u64 - 1 > end {
                 mark_chunk_released(&managed, chunk.index);
                 return Err(DownloadError::InvalidResponse(String::from(

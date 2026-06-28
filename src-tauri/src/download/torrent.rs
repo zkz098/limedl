@@ -10,7 +10,9 @@ use std::{
 use librqbit::{
     AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, ManagedTorrent, Session,
     SessionOptions, SessionPersistenceConfig, TorrentStatsState, api::TorrentIdOrHash,
+    limits::LimitsConfig,
 };
+use std::num::NonZeroU32;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -43,8 +45,10 @@ pub struct TorrentManager {
     bt_settings: Arc<Mutex<BtSettings>>,
     output_folders: Arc<Mutex<HashMap<usize, PathBuf>>>,
     pending: Arc<Mutex<HashMap<String, PendingTorrent>>>,
+    pending_file: PathBuf,
     event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
     last_states: Arc<Mutex<HashMap<usize, DownloadState>>>,
+    upload_paused: Arc<Mutex<HashSet<usize>>>,
 }
 
 struct PendingTorrent {
@@ -62,13 +66,57 @@ enum PendingTorrentState {
     Added(usize),
 }
 
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct PendingTorrentRecord {
+    pending_id: String,
+    source: String,
+    destination_dir: PathBuf,
+    created_at_ms: u64,
+}
+
+async fn persist_pending_map(
+    pending: &Arc<Mutex<HashMap<String, PendingTorrent>>>,
+    pending_file: &Path,
+) {
+    let snapshot: Vec<PendingTorrentRecord> = {
+        let map = lock_or_recover(pending, "pending torrents");
+        map.iter()
+            .map(|(k, v)| PendingTorrentRecord {
+                pending_id: k.clone(),
+                source: v.source.clone(),
+                destination_dir: v.destination_dir.clone(),
+                created_at_ms: v.created_at_ms,
+            })
+            .collect()
+    };
+
+    let json = match serde_json::to_string_pretty(&snapshot) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("failed to serialize pending torrents: {e}");
+            return;
+        }
+    };
+
+    let tmp = pending_file.with_extension("json.tmp");
+    if let Err(e) = tokio::fs::write(&tmp, &json).await {
+        tracing::warn!("failed to write pending torrents tmp file: {e}");
+        return;
+    }
+    if let Err(e) = tokio::fs::rename(&tmp, pending_file).await {
+        tracing::warn!("failed to rename pending torrents tmp file: {e}");
+    }
+}
+
 impl TorrentManager {
     pub async fn new(state_dir: PathBuf, settings: &AppSettings) -> Result<Self> {
         fs::create_dir_all(&state_dir)?;
         let output_dir = state_dir.join("files");
         let persistence_dir = state_dir.join("session");
+        let torrents_dir = state_dir.join("torrents");
         fs::create_dir_all(&output_dir)?;
         fs::create_dir_all(&persistence_dir)?;
+        fs::create_dir_all(&torrents_dir)?;
 
         let mut options = SessionOptions {
             disable_dht: !settings.bt.dht_enabled,
@@ -78,6 +126,13 @@ impl TorrentManager {
             }),
             ..SessionOptions::default()
         };
+
+        if settings.global_speed_limit_bps > 0 {
+            options.ratelimits = LimitsConfig {
+                download_bps: NonZeroU32::new(settings.global_speed_limit_bps as u32),
+                upload_bps: None,
+            };
+        }
 
         if settings.proxy.mode == ProxyMode::Manual
             && settings
@@ -92,7 +147,9 @@ impl TorrentManager {
         let session = match Session::new_with_opts(output_dir.clone(), options).await {
             Ok(s) => s,
             Err(e) => {
-                tracing::warn!("BT session init failed: {e}, retrying with DHT disabled and no persistence");
+                tracing::warn!(
+                    "BT session init failed: {e}, retrying with DHT disabled and no persistence"
+                );
                 let fallback_options = SessionOptions {
                     disable_dht: true,
                     fastresume: false,
@@ -107,7 +164,9 @@ impl TorrentManager {
 
         let api = Api::new(session.clone(), None);
 
-        Ok(Self {
+        let pending_file = torrents_dir.join("pending.json");
+
+        let manager = Self {
             session,
             api,
             state_dir: state_dir.clone(),
@@ -115,9 +174,70 @@ impl TorrentManager {
             bt_settings: Arc::new(Mutex::new(settings.bt.clone())),
             output_folders: Arc::new(Mutex::new(HashMap::new())),
             pending: Arc::new(Mutex::new(HashMap::new())),
+            pending_file,
             event_tx: Arc::new(Mutex::new(None)),
             last_states: Arc::new(Mutex::new(HashMap::new())),
-        })
+            upload_paused: Arc::new(Mutex::new(HashSet::new())),
+        };
+
+        manager.reload_pending().await;
+
+        Ok(manager)
+    }
+
+    async fn reload_pending(&self) {
+        let records: Vec<PendingTorrentRecord> =
+            match tokio::fs::read_to_string(&self.pending_file).await {
+                Ok(content) => match serde_json::from_str(&content) {
+                    Ok(records) => records,
+                    Err(e) => {
+                        tracing::warn!("failed to parse pending.json, ignoring: {e}");
+                        let _ = tokio::fs::remove_file(&self.pending_file).await;
+                        return;
+                    }
+                },
+                Err(e) if e.kind() == io::ErrorKind::NotFound => return,
+                Err(e) => {
+                    tracing::warn!("failed to read pending.json: {e}");
+                    return;
+                }
+            };
+
+        if records.is_empty() {
+            return;
+        }
+
+        let bt_settings = lock_or_recover(&self.bt_settings, "bt settings").clone();
+
+        for record in records {
+            let join = self.spawn_add_torrent(
+                record.pending_id.clone(),
+                record.source.clone(),
+                record.destination_dir.clone(),
+                bt_settings.clone(),
+                None,
+                None,
+                None,
+                false,
+            );
+
+            lock_or_recover(&self.pending, "pending torrents").insert(
+                record.pending_id.clone(),
+                PendingTorrent {
+                    source: record.source,
+                    destination_dir: record.destination_dir,
+                    created_at_ms: record.created_at_ms,
+                    state: PendingTorrentState::Resolving,
+                    join: Some(join),
+                },
+            );
+        }
+
+        persist_pending_map(&self.pending, &self.pending_file).await;
+    }
+
+    async fn persist_pending(&self) {
+        persist_pending_map(&self.pending, &self.pending_file).await;
     }
 
     pub fn update_settings(&self, settings: &AppSettings) {
@@ -179,6 +299,10 @@ impl TorrentManager {
             source.to_string(),
             destination_dir,
             bt_settings,
+            request.download_limit_bps,
+            request.upload_limit_bps,
+            request.selected_file_indices.clone(),
+            request.start_paused,
         );
         if let Some(task) = self
             .pending
@@ -192,35 +316,50 @@ impl TorrentManager {
             task.join = Some(join);
         }
 
+        self.persist_pending().await;
+
         Ok(pending_id)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn spawn_add_torrent(
         &self,
         pending_id: String,
         source: String,
         destination_dir: PathBuf,
         bt_settings: BtSettings,
+        download_limit_bps: Option<u64>,
+        upload_limit_bps: Option<u64>,
+        selected_file_indices: Option<Vec<usize>>,
+        start_paused: bool,
     ) -> JoinHandle<()> {
         let session = self.session.clone();
         let pending = self.pending.clone();
         let output_folders = self.output_folders.clone();
+        let pending_file = self.pending_file.clone();
 
         tokio::spawn(async move {
-            let result = add_torrent_to_session(&session, &source, &destination_dir, &bt_settings)
-                .await
-                .inspect(|&id| {
-                    output_folders
-                        .lock()
-                        .unwrap_or_else(|poisoned| {
-                            tracing::warn!(
-                                "output folders lock poisoned, recovering with inner state"
-                            );
-                            poisoned.into_inner()
-                        })
-                        .insert(id, destination_dir);
-                })
-                .map_err(|error| error.to_string());
+            let result = add_torrent_to_session(
+                &session,
+                &source,
+                &destination_dir,
+                &bt_settings,
+                download_limit_bps,
+                upload_limit_bps,
+                selected_file_indices,
+                start_paused,
+            )
+            .await
+            .inspect(|&id| {
+                output_folders
+                    .lock()
+                    .unwrap_or_else(|poisoned| {
+                        tracing::warn!("output folders lock poisoned, recovering with inner state");
+                        poisoned.into_inner()
+                    })
+                    .insert(id, destination_dir);
+            })
+            .map_err(|error| error.to_string());
 
             let mut added_without_owner = None;
             {
@@ -234,6 +373,10 @@ impl TorrentManager {
                 } else if let Ok(id) = result {
                     added_without_owner = Some(id);
                 }
+            }
+
+            if added_without_owner.is_none() {
+                persist_pending_map(&pending, &pending_file).await;
             }
 
             if let Some(id) = added_without_owner {
@@ -288,17 +431,27 @@ impl TorrentManager {
             source,
             destination_dir.clone(),
             bt_settings,
+            None,
+            None,
+            None,
+            false,
         );
 
-        let mut pending = lock_or_recover(&self.pending, "pending torrents");
-        let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
-        task.state = PendingTorrentState::Resolving;
-        task.join = Some(join);
-        task.created_at_ms = created_at_ms;
-        Ok(self.pending_snapshot(pending_id, task))
+        let snapshot = {
+            let mut pending = lock_or_recover(&self.pending, "pending torrents");
+            let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
+            task.state = PendingTorrentState::Resolving;
+            task.join = Some(join);
+            task.created_at_ms = created_at_ms;
+            self.pending_snapshot(pending_id, task)
+        };
+
+        self.persist_pending().await;
+        Ok(snapshot)
     }
 
     async fn pause_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
+        let mut snapshot = None;
         let managed_id = {
             let mut pending = lock_or_recover(&self.pending, "pending torrents");
             let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
@@ -309,9 +462,15 @@ impl TorrentManager {
                     join.abort();
                 }
                 task.state = PendingTorrentState::Paused;
-                return Ok(self.pending_snapshot(pending_id, task));
+                snapshot = Some(self.pending_snapshot(pending_id, task));
+                None
             }
         };
+
+        if let Some(snap) = snapshot {
+            self.persist_pending().await;
+            return Ok(snap);
+        }
 
         if let Some(id) = managed_id {
             let handle = self.get_handle(id)?;
@@ -346,17 +505,32 @@ impl TorrentManager {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn add_torrent_to_session(
     session: &Arc<Session>,
     source: &str,
     destination_dir: &Path,
     bt_settings: &BtSettings,
+    download_limit_bps: Option<u64>,
+    upload_limit_bps: Option<u64>,
+    selected_file_indices: Option<Vec<usize>>,
+    start_paused: bool,
 ) -> Result<usize> {
     let add = build_add_torrent(source)?;
+    let mut ratelimits = LimitsConfig::default();
+    if let Some(dl) = download_limit_bps {
+        ratelimits.download_bps = NonZeroU32::new(dl as u32);
+    }
+    if let Some(ul) = upload_limit_bps {
+        ratelimits.upload_bps = NonZeroU32::new(ul as u32);
+    }
     let options = AddTorrentOptions {
         output_folder: Some(destination_dir.to_string_lossy().to_string()),
         overwrite: true,
         trackers: tracker_list_entries(&bt_settings.tracker_list),
+        ratelimits,
+        only_files: selected_file_indices,
+        paused: start_paused,
         ..AddTorrentOptions::default()
     };
 
@@ -444,7 +618,9 @@ impl TorrentManager {
         let path = PathBuf::from(&snapshot.destination_path);
         if path.exists() {
             #[cfg(windows)]
-            { Command::new("explorer").arg(&path).spawn()?; }
+            {
+                Command::new("explorer").arg(&path).spawn()?;
+            }
             return Ok(());
         }
 
@@ -452,6 +628,149 @@ impl TorrentManager {
             io::ErrorKind::NotFound,
             "torrent download location does not exist",
         )))
+    }
+
+    pub fn set_speed_limit(
+        &self,
+        download_id: &str,
+        download_limit_bps: Option<u64>,
+        upload_limit_bps: Option<u64>,
+    ) {
+        let id = parse_bt_task_id(download_id);
+        let id = match id {
+            Ok(id) => id,
+            Err(_) => {
+                tracing::warn!("bt_set_speed_limit: invalid task id {download_id}");
+                return;
+            }
+        };
+
+        let dl = download_limit_bps.and_then(|bps| NonZeroU32::new(bps as u32));
+        let ul = upload_limit_bps.and_then(|bps| NonZeroU32::new(bps as u32));
+
+        self.session.ratelimits.set_download_bps(dl);
+        self.session.ratelimits.set_upload_bps(ul);
+
+        if upload_limit_bps.and_then(|b| NonZeroU32::new(b as u32)) != NonZeroU32::new(1) {
+            let mut paused = lock_or_recover(&self.upload_paused, "upload paused set");
+            paused.remove(&id);
+        }
+    }
+
+    pub async fn preview_torrent(
+        &self,
+        source: &str,
+    ) -> Result<Vec<super::types::TorrentFileEntry>> {
+        let add = build_add_torrent(source)?;
+        let options = AddTorrentOptions {
+            list_only: true,
+            ..AddTorrentOptions::default()
+        };
+
+        let response = self
+            .session
+            .add_torrent(add, Some(options))
+            .await
+            .map_err(|error| DownloadError::Torrent(error.to_string()))?;
+
+        match response {
+            AddTorrentResponse::ListOnly(details) => {
+                let files = match &details.info.files {
+                    Some(file_list) => file_list,
+                    None => {
+                        return Ok(vec![super::types::TorrentFileEntry {
+                            index: 0,
+                            path: details
+                                .info
+                                .name
+                                .as_ref()
+                                .map(|n| n.to_string())
+                                .unwrap_or_else(|| String::from("unknown")),
+                            size: details.info.length.unwrap_or(0),
+                        }]);
+                    }
+                };
+
+                Ok(files
+                    .iter()
+                    .enumerate()
+                    .map(|(index, file)| super::types::TorrentFileEntry {
+                        index,
+                        path: file
+                            .path
+                            .iter()
+                            .map(|component| component.to_string())
+                            .collect::<Vec<_>>()
+                            .join("/"),
+                        size: file.length,
+                    })
+                    .collect())
+            }
+            _ => Err(DownloadError::Torrent(String::from(
+                "torrent preview returned unexpected response",
+            ))),
+        }
+    }
+
+    pub fn get_peers(&self, download_id: &str) -> Result<Vec<super::types::BtPeerInfo>> {
+        let id = parse_bt_task_id(download_id)?;
+        let handle = self.get_handle(id)?;
+        match handle.live() {
+            Some(live) => {
+                let peers = live.per_peer_stats_snapshot(Default::default());
+                let infos: Vec<super::types::BtPeerInfo> = peers
+                    .peers
+                    .into_iter()
+                    .map(|(addr, ps)| super::types::BtPeerInfo {
+                        address: addr,
+                        client: ps.state.to_string(),
+                        flags: String::new(),
+                        download_speed: ps.counters.fetched_bytes as f64,
+                        upload_speed: 0.0,
+                        progress: 0.0,
+                    })
+                    .collect();
+                Ok(infos)
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+
+    pub fn get_trackers(&self, download_id: &str) -> Result<Vec<super::types::BtTrackerInfo>> {
+        let id = parse_bt_task_id(download_id)?;
+        let handle = self.get_handle(id)?;
+        let trackers = handle
+            .shared()
+            .trackers
+            .iter()
+            .map(|url| super::types::BtTrackerInfo {
+                url: url.as_str().to_string(),
+            })
+            .collect();
+        Ok(trackers)
+    }
+
+    pub fn get_pieces(&self, download_id: &str) -> Result<Vec<super::types::BtPieceInfo>> {
+        let id = parse_bt_task_id(download_id)?;
+        let handle = self.get_handle(id)?;
+        let stats = handle.stats();
+
+        let total_pieces = stats.file_progress.len() as u64;
+        if total_pieces == 0 {
+            return Ok(Vec::new());
+        }
+
+        let total_bytes = stats.total_bytes.max(1);
+        let pieces: Vec<super::types::BtPieceInfo> = stats
+            .file_progress
+            .iter()
+            .enumerate()
+            .map(|(index, &progress)| super::types::BtPieceInfo {
+                index: index as u64,
+                completed: progress >= total_bytes,
+            })
+            .collect();
+        Ok(pieces)
     }
 
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
@@ -543,6 +862,10 @@ impl TorrentManager {
             }
         }
 
+        let _session_stats_snapshot = self.session.stats_snapshot();
+        let seed_count: Option<u64> = None;
+        let leech_count: Option<u64> = None;
+
         let pending_count = lock_or_recover(&self.pending, "pending torrents")
             .values()
             .filter(|task| {
@@ -564,6 +887,8 @@ impl TorrentManager {
             upload_speed_bytes_per_second: (upload_speed > 0.0).then_some(upload_speed),
             uploaded_bytes,
             updated_at_ms: now_ms(),
+            seed_count,
+            leech_count,
         }
     }
 
@@ -627,6 +952,10 @@ impl TorrentManager {
             updated_at_ms: now,
             cdn_accelerated: false,
             chunks: vec![],
+            seed_count: None,
+            leech_count: None,
+            download_limit_bps: None,
+            upload_limit_bps: None,
         }
     }
 
@@ -667,6 +996,8 @@ impl TorrentManager {
             .remove(pending_id)
             .ok_or(DownloadError::NotFound)?;
 
+        self.persist_pending().await;
+
         if let Some(join) = task.join.take() {
             join.abort();
         }
@@ -701,22 +1032,44 @@ impl TorrentManager {
         let limit_reached =
             upload_limit_reached(&settings, stats.uploaded_bytes, stats.progress_bytes);
 
-        if settings.pause_upload_when_limit_reached
+        let should_pause_upload = settings.pause_upload_when_limit_reached
             && limit_reached
-            && matches!(stats.state, TorrentStatsState::Live)
-        {
-            self.session
-                .pause(handle)
-                .await
-                .map_err(|error| DownloadError::Torrent(error.to_string()))?;
+            && matches!(stats.state, TorrentStatsState::Live);
+
+        let id = handle.id();
+
+        if should_pause_upload {
+            let is_new = {
+                let mut paused = lock_or_recover(&self.upload_paused, "upload paused set");
+                paused.insert(id)
+            };
+            if is_new {
+                // Stop uploading but keep downloading: cap upload at 1 byte/sec (session-level)
+                self.session.ratelimits.set_upload_bps(NonZeroU32::new(1));
+            }
+        } else {
+            let was_paused = {
+                let mut paused = lock_or_recover(&self.upload_paused, "upload paused set");
+                paused.remove(&id)
+            };
+            if was_paused {
+                let still_paused =
+                    !lock_or_recover(&self.upload_paused, "upload paused set").is_empty();
+                if !still_paused {
+                    self.session.ratelimits.set_upload_bps(None);
+                }
+            }
         }
 
-        Ok(settings.pause_upload_when_limit_reached && limit_reached)
+        Ok(should_pause_upload)
     }
 }
 
 fn is_terminal(state: DownloadState) -> bool {
-    matches!(state, DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled)
+    matches!(
+        state,
+        DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+    )
 }
 
 impl TorrentManager {
@@ -822,7 +1175,11 @@ impl TorrentManager {
                 estimate_eta(stats.total_bytes, downloaded, speed)
             },
             uploaded_bytes: Some(stats.uploaded_bytes),
-            upload_speed_bytes_per_second: if is_terminal(state) { None } else { upload_speed },
+            upload_speed_bytes_per_second: if is_terminal(state) {
+                None
+            } else {
+                upload_speed
+            },
             peer_count: Some(peer_count),
             upload_status: Some(upload_status),
             info_hash: Some(handle.info_hash().as_string()),
@@ -830,6 +1187,10 @@ impl TorrentManager {
             updated_at_ms: now,
             cdn_accelerated: false,
             chunks: vec![],
+            seed_count: None,
+            leech_count: None,
+            download_limit_bps: None,
+            upload_limit_bps: None,
         }
     }
 }
@@ -1035,6 +1396,10 @@ mod tests {
             thread_count: None,
             max_retries: None,
             checksum: None,
+            download_limit_bps: None,
+            upload_limit_bps: None,
+            selected_file_indices: None,
+            start_paused: false,
         }
     }
 
@@ -1135,7 +1500,6 @@ mod tests {
     fn upload_policy_uses_byte_limit_or_ratio_limit() {
         let settings = BtSettings {
             dht_enabled: true,
-            pex_enabled: true,
             tracker_list: String::new(),
             tracker_list_url: crate::download::types::default_tracker_list_url(),
             pause_upload_when_limit_reached: true,

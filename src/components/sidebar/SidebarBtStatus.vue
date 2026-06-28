@@ -26,6 +26,12 @@ const uploadSpeedLabel = computed(() => formatSpeed(props.status?.uploadSpeedByt
 const uploadedLabel = computed(() => formatBytes(props.status?.uploadedBytes));
 const peerCountLabel = computed(() => String(props.status?.peerCount ?? 0));
 const torrentCountLabel = computed(() => String(props.status?.torrentCount ?? 0));
+const seedCountLabel = computed(() =>
+  props.status?.seedCount == null ? "—" : String(props.status.seedCount),
+);
+const leechCountLabel = computed(() =>
+  props.status?.leechCount == null ? "—" : String(props.status.leechCount),
+);
 </script>
 
 <template>
@@ -58,6 +64,14 @@ const torrentCountLabel = computed(() => String(props.status?.torrentCount ?? 0)
       <p>
         <span>{{ t("sidebar.btUploaded") }}</span>
         <strong>{{ uploadedLabel }}</strong>
+      </p>
+      <p>
+        <span>{{ t("sidebar.btSeeds") }}</span>
+        <strong>{{ seedCountLabel }}</strong>
+      </p>
+      <p>
+        <span>{{ t("sidebar.btLeeches") }}</span>
+        <strong>{{ leechCountLabel }}</strong>
       </p>
     </div>
   </section>

@@ -18,6 +18,7 @@ import type {
   ProxyMode,
   SchedulerMode,
 } from "../../types/settings";
+import NotificationToast from "../ui/NotificationToast.vue";
 import UiButton from "../ui/UiButton.vue";
 
 import SettingsAppearancePanel from "./SettingsAppearancePanel.vue";
@@ -48,7 +49,7 @@ const emit = defineEmits<{
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
-const { notifySuccess, notifyError } = useNotification();
+const { notifications, notifySuccess, notifyError, notifyInfo, dismiss } = useNotification();
 
 // ── Option arrays ────────────────────────────────────────────────
 
@@ -107,6 +108,7 @@ const colorModeOptions = computed<Array<{ label: string; value: ColorMode }>>(()
 // ── Reactive form ─────────────────────────────────────────────────
 
 const form = reactive<AppSettings>({
+  globalSpeedLimitBps: 0,
     appearance: {
       themeColor: "default",
       backgroundOpacity: "default",
@@ -140,12 +142,13 @@ const form = reactive<AppSettings>({
   },
   bt: {
     dhtEnabled: true,
-    pexEnabled: true,
     trackerList: "",
     trackerListUrl: DEFAULT_TRACKER_LIST_URL,
     pauseUploadWhenLimitReached: false,
     uploadLimitBytes: 0,
     uploadRatioLimit: 0,
+    defaultDownloadSpeedLimit: 0,
+    defaultUploadSpeedLimit: 0,
   },
   networkLearning: {
     deviceMode: "fixed",
@@ -202,6 +205,8 @@ const {
   downloadSummary,
   btUploadLimitMiB,
   setBtUploadLimitMiB,
+  globalSpeedLimitMiBps,
+  setGlobalSpeedLimitMiBps,
   trackerListEntries,
   btSummary,
 } = useSettingsSummaries(form, t, optionArrays);
@@ -217,6 +222,7 @@ watch(
       return;
     }
 
+    form.globalSpeedLimitBps = nextSettings.globalSpeedLimitBps ?? 0;
     form.appearance.themeColor = nextSettings.appearance?.themeColor ?? "default";
     form.appearance.backgroundOpacity = nextSettings.appearance?.backgroundOpacity ?? "default";
     form.appearance.colorMode = nextSettings.appearance?.colorMode ?? "system";
@@ -241,12 +247,13 @@ watch(
     form.download.enableMetalink = nextSettings.download.enableMetalink ?? false;
     form.download.enableSftp = nextSettings.download.enableSftp ?? false;
     form.bt.dhtEnabled = nextSettings.bt.dhtEnabled;
-    form.bt.pexEnabled = nextSettings.bt.pexEnabled;
     form.bt.trackerList = nextSettings.bt.trackerList;
     form.bt.trackerListUrl = nextSettings.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL;
     form.bt.pauseUploadWhenLimitReached = nextSettings.bt.pauseUploadWhenLimitReached;
     form.bt.uploadLimitBytes = nextSettings.bt.uploadLimitBytes;
     form.bt.uploadRatioLimit = nextSettings.bt.uploadRatioLimit;
+    form.bt.defaultDownloadSpeedLimit = nextSettings.bt.defaultDownloadSpeedLimit ?? 0;
+    form.bt.defaultUploadSpeedLimit = nextSettings.bt.defaultUploadSpeedLimit ?? 0;
     form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
     form.networkLearning.currentSceneId = "default";
     form.networkLearning.scenes = [copyNetworkScene(nextSettings.networkLearning)];
@@ -300,6 +307,7 @@ function changeLanguage(nextLanguage: SupportedLanguage) {
 
 function buildSettingsPayload(): AppSettings {
   return {
+    globalSpeedLimitBps: form.globalSpeedLimitBps,
       appearance: {
         themeColor: form.appearance.themeColor,
         backgroundOpacity: form.appearance.backgroundOpacity,
@@ -333,12 +341,13 @@ function buildSettingsPayload(): AppSettings {
     },
     bt: {
       dhtEnabled: form.bt.dhtEnabled,
-      pexEnabled: form.bt.pexEnabled,
       trackerList: form.bt.trackerList,
       trackerListUrl: form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
       pauseUploadWhenLimitReached: form.bt.pauseUploadWhenLimitReached,
       uploadLimitBytes: form.bt.uploadLimitBytes,
       uploadRatioLimit: form.bt.uploadRatioLimit,
+      // TODO: Add defaultDownloadSpeedLimit and defaultUploadSpeedLimit to save payload
+      // once backend BtSettings in src-tauri/src/download/types.rs supports them.
     },
     networkLearning: {
       deviceMode: form.networkLearning.deviceMode,
@@ -416,6 +425,12 @@ async function persistSettings() {
 
   isSaving.value = true;
 
+  const persisted = props.settings;
+  const btChanged =
+    persisted != null &&
+    (persisted.bt.dhtEnabled !== form.bt.dhtEnabled ||
+      persisted.bt.trackerList !== form.bt.trackerList);
+
   try {
     const saved = await saveAppSettings(buildSettingsPayload());
 
@@ -423,6 +438,11 @@ async function persistSettings() {
     emit("saved", saved);
     emit("dirtyChange", false);
     notifySuccess(t("settings.notifications.saved"));
+
+    if (btChanged) {
+      notifyInfo(t("settings.notifications.btRestartRequired"), 5000);
+    }
+
     return true;
   } catch (error) {
     notifyError(
@@ -453,6 +473,11 @@ defineExpose({
 
 <template>
   <section class="settings-page">
+
+    <NotificationToast
+      :notifications="notifications"
+      @dismiss="dismiss"
+    />
 
     <div class="desk-panel__header settings-page__header">
       <div>
@@ -496,6 +521,8 @@ defineExpose({
         :t="t"
         :scheduler-mode-options="schedulerModeOptions"
         :adaptive-profile-options="adaptiveProfileOptions"
+        :global-speed-limit-mi-b-ps="globalSpeedLimitMiBps"
+        @update:globalSpeedLimitMiBps="setGlobalSpeedLimitMiBps"
       />
 
       <SettingsDownloadDefaultsPanel

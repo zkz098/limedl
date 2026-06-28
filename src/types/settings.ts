@@ -54,9 +54,12 @@ export interface BtSettings {
   uploadLimitBytes: number;
   uploadRatioLimit: number;
   dhtEnabled: boolean;
-  pexEnabled: boolean;
   trackerList: string;
   trackerListUrl: string;
+  /** Bytes/sec global default download limit; 0 = unlimited. TODO: add backend support in src-tauri types.rs BtSettings. */
+  defaultDownloadSpeedLimit?: number;
+  /** Bytes/sec global default upload limit; 0 = unlimited. TODO: add backend support in src-tauri types.rs BtSettings. */
+  defaultUploadSpeedLimit?: number;
 }
 
 export interface NetworkLearningMetrics {
@@ -104,6 +107,7 @@ export interface CdnAccelerationSettings {
 }
 
 export interface AppSettings {
+  globalSpeedLimitBps: number;
   appearance: AppearanceSettings;
   proxy: ProxySettings;
   scheduler: SchedulerSettings;

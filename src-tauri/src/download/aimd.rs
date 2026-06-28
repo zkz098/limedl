@@ -18,27 +18,16 @@ pub(crate) struct AimdState {
 }
 
 impl AimdState {
-    pub(crate) fn initial(
-        _profile: Option<AdaptiveProfile>,
-        _desired: Option<usize>,
-    ) -> Self {
+    pub(crate) fn initial(_profile: Option<AdaptiveProfile>, _desired: Option<usize>) -> Self {
         Self::default()
     }
 
-    pub(crate) fn sample_throughput(
-        &mut self,
-        downloaded_bytes: u64,
-        now: Instant,
-    ) -> Option<f64> {
+    pub(crate) fn sample_throughput(&mut self, downloaded_bytes: u64, now: Instant) -> Option<f64> {
         let throughput = match self.last_sample_at {
             Some(last_at) => {
                 let elapsed = now.duration_since(last_at).as_secs_f64();
                 if elapsed > 0.0 {
-                    Some(
-                        downloaded_bytes
-                            .saturating_sub(self.last_sample_bytes) as f64
-                            / elapsed,
-                    )
+                    Some(downloaded_bytes.saturating_sub(self.last_sample_bytes) as f64 / elapsed)
                 } else {
                     None
                 }

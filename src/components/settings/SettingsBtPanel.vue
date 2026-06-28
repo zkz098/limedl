@@ -63,27 +63,6 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
         <p class="settings-field__hint">{{ t("settings.btDhtHint") }}</p>
       </label>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.btPex") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.bt.pexEnabled }"
-          :aria-pressed="draft.bt.pexEnabled"
-          @click="draft.bt.pexEnabled = !draft.bt.pexEnabled"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.bt.pexEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.btPexExchange") }}</span>
-        </button>
-        <p class="settings-field__hint">{{ t("settings.btPexHint") }}</p>
-      </label>
-
       <label class="settings-field settings-field--wide">
         <span class="settings-field__label">{{ t("settings.btTrackerListUrl") }}</span>
         <div class="settings-inline-field">
@@ -166,6 +145,33 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
           :disabled="!pauseEnabled"
         />
         <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
+      </label>
+
+      <!-- TODO: These two speed-limit fields are frontend-only for now.
+           The Rust BtSettings in src-tauri/src/download/types.rs does not yet have
+           default_download_speed_limit / default_upload_speed_limit fields.
+           Values entered here are NOT persisted to the backend and will be lost on restart.
+           Once backend support is added, also wire them into SettingsPage.vue's save payload. -->
+      <label class="settings-field">
+        <span class="settings-field__label">{{ t("settings.btDownloadSpeedLimit") }}</span>
+        <UiNumberField
+          :model-value="draft.bt.defaultDownloadSpeedLimit ?? null"
+          :min="0"
+          :step="1024"
+          @update:model-value="draft.bt.defaultDownloadSpeedLimit = ($event ?? 0)"
+        />
+        <p class="settings-field__hint">{{ t("settings.btDownloadSpeedLimitHint") }}</p>
+      </label>
+
+      <label class="settings-field">
+        <span class="settings-field__label">{{ t("settings.btUploadSpeedLimit") }}</span>
+        <UiNumberField
+          :model-value="draft.bt.defaultUploadSpeedLimit ?? null"
+          :min="0"
+          :step="1024"
+          @update:model-value="draft.bt.defaultUploadSpeedLimit = ($event ?? 0)"
+        />
+        <p class="settings-field__hint">{{ t("settings.btUploadSpeedLimitHint") }}</p>
       </label>
     </div>
   </section>

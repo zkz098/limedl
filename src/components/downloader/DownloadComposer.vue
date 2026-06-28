@@ -252,12 +252,31 @@ const threadHint = computed(() => {
         </label>
       </section>
 
+      <section v-if="isBtTask" class="group field--full group--split">
+        <div class="group__head group__head--full">
+          <p class="section-kicker">{{ t("composer.strategy") }}</p>
+          <h3>{{ t("composer.btStrategyTitle") }}</h3>
+        </div>
+
+        <p class="field__hint field__hint--wide">{{ threadHint }}</p>
+
+        <label class="field">
+          <span class="field__label">{{ t("composer.btDownloadLimit") }}</span>
+          <UiNumberField v-model.number="form.downloadLimitBps" :min="0" />
+          <p class="field__hint">{{ t("composer.btDownloadLimitHint") }}</p>
+        </label>
+
+        <label class="field">
+          <span class="field__label">{{ t("composer.btUploadLimit") }}</span>
+          <UiNumberField v-model.number="form.uploadLimitBps" :min="0" />
+          <p class="field__hint">{{ t("composer.btUploadLimitHint") }}</p>
+        </label>
+      </section>
+
       <section v-else class="group field--full">
         <div class="group__head">
           <p class="section-kicker">{{ t("composer.strategy") }}</p>
-          <h3>
-            {{ isSftpTask ? t("composer.sftpStrategyTitle") : t("composer.btStrategyTitle") }}
-          </h3>
+          <h3>{{ t("composer.sftpStrategyTitle") }}</h3>
         </div>
         <p class="field__hint field__hint--wide">{{ threadHint }}</p>
       </section>

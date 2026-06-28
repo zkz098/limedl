@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use rusqlite::{params, types::Value, Connection};
+use rusqlite::{Connection, params, types::Value};
 
 use super::manifest::{ChunkManifest, Manifest};
 use super::types::{
@@ -188,13 +188,14 @@ fn manifest_to_row(manifest: &Manifest) -> Vec<Value> {
         // 16: allocated_thread_count
         opt_usize_to_value(manifest.allocated_thread_count),
         // 17: adaptive_profile_snapshot
-        manifest
-            .adaptive_profile_snapshot
-            .map_or(Value::Null, |p| {
-                Value::Text(adaptive_profile_to_text(p).to_owned())
-            }),
+        manifest.adaptive_profile_snapshot.map_or(Value::Null, |p| {
+            Value::Text(adaptive_profile_to_text(p).to_owned())
+        }),
         // 18: thread_note
-        manifest.thread_note.clone().map_or(Value::Null, Value::Text),
+        manifest
+            .thread_note
+            .clone()
+            .map_or(Value::Null, Value::Text),
         // 19: etag
         manifest.etag.clone().map_or(Value::Null, Value::Text),
         // 20: last_modified
@@ -487,7 +488,8 @@ impl Database {
 
         match result {
             Ok(()) => {
-                conn.execute_batch("COMMIT").context("failed to commit transaction")?;
+                conn.execute_batch("COMMIT")
+                    .context("failed to commit transaction")?;
                 Ok(())
             }
             Err(e) => {
@@ -645,8 +647,11 @@ impl Database {
         download_id: &str,
         chunks: &[ChunkManifest],
     ) -> Result<()> {
-        conn.execute("DELETE FROM chunks WHERE download_id = ?1", params![download_id])
-            .context("failed to clear old chunks")?;
+        conn.execute(
+            "DELETE FROM chunks WHERE download_id = ?1",
+            params![download_id],
+        )
+        .context("failed to clear old chunks")?;
 
         if chunks.is_empty() {
             return Ok(());
@@ -662,7 +667,8 @@ impl Database {
 
         for chunk in chunks {
             stmt.execute(rusqlite::params_from_iter(chunk_to_params(
-                download_id, chunk,
+                download_id,
+                chunk,
             )))
             .context("failed to insert chunk")?;
         }

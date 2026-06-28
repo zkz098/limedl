@@ -1,14 +1,8 @@
-use std::{
-    fs,
-    path::Path,
-};
+use std::{fs, path::Path};
 
 use anyhow::{Context, Result};
 
-use super::{
-    database::Database,
-    manifest::Manifest,
-};
+use super::{database::Database, manifest::Manifest};
 
 /// Migrate old per-task JSON manifest files into the SQLite database.
 ///

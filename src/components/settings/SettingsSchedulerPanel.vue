@@ -4,11 +4,16 @@ import UiNumberField from "../ui/UiNumberField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import type { AdaptiveProfile, AppSettings, SchedulerMode } from "../../types/settings";
 
+const emit = defineEmits<{
+  "update:globalSpeedLimitMiBps": [value: number | null];
+}>();
+
 const props = defineProps<{
   draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   schedulerModeOptions: Array<{ label: string; value: SchedulerMode }>;
   adaptiveProfileOptions: Array<{ label: string; value: AdaptiveProfile }>;
+  globalSpeedLimitMiBps: number;
 }>();
 
 const maxThreadsPerTaskMax = computed(() =>
@@ -80,6 +85,17 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
           </p>
         </label>
       </template>
+
+      <label class="settings-field settings-field--wide">
+        <span class="settings-field__label">{{ t("settings.globalSpeedLimit") }}</span>
+        <UiNumberField
+          :model-value="globalSpeedLimitMiBps"
+          :min="0"
+          :max="1048576"
+          @update:model-value="emit('update:globalSpeedLimitMiBps', $event)"
+        />
+        <p class="settings-field__hint">{{ t("settings.globalSpeedLimitHint") }}</p>
+      </label>
     </div>
   </section>
 </template>

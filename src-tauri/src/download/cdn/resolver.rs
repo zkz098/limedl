@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use reqwest::{Client, Proxy, redirect::Policy};
 
-use super::ip_ranges::{network_address, parse_cidr, CLOUDFLARE_IPV4_RANGES};
+use super::ip_ranges::{CLOUDFLARE_IPV4_RANGES, network_address, parse_cidr};
 use crate::download::types::{AppSettings, ProxyMode};
 
 /// Cloudflare IPv6 CIDR ranges.
@@ -85,7 +85,11 @@ fn ip_in_cloudflare_ipv6_ranges(ip: Ipv6Addr) -> bool {
             return false;
         };
         let raw = ip.to_bits();
-        let mask = if prefix == 0 { 0u128 } else { !0u128 << (128 - prefix) };
+        let mask = if prefix == 0 {
+            0u128
+        } else {
+            !0u128 << (128 - prefix)
+        };
         (net.to_bits() & mask) == (raw & mask)
     })
 }

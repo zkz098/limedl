@@ -8,14 +8,16 @@ use tauri::Manager;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-use download::{
-    AppState, Aria2RpcServer, DownloadManager, SftpManager, TorrentManager, bt_runtime_status,
-    cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
-    download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
-    download_remove, download_resume, download_start, download_status, init_logging,
-    settings_fetch_tracker_list, settings_get, settings_save,
-};
 use download::CdnAccelerator;
+use download::{
+    AppState, Aria2RpcServer, DownloadManager, RateLimiter, SftpManager, TorrentManager,
+    bt_get_peers, bt_get_pieces, bt_get_trackers, bt_preview_torrent, bt_runtime_status,
+    bt_set_speed_limit, cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail,
+    cdn_fetch_ranges, cdn_status, cdn_test, download_cancel, download_list,
+    download_open_in_explorer, download_pause, download_purge, download_remove, download_resume,
+    download_start, download_status, init_logging, settings_fetch_tracker_list, settings_get,
+    settings_save,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -33,8 +35,12 @@ pub fn run() {
                 std::fs::create_dir_all(&state_dir)
                     .with_context(|| format!("创建下载状态目录失败: {}", state_dir.display()))?;
 
-                let download_manager = DownloadManager::new(state_dir.clone())
-                    .with_context(|| format!("初始化下载管理器失败: {}", state_dir.display()))?;
+                let rate_limiter = Arc::new(RateLimiter::default());
+
+                let download_manager =
+                    DownloadManager::new(state_dir.clone(), rate_limiter.clone()).with_context(
+                        || format!("初始化下载管理器失败: {}", state_dir.display()),
+                    )?;
                 let download_manager = Arc::new(download_manager);
                 download_manager.clone().start_scheduler_loop();
 
@@ -48,8 +54,8 @@ pub fn run() {
                 .context("初始化 BT 管理器失败")?;
                 let torrent_manager = Arc::new(torrent_manager);
 
-                let sftp_manager =
-                    SftpManager::new(state_dir.join("sftp")).context("初始化 SFTP 管理器失败")?;
+                let sftp_manager = SftpManager::new(state_dir.join("sftp"), rate_limiter)
+                    .context("初始化 SFTP 管理器失败")?;
                 let sftp_manager = Arc::new(sftp_manager);
 
                 let cdn_accelerator = Arc::new(CdnAccelerator::new());
@@ -59,9 +65,7 @@ pub fn run() {
                 // downloads can use the previously-selected IP immediately on restart.
                 {
                     let initial = download_manager.initial_settings();
-                    tauri::async_runtime::block_on(
-                        cdn_accelerator.init_from_settings(&initial),
-                    );
+                    tauri::async_runtime::block_on(cdn_accelerator.init_from_settings(&initial));
                 }
 
                 let app_handle = app.handle().clone();
@@ -142,6 +146,11 @@ pub fn run() {
             download_status,
             download_list,
             bt_runtime_status,
+            bt_set_speed_limit,
+            bt_preview_torrent,
+            bt_get_peers,
+            bt_get_trackers,
+            bt_get_pieces,
             settings_fetch_tracker_list,
             settings_get,
             settings_save,

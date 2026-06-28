@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
@@ -13,14 +13,11 @@ use tokio::task::JoinSet;
 use tokio::time::timeout;
 
 use crate::download::error::{DownloadError, Result};
-use crate::download::types::{
-    default_http_user_agent, AppSettings, ProxyMode,
-};
+use crate::download::types::{AppSettings, ProxyMode, default_http_user_agent};
 
 /// Cloudflare CDN speed test endpoint (~100MB file).
 /// Cloudflare rejects requests for files larger than 99_999_999 bytes with HTTP 403.
-pub(crate) const SPEED_TEST_URL: &str =
-    "https://speed.cloudflare.com/__down?bytes=99999999";
+pub(crate) const SPEED_TEST_URL: &str = "https://speed.cloudflare.com/__down?bytes=99999999";
 
 /// Maximum duration for a single IP's throughput test.
 pub(crate) const SPEED_TEST_DURATION: Duration = Duration::from_secs(10);
@@ -149,15 +146,10 @@ pub(crate) async fn measure_default_node(settings: &AppSettings) -> DefaultNodeR
 
     tracing::info!("default node: DNS resolved to {ip}");
 
-    let latency = measure_tcp_latency(
-        SocketAddr::new(IpAddr::V4(ip), 443),
-        Duration::from_secs(5),
-    )
-    .await;
+    let latency =
+        measure_tcp_latency(SocketAddr::new(IpAddr::V4(ip), 443), Duration::from_secs(5)).await;
 
-    let tcp_latency_ms = latency
-        .map(|d| d.as_secs_f64() * 1000.0)
-        .unwrap_or(0.0);
+    let tcp_latency_ms = latency.map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0);
 
     let throughput_result = measure_throughput(ip, HOSTNAME, SPEED_TEST_URL, settings).await;
 
@@ -209,18 +201,16 @@ fn build_throughput_client(
         .connect_timeout(Duration::from_secs(5))
         .read_timeout(Duration::from_secs(15))
         .user_agent(user_agent)
-        .default_headers(
-            reqwest::header::HeaderMap::from_iter([
-                (
-                    reqwest::header::ACCEPT,
-                    reqwest::header::HeaderValue::from_static("*/*"),
-                ),
-                (
-                    reqwest::header::ACCEPT_LANGUAGE,
-                    reqwest::header::HeaderValue::from_static("en-US,en;q=0.9"),
-                ),
-            ]),
-        )
+        .default_headers(reqwest::header::HeaderMap::from_iter([
+            (
+                reqwest::header::ACCEPT,
+                reqwest::header::HeaderValue::from_static("*/*"),
+            ),
+            (
+                reqwest::header::ACCEPT_LANGUAGE,
+                reqwest::header::HeaderValue::from_static("en-US,en;q=0.9"),
+            ),
+        ]))
         .redirect(Policy::limited(10));
 
     match settings.proxy.mode {
@@ -252,9 +242,8 @@ pub(crate) async fn measure_throughput(
 ) -> Result<(f64, u64)> {
     tracing::info!("throughput test start: ip={ip} host={hostname}");
 
-    let parsed = Url::parse(url).map_err(|e| {
-        DownloadError::InvalidResponse(format!("invalid speed-test URL: {e}"))
-    })?;
+    let parsed = Url::parse(url)
+        .map_err(|e| DownloadError::InvalidResponse(format!("invalid speed-test URL: {e}")))?;
     let port = parsed
         .port()
         .unwrap_or_else(|| if parsed.scheme() == "https" { 443 } else { 80 });
@@ -269,11 +258,16 @@ pub(crate) async fn measure_throughput(
     let response = match timeout(Duration::from_secs(15), client.get(url).send()).await {
         Ok(Ok(resp)) => resp,
         Ok(Err(e)) => {
-            tracing::warn!("throughput test send failed: ip={ip} elapsed={}ms err={e}", start.elapsed().as_millis());
+            tracing::warn!(
+                "throughput test send failed: ip={ip} elapsed={}ms err={e}",
+                start.elapsed().as_millis()
+            );
             return Err(e.into());
         }
         Err(_) => {
-            tracing::warn!("throughput test send timed out: ip={ip} after 15s (connect+TLS+headers)");
+            tracing::warn!(
+                "throughput test send timed out: ip={ip} after 15s (connect+TLS+headers)"
+            );
             return Err(DownloadError::InvalidResponse(
                 "send timed out after 15s (connect/TLS/headers)".into(),
             ));
@@ -281,10 +275,15 @@ pub(crate) async fn measure_throughput(
     };
 
     let status = response.status();
-    tracing::debug!("throughput test response: ip={ip} status={status} elapsed={}ms", start.elapsed().as_millis());
+    tracing::debug!(
+        "throughput test response: ip={ip} status={status} elapsed={}ms",
+        start.elapsed().as_millis()
+    );
 
     if !status.is_success() {
-        tracing::warn!("throughput test rejected: ip={ip} status={status} (non-2xx, skipping body stream)");
+        tracing::warn!(
+            "throughput test rejected: ip={ip} status={status} (non-2xx, skipping body stream)"
+        );
         return Err(DownloadError::InvalidResponse(format!(
             "HTTP {status} from speed test endpoint",
         )));
@@ -315,7 +314,11 @@ pub(crate) async fn measure_throughput(
 
     tracing::info!(
         "throughput test done: ip={ip} bytes={total_bytes:.0} elapsed={elapsed_ms}ms throughput={:.2} MB/s",
-        if elapsed_ms > 0 { total_bytes / (elapsed_ms as f64 / 1000.0) / 1_000_000.0 } else { 0.0 }
+        if elapsed_ms > 0 {
+            total_bytes / (elapsed_ms as f64 / 1000.0) / 1_000_000.0
+        } else {
+            0.0
+        }
     );
 
     Ok((total_bytes, elapsed_ms))
@@ -348,7 +351,10 @@ pub(crate) async fn screen_candidates(
     concurrency: usize,
     connect_timeout: Duration,
 ) -> Vec<(Ipv4Addr, Duration)> {
-    tracing::info!("screening start: {} IPs, concurrency={concurrency}", ips.len());
+    tracing::info!(
+        "screening start: {} IPs, concurrency={concurrency}",
+        ips.len()
+    );
     let mut join_set = JoinSet::new();
     let mut results = Vec::with_capacity(ips.len());
     let mut ip_iter = ips.iter().copied();
@@ -411,8 +417,7 @@ pub(crate) async fn run_speed_test(
         p(CdnTestPhase::Screening, 0, total_ips);
     }
 
-    let candidates =
-        screen_candidates(ips, config.concurrency, config.tcp_timeout).await;
+    let candidates = screen_candidates(ips, config.concurrency, config.tcp_timeout).await;
 
     if let Some(ref p) = progress {
         p(CdnTestPhase::Screening, total_ips, total_ips);
@@ -432,7 +437,11 @@ pub(crate) async fn run_speed_test(
 
     tracing::info!(
         "speed test: top {top_count} IPs advancing to throughput testing: {}",
-        top_n.iter().map(|(ip, d)| format!("{ip}({}ms", d.as_millis())).collect::<Vec<_>>().join(", "),
+        top_n
+            .iter()
+            .map(|(ip, d)| format!("{ip}({}ms", d.as_millis()))
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 
     // ── Phase 2: Concurrent throughput testing ─────────────────
@@ -446,13 +455,7 @@ pub(crate) async fn run_speed_test(
         let latency = *latency;
         let s = settings.clone();
         join_set.spawn(async move {
-            let result = measure_throughput(
-                ip,
-                "speed.cloudflare.com",
-                SPEED_TEST_URL,
-                &s,
-            )
-            .await;
+            let result = measure_throughput(ip, "speed.cloudflare.com", SPEED_TEST_URL, &s).await;
             (ip, latency, result)
         });
     }
@@ -475,7 +478,11 @@ pub(crate) async fn run_speed_test(
                         };
                         tracing::info!(
                             "throughput candidate {completed}/{top_count}: ip={ip} {}bytes {elapsed_ms}ms {:.2}MB/s",
-                            if bytes > 1_000_000.0 { format!("{:.1}MB ", bytes / 1_000_000.0) } else { format!("{}B ", bytes as u64) },
+                            if bytes > 1_000_000.0 {
+                                format!("{:.1}MB ", bytes / 1_000_000.0)
+                            } else {
+                                format!("{}B ", bytes as u64)
+                            },
                             throughput_mbps.unwrap_or(0.0),
                         );
                         results.push(SpeedTestResult {
@@ -511,7 +518,10 @@ pub(crate) async fn run_speed_test(
         "speed test orchestrator done: {}/{} throughput tests completed, {} with valid throughput",
         results.len(),
         top_count,
-        results.iter().filter(|r| r.throughput_mbps.is_some()).count(),
+        results
+            .iter()
+            .filter(|r| r.throughput_mbps.is_some())
+            .count(),
     );
 
     results.sort_by(|a, b| {
@@ -558,8 +568,7 @@ mod tests {
     #[tokio::test]
     async fn test_screen_candidates_concurrent() {
         // Class-E reserved (240.0.0.0/4) — unroutable on any normal network.
-        let ips: Vec<Ipv4Addr> =
-            (0..10).map(|i| Ipv4Addr::new(240, 0, 0, i + 1)).collect();
+        let ips: Vec<Ipv4Addr> = (0..10).map(|i| Ipv4Addr::new(240, 0, 0, i + 1)).collect();
 
         let results = screen_candidates(&ips, 5, Duration::from_secs(2)).await;
         assert!(
@@ -573,9 +582,7 @@ mod tests {
     async fn test_throughput_to_localhost() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
 
         tokio::spawn(async move {
@@ -598,13 +605,7 @@ mod tests {
         let url = format!("http://127.0.0.1:{}/test", port);
         let settings = AppSettings::default();
 
-        let result = measure_throughput(
-            Ipv4Addr::LOCALHOST,
-            "127.0.0.1",
-            &url,
-            &settings,
-        )
-        .await;
+        let result = measure_throughput(Ipv4Addr::LOCALHOST, "127.0.0.1", &url, &settings).await;
 
         assert!(
             result.is_ok(),
@@ -644,8 +645,7 @@ mod tests {
     #[tokio::test]
     async fn test_orchestrator_all_unreachable() {
         // Class-E reserved (240.0.0.0/4) — unroutable on any normal network.
-        let ips: Vec<Ipv4Addr> =
-            (1..=5).map(|i| Ipv4Addr::new(240, 0, 0, i)).collect();
+        let ips: Vec<Ipv4Addr> = (1..=5).map(|i| Ipv4Addr::new(240, 0, 0, i)).collect();
         let config = SpeedTestConfig::default();
         let settings = AppSettings::default();
 
@@ -662,8 +662,7 @@ mod tests {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
         // Bind on localhost:443 so Phase 1 TCP screening passes.
-        let listener = match tokio::net::TcpListener::bind("127.0.0.1:443").await
-        {
+        let listener = match tokio::net::TcpListener::bind("127.0.0.1:443").await {
             Ok(l) => l,
             Err(_) => {
                 eprintln!("SKIP: cannot bind port 443");

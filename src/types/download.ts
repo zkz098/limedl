@@ -24,6 +24,10 @@ export interface StartDownloadRequest {
   threadCount?: number;
   maxRetries?: number;
   checksum?: ChecksumMode;
+  downloadLimitBps?: number;
+  uploadLimitBps?: number;
+  selectedFileIndices?: number[];
+  startPaused?: boolean;
 }
 
 export interface DownloadFormState {
@@ -36,6 +40,10 @@ export interface DownloadFormState {
   threadCount: number | null;
   maxRetries: number | null;
   checksum: ChecksumMode;
+  downloadLimitBps: number | null;
+  uploadLimitBps: number | null;
+  selectedFileIndices?: number[];
+  startPaused?: boolean;
 }
 
 export interface DownloadSummary {
@@ -57,11 +65,17 @@ export interface DownloadSummary {
   speedBytesPerSecond?: number;
   etaSeconds?: number;
   uploadedBytes?: number;
+  uploadSpeedBytesPerSecond?: number;
   peerCount?: number;
   uploadStatus?: BtUploadStatus;
+  infoHash?: string;
   error?: string;
   cdnAccelerated?: boolean;
   createdAtMs: number;
+  seedCount?: number;
+  leechCount?: number;
+  downloadLimitBps?: number;
+  uploadLimitBps?: number;
 }
 
 export interface ChunkInfo {
@@ -100,12 +114,18 @@ export interface DownloadSnapshot {
   speedBytesPerSecond?: number;
   etaSeconds?: number;
   uploadedBytes?: number;
+  uploadSpeedBytesPerSecond?: number;
   peerCount?: number;
   uploadStatus?: BtUploadStatus;
+  infoHash?: string;
   createdAtMs: number;
   updatedAtMs: number;
   cdnAccelerated?: boolean;
   chunks?: ChunkInfo[];
+  seedCount?: number;
+  leechCount?: number;
+  downloadLimitBps?: number;
+  uploadLimitBps?: number;
 }
 
 export interface BtRuntimeStatus {
@@ -117,4 +137,30 @@ export interface BtRuntimeStatus {
   uploadSpeedBytesPerSecond?: number;
   uploadedBytes: number;
   updatedAtMs: number;
+  seedCount?: number;
+  leechCount?: number;
+}
+
+export interface TorrentFileEntry {
+  index: number;
+  path: string;
+  size: number;
+}
+
+export interface BtPeerInfo {
+  address: string;
+  client: string;
+  flags: string;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  progress: number;
+}
+
+export interface BtTrackerInfo {
+  url: string;
+}
+
+export interface BtPieceInfo {
+  index: number;
+  completed: boolean;
 }

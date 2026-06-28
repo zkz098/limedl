@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::types::{
-    AdaptiveProfile, ChecksumMode, ChunkInfo, DownloadSnapshot, DownloadState, TaskKind, ThreadMode,
-    default_http_user_agent,
+    AdaptiveProfile, ChecksumMode, ChunkInfo, DownloadSnapshot, DownloadState, TaskKind,
+    ThreadMode, default_http_user_agent,
 };
 
 pub(super) const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
@@ -143,6 +143,10 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
                 claimed_by: c.claimed_by,
             })
             .collect(),
+        seed_count: None,
+        leech_count: None,
+        download_limit_bps: None,
+        upload_limit_bps: None,
     }
 }
 

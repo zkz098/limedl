@@ -143,7 +143,11 @@ pub(crate) async fn fetch_ranges_from_url(url: &str) -> anyhow::Result<Vec<Ipv4A
         return Err(anyhow::anyhow!("empty response body"));
     }
 
-    let cidrs: Vec<&str> = trimmed.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+    let cidrs: Vec<&str> = trimmed
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
 
     if cidrs.is_empty() {
         return Err(anyhow::anyhow!("no CIDR lines found in response"));
@@ -183,9 +187,7 @@ pub(crate) async fn get_ip_ranges(
                         );
                     }
                     Err(e) => {
-                        tracing::warn!(
-                            "Background Cloudflare IP refresh failed: {e}"
-                        );
+                        tracing::warn!("Background Cloudflare IP refresh failed: {e}");
                     }
                 }
             });
@@ -221,9 +223,7 @@ pub(crate) async fn get_ip_ranges(
             cached.clone()
         }
         Err(e) => {
-            tracing::warn!(
-                "Failed to fetch Cloudflare IP ranges, using static fallback: {e}"
-            );
+            tracing::warn!("Failed to fetch Cloudflare IP ranges, using static fallback: {e}");
             let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
             let mut cached = cache.lock().await;
             *cached = IpRangesCache {
@@ -246,11 +246,7 @@ mod tests {
         let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
 
         // 15 CIDRs × 3 samples = 45 IPs
-        assert_eq!(
-            ips.len(),
-            45,
-            "Expected 45 IPs from 15 CIDRs × 3 samples"
-        );
+        assert_eq!(ips.len(), 45, "Expected 45 IPs from 15 CIDRs × 3 samples");
 
         // Verify first 3 IPs from first CIDR (173.245.48.0/20)
         assert_eq!(ips[0], Ipv4Addr::new(173, 245, 48, 1));
@@ -298,7 +294,11 @@ mod tests {
     #[test]
     fn test_static_fallback_bundle_size() {
         let ips = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
-        assert_eq!(ips.len(), 45, "static fallback must produce 45 IPs (15 CIDRs × 3)");
+        assert_eq!(
+            ips.len(),
+            45,
+            "static fallback must produce 45 IPs (15 CIDRs × 3)"
+        );
     }
 
     #[tokio::test]
@@ -358,7 +358,10 @@ mod tests {
                 fetched_at: old,
                 from_fallback: false,
             };
-            assert!(cache.expired(), "cache older than CACHE_TTL must be expired");
+            assert!(
+                cache.expired(),
+                "cache older than CACHE_TTL must be expired"
+            );
         }
     }
 
@@ -385,7 +388,11 @@ mod tests {
 
         // With empty cache and cancelled token, must fall back to static ranges
         let result = get_ip_ranges(&cache, cancel).await;
-        assert_eq!(result.ips.len(), 45, "cancelled fetch must return 45 IPs from static fallback");
+        assert_eq!(
+            result.ips.len(),
+            45,
+            "cancelled fetch must return 45 IPs from static fallback"
+        );
         assert!(result.from_fallback);
     }
 

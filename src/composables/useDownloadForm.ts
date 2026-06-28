@@ -46,6 +46,8 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     threadCount: 8,
     maxRetries: 5,
     checksum: "blake3" as ChecksumMode,
+    downloadLimitBps: null,
+    uploadLimitBps: null,
   });
 
   const isPickingDirectory = ref(false);
@@ -97,6 +99,9 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     form.checksum = settings.download.defaultChecksum;
     form.userAgent = settings.download.defaultUserAgent;
     applySchedulerDefaults(settings.scheduler.mode, settings.scheduler.automatic.maxThreadsPerTask);
+    // TODO: Pre-fill form.downloadLimitBps / form.uploadLimitBps from
+    // settings.bt.defaultDownloadSpeedLimit / defaultUploadSpeedLimit
+    // once those fields are added to the BtSettings interface in settings.ts.
   }
 
   function buildStartRequest(): StartDownloadRequest {
@@ -139,6 +144,21 @@ export function useDownloadForm(input: UseDownloadFormInput) {
 
       if (form.kind === "http") {
         request.checksum = form.checksum;
+      }
+    }
+
+    if (form.kind === "bt" || form.kind === "metalink") {
+      if (form.downloadLimitBps !== null && form.downloadLimitBps > 0) {
+        request.downloadLimitBps = form.downloadLimitBps;
+      }
+      if (form.uploadLimitBps !== null && form.uploadLimitBps > 0) {
+        request.uploadLimitBps = form.uploadLimitBps;
+      }
+      if (form.selectedFileIndices && form.selectedFileIndices.length > 0) {
+        request.selectedFileIndices = [...form.selectedFileIndices];
+      }
+      if (form.startPaused === true) {
+        request.startPaused = true;
       }
     }
 

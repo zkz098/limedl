@@ -111,6 +111,12 @@ export function useSettingsSummaries(
     draft.bt.uploadLimitBytes = Math.max(0, Math.trunc(value ?? 0)) * 1024 * 1024;
   }
 
+  const globalSpeedLimitMiBps = computed(() => Math.round(draft.globalSpeedLimitBps / 1024 / 1024));
+
+  function setGlobalSpeedLimitMiBps(value: number | null) {
+    draft.globalSpeedLimitBps = Math.max(0, Math.trunc(value ?? 0)) * 1024 * 1024;
+  }
+
   const trackerListEntries = computed(() =>
     draft.bt.trackerList
       .split(/\r?\n/)
@@ -120,13 +126,11 @@ export function useSettingsSummaries(
 
   const btSummary = computed(() => {
     const dhtLabel = draft.bt.dhtEnabled ? t("common.enabled") : t("common.disabled");
-    const pexLabel = draft.bt.pexEnabled ? t("common.enabled") : t("common.disabled");
     const trackerCount = trackerListEntries.value.length;
 
     if (!draft.bt.pauseUploadWhenLimitReached) {
       return t("settings.summaries.btDisabled", {
         dht: dhtLabel,
-        pex: pexLabel,
         trackers: trackerCount,
       });
     }
@@ -140,7 +144,6 @@ export function useSettingsSummaries(
 
     return t("settings.summaries.bt", {
       dht: dhtLabel,
-      pex: pexLabel,
       trackers: trackerCount,
       uploadLimit,
       ratioLimit,
@@ -238,6 +241,8 @@ export function useSettingsSummaries(
     downloadSummary,
     btUploadLimitMiB,
     setBtUploadLimitMiB,
+    globalSpeedLimitMiBps,
+    setGlobalSpeedLimitMiBps,
     trackerListEntries,
     btSummary,
     cdnAccelerationSummary,
