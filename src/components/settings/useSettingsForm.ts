@@ -98,6 +98,9 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       lastTestAtMs: null,
       lastError: null,
     },
+    notifications: {
+      enabled: false,
+    },
   });
 
   const savedSettingsSnapshot = ref("");
@@ -171,6 +174,9 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       cdnAcceleration: {
         ...form.cdnAcceleration,
       },
+      notifications: {
+        enabled: form.notifications?.enabled ?? false,
+      },
     };
   }
 
@@ -231,6 +237,9 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.aria2Rpc.port = nextSettings.aria2Rpc?.port ?? 6800;
       form.aria2Rpc.secret = nextSettings.aria2Rpc?.secret ?? null;
       form.cdnAcceleration = { ...nextSettings.cdnAcceleration };
+      form.notifications = {
+        enabled: nextSettings.notifications?.enabled ?? false,
+      };
       savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
       onDirtyChange?.(false);
     },

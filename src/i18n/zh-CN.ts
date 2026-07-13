@@ -437,6 +437,15 @@ const zhCN = {
       },
       globalSpeedLimit: "全局速度限制 (MiB/s)",
       globalSpeedLimitHint: "限制所有活跃任务的总下载速度。0 表示不限速。",
+      notificationSettings: {
+        title: "桌面通知",
+        description: "下载完成或失败时显示系统通知。",
+        enabled: "桌面通知",
+      },
+    },
+    notifications: {
+      downloadComplete: "下载完成",
+      downloadFailed: "下载失败",
     },
     messages: {
       noDownloads: "暂无下载任务。请从新建任务开始。",

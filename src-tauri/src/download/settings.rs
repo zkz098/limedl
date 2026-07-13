@@ -11,7 +11,7 @@ use super::{
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
         CdnAccelerationSettings, DownloadDefaultsSettings, LogSettings, NetworkLearningMetrics,
-        NetworkLearningSettings, NetworkSceneProfile, ProxyMode, ProxySettings, SchedulerSettings,
+        NetworkLearningSettings, NetworkSceneProfile, NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
         TraditionalSchedulerSettings, default_http_user_agent, default_tracker_list_url,
     },
 };
@@ -150,6 +150,7 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         aria2_rpc: settings.aria2_rpc.clone(),
         cdn_acceleration: settings.cdn_acceleration.clone(),
         global_speed_limit_bps: settings.global_speed_limit_bps,
+        notifications: settings.notifications.clone(),
     })
 }
 
@@ -352,7 +353,8 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             || value.get("bt").is_some()
             || value.get("networkLearning").is_some()
             || value.get("logging").is_some()
-            || value.get("cdnAcceleration").is_some())
+            || value.get("cdnAcceleration").is_some()
+            || value.get("notifications").is_some())
     {
         let parsed = serde_json::from_value::<AppSettings>(value)?;
         return normalize_settings(parsed);
@@ -370,6 +372,7 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
         global_speed_limit_bps: 0,
+        notifications: NotificationSettings::default(),
     })
 }
 

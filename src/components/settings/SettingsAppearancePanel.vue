@@ -153,6 +153,41 @@ const emit = defineEmits<{
       </label>
     </div>
   </section>
+
+  <section class="settings-section">
+    <div class="settings-section__head">
+      <div>
+        <p class="section-kicker">{{ t("settings.notificationSettings.title") }}</p>
+        <h3>{{ t("settings.notificationSettings.title") }}</h3>
+      </div>
+      <span class="settings-section__icon i-ri-notification-3-line" aria-hidden="true" />
+    </div>
+
+    <div class="settings-grid">
+      <label class="settings-field settings-field--wide">
+        <span class="settings-field__label">{{ t("settings.notificationSettings.enabled") }}</span>
+        <button
+          type="button"
+          class="settings-toggle"
+          :class="{ 'settings-toggle--active': draft.notifications.enabled }"
+          :aria-pressed="draft.notifications.enabled"
+          @click="draft.notifications.enabled = !draft.notifications.enabled"
+        >
+          <span
+            class="settings-toggle__icon"
+            :class="
+              draft.notifications.enabled
+                ? 'i-ri-checkbox-circle-fill'
+                : 'i-ri-checkbox-blank-circle-line'
+            "
+            aria-hidden="true"
+          />
+          <span class="settings-toggle__text">{{ t("settings.notificationSettings.title") }}</span>
+        </button>
+        <p class="settings-field__hint">{{ t("settings.notificationSettings.description") }}</p>
+      </label>
+    </div>
+  </section>
   </div>
 </template>
 

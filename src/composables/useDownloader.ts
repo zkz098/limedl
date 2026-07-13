@@ -1,5 +1,6 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 import { getBtRuntimeStatus, getDownloadStatus } from "../lib/tauri/download-api";
 import { t } from "../i18n";
@@ -16,6 +17,21 @@ import { useDownloadForm } from "./useDownloadForm";
 import { useDownloadList } from "./useDownloadList";
 import type { BtRuntimeStatus, DownloadSnapshot, DownloadSummary } from "../types/download";
 
+async function fireNotification(title: string, body: string) {
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      const permission = await requestPermission();
+      granted = permission === "granted";
+    }
+    if (granted) {
+      sendNotification({ title, body });
+    }
+  } catch {
+    // Silently fail — notifications are non-critical
+  }
+}
+
 export function useDownloader() {
   const downloads = ref<DownloadSummary[]>([]);
   const selectedId = ref<string | null>(null);
@@ -26,6 +42,7 @@ export function useDownloader() {
   const allowAutoSelect = ref(true);
   const actionName = ref("");
   const isStarting = ref(false);
+  const notificationsEnabled = ref(false);
 
   const { notifyInfo, notifyError, clearAll } = useNotification();
 
@@ -195,6 +212,10 @@ export function useDownloader() {
   let btRuntimeTimer: ReturnType<typeof setInterval> | null = null;
 
   function handleDownloadUpdated(summary: DownloadSummary) {
+    // Detect state transitions for notification firing
+    const existing = downloads.value.find((d) => d.id === summary.id);
+    const oldState = existing?.state;
+
     upsertSummary(summary);
 
     if (selectedId.value === summary.id && selectedSnapshot.value) {
@@ -210,6 +231,18 @@ export function useDownloader() {
         error: summary.error,
         chunks: summary.chunks,
       };
+    }
+
+    // Fire OS notifications on genuine state transitions (not initial load)
+    if (notificationsEnabled.value && oldState && oldState !== summary.state) {
+      if (summary.state === "completed") {
+        void fireNotification(t("notifications.downloadComplete"), summary.fileName);
+      } else if (summary.state === "failed") {
+        void fireNotification(
+          t("notifications.downloadFailed"),
+          `${summary.fileName}: ${summary.error ?? ""}`,
+        );
+      }
     }
   }
 
@@ -256,8 +289,13 @@ export function useDownloader() {
     stopAutoRefresh();
   });
 
+  function setNotificationsEnabled(enabled: boolean) {
+    notificationsEnabled.value = enabled;
+  }
+
   return {
     actionName: actions.actionName,
+    setNotificationsEnabled,
     canCancel,
     canPause,
     canResume,

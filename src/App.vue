@@ -54,6 +54,7 @@ const {
   selectedSnapshot,
   selectedSummary,
   submitStart,
+  setNotificationsEnabled,
 } = useDownloader();
 
 const { t } = useI18n();
@@ -301,6 +302,14 @@ watch(
 
     applyAppSettingsDefaults(appSettings.value);
   },
+);
+
+watch(
+  appSettings,
+  (settings) => {
+    setNotificationsEnabled(settings?.notifications?.enabled ?? false);
+  },
+  { immediate: true },
 );
 
 watch(

@@ -638,6 +638,13 @@ pub struct AppearanceSettings {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NotificationSettings {
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     #[serde(default)]
     pub appearance: AppearanceSettings,
@@ -659,6 +666,8 @@ pub struct AppSettings {
     pub cdn_acceleration: CdnAccelerationSettings,
     #[serde(default)]
     pub global_speed_limit_bps: u64,
+    #[serde(default)]
+    pub notifications: NotificationSettings,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

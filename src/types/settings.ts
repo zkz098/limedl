@@ -108,6 +108,10 @@ export interface CdnAccelerationSettings {
   lastError: string | null;
 }
 
+export interface NotificationSettings {
+  enabled: boolean;
+}
+
 export interface AppSettings {
   globalSpeedLimitBps: number;
   appearance: AppearanceSettings;
@@ -119,4 +123,5 @@ export interface AppSettings {
   logging: LogSettings;
   aria2Rpc: Aria2RpcSettings;
   cdnAcceleration: CdnAccelerationSettings;
+  notifications: NotificationSettings;
 }

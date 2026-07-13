@@ -468,6 +468,15 @@ const enUS = {
       },
       globalSpeedLimit: "Global speed limit (MiB/s)",
       globalSpeedLimitHint: "Limit total download speed across all active tasks. 0 means unlimited.",
+      notificationSettings: {
+        title: "Desktop Notifications",
+        description: "Show OS notifications when downloads complete or fail.",
+        enabled: "Desktop Notifications",
+      },
+    },
+    notifications: {
+      downloadComplete: "Download Complete",
+      downloadFailed: "Download Failed",
     },
     messages: {
       noDownloads: "No downloads yet. Start one from the form.",

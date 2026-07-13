@@ -14,8 +14,8 @@ use super::super::settings::{load_settings, normalize_settings};
 use super::super::types::{
     AdaptiveProfile, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
     CdnAccelerationSettings, DeviceLearningMode, DownloadDefaultsSettings, LogSettings,
-    NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, ProxyMode, ProxySettings,
-    SchedulerMode, SchedulerSettings, TraditionalSchedulerSettings,
+    NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, NotificationSettings,
+    ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, TraditionalSchedulerSettings,
 };
 use super::*;
 
@@ -110,6 +110,7 @@ fn normalize_settings_recovers_missing_scene_selection() -> TestResult {
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
         global_speed_limit_bps: 0,
+        notifications: NotificationSettings::default(),
     })?;
 
     assert_eq!(settings.network_learning.current_scene_id, "default");
@@ -169,6 +170,7 @@ fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
         global_speed_limit_bps: 0,
+        notifications: NotificationSettings::default(),
     };
 
     let (_, _, desired_thread_count, _) = resolve_thread_settings(
@@ -298,6 +300,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
             global_speed_limit_bps: 0,
+            notifications: NotificationSettings::default(),
         })
         .await?;
 
@@ -399,6 +402,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
             global_speed_limit_bps: 0,
+            notifications: NotificationSettings::default(),
         })
         .await?;
 
@@ -490,6 +494,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
             global_speed_limit_bps: 0,
+            notifications: NotificationSettings::default(),
         })
         .await?;
 
