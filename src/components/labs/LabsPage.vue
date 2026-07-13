@@ -166,7 +166,6 @@ defineExpose({
 .labs-page {
   display: grid;
   gap: 1rem;
-  padding-bottom: 5.75rem;
 }
 
 .labs-page__header {
@@ -220,20 +219,19 @@ defineExpose({
 }
 
 .labs-save-bar {
-  position: fixed;
-  left: calc(clamp(14.5rem, 18vw, 16rem) + 1.25rem);
-  right: 1.25rem;
-  bottom: 1.25rem;
-  z-index: 30;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
   background: var(--color-panel);
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: var(--shadow-card);
 }
 
 .labs-save-bar__hint {
@@ -251,11 +249,6 @@ defineExpose({
   .labs-tab {
     font-size: 0.78rem;
     padding: 0 0.35rem;
-  }
-
-  .labs-save-bar {
-    left: 1rem;
-    right: 1rem;
   }
 }
 

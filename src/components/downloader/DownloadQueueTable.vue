@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { debounce, throttle } from "es-toolkit";
+import { debounce } from "es-toolkit";
 
 import { formatBytes, formatEta, formatSpeed, isSizeUnknown, progressLabel, progressValue } from "../../lib/download-format";
 import { useI18n } from "../../i18n";
@@ -9,7 +9,7 @@ import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
 
-type ColumnKey = "file" | "status" | "progress" | "speed" | "eta";
+type ColumnKey = "file" | "size" | "downloaded" | "status" | "progress" | "speed" | "uploadSpeed" | "seeds" | "eta";
 
 const props = defineProps<{
   downloads: DownloadSummary[];
@@ -17,6 +17,8 @@ const props = defineProps<{
   isRefreshingList: boolean;
   selectedId: string | null;
   taskActionName: string;
+  stateFilter?: string;
+  searchQuery?: string;
 }>();
 
 const emit = defineEmits<{
@@ -30,47 +32,40 @@ const emit = defineEmits<{
   setBtSpeedLimit: [downloadId: string];
 }>();
 
-const pageSize = 10;
+const pageSize = 20;
 const syncShowDelayMs = 240;
 const syncHideDelayMs = 420;
 const { t } = useI18n();
 const currentPage = ref(1);
-const searchQuery = ref('');
-const stateFilter = ref('');
 const columnMenuOpen = ref(false);
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
-const isRefreshLabelVisible = ref(false);
 const isSyncIndicatorVisible = ref(false);
-const visibleColumns = ref<ColumnKey[]>(["file", "status", "progress", "speed", "eta"]);
+const visibleColumns = ref<ColumnKey[]>(["file", "size", "downloaded", "status", "progress", "speed", "eta"]);
 
 const columnOptions = computed<Array<{ key: ColumnKey; label: string; alwaysVisible?: boolean }>>(
   () => [
     { key: "file", label: t("queue.file"), alwaysVisible: true },
+    { key: "size", label: t("queue.size") },
+    { key: "downloaded", label: t("queue.downloaded") },
     { key: "status", label: t("queue.status") },
     { key: "progress", label: t("queue.progress") },
     { key: "speed", label: t("queue.speed") },
+    { key: "uploadSpeed", label: t("queue.upSpeed") },
+    { key: "seeds", label: t("queue.seeds") },
     { key: "eta", label: t("queue.eta") },
   ],
 );
 
-const statusFilterOptions = computed<Array<{ value: string; label: string }>>(() => [
-  { value: '', label: t('queue.statusAll') },
-  { value: 'downloading', label: t('queue.statusDownloading') },
-  { value: 'paused', label: t('queue.statusPaused') },
-  { value: 'completed', label: t('queue.statusCompleted') },
-  { value: 'failed', label: t('queue.statusFailed') },
-]);
-
 const filteredDownloads = computed(() => {
   let list = props.downloads;
-  const query = searchQuery.value.trim().toLowerCase();
+  const query = (props.searchQuery ?? '').trim().toLowerCase();
   if (query) {
     list = list.filter(
       (d) => d.fileName.toLowerCase().includes(query) || d.url.toLowerCase().includes(query),
     );
   }
-  if (stateFilter.value) {
-    list = list.filter((d) => d.state === stateFilter.value);
+  if (props.stateFilter) {
+    list = list.filter((d) => d.state === props.stateFilter);
   }
   return list;
 });
@@ -148,10 +143,6 @@ watch(
   },
 );
 
-const syncRefreshIndicator = debounce((value: boolean) => {
-  isRefreshLabelVisible.value = value;
-}, 140);
-
 const showAutoRefreshIndicator = debounce(() => {
   isSyncIndicatorVisible.value = true;
 }, syncShowDelayMs);
@@ -159,14 +150,6 @@ const showAutoRefreshIndicator = debounce(() => {
 const hideAutoRefreshIndicator = debounce(() => {
   isSyncIndicatorVisible.value = false;
 }, syncHideDelayMs);
-
-watch(
-  () => props.isRefreshingList,
-  (value) => {
-    syncRefreshIndicator(value);
-  },
-  { immediate: true },
-);
 
 watch(
   () => props.isAutoRefreshing,
@@ -306,11 +289,6 @@ function onSetBtSpeedLimit() {
   contextMenu.value = null;
 }
 
-const triggerRefresh = throttle(() => {
-  emit("refresh");
-}, 600);
-
-
 function labelForTaskKind(kind: DownloadSummary["kind"]) {
   if (kind === "bt") {
     return t("tokens.bt");
@@ -418,50 +396,6 @@ onUnmounted(() => {
             </label>
           </div>
         </div>
-        <UiButton
-          type="button"
-          size="sm"
-          variant="secondary"
-          icon="i-ri-refresh-line"
-          @click="triggerRefresh"
-        >
-          {{ isRefreshLabelVisible ? t("common.refreshing") : t("common.refresh") }}
-        </UiButton>
-      </div>
-    </div>
-
-    <div class="queue-toolbar">
-      <div class="queue-search">
-        <span class="queue-search__icon i-ri-search-line" aria-hidden="true" />
-        <input
-          v-model="searchQuery"
-          class="queue-search__input"
-          type="text"
-          :placeholder="t('queue.searchPlaceholder')"
-          :aria-label="t('queue.searchPlaceholder')"
-        />
-        <button
-          v-if="searchQuery"
-          class="queue-search__clear"
-          type="button"
-          :aria-label="t('queue.clearSearch')"
-          @click="searchQuery = ''"
-        >
-          <span class="i-ri-close-line" aria-hidden="true" />
-        </button>
-      </div>
-
-      <div class="queue-status-filters" role="group" :aria-label="t('queue.status')">
-        <button
-          v-for="opt in statusFilterOptions"
-          :key="opt.value"
-          type="button"
-          class="queue-status-filter"
-          :class="{ 'queue-status-filter--active': stateFilter === opt.value }"
-          @click="stateFilter = opt.value"
-        >
-          {{ opt.label }}
-        </button>
       </div>
     </div>
 
@@ -471,9 +405,13 @@ onUnmounted(() => {
           <thead>
             <tr>
               <th v-if="isColumnVisible('file')">{{ t("queue.file") }}</th>
+              <th v-if="isColumnVisible('size')">{{ t("queue.size") }}</th>
+              <th v-if="isColumnVisible('downloaded')">{{ t("queue.downloaded") }}</th>
               <th v-if="isColumnVisible('status')">{{ t("queue.status") }}</th>
               <th v-if="isColumnVisible('progress')">{{ t("queue.progress") }}</th>
               <th v-if="isColumnVisible('speed')">{{ t("queue.speed") }}</th>
+              <th v-if="isColumnVisible('uploadSpeed')">{{ t("queue.upSpeed") }}</th>
+              <th v-if="isColumnVisible('seeds')">{{ t("queue.seeds") }}</th>
               <th v-if="isColumnVisible('eta')">{{ t("queue.eta") }}</th>
             </tr>
           </thead>
@@ -506,6 +444,14 @@ onUnmounted(() => {
                 </div>
               </td>
 
+              <td v-if="isColumnVisible('size')" class="queue-cell queue-cell--size">
+                {{ formatBytes(download.totalBytes) }}
+              </td>
+
+              <td v-if="isColumnVisible('downloaded')" class="queue-cell queue-cell--downloaded">
+                {{ formatBytes(download.downloadedBytes) }}
+              </td>
+
               <td v-if="isColumnVisible('status')" class="queue-cell queue-cell--status">
                 <UiBadge size="sm" :tone="toneForState(download.state)">{{
                   t(`states.${download.state}`)
@@ -528,11 +474,19 @@ onUnmounted(() => {
                 </div>
               </td>
 
-              <td v-if="isColumnVisible('speed')" class="queue-cell queue-cell--meta">
+              <td v-if="isColumnVisible('speed')" class="queue-cell queue-cell--speed">
                 {{ formatSpeed(download.speedBytesPerSecond) }}
               </td>
 
-              <td v-if="isColumnVisible('eta')" class="queue-cell queue-cell--meta">
+              <td v-if="isColumnVisible('uploadSpeed')" class="queue-cell queue-cell--up-speed">
+                {{ download.kind === 'bt' ? formatSpeed(download.uploadSpeedBytesPerSecond) : '\u2014' }}
+              </td>
+
+              <td v-if="isColumnVisible('seeds')" class="queue-cell queue-cell--seeds">
+                {{ download.kind === 'bt' ? `${download.seedCount ?? '\u2014'}/${download.leechCount ?? '\u2014'}` : '\u2014' }}
+              </td>
+
+              <td v-if="isColumnVisible('eta')" class="queue-cell queue-cell--eta">
                 {{ formatEta(download.etaSeconds) }}
               </td>
             </tr>
@@ -756,7 +710,7 @@ onUnmounted(() => {
 }
 
 .queue-table-shell {
-  min-height: 27.5rem;
+  min-height: 30rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -783,7 +737,8 @@ onUnmounted(() => {
 }
 
 .queue-table tbody tr {
-  height: 2.5rem;
+  height: auto;
+  min-height: 3.5rem;
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
@@ -805,24 +760,60 @@ onUnmounted(() => {
 }
 
 .queue-cell {
-  padding: 0.3rem 0.75rem;
+  padding: var(--space-1) var(--space-2);
   vertical-align: middle;
+  font-size: 0.8125rem;
 }
 
 .queue-cell--file {
-  width: 32%;
+  width: 24%;
+}
+
+.queue-cell--size {
+  width: 8%;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+}
+
+.queue-cell--downloaded {
+  width: 10%;
+  color: var(--color-text-soft);
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
 }
 
 .queue-cell--status {
-  width: 12%;
+  width: 10%;
 }
 
 .queue-cell--progress {
-  width: 30%;
+  width: 18%;
 }
 
-.queue-cell--meta {
-  width: 13%;
+.queue-cell--speed {
+  width: 10%;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+}
+
+.queue-cell--up-speed {
+  width: 8%;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+}
+
+.queue-cell--seeds {
+  width: 6%;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+}
+
+.queue-cell--eta {
+  width: 6%;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
   font-family: var(--font-mono);
@@ -1003,121 +994,13 @@ onUnmounted(() => {
   background: var(--color-danger-bg);
 }
 
-.queue-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.queue-search {
-  position: relative;
-  flex: 1 1 12rem;
-  min-width: 10rem;
-  max-width: 24rem;
-}
-
-.queue-search__icon {
-  position: absolute;
-  left: 0.65rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-  pointer-events: none;
-}
-
-.queue-search__input {
-  width: 100%;
-  min-height: 2rem;
-  padding: 0 1.75rem 0 2rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-input-bg);
-  color: var(--color-text-main);
-  font-size: var(--font-size-small);
-  transition:
-    border-color var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
-}
-
-.queue-search__input::placeholder {
-  color: var(--color-text-soft);
-}
-
-.queue-search__input:focus-visible {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
-}
-
-.queue-search__clear {
-  position: absolute;
-  right: 0.25rem;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition:
-    color var(--duration-fast) ease,
-    background-color var(--duration-fast) ease;
-}
-
-.queue-search__clear:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text-main);
-}
-
-.queue-status-filters {
-  display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-}
-
-.queue-status-filter {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2rem;
-  padding: 0 0.55rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-small);
-  cursor: pointer;
-  transition:
-    border-color var(--duration-fast) ease,
-    background-color var(--duration-fast) ease,
-    color var(--duration-fast) ease;
-}
-
-.queue-status-filter:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text-main);
-}
-
-.queue-status-filter--active {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent-soft-border);
-  color: var(--color-accent-strong);
-}
-
 @media (max-width: 1160px) {
   .queue-table-shell {
     overflow-x: auto;
   }
 
   .queue-table {
-    min-width: 48rem;
+    min-width: 64rem;
   }
 }
 </style>

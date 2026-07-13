@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 
+import CategorySidebar from "./components/layout/CategorySidebar.vue";
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
 import DownloadInspector from "./components/downloader/DownloadInspector.vue";
 import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
-import SidebarBtStatus from "./components/sidebar/SidebarBtStatus.vue";
 import LabsPage from "./components/labs/LabsPage.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
+import TopToolbar from "./components/layout/TopToolbar.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
-import { formatSpeed } from "./lib/download-format";
 import { getAppSettings } from "./lib/tauri/settings-api";
 import { useDownloader } from "./composables/useDownloader";
 import { useNotification } from "./composables/useNotification";
@@ -57,9 +57,11 @@ const {
 
 const { t } = useI18n();
 const showComposerDialog = ref(false);
-const inspectorCollapsed = ref(false);
+const detailCollapsed = ref(false);
 const currentView = ref<"home" | "settings" | "labs">("home");
 const appSettings = ref<AppSettings | null>(null);
+const activeCategory = ref('');
+const searchQuery = ref('');
 const pendingPermanentDeleteId = ref<string | null>(null);
 const pendingView = ref<"home" | "settings" | "labs" | null>(null);
 const settingsHasUnsavedChanges = ref(false);
@@ -96,19 +98,36 @@ const unsavedDialogMessage = computed(() =>
 const pendingPermanentDeleteTask = computed(
   () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
 );
-const selectedStateLabel = computed(() =>
-  selectedOverview.value?.state ? t(`states.${selectedOverview.value.state}`) : t("common.unknown"),
-);
-const activeSpeedLabel = computed(() => formatSpeed(selectedOverview.value?.speedBytesPerSecond));
-const activeCount = computed(
-  () =>
-    downloads.value.filter((download) =>
-      ["downloading", "retrying", "verifying"].includes(download.state),
-    ).length,
-);
-const completedCount = computed(
-  () => downloads.value.filter((download) => download.state === "completed").length,
-);
+
+const categoryCounts = computed(() => {
+  const all = downloads.value.length;
+  const downloading = downloads.value.filter(d => d.state === 'downloading').length;
+  const paused = downloads.value.filter(d => d.state === 'paused').length;
+  const completed = downloads.value.filter(d => d.state === 'completed').length;
+  const failed = downloads.value.filter(d => d.state === 'failed').length;
+  const active = downloads.value.filter(d => d.state === 'downloading').length;
+  return { '': all, downloading, paused, completed, failed, active };
+});
+
+const sidebarStats = computed(() => {
+  const totalSpeed = downloads.value.reduce((sum, d) => sum + (d.speedBytesPerSecond ?? 0), 0);
+  return {
+    totalTasks: downloads.value.length,
+    activeTasks: downloads.value.filter(d => d.state === 'downloading').length,
+    completedTasks: downloads.value.filter(d => d.state === 'completed').length,
+    currentSpeed: totalSpeed,
+  };
+});
+
+const btStatusData = computed(() => {
+  if (!btRuntimeStatus.value) return null;
+  return {
+    dhtNodes: btRuntimeStatus.value.dhtNodes ?? 0,
+    uploadSpeed: btRuntimeStatus.value.uploadSpeedBytesPerSecond ?? 0,
+    peers: btRuntimeStatus.value.peerCount ?? 0,
+    torrents: btRuntimeStatus.value.torrentCount ?? 0,
+  };
+});
 
 const handleSubmitStart = async () => {
   await submitStart();
@@ -144,8 +163,24 @@ function requestPermanentDelete(downloadId: string) {
   pendingPermanentDeleteId.value = downloadId;
 }
 
-function navigateTo(view: "home" | "settings" | "labs") {
-  if (view === currentView.value) {
+function handleDelete() {
+  if (selectedId.value) {
+    runDeleteTask(selectedId.value);
+  }
+}
+
+function handleRefresh() {
+  void refreshList();
+}
+
+function navigateTo(view: string) {
+  const validViews = ["home", "settings", "labs"] as const;
+  if (!validViews.includes(view as typeof validViews[number])) {
+    return;
+  }
+
+  const typedView = view as "home" | "settings" | "labs";
+  if (typedView === currentView.value) {
     return;
   }
 
@@ -154,11 +189,11 @@ function navigateTo(view: "home" | "settings" | "labs") {
     (currentView.value === "labs" && labsHasUnsavedChanges.value);
 
   if (leavingDirtyView) {
-    pendingView.value = view;
+    pendingView.value = typedView;
     return;
   }
 
-  currentView.value = view;
+  currentView.value = typedView;
 }
 
 function cancelDiscardSettings() {
@@ -286,7 +321,7 @@ watch(
   () => selectedId.value,
   (nextId) => {
     if (!nextId) {
-      inspectorCollapsed.value = false;
+      detailCollapsed.value = false;
     }
   },
 );
@@ -351,166 +386,133 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="app-shell min-h-screen text-[var(--color-text-main)]">
+  <div class="app-root">
     <NotificationToast
       :notifications="notifications"
       @dismiss="dismiss"
     />
 
-    <aside class="sidebar">
-      <div class="sidebar__brand">
-        <div class="sidebar__logo-mark" aria-hidden="true">
-          <span class="i-ri-download-cloud-2-line" />
-        </div>
-        <div>
-          <p class="section-kicker">Transfer Desk</p>
-          <h1>Downloader</h1>
-        </div>
-      </div>
+    <!-- Top toolbar (only show on home view) -->
+    <TopToolbar
+      v-if="currentView === 'home'"
+      :search-query="searchQuery"
+      :has-selection="!!selectedId"
+      :bt-status="btStatusData"
+      @update:search-query="searchQuery = $event"
+      @add-task="showComposerDialog = true"
+      @delete="handleDelete"
+      @refresh="handleRefresh"
+    />
 
-      <UiButton icon="i-ri-add-line" block @click="showComposerDialog = true">
-        {{ t("nav.newTask") }}
-      </UiButton>
-
-      <nav class="sidebar-nav" :aria-label="t('nav.primary')">
-        <button
-          type="button"
-          class="sidebar-nav__item"
-          :class="{ 'sidebar-nav__item--active': currentView === 'home' }"
-          @click="navigateTo('home')"
-        >
-          <span class="sidebar-nav__icon i-ri-home-5-line" aria-hidden="true" />
-          <span>{{ t("nav.home") }}</span>
-        </button>
-        <button
-          type="button"
-          class="sidebar-nav__item"
-          :class="{ 'sidebar-nav__item--active': currentView === 'settings' }"
-          @click="navigateTo('settings')"
-        >
-          <span class="sidebar-nav__icon i-ri-settings-3-line" aria-hidden="true" />
-          <span>{{ t("nav.settings") }}</span>
-        </button>
-        <button
-          type="button"
-          class="sidebar-nav__item"
-          :class="{ 'sidebar-nav__item--active': currentView === 'labs' }"
-          @click="navigateTo('labs')"
-        >
-          <span class="sidebar-nav__icon i-ri-flask-line" aria-hidden="true" />
-          <span>{{ t("nav.labs") }}</span>
-        </button>
-      </nav>
-
-      <div class="sidebar__divider" aria-hidden="true" />
-
-      <div class="sidebar-overview">
-        <p class="section-kicker">{{ t("sidebar.overview") }}</p>
-        <div class="sidebar-overview__list">
-          <p>
-            <span>{{ t("sidebar.totalTasks") }}</span
-            ><strong>{{ downloads.length }}</strong>
-          </p>
-          <p>
-            <span>{{ t("sidebar.active") }}</span
-            ><strong>{{ activeCount }}</strong>
-          </p>
-          <p>
-            <span>{{ t("sidebar.completed") }}</span
-            ><strong>{{ completedCount }}</strong>
-          </p>
-          <p>
-            <span>{{ t("sidebar.currentSpeed") }}</span
-            ><strong>{{ activeSpeedLabel }}</strong>
-          </p>
-          <p>
-            <span>{{ t("sidebar.selectedState") }}</span>
-            <strong>{{ selectedStateLabel }}</strong>
-          </p>
-        </div>
-      </div>
-
-      <SidebarBtStatus :status="btRuntimeStatus" />
-    </aside>
-
-    <section class="main-content">
-      <DownloadQueueTable
-        v-if="currentView === 'home'"
-        :downloads="downloads"
-        :is-auto-refreshing="isAutoRefreshing"
-        :is-refreshing-list="isRefreshingList"
-        :selected-id="selectedId"
-        :task-action-name="actionName"
-        @copy-link="runCopyLink"
-        @delete-task="runDeleteTask"
-        @delete-task-permanently="requestPermanentDelete"
-        @open-in-explorer="runOpenInExplorer"
-        @pause-or-resume="handleTaskPauseOrResume"
-        @refresh="refreshList"
-        @select="selectDownload"
+    <!-- Main layout: sidebar + content -->
+    <div class="app-body">
+      <CategorySidebar
+        :active-category="activeCategory"
+        :current-view="currentView"
+        :counts="categoryCounts"
+        :stats="sidebarStats"
+        @update:active-category="activeCategory = $event"
+        @navigate="navigateTo"
       />
-      <SettingsPage
-        v-else-if="currentView === 'settings'"
-        ref="settingsPage"
-        :settings="appSettings"
-        @dirty-change="handleSettingsDirtyChange"
-        @saved="handleSettingsSaved"
-      />
-      <LabsPage
-        v-else
-        ref="labsPage"
-        :settings="appSettings"
-        @dirty-change="handleLabsDirtyChange"
-        @saved="handleLabsSaved"
-      />
-    </section>
 
-    <Transition name="floating-inspector">
-      <div
-        v-if="currentView === 'home' && selectedOverview"
-        class="floating-inspector"
-        :class="{ 'is-collapsed': inspectorCollapsed }"
-      >
-        <button
-          type="button"
-          class="floating-inspector__tab"
-          @click="inspectorCollapsed = !inspectorCollapsed"
-        >
-          <div class="floating-inspector__tab-copy">
-            <span class="floating-inspector__tab-kicker">{{ t("inspector.taskDetails") }}</span>
-            <strong>{{ selectedOverview.fileName }}</strong>
-          </div>
-          <div class="floating-inspector__tab-meta">
-            <span>{{ selectedStateLabel }}</span>
-            <span
-              class="floating-inspector__tab-icon"
-              :class="inspectorCollapsed ? 'i-ri-arrow-up-s-line' : 'i-ri-arrow-down-s-line'"
-              aria-hidden="true"
+      <main class="content-area">
+        <!-- Home view: table + detail panel -->
+        <template v-if="currentView === 'home'">
+          <div class="table-wrapper">
+            <DownloadQueueTable
+              :downloads="downloads"
+              :is-auto-refreshing="isAutoRefreshing"
+              :is-refreshing-list="isRefreshingList"
+              :selected-id="selectedId"
+              :task-action-name="actionName"
+              :state-filter="activeCategory"
+              :search-query="searchQuery"
+              @copy-link="runCopyLink"
+              @delete-task="runDeleteTask"
+              @delete-task-permanently="requestPermanentDelete"
+              @open-in-explorer="runOpenInExplorer"
+              @pause-or-resume="handleTaskPauseOrResume"
+              @refresh="refreshList"
+              @select="selectDownload"
             />
           </div>
-        </button>
 
-        <div v-show="!inspectorCollapsed" class="floating-inspector__body">
-          <DownloadInspector
-            :action-name="actionName"
-            :can-cancel="canCancel"
-            :can-pause="canPause"
-            :can-resume="canResume"
-            :is-refreshing-status="isRefreshingStatus"
-            :selected-overview="selectedOverview"
-            :selected-snapshot="selectedSnapshot"
-            :show-detail-info="showDetailInfo"
-            :show-heatmap="showHeatmap"
-            @cancel="runCancel"
-            @pause="runPause"
-            @refresh="handleRefreshSelected"
-            @resume="runResume"
-            @close="selectDownload(null)"
-          />
+          <!-- Collapsible bottom detail panel -->
+          <div class="detail-panel" :class="{ collapsed: detailCollapsed }">
+            <div class="detail-panel__header" @click="detailCollapsed = !detailCollapsed">
+              <div class="detail-panel__title">
+                <i class="i-ri-information-line" />
+                <span class="detail-panel__filename">{{ selectedOverview ? selectedOverview.fileName : t('detail.noSelection') }}</span>
+              </div>
+              <div class="detail-panel__toggle">
+                <i :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'" />
+              </div>
+            </div>
+            <div v-show="!detailCollapsed" class="detail-panel__body">
+              <DownloadInspector
+                v-if="selectedOverview"
+                :action-name="actionName"
+                :can-cancel="canCancel"
+                :can-pause="canPause"
+                :can-resume="canResume"
+                :is-refreshing-status="isRefreshingStatus"
+                :selected-overview="selectedOverview"
+                :selected-snapshot="selectedSnapshot"
+                :show-detail-info="showDetailInfo"
+                :show-heatmap="showHeatmap"
+                @cancel="runCancel"
+                @pause="runPause"
+                @refresh="handleRefreshSelected"
+                @resume="runResume"
+                @close="selectDownload(null)"
+              />
+              <div v-else class="detail-panel__empty">
+                <i class="i-ri-cursor-line" />
+                <p>{{ t('detail.selectPrompt') }}</p>
+              </div>
+            </div>
+          </div>
+        </template>
+      </main>
+    </div>
+
+    <!-- Settings & Labs as centered modal overlays -->
+    <Transition name="overlay-fade">
+      <div v-if="currentView === 'settings'" class="fullscreen-overlay">
+        <div class="modal-panel">
+          <button class="overlay-close" @click="navigateTo('home')" :title="t('nav.back')">
+            <i class="i-ri-close-line" />
+          </button>
+          <div class="modal-panel__body">
+            <SettingsPage
+              ref="settingsPage"
+              :settings="appSettings"
+              @dirty-change="handleSettingsDirtyChange"
+              @saved="handleSettingsSaved"
+            />
+          </div>
+        </div>
+      </div>
+    </Transition>
+    <Transition name="overlay-fade">
+      <div v-if="currentView === 'labs'" class="fullscreen-overlay">
+        <div class="modal-panel">
+          <button class="overlay-close" @click="navigateTo('home')" :title="t('nav.back')">
+            <i class="i-ri-close-line" />
+          </button>
+          <div class="modal-panel__body">
+            <LabsPage
+              ref="labsPage"
+              :settings="appSettings"
+              @dirty-change="handleLabsDirtyChange"
+              @saved="handleLabsSaved"
+            />
+          </div>
         </div>
       </div>
     </Transition>
 
+    <!-- Dialogs -->
     <UiDialog v-model="showComposerDialog" width="min(46rem, calc(100vw - 1.5rem))">
       <template #title>
         <div class="dialog-heading">
@@ -633,260 +635,216 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </UiDialog>
-  </main>
+  </div>
 </template>
 
 <style scoped>
-.app-shell {
-  display: grid;
-  grid-template-columns: minmax(14.5rem, 16rem) minmax(0, 1fr);
-  height: 100vh;
-  overflow: hidden;
-  background: var(--color-bg-base);
-}
-
-.sidebar,
-.main-content {
-  position: relative;
-}
-
-.sidebar {
+/* ── Root layout ── */
+.app-root {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   height: 100vh;
-  padding: 1rem;
-  border-right: 1px solid var(--color-border);
-  background: var(--color-panel-muted);
   overflow: hidden;
 }
 
-.sidebar__brand h1 {
-  margin: 0.15rem 0 0;
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--color-heading);
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.sidebar__brand {
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: var(--space-4);
+}
+
+/* ── Detail panel ── */
+
+.detail-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-panel);
+  max-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  transition: max-height 0.2s ease;
+}
+
+.detail-panel.collapsed {
+  max-height: 2.75rem;
+}
+
+.detail-panel__header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
-.sidebar__logo-mark {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-flex;
+.detail-panel.collapsed .detail-panel__header {
+  border-bottom: none;
+}
+
+.detail-panel__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-main);
+}
+
+.detail-panel__title i {
+  color: var(--color-accent);
+}
+
+.detail-panel__filename {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.detail-panel__toggle i {
+  color: var(--color-text-muted);
+}
+
+.detail-panel__body {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.detail-panel__empty {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  font-size: 1.15rem;
+  padding: var(--space-6);
+  color: var(--color-text-soft);
+  gap: var(--space-2);
 }
 
-.panel-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.875rem;
+.detail-panel__empty i {
+  font-size: 1.5rem;
 }
 
-.panel-head__icon,
-.dialog-heading__icon {
-  font-size: 1.25rem;
-  color: var(--color-text-muted);
-}
+/* ── Modal overlays ── */
 
-.dialog-heading__icon--danger {
-  color: var(--color-danger-text);
-}
-
-.sidebar-nav {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.sidebar-nav__item {
-  width: 100%;
-  min-height: 2.25rem;
+.fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0 0.625rem;
-  border: 0;
-  border-left: 2px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  text-align: left;
-  font-size: var(--font-size-small);
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
+  justify-content: center;
+  padding: var(--space-6);
+  overflow: auto;
+  background: var(--surface-overlay-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
-.sidebar-nav__item:hover {
+.modal-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 64rem;
+  max-height: calc(100vh - 2 * var(--space-6));
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 8px 32px oklch(0 0 0 / 0.12),
+    0 2px 8px oklch(0 0 0 / 0.08);
+  overflow: hidden;
+}
+
+.modal-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.overlay-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 10;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-panel);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1.125rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.overlay-close:hover {
   background: var(--color-surface-muted);
   color: var(--color-text-main);
 }
 
-.sidebar-nav__item--active {
-  background: var(--color-surface-muted);
-  border-left-color: var(--color-accent);
-  color: var(--color-accent-strong);
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.sidebar-nav__icon {
-  font-size: 1rem;
-}
-
-.sidebar__divider {
-  width: 100%;
-  height: 1px;
-  background: var(--color-border);
-}
-
-.sidebar-overview {
-  margin-top: auto;
-  padding-top: 0.25rem;
-}
-
-.sidebar-overview__list {
-  display: grid;
-  gap: 0.35rem;
-  margin-top: 0.5rem;
-}
-
-.sidebar-overview__list p {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
-.sidebar-overview__list strong {
-  color: var(--color-heading);
-  font-weight: 600;
-  font-size: 0.78rem;
-  font-family: var(--font-mono);
-}
-
-.main-content {
-  display: grid;
-  align-content: start;
-  gap: 1rem;
-  height: 100vh;
-  padding: 1.25rem;
-  padding-bottom: 18rem;
-  min-width: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.floating-inspector {
-  position: fixed;
-  left: calc(clamp(14.5rem, 18vw, 16rem) + 1rem);
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 20;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-panel);
-  box-shadow: var(--shadow-card-hover);
-  overflow: hidden;
-}
-
-.floating-inspector.is-collapsed {
-  box-shadow: var(--shadow-card);
-}
-
-.floating-inspector__tab {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  border: 0;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-panel-muted);
-  cursor: pointer;
-  text-align: left;
-}
-
-.floating-inspector.is-collapsed .floating-inspector__tab {
-  border-bottom: 0;
-}
-
-.floating-inspector__tab:hover {
-  background: var(--color-surface-muted);
-}
-
-.floating-inspector__tab-copy {
-  min-width: 0;
-  display: grid;
-  gap: 0.15rem;
-}
-
-.floating-inspector__tab-kicker {
-  font-size: 0.7rem;
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.floating-inspector__tab-copy strong {
-  color: var(--color-heading);
-  font-size: 0.88rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.floating-inspector__tab-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  color: var(--color-accent-strong);
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: var(--font-mono);
-}
-
-.floating-inspector__tab-icon {
-  font-size: 1rem;
-}
-
-.floating-inspector__body {
-  max-height: min(24rem, calc(100vh - 10rem));
-  overflow: auto;
-}
-
-.floating-inspector-enter-active,
-.floating-inspector-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.floating-inspector-enter-from,
-.floating-inspector-leave-to {
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
   opacity: 0;
-  transform: translateY(0.75rem);
 }
+
+.overlay-fade-enter-active .modal-panel,
+.overlay-fade-leave-active .modal-panel {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.overlay-fade-enter-from .modal-panel,
+.overlay-fade-leave-to .modal-panel {
+  transform: scale(0.97);
+  opacity: 0;
+}
+
+@media (max-width: 680px) {
+  .fullscreen-overlay {
+    padding: var(--space-4);
+  }
+
+  .modal-panel {
+    max-height: calc(100vh - 2 * var(--space-4));
+  }
+
+  .modal-panel__body {
+    padding: var(--space-3) var(--space-3) 0;
+  }
+}
+
+/* ── Dialog styles ── */
 
 .dialog-heading {
   display: flex;
@@ -901,6 +859,15 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-body);
   font-weight: 600;
   color: var(--color-heading);
+}
+
+.dialog-heading__icon {
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+}
+
+.dialog-heading__icon--danger {
+  color: var(--color-danger-text);
 }
 
 .confirm-delete {
@@ -945,62 +912,5 @@ onBeforeUnmount(() => {
   gap: 0.75rem;
   flex-wrap: wrap;
   padding-top: 0.25rem;
-}
-
-@media (max-width: 1080px) {
-  .app-shell {
-    grid-template-columns: minmax(0, 1fr);
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
-  }
-
-  .sidebar {
-    height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-    overflow: visible;
-  }
-
-  .main-content {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-  }
-
-  .floating-inspector {
-    left: 1rem;
-  }
-}
-
-@media (max-width: 720px) {
-  .sidebar,
-  .main-content {
-    padding: 0.875rem;
-  }
-
-  .sidebar__brand {
-    align-items: flex-start;
-  }
-
-  .main-content {
-    padding-bottom: 15rem;
-  }
-
-  .floating-inspector {
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.75rem;
-  }
-
-  .floating-inspector__tab {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .floating-inspector__tab-meta {
-    width: 100%;
-    justify-content: space-between;
-  }
 }
 </style>

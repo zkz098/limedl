@@ -48,6 +48,27 @@ defineEmits<{
 
 const { t } = useI18n();
 
+// ── Tab state ──
+
+const activeTab = ref<"overview" | "files" | "peersTrackers">("overview");
+
+const isBtTask = computed(() => props.selectedOverview?.kind === "bt");
+
+watch(
+  () => props.selectedOverview?.id,
+  () => {
+    activeTab.value = "overview";
+  },
+);
+
+watch(isBtTask, (bt) => {
+  if (!bt && activeTab.value === "peersTrackers") {
+    activeTab.value = "overview";
+  }
+});
+
+// ── Detail rows ──
+
 interface DetailRow {
   label: string;
   value: string;
@@ -206,7 +227,7 @@ watch(
 </script>
 
 <template>
-  <section class="inspector-panel">
+  <section class="download-inspector">
     <div class="inspector-header">
       <div>
         <p class="section-kicker">{{ t("inspector.kicker") }}</p>
@@ -262,155 +283,250 @@ watch(
       </div>
     </div>
 
-    <div v-if="selectedOverview" class="inspector-content">
-      <div class="inspector-summary">
-        <div class="inspector-summary__copy">
-          <div class="inspector-summary__header">
-            <h3>{{ selectedOverview.fileName }}</h3>
-            <UiBadge :tone="stateTone">{{ t(`states.${selectedOverview.state}`) }}</UiBadge>
-            <UiBadge
-              v-if="selectedOverview.cdnAccelerated"
-              tone="warning"
-              size="sm"
-              class="inspector-summary__cdn"
-            >
-              <span class="i-ri-flashlight-fill" aria-hidden="true" />
-              {{ t("inspector.cdnAccelerated") }}
-            </UiBadge>
-          </div>
-          <p>{{ selectedOverview.destinationPath }}</p>
-        </div>
-
-        <div class="metric-grid">
-          <div class="text-row">
-            <span class="text-label">{{ t("inspector.transferred") }}:</span>
-            <span class="text-value">
-              {{ formatBytes(selectedOverview.downloadedBytes) }} /
-              {{ formatBytes(selectedOverview.totalBytes) }}
-            </span>
-          </div>
-          <div class="text-row">
-            <span class="text-label">{{ t("inspector.speed") }}:</span>
-            <span class="text-value">{{ formatSpeed(selectedOverview.speedBytesPerSecond) }}</span>
-          </div>
-          <div class="text-row">
-            <span class="text-label">{{ t("inspector.eta") }}:</span>
-            <span class="text-value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
-          </div>
-          <div class="text-row">
-            <span class="text-label"
-              >{{
-                selectedOverview.kind === "bt" ? t("inspector.peers") : t("inspector.threads")
-              }}:</span
-            >
-            <span class="text-value">
-              {{
-                selectedOverview.kind === "bt"
-                  ? (selectedOverview.peerCount ?? 0)
-                  : selectedOverview.connectionCount
-              }}
-              <template
-                v-if="
-                  selectedOverview.kind === 'http' && selectedOverview.threadMode === 'adaptive'
-                "
-              >
-                / {{ t("tokens.adaptive") }}
-              </template>
-            </span>
-          </div>
-          <div
-            v-if="selectedOverview.kind === 'bt'"
-            class="text-row"
-          >
-            <span class="text-label">{{ t("inspector.fields.seedCount") }}:</span>
-            <span class="text-value">{{ selectedOverview.seedCount ?? 0 }} / {{ selectedOverview.leechCount ?? 0 }}</span>
-          </div>
-          <div v-if="selectedOverview.cdnAccelerated" class="text-row">
-            <span class="text-label">{{ t("inspector.cdnNode") }}:</span>
-            <span class="text-value">
-              <span class="i-ri-flashlight-fill" aria-hidden="true" />
-              {{ t("inspector.cdnAccelerated") }}
-            </span>
-          </div>
-        </div>
-
-        <div class="summary-progress">
-          <div class="summary-progress__copy">
-            <span>{{ t("inspector.progress") }}</span>
-            <span>{{ progressValue(selectedOverview).toFixed(1) }}%</span>
-          </div>
-          <UiProgress
-          :value="progressValue(selectedOverview)"
-          :indeterminate="isSizeUnknown(selectedOverview) && selectedOverview.state !== 'completed'"
-        />
-        </div>
+    <template v-if="selectedOverview">
+      <!-- Tab bar -->
+      <div class="inspector-tabs">
+        <button
+          class="inspector-tab"
+          :class="{ active: activeTab === 'overview' }"
+          @click="activeTab = 'overview'"
+        >
+          {{ t("inspector.tabs.overview") }}
+        </button>
+        <button
+          class="inspector-tab"
+          :class="{ active: activeTab === 'files' }"
+          @click="activeTab = 'files'"
+        >
+          {{ t("inspector.tabs.files") }}
+        </button>
+        <button
+          v-if="isBtTask"
+          class="inspector-tab"
+          :class="{ active: activeTab === 'peersTrackers' }"
+          @click="activeTab = 'peersTrackers'"
+        >
+          {{ t("inspector.tabs.peersTrackers") }}
+        </button>
       </div>
 
-      <BtPieceHeatmap
-        v-if="showHeatmap && selectedSnapshot?.kind === 'bt'"
-        :pieces="pieceList"
-        :title="t('inspector.sections.pieces')"
-      />
-      <ChunkHeatmap
-        v-else-if="
-          showHeatmap
-          && selectedSnapshot?.kind === 'http'
-          && selectedSnapshot.supportsRanges
-          && selectedSnapshot.chunks?.length
-        "
-        :chunks="selectedSnapshot.chunks"
-        :title="t('inspector.chunkProgress')"
-        :totalBytes="selectedSnapshot.totalBytes ?? 0"
-      />
+      <!-- Tab content -->
+      <div class="inspector-content">
+        <!-- ── Overview tab ── -->
+        <div v-show="activeTab === 'overview'" class="inspector-tab-content">
+          <div class="inspector-summary">
+            <div class="inspector-summary__copy">
+              <div class="inspector-summary__header">
+                <h3>{{ selectedOverview.fileName }}</h3>
+                <UiBadge :tone="stateTone">{{ t(`states.${selectedOverview.state}`) }}</UiBadge>
+                <UiBadge
+                  v-if="selectedOverview.cdnAccelerated"
+                  tone="warning"
+                  size="sm"
+                  class="inspector-summary__cdn"
+                >
+                  <span class="i-ri-flashlight-fill" aria-hidden="true" />
+                  {{ t("inspector.cdnAccelerated") }}
+                </UiBadge>
+              </div>
+              <p>{{ selectedOverview.destinationPath }}</p>
+            </div>
 
-      <section v-if="selectedSnapshot?.kind === 'bt'" class="inspector-bt-section">
-        <div class="inspector-section-header">
-          <h3>{{ t("inspector.sections.peers") }} ({{ peerList.length }})</h3>
-          <UiButton
-            variant="ghost"
-            size="sm"
-            icon="i-ri-refresh-line"
-            :loading="isFetchingPeers"
-            @click="fetchBtPeers(selectedSnapshot!.id)"
-          >
-            {{ t("inspector.refreshPeers") }}
-          </UiButton>
+            <div class="metric-grid">
+              <div class="text-row">
+                <span class="text-label">{{ t("inspector.transferred") }}:</span>
+                <span class="text-value">
+                  {{ formatBytes(selectedOverview.downloadedBytes) }} /
+                  {{ formatBytes(selectedOverview.totalBytes) }}
+                </span>
+              </div>
+              <div class="text-row">
+                <span class="text-label">{{ t("inspector.speed") }}:</span>
+                <span class="text-value">{{ formatSpeed(selectedOverview.speedBytesPerSecond) }}</span>
+              </div>
+              <div class="text-row">
+                <span class="text-label">{{ t("inspector.eta") }}:</span>
+                <span class="text-value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
+              </div>
+              <div class="text-row">
+                <span class="text-label"
+                  >{{
+                    selectedOverview.kind === "bt" ? t("inspector.peers") : t("inspector.threads")
+                  }}:</span
+                >
+                <span class="text-value">
+                  {{
+                    selectedOverview.kind === "bt"
+                      ? (selectedOverview.peerCount ?? 0)
+                      : selectedOverview.connectionCount
+                  }}
+                  <template
+                    v-if="
+                      selectedOverview.kind === 'http' && selectedOverview.threadMode === 'adaptive'
+                    "
+                  >
+                    / {{ t("tokens.adaptive") }}
+                  </template>
+                </span>
+              </div>
+              <div
+                v-if="selectedOverview.kind === 'bt'"
+                class="text-row"
+              >
+                <span class="text-label">{{ t("inspector.fields.seedCount") }}:</span>
+                <span class="text-value">{{ selectedOverview.seedCount ?? 0 }} / {{ selectedOverview.leechCount ?? 0 }}</span>
+              </div>
+              <div v-if="selectedOverview.cdnAccelerated" class="text-row">
+                <span class="text-label">{{ t("inspector.cdnNode") }}:</span>
+                <span class="text-value">
+                  <span class="i-ri-flashlight-fill" aria-hidden="true" />
+                  {{ t("inspector.cdnAccelerated") }}
+                </span>
+              </div>
+            </div>
+
+            <div class="summary-progress">
+              <div class="summary-progress__copy">
+                <span>{{ t("inspector.progress") }}</span>
+                <span>{{ progressValue(selectedOverview).toFixed(1) }}%</span>
+              </div>
+              <UiProgress
+              :value="progressValue(selectedOverview)"
+              :indeterminate="isSizeUnknown(selectedOverview) && selectedOverview.state !== 'completed'"
+            />
+            </div>
+          </div>
+
+          <ChunkHeatmap
+            v-if="
+              showHeatmap
+              && selectedSnapshot?.kind === 'http'
+              && selectedSnapshot.supportsRanges
+              && selectedSnapshot.chunks?.length
+            "
+            :chunks="selectedSnapshot.chunks"
+            :title="t('inspector.chunkProgress')"
+            :totalBytes="selectedSnapshot.totalBytes ?? 0"
+          />
+
+          <dl v-if="showDetailInfo && detailRows.length" class="detail-grid">
+            <div
+              v-for="row in detailRows"
+              :key="row.label"
+              class="text-row"
+              :class="{ 'text-row--wide': row.wide }"
+            >
+              <dt class="text-label">{{ row.label }}:</dt>
+              <dd class="text-value">{{ row.value }}</dd>
+            </div>
+          </dl>
+
+          <p v-if="selectedOverview.error" class="status-banner status-banner--error">
+            {{ selectedOverview.error }}
+          </p>
         </div>
-        <BtPeerTable :peers="peerList" />
-      </section>
 
-      <section v-if="selectedSnapshot?.kind === 'bt'" class="inspector-bt-section">
-        <div class="inspector-section-header">
-          <h3>{{ t("inspector.sections.trackers") }} ({{ trackerList.length }})</h3>
-          <UiButton
-            variant="ghost"
-            size="sm"
-            icon="i-ri-refresh-line"
-            :loading="isFetchingTrackers"
-            @click="fetchBtTrackers(selectedSnapshot!.id)"
-          >
-            {{ t("inspector.refreshTrackers") }}
-          </UiButton>
+        <!-- ── Files tab ── -->
+        <div v-show="activeTab === 'files'" class="inspector-tab-content">
+          <template v-if="selectedOverview.kind === 'http'">
+            <div class="detail-grid">
+              <div class="text-row text-row--wide">
+                <span class="text-label">{{ t("inspector.files.filename") }}:</span>
+                <span class="text-value">{{ selectedOverview.fileName }}</span>
+              </div>
+              <div class="text-row text-row--wide">
+                <span class="text-label">{{ t("inspector.files.destination") }}:</span>
+                <span class="text-value">{{ selectedOverview.destinationPath }}</span>
+              </div>
+              <div class="text-row text-row--wide">
+                <span class="text-label">{{ t("inspector.files.url") }}:</span>
+                <span class="text-value">{{ selectedOverview.url }}</span>
+              </div>
+              <div v-if="selectedSnapshot?.finalUrl" class="text-row text-row--wide">
+                <span class="text-label">{{ t("inspector.fields.finalUrl") }}:</span>
+                <span class="text-value">{{ selectedSnapshot.finalUrl }}</span>
+              </div>
+              <div class="text-row">
+                <span class="text-label">{{ t("inspector.transferred") }}:</span>
+                <span class="text-value">
+                  {{ formatBytes(selectedOverview.downloadedBytes) }} /
+                  {{ formatBytes(selectedOverview.totalBytes) }}
+                </span>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="detail-grid">
+              <div class="text-row text-row--wide">
+                <span class="text-label">{{ t("inspector.files.filename") }}:</span>
+                <span class="text-value">{{ selectedOverview.fileName }}</span>
+              </div>
+              <div class="text-row text-row--wide">
+                <span class="text-label">{{ t("inspector.files.destination") }}:</span>
+                <span class="text-value">{{ selectedOverview.destinationPath }}</span>
+              </div>
+              <div v-if="selectedOverview.infoHash" class="text-row text-row--wide">
+                <span class="text-label">{{ t('inspector.fields.infoHash') }}:</span>
+                <span class="text-value" style="font-family: var(--font-mono); word-break: break-all;">{{ selectedOverview.infoHash }}</span>
+              </div>
+              <div class="text-row text-row--wide">
+                <span class="text-label">{{ t("inspector.files.url") }}:</span>
+                <span class="text-value">{{ selectedOverview.url }}</span>
+              </div>
+              <div class="text-row">
+                <span class="text-label">{{ t("inspector.transferred") }}:</span>
+                <span class="text-value">
+                  {{ formatBytes(selectedOverview.downloadedBytes) }} /
+                  {{ formatBytes(selectedOverview.totalBytes) }}
+                </span>
+              </div>
+            </div>
+            <p class="file-list-placeholder">{{ t("inspector.files.noFileList") }}</p>
+          </template>
         </div>
-        <BtTrackerTable :trackers="trackerList" />
-      </section>
 
-      <dl v-if="showDetailInfo && detailRows.length" class="detail-grid">
-        <div
-          v-for="row in detailRows"
-          :key="row.label"
-          class="text-row"
-          :class="{ 'text-row--wide': row.wide }"
-        >
-          <dt class="text-label">{{ row.label }}:</dt>
-          <dd class="text-value">{{ row.value }}</dd>
+        <!-- ── Peers & Trackers tab (BT only) ── -->
+        <div v-show="activeTab === 'peersTrackers'" v-if="isBtTask" class="inspector-tab-content">
+          <BtPieceHeatmap
+            v-if="showHeatmap && selectedSnapshot?.kind === 'bt'"
+            :pieces="pieceList"
+            :title="t('inspector.sections.pieces')"
+          />
+
+          <section class="inspector-bt-section">
+            <div class="inspector-section-header">
+              <h3>{{ t("inspector.sections.peers") }} ({{ peerList.length }})</h3>
+              <UiButton
+                variant="ghost"
+                size="sm"
+                icon="i-ri-refresh-line"
+                :loading="isFetchingPeers"
+                @click="fetchBtPeers(selectedSnapshot!.id)"
+              >
+                {{ t("inspector.refreshPeers") }}
+              </UiButton>
+            </div>
+            <BtPeerTable :peers="peerList" />
+          </section>
+
+          <section class="inspector-bt-section">
+            <div class="inspector-section-header">
+              <h3>{{ t("inspector.sections.trackers") }} ({{ trackerList.length }})</h3>
+              <UiButton
+                variant="ghost"
+                size="sm"
+                icon="i-ri-refresh-line"
+                :loading="isFetchingTrackers"
+                @click="fetchBtTrackers(selectedSnapshot!.id)"
+              >
+                {{ t("inspector.refreshTrackers") }}
+              </UiButton>
+            </div>
+            <BtTrackerTable :trackers="trackerList" />
+          </section>
         </div>
-      </dl>
-
-      <p v-if="selectedOverview.error" class="status-banner status-banner--error">
-        {{ selectedOverview.error }}
-      </p>
-    </div>
+      </div>
+    </template>
 
     <div v-else class="inspector-empty">
       <h3>{{ t("inspector.noSelectionTitle") }}</h3>
@@ -420,13 +536,13 @@ watch(
 </template>
 
 <style scoped>
-.inspector-panel {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+.download-inspector {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.inspector-panel :deep(.section-kicker) {
+.download-inspector :deep(.section-kicker) {
   letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
   font-size: 0.7rem;
@@ -438,6 +554,8 @@ watch(
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  flex-shrink: 0;
 }
 
 .inspector-actions {
@@ -447,13 +565,57 @@ watch(
   flex-wrap: wrap;
 }
 
-.inspector-content,
-.inspector-summary {
+/* ── Tab bar ── */
+
+.inspector-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.inspector-tab {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  background: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.inspector-tab:hover {
+  color: var(--color-text-main);
+  background: var(--color-surface-muted);
+}
+
+.inspector-tab.active {
+  color: var(--color-accent-strong);
+  border-bottom-color: var(--color-accent);
+}
+
+/* ── Content area ── */
+
+.inspector-content {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: var(--space-3);
+}
+
+.inspector-tab-content {
   display: grid;
   gap: 0.75rem;
 }
 
+/* ── Summary ── */
+
 .inspector-summary {
+  display: grid;
   gap: 0.65rem;
 }
 
@@ -495,6 +657,8 @@ watch(
   font-size: var(--font-size-body);
 }
 
+/* ── Metric grid ── */
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -529,6 +693,8 @@ watch(
   font-family: var(--font-mono);
 }
 
+/* ── Progress ── */
+
 .summary-progress {
   display: grid;
   gap: 0.3rem;
@@ -542,6 +708,8 @@ watch(
   font-size: 0.72rem;
   font-family: var(--font-mono);
 }
+
+/* ── Detail grid ── */
 
 .detail-grid {
   margin: 0;
@@ -566,6 +734,8 @@ watch(
   margin: 0;
 }
 
+/* ── BT sections ── */
+
 .inspector-bt-section {
   display: grid;
   gap: 0.65rem;
@@ -589,12 +759,33 @@ watch(
   text-transform: uppercase;
 }
 
+/* ── Empty state ── */
+
 .inspector-empty {
   display: grid;
   gap: var(--space-2);
   min-height: 14rem;
   place-content: center;
   text-align: center;
+  padding: var(--space-3);
+}
+
+/* ── File list placeholder ── */
+
+.file-list-placeholder {
+  margin: 0;
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+/* ── Status banner ── */
+
+.status-banner {
+  margin: 0;
 }
 
 @media (max-width: 760px) {
