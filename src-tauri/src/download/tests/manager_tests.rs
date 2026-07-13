@@ -10,14 +10,14 @@ use axum::{
 use ntest::timeout;
 use tempfile::tempdir;
 
-use super::*;
 use super::super::settings::{load_settings, normalize_settings};
 use super::super::types::{
     AdaptiveProfile, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
     CdnAccelerationSettings, DeviceLearningMode, DownloadDefaultsSettings, LogSettings,
     NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, ProxyMode, ProxySettings,
-    SchedulerSettings, SchedulerMode, TraditionalSchedulerSettings,
+    SchedulerMode, SchedulerSettings, TraditionalSchedulerSettings,
 };
+use super::*;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 

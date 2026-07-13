@@ -108,20 +108,6 @@ export function useDownloader() {
     return !terminalStates.includes(state);
   });
 
-  function shouldRefreshSelectedStatus() {
-    const state = selectedSnapshot.value?.state ?? selectedSummary.value?.state;
-
-    if (!selectedId.value) {
-      return false;
-    }
-
-    if (!state) {
-      return true;
-    }
-
-    return !terminalStates.includes(state);
-  }
-
   async function refreshBtRuntimeStatus(options?: { silent?: boolean }) {
     try {
       btRuntimeStatus.value = await getBtRuntimeStatus();
@@ -185,7 +171,6 @@ export function useDownloader() {
     canPause,
     canResume,
     canCancel,
-    shouldRefreshSelectedStatus,
     upsertSummary,
     removeSummary,
     refreshStatus,
@@ -207,14 +192,13 @@ export function useDownloader() {
   });
 
   let unlistenEvent: UnlistenFn | null = null;
-  let fallbackTimer: ReturnType<typeof setInterval> | null = null;
-  let autoRefreshInFlight = false;
-  let refreshChunksTimer: ReturnType<typeof setTimeout> | null = null;
+  let btRuntimeTimer: ReturnType<typeof setInterval> | null = null;
 
   function handleDownloadUpdated(summary: DownloadSummary) {
     upsertSummary(summary);
 
     if (selectedId.value === summary.id && selectedSnapshot.value) {
+      // Patch the snapshot with live data from the event, including chunks for heatmap
       selectedSnapshot.value = {
         ...selectedSnapshot.value,
         downloadedBytes: summary.downloadedBytes,
@@ -224,37 +208,8 @@ export function useDownloader() {
         etaSeconds: summary.etaSeconds,
         connectionCount: summary.connectionCount,
         error: summary.error,
+        chunks: summary.chunks,
       };
-
-      // Debounced full snapshot refresh so chunk progress (heatmap) stays current
-      if (refreshChunksTimer) {
-        clearTimeout(refreshChunksTimer);
-      }
-      refreshChunksTimer = setTimeout(() => {
-        if (selectedId.value === summary.id && !terminalStates.includes(summary.state)) {
-          void refreshStatus(summary.id, { silent: true });
-        }
-      }, 2_000);
-    }
-  }
-
-  async function runAutoRefresh() {
-    if (autoRefreshInFlight || isStarting.value || Boolean(actionName.value)) {
-      return;
-    }
-
-    autoRefreshInFlight = true;
-    isAutoRefreshing.value = true;
-
-    try {
-      await refreshBtRuntimeStatus({ silent: true });
-
-      if (shouldRefreshSelectedStatus()) {
-        await refreshStatus(selectedId.value, { silent: true });
-      }
-    } finally {
-      isAutoRefreshing.value = false;
-      autoRefreshInFlight = false;
     }
   }
 
@@ -265,9 +220,11 @@ export function useDownloader() {
       unlistenEvent = unlisten;
     });
 
-    fallbackTimer = setInterval(() => {
-      void runAutoRefresh();
-    }, 3_000);
+    // BT runtime status (global DHT state, upload stats) is not included in per-download
+    // events, so a slow background poll is kept.
+    btRuntimeTimer = setInterval(() => {
+      void refreshBtRuntimeStatus({ silent: true });
+    }, 10_000);
   }
 
   function stopAutoRefresh() {
@@ -276,17 +233,11 @@ export function useDownloader() {
       unlistenEvent = null;
     }
 
-    if (fallbackTimer) {
-      clearInterval(fallbackTimer);
-      fallbackTimer = null;
+    if (btRuntimeTimer) {
+      clearInterval(btRuntimeTimer);
+      btRuntimeTimer = null;
     }
 
-    if (refreshChunksTimer) {
-      clearTimeout(refreshChunksTimer);
-      refreshChunksTimer = null;
-    }
-
-    autoRefreshInFlight = false;
     isAutoRefreshing.value = false;
   }
 

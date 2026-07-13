@@ -23,7 +23,6 @@ export interface UseDownloadActionsInput {
   canPause: ComputedRef<boolean>;
   canResume: ComputedRef<boolean>;
   canCancel: ComputedRef<boolean>;
-  shouldRefreshSelectedStatus: () => boolean;
   upsertSummary: (summary: DownloadSummary) => void;
   removeSummary: (downloadId: string) => void;
   refreshStatus: (downloadId?: string | null, options?: { silent?: boolean }) => Promise<void>;
@@ -44,7 +43,6 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
     canPause,
     canResume,
     canCancel,
-    shouldRefreshSelectedStatus,
     upsertSummary,
     removeSummary,
     refreshStatus,
@@ -173,7 +171,6 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
     canPause,
     canResume,
     canCancel,
-    shouldRefreshSelectedStatus,
     canPauseDownload: (download: DownloadSummary) => canPauseState(download.state),
     canResumeDownload: (download: DownloadSummary) => canResumeState(download.state),
     selectedDownload,

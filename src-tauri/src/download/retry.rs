@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::error::{DownloadError, Result};
 use super::http::{ResponseDisposition, classify_download_response};
-use super::manager::{now_ms, ManagedDownload};
+use super::manager::{ManagedDownload, now_ms};
 use super::types::DownloadState;
 
 /// Wraps an HTTP request factory with retry logic and exponential backoff.
@@ -111,4 +111,3 @@ fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: String) {
 fn backoff_delay(attempt: u32) -> Duration {
     Duration::from_millis((250_u64).saturating_mul(2_u64.saturating_pow(attempt.min(4))))
 }
-

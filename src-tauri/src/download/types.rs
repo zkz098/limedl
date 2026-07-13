@@ -291,6 +291,8 @@ pub struct DownloadSummary {
     pub download_limit_bps: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_limit_bps: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chunks: Vec<ChunkInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -374,6 +376,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             leech_count: value.leech_count,
             download_limit_bps: value.download_limit_bps,
             upload_limit_bps: value.upload_limit_bps,
+            chunks: value.chunks.clone(),
         }
     }
 }

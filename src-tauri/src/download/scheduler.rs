@@ -16,8 +16,8 @@ use super::{
     aimd::{self, AimdState},
     error::Result,
     manager::{
-        log_background_error, now_ms, sync_snapshot_with_manifest, DownloadManager, ManagedDownload,
-        DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS,
+        DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS, ManagedDownload,
+        log_background_error, now_ms, sync_snapshot_with_manifest,
     },
     manifest::Manifest,
     persistence::persist_manifest_snapshot,
@@ -451,9 +451,7 @@ pub(crate) fn active_learning_metrics(
 }
 
 /// Returns the recommended thread cap from active learning metrics, if any.
-pub(crate) fn active_scene_thread_cap(
-    settings: &NetworkLearningSettings,
-) -> Option<usize> {
+pub(crate) fn active_scene_thread_cap(settings: &NetworkLearningSettings) -> Option<usize> {
     active_learning_metrics(settings).map(|metrics| metrics.recommended_max_threads_per_task_cap)
 }
 
@@ -558,11 +556,7 @@ fn recommended_threads_from_bandwidth(throughput: f64, profile: AdaptiveProfile)
     }
 }
 
-fn adjust_threads_for_stability(
-    threads: usize,
-    stability_score: f64,
-    penalty_rate: f64,
-) -> usize {
+fn adjust_threads_for_stability(threads: usize, stability_score: f64, penalty_rate: f64) -> usize {
     if penalty_rate >= 0.25 || stability_score <= 0.55 {
         return threads.saturating_sub(1).max(1);
     }

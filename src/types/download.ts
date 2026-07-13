@@ -76,6 +76,7 @@ export interface DownloadSummary {
   leechCount?: number;
   downloadLimitBps?: number;
   uploadLimitBps?: number;
+  chunks?: ChunkInfo[];
 }
 
 export interface ChunkInfo {

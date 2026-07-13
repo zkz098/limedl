@@ -49,8 +49,7 @@ use super::{
 };
 
 use super::settings::{
-    build_http_client, load_settings, normalize_settings, persist_settings,
-    resolve_user_agent,
+    build_http_client, load_settings, normalize_settings, persist_settings, resolve_user_agent,
 };
 
 #[path = "http_executor.rs"]
@@ -803,7 +802,6 @@ impl DownloadManager {
 
         Ok(())
     }
-
 }
 
 fn is_terminal(state: DownloadState) -> bool {
@@ -1226,7 +1224,6 @@ fn record_progress_on_managed(
         }
     }
 }
-
 
 fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
     let base = destination_dir.join(file_name);

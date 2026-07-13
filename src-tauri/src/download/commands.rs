@@ -8,6 +8,7 @@ use super::{
     error::extract_kind_from_anyhow,
     lock_or_recover,
     manager::AppState,
+    protocol::DownloadProtocol,
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     torrent::{DownloadSourceKind, classify_download_source},
     types::{
@@ -41,36 +42,29 @@ fn format_anyhow_chain(error: anyhow::Error) -> String {
     messages.join(": ")
 }
 
-/// Routes a download action to the correct manager based on task ID prefix.
-/// Eliminates the copy-paste `if bt → else if sftp → else http` pattern across all commands.
-macro_rules! dispatch_download_action {
-    ($state:expr, $download_id:expr, $action:ident, $http_err:literal, $bt_err:literal, $sftp_err:literal) => {{
-        let task_id = TaskId::parse(&$download_id);
-        match &task_id {
-            TaskId::Bt(_) => into_command_result(
-                $state
-                    .torrent_manager
-                    .$action(&$download_id)
-                    .await
-                    .context($bt_err),
-            ),
-            TaskId::Sftp(_) => into_command_result(
-                $state
-                    .sftp_manager
-                    .$action(&$download_id)
-                    .await
-                    .context($sftp_err),
-            ),
-            TaskId::Http(_) => into_command_result(
-                $state
-                    .manager
-                    .$action(task_id.http_inner().unwrap_or(""))
-                    .await
-                    .map(prefix_http_snapshot)
-                    .context($http_err),
-            ),
-        }
-    }};
+/// Select the [`DownloadProtocol`] implementation that matches the given
+/// [`TaskId`] variant, so that commands can write a single call instead of
+/// a three-branch match.
+fn protocol_for_task<'a>(state: &'a AppState, task_id: &TaskId) -> &'a dyn DownloadProtocol {
+    match task_id {
+        TaskId::Bt(_) => &*state.torrent_manager,
+        TaskId::Sftp(_) => &*state.sftp_manager,
+        TaskId::Http(_) => &*state.manager,
+    }
+}
+
+/// Produce the `.context()` error message for an action based on task kind.
+fn action_context(
+    task_id: &TaskId,
+    http: &'static str,
+    bt: &'static str,
+    sftp: &'static str,
+) -> &'static str {
+    match task_id {
+        TaskId::Http(_) => http,
+        TaskId::Bt(_) => bt,
+        TaskId::Sftp(_) => sftp,
+    }
 }
 
 #[tauri::command]
@@ -126,13 +120,17 @@ pub async fn download_pause(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let result = dispatch_download_action!(
-        state,
-        download_id,
-        pause,
-        "暂停 HTTP 下载失败",
-        "暂停 BT 下载失败",
-        "暂停 SFTP 下载失败"
+    let task_id = TaskId::parse(&download_id);
+    let result = into_command_result(
+        protocol_for_task(&state, &task_id)
+            .pause(task_id.as_str())
+            .await
+            .context(action_context(
+                &task_id,
+                "暂停 HTTP 下载失败",
+                "暂停 BT 下载失败",
+                "暂停 SFTP 下载失败",
+            )),
     );
     state.emit_all_downloads().await;
     result
@@ -143,13 +141,17 @@ pub async fn download_resume(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let result = dispatch_download_action!(
-        state,
-        download_id,
-        resume,
-        "恢复 HTTP 下载失败",
-        "恢复 BT 下载失败",
-        "恢复 SFTP 下载失败"
+    let task_id = TaskId::parse(&download_id);
+    let result = into_command_result(
+        protocol_for_task(&state, &task_id)
+            .resume(task_id.as_str())
+            .await
+            .context(action_context(
+                &task_id,
+                "恢复 HTTP 下载失败",
+                "恢复 BT 下载失败",
+                "恢复 SFTP 下载失败",
+            )),
     );
     state.emit_all_downloads().await;
     result
@@ -160,13 +162,17 @@ pub async fn download_cancel(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let result = dispatch_download_action!(
-        state,
-        download_id,
-        cancel,
-        "取消 HTTP 下载失败",
-        "取消 BT 下载失败",
-        "取消 SFTP 下载失败"
+    let task_id = TaskId::parse(&download_id);
+    let result = into_command_result(
+        protocol_for_task(&state, &task_id)
+            .cancel(task_id.as_str())
+            .await
+            .context(action_context(
+                &task_id,
+                "取消 HTTP 下载失败",
+                "取消 BT 下载失败",
+                "取消 SFTP 下载失败",
+            )),
     );
     state.emit_all_downloads().await;
     result
@@ -177,13 +183,17 @@ pub async fn download_remove(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let result = dispatch_download_action!(
-        state,
-        download_id,
-        remove,
-        "移除 HTTP 下载失败",
-        "移除 BT 下载失败",
-        "移除 SFTP 下载失败"
+    let task_id = TaskId::parse(&download_id);
+    let result = into_command_result(
+        protocol_for_task(&state, &task_id)
+            .remove(task_id.as_str())
+            .await
+            .context(action_context(
+                &task_id,
+                "移除 HTTP 下载失败",
+                "移除 BT 下载失败",
+                "移除 SFTP 下载失败",
+            )),
     );
     state.emit_all_downloads().await;
     result
@@ -194,13 +204,17 @@ pub async fn download_purge(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let result = dispatch_download_action!(
-        state,
-        download_id,
-        purge,
-        "彻底删除 HTTP 下载失败",
-        "彻底删除 BT 下载失败",
-        "彻底删除 SFTP 下载失败"
+    let task_id = TaskId::parse(&download_id);
+    let result = into_command_result(
+        protocol_for_task(&state, &task_id)
+            .purge(task_id.as_str())
+            .await
+            .context(action_context(
+                &task_id,
+                "彻底删除 HTTP 下载失败",
+                "彻底删除 BT 下载失败",
+                "彻底删除 SFTP 下载失败",
+            )),
     );
     state.emit_all_downloads().await;
     result
@@ -212,29 +226,17 @@ pub async fn download_open_in_explorer(
     download_id: String,
 ) -> CommandResult<()> {
     let task_id = TaskId::parse(&download_id);
-    match &task_id {
-        TaskId::Bt(_) => into_command_result(
-            state
-                .torrent_manager
-                .open_in_explorer(&download_id)
-                .await
-                .context("在资源管理器打开 BT 下载失败"),
-        ),
-        TaskId::Sftp(_) => into_command_result(
-            state
-                .sftp_manager
-                .open_in_explorer(&download_id)
-                .await
-                .context("在资源管理器打开 SFTP 下载失败"),
-        ),
-        TaskId::Http(_) => into_command_result(
-            state
-                .manager
-                .open_in_explorer(task_id.http_inner().unwrap_or(""))
-                .await
-                .context("在资源管理器打开 HTTP 下载失败"),
-        ),
-    }
+    into_command_result(
+        protocol_for_task(&state, &task_id)
+            .open_in_explorer(task_id.as_str())
+            .await
+            .context(action_context(
+                &task_id,
+                "在资源管理器打开 HTTP 下载失败",
+                "在资源管理器打开 BT 下载失败",
+                "在资源管理器打开 SFTP 下载失败",
+            )),
+    )
 }
 
 #[tauri::command]
@@ -242,13 +244,17 @@ pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    dispatch_download_action!(
-        state,
-        download_id,
-        status,
-        "查询 HTTP 下载状态失败",
-        "查询 BT 下载状态失败",
-        "查询 SFTP 下载状态失败"
+    let task_id = TaskId::parse(&download_id);
+    into_command_result(
+        protocol_for_task(&state, &task_id)
+            .status(task_id.as_str())
+            .await
+            .context(action_context(
+                &task_id,
+                "查询 HTTP 下载状态失败",
+                "查询 BT 下载状态失败",
+                "查询 SFTP 下载状态失败",
+            )),
     )
 }
 
@@ -476,9 +482,4 @@ pub async fn bt_get_pieces(
             .get_pieces(&download_id)
             .context("查询 BT 分片信息失败"),
     )
-}
-
-fn prefix_http_snapshot(mut snapshot: DownloadSnapshot) -> DownloadSnapshot {
-    snapshot.id = TaskId::make_http(snapshot.id);
-    snapshot
 }
