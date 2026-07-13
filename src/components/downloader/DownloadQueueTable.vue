@@ -316,14 +316,6 @@ function labelForTaskKind(kind: DownloadSummary["kind"]) {
     return t("tokens.bt");
   }
 
-  if (kind === "metalink") {
-    return t("tokens.metalink");
-  }
-
-  if (kind === "sftp") {
-    return t("tokens.sftp");
-  }
-
   return t("tokens.http");
 }
 

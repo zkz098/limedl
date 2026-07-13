@@ -1,7 +1,7 @@
 import { reactive, ref, type Ref } from "vue";
 
 import { setBtSpeedLimit, startDownload } from "../lib/tauri/download-api";
-import { pickDirectory, pickMetalinkFile, pickTorrentFile } from "../lib/tauri/dialog-api";
+import { pickDirectory, pickTorrentFile } from "../lib/tauri/dialog-api";
 import { t } from "../i18n";
 import { toMessage } from "./downloadHelpers";
 import type {
@@ -51,7 +51,6 @@ export function useDownloadForm(input: UseDownloadFormInput) {
   });
 
   const isPickingDirectory = ref(false);
-  const isPickingMetalink = ref(false);
   const isPickingTorrent = ref(false);
 
   function applySchedulerDefaults(mode: SchedulerMode, maxThreadsPerTask?: number) {
@@ -88,12 +87,6 @@ export function useDownloadForm(input: UseDownloadFormInput) {
   }
 
   function applyAppSettingsDefaults(settings: AppSettings) {
-    if (
-      (form.kind === "metalink" && !settings.download.enableMetalink) ||
-      (form.kind === "sftp" && !settings.download.enableSftp)
-    ) {
-      form.kind = "http";
-    }
     form.destinationDir = settings.download.defaultDownloadDir;
     form.maxRetries = settings.download.defaultMaxRetries;
     form.checksum = settings.download.defaultChecksum;
@@ -111,14 +104,12 @@ export function useDownloadForm(input: UseDownloadFormInput) {
       destinationDir: form.destinationDir.trim(),
     };
 
-    if (form.kind === "http" || form.kind === "metalink" || form.kind === "sftp") {
+    if (form.kind === "http") {
       request.threadMode = form.threadMode;
 
-      if (form.kind === "http") {
-        const fileName = form.fileName.trim();
-        if (fileName) {
-          request.fileName = fileName;
-        }
+      const fileName = form.fileName.trim();
+      if (fileName) {
+        request.fileName = fileName;
       }
 
       const userAgent = form.userAgent.trim();
@@ -142,12 +133,10 @@ export function useDownloadForm(input: UseDownloadFormInput) {
         }
       }
 
-      if (form.kind === "http") {
-        request.checksum = form.checksum;
-      }
+      request.checksum = form.checksum;
     }
 
-    if (form.kind === "bt" || form.kind === "metalink") {
+    if (form.kind === "bt") {
       if (form.selectedFileIndices && form.selectedFileIndices.length > 0) {
         request.selectedFileIndices = [...form.selectedFileIndices];
       }
@@ -200,37 +189,12 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     }
   }
 
-  async function pickMetalinkSourceFile() {
-    if (isPickingMetalink.value) {
-      return;
-    }
-
-    isPickingMetalink.value = true;
-
-    try {
-      const selectedPath = await pickMetalinkFile();
-
-      if (selectedPath) {
-        form.kind = "metalink";
-        form.url = selectedPath;
-      }
-    } catch (error) {
-      setError(toMessage(error));
-    } finally {
-      isPickingMetalink.value = false;
-    }
-  }
-
   async function submitStart() {
     if (!form.url.trim() || !form.destinationDir.trim()) {
       setError(
         form.kind === "bt"
           ? t("messages.torrentStartRequired")
-          : form.kind === "metalink"
-            ? t("messages.metalinkStartRequired")
-            : form.kind === "sftp"
-              ? t("messages.sftpStartRequired")
-              : t("messages.startRequired"),
+          : t("messages.startRequired"),
       );
       return;
     }
@@ -272,13 +236,11 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     form,
     isStarting,
     isPickingDirectory,
-    isPickingMetalink,
     isPickingTorrent,
     applySchedulerDefaults,
     applyAppSettingsDefaults,
     buildStartRequest,
     pickDestinationDirectory,
-    pickMetalinkSourceFile,
     pickTorrentSourceFile,
     submitStart,
   };

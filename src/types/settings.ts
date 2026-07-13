@@ -47,8 +47,6 @@ export interface DownloadDefaultsSettings {
   defaultMaxRetries: number;
   defaultChecksum: ChecksumMode;
   defaultUserAgent: string;
-  enableMetalink: boolean;
-  enableSftp: boolean;
 }
 
 export interface BtSettings {

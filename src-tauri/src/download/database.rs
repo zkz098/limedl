@@ -379,6 +379,13 @@ impl Database {
             [],
         );
 
+        // Remove any SFTP download entries whose IDs start with "sftp:"
+        // after the SFTP protocol support was removed.
+        let _ = conn.execute(
+            "DELETE FROM downloads WHERE id LIKE 'sftp:%'",
+            [],
+        );
+
         Ok(Self {
             conn: Mutex::new(conn),
         })

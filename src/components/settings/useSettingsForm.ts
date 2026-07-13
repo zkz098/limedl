@@ -55,8 +55,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       defaultMaxRetries: 5,
       defaultChecksum: "blake3",
       defaultUserAgent: DEFAULT_HTTP_USER_AGENT,
-      enableMetalink: false,
-      enableSftp: false,
     },
     bt: {
       dhtEnabled: true,
@@ -143,8 +141,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         defaultMaxRetries: form.download.defaultMaxRetries,
         defaultChecksum: form.download.defaultChecksum,
         defaultUserAgent: form.download.defaultUserAgent,
-        enableMetalink: form.download.enableMetalink,
-        enableSftp: form.download.enableSftp,
       },
       bt: {
         dhtEnabled: form.bt.dhtEnabled,
@@ -217,8 +213,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.download.defaultChecksum = nextSettings.download.defaultChecksum;
       form.download.defaultUserAgent =
         nextSettings.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
-      form.download.enableMetalink = nextSettings.download.enableMetalink ?? false;
-      form.download.enableSftp = nextSettings.download.enableSftp ?? false;
       form.bt.dhtEnabled = nextSettings.bt.dhtEnabled;
       form.bt.trackerList = nextSettings.bt.trackerList;
       form.bt.trackerListUrl = nextSettings.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL;

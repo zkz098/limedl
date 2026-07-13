@@ -10,7 +10,6 @@ mod http;
 mod logging;
 mod manager;
 mod manifest;
-mod metalink;
 pub(crate) mod migration;
 pub(crate) mod persistence;
 pub(crate) mod protocol;
@@ -18,7 +17,6 @@ mod rate_limiter;
 pub(crate) mod retry;
 pub(crate) mod scheduler;
 pub(crate) mod settings;
-mod sftp;
 mod torrent;
 mod types;
 
@@ -39,7 +37,6 @@ pub use commands::{
 pub use logging::init_logging;
 pub use manager::{AppState, DownloadManager};
 pub use rate_limiter::RateLimiter;
-pub use sftp::SftpManager;
 pub use torrent::TorrentManager;
 
 pub(crate) fn lock_or_recover<'a, T>(

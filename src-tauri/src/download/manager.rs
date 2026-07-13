@@ -12,7 +12,6 @@ use futures_util::StreamExt;
 use reqwest::{Client, StatusCode, Url, header};
 use tauri::Emitter;
 use tokio::{
-    fs as async_fs,
     sync::{Notify, RwLock, broadcast},
     task::JoinSet,
     time::sleep,
@@ -37,7 +36,6 @@ use super::{
         has_partial_chunk_progress, plan_chunks, resolve_chunk_size, snapshot_from_manifest,
         validators_changed,
     },
-    metalink::parse_metalink,
     migration::migrate_json_manifests,
     rate_limiter::RateLimiter,
     scheduler::{active_learning_metrics, active_scene_thread_cap},
@@ -64,7 +62,6 @@ pub(crate) const MAX_TRADITIONAL_THREADS: usize = 32;
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
     pub torrent_manager: Arc<TorrentManager>,
-    pub sftp_manager: Arc<super::sftp::SftpManager>,
     pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
     pub rpc_shutdown: Arc<std::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
@@ -82,9 +79,6 @@ impl AppState {
         }
         if let Ok(bt) = self.torrent_manager.list().await {
             summaries.extend(bt);
-        }
-        if let Ok(sftp) = self.sftp_manager.list().await {
-            summaries.extend(sftp);
         }
 
         for summary in &summaries {
@@ -423,112 +417,6 @@ impl DownloadManager {
         self.rebalance_notify.notify_waiters();
 
         Ok(download_id)
-    }
-
-    pub async fn start_metalink(&self, request: StartDownloadRequest) -> Result<String> {
-        let settings = self.settings.read().await.clone();
-        if !settings.download.enable_metalink {
-            return Err(DownloadError::InvalidResponse(String::from(
-                "metalink support is disabled in settings",
-            )));
-        }
-
-        let user_agent = resolve_user_agent(
-            request.user_agent.as_deref(),
-            &settings.download.default_user_agent,
-        )?;
-        let content = self
-            .load_metalink_source(request.url.trim(), &user_agent)
-            .await?;
-        let entries = parse_metalink(&content)?;
-        let is_single_file = entries.len() == 1;
-        let mut first_id = None;
-        let mut errors = Vec::new();
-
-        for (index, entry) in entries.into_iter().enumerate() {
-            let mut next = request.clone();
-            next.kind = Some(TaskKind::Http);
-            next.url = entry.url;
-            next.file_name = if is_single_file {
-                request.file_name.clone().or(entry.file_name)
-            } else {
-                entry.file_name.or_else(|| {
-                    request
-                        .file_name
-                        .as_ref()
-                        .map(|name| numbered_file_name(name, index + 1))
-                })
-            };
-            next.checksum = request.checksum.or(entry.checksum_mode);
-
-            match self.start(next).await {
-                Ok(id) if first_id.is_none() => first_id = Some(id),
-                Ok(_) => {}
-                Err(error) => errors.push(error.to_string()),
-            }
-        }
-
-        first_id.ok_or_else(|| {
-            DownloadError::InvalidResponse(format!(
-                "metalink did not start any downloads{}",
-                if errors.is_empty() {
-                    String::new()
-                } else {
-                    format!(": {}", errors.join("; "))
-                }
-            ))
-        })
-    }
-
-    async fn load_metalink_source(&self, source: &str, user_agent: &str) -> Result<String> {
-        if source.is_empty() {
-            return Err(DownloadError::InvalidResponse(String::from(
-                "metalink source is empty",
-            )));
-        }
-
-        if let Ok(url) = Url::parse(source) {
-            return match url.scheme() {
-                "http" | "https" => {
-                    const MAX_METALINK_BYTES: usize = 8 * 1024 * 1024;
-
-                    let response = self
-                        .client
-                        .read()
-                        .await
-                        .get(source)
-                        .header(header::USER_AGENT, user_agent)
-                        .send()
-                        .await?
-                        .error_for_status()?;
-                    let bytes = response.bytes().await?;
-                    if bytes.len() > MAX_METALINK_BYTES {
-                        return Err(DownloadError::InvalidResponse(String::from(
-                            "metalink document is larger than 8 MiB",
-                        )));
-                    }
-
-                    String::from_utf8(bytes.to_vec()).map_err(|error| {
-                        DownloadError::InvalidResponse(format!(
-                            "metalink document is not utf-8: {error}"
-                        ))
-                    })
-                }
-                "file" => {
-                    let path = url.to_file_path().map_err(|_| {
-                        DownloadError::InvalidResponse(String::from("invalid metalink file url"))
-                    })?;
-                    async_fs::read_to_string(path)
-                        .await
-                        .map_err(DownloadError::Io)
-                }
-                _ => Err(DownloadError::UnsupportedScheme),
-            };
-        }
-
-        async_fs::read_to_string(source)
-            .await
-            .map_err(DownloadError::Io)
     }
 
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
@@ -1261,23 +1149,6 @@ fn initial_file_name_from_url(url: &str) -> String {
         .map(sanitize_filename::sanitize)
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| String::from("download"))
-}
-
-fn numbered_file_name(file_name: &str, index: usize) -> String {
-    let path = Path::new(file_name);
-    let stem = path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .filter(|value| !value.is_empty())
-        .unwrap_or(file_name);
-    let extension = path
-        .extension()
-        .and_then(|value| value.to_str())
-        .filter(|value| !value.is_empty())
-        .map(|value| format!(".{value}"))
-        .unwrap_or_default();
-
-    format!("{stem}-{index}{extension}")
 }
 
 fn remove_file_if_exists(path: &Path) -> Result<()> {

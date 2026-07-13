@@ -44,11 +44,10 @@ fn format_anyhow_chain(error: anyhow::Error) -> String {
 
 /// Select the [`DownloadProtocol`] implementation that matches the given
 /// [`TaskId`] variant, so that commands can write a single call instead of
-/// a three-branch match.
+/// a two-branch match.
 fn protocol_for_task<'a>(state: &'a AppState, task_id: &TaskId) -> &'a dyn DownloadProtocol {
     match task_id {
         TaskId::Bt(_) => &*state.torrent_manager,
-        TaskId::Sftp(_) => &*state.sftp_manager,
         TaskId::Http(_) => &*state.manager,
     }
 }
@@ -58,12 +57,10 @@ fn action_context(
     task_id: &TaskId,
     http: &'static str,
     bt: &'static str,
-    sftp: &'static str,
 ) -> &'static str {
     match task_id {
         TaskId::Http(_) => http,
         TaskId::Bt(_) => bt,
-        TaskId::Sftp(_) => sftp,
     }
 }
 
@@ -88,25 +85,6 @@ pub async fn download_start(
                     .start(request)
                     .await
                     .context("启动 BT 下载失败"),
-                DownloadSourceKind::Metalink => {
-                    let id = state
-                        .manager
-                        .start_metalink(request)
-                        .await
-                        .context("启动 Metalink 下载失败")?;
-                    Ok(TaskId::make_http(id))
-                }
-                DownloadSourceKind::Sftp => {
-                    let settings = state.manager.settings().await.context("读取下载设置失败")?;
-                    if !settings.download.enable_sftp {
-                        return Err(anyhow!("SFTP support is disabled in settings"));
-                    }
-                    state
-                        .sftp_manager
-                        .start(request)
-                        .await
-                        .context("启动 SFTP 下载失败")
-                }
             }
         }
         .await,
@@ -129,7 +107,6 @@ pub async fn download_pause(
                 &task_id,
                 "暂停 HTTP 下载失败",
                 "暂停 BT 下载失败",
-                "暂停 SFTP 下载失败",
             )),
     );
     state.emit_all_downloads().await;
@@ -150,7 +127,6 @@ pub async fn download_resume(
                 &task_id,
                 "恢复 HTTP 下载失败",
                 "恢复 BT 下载失败",
-                "恢复 SFTP 下载失败",
             )),
     );
     state.emit_all_downloads().await;
@@ -171,7 +147,6 @@ pub async fn download_cancel(
                 &task_id,
                 "取消 HTTP 下载失败",
                 "取消 BT 下载失败",
-                "取消 SFTP 下载失败",
             )),
     );
     state.emit_all_downloads().await;
@@ -192,7 +167,6 @@ pub async fn download_remove(
                 &task_id,
                 "移除 HTTP 下载失败",
                 "移除 BT 下载失败",
-                "移除 SFTP 下载失败",
             )),
     );
     state.emit_all_downloads().await;
@@ -213,7 +187,6 @@ pub async fn download_purge(
                 &task_id,
                 "彻底删除 HTTP 下载失败",
                 "彻底删除 BT 下载失败",
-                "彻底删除 SFTP 下载失败",
             )),
     );
     state.emit_all_downloads().await;
@@ -234,7 +207,6 @@ pub async fn download_open_in_explorer(
                 &task_id,
                 "在资源管理器打开 HTTP 下载失败",
                 "在资源管理器打开 BT 下载失败",
-                "在资源管理器打开 SFTP 下载失败",
             )),
     )
 }
@@ -253,7 +225,6 @@ pub async fn download_status(
                 &task_id,
                 "查询 HTTP 下载状态失败",
                 "查询 BT 下载状态失败",
-                "查询 SFTP 下载状态失败",
             )),
     )
 }
@@ -279,13 +250,6 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
                     .list()
                     .await
                     .context("读取 BT 下载列表失败")?,
-            );
-            downloads.extend(
-                state
-                    .sftp_manager
-                    .list()
-                    .await
-                    .context("读取 SFTP 下载列表失败")?,
             );
             downloads.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
             Ok(downloads)
@@ -341,11 +305,9 @@ pub async fn settings_save(
                     let (event_tx, _event_rx) = tokio::sync::broadcast::channel(256);
                     state.manager.set_event_tx(event_tx.clone());
                     state.torrent_manager.set_event_tx(event_tx.clone());
-                    state.sftp_manager.set_event_tx(event_tx.clone());
                     let rpc_server = Aria2RpcServer::new(
                         state.manager.clone(),
                         state.torrent_manager.clone(),
-                        state.sftp_manager.clone(),
                         new_rpc,
                         event_tx,
                     );

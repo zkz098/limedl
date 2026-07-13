@@ -19,7 +19,6 @@ use tower_http::cors::{Any, CorsLayer};
 
 use super::{
     manager::DownloadManager,
-    sftp::SftpManager,
     torrent::TorrentManager,
     types::{
         Aria2RpcSettings, DownloadState, DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
@@ -124,12 +123,6 @@ async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<String> {
             cache.entry(key).or_insert_with(|| s.id.clone());
         }
     }
-    if let Ok(list) = ctx.sftp_manager.list().await {
-        for s in &list {
-            let key = internal_id_to_gid(&s.id);
-            cache.entry(key).or_insert_with(|| s.id.clone());
-        }
-    }
 
     cache.get(gid).cloned()
 }
@@ -212,7 +205,6 @@ fn build_file_list(summary: &DownloadSummary) -> Value {
 struct RpcContext {
     manager: Arc<DownloadManager>,
     torrent_manager: Arc<TorrentManager>,
-    sftp_manager: Arc<SftpManager>,
     secret: Option<String>,
     event_tx: broadcast::Sender<String>,
     gid_cache: Mutex<HashMap<String, String>>,
@@ -261,7 +253,6 @@ async fn dispatch_method(
     match method {
         "aria2.addUri" => handle_add_uri(ctx, params).await,
         "aria2.addTorrent" => handle_add_torrent(ctx, params).await,
-        "aria2.addMetalink" => handle_add_metalink(ctx, params).await,
         "aria2.pause" | "aria2.forcePause" => handle_pause(ctx, params).await,
         "aria2.unpause" => handle_unpause(ctx, params).await,
         "aria2.pauseAll" | "aria2.forcePauseAll" => handle_pause_all(ctx).await,
@@ -618,7 +609,7 @@ fn handle_version() -> Value {
         "version": "0.1.0",
         "enabledFeatures": [
             "Async DNS", "BitTorrent", "Firefox3 Cookie", "GZip",
-            "HTTPS", "Message Digest", "Metalink", "XML-RPC", "SFTP"
+            "HTTPS", "Message Digest", "XML-RPC"
         ]
     })
 }
@@ -664,61 +655,6 @@ async fn handle_get_peers(_ctx: &RpcContext, _params: Vec<Value>) -> Result<Valu
     // Peers are tracked via librqbit internally; full peer enumeration requires
     // deeper integration. Return empty list as a placeholder.
     Ok(Value::Array(vec![]))
-}
-
-async fn handle_add_metalink(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
-
-    let metalink_b64 = params
-        .first()
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing metalink base64 data"))?;
-
-    let metalink_bytes = base64::engine::general_purpose::STANDARD
-        .decode(metalink_b64)
-        .map_err(|_| make_error(ERR_INVALID_PARAMS, "Invalid base64 metalink data"))?;
-
-    let metalink_str = String::from_utf8(metalink_bytes)
-        .map_err(|_| make_error(ERR_INVALID_PARAMS, "Metalink data is not valid UTF-8"))?;
-
-    let temp_dir = std::env::temp_dir().join("downloader_aria2");
-    std::fs::create_dir_all(&temp_dir).ok();
-    let metalink_path = temp_dir.join(format!("{}.metalink", uuid::Uuid::new_v4()));
-    std::fs::write(&metalink_path, &metalink_str)
-        .map_err(|e| make_error(ERR_INTERNAL, format!("Failed to write metalink file: {e}")))?;
-
-    let options = params.get(1).and_then(|v| v.as_object());
-    let destination_dir = options
-        .and_then(|o| o.get("dir"))
-        .and_then(|v| v.as_str())
-        .filter(|v| !v.trim().is_empty())
-        .map(String::from)
-        .unwrap_or_else(|| ctx.settings_default_download_dir());
-
-    let request = StartDownloadRequest {
-        kind: Some(TaskKind::Metalink),
-        url: metalink_path.to_string_lossy().to_string(),
-        destination_dir,
-        file_name: extract_option_str(options, "out"),
-        user_agent: extract_option_str(options, "user-agent"),
-        thread_mode: None,
-        thread_count: None,
-        max_retries: extract_option_u32(options, "max-tries"),
-        checksum: None,
-        selected_file_indices: None,
-        start_paused: false,
-    };
-
-    let id = ctx
-        .manager
-        .start_metalink(request)
-        .await
-        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
-
-    let gid = internal_id_to_gid(&TaskId::make_http(id));
-    broadcast_event(ctx, "aria2.onDownloadStart", &gid);
-    Ok(Value::String(gid))
 }
 
 async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
@@ -819,7 +755,6 @@ fn handle_list_methods() -> Value {
         [
             "aria2.addUri",
             "aria2.addTorrent",
-            "aria2.addMetalink",
             "aria2.pause",
             "aria2.forcePause",
             "aria2.unpause",
@@ -874,9 +809,6 @@ async fn get_all_summaries(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, Jso
     if let Ok(bt) = ctx.torrent_manager.list().await {
         all.extend(bt);
     }
-    if let Ok(sftp) = ctx.sftp_manager.list().await {
-        all.extend(sftp);
-    }
     Ok(all)
 }
 
@@ -907,27 +839,6 @@ async fn rpc_dispatch_action(
                 .map(|_| ())
                 .map_err(|e| anyhow::anyhow!("{e}")),
             _ => Err(anyhow::anyhow!("unsupported action for BT: {action}")),
-        },
-        TaskId::Sftp(_) => match action {
-            "pause" => ctx
-                .sftp_manager
-                .pause(internal_id)
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            "resume" => ctx
-                .sftp_manager
-                .resume(internal_id)
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            "remove" => ctx
-                .sftp_manager
-                .remove(internal_id)
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            _ => Err(anyhow::anyhow!("unsupported action for SFTP: {action}")),
         },
         TaskId::Http(_) => match action {
             "pause" => ctx
@@ -1118,7 +1029,6 @@ impl Aria2RpcServer {
     pub fn new(
         manager: Arc<DownloadManager>,
         torrent_manager: Arc<TorrentManager>,
-        sftp_manager: Arc<SftpManager>,
         settings: &Aria2RpcSettings,
         event_tx: broadcast::Sender<String>,
     ) -> Self {
@@ -1127,7 +1037,6 @@ impl Aria2RpcServer {
         let ctx = Arc::new(RpcContext {
             manager,
             torrent_manager,
-            sftp_manager,
             secret,
             event_tx,
             gid_cache: Mutex::new(HashMap::new()),

@@ -2,14 +2,13 @@ use async_trait::async_trait;
 
 use super::error::Result;
 use super::manager::DownloadManager;
-use super::sftp::SftpManager;
 use super::torrent::TorrentManager;
 use super::types::{DownloadSnapshot, DownloadSummary, TaskId};
 
-/// Common protocol interface for all download managers (HTTP, BitTorrent, SFTP).
+/// Common protocol interface for all download managers (HTTP, BitTorrent).
 ///
 /// Callers pass the **external** (wire-format) `download_id` (e.g. `"http:…"`,
-/// `"bt:…"`, `"sftp:…"`).  Each implementation handles its own ID prefix
+/// `"bt:…"`).  Each implementation handles its own ID prefix
 /// stripping and output-snapshot prefixing so that callers are uniform.
 #[async_trait]
 pub(crate) trait DownloadProtocol: Send + Sync {
@@ -142,41 +141,4 @@ impl DownloadProtocol for TorrentManager {
     }
 }
 
-// ---------------------------------------------------------------------------
-// SFTP – delegates directly (the manager already handles "sftp:" prefix).
-// ---------------------------------------------------------------------------
 
-#[async_trait]
-impl DownloadProtocol for SftpManager {
-    async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        SftpManager::pause(self, download_id).await
-    }
-
-    async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        SftpManager::resume(self, download_id).await
-    }
-
-    async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        SftpManager::cancel(self, download_id).await
-    }
-
-    async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        SftpManager::remove(self, download_id).await
-    }
-
-    async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        SftpManager::purge(self, download_id).await
-    }
-
-    async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
-        SftpManager::open_in_explorer(self, download_id).await
-    }
-
-    async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        SftpManager::status(self, download_id).await
-    }
-
-    async fn list(&self) -> Result<Vec<DownloadSummary>> {
-        SftpManager::list(self).await
-    }
-}

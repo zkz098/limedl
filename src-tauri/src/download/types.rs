@@ -47,33 +47,27 @@ pub enum TaskKind {
     #[default]
     Http,
     Bt,
-    Metalink,
-    Sftp,
 }
 
-/// Typed task identifier replacing fragile string-prefix routing (`is_bt_task_id` / `is_sftp_task_id`).
+/// Typed task identifier replacing fragile string-prefix routing.
 ///
-/// All three variants hold the **external** (wire-format) string so that `as_str()` returns
+/// Both variants hold the **external** (wire-format) string so that `as_str()` returns
 /// exactly what the frontend sent.  Use `parse()` to construct from a raw download id and
 /// `http_inner()` to strip the `"http:"` prefix before routing to the HTTP manager.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TaskId {
     Http(String),
     Bt(String),
-    Sftp(String),
 }
 
 impl TaskId {
     /// Construct a `TaskId` by inspecting the string prefix.
     ///
-    /// - Starts with `"bt:"`   → `Bt`
-    /// - Starts with `"sftp:"` → `Sftp`
-    /// - Everything else       → `Http`
+    /// - Starts with `"bt:"` → `Bt`
+    /// - Everything else     → `Http`
     pub fn parse(id: &str) -> Self {
         if id.starts_with("bt:") {
             TaskId::Bt(id.to_string())
-        } else if id.starts_with("sftp:") {
-            TaskId::Sftp(id.to_string())
         } else {
             TaskId::Http(id.to_string())
         }
@@ -82,7 +76,7 @@ impl TaskId {
     /// The external (wire-format) string that this `TaskId` was constructed from.
     pub fn as_str(&self) -> &str {
         match self {
-            TaskId::Http(id) | TaskId::Bt(id) | TaskId::Sftp(id) => id.as_str(),
+            TaskId::Http(id) | TaskId::Bt(id) => id.as_str(),
         }
     }
 
@@ -449,10 +443,6 @@ pub struct DownloadDefaultsSettings {
     pub default_checksum: ChecksumMode,
     #[serde(default = "default_http_user_agent")]
     pub default_user_agent: String,
-    #[serde(default)]
-    pub enable_metalink: bool,
-    #[serde(default)]
-    pub enable_sftp: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -516,8 +506,6 @@ impl Default for DownloadDefaultsSettings {
             default_max_retries: 5,
             default_checksum: ChecksumMode::Blake3,
             default_user_agent: default_http_user_agent(),
-            enable_metalink: false,
-            enable_sftp: false,
         }
     }
 }
@@ -741,7 +729,7 @@ mod tests {
             "appearance": {"themeColor": "default", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true},
             "proxy": {"mode": "system", "manualUrl": ""},
             "scheduler": {"mode": "traditional", "traditional": {"maxParallelTasks": 3}, "automatic": {"maxParallelThreads": 8, "maxThreadsPerTask": 4, "minThreadsPerTask": 1, "adaptiveProfile": "conservative"}},
-            "download": {"defaultDownloadDir": "", "defaultMaxRetries": 3, "defaultChecksum": "blake3", "defaultUserAgent": "", "enableMetalink": false, "enableSftp": false},
+            "download": {"defaultDownloadDir": "", "defaultMaxRetries": 3, "defaultChecksum": "blake3", "defaultUserAgent": ""},
             "bt": {"pauseUploadWhenLimitReached": false, "uploadLimitBytes": 0, "uploadRatioLimit": 0, "dhtEnabled": true, "trackerList": "", "trackerListUrl": ""},
             "networkLearning": {"deviceMode": "fixed", "currentSceneId": "", "scenes": []},
             "logging": {"enabled": false, "level": "info", "filePath": ""},

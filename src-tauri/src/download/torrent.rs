@@ -33,8 +33,6 @@ const BT_PENDING_PREFIX: &str = "bt:pending:";
 pub(super) enum DownloadSourceKind {
     Http,
     Torrent,
-    Metalink,
-    Sftp,
 }
 
 pub struct TorrentManager {
@@ -1365,8 +1363,6 @@ pub(super) fn classify_download_source(
         return Ok(match kind {
             TaskKind::Http => DownloadSourceKind::Http,
             TaskKind::Bt => DownloadSourceKind::Torrent,
-            TaskKind::Metalink => DownloadSourceKind::Metalink,
-            TaskKind::Sftp => DownloadSourceKind::Sftp,
         });
     }
 
@@ -1377,14 +1373,6 @@ pub(super) fn classify_download_source(
         return Ok(DownloadSourceKind::Torrent);
     }
 
-    if lower.ends_with(".metalink") || lower.ends_with(".meta4") {
-        return Ok(DownloadSourceKind::Metalink);
-    }
-
-    if lower.starts_with("sftp://") {
-        return Ok(DownloadSourceKind::Sftp);
-    }
-
     if lower.starts_with("http://") || lower.starts_with("https://") {
         return Ok(DownloadSourceKind::Http);
     }
@@ -1392,15 +1380,6 @@ pub(super) fn classify_download_source(
     let path = Path::new(source);
     if path.extension().and_then(|value| value.to_str()) == Some("torrent") {
         return Ok(DownloadSourceKind::Torrent);
-    }
-
-    if matches!(
-        path.extension()
-            .and_then(|value| value.to_str())
-            .map(|value| value.to_ascii_lowercase()),
-        Some(extension) if extension == "metalink" || extension == "meta4"
-    ) {
-        return Ok(DownloadSourceKind::Metalink);
     }
 
     Err(DownloadError::UnsupportedScheme)
@@ -1557,20 +1536,8 @@ mod tests {
             DownloadSourceKind::Torrent
         );
         assert_eq!(
-            classify_download_source(&request("https://example.com/file.meta4", None))?,
-            DownloadSourceKind::Metalink
-        );
-        assert_eq!(
-            classify_download_source(&request("sftp://example.com/file.zip", None))?,
-            DownloadSourceKind::Sftp
-        );
-        assert_eq!(
             classify_download_source(&request("E:/tmp/file.torrent", None))?,
             DownloadSourceKind::Torrent
-        );
-        assert_eq!(
-            classify_download_source(&request("E:/tmp/file.metalink", None))?,
-            DownloadSourceKind::Metalink
         );
         assert!(classify_download_source(&request("ftp://example.com/file.zip", None)).is_err());
         assert!(classify_download_source(&request("ftps://example.com/file.zip", None)).is_err());
@@ -1592,20 +1559,6 @@ mod tests {
                 &request("https://example.com/file.zip", Some(TaskKind::Bt),)
             )?,
             DownloadSourceKind::Torrent
-        );
-        assert_eq!(
-            classify_download_source(&request(
-                "https://example.com/file.zip",
-                Some(TaskKind::Metalink),
-            ))?,
-            DownloadSourceKind::Metalink
-        );
-        assert_eq!(
-            classify_download_source(&request(
-                "https://example.com/file.zip",
-                Some(TaskKind::Sftp),
-            ))?,
-            DownloadSourceKind::Sftp
         );
         Ok(())
     }

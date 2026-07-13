@@ -77,51 +77,7 @@ const emit = defineEmits<{
         <p class="settings-field__hint">{{ t("settings.defaultUserAgentHint") }}</p>
       </label>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.metalinkSupport") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.download.enableMetalink }"
-          :aria-pressed="draft.download.enableMetalink"
-          @click="draft.download.enableMetalink = !draft.download.enableMetalink"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.download.enableMetalink
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.metalinkSupport") }}</span>
-        </button>
-        <p class="settings-field__hint">{{ t("settings.metalinkSupportHint") }}</p>
-      </label>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.sftpSupport") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.download.enableSftp }"
-          :aria-pressed="draft.download.enableSftp"
-          @click="draft.download.enableSftp = !draft.download.enableSftp"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.download.enableSftp
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.sftpSupport") }}</span>
-        </button>
-        <p class="settings-field__hint">{{ t("settings.sftpSupportHint") }}</p>
-      </label>
     </div>
   </section>
 </template>

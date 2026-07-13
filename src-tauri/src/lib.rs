@@ -10,7 +10,7 @@ use tokio::time::sleep;
 
 use download::CdnAccelerator;
 use download::{
-    AppState, Aria2RpcServer, DownloadManager, RateLimiter, SftpManager, TorrentManager,
+    AppState, Aria2RpcServer, DownloadManager, RateLimiter, TorrentManager,
     bt_get_peers, bt_get_pieces, bt_get_trackers, bt_preview_torrent, bt_runtime_status,
     bt_set_speed_limit, cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail,
     cdn_fetch_ranges, cdn_status, cdn_test, download_cancel, download_list,
@@ -62,10 +62,6 @@ pub fn run() {
                     torrent_manager.spawn_upload_policy_loop();
                 });
 
-                let sftp_manager = SftpManager::new(state_dir.join("sftp"), rate_limiter)
-                    .context("初始化 SFTP 管理器失败")?;
-                let sftp_manager = Arc::new(sftp_manager);
-
                 let cdn_accelerator = Arc::new(CdnAccelerator::new());
                 download_manager.set_cdn_accelerator(cdn_accelerator.clone());
 
@@ -86,12 +82,10 @@ pub fn run() {
                 let (event_tx, _event_rx) = broadcast::channel(256);
                 download_manager.set_event_tx(event_tx.clone());
                 torrent_manager.set_event_tx(event_tx.clone());
-                sftp_manager.set_event_tx(event_tx.clone());
 
                 app.manage(AppState {
                     manager: download_manager.clone(),
                     torrent_manager: torrent_manager.clone(),
-                    sftp_manager: sftp_manager.clone(),
                     cdn_accelerator: cdn_accelerator.clone(),
                     app_handle: app_handle.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
@@ -100,13 +94,11 @@ pub fn run() {
                 {
                     let mgr = download_manager.clone();
                     let tm = torrent_manager.clone();
-                    let sm = sftp_manager.clone();
                     let cdna = cdn_accelerator.clone();
                     tauri::async_runtime::spawn(async move {
                         let state = AppState {
                             manager: mgr,
                             torrent_manager: tm,
-                            sftp_manager: sm,
                             cdn_accelerator: cdna,
                             app_handle,
                             rpc_shutdown: Default::default(),
@@ -123,7 +115,6 @@ pub fn run() {
                     let rpc_server = Aria2RpcServer::new(
                         download_manager.clone(),
                         torrent_manager.clone(),
-                        sftp_manager.clone(),
                         &settings.aria2_rpc,
                         event_tx,
                     );

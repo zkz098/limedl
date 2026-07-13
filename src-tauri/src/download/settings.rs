@@ -141,8 +141,6 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             default_max_retries: settings.download.default_max_retries.clamp(0, 20),
             default_checksum: settings.download.default_checksum,
             default_user_agent,
-            enable_metalink: settings.download.enable_metalink,
-            enable_sftp: settings.download.enable_sftp,
         },
         bt,
         network_learning,
