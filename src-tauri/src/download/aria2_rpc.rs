@@ -309,7 +309,7 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     let url = uris
         .into_iter()
         .next()
-        .expect("uris checked non-empty above");
+        .ok_or_else(|| make_error(ERR_INTERNAL, "uris unexpectedly empty"))?;
     let destination_dir = options
         .and_then(|o| o.get("dir"))
         .and_then(|v| v.as_str())
@@ -938,19 +938,19 @@ async fn rpc_dispatch_action(
         TaskId::Http(_) => match action {
             "pause" => ctx
                 .manager
-                .pause(task_id.http_inner())
+                .pause(task_id.http_inner().unwrap_or(""))
                 .await
                 .map(|_| ())
                 .map_err(|e| anyhow::anyhow!("{e}")),
             "resume" => ctx
                 .manager
-                .resume(task_id.http_inner())
+                .resume(task_id.http_inner().unwrap_or(""))
                 .await
                 .map(|_| ())
                 .map_err(|e| anyhow::anyhow!("{e}")),
             "remove" => ctx
                 .manager
-                .remove(task_id.http_inner())
+                .remove(task_id.http_inner().unwrap_or(""))
                 .await
                 .map(|_| ())
                 .map_err(|e| anyhow::anyhow!("{e}")),

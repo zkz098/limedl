@@ -423,7 +423,13 @@ watch(
 .inspector-panel {
   display: grid;
   gap: 0.75rem;
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.inspector-panel :deep(.section-kicker) {
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  font-size: 0.7rem;
 }
 
 .inspector-header {
@@ -466,7 +472,7 @@ watch(
 }
 
 .inspector-summary__cdn .i-ri-flashlight-fill {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .inspector-summary__copy h3,
@@ -479,19 +485,24 @@ watch(
 .inspector-summary__copy p,
 .inspector-empty p {
   color: var(--color-text-muted);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
 }
 
 .inspector-summary__copy h3,
 .inspector-empty h3 {
   color: var(--color-heading);
-  font-size: 1rem;
+  font-size: var(--font-size-body);
 }
 
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.35rem 0.9rem;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-muted);
 }
 
 .text-row {
@@ -506,20 +517,21 @@ watch(
   font-weight: 500;
   white-space: nowrap;
   font-size: 0.7rem;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
 }
 
 .text-value {
   color: var(--color-text-main);
   word-break: break-all;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   line-height: 1.45;
+  font-family: var(--font-mono);
 }
 
 .summary-progress {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 .summary-progress__copy {
@@ -527,7 +539,8 @@ watch(
   justify-content: space-between;
   gap: var(--space-3);
   color: var(--color-text-muted);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
 }
 
 .detail-grid {
@@ -535,8 +548,10 @@ watch(
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.35rem 0.9rem;
-  padding-top: 0.35rem;
-  border-top: 1px solid var(--color-border);
+  padding: 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-muted);
 }
 
 .text-row--wide {
@@ -567,10 +582,10 @@ watch(
 
 .inspector-section-header h3 {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-text-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
 }
 

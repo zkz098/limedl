@@ -765,7 +765,7 @@ impl TorrentManager {
             if dl_limits.is_empty() {
                 NonZeroU32::new(self.global_download_limit_bps as u32)
             } else {
-                Some(*dl_limits.iter().min().unwrap())
+                dl_limits.iter().min().copied()
             }
         };
         let effective_ul = {
@@ -773,7 +773,7 @@ impl TorrentManager {
             if ul_limits.is_empty() {
                 None
             } else {
-                Some(*ul_limits.iter().min().unwrap())
+                ul_limits.iter().min().copied()
             }
         };
         drop(limits);
@@ -1617,8 +1617,8 @@ mod tests {
     fn routes_prefixed_ids() {
         let bt = TaskId::parse(&format!("{BT_PREFIX}1"));
         assert!(matches!(bt, TaskId::Bt(_)));
-        assert_eq!(TaskId::parse("http:abc").http_inner(), "abc");
-        assert_eq!(TaskId::parse("abc").http_inner(), "abc");
+        assert_eq!(TaskId::parse("http:abc").http_inner(), Some("abc"));
+        assert_eq!(TaskId::parse("abc").http_inner(), Some("abc"));
         assert!(!matches!(TaskId::parse("http:abc"), TaskId::Bt(_)));
     }
 

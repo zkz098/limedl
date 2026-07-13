@@ -75,35 +75,34 @@ const reversed = computed(() => props.notifications.slice().reverse());
   border-radius: var(--radius-lg);
   border: 1px solid var(--toast-border);
   background: var(--toast-bg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-card-hover);
   font-size: 0.85rem;
   line-height: 1.45;
   pointer-events: auto;
 }
 
 .notification-toast--info {
-  --toast-bg: color-mix(in srgb, var(--color-panel) 88%, var(--color-info-bg) 12%);
+  --toast-bg: var(--color-info-bg);
   --toast-border: var(--color-info-border);
-  color: var(--color-text-main);
+  color: var(--color-info-text);
 }
 
 .notification-toast--success {
-  --toast-bg: color-mix(in srgb, var(--color-panel) 88%, var(--color-success-bg) 12%);
+  --toast-bg: var(--color-success-bg);
   --toast-border: var(--color-success-border);
-  color: var(--color-text-main);
+  color: var(--color-success-text);
 }
 
 .notification-toast--error {
-  --toast-bg: color-mix(in srgb, var(--color-panel) 88%, var(--color-danger-bg) 12%);
+  --toast-bg: var(--color-danger-bg);
   --toast-border: var(--color-danger-border);
   color: var(--color-danger-text);
 }
 
 .notification-toast--warning {
-  --toast-bg: color-mix(in srgb, var(--color-panel) 88%, var(--color-warning-bg) 12%);
+  --toast-bg: var(--color-warning-bg);
   --toast-border: var(--color-warning-border);
-  color: var(--color-text-main);
+  color: var(--color-warning-text);
 }
 
 .notification-toast__icon {

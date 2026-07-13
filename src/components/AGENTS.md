@@ -16,10 +16,10 @@ components/
 │   ├── UiProgress.vue     # Progress bar with optional label
 │   └── UiCard.vue         # Card container (header/body/footer slots)
 ├── downloader/      # Download task views
-│   ├── DownloadQueueTable.vue    # Paginated table, context menu, column picker (905 lines)
+│   ├── DownloadQueueTable.vue    # Paginated table, context menu, column picker (945 lines)
 │   ├── DownloadInspector.vue     # Floating detail panel with metrics grid
 │   └── DownloadComposer.vue      # New-task form with source tabs (URL/torrent/metalink)
-├── settings/        # SettingsPage.vue (1464 lines — largest SFC)
+├── settings/        # SettingsPage.vue (644 lines — largest SFC, down from 965 after useSettingsForm extraction)
 └── sidebar/         # SidebarBtStatus.vue — BT runtime status display
 ```
 
@@ -48,7 +48,7 @@ components/
 
 ## ANTI-PATTERNS
 
-- **SettingsPage.vue is monolithic** — 1464 lines in one SFC. Split into `AppearancePanel.vue`, `ProxyPanel.vue`, `SchedulerPanel.vue`, etc.
-- **DownloadQueueTable.vue at 905 lines** — mix of rendering, context menu, column management. Extract composables for column state and context menu logic.
-- **No component tests** — despite being reusable primitives, zero vitest/Vue Test Utils files.
+- **SettingsPage.vue is monolithic** — 644 lines in one SFC (down from 965 after `useSettingsForm` composable extraction). Split into `AppearancePanel.vue`, `ProxyPanel.vue`, `SchedulerPanel.vue`, etc.
+- **DownloadQueueTable.vue at 945 lines** — mix of rendering, context menu, column management. Extract composables for column state and context menu logic.
+- **Minimal component tests** — 2 vitest files exist (smoke + type shape) but cover ~0% of business logic. Zero component/composable tests.
 - **Raw CSS scoping** — `scoped` attribute used throughout. No CSS Modules or `<style module>` for type-safe class names.

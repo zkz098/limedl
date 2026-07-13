@@ -21,7 +21,7 @@ Tauri v2 desktop download manager — Rust backend (single crate) + Vue 3/TypeSc
 ├── src-tauri/               # Rust backend (single crate, edition 2024, nightly)
 │   ├── src/main.rs          # Binary entry (mimalloc allocator → downloader_lib::run())
 │   ├── src/lib.rs           # Tauri builder, 3 managers, 13 IPC commands
-│   └── src/download/        # → AGENTS.md (52 lines, core download engine, ~6400 lines)
+│   └── src/download/        # → AGENTS.md (core download engine, ~6000 lines, manager.rs split into http_executor.rs + checksum.rs + retry.rs + persistence.rs + settings.rs + scheduler.rs)
 ├── .github/workflows/ci.yml # CI: Bun lint + vue-tsc + cargo check + clippy (no tests)
 └── package.json             # Bun scripts: dev, build, lint (oxlint), format (oxfmt), tauri
 ```
@@ -32,7 +32,7 @@ Tauri v2 desktop download manager — Rust backend (single crate) + Vue 3/TypeSc
 |------|----------|-------|
 | Rust entry point | `src-tauri/src/main.rs` | 11-line shim, mimalloc allocator |
 | Tauri setup + IPC | `src-tauri/src/lib.rs` | 13 commands registered, 3 managers initialized |
-| HTTP download engine | `src-tauri/src/download/manager.rs` | 3414-line god object — see child AGENTS.md |
+| HTTP download engine | `src-tauri/src/download/` | Split across: `manager.rs` (~1211 lines, lifecycle), `http_executor.rs` (~705 lines, HTTP execution), `checksum.rs`, `retry.rs`, `persistence.rs`, `settings.rs`, `scheduler.rs` — see child AGENTS.md |
 | BitTorrent | `src-tauri/src/download/torrent.rs` | librqbit wrapper |
 | SFTP | `src-tauri/src/download/sftp.rs` | ssh2 wrapper |
 | Tauri IPC commands | `src-tauri/src/download/commands.rs` | Thin dispatch layer |
@@ -46,13 +46,13 @@ Tauri v2 desktop download manager — Rust backend (single crate) + Vue 3/TypeSc
 ## CONVENTIONS
 
 ### Rust
-- **Toolchain**: nightly required (edition 2024). No `rust-toolchain.toml` — pin manually or via CI.
+- **Toolchain**: stable (edition 2024, stabilized in Rust 1.85). Pinned via `rust-toolchain.toml` (`channel = "stable"`).
 - **Error handling**: Commands return `Result<T, String>`. Domain errors via `thiserror`. Propagation via `anyhow`.
 - **IO**: `tokio::fs` for async, `fs4` for file locking.
 - **Hashing**: `blake3` (integrity), `sha2` (pieces), `xxhash-rust` xxh3 (dedup).
 - **Serde**: `#[serde(rename_all = "camelCase")]` on all shared types for TS interop.
 - **Allocator**: `mimalloc` (not default).
-- **Build flags**: `.cargo/config.toml` sets `target-cpu=x86-64-v3` + AES/SHA extensions.
+- **Build flags**: CPU-specific flags removed from `.cargo/config.toml` to avoid SIGILL on older hardware. Set `RUSTFLAGS` env var for release builds.
 
 ### Frontend
 - **All `<script setup lang="ts">`** — Composition API only. No Options API.
@@ -70,13 +70,13 @@ Tauri v2 desktop download manager — Rust backend (single crate) + Vue 3/TypeSc
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
-- **manager.rs god object** — 3414 lines. NEVER add more. See `src-tauri/src/download/AGENTS.md` for split plan.
-- **String-based task routing** — `is_bt_task_id()` / `is_sftp_task_id()` use fragile prefix matching.
-- **No bare `.unwrap()`** — use `.unwrap_or()` variants with fallbacks.
-- **No component tests** — zero vitest files for reusable UI primitives.
-- **Monolithic components** — `SettingsPage.vue` (1464 lines), `DownloadQueueTable.vue` (905 lines).
-- **CI skips tests** — `cargo test` not in CI pipeline; tests may rot.
-- **No `rust-toolchain.toml`** — nightly requirement is implicit, not pinned.
+- ~~**manager.rs god object**~~ — RESOLVED. manager.rs is now ~1211 lines (down from ~2470). HTTP execution, chunk management, retry logic, persistence, settings normalization, and scheduling have all been extracted into dedicated modules. See `src-tauri/src/download/AGENTS.md` for details.
+- **TaskId enum migration** — largely complete. `is_bt_task_id()`/`is_sftp_task_id()` eliminated from external use; internal BT pending-task routing still uses string prefixes (encapsulated in `torrent.rs`).
+- **No bare `.unwrap()`** — use `.unwrap_or()` variants with fallbacks. `lock_or_recover()` macro in `mod.rs` for poison-safe mutex access.
+- **Minimal tests** — 2 vitest files exist (smoke + type shape) but cover ~0% of business logic. Zero component/composable tests.
+- **Monolithic components** — `SettingsPage.vue` (644 lines, down from 965 after `useSettingsForm` extraction), `DownloadQueueTable.vue` (945 lines).
+- **CI runs tests** — `cargo test --workspace` and `bun run test` are in CI pipeline (`ci.yml`).
+- **`rust-toolchain.toml`** pins stable channel (edition 2024 stabilized in Rust 1.85).
 
 ## COMMANDS
 

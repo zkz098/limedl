@@ -11,6 +11,13 @@ use ntest::timeout;
 use tempfile::tempdir;
 
 use super::*;
+use super::super::settings::{load_settings, normalize_settings};
+use super::super::types::{
+    AdaptiveProfile, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
+    CdnAccelerationSettings, DeviceLearningMode, DownloadDefaultsSettings, LogSettings,
+    NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, ProxyMode, ProxySettings,
+    SchedulerSettings, SchedulerMode, TraditionalSchedulerSettings,
+};
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -102,6 +109,7 @@ fn normalize_settings_recovers_missing_scene_selection() -> TestResult {
         logging: LogSettings::default(),
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
+        global_speed_limit_bps: 0,
     })?;
 
     assert_eq!(settings.network_learning.current_scene_id, "default");
@@ -134,6 +142,7 @@ fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
                 min_threads_per_task: 0,
                 adaptive_profile: AdaptiveProfile::Balanced,
             },
+            chunk_size_strategy: Default::default(),
         },
         download: DownloadDefaultsSettings::default(),
         bt: BtSettings::default(),
@@ -159,6 +168,7 @@ fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
         logging: LogSettings::default(),
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
+        global_speed_limit_bps: 0,
     };
 
     let (_, _, desired_thread_count, _) = resolve_thread_settings(
@@ -204,7 +214,8 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = DownloadManager::new(temp.path().join("state"))?;
+    let manager =
+        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
     let id = tokio::time::timeout(
         Duration::from_millis(200),
         manager.start(StartDownloadRequest {
@@ -266,7 +277,8 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = DownloadManager::new(temp.path().join("state"))?;
+    let manager =
+        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
     manager
         .update_settings(AppSettings {
             appearance: Default::default(),
@@ -277,6 +289,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
                     max_parallel_tasks: 1,
                 },
                 automatic: AutomaticSchedulerSettings::default(),
+                chunk_size_strategy: Default::default(),
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),
@@ -284,6 +297,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
+            global_speed_limit_bps: 0,
         })
         .await?;
 
@@ -361,7 +375,8 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = DownloadManager::new(temp.path().join("state"))?;
+    let manager =
+        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
     manager
         .update_settings(AppSettings {
             appearance: Default::default(),
@@ -375,6 +390,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
                     min_threads_per_task: 0,
                     adaptive_profile: AdaptiveProfile::Balanced,
                 },
+                chunk_size_strategy: Default::default(),
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),
@@ -382,6 +398,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
+            global_speed_limit_bps: 0,
         })
         .await?;
 
@@ -449,7 +466,8 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = DownloadManager::new(temp.path().join("state"))?;
+    let manager =
+        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
     manager
         .update_settings(AppSettings {
             appearance: Default::default(),
@@ -463,6 +481,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
                     min_threads_per_task: 0,
                     adaptive_profile: AdaptiveProfile::Balanced,
                 },
+                chunk_size_strategy: Default::default(),
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),
@@ -470,6 +489,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
+            global_speed_limit_bps: 0,
         })
         .await?;
 

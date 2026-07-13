@@ -345,8 +345,6 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="app-shell min-h-screen text-[var(--color-text-main)]">
-    <div class="app-shell__backdrop" aria-hidden="true" />
-
     <NotificationToast
       :notifications="notifications"
       @dismiss="dismiss"
@@ -635,80 +633,55 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .app-shell {
-  position: relative;
   display: grid;
   grid-template-columns: minmax(14.5rem, 16rem) minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(
-      circle at top left,
-      color-mix(in srgb, var(--color-accent-soft) 100%, transparent) 0,
-      transparent 26rem
-    ),
-    linear-gradient(180deg, var(--color-bg-base), var(--color-bg-base));
-}
-
-.app-shell__backdrop {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      circle at 85% 12%,
-      color-mix(in srgb, var(--color-accent) 10%, transparent) 0,
-      transparent 18rem
-    ),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-panel) 75%, transparent),
-      transparent 18rem
-    );
+  background: var(--color-bg-base);
 }
 
 .sidebar,
 .main-content {
   position: relative;
-  z-index: 1;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-3);
   height: 100vh;
-  padding: 1.25rem;
+  padding: 1rem;
   border-right: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-panel-muted) var(--surface-muted-alpha), transparent);
-  backdrop-filter: blur(var(--surface-blur));
+  background: var(--color-panel-muted);
   overflow: hidden;
 }
 
 .sidebar__brand h1 {
-  margin: 0.2rem 0 0;
+  margin: 0.15rem 0 0;
   font-family: var(--font-display);
-  font-size: 2rem;
-  line-height: 1.08;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: var(--letter-spacing-tight);
   color: var(--color-heading);
 }
 
 .sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 0.875rem;
+  gap: 0.75rem;
 }
 
 .sidebar__logo-mark {
-  width: 3rem;
-  height: 3rem;
+  width: 2.25rem;
+  height: 2.25rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.875rem;
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-alt));
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
   color: var(--color-accent-contrast);
-  box-shadow: var(--shadow-accent);
-  font-size: 1.4rem;
+  font-size: 1.15rem;
 }
 
 .panel-head {
@@ -720,57 +693,48 @@ onBeforeUnmount(() => {
 
 .panel-head__icon,
 .dialog-heading__icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-muted));
-  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
 }
 
 .dialog-heading__icon--danger {
   color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
 }
 
 .sidebar-nav {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.15rem;
 }
 
 .sidebar-nav__item {
   width: 100%;
-  min-height: 2.75rem;
+  min-height: 2.25rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0 0.85rem;
-  border: 1px solid transparent;
-  border-radius: 0.75rem;
+  gap: 0.625rem;
+  padding: 0 0.625rem;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
   text-align: left;
+  font-size: var(--font-size-small);
   transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .sidebar-nav__item:hover {
-  background: color-mix(in srgb, var(--color-accent-soft) 36%, var(--color-panel));
-  color: var(--color-heading);
-  transform: translateX(0.125rem);
+  background: var(--color-surface-muted);
+  color: var(--color-text-main);
 }
 
 .sidebar-nav__item--active {
-  background: color-mix(in srgb, var(--color-accent-soft) 55%, var(--color-panel));
-  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  background: var(--color-surface-muted);
+  border-left-color: var(--color-accent);
   color: var(--color-accent-strong);
 }
 
@@ -781,13 +745,7 @@ onBeforeUnmount(() => {
 .sidebar__divider {
   width: 100%;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-border) 0%, transparent) 0,
-    var(--color-border) 16%,
-    var(--color-border) 84%,
-    color-mix(in srgb, var(--color-border) 0%, transparent) 100%
-  );
+  background: var(--color-border);
 }
 
 .sidebar-overview {
@@ -797,8 +755,8 @@ onBeforeUnmount(() => {
 
 .sidebar-overview__list {
   display: grid;
-  gap: 0.4rem;
-  margin-top: 0.55rem;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
 }
 
 .sidebar-overview__list p {
@@ -808,14 +766,15 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 0.75rem;
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   line-height: 1.4;
 }
 
 .sidebar-overview__list strong {
   color: var(--color-heading);
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
 }
 
 .main-content {
@@ -823,7 +782,8 @@ onBeforeUnmount(() => {
   align-content: start;
   gap: 1rem;
   height: 100vh;
-  padding: 1.25rem 1.25rem 19rem;
+  padding: 1.25rem;
+  padding-bottom: 18rem;
   min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -836,10 +796,9 @@ onBeforeUnmount(() => {
   bottom: 1rem;
   z-index: 20;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
   box-shadow: var(--shadow-card-hover);
-  backdrop-filter: blur(var(--surface-blur));
   overflow: hidden;
 }
 
@@ -853,20 +812,20 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 1rem;
   border: 0;
   border-bottom: 1px solid var(--color-border);
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-accent-soft) 60%, var(--color-panel)) 0,
-    var(--color-panel) 100%
-  );
+  background: var(--color-panel-muted);
   cursor: pointer;
   text-align: left;
 }
 
 .floating-inspector.is-collapsed .floating-inspector__tab {
   border-bottom: 0;
+}
+
+.floating-inspector__tab:hover {
+  background: var(--color-surface-muted);
 }
 
 .floating-inspector__tab-copy {
@@ -876,15 +835,16 @@ onBeforeUnmount(() => {
 }
 
 .floating-inspector__tab-kicker {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
 .floating-inspector__tab-copy strong {
   color: var(--color-heading);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -896,8 +856,9 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   flex-shrink: 0;
   color: var(--color-accent-strong);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
+  font-family: var(--font-mono);
 }
 
 .floating-inspector__tab-icon {
@@ -912,27 +873,28 @@ onBeforeUnmount(() => {
 .floating-inspector-enter-active,
 .floating-inspector-leave-active {
   transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .floating-inspector-enter-from,
 .floating-inspector-leave-to {
   opacity: 0;
-  transform: translateY(1rem);
+  transform: translateY(0.75rem);
 }
 
 .dialog-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
 }
 
 .dialog-heading h2 {
-  margin: 0.25rem 0 0;
-  font-size: 1.25rem;
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
   color: var(--color-heading);
 }
 
@@ -944,31 +906,31 @@ onBeforeUnmount(() => {
 .confirm-delete__message {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--font-size-small);
   line-height: 1.6;
 }
 
 .confirm-delete__target {
   display: grid;
   gap: 0.25rem;
-  padding: 0.85rem 0.95rem;
+  padding: 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-panel-muted);
 }
 
 .confirm-delete__target span {
   color: var(--color-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
 }
 
 .confirm-delete__target strong {
   min-width: 0;
   color: var(--color-heading);
-  font-size: 0.95rem;
+  font-size: var(--font-size-small);
   overflow-wrap: anywhere;
 }
 
@@ -1017,7 +979,7 @@ onBeforeUnmount(() => {
   }
 
   .main-content {
-    padding-bottom: 16rem;
+    padding-bottom: 15rem;
   }
 
   .floating-inspector {

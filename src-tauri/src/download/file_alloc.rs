@@ -1,5 +1,7 @@
 use std::{
+    ffi::OsString,
     fs::{self, File, OpenOptions},
+    io::{self, BufReader, ErrorKind, Read, Write},
     path::Path,
 };
 
@@ -29,14 +31,168 @@ pub(super) fn reset_download_file(file: &File, total_size: Option<u64>) -> Resul
 }
 
 pub(super) fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<()> {
-    match fs::rename(temp_path, destination_path) {
-        Ok(()) => Ok(()),
-        Err(_) => {
-            fs::copy(temp_path, destination_path)?;
+    if destination_path.exists() {
+        if files_have_same_content(temp_path, destination_path)? {
+            cleanup_finalizing_paths(destination_path)?;
             fs::remove_file(temp_path)?;
-            Ok(())
+            return Ok(());
+        }
+        return Err(destination_exists_error(destination_path));
+    }
+
+    let staging_path = unique_finalizing_path(destination_path)?;
+    let mut source = File::open(temp_path)?;
+    let mut destination = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&staging_path)
+        .map_err(DownloadError::Io)?;
+
+    if let Err(error) = io::copy(&mut source, &mut destination) {
+        drop(destination);
+        drop(source);
+        let _ = fs::remove_file(&staging_path);
+        return Err(error.into());
+    }
+    destination.flush()?;
+    destination.sync_all()?;
+    drop(destination);
+    drop(source);
+
+    if let Err(error) = fs::hard_link(&staging_path, destination_path) {
+        if error.kind() == ErrorKind::AlreadyExists
+            && files_have_same_content(&staging_path, destination_path)?
+        {
+            fs::remove_file(&staging_path)?;
+            fs::remove_file(temp_path)?;
+            return Ok(());
+        }
+        if error.kind() == ErrorKind::AlreadyExists {
+            let _ = fs::remove_file(&staging_path);
+            return Err(destination_exists_error(destination_path));
+        }
+
+        fallback_copy_staging_to_destination(&staging_path, destination_path)?;
+    }
+
+    fs::remove_file(&staging_path)?;
+    fs::remove_file(temp_path)?;
+    Ok(())
+}
+
+fn fallback_copy_staging_to_destination(
+    staging_path: &Path,
+    destination_path: &Path,
+) -> Result<()> {
+    let mut source = File::open(staging_path)?;
+    let mut destination = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination_path)
+        .map_err(|error| {
+            if error.kind() == ErrorKind::AlreadyExists {
+                destination_exists_error(destination_path)
+            } else {
+                DownloadError::Io(error)
+            }
+        })?;
+
+    if let Err(error) = io::copy(&mut source, &mut destination) {
+        drop(destination);
+        drop(source);
+        let _ = fs::remove_file(destination_path);
+        return Err(error.into());
+    }
+    destination.flush()?;
+    destination.sync_all()?;
+    Ok(())
+}
+
+fn destination_exists_error(destination_path: &Path) -> DownloadError {
+    DownloadError::Io(io::Error::new(
+        ErrorKind::AlreadyExists,
+        format!(
+            "destination file already exists: {}",
+            destination_path.display()
+        ),
+    ))
+}
+
+fn files_have_same_content(left_path: &Path, right_path: &Path) -> Result<bool> {
+    let left = File::open(left_path)?;
+    let right = File::open(right_path)?;
+    if left.metadata()?.len() != right.metadata()?.len() {
+        return Ok(false);
+    }
+
+    let mut left = BufReader::new(left);
+    let mut right = BufReader::new(right);
+    let mut left_buffer = [0; 8192];
+    let mut right_buffer = [0; 8192];
+    loop {
+        let left_read = left.read(&mut left_buffer)?;
+        let right_read = right.read(&mut right_buffer)?;
+        if left_read != right_read {
+            return Ok(false);
+        }
+        if left_read == 0 {
+            return Ok(true);
+        }
+        if left_buffer[..left_read] != right_buffer[..right_read] {
+            return Ok(false);
         }
     }
+}
+
+fn cleanup_finalizing_paths(destination_path: &Path) -> Result<()> {
+    let Some(parent) = destination_path.parent() else {
+        return Ok(());
+    };
+    let Some(file_name) = destination_path.file_name() else {
+        return Ok(());
+    };
+    let prefix = {
+        let mut value = OsString::from(file_name);
+        value.push(".finalizing.");
+        value
+    };
+
+    for entry in fs::read_dir(parent)? {
+        let entry = entry?;
+        let candidate_name = entry.file_name();
+        if candidate_name
+            .to_string_lossy()
+            .starts_with(&prefix.to_string_lossy().to_string())
+        {
+            let _ = fs::remove_file(entry.path());
+        }
+    }
+    Ok(())
+}
+
+fn unique_finalizing_path(destination_path: &Path) -> Result<std::path::PathBuf> {
+    let parent = destination_path.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = destination_path.file_name().ok_or_else(|| {
+        DownloadError::InvalidResponse(String::from("missing destination file name"))
+    })?;
+    let process_id = std::process::id();
+
+    for attempt in 0..1000u16 {
+        let mut staging_name = OsString::from(file_name);
+        staging_name.push(format!(".finalizing.{process_id}.{attempt}.tmp"));
+        let candidate = parent.join(staging_name);
+        if !candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+
+    Err(DownloadError::Io(io::Error::new(
+        ErrorKind::AlreadyExists,
+        format!(
+            "unable to allocate finalizing path for {}",
+            destination_path.display()
+        ),
+    )))
 }
 
 pub(super) fn write_all_at(file: &File, mut buffer: &[u8], mut offset: u64) -> Result<()> {
@@ -49,6 +205,20 @@ pub(super) fn write_all_at(file: &File, mut buffer: &[u8], mut offset: u64) -> R
         }
         offset += written as u64;
         buffer = &buffer[written..];
+    }
+    Ok(())
+}
+
+/// Checks that the destination directory has enough free space for the download.
+/// `required_bytes` is the total file size. We require 10% buffer above that.
+pub(super) fn check_disk_space(destination_dir: &Path, required_bytes: u64) -> Result<()> {
+    let available = fs4::available_space(destination_dir)?;
+    let required = required_bytes + required_bytes / 10; // 10% buffer
+    if available < required {
+        return Err(DownloadError::InsufficientDiskSpace {
+            available,
+            required,
+        });
     }
     Ok(())
 }
@@ -91,7 +261,7 @@ mod tests {
     use ntest::timeout;
     use tempfile::tempdir;
 
-    use super::{open_download_file, reset_download_file, write_all_at};
+    use super::{finalize_temp_file, open_download_file, reset_download_file, write_all_at};
 
     type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -133,6 +303,54 @@ mod tests {
         assert_eq!(file.metadata()?.len(), 4096);
         let bytes = fs::read(path)?;
         assert_eq!(&bytes[..9], b"test data");
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn finalize_temp_file_refuses_to_overwrite_destination() -> TestResult {
+        let temp = tempdir()?;
+        let source = temp.path().join("download.part");
+        let destination = temp.path().join("download.bin");
+        fs::write(&source, b"new")?;
+        fs::write(&destination, b"existing")?;
+
+        let result = finalize_temp_file(&source, &destination);
+
+        assert!(result.is_err());
+        assert_eq!(fs::read(&destination)?, b"existing");
+        assert_eq!(fs::read(&source)?, b"new");
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn finalize_temp_file_moves_completed_download() -> TestResult {
+        let temp = tempdir()?;
+        let source = temp.path().join("download.part");
+        let destination = temp.path().join("download.bin");
+        fs::write(&source, b"complete")?;
+
+        finalize_temp_file(&source, &destination)?;
+
+        assert!(!source.exists());
+        assert_eq!(fs::read(&destination)?, b"complete");
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn finalize_temp_file_accepts_existing_identical_destination() -> TestResult {
+        let temp = tempdir()?;
+        let source = temp.path().join("download.part");
+        let destination = temp.path().join("download.bin");
+        fs::write(&source, b"complete")?;
+        fs::write(&destination, b"complete")?;
+
+        finalize_temp_file(&source, &destination)?;
+
+        assert!(!source.exists());
+        assert_eq!(fs::read(&destination)?, b"complete");
         Ok(())
     }
 }

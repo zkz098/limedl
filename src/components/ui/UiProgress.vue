@@ -23,21 +23,21 @@ defineProps<{
 <style scoped>
 .ui-progress {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .ui-progress__track {
-  height: 0.6rem;
+  height: 0.4rem;
   background: var(--color-progress-track);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .ui-progress__value {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-accent-strong), var(--color-accent));
-  transition: width 0.35s ease;
+  background: var(--color-accent);
+  transition: width 0.3s ease;
 }
 
 .ui-progress__value--indeterminate {
@@ -49,7 +49,7 @@ defineProps<{
     var(--color-accent-strong) 100%
   );
   background-size: 200% 100%;
-  animation: ui-progress-indeterminate 1.8s ease infinite;
+  animation: ui-progress-indeterminate 1.6s ease infinite;
 }
 
 @keyframes ui-progress-indeterminate {
@@ -76,11 +76,12 @@ defineProps<{
     bottom: 0;
     width: 35%;
     border-radius: inherit;
-    background: linear-gradient(90deg, var(--color-accent-strong), var(--color-accent));
+    background: var(--color-accent);
   }
 }
 
 .ui-progress__label {
+  font-family: var(--font-mono);
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
 }

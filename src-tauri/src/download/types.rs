@@ -88,12 +88,11 @@ impl TaskId {
 
     /// Strip the `"http:"` prefix for routing to the HTTP download manager.
     ///
-    /// # Panics
-    /// Panics if called on a non-`Http` variant.
-    pub fn http_inner(&self) -> &str {
+    /// Returns `None` if called on a non-`Http` variant.
+    pub fn http_inner(&self) -> Option<&str> {
         match self {
-            TaskId::Http(id) => id.strip_prefix("http:").unwrap_or(id),
-            _ => panic!("TaskId::http_inner called on {:?}", self),
+            TaskId::Http(id) => Some(id.strip_prefix("http:").unwrap_or(id)),
+            _ => None,
         }
     }
 
@@ -425,12 +424,22 @@ impl Default for AutomaticSchedulerSettings {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ChunkSizeStrategy {
+    #[default]
+    Adaptive,
+    Fixed,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerSettings {
     pub mode: SchedulerMode,
     pub traditional: TraditionalSchedulerSettings,
     pub automatic: AutomaticSchedulerSettings,
+    #[serde(default)]
+    pub chunk_size_strategy: ChunkSizeStrategy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

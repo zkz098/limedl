@@ -80,17 +80,16 @@ const leechCountLabel = computed(() =>
 <style scoped>
 .sidebar-bt {
   display: grid;
-  gap: 0.65rem;
-  padding: 0.85rem;
+  gap: 0.55rem;
+  padding: 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-muted-alpha), transparent);
-  backdrop-filter: blur(var(--surface-blur));
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
 }
 
 .sidebar-bt__heading {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .sidebar-bt__badge {
@@ -99,14 +98,14 @@ const leechCountLabel = computed(() =>
   align-items: center;
   gap: 0.4rem;
   color: var(--color-text-muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
 .sidebar-bt__dot {
-  width: 0.48rem;
-  height: 0.48rem;
-  border-radius: 999px;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: var(--radius-pill);
   background: var(--color-text-muted);
 }
 
@@ -116,12 +115,11 @@ const leechCountLabel = computed(() =>
 
 .sidebar-bt--connected .sidebar-bt__dot {
   background: var(--color-accent);
-  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
 .sidebar-bt__grid {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 
 .sidebar-bt__grid p {
@@ -131,15 +129,16 @@ const leechCountLabel = computed(() =>
   justify-content: space-between;
   gap: 0.75rem;
   color: var(--color-text-muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
 .sidebar-bt__grid strong {
   min-width: 0;
   color: var(--color-heading);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  font-family: var(--font-mono);
   text-align: right;
   overflow-wrap: anywhere;
 }

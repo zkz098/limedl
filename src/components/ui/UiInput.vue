@@ -38,39 +38,36 @@ const emit = defineEmits<{
 <style scoped>
 .ui-input {
   width: 100%;
-  min-height: 2.875rem;
+  min-height: 2.25rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-input-bg);
   color: var(--color-text-main);
   font: inherit;
-  padding: 0 0.9375rem;
+  padding: 0 0.75rem;
   transition:
-    border-color 0.25s ease,
-    box-shadow 0.25s ease,
-    background-color 0.25s ease;
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .ui-input::placeholder {
   color: var(--color-text-soft);
 }
 
-.ui-input:hover:not(:disabled):not(:focus-visible) {
-  border-color: var(--color-border-strong);
-}
-
 .ui-input:focus-visible {
   outline: none;
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .ui-input[readonly] {
   color: var(--color-text-muted);
+  background: var(--color-panel-muted);
 }
 
 .ui-input:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 </style>

@@ -5,8 +5,10 @@ use tauri::State;
 
 use super::{
     Aria2RpcServer,
-    error::DownloadError,
-    manager::{AppState, normalize_tracker_list_lossy, normalize_tracker_list_url},
+    error::extract_kind_from_anyhow,
+    lock_or_recover,
+    manager::AppState,
+    settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     torrent::{DownloadSourceKind, classify_download_source},
     types::{
         AppSettings, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo, DownloadSnapshot,
@@ -18,10 +20,7 @@ type CommandResult<T> = std::result::Result<T, SerializableError>;
 
 fn into_command_result<T>(result: anyhow::Result<T>) -> CommandResult<T> {
     result.map_err(|error| {
-        let kind = error
-            .downcast_ref::<DownloadError>()
-            .map(|de| de.kind().to_string())
-            .unwrap_or_else(|| "internal".to_string());
+        let kind = extract_kind_from_anyhow(&error).to_string();
         let message = format_anyhow_chain(error);
         SerializableError { kind, message }
     })
@@ -65,7 +64,7 @@ macro_rules! dispatch_download_action {
             TaskId::Http(_) => into_command_result(
                 $state
                     .manager
-                    .$action(task_id.http_inner())
+                    .$action(task_id.http_inner().unwrap_or(""))
                     .await
                     .map(prefix_http_snapshot)
                     .context($http_err),
@@ -231,7 +230,7 @@ pub async fn download_open_in_explorer(
         TaskId::Http(_) => into_command_result(
             state
                 .manager
-                .open_in_explorer(task_id.http_inner())
+                .open_in_explorer(task_id.http_inner().unwrap_or(""))
                 .await
                 .context("在资源管理器打开 HTTP 下载失败"),
         ),
@@ -328,7 +327,7 @@ pub async fn settings_save(
             let new_rpc = &saved.aria2_rpc;
             if old_rpc != *new_rpc {
                 // Signal existing RPC server to shut down gracefully
-                if let Some(tx) = state.rpc_shutdown.lock().unwrap().take() {
+                if let Some(tx) = lock_or_recover(&state.rpc_shutdown, "rpc_shutdown").take() {
                     let _ = tx.send(true);
                 }
                 if new_rpc.enabled {
@@ -349,7 +348,7 @@ pub async fn settings_save(
                             tracing::error!("Aria2 RPC server stopped: {error}");
                         }
                     });
-                    *state.rpc_shutdown.lock().unwrap() = Some(tx);
+                    *lock_or_recover(&state.rpc_shutdown, "rpc_shutdown") = Some(tx);
                     tracing::info!("Aria2 RPC 服务器已重启 (port: {})", new_rpc.port);
                 } else {
                     tracing::info!("Aria2 RPC 服务器已停止");

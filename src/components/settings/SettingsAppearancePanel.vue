@@ -175,30 +175,29 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: center;
   border: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--color-panel-muted);
   color: var(--color-text-soft);
   cursor: pointer;
   font-size: 1rem;
   transition:
-    transform 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
 
 .theme-color-button:hover {
-  transform: scale(1.1);
+  border-color: var(--color-border-strong);
 }
 
 .theme-color-button:focus-visible {
   outline: none;
   border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .theme-color-button.is-active {
   border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 0.125rem color-mix(in srgb, var(--color-accent) 30%, transparent);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .theme-color-button--default {

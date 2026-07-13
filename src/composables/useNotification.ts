@@ -46,6 +46,14 @@ export function useNotification() {
     notify(message, "warning", durationMs);
   }
 
+  function clearAll() {
+    for (const [, timer] of timers) {
+      clearTimeout(timer);
+    }
+    timers.clear();
+    notifications.value = [];
+  }
+
   onBeforeUnmount(() => {
     for (const [, timer] of timers) {
       clearTimeout(timer);
@@ -61,5 +69,6 @@ export function useNotification() {
     notifyInfo,
     notifyWarning,
     dismiss,
+    clearAll,
   };
 }

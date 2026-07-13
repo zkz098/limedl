@@ -130,3 +130,180 @@ fn lock_inner(inner: &Arc<Mutex<Inner>>) -> std::sync::MutexGuard<'_, Inner> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── helpers ─────────────────────────────────────────────
+
+    /// Set a rate and fill tokens to capacity for deterministic testing.
+    fn init_limiter(rate: u64) -> RateLimiter {
+        let limiter = RateLimiter::default();
+        limiter.set_rate(rate);
+        // After set_rate, tokens start at 0; fill them up manually.
+        let mut inner = lock_inner(&limiter.inner);
+        inner.tokens = inner.capacity as f64;
+        drop(inner);
+        limiter
+    }
+
+    // ── default / unlimited ─────────────────────────────────
+
+    #[test]
+    fn default_rate_limiter_is_unlimited() {
+        let limiter = RateLimiter::default();
+        assert_eq!(lock_inner(&limiter.inner).rate, 0);
+        // With rate=0, even a huge consume should succeed immediately
+        assert!(try_consume(&limiter.inner, 100_000_000).is_none());
+    }
+
+    // ── set_rate ────────────────────────────────────────────
+
+    #[test]
+    fn set_rate_from_zero_to_nonzero() {
+        let limiter = RateLimiter::default();
+        limiter.set_rate(1024);
+        let inner = lock_inner(&limiter.inner);
+        assert_eq!(inner.rate, 1024);
+        assert_eq!(inner.capacity, 2048); // 2 * rate
+        assert!(inner.tokens <= 2048.0);
+    }
+
+    #[test]
+    fn set_rate_from_nonzero_to_zero() {
+        let limiter = RateLimiter::default();
+        limiter.set_rate(1024);
+        limiter.set_rate(0);
+        let inner = lock_inner(&limiter.inner);
+        assert_eq!(inner.rate, 0);
+        assert_eq!(inner.capacity, 0);
+        assert_eq!(inner.tokens, 0.0);
+    }
+
+    #[test]
+    fn set_rate_with_tiny_value_ensures_min_capacity() {
+        let limiter = RateLimiter::default();
+        limiter.set_rate(1);
+        let inner = lock_inner(&limiter.inner);
+        // capacity = max(2 * 1, 1) = 2
+        assert_eq!(inner.capacity, 2);
+    }
+
+    #[test]
+    fn set_rate_preserves_tokens_when_switching_rates() {
+        let limiter = init_limiter(1000); // capacity = 2000, tokens = 2000
+
+        // Consume 500 tokens
+        assert!(try_consume(&limiter.inner, 500).is_none());
+
+        let tokens_before = lock_inner(&limiter.inner).tokens;
+        assert!((tokens_before - 1500.0).abs() < 1.0);
+
+        // Switch to a higher rate — tokens should be preserved (capped at new capacity)
+        limiter.set_rate(2000);
+
+        let inner = lock_inner(&limiter.inner);
+        assert_eq!(inner.rate, 2000);
+        // Tokens should still be ~1500 (barely any elapsed refill)
+        assert!(inner.tokens >= 1499.0);
+        assert!(inner.tokens <= 4000.0);
+    }
+
+    // ── try_consume ─────────────────────────────────────────
+
+    #[test]
+    fn try_consume_unlimited_returns_none() {
+        let limiter = RateLimiter::default();
+        // rate = 0, unlimited
+        assert!(try_consume(&limiter.inner, 0).is_none());
+        assert!(try_consume(&limiter.inner, 1).is_none());
+        assert!(try_consume(&limiter.inner, 999_999_999).is_none());
+    }
+
+    #[test]
+    fn try_consume_within_capacity_succeeds() {
+        let limiter = init_limiter(1000);
+        assert!(try_consume(&limiter.inner, 500).is_none());
+        assert!(try_consume(&limiter.inner, 1500).is_none());
+    }
+
+    #[test]
+    fn try_consume_exact_capacity_succeeds() {
+        let limiter = init_limiter(1000);
+        assert!(try_consume(&limiter.inner, 2000).is_none());
+    }
+
+    #[test]
+    fn try_consume_beyond_capacity_returns_wait() {
+        let limiter = init_limiter(1000);
+        let wait = try_consume(&limiter.inner, 3000);
+        assert!(wait.is_some());
+        assert!(wait.unwrap() >= 1);
+    }
+
+    #[test]
+    fn try_consume_depletes_tokens_progressively() {
+        let limiter = init_limiter(1000);
+
+        // Use up 1500
+        assert!(try_consume(&limiter.inner, 1500).is_none());
+        // Remaining 500
+        assert!(try_consume(&limiter.inner, 500).is_none());
+        // Exhausted — next consume should wait
+        assert!(try_consume(&limiter.inner, 100).is_some());
+    }
+
+    #[test]
+    fn try_consume_wait_time_is_reasonable() {
+        let limiter = init_limiter(1000);
+
+        // Drain the bucket
+        assert!(try_consume(&limiter.inner, 2000).is_none());
+
+        // Try to consume 500 more — deficit 500, rate 1000 B/s → 0.5s = 500_000_000 ns
+        let wait = try_consume(&limiter.inner, 500);
+        assert!(wait.is_some());
+        let wait_ns = wait.unwrap();
+        assert!(wait_ns >= 1);
+        assert!(wait_ns <= 600_000_000);
+    }
+
+    #[test]
+    fn try_consume_unlimited_handles_max_rate() {
+        // Use a large but safe rate (avoids 2*rate overflow in set_rate)
+        let limiter = RateLimiter::default();
+        // Set rate to 0 (default) for unlimited behavior
+        assert!(try_consume(&limiter.inner, u64::MAX).is_none());
+    }
+
+    // ── consume (async) ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn consume_zero_bytes_returns_immediately() {
+        let limiter = RateLimiter::default();
+        // n=0 should return without acquiring the lock
+        limiter.consume(0).await;
+    }
+
+    #[tokio::test]
+    async fn consume_unlimited_returns_immediately() {
+        let limiter = RateLimiter::default();
+        // rate=0 → unlimited, should return immediately for any n
+        limiter.consume(10_000).await;
+    }
+
+    // ── consume_blocking ────────────────────────────────────
+
+    #[test]
+    fn consume_blocking_zero_bytes_returns_immediately() {
+        let limiter = RateLimiter::default();
+        limiter.consume_blocking(0);
+    }
+
+    #[test]
+    fn consume_blocking_unlimited_returns_immediately() {
+        let limiter = RateLimiter::default();
+        limiter.consume_blocking(10_000);
+    }
+}

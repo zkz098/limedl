@@ -91,17 +91,15 @@ onBeforeUnmount(() => {
   place-items: center;
   background: var(--surface-overlay-bg);
   padding: 0.75rem;
-  backdrop-filter: blur(var(--surface-dialog-blur));
 }
 
 .ui-dialog__panel {
   max-height: calc(100vh - 1.5rem);
   overflow: auto;
-  background: color-mix(in srgb, var(--color-panel) var(--surface-dialog-alpha), transparent);
+  background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 1.5rem 4rem rgba(48, 34, 24, 0.22);
-  backdrop-filter: blur(var(--surface-dialog-blur));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .ui-dialog__header {
@@ -109,13 +107,14 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.125rem 1.25rem;
+  padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--color-border);
 }
 
 .ui-dialog__title :deep(h2) {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: var(--font-size-body);
+  font-weight: 600;
   color: var(--color-heading);
 }
 
@@ -124,43 +123,43 @@ onBeforeUnmount(() => {
 }
 
 .ui-dialog__close {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2rem;
+  height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
   transition:
-    background-color 0.25s ease,
-    color 0.25s ease,
-    border-color 0.25s ease;
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .ui-dialog__close:hover {
-  background: var(--color-panel-muted);
+  background: var(--color-surface-muted);
   color: var(--color-heading);
   border-color: var(--color-border);
 }
 
 .ui-dialog__close:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
-  transition: opacity 0.22s ease;
+  transition: opacity 0.2s ease;
 }
 
 .dialog-fade-enter-active .ui-dialog__panel,
 .dialog-fade-leave-active .ui-dialog__panel {
   transition:
-    transform 0.22s ease,
-    opacity 0.22s ease;
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .dialog-fade-enter-from,
@@ -171,6 +170,6 @@ onBeforeUnmount(() => {
 .dialog-fade-enter-from .ui-dialog__panel,
 .dialog-fade-leave-to .ui-dialog__panel {
   opacity: 0;
-  transform: translateY(0.75rem) scale(0.985);
+  transform: translateY(0.5rem);
 }
 </style>

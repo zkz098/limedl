@@ -484,8 +484,8 @@ onUnmounted(() => {
               :class="{ 'cdn-panel__row--active': c.ip === activeIp }"
             >
               <td class="cdn-panel__mono">{{ c.ip }}</td>
-              <td>{{ fmtLatency(c.tcpLatencyMs) }} ms</td>
-              <td>{{ c.throughputMbps != null ? `${fmtSpeed(c.throughputMbps)} MB/s` : "-" }}</td>
+              <td class="cdn-panel__metric">{{ fmtLatency(c.tcpLatencyMs) }} ms</td>
+              <td class="cdn-panel__metric">{{ c.throughputMbps != null ? `${fmtSpeed(c.throughputMbps)} MB/s` : "-" }}</td>
               <td>
                 <UiBadge v-if="c.ip === activeIp" tone="success" size="sm">
                   {{ t("settings.cdnAcceleration.candidateActive") }}
@@ -510,8 +510,8 @@ onUnmounted(() => {
           <tfoot v-if="defaultNode">
             <tr class="cdn-panel__row--default">
               <td class="cdn-panel__mono">{{ defaultNode.ip ?? "-" }}</td>
-              <td>{{ fmtLatency(defaultNode.tcpLatencyMs) }} ms</td>
-              <td>{{ defaultNode.throughputMbps != null ? `${fmtSpeed(defaultNode.throughputMbps)} MB/s` : "-" }}</td>
+              <td class="cdn-panel__metric">{{ fmtLatency(defaultNode.tcpLatencyMs) }} ms</td>
+              <td class="cdn-panel__metric">{{ defaultNode.throughputMbps != null ? `${fmtSpeed(defaultNode.throughputMbps)} MB/s` : "-" }}</td>
               <td>
                 <UiBadge tone="neutral" size="sm">
                   {{ t("settings.cdnAcceleration.defaultNode") }}
@@ -697,6 +697,7 @@ onUnmounted(() => {
 
 .cdn-panel__result-value {
   color: var(--color-text-main);
+  font-family: var(--font-mono);
   font-weight: 600;
 }
 
@@ -722,6 +723,7 @@ onUnmounted(() => {
 }
 
 .cdn-panel__speedup-value {
+  font-family: var(--font-mono);
   font-size: var(--font-size-metric);
   font-weight: 700;
   color: var(--color-text-main);
@@ -839,8 +841,12 @@ onUnmounted(() => {
 
 /* ── Monospace ── */
 .cdn-panel__mono {
-  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  font-family: var(--font-mono);
   font-size: var(--font-size-label);
+}
+
+.cdn-panel__metric {
+  font-family: var(--font-mono);
 }
 
 /* ── Advanced section ── */

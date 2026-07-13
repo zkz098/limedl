@@ -11,7 +11,8 @@
     "lint": "bunx oxlint --type-aware --type-check .",
     "format": "bunx oxfmt .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@iconify-json/ri": "^1.2.10",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
     "@vitejs/plugin-vue": "^6.0.7",
+    "@vitest/coverage-v8": "^4.1.10",
     "@vue/test-utils": "^2.4.11",
     "jsdom": "^29.1.1",
     "oxfmt": "^0.54.0",
@@ -34,7 +36,7 @@
     "oxlint-tsgolint": "^0.23.0",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.9",
+    "vitest": "^4.1.10",
     "vue-tsc": "^3.3.4"
   }
 }

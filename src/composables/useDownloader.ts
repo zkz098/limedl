@@ -16,8 +16,6 @@ import { useDownloadForm } from "./useDownloadForm";
 import { useDownloadList } from "./useDownloadList";
 import type { BtRuntimeStatus, DownloadSnapshot, DownloadSummary } from "../types/download";
 
-function clearMessage() { }
-
 export function useDownloader() {
   const downloads = ref<DownloadSummary[]>([]);
   const selectedId = ref<string | null>(null);
@@ -29,7 +27,7 @@ export function useDownloader() {
   const actionName = ref("");
   const isStarting = ref(false);
 
-  const { notifyInfo, notifyError } = useNotification();
+  const { notifyInfo, notifyError, clearAll } = useNotification();
 
   function setMessage(message: string) {
     notifyInfo(message);
@@ -37,6 +35,10 @@ export function useDownloader() {
 
   function setError(message: string) {
     notifyError(message);
+  }
+
+  function clearMessage() {
+    clearAll();
   }
 
   function upsertSummary(summary: DownloadSummary) {

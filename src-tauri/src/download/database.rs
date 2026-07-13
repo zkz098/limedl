@@ -149,7 +149,7 @@ fn opt_usize_to_value(v: Option<usize>) -> Value {
 //  20  last_modified               21  state
 //  22  checksum_mode               23  checksum
 //  24  error                       25  created_at_ms
-//  26  updated_at_ms
+//  26  updated_at_ms               27  chunk_size
 
 fn manifest_to_row(manifest: &Manifest) -> Vec<Value> {
     vec![
@@ -215,6 +215,8 @@ fn manifest_to_row(manifest: &Manifest) -> Vec<Value> {
         Value::Integer(manifest.created_at_ms as i64),
         // 26: updated_at_ms
         Value::Integer(manifest.updated_at_ms as i64),
+        // 27: chunk_size
+        Value::Integer(manifest.chunk_size as i64),
     ]
 }
 
@@ -259,6 +261,7 @@ fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
         updated_at_ms: row.get::<_, i64>(26)? as u64,
         chunks: Vec::new(),
         cdn_accelerated: false,
+        chunk_size: row.get::<_, i64>(27)? as u64,
     })
 }
 
@@ -325,7 +328,8 @@ CREATE TABLE IF NOT EXISTS downloads (
     checksum TEXT,
     error TEXT,
     created_at_ms INTEGER NOT NULL,
-    updated_at_ms INTEGER NOT NULL
+    updated_at_ms INTEGER NOT NULL,
+    chunk_size INTEGER NOT NULL DEFAULT 4194304
 );
 
 CREATE TABLE IF NOT EXISTS chunks (
@@ -369,6 +373,12 @@ impl Database {
         conn.execute_batch(CREATE_TABLES_SQL)
             .context("failed to create tables")?;
 
+        // Backfill chunk_size for pre-existing rows; ignore error if column already exists.
+        let _ = conn.execute(
+            "ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304",
+            [],
+        );
+
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -396,10 +406,11 @@ impl Database {
                 downloaded_bytes, supports_ranges, connection_count, thread_mode,
                 requested_thread_count, desired_thread_count, allocated_thread_count,
                 adaptive_profile_snapshot, thread_note, etag, last_modified,
-                state, checksum_mode, checksum, error, created_at_ms, updated_at_ms
+                state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
+                chunk_size
             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,
                       ?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,
-                      ?22,?23,?24,?25,?26,?27)",
+                      ?22,?23,?24,?25,?26,?27,?28)",
             rusqlite::params_from_iter(params),
         )
         .with_context(|| format!("failed to insert download {}", manifest.id))?;
@@ -430,8 +441,8 @@ impl Database {
                 allocated_thread_count = ?16, adaptive_profile_snapshot = ?17,
                 thread_note = ?18, etag = ?19, last_modified = ?20,
                 state = ?21, checksum_mode = ?22, checksum = ?23, error = ?24,
-                created_at_ms = ?25, updated_at_ms = ?26
-             WHERE id = ?27",
+                created_at_ms = ?25, updated_at_ms = ?26, chunk_size = ?27
+             WHERE id = ?28",
             rusqlite::params_from_iter(params),
         )
         .with_context(|| format!("failed to update download {}", manifest.id))?;

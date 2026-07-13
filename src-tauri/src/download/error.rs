@@ -30,6 +30,10 @@ pub enum DownloadError {
     Torrent(String),
     #[error("sftp error: {0}")]
     Sftp(String),
+    #[error(
+        "insufficient disk space: {available} bytes available, {required} bytes required (incl. 10% buffer)"
+    )]
+    InsufficientDiskSpace { available: u64, required: u64 },
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -51,14 +55,39 @@ impl DownloadError {
             Self::InvalidProxy(_) => "invalid_proxy",
             Self::Torrent(_) => "torrent",
             Self::Sftp(_) => "sftp",
+            Self::InsufficientDiskSpace { .. } => "insufficient_disk_space",
             Self::Internal(_) => "internal",
         }
     }
 }
 
+/// Walk the anyhow error chain to find the original `DownloadError` kind.
+/// Returns `"internal"` if no `DownloadError` is found in the chain.
+pub(crate) fn extract_kind_from_anyhow(error: &anyhow::Error) -> &'static str {
+    for cause in error.chain() {
+        if let Some(dl_err) = cause.downcast_ref::<DownloadError>() {
+            return dl_err.kind();
+        }
+    }
+    "internal"
+}
+
 impl From<anyhow::Error> for DownloadError {
     fn from(error: anyhow::Error) -> Self {
-        Self::Internal(format!("{error:#}"))
+        // If the error IS a DownloadError (no context added), extract it directly.
+        // `downcast` returns Err(error) on mismatch, giving it back to us.
+        match error.downcast::<DownloadError>() {
+            Ok(dl_err) => dl_err,
+            Err(error) => {
+                // Walk the chain to find a DownloadError and preserve its kind in the message.
+                let kind = extract_kind_from_anyhow(&error);
+                if kind == "internal" {
+                    Self::Internal(format!("{error:#}"))
+                } else {
+                    Self::Internal(format!("[{kind}] {error:#}"))
+                }
+            }
+        }
     }
 }
 

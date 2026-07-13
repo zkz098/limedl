@@ -187,7 +187,7 @@ impl CdnAccelerator {
                     };
 
                     if should_fallback {
-                        let dn_speed = default_node.throughput_mbps.unwrap();
+                        let dn_speed = default_node.throughput_mbps.unwrap_or(0.0);
                         *this.state.write().await = AccelState::Error(format!(
                             "best candidate {speed:.2} MB/s is not faster than default node {dn_speed:.2} MB/s — keeping default routing"
                         ));

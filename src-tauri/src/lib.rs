@@ -53,7 +53,13 @@ pub fn run() {
                 ))
                 .context("初始化 BT 管理器失败")?;
                 let torrent_manager = Arc::new(torrent_manager);
-                torrent_manager.spawn_upload_policy_loop();
+                // spawn_upload_policy_loop() calls tokio::spawn internally, which
+                // requires an active Tokio runtime context. The setup closure runs
+                // on the main thread outside any runtime, so enter Tauri's async
+                // runtime context before invoking it.
+                tauri::async_runtime::block_on(async {
+                    torrent_manager.spawn_upload_policy_loop();
+                });
 
                 let sftp_manager = SftpManager::new(state_dir.join("sftp"), rate_limiter)
                     .context("初始化 SFTP 管理器失败")?;
@@ -125,7 +131,10 @@ pub fn run() {
                             tracing::error!("Aria2 RPC server stopped: {error}");
                         }
                     });
-                    *rpc_shutdown.lock().unwrap() = Some(tx);
+                    *rpc_shutdown.lock().unwrap_or_else(|poisoned| {
+                        tracing::warn!("rpc_shutdown lock poisoned, recovering with inner state");
+                        poisoned.into_inner()
+                    }) = Some(tx);
                     tracing::info!("Aria2 RPC 服务器已启动");
                 }
 

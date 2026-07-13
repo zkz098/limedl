@@ -96,6 +96,25 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
         />
         <p class="settings-field__hint">{{ t("settings.globalSpeedLimitHint") }}</p>
       </label>
+
+      <label class="settings-field settings-field--wide">
+        <span class="settings-field__label">{{ t("settings.intelligentChunkAllocation") }}</span>
+        <button
+          type="button"
+          class="settings-toggle"
+          :class="{ 'settings-toggle--active': draft.scheduler.chunkSizeStrategy === 'adaptive' }"
+          :aria-pressed="draft.scheduler.chunkSizeStrategy === 'adaptive'"
+          @click="draft.scheduler.chunkSizeStrategy = draft.scheduler.chunkSizeStrategy === 'adaptive' ? 'fixed' : 'adaptive'"
+        >
+          <span
+            class="settings-toggle__icon"
+            :class="draft.scheduler.chunkSizeStrategy === 'adaptive' ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'"
+            aria-hidden="true"
+          />
+          <span class="settings-toggle__text">{{ t("settings.intelligentChunkAllocation") }}</span>
+        </button>
+        <p class="settings-field__hint">{{ t("settings.intelligentChunkAllocationHint") }}</p>
+      </label>
     </div>
   </section>
 </template>

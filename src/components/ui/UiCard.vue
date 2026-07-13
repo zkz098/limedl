@@ -14,31 +14,28 @@
 
 <style scoped>
 .ui-card {
-  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
+  background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  backdrop-filter: blur(var(--surface-blur));
   overflow: hidden;
   transition:
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .ui-card:hover {
-  transform: translateY(-0.125rem);
-  border-color: var(--color-accent-soft-border);
+  border-color: var(--color-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
 
 .ui-card__header,
 .ui-card__footer {
-  padding: 1.125rem 1.25rem;
+  padding: 1rem 1.25rem;
 }
 
 .ui-card__body {
-  padding: 1.125rem 1.25rem 1.25rem;
+  padding: 1rem 1.25rem 1.25rem;
 }
 
 .ui-card__header + .ui-card__body {

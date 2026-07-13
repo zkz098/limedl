@@ -281,6 +281,9 @@ const enUS = {
       minThreadsPerTask: "Min threads per task",
       minThreadsHint:
         "Set to 0 to default to 50% of the max. The adaptive scheduler will not drop below this floor.",
+      intelligentChunkAllocation: "Intelligent Chunk Allocation",
+      intelligentChunkAllocationHint:
+        "When enabled, chunk size adjusts to file length automatically (applies to HTTP downloads only).",
       networkLearning: "Network Learning",
       networkLearningTitle: "Network Learning",
       deviceMode: "Device mode",
@@ -358,6 +361,7 @@ const enUS = {
       logging: "Logging",
       loggingTitle: "Logging System",
       loggingEnabled: "Logging switch",
+      loggingToggleText: "Logging",
       loggingLevel: "Log level",
       loggingPath: "Log file path",
       loggingPathPlaceholder: "Leave empty to use default (app-data/logs/downloader.log)",

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::types::{
-    AdaptiveProfile, ChecksumMode, ChunkInfo, DownloadSnapshot, DownloadState, TaskKind,
-    ThreadMode, default_http_user_agent,
+    AdaptiveProfile, ChecksumMode, ChunkInfo, ChunkSizeStrategy, DownloadSnapshot, DownloadState,
+    TaskKind, ThreadMode, default_http_user_agent,
 };
 
 pub(super) const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
@@ -23,6 +23,8 @@ pub(crate) struct Manifest {
     pub(super) total_bytes: Option<u64>,
     pub(super) downloaded_bytes: u64,
     pub(super) supports_ranges: bool,
+    #[serde(default = "default_chunk_size")]
+    pub(super) chunk_size: u64,
     pub(super) connection_count: usize,
     pub(super) thread_mode: ThreadMode,
     pub(super) requested_thread_count: Option<usize>,
@@ -47,6 +49,10 @@ fn default_true() -> bool {
     true
 }
 
+fn default_chunk_size() -> u64 {
+    CHUNK_SIZE
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ChunkManifest {
     pub(super) index: usize,
@@ -67,7 +73,11 @@ pub(super) struct RemoteMetadata {
     pub(super) supports_ranges: bool,
 }
 
-pub(super) fn plan_chunks(total: Option<u64>, supports_ranges: bool) -> Vec<ChunkManifest> {
+pub(super) fn plan_chunks(
+    total: Option<u64>,
+    supports_ranges: bool,
+    chunk_size: u64,
+) -> Vec<ChunkManifest> {
     if !supports_ranges {
         return vec![];
     }
@@ -76,11 +86,16 @@ pub(super) fn plan_chunks(total: Option<u64>, supports_ranges: bool) -> Vec<Chun
         return vec![];
     };
 
+    let chunk_size = if chunk_size == 0 {
+        CHUNK_SIZE
+    } else {
+        chunk_size
+    };
     let mut chunks = Vec::new();
     let mut start = 0;
     let mut index = 0;
     while start < total {
-        let end = (start + CHUNK_SIZE - 1).min(total - 1);
+        let end = (start + chunk_size - 1).min(total - 1);
         chunks.push(ChunkManifest {
             index,
             start,
@@ -94,6 +109,25 @@ pub(super) fn plan_chunks(total: Option<u64>, supports_ranges: bool) -> Vec<Chun
     }
 
     chunks
+}
+
+pub(super) fn adaptive_chunk_size(total: u64) -> u64 {
+    const MIB: u64 = 1024 * 1024;
+    const GIB: u64 = 1024 * MIB;
+    if total <= 256 * MIB {
+        4 * MIB
+    } else if total < 4 * GIB {
+        8 * MIB
+    } else {
+        16 * MIB
+    }
+}
+
+pub(super) fn resolve_chunk_size(strategy: ChunkSizeStrategy, total: Option<u64>) -> u64 {
+    match strategy {
+        ChunkSizeStrategy::Fixed => CHUNK_SIZE,
+        ChunkSizeStrategy::Adaptive => total.map(adaptive_chunk_size).unwrap_or(CHUNK_SIZE),
+    }
 }
 
 pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
@@ -188,17 +222,80 @@ pub(super) fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
 mod tests {
     use ntest::timeout;
 
-    use super::{CHUNK_SIZE, plan_chunks};
+    use super::{CHUNK_SIZE, adaptive_chunk_size, plan_chunks};
 
     #[timeout(30_000)]
     #[test]
     fn plans_stable_chunk_boundaries() {
-        let chunks = plan_chunks(Some(16 * 1024 * 1024), true);
+        let chunks = plan_chunks(Some(16 * 1024 * 1024), true, CHUNK_SIZE);
 
         assert_eq!(chunks.len(), 4);
         assert_eq!(chunks[0].start, 0);
         assert_eq!(chunks[0].end, CHUNK_SIZE - 1);
         assert_eq!(chunks[3].start, CHUNK_SIZE * 3);
         assert_eq!(chunks[3].end, 16 * 1024 * 1024 - 1);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_zero() {
+        assert_eq!(adaptive_chunk_size(0), 4 * 1024 * 1024);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_4_mib() {
+        assert_eq!(adaptive_chunk_size(4 * 1024 * 1024), 4 * 1024 * 1024);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_16_mib() {
+        assert_eq!(adaptive_chunk_size(16 * 1024 * 1024), 4 * 1024 * 1024);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_17_mib() {
+        assert_eq!(adaptive_chunk_size(17 * 1024 * 1024), 4 * 1024 * 1024);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_256_mib() {
+        assert_eq!(adaptive_chunk_size(256 * 1024 * 1024), 4 * 1024 * 1024);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_257_mib() {
+        assert_eq!(adaptive_chunk_size(257 * 1024 * 1024), 8 * 1024 * 1024);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_4gib_minus_1() {
+        assert_eq!(
+            adaptive_chunk_size(4 * 1024 * 1024 * 1024 - 1),
+            8 * 1024 * 1024
+        );
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_4gib() {
+        assert_eq!(
+            adaptive_chunk_size(4 * 1024 * 1024 * 1024),
+            16 * 1024 * 1024
+        );
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_10_gib() {
+        assert_eq!(
+            adaptive_chunk_size(10 * 1024 * 1024 * 1024),
+            16 * 1024 * 1024
+        );
     }
 }

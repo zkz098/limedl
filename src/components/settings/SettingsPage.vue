@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, ref, toRef, watch } from "vue";
 
 import { useI18n } from "../../i18n";
 import { useNotification } from "../../composables/useNotification";
@@ -14,7 +14,6 @@ import type {
   ColorMode,
   DeviceLearningMode,
   LogLevel,
-  NetworkLearningSettings,
   ProxyMode,
   SchedulerMode,
 } from "../../types/settings";
@@ -30,11 +29,10 @@ import SettingsProxyPanel from "./SettingsProxyPanel.vue";
 import SettingsSchedulerPanel from "./SettingsSchedulerPanel.vue";
 
 import {
-  copySingleNetworkScene,
   DEFAULT_HTTP_USER_AGENT,
   DEFAULT_TRACKER_LIST_URL,
   serializeSettings,
-  settingsDraftSnapshot,
+  useSettingsForm,
   useSettingsSummaries,
   type SettingsOptionArrays,
 } from "./settingsComposables";
@@ -105,81 +103,12 @@ const colorModeOptions = computed<Array<{ label: string; value: ColorMode }>>(()
   { label: t("settings.colorModeNames.dark"), value: "dark" },
 ]);
 
-// ── Reactive form ─────────────────────────────────────────────────
+// ── Reactive form (shared composable) ─────────────────────────────
 
-const form = reactive<AppSettings>({
-  globalSpeedLimitBps: 0,
-    appearance: {
-      themeColor: "default",
-      backgroundOpacity: "default",
-      colorMode: "system",
-      showDetailInfo: true,
-      showHeatmap: true,
-    },
-  proxy: {
-    mode: "disabled",
-    manualUrl: "",
-  },
-  scheduler: {
-    mode: "automatic",
-    traditional: {
-      maxParallelTasks: 3,
-    },
-    automatic: {
-      maxParallelThreads: 16,
-      maxThreadsPerTask: 8,
-      minThreadsPerTask: 0,
-      adaptiveProfile: "balanced",
-    },
-  },
-  download: {
-    defaultDownloadDir: "",
-    defaultMaxRetries: 5,
-    defaultChecksum: "blake3",
-    defaultUserAgent: DEFAULT_HTTP_USER_AGENT,
-    enableMetalink: false,
-    enableSftp: false,
-  },
-  bt: {
-    dhtEnabled: true,
-    trackerList: "",
-    trackerListUrl: DEFAULT_TRACKER_LIST_URL,
-    pauseUploadWhenLimitReached: false,
-    uploadLimitBytes: 0,
-    uploadRatioLimit: 0,
-    defaultDownloadSpeedLimit: 0,
-    defaultUploadSpeedLimit: 0,
-  },
-  networkLearning: {
-    deviceMode: "fixed",
-    currentSceneId: "default",
-    scenes: [
-      {
-        id: "default",
-        name: t("settings.defaultScene"),
-        learningEnabled: true,
-        learnedMetrics: null,
-        updatedAtMs: 0,
-      },
-    ],
-  },
-  logging: {
-    enabled: true,
-    level: "info",
-    filePath: "",
-  },
-  aria2Rpc: {
-    enabled: true,
-    port: 6800,
-    secret: null,
-  },
-  cdnAcceleration: {
-    enabled: false,
-    activeIp: null,
-    activeSpeedMbps: null,
-    lastTestAtMs: null,
-    lastError: null,
-  },
+const { form, buildSettingsPayload, savedSettingsSnapshot } = useSettingsForm({
+  settings: toRef(props, "settings"),
+  t,
+  onDirtyChange: (isDirty) => emit("dirtyChange", isDirty),
 });
 
 // ── State──────────────────────────────────────────────────────────
@@ -187,7 +116,6 @@ const form = reactive<AppSettings>({
 const isSaving = ref(false);
 const isPickingDirectory = ref(false);
 const isFetchingTrackerList = ref(false);
-const savedSettingsSnapshot = ref("");
 
 // ── Summaries (from composable)────────────────────────────────────
 
@@ -211,79 +139,6 @@ const {
   btSummary,
 } = useSettingsSummaries(form, t, optionArrays);
 
-const settingsDraftSnapshotComputed = computed(() => settingsDraftSnapshot(buildSettingsPayload()));
-
-// ── Settings sync watcher ─────────────────────────────────────────
-
-watch(
-  () => props.settings,
-  (nextSettings) => {
-    if (!nextSettings) {
-      return;
-    }
-
-    form.globalSpeedLimitBps = nextSettings.globalSpeedLimitBps ?? 0;
-    form.appearance.themeColor = nextSettings.appearance?.themeColor ?? "default";
-    form.appearance.backgroundOpacity = nextSettings.appearance?.backgroundOpacity ?? "default";
-    form.appearance.colorMode = nextSettings.appearance?.colorMode ?? "system";
-    form.appearance.showDetailInfo = nextSettings.appearance?.showDetailInfo ?? true;
-    form.appearance.showHeatmap = nextSettings.appearance?.showHeatmap ?? true;
-    form.proxy.mode = nextSettings.proxy.mode;
-    form.proxy.manualUrl = nextSettings.proxy.manualUrl;
-    form.scheduler.mode = nextSettings.scheduler.mode;
-    form.scheduler.traditional.maxParallelTasks =
-      nextSettings.scheduler.traditional.maxParallelTasks;
-    form.scheduler.automatic.maxParallelThreads =
-      nextSettings.scheduler.automatic.maxParallelThreads;
-    form.scheduler.automatic.maxThreadsPerTask = nextSettings.scheduler.automatic.maxThreadsPerTask;
-    form.scheduler.automatic.minThreadsPerTask =
-      nextSettings.scheduler.automatic.minThreadsPerTask ?? 0;
-    form.scheduler.automatic.adaptiveProfile = nextSettings.scheduler.automatic.adaptiveProfile;
-    form.download.defaultDownloadDir = nextSettings.download.defaultDownloadDir;
-    form.download.defaultMaxRetries = nextSettings.download.defaultMaxRetries;
-    form.download.defaultChecksum = nextSettings.download.defaultChecksum;
-    form.download.defaultUserAgent =
-      nextSettings.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
-    form.download.enableMetalink = nextSettings.download.enableMetalink ?? false;
-    form.download.enableSftp = nextSettings.download.enableSftp ?? false;
-    form.bt.dhtEnabled = nextSettings.bt.dhtEnabled;
-    form.bt.trackerList = nextSettings.bt.trackerList;
-    form.bt.trackerListUrl = nextSettings.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL;
-    form.bt.pauseUploadWhenLimitReached = nextSettings.bt.pauseUploadWhenLimitReached;
-    form.bt.uploadLimitBytes = nextSettings.bt.uploadLimitBytes;
-    form.bt.uploadRatioLimit = nextSettings.bt.uploadRatioLimit;
-    form.bt.defaultDownloadSpeedLimit = nextSettings.bt.defaultDownloadSpeedLimit ?? 0;
-    form.bt.defaultUploadSpeedLimit = nextSettings.bt.defaultUploadSpeedLimit ?? 0;
-    form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
-    form.networkLearning.currentSceneId = "default";
-    form.networkLearning.scenes = [copyNetworkScene(nextSettings.networkLearning)];
-    form.logging.enabled = nextSettings.logging?.enabled ?? true;
-    form.logging.level = nextSettings.logging?.level ?? "info";
-    form.logging.filePath = nextSettings.logging?.filePath ?? "";
-    form.aria2Rpc.enabled = nextSettings.aria2Rpc?.enabled ?? true;
-    form.aria2Rpc.port = nextSettings.aria2Rpc?.port ?? 6800;
-    form.aria2Rpc.secret = nextSettings.aria2Rpc?.secret ?? null;
-    form.cdnAcceleration = { ...nextSettings.cdnAcceleration };
-    savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
-    emit("dirtyChange", false);
-  },
-  { immediate: true },
-);
-
-// ── Dirty tracking ────────────────────────────────────────────────
-
-watch(
-  settingsDraftSnapshotComputed,
-  (snapshot) => {
-    if (!savedSettingsSnapshot.value) {
-      return;
-    }
-
-    emit("dirtyChange", snapshot !== savedSettingsSnapshot.value);
-  },
-  { immediate: true },
-);
-
 // ── Constraint: maxThreadsPerTask ≤ maxParallelThreads ────────────
 
 watch(
@@ -297,77 +152,8 @@ watch(
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-function copyNetworkScene(settings: NetworkLearningSettings) {
-  return copySingleNetworkScene(settings, t);
-}
-
 function changeLanguage(nextLanguage: SupportedLanguage) {
   void setLanguage(nextLanguage);
-}
-
-function buildSettingsPayload(): AppSettings {
-  return {
-    globalSpeedLimitBps: form.globalSpeedLimitBps,
-      appearance: {
-        themeColor: form.appearance.themeColor,
-        backgroundOpacity: form.appearance.backgroundOpacity,
-        colorMode: form.appearance.colorMode,
-        showDetailInfo: form.appearance.showDetailInfo,
-        showHeatmap: form.appearance.showHeatmap,
-      },
-    proxy: {
-      mode: form.proxy.mode,
-      manualUrl: form.proxy.manualUrl,
-    },
-    scheduler: {
-      mode: form.scheduler.mode,
-      traditional: {
-        maxParallelTasks: form.scheduler.traditional.maxParallelTasks,
-      },
-      automatic: {
-        maxParallelThreads: form.scheduler.automatic.maxParallelThreads,
-        maxThreadsPerTask: form.scheduler.automatic.maxThreadsPerTask,
-        minThreadsPerTask: form.scheduler.automatic.minThreadsPerTask,
-        adaptiveProfile: form.scheduler.automatic.adaptiveProfile,
-      },
-    },
-    download: {
-      defaultDownloadDir: form.download.defaultDownloadDir,
-      defaultMaxRetries: form.download.defaultMaxRetries,
-      defaultChecksum: form.download.defaultChecksum,
-      defaultUserAgent: form.download.defaultUserAgent,
-      enableMetalink: form.download.enableMetalink,
-      enableSftp: form.download.enableSftp,
-    },
-    bt: {
-      dhtEnabled: form.bt.dhtEnabled,
-      trackerList: form.bt.trackerList,
-      trackerListUrl: form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
-      pauseUploadWhenLimitReached: form.bt.pauseUploadWhenLimitReached,
-      uploadLimitBytes: form.bt.uploadLimitBytes,
-      uploadRatioLimit: form.bt.uploadRatioLimit,
-      // TODO: Add defaultDownloadSpeedLimit and defaultUploadSpeedLimit to save payload
-      // once backend BtSettings in src-tauri/src/download/types.rs supports them.
-    },
-    networkLearning: {
-      deviceMode: form.networkLearning.deviceMode,
-      currentSceneId: "default",
-      scenes: [copyNetworkScene(form.networkLearning)],
-    },
-    logging: {
-      enabled: form.logging.enabled,
-      level: form.logging.level,
-      filePath: form.logging.filePath.trim(),
-    },
-    aria2Rpc: {
-      enabled: form.aria2Rpc.enabled,
-      port: form.aria2Rpc.port,
-      secret: form.aria2Rpc.secret?.trim() || null,
-    },
-    cdnAcceleration: {
-      ...form.cdnAcceleration,
-    },
-  };
 }
 
 // ── Actions ───────────────────────────────────────────────────────
@@ -627,10 +413,9 @@ defineExpose({
   gap: 1rem;
   padding: 0.85rem 1rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
-  box-shadow: var(--shadow-card-hover);
-  backdrop-filter: blur(var(--surface-blur));
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .settings-save-bar__hint {
@@ -672,7 +457,7 @@ defineExpose({
   padding: 0.25rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
+  background: var(--color-panel-muted);
 }
 
 .settings-tab {
@@ -696,13 +481,14 @@ defineExpose({
 
 .settings-tab:hover {
   color: var(--color-heading);
-  background: color-mix(in srgb, var(--color-accent-soft) 24%, var(--color-panel));
+  background: var(--color-panel);
 }
 
 .settings-tab--active {
-  color: var(--color-accent-strong);
-  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-soft) 52%, var(--color-panel));
+  color: var(--color-heading);
+  border-color: var(--color-border);
+  background: var(--color-panel);
+  font-weight: 600;
 }
 
 .settings-tab-content {
@@ -754,8 +540,8 @@ defineExpose({
   gap: 1rem;
   padding: 1rem 1.1rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-card-alpha), transparent);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
   box-shadow: var(--shadow-card);
 }
 
@@ -778,10 +564,10 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-muted));
-  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  background: var(--color-panel-muted);
+  border: 1px solid var(--color-border);
 }
 
 .settings-section__summary {
@@ -840,7 +626,7 @@ defineExpose({
   padding: 0 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
+  background: var(--color-panel);
   color: var(--color-text-muted);
   cursor: pointer;
   font: inherit;
@@ -854,18 +640,18 @@ defineExpose({
 
 .settings-toggle:hover {
   border-color: var(--color-border-strong);
-  background: color-mix(in srgb, var(--color-panel-muted) 72%, var(--color-panel));
+  background: var(--color-panel-muted);
 }
 
 .settings-toggle:focus-visible {
   outline: none;
   border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .settings-toggle--active {
-  border-color: color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-soft) 45%, var(--color-panel));
+  border-color: var(--color-accent-strong);
+  background: color-mix(in srgb, var(--color-accent-soft) 25%, var(--color-panel));
   color: var(--color-accent-strong);
 }
 
@@ -908,7 +694,7 @@ defineExpose({
 .settings-textarea:focus-visible {
   outline: none;
   border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .settings-metrics-grid {
@@ -923,7 +709,7 @@ defineExpose({
   padding: 0.85rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel-muted) var(--surface-muted-alpha), transparent);
+  background: var(--color-panel-muted);
 }
 
 .settings-metric-card__label {
@@ -936,6 +722,7 @@ defineExpose({
 
 .settings-metric-card__value {
   color: var(--color-heading);
+  font-family: var(--font-mono);
   font-size: 0.95rem;
   line-height: 1.4;
 }

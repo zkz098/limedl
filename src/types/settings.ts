@@ -4,6 +4,7 @@ export type { AdaptiveProfile };
 
 export type ProxyMode = "disabled" | "system" | "manual";
 export type SchedulerMode = "traditional" | "automatic";
+export type ChunkSizeStrategy = "fixed" | "adaptive";
 export type DeviceLearningMode = "fixed" | "mobile" | "semi_mobile";
 export type ThemeColor = "default" | "amber" | "sky" | "lime";
 export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
@@ -38,6 +39,7 @@ export interface SchedulerSettings {
   mode: SchedulerMode;
   traditional: TraditionalSchedulerSettings;
   automatic: AutomaticSchedulerSettings;
+  chunkSizeStrategy: ChunkSizeStrategy;
 }
 
 export interface DownloadDefaultsSettings {

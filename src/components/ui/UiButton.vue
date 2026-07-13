@@ -65,45 +65,40 @@ const isDisabled = computed(() => props.disabled || props.loading);
   align-items: center;
   appearance: none;
   border: 1px solid transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
   font-weight: 600;
-  gap: 0.625rem;
+  gap: 0.5rem;
   justify-content: center;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
   transition:
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    box-shadow 0.25s ease,
-    background-color 0.25s ease,
-    color 0.25s ease;
-}
-
-.ui-button:hover:not(:disabled) {
-  transform: translateY(-0.0625rem);
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .ui-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 0.1875rem var(--color-focus-ring);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .ui-button:disabled {
   cursor: not-allowed;
-  opacity: 0.56;
-  transform: none;
+  opacity: 0.5;
 }
 
 .ui-button--md {
-  min-height: 2.75rem;
-  padding: 0 1rem;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
 }
 
 .ui-button--sm {
-  min-height: 2.125rem;
-  padding: 0 0.875rem;
+  min-height: 1.875rem;
+  padding: 0 0.625rem;
+  font-size: var(--font-size-small);
 }
 
 .ui-button--block {
@@ -111,24 +106,23 @@ const isDisabled = computed(() => props.disabled || props.loading);
 }
 
 .ui-button--primary {
-  background: linear-gradient(135deg, var(--color-accent-strong), var(--color-accent));
-  box-shadow: var(--shadow-accent);
+  background: var(--color-accent);
   color: var(--color-accent-contrast);
 }
 
 .ui-button--primary:hover:not(:disabled) {
-  box-shadow: 0 0.75rem 1.5rem rgba(180, 108, 92, 0.22);
+  background: var(--color-accent-strong);
 }
 
 .ui-button--secondary {
-  background: var(--color-panel-muted);
+  background: var(--color-panel);
   border-color: var(--color-border);
   color: var(--color-text-main);
 }
 
 .ui-button--secondary:hover:not(:disabled) {
-  border-color: var(--color-accent-soft-border);
-  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-muted);
 }
 
 .ui-button--ghost {
@@ -138,8 +132,8 @@ const isDisabled = computed(() => props.disabled || props.loading);
 }
 
 .ui-button--ghost:hover:not(:disabled) {
-  color: var(--color-accent-strong);
-  background: var(--color-panel-muted);
+  color: var(--color-text-main);
+  background: var(--color-surface-muted);
 }
 
 .ui-button--danger {
@@ -149,7 +143,7 @@ const isDisabled = computed(() => props.disabled || props.loading);
 }
 
 .ui-button--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-danger-bg) 70%, white);
+  background: color-mix(in srgb, var(--color-danger-bg) 92%, var(--color-text-main));
 }
 
 .ui-button__icon {
@@ -161,8 +155,8 @@ const isDisabled = computed(() => props.disabled || props.loading);
 }
 
 .ui-button__spinner {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 0.9rem;
+  height: 0.9rem;
   border: 0.125rem solid currentColor;
   border-right-color: transparent;
   border-radius: 999px;

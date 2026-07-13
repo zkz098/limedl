@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use super::{
     error::{DownloadError, Result},
-    lock_or_recover,
+    file_alloc, lock_or_recover,
     rate_limiter::RateLimiter,
     types::{
         AdaptiveProfile, BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState,
@@ -381,9 +381,19 @@ fn download_sftp_file(task: &SftpTask, token: &CancellationToken) -> Result<()> 
         snapshot.total_bytes = Some(total_bytes);
     }
 
+    // Compute how much of the file already exists locally (for resume support).
+    let already_downloaded = existing_file_len(&task.destination_path);
+
+    // Check available disk space before starting the transfer.
+    // Subtract already-downloaded bytes so a resumed download isn't falsely rejected.
+    if let Some(total_bytes) = total_bytes {
+        let needed = total_bytes.saturating_sub(already_downloaded);
+        file_alloc::check_disk_space(&task.destination_dir, needed)?;
+    }
+
     let offset = total_bytes
-        .map(|total| existing_file_len(&task.destination_path).min(total))
-        .unwrap_or_else(|| existing_file_len(&task.destination_path));
+        .map(|total| already_downloaded.min(total))
+        .unwrap_or(already_downloaded);
     remote
         .seek(SeekFrom::Start(offset))
         .map_err(|error| DownloadError::Sftp(error.to_string()))?;

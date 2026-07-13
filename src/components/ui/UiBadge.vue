@@ -21,23 +21,23 @@ withDefaults(
 .ui-badge {
   align-items: center;
   display: inline-flex;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .ui-badge--md {
-  min-height: 2rem;
-  padding: 0 0.75rem;
+  min-height: 1.5rem;
+  padding: 0 0.5rem;
   font-size: var(--font-size-label);
 }
 
 .ui-badge--sm {
-  min-height: 1.5rem;
-  padding: 0 0.55rem;
-  font-size: 0.68rem;
+  min-height: 1.25rem;
+  padding: 0 0.375rem;
+  font-size: 0.7rem;
 }
 
 .ui-badge--neutral {

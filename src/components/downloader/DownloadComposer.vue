@@ -340,8 +340,9 @@ const threadHint = computed(() => {
 }
 
 .group__head h3 {
-  margin: 0.25rem 0 0;
-  font-size: 1rem;
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
   color: var(--color-heading);
 }
 
@@ -349,35 +350,40 @@ const threadHint = computed(() => {
   grid-column: 1 / -1;
   display: inline-grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-  gap: 0.35rem;
-  padding: 0.25rem;
+  gap: 0.15rem;
+  padding: 0.2rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-panel) var(--surface-panel-alpha), transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
 }
 
 .source-tab {
-  min-height: 2.25rem;
+  min-height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 0.84rem;
+  font-size: var(--font-size-small);
   transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.source-tab:hover {
+  color: var(--color-text-main);
+  background: var(--color-surface-muted);
 }
 
 .source-tab--active {
   color: var(--color-accent-strong);
-  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-soft) 52%, var(--color-panel));
+  border-color: var(--color-accent-soft-border);
+  background: var(--color-accent-soft);
 }
 
 .field__label {
@@ -390,7 +396,7 @@ const threadHint = computed(() => {
 .field__hint {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.5;
 }
 

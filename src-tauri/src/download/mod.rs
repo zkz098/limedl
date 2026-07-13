@@ -1,6 +1,7 @@
 mod aimd;
 mod aria2_rpc;
 mod cdn;
+pub(crate) mod checksum;
 mod commands;
 pub(crate) mod database;
 mod error;
@@ -9,12 +10,18 @@ mod http;
 mod logging;
 mod manager;
 mod manifest;
+pub(crate) mod scheduler;
+pub(crate) mod settings;
 mod metalink;
 pub(crate) mod migration;
+pub(crate) mod persistence;
 mod rate_limiter;
+pub(crate) mod retry;
 mod sftp;
 mod torrent;
 mod types;
+
+pub(crate) use checksum::calculate_checksum;
 
 pub use aria2_rpc::Aria2RpcServer;
 pub(crate) use cdn::CdnAccelerator;
