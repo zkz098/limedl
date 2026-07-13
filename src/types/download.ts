@@ -24,8 +24,6 @@ export interface StartDownloadRequest {
   threadCount?: number;
   maxRetries?: number;
   checksum?: ChecksumMode;
-  downloadLimitBps?: number;
-  uploadLimitBps?: number;
   selectedFileIndices?: number[];
   startPaused?: boolean;
 }

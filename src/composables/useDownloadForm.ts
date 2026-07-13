@@ -1,6 +1,6 @@
 import { reactive, ref, type Ref } from "vue";
 
-import { startDownload } from "../lib/tauri/download-api";
+import { setBtSpeedLimit, startDownload } from "../lib/tauri/download-api";
 import { pickDirectory, pickMetalinkFile, pickTorrentFile } from "../lib/tauri/dialog-api";
 import { t } from "../i18n";
 import { toMessage } from "./downloadHelpers";
@@ -148,12 +148,6 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     }
 
     if (form.kind === "bt" || form.kind === "metalink") {
-      if (form.downloadLimitBps !== null && form.downloadLimitBps > 0) {
-        request.downloadLimitBps = form.downloadLimitBps;
-      }
-      if (form.uploadLimitBps !== null && form.uploadLimitBps > 0) {
-        request.uploadLimitBps = form.uploadLimitBps;
-      }
       if (form.selectedFileIndices && form.selectedFileIndices.length > 0) {
         request.selectedFileIndices = [...form.selectedFileIndices];
       }
@@ -249,6 +243,21 @@ export function useDownloadForm(input: UseDownloadFormInput) {
       const downloadId = await startDownload(buildStartRequest());
       allowAutoSelect.value = true;
       selectedId.value = downloadId;
+
+      // For BT downloads, apply initial per-download speed limits after start
+      // (the StartDownloadRequest no longer carries these fields).
+      if (form.kind === "bt") {
+        const dl = form.downloadLimitBps;
+        const ul = form.uploadLimitBps;
+        if ((dl !== null && dl > 0) || (ul !== null && ul > 0)) {
+          try {
+            await setBtSpeedLimit(downloadId, dl ?? undefined, ul ?? undefined);
+          } catch {
+            // Non-critical — speed limit is optional, the download is already running.
+          }
+        }
+      }
+
       await refreshList();
       await refreshStatus(downloadId, { silent: true });
       setMessage(t("messages.downloadQueued", { id: downloadId }));

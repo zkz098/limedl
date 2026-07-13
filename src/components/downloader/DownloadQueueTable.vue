@@ -35,6 +35,8 @@ const syncShowDelayMs = 240;
 const syncHideDelayMs = 420;
 const { t } = useI18n();
 const currentPage = ref(1);
+const searchQuery = ref('');
+const stateFilter = ref('');
 const columnMenuOpen = ref(false);
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
 const isRefreshLabelVisible = ref(false);
@@ -51,16 +53,40 @@ const columnOptions = computed<Array<{ key: ColumnKey; label: string; alwaysVisi
   ],
 );
 
-const totalPages = computed(() => Math.max(1, Math.ceil(props.downloads.length / pageSize)));
+const statusFilterOptions = computed<Array<{ value: string; label: string }>>(() => [
+  { value: '', label: t('queue.statusAll') },
+  { value: 'downloading', label: t('queue.statusDownloading') },
+  { value: 'paused', label: t('queue.statusPaused') },
+  { value: 'completed', label: t('queue.statusCompleted') },
+  { value: 'failed', label: t('queue.statusFailed') },
+]);
+
+const filteredDownloads = computed(() => {
+  let list = props.downloads;
+  const query = searchQuery.value.trim().toLowerCase();
+  if (query) {
+    list = list.filter(
+      (d) => d.fileName.toLowerCase().includes(query) || d.url.toLowerCase().includes(query),
+    );
+  }
+  if (stateFilter.value) {
+    list = list.filter((d) => d.state === stateFilter.value);
+  }
+  return list;
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredDownloads.value.length / pageSize)));
 const pagedDownloads = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
-  return props.downloads.slice(start, start + pageSize);
+  return filteredDownloads.value.slice(start, start + pageSize);
 });
 const pageStart = computed(() =>
-  props.downloads.length ? (currentPage.value - 1) * pageSize + 1 : 0,
+  filteredDownloads.value.length ? (currentPage.value - 1) * pageSize + 1 : 0,
 );
 const pageEnd = computed(() =>
-  props.downloads.length ? Math.min(currentPage.value * pageSize, props.downloads.length) : 0,
+  filteredDownloads.value.length
+    ? Math.min(currentPage.value * pageSize, filteredDownloads.value.length)
+    : 0,
 );
 const contextMenuDownload = computed(
   () => props.downloads.find((download) => download.id === contextMenu.value?.downloadId) ?? null,
@@ -91,7 +117,7 @@ const contextActionIcon = computed(() =>
 );
 
 watch(
-  () => props.downloads.length,
+  () => filteredDownloads.value.length,
   () => {
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value;
@@ -412,7 +438,42 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="downloads.length" class="queue-panel__table">
+    <div class="queue-toolbar">
+      <div class="queue-search">
+        <span class="queue-search__icon i-ri-search-line" aria-hidden="true" />
+        <input
+          v-model="searchQuery"
+          class="queue-search__input"
+          type="text"
+          :placeholder="t('queue.searchPlaceholder')"
+          :aria-label="t('queue.searchPlaceholder')"
+        />
+        <button
+          v-if="searchQuery"
+          class="queue-search__clear"
+          type="button"
+          :aria-label="t('queue.clearSearch')"
+          @click="searchQuery = ''"
+        >
+          <span class="i-ri-close-line" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div class="queue-status-filters" role="group" :aria-label="t('queue.status')">
+        <button
+          v-for="opt in statusFilterOptions"
+          :key="opt.value"
+          type="button"
+          class="queue-status-filter"
+          :class="{ 'queue-status-filter--active': stateFilter === opt.value }"
+          @click="stateFilter = opt.value"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="filteredDownloads.length" class="queue-panel__table">
       <div class="queue-table-shell">
         <table class="queue-table">
           <thead>
@@ -489,7 +550,7 @@ onUnmounted(() => {
 
       <div class="queue-pagination">
         <p class="queue-pagination__summary">
-          {{ t("queue.showing", { start: pageStart, end: pageEnd, total: downloads.length }) }}
+          {{ t("queue.showing", { start: pageStart, end: pageEnd, total: filteredDownloads.length }) }}
         </p>
         <div class="queue-pagination__actions">
           <UiButton
@@ -568,6 +629,10 @@ onUnmounted(() => {
       </Teleport>
     </div>
 
+    <div v-else-if="downloads.length" class="queue-empty">
+      <span class="queue-empty__icon i-ri-search-eye-line" aria-hidden="true" />
+      <h3>{{ t("queue.noResults") }}</h3>
+    </div>
     <div v-else class="queue-empty">
       <span class="queue-empty__icon i-ri-inbox-archive-line" aria-hidden="true" />
       <h3>{{ t("queue.emptyTitle") }}</h3>
@@ -944,6 +1009,114 @@ onUnmounted(() => {
 
 .task-context-menu__item--danger:hover:not(:disabled) {
   background: var(--color-danger-bg);
+}
+
+.queue-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.queue-search {
+  position: relative;
+  flex: 1 1 12rem;
+  min-width: 10rem;
+  max-width: 24rem;
+}
+
+.queue-search__icon {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.queue-search__input {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0 1.75rem 0 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-input-bg);
+  color: var(--color-text-main);
+  font-size: var(--font-size-small);
+  transition:
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+}
+
+.queue-search__input::placeholder {
+  color: var(--color-text-soft);
+}
+
+.queue-search__input:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+.queue-search__clear {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
+}
+
+.queue-search__clear:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text-main);
+}
+
+.queue-status-filters {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.queue-status-filter {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.queue-status-filter:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text-main);
+}
+
+.queue-status-filter--active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-soft-border);
+  color: var(--color-accent-strong);
 }
 
 @media (max-width: 1160px) {

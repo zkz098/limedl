@@ -386,8 +386,8 @@ impl TorrentManager {
             source.to_string(),
             destination_dir,
             bt_settings,
-            request.download_limit_bps,
-            request.upload_limit_bps,
+            None,
+            None,
             request.selected_file_indices.clone(),
             request.start_paused,
         );
@@ -1536,8 +1536,6 @@ mod tests {
             thread_count: None,
             max_retries: None,
             checksum: None,
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         }

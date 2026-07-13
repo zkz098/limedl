@@ -84,8 +84,6 @@ impl super::DownloadManager {
             thread_count: current_manifest.requested_thread_count,
             max_retries: None,
             checksum: Some(current_manifest.checksum_mode),
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         };

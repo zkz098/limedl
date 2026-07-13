@@ -185,8 +185,6 @@ fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
             thread_count: None,
             max_retries: None,
             checksum: None,
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         },
@@ -230,8 +228,6 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
             thread_count: None,
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         }),
@@ -315,8 +311,6 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             thread_count: Some(4),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         })
@@ -333,8 +327,6 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             thread_count: Some(4),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         })
@@ -417,8 +409,6 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             thread_count: Some(3),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         })
@@ -435,8 +425,6 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             thread_count: Some(3),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         })
@@ -509,8 +497,6 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             thread_count: None,
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
-            download_limit_bps: None,
-            upload_limit_bps: None,
             selected_file_indices: None,
             start_paused: false,
         })

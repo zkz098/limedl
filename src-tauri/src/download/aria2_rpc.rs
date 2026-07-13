@@ -332,8 +332,6 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         thread_count: extract_option_usize(options, "split"),
         max_retries: extract_option_u32(options, "max-tries"),
         checksum: None,
-        download_limit_bps: None,
-        upload_limit_bps: None,
         selected_file_indices: None,
         start_paused: false,
     };
@@ -399,8 +397,6 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         thread_count: None,
         max_retries: None,
         checksum: None,
-        download_limit_bps: None,
-        upload_limit_bps: None,
         selected_file_indices: None,
         start_paused: false,
     };
@@ -710,8 +706,6 @@ async fn handle_add_metalink(ctx: &RpcContext, params: Vec<Value>) -> Result<Val
         thread_count: None,
         max_retries: extract_option_u32(options, "max-tries"),
         checksum: None,
-        download_limit_bps: None,
-        upload_limit_bps: None,
         selected_file_indices: None,
         start_paused: false,
     };

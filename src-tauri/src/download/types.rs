@@ -183,10 +183,6 @@ pub struct StartDownloadRequest {
     pub max_retries: Option<u32>,
     pub checksum: Option<ChecksumMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub download_limit_bps: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub upload_limit_bps: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_file_indices: Option<Vec<usize>>,
     #[serde(default)]
     pub start_paused: bool,
