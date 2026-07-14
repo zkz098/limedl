@@ -376,6 +376,24 @@ impl Database {
         })
     }
 
+    /// Create an in-memory SQLite database for testing.
+    ///
+    /// Enables foreign keys and runs the CREATE TABLE statements.
+    /// Does NOT enable WAL mode (unnecessary for in-memory single-connection tests
+    /// and can cause "database is locked" errors).
+    #[cfg(test)]
+    pub(crate) fn open_in_memory() -> Result<Self> {
+        let conn = Connection::open_in_memory()
+            .context("failed to open in-memory database")?;
+        conn.execute_batch("PRAGMA foreign_keys = ON;")
+            .context("failed to enable foreign keys")?;
+        conn.execute_batch(CREATE_TABLES_SQL)
+            .context("failed to create tables")?;
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
+    }
+
     fn lock_conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().unwrap_or_else(|poisoned| {
             tracing::warn!("database connection lock poisoned, recovering with inner state");
@@ -654,5 +672,573 @@ impl<T> OptionalExt<T> for Result<T, rusqlite::Error> {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e),
         }
+    }
+}
+
+// ── Tests ────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use ntest::timeout;
+
+    use super::*;
+    use super::super::manifest::CHUNK_SIZE;
+    use super::super::types::default_http_user_agent;
+
+    /// Helper: create a `Manifest` with sensible defaults for testing.
+    fn new_test_manifest(id: &str, url: &str, file_name: &str) -> Manifest {
+        Manifest {
+            id: id.to_string(),
+            url: url.to_string(),
+            final_url: url.to_string(),
+            user_agent: default_http_user_agent(),
+            destination_dir: "/tmp".to_string(),
+            file_name: file_name.to_string(),
+            file_name_locked: true,
+            destination_path: format!("/tmp/{file_name}"),
+            temp_path: format!("/tmp/{file_name}.tmp"),
+            total_bytes: Some(1024),
+            downloaded_bytes: 0,
+            supports_ranges: true,
+            chunk_size: CHUNK_SIZE,
+            connection_count: 1,
+            thread_mode: ThreadMode::Adaptive,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile_snapshot: None,
+            thread_note: None,
+            etag: None,
+            last_modified: None,
+            state: DownloadState::Queued,
+            cdn_accelerated: false,
+            checksum_mode: ChecksumMode::Blake3,
+            checksum: None,
+            error: None,
+            created_at_ms: 1000,
+            updated_at_ms: 1000,
+            chunks: Vec::new(),
+        }
+    }
+
+    /// Helper: count chunks for a download by querying the chunks table directly.
+    fn count_chunks(db: &Database, download_id: &str) -> usize {
+        let conn = db.lock_conn();
+        conn.query_row(
+            "SELECT COUNT(*) FROM chunks WHERE download_id = ?1",
+            params![download_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap_or(0) as usize
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn open_in_memory_creates_empty_db() {
+        let db = Database::open_in_memory().unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 0);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn insert_and_get_download_roundtrip() {
+        let db = Database::open_in_memory().unwrap();
+        let mut manifest = new_test_manifest("test-1", "https://example.com/file", "file.bin");
+        manifest.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 511,
+            downloaded: 0,
+            completed: false,
+            claimed_by: None,
+            dirty: false,
+        }];
+        db.insert_download(&manifest).unwrap();
+        let loaded = db.get_download("test-1").unwrap().expect("should exist");
+        assert_eq!(loaded.id, "test-1");
+        assert_eq!(loaded.url, "https://example.com/file");
+        assert_eq!(loaded.file_name, "file.bin");
+        assert_eq!(loaded.state, DownloadState::Queued);
+        assert_eq!(loaded.chunks.len(), 1);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn insert_or_replace_same_id_replaces() {
+        let db = Database::open_in_memory().unwrap();
+
+        let m1 = new_test_manifest("id-1", "https://a.com/f1", "first.txt");
+        db.insert_download(&m1).unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 1);
+
+        let m2 = new_test_manifest("id-1", "https://b.com/f2", "second.txt");
+        db.insert_download(&m2).unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 1);
+
+        let loaded = db.get_download("id-1").unwrap().expect("should exist");
+        assert_eq!(loaded.file_name, "second.txt");
+        assert_eq!(loaded.url, "https://b.com/f2");
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn get_nonexistent_download_returns_none() {
+        let db = Database::open_in_memory().unwrap();
+        let result = db.get_download("no-such-id").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn delete_download_cascades_to_chunks() {
+        let db = Database::open_in_memory().unwrap();
+        let mut manifest = new_test_manifest("del-1", "https://example.com/file", "delete.bin");
+        manifest.chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 511,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 512,
+                end: 1023,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        db.insert_download(&manifest).unwrap();
+        assert_eq!(count_chunks(&db, "del-1"), 2);
+
+        db.delete_download("del-1").unwrap();
+        assert!(db.get_download("del-1").unwrap().is_none());
+        assert_eq!(count_chunks(&db, "del-1"), 0);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn delete_nonexistent_does_not_panic() {
+        let db = Database::open_in_memory().unwrap();
+        let result = db.delete_download("no-such-id");
+        assert!(result.is_ok());
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn insert_then_get_preserves_all_fields() {
+        let db = Database::open_in_memory().unwrap();
+        let mut manifest = new_test_manifest("all-fields", "https://example.com/file", "all.txt");
+        // Override with non-default values for every field
+        manifest.state = DownloadState::Downloading;
+        manifest.downloaded_bytes = 1024;
+        manifest.etag = Some("\"abc123\"".into());
+        manifest.thread_mode = ThreadMode::Fixed;
+        manifest.requested_thread_count = Some(4);
+        manifest.checksum_mode = ChecksumMode::Sha256;
+        manifest.checksum = Some("sha256hash".into());
+        manifest.error = Some("some error".into());
+        manifest.adaptive_profile_snapshot = Some(AdaptiveProfile::Aggressive);
+        manifest.thread_note = Some("my thread note".into());
+        manifest.total_bytes = Some(99999);
+        manifest.last_modified = Some("Mon, 01 Jan 2024 00:00:00 GMT".into());
+        manifest.desired_thread_count = Some(6);
+        manifest.allocated_thread_count = Some(4);
+        manifest.final_url = "https://redirect.example.com/file".to_string();
+        manifest.user_agent = "custom-agent/1.0".to_string();
+        manifest.destination_dir = "/custom/path".to_string();
+        manifest.file_name_locked = false;
+        manifest.destination_path = "/custom/path/all.txt".to_string();
+        manifest.temp_path = "/custom/path/all.txt.tmp".to_string();
+        manifest.supports_ranges = false;
+        manifest.connection_count = 3;
+        manifest.chunk_size = 8192;
+        manifest.created_at_ms = 5000;
+        manifest.updated_at_ms = 6000;
+        manifest.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 500,
+            downloaded: 500,
+            completed: true,
+            claimed_by: Some(1),
+            dirty: false,
+        }];
+
+        db.insert_download(&manifest).unwrap();
+        let loaded = db.get_download("all-fields").unwrap().expect("should exist");
+
+        assert_eq!(loaded.id, "all-fields");
+        assert_eq!(loaded.url, "https://example.com/file");
+        assert_eq!(loaded.final_url, "https://redirect.example.com/file");
+        assert_eq!(loaded.user_agent, "custom-agent/1.0");
+        assert_eq!(loaded.destination_dir, "/custom/path");
+        assert_eq!(loaded.file_name, "all.txt");
+        assert!(!loaded.file_name_locked);
+        assert_eq!(loaded.destination_path, "/custom/path/all.txt");
+        assert_eq!(loaded.temp_path, "/custom/path/all.txt.tmp");
+        assert_eq!(loaded.total_bytes, Some(99999));
+        assert_eq!(loaded.downloaded_bytes, 1024);
+        assert!(!loaded.supports_ranges);
+        assert_eq!(loaded.connection_count, 3);
+        assert_eq!(loaded.thread_mode, ThreadMode::Fixed);
+        assert_eq!(loaded.requested_thread_count, Some(4));
+        assert_eq!(loaded.desired_thread_count, Some(6));
+        assert_eq!(loaded.allocated_thread_count, Some(4));
+        assert_eq!(
+            loaded.adaptive_profile_snapshot,
+            Some(AdaptiveProfile::Aggressive)
+        );
+        assert_eq!(loaded.thread_note.as_deref(), Some("my thread note"));
+        assert_eq!(loaded.etag.as_deref(), Some("\"abc123\""));
+        assert_eq!(
+            loaded.last_modified.as_deref(),
+            Some("Mon, 01 Jan 2024 00:00:00 GMT")
+        );
+        assert_eq!(loaded.state, DownloadState::Downloading);
+        assert_eq!(loaded.checksum_mode, ChecksumMode::Sha256);
+        assert_eq!(loaded.checksum.as_deref(), Some("sha256hash"));
+        assert_eq!(loaded.error.as_deref(), Some("some error"));
+        assert_eq!(loaded.created_at_ms, 5000);
+        assert_eq!(loaded.updated_at_ms, 6000);
+        assert_eq!(loaded.chunks.len(), 1);
+        assert_eq!(loaded.chunks[0].index, 0);
+        assert_eq!(loaded.chunks[0].start, 0);
+        assert_eq!(loaded.chunks[0].end, 500);
+        assert_eq!(loaded.chunks[0].downloaded, 500);
+        assert!(loaded.chunks[0].completed);
+        assert_eq!(loaded.chunks[0].claimed_by, Some(1));
+        // dirty is not persisted; always false when loaded from DB
+        assert!(!loaded.chunks[0].dirty);
+        assert_eq!(loaded.chunk_size, 8192);
+        // cdn_accelerated is hardcoded to false in row_to_manifest
+        assert!(!loaded.cdn_accelerated);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn insert_duplicate_id_replaces() {
+        let db = Database::open_in_memory().unwrap();
+
+        // Insert original with 2 chunks
+        let mut orig = new_test_manifest("dup", "https://a.com/orig", "original.txt");
+        orig.chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 499,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 500,
+                end: 999,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        db.insert_download(&orig).unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 1);
+
+        // Replace with 1 chunk and different url / file_name
+        let mut replacement = new_test_manifest("dup", "https://b.com/replaced", "replaced.txt");
+        replacement.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 199,
+            downloaded: 100,
+            completed: false,
+            claimed_by: None,
+            dirty: false,
+        }];
+        db.insert_download(&replacement).unwrap();
+
+        let loaded = db.get_download("dup").unwrap().expect("should exist");
+        assert_eq!(loaded.url, "https://b.com/replaced");
+        assert_eq!(loaded.file_name, "replaced.txt");
+        assert_eq!(loaded.chunks.len(), 1);
+        assert_eq!(loaded.chunks[0].downloaded, 100);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn update_download_modifies_all_fields() {
+        let db = Database::open_in_memory().unwrap();
+
+        let mut m = new_test_manifest("upd", "https://a.com/old", "old.txt");
+        m.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 499,
+            downloaded: 0,
+            completed: false,
+            claimed_by: None,
+            dirty: false,
+        }];
+        db.insert_download(&m).unwrap();
+
+        // Update with all new values (same id)
+        let mut updated = new_test_manifest("upd", "https://b.com/new", "new.txt");
+        updated.state = DownloadState::Completed;
+        updated.downloaded_bytes = 500;
+        updated.updated_at_ms = 9999;
+        updated.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 499,
+            downloaded: 500,
+            completed: true,
+            claimed_by: None,
+            dirty: false,
+        }];
+        db.update_download(&updated).unwrap();
+
+        let loaded = db.get_download("upd").unwrap().expect("should exist");
+        assert_eq!(loaded.state, DownloadState::Completed);
+        assert_eq!(loaded.downloaded_bytes, 500);
+        assert_eq!(loaded.file_name, "new.txt");
+        assert_eq!(loaded.url, "https://b.com/new");
+        assert_eq!(loaded.updated_at_ms, 9999);
+        assert_eq!(loaded.chunks.len(), 1);
+        assert!(loaded.chunks[0].completed);
+        assert_eq!(loaded.chunks[0].downloaded, 500);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn update_download_progress_incremental() {
+        let db = Database::open_in_memory().unwrap();
+
+        let mut m = new_test_manifest("prog", "https://example.com/prog", "progress.bin");
+        m.chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 499,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 500,
+                end: 999,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        db.insert_download(&m).unwrap();
+
+        // Update progress: chunk 0 gets partial progress, use state "downloading"
+        let dirty_chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 499,
+            downloaded: 250,
+            completed: false,
+            claimed_by: Some(0),
+            dirty: true,
+        }];
+        db.update_download_progress("prog", 250, &dirty_chunks, "downloading", 2000)
+            .unwrap();
+
+        let loaded = db.get_download("prog").unwrap().expect("should exist");
+        assert_eq!(loaded.downloaded_bytes, 250);
+        assert_eq!(loaded.state, DownloadState::Downloading);
+        assert_eq!(loaded.updated_at_ms, 2000);
+        assert_eq!(loaded.chunks.len(), 2);
+        // Dirty chunk was updated
+        assert_eq!(loaded.chunks[0].downloaded, 250);
+        assert!(!loaded.chunks[0].completed);
+        assert_eq!(loaded.chunks[0].claimed_by, Some(0));
+        // Non-dirty chunk untouched
+        assert_eq!(loaded.chunks[1].downloaded, 0);
+        assert!(!loaded.chunks[1].completed);
+        // Other fields from insert should be unchanged
+        assert_eq!(loaded.url, "https://example.com/prog");
+        assert_eq!(loaded.file_name, "progress.bin");
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn progress_empty_chunks_updates_row_only() {
+        let db = Database::open_in_memory().unwrap();
+
+        let mut m = new_test_manifest("empty-chunks", "https://example.com/ec", "ec.bin");
+        m.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 499,
+            downloaded: 0,
+            completed: false,
+            claimed_by: None,
+            dirty: false,
+        }];
+        db.insert_download(&m).unwrap();
+
+        // Update with empty dirty chunks vec
+        db.update_download_progress("empty-chunks", 100, &[], "downloading", 3000)
+            .unwrap();
+
+        let loaded = db.get_download("empty-chunks").unwrap().expect("should exist");
+        assert_eq!(loaded.downloaded_bytes, 100);
+        assert_eq!(loaded.state, DownloadState::Downloading);
+        assert_eq!(loaded.updated_at_ms, 3000);
+        // Chunks should remain unchanged
+        assert_eq!(loaded.chunks.len(), 1);
+        assert_eq!(loaded.chunks[0].downloaded, 0);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn list_returns_all_with_chunks() {
+        let db = Database::open_in_memory().unwrap();
+
+        let mut m1 = new_test_manifest("list-1", "https://a.com/f1", "first.txt");
+        m1.created_at_ms = 2000;
+        m1.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 99,
+            downloaded: 50,
+            completed: false,
+            claimed_by: None,
+            dirty: false,
+        }];
+        db.insert_download(&m1).unwrap();
+
+        let mut m2 = new_test_manifest("list-2", "https://b.com/f2", "second.txt");
+        m2.created_at_ms = 1000; // older timestamp
+        m2.chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 199,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 200,
+                end: 399,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        db.insert_download(&m2).unwrap();
+
+        let list = db.list_downloads().unwrap();
+        assert_eq!(list.len(), 2);
+        // Ordered by created_at_ms DESC: newer (2000) first, older (1000) second
+        assert_eq!(list[0].id, "list-1");
+        assert_eq!(list[1].id, "list-2");
+        // Chunks populated
+        assert_eq!(list[0].chunks.len(), 1);
+        assert_eq!(list[1].chunks.len(), 2);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn empty_chunks_persisted_and_loaded() {
+        let db = Database::open_in_memory().unwrap();
+        let manifest = new_test_manifest("no-chunks", "https://example.com/nc", "nochunks.bin");
+        assert!(manifest.chunks.is_empty());
+        db.insert_download(&manifest).unwrap();
+        let loaded = db.get_download("no-chunks").unwrap().expect("should exist");
+        assert!(loaded.chunks.is_empty());
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn count_downloads_accurate() {
+        let db = Database::open_in_memory().unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 0);
+
+        let m1 = new_test_manifest("cnt-1", "https://a.com/f1", "f1.bin");
+        db.insert_download(&m1).unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 1);
+
+        let m2 = new_test_manifest("cnt-2", "https://b.com/f2", "f2.bin");
+        db.insert_download(&m2).unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 2);
+
+        db.delete_download("cnt-1").unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 1);
+
+        db.delete_download("cnt-2").unwrap();
+        assert_eq!(db.count_downloads().unwrap(), 0);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn null_optionals_roundtrip() {
+        let db = Database::open_in_memory().unwrap();
+        let mut manifest = new_test_manifest("null-opt", "https://example.com/null", "null.bin");
+        // Set all Option fields to None
+        manifest.total_bytes = None;
+        manifest.etag = None;
+        manifest.last_modified = None;
+        manifest.checksum = None;
+        manifest.error = None;
+        manifest.requested_thread_count = None;
+        manifest.desired_thread_count = None;
+        manifest.allocated_thread_count = None;
+        manifest.adaptive_profile_snapshot = None;
+        manifest.thread_note = None;
+        // With total_bytes=None, ensure no chunks are planned
+        manifest.supports_ranges = false;
+        manifest.chunks = Vec::new();
+
+        db.insert_download(&manifest).unwrap();
+        let loaded = db.get_download("null-opt").unwrap().expect("should exist");
+
+        assert!(loaded.total_bytes.is_none());
+        assert!(loaded.etag.is_none());
+        assert!(loaded.last_modified.is_none());
+        assert!(loaded.checksum.is_none());
+        assert!(loaded.error.is_none());
+        assert!(loaded.requested_thread_count.is_none());
+        assert!(loaded.desired_thread_count.is_none());
+        assert!(loaded.allocated_thread_count.is_none());
+        assert!(loaded.adaptive_profile_snapshot.is_none());
+        assert!(loaded.thread_note.is_none());
+        assert!(loaded.chunks.is_empty());
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn chunk_null_claimed_by_roundtrips() {
+        let db = Database::open_in_memory().unwrap();
+        let mut m = new_test_manifest("claim-none", "https://example.com/cn", "cn.bin");
+        m.chunks = vec![ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 99,
+            downloaded: 0,
+            completed: false,
+            claimed_by: None,
+            dirty: false,
+        }];
+        db.insert_download(&m).unwrap();
+        let loaded = db.get_download("claim-none").unwrap().expect("should exist");
+        assert_eq!(loaded.chunks.len(), 1);
+        assert!(loaded.chunks[0].claimed_by.is_none());
     }
 }
