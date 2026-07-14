@@ -26,7 +26,6 @@ const emit = defineEmits<{
     <template #header>
       <div class="settings-section__head">
         <div>
-          <p class="section-kicker">{{ t("settings.downloads") }}</p>
           <h3>{{ t("settings.downloadsTitle") }}</h3>
         </div>
         <span class="settings-section__icon i-ri-download-2-line" aria-hidden="true" />

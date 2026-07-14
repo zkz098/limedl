@@ -35,7 +35,6 @@ const secretModel = computed({
     <template #header>
       <div class="settings-section__head">
         <div>
-          <p class="section-kicker">{{ t("settings.aria2Rpc") }}</p>
           <h3>{{ t("settings.aria2RpcTitle") }}</h3>
         </div>
         <span class="settings-section__icon i-ri-server-line" aria-hidden="true" />

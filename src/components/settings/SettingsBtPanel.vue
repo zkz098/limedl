@@ -3,7 +3,7 @@ import { computed } from "vue";
 import UiButton from "../ui/UiButton.vue";
 import UiCard from "../ui/UiCard.vue";
 import UiInput from "../ui/UiInput.vue";
-import UiNumberField from "../ui/UiNumberField.vue";
+import UiUnitInput from "../ui/UiUnitInput.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";
 
@@ -36,7 +36,6 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
     <template #header>
       <div class="settings-section__head">
         <div>
-          <p class="section-kicker">{{ t("settings.bt") }}</p>
           <h3>{{ t("settings.btTitle") }}</h3>
         </div>
         <span class="settings-section__icon i-ri-seedling-line" aria-hidden="true" />
@@ -101,11 +100,12 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
 
       <label class="settings-field">
         <span class="settings-field__label">{{ t("settings.btUploadLimit") }}</span>
-        <UiNumberField
+        <UiUnitInput
           :model-value="btUploadLimitMiB"
           :min="0"
           :max="10485760"
           :disabled="!pauseEnabled"
+          unit="MiB"
           @update:model-value="emit('update:btUploadLimitMiB', $event)"
         />
         <p class="settings-field__hint">{{ t("settings.btUploadLimitHint") }}</p>
@@ -113,12 +113,13 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
 
       <label class="settings-field">
         <span class="settings-field__label">{{ t("settings.btRatioLimit") }}</span>
-        <UiNumberField
+        <UiUnitInput
           v-model="draft.bt.uploadRatioLimit"
           :min="0"
           :max="100"
           :step="0.1"
           :disabled="!pauseEnabled"
+          unit="x"
         />
         <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
       </label>
@@ -130,10 +131,11 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
            Once backend support is added, also wire them into SettingsPage.vue's save payload. -->
       <label class="settings-field">
         <span class="settings-field__label">{{ t("settings.btDownloadSpeedLimit") }}</span>
-        <UiNumberField
+        <UiUnitInput
           :model-value="draft.bt.defaultDownloadSpeedLimit ?? null"
           :min="0"
           :step="1024"
+          unit="B/s"
           @update:model-value="draft.bt.defaultDownloadSpeedLimit = $event ?? 0"
         />
         <p class="settings-field__hint">{{ t("settings.btDownloadSpeedLimitHint") }}</p>
@@ -141,10 +143,11 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
 
       <label class="settings-field">
         <span class="settings-field__label">{{ t("settings.btUploadSpeedLimit") }}</span>
-        <UiNumberField
+        <UiUnitInput
           :model-value="draft.bt.defaultUploadSpeedLimit ?? null"
           :min="0"
           :step="1024"
+          unit="B/s"
           @update:model-value="draft.bt.defaultUploadSpeedLimit = $event ?? 0"
         />
         <p class="settings-field__hint">{{ t("settings.btUploadSpeedLimitHint") }}</p>

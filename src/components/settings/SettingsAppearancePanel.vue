@@ -29,31 +29,22 @@ const emit = defineEmits<{
     <UiCard>
       <template #header>
         <div class="settings-section__head">
-          <div>
-            <p class="section-kicker">{{ t("language.label") }}</p>
-            <h3>{{ t("settings.languageTitle") }}</h3>
-          </div>
+          <h3>{{ t("settings.languageTitle") }}</h3>
           <span class="settings-section__icon i-ri-translate-2" aria-hidden="true" />
         </div>
       </template>
 
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("language.label") }}</span>
-          <UiSelect
-            :model-value="language"
-            :options="languageOptions"
-            @update:model-value="emit('changeLanguage', $event as SupportedLanguage)"
-          />
-        </label>
-      </div>
+      <UiSelect
+        :model-value="language"
+        :options="languageOptions"
+        @update:model-value="emit('changeLanguage', $event as SupportedLanguage)"
+      />
     </UiCard>
 
     <UiCard>
       <template #header>
         <div class="settings-section__head">
           <div>
-            <p class="section-kicker">{{ t("settings.appearanceKicker") }}</p>
             <h3>{{ t("settings.appearanceTitle") }}</h3>
           </div>
           <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
@@ -106,7 +97,6 @@ const emit = defineEmits<{
       <template #header>
         <div class="settings-section__head">
           <div>
-            <p class="section-kicker">{{ t("settings.infoPanelKicker") }}</p>
             <h3>{{ t("settings.infoPanelTitle") }}</h3>
           </div>
           <span class="settings-section__icon i-ri-information-line" aria-hidden="true" />
@@ -114,14 +104,11 @@ const emit = defineEmits<{
       </template>
 
       <div class="settings-grid">
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.detailInfo") }}</span>
-          <UiSwitch
-            v-model="draft.appearance.showDetailInfo"
-            :label="t('settings.detailInfoPanel')"
-          />
-          <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
-        </label>
+        <UiSwitch
+          v-model="draft.appearance.showDetailInfo"
+          :label="t('settings.detailInfoPanel')"
+        />
+        <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
       </div>
     </UiCard>
 
@@ -129,22 +116,19 @@ const emit = defineEmits<{
       <template #header>
         <div class="settings-section__head">
           <div>
-            <p class="section-kicker">{{ t("settings.notificationSettings.title") }}</p>
             <h3>{{ t("settings.notificationSettings.title") }}</h3>
           </div>
           <span class="settings-section__icon i-ri-notification-3-line" aria-hidden="true" />
         </div>
       </template>
 
+      <p class="settings-section__summary">{{ t("settings.notificationSettings.description") }}</p>
+
       <div class="settings-grid">
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.notificationSettings.enabled") }}</span>
-          <UiSwitch
-            v-model="draft.notifications.enabled"
-            :label="t('settings.notificationSettings.title')"
-          />
-          <p class="settings-field__hint">{{ t("settings.notificationSettings.description") }}</p>
-        </label>
+        <UiSwitch
+          v-model="draft.notifications.enabled"
+          :label="t('settings.notificationSettings.toggleLabel')"
+        />
       </div>
     </UiCard>
   </div>

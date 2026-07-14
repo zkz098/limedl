@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import UiCard from "../ui/UiCard.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
+import UiUnitInput from "../ui/UiUnitInput.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { AdaptiveProfile, AppSettings, SchedulerMode } from "../../types/settings";
@@ -30,7 +31,6 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
     <template #header>
       <div class="settings-section__head">
         <div>
-          <p class="section-kicker">{{ t("settings.scheduler") }}</p>
           <h3>{{ t("settings.schedulerTitle") }}</h3>
         </div>
         <span class="settings-section__icon i-ri-git-branch-line" aria-hidden="true" />
@@ -92,10 +92,11 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
 
       <label class="settings-field settings-field--wide">
         <span class="settings-field__label">{{ t("settings.globalSpeedLimit") }}</span>
-        <UiNumberField
+        <UiUnitInput
           :model-value="globalSpeedLimitMiBps"
           :min="0"
           :max="1048576"
+          unit="MiB/s"
           @update:model-value="emit('update:globalSpeedLimitMiBps', $event)"
         />
         <p class="settings-field__hint">{{ t("settings.globalSpeedLimitHint") }}</p>

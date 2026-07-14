@@ -17,7 +17,6 @@ defineProps<{
     <template #header>
       <div class="settings-section__head">
         <div>
-          <p class="section-kicker">{{ t("settings.network") }}</p>
           <h3>{{ t("settings.proxyTitle") }}</h3>
         </div>
         <span class="settings-section__icon i-ri-global-line" aria-hidden="true" />

@@ -97,7 +97,6 @@ function onDragEnd(): void {
 
     <div class="settings-section__head">
       <div>
-        <h3>{{ t("settings.githubMirror.title") }}</h3>
         <p class="settings-section__summary">
           {{ t("settings.githubMirror.enableDescription") }}
         </p>

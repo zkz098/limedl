@@ -4,7 +4,7 @@ import { computed } from "vue";
 import { formatBytes } from "../../lib/download-format";
 import type { AppSettings } from "../../types/settings";
 import UiCard from "../ui/UiCard.vue";
-import UiNumberField from "../ui/UiNumberField.vue";
+import UiUnitInput from "../ui/UiUnitInput.vue";
 
 const props = defineProps<{
   draft: AppSettings;
@@ -43,7 +43,6 @@ const bufferUsageText = computed(() => {
     <template #header>
       <div class="settings-section__head">
         <div>
-          <p class="section-kicker">{{ t("settings.ioBaseline.kicker") }}</p>
           <h3>{{ t("settings.ioBaseline.title") }}</h3>
         </div>
         <span class="settings-section__icon i-ri-hard-drive-2-line" aria-hidden="true" />
@@ -53,17 +52,18 @@ const bufferUsageText = computed(() => {
     <div class="settings-grid">
       <label class="settings-field settings-field--wide">
         <span class="settings-field__label">{{ t("settings.ioBaseline.bufferLimit") }}</span>
-        <UiNumberField v-model="bufferLimit" :min="64" :max="32768" />
+        <UiUnitInput v-model="bufferLimit" :min="64" :max="32768" unit="MB" />
         <p class="settings-field__hint">{{ t("settings.ioBaseline.bufferLimitHint") }}</p>
       </label>
 
       <label class="settings-field settings-field--wide">
         <span class="settings-field__label">{{ t("settings.ioBaseline.gameModeBuffer") }}</span>
-        <UiNumberField
+        <UiUnitInput
           v-model="gameModeBuffer"
           :min="16"
           :max="4096"
           :disabled="!gameMode"
+          unit="MB"
         />
         <p class="settings-field__hint">{{ t("settings.ioBaseline.gameModeBufferHint") }}</p>
       </label>

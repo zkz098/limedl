@@ -77,7 +77,7 @@ const enUS = {
       selectPrompt: "Select a download to view details",
     },
     labs: {
-      kicker: "Labs",
+      kicker: "Experimental Features",
       title: "Labs",
       comingSoon: "Coming Soon",
       skeletonHint: "Experimental features will appear here as they become available.",
@@ -398,15 +398,15 @@ const enUS = {
       btPauseUploadDisabled: "Do not pause upload automatically",
       btPauseUploadHint:
         "When either the uploaded amount or share ratio limit is reached, the matching BT task is paused.",
-      btUploadLimit: "Upload limit (MiB)",
+      btUploadLimit: "Upload limit",
       btUploadLimitHint: "Use 0 to disable the uploaded amount limit.",
       btRatioLimit: "Share ratio limit",
       btRatioLimitHint:
         "For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit.",
       btDownloadSpeedLimit: "Default Download Speed Limit",
-      btDownloadSpeedLimitHint: "Bytes per second, 0 = unlimited",
+      btDownloadSpeedLimitHint: "0 = unlimited",
       btUploadSpeedLimit: "Default Upload Speed Limit",
-      btUploadSpeedLimitHint: "Bytes per second, 0 = unlimited",
+      btUploadSpeedLimitHint: "0 = unlimited",
       defaultDownloadLocation: "Default download location",
       defaultDownloadPlaceholder: "Tasks still require a folder when this is empty",
       defaultDownloadHint:
@@ -528,13 +528,14 @@ const enUS = {
         saveFailed: "Failed to save settings",
         btRestartRequired: "Restart the application for BT changes to take effect",
       },
-      globalSpeedLimit: "Global speed limit (MiB/s)",
+      globalSpeedLimit: "Global speed limit",
       globalSpeedLimitHint:
         "Limit total download speed across all active tasks. 0 means unlimited.",
       notificationSettings: {
         title: "Desktop Notifications",
         description: "Show OS notifications when downloads complete or fail.",
         enabled: "Desktop Notifications",
+        toggleLabel: "Enable notifications",
       },
       ioBaseline: {
         kicker: "I/O Optimization",

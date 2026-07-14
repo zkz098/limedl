@@ -18,7 +18,6 @@ defineProps<{
     <template #header>
       <div class="settings-section__head">
         <div>
-          <p class="section-kicker">{{ t("settings.logging") }}</p>
           <h3>{{ t("settings.loggingTitle") }}</h3>
         </div>
         <span class="settings-section__icon i-ri-file-list-3-line" aria-hidden="true" />
