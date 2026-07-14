@@ -71,6 +71,8 @@ const zhCN = {
       gameModeActive: "游戏模式已开启，点击关闭",
       gameModeInactive: "游戏模式已关闭，点击开启",
       gameModeBuffer: "缓冲区: {{mb}}MB",
+      overclockActive: "超频模式已开启，点击关闭",
+      overclockInactive: "超频模式已关闭，点击开启",
     },
     detail: {
       noSelection: "未选择任务",

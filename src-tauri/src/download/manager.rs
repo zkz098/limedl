@@ -2,7 +2,10 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
     process::Command,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -106,6 +109,7 @@ pub struct DownloadManager {
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
     rate_limiter: Arc<RateLimiter>,
     pub(crate) buffer_pool: Arc<BufferPool>,
+    pub(crate) overclock_mode: AtomicBool,
     app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 }
 
@@ -187,6 +191,7 @@ impl DownloadManager {
             cdn_accelerator: Arc::new(RwLock::new(None)),
             rate_limiter,
             buffer_pool,
+            overclock_mode: AtomicBool::new(false),
             app_handle: Arc::new(Mutex::new(None)),
         };
 
@@ -1065,6 +1070,7 @@ impl DownloadManager {
             cdn_accelerator: self.cdn_accelerator.clone(),
             rate_limiter: self.rate_limiter.clone(),
             buffer_pool: self.buffer_pool.clone(),
+            overclock_mode: AtomicBool::new(self.overclock_mode.load(Ordering::Relaxed)),
             app_handle: self.app_handle.clone(),
         })
     }
@@ -1076,6 +1082,15 @@ impl DownloadManager {
 
     pub fn set_game_mode(&self, enabled: bool) {
         self.buffer_pool.set_game_mode(enabled);
+    }
+
+    pub fn set_overclock_mode(&self, enabled: bool) {
+        self.overclock_mode.store(enabled, Ordering::Relaxed);
+        self.rebalance_notify.notify_one();
+    }
+
+    pub fn overclock_mode(&self) -> bool {
+        self.overclock_mode.load(Ordering::Relaxed)
     }
 
     /// Resolve the disk type for a given directory path.

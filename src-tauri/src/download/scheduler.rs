@@ -61,6 +61,27 @@ impl DownloadManager {
         let min_threads = settings.scheduler.automatic.min_threads_per_task.max(1);
 
         let downloads = self.downloads.read().await;
+
+        // ── Overclock mode: pin all adaptive tasks at max threads ──────────
+        if self.overclock_mode() {
+            for managed in downloads.values() {
+                let mut core = managed.lock_core();
+                let manifest = &mut core.manifest;
+                if manifest.thread_mode != ThreadMode::Adaptive
+                    || manifest.state != DownloadState::Downloading
+                    || !manifest.supports_ranges
+                {
+                    continue;
+                }
+                if manifest.desired_thread_count != Some(adaptive_cap) {
+                    manifest.desired_thread_count = Some(adaptive_cap);
+                    manifest.updated_at_ms = now_ms();
+                    sync_snapshot_with_manifest(&mut core);
+                }
+            }
+            return Ok(());
+        }
+
         for managed in downloads.values() {
             let mut core = managed.lock_core();
             let manifest = &mut core.manifest;

@@ -18,6 +18,7 @@ import { VALID_COLUMN_KEY_SET, DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs
 import { useDownloader } from "./composables/useDownloader";
 import type { UseDownloaderOptions } from "./composables/useDownloader";
 import { useIoBaseline } from "./composables/useIoBaseline";
+import { useOverclock } from "./composables/useOverclock";
 import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
 import NotificationToast from "./components/ui/NotificationToast.vue";
@@ -94,6 +95,7 @@ const {
 
 const { t } = useI18n();
 const { gameMode, bufferUsageBytes, bufferLimitBytes, setGameMode } = useIoBaseline();
+const { overclockMode, setOverclockMode } = useOverclock();
 const showComposerDialog = ref(false);
 const detailCollapsed = ref(false);
 const currentView = ref<"home" | "settings" | "labs">("home");
@@ -280,6 +282,10 @@ function handleBatchDelete() {
 
 async function handleToggleGameMode() {
   await setGameMode(!gameMode.value);
+}
+
+async function handleToggleOverclockMode() {
+  await setOverclockMode(!overclockMode.value);
 }
 
 async function confirmBatchDelete() {
@@ -526,13 +532,15 @@ onBeforeUnmount(() => {
       :bt-status="btStatusData" :sort-key="sortKey" :sort-direction="sortDirection" :compact-view="compactView"
       :visible-columns="visibleColumns" :multi-select-mode="multiSelectMode" :selected-count="selectedIds.size"
       :filtered-count="filteredDownloads.length" :game-mode="gameMode"
-      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb" @update:search-query="searchQuery = $event"
+      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb" :overclock-mode="overclockMode"
+      @update:search-query="searchQuery = $event"
       @update:sort-key="sortKey = $event" @update:sort-direction="sortDirection = $event"
       @update:compact-view="compactView = $event" @update:visible-columns="visibleColumns = $event"
       @add-task="showComposerDialog = true" @delete="handleDelete" @refresh="handleRefresh"
       @update:multi-select-mode="handleToggleMultiSelectMode" @pause-all="runPauseAll" @resume-all="runResumeAll"
       @clear-completed="runClearCompleted" @select-all="handleSelectAll" @deselect-all="handleDeselectAll"
-      @batch-delete="handleBatchDelete" @toggle-game-mode="handleToggleGameMode" />
+      @batch-delete="handleBatchDelete" @toggle-game-mode="handleToggleGameMode"
+      @toggle-overclock-mode="handleToggleOverclockMode" />
 
     <!-- Main layout: sidebar + content -->
     <div class="app-body">

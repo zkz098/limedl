@@ -499,3 +499,19 @@ pub async fn get_io_status(
         "degradationCount": pool.degradation_count(),
     }))
 }
+
+#[tauri::command]
+pub async fn toggle_overclock_mode(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> CommandResult<bool> {
+    state.manager.set_overclock_mode(enabled);
+    Ok(enabled)
+}
+
+#[tauri::command]
+pub async fn get_overclock_mode(
+    state: State<'_, AppState>,
+) -> CommandResult<bool> {
+    Ok(state.manager.overclock_mode())
+}

@@ -28,3 +28,11 @@ export function toggleGameMode(enabled: boolean) {
 export function getIoStatus() {
   return invoke<IoStatus>("get_io_status");
 }
+
+export function toggleOverclockMode(enabled: boolean) {
+  return invoke<boolean>("toggle_overclock_mode", { enabled });
+}
+
+export function getOverclockMode() {
+  return invoke<boolean>("get_overclock_mode");
+}

@@ -71,6 +71,8 @@ const enUS = {
       gameModeActive: "Game mode is on, click to turn off",
       gameModeInactive: "Game mode is off, click to turn on",
       gameModeBuffer: "Buffer: {{mb}}MB",
+      overclockActive: "Overclock mode is on, click to turn off",
+      overclockInactive: "Overclock mode is off, click to turn on",
     },
     detail: {
       noSelection: "No task selected",

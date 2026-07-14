@@ -17,8 +17,9 @@ use download::{
     bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel, cdn_candidates, cdn_clear,
     cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test, download_cancel, download_list,
     download_open_in_explorer, download_pause, download_purge, download_remove, download_resume,
-    download_start, download_status, get_bt_files, get_io_status, init_logging,
-    settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode, update_bt_files,
+    download_start, download_status, get_bt_files, get_io_status, get_overclock_mode,
+    init_logging, settings_fetch_tracker_list, settings_get, settings_save,
+    toggle_game_mode, toggle_overclock_mode, update_bt_files,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -182,6 +183,8 @@ pub fn run() {
             cdn_candidates,
             toggle_game_mode,
             get_io_status,
+            toggle_overclock_mode,
+            get_overclock_mode,
         ])
         .run(tauri::generate_context!());
 

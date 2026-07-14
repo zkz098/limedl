@@ -26,6 +26,7 @@ const props = defineProps<{
   filteredCount: number;
   gameMode?: boolean;
   gameModeBufferMb?: number;
+  overclockMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -45,6 +46,7 @@ const emit = defineEmits<{
   deselectAll: [];
   batchDelete: [];
   toggleGameMode: [];
+  toggleOverclockMode: [];
 }>();
 
 const columnMenuOpen = ref(false);
@@ -370,6 +372,20 @@ onUnmounted(() => {
         {{ t("toolbar.gameModeBuffer", { mb: gameModeBufferMb }) }}
       </span>
     </button>
+
+    <button
+      type="button"
+      class="overclock-btn"
+      :class="{ 'overclock-btn--active': overclockMode }"
+      :title="overclockMode ? t('toolbar.overclockActive') : t('toolbar.overclockInactive')"
+      @click="$emit('toggleOverclockMode')"
+    >
+      <span
+        class="overclock-btn__icon"
+        :class="overclockMode ? 'i-ri-flashlight-fill' : 'i-ri-flashlight-line'"
+        aria-hidden="true"
+      />
+    </button>
   </div>
 </template>
 
@@ -638,6 +654,39 @@ onUnmounted(() => {
   font-size: 0.75rem;
   line-height: 1;
   white-space: nowrap;
+}
+
+.overclock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.875rem;
+  min-height: 1.875rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.overclock-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-panel-muted);
+}
+
+.overclock-btn--active {
+  border-color: var(--color-accent-soft-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.overclock-btn__icon {
+  font-size: 1rem;
 }
 
 .game-mode-btn {

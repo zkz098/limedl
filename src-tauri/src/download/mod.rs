@@ -36,8 +36,8 @@ pub use commands::{
     bt_get_peers, bt_get_pieces, bt_get_trackers, bt_preview_torrent, bt_runtime_status,
     bt_set_speed_limit, download_cancel, download_list, download_open_in_explorer, download_pause,
     download_purge, download_remove, download_resume, download_start, download_status,
-    get_bt_files, get_io_status, settings_fetch_tracker_list, settings_get, settings_save,
-    toggle_game_mode, update_bt_files,
+    get_bt_files, get_io_status, get_overclock_mode, settings_fetch_tracker_list, settings_get,
+    settings_save, toggle_game_mode, toggle_overclock_mode, update_bt_files,
 };
 pub use logging::init_logging;
 pub use manager::{AppState, DownloadManager};
