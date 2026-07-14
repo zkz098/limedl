@@ -77,6 +77,23 @@ export interface DownloadSummary {
   chunks?: ChunkInfo[];
 }
 
+/** Lightweight progress payload sent every ~300ms during active downloads. */
+export interface DownloadProgress {
+  id: string;
+  state: DownloadState;
+  downloadedBytes: number;
+  totalBytes?: number;
+  speedBytesPerSecond?: number;
+  etaSeconds?: number;
+  connectionCount: number;
+  allocatedThreadCount?: number;
+  error?: string;
+  uploadedBytes?: number;
+  uploadSpeedBytesPerSecond?: number;
+  peerCount?: number;
+  uploadStatus?: BtUploadStatus;
+}
+
 export interface ChunkInfo {
   index: number;
   start: number;

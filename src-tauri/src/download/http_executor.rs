@@ -317,6 +317,7 @@ impl super::DownloadManager {
                 if last_persist.elapsed() >= PERSIST_INTERVAL {
                     persist_manifest_snapshot(&self.db, &managed).await?;
                     last_persist = Instant::now();
+                    self.emit_progress(&managed);
                 }
             }
 
@@ -401,6 +402,7 @@ impl super::DownloadManager {
 
                 let db = self.db.clone();
                 let rate_limiter = self.rate_limiter.clone();
+                let manager_for_worker = self.clone_arc();
                 let managed = managed.clone();
                 let client = client.clone();
                 let token = token.clone();
@@ -415,6 +417,7 @@ impl super::DownloadManager {
                         max_retries,
                         db,
                         rate_limiter,
+                        manager_for_worker,
                     )
                     .await
                 });
@@ -664,6 +667,7 @@ async fn download_chunk(
     max_retries: u32,
     db: Arc<Database>,
     rate_limiter: Arc<RateLimiter>,
+    manager: Arc<super::DownloadManager>,
 ) -> Result<ChunkWorkerOutcome> {
     let mut current = chunk.start + chunk.downloaded;
     let end = chunk.end;
@@ -741,6 +745,7 @@ async fn download_chunk(
             if last_persist.elapsed() >= PERSIST_INTERVAL {
                 persist_manifest_snapshot(&db, &managed).await?;
                 last_persist = Instant::now();
+                manager.emit_progress(&managed);
             }
         }
     }

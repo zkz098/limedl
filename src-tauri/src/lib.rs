@@ -55,6 +55,7 @@ pub fn run() {
                 ))
                 .context("初始化 BT 管理器失败")?;
                 let torrent_manager = Arc::new(torrent_manager);
+                torrent_manager.set_app_handle(app.handle().clone());
                 // spawn_upload_policy_loop() calls tokio::spawn internally, which
                 // requires an active Tokio runtime context. The setup closure runs
                 // on the main thread outside any runtime, so enter Tauri's async
@@ -105,7 +106,7 @@ pub fn run() {
                             rpc_shutdown: Default::default(),
                         };
                         loop {
-                            sleep(Duration::from_secs(30)).await;
+                            sleep(Duration::from_secs(300)).await;
                             state.emit_all_downloads().await;
                         }
                     });

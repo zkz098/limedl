@@ -305,6 +305,46 @@ pub struct DownloadSummary {
     pub chunks: Vec<ChunkInfo>,
 }
 
+/// Lightweight incremental progress update sent every ~300ms during active downloads.
+/// Contains only high-frequency fields. Static/low-frequency fields stay in `DownloadSummary`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadProgress {
+    pub id: String,
+    pub state: DownloadState,
+    pub downloaded_bytes: u64,
+    pub total_bytes: Option<u64>,
+    pub speed_bytes_per_second: Option<f64>,
+    pub eta_seconds: Option<u64>,
+    pub connection_count: usize,
+    pub allocated_thread_count: Option<usize>,
+    pub error: Option<String>,
+    pub uploaded_bytes: Option<u64>,
+    pub upload_speed_bytes_per_second: Option<f64>,
+    pub peer_count: Option<usize>,
+    pub upload_status: Option<BtUploadStatus>,
+}
+
+impl From<&DownloadSnapshot> for DownloadProgress {
+    fn from(snapshot: &DownloadSnapshot) -> Self {
+        Self {
+            id: snapshot.id.clone(),
+            state: snapshot.state,
+            downloaded_bytes: snapshot.downloaded_bytes,
+            total_bytes: snapshot.total_bytes,
+            speed_bytes_per_second: snapshot.speed_bytes_per_second,
+            eta_seconds: snapshot.eta_seconds,
+            connection_count: snapshot.connection_count,
+            allocated_thread_count: snapshot.allocated_thread_count,
+            error: snapshot.error.clone(),
+            uploaded_bytes: snapshot.uploaded_bytes,
+            upload_speed_bytes_per_second: snapshot.upload_speed_bytes_per_second,
+            peer_count: snapshot.peer_count,
+            upload_status: snapshot.upload_status,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtRuntimeStatus {

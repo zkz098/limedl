@@ -13,6 +13,7 @@ use librqbit::{
     limits::LimitsConfig,
 };
 use std::num::NonZeroU32;
+use tauri::Emitter;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -21,8 +22,9 @@ use super::{
     error::{DownloadError, Result},
     lock_or_recover,
     types::{
-        AppSettings, BtRuntimeStatus, BtSettings, BtUploadStatus, ChecksumMode, DownloadSnapshot,
-        DownloadState, DownloadSummary, ProxyMode, StartDownloadRequest, TaskKind, ThreadMode,
+        AppSettings, BtRuntimeStatus, BtSettings, BtUploadStatus, ChecksumMode, DownloadProgress,
+        DownloadSnapshot, DownloadState, DownloadSummary, ProxyMode, StartDownloadRequest,
+        TaskKind, ThreadMode,
     },
 };
 
@@ -48,6 +50,7 @@ pub struct TorrentManager {
     last_states: Arc<Mutex<HashMap<usize, DownloadState>>>,
     upload_paused: Arc<Mutex<HashSet<usize>>>,
     upload_policy_cancel: Arc<Mutex<Option<tokio::sync::watch::Sender<()>>>>,
+    app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
     upload_policy_task: Arc<Mutex<Option<JoinHandle<()>>>>,
     per_torrent_limits: Arc<Mutex<HashMap<usize, LimitsConfig>>>,
     global_download_limit_bps: u64,
@@ -189,6 +192,7 @@ impl TorrentManager {
             upload_policy_task: Arc::new(Mutex::new(None)),
             per_torrent_limits: Arc::new(Mutex::new(HashMap::new())),
             global_download_limit_bps: settings.global_speed_limit_bps,
+            app_handle: Arc::new(Mutex::new(None)),
         };
 
         manager.reload_pending().await;
@@ -310,8 +314,17 @@ impl TorrentManager {
                                 .map(|(_, handle)| handle.clone())
                                 .collect::<Vec<_>>()
                         });
-                        for handle in &handles {
-                            this.enforce_upload_policy(handle);
+                        for bt_handle in &handles {
+                            this.enforce_upload_policy(bt_handle);
+
+                            // Emit lightweight progress event for active torrents
+                            let id = bt_handle.id();
+                            let snapshot = this.snapshot_from_handle(id, bt_handle);
+                            let progress = DownloadProgress::from(&snapshot);
+                            let app_guard = lock_or_recover(&this.app_handle, "bt app_handle");
+                            if let Some(ref app) = *app_guard {
+                                let _ = app.emit("download-progress", &progress);
+                            }
                         }
                     }
                     _ = rx.changed() => {
@@ -331,6 +344,11 @@ impl TorrentManager {
 
     pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
         *lock_or_recover(&self.event_tx, "torrent event tx") = Some(tx);
+    }
+
+    /// Inject the Tauri app handle so the BT engine can emit `download-progress` events.
+    pub fn set_app_handle(&self, handle: tauri::AppHandle) {
+        *lock_or_recover(&self.app_handle, "torrent app_handle") = Some(handle);
     }
 
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {

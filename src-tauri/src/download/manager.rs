@@ -42,8 +42,9 @@ use super::{
     scheduler::{active_learning_metrics, active_scene_thread_cap},
     torrent::TorrentManager,
     types::{
-        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DownloadSnapshot, DownloadState,
-        DownloadSummary, SchedulerMode, StartDownloadRequest, TaskId, TaskKind, ThreadMode,
+        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DownloadProgress, DownloadSnapshot,
+        DownloadState, DownloadSummary, SchedulerMode, StartDownloadRequest, TaskId, TaskKind,
+        ThreadMode,
     },
 };
 
@@ -760,8 +761,23 @@ impl DownloadManager {
         });
         let Some(ref handle) = *handle else { return };
         let snapshot = self.build_snapshot(managed.clone());
-        let summary = DownloadSummary::from(&snapshot);
+        let mut summary = DownloadSummary::from(&snapshot);
+        summary.id = TaskId::make_http(summary.id);
         let _ = handle.emit("download-updated", &summary);
+    }
+
+    /// Emit a lightweight `download-progress` event for incremental UI updates.
+    /// Called after each persist cycle (~300ms for HTTP, ~2s for BT).
+    pub(crate) fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
+        let handle = self.app_handle.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("app_handle lock poisoned in emit_progress");
+            poisoned.into_inner()
+        });
+        let Some(ref handle) = *handle else { return };
+        let snapshot = self.build_snapshot(managed.clone());
+        let mut progress = DownloadProgress::from(&snapshot);
+        progress.id = TaskId::make_http(progress.id);
+        let _ = handle.emit("download-progress", &progress);
     }
 
     fn record_progress(
