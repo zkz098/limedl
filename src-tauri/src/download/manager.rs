@@ -1,11 +1,13 @@
 use std::{
-    collections::HashMap,
     fs, io,
     path::{Path, PathBuf},
     process::Command,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+use foldhash::HashMap;
+use parking_lot::{Mutex, MutexGuard};
 
 use anyhow::Context;
 use futures_util::StreamExt;
@@ -69,7 +71,7 @@ pub struct AppState {
     pub torrent_manager: Arc<TorrentManager>,
     pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
-    pub rpc_shutdown: Arc<std::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
+    pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
 }
 
 impl AppState {
@@ -127,23 +129,11 @@ impl ManagedDownload {
     }
 
     fn lock_runtime(&self) -> MutexGuard<'_, Option<CancellationToken>> {
-        match self.runtime.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => {
-                tracing::warn!("runtime lock poisoned, recovering with inner state");
-                poisoned.into_inner()
-            }
-        }
+        self.runtime.lock()
     }
 
     pub(crate) fn lock_aimd(&self) -> MutexGuard<'_, AimdState> {
-        match self.aimd.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => {
-                tracing::warn!("aimd lock poisoned, recovering with inner state");
-                poisoned.into_inner()
-            }
-        }
+        self.aimd.lock()
     }
 }
 
@@ -190,7 +180,7 @@ impl DownloadManager {
             state_dir,
             settings_path,
             settings: Arc::new(RwLock::new(settings)),
-            downloads: Arc::new(RwLock::new(HashMap::new())),
+            downloads: Arc::new(RwLock::new(HashMap::default())),
             db,
             rebalance_notify: Arc::new(Notify::new()),
             event_tx: Arc::new(Mutex::new(None)),
@@ -224,19 +214,13 @@ impl DownloadManager {
     }
 
     pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
-        *self.event_tx.lock().unwrap_or_else(|poisoned| {
-            tracing::warn!("event_tx lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        }) = Some(tx);
+        *self.event_tx.lock() = Some(tx);
     }
 
     /// Inject the Tauri app handle so the download engine can emit events to the frontend
     /// on state transitions (completed, failed, paused) without requiring a 2-second poll loop.
     pub fn set_app_handle(&self, handle: tauri::AppHandle) {
-        *self.app_handle.lock().unwrap_or_else(|poisoned| {
-            tracing::warn!("app_handle lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        }) = Some(handle);
+        *self.app_handle.lock() = Some(handle);
     }
 
     /// Inject the CDN accelerator reference after both manager and accelerator are created.
@@ -753,10 +737,7 @@ impl DownloadManager {
                         manager.emit_single_summary(&managed);
 
                         // Broadcast aria2.onDownloadError
-                        let event_tx = manager.event_tx.lock().unwrap_or_else(|poisoned| {
-                            tracing::warn!("event_tx lock poisoned in spawn_download");
-                            poisoned.into_inner()
-                        });
+                        let event_tx = manager.event_tx.lock();
                         if let Some(ref tx) = *event_tx {
                             let download_id = managed.lock_core().snapshot.id.clone();
                             let gid = format!(
@@ -838,8 +819,7 @@ impl DownloadManager {
         let speed = managed
             .aimd
             .lock()
-            .ok()
-            .and_then(|aimd| aimd.last_throughput)
+            .last_throughput
             .or(average_speed);
         let eta = match (snapshot.total_bytes, speed) {
             (Some(total), Some(speed)) if speed > 0.0 && total >= snapshot.downloaded_bytes => {
@@ -866,11 +846,8 @@ impl DownloadManager {
     /// This is the targeted alternative to `AppState::emit_all_downloads()` —
     /// it emits for a single download at its state transition point rather than
     /// scanning every download on a fixed schedule.
-    fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
-        let handle = self.app_handle.lock().unwrap_or_else(|poisoned| {
-            tracing::warn!("app_handle lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        });
+    pub(crate) fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
+        let handle = self.app_handle.lock();
         let Some(ref handle) = *handle else { return };
         let snapshot = self.build_snapshot(managed.clone());
         let mut summary = DownloadSummary::from(&snapshot);
@@ -881,10 +858,7 @@ impl DownloadManager {
     /// Emit a lightweight `download-progress` event for incremental UI updates.
     /// Called after each persist cycle (~300ms for HTTP, ~2s for BT).
     pub(crate) fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
-        let handle = self.app_handle.lock().unwrap_or_else(|poisoned| {
-            tracing::warn!("app_handle lock poisoned in emit_progress");
-            poisoned.into_inner()
-        });
+        let handle = self.app_handle.lock();
         let Some(ref handle) = *handle else { return };
         let snapshot = self.build_snapshot(managed.clone());
         let mut progress = DownloadProgress::from(&snapshot);
@@ -1111,7 +1085,7 @@ impl DownloadManager {
         // Check user overrides
         let dir_str = dir.to_string_lossy().to_string();
         if let Some(disk_type) = settings.io_baseline.disk_type_overrides.get(&dir_str) {
-            return disk_type.clone();
+            return *disk_type;
         }
         drop(settings);
         detect_disk_type(dir)

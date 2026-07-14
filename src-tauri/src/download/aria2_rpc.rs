@@ -1,4 +1,6 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
+
+use foldhash::HashMap;
 
 use axum::{
     Router,
@@ -14,6 +16,7 @@ use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing;
 use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
@@ -96,29 +99,33 @@ pub fn internal_id_to_gid(internal_id: &str) -> String {
 }
 
 async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<String> {
-    // Check cache first (O(1))
-    {
+    // Check cache first (short lock hold)
+    let cached = {
         let cache = ctx.gid_cache.lock().await;
-        if let Some(id) = cache.get(gid) {
-            return Some(id.clone());
-        }
+        cache.get(gid).cloned()
+    };
+
+    if let Some(id) = cached {
+        return Some(id);
     }
 
-    // Fall back to full scan and populate cache
+    // Cache miss — do async work without holding the lock
+    let list = ctx.manager.list().await.ok();
+    let torrent_list = ctx.torrent_manager.list().await.ok();
+
+    // Re-acquire lock and populate cache
     let mut cache = ctx.gid_cache.lock().await;
-    // Double-check in case another caller already populated
-    if let Some(id) = cache.get(gid) {
-        return Some(id.clone());
-    }
 
-    if let Ok(list) = ctx.manager.list().await {
-        for s in &list {
+    // Populate from HTTP downloads
+    if let Some(ref list) = list {
+        for s in list {
             let key = internal_id_to_gid(&s.id);
             cache.entry(key).or_insert_with(|| s.id.clone());
         }
     }
-    if let Ok(list) = ctx.torrent_manager.list().await {
-        for s in &list {
+    // Populate from torrent downloads
+    if let Some(ref list) = torrent_list {
+        for s in list {
             let key = internal_id_to_gid(&s.id);
             cache.entry(key).or_insert_with(|| s.id.clone());
         }
@@ -334,7 +341,7 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
-    let task_id = TaskId::make_http(id);
+    let task_id = TaskId::make_http(id.clone());
 
     let start_paused = options
         .and_then(|o| o.get("pause"))
@@ -344,9 +351,54 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         let _ = ctx.manager.pause(&task_id).await;
     }
 
+    // Emit Tauri `download-updated` event so the frontend displays the task
+    // immediately. Without this the task only appears after the first
+    // `download-progress` event (~300ms+ into the download) or the 5-minute
+    // periodic `emit_all_downloads` poll.
+    {
+        let downloads = ctx.manager.downloads.read().await;
+        if let Some(managed) = downloads.get(&id) {
+            ctx.manager.emit_single_summary(managed);
+        }
+    }
+
     let gid = internal_id_to_gid(&task_id);
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
     Ok(Value::String(gid))
+}
+
+/// Removes `.torrent` files in the aria2 temp directory that are older than 1 hour.
+/// This is a best-effort cleanup — all errors are silently ignored.
+pub(crate) fn cleanup_old_aria2_temp_files() {
+    let temp_dir = std::env::temp_dir().join("downloader_aria2");
+    let Ok(entries) = std::fs::read_dir(&temp_dir) else {
+        return;
+    };
+
+    let now = std::time::SystemTime::now();
+    let one_hour = std::time::Duration::from_secs(3600);
+    let mut removed = 0u32;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("torrent") {
+            continue;
+        }
+        let age = match std::fs::metadata(&path).and_then(|m| m.modified().or_else(|_| m.created()))
+        {
+            Ok(created) => now.duration_since(created).unwrap_or_default(),
+            Err(_) => continue,
+        };
+        if age >= one_hour {
+            if std::fs::remove_file(&path).is_ok() {
+                removed += 1;
+            }
+        }
+    }
+
+    if removed > 0 {
+        tracing::debug!("Cleaned up {removed} old aria2 torrent temp file(s)");
+    }
 }
 
 async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
@@ -361,6 +413,8 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
     let torrent_bytes = base64::engine::general_purpose::STANDARD
         .decode(torrent_b64)
         .map_err(|_| make_error(ERR_INVALID_PARAMS, "Invalid base64 torrent data"))?;
+
+    cleanup_old_aria2_temp_files();
 
     let temp_dir = std::env::temp_dir().join("downloader_aria2");
     std::fs::create_dir_all(&temp_dir).ok();
@@ -399,6 +453,11 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         .start(request)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+
+    // Emit Tauri `download-updated` event so the frontend displays the task
+    // immediately. Without this the BT task only appears after librqbit
+    // resolves the metadata and the `download-progress` polling loop fires.
+    ctx.torrent_manager.emit_pending_summary(&id);
 
     let gid = internal_id_to_gid(&id);
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
@@ -1041,7 +1100,7 @@ impl Aria2RpcServer {
             torrent_manager,
             secret,
             event_tx,
-            gid_cache: Mutex::new(HashMap::new()),
+            gid_cache: Mutex::new(HashMap::default()),
         });
 
         Aria2RpcServer {

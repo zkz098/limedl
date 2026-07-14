@@ -1,11 +1,13 @@
 use std::{
-    collections::{HashMap, HashSet},
     fs, io,
     path::{Path, PathBuf},
     process::Command,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+
+use foldhash::{HashMap, HashSet};
+use parking_lot::Mutex;
 
 use librqbit::{
     AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, ManagedTorrent, Session,
@@ -182,15 +184,15 @@ impl TorrentManager {
             state_dir: state_dir.clone(),
             default_output_dir: output_dir,
             bt_settings: Arc::new(Mutex::new(settings.bt.clone())),
-            output_folders: Arc::new(Mutex::new(HashMap::new())),
-            pending: Arc::new(Mutex::new(HashMap::new())),
+            output_folders: Arc::new(Mutex::new(HashMap::default())),
+            pending: Arc::new(Mutex::new(HashMap::default())),
             pending_file,
             event_tx: Arc::new(Mutex::new(None)),
-            last_states: Arc::new(Mutex::new(HashMap::new())),
-            upload_paused: Arc::new(Mutex::new(HashSet::new())),
+            last_states: Arc::new(Mutex::new(HashMap::default())),
+            upload_paused: Arc::new(Mutex::new(HashSet::default())),
             upload_policy_cancel: Arc::new(Mutex::new(None)),
             upload_policy_task: Arc::new(Mutex::new(None)),
-            per_torrent_limits: Arc::new(Mutex::new(HashMap::new())),
+            per_torrent_limits: Arc::new(Mutex::new(HashMap::default())),
             global_download_limit_bps: settings.global_speed_limit_bps,
             app_handle: Arc::new(Mutex::new(None)),
         };
@@ -376,17 +378,9 @@ impl TorrentManager {
         let bt_settings = self
             .bt_settings
             .lock()
-            .unwrap_or_else(|poisoned| {
-                tracing::warn!("bt settings lock poisoned, recovering with inner state");
-                poisoned.into_inner()
-            })
             .clone();
         self.pending
             .lock()
-            .unwrap_or_else(|poisoned| {
-                tracing::warn!("pending torrents lock poisoned, recovering with inner state");
-                poisoned.into_inner()
-            })
             .insert(
                 pending_id.clone(),
                 PendingTorrent {
@@ -410,10 +404,6 @@ impl TorrentManager {
         if let Some(task) = self
             .pending
             .lock()
-            .unwrap_or_else(|poisoned| {
-                tracing::warn!("pending torrents lock poisoned, recovering with inner state");
-                poisoned.into_inner()
-            })
             .get_mut(&pending_id)
         {
             task.join = Some(join);
@@ -456,10 +446,6 @@ impl TorrentManager {
             .inspect(|&id| {
                 output_folders
                     .lock()
-                    .unwrap_or_else(|poisoned| {
-                        tracing::warn!("output folders lock poisoned, recovering with inner state");
-                        poisoned.into_inner()
-                    })
                     .insert(id, destination_dir);
             })
             .map_err(|error| error.to_string());
@@ -486,10 +472,6 @@ impl TorrentManager {
                 let _ = session.delete(TorrentIdOrHash::Id(id), false).await;
                 output_folders
                     .lock()
-                    .unwrap_or_else(|poisoned| {
-                        tracing::warn!("output folders lock poisoned, recovering with inner state");
-                        poisoned.into_inner()
-                    })
                     .remove(&id);
             }
         })
@@ -524,10 +506,6 @@ impl TorrentManager {
         let bt_settings = self
             .bt_settings
             .lock()
-            .unwrap_or_else(|poisoned| {
-                tracing::warn!("bt settings lock poisoned, recovering with inner state");
-                poisoned.into_inner()
-            })
             .clone();
         let join = self.spawn_add_torrent(
             pending_id.to_string(),
@@ -971,7 +949,7 @@ impl TorrentManager {
         included_indices: Vec<usize>,
     ) -> Result<()> {
         let id = parse_bt_task_id(download_id)?;
-        let included: HashSet<usize> = included_indices.into_iter().collect();
+        let included: std::collections::HashSet<usize> = included_indices.into_iter().collect();
         self.api
             .api_torrent_action_update_only_files(TorrentIdOrHash::Id(id), &included)
             .await
@@ -1006,7 +984,7 @@ impl TorrentManager {
                 .collect::<Vec<_>>()
         });
         let mut pending_snapshots = Vec::new();
-        let mut represented_ids = HashSet::new();
+        let mut represented_ids = HashSet::default();
         {
             let pending = lock_or_recover(&self.pending, "pending torrents");
             for (pending_id, task) in pending.iter() {
@@ -1039,6 +1017,22 @@ impl TorrentManager {
         }
         summaries.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(summaries)
+    }
+
+    /// Emit a `download-updated` Tauri event for a pending BT task so the
+    /// frontend immediately displays it (instead of waiting for the periodic
+    /// `download-progress` polling loop).
+    pub(crate) fn emit_pending_summary(&self, pending_id: &str) {
+        let handle = lock_or_recover(&self.app_handle, "bt app_handle");
+        let Some(ref handle) = *handle else {
+            return;
+        };
+        let pending = lock_or_recover(&self.pending, "pending torrents");
+        if let Some(task) = pending.get(pending_id) {
+            let snapshot = self.pending_snapshot(pending_id, task);
+            let summary = DownloadSummary::from(&snapshot);
+            let _ = handle.emit("download-updated", &summary);
+        }
     }
 
     pub fn runtime_status(&self) -> BtRuntimeStatus {
@@ -1183,10 +1177,6 @@ impl TorrentManager {
             .map_err(|error| DownloadError::Torrent(error.to_string()))?;
         self.output_folders
             .lock()
-            .unwrap_or_else(|poisoned| {
-                tracing::warn!("output folders lock poisoned, recovering with inner state");
-                poisoned.into_inner()
-            })
             .remove(&id);
         {
             let mut limits = lock_or_recover(&self.per_torrent_limits, "per_torrent_limits");
@@ -1333,10 +1323,6 @@ impl TorrentManager {
             .or_else(|| {
                 self.output_folders
                     .lock()
-                    .unwrap_or_else(|poisoned| {
-                        tracing::warn!("output folders lock poisoned, recovering with inner state");
-                        poisoned.into_inner()
-                    })
                     .get(&id)
                     .cloned()
                     .map(|path| path.to_string_lossy().to_string())
