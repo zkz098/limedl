@@ -1159,6 +1159,9 @@ impl TorrentManager {
             download_limit_bps: None,
             upload_limit_bps: None,
             mirror_url: None,
+            degraded: false,
+            disk_type: None,
+            flushing: false,
         }
     }
 
@@ -1433,6 +1436,9 @@ impl TorrentManager {
                     .and_then(|cfg| cfg.upload_bps.map(|n| n.get() as u64))
             },
             mirror_url: None,
+            degraded: false,
+            disk_type: None,
+            flushing: false,
         }
     }
 }

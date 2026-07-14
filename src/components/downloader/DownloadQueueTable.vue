@@ -329,6 +329,18 @@ function onSetBtSpeedLimit() {
   contextMenu.value = null;
 }
 
+function isFlushing(download: DownloadSummary) {
+  return download.flushing && download.state === "downloading";
+}
+
+function progressBarValue(download: DownloadSummary) {
+  return isFlushing(download) ? 100 : progressValue(download);
+}
+
+function progressPrimaryText(download: DownloadSummary) {
+  return isFlushing(download) ? t("queue.flushing") : progressLabel(download);
+}
+
 function labelForTaskKind(kind: DownloadSummary["kind"]) {
   if (kind === "bt") {
     return t("tokens.bt");
@@ -447,6 +459,25 @@ onUnmounted(() => {
                       <span class="i-ri-flashlight-fill" aria-hidden="true" />
                       CDN
                     </UiBadge>
+                    <UiBadge
+                      v-if="download.degraded"
+                      size="sm"
+                      tone="warning"
+                      class="queue-file__degraded"
+                      :title="t('queue.degradedHint')"
+                    >
+                      {{ t("queue.degraded") }}
+                    </UiBadge>
+                    <UiBadge
+                      v-if="download.diskType === 'hdd'"
+                      size="sm"
+                      tone="info"
+                      class="queue-file__hdd"
+                      :title="t('queue.hddHint')"
+                    >
+                      <span class="i-ri-hard-drive-2-line" aria-hidden="true" />
+                      HDD
+                    </UiBadge>
                   </span>
                   <span class="queue-file__path">{{ download.destinationPath }}</span>
                   <span class="queue-file__meta">{{ metaForDownload(download) }}</span>
@@ -462,23 +493,23 @@ onUnmounted(() => {
               </td>
 
               <td v-if="isColumnVisible('status')" class="queue-cell queue-cell--status">
-                <UiBadge size="sm" :tone="toneForState(download.state)">{{
-                  t(`states.${download.state}`)
+                <UiBadge size="sm" :tone="isFlushing(download) ? 'info' : toneForState(download.state)">{{
+                  isFlushing(download) ? t("queue.flushingShort") : t(`states.${download.state}`)
                 }}</UiBadge>
               </td>
 
               <td v-if="isColumnVisible('progress')" class="queue-cell queue-cell--progress">
                 <div class="queue-progress">
                   <div class="queue-progress__copy">
-                    <span>{{ progressLabel(download) }}</span>
+                    <span :class="{ 'queue-progress__flushing': isFlushing(download) }">{{ progressPrimaryText(download) }}</span>
                     <span>
                       {{ formatBytes(download.downloadedBytes) }} /
                       {{ formatBytes(download.totalBytes) }}
                     </span>
                   </div>
                   <UiProgress
-                    :value="progressValue(download)"
-                    :indeterminate="isSizeUnknown(download) && download.state !== 'completed'"
+                    :value="progressBarValue(download)"
+                    :indeterminate="isSizeUnknown(download) && download.state !== 'completed' && !isFlushing(download)"
                   />
                 </div>
               </td>
@@ -847,6 +878,30 @@ onUnmounted(() => {
   font-size: 0.7rem;
 }
 
+.queue-file__degraded {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  cursor: help;
+}
+
+.queue-file__hdd {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  cursor: help;
+}
+
+.queue-file__hdd .i-ri-hard-drive-2-line {
+  font-size: 0.7rem;
+}
+
 .queue-file__path {
   color: var(--color-text-muted);
   font-size: 0.72rem;
@@ -877,6 +932,27 @@ onUnmounted(() => {
   gap: var(--space-2);
   color: var(--color-text-muted);
   font-size: 0.7rem;
+}
+
+.queue-progress__flushing {
+  color: var(--color-info-text);
+  animation: queue-flush-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes queue-flush-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queue-progress__flushing {
+    animation: none;
+  }
 }
 
 .queue-empty {

@@ -10,8 +10,8 @@ use super::{
     error::{DownloadError, Result},
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        CdnAccelerationSettings, DownloadDefaultsSettings, GitHubMirrorSettings, LogSettings,
-        MirrorEntry, NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
+        CdnAccelerationSettings, DownloadDefaultsSettings, GitHubMirrorSettings, IoBaselineSettings,
+        LogSettings, MirrorEntry, NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
         TraditionalSchedulerSettings, default_http_user_agent, default_tracker_list_url,
     },
 };
@@ -65,6 +65,12 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let default_download_dir = normalize_download_dir(&settings.download.default_download_dir);
 
     let github_mirror = normalize_github_mirror_settings(settings.github_mirror);
+    let io_baseline = IoBaselineSettings {
+        buffer_limit_mb: settings.io_baseline.buffer_limit_mb.clamp(64, 32768),
+        game_mode_buffer_mb: settings.io_baseline.game_mode_buffer_mb.clamp(16, 4096),
+        game_mode: settings.io_baseline.game_mode,
+        disk_type_overrides: settings.io_baseline.disk_type_overrides,
+    };
 
     Ok(AppSettings {
         appearance: settings.appearance,
@@ -96,6 +102,7 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         github_mirror,
         global_speed_limit_bps: settings.global_speed_limit_bps,
         notifications: settings.notifications.clone(),
+        io_baseline,
     })
 }
 
@@ -331,7 +338,8 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             || value.get("bt").is_some()
             || value.get("logging").is_some()
             || value.get("cdnAcceleration").is_some()
-            || value.get("notifications").is_some())
+            || value.get("notifications").is_some()
+            || value.get("ioBaseline").is_some())
     {
         let parsed = serde_json::from_value::<AppSettings>(value)?;
         return normalize_settings(parsed);
@@ -350,6 +358,7 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         github_mirror: GitHubMirrorSettings::default(),
         global_speed_limit_bps: 0,
         notifications: NotificationSettings::default(),
+        io_baseline: IoBaselineSettings::default(),
     })
 }
 

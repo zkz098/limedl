@@ -104,6 +104,15 @@ export interface NotificationSettings {
   enabled: boolean;
 }
 
+export type DiskType = "ssd" | "hdd";
+
+export interface IoBaselineSettings {
+  bufferLimitMb: number;
+  gameModeBufferMb: number;
+  gameMode: boolean;
+  diskTypeOverrides: Record<string, DiskType>;
+}
+
 export interface AppSettings {
   globalSpeedLimitBps: number;
   appearance: AppearanceSettings;
@@ -116,4 +125,5 @@ export interface AppSettings {
   cdnAcceleration: CdnAccelerationSettings;
   githubMirror: GitHubMirrorSettings;
   notifications: NotificationSettings;
+  ioBaseline: IoBaselineSettings;
 }

@@ -17,6 +17,7 @@ use super::{
         TorrentFileEntry,
     },
 };
+use serde_json::json;
 
 type CommandResult<T> = std::result::Result<T, SerializableError>;
 
@@ -475,4 +476,26 @@ pub async fn update_bt_files(
             .await
             .context("更新 BT 文件选择失败"),
     )
+}
+
+#[tauri::command]
+pub async fn toggle_game_mode(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> CommandResult<bool> {
+    state.manager.set_game_mode(enabled);
+    Ok(enabled)
+}
+
+#[tauri::command]
+pub async fn get_io_status(
+    state: State<'_, AppState>,
+) -> CommandResult<serde_json::Value> {
+    let pool = &state.manager.buffer_pool;
+    Ok(json!({
+        "gameMode": pool.game_mode(),
+        "bufferUsageBytes": pool.current_usage(),
+        "bufferLimitBytes": pool.effective_limit(),
+        "degradationCount": pool.degradation_count(),
+    }))
 }

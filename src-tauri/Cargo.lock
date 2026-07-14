@@ -1129,6 +1129,8 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "blake3",
+ "bytes",
+ "dashmap",
  "fs4",
  "futures-util",
  "librqbit",

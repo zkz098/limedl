@@ -17,6 +17,7 @@ import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
 import { VALID_COLUMN_KEY_SET, DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
 import { useDownloader } from "./composables/useDownloader";
 import type { UseDownloaderOptions } from "./composables/useDownloader";
+import { useIoBaseline } from "./composables/useIoBaseline";
 import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
 import NotificationToast from "./components/ui/NotificationToast.vue";
@@ -92,6 +93,7 @@ const {
 } = useDownloader(downloaderOptions);
 
 const { t } = useI18n();
+const { gameMode, bufferUsageBytes, bufferLimitBytes, setGameMode } = useIoBaseline();
 const showComposerDialog = ref(false);
 const detailCollapsed = ref(false);
 const currentView = ref<"home" | "settings" | "labs">("home");
@@ -274,6 +276,10 @@ function handleDeselectAll() {
 
 function handleBatchDelete() {
   showBatchDeleteDialog.value = true;
+}
+
+async function handleToggleGameMode() {
+  await setGameMode(!gameMode.value);
 }
 
 async function confirmBatchDelete() {
@@ -528,6 +534,8 @@ onBeforeUnmount(() => {
       :multi-select-mode="multiSelectMode"
       :selected-count="selectedIds.size"
       :filtered-count="filteredDownloads.length"
+      :game-mode="gameMode"
+      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb"
       @update:search-query="searchQuery = $event"
       @update:sort-key="sortKey = $event"
       @update:sort-direction="sortDirection = $event"
@@ -543,6 +551,7 @@ onBeforeUnmount(() => {
       @select-all="handleSelectAll"
       @deselect-all="handleDeselectAll"
       @batch-delete="handleBatchDelete"
+      @toggle-game-mode="handleToggleGameMode"
     />
 
     <!-- Main layout: sidebar + content -->
@@ -682,6 +691,9 @@ onBeforeUnmount(() => {
             <SettingsPage
               ref="settingsPage"
               :settings="appSettings"
+              :game-mode="gameMode"
+              :buffer-usage-bytes="bufferUsageBytes"
+              :buffer-limit-bytes="bufferLimitBytes"
               @dirty-change="handleSettingsDirtyChange"
               @saved="handleSettingsSaved"
             />

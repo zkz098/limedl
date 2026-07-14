@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::download::types::IoBaselineSettings;
 use axum::{
     Router,
     extract::{OriginalUri, State},
@@ -180,6 +181,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             github_mirror: GitHubMirrorSettings::default(),
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
+            io_baseline: IoBaselineSettings::default(),
         })
         .await?;
 
@@ -281,6 +283,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             github_mirror: GitHubMirrorSettings::default(),
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
+            io_baseline: IoBaselineSettings::default(),
         })
         .await?;
 
@@ -372,6 +375,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             github_mirror: GitHubMirrorSettings::default(),
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
+            io_baseline: IoBaselineSettings::default(),
         })
         .await?;
 

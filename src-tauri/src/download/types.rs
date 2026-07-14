@@ -256,6 +256,15 @@ pub struct DownloadSnapshot {
     pub upload_limit_bps: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_url: Option<String>,
+    #[serde(default)]
+    pub degraded: bool,
+    /// Disk type for this download (set after detection).
+    /// None if not yet detected (defaults to SSD behavior).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disk_type: Option<DiskType>,
+    /// Whether the buffer is currently being flushed to disk.
+    #[serde(default)]
+    pub flushing: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -320,6 +329,12 @@ pub struct DownloadProgress {
     pub upload_speed_bytes_per_second: Option<f64>,
     pub peer_count: Option<usize>,
     pub upload_status: Option<BtUploadStatus>,
+    #[serde(default)]
+    pub degraded: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disk_type: Option<DiskType>,
+    #[serde(default)]
+    pub flushing: bool,
 }
 
 impl From<&DownloadSnapshot> for DownloadProgress {
@@ -338,6 +353,9 @@ impl From<&DownloadSnapshot> for DownloadProgress {
             upload_speed_bytes_per_second: snapshot.upload_speed_bytes_per_second,
             peer_count: snapshot.peer_count,
             upload_status: snapshot.upload_status,
+            degraded: snapshot.degraded,
+            disk_type: snapshot.disk_type.clone(),
+            flushing: snapshot.flushing,
         }
     }
 }
@@ -696,6 +714,55 @@ pub struct NotificationSettings {
     pub enabled: bool,
 }
 
+/// Disk type for I/O optimization decisions.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DiskType {
+    #[default]
+    Ssd,
+    Hdd,
+}
+
+/// I/O baseline settings for HDD/SSD intelligent buffer optimization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IoBaselineSettings {
+    /// Total memory buffer pool limit in MiB for HDD downloads.
+    /// Default: 1024 MiB (1 GiB). User can adjust.
+    #[serde(default = "default_buffer_limit_mb")]
+    pub buffer_limit_mb: u64,
+    /// Buffer size in MiB to use when game/performance mode is active.
+    /// Default: 128 MiB.
+    #[serde(default = "default_game_mode_buffer_mb")]
+    pub game_mode_buffer_mb: u64,
+    /// Whether game/performance mode is currently active (runtime-only, never persisted).
+    #[serde(default, skip)]
+    pub game_mode: bool,
+    /// User-specified disk type overrides keyed by directory path.
+    /// e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
+    #[serde(default)]
+    pub disk_type_overrides: std::collections::HashMap<String, DiskType>,
+}
+
+fn default_buffer_limit_mb() -> u64 {
+    1024
+}
+
+fn default_game_mode_buffer_mb() -> u64 {
+    128
+}
+
+impl Default for IoBaselineSettings {
+    fn default() -> Self {
+        Self {
+            buffer_limit_mb: default_buffer_limit_mb(),
+            game_mode_buffer_mb: default_game_mode_buffer_mb(),
+            game_mode: false,
+            disk_type_overrides: std::collections::HashMap::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -721,6 +788,8 @@ pub struct AppSettings {
     pub global_speed_limit_bps: u64,
     #[serde(default)]
     pub notifications: NotificationSettings,
+    #[serde(default)]
+    pub io_baseline: IoBaselineSettings,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -777,22 +846,13 @@ fn default_mirror_enabled() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitHubMirrorSettings {
     #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
     pub mirrors: Vec<MirrorEntry>,
-}
-
-impl Default for GitHubMirrorSettings {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            mirrors: Vec::new(),
-        }
-    }
 }
 
 #[cfg(test)]

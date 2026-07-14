@@ -22,6 +22,7 @@ import SettingsAppearancePanel from "./SettingsAppearancePanel.vue";
 import SettingsAria2RpcPanel from "./SettingsAria2RpcPanel.vue";
 import SettingsBtPanel from "./SettingsBtPanel.vue";
 import SettingsDownloadDefaultsPanel from "./SettingsDownloadDefaultsPanel.vue";
+import SettingsIoBaselinePanel from "./SettingsIoBaselinePanel.vue";
 import SettingsLoggingPanel from "./SettingsLoggingPanel.vue";
 import SettingsProxyPanel from "./SettingsProxyPanel.vue";
 import SettingsSchedulerPanel from "./SettingsSchedulerPanel.vue";
@@ -37,6 +38,9 @@ import {
 
 const props = defineProps<{
   settings: AppSettings | null;
+  gameMode?: boolean;
+  bufferUsageBytes?: number;
+  bufferLimitBytes?: number;
 }>();
 
 const emit = defineEmits<{
@@ -302,6 +306,15 @@ defineExpose({
         :is-picking-directory="isPickingDirectory"
         :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
         @pick-directory="pickDefaultDownloadDirectory"
+      />
+
+      <SettingsIoBaselinePanel
+        v-show="activeTab === 'downloads'"
+        :draft="form"
+        :t="t"
+        :game-mode="gameMode ?? false"
+        :buffer-usage-bytes="bufferUsageBytes ?? 0"
+        :buffer-limit-bytes="bufferLimitBytes ?? 0"
       />
 
       <SettingsBtPanel

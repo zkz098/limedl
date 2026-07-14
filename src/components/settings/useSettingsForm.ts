@@ -88,6 +88,12 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     notifications: {
       enabled: false,
     },
+    ioBaseline: {
+      bufferLimitMb: 1024,
+      gameModeBufferMb: 128,
+      gameMode: false,
+      diskTypeOverrides: {},
+    },
   });
 
   const savedSettingsSnapshot = ref("");
@@ -159,6 +165,12 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       },
       notifications: {
         enabled: form.notifications?.enabled ?? false,
+      },
+      ioBaseline: {
+        bufferLimitMb: Math.max(64, Math.min(32768, form.ioBaseline.bufferLimitMb ?? 1024)),
+        gameModeBufferMb: Math.max(16, Math.min(4096, form.ioBaseline.gameModeBufferMb ?? 128)),
+        gameMode: form.ioBaseline.gameMode ?? false,
+        diskTypeOverrides: { ...form.ioBaseline.diskTypeOverrides },
       },
     };
   }
@@ -232,6 +244,12 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       };
       form.notifications = {
         enabled: nextSettings.notifications?.enabled ?? false,
+      };
+      form.ioBaseline = {
+        bufferLimitMb: nextSettings.ioBaseline?.bufferLimitMb ?? 1024,
+        gameModeBufferMb: nextSettings.ioBaseline?.gameModeBufferMb ?? 128,
+        gameMode: nextSettings.ioBaseline?.gameMode ?? false,
+        diskTypeOverrides: { ...nextSettings.ioBaseline?.diskTypeOverrides },
       };
       savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
       onDirtyChange?.(false);

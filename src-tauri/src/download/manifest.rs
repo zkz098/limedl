@@ -194,6 +194,9 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         leech_count: None,
         download_limit_bps: None,
         upload_limit_bps: None,
+        degraded: false,
+        disk_type: None,
+        flushing: false,
     }
 }
 

@@ -45,43 +45,40 @@ fn main() {
     let rc = find_tool_in_latest_sdk_version("rc.exe");
     let cvtres = find_tool_in_latest_msvc_version("cvtres.exe");
 
-    match (&rc, &cvtres) {
-        (Some(rc), Some(cvtres)) => {
-            let res_file = out_path.join("manifest_only.res");
-            let obj_file = out_path.join("manifest_only.obj");
+    if let (Some(rc), Some(cvtres)) = (&rc, &cvtres) {
+        let res_file = out_path.join("manifest_only.res");
+        let obj_file = out_path.join("manifest_only.obj");
 
-            // rc.exe → .res
-            let rc_ok = Command::new(rc)
-                .arg("/fo")
-                .arg(&res_file)
-                .arg(&manifest_rc)
-                .status()
-                .map(|s| s.success())
-                .unwrap_or(false);
+        // rc.exe → .res
+        let rc_ok = Command::new(rc)
+            .arg("/fo")
+            .arg(&res_file)
+            .arg(&manifest_rc)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
 
-            // cvtres.exe → .obj
-            let cvtres_ok = rc_ok
-                && {
-                    let out_arg = format!("/out:{}", obj_file.display());
-                    Command::new(cvtres)
-                        .arg(&out_arg)
-                        .arg(&res_file)
-                        .status()
-                        .map(|s| s.success())
-                        .unwrap_or(false)
-                };
+        // cvtres.exe → .obj
+        let cvtres_ok = rc_ok
+            && {
+                let out_arg = format!("/out:{}", obj_file.display());
+                Command::new(cvtres)
+                    .arg(&out_arg)
+                    .arg(&res_file)
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false)
+            };
 
-            if cvtres_ok {
-                // Link the manifest-only .obj to all targets as a direct
-                // linker input.  This forces the linker to include the
-                // manifest resource even though it doesn't resolve any
-                // code symbols (unlike `cargo:rustc-link-lib=static` which
-                // only pulls in objects that resolve symbols).
-                println!("cargo:rustc-link-arg={}", obj_file.display());
-                return;
-            }
+        if cvtres_ok {
+            // Link the manifest-only .obj to all targets as a direct
+            // linker input.  This forces the linker to include the
+            // manifest resource even though it doesn't resolve any
+            // code symbols (unlike `cargo:rustc-link-lib=static` which
+            // only pulls in objects that resolve symbols).
+            println!("cargo:rustc-link-arg={}", obj_file.display());
+            return;
         }
-        _ => {}
     }
 
     // Fallback: link resource.lib.  `cargo test --lib` will work, but

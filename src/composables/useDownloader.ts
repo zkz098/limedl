@@ -105,6 +105,9 @@ function createDownloader(options?: UseDownloaderOptions) {
     if (progress.uploadSpeedBytesPerSecond !== undefined) existing.uploadSpeedBytesPerSecond = progress.uploadSpeedBytesPerSecond;
     if (progress.peerCount !== undefined) existing.peerCount = progress.peerCount;
     if (progress.uploadStatus !== undefined) existing.uploadStatus = progress.uploadStatus;
+    if (progress.degraded !== undefined) existing.degraded = progress.degraded;
+    if (progress.diskType !== undefined) existing.diskType = progress.diskType;
+    if (progress.flushing !== undefined) existing.flushing = progress.flushing;
 
     // Patch selectedSnapshot inline (same pattern as existing handleDownloadUpdated patching)
     if (selectedId.value === progress.id && selectedSnapshot.value) {
@@ -120,6 +123,9 @@ function createDownloader(options?: UseDownloaderOptions) {
         ...(progress.uploadSpeedBytesPerSecond !== undefined && { uploadSpeedBytesPerSecond: progress.uploadSpeedBytesPerSecond }),
         ...(progress.peerCount !== undefined && { peerCount: progress.peerCount }),
         ...(progress.uploadStatus !== undefined && { uploadStatus: progress.uploadStatus }),
+        ...(progress.degraded !== undefined && { degraded: progress.degraded }),
+        ...(progress.diskType !== undefined && { diskType: progress.diskType }),
+        ...(progress.flushing !== undefined && { flushing: progress.flushing }),
       });
     }
   }

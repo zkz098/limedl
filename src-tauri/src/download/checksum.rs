@@ -51,6 +51,38 @@ impl ChecksumHasher {
     }
 }
 
+/// Compute checksum from ordered byte slices (for in-memory buffer use).
+#[allow(dead_code)]
+pub fn hash_slices(mode: ChecksumMode, slices: &[&[u8]]) -> String {
+    use blake3::Hasher;
+    use sha2::{Digest, Sha256};
+
+    match mode {
+        ChecksumMode::None => String::new(),
+        ChecksumMode::Blake3 => {
+            let mut hasher = Hasher::new();
+            for slice in slices {
+                hasher.update(slice);
+            }
+            hasher.finalize().to_hex().to_string()
+        }
+        ChecksumMode::Sha256 => {
+            let mut hasher = Sha256::new();
+            for slice in slices {
+                hasher.update(slice);
+            }
+            format!("{:x}", hasher.finalize())
+        }
+        ChecksumMode::Xxh3128 => {
+            let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+            for slice in slices {
+                hasher.update(slice);
+            }
+            format!("{:032x}", hasher.digest128())
+        }
+    }
+}
+
 pub(crate) async fn calculate_checksum(path: PathBuf, mode: ChecksumMode) -> Result<String> {
     tokio::task::spawn_blocking(move || -> Result<String> {
         use std::io::Read;

@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params, types::Value};
-use serde_json;
+
 
 use super::manifest::{ChunkManifest, Manifest};
 use super::types::{AdaptiveProfile, ChecksumMode, DownloadState, ThreadMode};

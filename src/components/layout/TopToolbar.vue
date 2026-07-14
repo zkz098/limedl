@@ -24,6 +24,8 @@ const props = defineProps<{
   multiSelectMode: boolean;
   selectedCount: number;
   filteredCount: number;
+  gameMode?: boolean;
+  gameModeBufferMb?: number;
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +44,7 @@ const emit = defineEmits<{
   selectAll: [];
   deselectAll: [];
   batchDelete: [];
+  toggleGameMode: [];
 }>();
 
 const columnMenuOpen = ref(false);
@@ -350,6 +353,23 @@ onUnmounted(() => {
         <span>{{ btStatus.peers }}</span>
       </span>
     </div>
+
+    <button
+      type="button"
+      class="game-mode-btn"
+      :class="{ 'game-mode-btn--active': gameMode }"
+      :title="gameMode ? t('toolbar.gameModeActive') : t('toolbar.gameModeInactive')"
+      @click="$emit('toggleGameMode')"
+    >
+      <span
+        class="game-mode-btn__icon"
+        :class="gameMode ? 'i-ri-gamepad-fill' : 'i-ri-gamepad-line'"
+        aria-hidden="true"
+      />
+      <span v-if="gameMode && gameModeBufferMb != null" class="game-mode-btn__label">
+        {{ t("toolbar.gameModeBuffer", { mb: gameModeBufferMb }) }}
+      </span>
+    </button>
   </div>
 </template>
 
@@ -618,5 +638,43 @@ onUnmounted(() => {
   font-size: 0.75rem;
   line-height: 1;
   white-space: nowrap;
+}
+
+.game-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.875rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.game-mode-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-panel-muted);
+}
+
+.game-mode-btn--active {
+  border-color: var(--color-accent-soft-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+.game-mode-btn__icon {
+  font-size: 1rem;
+}
+
+.game-mode-btn__label {
+  font-weight: 500;
 }
 </style>

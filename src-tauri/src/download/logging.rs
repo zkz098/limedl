@@ -239,7 +239,7 @@ fn find_rotated_logs(log_path: &Path) -> Vec<(PathBuf, u32)> {
     }
 
     // Sort descending by rotation number so we rename highest first
-    result.sort_by(|a, b| b.1.cmp(&a.1));
+    result.sort_by_key(|b| std::cmp::Reverse(b.1));
     result
 }
 
@@ -292,13 +292,13 @@ fn rotate_startup_logs(log_path: &Path) {
 fn cleanup_by_count(log_path: &Path, count: u32) {
     let logs = find_rotated_logs(log_path);
     for (path, num) in &logs {
-        if *num > count {
-            if let Err(e) = fs::remove_file(path) {
-                eprintln!(
-                    "[downloader] failed to remove old log file {}: {e}",
-                    path.display()
-                );
-            }
+        if *num > count
+            && let Err(e) = fs::remove_file(path)
+        {
+            eprintln!(
+                "[downloader] failed to remove old log file {}: {e}",
+                path.display()
+            );
         }
     }
 }
@@ -314,15 +314,14 @@ fn cleanup_by_age(log_path: &Path, days: u32) {
         match fs::metadata(path) {
             Ok(meta) => match meta.modified() {
                 Ok(modified) => {
-                    if let Ok(age) = now.duration_since(modified) {
-                        if age > max_age {
-                            if let Err(e) = fs::remove_file(path) {
-                                eprintln!(
-                                    "[downloader] failed to remove old log file {}: {e}",
-                                    path.display()
-                                );
-                            }
-                        }
+                    if let Ok(age) = now.duration_since(modified)
+                        && age > max_age
+                        && let Err(e) = fs::remove_file(path)
+                    {
+                        eprintln!(
+                            "[downloader] failed to remove old log file {}: {e}",
+                            path.display()
+                        );
                     }
                 }
                 Err(e) => {
@@ -342,19 +341,16 @@ fn cleanup_by_age(log_path: &Path, days: u32) {
     }
 
     // Also check the current log file (may be old if logging was disabled)
-    if let Ok(meta) = fs::metadata(log_path) {
-        if let Ok(modified) = meta.modified() {
-            if let Ok(age) = now.duration_since(modified) {
-                if age > max_age {
-                    if let Err(e) = fs::remove_file(log_path) {
-                        eprintln!(
-                            "[downloader] failed to remove old current log file {}: {e}",
-                            log_path.display()
-                        );
-                    }
-                }
-            }
-        }
+    if let Ok(meta) = fs::metadata(log_path)
+        && let Ok(modified) = meta.modified()
+        && let Ok(age) = now.duration_since(modified)
+        && age > max_age
+        && let Err(e) = fs::remove_file(log_path)
+    {
+        eprintln!(
+            "[downloader] failed to remove old current log file {}: {e}",
+            log_path.display()
+        );
     }
 }
 

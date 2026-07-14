@@ -69,6 +69,11 @@ export interface DownloadSummary {
   infoHash?: string;
   error?: string;
   cdnAccelerated?: boolean;
+  degraded?: boolean;
+  /** Disk type for this download; set after detection on the backend. */
+  diskType?: "ssd" | "hdd";
+  /** True while buffered data is being flushed to disk. */
+  flushing?: boolean;
   createdAtMs: number;
   seedCount?: number;
   leechCount?: number;
@@ -92,6 +97,11 @@ export interface DownloadProgress {
   uploadSpeedBytesPerSecond?: number;
   peerCount?: number;
   uploadStatus?: BtUploadStatus;
+  degraded?: boolean;
+  /** Disk type for this download; set after detection on the backend. */
+  diskType?: "ssd" | "hdd";
+  /** True while buffered data is being flushed to disk. */
+  flushing?: boolean;
 }
 
 export interface ChunkInfo {
@@ -137,6 +147,11 @@ export interface DownloadSnapshot {
   createdAtMs: number;
   updatedAtMs: number;
   cdnAccelerated?: boolean;
+  degraded?: boolean;
+  /** Disk type for this download; set after detection on the backend. */
+  diskType?: "ssd" | "hdd";
+  /** True while buffered data is being flushed to disk. */
+  flushing?: boolean;
   chunks?: ChunkInfo[];
   seedCount?: number;
   leechCount?: number;

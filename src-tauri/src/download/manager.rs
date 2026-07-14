@@ -21,7 +21,9 @@ use uuid::Uuid;
 
 use super::{
     aimd::{self, AimdState},
+    buffer_pool::BufferPool,
     database::Database,
+    disk_detect::detect_disk_type,
     error::{DownloadError, Result},
     file_alloc::{
         check_disk_space, finalize_temp_file, open_download_file, reset_download_file, write_all_at,
@@ -42,9 +44,9 @@ use super::{
 
     torrent::TorrentManager,
     types::{
-        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DownloadProgress, DownloadSnapshot,
-        DownloadState, DownloadSummary, SchedulerMode, StartDownloadRequest, TaskId, TaskKind,
-        ThreadMode,
+        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadProgress,
+        DownloadSnapshot, DownloadState, DownloadSummary, SchedulerMode,
+        StartDownloadRequest, TaskId, TaskKind, ThreadMode,
     },
 };
 
@@ -101,6 +103,7 @@ pub struct DownloadManager {
     event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
     rate_limiter: Arc<RateLimiter>,
+    pub(crate) buffer_pool: Arc<BufferPool>,
     app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 }
 
@@ -176,6 +179,12 @@ impl DownloadManager {
 
         migrate_json_manifests(&db, &state_dir)?;
 
+        let io = &settings.io_baseline;
+        let buffer_pool = Arc::new(BufferPool::new(
+            io.buffer_limit_mb,
+            io.game_mode_buffer_mb,
+        ));
+
         let manager = Self {
             client: Arc::new(RwLock::new(client)),
             state_dir,
@@ -187,6 +196,7 @@ impl DownloadManager {
             event_tx: Arc::new(Mutex::new(None)),
             cdn_accelerator: Arc::new(RwLock::new(None)),
             rate_limiter,
+            buffer_pool,
             app_handle: Arc::new(Mutex::new(None)),
         };
 
@@ -313,6 +323,11 @@ impl DownloadManager {
         let normalized = normalize_settings(settings)?;
         self.rate_limiter
             .set_rate(normalized.global_speed_limit_bps);
+        self.buffer_pool.update_limits(
+            normalized.io_baseline.buffer_limit_mb,
+            normalized.io_baseline.game_mode_buffer_mb,
+        );
+        self.buffer_pool.set_game_mode(normalized.io_baseline.game_mode);
         let next_client = build_http_client(&normalized)?;
 
         persist_settings(&self.settings_path, &normalized).await?;
@@ -407,13 +422,13 @@ impl DownloadManager {
         };
 
         // If mirror URLs were populated by the commands layer, activate mirror mode
-        if let Some(ref mirror_urls) = request.mirror_urls {
-            if !mirror_urls.is_empty() {
-                manifest.mirror_urls = mirror_urls.clone();
-                manifest.mirror_url = Some(mirror_urls[0].clone());
-                manifest.final_url = mirror_urls[0].clone();
-                manifest.current_mirror_index = 0;
-            }
+        if let Some(ref mirror_urls) = request.mirror_urls
+            && !mirror_urls.is_empty()
+        {
+            manifest.mirror_urls = mirror_urls.clone();
+            manifest.mirror_url = Some(mirror_urls[0].clone());
+            manifest.final_url = mirror_urls[0].clone();
+            manifest.current_mirror_index = 0;
         }
 
         let snapshot = snapshot_from_manifest(&manifest);
@@ -1075,8 +1090,31 @@ impl DownloadManager {
             event_tx: self.event_tx.clone(),
             cdn_accelerator: self.cdn_accelerator.clone(),
             rate_limiter: self.rate_limiter.clone(),
+            buffer_pool: self.buffer_pool.clone(),
             app_handle: self.app_handle.clone(),
         })
+    }
+
+    #[allow(dead_code)]
+    pub fn game_mode(&self) -> bool {
+        self.buffer_pool.game_mode()
+    }
+
+    pub fn set_game_mode(&self, enabled: bool) {
+        self.buffer_pool.set_game_mode(enabled);
+    }
+
+    /// Resolve the disk type for a given directory path.
+    /// Checks user overrides first, then falls back to OS detection.
+    pub async fn resolve_disk_type(&self, dir: &Path) -> DiskType {
+        let settings = self.settings.read().await;
+        // Check user overrides
+        let dir_str = dir.to_string_lossy().to_string();
+        if let Some(disk_type) = settings.io_baseline.disk_type_overrides.get(&dir_str) {
+            return disk_type.clone();
+        }
+        drop(settings);
+        detect_disk_type(dir)
     }
 }
 
