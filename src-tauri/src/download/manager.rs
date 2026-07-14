@@ -48,6 +48,7 @@ use super::{
     },
 };
 
+use super::mirror::rewrite as mirror_rewrite;
 use super::settings::{
     build_http_client, load_settings, normalize_settings, persist_settings, resolve_user_agent,
 };
@@ -369,7 +370,7 @@ impl DownloadManager {
         let thread_note = Some(String::from("等待服务器响应"));
         let now = now_ms();
 
-        let manifest = Manifest {
+        let mut manifest = Manifest {
             id: download_id.clone(),
             url: request.url.clone(),
             final_url: request.url.clone(),
@@ -400,7 +401,20 @@ impl DownloadManager {
             updated_at_ms: now,
             chunks: Vec::new(),
             cdn_accelerated: false,
+            mirror_url: None,
+            mirror_urls: Vec::new(),
+            current_mirror_index: 0,
         };
+
+        // If mirror URLs were populated by the commands layer, activate mirror mode
+        if let Some(ref mirror_urls) = request.mirror_urls {
+            if !mirror_urls.is_empty() {
+                manifest.mirror_urls = mirror_urls.clone();
+                manifest.mirror_url = Some(mirror_urls[0].clone());
+                manifest.final_url = mirror_urls[0].clone();
+                manifest.current_mirror_index = 0;
+            }
+        }
 
         let snapshot = snapshot_from_manifest(&manifest);
         let managed = Arc::new(ManagedDownload {
@@ -549,9 +563,31 @@ impl DownloadManager {
             }
         }
 
-        // Phase 2: set Queued state on both snapshot and manifest
+        // Phase 2: refresh mirror URL list from current settings and
+        // set Queued state on both snapshot and manifest.
+        // NOTE: extract the original URL first, then drop the lock before
+        // calling mirror_urls_for() — MutexGuard is not Send and cannot be
+        // held across an await point.
+        let original_url = {
+            let core = managed.lock_core();
+            core.manifest.url.clone()
+        };
+        let new_mirror_urls = self.mirror_urls_for(&original_url).await;
         {
             let mut core = managed.lock_core();
+            if new_mirror_urls.len() > 1 {
+                // Try to preserve current mirror position across settings changes
+                let current_url = core.manifest.mirror_url.as_deref();
+                let new_idx = current_url
+                    .and_then(|cur| new_mirror_urls.iter().position(|u| u == cur))
+                    .unwrap_or(0);
+                core.manifest.mirror_urls = new_mirror_urls;
+                core.manifest.current_mirror_index = new_idx;
+                if let Some(url) = core.manifest.mirror_urls.get(new_idx).cloned() {
+                    core.manifest.mirror_url = Some(url.clone());
+                    core.manifest.final_url = url;
+                }
+            }
             core.snapshot.state = DownloadState::Queued;
             core.snapshot.error = None;
             core.snapshot.updated_at_ms = now_ms();
@@ -603,16 +639,6 @@ impl DownloadManager {
             *runtime = Some(CancellationToken::new());
         }
 
-        let url = {
-            let core = managed.lock_core();
-            core.manifest.url.clone()
-        };
-        let (client, cdn_accelerated) = self.resolve_client(&url).await;
-        {
-            let mut core = managed.lock_core();
-            core.snapshot.cdn_accelerated = cdn_accelerated;
-            core.manifest.cdn_accelerated = cdn_accelerated;
-        }
         let manager = self.clone_arc();
         let token = managed
             .lock_runtime()
@@ -622,45 +648,111 @@ impl DownloadManager {
         self.persist(managed.clone()).await?;
 
         tauri::async_runtime::spawn(async move {
-            let result = manager
-                .run_download(managed.clone(), client, token.clone(), max_retries)
-                .await;
-            if let Err(error) = result {
-                if matches!(error, DownloadError::Interrupted) {
-                    {
-                        let mut runtime = managed.lock_runtime();
-                        *runtime = None;
-                    }
-                    managed.stop_notify.notify_one();
-                    return;
+            // Build URL list for mirror retry.
+            // mirror::rewrite() already includes the original URL as the last
+            // element, so mirror_urls is always [mirror1, ..., original].
+            // Resume from current_mirror_index to preserve state across
+            // pause/resume cycles.
+            let (urls_to_try, start_index): (Vec<String>, usize) = {
+                let core = managed.lock_core();
+                if core.manifest.mirror_urls.is_empty() {
+                    (vec![core.manifest.url.clone()], 0)
+                } else {
+                    let urls = core.manifest.mirror_urls.clone();
+                    let idx = core.manifest.current_mirror_index.min(urls.len().saturating_sub(1));
+                    (urls, idx)
                 }
+            };
+
+            // Mirror mode is active when we have more than just the original URL.
+            let has_mirrors = urls_to_try.len() > 1;
+
+            // Use 1 retry for mirror mode (gives each mirror one retry on
+            // transient HTTP errors like 429/503), keep original retry count
+            // for non-mirror mode.
+            let actual_retries = if has_mirrors { 1 } else { max_retries };
+
+            for index in start_index..urls_to_try.len() {
+                let url_to_try = &urls_to_try[index];
+                // Update mirror tracking on manifest and snapshot
                 {
                     let mut core = managed.lock_core();
-                    core.snapshot.state = DownloadState::Failed;
-                    core.snapshot.error = Some(error.to_string());
-                    core.snapshot.connection_count = 0;
-                    core.snapshot.allocated_thread_count = Some(0);
-                    core.snapshot.updated_at_ms = now_ms();
-                    core.manifest.state = DownloadState::Failed;
-                    core.manifest.error = Some(error.to_string());
-                    core.manifest.connection_count = 0;
-                    core.manifest.allocated_thread_count = Some(0);
-                    core.manifest.updated_at_ms = now_ms();
+                    core.manifest.current_mirror_index = index;
+                    if has_mirrors {
+                        core.manifest.mirror_url = Some(url_to_try.clone());
+                        core.manifest.final_url = url_to_try.clone();
+                    }
+                    core.snapshot.mirror_url = core.manifest.mirror_url.clone();
+                    core.snapshot.final_url = core.manifest.final_url.clone();
                 }
-                manager.emit_single_summary(&managed);
 
-                // Broadcast aria2.onDownloadError
-                let event_tx = manager.event_tx.lock().unwrap_or_else(|poisoned| {
-                    tracing::warn!("event_tx lock poisoned in spawn_download");
-                    poisoned.into_inner()
-                });
-                if let Some(ref tx) = *event_tx {
-                    let download_id = managed.lock_core().snapshot.id.clone();
-                    let gid = format!(
-                        "{:016x}",
-                        xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
-                    );
-                    let _ = tx.send(build_rpc_notification("aria2.onDownloadError", &gid));
+                // Resolve CDN-aware client for this URL
+                let (client, cdn_accelerated) = manager.resolve_client(url_to_try).await;
+                {
+                    let mut core = managed.lock_core();
+                    core.snapshot.cdn_accelerated = cdn_accelerated;
+                    core.manifest.cdn_accelerated = cdn_accelerated;
+                }
+
+                let result = manager
+                    .run_download(managed.clone(), client, token.clone(), actual_retries)
+                    .await;
+
+                match result {
+                    Ok(()) => {
+                        break;
+                    }
+                    Err(DownloadError::Interrupted) => {
+                        {
+                            let mut runtime = managed.lock_runtime();
+                            *runtime = None;
+                        }
+                        managed.stop_notify.notify_one();
+                        return;
+                    }
+                    Err(error) => {
+                        let is_network = is_network_error(&error);
+                        let has_more = index + 1 < urls_to_try.len();
+
+                        if has_mirrors && is_network && has_more {
+                            tracing::warn!(
+                                "mirror {index} failed with network error, trying next: {error}"
+                            );
+                            continue;
+                        }
+
+                        // Non-retryable error or last URL — set Failed state
+                        {
+                            let mut core = managed.lock_core();
+                            core.snapshot.state = DownloadState::Failed;
+                            core.snapshot.error = Some(error.to_string());
+                            core.snapshot.connection_count = 0;
+                            core.snapshot.allocated_thread_count = Some(0);
+                            core.snapshot.updated_at_ms = now_ms();
+                            core.manifest.state = DownloadState::Failed;
+                            core.manifest.error = Some(error.to_string());
+                            core.manifest.connection_count = 0;
+                            core.manifest.allocated_thread_count = Some(0);
+                            core.manifest.updated_at_ms = now_ms();
+                        }
+                        manager.emit_single_summary(&managed);
+
+                        // Broadcast aria2.onDownloadError
+                        let event_tx = manager.event_tx.lock().unwrap_or_else(|poisoned| {
+                            tracing::warn!("event_tx lock poisoned in spawn_download");
+                            poisoned.into_inner()
+                        });
+                        if let Some(ref tx) = *event_tx {
+                            let download_id = managed.lock_core().snapshot.id.clone();
+                            let gid = format!(
+                                "{:016x}",
+                                xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
+                            );
+                            let _ = tx.send(build_rpc_notification("aria2.onDownloadError", &gid));
+                        }
+
+                        break;
+                    }
                 }
             }
 
@@ -691,6 +783,15 @@ fn is_terminal(state: DownloadState) -> bool {
 }
 
 impl DownloadManager {
+    /// Check whether the given URL should use GitHub mirrors, and if so return
+    /// the list of mirror URLs (in priority order with the original URL appended
+    /// as the final fallback).  Returns a single-element list (the original URL)
+    /// if mirroring is disabled or the URL is not a GitHub URL.
+    pub async fn mirror_urls_for(&self, url: &str) -> Vec<String> {
+        let settings = self.settings.read().await;
+        mirror_rewrite(url, &settings.github_mirror)
+    }
+
     fn build_snapshot(&self, managed: Arc<ManagedDownload>) -> DownloadSnapshot {
         let core = managed.lock_core();
         let mut snapshot = core.snapshot.clone();
@@ -1055,6 +1156,8 @@ fn thread_note(
 }
 
 pub(crate) fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
+    // NOTE: mirror_url is intentionally NOT synced here — it is managed
+    // exclusively by the mirror retry loop in spawn_download.
     let snapshot = &mut core.snapshot;
     let manifest = &core.manifest;
     snapshot.state = manifest.state;
@@ -1189,6 +1292,17 @@ fn build_rpc_notification(method: &str, gid: &str) -> String {
         "params": [{"gid": gid}]
     }))
     .unwrap_or_default()
+}
+
+/// Returns `true` if the error represents a transport-level network failure
+/// (connection refused, timeout, DNS resolution failure, TLS handshake failure)
+/// that might succeed with a different mirror.  Returns `false` for application-
+/// level errors (HTTP 4xx/5xx, invalid responses, I/O errors, etc.).
+fn is_network_error(error: &DownloadError) -> bool {
+    match error {
+        DownloadError::Http(e) => e.is_connect() || e.is_timeout() || e.is_body(),
+        _ => false,
+    }
 }
 
 pub(crate) fn now_ms() -> u64 {

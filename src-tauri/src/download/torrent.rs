@@ -1158,6 +1158,7 @@ impl TorrentManager {
             leech_count: None,
             download_limit_bps: None,
             upload_limit_bps: None,
+            mirror_url: None,
         }
     }
 
@@ -1431,6 +1432,7 @@ impl TorrentManager {
                     .get(&id)
                     .and_then(|cfg| cfg.upload_bps.map(|n| n.get() as u64))
             },
+            mirror_url: None,
         }
     }
 }
@@ -1596,6 +1598,7 @@ mod tests {
             checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         }
     }
 

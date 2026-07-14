@@ -191,6 +191,8 @@ pub struct StartDownloadRequest {
     pub selected_file_indices: Option<Vec<usize>>,
     #[serde(default)]
     pub start_paused: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_urls: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -252,6 +254,8 @@ pub struct DownloadSnapshot {
     pub download_limit_bps: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_limit_bps: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -294,6 +298,8 @@ pub struct DownloadSummary {
     pub upload_limit_bps: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chunks: Vec<ChunkInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_url: Option<String>,
 }
 
 /// Lightweight incremental progress update sent every ~300ms during active downloads.
@@ -428,6 +434,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             download_limit_bps: value.download_limit_bps,
             upload_limit_bps: value.upload_limit_bps,
             chunks: value.chunks.clone(),
+            mirror_url: value.mirror_url.clone(),
         }
     }
 }
@@ -592,6 +599,16 @@ pub struct LogSettings {
     pub level: LogLevel,
     #[serde(default)]
     pub file_path: String,
+
+    /// Maximum number of rotated startup log files to keep (e.g., `downloader.1.log`, `downloader.2.log`, ...).
+    /// `None` = no count-based cleanup. `Some(0)` = delete all old logs.
+    #[serde(default)]
+    pub retention_count: Option<u32>,
+
+    /// Maximum age in days of log files to keep. Older files are deleted on startup.
+    /// `None` = no age-based cleanup.
+    #[serde(default)]
+    pub retention_days: Option<u32>,
 }
 
 impl Default for LogSettings {
@@ -600,6 +617,8 @@ impl Default for LogSettings {
             enabled: true,
             level: LogLevel::Info,
             file_path: String::new(),
+            retention_count: None,
+            retention_days: None,
         }
     }
 }
@@ -607,10 +626,9 @@ impl Default for LogSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ThemeColor {
-    #[default]
-    Default,
     Amber,
     Sky,
+    #[default]
     Lime,
 }
 
@@ -698,6 +716,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub cdn_acceleration: CdnAccelerationSettings,
     #[serde(default)]
+    pub github_mirror: GitHubMirrorSettings,
+    #[serde(default)]
     pub global_speed_limit_bps: u64,
     #[serde(default)]
     pub notifications: NotificationSettings,
@@ -743,6 +763,38 @@ pub struct CdnAccelerationSettings {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MirrorEntry {
+    pub url: String,
+    #[serde(default = "default_mirror_enabled")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub order: u32,
+}
+
+fn default_mirror_enabled() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHubMirrorSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub mirrors: Vec<MirrorEntry>,
+}
+
+impl Default for GitHubMirrorSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            mirrors: Vec::new(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -775,7 +827,7 @@ mod tests {
     #[test]
     fn test_app_settings_backward_compat() {
         let json = r#"{
-            "appearance": {"themeColor": "default", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true, "sortKey": "added_at", "sortDirection": "desc", "compactView": false, "visibleColumns": ["file", "size", "downloaded", "status", "progress", "speed", "eta"]},
+            "appearance": {"themeColor": "lime", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true, "sortKey": "added_at", "sortDirection": "desc", "compactView": false, "visibleColumns": ["file", "size", "downloaded", "status", "progress", "speed", "eta"]},
             "proxy": {"mode": "system", "manualUrl": ""},
             "scheduler": {"mode": "traditional", "traditional": {"maxParallelTasks": 3}, "automatic": {"maxParallelThreads": 8, "maxThreadsPerTask": 4, "minThreadsPerTask": 1, "adaptiveProfile": "conservative"}},
             "download": {"defaultDownloadDir": "", "defaultMaxRetries": 3, "defaultChecksum": "blake3", "defaultUserAgent": ""},

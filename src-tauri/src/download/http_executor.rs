@@ -57,8 +57,10 @@ impl super::DownloadManager {
         max_retries: u32,
     ) -> Result<()> {
         let current_manifest = { managed.lock_core().manifest.clone() };
+        // Use final_url for probing — this is the actual download URL
+        // (mirror URL if mirroring is active, or the original URL otherwise).
         let metadata = self
-            .probe(&current_manifest.url, &current_manifest.user_agent)
+            .probe(&current_manifest.final_url, &current_manifest.user_agent)
             .await?;
 
         // Check available disk space before starting the download
@@ -86,6 +88,7 @@ impl super::DownloadManager {
             checksum: Some(current_manifest.checksum_mode),
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         };
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);

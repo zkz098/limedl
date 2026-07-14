@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params, types::Value};
+use serde_json;
 
 use super::manifest::{ChunkManifest, Manifest};
 use super::types::{AdaptiveProfile, ChecksumMode, DownloadState, ThreadMode};
@@ -215,6 +216,12 @@ fn manifest_to_row(manifest: &Manifest) -> Vec<Value> {
         Value::Integer(manifest.updated_at_ms as i64),
         // 27: chunk_size
         Value::Integer(manifest.chunk_size as i64),
+        // 28: mirror_url
+        manifest.mirror_url.clone().map_or(Value::Null, Value::Text),
+        // 29: mirror_urls (JSON-serialized)
+        Value::Text(serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into())),
+        // 30: current_mirror_index
+        Value::Integer(manifest.current_mirror_index as i64),
     ]
 }
 
@@ -260,6 +267,13 @@ fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
         chunks: Vec::new(),
         cdn_accelerated: false,
         chunk_size: row.get::<_, i64>(27)? as u64,
+        mirror_url: row.get(28)?,
+        mirror_urls: row
+            .get::<_, String>(29)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default(),
+        current_mirror_index: row.get::<_, i64>(30).unwrap_or(0) as usize,
     })
 }
 
@@ -328,7 +342,10 @@ CREATE TABLE IF NOT EXISTS downloads (
     error TEXT,
     created_at_ms INTEGER NOT NULL,
     updated_at_ms INTEGER NOT NULL,
-    chunk_size INTEGER NOT NULL DEFAULT 4194304
+    chunk_size INTEGER NOT NULL DEFAULT 4194304,
+    mirror_url TEXT,
+    mirror_urls TEXT NOT NULL DEFAULT '[]',
+    current_mirror_index INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS chunks (
@@ -364,6 +381,20 @@ impl Database {
         // Backfill chunk_size for pre-existing rows; ignore error if column already exists.
         let _ = conn.execute(
             "ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304",
+            [],
+        );
+
+        // Backfill mirror columns for pre-existing rows (GitHub mirror feature).
+        let _ = conn.execute(
+            "ALTER TABLE downloads ADD COLUMN mirror_url TEXT",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE downloads ADD COLUMN mirror_urls TEXT NOT NULL DEFAULT '[]'",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE downloads ADD COLUMN current_mirror_index INTEGER NOT NULL DEFAULT 0",
             [],
         );
 
@@ -417,10 +448,10 @@ impl Database {
                 requested_thread_count, desired_thread_count, allocated_thread_count,
                 adaptive_profile_snapshot, thread_note, etag, last_modified,
                 state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
-                chunk_size
+                chunk_size, mirror_url, mirror_urls, current_mirror_index
             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,
                       ?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,
-                      ?22,?23,?24,?25,?26,?27,?28)",
+                      ?22,?23,?24,?25,?26,?27,?28,?29,?30,?31)",
             rusqlite::params_from_iter(params),
         )
         .with_context(|| format!("failed to insert download {}", manifest.id))?;
@@ -451,8 +482,9 @@ impl Database {
                 allocated_thread_count = ?16, adaptive_profile_snapshot = ?17,
                 thread_note = ?18, etag = ?19, last_modified = ?20,
                 state = ?21, checksum_mode = ?22, checksum = ?23, error = ?24,
-                created_at_ms = ?25, updated_at_ms = ?26, chunk_size = ?27
-             WHERE id = ?28",
+                created_at_ms = ?25, updated_at_ms = ?26, chunk_size = ?27,
+                mirror_url = ?28, mirror_urls = ?29, current_mirror_index = ?30
+             WHERE id = ?31",
             rusqlite::params_from_iter(params),
         )
         .with_context(|| format!("failed to update download {}", manifest.id))?;
@@ -718,6 +750,9 @@ mod tests {
             created_at_ms: 1000,
             updated_at_ms: 1000,
             chunks: Vec::new(),
+            mirror_url: None,
+            mirror_urls: Vec::new(),
+            current_mirror_index: 0,
         }
     }
 

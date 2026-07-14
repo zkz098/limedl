@@ -631,7 +631,6 @@ onUnmounted(() => {
   background: var(--color-panel);
   color: var(--color-text-muted);
   font-size: var(--font-size-label);
-  font-family: var(--font-mono);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -759,14 +758,12 @@ onUnmounted(() => {
   width: 8%;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
 }
 
 .queue-cell--downloaded {
   width: 10%;
   color: var(--color-text-soft);
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
 }
 
 .queue-cell--status {
@@ -781,28 +778,24 @@ onUnmounted(() => {
   width: 10%;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
 }
 
 .queue-cell--up-speed {
   width: 8%;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
 }
 
 .queue-cell--seeds {
   width: 6%;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
 }
 
 .queue-cell--eta {
   width: 6%;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
 }
 
 .queue-file {
@@ -884,7 +877,6 @@ onUnmounted(() => {
   gap: var(--space-2);
   color: var(--color-text-muted);
   font-size: 0.7rem;
-  font-family: var(--font-mono);
 }
 
 .queue-empty {
@@ -922,7 +914,6 @@ onUnmounted(() => {
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
-  font-family: var(--font-mono);
 }
 
 .queue-pagination__actions {

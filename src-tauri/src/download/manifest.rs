@@ -42,6 +42,12 @@ pub(crate) struct Manifest {
     pub(super) error: Option<String>,
     pub(super) created_at_ms: u64,
     pub(super) updated_at_ms: u64,
+    #[serde(default)]
+    pub(super) mirror_url: Option<String>,
+    #[serde(default)]
+    pub(super) mirror_urls: Vec<String>,
+    #[serde(default)]
+    pub(super) current_mirror_index: usize,
     pub(super) chunks: Vec<ChunkManifest>,
 }
 
@@ -171,6 +177,7 @@ pub(super) fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         created_at_ms: manifest.created_at_ms,
         updated_at_ms: manifest.updated_at_ms,
         cdn_accelerated: manifest.cdn_accelerated,
+        mirror_url: manifest.mirror_url.clone(),
         chunks: manifest
             .chunks
             .iter()

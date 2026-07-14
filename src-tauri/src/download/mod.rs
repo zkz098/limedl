@@ -10,6 +10,7 @@ mod http;
 mod logging;
 mod manager;
 mod manifest;
+mod mirror;
 pub(crate) mod migration;
 pub(crate) mod persistence;
 pub(crate) mod protocol;

@@ -13,8 +13,9 @@ use tempfile::tempdir;
 use super::super::settings::load_settings;
 use super::super::types::{
     AdaptiveProfile, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-    CdnAccelerationSettings, DownloadDefaultsSettings, LogSettings, NotificationSettings,
-    ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, TraditionalSchedulerSettings,
+    CdnAccelerationSettings, DownloadDefaultsSettings, GitHubMirrorSettings, LogSettings,
+    NotificationSettings, ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings,
+    TraditionalSchedulerSettings,
 };
 use super::*;
 
@@ -110,6 +111,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
             checksum: Some(ChecksumMode::None),
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         }),
     )
     .await??;
@@ -175,6 +177,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
+            github_mirror: GitHubMirrorSettings::default(),
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
         })
@@ -193,6 +196,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             checksum: Some(ChecksumMode::None),
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         })
         .await?;
 
@@ -209,6 +213,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             checksum: Some(ChecksumMode::None),
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         })
         .await?;
 
@@ -273,6 +278,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
+            github_mirror: GitHubMirrorSettings::default(),
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
         })
@@ -291,6 +297,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             checksum: Some(ChecksumMode::None),
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         })
         .await?;
 
@@ -307,6 +314,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             checksum: Some(ChecksumMode::None),
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         })
         .await?;
 
@@ -361,6 +369,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
+            github_mirror: GitHubMirrorSettings::default(),
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
         })
@@ -379,6 +388,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             checksum: Some(ChecksumMode::None),
             selected_file_indices: None,
             start_paused: false,
+            mirror_urls: None,
         })
         .await?;
 

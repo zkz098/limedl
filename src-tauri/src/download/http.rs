@@ -716,6 +716,9 @@ mod tests {
             created_at_ms: 0,
             updated_at_ms: 0,
             chunks: vec![],
+            mirror_url: None,
+            mirror_urls: Vec::new(),
+            current_mirror_index: 0,
         }
     }
 }

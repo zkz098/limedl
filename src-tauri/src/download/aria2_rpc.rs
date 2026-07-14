@@ -325,6 +325,7 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        mirror_urls: None,
     };
 
     let id = ctx
@@ -390,6 +391,7 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        mirror_urls: None,
     };
 
     let id = ctx

@@ -48,15 +48,15 @@
   --color-border: oklch(0.92 0 0);
   --color-border-strong: oklch(0.82 0 0);
 
-  --color-accent-soft: oklch(0.72 0.19 165 / 0.1);
-  --color-accent-soft-border: oklch(0.72 0.19 165 / 0.25);
-  --color-accent-border: oklch(0.72 0.19 165 / 0.3);
-  --color-accent-strong: oklch(0.62 0.21 165);
-  --color-accent: oklch(0.72 0.19 165);
-  --color-accent-alt: oklch(0.74 0.17 170);
+  --color-accent-soft: oklch(0.85 0.18 130 / 0.1);
+  --color-accent-soft-border: oklch(0.85 0.18 130 / 0.25);
+  --color-accent-border: oklch(0.8 0.22 130 / 0.3);
+  --color-accent-strong: oklch(0.65 0.24 130);
+  --color-accent: oklch(0.72 0.22 130);
+  --color-accent-alt: oklch(0.75 0.2 135);
   --color-accent-contrast: oklch(0.18 0 0);
 
-  --color-focus-ring: oklch(0.72 0.19 165 / 0.2);
+  --color-focus-ring: oklch(0.85 0.18 130 / 0.2);
 
   --color-danger-bg: oklch(0.93 0.03 25);
   --color-danger-border: oklch(0.85 0.06 25);
@@ -91,16 +91,6 @@
   --surface-dialog-blur: 0;
 }
 
-:root[data-theme="rose"] {
-  --color-accent-soft: oklch(0.709 0.22 351.2 / 0.1);
-  --color-accent-soft-border: oklch(0.709 0.22 351.2 / 0.25);
-  --color-accent-border: oklch(0.709 0.22 351.2 / 0.3);
-  --color-accent-strong: oklch(0.6 0.24 351);
-  --color-accent: oklch(0.709 0.22 351.2);
-  --color-accent-alt: oklch(0.72 0.22 355);
-  --color-focus-ring: oklch(0.709 0.22 351.2 / 0.2);
-}
-
 :root[data-theme="amber"] {
   --color-accent-soft: oklch(0.85 0.18 70 / 0.1);
   --color-accent-soft-border: oklch(0.85 0.18 70 / 0.25);
@@ -119,16 +109,6 @@
   --color-accent: oklch(0.72 0.17 240);
   --color-accent-alt: oklch(0.75 0.16 245);
   --color-focus-ring: oklch(0.85 0.13 240 / 0.2);
-}
-
-:root[data-theme="lime"] {
-  --color-accent-soft: oklch(0.85 0.18 130 / 0.1);
-  --color-accent-soft-border: oklch(0.85 0.18 130 / 0.25);
-  --color-accent-border: oklch(0.8 0.22 130 / 0.3);
-  --color-accent-strong: oklch(0.65 0.24 130);
-  --color-accent: oklch(0.72 0.22 130);
-  --color-accent-alt: oklch(0.75 0.2 135);
-  --color-focus-ring: oklch(0.85 0.18 130 / 0.2);
 }
 
 :root[data-color-mode="dark"] {
@@ -278,9 +258,6 @@ a {
 }
 
 /* Hardcoded to preview colors accurately */
-.theme-color-button--default {
-  background-color: oklch(0.72 0.19 165);
-}
 .theme-color-button--amber {
   background-color: oklch(0.72 0.2 70);
 }

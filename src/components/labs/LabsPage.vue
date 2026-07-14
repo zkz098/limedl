@@ -10,6 +10,7 @@ import type {
 import UiButton from "../ui/UiButton.vue";
 
 import LabsCdnAccelerationPanel from "./LabsCdnAccelerationPanel.vue";
+import LabsGitHubMirrorPanel from "./LabsGitHubMirrorPanel.vue";
 
 import {
   serializeSettings,
@@ -70,6 +71,7 @@ const activeTab = ref("cdnAcceleration");
 
 const tabs = [
   { id: "cdnAcceleration", icon: "i-ri-speed-up-line", labelKey: "settings.cdnAcceleration.title" },
+  { id: "githubMirror", icon: "i-ri-github-line", labelKey: "settings.githubMirror.title" },
 ] as const;
 
 defineExpose({
@@ -102,6 +104,7 @@ defineExpose({
 
     <div class="labs-tab-content">
       <LabsCdnAccelerationPanel v-show="activeTab === 'cdnAcceleration'" :draft="form" :t="t" />
+      <LabsGitHubMirrorPanel v-show="activeTab === 'githubMirror'" :draft="form" :t="t" />
     </div>
 
     <div class="labs-save-bar">

@@ -64,10 +64,16 @@ fn action_context(task_id: &TaskId, http: &'static str, bt: &'static str) -> &'s
 #[tauri::command]
 pub async fn download_start(
     state: State<'_, AppState>,
-    request: StartDownloadRequest,
+    mut request: StartDownloadRequest,
 ) -> CommandResult<String> {
     let result = into_command_result(
         async {
+            // Populate mirror URLs from settings before starting
+            let mirror_urls = state.manager.mirror_urls_for(&request.url).await;
+            if mirror_urls.len() > 1 {
+                request.mirror_urls = Some(mirror_urls);
+            }
+
             match classify_download_source(&request).context("无法识别下载任务类型")? {
                 DownloadSourceKind::Http => {
                     let id = state

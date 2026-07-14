@@ -10,9 +10,9 @@ use super::{
     error::{DownloadError, Result},
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        CdnAccelerationSettings, DownloadDefaultsSettings, LogSettings, NotificationSettings,
-        ProxyMode, ProxySettings, SchedulerSettings, TraditionalSchedulerSettings,
-        default_http_user_agent, default_tracker_list_url,
+        CdnAccelerationSettings, DownloadDefaultsSettings, GitHubMirrorSettings, LogSettings,
+        MirrorEntry, NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
+        TraditionalSchedulerSettings, default_http_user_agent, default_tracker_list_url,
     },
 };
 
@@ -64,6 +64,8 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
     let default_download_dir = normalize_download_dir(&settings.download.default_download_dir);
 
+    let github_mirror = normalize_github_mirror_settings(settings.github_mirror);
+
     Ok(AppSettings {
         appearance: settings.appearance,
         proxy,
@@ -91,6 +93,7 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         logging,
         aria2_rpc: settings.aria2_rpc.clone(),
         cdn_acceleration: settings.cdn_acceleration.clone(),
+        github_mirror,
         global_speed_limit_bps: settings.global_speed_limit_bps,
         notifications: settings.notifications.clone(),
     })
@@ -109,6 +112,8 @@ fn normalize_logging_settings(settings: LogSettings) -> LogSettings {
         enabled: settings.enabled,
         level: settings.level,
         file_path: settings.file_path.trim().to_string(),
+        retention_count: settings.retention_count.map(|c| c.clamp(0, 1000)),
+        retention_days: settings.retention_days.map(|d| d.clamp(0, 3650)),
     }
 }
 
@@ -255,6 +260,37 @@ pub(super) fn normalize_tracker_list_url(tracker_list_url: &str) -> Result<Strin
     Ok(parsed.to_string())
 }
 
+fn normalize_github_mirror_settings(settings: GitHubMirrorSettings) -> GitHubMirrorSettings {
+    let mirrors: Vec<MirrorEntry> = settings
+        .mirrors
+        .into_iter()
+        .map(|mut entry| {
+            entry.url = entry.url.trim().to_string();
+            entry
+        })
+        .filter(|entry| {
+            if entry.url.is_empty() {
+                return false;
+            }
+            // Validate URL format and ensure it starts with http:// or https://
+            if !entry.url.starts_with("http://") && !entry.url.starts_with("https://") {
+                return false;
+            }
+            Url::parse(&entry.url).is_ok()
+        })
+        .enumerate()
+        .map(|(index, mut entry)| {
+            entry.order = index as u32;
+            entry
+        })
+        .collect();
+
+    GitHubMirrorSettings {
+        enabled: settings.enabled,
+        mirrors,
+    }
+}
+
 pub(crate) fn build_http_client(settings: &AppSettings) -> Result<Client> {
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
     let mut builder = Client::builder()
@@ -311,6 +347,7 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         logging: LogSettings::default(),
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
+        github_mirror: GitHubMirrorSettings::default(),
         global_speed_limit_bps: 0,
         notifications: NotificationSettings::default(),
     })

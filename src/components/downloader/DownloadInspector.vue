@@ -2,9 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import BtPeerTable from "./BtPeerTable.vue";
-import BtPieceHeatmap from "./BtPieceHeatmap.vue";
 import BtTrackerTable from "./BtTrackerTable.vue";
-import ChunkHeatmap from "./ChunkHeatmap.vue";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
@@ -37,7 +35,6 @@ const props = defineProps<{
   selectedOverview: DownloadSummary | DownloadSnapshot;
   selectedSnapshot: DownloadSnapshot | null;
   showDetailInfo: boolean;
-  showHeatmap: boolean;
 }>();
 
 const { t } = useI18n();
@@ -67,6 +64,7 @@ interface DetailRow {
   label: string;
   value: string;
   wide?: boolean;
+  mono?: boolean;
 }
 
 const detailRows = computed<DetailRow[]>(() => {
@@ -77,8 +75,8 @@ const detailRows = computed<DetailRow[]>(() => {
   }
 
   const commonRows = [
-    { label: t("inspector.fields.url"), value: snapshot.url, wide: true },
-    { label: t("inspector.fields.destinationPath"), value: snapshot.destinationPath, wide: true },
+    { label: t("inspector.fields.url"), value: snapshot.url, wide: true, mono: true },
+    { label: t("inspector.fields.destinationPath"), value: snapshot.destinationPath, wide: true, mono: true },
   ];
 
   if (snapshot.kind === "bt") {
@@ -88,6 +86,7 @@ const detailRows = computed<DetailRow[]>(() => {
         label: t("inspector.fields.infoHash"),
         value: snapshot.infoHash ?? t("common.dash"),
         wide: true,
+        mono: true,
       },
     ];
   }
@@ -272,30 +271,28 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
             </div>
 
             <div class="metric-grid">
-              <div class="text-row">
-                <span class="text-label">{{ t("inspector.transferred") }}:</span>
-                <span class="text-value">
+              <div class="metric-card">
+                <span class="metric-card__label">{{ t("inspector.transferred") }}</span>
+                <span class="metric-card__value">
                   {{ formatBytes(selectedOverview.downloadedBytes) }} /
                   {{ formatBytes(selectedOverview.totalBytes) }}
                 </span>
               </div>
-              <div class="text-row">
-                <span class="text-label">{{ t("inspector.speed") }}:</span>
-                <span class="text-value">{{
+              <div class="metric-card">
+                <span class="metric-card__label">{{ t("inspector.speed") }}</span>
+                <span class="metric-card__value">{{
                   formatSpeed(selectedOverview.speedBytesPerSecond)
                 }}</span>
               </div>
-              <div class="text-row">
-                <span class="text-label">{{ t("inspector.eta") }}:</span>
-                <span class="text-value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
+              <div class="metric-card">
+                <span class="metric-card__label">{{ t("inspector.eta") }}</span>
+                <span class="metric-card__value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
               </div>
-              <div class="text-row">
-                <span class="text-label"
-                  >{{
-                    selectedOverview.kind === "bt" ? t("inspector.peers") : t("inspector.threads")
-                  }}:</span
-                >
-                <span class="text-value">
+              <div class="metric-card">
+                <span class="metric-card__label">{{
+                  selectedOverview.kind === "bt" ? t("inspector.peers") : t("inspector.threads")
+                }}</span>
+                <span class="metric-card__value">
                   {{
                     selectedOverview.kind === "bt"
                       ? (selectedOverview.peerCount ?? 0)
@@ -310,16 +307,16 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
                   </template>
                 </span>
               </div>
-              <div v-if="selectedOverview.kind === 'bt'" class="text-row">
-                <span class="text-label">{{ t("inspector.fields.seedCount") }}:</span>
-                <span class="text-value"
+              <div v-if="selectedOverview.kind === 'bt'" class="metric-card">
+                <span class="metric-card__label">{{ t("inspector.fields.seedCount") }}</span>
+                <span class="metric-card__value"
                   >{{ selectedOverview.seedCount ?? 0 }} /
                   {{ selectedOverview.leechCount ?? 0 }}</span
                 >
               </div>
-              <div v-if="selectedOverview.cdnAccelerated" class="text-row">
-                <span class="text-label">{{ t("inspector.cdnNode") }}:</span>
-                <span class="text-value">
+              <div v-if="selectedOverview.cdnAccelerated" class="metric-card">
+                <span class="metric-card__label">{{ t("inspector.cdnNode") }}</span>
+                <span class="metric-card__value">
                   <span class="i-ri-flashlight-fill" aria-hidden="true" />
                   {{ t("inspector.cdnAccelerated") }}
                 </span>
@@ -340,17 +337,17 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
             </div>
           </div>
 
-          <ChunkHeatmap
-            v-if="
-              showHeatmap &&
-              selectedSnapshot?.kind === 'http' &&
-              selectedSnapshot.supportsRanges &&
-              selectedSnapshot.chunks?.length
-            "
-            :chunks="selectedSnapshot.chunks"
-            :title="t('inspector.chunkProgress')"
-            :totalBytes="selectedSnapshot.totalBytes ?? 0"
-          />
+          <div
+            v-if="selectedSnapshot?.kind === 'http' && selectedSnapshot.chunks?.length"
+            class="chunk-progress-text"
+          >
+            {{
+              t("inspector.chunkProgressText", {
+                completed: selectedSnapshot.chunks.filter((c) => c.completed).length,
+                total: selectedSnapshot.chunks.length,
+              })
+            }}
+          </div>
 
           <dl v-if="showDetailInfo && detailRows.length" class="detail-grid">
             <div
@@ -360,7 +357,7 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
               :class="{ 'text-row--wide': row.wide }"
             >
               <dt class="text-label">{{ row.label }}:</dt>
-              <dd class="text-value">{{ row.value }}</dd>
+              <dd class="text-value" :class="{ 'text-value--mono': row.mono }">{{ row.value }}</dd>
             </div>
           </dl>
 
@@ -380,15 +377,15 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
               </div>
               <div class="text-row text-row--wide">
                 <span class="text-label">{{ t("inspector.files.destination") }}:</span>
-                <span class="text-value">{{ selectedOverview.destinationPath }}</span>
+                <span class="text-value text-value--mono">{{ selectedOverview.destinationPath }}</span>
               </div>
               <div class="text-row text-row--wide">
                 <span class="text-label">{{ t("inspector.files.url") }}:</span>
-                <span class="text-value">{{ selectedOverview.url }}</span>
+                <span class="text-value text-value--mono">{{ selectedOverview.url }}</span>
               </div>
               <div v-if="selectedSnapshot?.finalUrl" class="text-row text-row--wide">
                 <span class="text-label">{{ t("inspector.fields.finalUrl") }}:</span>
-                <span class="text-value">{{ selectedSnapshot.finalUrl }}</span>
+                <span class="text-value text-value--mono">{{ selectedSnapshot.finalUrl }}</span>
               </div>
               <div class="text-row">
                 <span class="text-label">{{ t("inspector.transferred") }}:</span>
@@ -407,19 +404,15 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
               </div>
               <div class="text-row text-row--wide">
                 <span class="text-label">{{ t("inspector.files.destination") }}:</span>
-                <span class="text-value">{{ selectedOverview.destinationPath }}</span>
+                <span class="text-value text-value--mono">{{ selectedOverview.destinationPath }}</span>
               </div>
               <div v-if="selectedOverview.infoHash" class="text-row text-row--wide">
                 <span class="text-label">{{ t("inspector.fields.infoHash") }}:</span>
-                <span
-                  class="text-value"
-                  style="font-family: var(--font-mono); word-break: break-all"
-                  >{{ selectedOverview.infoHash }}</span
-                >
+                <span class="text-value text-value--mono">{{ selectedOverview.infoHash }}</span>
               </div>
               <div class="text-row text-row--wide">
                 <span class="text-label">{{ t("inspector.files.url") }}:</span>
-                <span class="text-value">{{ selectedOverview.url }}</span>
+                <span class="text-value text-value--mono">{{ selectedOverview.url }}</span>
               </div>
               <div class="text-row">
                 <span class="text-label">{{ t("inspector.transferred") }}:</span>
@@ -497,11 +490,14 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
 
         <!-- ── Peers & Trackers tab (BT only) ── -->
         <div v-show="activeTab === 'peersTrackers'" v-if="isBtTask" class="inspector-tab-content">
-          <BtPieceHeatmap
-            v-if="showHeatmap && selectedSnapshot?.kind === 'bt'"
-            :pieces="pieceList"
-            :title="t('inspector.sections.pieces')"
-          />
+          <div v-if="pieceList.length" class="piece-progress-text">
+            {{
+              t("inspector.pieceProgressText", {
+                completed: pieceList.filter((p) => p.completed).length,
+                total: pieceList.length,
+              })
+            }}
+          </div>
 
           <section class="inspector-bt-section">
             <div class="inspector-section-header">
@@ -630,11 +626,41 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.35rem 0.9rem;
-  padding: 0.65rem;
-  border: 1px solid var(--color-border);
+  gap: 0.55rem;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.7rem;
   border-radius: var(--radius-md);
   background: var(--color-panel-muted);
+  border: 1px solid var(--color-border);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.metric-card:hover {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border-strong);
+}
+
+.metric-card__label {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.metric-card__value {
+  color: var(--color-text-main);
+  font-size: var(--font-size-metric);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+  word-break: break-all;
 }
 
 .text-row {
@@ -658,6 +684,9 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
   word-break: break-all;
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+.text-value--mono {
   font-family: var(--font-mono);
 }
 
@@ -674,7 +703,12 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
   gap: var(--space-3);
   color: var(--color-text-muted);
   font-size: 0.72rem;
-  font-family: var(--font-mono);
+}
+
+.chunk-progress-text,
+.piece-progress-text {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
 }
 
 /* ── Detail grid ── */

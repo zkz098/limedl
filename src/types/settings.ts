@@ -5,7 +5,7 @@ export type { AdaptiveProfile };
 export type ProxyMode = "disabled" | "system" | "manual";
 export type SchedulerMode = "traditional" | "automatic";
 export type ChunkSizeStrategy = "fixed" | "adaptive";
-export type ThemeColor = "default" | "amber" | "sky" | "lime";
+export type ThemeColor = "amber" | "sky" | "lime";
 export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
 export type ColorMode = "light" | "dark" | "system";
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
@@ -18,7 +18,6 @@ export interface AppearanceSettings {
   backgroundOpacity: BackgroundOpacityPreset;
   colorMode: ColorMode;
   showDetailInfo: boolean;
-  showHeatmap: boolean;
   sortKey: SortKey;
   sortDirection: SortDirection;
   compactView: boolean;
@@ -88,6 +87,19 @@ export interface CdnAccelerationSettings {
   lastError: string | null;
 }
 
+export interface MirrorEntry {
+  url: string;
+  enabled: boolean;
+  order: number;
+  /** Frontend-only unique ID for stable v-for keys. Not serialized by backend. */
+  _uid?: number;
+}
+
+export interface GitHubMirrorSettings {
+  enabled: boolean;
+  mirrors: MirrorEntry[];
+}
+
 export interface NotificationSettings {
   enabled: boolean;
 }
@@ -102,5 +114,6 @@ export interface AppSettings {
   logging: LogSettings;
   aria2Rpc: Aria2RpcSettings;
   cdnAcceleration: CdnAccelerationSettings;
+  githubMirror: GitHubMirrorSettings;
   notifications: NotificationSettings;
 }

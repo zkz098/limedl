@@ -141,7 +141,6 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
 });
 
 const showDetailInfo = computed(() => appSettings.value?.appearance?.showDetailInfo ?? true);
-const showHeatmap = computed(() => appSettings.value?.appearance?.showHeatmap ?? true);
 
 const viewOptions = computed<ViewOptions>(() => ({
   sortKey: sortKey.value,
@@ -404,7 +403,7 @@ async function loadSettings() {
 }
 
 function applyAppearanceSettings(settings: AppSettings) {
-  document.documentElement.dataset.theme = settings.appearance?.themeColor ?? "default";
+  document.documentElement.dataset.theme = settings.appearance?.themeColor ?? "lime";
   document.documentElement.dataset.surface = settings.appearance?.backgroundOpacity ?? "default";
   applyColorMode(settings.appearance?.colorMode ?? "system");
 }
@@ -661,7 +660,6 @@ onBeforeUnmount(() => {
                 :selected-overview="selectedOverview"
                 :selected-snapshot="selectedSnapshot"
                 :show-detail-info="showDetailInfo"
-                :show-heatmap="showHeatmap"
               />
               <div v-else class="detail-panel__empty">
                 <i class="i-ri-cursor-line" />

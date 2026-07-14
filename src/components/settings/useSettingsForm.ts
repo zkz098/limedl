@@ -22,11 +22,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
   const form = reactive<AppSettings>({
     globalSpeedLimitBps: 0,
     appearance: {
-      themeColor: "default",
+      themeColor: "lime",
       backgroundOpacity: "default",
       colorMode: "system",
       showDetailInfo: true,
-      showHeatmap: true,
       sortKey: "added_at",
       sortDirection: "desc",
       compactView: false,
@@ -82,6 +81,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       lastTestAtMs: null,
       lastError: null,
     },
+    githubMirror: {
+      enabled: false,
+      mirrors: [],
+    },
     notifications: {
       enabled: false,
     },
@@ -99,7 +102,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         backgroundOpacity: form.appearance.backgroundOpacity,
         colorMode: form.appearance.colorMode,
         showDetailInfo: form.appearance.showDetailInfo,
-        showHeatmap: form.appearance.showHeatmap,
         sortKey: form.appearance.sortKey,
         sortDirection: form.appearance.sortDirection,
         compactView: form.appearance.compactView,
@@ -151,6 +153,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       cdnAcceleration: {
         ...form.cdnAcceleration,
       },
+      githubMirror: {
+        enabled: form.githubMirror?.enabled ?? false,
+        mirrors: form.githubMirror?.mirrors?.map((mirror) => ({ ...mirror })) ?? [],
+      },
       notifications: {
         enabled: form.notifications?.enabled ?? false,
       },
@@ -171,11 +177,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       }
 
       form.globalSpeedLimitBps = nextSettings.globalSpeedLimitBps ?? 0;
-      form.appearance.themeColor = nextSettings.appearance?.themeColor ?? "default";
+      form.appearance.themeColor = nextSettings.appearance?.themeColor ?? "lime";
       form.appearance.backgroundOpacity = nextSettings.appearance?.backgroundOpacity ?? "default";
       form.appearance.colorMode = nextSettings.appearance?.colorMode ?? "system";
       form.appearance.showDetailInfo = nextSettings.appearance?.showDetailInfo ?? true;
-      form.appearance.showHeatmap = nextSettings.appearance?.showHeatmap ?? true;
       form.appearance.sortKey = nextSettings.appearance?.sortKey ?? "added_at";
       form.appearance.sortDirection = nextSettings.appearance?.sortDirection ?? "desc";
       form.appearance.compactView = nextSettings.appearance?.compactView ?? false;
@@ -221,6 +226,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.aria2Rpc.port = nextSettings.aria2Rpc?.port ?? 6800;
       form.aria2Rpc.secret = nextSettings.aria2Rpc?.secret ?? null;
       form.cdnAcceleration = { ...nextSettings.cdnAcceleration };
+      form.githubMirror = {
+        enabled: nextSettings.githubMirror?.enabled ?? false,
+        mirrors: nextSettings.githubMirror?.mirrors?.map((mirror) => ({ ...mirror })) ?? [],
+      };
       form.notifications = {
         enabled: nextSettings.notifications?.enabled ?? false,
       };
