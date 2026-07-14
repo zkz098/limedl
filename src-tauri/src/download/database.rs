@@ -1,5 +1,6 @@
 use std::path::Path;
-use std::sync::Mutex;
+
+use parking_lot::Mutex;
 
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params, types::Value};
@@ -373,6 +374,8 @@ impl Database {
 
         conn.execute_batch("PRAGMA journal_mode = WAL;")
             .context("failed to enable WAL mode")?;
+        conn.execute_batch("PRAGMA wal_autocheckpoint = 4096;")
+            .context("failed to set WAL auto-checkpoint")?;
         conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
         conn.execute_batch(CREATE_TABLES_SQL)
@@ -425,11 +428,8 @@ impl Database {
         })
     }
 
-    fn lock_conn(&self) -> std::sync::MutexGuard<'_, Connection> {
-        self.conn.lock().unwrap_or_else(|poisoned| {
-            tracing::warn!("database connection lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        })
+    fn lock_conn(&self) -> parking_lot::MutexGuard<'_, Connection> {
+        self.conn.lock()
     }
 
     // ── download CRUD ────────────────────────────────────────

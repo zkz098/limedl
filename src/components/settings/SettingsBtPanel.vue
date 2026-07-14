@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import UiButton from "../ui/UiButton.vue";
+import UiCard from "../ui/UiCard.vue";
 import UiInput from "../ui/UiInput.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";
 
 const props = defineProps<{
@@ -30,36 +32,23 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.bt") }}</p>
-        <h3>{{ t("settings.btTitle") }}</h3>
+  <UiCard>
+    <template #header>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.bt") }}</p>
+          <h3>{{ t("settings.btTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-seedling-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-seedling-line" aria-hidden="true" />
-    </div>
+    </template>
 
     <p class="settings-section__summary">{{ btSummary }}</p>
 
     <div class="settings-grid">
       <label class="settings-field">
         <span class="settings-field__label">{{ t("settings.btDht") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.bt.dhtEnabled }"
-          :aria-pressed="draft.bt.dhtEnabled"
-          @click="draft.bt.dhtEnabled = !draft.bt.dhtEnabled"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.bt.dhtEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.btDhtNetwork") }}</span>
-        </button>
+        <UiSwitch v-model="draft.bt.dhtEnabled" :label="t('settings.btDhtNetwork')" />
         <p class="settings-field__hint">{{ t("settings.btDhtHint") }}</p>
       </label>
 
@@ -106,20 +95,7 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
 
       <label class="settings-field settings-field--wide">
         <span class="settings-field__label">{{ t("settings.btPauseUpload") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': pauseEnabled }"
-          :aria-pressed="pauseEnabled"
-          @click="draft.bt.pauseUploadWhenLimitReached = !draft.bt.pauseUploadWhenLimitReached"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="pauseEnabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'"
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.btAutoPauseUpload") }}</span>
-        </button>
+        <UiSwitch v-model="draft.bt.pauseUploadWhenLimitReached" :label="t('settings.btAutoPauseUpload')" />
         <p class="settings-field__hint">{{ t("settings.btPauseUploadHint") }}</p>
       </label>
 
@@ -174,5 +150,5 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
         <p class="settings-field__hint">{{ t("settings.btUploadSpeedLimitHint") }}</p>
       </label>
     </div>
-  </section>
+  </UiCard>
 </template>

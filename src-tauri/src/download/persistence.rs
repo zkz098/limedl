@@ -6,8 +6,10 @@
 
 use std::{
     path::Path,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
+
+use parking_lot::Mutex;
 
 use anyhow::{Context, Result};
 

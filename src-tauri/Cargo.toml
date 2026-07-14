@@ -50,6 +50,8 @@ rusqlite = { version = "0.34", features = ["bundled"] }
 async-trait = "0.1"
 dashmap = "6"
 bytes = "1"
+foldhash = "0.2"
+parking_lot = "0.12"
 
 [dev-dependencies]
 tempfile = "3"

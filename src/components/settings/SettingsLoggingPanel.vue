@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import UiCard from "../ui/UiCard.vue";
 import UiInput from "../ui/UiInput.vue";
 import UiSelect from "../ui/UiSelect.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings, LogLevel } from "../../types/settings";
 
 defineProps<{
@@ -12,38 +14,23 @@ defineProps<{
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.logging") }}</p>
-        <h3>{{ t("settings.loggingTitle") }}</h3>
+  <UiCard>
+    <template #header>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.logging") }}</p>
+          <h3>{{ t("settings.loggingTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-file-list-3-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-file-list-3-line" aria-hidden="true" />
-    </div>
+    </template>
 
     <p class="settings-section__summary">{{ loggingSummary }}</p>
 
     <div class="settings-grid">
       <label class="settings-field">
         <span class="settings-field__label">{{ t("settings.loggingEnabled") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.logging.enabled }"
-          :aria-pressed="draft.logging.enabled"
-          @click="draft.logging.enabled = !draft.logging.enabled"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.logging.enabled
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.loggingToggleText") }}</span>
-        </button>
+        <UiSwitch v-model="draft.logging.enabled" :label="t('settings.loggingToggleText')" />
       </label>
 
       <label class="settings-field">
@@ -61,5 +48,5 @@ defineProps<{
         <p class="settings-field__hint">{{ t("settings.loggingPathHint") }}</p>
       </label>
     </div>
-  </section>
+  </UiCard>
 </template>

@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import { formatBytes } from "../../lib/download-format";
 import type { AppSettings } from "../../types/settings";
+import UiCard from "../ui/UiCard.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
 
 const props = defineProps<{
@@ -38,14 +39,16 @@ const bufferUsageText = computed(() => {
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.ioBaseline.kicker") }}</p>
-        <h3>{{ t("settings.ioBaseline.title") }}</h3>
+  <UiCard>
+    <template #header>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.ioBaseline.kicker") }}</p>
+          <h3>{{ t("settings.ioBaseline.title") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-hard-drive-2-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-hard-drive-2-line" aria-hidden="true" />
-    </div>
+    </template>
 
     <div class="settings-grid">
       <label class="settings-field settings-field--wide">
@@ -73,7 +76,7 @@ const bufferUsageText = computed(() => {
         </div>
       </div>
     </div>
-  </section>
+  </UiCard>
 </template>
 
 <style scoped>

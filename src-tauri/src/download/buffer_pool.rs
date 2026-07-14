@@ -174,10 +174,10 @@ impl DownloadBuffer {
     pub fn clear(&self) {
         let chunk_bytes: u64 = self.chunks.iter().map(|e| e.value().len() as u64).sum();
         self.chunks.clear();
-        if chunk_bytes > 0 {
-            if let Some(ref pool) = self.pool {
-                pool.release(chunk_bytes);
-            }
+        if chunk_bytes > 0
+            && let Some(ref pool) = self.pool
+        {
+            pool.release(chunk_bytes);
         }
         self.buffered_bytes.store(0, Ordering::Relaxed);
     }
@@ -196,10 +196,10 @@ impl Drop for DownloadBuffer {
         // Sum actual chunk sizes directly from DashMap to avoid race conditions
         // where pool bytes were reserved but never counted in buffered_bytes.
         let chunk_bytes: u64 = self.chunks.iter().map(|entry| entry.value().len() as u64).sum();
-        if chunk_bytes > 0 {
-            if let Some(ref pool) = self.pool {
-                pool.release(chunk_bytes);
-            }
+        if chunk_bytes > 0
+            && let Some(ref pool) = self.pool
+        {
+            pool.release(chunk_bytes);
         }
         self.chunks.clear();
     }

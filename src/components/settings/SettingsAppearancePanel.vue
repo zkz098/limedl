@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import UiCard from "../ui/UiCard.vue";
 import UiSelect from "../ui/UiSelect.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { SupportedLanguage } from "../../i18n/resources";
 import type {
   AppSettings,
@@ -24,14 +26,16 @@ const emit = defineEmits<{
 
 <template>
   <div class="appearance-panel">
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("language.label") }}</p>
-          <h3>{{ t("settings.languageTitle") }}</h3>
+    <UiCard>
+      <template #header>
+        <div class="settings-section__head">
+          <div>
+            <p class="section-kicker">{{ t("language.label") }}</p>
+            <h3>{{ t("settings.languageTitle") }}</h3>
+          </div>
+          <span class="settings-section__icon i-ri-translate-2" aria-hidden="true" />
         </div>
-        <span class="settings-section__icon i-ri-translate-2" aria-hidden="true" />
-      </div>
+      </template>
 
       <div class="settings-grid">
         <label class="settings-field">
@@ -43,16 +47,18 @@ const emit = defineEmits<{
           />
         </label>
       </div>
-    </section>
+    </UiCard>
 
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.appearanceKicker") }}</p>
-          <h3>{{ t("settings.appearanceTitle") }}</h3>
+    <UiCard>
+      <template #header>
+        <div class="settings-section__head">
+          <div>
+            <p class="section-kicker">{{ t("settings.appearanceKicker") }}</p>
+            <h3>{{ t("settings.appearanceTitle") }}</h3>
+          </div>
+          <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
         </div>
-        <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
-      </div>
+      </template>
 
       <div class="settings-grid">
         <label class="settings-field">
@@ -94,83 +100,53 @@ const emit = defineEmits<{
           <p class="settings-field__hint">{{ t("settings.backgroundOpacityHint") }}</p>
         </label>
       </div>
-    </section>
+    </UiCard>
 
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.infoPanelKicker") }}</p>
-          <h3>{{ t("settings.infoPanelTitle") }}</h3>
+    <UiCard>
+      <template #header>
+        <div class="settings-section__head">
+          <div>
+            <p class="section-kicker">{{ t("settings.infoPanelKicker") }}</p>
+            <h3>{{ t("settings.infoPanelTitle") }}</h3>
+          </div>
+          <span class="settings-section__icon i-ri-information-line" aria-hidden="true" />
         </div>
-        <span class="settings-section__icon i-ri-information-line" aria-hidden="true" />
-      </div>
-
-      <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.detailInfo") }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': draft.appearance.showDetailInfo }"
-            :aria-pressed="draft.appearance.showDetailInfo"
-            @click="draft.appearance.showDetailInfo = !draft.appearance.showDetailInfo"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                draft.appearance.showDetailInfo
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">{{ t("settings.detailInfoPanel") }}</span>
-          </button>
-          <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
-        </label>
-
-
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <p class="section-kicker">{{ t("settings.notificationSettings.title") }}</p>
-          <h3>{{ t("settings.notificationSettings.title") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-notification-3-line" aria-hidden="true" />
-      </div>
+      </template>
 
       <div class="settings-grid">
         <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{
-            t("settings.notificationSettings.enabled")
-          }}</span>
-          <button
-            type="button"
-            class="settings-toggle"
-            :class="{ 'settings-toggle--active': draft.notifications.enabled }"
-            :aria-pressed="draft.notifications.enabled"
-            @click="draft.notifications.enabled = !draft.notifications.enabled"
-          >
-            <span
-              class="settings-toggle__icon"
-              :class="
-                draft.notifications.enabled
-                  ? 'i-ri-checkbox-circle-fill'
-                  : 'i-ri-checkbox-blank-circle-line'
-              "
-              aria-hidden="true"
-            />
-            <span class="settings-toggle__text">{{
-              t("settings.notificationSettings.title")
-            }}</span>
-          </button>
+          <span class="settings-field__label">{{ t("settings.detailInfo") }}</span>
+          <UiSwitch
+            v-model="draft.appearance.showDetailInfo"
+            :label="t('settings.detailInfoPanel')"
+          />
+          <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
+        </label>
+      </div>
+    </UiCard>
+
+    <UiCard>
+      <template #header>
+        <div class="settings-section__head">
+          <div>
+            <p class="section-kicker">{{ t("settings.notificationSettings.title") }}</p>
+            <h3>{{ t("settings.notificationSettings.title") }}</h3>
+          </div>
+          <span class="settings-section__icon i-ri-notification-3-line" aria-hidden="true" />
+        </div>
+      </template>
+
+      <div class="settings-grid">
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">{{ t("settings.notificationSettings.enabled") }}</span>
+          <UiSwitch
+            v-model="draft.notifications.enabled"
+            :label="t('settings.notificationSettings.title')"
+          />
           <p class="settings-field__hint">{{ t("settings.notificationSettings.description") }}</p>
         </label>
       </div>
-    </section>
+    </UiCard>
   </div>
 </template>
 

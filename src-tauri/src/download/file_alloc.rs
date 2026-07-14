@@ -56,7 +56,7 @@ pub(super) fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> R
                 .open(&staging_path)
                 .map_err(DownloadError::Io)?;
 
-            if let Err(error) = io::copy(&mut source, &mut destination) {
+            if let Err(error) = copy_file_buffered(&mut source, &mut destination) {
                 drop(destination);
                 drop(source);
                 let _ = fs::remove_file(&staging_path);
@@ -108,7 +108,7 @@ fn fallback_copy_staging_to_destination(
             }
         })?;
 
-    if let Err(error) = io::copy(&mut source, &mut destination) {
+    if let Err(error) = copy_file_buffered(&mut source, &mut destination) {
         drop(destination);
         drop(source);
         let _ = fs::remove_file(destination_path);
@@ -117,6 +117,38 @@ fn fallback_copy_staging_to_destination(
     destination.flush()?;
     destination.sync_all()?;
     Ok(())
+}
+
+/// Copy file contents using a 256 KB stack-allocated buffer instead of the
+/// stdlib default 8 KB buffer used by [`io::copy`].
+fn copy_file_buffered(source: &mut File, dest: &mut File) -> io::Result<u64> {
+    let mut buffer = [0u8; 262144];
+    let mut total = 0u64;
+    loop {
+        let bytes_read = match source.read(&mut buffer) {
+            Ok(0) => return Ok(total),
+            Ok(n) => n,
+            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        };
+        {
+            let mut buf = &buffer[..bytes_read];
+            while !buf.is_empty() {
+                match dest.write(buf) {
+                    Ok(0) => {
+                        return Err(io::Error::new(
+                            ErrorKind::WriteZero,
+                            "write returned zero",
+                        ))
+                    }
+                    Ok(n) => buf = &buf[n..],
+                    Err(e) if e.kind() == ErrorKind::Interrupted => continue,
+                    Err(e) => return Err(e),
+                }
+            }
+        }
+        total += bytes_read as u64;
+    }
 }
 
 fn destination_exists_error(destination_path: &Path) -> DownloadError {

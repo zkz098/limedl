@@ -522,154 +522,78 @@ onBeforeUnmount(() => {
     <NotificationToast :notifications="notifications" @dismiss="dismiss" />
 
     <!-- Top toolbar (only show on home view) -->
-    <TopToolbar
-      v-if="currentView === 'home'"
-      :search-query="searchQuery"
-      :has-selection="!!selectedId"
-      :bt-status="btStatusData"
-      :sort-key="sortKey"
-      :sort-direction="sortDirection"
-      :compact-view="compactView"
-      :visible-columns="visibleColumns"
-      :multi-select-mode="multiSelectMode"
-      :selected-count="selectedIds.size"
-      :filtered-count="filteredDownloads.length"
-      :game-mode="gameMode"
-      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb"
-      @update:search-query="searchQuery = $event"
-      @update:sort-key="sortKey = $event"
-      @update:sort-direction="sortDirection = $event"
-      @update:compact-view="compactView = $event"
-      @update:visible-columns="visibleColumns = $event"
-      @add-task="showComposerDialog = true"
-      @delete="handleDelete"
-      @refresh="handleRefresh"
-      @update:multi-select-mode="handleToggleMultiSelectMode"
-      @pause-all="runPauseAll"
-      @resume-all="runResumeAll"
-      @clear-completed="runClearCompleted"
-      @select-all="handleSelectAll"
-      @deselect-all="handleDeselectAll"
-      @batch-delete="handleBatchDelete"
-      @toggle-game-mode="handleToggleGameMode"
-    />
+    <TopToolbar v-if="currentView === 'home'" :search-query="searchQuery" :has-selection="!!selectedId"
+      :bt-status="btStatusData" :sort-key="sortKey" :sort-direction="sortDirection" :compact-view="compactView"
+      :visible-columns="visibleColumns" :multi-select-mode="multiSelectMode" :selected-count="selectedIds.size"
+      :filtered-count="filteredDownloads.length" :game-mode="gameMode"
+      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb" @update:search-query="searchQuery = $event"
+      @update:sort-key="sortKey = $event" @update:sort-direction="sortDirection = $event"
+      @update:compact-view="compactView = $event" @update:visible-columns="visibleColumns = $event"
+      @add-task="showComposerDialog = true" @delete="handleDelete" @refresh="handleRefresh"
+      @update:multi-select-mode="handleToggleMultiSelectMode" @pause-all="runPauseAll" @resume-all="runResumeAll"
+      @clear-completed="runClearCompleted" @select-all="handleSelectAll" @deselect-all="handleDeselectAll"
+      @batch-delete="handleBatchDelete" @toggle-game-mode="handleToggleGameMode" />
 
     <!-- Main layout: sidebar + content -->
     <div class="app-body">
-      <CategorySidebar
-        :active-category="activeCategory"
-        :current-view="currentView"
-        :counts="categoryCounts"
-        :stats="sidebarStats"
-        @update:active-category="activeCategory = $event"
-        @navigate="navigateTo"
-      />
+      <CategorySidebar :active-category="activeCategory" :current-view="currentView" :counts="categoryCounts"
+        :stats="sidebarStats" @update:active-category="activeCategory = $event" @navigate="navigateTo" />
 
       <main class="content-area">
         <!-- Home view: table + detail panel -->
         <template v-if="currentView === 'home'">
           <div class="table-wrapper">
-            <DownloadQueueTable
-              :downloads="downloads"
-              :selected-id="selectedId"
-              :task-action-name="actionName"
-              :is-auto-refreshing="isAutoRefreshing"
-              :state-filter="activeCategory"
-              :search-query="searchQuery"
-              :view-options="viewOptions"
-              :multi-select="multiSelectState"
-              @copy-link="runCopyLink"
-              @delete-task="runDeleteTask"
-              @delete-task-permanently="requestPermanentDelete"
-              @open-in-explorer="runOpenInExplorer"
-              @pause-or-resume="handleTaskPauseOrResume"
-              @select="selectDownload"
-              @toggle-select="handleToggleSelect"
-            />
+            <DownloadQueueTable :downloads="downloads" :selected-id="selectedId" :task-action-name="actionName"
+              :is-auto-refreshing="isAutoRefreshing" :state-filter="activeCategory" :search-query="searchQuery"
+              :view-options="viewOptions" :multi-select="multiSelectState" @copy-link="runCopyLink"
+              @delete-task="runDeleteTask" @delete-task-permanently="requestPermanentDelete"
+              @open-in-explorer="runOpenInExplorer" @pause-or-resume="handleTaskPauseOrResume" @select="selectDownload"
+              @toggle-select="handleToggleSelect" />
           </div>
 
           <!-- Collapsible bottom detail panel -->
           <div class="detail-panel" :class="{ collapsed: detailCollapsed }">
             <div class="detail-panel__header" @click="detailCollapsed = !detailCollapsed">
               <div class="detail-panel__title">
-                <i
-                  class="detail-panel__arrow"
-                  :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'"
-                />
+                <i class="detail-panel__arrow"
+                  :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'" />
                 <span class="detail-panel__filename">{{
                   selectedOverview ? selectedOverview.fileName : t("detail.noSelection")
-                }}</span>
+                  }}</span>
                 <template v-if="selectedOverview">
                   <UiBadge :tone="stateTone" size="sm">{{
                     t(`states.${selectedOverview.state}`)
-                  }}</UiBadge>
-                  <UiBadge
-                    v-if="selectedOverview.cdnAccelerated"
-                    tone="warning"
-                    size="sm"
-                    class="detail-panel__cdn"
-                  >
+                    }}</UiBadge>
+                  <UiBadge v-if="selectedOverview.cdnAccelerated" tone="warning" size="sm" class="detail-panel__cdn">
                     <span class="i-ri-flashlight-fill" aria-hidden="true" />
                     {{ t("inspector.cdnAccelerated") }}
                   </UiBadge>
                 </template>
               </div>
               <div v-if="selectedOverview" class="detail-panel__actions">
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  icon="i-ri-refresh-line"
-                  @click.stop="handleRefreshSelected"
-                >
+                <UiButton type="button" size="sm" variant="secondary" icon="i-ri-refresh-line"
+                  @click.stop="handleRefreshSelected">
                   {{ isRefreshingStatus ? t("common.refreshing") : t("common.refresh") }}
                 </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  icon="i-ri-pause-line"
-                  :disabled="!canPause"
-                  @click.stop="runPause"
-                >
+                <UiButton type="button" size="sm" variant="ghost" icon="i-ri-pause-line" :disabled="!canPause"
+                  @click.stop="runPause">
                   {{ actionName === "Pause" ? t("inspector.pausing") : t("inspector.pause") }}
                 </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  icon="i-ri-play-line"
-                  :disabled="!canResume"
-                  @click.stop="runResume"
-                >
+                <UiButton type="button" size="sm" variant="ghost" icon="i-ri-play-line" :disabled="!canResume"
+                  @click.stop="runResume">
                   {{ actionName === "Resume" ? t("inspector.resuming") : t("inspector.resume") }}
                 </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="danger"
-                  icon="i-ri-close-circle-line"
-                  :disabled="!canCancel"
-                  @click.stop="runCancel"
-                >
+                <UiButton type="button" size="sm" variant="danger" icon="i-ri-close-circle-line" :disabled="!canCancel"
+                  @click.stop="runCancel">
                   {{ actionName === "Cancel" ? t("inspector.canceling") : t("inspector.cancel") }}
                 </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  icon="i-ri-close-line"
-                  @click.stop="selectDownload(null)"
-                />
+                <UiButton type="button" size="sm" variant="ghost" icon="i-ri-close-line"
+                  @click.stop="selectDownload(null)" />
               </div>
             </div>
             <div v-show="!detailCollapsed" class="detail-panel__body">
-              <DownloadInspector
-                v-if="selectedOverview"
-                :selected-overview="selectedOverview"
-                :selected-snapshot="selectedSnapshot"
-                :show-detail-info="showDetailInfo"
-              />
+              <DownloadInspector v-if="selectedOverview" :selected-overview="selectedOverview"
+                :selected-snapshot="selectedSnapshot" :show-detail-info="showDetailInfo" />
               <div v-else class="detail-panel__empty">
                 <i class="i-ri-cursor-line" />
                 <p>{{ t("detail.selectPrompt") }}</p>
@@ -688,15 +612,9 @@ onBeforeUnmount(() => {
             <i class="i-ri-close-line" />
           </button>
           <div class="modal-panel__body">
-            <SettingsPage
-              ref="settingsPage"
-              :settings="appSettings"
-              :game-mode="gameMode"
-              :buffer-usage-bytes="bufferUsageBytes"
-              :buffer-limit-bytes="bufferLimitBytes"
-              @dirty-change="handleSettingsDirtyChange"
-              @saved="handleSettingsSaved"
-            />
+            <SettingsPage ref="settingsPage" :settings="appSettings" :game-mode="gameMode"
+              :buffer-usage-bytes="bufferUsageBytes" :buffer-limit-bytes="bufferLimitBytes"
+              @dirty-change="handleSettingsDirtyChange" @saved="handleSettingsSaved" />
           </div>
         </div>
       </div>
@@ -708,12 +626,8 @@ onBeforeUnmount(() => {
             <i class="i-ri-close-line" />
           </button>
           <div class="modal-panel__body">
-            <LabsPage
-              ref="labsPage"
-              :settings="appSettings"
-              @dirty-change="handleLabsDirtyChange"
-              @saved="handleLabsSaved"
-            />
+            <LabsPage ref="labsPage" :settings="appSettings" @dirty-change="handleLabsDirtyChange"
+              @saved="handleLabsSaved" />
           </div>
         </div>
       </div>
@@ -731,38 +645,24 @@ onBeforeUnmount(() => {
         </div>
       </template>
 
-      <DownloadComposer
-        :form="form"
-        :is-picking-directory="isPickingDirectory"
-        :is-picking-torrent="isPickingTorrent"
-        :is-starting="isStarting"
-        :settings="appSettings"
-        @pick-directory="pickDestinationDirectory"
-        @pick-torrent="pickTorrentSourceFile"
-        @submit="handleSubmitStart"
-      />
+      <DownloadComposer :form="form" :is-picking-directory="isPickingDirectory" :is-picking-torrent="isPickingTorrent"
+        :is-starting="isStarting" :settings="appSettings" @pick-directory="pickDestinationDirectory"
+        @pick-torrent="pickTorrentSourceFile" @submit="handleSubmitStart" />
     </UiDialog>
 
-    <UiDialog
-      :model-value="Boolean(pendingPermanentDeleteId)"
-      width="min(32rem, calc(100vw - 1.5rem))"
-      :close-on-overlay="actionName !== 'Purge'"
-      @update:model-value="
+    <UiDialog :model-value="Boolean(pendingPermanentDeleteId)" width="min(32rem, calc(100vw - 1.5rem))"
+      :close-on-overlay="actionName !== 'Purge'" @update:model-value="
         (value) => {
           if (!value) cancelPermanentDelete();
         }
-      "
-    >
+      ">
       <template #title>
         <div class="dialog-heading">
           <div>
             <p class="section-kicker">{{ t("dialog.confirmDelete") }}</p>
             <h2>{{ t("dialog.permanentDeleteTitle") }}</h2>
           </div>
-          <span
-            class="dialog-heading__icon dialog-heading__icon--danger i-ri-delete-bin-line"
-            aria-hidden="true"
-          />
+          <span class="dialog-heading__icon dialog-heading__icon--danger i-ri-delete-bin-line" aria-hidden="true" />
         </div>
       </template>
 
@@ -775,36 +675,22 @@ onBeforeUnmount(() => {
           <strong>{{ pendingPermanentDeleteTask.fileName }}</strong>
         </div>
         <div class="confirm-delete__actions">
-          <UiButton
-            type="button"
-            variant="secondary"
-            :disabled="actionName === 'Purge'"
-            @click="cancelPermanentDelete"
-          >
+          <UiButton type="button" variant="secondary" :disabled="actionName === 'Purge'" @click="cancelPermanentDelete">
             {{ t("common.cancel") }}
           </UiButton>
-          <UiButton
-            type="button"
-            variant="danger"
-            icon="i-ri-delete-bin-line"
-            :loading="actionName === 'Purge'"
-            @click="confirmPermanentDelete"
-          >
+          <UiButton type="button" variant="danger" icon="i-ri-delete-bin-line" :loading="actionName === 'Purge'"
+            @click="confirmPermanentDelete">
             {{ actionName === "Purge" ? t("dialog.deleting") : t("dialog.confirmPermanentDelete") }}
           </UiButton>
         </div>
       </div>
     </UiDialog>
 
-    <UiDialog
-      :model-value="showUnsavedSettingsDialog"
-      width="min(32rem, calc(100vw - 1.5rem))"
-      @update:model-value="
-        (value) => {
-          if (!value) cancelDiscardSettings();
-        }
-      "
-    >
+    <UiDialog :model-value="showUnsavedSettingsDialog" width="min(32rem, calc(100vw - 1.5rem))" @update:model-value="
+      (value) => {
+        if (!value) cancelDiscardSettings();
+      }
+    ">
       <template #title>
         <div class="dialog-heading">
           <div>
@@ -823,20 +709,11 @@ onBeforeUnmount(() => {
           <UiButton type="button" variant="secondary" @click="cancelDiscardSettings">
             {{ t("dialog.keepEditing") }}
           </UiButton>
-          <UiButton
-            type="button"
-            icon="i-ri-save-line"
-            :loading="isSavingBeforeNavigation"
-            @click="saveSettingsAndNavigate"
-          >
+          <UiButton type="button" icon="i-ri-save-line" :loading="isSavingBeforeNavigation"
+            @click="saveSettingsAndNavigate">
             {{ isSavingBeforeNavigation ? t("common.saving") : t("dialog.saveSettingsAndLeave") }}
           </UiButton>
-          <UiButton
-            type="button"
-            variant="danger"
-            icon="i-ri-arrow-right-line"
-            @click="confirmDiscardSettings"
-          >
+          <UiButton type="button" variant="danger" icon="i-ri-arrow-right-line" @click="confirmDiscardSettings">
             {{ t("dialog.discardSettings") }}
           </UiButton>
         </div>
@@ -844,15 +721,11 @@ onBeforeUnmount(() => {
     </UiDialog>
 
     <!-- Batch delete dialog -->
-    <UiDialog
-      :model-value="showBatchDeleteDialog"
-      width="min(32rem, calc(100vw - 1.5rem))"
-      @update:model-value="
-        (value) => {
-          if (!value) showBatchDeleteDialog = false;
-        }
-      "
-    >
+    <UiDialog :model-value="showBatchDeleteDialog" width="min(32rem, calc(100vw - 1.5rem))" @update:model-value="
+      (value) => {
+        if (!value) showBatchDeleteDialog = false;
+      }
+    ">
       <template #title>
         <div class="dialog-heading">
           <div>
@@ -870,12 +743,7 @@ onBeforeUnmount(() => {
           <UiButton type="button" variant="secondary" @click="showBatchDeleteDialog = false">
             {{ t("common.cancel") }}
           </UiButton>
-          <UiButton
-            type="button"
-            variant="danger"
-            icon="i-ri-delete-bin-line"
-            @click="confirmBatchDelete"
-          >
+          <UiButton type="button" variant="danger" icon="i-ri-delete-bin-line" @click="confirmBatchDelete">
             {{ t("dialog.confirmBatchDelete") }}
           </UiButton>
         </div>
@@ -1031,7 +899,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   width: 100%;
   max-width: 64rem;
-  max-height: calc(100vh - 2 * var(--space-6));
+  height: calc(100vh - 2 * var(--space-6));
   background: var(--color-panel);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -1042,9 +910,10 @@ onBeforeUnmount(() => {
 }
 
 .modal-panel__body {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
   padding: var(--space-4) var(--space-4) 0;
 }
 

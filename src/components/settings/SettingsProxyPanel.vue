@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UiCard from "../ui/UiCard.vue";
 import UiInput from "../ui/UiInput.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import type { AppSettings, ProxyMode } from "../../types/settings";
@@ -12,14 +13,16 @@ defineProps<{
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.network") }}</p>
-        <h3>{{ t("settings.proxyTitle") }}</h3>
+  <UiCard>
+    <template #header>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.network") }}</p>
+          <h3>{{ t("settings.proxyTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-global-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-global-line" aria-hidden="true" />
-    </div>
+    </template>
 
     <p class="settings-section__summary">{{ proxySummary }}</p>
 
@@ -37,5 +40,5 @@ defineProps<{
         </p>
       </label>
     </div>
-  </section>
+  </UiCard>
 </template>

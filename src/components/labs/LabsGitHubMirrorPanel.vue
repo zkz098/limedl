@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import UiButton from "../ui/UiButton.vue";
 import UiCard from "../ui/UiCard.vue";
 import UiInput from "../ui/UiInput.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";
 
 const props = defineProps<{
@@ -21,6 +22,14 @@ function ensureGithubMirror(): void {
     props.draft.githubMirror.mirrors = [];
   }
 }
+
+const githubMirrorEnabled = computed<boolean>({
+  get: () => props.draft.githubMirror?.enabled ?? false,
+  set: (value: boolean) => {
+    ensureGithubMirror();
+    props.draft.githubMirror.enabled = value;
+  },
+});
 
 function addMirror(): void {
   ensureGithubMirror();
@@ -86,33 +95,14 @@ function onDragEnd(): void {
       </div>
     </template>
 
-    <div class="settings-section">
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.githubMirror.title") }}</h3>
-          <p class="settings-section__summary">
-            {{ t("settings.githubMirror.enableDescription") }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.githubMirror?.enabled }"
-          :aria-pressed="draft.githubMirror?.enabled"
-          @click="ensureGithubMirror(); draft.githubMirror.enabled = !draft.githubMirror.enabled"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.githubMirror?.enabled
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.githubMirror.enableLabel") }}</span>
-        </button>
+    <div class="settings-section__head">
+      <div>
+        <h3>{{ t("settings.githubMirror.title") }}</h3>
+        <p class="settings-section__summary">
+          {{ t("settings.githubMirror.enableDescription") }}
+        </p>
       </div>
+      <UiSwitch v-model="githubMirrorEnabled" :label="t('settings.githubMirror.enableLabel')" />
     </div>
 
     <div v-show="draft.githubMirror?.enabled" class="github-mirror-panel__list-section">
@@ -161,12 +151,11 @@ function onDragEnd(): void {
               :placeholder="t('settings.githubMirror.mirrorUrlPlaceholder')"
             />
           </div>
-          <label class="github-mirror-panel__switch" :title="t('settings.githubMirror.enableLabel')">
-            <input v-model="mirror.enabled" type="checkbox" />
-            <span class="github-mirror-panel__switch-track">
-              <span class="github-mirror-panel__switch-thumb" />
-            </span>
-          </label>
+          <UiSwitch
+            v-model="mirror.enabled"
+            class="github-mirror-panel__item-switch"
+            :title="t('settings.githubMirror.enableLabel')"
+          />
           <UiButton
             variant="ghost"
             size="sm"
@@ -267,53 +256,8 @@ function onDragEnd(): void {
   min-width: 0;
 }
 
-.github-mirror-panel__switch {
+.github-mirror-panel__item-switch {
   flex: 0 0 auto;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.github-mirror-panel__switch input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.github-mirror-panel__switch-track {
-  width: 2.25rem;
-  height: 1.25rem;
-  display: inline-block;
-  border-radius: 999px;
-  background: var(--color-border-strong);
-  transition: background-color 0.2s ease;
-  position: relative;
-}
-
-.github-mirror-panel__switch input:checked + .github-mirror-panel__switch-track {
-  background: var(--color-accent-strong);
-}
-
-.github-mirror-panel__switch-thumb {
-  position: absolute;
-  top: 0.125rem;
-  left: 0.125rem;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 999px;
-  background: var(--color-panel);
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-}
-
-.github-mirror-panel__switch input:checked + .github-mirror-panel__switch-track .github-mirror-panel__switch-thumb {
-  transform: translateX(1rem);
-}
-
-.github-mirror-panel__switch input:focus-visible + .github-mirror-panel__switch-track {
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 @media (max-width: 680px) {
@@ -331,7 +275,7 @@ function onDragEnd(): void {
     order: 2;
   }
 
-  .github-mirror-panel__switch {
+  .github-mirror-panel__item-switch {
     order: 3;
     margin-left: auto;
   }

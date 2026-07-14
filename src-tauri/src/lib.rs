@@ -1,6 +1,8 @@
 mod download;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -10,13 +12,13 @@ use tokio::time::sleep;
 
 use download::CdnAccelerator;
 use download::{
-    AppState, Aria2RpcServer, DownloadManager, RateLimiter, TorrentManager, bt_get_peers,
-    bt_get_pieces, bt_get_trackers, bt_preview_torrent, bt_runtime_status, bt_set_speed_limit,
-    cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status,
-    cdn_test, download_cancel, download_list, download_open_in_explorer, download_pause,
-    download_purge, download_remove, download_resume, download_start, download_status,
-    get_bt_files, get_io_status, init_logging, settings_fetch_tracker_list, settings_get,
-    settings_save, toggle_game_mode, update_bt_files,
+    cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager, RateLimiter,
+    TorrentManager, bt_get_peers, bt_get_pieces, bt_get_trackers, bt_preview_torrent,
+    bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel, cdn_candidates, cdn_clear,
+    cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test, download_cancel, download_list,
+    download_open_in_explorer, download_pause, download_purge, download_remove, download_resume,
+    download_start, download_status, get_bt_files, get_io_status, init_logging,
+    settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode, update_bt_files,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -48,6 +50,7 @@ pub fn run() {
 
                 let settings = download_manager.initial_settings();
                 init_logging(&settings.logging, &state_dir).context("初始化日志系统失败")?;
+                cleanup_old_aria2_temp_files();
 
                 let torrent_manager = tauri::async_runtime::block_on(TorrentManager::new(
                     state_dir.join("torrents"),
@@ -125,10 +128,7 @@ pub fn run() {
                             tracing::error!("Aria2 RPC server stopped: {error}");
                         }
                     });
-                    *rpc_shutdown.lock().unwrap_or_else(|poisoned| {
-                        tracing::warn!("rpc_shutdown lock poisoned, recovering with inner state");
-                        poisoned.into_inner()
-                    }) = Some(tx);
+                    *rpc_shutdown.lock() = Some(tx);
                     tracing::info!("Aria2 RPC 服务器已启动");
                 }
 

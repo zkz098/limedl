@@ -5,6 +5,7 @@ import UiCard from "../ui/UiCard.vue";
 import UiBadge from "../ui/UiBadge.vue";
 import UiProgress from "../ui/UiProgress.vue";
 import UiInput from "../ui/UiInput.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";
 import {
   testAcceleration,
@@ -346,24 +347,7 @@ onUnmounted(() => {
     <!-- Enable toggle -->
     <label class="settings-field">
       <span class="settings-field__label">{{ t("settings.cdnAcceleration.enable") }}</span>
-      <button
-        type="button"
-        class="settings-toggle"
-        :class="{ 'settings-toggle--active': draft.cdnAcceleration.enabled }"
-        :aria-pressed="draft.cdnAcceleration.enabled"
-        @click="draft.cdnAcceleration.enabled = !draft.cdnAcceleration.enabled"
-      >
-        <span
-          class="settings-toggle__icon"
-          :class="
-            draft.cdnAcceleration.enabled
-              ? 'i-ri-checkbox-circle-fill'
-              : 'i-ri-checkbox-blank-circle-line'
-          "
-          aria-hidden="true"
-        />
-        <span class="settings-toggle__text">{{ t("settings.cdnAcceleration.enable") }}</span>
-      </button>
+      <UiSwitch v-model="draft.cdnAcceleration.enabled" :label="t('settings.cdnAcceleration.enable')" />
     </label>
 
     <!-- Staged progress -->

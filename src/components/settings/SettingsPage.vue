@@ -256,114 +256,73 @@ defineExpose({
         <p class="section-kicker">{{ t("settings.kicker") }}</p>
         <h2 class="panel-title">{{ t("settings.title") }}</h2>
       </div>
-      <div class="settings-page__header-meta">
-        <p class="settings-page__summary">{{ pageSummary }}</p>
+    </div>
+
+    <div class="settings-page__layout">
+      <aside class="settings-page__sidebar" role="tablist" :aria-label="t('settings.title')">
+        <nav class="settings-page__tabs">
+          <button v-for="tab in tabs" :key="tab.id" type="button" role="tab" class="settings-page__tab"
+            :class="{ 'settings-page__tab--active': activeTab === tab.id }" :aria-selected="activeTab === tab.id"
+            @click="activeTab = tab.id">
+            <span :class="tab.icon" aria-hidden="true" />
+            <span>{{ t(tab.labelKey) }}</span>
+          </button>
+        </nav>
+
+        <div class="settings-page__save">
+          <p class="settings-page__save-hint">{{ t("settings.saveHint") }}</p>
+          <UiButton type="button" icon="i-ri-save-line" block :loading="isSaving" @click="persistSettings">
+            {{ isSaving ? t("common.saving") : t("common.save") }}
+          </UiButton>
+        </div>
+      </aside>
+
+      <div class="settings-page__content">
+        <SettingsAppearancePanel v-show="activeTab === 'appearance'" :draft="form" :t="t" :language="language"
+          :language-options="languageOptions" :color-mode-options="colorModeOptions"
+          :background-opacity-options="backgroundOpacityOptions" @change-language="changeLanguage" />
+
+        <SettingsSchedulerPanel v-show="activeTab === 'scheduler'" :draft="form" :t="t"
+          :scheduler-mode-options="schedulerModeOptions" :adaptive-profile-options="adaptiveProfileOptions"
+          :global-speed-limit-mi-bps="globalSpeedLimitMiBps" @update:globalSpeedLimitMiBps="setGlobalSpeedLimitMiBps" />
+
+        <SettingsDownloadDefaultsPanel v-show="activeTab === 'downloads'" :draft="form" :t="t"
+          :checksum-options="checksumOptions" :download-summary="downloadSummary"
+          :is-picking-directory="isPickingDirectory" :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
+          @pick-directory="pickDefaultDownloadDirectory" />
+
+        <SettingsIoBaselinePanel v-show="activeTab === 'downloads'" :draft="form" :t="t" :game-mode="gameMode ?? false"
+          :buffer-usage-bytes="bufferUsageBytes ?? 0" :buffer-limit-bytes="bufferLimitBytes ?? 0" />
+
+        <SettingsBtPanel v-show="activeTab === 'bt'" :draft="form" :t="t" :bt-summary="btSummary"
+          :bt-upload-limit-mi-b="btUploadLimitMiB" :is-fetching-tracker-list="isFetchingTrackerList"
+          :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL" @update:btUploadLimitMiB="setBtUploadLimitMiB"
+          @fetch-tracker-list="updateTrackerListFromUrl" />
+
+        <SettingsAria2RpcPanel v-show="activeTab === 'aria2Rpc'" :draft="form" :t="t" />
+
+        <SettingsLoggingPanel v-show="activeTab === 'logging'" :draft="form" :t="t" :log-level-options="logLevelOptions"
+          :logging-summary="loggingSummary" />
+
+        <SettingsProxyPanel v-show="activeTab === 'proxy'" :draft="form" :t="t" :proxy-mode-options="proxyModeOptions"
+          :proxy-summary="proxySummary" />
       </div>
-    </div>
-
-    <div class="settings-tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        type="button"
-        class="settings-tab"
-        :class="{ 'settings-tab--active': activeTab === tab.id }"
-        @click="activeTab = tab.id"
-      >
-        <span :class="tab.icon" aria-hidden="true" />
-        <span>{{ t(tab.labelKey) }}</span>
-      </button>
-    </div>
-
-    <div class="settings-tab-content">
-      <SettingsAppearancePanel
-        v-show="activeTab === 'appearance'"
-        :draft="form"
-        :t="t"
-        :language="language"
-        :language-options="languageOptions"
-        :color-mode-options="colorModeOptions"
-        :background-opacity-options="backgroundOpacityOptions"
-        @change-language="changeLanguage"
-      />
-
-      <SettingsSchedulerPanel
-        v-show="activeTab === 'scheduler'"
-        :draft="form"
-        :t="t"
-        :scheduler-mode-options="schedulerModeOptions"
-        :adaptive-profile-options="adaptiveProfileOptions"
-        :global-speed-limit-mi-bps="globalSpeedLimitMiBps"
-        @update:globalSpeedLimitMiBps="setGlobalSpeedLimitMiBps"
-      />
-
-      <SettingsDownloadDefaultsPanel
-        v-show="activeTab === 'downloads'"
-        :draft="form"
-        :t="t"
-        :checksum-options="checksumOptions"
-        :download-summary="downloadSummary"
-        :is-picking-directory="isPickingDirectory"
-        :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
-        @pick-directory="pickDefaultDownloadDirectory"
-      />
-
-      <SettingsIoBaselinePanel
-        v-show="activeTab === 'downloads'"
-        :draft="form"
-        :t="t"
-        :game-mode="gameMode ?? false"
-        :buffer-usage-bytes="bufferUsageBytes ?? 0"
-        :buffer-limit-bytes="bufferLimitBytes ?? 0"
-      />
-
-      <SettingsBtPanel
-        v-show="activeTab === 'bt'"
-        :draft="form"
-        :t="t"
-        :bt-summary="btSummary"
-        :bt-upload-limit-mi-b="btUploadLimitMiB"
-        :is-fetching-tracker-list="isFetchingTrackerList"
-        :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL"
-        @update:btUploadLimitMiB="setBtUploadLimitMiB"
-        @fetch-tracker-list="updateTrackerListFromUrl"
-      />
-
-      <SettingsAria2RpcPanel v-show="activeTab === 'aria2Rpc'" :draft="form" :t="t" />
-
-      <SettingsLoggingPanel
-        v-show="activeTab === 'logging'"
-        :draft="form"
-        :t="t"
-        :log-level-options="logLevelOptions"
-        :logging-summary="loggingSummary"
-      />
-
-      <SettingsProxyPanel
-        v-show="activeTab === 'proxy'"
-        :draft="form"
-        :t="t"
-        :proxy-mode-options="proxyModeOptions"
-        :proxy-summary="proxySummary"
-      />
-    </div>
-
-    <div class="settings-save-bar">
-      <p class="settings-save-bar__hint">{{ t("settings.saveHint") }}</p>
-      <UiButton type="button" icon="i-ri-save-line" :loading="isSaving" @click="persistSettings">
-        {{ isSaving ? t("common.saving") : t("common.save") }}
-      </UiButton>
     </div>
   </section>
 </template>
 
 <style scoped>
 .settings-page {
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .settings-page__header {
+  flex: 0 0 auto;
   align-items: flex-end;
 }
 
@@ -375,49 +334,7 @@ defineExpose({
   min-width: 0;
 }
 
-.settings-page__summary {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.88rem;
-  line-height: 1.55;
-  max-width: 40rem;
-  text-align: right;
-}
-
-.settings-page__summary--secondary {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-small);
-  margin-top: var(--space-1);
-}
-
-.settings-save-bar {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-border);
-  background: var(--color-panel);
-  box-shadow: var(--shadow-card);
-}
-
-.settings-save-bar__hint {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  line-height: 1.45;
-}
-
 @media (max-width: 960px) {
-  .settings-page__summary {
-    max-width: none;
-    text-align: left;
-  }
 
   .settings-page__header-meta {
     width: 100%;
@@ -425,100 +342,190 @@ defineExpose({
     flex-direction: column;
   }
 }
+</style>
 
-@media (max-width: 840px) {
-  .settings-save-bar {
-    align-items: stretch;
-    flex-direction: column;
-  }
+<style>
+/* ── Shared sidebar layout for SettingsPage & LabsPage ───────────── */
+
+.settings-page__layout,
+.labs-page__layout {
+  flex: 1 1 auto;
+  display: flex;
+  gap: var(--space-5);
+  min-height: 0;
+  overflow: hidden;
 }
 
-.settings-tabs {
-  display: inline-grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  gap: 0.35rem;
-  padding: 0.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-panel-muted);
+.settings-page__sidebar,
+.labs-page__sidebar {
+  width: 13rem;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
 }
 
-.settings-tab {
-  min-height: 2.25rem;
-  display: inline-flex;
+.settings-page__tabs,
+.labs-page__tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-page__tab,
+.labs-page__tab {
+  position: relative;
+  min-height: 2.75rem;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
+  gap: 0.6rem;
+  padding: 0 0.9rem;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 0.82rem;
-  padding: 0 0.6rem;
+  font-size: 0.9rem;
+  text-align: left;
   transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
-.settings-tab:hover {
+.settings-page__tab:hover,
+.labs-page__tab:hover {
   color: var(--color-heading);
-  background: var(--color-panel);
+  background: var(--color-surface-muted);
 }
 
-.settings-tab--active {
-  color: var(--color-heading);
-  border-color: var(--color-border);
-  background: var(--color-panel);
-  font-weight: 600;
+.settings-page__tab:focus-visible,
+.labs-page__tab:focus-visible {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
-.settings-tab-content {
-  display: grid;
-  gap: 1rem;
+.settings-page__tab--active,
+.labs-page__tab--active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+  font-weight: var(--font-weight-semibold);
 }
 
-@media (max-width: 960px) {
-  .settings-tabs {
-    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+.settings-page__tab--active::before,
+.labs-page__tab--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  bottom: 0.55rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--color-accent-strong);
+}
+
+.settings-page__tab>[class*="i-ri-"],
+.labs-page__tab>[class*="i-ri-"] {
+  flex: 0 0 auto;
+  font-size: 1.05rem;
+}
+
+.settings-page__save,
+.labs-page__save {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-page__save-hint,
+.labs-page__save-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.settings-page__content,
+.labs-page__content {
+  flex: 1 1 0;
+  overflow-y: auto;
+  min-width: 0;
+  min-height: 0;
+  padding-bottom: var(--space-4);
+}
+
+@media (max-width: 840px) {
+
+  .settings-page__layout,
+  .labs-page__layout {
+    flex-direction: column;
+    overflow: visible;
   }
 
-  .settings-tab {
-    font-size: 0.78rem;
-    padding: 0 0.35rem;
-  }
-}
-
-@media (max-width: 680px) {
-  .settings-tabs {
-    display: flex;
-    flex-wrap: nowrap;
+  .settings-page__sidebar,
+  .labs-page__sidebar {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
     overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    gap: var(--space-2);
+    padding-bottom: 0;
   }
 
-  .settings-tabs::-webkit-scrollbar {
+  .settings-page__content,
+  .labs-page__content {
+    overflow-y: visible;
+  }
+
+  .settings-page__tabs,
+  .labs-page__tabs {
+    flex-direction: row;
+    flex: 1 1 auto;
+  }
+
+  .settings-page__tab,
+  .labs-page__tab {
+    flex: 0 0 auto;
+    min-height: 2.25rem;
+    padding: 0 0.75rem;
+    white-space: nowrap;
+  }
+
+  .settings-page__tab--active::before,
+  .labs-page__tab--active::before {
     display: none;
   }
 
-  .settings-tab {
-    flex-shrink: 0;
-    white-space: nowrap;
+  .settings-page__save,
+  .labs-page__save {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 0;
+    padding-left: var(--space-3);
+    border-top: none;
+    border-left: 1px solid var(--color-border);
+  }
+
+  .settings-page__save-hint,
+  .labs-page__save-hint {
+    display: none;
   }
 }
-</style>
 
-<style>
-/* ── Shared structural classes for settings panels ───────────────── */
-/* NON-SCOPED: the 7 child panel components require these classes to render correctly.
-   This is a deliberate coupling tradeoff — renaming any class here will silently
-   break child panels (SettingsAppearancePanel, SettingsBtPanel, etc.).
-   When modifying, search for usages across all settings/*.vue files.            */
+/* ── Shared structural classes for settings & labs panels ────────── */
+/* NON-SCOPED: the settings/labs child panel components require these  */
+/* classes to render correctly. This block is intentionally shared     */
+/* across SettingsPage and LabsPage to avoid duplication.              */
 /* ────────────────────────────────────────────────────────────────── */
 
-.settings-section {
+.settings-page .settings-section,
+.labs-page .settings-section {
   display: grid;
   gap: 1rem;
   padding: 1rem 1.1rem;
@@ -528,20 +535,23 @@ defineExpose({
   box-shadow: var(--shadow-card);
 }
 
-.settings-section__head {
+.settings-page .settings-section__head,
+.labs-page .settings-section__head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.settings-section__head h3 {
+.settings-page .settings-section__head h3,
+.labs-page .settings-section__head h3 {
   margin: 0.2rem 0 0;
   color: var(--color-heading);
   font-size: 1rem;
 }
 
-.settings-section__icon {
+.settings-page .settings-section__icon,
+.labs-page .settings-section__icon {
   width: 2.25rem;
   height: 2.25rem;
   display: inline-flex;
@@ -553,21 +563,24 @@ defineExpose({
   border: 1px solid var(--color-border);
 }
 
-.settings-section__summary {
+.settings-page .settings-section__summary,
+.labs-page .settings-section__summary {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.88rem;
   line-height: 1.55;
 }
 
-.settings-grid {
+.settings-page .settings-grid,
+.labs-page .settings-grid {
   display: grid;
   align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.settings-field {
+.settings-page .settings-field,
+.labs-page .settings-field {
   display: grid;
   gap: 0.45rem;
   align-content: start;
@@ -575,81 +588,41 @@ defineExpose({
   min-width: 0;
 }
 
-.settings-field--wide {
+.settings-page .settings-field--wide,
+.labs-page .settings-field--wide {
   grid-column: 1 / -1;
 }
 
-.settings-field__label {
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
+.settings-page .settings-field__label,
+.labs-page .settings-field__label {
+  color: var(--color-heading);
+  font-size: 0.9rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.settings-field__hint {
+.settings-page .settings-field__hint,
+.labs-page .settings-field__hint {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.82rem;
   line-height: 1.5;
 }
 
-.settings-directory-field,
-.settings-inline-field {
+.settings-page .settings-directory-field,
+.labs-page .settings-directory-field,
+.settings-page .settings-inline-field,
+.labs-page .settings-inline-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
 }
 
-.settings-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-height: 2.75rem;
-  padding: 0 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-panel);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    color 0.2s ease;
-}
+/* Textarea used in settings panels */
 
-.settings-toggle:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-panel-muted);
-}
-
-.settings-toggle:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
-}
-
-.settings-toggle--active {
-  border-color: var(--color-accent-strong);
-  background: color-mix(in srgb, var(--color-accent-soft) 25%, var(--color-panel));
-  color: var(--color-accent-strong);
-}
-
-.settings-toggle__icon {
-  display: inline-flex;
-  flex: 0 0 auto;
-  font-size: 1.1rem;
-}
-
-.settings-toggle__text {
-  color: var(--color-heading);
-  font-size: 0.9rem;
-}
-
-.settings-textarea {
+.settings-page .settings-textarea,
+.labs-page .settings-textarea {
   width: 100%;
   min-height: 8.5rem;
   padding: 0.8rem 0.9375rem;
@@ -666,27 +639,32 @@ defineExpose({
     background-color 0.25s ease;
 }
 
-.settings-textarea::placeholder {
+.settings-page .settings-textarea::placeholder,
+.labs-page .settings-textarea::placeholder {
   color: var(--color-text-soft);
 }
 
-.settings-textarea:hover:not(:focus-visible) {
+.settings-page .settings-textarea:hover:not(:focus-visible),
+.labs-page .settings-textarea:hover:not(:focus-visible) {
   border-color: var(--color-border-strong);
 }
 
-.settings-textarea:focus-visible {
+.settings-page .settings-textarea:focus-visible,
+.labs-page .settings-textarea:focus-visible {
   outline: none;
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
-.settings-metrics-grid {
+.settings-page .settings-metrics-grid,
+.labs-page .settings-metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
-.settings-metric-card {
+.settings-page .settings-metric-card,
+.labs-page .settings-metric-card {
   display: grid;
   gap: 0.35rem;
   padding: 0.85rem 0.9rem;
@@ -695,7 +673,8 @@ defineExpose({
   background: var(--color-panel-muted);
 }
 
-.settings-metric-card__label {
+.settings-page .settings-metric-card__label,
+.labs-page .settings-metric-card__label {
   color: var(--color-text-muted);
   font-size: 0.72rem;
   font-weight: 600;
@@ -703,7 +682,8 @@ defineExpose({
   text-transform: uppercase;
 }
 
-.settings-metric-card__value {
+.settings-page .settings-metric-card__value,
+.labs-page .settings-metric-card__value {
   color: var(--color-heading);
   font-family: var(--font-mono);
   font-size: 0.95rem;
@@ -711,24 +691,33 @@ defineExpose({
 }
 
 @media (max-width: 960px) {
-  .settings-grid,
-  .settings-metrics-grid {
+
+  .settings-page .settings-grid,
+  .labs-page .settings-grid,
+  .settings-page .settings-metrics-grid,
+  .labs-page .settings-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 840px) {
-  .settings-grid,
-  .settings-metrics-grid {
+
+  .settings-page .settings-grid,
+  .labs-page .settings-grid,
+  .settings-page .settings-metrics-grid,
+  .labs-page .settings-metrics-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .settings-field--wide {
+  .settings-page .settings-field--wide,
+  .labs-page .settings-field--wide {
     grid-column: auto;
   }
 
-  .settings-directory-field,
-  .settings-inline-field {
+  .settings-page .settings-directory-field,
+  .labs-page .settings-directory-field,
+  .settings-page .settings-inline-field,
+  .labs-page .settings-inline-field {
     grid-template-columns: minmax(0, 1fr);
   }
 }

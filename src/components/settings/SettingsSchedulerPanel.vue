@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import UiCard from "../ui/UiCard.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
 import UiSelect from "../ui/UiSelect.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { AdaptiveProfile, AppSettings, SchedulerMode } from "../../types/settings";
 
 const emit = defineEmits<{
@@ -24,14 +26,16 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.scheduler") }}</p>
-        <h3>{{ t("settings.schedulerTitle") }}</h3>
+  <UiCard>
+    <template #header>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.scheduler") }}</p>
+          <h3>{{ t("settings.schedulerTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-git-branch-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-git-branch-line" aria-hidden="true" />
-    </div>
+    </template>
 
     <div class="settings-grid">
       <label class="settings-field">
@@ -99,29 +103,13 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
 
       <label class="settings-field settings-field--wide">
         <span class="settings-field__label">{{ t("settings.intelligentChunkAllocation") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.scheduler.chunkSizeStrategy === 'adaptive' }"
-          :aria-pressed="draft.scheduler.chunkSizeStrategy === 'adaptive'"
-          @click="
-            draft.scheduler.chunkSizeStrategy =
-              draft.scheduler.chunkSizeStrategy === 'adaptive' ? 'fixed' : 'adaptive'
-          "
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.scheduler.chunkSizeStrategy === 'adaptive'
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.intelligentChunkAllocation") }}</span>
-        </button>
+        <UiSwitch
+          :model-value="draft.scheduler.chunkSizeStrategy === 'adaptive'"
+          :label="t('settings.intelligentChunkAllocation')"
+          @update:model-value="draft.scheduler.chunkSizeStrategy = $event ? 'adaptive' : 'fixed'"
+        />
         <p class="settings-field__hint">{{ t("settings.intelligentChunkAllocationHint") }}</p>
       </label>
     </div>
-  </section>
+  </UiCard>
 </template>

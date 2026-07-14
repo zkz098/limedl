@@ -2,9 +2,11 @@ use std::{
     fs::{self, OpenOptions},
     io::{self, BufWriter, Write},
     path::{Path, PathBuf},
-    sync::{Arc, OnceLock, RwLock},
+    sync::{Arc, OnceLock},
     time::{Duration, SystemTime},
 };
+
+use parking_lot::RwLock;
 
 use anyhow::Context;
 use fs4::fs_std::FileExt;
@@ -62,13 +64,7 @@ impl<'a> MakeWriter<'a> for DynamicFileWriter {
     type Writer = DynamicFileWriterGuard;
 
     fn make_writer(&'a self) -> Self::Writer {
-        let runtime = match self.runtime.read() {
-            Ok(runtime) => runtime,
-            Err(poisoned) => {
-                eprintln!("[downloader] logger runtime lock poisoned, recovering runtime state");
-                poisoned.into_inner()
-            }
-        };
+        let runtime = self.runtime.read();
 
         if !runtime.enabled {
             return DynamicFileWriterGuard { file: None };
@@ -151,13 +147,7 @@ pub fn apply_logging_settings(settings: &LogSettings, state_dir: &Path) -> anyho
         .modify(|level| *level = to_level_filter(settings.level))
         .context("failed to update tracing level filter")?;
 
-    let mut runtime = match control.runtime.write() {
-        Ok(runtime) => runtime,
-        Err(poisoned) => {
-            tracing::warn!("logger runtime lock poisoned, recovering runtime state");
-            poisoned.into_inner()
-        }
-    };
+    let mut runtime = control.runtime.write();
     runtime.enabled = settings.enabled;
     runtime.file_path = resolve_log_file_path(settings, state_dir);
     let log_path = runtime.file_path.clone();

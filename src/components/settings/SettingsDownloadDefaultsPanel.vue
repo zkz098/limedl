@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UiButton from "../ui/UiButton.vue";
+import UiCard from "../ui/UiCard.vue";
 import UiInput from "../ui/UiInput.vue";
 import UiNumberField from "../ui/UiNumberField.vue";
 import UiSelect from "../ui/UiSelect.vue";
@@ -21,14 +22,16 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.downloads") }}</p>
-        <h3>{{ t("settings.downloadsTitle") }}</h3>
+  <UiCard>
+    <template #header>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.downloads") }}</p>
+          <h3>{{ t("settings.downloadsTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-download-2-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-download-2-line" aria-hidden="true" />
-    </div>
+    </template>
 
     <p class="settings-section__summary">{{ downloadSummary }}</p>
 
@@ -77,5 +80,5 @@ const emit = defineEmits<{
         <p class="settings-field__hint">{{ t("settings.defaultUserAgentHint") }}</p>
       </label>
     </div>
-  </section>
+  </UiCard>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import UiCard from "../ui/UiCard.vue";
 import UiInput from "../ui/UiInput.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";
 
 const props = defineProps<{
@@ -29,36 +31,21 @@ const secretModel = computed({
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.aria2Rpc") }}</p>
-        <h3>{{ t("settings.aria2RpcTitle") }}</h3>
+  <UiCard>
+    <template #header>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.aria2Rpc") }}</p>
+          <h3>{{ t("settings.aria2RpcTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-server-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-server-line" aria-hidden="true" />
-    </div>
+    </template>
 
     <div class="settings-grid">
       <label class="settings-field">
         <span class="settings-field__label">{{ t("settings.aria2RpcService") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.aria2Rpc.enabled }"
-          :aria-pressed="draft.aria2Rpc.enabled"
-          @click="draft.aria2Rpc.enabled = !draft.aria2Rpc.enabled"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.aria2Rpc.enabled
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.aria2RpcService") }}</span>
-        </button>
+        <UiSwitch v-model="draft.aria2Rpc.enabled" :label="t('settings.aria2RpcService')" />
       </label>
 
       <label class="settings-field">
@@ -72,5 +59,5 @@ const secretModel = computed({
         <p class="settings-field__hint">{{ t("settings.aria2RpcHint") }}</p>
       </label>
     </div>
-  </section>
+  </UiCard>
 </template>

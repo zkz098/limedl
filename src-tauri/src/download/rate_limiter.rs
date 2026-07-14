@@ -1,7 +1,9 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::{Duration, Instant},
 };
+
+use parking_lot::Mutex;
 
 /// Token-bucket rate limiter for global download speed control.
 ///
@@ -122,14 +124,8 @@ fn try_consume(inner: &Arc<Mutex<Inner>>, n: u64) -> Option<u64> {
     }
 }
 
-fn lock_inner(inner: &Arc<Mutex<Inner>>) -> std::sync::MutexGuard<'_, Inner> {
-    match inner.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            tracing::warn!("rate limiter lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        }
-    }
+fn lock_inner(inner: &Arc<Mutex<Inner>>) -> parking_lot::MutexGuard<'_, Inner> {
+    inner.lock()
 }
 
 #[cfg(test)]

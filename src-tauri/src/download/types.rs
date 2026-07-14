@@ -354,7 +354,7 @@ impl From<&DownloadSnapshot> for DownloadProgress {
             peer_count: snapshot.peer_count,
             upload_status: snapshot.upload_status,
             degraded: snapshot.degraded,
-            disk_type: snapshot.disk_type.clone(),
+            disk_type: snapshot.disk_type,
             flushing: snapshot.flushing,
         }
     }
@@ -741,7 +741,7 @@ pub struct IoBaselineSettings {
     /// User-specified disk type overrides keyed by directory path.
     /// e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
     #[serde(default)]
-    pub disk_type_overrides: std::collections::HashMap<String, DiskType>,
+    pub disk_type_overrides: foldhash::HashMap<String, DiskType>,
 }
 
 fn default_buffer_limit_mb() -> u64 {
@@ -758,7 +758,7 @@ impl Default for IoBaselineSettings {
             buffer_limit_mb: default_buffer_limit_mb(),
             game_mode_buffer_mb: default_game_mode_buffer_mb(),
             game_mode: false,
-            disk_type_overrides: std::collections::HashMap::new(),
+            disk_type_overrides: foldhash::HashMap::default(),
         }
     }
 }

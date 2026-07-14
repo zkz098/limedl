@@ -26,6 +26,7 @@ mod types;
 pub(crate) use checksum::calculate_checksum;
 
 pub use aria2_rpc::Aria2RpcServer;
+pub(crate) use aria2_rpc::cleanup_old_aria2_temp_files;
 pub(crate) use cdn::CdnAccelerator;
 pub use cdn::commands::{
     cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status,
@@ -44,14 +45,8 @@ pub use rate_limiter::RateLimiter;
 pub use torrent::TorrentManager;
 
 pub(crate) fn lock_or_recover<'a, T>(
-    mutex: &'a std::sync::Mutex<T>,
-    name: &str,
-) -> std::sync::MutexGuard<'a, T> {
-    match mutex.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            tracing::warn!("{name} lock poisoned, recovering with inner state");
-            poisoned.into_inner()
-        }
-    }
+    mutex: &'a parking_lot::Mutex<T>,
+    _name: &str,
+) -> parking_lot::MutexGuard<'a, T> {
+    mutex.lock()
 }

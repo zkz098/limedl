@@ -253,10 +253,10 @@ impl super::DownloadManager {
             match self.wait_until_active(&managed, &token).await {
                 WaitState::Running => {}
                 WaitState::Paused => {
-                    if let Some(ref buf) = write_buffer {
-                        if let Err(e) = buf.flush_to_disk(&file) {
-                            tracing::warn!("flush on pause failed: {e}");
-                        }
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_to_disk(&file)
+                    {
+                        tracing::warn!("flush on pause failed: {e}");
                     }
                     return Ok(RunOutcome::Paused);
                 }
@@ -467,10 +467,10 @@ impl super::DownloadManager {
                 match self.wait_until_active(&managed, &token).await {
                     WaitState::Running => {}
                 WaitState::Paused => {
-                    if let Some(ref buf) = write_buffer {
-                        if let Err(e) = buf.flush_to_disk(&file) {
-                            tracing::warn!("flush on pause failed: {e}");
-                        }
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_to_disk(&file)
+                    {
+                        tracing::warn!("flush on pause failed: {e}");
                     }
                     return Ok(RunOutcome::Paused);
                 }
@@ -579,10 +579,10 @@ impl super::DownloadManager {
                 }
                 ChunkWorkerOutcome::Paused => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
-                    if let Some(ref buf) = write_buffer {
-                        if let Err(e) = buf.flush_to_disk(&file) {
-                            tracing::warn!("flush on pause failed: {e}");
-                        }
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_to_disk(&file)
+                    {
+                        tracing::warn!("flush on pause failed: {e}");
                     }
                     return Ok(RunOutcome::Paused);
                 }
@@ -688,10 +688,7 @@ impl super::DownloadManager {
         self.persist(managed.clone()).await?;
 
         // Broadcast aria2.onDownloadComplete via RPC event channel
-        let event_tx = self.event_tx.lock().unwrap_or_else(|poisoned| {
-            tracing::warn!("event_tx lock poisoned in finalize_download");
-            poisoned.into_inner()
-        });
+        let event_tx = self.event_tx.lock();
         if let Some(ref tx) = *event_tx {
             let download_id = managed.lock_core().snapshot.id.clone();
             let gid = format!(

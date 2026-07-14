@@ -4,10 +4,11 @@
 //! Contains the background scheduler loop and adaptive AIMD thread rebalancing.
 
 use std::{
-    collections::HashMap,
     sync::Arc,
     time::{Duration, Instant},
 };
+
+use foldhash::HashMap;
 
 use super::{
     aimd,
@@ -239,7 +240,7 @@ impl DownloadManager {
 
                 let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
                 let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
-                let mut allocations: HashMap<String, usize> = HashMap::new();
+                let mut allocations: HashMap<String, usize> = HashMap::default();
                 for managed in &candidates {
                     let core = managed.lock_core();
                     if remaining_budget == 0 {
