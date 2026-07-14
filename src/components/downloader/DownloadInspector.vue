@@ -15,18 +15,8 @@ import {
   isSizeUnknown,
   progressValue,
 } from "../../lib/download-format";
-import {
-  getBtFiles,
-  getBtPeers,
-  getBtTrackers,
-  getBtPieces,
-  updateBtFiles,
-} from "../../lib/tauri/download-api";
+import { useBtInspector } from "../../composables/useBtInspector";
 import type {
-  BtFileStatus,
-  BtPeerInfo,
-  BtPieceInfo,
-  BtTrackerInfo,
   DownloadSnapshot,
   DownloadSummary,
 } from "../../types/download";
@@ -44,6 +34,10 @@ const { t } = useI18n();
 const activeTab = ref<"overview" | "files" | "peersTrackers">("overview");
 
 const isBtTask = computed(() => props.selectedOverview?.kind === "bt");
+
+const btTaskId = computed(() =>
+  props.selectedSnapshot?.kind === "bt" ? props.selectedSnapshot.id : null,
+);
 
 watch(
   () => props.selectedOverview?.id,
@@ -111,146 +105,58 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
   return "info";
 });
 
-// ── BT on-demand data ──
+// ── BT composable ──
 
-const peerList = ref<BtPeerInfo[]>([]);
-const trackerList = ref<BtTrackerInfo[]>([]);
-const pieceList = ref<BtPieceInfo[]>([]);
-const isFetchingPeers = ref(false);
-const isFetchingTrackers = ref(false);
-const isFetchingPieces = ref(false);
-const lastBtFetchAt = ref(0);
+const {
+  files: btFileList,
+  peers: peerList,
+  trackers: trackerList,
+  pieces: pieceList,
+  isLoading,
+  isUpdatingFiles,
+  fetchFiles: fetchBtFiles,
+  fetchPeers: fetchBtPeers,
+  fetchTrackers: fetchBtTrackers,
+  toggleFileInclusion,
+} = useBtInspector(btTaskId);
 
-// ── BT file list ──
-
-const btFileList = ref<BtFileStatus[]>([]);
-const isFetchingBtFiles = ref(false);
-const isUpdatingFiles = ref(false);
-
-async function fetchBtFiles(downloadId: string) {
-  isFetchingBtFiles.value = true;
-  try {
-    btFileList.value = await getBtFiles(downloadId);
-  } catch {
-    btFileList.value = [];
-  } finally {
-    isFetchingBtFiles.value = false;
-  }
-}
-
-async function toggleFileInclusion(fileIndex: number, currentlyIncluded: boolean) {
-  const newIncluded = new Set(btFileList.value.filter((f) => f.included).map((f) => f.index));
-  if (currentlyIncluded) {
-    newIncluded.delete(fileIndex);
-  } else {
-    newIncluded.add(fileIndex);
-  }
-  // Prevent deselecting all files — at least one must remain
-  if (newIncluded.size === 0) {
-    return;
-  }
-  isUpdatingFiles.value = true;
-  try {
-    await updateBtFiles(props.selectedSnapshot!.id, [...newIncluded]);
-    // Optimistic local update
-    const file = btFileList.value.find((f) => f.index === fileIndex);
-    if (file) file.included = !currentlyIncluded;
-  } catch {
-    // Revert on error — refetch
-    if (props.selectedSnapshot?.id) {
-      await fetchBtFiles(props.selectedSnapshot.id);
-    }
-  } finally {
-    isUpdatingFiles.value = false;
-  }
-}
-
-function clearBtData() {
-  peerList.value = [];
-  trackerList.value = [];
-  pieceList.value = [];
-  btFileList.value = [];
-}
-
-async function fetchBtPeers(downloadId: string) {
-  isFetchingPeers.value = true;
-  try {
-    peerList.value = await getBtPeers(downloadId);
-  } catch {
-    peerList.value = [];
-  } finally {
-    isFetchingPeers.value = false;
-  }
-}
-
-async function fetchBtTrackers(downloadId: string) {
-  isFetchingTrackers.value = true;
-  try {
-    trackerList.value = await getBtTrackers(downloadId);
-  } catch {
-    trackerList.value = [];
-  } finally {
-    isFetchingTrackers.value = false;
-  }
-}
-
-async function fetchBtPieces(downloadId: string) {
-  isFetchingPieces.value = true;
-  try {
-    pieceList.value = await getBtPieces(downloadId);
-  } catch {
-    pieceList.value = [];
-  } finally {
-    isFetchingPieces.value = false;
-  }
-}
-
-watch(
-  () => props.selectedSnapshot?.id,
-  (id) => {
-    if (id && props.selectedSnapshot?.kind === "bt") {
-      const now = Date.now();
-      if (now - lastBtFetchAt.value < 5000) return;
-      lastBtFetchAt.value = now;
-      void Promise.all([fetchBtPeers(id), fetchBtTrackers(id), fetchBtPieces(id)]);
-    } else {
-      clearBtData();
-    }
-  },
-  { immediate: true },
-);
+const isFetchingBtFiles = computed(() => isLoading.files);
+const isFetchingPeers = computed(() => isLoading.peers);
+const isFetchingTrackers = computed(() => isLoading.trackers);
 
 // Fetch BT file list whenever the Files tab becomes active
-watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
-  if (id && props.selectedSnapshot?.kind === "bt" && tab === "files") {
-    void fetchBtFiles(id);
+watch([btTaskId, activeTab], ([id, tab]) => {
+  if (id && tab === "files") {
+    void fetchBtFiles();
   }
 });
 </script>
 
 <template>
-  <section class="download-inspector">
+  <section class="flex flex-col h-full">
     <template v-if="selectedOverview">
       <!-- Tab bar -->
-      <div class="inspector-tabs">
+      <div
+        class="flex gap-[var(--space-1)] px-[var(--space-3)] pt-[var(--space-2)] border-b border-[var(--color-border)] shrink-0"
+      >
         <button
-          class="inspector-tab"
-          :class="{ active: activeTab === 'overview' }"
+          class="px-[var(--space-3)] py-[var(--space-1)] border-none bg-transparent text-[0.8125rem] font-medium text-[var(--color-text-muted)] cursor-pointer border-b-2 border-transparent -mb-px rounded-t-[var(--radius-sm)] transition-colors duration-150 hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-muted)]"
+          :class="activeTab === 'overview' ? 'text-[var(--color-accent-strong)] border-b-[var(--color-accent)]' : ''"
           @click="activeTab = 'overview'"
         >
           {{ t("inspector.tabs.overview") }}
         </button>
         <button
-          class="inspector-tab"
-          :class="{ active: activeTab === 'files' }"
+          class="px-[var(--space-3)] py-[var(--space-1)] border-none bg-transparent text-[0.8125rem] font-medium text-[var(--color-text-muted)] cursor-pointer border-b-2 border-transparent -mb-px rounded-t-[var(--radius-sm)] transition-colors duration-150 hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-muted)]"
+          :class="activeTab === 'files' ? 'text-[var(--color-accent-strong)] border-b-[var(--color-accent)]' : ''"
           @click="activeTab = 'files'"
         >
           {{ t("inspector.tabs.files") }}
         </button>
         <button
           v-if="isBtTask"
-          class="inspector-tab"
-          :class="{ active: activeTab === 'peersTrackers' }"
+          class="px-[var(--space-3)] py-[var(--space-1)] border-none bg-transparent text-[0.8125rem] font-medium text-[var(--color-text-muted)] cursor-pointer border-b-2 border-transparent -mb-px rounded-t-[var(--radius-sm)] transition-colors duration-150 hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-muted)]"
+          :class="activeTab === 'peersTrackers' ? 'text-[var(--color-accent-strong)] border-b-[var(--color-accent)]' : ''"
           @click="activeTab = 'peersTrackers'"
         >
           {{ t("inspector.tabs.peersTrackers") }}
@@ -258,41 +164,41 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
       </div>
 
       <!-- Tab content -->
-      <div class="inspector-content">
+      <div class="flex-1 overflow-auto min-h-0 p-[var(--space-3)]">
         <!-- ── Overview tab ── -->
-        <div v-show="activeTab === 'overview'" class="inspector-tab-content">
-          <div class="inspector-summary">
-            <div class="inspector-summary__copy">
-              <div class="inspector-summary__header">
-                <h3>{{ selectedOverview.fileName }}</h3>
+        <div v-show="activeTab === 'overview'" class="grid gap-3">
+          <div class="grid gap-[0.65rem]">
+            <div>
+              <div class="flex items-start justify-between gap-[var(--space-3)] flex-wrap">
+                <h3 class="m-0 text-[var(--color-heading)] text-[var(--font-size-body)]">{{ selectedOverview.fileName }}</h3>
                 <UiBadge :tone="stateTone">{{ t(`states.${selectedOverview.state}`) }}</UiBadge>
               </div>
-              <p>{{ selectedOverview.destinationPath }}</p>
+              <p class="m-0 text-[var(--color-text-muted)] text-[0.8rem] font-[var(--font-mono)]">{{ selectedOverview.destinationPath }}</p>
             </div>
 
-            <div class="metric-grid">
-              <div class="metric-card">
-                <span class="metric-card__label">{{ t("inspector.transferred") }}</span>
-                <span class="metric-card__value">
+            <div class="grid grid-cols-2 gap-[0.55rem] max-md:grid-cols-1">
+              <div class="flex flex-col gap-[0.15rem] p-[0.6rem_0.7rem] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] border border-[var(--color-border)] transition-colors duration-150 hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)]">
+                <span class="text-[var(--color-text-muted)] text-[0.7rem] font-medium tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.transferred") }}</span>
+                <span class="text-[var(--color-text-main)] text-[var(--font-size-metric)] font-[var(--font-weight-semibold)] leading-[1.35] break-all">
                   {{ formatBytes(selectedOverview.downloadedBytes) }} /
                   {{ formatBytes(selectedOverview.totalBytes) }}
                 </span>
               </div>
-              <div class="metric-card">
-                <span class="metric-card__label">{{ t("inspector.speed") }}</span>
-                <span class="metric-card__value">{{
+              <div class="flex flex-col gap-[0.15rem] p-[0.6rem_0.7rem] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] border border-[var(--color-border)] transition-colors duration-150 hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)]">
+                <span class="text-[var(--color-text-muted)] text-[0.7rem] font-medium tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.speed") }}</span>
+                <span class="text-[var(--color-text-main)] text-[var(--font-size-metric)] font-[var(--font-weight-semibold)] leading-[1.35] break-all">{{
                   formatSpeed(selectedOverview.speedBytesPerSecond)
                 }}</span>
               </div>
-              <div class="metric-card">
-                <span class="metric-card__label">{{ t("inspector.eta") }}</span>
-                <span class="metric-card__value">{{ formatEta(selectedOverview.etaSeconds) }}</span>
+              <div class="flex flex-col gap-[0.15rem] p-[0.6rem_0.7rem] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] border border-[var(--color-border)] transition-colors duration-150 hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)]">
+                <span class="text-[var(--color-text-muted)] text-[0.7rem] font-medium tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.eta") }}</span>
+                <span class="text-[var(--color-text-main)] text-[var(--font-size-metric)] font-[var(--font-weight-semibold)] leading-[1.35] break-all">{{ formatEta(selectedOverview.etaSeconds) }}</span>
               </div>
-              <div class="metric-card">
-                <span class="metric-card__label">{{
+              <div class="flex flex-col gap-[0.15rem] p-[0.6rem_0.7rem] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] border border-[var(--color-border)] transition-colors duration-150 hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)]">
+                <span class="text-[var(--color-text-muted)] text-[0.7rem] font-medium tracking-[var(--letter-spacing-wide)] uppercase">{{
                   selectedOverview.kind === "bt" ? t("inspector.peers") : t("inspector.threads")
                 }}</span>
-                <span class="metric-card__value">
+                <span class="text-[var(--color-text-main)] text-[var(--font-size-metric)] font-[var(--font-weight-semibold)] leading-[1.35] break-all">
                   {{
                     selectedOverview.kind === "bt"
                       ? (selectedOverview.peerCount ?? 0)
@@ -307,24 +213,24 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
                   </template>
                 </span>
               </div>
-              <div v-if="selectedOverview.kind === 'bt'" class="metric-card">
-                <span class="metric-card__label">{{ t("inspector.fields.seedCount") }}</span>
-                <span class="metric-card__value"
+              <div v-if="selectedOverview.kind === 'bt'" class="flex flex-col gap-[0.15rem] p-[0.6rem_0.7rem] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] border border-[var(--color-border)] transition-colors duration-150 hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)]">
+                <span class="text-[var(--color-text-muted)] text-[0.7rem] font-medium tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.fields.seedCount") }}</span>
+                <span class="text-[var(--color-text-main)] text-[var(--font-size-metric)] font-[var(--font-weight-semibold)] leading-[1.35] break-all"
                   >{{ selectedOverview.seedCount ?? 0 }} /
                   {{ selectedOverview.leechCount ?? 0 }}</span
                 >
               </div>
-              <div v-if="selectedOverview.cdnAccelerated" class="metric-card">
-                <span class="metric-card__label">{{ t("inspector.cdnNode") }}</span>
-                <span class="metric-card__value">
+              <div v-if="selectedOverview.cdnAccelerated" class="flex flex-col gap-[0.15rem] p-[0.6rem_0.7rem] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] border border-[var(--color-border)] transition-colors duration-150 hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)]">
+                <span class="text-[var(--color-text-muted)] text-[0.7rem] font-medium tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.cdnNode") }}</span>
+                <span class="text-[var(--color-text-main)] text-[var(--font-size-metric)] font-[var(--font-weight-semibold)] leading-[1.35] break-all">
                   <span class="i-ri-flashlight-fill" aria-hidden="true" />
                   {{ t("inspector.cdnAccelerated") }}
                 </span>
               </div>
             </div>
 
-            <div class="summary-progress">
-              <div class="summary-progress__copy">
+            <div class="grid gap-[0.3rem]">
+              <div class="flex justify-between gap-[var(--space-3)] text-[var(--color-text-muted)] text-[0.72rem]">
                 <span>{{ t("inspector.progress") }}</span>
                 <span>{{ progressValue(selectedOverview).toFixed(1) }}%</span>
               </div>
@@ -339,7 +245,7 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
 
           <div
             v-if="selectedSnapshot?.kind === 'http' && selectedSnapshot.chunks?.length"
-            class="chunk-progress-text"
+            class="text-[var(--color-text-muted)] text-[0.72rem]"
           >
             {{
               t("inspector.chunkProgressText", {
@@ -349,89 +255,89 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
             }}
           </div>
 
-          <dl v-if="showDetailInfo && detailRows.length" class="detail-grid">
+          <dl v-if="showDetailInfo && detailRows.length" class="m-0 grid grid-cols-2 gap-[0.35rem_0.9rem] p-[0.65rem] border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] max-md:grid-cols-1">
             <div
               v-for="row in detailRows"
               :key="row.label"
-              class="text-row"
-              :class="{ 'text-row--wide': row.wide }"
+              class="flex gap-[0.45rem] items-start min-w-0"
+              :class="[row.wide ? 'col-span-full max-md:col-auto' : '']"
             >
-              <dt class="text-label">{{ row.label }}:</dt>
-              <dd class="text-value" :class="{ 'text-value--mono': row.mono }">{{ row.value }}</dd>
+              <dt class="m-0 text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ row.label }}:</dt>
+              <dd class="m-0 text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45]" :class="row.mono ? 'font-[var(--font-mono)]' : ''">{{ row.value }}</dd>
             </div>
           </dl>
 
-          <div v-if="selectedOverview.error" class="status-banner status-banner--error">
-            <span class="status-banner__icon i-ri-error-warning-line" aria-hidden="true" />
-            <span class="status-banner__message">{{ toFriendlyError(selectedOverview.error) }}</span>
+          <div v-if="selectedOverview.error" class="m-0 flex items-start gap-[var(--space-3)] border-l-3 border-l-[var(--color-danger-text)] shadow-[var(--shadow-card)]">
+            <span class="shrink-0 mt-[0.15rem] text-[1.1rem] leading-none i-ri-error-warning-line" aria-hidden="true" />
+            <span class="flex-1 leading-[1.6]">{{ toFriendlyError(selectedOverview.error) }}</span>
           </div>
         </div>
 
         <!-- ── Files tab ── -->
-        <div v-show="activeTab === 'files'" class="inspector-tab-content">
+        <div v-show="activeTab === 'files'" class="grid gap-3">
           <template v-if="selectedOverview.kind === 'http'">
-            <div class="detail-grid">
-              <div class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.files.filename") }}:</span>
-                <span class="text-value">{{ selectedOverview.fileName }}</span>
+            <dl class="m-0 grid grid-cols-2 gap-[0.35rem_0.9rem] p-[0.65rem] border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] max-md:grid-cols-1">
+              <div class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.files.filename") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45]">{{ selectedOverview.fileName }}</span>
               </div>
-              <div class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.files.destination") }}:</span>
-                <span class="text-value text-value--mono">{{ selectedOverview.destinationPath }}</span>
+              <div class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.files.destination") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45] font-[var(--font-mono)]">{{ selectedOverview.destinationPath }}</span>
               </div>
-              <div class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.files.url") }}:</span>
-                <span class="text-value text-value--mono">{{ selectedOverview.url }}</span>
+              <div class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.files.url") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45] font-[var(--font-mono)]">{{ selectedOverview.url }}</span>
               </div>
-              <div v-if="selectedSnapshot?.finalUrl" class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.fields.finalUrl") }}:</span>
-                <span class="text-value text-value--mono">{{ selectedSnapshot.finalUrl }}</span>
+              <div v-if="selectedSnapshot?.finalUrl" class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.fields.finalUrl") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45] font-[var(--font-mono)]">{{ selectedSnapshot.finalUrl }}</span>
               </div>
-              <div class="text-row">
-                <span class="text-label">{{ t("inspector.transferred") }}:</span>
-                <span class="text-value">
+              <div class="flex gap-[0.45rem] items-start min-w-0">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.transferred") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45]">
                   {{ formatBytes(selectedOverview.downloadedBytes) }} /
                   {{ formatBytes(selectedOverview.totalBytes) }}
                 </span>
               </div>
-            </div>
+            </dl>
           </template>
           <template v-else>
-            <div class="detail-grid">
-              <div class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.files.filename") }}:</span>
-                <span class="text-value">{{ selectedOverview.fileName }}</span>
+            <dl class="m-0 grid grid-cols-2 gap-[0.35rem_0.9rem] p-[0.65rem] border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-panel-muted)] max-md:grid-cols-1">
+              <div class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.files.filename") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45]">{{ selectedOverview.fileName }}</span>
               </div>
-              <div class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.files.destination") }}:</span>
-                <span class="text-value text-value--mono">{{ selectedOverview.destinationPath }}</span>
+              <div class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.files.destination") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45] font-[var(--font-mono)]">{{ selectedOverview.destinationPath }}</span>
               </div>
-              <div v-if="selectedOverview.infoHash" class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.fields.infoHash") }}:</span>
-                <span class="text-value text-value--mono">{{ selectedOverview.infoHash }}</span>
+              <div v-if="selectedOverview.infoHash" class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.fields.infoHash") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45] font-[var(--font-mono)]">{{ selectedOverview.infoHash }}</span>
               </div>
-              <div class="text-row text-row--wide">
-                <span class="text-label">{{ t("inspector.files.url") }}:</span>
-                <span class="text-value text-value--mono">{{ selectedOverview.url }}</span>
+              <div class="flex gap-[0.45rem] items-start min-w-0 col-span-full max-md:col-auto">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.files.url") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45] font-[var(--font-mono)]">{{ selectedOverview.url }}</span>
               </div>
-              <div class="text-row">
-                <span class="text-label">{{ t("inspector.transferred") }}:</span>
-                <span class="text-value">
+              <div class="flex gap-[0.45rem] items-start min-w-0">
+                <span class="text-[var(--color-text-muted)] font-medium whitespace-nowrap text-[0.7rem] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.transferred") }}:</span>
+                <span class="text-[var(--color-text-main)] break-all text-[0.8rem] leading-[1.45]">
                   {{ formatBytes(selectedOverview.downloadedBytes) }} /
                   {{ formatBytes(selectedOverview.totalBytes) }}
                 </span>
               </div>
-            </div>
+            </dl>
 
-            <section class="inspector-bt-section">
-              <div class="inspector-section-header">
-                <h3>{{ t("inspector.files.fileCount", { count: btFileList.length }) }}</h3>
+            <section class="grid gap-[0.65rem] pt-[0.5rem] border-t border-[var(--color-border)]">
+              <div class="flex justify-between items-center gap-[var(--space-2)]">
+                <h3 class="m-0 text-[0.72rem] font-semibold text-[var(--color-text-muted)] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.files.fileCount", { count: btFileList.length }) }}</h3>
                 <UiButton
                   variant="ghost"
                   size="sm"
                   icon="i-ri-refresh-line"
                   :loading="isFetchingBtFiles"
-                  @click="fetchBtFiles(selectedSnapshot!.id)"
+                  @click="fetchBtFiles()"
                 >
                   {{ t("inspector.files.refreshFiles") }}
                 </UiButton>
@@ -439,47 +345,48 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
 
               <div
                 v-if="isFetchingBtFiles && btFileList.length === 0"
-                class="file-list-placeholder"
+                class="m-0 p-4 text-center text-[var(--color-text-muted)] text-[0.8rem] border border-dashed border-[var(--color-border-strong)] rounded-[var(--radius-md)]"
               >
                 {{ t("inspector.files.loadingFiles") }}
               </div>
 
-              <div v-else-if="btFileList.length === 0" class="file-list-placeholder">
+              <div v-else-if="btFileList.length === 0" class="m-0 p-4 text-center text-[var(--color-text-muted)] text-[0.8rem] border border-dashed border-[var(--color-border-strong)] rounded-[var(--radius-md)]">
                 {{ t("inspector.files.noFileList") }}
               </div>
 
-              <div v-else class="bt-file-list">
+              <div v-else class="grid gap-[0.35rem] max-h-[360px] overflow-y-auto border border-[var(--color-border)] rounded-[var(--radius-md)] p-[var(--space-1)] bg-[var(--color-panel-muted)]">
                 <div
                   v-for="file in btFileList"
                   :key="file.index"
-                  class="bt-file-row"
-                  :class="{ 'bt-file-row--excluded': !file.included }"
+                  class="flex gap-[var(--space-2)] items-start px-[var(--space-2)] py-[var(--space-1)] rounded-[var(--radius-sm)] transition-colors duration-150 hover:bg-[var(--color-surface-muted)]"
+                  :class="{ 'op-55': !file.included }"
                 >
-                  <label class="bt-file-checkbox" @click.stop>
+                  <label class="flex items-center pt-[0.15rem] cursor-pointer" @click.stop>
                     <input
                       type="checkbox"
                       :checked="file.included"
                       :disabled="isUpdatingFiles"
+                      class="accent-[var(--color-accent)] cursor-pointer"
                       @change="toggleFileInclusion(file.index, file.included)"
                     />
                   </label>
-                  <div class="bt-file-info">
-                    <span class="bt-file-path">{{ file.path }}</span>
-                    <div class="bt-file-meta">
+                  <div class="flex-1 min-w-0 grid gap-[0.2rem]">
+                    <span class="text-[0.78rem] font-[var(--font-mono)] text-[var(--color-text-main)] break-all leading-[1.35]">{{ file.path }}</span>
+                    <div class="text-[0.68rem] text-[var(--color-text-muted)] flex gap-[0.3rem] items-center flex-wrap">
                       <span>{{ formatBytes(file.size) }}</span>
-                      <span class="bt-file-separator">·</span>
+                      <span class="text-[var(--color-border-strong)]">·</span>
                       <span>{{ formatBytes(file.downloadedBytes) }}</span>
-                      <span class="bt-file-separator">·</span>
-                      <span v-if="file.included" class="bt-file-included">{{
+                      <span class="text-[var(--color-border-strong)]">·</span>
+                      <span v-if="file.included" class="text-[var(--color-success)]">{{
                         t("inspector.files.included")
                       }}</span>
-                      <span v-else class="bt-file-excluded-label">{{
+                      <span v-else class="text-[var(--color-text-muted)]">{{
                         t("inspector.files.excluded")
                       }}</span>
                     </div>
                     <UiProgress
                       :value="file.size > 0 ? (file.downloadedBytes / file.size) * 100 : 0"
-                      class="bt-file-progress"
+                      class="max-w-full"
                     />
                   </div>
                 </div>
@@ -489,8 +396,8 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
         </div>
 
         <!-- ── Peers & Trackers tab (BT only) ── -->
-        <div v-show="activeTab === 'peersTrackers'" v-if="isBtTask" class="inspector-tab-content">
-          <div v-if="pieceList.length" class="piece-progress-text">
+        <div v-show="activeTab === 'peersTrackers'" v-if="isBtTask" class="grid gap-3">
+          <div v-if="pieceList.length" class="text-[var(--color-text-muted)] text-[0.72rem]">
             {{
               t("inspector.pieceProgressText", {
                 completed: pieceList.filter((p) => p.completed).length,
@@ -499,15 +406,15 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
             }}
           </div>
 
-          <section class="inspector-bt-section">
-            <div class="inspector-section-header">
-              <h3>{{ t("inspector.sections.peers") }} ({{ peerList.length }})</h3>
+          <section class="grid gap-[0.65rem] pt-[0.5rem] border-t border-[var(--color-border)]">
+            <div class="flex justify-between items-center gap-[var(--space-2)]">
+              <h3 class="m-0 text-[0.72rem] font-semibold text-[var(--color-text-muted)] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.sections.peers") }} ({{ peerList.length }})</h3>
               <UiButton
                 variant="ghost"
                 size="sm"
                 icon="i-ri-refresh-line"
                 :loading="isFetchingPeers"
-                @click="fetchBtPeers(selectedSnapshot!.id)"
+                @click="fetchBtPeers()"
               >
                 {{ t("inspector.refreshPeers") }}
               </UiButton>
@@ -515,15 +422,15 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
             <BtPeerTable :peers="peerList" />
           </section>
 
-          <section class="inspector-bt-section">
-            <div class="inspector-section-header">
-              <h3>{{ t("inspector.sections.trackers") }} ({{ trackerList.length }})</h3>
+          <section class="grid gap-[0.65rem] pt-[0.5rem] border-t border-[var(--color-border)]">
+            <div class="flex justify-between items-center gap-[var(--space-2)]">
+              <h3 class="m-0 text-[0.72rem] font-semibold text-[var(--color-text-muted)] tracking-[var(--letter-spacing-wide)] uppercase">{{ t("inspector.sections.trackers") }} ({{ trackerList.length }})</h3>
               <UiButton
                 variant="ghost"
                 size="sm"
                 icon="i-ri-refresh-line"
                 :loading="isFetchingTrackers"
-                @click="fetchBtTrackers(selectedSnapshot!.id)"
+                @click="fetchBtTrackers()"
               >
                 {{ t("inspector.refreshTrackers") }}
               </UiButton>
@@ -537,358 +444,6 @@ watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
 </template>
 
 <style scoped>
-.download-inspector {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-/* ── Tab bar ── */
-
-.inspector-tabs {
-  display: flex;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3) 0;
-  border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
-}
-
-.inspector-tab {
-  padding: var(--space-1) var(--space-3);
-  border: none;
-  background: none;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-}
-
-.inspector-tab:hover {
-  color: var(--color-text-main);
-  background: var(--color-surface-muted);
-}
-
-.inspector-tab.active {
-  color: var(--color-accent-strong);
-  border-bottom-color: var(--color-accent);
-}
-
-/* ── Content area ── */
-
-.inspector-content {
-  flex: 1;
-  overflow: auto;
-  min-height: 0;
-  padding: var(--space-3);
-}
-
-.inspector-tab-content {
-  display: grid;
-  gap: 0.75rem;
-}
-
-/* ── Summary ── */
-
-.inspector-summary {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.inspector-summary__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.inspector-summary__copy h3,
-.inspector-summary__copy p {
-  margin: 0;
-}
-
-.inspector-summary__copy p {
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-  font-family: var(--font-mono);
-}
-
-.inspector-summary__copy h3 {
-  color: var(--color-heading);
-  font-size: var(--font-size-body);
-}
-
-/* ── Metric grid ── */
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
-}
-
-.metric-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.6rem 0.7rem;
-  border-radius: var(--radius-md);
-  background: var(--color-panel-muted);
-  border: 1px solid var(--color-border);
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.metric-card:hover {
-  background: var(--color-surface-muted);
-  border-color: var(--color-border-strong);
-}
-
-.metric-card__label {
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-.metric-card__value {
-  color: var(--color-text-main);
-  font-size: var(--font-size-metric);
-  font-weight: var(--font-weight-semibold);
-  line-height: 1.35;
-  word-break: break-all;
-}
-
-.text-row {
-  display: flex;
-  gap: 0.45rem;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.text-label {
-  color: var(--color-text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-  font-size: 0.7rem;
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-.text-value {
-  color: var(--color-text-main);
-  word-break: break-all;
-  font-size: 0.8rem;
-  line-height: 1.45;
-}
-
-.text-value--mono {
-  font-family: var(--font-mono);
-}
-
-/* ── Progress ── */
-
-.summary-progress {
-  display: grid;
-  gap: 0.3rem;
-}
-
-.summary-progress__copy {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-}
-
-.chunk-progress-text,
-.piece-progress-text {
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-}
-
-/* ── Detail grid ── */
-
-.detail-grid {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.35rem 0.9rem;
-  padding: 0.65rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-panel-muted);
-}
-
-.text-row--wide {
-  grid-column: 1 / -1;
-}
-
-.detail-grid dt {
-  margin: 0;
-}
-
-.detail-grid dd {
-  margin: 0;
-}
-
-/* ── BT sections ── */
-
-.inspector-bt-section {
-  display: grid;
-  gap: 0.65rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.inspector-section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.inspector-section-header h3 {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-/* ── File list placeholder ── */
-
-.file-list-placeholder {
-  margin: 0;
-  padding: 1rem;
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-md);
-}
-
-/* ── BT file list ── */
-
-.bt-file-list {
-  display: grid;
-  gap: 0.35rem;
-  max-height: 360px;
-  overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-1);
-  background: var(--color-panel-muted);
-}
-
-.bt-file-row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  transition: background 0.15s;
-}
-
-.bt-file-row:hover {
-  background: var(--color-surface-muted);
-}
-
-.bt-file-row--excluded {
-  opacity: 0.55;
-}
-
-.bt-file-checkbox {
-  display: flex;
-  align-items: center;
-  padding-top: 0.15rem;
-  cursor: pointer;
-}
-
-.bt-file-checkbox input[type="checkbox"] {
-  accent-color: var(--color-accent);
-  cursor: pointer;
-}
-
-.bt-file-info {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.bt-file-path {
-  font-size: 0.78rem;
-  font-family: var(--font-mono);
-  color: var(--color-text-main);
-  word-break: break-all;
-  line-height: 1.35;
-}
-
-.bt-file-meta {
-  font-size: 0.68rem;
-  color: var(--color-text-muted);
-  display: flex;
-  gap: 0.3rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.bt-file-separator {
-  color: var(--color-border-strong);
-}
-
-.bt-file-included {
-  color: var(--color-success);
-}
-
-.bt-file-excluded-label {
-  color: var(--color-text-muted);
-}
-
-.bt-file-progress {
-  max-width: 100%;
-}
-
-/* ── Status banner ── */
-
-.status-banner {
-  margin: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.status-banner--error {
-  border-left: 3px solid var(--color-danger-text);
-  box-shadow: var(--shadow-card);
-}
-
-.status-banner__icon {
-  flex-shrink: 0;
-  margin-top: 0.15rem;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.status-banner__message {
-  flex: 1 1 auto;
-  line-height: 1.6;
-}
-
-@media (max-width: 760px) {
-  .metric-grid,
-  .detail-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .text-row--wide {
-    grid-column: auto;
-  }
-}
+/* All styling migrated to UnoCSS utility classes in template. */
+/* Media query handled via max-md: responsive prefix. */
 </style>

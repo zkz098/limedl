@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
+import { computed, onErrorCaptured, ref, useTemplateRef, watch } from "vue";
 import { filterDownloads } from "./lib/download-filter";
-import { debounce } from "es-toolkit";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
@@ -12,17 +11,19 @@ import SettingsPage from "./components/settings/SettingsPage.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
 import UiBadge from "./components/ui/UiBadge.vue";
 import UiButton from "./components/ui/UiButton.vue";
+import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
-import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
-import { VALID_COLUMN_KEY_SET, DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
 import { useDownloader } from "./composables/useDownloader";
 import type { UseDownloaderOptions } from "./composables/useDownloader";
 import { useIoBaseline } from "./composables/useIoBaseline";
 import { useOverclock } from "./composables/useOverclock";
 import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
+import { useAppSettings } from "./composables/useAppSettings";
+import { useViewNavigation } from "./composables/useViewNavigation";
+import { DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
 import NotificationToast from "./components/ui/NotificationToast.vue";
-import type { AppSettings, ColorMode, SortDirection, SortKey } from "./types/settings";
+import type { AppSettings, SortDirection, SortKey } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./components/downloader/queue-types";
 
 const downloaderOptions: UseDownloaderOptions = {
@@ -98,23 +99,15 @@ const { gameMode, bufferUsageBytes, bufferLimitBytes, setGameMode } = useIoBasel
 const { overclockMode, setOverclockMode } = useOverclock();
 const showComposerDialog = ref(false);
 const detailCollapsed = ref(false);
-const currentView = ref<"home" | "settings" | "labs">("home");
-const appSettings = ref<AppSettings | null>(null);
 const activeCategory = ref("");
 const searchQuery = ref("");
 const sortKey = ref<SortKey>("added_at");
 const sortDirection = ref<SortDirection>("desc");
 const compactView = ref(false);
 const visibleColumns = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
-const isSyncingFromSettings = ref(false);
 const pendingPermanentDeleteId = ref<string | null>(null);
-const pendingView = ref<"home" | "settings" | "labs" | null>(null);
-const settingsHasUnsavedChanges = ref(false);
-const labsHasUnsavedChanges = ref(false);
-const isSavingBeforeNavigation = ref(false);
 const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
 const labsPageRef = useTemplateRef<InstanceType<typeof LabsPage>>("labsPage");
-let colorSchemeQuery: MediaQueryList | null = null;
 
 // Multi-select mode
 const multiSelectMode = ref(false);
@@ -122,15 +115,49 @@ const selectedIds = ref<Set<string>>(new Set());
 const showBatchDeleteDialog = ref(false);
 const removedDownloadIds = ref<string[]>([]);
 
+const {
+  appSettings,
+  applyAppearanceSettings,
+} = useAppSettings({
+  sortKey,
+  sortDirection,
+  compactView,
+  visibleColumns,
+  applyAppSettingsDefaults,
+  setNotificationsEnabled,
+});
+
+const {
+  currentView,
+  settingsHasUnsavedChanges,
+  labsHasUnsavedChanges,
+  isSavingBeforeNavigation,
+  navigateTo,
+  cancelDiscardSettings,
+  confirmDiscardSettings,
+  saveSettingsAndNavigate,
+  showUnsavedSettingsDialog,
+  unsavedDialogKicker,
+  unsavedDialogTitle,
+  unsavedDialogMessage,
+} = useViewNavigation({
+  settingsPageRef,
+  labsPageRef,
+});
+
 const filteredDownloads = computed(() =>
   filterDownloads(downloads.value, searchQuery.value, activeCategory.value),
 );
 
-const { notifications, notifyError, dismiss } = useNotification();
+onErrorCaptured((err, _instance, info) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error("[Component Error]", err, info);
+  useNotification().notify(`Error: ${message}`, "error");
+  // Return false to prevent error from propagating further
+  return false;
+});
 
-function handleSystemColorSchemeChange() {
-  applyColorMode(appSettings.value?.appearance?.colorMode ?? "system");
-}
+const { notifications, notifyError, dismiss } = useNotification();
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
 
@@ -159,19 +186,6 @@ const multiSelectState = computed<MultiSelectState>(() => ({
   removedDownloadIds: removedDownloadIds.value,
 }));
 
-const showUnsavedSettingsDialog = computed(() => pendingView.value !== null);
-const pendingViewIsLeavingLabs = computed(
-  () => currentView.value === "labs" && pendingView.value !== null,
-);
-const unsavedDialogKicker = computed(() =>
-  pendingViewIsLeavingLabs.value ? t("labs.kicker") : t("settings.kicker"),
-);
-const unsavedDialogTitle = computed(() =>
-  pendingViewIsLeavingLabs.value ? t("labs.unsavedTitle") : t("dialog.unsavedSettingsTitle"),
-);
-const unsavedDialogMessage = computed(() =>
-  pendingViewIsLeavingLabs.value ? t("labs.unsavedMessage") : t("dialog.unsavedSettingsMessage"),
-);
 const pendingPermanentDeleteTask = computed(
   () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
 );
@@ -296,74 +310,6 @@ async function confirmBatchDelete() {
   selectedIds.value = new Set();
 }
 
-function navigateTo(view: string) {
-  const validViews = ["home", "settings", "labs"] as const;
-  if (!validViews.includes(view as (typeof validViews)[number])) {
-    return;
-  }
-
-  const typedView = view as "home" | "settings" | "labs";
-  if (typedView === currentView.value) {
-    return;
-  }
-
-  const leavingDirtyView =
-    (currentView.value === "settings" && settingsHasUnsavedChanges.value) ||
-    (currentView.value === "labs" && labsHasUnsavedChanges.value);
-
-  if (leavingDirtyView) {
-    pendingView.value = typedView;
-    return;
-  }
-
-  currentView.value = typedView;
-}
-
-function cancelDiscardSettings() {
-  pendingView.value = null;
-}
-
-function confirmDiscardSettings() {
-  const nextView = pendingView.value;
-  pendingView.value = null;
-  settingsHasUnsavedChanges.value = false;
-  labsHasUnsavedChanges.value = false;
-
-  if (nextView) {
-    currentView.value = nextView;
-  }
-}
-
-async function saveSettingsAndNavigate() {
-  if (isSavingBeforeNavigation.value) {
-    return;
-  }
-
-  isSavingBeforeNavigation.value = true;
-  try {
-    let saved = false;
-    if (currentView.value === "settings") {
-      saved = (await settingsPageRef.value?.persistSettings()) ?? false;
-    } else if (currentView.value === "labs") {
-      saved = (await labsPageRef.value?.persistSettings()) ?? false;
-    }
-
-    if (!saved) {
-      return;
-    }
-
-    const nextView = pendingView.value;
-    pendingView.value = null;
-    settingsHasUnsavedChanges.value = false;
-    labsHasUnsavedChanges.value = false;
-    if (nextView) {
-      currentView.value = nextView;
-    }
-  } finally {
-    isSavingBeforeNavigation.value = false;
-  }
-}
-
 function cancelPermanentDelete() {
   if (actionName.value === "Purge") {
     return;
@@ -404,42 +350,6 @@ function handleLabsDirtyChange(isDirty: boolean) {
   labsHasUnsavedChanges.value = isDirty;
 }
 
-async function loadSettings() {
-  try {
-    appSettings.value = await getAppSettings();
-    applyAppearanceSettings(appSettings.value);
-    applyAppSettingsDefaults(appSettings.value);
-  } catch (error) {
-    console.error("Failed to load app settings", error);
-  }
-}
-
-function applyAppearanceSettings(settings: AppSettings) {
-  document.documentElement.dataset.theme = settings.appearance?.themeColor ?? "lime";
-  document.documentElement.dataset.surface = settings.appearance?.backgroundOpacity ?? "default";
-  applyColorMode(settings.appearance?.colorMode ?? "system");
-}
-
-function resolveColorMode(mode: ColorMode) {
-  if (mode !== "system") {
-    return mode;
-  }
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function applyColorMode(mode: ColorMode) {
-  document.documentElement.dataset.colorModePreference = mode;
-  document.documentElement.dataset.colorMode = resolveColorMode(mode);
-}
-
-onMounted(() => {
-  colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  colorSchemeQuery.addEventListener("change", handleSystemColorSchemeChange);
-  applyColorMode("system");
-  void loadSettings();
-});
-
 watch(
   () => selectedId.value,
   (nextId) => {
@@ -459,68 +369,6 @@ watch(
     applyAppSettingsDefaults(appSettings.value);
   },
 );
-
-watch(
-  appSettings,
-  (settings) => {
-    setNotificationsEnabled(settings?.notifications?.enabled ?? false);
-  },
-  { immediate: true },
-);
-
-watch(
-  appSettings,
-  (settings) => {
-    if (!settings) {
-      return;
-    }
-
-    isSyncingFromSettings.value = true;
-    sortKey.value = settings.appearance?.sortKey ?? "added_at";
-    sortDirection.value = settings.appearance?.sortDirection ?? "desc";
-    compactView.value = settings.appearance?.compactView ?? false;
-    const loaded = (settings.appearance?.visibleColumns ?? [...DEFAULT_VISIBLE_COLUMNS]).filter(
-      (k) => VALID_COLUMN_KEY_SET.has(k),
-    );
-    if (!loaded.includes("file")) {
-      loaded.unshift("file");
-    }
-    visibleColumns.value = loaded;
-    nextTick(() => {
-      isSyncingFromSettings.value = false;
-    });
-  },
-  { immediate: true },
-);
-
-const debouncedSaveAppearance = debounce(async () => {
-  if (!appSettings.value) return;
-  try {
-    await saveAppSettings(appSettings.value);
-  } catch (error) {
-    console.error("Failed to save view settings", error);
-  }
-}, 300);
-
-watch([sortKey, sortDirection, compactView, visibleColumns], () => {
-  if (isSyncingFromSettings.value || !appSettings.value) {
-    return;
-  }
-
-  appSettings.value.appearance.sortKey = sortKey.value;
-  appSettings.value.appearance.sortDirection = sortDirection.value;
-  appSettings.value.appearance.compactView = compactView.value;
-  appSettings.value.appearance.visibleColumns = [...visibleColumns.value];
-
-  debouncedSaveAppearance();
-});
-
-// Watcher #1 (failed detection) and Watcher #2 (stale selectedIds cleanup)
-// have been replaced with event-driven callbacks in useDownloader().
-
-onBeforeUnmount(() => {
-  colorSchemeQuery?.removeEventListener("change", handleSystemColorSchemeChange);
-});
 </script>
 
 <template>
@@ -658,105 +506,41 @@ onBeforeUnmount(() => {
         @pick-torrent="pickTorrentSourceFile" @submit="handleSubmitStart" />
     </UiDialog>
 
-    <UiDialog :model-value="Boolean(pendingPermanentDeleteId)" width="min(32rem, calc(100vw - 1.5rem))"
-      :close-on-overlay="actionName !== 'Purge'" @update:model-value="
-        (value) => {
-          if (!value) cancelPermanentDelete();
-        }
-      ">
-      <template #title>
-        <div class="dialog-heading">
-          <div>
-            <p class="section-kicker">{{ t("dialog.confirmDelete") }}</p>
-            <h2>{{ t("dialog.permanentDeleteTitle") }}</h2>
-          </div>
-          <span class="dialog-heading__icon dialog-heading__icon--danger i-ri-delete-bin-line" aria-hidden="true" />
-        </div>
-      </template>
-
-      <div class="confirm-delete">
-        <p class="confirm-delete__message">
-          {{ t("dialog.permanentDeleteMessage") }}
-        </p>
-        <div v-if="pendingPermanentDeleteTask" class="confirm-delete__target">
-          <span>{{ t("dialog.targetFile") }}</span>
-          <strong>{{ pendingPermanentDeleteTask.fileName }}</strong>
-        </div>
-        <div class="confirm-delete__actions">
-          <UiButton type="button" variant="secondary" :disabled="actionName === 'Purge'" @click="cancelPermanentDelete">
-            {{ t("common.cancel") }}
-          </UiButton>
-          <UiButton type="button" variant="danger" icon="i-ri-delete-bin-line" :loading="actionName === 'Purge'"
-            @click="confirmPermanentDelete">
-            {{ actionName === "Purge" ? t("dialog.deleting") : t("dialog.confirmPermanentDelete") }}
-          </UiButton>
-        </div>
+    <ConfirmDialog :model-value="Boolean(pendingPermanentDeleteId)"
+      :kicker="t('dialog.confirmDelete')" :title="t('dialog.permanentDeleteTitle')"
+      :message="t('dialog.permanentDeleteMessage')"
+      :confirm-text="actionName === 'Purge' ? t('dialog.deleting') : t('dialog.confirmPermanentDelete')"
+      :cancel-text="t('common.cancel')" icon="i-ri-delete-bin-line" :icon-danger="true"
+      confirm-icon="i-ri-delete-bin-line" :confirm-loading="actionName === 'Purge'"
+      :cancel-disabled="actionName === 'Purge'" :close-on-overlay="actionName !== 'Purge'"
+      @cancel="cancelPermanentDelete" @confirm="confirmPermanentDelete">
+      <div v-if="pendingPermanentDeleteTask" class="confirm-delete__target">
+        <span>{{ t('dialog.targetFile') }}</span>
+        <strong>{{ pendingPermanentDeleteTask.fileName }}</strong>
       </div>
-    </UiDialog>
+    </ConfirmDialog>
 
-    <UiDialog :model-value="showUnsavedSettingsDialog" width="min(32rem, calc(100vw - 1.5rem))" @update:model-value="
-      (value) => {
-        if (!value) cancelDiscardSettings();
-      }
-    ">
-      <template #title>
-        <div class="dialog-heading">
-          <div>
-            <p class="section-kicker">{{ unsavedDialogKicker }}</p>
-            <h2>{{ unsavedDialogTitle }}</h2>
-          </div>
-          <span class="dialog-heading__icon i-ri-error-warning-line" aria-hidden="true" />
-        </div>
+    <ConfirmDialog :model-value="showUnsavedSettingsDialog"
+      :kicker="unsavedDialogKicker" :title="unsavedDialogTitle"
+      :message="unsavedDialogMessage"
+      icon="i-ri-error-warning-line"
+      :confirm-text="isSavingBeforeNavigation ? t('common.saving') : t('dialog.saveSettingsAndLeave')"
+      :cancel-text="t('dialog.keepEditing')" confirm-variant="primary"
+      confirm-icon="i-ri-save-line" :confirm-loading="isSavingBeforeNavigation"
+      @cancel="cancelDiscardSettings" @confirm="saveSettingsAndNavigate">
+      <template #extra-actions>
+        <UiButton type="button" variant="danger" icon="i-ri-arrow-right-line" @click="confirmDiscardSettings">
+          {{ t('dialog.discardSettings') }}
+        </UiButton>
       </template>
+    </ConfirmDialog>
 
-      <div class="confirm-delete">
-        <p class="confirm-delete__message">
-          {{ unsavedDialogMessage }}
-        </p>
-        <div class="confirm-delete__actions">
-          <UiButton type="button" variant="secondary" @click="cancelDiscardSettings">
-            {{ t("dialog.keepEditing") }}
-          </UiButton>
-          <UiButton type="button" icon="i-ri-save-line" :loading="isSavingBeforeNavigation"
-            @click="saveSettingsAndNavigate">
-            {{ isSavingBeforeNavigation ? t("common.saving") : t("dialog.saveSettingsAndLeave") }}
-          </UiButton>
-          <UiButton type="button" variant="danger" icon="i-ri-arrow-right-line" @click="confirmDiscardSettings">
-            {{ t("dialog.discardSettings") }}
-          </UiButton>
-        </div>
-      </div>
-    </UiDialog>
-
-    <!-- Batch delete dialog -->
-    <UiDialog :model-value="showBatchDeleteDialog" width="min(32rem, calc(100vw - 1.5rem))" @update:model-value="
-      (value) => {
-        if (!value) showBatchDeleteDialog = false;
-      }
-    ">
-      <template #title>
-        <div class="dialog-heading">
-          <div>
-            <p class="section-kicker">{{ t("dialog.confirmDelete") }}</p>
-            <h2>{{ t("dialog.batchDeleteTitle") }}</h2>
-          </div>
-        </div>
-      </template>
-
-      <div class="confirm-delete">
-        <p class="confirm-delete__message">
-          {{ t("dialog.batchDeleteMessage", { count: selectedIds.size }) }}
-        </p>
-        <div class="confirm-delete__actions">
-          <UiButton type="button" variant="secondary" @click="showBatchDeleteDialog = false">
-            {{ t("common.cancel") }}
-          </UiButton>
-          <UiButton type="button" variant="danger" icon="i-ri-delete-bin-line" @click="confirmBatchDelete">
-            {{ t("dialog.confirmBatchDelete") }}
-          </UiButton>
-        </div>
-      </div>
-    </UiDialog>
+    <ConfirmDialog :model-value="showBatchDeleteDialog"
+      :kicker="t('dialog.confirmDelete')" :title="t('dialog.batchDeleteTitle')"
+      :message="t('dialog.batchDeleteMessage', { count: selectedIds.size })"
+      :confirm-text="t('dialog.confirmBatchDelete')" :cancel-text="t('common.cancel')"
+      confirm-icon="i-ri-delete-bin-line"
+      @cancel="showBatchDeleteDialog = false" @confirm="confirmBatchDelete" />
   </div>
 </template>
 
@@ -990,42 +774,6 @@ onBeforeUnmount(() => {
 
 /* ── Dialog styles ── */
 
-.dialog-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  width: 100%;
-}
-
-.dialog-heading h2 {
-  margin: 0.15rem 0 0;
-  font-size: var(--font-size-body);
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.dialog-heading__icon {
-  font-size: 1.25rem;
-  color: var(--color-text-muted);
-}
-
-.dialog-heading__icon--danger {
-  color: var(--color-danger-text);
-}
-
-.confirm-delete {
-  display: grid;
-  gap: 1rem;
-}
-
-.confirm-delete__message {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-small);
-  line-height: 1.6;
-}
-
 .confirm-delete__target {
   display: grid;
   gap: 0.25rem;
@@ -1048,13 +796,5 @@ onBeforeUnmount(() => {
   color: var(--color-heading);
   font-size: var(--font-size-small);
   overflow-wrap: anywhere;
-}
-
-.confirm-delete__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  padding-top: 0.25rem;
 }
 </style>

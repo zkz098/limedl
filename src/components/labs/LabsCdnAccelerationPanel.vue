@@ -335,7 +335,7 @@ onUnmounted(() => {
 <template>
   <UiCard>
     <template #header>
-      <div class="cdn-panel__header">
+      <div class="cdn-panel__header flex items-start justify-between gap-3">
         <div>
           <p class="section-kicker">{{ t("settings.cdnAcceleration.title") }}</p>
           <p class="panel-title">{{ t("settings.cdnAcceleration.description") }}</p>
@@ -351,16 +351,16 @@ onUnmounted(() => {
     </label>
 
     <!-- Staged progress -->
-    <div v-show="testing || phase" class="cdn-panel__progress">
-      <div class="cdn-panel__progress-header">
-        <span class="cdn-panel__phase-icon i-ri-loader-4-line cdn-panel__spin" aria-hidden="true" />
-        <span v-if="phaseLabel" class="cdn-panel__phase-label">{{ phaseLabel }}</span>
+    <div v-show="testing || phase" class="cdn-panel__progress mt-5">
+      <div class="cdn-panel__progress-header flex items-center gap-2 mb-2">
+        <span class="cdn-panel__phase-icon i-ri-loader-4-line cdn-panel__spin text-accent-strong" aria-hidden="true" />
+        <span v-if="phaseLabel" class="cdn-panel__phase-label text-sm">{{ phaseLabel }}</span>
       </div>
       <UiProgress :value="progressPercent" show-label :label="progressLabel" />
     </div>
 
     <!-- Action buttons -->
-    <div class="cdn-panel__actions">
+    <div class="cdn-panel__actions flex items-center gap-2 mt-4 flex-wrap">
       <UiButton
         variant="primary"
         :icon="testing ? undefined : 'i-ri-rocket-2-line'"
@@ -388,71 +388,71 @@ onUnmounted(() => {
     </div>
 
     <!-- Data warning -->
-    <p class="cdn-panel__hint">{{ t("settings.cdnAcceleration.dataWarning") }}</p>
+    <p class="cdn-panel__hint mt-2 text-xs">{{ t("settings.cdnAcceleration.dataWarning") }}</p>
 
     <!-- Error display -->
-    <div v-if="statusType === 'error'" class="cdn-panel__error">
+    <div v-if="statusType === 'error'" class="cdn-panel__error flex items-center gap-3 mt-4 px-4 py-3 rounded-md text-sm">
       <span class="i-ri-error-warning-line" aria-hidden="true" />
-      <span class="cdn-panel__error-msg">{{ draft.cdnAcceleration.lastError }}</span>
+      <span class="cdn-panel__error-msg flex-1 min-w-0">{{ draft.cdnAcceleration.lastError }}</span>
       <UiButton variant="secondary" size="sm" @click="startTest">
         {{ t("settings.cdnAcceleration.testAgain") }}
       </UiButton>
     </div>
 
     <!-- Result card -->
-    <div v-if="statusType === 'ready' && hasResult" class="cdn-panel__result">
-      <div class="cdn-panel__result-grid">
-        <div class="cdn-panel__result-item">
-          <span class="cdn-panel__result-key">{{ t("settings.cdnAcceleration.bestIp") }}</span>
-          <span class="cdn-panel__result-value cdn-panel__mono">{{
+    <div v-if="statusType === 'ready' && hasResult" class="cdn-panel__result mt-4 px-4 py-3 rounded-md">
+      <div class="cdn-panel__result-grid grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+        <div class="cdn-panel__result-item flex flex-col gap-1">
+          <span class="cdn-panel__result-key text-xs">{{ t("settings.cdnAcceleration.bestIp") }}</span>
+          <span class="cdn-panel__result-value font-mono font-semibold cdn-panel__mono">{{
             draft.cdnAcceleration.activeIp
           }}</span>
         </div>
-        <div class="cdn-panel__result-item">
-          <span class="cdn-panel__result-key">{{ t("settings.cdnAcceleration.speedMbps") }}</span>
-          <span class="cdn-panel__result-value">{{ activeSpeedFormatted }} MB/s</span>
+        <div class="cdn-panel__result-item flex flex-col gap-1">
+          <span class="cdn-panel__result-key text-xs">{{ t("settings.cdnAcceleration.speedMbps") }}</span>
+          <span class="cdn-panel__result-value font-mono font-semibold">{{ activeSpeedFormatted }} MB/s</span>
         </div>
-        <div v-if="lastTestTime" class="cdn-panel__result-item">
-          <span class="cdn-panel__result-key">{{ t("settings.cdnAcceleration.testedAt") }}</span>
-          <span class="cdn-panel__result-value">{{ lastTestTime }}</span>
+        <div v-if="lastTestTime" class="cdn-panel__result-item flex flex-col gap-1">
+          <span class="cdn-panel__result-key text-xs">{{ t("settings.cdnAcceleration.testedAt") }}</span>
+          <span class="cdn-panel__result-value font-mono font-semibold">{{ lastTestTime }}</span>
         </div>
       </div>
-      <div v-if="speedImprovement != null || latencyImprovement != null" class="cdn-panel__speedup">
-        <div class="cdn-panel__speedup-item">
-          <span class="cdn-panel__speedup-key">{{
+      <div v-if="speedImprovement != null || latencyImprovement != null" class="cdn-panel__speedup flex items-center gap-4 mt-3 pt-3 flex-wrap">
+        <div class="cdn-panel__speedup-item flex flex-col gap-1">
+          <span class="cdn-panel__speedup-key text-xs">{{
             t("settings.cdnAcceleration.speedupSpeed")
           }}</span>
           <span
-            class="cdn-panel__speedup-value"
+            class="cdn-panel__speedup-value font-mono font-bold"
             :class="{ 'cdn-panel__speedup-value--positive': (speedImprovement ?? 0) > 0 }"
             >{{ fmtImprovement(speedImprovement) }}</span
           >
         </div>
-        <div class="cdn-panel__speedup-item">
-          <span class="cdn-panel__speedup-key">{{
+        <div class="cdn-panel__speedup-item flex flex-col gap-1">
+          <span class="cdn-panel__speedup-key text-xs">{{
             t("settings.cdnAcceleration.speedupLatency")
           }}</span>
           <span
-            class="cdn-panel__speedup-value"
+            class="cdn-panel__speedup-value font-mono font-bold"
             :class="{ 'cdn-panel__speedup-value--positive': (latencyImprovement ?? 0) > 0 }"
             >{{ fmtImprovement(latencyImprovement) }}</span
           >
         </div>
-        <span class="cdn-panel__speedup-baseline">{{
+        <span class="cdn-panel__speedup-baseline text-xs ml-auto">{{
           t("settings.cdnAcceleration.vsDefault")
         }}</span>
       </div>
     </div>
 
     <!-- Candidate nodes table -->
-    <div v-if="candidates.length > 0" class="cdn-panel__candidates">
-      <div class="cdn-panel__candidates-header">
-        <h4 class="cdn-panel__candidates-title">
+    <div v-if="candidates.length > 0" class="cdn-panel__candidates mt-5 border rounded-md overflow-hidden">
+      <div class="cdn-panel__candidates-header flex items-center justify-between px-4 py-3">
+        <h4 class="cdn-panel__candidates-title m-0 text-sm font-semibold">
           {{ t("settings.cdnAcceleration.candidatesTitle") }}
         </h4>
         <button
           type="button"
-          class="cdn-panel__collapse-btn"
+          class="cdn-panel__collapse-btn inline-flex items-center justify-center w-8 h-8 border-none rounded-sm bg-transparent text-base cursor-pointer"
           :aria-expanded="showCandidates"
           @click="showCandidates = !showCandidates"
         >
@@ -462,15 +462,15 @@ onUnmounted(() => {
           />
         </button>
       </div>
-      <div v-show="showCandidates" class="cdn-panel__candidates-body">
-        <table class="cdn-panel__table">
+      <div v-show="showCandidates" class="cdn-panel__candidates-body overflow-x-auto">
+        <table class="cdn-panel__table w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th>{{ t("settings.cdnAcceleration.candidateIp") }}</th>
-              <th>{{ t("settings.cdnAcceleration.candidateLatency") }}</th>
-              <th>{{ t("settings.cdnAcceleration.candidateThroughput") }}</th>
-              <th>{{ t("settings.cdnAcceleration.candidateStatus") }}</th>
-              <th />
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateIp") }}</th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateLatency") }}</th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateThroughput") }}</th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateStatus") }}</th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold" />
             </tr>
           </thead>
           <tbody>
@@ -479,12 +479,12 @@ onUnmounted(() => {
               :key="c.ip"
               :class="{ 'cdn-panel__row--active': c.ip === activeIp }"
             >
-              <td class="cdn-panel__mono">{{ c.ip }}</td>
-              <td class="cdn-panel__metric">{{ fmtLatency(c.tcpLatencyMs) }} ms</td>
-              <td class="cdn-panel__metric">
+              <td class="cdn-panel__mono font-mono text-xs px-4 py-2 whitespace-nowrap">{{ c.ip }}</td>
+              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">{{ fmtLatency(c.tcpLatencyMs) }} ms</td>
+              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">
                 {{ c.throughputMbps != null ? `${fmtSpeed(c.throughputMbps)} MB/s` : "-" }}
               </td>
-              <td>
+              <td class="px-4 py-2 whitespace-nowrap">
                 <UiBadge v-if="c.ip === activeIp" tone="success" size="sm">
                   {{ t("settings.cdnAcceleration.candidateActive") }}
                 </UiBadge>
@@ -492,7 +492,7 @@ onUnmounted(() => {
                   {{ t("settings.cdnAcceleration.candidateFailed") }}
                 </UiBadge>
               </td>
-              <td>
+              <td class="px-4 py-2 whitespace-nowrap">
                 <UiButton
                   v-if="c.ip !== activeIp && c.throughputMbps !== null"
                   variant="secondary"
@@ -506,42 +506,42 @@ onUnmounted(() => {
             </tr>
           </tbody>
           <tfoot v-if="defaultNode">
-            <tr class="cdn-panel__row--default">
-              <td class="cdn-panel__mono">{{ defaultNode.ip ?? "-" }}</td>
-              <td class="cdn-panel__metric">{{ fmtLatency(defaultNode.tcpLatencyMs) }} ms</td>
-              <td class="cdn-panel__metric">
+            <tr class="cdn-panel__row--default italic">
+              <td class="cdn-panel__mono font-mono text-xs px-4 py-2 whitespace-nowrap">{{ defaultNode.ip ?? "-" }}</td>
+              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">{{ fmtLatency(defaultNode.tcpLatencyMs) }} ms</td>
+              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">
                 {{
                   defaultNode.throughputMbps != null
                     ? `${fmtSpeed(defaultNode.throughputMbps)} MB/s`
                     : "-"
                 }}
               </td>
-              <td>
+              <td class="px-4 py-2 whitespace-nowrap">
                 <UiBadge tone="neutral" size="sm">
                   {{ t("settings.cdnAcceleration.defaultNode") }}
                 </UiBadge>
               </td>
-              <td />
+              <td class="px-4 py-2 whitespace-nowrap" />
             </tr>
           </tfoot>
         </table>
       </div>
     </div>
 
-    <p v-if="candidates.length === 0 && !testing" class="cdn-panel__hint">
+    <p v-if="candidates.length === 0 && !testing" class="cdn-panel__hint mt-2 text-xs">
       {{ t("settings.cdnAcceleration.noCandidates") }}
     </p>
 
     <!-- Advanced section -->
-    <div class="cdn-panel__advanced">
+    <div class="cdn-panel__advanced mt-5 border rounded-md overflow-hidden">
       <button
         type="button"
-        class="cdn-panel__advanced-toggle"
+        class="cdn-panel__advanced-toggle flex items-center gap-2 w-full px-4 py-3 border-none text-sm font-semibold text-left cursor-pointer"
         :aria-expanded="showAdvanced"
         @click="toggleAdvanced"
       >
-        <span class="i-ri-settings-3-line cdn-panel__advanced-toggle-icon" aria-hidden="true" />
-        <span class="cdn-panel__advanced-toggle-label">{{
+        <span class="i-ri-settings-3-line cdn-panel__advanced-toggle-icon text-lg" aria-hidden="true" />
+        <span class="cdn-panel__advanced-toggle-label flex-1">{{
           t("settings.cdnAcceleration.advancedSection")
         }}</span>
         <span
@@ -549,32 +549,32 @@ onUnmounted(() => {
           aria-hidden="true"
         />
       </button>
-      <div v-show="showAdvanced" class="cdn-panel__advanced-body">
+      <div v-show="showAdvanced" class="cdn-panel__advanced-body p-4">
         <!-- Cloudflare IP Ranges -->
-        <div class="cdn-panel__advanced-block">
-          <h5 class="cdn-panel__advanced-title">
+        <div class="cdn-panel__advanced-block mb-4">
+          <h5 class="cdn-panel__advanced-title m-0 mb-2 text-xs font-semibold">
             {{ t("settings.cdnAcceleration.cloudflareRanges") }}
           </h5>
-          <div v-if="rangesLoaded" class="cdn-panel__ranges-list">
+          <div v-if="rangesLoaded" class="cdn-panel__ranges-list max-h-40 overflow-y-auto flex flex-wrap gap-1 p-2 border rounded-sm">
             <code
               v-for="range in cloudflareRanges"
               :key="range"
-              class="cdn-panel__mono cdn-panel__range-chip"
+              class="cdn-panel__mono cdn-panel__range-chip font-mono text-xs px-2 py-[0.125rem] border rounded-sm"
               >{{ range }}</code
             >
           </div>
-          <p v-else class="cdn-panel__hint">
+          <p v-else class="cdn-panel__hint mt-2 text-xs">
             <span class="i-ri-loader-4-line cdn-panel__spin" aria-hidden="true" />
             Loading ranges...
           </p>
         </div>
 
         <!-- Manual IP Apply -->
-        <div class="cdn-panel__advanced-block">
-          <h5 class="cdn-panel__advanced-title">{{ t("settings.cdnAcceleration.manualApply") }}</h5>
-          <p class="cdn-panel__hint">{{ t("settings.cdnAcceleration.manualApplyHint") }}</p>
-          <div class="cdn-panel__manual-row">
-            <div class="cdn-panel__manual-input">
+        <div class="cdn-panel__advanced-block mb-4">
+          <h5 class="cdn-panel__advanced-title m-0 mb-2 text-xs font-semibold">{{ t("settings.cdnAcceleration.manualApply") }}</h5>
+          <p class="cdn-panel__hint mt-2 text-xs">{{ t("settings.cdnAcceleration.manualApplyHint") }}</p>
+          <div class="cdn-panel__manual-row flex gap-2 items-start">
+            <div class="cdn-panel__manual-input flex-1 min-w-0">
               <UiInput v-model="manualIp" placeholder="e.g. 104.16.0.1" :disabled="testing" />
             </div>
             <UiButton
@@ -586,7 +586,7 @@ onUnmounted(() => {
               {{ t("settings.cdnAcceleration.manualApplyButton") }}
             </UiButton>
           </div>
-          <p v-if="manualIpError" class="cdn-panel__error-text">{{ manualIpError }}</p>
+          <p v-if="manualIpError" class="cdn-panel__error-text mt-1 text-xs">{{ manualIpError }}</p>
         </div>
       </div>
     </div>
@@ -594,36 +594,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* ── Header ── */
-.cdn-panel__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-/* ── Progress ── */
-.cdn-panel__progress {
-  margin-top: var(--space-5);
-}
-
-.cdn-panel__progress-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
-.cdn-panel__phase-icon {
-  font-size: 1rem;
-  color: var(--color-accent-strong);
-}
-
-.cdn-panel__phase-label {
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
 .cdn-panel__spin {
   animation: cdn-spin 0.8s linear infinite;
 }
@@ -634,158 +604,58 @@ onUnmounted(() => {
   }
 }
 
-/* ── Actions ── */
-.cdn-panel__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-  flex-wrap: wrap;
-}
-
-/* ── Hint ── */
+/* ── Layout containers with CSS variable borders ── */
 .cdn-panel__hint {
-  margin: var(--space-2) 0 0;
-  font-size: var(--font-size-micro);
   color: var(--color-text-muted);
 }
 
-/* ── Error ── */
-.cdn-panel__error {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-border);
-  color: var(--color-danger-text);
-  font-size: var(--font-size-small);
-}
-
-.cdn-panel__error-msg {
-  flex: 1;
-  min-width: 0;
-  word-break: break-word;
-}
-
-.cdn-panel__error-text {
-  margin: var(--space-1) 0 0;
-  font-size: var(--font-size-micro);
-  color: var(--color-danger-text);
-}
-
-/* ── Result ── */
 .cdn-panel__result {
-  margin-top: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
   background: var(--color-panel-muted);
   border: 1px solid var(--color-border);
 }
 
-.cdn-panel__result-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-3);
+.cdn-panel__candidates {
+  border: 1px solid var(--color-border);
 }
 
-.cdn-panel__result-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+.cdn-panel__candidates-header {
+  background: var(--color-panel-muted);
 }
 
-.cdn-panel__result-key {
-  font-size: var(--font-size-label);
-  color: var(--color-text-muted);
-}
-
-.cdn-panel__result-value {
-  color: var(--color-text-main);
-  font-family: var(--font-mono);
-  font-weight: 600;
+.cdn-panel__candidates-title {
+  color: var(--color-heading);
 }
 
 .cdn-panel__speedup {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
-  flex-wrap: wrap;
 }
 
-.cdn-panel__speedup-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.cdn-panel__speedup-key {
-  font-size: var(--font-size-label);
-  color: var(--color-text-muted);
-}
-
-.cdn-panel__speedup-value {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-metric);
-  font-weight: 700;
-  color: var(--color-text-main);
+.cdn-panel__speedup-baseline {
+  color: var(--color-text-soft);
 }
 
 .cdn-panel__speedup-value--positive {
   color: var(--color-success-text);
 }
 
-.cdn-panel__speedup-baseline {
-  font-size: var(--font-size-micro);
-  color: var(--color-text-soft);
-  margin-left: auto;
+/* ── Error ── */
+.cdn-panel__error {
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger-text);
 }
 
-/* ── Candidates ── */
-.cdn-panel__candidates {
-  margin-top: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+.cdn-panel__error-msg {
+  word-break: break-word;
 }
 
-.cdn-panel__candidates-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-panel-muted);
-}
-
-.cdn-panel__candidates-title {
-  margin: 0;
-  font-size: var(--font-size-small);
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.cdn-panel__candidates-body {
-  overflow-x: auto;
+.cdn-panel__error-text {
+  color: var(--color-danger-text);
 }
 
 /* ── Collapse button ── */
 .cdn-panel__collapse-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
   color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1.1rem;
   transition: background-color 0.2s ease;
 }
 
@@ -794,23 +664,12 @@ onUnmounted(() => {
 }
 
 /* ── Table ── */
-.cdn-panel__table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--font-size-small);
-}
-
 .cdn-panel__table th,
 .cdn-panel__table td {
-  padding: var(--space-2) var(--space-4);
-  text-align: left;
   border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
 }
 
 .cdn-panel__table th {
-  font-size: var(--font-size-label);
-  font-weight: 600;
   color: var(--color-text-muted);
   background: var(--color-surface-muted);
 }
@@ -833,7 +692,6 @@ onUnmounted(() => {
 
 .cdn-panel__row--default {
   background: var(--color-surface-muted);
-  font-style: italic;
   color: var(--color-text-muted);
 }
 
@@ -849,7 +707,6 @@ onUnmounted(() => {
 /* ── Monospace ── */
 .cdn-panel__mono {
   font-family: var(--font-mono);
-  font-size: var(--font-size-label);
 }
 
 .cdn-panel__metric {
@@ -858,26 +715,13 @@ onUnmounted(() => {
 
 /* ── Advanced section ── */
 .cdn-panel__advanced {
-  margin-top: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 .cdn-panel__advanced-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
   background: var(--color-panel-muted);
-  border: none;
   font: inherit;
-  font-size: var(--font-size-small);
-  font-weight: 600;
   color: var(--color-heading);
-  cursor: pointer;
-  text-align: left;
   transition: background-color 0.2s ease;
 }
 
@@ -886,20 +730,7 @@ onUnmounted(() => {
 }
 
 .cdn-panel__advanced-toggle-icon {
-  font-size: 1.1rem;
   color: var(--color-text-muted);
-}
-
-.cdn-panel__advanced-toggle-label {
-  flex: 1;
-}
-
-.cdn-panel__advanced-body {
-  padding: var(--space-4);
-}
-
-.cdn-panel__advanced-block {
-  margin-bottom: var(--space-4);
 }
 
 .cdn-panel__advanced-block:last-child {
@@ -907,31 +738,18 @@ onUnmounted(() => {
 }
 
 .cdn-panel__advanced-title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-label);
-  font-weight: 600;
   color: var(--color-text-main);
 }
 
 /* ── Ranges list ── */
 .cdn-panel__ranges-list {
-  max-height: 10rem;
-  overflow-y: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
   background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
 }
 
 .cdn-panel__range-chip {
-  padding: 0.125rem var(--space-2);
   background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-micro);
   color: var(--color-text-muted);
 }
 

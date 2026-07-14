@@ -47,61 +47,61 @@ function handleNavigate(view: string) {
 </script>
 
 <template>
-  <aside class="category-sidebar">
-    <nav class="category-list" :aria-label="t('categories.all')">
+  <aside class="category-sidebar flex flex-col gap-1 p-3 overflow-y-auto">
+    <nav class="category-list flex flex-col gap-[0.125rem]" :aria-label="t('categories.all')">
       <button
         v-for="cat in categories"
         :key="cat.key"
         type="button"
-        class="category-item"
+        class="category-item flex items-center gap-2 w-full px-3 py-2 border-none rounded-md bg-transparent text-sm cursor-pointer text-left relative"
         :class="{ 'category-item--active': activeCategory === cat.key }"
         @click="handleCategoryClick(cat.key)"
       >
-        <span class="category-item__icon" :class="cat.icon" aria-hidden="true" />
-        <span class="category-item__label">{{ t(cat.labelKey) }}</span>
-        <span class="category-item__count">{{ counts[cat.key] ?? 0 }}</span>
+        <span class="category-item__icon text-base flex-shrink-0" :class="cat.icon" aria-hidden="true" />
+        <span class="category-item__label flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{{ t(cat.labelKey) }}</span>
+        <span class="category-item__count text-xs rounded-full px-2 leading-[1.4] flex-shrink-0">{{ counts[cat.key] ?? 0 }}</span>
       </button>
     </nav>
 
-    <div class="category-sidebar__divider" aria-hidden="true" />
+    <div class="category-sidebar__divider h-px my-2" aria-hidden="true" />
 
-    <div class="category-sidebar__stats">
-      <div class="stat-row">
+    <div class="category-sidebar__stats flex flex-col gap-1">
+      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
         <span class="stat-row__label">{{ t("stats.totalTasks") }}</span>
-        <span class="stat-row__value">{{ stats.totalTasks }}</span>
+        <span class="stat-row__value font-semibold font-mono">{{ stats.totalTasks }}</span>
       </div>
-      <div class="stat-row">
+      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
         <span class="stat-row__label">{{ t("stats.active") }}</span>
-        <span class="stat-row__value">{{ stats.activeTasks }}</span>
+        <span class="stat-row__value font-semibold font-mono">{{ stats.activeTasks }}</span>
       </div>
-      <div class="stat-row">
+      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
         <span class="stat-row__label">{{ t("stats.completed") }}</span>
-        <span class="stat-row__value">{{ stats.completedTasks }}</span>
+        <span class="stat-row__value font-semibold font-mono">{{ stats.completedTasks }}</span>
       </div>
-      <div class="stat-row">
+      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
         <span class="stat-row__label">{{ t("stats.currentSpeed") }}</span>
-        <span class="stat-row__value">{{ formattedSpeed }}</span>
+        <span class="stat-row__value font-semibold font-mono">{{ formattedSpeed }}</span>
       </div>
     </div>
 
-    <div class="category-sidebar__spacer" />
+    <div class="category-sidebar__spacer flex-1" />
 
-    <div class="category-sidebar__bottom">
-      <div class="bottom-nav">
+    <div class="category-sidebar__bottom flex flex-col items-center gap-2 pt-2">
+      <div class="bottom-nav flex gap-1">
         <button
           v-for="nav in navItems"
           :key="nav.view"
           type="button"
-          class="bottom-nav__item"
+          class="bottom-nav__item flex items-center justify-center w-9 h-9 p-2 border-none rounded-md bg-transparent cursor-pointer"
           :class="{ 'bottom-nav__item--active': currentView === nav.view }"
           :aria-label="t(`nav.${nav.view}`)"
           @click="handleNavigate(nav.view)"
         >
-          <span class="bottom-nav__icon" :class="nav.icon" aria-hidden="true" />
+          <span class="bottom-nav__icon text-xl" :class="nav.icon" aria-hidden="true" />
         </button>
       </div>
-      <div class="bottom-brand">
-        <span class="i-ri-download-cloud-2-line bottom-brand__icon" aria-hidden="true" />
+      <div class="bottom-brand flex items-center gap-[0.35rem] text-xs font-semibold opacity-60">
+        <span class="i-ri-download-cloud-2-line bottom-brand__icon text-sm" aria-hidden="true" />
         <span class="bottom-brand__text">{{ t("common.appName") }}</span>
       </div>
     </div>
@@ -122,28 +122,10 @@ function handleNavigate(view: string) {
 
 /* ── Category list ── */
 
-.category-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
 .category-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
   color: var(--color-text-main);
   font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
-  text-align: left;
   transition: background-color 0.15s ease;
-  position: relative;
 }
 
 .category-item:hover {
@@ -162,58 +144,26 @@ function handleNavigate(view: string) {
   padding-left: calc(var(--space-3) - 3px);
 }
 
-.category-item__icon {
-  font-size: 1rem;
-  flex-shrink: 0;
-  color: var(--color-text-muted);
-}
-
 .category-item--active .category-item__icon {
   color: var(--color-accent-strong);
 }
 
-.category-item__label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.category-item__icon {
+  color: var(--color-text-muted);
 }
 
 .category-item__count {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
   background: var(--color-surface-muted);
-  border-radius: var(--radius-pill);
-  padding: 0 0.5rem;
-  line-height: 1.4;
-  flex-shrink: 0;
+  color: var(--color-text-muted);
 }
 
 /* ── Divider ── */
 
 .category-sidebar__divider {
-  height: 1px;
   background: var(--color-border);
-  margin: var(--space-2) 0;
 }
 
 /* ── Stats ── */
-
-.category-sidebar__stats {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.stat-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
 
 .stat-row__label {
   color: var(--color-text-muted);
@@ -221,43 +171,12 @@ function handleNavigate(view: string) {
 
 .stat-row__value {
   color: var(--color-text-main);
-  font-weight: 600;
-  font-family: var(--font-mono);
 }
 
 /* ── Spacer ── */
 
-.category-sidebar__spacer {
-  flex: 1;
-}
-
-/* ── Bottom nav ── */
-
-.category-sidebar__bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding-top: var(--space-2);
-}
-
-.bottom-nav {
-  display: flex;
-  gap: var(--space-1);
-}
-
 .bottom-nav__item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: var(--space-2);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
   color: var(--color-text-muted);
-  cursor: pointer;
   transition:
     background-color 0.15s ease,
     color 0.15s ease;
@@ -272,21 +191,7 @@ function handleNavigate(view: string) {
   color: var(--color-accent-strong);
 }
 
-.bottom-nav__icon {
-  font-size: 1.25rem;
-}
-
 .bottom-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  opacity: 0.6;
-}
-
-.bottom-brand__icon {
-  font-size: 0.875rem;
 }
 </style>

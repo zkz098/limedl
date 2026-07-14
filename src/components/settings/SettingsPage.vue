@@ -121,7 +121,6 @@ const optionArrays: SettingsOptionArrays = {
 };
 
 const {
-  pageSummary,
   proxySummary,
   loggingSummary,
   downloadSummary,
@@ -250,34 +249,39 @@ defineExpose({
 </script>
 
 <template>
-  <section class="settings-page">
-    <div class="desk-panel__header settings-page__header">
+  <section class="settings-page flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+    <div class="desk-panel__header settings-page__header flex-none items-end">
       <div>
         <p class="section-kicker">{{ t("settings.kicker") }}</p>
         <h2 class="panel-title">{{ t("settings.title") }}</h2>
       </div>
     </div>
 
-    <div class="settings-page__layout">
-      <aside class="settings-page__sidebar" role="tablist" :aria-label="t('settings.title')">
-        <nav class="settings-page__tabs">
-          <button v-for="tab in tabs" :key="tab.id" type="button" role="tab" class="settings-page__tab"
-            :class="{ 'settings-page__tab--active': activeTab === tab.id }" :aria-selected="activeTab === tab.id"
+    <div class="settings-page__layout flex flex-1 gap-5 min-h-0 overflow-hidden">
+      <aside class="settings-page__sidebar w-52 flex-none flex flex-col gap-3 pb-4" role="tablist" :aria-label="t('settings.title')">
+        <nav class="settings-page__tabs flex flex-col gap-1">
+          <button v-for="tab in tabs" :key="tab.id" type="button" role="tab"
+            :class="[
+              'relative min-h-[2.75rem] flex items-center gap-[0.6rem] px-[0.9rem] border border-transparent rounded-md text-sm text-left cursor-pointer select-none transition-colors duration-150',
+              activeTab === tab.id
+                ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)] font-semibold before:absolute before:left-0 before:top-[0.55rem] before:bottom-[0.55rem] before:w-[3px] before:rounded-r-[2px] before:bg-[var(--color-accent-strong)]'
+                : 'text-[var(--color-text-muted)] bg-transparent hover:text-[var(--color-heading)] hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:border-[var(--color-accent-strong)] focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]',
+            ]" :aria-selected="activeTab === tab.id"
             @click="activeTab = tab.id">
             <span :class="tab.icon" aria-hidden="true" />
             <span>{{ t(tab.labelKey) }}</span>
           </button>
         </nav>
 
-        <div class="settings-page__save">
-          <p class="settings-page__save-hint">{{ t("settings.saveHint") }}</p>
+        <div class="settings-page__save flex-none flex flex-col gap-2 mt-auto pt-3">
+          <p class="settings-page__save-hint m-0 text-xs leading-[1.45]">{{ t("settings.saveHint") }}</p>
           <UiButton type="button" icon="i-ri-save-line" block :loading="isSaving" @click="persistSettings">
             {{ isSaving ? t("common.saving") : t("common.save") }}
           </UiButton>
         </div>
       </aside>
 
-      <div class="settings-page__content">
+      <div class="settings-page__content flex-1 overflow-y-auto min-w-0 min-h-0 pb-4">
         <SettingsAppearancePanel v-show="activeTab === 'appearance'" :draft="form" :t="t" :language="language"
           :language-options="languageOptions" :color-mode-options="colorModeOptions"
           :background-opacity-options="backgroundOpacityOptions" @change-language="changeLanguage" />
@@ -311,41 +315,8 @@ defineExpose({
   </section>
 </template>
 
-<style scoped>
-.settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.settings-page__header {
-  flex: 0 0 auto;
-  align-items: flex-end;
-}
-
-.settings-page__header-meta {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 1rem;
-  min-width: 0;
-}
-
-@media (max-width: 960px) {
-
-  .settings-page__header-meta {
-    width: 100%;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-</style>
-
 <style>
-/* ── Shared sidebar layout for SettingsPage & LabsPage ───────────── */
+/* ── LabsPage sidebar layout (SettingsPage migrated to utilities) ── */
 
 .settings-page__layout,
 .labs-page__layout {
@@ -495,11 +466,6 @@ defineExpose({
     min-height: 2.25rem;
     padding: 0 0.75rem;
     white-space: nowrap;
-  }
-
-  .settings-page__tab--active::before,
-  .labs-page__tab--active::before {
-    display: none;
   }
 
   .settings-page__save,

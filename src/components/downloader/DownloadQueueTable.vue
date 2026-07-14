@@ -399,36 +399,36 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="queue-panel">
-    <div class="desk-panel__header queue-panel__header">
+  <section class="queue-panel grid gap-4">
+    <div class="desk-panel__header queue-panel__header py-1">
       <div>
         <p class="section-kicker">{{ t("queue.kicker") }}</p>
         <h2 class="panel-title">{{ t("queue.title") }}</h2>
       </div>
 
-      <div class="queue-panel__actions">
-        <span class="sync-pill" :data-active="isSyncIndicatorVisible">{{
+      <div class="queue-panel__actions inline-flex items-center gap-2 flex-wrap">
+        <span class="sync-pill inline-flex items-center justify-center min-h-7 min-w-[6.5rem] px-3 rounded-md border text-xs tracking-normal capitalize" :data-active="isSyncIndicatorVisible">{{
           isSyncIndicatorVisible ? t("queue.autoSyncing") : t("queue.idle")
         }}</span>
       </div>
     </div>
 
-    <div v-if="sortedDownloads.length" class="queue-panel__table">
-      <div class="queue-table-shell">
-        <table class="queue-table" :class="{ 'queue-table--compact': viewOptions.compactView }">
+    <div v-if="sortedDownloads.length" class="queue-panel__table grid gap-[0.625rem]">
+      <div class="queue-table-shell min-h-[30rem] border rounded-md overflow-hidden">
+        <table class="queue-table w-full border-collapse table-fixed" :class="{ 'queue-table--compact': viewOptions.compactView }">
           <thead>
             <tr>
-              <th v-if="multiSelect.multiSelectMode" class="queue-cell--checkbox">
-                <input type="checkbox" :checked="allPageSelected" @change="toggleSelectAllOnPage" />
+              <th v-if="multiSelect.multiSelectMode" class="queue-cell--checkbox w-10 text-center align-middle p-0">
+                <input type="checkbox" class="w-4 h-4 m-0 cursor-pointer" :checked="allPageSelected" @change="toggleSelectAllOnPage" />
               </th>
-              <th v-for="column in visibleColumnsOrdered" :key="column.key">{{ column.label }}</th>
+              <th v-for="column in visibleColumnsOrdered" :key="column.key" class="h-8 px-3 text-left text-xs font-semibold uppercase tracking-wider">{{ column.label }}</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="download in pagedDownloads"
               :key="download.id"
-              class="queue-row"
+              class="queue-row min-h-[3.5rem] cursor-pointer"
               :class="{
                 'queue-row--active': !multiSelect.multiSelectMode && download.id === selectedId,
                 'queue-row--selected': multiSelect.multiSelectMode && multiSelect.selectedIds.has(download.id),
@@ -438,23 +438,24 @@ onUnmounted(() => {
               "
               @contextmenu.prevent.stop="openTaskContextMenu($event, download.id)"
             >
-              <td v-if="multiSelect.multiSelectMode" class="queue-cell queue-cell--checkbox">
+              <td v-if="multiSelect.multiSelectMode" class="queue-cell w-10 text-center align-middle p-0">
                 <input
                   type="checkbox"
+                  class="w-4 h-4 m-0 cursor-pointer"
                   :checked="multiSelect.selectedIds.has(download.id)"
                   @change="$emit('toggleSelect', download.id)"
                 />
               </td>
-              <td v-if="isColumnVisible('file')" class="queue-cell queue-cell--file">
-                <div class="queue-file">
-                  <span class="queue-file__title">
-                    <span class="queue-file__name">{{ download.fileName }}</span>
-                    <span class="queue-file__kind">{{ labelForTaskKind(download.kind) }}</span>
+              <td v-if="isColumnVisible('file')" class="queue-cell queue-cell--file w-[24%] px-2 py-1 align-middle text-[0.8125rem]">
+                <div class="queue-file grid gap-[0.1rem] min-w-0">
+                  <span class="queue-file__title flex items-center gap-[0.4rem] min-w-0">
+                    <span class="queue-file__name min-w-0 font-semibold text-[0.82rem] leading-[1.2] truncate">{{ download.fileName }}</span>
+                    <span class="queue-file__kind flex-none px-[0.3rem] py-[0.05rem] rounded-sm border text-[0.6rem] font-semibold leading-[1.3]">{{ labelForTaskKind(download.kind) }}</span>
                     <UiBadge
                       v-if="download.cdnAccelerated"
                       size="sm"
                       tone="warning"
-                      class="queue-file__cdn"
+                      class="queue-file__cdn flex-none inline-flex items-center gap-[0.15rem] text-[0.6rem] font-semibold"
                     >
                       <span class="i-ri-flashlight-fill" aria-hidden="true" />
                       CDN
@@ -463,7 +464,7 @@ onUnmounted(() => {
                       v-if="download.degraded"
                       size="sm"
                       tone="warning"
-                      class="queue-file__degraded"
+                      class="queue-file__degraded flex-none inline-flex items-center gap-[0.15rem] text-[0.6rem] font-semibold cursor-help"
                       :title="t('queue.degradedHint')"
                     >
                       {{ t("queue.degraded") }}
@@ -472,35 +473,35 @@ onUnmounted(() => {
                       v-if="download.diskType === 'hdd'"
                       size="sm"
                       tone="info"
-                      class="queue-file__hdd"
+                      class="queue-file__hdd flex-none inline-flex items-center gap-[0.15rem] text-[0.6rem] font-semibold cursor-help"
                       :title="t('queue.hddHint')"
                     >
                       <span class="i-ri-hard-drive-2-line" aria-hidden="true" />
                       HDD
                     </UiBadge>
                   </span>
-                  <span class="queue-file__path">{{ download.destinationPath }}</span>
-                  <span class="queue-file__meta">{{ metaForDownload(download) }}</span>
+                  <span class="queue-file__path text-[0.72rem] leading-[1.2] font-mono truncate">{{ download.destinationPath }}</span>
+                  <span class="queue-file__meta text-[0.68rem] leading-[1.2] truncate">{{ metaForDownload(download) }}</span>
                 </div>
               </td>
 
-              <td v-if="isColumnVisible('size')" class="queue-cell queue-cell--size">
+              <td v-if="isColumnVisible('size')" class="queue-cell queue-cell--size w-[8%] px-2 py-1 align-middle text-[0.8125rem]">
                 {{ formatBytes(download.totalBytes) }}
               </td>
 
-              <td v-if="isColumnVisible('downloaded')" class="queue-cell queue-cell--downloaded">
+              <td v-if="isColumnVisible('downloaded')" class="queue-cell queue-cell--downloaded w-[10%] px-2 py-1 align-middle text-[0.8125rem]">
                 {{ formatBytes(download.downloadedBytes) }}
               </td>
 
-              <td v-if="isColumnVisible('status')" class="queue-cell queue-cell--status">
+              <td v-if="isColumnVisible('status')" class="queue-cell queue-cell--status w-[10%] px-2 py-1 align-middle text-[0.8125rem]">
                 <UiBadge size="sm" :tone="isFlushing(download) ? 'info' : toneForState(download.state)">{{
                   isFlushing(download) ? t("queue.flushingShort") : t(`states.${download.state}`)
                 }}</UiBadge>
               </td>
 
-              <td v-if="isColumnVisible('progress')" class="queue-cell queue-cell--progress">
-                <div class="queue-progress">
-                  <div class="queue-progress__copy">
+              <td v-if="isColumnVisible('progress')" class="queue-cell queue-cell--progress w-[18%] px-2 py-1 align-middle text-[0.8125rem]">
+                <div class="queue-progress grid gap-[0.2rem]">
+                  <div class="queue-progress__copy flex justify-between gap-2 text-[0.7rem]">
                     <span :class="{ 'queue-progress__flushing': isFlushing(download) }">{{ progressPrimaryText(download) }}</span>
                     <span>
                       {{ formatBytes(download.downloadedBytes) }} /
@@ -514,11 +515,11 @@ onUnmounted(() => {
                 </div>
               </td>
 
-              <td v-if="isColumnVisible('speed')" class="queue-cell queue-cell--speed">
+              <td v-if="isColumnVisible('speed')" class="queue-cell queue-cell--speed w-[10%] px-2 py-1 align-middle text-[0.8125rem]">
                 {{ formatSpeed(download.speedBytesPerSecond) }}
               </td>
 
-              <td v-if="isColumnVisible('uploadSpeed')" class="queue-cell queue-cell--up-speed">
+              <td v-if="isColumnVisible('uploadSpeed')" class="queue-cell queue-cell--up-speed w-[8%] px-2 py-1 align-middle text-[0.8125rem]">
                 {{
                   download.kind === "bt"
                     ? formatSpeed(download.uploadSpeedBytesPerSecond)
@@ -526,7 +527,7 @@ onUnmounted(() => {
                 }}
               </td>
 
-              <td v-if="isColumnVisible('seeds')" class="queue-cell queue-cell--seeds">
+              <td v-if="isColumnVisible('seeds')" class="queue-cell queue-cell--seeds w-[6%] px-2 py-1 align-middle text-[0.8125rem]">
                 {{
                   download.kind === "bt"
                     ? `${download.seedCount ?? "\u2014"}/${download.leechCount ?? "\u2014"}`
@@ -534,7 +535,7 @@ onUnmounted(() => {
                 }}
               </td>
 
-              <td v-if="isColumnVisible('eta')" class="queue-cell queue-cell--eta">
+              <td v-if="isColumnVisible('eta')" class="queue-cell queue-cell--eta w-[6%] px-2 py-1 align-middle text-[0.8125rem]">
                 {{ formatEta(download.etaSeconds) }}
               </td>
             </tr>
@@ -542,13 +543,13 @@ onUnmounted(() => {
         </table>
       </div>
 
-      <div class="queue-pagination">
-        <p class="queue-pagination__summary">
+      <div class="queue-pagination flex items-center justify-between gap-3 flex-wrap">
+        <p class="queue-pagination__summary m-0 text-sm">
           {{
             t("queue.showing", { start: pageStart, end: pageEnd, total: sortedDownloads.length })
           }}
         </p>
-        <div class="queue-pagination__actions">
+        <div class="queue-pagination__actions inline-flex items-center gap-[0.35rem] flex-wrap">
           <UiButton
             type="button"
             size="sm"
@@ -559,7 +560,7 @@ onUnmounted(() => {
           >
             {{ t("queue.previous") }}
           </UiButton>
-          <span class="queue-pagination__page">{{
+          <span class="queue-pagination__page m-0 text-sm">{{
             t("queue.page", { current: currentPage, total: totalPages })
           }}</span>
           <UiButton
@@ -578,13 +579,13 @@ onUnmounted(() => {
       <Teleport to="body">
         <div
           v-if="contextMenu && contextMenuDownload"
-          class="task-context-menu"
+          class="task-context-menu fixed z-30 min-w-48 grid gap-[0.15rem] p-[0.35rem] border rounded-md"
           :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
           @pointerdown.stop
         >
           <button
             type="button"
-            class="task-context-menu__item"
+            class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
             :disabled="!canTogglePauseOrResume"
             @click="handlePauseOrResume"
           >
@@ -592,28 +593,28 @@ onUnmounted(() => {
             <span>{{ contextActionLabel }}</span>
           </button>
           <template v-if="contextMenuDownload?.kind === 'bt'">
-            <button type="button" class="task-context-menu__item" @click="onSetBtSpeedLimit">
+            <button type="button" class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer" @click="onSetBtSpeedLimit">
               <span class="i-ri-speed-up-line" aria-hidden="true" />
               <span>{{ t("queue.setSpeedLimit") }}</span>
             </button>
           </template>
-          <button type="button" class="task-context-menu__item" @click="handleDeleteTask">
+          <button type="button" class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer" @click="handleDeleteTask">
             <span class="i-ri-delete-bin-6-line" aria-hidden="true" />
             <span>{{ t("queue.deleteTask") }}</span>
           </button>
-          <button type="button" class="task-context-menu__item" @click="handleCopyLink">
+          <button type="button" class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer" @click="handleCopyLink">
             <span class="i-ri-file-copy-line" aria-hidden="true" />
             <span>{{ t("queue.copyLink") }}</span>
           </button>
           <button
             type="button"
-            class="task-context-menu__item task-context-menu__item--danger"
+            class="task-context-menu__item task-context-menu__item--danger flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
             @click="handleDeleteTaskPermanently"
           >
             <span class="i-ri-delete-bin-line" aria-hidden="true" />
             <span>{{ t("queue.permanentDelete") }}</span>
           </button>
-          <button type="button" class="task-context-menu__item" @click="handleOpenInExplorer">
+          <button type="button" class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer" @click="handleOpenInExplorer">
             <span class="i-ri-folder-open-line" aria-hidden="true" />
             <span>{{ t("queue.openInExplorer") }}</span>
           </button>
@@ -621,47 +622,23 @@ onUnmounted(() => {
       </Teleport>
     </div>
 
-    <div v-else-if="downloads.length" class="queue-empty">
-      <span class="queue-empty__icon i-ri-search-eye-line" aria-hidden="true" />
-      <h3>{{ t("queue.noResults") }}</h3>
+    <div v-else-if="downloads.length" class="queue-empty grid gap-2 place-items-center min-h-[18rem] text-center border border-dashed rounded-md">
+      <span class="queue-empty__icon text-[1.75rem] i-ri-search-eye-line" aria-hidden="true" />
+      <h3 class="m-0">{{ t("queue.noResults") }}</h3>
     </div>
-    <div v-else class="queue-empty">
-      <span class="queue-empty__icon i-ri-inbox-archive-line" aria-hidden="true" />
-      <h3>{{ t("queue.emptyTitle") }}</h3>
-      <p>{{ t("queue.emptyDescription") }}</p>
+    <div v-else class="queue-empty grid gap-2 place-items-center min-h-[18rem] text-center border border-dashed rounded-md">
+      <span class="queue-empty__icon text-[1.75rem] i-ri-inbox-archive-line" aria-hidden="true" />
+      <h3 class="m-0">{{ t("queue.emptyTitle") }}</h3>
+      <p class="m-0">{{ t("queue.emptyDescription") }}</p>
     </div>
   </section>
 </template>
 
 <style scoped>
-.queue-panel {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.queue-panel__header {
-  padding: 0.25rem 0;
-}
-
-.queue-panel__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
 .sync-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.75rem;
-  min-width: 6.5rem;
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-panel);
   color: var(--color-text-muted);
-  font-size: var(--font-size-label);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -679,42 +656,19 @@ onUnmounted(() => {
     color 0.2s ease;
 }
 
-.queue-panel__table {
-  display: grid;
-  gap: 0.625rem;
-}
-
 .queue-table-shell {
-  min-height: 30rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
   background: var(--color-panel);
 }
 
-.queue-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
 .queue-table thead th {
-  height: 2rem;
-  padding: 0 0.75rem;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-panel-muted);
   color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 600;
   letter-spacing: var(--letter-spacing-wide);
-  text-align: left;
-  text-transform: uppercase;
 }
 
 .queue-table tbody tr {
-  height: auto;
-  min-height: 3.5rem;
-  cursor: pointer;
   transition: background-color 0.15s ease;
 }
 
@@ -742,25 +696,8 @@ onUnmounted(() => {
   border-top-color: var(--color-border);
 }
 
-.queue-cell--checkbox {
-  width: 2.5rem;
-  text-align: center;
-  vertical-align: middle;
-  padding: 0;
-}
-
-.queue-cell--checkbox input {
-  width: 1rem;
-  height: 1rem;
+.queue-cell input {
   accent-color: var(--color-accent);
-  cursor: pointer;
-  margin: 0;
-}
-
-.queue-cell {
-  padding: var(--space-1) var(--space-2);
-  vertical-align: middle;
-  font-size: 0.8125rem;
 }
 
 .queue-table--compact tbody tr {
@@ -781,157 +718,55 @@ onUnmounted(() => {
   font-size: 0.65rem;
 }
 
-.queue-cell--file {
-  width: 24%;
-}
-
 .queue-cell--size {
-  width: 8%;
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
 }
 
 .queue-cell--downloaded {
-  width: 10%;
   color: var(--color-text-soft);
-  font-size: 0.8125rem;
-}
-
-.queue-cell--status {
-  width: 10%;
-}
-
-.queue-cell--progress {
-  width: 18%;
 }
 
 .queue-cell--speed {
-  width: 10%;
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
 }
 
 .queue-cell--up-speed {
-  width: 8%;
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
 }
 
 .queue-cell--seeds {
-  width: 6%;
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
 }
 
 .queue-cell--eta {
-  width: 6%;
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
-}
-
-.queue-file {
-  display: grid;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.queue-file__title {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
 }
 
 .queue-file__name {
-  min-width: 0;
   color: var(--color-heading);
-  font-weight: 600;
-  font-size: 0.82rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .queue-file__kind {
-  flex: 0 0 auto;
-  padding: 0.05rem 0.3rem;
-  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-panel-muted);
   color: var(--color-text-muted);
-  font-size: 0.6rem;
-  font-weight: 600;
-  line-height: 1.3;
 }
 
-.queue-file__cdn {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  font-size: 0.6rem;
-  font-weight: 600;
-}
-
-.queue-file__cdn .i-ri-flashlight-fill {
-  font-size: 0.7rem;
-}
-
-.queue-file__degraded {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  font-size: 0.6rem;
-  font-weight: 600;
-  cursor: help;
-}
-
-.queue-file__hdd {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  font-size: 0.6rem;
-  font-weight: 600;
-  cursor: help;
-}
-
+.queue-file__cdn .i-ri-flashlight-fill,
 .queue-file__hdd .i-ri-hard-drive-2-line {
   font-size: 0.7rem;
 }
 
 .queue-file__path {
   color: var(--color-text-muted);
-  font-size: 0.72rem;
-  line-height: 1.2;
-  font-family: var(--font-mono);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .queue-file__meta {
   color: var(--color-text-soft);
-  font-size: 0.68rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.queue-progress {
-  display: grid;
-  gap: 0.2rem;
 }
 
 .queue-progress__copy {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
   color: var(--color-text-muted);
-  font-size: 0.7rem;
 }
 
 .queue-progress__flushing {
@@ -956,75 +791,28 @@ onUnmounted(() => {
 }
 
 .queue-empty {
-  display: grid;
-  gap: var(--space-2);
-  place-items: center;
-  min-height: 18rem;
-  text-align: center;
   color: var(--color-text-muted);
   border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-md);
   background: var(--color-panel-muted);
 }
 
-.queue-empty h3,
-.queue-empty p {
-  margin: 0;
-}
-
 .queue-empty__icon {
-  font-size: 1.75rem;
   color: var(--color-accent);
-}
-
-.queue-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 
 .queue-pagination__summary,
 .queue-pagination__page {
-  margin: 0;
   color: var(--color-text-muted);
-  font-size: var(--font-size-small);
-}
-
-.queue-pagination__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
 }
 
 .task-context-menu {
-  position: fixed;
-  z-index: 30;
-  min-width: 12rem;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.35rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   background: var(--color-panel);
   box-shadow: var(--shadow-card-hover);
 }
 
 .task-context-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-height: 2rem;
-  padding: 0 0.6rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
   color: var(--color-text-main);
-  cursor: pointer;
-  font-size: var(--font-size-small);
-  text-align: left;
   transition:
     background-color 0.15s ease,
     color 0.15s ease;

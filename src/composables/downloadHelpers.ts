@@ -49,38 +49,28 @@ export function toMessage(error: unknown) {
 }
 
 export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
+  // Destructure only the fields that DownloadSummary expects.
+  // TypeScript enforces that every non-optional Summary field is listed.
+  // If a new field is added to DownloadSummary, this line will error,
+  // forcing a deliberate decision about whether to include it.
+  const {
+    id, kind, state, url, fileName, destinationPath,
+    totalBytes, downloadedBytes, connectionCount, threadMode,
+    requestedThreadCount, desiredThreadCount, allocatedThreadCount,
+    adaptiveProfile, threadNote, speedBytesPerSecond, etaSeconds,
+    uploadedBytes, uploadSpeedBytesPerSecond, peerCount,
+    uploadStatus, infoHash, error, cdnAccelerated, degraded,
+    diskType, flushing, createdAtMs, seedCount, leechCount,
+    downloadLimitBps, uploadLimitBps,
+  } = snapshot;
   return {
-    id: snapshot.id,
-    kind: snapshot.kind,
-    state: snapshot.state,
-    url: snapshot.url,
-    fileName: snapshot.fileName,
-    destinationPath: snapshot.destinationPath,
-    totalBytes: snapshot.totalBytes,
-    downloadedBytes: snapshot.downloadedBytes,
-    connectionCount: snapshot.connectionCount,
-    threadMode: snapshot.threadMode,
-    requestedThreadCount: snapshot.requestedThreadCount,
-    desiredThreadCount: snapshot.desiredThreadCount,
-    allocatedThreadCount: snapshot.allocatedThreadCount,
-    adaptiveProfile: snapshot.adaptiveProfile,
-    threadNote: snapshot.threadNote,
-    speedBytesPerSecond: snapshot.speedBytesPerSecond,
-    etaSeconds: snapshot.etaSeconds,
-    uploadedBytes: snapshot.uploadedBytes,
-    uploadSpeedBytesPerSecond: snapshot.uploadSpeedBytesPerSecond,
-    peerCount: snapshot.peerCount,
-    uploadStatus: snapshot.uploadStatus,
-    infoHash: snapshot.infoHash,
-    error: snapshot.error,
-    cdnAccelerated: snapshot.cdnAccelerated,
-    degraded: snapshot.degraded,
-    diskType: snapshot.diskType,
-    flushing: snapshot.flushing,
-    createdAtMs: snapshot.createdAtMs,
-    seedCount: snapshot.seedCount,
-    leechCount: snapshot.leechCount,
-    downloadLimitBps: snapshot.downloadLimitBps,
-    uploadLimitBps: snapshot.uploadLimitBps,
+    id, kind, state, url, fileName, destinationPath,
+    totalBytes, downloadedBytes, connectionCount, threadMode,
+    requestedThreadCount, desiredThreadCount, allocatedThreadCount,
+    adaptiveProfile, threadNote, speedBytesPerSecond, etaSeconds,
+    uploadedBytes, uploadSpeedBytesPerSecond, peerCount,
+    uploadStatus, infoHash, error, cdnAccelerated, degraded,
+    diskType, flushing, createdAtMs, seedCount, leechCount,
+    downloadLimitBps, uploadLimitBps,
   };
 }
