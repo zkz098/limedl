@@ -1,26 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, toRef } from "vue";
+import { ref, toRef } from "vue";
 
 import { useI18n } from "../../i18n";
 import { useNotification } from "../../composables/useNotification";
 import { saveAppSettings } from "../../lib/tauri/settings-api";
 import type {
-  AdaptiveProfile,
   AppSettings,
-  DeviceLearningMode,
-  LogLevel,
 } from "../../types/settings";
-import type { ChecksumMode } from "../../types/download";
 import UiButton from "../ui/UiButton.vue";
 
 import LabsCdnAccelerationPanel from "./LabsCdnAccelerationPanel.vue";
-import LabsNetworkLearningPanel from "./LabsNetworkLearningPanel.vue";
 
 import {
   serializeSettings,
   useSettingsForm,
-  useSettingsSummaries,
-  type SettingsOptionArrays,
 } from "../settings/settingsComposables";
 
 const props = defineProps<{
@@ -35,41 +28,16 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const { notifySuccess, notifyError } = useNotification();
 
-// ── Option arrays ────────────────────────────────────────────────
-
-const deviceModeOptions = computed<Array<{ label: string; value: DeviceLearningMode }>>(() => [
-  { label: t("tokens.fixed"), value: "fixed" },
-  { label: t("tokens.mobile"), value: "mobile" },
-  { label: t("tokens.semi_mobile"), value: "semi_mobile" },
-]);
-
-// Placeholder refs — required by SettingsOptionArrays shape, unused by labs panels.
-const adaptiveProfileOptions = computed<Array<{ label: string; value: AdaptiveProfile }>>(() => []);
-const checksumOptions = computed<Array<{ label: string; value: ChecksumMode }>>(() => []);
-const logLevelOptions = computed<Array<{ label: string; value: LogLevel }>>(() => []);
-
 // ── Reactive form (shared composable) ─────────────────────────────
 
 const { form, buildSettingsPayload, savedSettingsSnapshot } = useSettingsForm({
   settings: toRef(props, "settings"),
-  t,
   onDirtyChange: (isDirty) => emit("dirtyChange", isDirty),
 });
 
 // ── State ────────────────────────────────────────────────────────
 
 const isSaving = ref(false);
-
-// ── Summaries ────────────────────────────────────────────────────
-
-const optionArrays: SettingsOptionArrays = {
-  adaptiveProfileOptions,
-  deviceModeOptions,
-  checksumOptions,
-  logLevelOptions,
-};
-
-const { networkLearningSummary, networkMetricsCards } = useSettingsSummaries(form, t, optionArrays);
 
 // ── Actions ────────────────────────────────────────────────────────
 
@@ -98,10 +66,9 @@ async function persistSettings(): Promise<boolean> {
 
 // ── Tabs ──────────────────────────────────────────────────────────
 
-const activeTab = ref("networkLearning");
+const activeTab = ref("cdnAcceleration");
 
 const tabs = [
-  { id: "networkLearning", icon: "i-ri-radar-line", labelKey: "settings.networkLearning" },
   { id: "cdnAcceleration", icon: "i-ri-speed-up-line", labelKey: "settings.cdnAcceleration.title" },
 ] as const;
 
@@ -134,15 +101,6 @@ defineExpose({
     </div>
 
     <div class="labs-tab-content">
-      <LabsNetworkLearningPanel
-        v-show="activeTab === 'networkLearning'"
-        :draft="form"
-        :t="t"
-        :device-mode-options="deviceModeOptions"
-        :network-learning-summary="networkLearningSummary"
-        :network-metrics-cards="networkMetricsCards"
-      />
-
       <LabsCdnAccelerationPanel v-show="activeTab === 'cdnAcceleration'" :draft="form" :t="t" />
     </div>
 
@@ -275,7 +233,7 @@ defineExpose({
 <style>
 /* Shared structural classes needed by the labs panels (mirrors SettingsPage.vue).
    Non-scoped on purpose — child panel components reference these class names.
-   Modifying these will silently break LabsNetworkLearningPanel.vue.        */
+   Modifying these will silently break labs panel components.                */
 
 .labs .settings-section,
 .labs-page .settings-section {

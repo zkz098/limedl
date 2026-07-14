@@ -1,11 +1,10 @@
 import { computed, type Ref } from "vue";
-import { formatBytes, formatSpeed, formatTimestamp } from "../../lib/download-format";
+import { formatBytes } from "../../lib/download-format";
 import type { ChecksumMode } from "../../types/download";
-import type { AdaptiveProfile, AppSettings, DeviceLearningMode } from "../../types/settings";
+import type { AdaptiveProfile, AppSettings } from "../../types/settings";
 
 export interface SettingsOptionArrays {
   adaptiveProfileOptions: Ref<Array<{ label: string; value: AdaptiveProfile }>>;
-  deviceModeOptions: Ref<Array<{ label: string; value: DeviceLearningMode }>>;
   checksumOptions: Ref<Array<{ label: string; value: ChecksumMode }>>;
   logLevelOptions: Ref<Array<{ label: string; value: string }>>;
 }
@@ -13,10 +12,6 @@ export interface SettingsOptionArrays {
 export const DEFAULT_TRACKER_LIST_URL = "https://cf.trackerslist.com/best.txt";
 export const DEFAULT_HTTP_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
-function formatPercent(value: number) {
-  return `${(value * 100).toFixed(value >= 0.1 ? 0 : 1)}%`;
-}
 
 export function useSettingsSummaries(
   draft: AppSettings,
@@ -29,29 +24,10 @@ export function useSettingsSummaries(
     );
   }
 
-  function deviceModeLabel(mode: DeviceLearningMode) {
-    return opts.deviceModeOptions.value.find((option) => option.value === mode)?.label ?? mode;
-  }
-
-  function stabilityLabel(score: number) {
-    if (score >= 0.88) {
-      return t("settings.metrics.high");
-    }
-    if (score >= 0.68) {
-      return t("settings.metrics.medium");
-    }
-    return t("settings.metrics.low");
-  }
-
-  const currentScene = computed(() => {
-    return draft.networkLearning.scenes[0] ?? null;
-  });
-
   const pageSummary = computed(() => {
     if (draft.scheduler.mode === "traditional") {
       return t("settings.summaries.traditional", {
         tasks: draft.scheduler.traditional.maxParallelTasks,
-        deviceMode: deviceModeLabel(draft.networkLearning.deviceMode),
       });
     }
 
@@ -161,76 +137,7 @@ export function useSettingsSummaries(
     return t("settings.cdnAcceleration.statusIdle");
   });
 
-  const networkLearningSummary = computed(() => {
-    const scene = currentScene.value;
-    if (!scene) {
-      return t("settings.summaries.noNetworkProfile");
-    }
-
-    if (draft.networkLearning.deviceMode === "mobile") {
-      return t("settings.summaries.mobile", {
-        deviceMode: deviceModeLabel(draft.networkLearning.deviceMode),
-      });
-    }
-
-    if (!scene.learningEnabled) {
-      return t("settings.summaries.learningPaused");
-    }
-
-    if (!scene.learnedMetrics) {
-      return t("settings.summaries.noLearningSamples");
-    }
-
-    return t("settings.summaries.learning", {
-      deviceMode: deviceModeLabel(draft.networkLearning.deviceMode),
-      samples: scene.learnedMetrics.sampleCount,
-      threads: scene.learnedMetrics.recommendedInitialThreads,
-    });
-  });
-
-  const networkMetricsCards = computed(() => {
-    const metrics = currentScene.value?.learnedMetrics;
-    const learningOpen =
-      draft.networkLearning.deviceMode !== "mobile" && currentScene.value?.learningEnabled;
-
-    return [
-      {
-        label: t("settings.metrics.learningStatus"),
-        value: learningOpen ? t("common.enabled") : t("common.disabled"),
-      },
-      {
-        label: t("settings.metrics.estimatedBandwidth"),
-        value: metrics ? formatSpeed(metrics.estimatedBandwidthBps) : t("common.dash"),
-      },
-      {
-        label: t("settings.metrics.stability"),
-        value: metrics ? stabilityLabel(metrics.stabilityScore) : t("common.dash"),
-      },
-      {
-        label: t("settings.metrics.penaltyRate"),
-        value: metrics ? formatPercent(metrics.penaltyRate) : t("common.dash"),
-      },
-      {
-        label: t("settings.metrics.recommendedInitialThreads"),
-        value: metrics ? String(metrics.recommendedInitialThreads) : t("common.dash"),
-      },
-      {
-        label: t("settings.metrics.recommendedThreadCap"),
-        value: metrics ? String(metrics.recommendedMaxThreadsPerTaskCap) : t("common.dash"),
-      },
-      {
-        label: t("settings.metrics.sampleCount"),
-        value: metrics ? String(metrics.sampleCount) : "0",
-      },
-      {
-        label: t("settings.metrics.lastLearnedAt"),
-        value: metrics ? formatTimestamp(metrics.lastObservedAtMs) : t("common.dash"),
-      },
-    ];
-  });
-
   return {
-    currentScene,
     pageSummary,
     proxySummary,
     loggingSummary,
@@ -242,9 +149,6 @@ export function useSettingsSummaries(
     trackerListEntries,
     btSummary,
     cdnAccelerationSummary,
-    networkLearningSummary,
-    networkMetricsCards,
-    deviceModeLabel,
     profileLabel,
   };
 }

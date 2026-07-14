@@ -21,6 +21,7 @@ import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
 import NotificationToast from "./components/ui/NotificationToast.vue";
 import type { AppSettings, ColorMode, SortDirection, SortKey } from "./types/settings";
+import type { ViewOptions, MultiSelectState } from "./components/downloader/queue-types";
 
 const downloaderOptions: UseDownloaderOptions = {
   onDownloadFailed: (fileName, reason) => {
@@ -61,7 +62,7 @@ const {
   isAutoRefreshing,
   isPickingDirectory,
   isPickingTorrent,
-  isRefreshingList,
+  isRefreshingList: _isRefreshingList,
   isRefreshingStatus,
   isStarting,
   applyAppSettingsDefaults,
@@ -141,6 +142,20 @@ const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger"
 
 const showDetailInfo = computed(() => appSettings.value?.appearance?.showDetailInfo ?? true);
 const showHeatmap = computed(() => appSettings.value?.appearance?.showHeatmap ?? true);
+
+const viewOptions = computed<ViewOptions>(() => ({
+  sortKey: sortKey.value,
+  sortDirection: sortDirection.value,
+  compactView: compactView.value,
+  visibleColumns: visibleColumns.value,
+}));
+
+const multiSelectState = computed<MultiSelectState>(() => ({
+  multiSelectMode: multiSelectMode.value,
+  selectedIds: selectedIds.value,
+  removedDownloadIds: removedDownloadIds.value,
+}));
+
 const showUnsavedSettingsDialog = computed(() => pendingView.value !== null);
 const pendingViewIsLeavingLabs = computed(
   () => currentView.value === "labs" && pendingView.value !== null,
@@ -548,25 +563,18 @@ onBeforeUnmount(() => {
           <div class="table-wrapper">
             <DownloadQueueTable
               :downloads="downloads"
-              :is-auto-refreshing="isAutoRefreshing"
-              :is-refreshing-list="isRefreshingList"
               :selected-id="selectedId"
               :task-action-name="actionName"
+              :is-auto-refreshing="isAutoRefreshing"
               :state-filter="activeCategory"
               :search-query="searchQuery"
-              :sort-key="sortKey"
-              :sort-direction="sortDirection"
-              :compact-view="compactView"
-              :visible-columns="visibleColumns"
-              :multi-select-mode="multiSelectMode"
-              :selected-ids="selectedIds"
-              :removed-download-ids="removedDownloadIds"
+              :view-options="viewOptions"
+              :multi-select="multiSelectState"
               @copy-link="runCopyLink"
               @delete-task="runDeleteTask"
               @delete-task-permanently="requestPermanentDelete"
               @open-in-explorer="runOpenInExplorer"
               @pause-or-resume="handleTaskPauseOrResume"
-              @refresh="refreshList"
               @select="selectDownload"
               @toggle-select="handleToggleSelect"
             />

@@ -362,14 +362,6 @@ const enUS = {
       intelligentChunkAllocation: "Intelligent Chunk Allocation",
       intelligentChunkAllocationHint:
         "When enabled, chunk size adjusts to file length automatically (applies to HTTP downloads only).",
-      networkLearning: "Network Learning",
-      networkLearningTitle: "Network Learning",
-      deviceMode: "Device mode",
-      deviceModeHint:
-        "Fixed devices learn actively, mobile devices do not learn, and semi-mobile devices accumulate profiles more conservatively.",
-      allowLearning: "Allow learning",
-      allowUpdateProfile: "Allow network profile updates",
-      pauseUpdateProfile: "Pause network profile updates",
       downloads: "Downloads",
       downloadsTitle: "Download Defaults",
       bt: "BT",
@@ -487,11 +479,10 @@ const enUS = {
         vsDefault: "vs. default node",
         defaultNode: "Default Node",
       },
-      defaultScene: "Default scene",
       unsetDefaultPath: "No default path",
       summaries: {
         traditional:
-          "Traditional mode runs up to {{tasks}} tasks at once. Current device mode is {{deviceMode}}.",
+          "Traditional mode runs up to {{tasks}} tasks at once.",
         automatic:
           "Automatic mode uses a {{threads}} thread budget, a {{perTask}} per-task limit, and the {{profile}} profile.",
         proxyDisabled: "Currently connecting directly without a proxy.",
@@ -505,28 +496,6 @@ const enUS = {
         bt: "DHT: {{dht}}; trackers: {{trackers}}; pause upload after {{uploadLimit}} uploaded or share ratio {{ratioLimit}}.",
         loggingDisabled: "Logging is currently disabled.",
         loggingEnabled: "Logging enabled (level: {{level}}, path: {{path}}).",
-        noNetworkProfile: "No network learning profile is available.",
-        mobile:
-          "Current mode is {{deviceMode}}. Network profiles will not be accumulated, and automatic scheduling falls back to static adaptive behavior.",
-        learningPaused:
-          "Network learning is paused. Automatic scheduling will fall back to static adaptive behavior.",
-        noLearningSamples:
-          "No learning samples yet. Future automatic-mode downloads will gradually build a network profile.",
-        learning:
-          "{{deviceMode}}; {{samples}} samples collected, recommended initial threads: {{threads}}.",
-      },
-      metrics: {
-        learningStatus: "Learning",
-        estimatedBandwidth: "Estimated bandwidth",
-        stability: "Stability",
-        penaltyRate: "Penalty rate",
-        recommendedInitialThreads: "Recommended initial threads",
-        recommendedThreadCap: "Recommended thread cap",
-        sampleCount: "Samples",
-        lastLearnedAt: "Last learned",
-        high: "High",
-        medium: "Medium",
-        low: "Low",
       },
       notifications: {
         chooseDirectoryFailed: "Failed to choose directory",
@@ -607,7 +576,6 @@ const enUS = {
       paused_by_limit: "Limit reached",
     },
     tokens: {
-      fixed: "Fixed",
       adaptive: "Adaptive",
       trace: "Trace",
       debug: "Debug",
@@ -622,8 +590,6 @@ const enUS = {
       manual: "Manual proxy",
       automatic: "Smart Dynamic",
       traditional: "Fixed Threads",
-      mobile: "Mobile",
-      semi_mobile: "Semi-mobile",
       none: "None",
       http: "HTTP",
       bt: "BT",

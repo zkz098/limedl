@@ -12,4 +12,4 @@ export {
   DEFAULT_HTTP_USER_AGENT,
   type SettingsOptionArrays,
 } from "./useSettingsSummaries";
-export { serializeSettings, copySingleNetworkScene, settingsDraftSnapshot } from "./settingsUtils";
+export { serializeSettings, settingsDraftSnapshot } from "./settingsUtils";

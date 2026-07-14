@@ -5,7 +5,6 @@ export type { AdaptiveProfile };
 export type ProxyMode = "disabled" | "system" | "manual";
 export type SchedulerMode = "traditional" | "automatic";
 export type ChunkSizeStrategy = "fixed" | "adaptive";
-export type DeviceLearningMode = "fixed" | "mobile" | "semi_mobile";
 export type ThemeColor = "default" | "amber" | "sky" | "lime";
 export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
 export type ColorMode = "light" | "dark" | "system";
@@ -69,30 +68,6 @@ export interface BtSettings {
   defaultUploadSpeedLimit?: number;
 }
 
-export interface NetworkLearningMetrics {
-  estimatedBandwidthBps: number;
-  stabilityScore: number;
-  penaltyRate: number;
-  recommendedInitialThreads: number;
-  recommendedMaxThreadsPerTaskCap: number;
-  sampleCount: number;
-  lastObservedAtMs: number;
-}
-
-export interface NetworkSceneProfile {
-  id: string;
-  name: string;
-  learningEnabled: boolean;
-  learnedMetrics: NetworkLearningMetrics | null;
-  updatedAtMs: number;
-}
-
-export interface NetworkLearningSettings {
-  deviceMode: DeviceLearningMode;
-  currentSceneId: string;
-  scenes: NetworkSceneProfile[];
-}
-
 export interface LogSettings {
   enabled: boolean;
   level: LogLevel;
@@ -124,7 +99,6 @@ export interface AppSettings {
   scheduler: SchedulerSettings;
   download: DownloadDefaultsSettings;
   bt: BtSettings;
-  networkLearning: NetworkLearningSettings;
   logging: LogSettings;
   aria2Rpc: Aria2RpcSettings;
   cdnAcceleration: CdnAccelerationSettings;

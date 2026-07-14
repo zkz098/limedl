@@ -1,8 +1,7 @@
-//! Scheduler, rebalance, and network-learning logic — extracted from manager.rs
+//! Scheduler and rebalance logic — extracted from manager.rs
 //! (Phase 5 of the manager.rs split).
 //!
-//! Contains the background scheduler loop, adaptive AIMD thread rebalancing,
-//! and network learning logic that records throughput metrics from completed downloads.
+//! Contains the background scheduler loop and adaptive AIMD thread rebalancing.
 
 use std::{
     collections::HashMap,
@@ -10,21 +9,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::Context;
-
 use super::{
-    aimd::{self, AimdState},
+    aimd,
     error::Result,
     manager::{
-        DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS, ManagedDownload,
+        DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS,
         log_background_error, now_ms, sync_snapshot_with_manifest,
     },
     manifest::Manifest,
     persistence::persist_manifest_snapshot,
-    settings::normalize_learning_metrics,
     types::{
-        AdaptiveProfile, AppSettings, DeviceLearningMode, DownloadState, NetworkLearningMetrics,
-        NetworkLearningSettings, ProxyMode, SchedulerMode, ThreadMode,
+        AdaptiveProfile, AppSettings, DownloadState, ProxyMode, SchedulerMode, ThreadMode,
     },
 };
 
@@ -61,10 +56,7 @@ impl DownloadManager {
             return Ok(());
         }
 
-        let learning_metrics = active_learning_metrics(&settings.network_learning);
-        let adaptive_cap = active_scene_thread_cap(&settings.network_learning)
-            .unwrap_or(settings.scheduler.automatic.max_threads_per_task.max(1))
-            .min(settings.scheduler.automatic.max_threads_per_task.max(1));
+        let adaptive_cap = settings.scheduler.automatic.max_threads_per_task.max(1);
         let min_threads = settings.scheduler.automatic.min_threads_per_task.max(1);
 
         let downloads = self.downloads.read().await;
@@ -107,34 +99,17 @@ impl DownloadManager {
                 AdaptiveProfile::Balanced => 0.16,
                 AdaptiveProfile::Aggressive => 0.20,
             };
-            let mut increase_threshold: f64 = match profile {
+            let increase_threshold: f64 = match profile {
                 AdaptiveProfile::Conservative => 0.08,
                 AdaptiveProfile::Balanced => 0.04,
                 AdaptiveProfile::Aggressive => 0.0,
             };
-            let mut samples_needed: u32 = match profile {
+            let samples_needed: u32 = match profile {
                 AdaptiveProfile::Conservative => 2,
                 AdaptiveProfile::Balanced => 1,
                 AdaptiveProfile::Aggressive => 1,
             };
-            let mut cooldown = aimd::cooldown_for_profile(profile);
-
-            if let Some(metrics) = learning_metrics {
-                if metrics.penalty_rate >= 0.2 || metrics.stability_score <= 0.6 {
-                    degrade_threshold *= 0.7;
-                    increase_threshold += 0.05;
-                    samples_needed = samples_needed.saturating_add(1);
-                    cooldown += Duration::from_secs(2);
-                } else if metrics.stability_score >= 0.88
-                    && metrics.penalty_rate <= 0.06
-                    && metrics.estimated_bandwidth_bps >= 6.0 * 1024.0 * 1024.0
-                {
-                    degrade_threshold += 0.03;
-                    increase_threshold = (increase_threshold * 0.5).max(0.0);
-                    samples_needed = samples_needed.saturating_sub(1).max(1);
-                    cooldown = cooldown.saturating_sub(Duration::from_secs(1));
-                }
-            }
+            let cooldown = aimd::cooldown_for_profile(profile);
 
             degrade_threshold = match profile {
                 AdaptiveProfile::Conservative => degrade_threshold,
@@ -186,57 +161,6 @@ impl DownloadManager {
             aimd.record_sample(throughput);
         }
 
-        Ok(())
-    }
-
-    pub(crate) async fn learn_from_download(&self, managed: Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.lock_core().manifest.clone();
-        if manifest.thread_mode != ThreadMode::Adaptive {
-            return Ok(());
-        }
-
-        let settings = self.settings.read().await.clone();
-        if settings.scheduler.mode != SchedulerMode::Automatic
-            || settings.network_learning.device_mode == DeviceLearningMode::Mobile
-            || settings.proxy.mode != ProxyMode::Disabled
-        {
-            return Ok(());
-        }
-
-        let Some(scene) = settings.network_learning.scenes.first() else {
-            return Ok(());
-        };
-        if !scene.learning_enabled {
-            return Ok(());
-        }
-
-        let sample = {
-            let aimd = managed.lock_aimd();
-            build_learning_sample(&manifest, &aimd, &settings)?
-        };
-        let alpha = match settings.network_learning.device_mode {
-            DeviceLearningMode::Fixed => 0.45,
-            DeviceLearningMode::SemiMobile => 0.22,
-            DeviceLearningMode::Mobile => 0.0,
-        };
-
-        let scheduler_cap = settings.scheduler.automatic.max_threads_per_task.max(1);
-        let now = now_ms();
-        let mut next_settings = settings.clone();
-        let scene = &mut next_settings.network_learning.scenes[0];
-        let next_metrics =
-            blend_learning_metrics(scene.learned_metrics.as_ref(), sample, alpha, scheduler_cap);
-        scene.learned_metrics = Some(next_metrics.clone());
-        scene.updated_at_ms = now;
-
-        let db = self.db.clone();
-        let scene_id = scene.id.clone();
-        tokio::task::spawn_blocking(move || db.upsert_learning_metrics(&scene_id, &next_metrics))
-            .await
-            .context("learn metrics persist task panicked")?
-            .context("failed to persist learning metrics")?;
-
-        *self.settings.write().await = next_settings;
         Ok(())
     }
 
@@ -432,158 +356,7 @@ fn effective_allocation_cap(manifest: &Manifest, settings: &AppSettings) -> usiz
 }
 
 fn effective_automatic_task_cap(settings: &AppSettings) -> usize {
-    active_scene_thread_cap(&settings.network_learning)
-        .unwrap_or(settings.scheduler.automatic.max_threads_per_task.max(1))
-        .min(settings.scheduler.automatic.max_threads_per_task.max(1))
-        .max(1)
+    settings.scheduler.automatic.max_threads_per_task.max(1)
 }
 
-/// Returns the current active learning metrics, if any.
-pub(crate) fn active_learning_metrics(
-    settings: &NetworkLearningSettings,
-) -> Option<&NetworkLearningMetrics> {
-    if settings.device_mode == DeviceLearningMode::Mobile {
-        return None;
-    }
 
-    settings
-        .scenes
-        .first()
-        .filter(|scene| scene.learning_enabled)
-        .and_then(|scene| scene.learned_metrics.as_ref())
-}
-
-/// Returns the recommended thread cap from active learning metrics, if any.
-pub(crate) fn active_scene_thread_cap(settings: &NetworkLearningSettings) -> Option<usize> {
-    active_learning_metrics(settings).map(|metrics| metrics.recommended_max_threads_per_task_cap)
-}
-
-/// Builds a learning sample from completed download data.
-fn build_learning_sample(
-    manifest: &Manifest,
-    aimd: &AimdState,
-    settings: &AppSettings,
-) -> Result<NetworkLearningMetrics> {
-    let profile = manifest
-        .adaptive_profile_snapshot
-        .unwrap_or(settings.scheduler.automatic.adaptive_profile);
-    let scheduler_cap = settings.scheduler.automatic.max_threads_per_task.max(1);
-    let throughput = if aimd.throughput_sample_count > 0 {
-        (aimd.throughput_sum / f64::from(aimd.throughput_sample_count)).max(0.0_f64)
-    } else {
-        0.0_f64
-    };
-    let penalty_rate = if aimd.throughput_sample_count > 0 {
-        f64::from(aimd.penalty_count) / f64::from(aimd.throughput_sample_count.max(1))
-    } else if aimd.penalty_count > 0 {
-        1.0_f64
-    } else {
-        0.0_f64
-    };
-
-    let mut stability_score = (1.0 - penalty_rate * 1.35).clamp(0.0, 1.0);
-    stability_score = match manifest.state {
-        DownloadState::Completed => (stability_score + 0.08).clamp(0.0, 1.0),
-        DownloadState::Failed => (stability_score - 0.3).clamp(0.0, 1.0),
-        DownloadState::Paused => (stability_score - 0.08).clamp(0.0, 1.0),
-        _ => stability_score,
-    };
-
-    let base_threads = recommended_threads_from_bandwidth(throughput, profile);
-    let recommended_initial_threads =
-        adjust_threads_for_stability(base_threads, stability_score, penalty_rate)
-            .clamp(1, scheduler_cap);
-    let recommended_max_threads_per_task_cap = derive_recommended_cap(
-        recommended_initial_threads,
-        stability_score,
-        penalty_rate,
-        scheduler_cap,
-    );
-
-    Ok(NetworkLearningMetrics {
-        estimated_bandwidth_bps: throughput,
-        stability_score,
-        penalty_rate,
-        recommended_initial_threads,
-        recommended_max_threads_per_task_cap,
-        sample_count: 1,
-        last_observed_at_ms: now_ms(),
-    })
-}
-
-/// Blends a new learning sample with previous metrics using exponential moving average.
-fn blend_learning_metrics(
-    previous: Option<&NetworkLearningMetrics>,
-    sample: NetworkLearningMetrics,
-    alpha: f64,
-    scheduler_cap: usize,
-) -> NetworkLearningMetrics {
-    let Some(previous) = previous else {
-        return normalize_learning_metrics(sample, scheduler_cap);
-    };
-
-    let alpha = alpha.clamp(0.05, 0.95);
-    let blended_initial = ((previous.recommended_initial_threads as f64) * (1.0 - alpha)
-        + (sample.recommended_initial_threads as f64) * alpha)
-        .round() as usize;
-    let blended_cap = ((previous.recommended_max_threads_per_task_cap as f64) * (1.0 - alpha)
-        + (sample.recommended_max_threads_per_task_cap as f64) * alpha)
-        .round() as usize;
-
-    normalize_learning_metrics(
-        NetworkLearningMetrics {
-            estimated_bandwidth_bps: previous.estimated_bandwidth_bps * (1.0 - alpha)
-                + sample.estimated_bandwidth_bps * alpha,
-            stability_score: previous.stability_score * (1.0 - alpha)
-                + sample.stability_score * alpha,
-            penalty_rate: previous.penalty_rate * (1.0 - alpha) + sample.penalty_rate * alpha,
-            recommended_initial_threads: blended_initial,
-            recommended_max_threads_per_task_cap: blended_cap.max(blended_initial),
-            sample_count: previous.sample_count.saturating_add(1),
-            last_observed_at_ms: sample.last_observed_at_ms,
-        },
-        scheduler_cap,
-    )
-}
-
-fn recommended_threads_from_bandwidth(throughput: f64, profile: AdaptiveProfile) -> usize {
-    if throughput <= 0.0 {
-        return aimd::initial_desired_threads(profile);
-    }
-
-    match throughput {
-        value if value < 1.0 * 1024.0 * 1024.0 => 1,
-        value if value < 4.0 * 1024.0 * 1024.0 => 2,
-        value if value < 12.0 * 1024.0 * 1024.0 => 4,
-        _ => 6,
-    }
-}
-
-fn adjust_threads_for_stability(threads: usize, stability_score: f64, penalty_rate: f64) -> usize {
-    if penalty_rate >= 0.25 || stability_score <= 0.55 {
-        return threads.saturating_sub(1).max(1);
-    }
-    if penalty_rate <= 0.05 && stability_score >= 0.9 {
-        return threads.saturating_add(1);
-    }
-    threads
-}
-
-fn derive_recommended_cap(
-    recommended_initial_threads: usize,
-    stability_score: f64,
-    penalty_rate: f64,
-    scheduler_cap: usize,
-) -> usize {
-    let extra = if penalty_rate <= 0.05 && stability_score >= 0.9 {
-        3
-    } else if penalty_rate <= 0.12 && stability_score >= 0.75 {
-        2
-    } else {
-        1
-    };
-
-    recommended_initial_threads
-        .saturating_add(extra)
-        .clamp(recommended_initial_threads, scheduler_cap)
-}

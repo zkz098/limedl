@@ -10,11 +10,10 @@ use axum::{
 use ntest::timeout;
 use tempfile::tempdir;
 
-use super::super::settings::{load_settings, normalize_settings};
+use super::super::settings::load_settings;
 use super::super::types::{
     AdaptiveProfile, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-    CdnAccelerationSettings, DeviceLearningMode, DownloadDefaultsSettings, LogSettings,
-    NetworkLearningMetrics, NetworkLearningSettings, NetworkSceneProfile, NotificationSettings,
+    CdnAccelerationSettings, DownloadDefaultsSettings, LogSettings, NotificationSettings,
     ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings, TraditionalSchedulerSettings,
 };
 use super::*;
@@ -73,125 +72,6 @@ async fn loads_legacy_proxy_settings() -> TestResult {
     let settings = load_settings(&settings_path)?;
     assert_eq!(settings.proxy.mode, ProxyMode::System);
     assert_eq!(settings.scheduler.mode, SchedulerMode::Automatic);
-    assert_eq!(settings.network_learning.current_scene_id, "default");
-    assert_eq!(settings.network_learning.scenes.len(), 1);
-    Ok(())
-}
-
-#[timeout(30_000)]
-#[test]
-fn normalize_settings_recovers_missing_scene_selection() -> TestResult {
-    let settings = normalize_settings(AppSettings {
-        appearance: Default::default(),
-        proxy: ProxySettings::default(),
-        scheduler: SchedulerSettings::default(),
-        download: DownloadDefaultsSettings::default(),
-        bt: BtSettings::default(),
-        network_learning: NetworkLearningSettings {
-            device_mode: DeviceLearningMode::SemiMobile,
-            current_scene_id: String::from("missing"),
-            scenes: vec![NetworkSceneProfile {
-                id: String::from("office"),
-                name: String::new(),
-                learning_enabled: true,
-                learned_metrics: Some(NetworkLearningMetrics {
-                    estimated_bandwidth_bps: 8.0 * 1024.0 * 1024.0,
-                    stability_score: 1.4,
-                    penalty_rate: -0.5,
-                    recommended_initial_threads: 12,
-                    recommended_max_threads_per_task_cap: 99,
-                    sample_count: 2,
-                    last_observed_at_ms: 12,
-                }),
-                updated_at_ms: 9,
-            }],
-        },
-        logging: LogSettings::default(),
-        aria2_rpc: Aria2RpcSettings::default(),
-        cdn_acceleration: CdnAccelerationSettings::default(),
-        global_speed_limit_bps: 0,
-        notifications: NotificationSettings::default(),
-    })?;
-
-    assert_eq!(settings.network_learning.current_scene_id, "default");
-    assert_eq!(settings.network_learning.scenes.len(), 1);
-    assert_eq!(settings.network_learning.scenes[0].id, "default");
-    assert_eq!(settings.network_learning.scenes[0].name, "默认场景");
-    let metrics = settings.network_learning.scenes[0]
-        .learned_metrics
-        .as_ref()
-        .ok_or("expected normalized learning metrics")?;
-    assert_eq!(metrics.recommended_max_threads_per_task_cap, 8);
-    assert_eq!(metrics.recommended_initial_threads, 8);
-    assert_eq!(metrics.penalty_rate, 0.0);
-    assert_eq!(metrics.stability_score, 1.0);
-    Ok(())
-}
-
-#[timeout(30_000)]
-#[test]
-fn learned_scene_profile_changes_initial_adaptive_threads() -> TestResult {
-    let settings = AppSettings {
-        appearance: Default::default(),
-        proxy: ProxySettings::default(),
-        scheduler: SchedulerSettings {
-            mode: SchedulerMode::Automatic,
-            traditional: TraditionalSchedulerSettings::default(),
-            automatic: AutomaticSchedulerSettings {
-                max_parallel_threads: 16,
-                max_threads_per_task: 8,
-                min_threads_per_task: 0,
-                adaptive_profile: AdaptiveProfile::Balanced,
-            },
-            chunk_size_strategy: Default::default(),
-        },
-        download: DownloadDefaultsSettings::default(),
-        bt: BtSettings::default(),
-        network_learning: NetworkLearningSettings {
-            device_mode: DeviceLearningMode::Fixed,
-            current_scene_id: String::from("home"),
-            scenes: vec![NetworkSceneProfile {
-                id: String::from("home"),
-                name: String::from("家庭网络"),
-                learning_enabled: true,
-                learned_metrics: Some(NetworkLearningMetrics {
-                    estimated_bandwidth_bps: 24.0 * 1024.0 * 1024.0,
-                    stability_score: 0.92,
-                    penalty_rate: 0.02,
-                    recommended_initial_threads: 6,
-                    recommended_max_threads_per_task_cap: 7,
-                    sample_count: 5,
-                    last_observed_at_ms: 42,
-                }),
-                updated_at_ms: 42,
-            }],
-        },
-        logging: LogSettings::default(),
-        aria2_rpc: Aria2RpcSettings::default(),
-        cdn_acceleration: CdnAccelerationSettings::default(),
-        global_speed_limit_bps: 0,
-        notifications: NotificationSettings::default(),
-    };
-
-    let (_, _, desired_thread_count, _) = resolve_thread_settings(
-        &settings,
-        &StartDownloadRequest {
-            kind: None,
-            url: String::from("https://example.com/file.bin"),
-            destination_dir: String::from("E:/tmp"),
-            file_name: None,
-            user_agent: None,
-            thread_mode: Some(ThreadMode::Adaptive),
-            thread_count: None,
-            max_retries: None,
-            checksum: None,
-            selected_file_indices: None,
-            start_paused: false,
-        },
-        true,
-    );
-
-    assert_eq!(desired_thread_count, Some(6));
     Ok(())
 }
 
@@ -291,7 +171,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),
-            network_learning: NetworkLearningSettings::default(),
+
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
@@ -389,7 +269,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),
-            network_learning: NetworkLearningSettings::default(),
+
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
@@ -477,7 +357,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),
-            network_learning: NetworkLearningSettings::default(),
+
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),

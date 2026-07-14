@@ -164,15 +164,6 @@ pub enum SchedulerMode {
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum DeviceLearningMode {
-    #[default]
-    Fixed,
-    Mobile,
-    SemiMobile,
-}
-
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
 pub enum LogLevel {
     Trace,
     Debug,
@@ -594,36 +585,6 @@ impl Default for DownloadDefaultsSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NetworkLearningMetrics {
-    pub estimated_bandwidth_bps: f64,
-    pub stability_score: f64,
-    pub penalty_rate: f64,
-    pub recommended_initial_threads: usize,
-    pub recommended_max_threads_per_task_cap: usize,
-    pub sample_count: u32,
-    pub last_observed_at_ms: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NetworkSceneProfile {
-    pub id: String,
-    pub name: String,
-    pub learning_enabled: bool,
-    pub learned_metrics: Option<NetworkLearningMetrics>,
-    pub updated_at_ms: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NetworkLearningSettings {
-    pub device_mode: DeviceLearningMode,
-    pub current_scene_id: String,
-    pub scenes: Vec<NetworkSceneProfile>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct LogSettings {
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -639,22 +600,6 @@ impl Default for LogSettings {
             enabled: true,
             level: LogLevel::Info,
             file_path: String::new(),
-        }
-    }
-}
-
-impl Default for NetworkLearningSettings {
-    fn default() -> Self {
-        Self {
-            device_mode: DeviceLearningMode::Fixed,
-            current_scene_id: String::from("default"),
-            scenes: vec![NetworkSceneProfile {
-                id: String::from("default"),
-                name: String::from("默认场景"),
-                learning_enabled: true,
-                learned_metrics: None,
-                updated_at_ms: 0,
-            }],
         }
     }
 }
@@ -746,8 +691,6 @@ pub struct AppSettings {
     pub download: DownloadDefaultsSettings,
     #[serde(default)]
     pub bt: BtSettings,
-    #[serde(default)]
-    pub network_learning: NetworkLearningSettings,
     #[serde(default)]
     pub logging: LogSettings,
     #[serde(default)]

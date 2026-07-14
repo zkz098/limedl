@@ -10,65 +10,11 @@ use super::{
     error::{DownloadError, Result},
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        CdnAccelerationSettings, DownloadDefaultsSettings, LogSettings, NetworkLearningMetrics,
-        NetworkLearningSettings, NetworkSceneProfile, NotificationSettings, ProxyMode,
-        ProxySettings, SchedulerSettings, TraditionalSchedulerSettings, default_http_user_agent,
-        default_tracker_list_url,
+        CdnAccelerationSettings, DownloadDefaultsSettings, LogSettings, NotificationSettings,
+        ProxyMode, ProxySettings, SchedulerSettings, TraditionalSchedulerSettings,
+        default_http_user_agent, default_tracker_list_url,
     },
 };
-
-fn default_network_scene() -> NetworkSceneProfile {
-    NetworkSceneProfile {
-        id: String::from("default"),
-        name: String::from("默认场景"),
-        learning_enabled: true,
-        learned_metrics: None,
-        updated_at_ms: 0,
-    }
-}
-
-fn normalize_network_learning_settings(
-    settings: NetworkLearningSettings,
-    scheduler_cap: usize,
-) -> NetworkLearningSettings {
-    let mut scenes = settings.scenes;
-    let selected_scene = scenes
-        .iter()
-        .position(|scene| scene.id == settings.current_scene_id)
-        .map(|index| scenes.remove(index))
-        .or_else(|| scenes.into_iter().next());
-
-    let mut scene = selected_scene.unwrap_or_else(default_network_scene);
-    scene.id = String::from("default");
-    scene.name = String::from("默认场景");
-    scene.learned_metrics = scene
-        .learned_metrics
-        .map(|metrics| normalize_learning_metrics(metrics, scheduler_cap));
-
-    NetworkLearningSettings {
-        device_mode: settings.device_mode,
-        current_scene_id: String::from("default"),
-        scenes: vec![scene],
-    }
-}
-
-pub(super) fn normalize_learning_metrics(
-    metrics: NetworkLearningMetrics,
-    scheduler_cap: usize,
-) -> NetworkLearningMetrics {
-    NetworkLearningMetrics {
-        estimated_bandwidth_bps: metrics.estimated_bandwidth_bps.max(0.0),
-        stability_score: metrics.stability_score.clamp(0.0, 1.0),
-        penalty_rate: metrics.penalty_rate.clamp(0.0, 1.0),
-        recommended_initial_threads: metrics.recommended_initial_threads.clamp(1, scheduler_cap),
-        recommended_max_threads_per_task_cap: metrics
-            .recommended_max_threads_per_task_cap
-            .clamp(1, scheduler_cap)
-            .max(metrics.recommended_initial_threads.clamp(1, scheduler_cap)),
-        sample_count: metrics.sample_count,
-        last_observed_at_ms: metrics.last_observed_at_ms,
-    }
-}
 
 fn normalize_proxy_settings(settings: ProxySettings) -> Result<ProxySettings> {
     match settings.mode {
@@ -113,8 +59,6 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         .max_threads_per_task
         .clamp(1, 32)
         .min(max_parallel_threads);
-    let network_learning =
-        normalize_network_learning_settings(settings.network_learning, max_threads_per_task.max(1));
     let bt = normalize_bt_settings(settings.bt)?;
     let logging = normalize_logging_settings(settings.logging);
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
@@ -144,7 +88,6 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             default_user_agent,
         },
         bt,
-        network_learning,
         logging,
         aria2_rpc: settings.aria2_rpc.clone(),
         cdn_acceleration: settings.cdn_acceleration.clone(),
@@ -350,7 +293,6 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             || value.get("scheduler").is_some()
             || value.get("download").is_some()
             || value.get("bt").is_some()
-            || value.get("networkLearning").is_some()
             || value.get("logging").is_some()
             || value.get("cdnAcceleration").is_some()
             || value.get("notifications").is_some())
@@ -366,7 +308,6 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         scheduler: SchedulerSettings::default(),
         download: DownloadDefaultsSettings::default(),
         bt: BtSettings::default(),
-        network_learning: NetworkLearningSettings::default(),
         logging: LogSettings::default(),
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),

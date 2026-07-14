@@ -12,12 +12,10 @@ import type {
   AppSettings,
   BackgroundOpacityPreset,
   ColorMode,
-  DeviceLearningMode,
   LogLevel,
   ProxyMode,
   SchedulerMode,
 } from "../../types/settings";
-import NotificationToast from "../ui/NotificationToast.vue";
 import UiButton from "../ui/UiButton.vue";
 
 import SettingsAppearancePanel from "./SettingsAppearancePanel.vue";
@@ -47,7 +45,7 @@ const emit = defineEmits<{
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
-const { notifications, notifySuccess, notifyError, notifyInfo, dismiss } = useNotification();
+const { notifySuccess, notifyError, notifyInfo } = useNotification();
 
 // ── Option arrays ────────────────────────────────────────────────
 
@@ -73,12 +71,6 @@ const checksumOptions = computed<Array<{ label: string; value: ChecksumMode }>>(
   { label: t("tokens.sha256"), value: "sha256" },
   { label: t("tokens.xxh3_128"), value: "xxh3_128" },
   { label: t("tokens.none"), value: "none" },
-]);
-
-const deviceModeOptions = computed<Array<{ label: string; value: DeviceLearningMode }>>(() => [
-  { label: t("tokens.fixed"), value: "fixed" },
-  { label: t("tokens.mobile"), value: "mobile" },
-  { label: t("tokens.semi_mobile"), value: "semi_mobile" },
 ]);
 
 const logLevelOptions = computed<Array<{ label: string; value: LogLevel }>>(() => [
@@ -107,7 +99,6 @@ const colorModeOptions = computed<Array<{ label: string; value: ColorMode }>>(()
 
 const { form, buildSettingsPayload, savedSettingsSnapshot } = useSettingsForm({
   settings: toRef(props, "settings"),
-  t,
   onDirtyChange: (isDirty) => emit("dirtyChange", isDirty),
 });
 
@@ -121,7 +112,6 @@ const isFetchingTrackerList = ref(false);
 
 const optionArrays: SettingsOptionArrays = {
   adaptiveProfileOptions,
-  deviceModeOptions,
   checksumOptions,
   logLevelOptions,
 };
@@ -257,8 +247,6 @@ defineExpose({
 
 <template>
   <section class="settings-page">
-    <NotificationToast :notifications="notifications" @dismiss="dismiss" />
-
     <div class="desk-panel__header settings-page__header">
       <div>
         <p class="section-kicker">{{ t("settings.kicker") }}</p>

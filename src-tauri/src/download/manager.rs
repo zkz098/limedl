@@ -39,7 +39,7 @@ use super::{
     },
     migration::migrate_json_manifests,
     rate_limiter::RateLimiter,
-    scheduler::{active_learning_metrics, active_scene_thread_cap},
+
     torrent::TorrentManager,
     types::{
         AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DownloadProgress, DownloadSnapshot,
@@ -649,10 +649,6 @@ impl DownloadManager {
                 }
                 manager.emit_single_summary(&managed);
 
-                if let Err(error) = manager.learn_from_download(managed.clone()).await {
-                    log_background_error("learn from failed download", &error);
-                }
-
                 // Broadcast aria2.onDownloadError
                 let event_tx = manager.event_tx.lock().unwrap_or_else(|poisoned| {
                     tracing::warn!("event_tx lock poisoned in spawn_download");
@@ -1019,14 +1015,8 @@ fn resolve_thread_settings(
         SchedulerMode::Automatic => match request.thread_mode.unwrap_or(ThreadMode::Adaptive) {
             ThreadMode::Adaptive => {
                 let profile = settings.scheduler.automatic.adaptive_profile;
-                let learned_initial = active_learning_metrics(&settings.network_learning)
-                    .map(|metrics| metrics.recommended_initial_threads);
-                let learned_cap = active_scene_thread_cap(&settings.network_learning)
-                    .unwrap_or(settings.scheduler.automatic.max_threads_per_task.max(1));
-                let desired = learned_initial
-                    .unwrap_or_else(|| aimd::initial_desired_threads(profile))
-                    .min(learned_cap.max(1))
-                    .min(settings.scheduler.automatic.max_threads_per_task.max(1));
+                let max_threads = settings.scheduler.automatic.max_threads_per_task.max(1);
+                let desired = aimd::initial_desired_threads(profile).min(max_threads);
                 (
                     ThreadMode::Adaptive,
                     None,

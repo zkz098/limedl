@@ -1,12 +1,11 @@
 import { computed, reactive, ref, watch, type Ref } from "vue";
 
-import type { AppSettings, NetworkLearningSettings } from "../../types/settings";
-import { copySingleNetworkScene, serializeSettings, settingsDraftSnapshot } from "./settingsUtils";
+import type { AppSettings } from "../../types/settings";
+import { serializeSettings, settingsDraftSnapshot } from "./settingsUtils";
 import { DEFAULT_HTTP_USER_AGENT, DEFAULT_TRACKER_LIST_URL } from "./useSettingsSummaries";
 
 interface UseSettingsFormOptions {
   settings: Ref<AppSettings | null>;
-  t: (key: string, options?: Record<string, unknown>) => string;
   onDirtyChange?: (isDirty: boolean) => void;
 }
 
@@ -16,7 +15,7 @@ interface UseSettingsFormOptions {
  * builder between SettingsPage.vue and LabsPage.vue.
  */
 export function useSettingsForm(options: UseSettingsFormOptions) {
-  const { settings, t, onDirtyChange } = options;
+  const { settings, onDirtyChange } = options;
 
   // ── Reactive form ─────────────────────────────────────────────────
 
@@ -66,19 +65,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       defaultDownloadSpeedLimit: 0,
       defaultUploadSpeedLimit: 0,
     },
-    networkLearning: {
-      deviceMode: "fixed",
-      currentSceneId: "default",
-      scenes: [
-        {
-          id: "default",
-          name: t("settings.defaultScene"),
-          learningEnabled: true,
-          learnedMetrics: null,
-          updatedAtMs: 0,
-        },
-      ],
-    },
     logging: {
       enabled: true,
       level: "info",
@@ -104,10 +90,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
   const savedSettingsSnapshot = ref("");
 
   // ── Helpers ───────────────────────────────────────────────────────
-
-  function copyNetworkScene(s: NetworkLearningSettings) {
-    return copySingleNetworkScene(s, t);
-  }
 
   function buildSettingsPayload(): AppSettings {
     return {
@@ -155,11 +137,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         uploadRatioLimit: form.bt.uploadRatioLimit,
         // TODO: Add defaultDownloadSpeedLimit and defaultUploadSpeedLimit to save payload
         // once backend BtSettings in src-tauri/src/download/types.rs supports them.
-      },
-      networkLearning: {
-        deviceMode: form.networkLearning.deviceMode,
-        currentSceneId: "default",
-        scenes: [copyNetworkScene(form.networkLearning)],
       },
       logging: {
         enabled: form.logging.enabled,
@@ -237,9 +214,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.bt.uploadRatioLimit = nextSettings.bt.uploadRatioLimit;
       form.bt.defaultDownloadSpeedLimit = nextSettings.bt.defaultDownloadSpeedLimit ?? 0;
       form.bt.defaultUploadSpeedLimit = nextSettings.bt.defaultUploadSpeedLimit ?? 0;
-      form.networkLearning.deviceMode = nextSettings.networkLearning.deviceMode;
-      form.networkLearning.currentSceneId = "default";
-      form.networkLearning.scenes = [copyNetworkScene(nextSettings.networkLearning)];
       form.logging.enabled = nextSettings.logging?.enabled ?? true;
       form.logging.level = nextSettings.logging?.level ?? "info";
       form.logging.filePath = nextSettings.logging?.filePath ?? "";
@@ -270,5 +244,5 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     { immediate: true },
   );
 
-  return { form, buildSettingsPayload, savedSettingsSnapshot, copyNetworkScene };
+  return { form, buildSettingsPayload, savedSettingsSnapshot };
 }

@@ -14,26 +14,20 @@ import {
 import { useI18n } from "../../i18n";
 import type { ColumnKey } from "../../lib/column-defs";
 import type { DownloadSummary } from "../../types/download";
-import type { SortDirection, SortKey } from "../../types/settings";
+import type { ViewOptions, MultiSelectState } from "./queue-types";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
 
 const props = defineProps<{
   downloads: DownloadSummary[];
-  isAutoRefreshing: boolean;
-  isRefreshingList: boolean;
   selectedId: string | null;
   taskActionName: string;
+  isAutoRefreshing: boolean;
   stateFilter?: string;
   searchQuery?: string;
-  sortKey: SortKey;
-  sortDirection: SortDirection;
-  compactView: boolean;
-  visibleColumns: string[];
-  multiSelectMode: boolean;
-  selectedIds: Set<string>;
-  removedDownloadIds: string[];
+  viewOptions: ViewOptions;
+  multiSelect: MultiSelectState;
 }>();
 
 const emit = defineEmits<{
@@ -42,7 +36,6 @@ const emit = defineEmits<{
   deleteTaskPermanently: [downloadId: string];
   openInExplorer: [downloadId: string];
   pauseOrResume: [downloadId: string];
-  refresh: [];
   select: [downloadId: string];
   setBtSpeedLimit: [downloadId: string];
   toggleSelect: [downloadId: string];
@@ -70,7 +63,7 @@ const columnOptions = computed<Array<{ key: ColumnKey; label: string; alwaysVisi
   ],
 );
 
-const visibleColumnKeys = computed(() => new Set(props.visibleColumns));
+const visibleColumnKeys = computed(() => new Set(props.viewOptions.visibleColumns));
 const visibleColumnsOrdered = computed(() =>
   columnOptions.value.filter((column) => visibleColumnKeys.value.has(column.key)),
 );
@@ -81,12 +74,12 @@ const filteredDownloads = computed(() =>
 
 const sortedDownloads = computed(() => {
   const list = [...filteredDownloads.value];
-  const direction = props.sortDirection === "asc" ? 1 : -1;
+  const direction = props.viewOptions.sortDirection === "asc" ? 1 : -1;
 
   list.sort((a, b) => {
     let comparison = 0;
 
-    switch (props.sortKey) {
+    switch (props.viewOptions.sortKey) {
       case "name":
         comparison = a.fileName.localeCompare(b.fileName);
         break;
@@ -164,7 +157,7 @@ watch(
 );
 
 watch(
-  () => props.removedDownloadIds,
+  () => props.multiSelect.removedDownloadIds,
   (ids) => {
     if (!contextMenu.value || ids.length === 0) {
       return;
@@ -209,22 +202,22 @@ watch(
 );
 
 const allPageSelected = computed(() => {
-  if (!props.multiSelectMode || pagedDownloads.value.length === 0) return false;
-  return pagedDownloads.value.every((d) => props.selectedIds.has(d.id));
+  if (!props.multiSelect.multiSelectMode || pagedDownloads.value.length === 0) return false;
+  return pagedDownloads.value.every((d) => props.multiSelect.selectedIds.has(d.id));
 });
 
 function toggleSelectAllOnPage() {
   if (allPageSelected.value) {
     // Deselect all on this page
     pagedDownloads.value.forEach((d) => {
-      if (props.selectedIds.has(d.id)) {
+      if (props.multiSelect.selectedIds.has(d.id)) {
         emit("toggleSelect", d.id);
       }
     });
   } else {
     // Select all on this page
     pagedDownloads.value.forEach((d) => {
-      if (!props.selectedIds.has(d.id)) {
+      if (!props.multiSelect.selectedIds.has(d.id)) {
         emit("toggleSelect", d.id);
       }
     });
@@ -239,7 +232,7 @@ function toneForState(state: DownloadSummary["state"]): "info" | "success" | "wa
 }
 
 function isColumnVisible(key: ColumnKey) {
-  return props.visibleColumns.includes(key);
+  return props.viewOptions.visibleColumns.includes(key);
 }
 
 function goToPreviousPage() {
@@ -410,10 +403,10 @@ onUnmounted(() => {
 
     <div v-if="sortedDownloads.length" class="queue-panel__table">
       <div class="queue-table-shell">
-        <table class="queue-table" :class="{ 'queue-table--compact': compactView }">
+        <table class="queue-table" :class="{ 'queue-table--compact': viewOptions.compactView }">
           <thead>
             <tr>
-              <th v-if="multiSelectMode" class="queue-cell--checkbox">
+              <th v-if="multiSelect.multiSelectMode" class="queue-cell--checkbox">
                 <input type="checkbox" :checked="allPageSelected" @change="toggleSelectAllOnPage" />
               </th>
               <th v-for="column in visibleColumnsOrdered" :key="column.key">{{ column.label }}</th>
@@ -425,18 +418,18 @@ onUnmounted(() => {
               :key="download.id"
               class="queue-row"
               :class="{
-                'queue-row--active': !multiSelectMode && download.id === selectedId,
-                'queue-row--selected': multiSelectMode && selectedIds.has(download.id),
+                'queue-row--active': !multiSelect.multiSelectMode && download.id === selectedId,
+                'queue-row--selected': multiSelect.multiSelectMode && multiSelect.selectedIds.has(download.id),
               }"
               @click="
-                multiSelectMode ? $emit('toggleSelect', download.id) : $emit('select', download.id)
+                multiSelect.multiSelectMode ? $emit('toggleSelect', download.id) : $emit('select', download.id)
               "
               @contextmenu.prevent.stop="openTaskContextMenu($event, download.id)"
             >
-              <td v-if="multiSelectMode" class="queue-cell queue-cell--checkbox">
+              <td v-if="multiSelect.multiSelectMode" class="queue-cell queue-cell--checkbox">
                 <input
                   type="checkbox"
-                  :checked="selectedIds.has(download.id)"
+                  :checked="multiSelect.selectedIds.has(download.id)"
                   @change="$emit('toggleSelect', download.id)"
                 />
               </td>

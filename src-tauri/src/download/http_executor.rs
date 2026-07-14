@@ -179,9 +179,6 @@ impl super::DownloadManager {
                 {
                     RunOutcome::Finished => {
                         self.emit_single_summary(&managed);
-                        if let Err(error) = self.learn_from_download(managed.clone()).await {
-                            log_background_error("learn from completed download", &error);
-                        }
                     }
                     RunOutcome::Canceled => {
                         return Ok(());
@@ -204,9 +201,6 @@ impl super::DownloadManager {
                     core.manifest.updated_at_ms = now_ms();
                 }
                 self.emit_single_summary(&managed);
-                if let Err(error) = self.learn_from_download(managed.clone()).await {
-                    log_background_error("learn from paused download", &error);
-                }
             }
             RunOutcome::Canceled => {
                 self.cleanup_files(&managed)?;

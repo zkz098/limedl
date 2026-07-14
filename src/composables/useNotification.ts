@@ -1,4 +1,5 @@
-import { onBeforeUnmount, ref } from "vue";
+import { ref } from "vue";
+import { createGlobalState } from "@vueuse/core";
 
 export interface Notification {
   id: number;
@@ -6,7 +7,7 @@ export interface Notification {
   type: "info" | "success" | "error" | "warning";
 }
 
-export function useNotification() {
+export const useNotification = createGlobalState(() => {
   let nextId = 0;
   const notifications = ref<Notification[]>([]);
   const timers = new Map<number, ReturnType<typeof setTimeout>>();
@@ -54,13 +55,6 @@ export function useNotification() {
     notifications.value = [];
   }
 
-  onBeforeUnmount(() => {
-    for (const [, timer] of timers) {
-      clearTimeout(timer);
-    }
-    timers.clear();
-  });
-
   return {
     notifications,
     notify,
@@ -71,4 +65,4 @@ export function useNotification() {
     dismiss,
     clearAll,
   };
-}
+});

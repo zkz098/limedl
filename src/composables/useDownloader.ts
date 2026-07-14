@@ -44,7 +44,7 @@ async function fireNotification(title: string, body: string) {
   }
 }
 
-export function useDownloader(options?: UseDownloaderOptions) {
+function createDownloader(options?: UseDownloaderOptions) {
   const downloads = ref<DownloadSummary[]>([]);
   const selectedId = ref<string | null>(null);
   const selectedSnapshot = ref<DownloadSnapshot | null>(null);
@@ -425,4 +425,20 @@ export function useDownloader(options?: UseDownloaderOptions) {
     selectedSummary: actions.selectedSummary,
     submitStart: form.submitStart,
   };
+}
+
+// Singleton guard — ensures all callers share the same reactive instance.
+// useDownloader manages Tauri event listeners and global download state;
+// accidental re-instantiation would create duplicate listeners and desync state.
+let downloaderInstance: ReturnType<typeof createDownloader> | null = null;
+
+export function useDownloader(options?: UseDownloaderOptions) {
+  if (downloaderInstance) {
+    if (import.meta.env.DEV && options) {
+      console.warn("[useDownloader] Already created — options from this caller ignored.");
+    }
+    return downloaderInstance;
+  }
+  downloaderInstance = createDownloader(options);
+  return downloaderInstance;
 }

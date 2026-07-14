@@ -5,9 +5,7 @@ use anyhow::{Context, Result};
 use rusqlite::{Connection, params, types::Value};
 
 use super::manifest::{ChunkManifest, Manifest};
-use super::types::{
-    AdaptiveProfile, ChecksumMode, DownloadState, NetworkLearningMetrics, ThreadMode,
-};
+use super::types::{AdaptiveProfile, ChecksumMode, DownloadState, ThreadMode};
 
 type RusqliteResult<T> = std::result::Result<T, rusqlite::Error>;
 
@@ -344,17 +342,6 @@ CREATE TABLE IF NOT EXISTS chunks (
     PRIMARY KEY (download_id, chunk_index),
     FOREIGN KEY (download_id) REFERENCES downloads(id) ON DELETE CASCADE
 );
-
-CREATE TABLE IF NOT EXISTS learning_metrics (
-    scene_id TEXT NOT NULL PRIMARY KEY,
-    estimated_bandwidth_bps REAL NOT NULL,
-    stability_score REAL NOT NULL,
-    penalty_rate REAL NOT NULL,
-    recommended_initial_threads INTEGER NOT NULL,
-    recommended_max_threads_per_task_cap INTEGER NOT NULL,
-    sample_count INTEGER NOT NULL,
-    last_observed_at_ms INTEGER NOT NULL
-);
 ";
 
 // ── Database impl ────────────────────────────────────────────────
@@ -592,66 +579,6 @@ impl Database {
             .query_row("SELECT COUNT(*) FROM downloads", [], |row| row.get(0))
             .context("failed to count downloads")?;
         Ok(count as usize)
-    }
-
-    // ── learning_metrics CRUD ─────────────────────────────────
-
-    /// Insert or replace a scene's learning metrics.
-    pub(crate) fn upsert_learning_metrics(
-        &self,
-        scene_id: &str,
-        metrics: &NetworkLearningMetrics,
-    ) -> Result<()> {
-        let conn = self.lock_conn();
-        conn.execute(
-            "INSERT OR REPLACE INTO learning_metrics (
-                scene_id, estimated_bandwidth_bps, stability_score, penalty_rate,
-                recommended_initial_threads, recommended_max_threads_per_task_cap,
-                sample_count, last_observed_at_ms
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                scene_id,
-                metrics.estimated_bandwidth_bps,
-                metrics.stability_score,
-                metrics.penalty_rate,
-                metrics.recommended_initial_threads as i64,
-                metrics.recommended_max_threads_per_task_cap as i64,
-                metrics.sample_count as i64,
-                metrics.last_observed_at_ms as i64,
-            ],
-        )
-        .with_context(|| format!("failed to upsert learning metrics for {scene_id}"))?;
-        Ok(())
-    }
-
-    /// Fetch learning metrics for a scene.
-    #[allow(dead_code)]
-    pub(crate) fn get_learning_metrics(
-        &self,
-        scene_id: &str,
-    ) -> Result<Option<NetworkLearningMetrics>> {
-        let conn = self.lock_conn();
-
-        let mut stmt = conn
-            .prepare("SELECT * FROM learning_metrics WHERE scene_id = ?1")
-            .context("failed to prepare get_learning_metrics query")?;
-
-        let opt = stmt
-            .query_row(params![scene_id], |row| {
-                Ok(NetworkLearningMetrics {
-                    estimated_bandwidth_bps: row.get(1)?,
-                    stability_score: row.get(2)?,
-                    penalty_rate: row.get(3)?,
-                    recommended_initial_threads: row.get::<_, i64>(4)? as usize,
-                    recommended_max_threads_per_task_cap: row.get::<_, i64>(5)? as usize,
-                    sample_count: row.get::<_, i64>(6)? as u32,
-                    last_observed_at_ms: row.get::<_, i64>(7)? as u64,
-                })
-            })
-            .optional()
-            .context("failed to query learning metrics")?;
-
-        Ok(opt)
     }
 
     // ── internal helpers ──────────────────────────────────────
