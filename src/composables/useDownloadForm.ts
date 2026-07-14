@@ -192,9 +192,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
   async function submitStart() {
     if (!form.url.trim() || !form.destinationDir.trim()) {
       setError(
-        form.kind === "bt"
-          ? t("messages.torrentStartRequired")
-          : t("messages.startRequired"),
+        form.kind === "bt" ? t("messages.torrentStartRequired") : t("messages.startRequired"),
       );
       return;
     }

@@ -1,11 +1,7 @@
 import { computed, type Ref } from "vue";
 import { formatBytes, formatSpeed, formatTimestamp } from "../../lib/download-format";
 import type { ChecksumMode } from "../../types/download";
-import type {
-  AdaptiveProfile,
-  AppSettings,
-  DeviceLearningMode,
-} from "../../types/settings";
+import type { AdaptiveProfile, AppSettings, DeviceLearningMode } from "../../types/settings";
 
 export interface SettingsOptionArrays {
   adaptiveProfileOptions: Ref<Array<{ label: string; value: AdaptiveProfile }>>;

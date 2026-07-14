@@ -11,12 +11,19 @@ export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
 export type ColorMode = "light" | "dark" | "system";
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
+export type SortKey = "name" | "size" | "progress" | "speed" | "added_at" | "state";
+export type SortDirection = "asc" | "desc";
+
 export interface AppearanceSettings {
   themeColor: ThemeColor;
   backgroundOpacity: BackgroundOpacityPreset;
   colorMode: ColorMode;
   showDetailInfo: boolean;
   showHeatmap: boolean;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  compactView: boolean;
+  visibleColumns: string[];
 }
 
 export interface ProxySettings {

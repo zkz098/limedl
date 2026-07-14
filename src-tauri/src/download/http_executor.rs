@@ -56,7 +56,7 @@ impl super::DownloadManager {
         token: CancellationToken,
         max_retries: u32,
     ) -> Result<()> {
-        let current_manifest = { managed.lock_manifest().clone() };
+        let current_manifest = { managed.lock_core().manifest.clone() };
         let metadata = self
             .probe(&current_manifest.url, &current_manifest.user_agent)
             .await?;
@@ -93,7 +93,8 @@ impl super::DownloadManager {
         let mut force_single_stream_restart = false;
         let mut refresh_aimd = false;
         {
-            let mut manifest = managed.lock_manifest();
+            let mut core = managed.lock_core();
+            let manifest = &mut core.manifest;
             if !manifest.file_name_locked && manifest.downloaded_bytes == 0 {
                 let safe_name = sanitize_filename::sanitize(&metadata.file_name);
                 if !safe_name.is_empty() && safe_name != manifest.file_name {
@@ -106,7 +107,7 @@ impl super::DownloadManager {
                 }
                 manifest.file_name_locked = true;
             }
-            if validators_changed(&manifest, &metadata)
+            if validators_changed(manifest, &metadata)
                 || manifest.total_bytes != metadata.total_bytes
                 || manifest.supports_ranges != supports_parallel
                 || (supports_parallel && manifest.chunks.is_empty())
@@ -117,7 +118,7 @@ impl super::DownloadManager {
                 manifest.checksum = None;
                 manifest.supports_ranges = supports_parallel;
                 reset_progress = true;
-            } else if !supports_parallel && has_partial_chunk_progress(&manifest) {
+            } else if !supports_parallel && has_partial_chunk_progress(manifest) {
                 manifest.downloaded_bytes = 0;
                 manifest.connection_count = 1;
                 manifest.supports_ranges = false;
@@ -147,7 +148,7 @@ impl super::DownloadManager {
                 manifest.thread_note = Some(String::from("单线程（服务器不支持分段）"));
                 manifest.desired_thread_count = Some(1);
             }
-            sync_snapshot_with_manifest(&managed, &manifest);
+            sync_snapshot_with_manifest(&mut core);
         }
         if refresh_aimd {
             let mut aimd = managed.lock_aimd();
@@ -177,6 +178,7 @@ impl super::DownloadManager {
                     .await?
                 {
                     RunOutcome::Finished => {
+                        self.emit_single_summary(&managed);
                         if let Err(error) = self.learn_from_download(managed.clone()).await {
                             log_background_error("learn from completed download", &error);
                         }
@@ -191,20 +193,17 @@ impl super::DownloadManager {
             }
             RunOutcome::Paused => {
                 {
-                    let mut snapshot = managed.lock_snapshot();
-                    snapshot.state = DownloadState::Paused;
-                    snapshot.connection_count = 0;
-                    snapshot.allocated_thread_count = Some(0);
-                    snapshot.updated_at_ms = now_ms();
+                    let mut core = managed.lock_core();
+                    core.snapshot.state = DownloadState::Paused;
+                    core.snapshot.connection_count = 0;
+                    core.snapshot.allocated_thread_count = Some(0);
+                    core.snapshot.updated_at_ms = now_ms();
+                    core.manifest.state = DownloadState::Paused;
+                    core.manifest.connection_count = 0;
+                    core.manifest.allocated_thread_count = Some(0);
+                    core.manifest.updated_at_ms = now_ms();
                 }
-
-                {
-                    let mut manifest = managed.lock_manifest();
-                    manifest.state = DownloadState::Paused;
-                    manifest.connection_count = 0;
-                    manifest.allocated_thread_count = Some(0);
-                    manifest.updated_at_ms = now_ms();
-                }
+                self.emit_single_summary(&managed);
                 if let Err(error) = self.learn_from_download(managed.clone()).await {
                     log_background_error("learn from paused download", &error);
                 }
@@ -224,11 +223,11 @@ impl super::DownloadManager {
         token: CancellationToken,
         max_retries: u32,
     ) -> Result<RunOutcome> {
-        let file_path = PathBuf::from(managed.lock_manifest().temp_path.clone());
+        let file_path = PathBuf::from(managed.lock_core().manifest.temp_path.clone());
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let file = open_download_file(&file_path, managed.lock_manifest().total_bytes)?;
+        let file = open_download_file(&file_path, managed.lock_core().manifest.total_bytes)?;
 
         let mut last_persist = Instant::now();
 
@@ -240,12 +239,12 @@ impl super::DownloadManager {
             }
 
             let (url, user_agent, validator, state) = {
-                let manifest = managed.lock_manifest();
+                let core = managed.lock_core();
                 (
-                    manifest.final_url.clone(),
-                    manifest.user_agent.clone(),
-                    if_range_header(&manifest),
-                    manifest.state,
+                    core.manifest.final_url.clone(),
+                    core.manifest.user_agent.clone(),
+                    if_range_header(&core.manifest),
+                    core.manifest.state,
                 )
             };
             if state == DownloadState::Canceled {
@@ -256,8 +255,8 @@ impl super::DownloadManager {
             }
 
             let start_offset = {
-                let manifest = managed.lock_manifest();
-                contiguous_prefix_end(&manifest)
+                let core = managed.lock_core();
+                contiguous_prefix_end(&core.manifest)
             };
 
             let response = request_with_retry(
@@ -290,21 +289,20 @@ impl super::DownloadManager {
                 start_offset
             } else {
                 if start_offset > 0 {
-                    reset_download_file(&file, managed.lock_manifest().total_bytes)?;
+                    reset_download_file(&file, managed.lock_core().manifest.total_bytes)?;
                     self.reset_progress(&managed, true);
                 }
                 0
             };
 
             {
-                let mut snapshot = managed.lock_snapshot();
-                snapshot.state = DownloadState::Downloading;
-                snapshot.connection_count = 1;
-                snapshot.updated_at_ms = now_ms();
-                let mut manifest = managed.lock_manifest();
-                manifest.state = DownloadState::Downloading;
-                manifest.connection_count = 1;
-                manifest.updated_at_ms = now_ms();
+                let mut core = managed.lock_core();
+                core.snapshot.state = DownloadState::Downloading;
+                core.snapshot.connection_count = 1;
+                core.snapshot.updated_at_ms = now_ms();
+                core.manifest.state = DownloadState::Downloading;
+                core.manifest.connection_count = 1;
+                core.manifest.updated_at_ms = now_ms();
             }
 
             while let Some(chunk) = tokio::select! {
@@ -323,9 +321,9 @@ impl super::DownloadManager {
             }
 
             let finished = {
-                let manifest = managed.lock_manifest();
-                match manifest.total_bytes {
-                    Some(total) => manifest.downloaded_bytes >= total,
+                let core = managed.lock_core();
+                match core.manifest.total_bytes {
+                    Some(total) => core.manifest.downloaded_bytes >= total,
                     None => true,
                 }
             };
@@ -343,10 +341,10 @@ impl super::DownloadManager {
         max_retries: u32,
     ) -> Result<RunOutcome> {
         let (file_path, total_size) = {
-            let manifest = managed.lock_manifest();
+            let core = managed.lock_core();
             (
-                PathBuf::from(manifest.temp_path.clone()),
-                manifest.total_bytes,
+                PathBuf::from(core.manifest.temp_path.clone()),
+                core.manifest.total_bytes,
             )
         };
         let file = Arc::new(open_download_file(&file_path, total_size)?);
@@ -375,8 +373,8 @@ impl super::DownloadManager {
 
             let mut target_workers = current_allocation(&managed);
             let chunk_count = {
-                let manifest = managed.lock_manifest();
-                manifest.chunks.len()
+                let core = managed.lock_core();
+                core.manifest.chunks.len()
             };
             if chunk_count > 0 {
                 target_workers = target_workers.min((chunk_count / 2).max(1));
@@ -384,24 +382,21 @@ impl super::DownloadManager {
             while workers.len() < target_workers {
                 let worker_id = next_worker_id;
                 let chunk = {
-                    let mut manifest = managed.lock_manifest();
-                    claim_next_chunk(&mut manifest, worker_id)
+                    let mut core = managed.lock_core();
+                    claim_next_chunk(&mut core.manifest, worker_id)
                 };
                 let Some(chunk) = chunk else {
                     break;
                 };
 
                 {
-                    let mut snapshot = managed.lock_snapshot();
-                    snapshot.state = DownloadState::Downloading;
-                    snapshot.connection_count = target_workers;
-                    snapshot.updated_at_ms = now_ms();
-                }
-                {
-                    let mut manifest = managed.lock_manifest();
-                    manifest.state = DownloadState::Downloading;
-                    manifest.connection_count = target_workers;
-                    manifest.updated_at_ms = now_ms();
+                    let mut core = managed.lock_core();
+                    core.snapshot.state = DownloadState::Downloading;
+                    core.snapshot.connection_count = target_workers;
+                    core.snapshot.updated_at_ms = now_ms();
+                    core.manifest.state = DownloadState::Downloading;
+                    core.manifest.connection_count = target_workers;
+                    core.manifest.updated_at_ms = now_ms();
                 }
 
                 let db = self.db.clone();
@@ -490,21 +485,18 @@ impl super::DownloadManager {
             return Ok(RunOutcome::Canceled);
         }
         {
-            let mut snapshot = managed.lock_snapshot();
-            if snapshot.state == DownloadState::Canceled || token.is_cancelled() {
+            let mut core = managed.lock_core();
+            if core.snapshot.state == DownloadState::Canceled || token.is_cancelled() {
                 return Ok(RunOutcome::Canceled);
             }
-            snapshot.state = DownloadState::Verifying;
-            snapshot.connection_count = 0;
-            snapshot.allocated_thread_count = Some(0);
-            snapshot.updated_at_ms = now_ms();
-        }
-        {
-            let mut manifest = managed.lock_manifest();
-            manifest.state = DownloadState::Verifying;
-            manifest.connection_count = 0;
-            manifest.allocated_thread_count = Some(0);
-            manifest.updated_at_ms = now_ms();
+            core.snapshot.state = DownloadState::Verifying;
+            core.snapshot.connection_count = 0;
+            core.snapshot.allocated_thread_count = Some(0);
+            core.snapshot.updated_at_ms = now_ms();
+            core.manifest.state = DownloadState::Verifying;
+            core.manifest.connection_count = 0;
+            core.manifest.allocated_thread_count = Some(0);
+            core.manifest.updated_at_ms = now_ms();
         }
         self.persist(managed.clone()).await?;
 
@@ -513,11 +505,11 @@ impl super::DownloadManager {
         }
 
         let (temp_path, destination_path, checksum_mode) = {
-            let manifest = managed.lock_manifest();
+            let core = managed.lock_core();
             (
-                PathBuf::from(manifest.temp_path.clone()),
-                PathBuf::from(manifest.destination_path.clone()),
-                manifest.checksum_mode,
+                PathBuf::from(core.manifest.temp_path.clone()),
+                PathBuf::from(core.manifest.destination_path.clone()),
+                core.manifest.checksum_mode,
             )
         };
 
@@ -539,34 +531,40 @@ impl super::DownloadManager {
         }
 
         {
-            let mut manifest = managed.lock_manifest();
-            if manifest.state == DownloadState::Canceled || token.is_cancelled() {
+            let mut core = managed.lock_core();
+            if core.manifest.state == DownloadState::Canceled || token.is_cancelled() {
                 return Ok(RunOutcome::Canceled);
             }
-            let mut snapshot = managed.lock_snapshot();
-            if snapshot.state == DownloadState::Canceled || token.is_cancelled() {
+            if core.snapshot.state == DownloadState::Canceled || token.is_cancelled() {
                 return Ok(RunOutcome::Canceled);
             }
 
             finalize_temp_file(&temp_path, &destination_path)?;
 
-            snapshot.state = DownloadState::Completed;
-            snapshot.downloaded_bytes = snapshot.total_bytes.unwrap_or(snapshot.downloaded_bytes);
-            snapshot.checksum = checksum.clone();
-            snapshot.destination_path = destination_path.to_string_lossy().to_string();
-            snapshot.error = None;
-            snapshot.updated_at_ms = now_ms();
+            core.snapshot.state = DownloadState::Completed;
+            core.snapshot.downloaded_bytes = core
+                .snapshot
+                .total_bytes
+                .unwrap_or(core.snapshot.downloaded_bytes);
+            core.snapshot.checksum = checksum.clone();
+            core.snapshot.destination_path = destination_path.to_string_lossy().to_string();
+            core.snapshot.error = None;
+            core.snapshot.updated_at_ms = now_ms();
 
-            manifest.state = DownloadState::Completed;
-            manifest.downloaded_bytes = manifest.total_bytes.unwrap_or(manifest.downloaded_bytes);
-            manifest.checksum = checksum;
-            manifest.destination_path = destination_path.to_string_lossy().to_string();
-            manifest.error = None;
-            manifest.updated_at_ms = now_ms();
-            for chunk in &mut manifest.chunks {
+            core.manifest.state = DownloadState::Completed;
+            core.manifest.downloaded_bytes = core
+                .manifest
+                .total_bytes
+                .unwrap_or(core.manifest.downloaded_bytes);
+            core.manifest.checksum = checksum;
+            core.manifest.destination_path = destination_path.to_string_lossy().to_string();
+            core.manifest.error = None;
+            core.manifest.updated_at_ms = now_ms();
+            for chunk in &mut core.manifest.chunks {
                 chunk.completed = true;
                 chunk.downloaded = chunk.end.saturating_sub(chunk.start) + 1;
                 chunk.claimed_by = None;
+                chunk.dirty = true;
             }
         }
         self.persist(managed.clone()).await?;
@@ -577,7 +575,7 @@ impl super::DownloadManager {
             poisoned.into_inner()
         });
         if let Some(ref tx) = *event_tx {
-            let download_id = managed.lock_snapshot().id.clone();
+            let download_id = managed.lock_core().snapshot.id.clone();
             let gid = format!(
                 "{:016x}",
                 xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
@@ -590,12 +588,17 @@ impl super::DownloadManager {
 }
 
 fn current_allocation(managed: &Arc<ManagedDownload>) -> usize {
-    managed.lock_manifest().allocated_thread_count.unwrap_or(0)
+    managed
+        .lock_core()
+        .manifest
+        .allocated_thread_count
+        .unwrap_or(0)
 }
 
 fn all_chunks_completed(managed: &Arc<ManagedDownload>) -> bool {
     managed
-        .lock_manifest()
+        .lock_core()
+        .manifest
         .chunks
         .iter()
         .all(|chunk| chunk.completed)
@@ -607,17 +610,20 @@ fn claim_next_chunk(manifest: &mut Manifest, worker_id: usize) -> Option<ChunkMa
         .iter_mut()
         .find(|chunk| !chunk.completed && chunk.claimed_by.is_none())?;
     chunk.claimed_by = Some(worker_id);
+    chunk.dirty = true;
     Some(chunk.clone())
 }
 
 fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize) {
-    let mut manifest = managed.lock_manifest();
-    if let Some(chunk) = manifest
+    let mut core = managed.lock_core();
+    if let Some(chunk) = core
+        .manifest
         .chunks
         .iter_mut()
         .find(|chunk| chunk.index == chunk_index)
     {
         chunk.claimed_by = None;
+        chunk.dirty = true;
     }
 }
 
@@ -631,31 +637,21 @@ async fn shutdown_chunk_workers(
 }
 
 fn release_all_chunk_claims(managed: &Arc<ManagedDownload>) {
-    let mut manifest = managed.lock_manifest();
-    for chunk in &mut manifest.chunks {
+    let mut core = managed.lock_core();
+    for chunk in &mut core.manifest.chunks {
         chunk.claimed_by = None;
+        chunk.dirty = true;
     }
-    manifest.connection_count = 0;
-    manifest.updated_at_ms = now_ms();
+    core.manifest.connection_count = 0;
+    core.manifest.updated_at_ms = now_ms();
 }
 
 fn finalize_was_canceled(managed: &Arc<ManagedDownload>, token: &CancellationToken) -> bool {
     if token.is_cancelled() {
         return true;
     }
-    {
-        let snapshot = managed.lock_snapshot();
-        if snapshot.state == DownloadState::Canceled {
-            return true;
-        }
-    }
-    {
-        let manifest = managed.lock_manifest();
-        if manifest.state == DownloadState::Canceled {
-            return true;
-        }
-    }
-    false
+    let core = managed.lock_core();
+    core.snapshot.state == DownloadState::Canceled || core.manifest.state == DownloadState::Canceled
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -680,18 +676,18 @@ async fn download_chunk(
     while current <= end {
         if token.is_cancelled() {
             mark_chunk_released(&managed, chunk.index);
-            return Ok(match managed.lock_snapshot().state {
+            return Ok(match managed.lock_core().snapshot.state {
                 DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
                 _ => ChunkWorkerOutcome::Paused,
             });
         }
 
         let (url, user_agent, validator) = {
-            let manifest = managed.lock_manifest();
+            let core = managed.lock_core();
             (
-                manifest.final_url.clone(),
-                manifest.user_agent.clone(),
-                if_range_header(&manifest),
+                core.manifest.final_url.clone(),
+                core.manifest.user_agent.clone(),
+                if_range_header(&core.manifest),
             )
         };
 
@@ -750,8 +746,9 @@ async fn download_chunk(
     }
 
     {
-        let mut manifest = managed.lock_manifest();
-        if let Some(target) = manifest
+        let mut core = managed.lock_core();
+        if let Some(target) = core
+            .manifest
             .chunks
             .iter_mut()
             .find(|candidate| candidate.index == chunk.index)
@@ -759,8 +756,9 @@ async fn download_chunk(
             target.completed = true;
             target.downloaded = target.end.saturating_sub(target.start) + 1;
             target.claimed_by = None;
+            target.dirty = true;
         }
-        manifest.updated_at_ms = now_ms();
+        core.manifest.updated_at_ms = now_ms();
     }
     Ok(ChunkWorkerOutcome::Finished)
 }

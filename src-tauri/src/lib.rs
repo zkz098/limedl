@@ -10,13 +10,13 @@ use tokio::time::sleep;
 
 use download::CdnAccelerator;
 use download::{
-    AppState, Aria2RpcServer, DownloadManager, RateLimiter, TorrentManager,
-    bt_get_peers, bt_get_pieces, bt_get_trackers, bt_preview_torrent, bt_runtime_status,
-    bt_set_speed_limit, cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail,
-    cdn_fetch_ranges, cdn_status, cdn_test, download_cancel, download_list,
-    download_open_in_explorer, download_pause, download_purge, download_remove, download_resume,
-    download_start, download_status, init_logging, settings_fetch_tracker_list, settings_get,
-    settings_save,
+    AppState, Aria2RpcServer, DownloadManager, RateLimiter, TorrentManager, bt_get_peers,
+    bt_get_pieces, bt_get_trackers, bt_preview_torrent, bt_runtime_status, bt_set_speed_limit,
+    cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status,
+    cdn_test, download_cancel, download_list, download_open_in_explorer, download_pause,
+    download_purge, download_remove, download_resume, download_start, download_status,
+    get_bt_files, init_logging, settings_fetch_tracker_list, settings_get, settings_save,
+    update_bt_files,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,6 +43,7 @@ pub fn run() {
                         || format!("初始化下载管理器失败: {}", state_dir.display()),
                     )?;
                 let download_manager = Arc::new(download_manager);
+                download_manager.set_app_handle(app.handle().clone());
                 download_manager.clone().start_scheduler_loop();
 
                 let settings = download_manager.initial_settings();
@@ -104,7 +105,7 @@ pub fn run() {
                             rpc_shutdown: Default::default(),
                         };
                         loop {
-                            sleep(Duration::from_secs(2)).await;
+                            sleep(Duration::from_secs(30)).await;
                             state.emit_all_downloads().await;
                         }
                     });
@@ -165,6 +166,8 @@ pub fn run() {
             bt_get_peers,
             bt_get_trackers,
             bt_get_pieces,
+            get_bt_files,
+            update_bt_files,
             settings_fetch_tracker_list,
             settings_get,
             settings_save,

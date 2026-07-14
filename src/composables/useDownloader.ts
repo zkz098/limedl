@@ -1,6 +1,10 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
 
 import { getBtRuntimeStatus, getDownloadStatus } from "../lib/tauri/download-api";
 import { t } from "../i18n";
@@ -9,6 +13,7 @@ import {
   canPauseState,
   canResumeState,
   terminalStates,
+  toFriendlyError,
   toMessage,
   toSummary,
 } from "./downloadHelpers";
@@ -16,6 +21,13 @@ import { useDownloadActions } from "./useDownloadActions";
 import { useDownloadForm } from "./useDownloadForm";
 import { useDownloadList } from "./useDownloadList";
 import type { BtRuntimeStatus, DownloadSnapshot, DownloadSummary } from "../types/download";
+
+export interface UseDownloaderOptions {
+  /** Called when a download transitions to failed (for in-app notification) */
+  onDownloadFailed?: (fileName: string, reason: string) => void;
+  /** Called when one or more downloads are removed from the list */
+  onDownloadsRemoved?: (removedIds: string[]) => void;
+}
 
 async function fireNotification(title: string, body: string) {
   try {
@@ -32,7 +44,7 @@ async function fireNotification(title: string, body: string) {
   }
 }
 
-export function useDownloader() {
+export function useDownloader(options?: UseDownloaderOptions) {
   const downloads = ref<DownloadSummary[]>([]);
   const selectedId = ref<string | null>(null);
   const selectedSnapshot = ref<DownloadSnapshot | null>(null);
@@ -73,6 +85,8 @@ export function useDownloader() {
 
   function removeSummary(downloadId: string) {
     downloads.value = downloads.value.filter((download) => download.id !== downloadId);
+
+    options?.onDownloadsRemoved?.([downloadId]);
 
     if (selectedId.value === downloadId) {
       allowAutoSelect.value = false;
@@ -125,17 +139,17 @@ export function useDownloader() {
     return !terminalStates.includes(state);
   });
 
-  async function refreshBtRuntimeStatus(options?: { silent?: boolean }) {
+  async function refreshBtRuntimeStatus(opts?: { silent?: boolean }) {
     try {
       btRuntimeStatus.value = await getBtRuntimeStatus();
     } catch (error) {
-      if (!options?.silent) {
+      if (!opts?.silent) {
         setError(toMessage(error));
       }
     }
   }
 
-  async function refreshStatus(downloadId = selectedId.value, options?: { silent?: boolean }) {
+  async function refreshStatus(downloadId = selectedId.value, opts?: { silent?: boolean }) {
     if (!downloadId) {
       return;
     }
@@ -154,11 +168,11 @@ export function useDownloader() {
         selectedSnapshot.value = snapshot;
       }
 
-      if (!options?.silent) {
+      if (!opts?.silent) {
         setMessage(t("messages.statusRefreshed", { fileName: snapshot.fileName }));
       }
     } catch (error) {
-      if (!options?.silent) {
+      if (!opts?.silent) {
         setError(toMessage(error));
       }
     } finally {
@@ -175,6 +189,7 @@ export function useDownloader() {
     ensureSelection,
     setMessage,
     setError,
+    onDownloadsRemoved: options?.onDownloadsRemoved,
   });
 
   const actions = useDownloadActions({
@@ -209,12 +224,20 @@ export function useDownloader() {
   });
 
   let unlistenEvent: UnlistenFn | null = null;
+  let mounted = true;
   let btRuntimeTimer: ReturnType<typeof setInterval> | null = null;
 
   function handleDownloadUpdated(summary: DownloadSummary) {
-    // Detect state transitions for notification firing
     const existing = downloads.value.find((d) => d.id === summary.id);
     const oldState = existing?.state;
+
+    // In-app notification on state transition to failed
+    if (oldState && oldState !== "failed" && summary.state === "failed") {
+      options?.onDownloadFailed?.(
+        summary.fileName,
+        summary.error ? toFriendlyError(summary.error) : t("common.unknown"),
+      );
+    }
 
     upsertSummary(summary);
 
@@ -240,16 +263,22 @@ export function useDownloader() {
       } else if (summary.state === "failed") {
         void fireNotification(
           t("notifications.downloadFailed"),
-          `${summary.fileName}: ${summary.error ?? ""}`,
+          `${summary.fileName}: ${summary.error ? toFriendlyError(summary.error) : ""}`,
         );
       }
     }
   }
 
   function startAutoRefresh() {
+    mounted = true;
+
     void listen<DownloadSummary>("download-updated", (event) => {
       handleDownloadUpdated(event.payload);
     }).then((unlisten) => {
+      if (!mounted) {
+        unlisten();
+        return;
+      }
       unlistenEvent = unlisten;
     });
 
@@ -261,6 +290,8 @@ export function useDownloader() {
   }
 
   function stopAutoRefresh() {
+    mounted = false;
+
     if (unlistenEvent) {
       unlistenEvent();
       unlistenEvent = null;
@@ -326,6 +357,10 @@ export function useDownloader() {
     runPauseFor: actions.runPauseFor,
     runResume: actions.runResume,
     runResumeFor: actions.runResumeFor,
+    runPauseAll: actions.runPauseAll,
+    runResumeAll: actions.runResumeAll,
+    runClearCompleted: actions.runClearCompleted,
+    runBatchDelete: actions.runBatchDelete,
     selectDownload: actions.selectDownload,
     selectedDownload,
     selectedId: actions.selectedId,

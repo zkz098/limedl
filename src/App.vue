@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
+import { filterDownloads } from "./lib/download-filter";
+import { debounce } from "es-toolkit";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
@@ -8,14 +10,43 @@ import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
 import LabsPage from "./components/labs/LabsPage.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
+import UiBadge from "./components/ui/UiBadge.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
-import { getAppSettings } from "./lib/tauri/settings-api";
+import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
+import { VALID_COLUMN_KEY_SET, DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
 import { useDownloader } from "./composables/useDownloader";
+import type { UseDownloaderOptions } from "./composables/useDownloader";
 import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
 import NotificationToast from "./components/ui/NotificationToast.vue";
-import type { AppSettings, ColorMode } from "./types/settings";
+import type { AppSettings, ColorMode, SortDirection, SortKey } from "./types/settings";
+
+const downloaderOptions: UseDownloaderOptions = {
+  onDownloadFailed: (fileName, reason) => {
+    notifyError(
+      t("messages.downloadFailed", {
+        fileName,
+        reason,
+      }),
+    );
+  },
+  onDownloadsRemoved: (removedIds) => {
+    removedDownloadIds.value = removedIds;
+    if (selectedIds.value.size === 0) return;
+    let changed = false;
+    const next = new Set(selectedIds.value);
+    for (const id of removedIds) {
+      if (next.has(id)) {
+        next.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      selectedIds.value = next;
+    }
+  },
+};
 
 const {
   actionName,
@@ -47,21 +78,30 @@ const {
   runPauseFor,
   runResume,
   runResumeFor,
+  runPauseAll,
+  runResumeAll,
+  runClearCompleted,
+  runBatchDelete,
   selectDownload,
   selectedId,
   selectedSnapshot,
   selectedSummary,
   submitStart,
   setNotificationsEnabled,
-} = useDownloader();
+} = useDownloader(downloaderOptions);
 
 const { t } = useI18n();
 const showComposerDialog = ref(false);
 const detailCollapsed = ref(false);
 const currentView = ref<"home" | "settings" | "labs">("home");
 const appSettings = ref<AppSettings | null>(null);
-const activeCategory = ref('');
-const searchQuery = ref('');
+const activeCategory = ref("");
+const searchQuery = ref("");
+const sortKey = ref<SortKey>("added_at");
+const sortDirection = ref<SortDirection>("desc");
+const compactView = ref(false);
+const visibleColumns = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
+const isSyncingFromSettings = ref(false);
 const pendingPermanentDeleteId = ref<string | null>(null);
 const pendingView = ref<"home" | "settings" | "labs" | null>(null);
 const settingsHasUnsavedChanges = ref(false);
@@ -69,9 +109,17 @@ const labsHasUnsavedChanges = ref(false);
 const isSavingBeforeNavigation = ref(false);
 const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
 const labsPageRef = useTemplateRef<InstanceType<typeof LabsPage>>("labsPage");
-const knownFailedDownloadIds = new Set<string>();
-let hasSeenInitialDownloadList = false;
 let colorSchemeQuery: MediaQueryList | null = null;
+
+// Multi-select mode
+const multiSelectMode = ref(false);
+const selectedIds = ref<Set<string>>(new Set());
+const showBatchDeleteDialog = ref(false);
+const removedDownloadIds = ref<string[]>([]);
+
+const filteredDownloads = computed(() =>
+  filterDownloads(downloads.value, searchQuery.value, activeCategory.value),
+);
 
 const { notifications, notifyError, dismiss } = useNotification();
 
@@ -80,6 +128,17 @@ function handleSystemColorSchemeChange() {
 }
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
+
+const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger">(() => {
+  const state = selectedOverview.value?.state;
+
+  if (!state) return "neutral";
+  if (state === "completed") return "success";
+  if (state === "failed" || state === "canceled") return "danger";
+  if (state === "queued" || state === "paused") return "warning";
+  return "info";
+});
+
 const showDetailInfo = computed(() => appSettings.value?.appearance?.showDetailInfo ?? true);
 const showHeatmap = computed(() => appSettings.value?.appearance?.showHeatmap ?? true);
 const showUnsavedSettingsDialog = computed(() => pendingView.value !== null);
@@ -101,20 +160,20 @@ const pendingPermanentDeleteTask = computed(
 
 const categoryCounts = computed(() => {
   const all = downloads.value.length;
-  const downloading = downloads.value.filter(d => d.state === 'downloading').length;
-  const paused = downloads.value.filter(d => d.state === 'paused').length;
-  const completed = downloads.value.filter(d => d.state === 'completed').length;
-  const failed = downloads.value.filter(d => d.state === 'failed').length;
-  const active = downloads.value.filter(d => d.state === 'downloading').length;
-  return { '': all, downloading, paused, completed, failed, active };
+  const downloading = downloads.value.filter((d) => d.state === "downloading").length;
+  const paused = downloads.value.filter((d) => d.state === "paused").length;
+  const completed = downloads.value.filter((d) => d.state === "completed").length;
+  const failed = downloads.value.filter((d) => d.state === "failed").length;
+  const active = downloads.value.filter((d) => d.state === "downloading").length;
+  return { "": all, downloading, paused, completed, failed, active };
 });
 
 const sidebarStats = computed(() => {
   const totalSpeed = downloads.value.reduce((sum, d) => sum + (d.speedBytesPerSecond ?? 0), 0);
   return {
     totalTasks: downloads.value.length,
-    activeTasks: downloads.value.filter(d => d.state === 'downloading').length,
-    completedTasks: downloads.value.filter(d => d.state === 'completed').length,
+    activeTasks: downloads.value.filter((d) => d.state === "downloading").length,
+    completedTasks: downloads.value.filter((d) => d.state === "completed").length,
     currentSpeed: totalSpeed,
   };
 });
@@ -173,9 +232,47 @@ function handleRefresh() {
   void refreshList();
 }
 
+// Multi-select handlers
+function handleToggleMultiSelectMode(enabled: boolean) {
+  multiSelectMode.value = enabled;
+  if (!enabled) {
+    selectedIds.value = new Set();
+  }
+}
+
+function handleToggleSelect(downloadId: string) {
+  const next = new Set(selectedIds.value);
+  if (next.has(downloadId)) {
+    next.delete(downloadId);
+  } else {
+    next.add(downloadId);
+  }
+  selectedIds.value = next;
+}
+
+function handleSelectAll() {
+  selectedIds.value = new Set(filteredDownloads.value.map((d) => d.id));
+}
+
+function handleDeselectAll() {
+  selectedIds.value = new Set();
+}
+
+function handleBatchDelete() {
+  showBatchDeleteDialog.value = true;
+}
+
+async function confirmBatchDelete() {
+  const ids = [...selectedIds.value];
+  showBatchDeleteDialog.value = false;
+  if (ids.length === 0) return;
+  await runBatchDelete(ids);
+  selectedIds.value = new Set();
+}
+
 function navigateTo(view: string) {
   const validViews = ["home", "settings", "labs"] as const;
-  if (!validViews.includes(view as typeof validViews[number])) {
+  if (!validViews.includes(view as (typeof validViews)[number])) {
     return;
   }
 
@@ -346,39 +443,54 @@ watch(
 );
 
 watch(
-  downloads,
-  (nextDownloads) => {
-    if (!hasSeenInitialDownloadList) {
-      for (const download of nextDownloads) {
-        if (download.state === "failed") {
-          knownFailedDownloadIds.add(download.id);
-        }
-      }
-      hasSeenInitialDownloadList = true;
+  appSettings,
+  (settings) => {
+    if (!settings) {
       return;
     }
 
-    for (const download of nextDownloads) {
-      if (download.state !== "failed") {
-        knownFailedDownloadIds.delete(download.id);
-        continue;
-      }
-
-      if (knownFailedDownloadIds.has(download.id)) {
-        continue;
-      }
-
-      knownFailedDownloadIds.add(download.id);
-      notifyError(
-        t("messages.downloadFailed", {
-          fileName: download.fileName,
-          reason: download.error || t("common.unknown"),
-        }),
-      );
+    isSyncingFromSettings.value = true;
+    sortKey.value = settings.appearance?.sortKey ?? "added_at";
+    sortDirection.value = settings.appearance?.sortDirection ?? "desc";
+    compactView.value = settings.appearance?.compactView ?? false;
+    const loaded = (settings.appearance?.visibleColumns ?? [...DEFAULT_VISIBLE_COLUMNS]).filter(
+      (k) => VALID_COLUMN_KEY_SET.has(k),
+    );
+    if (!loaded.includes("file")) {
+      loaded.unshift("file");
     }
+    visibleColumns.value = loaded;
+    nextTick(() => {
+      isSyncingFromSettings.value = false;
+    });
   },
-  { deep: true },
+  { immediate: true },
 );
+
+const debouncedSaveAppearance = debounce(async () => {
+  if (!appSettings.value) return;
+  try {
+    await saveAppSettings(appSettings.value);
+  } catch (error) {
+    console.error("Failed to save view settings", error);
+  }
+}, 300);
+
+watch([sortKey, sortDirection, compactView, visibleColumns], () => {
+  if (isSyncingFromSettings.value || !appSettings.value) {
+    return;
+  }
+
+  appSettings.value.appearance.sortKey = sortKey.value;
+  appSettings.value.appearance.sortDirection = sortDirection.value;
+  appSettings.value.appearance.compactView = compactView.value;
+  appSettings.value.appearance.visibleColumns = [...visibleColumns.value];
+
+  debouncedSaveAppearance();
+});
+
+// Watcher #1 (failed detection) and Watcher #2 (stale selectedIds cleanup)
+// have been replaced with event-driven callbacks in useDownloader().
 
 onBeforeUnmount(() => {
   colorSchemeQuery?.removeEventListener("change", handleSystemColorSchemeChange);
@@ -387,10 +499,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="app-root">
-    <NotificationToast
-      :notifications="notifications"
-      @dismiss="dismiss"
-    />
+    <NotificationToast :notifications="notifications" @dismiss="dismiss" />
 
     <!-- Top toolbar (only show on home view) -->
     <TopToolbar
@@ -398,10 +507,28 @@ onBeforeUnmount(() => {
       :search-query="searchQuery"
       :has-selection="!!selectedId"
       :bt-status="btStatusData"
+      :sort-key="sortKey"
+      :sort-direction="sortDirection"
+      :compact-view="compactView"
+      :visible-columns="visibleColumns"
+      :multi-select-mode="multiSelectMode"
+      :selected-count="selectedIds.size"
+      :filtered-count="filteredDownloads.length"
       @update:search-query="searchQuery = $event"
+      @update:sort-key="sortKey = $event"
+      @update:sort-direction="sortDirection = $event"
+      @update:compact-view="compactView = $event"
+      @update:visible-columns="visibleColumns = $event"
       @add-task="showComposerDialog = true"
       @delete="handleDelete"
       @refresh="handleRefresh"
+      @update:multi-select-mode="handleToggleMultiSelectMode"
+      @pause-all="runPauseAll"
+      @resume-all="runResumeAll"
+      @clear-completed="runClearCompleted"
+      @select-all="handleSelectAll"
+      @deselect-all="handleDeselectAll"
+      @batch-delete="handleBatchDelete"
     />
 
     <!-- Main layout: sidebar + content -->
@@ -427,6 +554,13 @@ onBeforeUnmount(() => {
               :task-action-name="actionName"
               :state-filter="activeCategory"
               :search-query="searchQuery"
+              :sort-key="sortKey"
+              :sort-direction="sortDirection"
+              :compact-view="compactView"
+              :visible-columns="visibleColumns"
+              :multi-select-mode="multiSelectMode"
+              :selected-ids="selectedIds"
+              :removed-download-ids="removedDownloadIds"
               @copy-link="runCopyLink"
               @delete-task="runDeleteTask"
               @delete-task-permanently="requestPermanentDelete"
@@ -434,6 +568,7 @@ onBeforeUnmount(() => {
               @pause-or-resume="handleTaskPauseOrResume"
               @refresh="refreshList"
               @select="selectDownload"
+              @toggle-select="handleToggleSelect"
             />
           </div>
 
@@ -441,34 +576,88 @@ onBeforeUnmount(() => {
           <div class="detail-panel" :class="{ collapsed: detailCollapsed }">
             <div class="detail-panel__header" @click="detailCollapsed = !detailCollapsed">
               <div class="detail-panel__title">
-                <i class="i-ri-information-line" />
-                <span class="detail-panel__filename">{{ selectedOverview ? selectedOverview.fileName : t('detail.noSelection') }}</span>
+                <i
+                  class="detail-panel__arrow"
+                  :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'"
+                />
+                <span class="detail-panel__filename">{{
+                  selectedOverview ? selectedOverview.fileName : t("detail.noSelection")
+                }}</span>
+                <template v-if="selectedOverview">
+                  <UiBadge :tone="stateTone" size="sm">{{
+                    t(`states.${selectedOverview.state}`)
+                  }}</UiBadge>
+                  <UiBadge
+                    v-if="selectedOverview.cdnAccelerated"
+                    tone="warning"
+                    size="sm"
+                    class="detail-panel__cdn"
+                  >
+                    <span class="i-ri-flashlight-fill" aria-hidden="true" />
+                    {{ t("inspector.cdnAccelerated") }}
+                  </UiBadge>
+                </template>
               </div>
-              <div class="detail-panel__toggle">
-                <i :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'" />
+              <div v-if="selectedOverview" class="detail-panel__actions">
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  icon="i-ri-refresh-line"
+                  @click.stop="handleRefreshSelected"
+                >
+                  {{ isRefreshingStatus ? t("common.refreshing") : t("common.refresh") }}
+                </UiButton>
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  icon="i-ri-pause-line"
+                  :disabled="!canPause"
+                  @click.stop="runPause"
+                >
+                  {{ actionName === "Pause" ? t("inspector.pausing") : t("inspector.pause") }}
+                </UiButton>
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  icon="i-ri-play-line"
+                  :disabled="!canResume"
+                  @click.stop="runResume"
+                >
+                  {{ actionName === "Resume" ? t("inspector.resuming") : t("inspector.resume") }}
+                </UiButton>
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  icon="i-ri-close-circle-line"
+                  :disabled="!canCancel"
+                  @click.stop="runCancel"
+                >
+                  {{ actionName === "Cancel" ? t("inspector.canceling") : t("inspector.cancel") }}
+                </UiButton>
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  icon="i-ri-close-line"
+                  @click.stop="selectDownload(null)"
+                />
               </div>
             </div>
             <div v-show="!detailCollapsed" class="detail-panel__body">
               <DownloadInspector
                 v-if="selectedOverview"
-                :action-name="actionName"
-                :can-cancel="canCancel"
-                :can-pause="canPause"
-                :can-resume="canResume"
-                :is-refreshing-status="isRefreshingStatus"
                 :selected-overview="selectedOverview"
                 :selected-snapshot="selectedSnapshot"
                 :show-detail-info="showDetailInfo"
                 :show-heatmap="showHeatmap"
-                @cancel="runCancel"
-                @pause="runPause"
-                @refresh="handleRefreshSelected"
-                @resume="runResume"
-                @close="selectDownload(null)"
               />
               <div v-else class="detail-panel__empty">
                 <i class="i-ri-cursor-line" />
-                <p>{{ t('detail.selectPrompt') }}</p>
+                <p>{{ t("detail.selectPrompt") }}</p>
               </div>
             </div>
           </div>
@@ -635,6 +824,45 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </UiDialog>
+
+    <!-- Batch delete dialog -->
+    <UiDialog
+      :model-value="showBatchDeleteDialog"
+      width="min(32rem, calc(100vw - 1.5rem))"
+      @update:model-value="
+        (value) => {
+          if (!value) showBatchDeleteDialog = false;
+        }
+      "
+    >
+      <template #title>
+        <div class="dialog-heading">
+          <div>
+            <p class="section-kicker">{{ t("dialog.confirmDelete") }}</p>
+            <h2>{{ t("dialog.batchDeleteTitle") }}</h2>
+          </div>
+        </div>
+      </template>
+
+      <div class="confirm-delete">
+        <p class="confirm-delete__message">
+          {{ t("dialog.batchDeleteMessage", { count: selectedIds.size }) }}
+        </p>
+        <div class="confirm-delete__actions">
+          <UiButton type="button" variant="secondary" @click="showBatchDeleteDialog = false">
+            {{ t("common.cancel") }}
+          </UiButton>
+          <UiButton
+            type="button"
+            variant="danger"
+            icon="i-ri-delete-bin-line"
+            @click="confirmBatchDelete"
+          >
+            {{ t("dialog.confirmBatchDelete") }}
+          </UiButton>
+        </div>
+      </div>
+    </UiDialog>
   </div>
 </template>
 
@@ -683,13 +911,14 @@ onBeforeUnmount(() => {
 }
 
 .detail-panel.collapsed {
-  max-height: 2.75rem;
+  max-height: 3.75rem;
 }
 
 .detail-panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
   cursor: pointer;
   user-select: none;
@@ -705,13 +934,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-main);
 }
 
-.detail-panel__title i {
+.detail-panel__arrow {
   color: var(--color-accent);
+  flex-shrink: 0;
 }
 
 .detail-panel__filename {
@@ -722,8 +954,21 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.detail-panel__toggle i {
-  color: var(--color-text-muted);
+.detail-panel__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.detail-panel__cdn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.detail-panel__cdn .i-ri-flashlight-fill {
+  font-size: 0.8rem;
 }
 
 .detail-panel__body {
@@ -801,7 +1046,9 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
   cursor: pointer;
   font-size: 1.125rem;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .overlay-close:hover {
@@ -821,7 +1068,9 @@ onBeforeUnmount(() => {
 
 .overlay-fade-enter-active .modal-panel,
 .overlay-fade-leave-active .modal-panel {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .overlay-fade-enter-from .modal-panel,

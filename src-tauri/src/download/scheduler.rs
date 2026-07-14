@@ -69,7 +69,8 @@ impl DownloadManager {
 
         let downloads = self.downloads.read().await;
         for managed in downloads.values() {
-            let mut manifest = managed.lock_manifest();
+            let mut core = managed.lock_core();
+            let manifest = &mut core.manifest;
             if manifest.thread_mode != ThreadMode::Adaptive
                 || manifest.state != DownloadState::Downloading
                 || !manifest.supports_ranges
@@ -189,7 +190,7 @@ impl DownloadManager {
     }
 
     pub(crate) async fn learn_from_download(&self, managed: Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.lock_manifest().clone();
+        let manifest = managed.lock_core().manifest.clone();
         if manifest.thread_mode != ThreadMode::Adaptive {
             return Ok(());
         }
@@ -255,11 +256,12 @@ impl DownloadManager {
 
         match settings.scheduler.mode {
             SchedulerMode::Traditional => {
-                entries.sort_by_key(|managed| managed.lock_manifest().created_at_ms);
+                entries.sort_by_key(|managed| managed.lock_core().manifest.created_at_ms);
 
                 let mut running = 0usize;
                 for managed in entries {
-                    let mut manifest = managed.lock_manifest();
+                    let mut core = managed.lock_core();
+                    let manifest = &mut core.manifest;
                     let terminal = matches!(
                         manifest.state,
                         DownloadState::Paused
@@ -271,12 +273,12 @@ impl DownloadManager {
                     if terminal {
                         manifest.allocated_thread_count = Some(0);
                         manifest.connection_count = 0;
-                        sync_snapshot_with_manifest(&managed, &manifest);
+                        sync_snapshot_with_manifest(&mut core);
                         continue;
                     }
 
                     if running < settings.scheduler.traditional.max_parallel_tasks {
-                        let allocation = effective_allocation_cap(&manifest, &settings).max(1);
+                        let allocation = effective_allocation_cap(manifest, &settings).max(1);
                         manifest.allocated_thread_count = Some(allocation);
                         manifest.connection_count = allocation;
                         manifest.state = DownloadState::Downloading;
@@ -287,16 +289,16 @@ impl DownloadManager {
                         manifest.state = DownloadState::Queued;
                     }
                     manifest.updated_at_ms = now_ms();
-                    sync_snapshot_with_manifest(&managed, &manifest);
+                    sync_snapshot_with_manifest(&mut core);
                 }
             }
             SchedulerMode::Automatic => {
                 let mut candidates = entries
                     .into_iter()
                     .filter(|managed| {
-                        let manifest = managed.lock_manifest();
+                        let core = managed.lock_core();
                         !matches!(
-                            manifest.state,
+                            core.manifest.state,
                             DownloadState::Paused
                                 | DownloadState::Completed
                                 | DownloadState::Failed
@@ -307,17 +309,17 @@ impl DownloadManager {
                     .collect::<Vec<_>>();
 
                 candidates.sort_by(|left, right| {
-                    remaining_bytes(&right.lock_manifest())
-                        .cmp(&remaining_bytes(&left.lock_manifest()))
+                    remaining_bytes(&right.lock_core().manifest)
+                        .cmp(&remaining_bytes(&left.lock_core().manifest))
                 });
 
                 let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
                 let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
                 let mut allocations: HashMap<String, usize> = HashMap::new();
                 for managed in &candidates {
-                    let manifest = managed.lock_manifest();
+                    let core = managed.lock_core();
                     if remaining_budget == 0 {
-                        allocations.insert(manifest.id.clone(), 0);
+                        allocations.insert(core.manifest.id.clone(), 0);
                         continue;
                     }
                     let start = if remaining_budget >= min_per_task {
@@ -325,16 +327,16 @@ impl DownloadManager {
                     } else {
                         remaining_budget
                     };
-                    allocations.insert(manifest.id.clone(), start);
+                    allocations.insert(core.manifest.id.clone(), start);
                     remaining_budget = remaining_budget.saturating_sub(start);
                 }
 
                 while remaining_budget > 0 {
                     let mut granted = false;
                     for managed in &candidates {
-                        let manifest = managed.lock_manifest();
-                        let entry = allocations.entry(manifest.id.clone()).or_insert(0);
-                        let cap = effective_allocation_cap(&manifest, &settings);
+                        let core = managed.lock_core();
+                        let entry = allocations.entry(core.manifest.id.clone()).or_insert(0);
+                        let cap = effective_allocation_cap(&core.manifest, &settings);
                         if *entry < cap {
                             *entry += 1;
                             remaining_budget -= 1;
@@ -351,7 +353,8 @@ impl DownloadManager {
                 }
 
                 for managed in &all_downloads {
-                    let mut manifest = managed.lock_manifest();
+                    let mut core = managed.lock_core();
+                    let manifest = &mut core.manifest;
                     let allocation = allocations.get(&manifest.id).copied().unwrap_or(0);
                     if matches!(
                         manifest.state,
@@ -375,7 +378,7 @@ impl DownloadManager {
                         }
                     }
                     manifest.updated_at_ms = now_ms();
-                    sync_snapshot_with_manifest(managed, &manifest);
+                    sync_snapshot_with_manifest(&mut core);
                 }
             }
         }

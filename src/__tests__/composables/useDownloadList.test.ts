@@ -126,9 +126,7 @@ describe("useDownloadList", () => {
     const list = createList();
     await list.refreshList();
 
-    expect(setMessage).toHaveBeenCalledWith(
-      expect.stringContaining("messages.queueRefreshed"),
-    );
+    expect(setMessage).toHaveBeenCalledWith(expect.stringContaining("messages.queueRefreshed"));
   });
 
   it("sets a 'no downloads' message when list is empty", async () => {
@@ -290,11 +288,7 @@ describe("useDownloadList", () => {
     await list.refreshList();
 
     expect(list.downloads.value).toHaveLength(3);
-    expect(list.downloads.value.map((d) => d.fileName)).toEqual([
-      "a.zip",
-      "b.zip",
-      "c.zip",
-    ]);
+    expect(list.downloads.value.map((d) => d.fileName)).toEqual(["a.zip", "b.zip", "c.zip"]);
   });
 
   // ── Error message serialization ────────────────────────────────────

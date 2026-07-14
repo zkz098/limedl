@@ -317,14 +317,11 @@ onMounted(async () => {
     }
   });
 
-  unlistenProgress = await listen<CdnTestProgress>(
-    "cdn-test-progress",
-    (event) => {
-      const { phase: evPhase, current, total } = event.payload;
-      phase.value = evPhase;
-      phaseProgress.value = { current, total };
-    },
-  );
+  unlistenProgress = await listen<CdnTestProgress>("cdn-test-progress", (event) => {
+    const { phase: evPhase, current, total } = event.payload;
+    phase.value = evPhase;
+    phaseProgress.value = { current, total };
+  });
 });
 
 onUnmounted(() => {
@@ -358,7 +355,11 @@ onUnmounted(() => {
       >
         <span
           class="settings-toggle__icon"
-          :class="draft.cdnAcceleration.enabled ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'"
+          :class="
+            draft.cdnAcceleration.enabled
+              ? 'i-ri-checkbox-circle-fill'
+              : 'i-ri-checkbox-blank-circle-line'
+          "
           aria-hidden="true"
         />
         <span class="settings-toggle__text">{{ t("settings.cdnAcceleration.enable") }}</span>
@@ -383,14 +384,13 @@ onUnmounted(() => {
         :disabled="testing"
         @click="startTest"
       >
-        {{ hasResult ? t("settings.cdnAcceleration.testAgain") : t("settings.cdnAcceleration.triggerButton") }}
+        {{
+          hasResult
+            ? t("settings.cdnAcceleration.testAgain")
+            : t("settings.cdnAcceleration.triggerButton")
+        }}
       </UiButton>
-      <UiButton
-        v-if="testing"
-        variant="secondary"
-        icon="i-ri-stop-circle-line"
-        @click="cancelTest"
-      >
+      <UiButton v-if="testing" variant="secondary" icon="i-ri-stop-circle-line" @click="cancelTest">
         {{ t("settings.cdnAcceleration.cancelButton") }}
       </UiButton>
       <UiButton
@@ -420,7 +420,9 @@ onUnmounted(() => {
       <div class="cdn-panel__result-grid">
         <div class="cdn-panel__result-item">
           <span class="cdn-panel__result-key">{{ t("settings.cdnAcceleration.bestIp") }}</span>
-          <span class="cdn-panel__result-value cdn-panel__mono">{{ draft.cdnAcceleration.activeIp }}</span>
+          <span class="cdn-panel__result-value cdn-panel__mono">{{
+            draft.cdnAcceleration.activeIp
+          }}</span>
         </div>
         <div class="cdn-panel__result-item">
           <span class="cdn-panel__result-key">{{ t("settings.cdnAcceleration.speedMbps") }}</span>
@@ -433,27 +435,37 @@ onUnmounted(() => {
       </div>
       <div v-if="speedImprovement != null || latencyImprovement != null" class="cdn-panel__speedup">
         <div class="cdn-panel__speedup-item">
-          <span class="cdn-panel__speedup-key">{{ t("settings.cdnAcceleration.speedupSpeed") }}</span>
+          <span class="cdn-panel__speedup-key">{{
+            t("settings.cdnAcceleration.speedupSpeed")
+          }}</span>
           <span
             class="cdn-panel__speedup-value"
             :class="{ 'cdn-panel__speedup-value--positive': (speedImprovement ?? 0) > 0 }"
-          >{{ fmtImprovement(speedImprovement) }}</span>
+            >{{ fmtImprovement(speedImprovement) }}</span
+          >
         </div>
         <div class="cdn-panel__speedup-item">
-          <span class="cdn-panel__speedup-key">{{ t("settings.cdnAcceleration.speedupLatency") }}</span>
+          <span class="cdn-panel__speedup-key">{{
+            t("settings.cdnAcceleration.speedupLatency")
+          }}</span>
           <span
             class="cdn-panel__speedup-value"
             :class="{ 'cdn-panel__speedup-value--positive': (latencyImprovement ?? 0) > 0 }"
-          >{{ fmtImprovement(latencyImprovement) }}</span>
+            >{{ fmtImprovement(latencyImprovement) }}</span
+          >
         </div>
-        <span class="cdn-panel__speedup-baseline">{{ t("settings.cdnAcceleration.vsDefault") }}</span>
+        <span class="cdn-panel__speedup-baseline">{{
+          t("settings.cdnAcceleration.vsDefault")
+        }}</span>
       </div>
     </div>
 
     <!-- Candidate nodes table -->
     <div v-if="candidates.length > 0" class="cdn-panel__candidates">
       <div class="cdn-panel__candidates-header">
-        <h4 class="cdn-panel__candidates-title">{{ t("settings.cdnAcceleration.candidatesTitle") }}</h4>
+        <h4 class="cdn-panel__candidates-title">
+          {{ t("settings.cdnAcceleration.candidatesTitle") }}
+        </h4>
         <button
           type="button"
           class="cdn-panel__collapse-btn"
@@ -485,7 +497,9 @@ onUnmounted(() => {
             >
               <td class="cdn-panel__mono">{{ c.ip }}</td>
               <td class="cdn-panel__metric">{{ fmtLatency(c.tcpLatencyMs) }} ms</td>
-              <td class="cdn-panel__metric">{{ c.throughputMbps != null ? `${fmtSpeed(c.throughputMbps)} MB/s` : "-" }}</td>
+              <td class="cdn-panel__metric">
+                {{ c.throughputMbps != null ? `${fmtSpeed(c.throughputMbps)} MB/s` : "-" }}
+              </td>
               <td>
                 <UiBadge v-if="c.ip === activeIp" tone="success" size="sm">
                   {{ t("settings.cdnAcceleration.candidateActive") }}
@@ -511,7 +525,13 @@ onUnmounted(() => {
             <tr class="cdn-panel__row--default">
               <td class="cdn-panel__mono">{{ defaultNode.ip ?? "-" }}</td>
               <td class="cdn-panel__metric">{{ fmtLatency(defaultNode.tcpLatencyMs) }} ms</td>
-              <td class="cdn-panel__metric">{{ defaultNode.throughputMbps != null ? `${fmtSpeed(defaultNode.throughputMbps)} MB/s` : "-" }}</td>
+              <td class="cdn-panel__metric">
+                {{
+                  defaultNode.throughputMbps != null
+                    ? `${fmtSpeed(defaultNode.throughputMbps)} MB/s`
+                    : "-"
+                }}
+              </td>
               <td>
                 <UiBadge tone="neutral" size="sm">
                   {{ t("settings.cdnAcceleration.defaultNode") }}
@@ -537,7 +557,9 @@ onUnmounted(() => {
         @click="toggleAdvanced"
       >
         <span class="i-ri-settings-3-line cdn-panel__advanced-toggle-icon" aria-hidden="true" />
-        <span class="cdn-panel__advanced-toggle-label">{{ t("settings.cdnAcceleration.advancedSection") }}</span>
+        <span class="cdn-panel__advanced-toggle-label">{{
+          t("settings.cdnAcceleration.advancedSection")
+        }}</span>
         <span
           :class="showAdvanced ? 'i-ri-arrow-up-s-line' : 'i-ri-arrow-down-s-line'"
           aria-hidden="true"
@@ -546,13 +568,16 @@ onUnmounted(() => {
       <div v-show="showAdvanced" class="cdn-panel__advanced-body">
         <!-- Cloudflare IP Ranges -->
         <div class="cdn-panel__advanced-block">
-          <h5 class="cdn-panel__advanced-title">{{ t("settings.cdnAcceleration.cloudflareRanges") }}</h5>
+          <h5 class="cdn-panel__advanced-title">
+            {{ t("settings.cdnAcceleration.cloudflareRanges") }}
+          </h5>
           <div v-if="rangesLoaded" class="cdn-panel__ranges-list">
             <code
               v-for="range in cloudflareRanges"
               :key="range"
               class="cdn-panel__mono cdn-panel__range-chip"
-            >{{ range }}</code>
+              >{{ range }}</code
+            >
           </div>
           <p v-else class="cdn-panel__hint">
             <span class="i-ri-loader-4-line cdn-panel__spin" aria-hidden="true" />
@@ -566,11 +591,7 @@ onUnmounted(() => {
           <p class="cdn-panel__hint">{{ t("settings.cdnAcceleration.manualApplyHint") }}</p>
           <div class="cdn-panel__manual-row">
             <div class="cdn-panel__manual-input">
-              <UiInput
-                v-model="manualIp"
-                placeholder="e.g. 104.16.0.1"
-                :disabled="testing"
-              />
+              <UiInput v-model="manualIp" placeholder="e.g. 104.16.0.1" :disabled="testing" />
             </div>
             <UiButton
               variant="secondary"
@@ -624,7 +645,9 @@ onUnmounted(() => {
 }
 
 @keyframes cdn-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Actions ── */

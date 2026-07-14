@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type {
+  BtFileStatus,
   BtPeerInfo,
   BtPieceInfo,
   BtRuntimeStatus,
@@ -63,10 +64,22 @@ export function getBtPieces(downloadId: string) {
   return invoke<BtPieceInfo[]>("bt_get_pieces", { downloadId });
 }
 
-export function setBtSpeedLimit(downloadId: string, downloadLimitBps?: number, uploadLimitBps?: number) {
+export function setBtSpeedLimit(
+  downloadId: string,
+  downloadLimitBps?: number,
+  uploadLimitBps?: number,
+) {
   return invoke<void>("bt_set_speed_limit", { downloadId, downloadLimitBps, uploadLimitBps });
 }
 
 export function previewTorrent(source: string) {
   return invoke<TorrentFileEntry[]>("bt_preview_torrent", { source });
+}
+
+export function getBtFiles(downloadId: string) {
+  return invoke<BtFileStatus[]>("get_bt_files", { downloadId });
+}
+
+export function updateBtFiles(downloadId: string, includedIndices: number[]) {
+  return invoke<void>("update_bt_files", { downloadId, includedIndices });
 }

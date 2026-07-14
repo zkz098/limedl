@@ -5,5 +5,5 @@ export default defineConfig({
     correctness: "error",
     suspicious: "error",
     perf: "warn",
-  }
+  },
 });

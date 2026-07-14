@@ -25,169 +25,173 @@ const emit = defineEmits<{
 <template>
   <div class="appearance-panel">
     <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("language.label") }}</p>
-        <h3>{{ t("settings.languageTitle") }}</h3>
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("language.label") }}</p>
+          <h3>{{ t("settings.languageTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-translate-2" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-translate-2" aria-hidden="true" />
-    </div>
 
-    <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("language.label") }}</span>
-        <UiSelect
-          :model-value="language"
-          :options="languageOptions"
-          @update:model-value="emit('changeLanguage', $event as SupportedLanguage)"
-        />
-      </label>
-    </div>
-  </section>
-
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.appearanceKicker") }}</p>
-        <h3>{{ t("settings.appearanceTitle") }}</h3>
+      <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("language.label") }}</span>
+          <UiSelect
+            :model-value="language"
+            :options="languageOptions"
+            @update:model-value="emit('changeLanguage', $event as SupportedLanguage)"
+          />
+        </label>
       </div>
-      <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
-    </div>
+    </section>
 
-    <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.colorMode") }}</span>
-        <UiSelect v-model="draft.appearance.colorMode" :options="colorModeOptions" />
-        <p class="settings-field__hint">{{ t("settings.colorModeHint") }}</p>
-      </label>
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.appearanceKicker") }}</p>
+          <h3>{{ t("settings.appearanceTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
+      </div>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.themeColor") }}</span>
-        <div class="theme-color-options">
+      <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.colorMode") }}</span>
+          <UiSelect v-model="draft.appearance.colorMode" :options="colorModeOptions" />
+          <p class="settings-field__hint">{{ t("settings.colorModeHint") }}</p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.themeColor") }}</span>
+          <div class="theme-color-options">
+            <button
+              v-for="color in ['default', 'amber', 'sky', 'lime'] as ThemeColor[]"
+              :key="color"
+              type="button"
+              class="theme-color-button"
+              :class="[
+                'theme-color-button--' + color,
+                { 'is-active': draft.appearance.themeColor === color },
+              ]"
+              :aria-label="t(`settings.themeColorNames.${color}`)"
+              @click="draft.appearance.themeColor = color"
+            >
+              <span
+                v-if="draft.appearance.themeColor === color"
+                class="i-ri-check-line"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.backgroundOpacity") }}</span>
+          <UiSelect
+            v-model="draft.appearance.backgroundOpacity"
+            :options="backgroundOpacityOptions"
+          />
+          <p class="settings-field__hint">{{ t("settings.backgroundOpacityHint") }}</p>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.infoPanelKicker") }}</p>
+          <h3>{{ t("settings.infoPanelTitle") }}</h3>
+        </div>
+        <span class="settings-section__icon i-ri-information-line" aria-hidden="true" />
+      </div>
+
+      <div class="settings-grid">
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.detailInfo") }}</span>
           <button
-            v-for="color in ['default', 'amber', 'sky', 'lime'] as ThemeColor[]"
-            :key="color"
             type="button"
-            class="theme-color-button"
-            :class="[
-              'theme-color-button--' + color,
-              { 'is-active': draft.appearance.themeColor === color },
-            ]"
-            :aria-label="t(`settings.themeColorNames.${color}`)"
-            @click="draft.appearance.themeColor = color"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': draft.appearance.showDetailInfo }"
+            :aria-pressed="draft.appearance.showDetailInfo"
+            @click="draft.appearance.showDetailInfo = !draft.appearance.showDetailInfo"
           >
             <span
-              v-if="draft.appearance.themeColor === color"
-              class="i-ri-check-line"
+              class="settings-toggle__icon"
+              :class="
+                draft.appearance.showDetailInfo
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
               aria-hidden="true"
             />
+            <span class="settings-toggle__text">{{ t("settings.detailInfoPanel") }}</span>
           </button>
+          <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
+        </label>
+
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t("settings.heatmap") }}</span>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': draft.appearance.showHeatmap }"
+            :aria-pressed="draft.appearance.showHeatmap"
+            @click="draft.appearance.showHeatmap = !draft.appearance.showHeatmap"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                draft.appearance.showHeatmap
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
+            />
+            <span class="settings-toggle__text">{{ t("settings.heatmapPanel") }}</span>
+          </button>
+          <p class="settings-field__hint">{{ t("settings.heatmapHint") }}</p>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section__head">
+        <div>
+          <p class="section-kicker">{{ t("settings.notificationSettings.title") }}</p>
+          <h3>{{ t("settings.notificationSettings.title") }}</h3>
         </div>
-      </label>
-
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.backgroundOpacity") }}</span>
-        <UiSelect
-          v-model="draft.appearance.backgroundOpacity"
-          :options="backgroundOpacityOptions"
-        />
-        <p class="settings-field__hint">{{ t("settings.backgroundOpacityHint") }}</p>
-      </label>
-    </div>
-  </section>
-
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.infoPanelKicker") }}</p>
-        <h3>{{ t("settings.infoPanelTitle") }}</h3>
+        <span class="settings-section__icon i-ri-notification-3-line" aria-hidden="true" />
       </div>
-      <span class="settings-section__icon i-ri-information-line" aria-hidden="true" />
-    </div>
 
-    <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.detailInfo") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.appearance.showDetailInfo }"
-          :aria-pressed="draft.appearance.showDetailInfo"
-          @click="draft.appearance.showDetailInfo = !draft.appearance.showDetailInfo"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.appearance.showDetailInfo
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.detailInfoPanel") }}</span>
-        </button>
-        <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
-      </label>
-
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.heatmap") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.appearance.showHeatmap }"
-          :aria-pressed="draft.appearance.showHeatmap"
-          @click="draft.appearance.showHeatmap = !draft.appearance.showHeatmap"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.appearance.showHeatmap
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.heatmapPanel") }}</span>
-        </button>
-        <p class="settings-field__hint">{{ t("settings.heatmapHint") }}</p>
-      </label>
-    </div>
-  </section>
-
-  <section class="settings-section">
-    <div class="settings-section__head">
-      <div>
-        <p class="section-kicker">{{ t("settings.notificationSettings.title") }}</p>
-        <h3>{{ t("settings.notificationSettings.title") }}</h3>
+      <div class="settings-grid">
+        <label class="settings-field settings-field--wide">
+          <span class="settings-field__label">{{
+            t("settings.notificationSettings.enabled")
+          }}</span>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ 'settings-toggle--active': draft.notifications.enabled }"
+            :aria-pressed="draft.notifications.enabled"
+            @click="draft.notifications.enabled = !draft.notifications.enabled"
+          >
+            <span
+              class="settings-toggle__icon"
+              :class="
+                draft.notifications.enabled
+                  ? 'i-ri-checkbox-circle-fill'
+                  : 'i-ri-checkbox-blank-circle-line'
+              "
+              aria-hidden="true"
+            />
+            <span class="settings-toggle__text">{{
+              t("settings.notificationSettings.title")
+            }}</span>
+          </button>
+          <p class="settings-field__hint">{{ t("settings.notificationSettings.description") }}</p>
+        </label>
       </div>
-      <span class="settings-section__icon i-ri-notification-3-line" aria-hidden="true" />
-    </div>
-
-    <div class="settings-grid">
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.notificationSettings.enabled") }}</span>
-        <button
-          type="button"
-          class="settings-toggle"
-          :class="{ 'settings-toggle--active': draft.notifications.enabled }"
-          :aria-pressed="draft.notifications.enabled"
-          @click="draft.notifications.enabled = !draft.notifications.enabled"
-        >
-          <span
-            class="settings-toggle__icon"
-            :class="
-              draft.notifications.enabled
-                ? 'i-ri-checkbox-circle-fill'
-                : 'i-ri-checkbox-blank-circle-line'
-            "
-            aria-hidden="true"
-          />
-          <span class="settings-toggle__text">{{ t("settings.notificationSettings.title") }}</span>
-        </button>
-        <p class="settings-field__hint">{{ t("settings.notificationSettings.description") }}</p>
-      </label>
-    </div>
-  </section>
+    </section>
   </div>
 </template>
 

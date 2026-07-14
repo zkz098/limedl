@@ -1,11 +1,7 @@
 import { computed, reactive, ref, watch, type Ref } from "vue";
 
 import type { AppSettings, NetworkLearningSettings } from "../../types/settings";
-import {
-  copySingleNetworkScene,
-  serializeSettings,
-  settingsDraftSnapshot,
-} from "./settingsUtils";
+import { copySingleNetworkScene, serializeSettings, settingsDraftSnapshot } from "./settingsUtils";
 import { DEFAULT_HTTP_USER_AGENT, DEFAULT_TRACKER_LIST_URL } from "./useSettingsSummaries";
 
 interface UseSettingsFormOptions {
@@ -32,6 +28,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       colorMode: "system",
       showDetailInfo: true,
       showHeatmap: true,
+      sortKey: "added_at",
+      sortDirection: "desc",
+      compactView: false,
+      visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
     },
     proxy: {
       mode: "disabled",
@@ -118,6 +118,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         colorMode: form.appearance.colorMode,
         showDetailInfo: form.appearance.showDetailInfo,
         showHeatmap: form.appearance.showHeatmap,
+        sortKey: form.appearance.sortKey,
+        sortDirection: form.appearance.sortDirection,
+        compactView: form.appearance.compactView,
+        visibleColumns: form.appearance.visibleColumns,
       },
       proxy: {
         mode: form.proxy.mode,
@@ -195,6 +199,18 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.appearance.colorMode = nextSettings.appearance?.colorMode ?? "system";
       form.appearance.showDetailInfo = nextSettings.appearance?.showDetailInfo ?? true;
       form.appearance.showHeatmap = nextSettings.appearance?.showHeatmap ?? true;
+      form.appearance.sortKey = nextSettings.appearance?.sortKey ?? "added_at";
+      form.appearance.sortDirection = nextSettings.appearance?.sortDirection ?? "desc";
+      form.appearance.compactView = nextSettings.appearance?.compactView ?? false;
+      form.appearance.visibleColumns = nextSettings.appearance?.visibleColumns ?? [
+        "file",
+        "size",
+        "downloaded",
+        "status",
+        "progress",
+        "speed",
+        "eta",
+      ];
       form.proxy.mode = nextSettings.proxy.mode;
       form.proxy.manualUrl = nextSettings.proxy.manualUrl;
       form.scheduler.mode = nextSettings.scheduler.mode;

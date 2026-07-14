@@ -9,16 +9,23 @@ import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
 import { useI18n } from "../../i18n";
+import { toFriendlyError } from "../../composables/downloadHelpers";
 import {
   formatBytes,
   formatEta,
   formatSpeed,
-  formatTimestamp,
   isSizeUnknown,
   progressValue,
 } from "../../lib/download-format";
-import { getBtPeers, getBtTrackers, getBtPieces } from "../../lib/tauri/download-api";
+import {
+  getBtFiles,
+  getBtPeers,
+  getBtTrackers,
+  getBtPieces,
+  updateBtFiles,
+} from "../../lib/tauri/download-api";
 import type {
+  BtFileStatus,
   BtPeerInfo,
   BtPieceInfo,
   BtTrackerInfo,
@@ -27,23 +34,10 @@ import type {
 } from "../../types/download";
 
 const props = defineProps<{
-  actionName: string;
-  canCancel: boolean;
-  canPause: boolean;
-  canResume: boolean;
-  isRefreshingStatus: boolean;
-  selectedOverview: DownloadSummary | DownloadSnapshot | null;
+  selectedOverview: DownloadSummary | DownloadSnapshot;
   selectedSnapshot: DownloadSnapshot | null;
   showDetailInfo: boolean;
   showHeatmap: boolean;
-}>();
-
-defineEmits<{
-  cancel: [];
-  pause: [];
-  refresh: [];
-  resume: [];
-  close: [];
 }>();
 
 const { t } = useI18n();
@@ -91,63 +85,20 @@ const detailRows = computed<DetailRow[]>(() => {
     return [
       ...commonRows,
       {
-        label: t("inspector.fields.uploadStatus"),
-        value: snapshot.uploadStatus
-          ? t(`uploadStatus.${snapshot.uploadStatus}`)
-          : t("uploadStatus.idle"),
+        label: t("inspector.fields.infoHash"),
+        value: snapshot.infoHash ?? t("common.dash"),
+        wide: true,
       },
-      { label: t("inspector.fields.seedCount"), value: snapshot.seedCount?.toString() ?? t("common.dash") },
-      { label: t("inspector.fields.leechCount"), value: snapshot.leechCount?.toString() ?? t("common.dash") },
-      { label: t("inspector.fields.peerCount"), value: String(snapshot.peerCount ?? 0) },
-      { label: t("inspector.fields.uploadedBytes"), value: formatBytes(snapshot.uploadedBytes) },
-      { label: t("inspector.fields.downloadLimitBps"), value: formatSpeed(snapshot.downloadLimitBps) },
-      { label: t("inspector.fields.uploadLimitBps"), value: formatSpeed(snapshot.uploadLimitBps) },
-      { label: t("inspector.fields.createdAt"), value: formatTimestamp(snapshot.createdAtMs) },
-      { label: t("inspector.fields.updatedAt"), value: formatTimestamp(snapshot.updatedAtMs) },
     ];
   }
 
   return [
     ...commonRows,
-    { label: t("inspector.fields.finalUrl"), value: snapshot.finalUrl, wide: true },
-    { label: t("inspector.fields.tempPath"), value: snapshot.tempPath, wide: true },
     {
-      label: t("inspector.fields.supportsRanges"),
-      value: snapshot.supportsRanges ? t("common.supported") : t("common.unsupported"),
-    },
-    { label: t("inspector.fields.connectionCount"), value: String(snapshot.connectionCount) },
-    { label: t("inspector.fields.threadMode"), value: t(`tokens.${snapshot.threadMode}`) },
-    {
-      label: t("inspector.fields.requestedThreadCount"),
-      value: snapshot.requestedThreadCount
-        ? String(snapshot.requestedThreadCount)
-        : t("common.dash"),
-    },
-    {
-      label: t("inspector.fields.desiredThreadCount"),
-      value: snapshot.desiredThreadCount ? String(snapshot.desiredThreadCount) : t("common.dash"),
-    },
-    {
-      label: t("inspector.fields.allocatedThreadCount"),
-      value: snapshot.allocatedThreadCount
-        ? String(snapshot.allocatedThreadCount)
-        : t("common.dash"),
-    },
-    {
-      label: t("inspector.fields.adaptiveProfile"),
-      value: snapshot.adaptiveProfile ? t(`tokens.${snapshot.adaptiveProfile}`) : t("common.dash"),
-    },
-    {
-      label: t("inspector.fields.threadNote"),
-      value: snapshot.threadNote ?? t("common.dash"),
+      label: t("inspector.fields.checksum"),
+      value: snapshot.checksum ?? t("common.dash"),
       wide: true,
     },
-    { label: t("inspector.fields.checksumMode"), value: t(`tokens.${snapshot.checksumMode}`) },
-    { label: t("inspector.fields.checksum"), value: snapshot.checksum ?? t("common.dash") },
-    { label: t("inspector.fields.etag"), value: snapshot.etag ?? t("common.dash") },
-    { label: t("inspector.fields.lastModified"), value: snapshot.lastModified ?? t("common.dash") },
-    { label: t("inspector.fields.createdAt"), value: formatTimestamp(snapshot.createdAtMs) },
-    { label: t("inspector.fields.updatedAt"), value: formatTimestamp(snapshot.updatedAtMs) },
   ];
 });
 
@@ -171,10 +122,55 @@ const isFetchingTrackers = ref(false);
 const isFetchingPieces = ref(false);
 const lastBtFetchAt = ref(0);
 
+// ── BT file list ──
+
+const btFileList = ref<BtFileStatus[]>([]);
+const isFetchingBtFiles = ref(false);
+const isUpdatingFiles = ref(false);
+
+async function fetchBtFiles(downloadId: string) {
+  isFetchingBtFiles.value = true;
+  try {
+    btFileList.value = await getBtFiles(downloadId);
+  } catch {
+    btFileList.value = [];
+  } finally {
+    isFetchingBtFiles.value = false;
+  }
+}
+
+async function toggleFileInclusion(fileIndex: number, currentlyIncluded: boolean) {
+  const newIncluded = new Set(btFileList.value.filter((f) => f.included).map((f) => f.index));
+  if (currentlyIncluded) {
+    newIncluded.delete(fileIndex);
+  } else {
+    newIncluded.add(fileIndex);
+  }
+  // Prevent deselecting all files — at least one must remain
+  if (newIncluded.size === 0) {
+    return;
+  }
+  isUpdatingFiles.value = true;
+  try {
+    await updateBtFiles(props.selectedSnapshot!.id, [...newIncluded]);
+    // Optimistic local update
+    const file = btFileList.value.find((f) => f.index === fileIndex);
+    if (file) file.included = !currentlyIncluded;
+  } catch {
+    // Revert on error — refetch
+    if (props.selectedSnapshot?.id) {
+      await fetchBtFiles(props.selectedSnapshot.id);
+    }
+  } finally {
+    isUpdatingFiles.value = false;
+  }
+}
+
 function clearBtData() {
   peerList.value = [];
   trackerList.value = [];
   pieceList.value = [];
+  btFileList.value = [];
 }
 
 async function fetchBtPeers(downloadId: string) {
@@ -224,65 +220,17 @@ watch(
   },
   { immediate: true },
 );
+
+// Fetch BT file list whenever the Files tab becomes active
+watch([() => props.selectedSnapshot?.id, activeTab], ([id, tab]) => {
+  if (id && props.selectedSnapshot?.kind === "bt" && tab === "files") {
+    void fetchBtFiles(id);
+  }
+});
 </script>
 
 <template>
   <section class="download-inspector">
-    <div class="inspector-header">
-      <div>
-        <p class="section-kicker">{{ t("inspector.kicker") }}</p>
-        <h2 class="panel-title">{{ t("inspector.title") }}</h2>
-      </div>
-      <div class="inspector-actions">
-        <UiButton
-          type="button"
-          size="sm"
-          variant="secondary"
-          icon="i-ri-refresh-line"
-          @click="$emit('refresh')"
-        >
-          {{ isRefreshingStatus ? t("common.refreshing") : t("common.refresh") }}
-        </UiButton>
-        <UiButton
-          type="button"
-          size="sm"
-          variant="ghost"
-          icon="i-ri-pause-line"
-          :disabled="!canPause"
-          @click="$emit('pause')"
-        >
-          {{ actionName === "Pause" ? t("inspector.pausing") : t("inspector.pause") }}
-        </UiButton>
-        <UiButton
-          type="button"
-          size="sm"
-          variant="ghost"
-          icon="i-ri-play-line"
-          :disabled="!canResume"
-          @click="$emit('resume')"
-        >
-          {{ actionName === "Resume" ? t("inspector.resuming") : t("inspector.resume") }}
-        </UiButton>
-        <UiButton
-          type="button"
-          size="sm"
-          variant="danger"
-          icon="i-ri-close-circle-line"
-          :disabled="!canCancel"
-          @click="$emit('cancel')"
-        >
-          {{ actionName === "Cancel" ? t("inspector.canceling") : t("inspector.cancel") }}
-        </UiButton>
-        <UiButton
-          type="button"
-          size="sm"
-          variant="ghost"
-          icon="i-ri-close-line"
-          @click="$emit('close')"
-        />
-      </div>
-    </div>
-
     <template v-if="selectedOverview">
       <!-- Tab bar -->
       <div class="inspector-tabs">
@@ -319,15 +267,6 @@ watch(
               <div class="inspector-summary__header">
                 <h3>{{ selectedOverview.fileName }}</h3>
                 <UiBadge :tone="stateTone">{{ t(`states.${selectedOverview.state}`) }}</UiBadge>
-                <UiBadge
-                  v-if="selectedOverview.cdnAccelerated"
-                  tone="warning"
-                  size="sm"
-                  class="inspector-summary__cdn"
-                >
-                  <span class="i-ri-flashlight-fill" aria-hidden="true" />
-                  {{ t("inspector.cdnAccelerated") }}
-                </UiBadge>
               </div>
               <p>{{ selectedOverview.destinationPath }}</p>
             </div>
@@ -342,7 +281,9 @@ watch(
               </div>
               <div class="text-row">
                 <span class="text-label">{{ t("inspector.speed") }}:</span>
-                <span class="text-value">{{ formatSpeed(selectedOverview.speedBytesPerSecond) }}</span>
+                <span class="text-value">{{
+                  formatSpeed(selectedOverview.speedBytesPerSecond)
+                }}</span>
               </div>
               <div class="text-row">
                 <span class="text-label">{{ t("inspector.eta") }}:</span>
@@ -369,12 +310,12 @@ watch(
                   </template>
                 </span>
               </div>
-              <div
-                v-if="selectedOverview.kind === 'bt'"
-                class="text-row"
-              >
+              <div v-if="selectedOverview.kind === 'bt'" class="text-row">
                 <span class="text-label">{{ t("inspector.fields.seedCount") }}:</span>
-                <span class="text-value">{{ selectedOverview.seedCount ?? 0 }} / {{ selectedOverview.leechCount ?? 0 }}</span>
+                <span class="text-value"
+                  >{{ selectedOverview.seedCount ?? 0 }} /
+                  {{ selectedOverview.leechCount ?? 0 }}</span
+                >
               </div>
               <div v-if="selectedOverview.cdnAccelerated" class="text-row">
                 <span class="text-label">{{ t("inspector.cdnNode") }}:</span>
@@ -391,18 +332,20 @@ watch(
                 <span>{{ progressValue(selectedOverview).toFixed(1) }}%</span>
               </div>
               <UiProgress
-              :value="progressValue(selectedOverview)"
-              :indeterminate="isSizeUnknown(selectedOverview) && selectedOverview.state !== 'completed'"
-            />
+                :value="progressValue(selectedOverview)"
+                :indeterminate="
+                  isSizeUnknown(selectedOverview) && selectedOverview.state !== 'completed'
+                "
+              />
             </div>
           </div>
 
           <ChunkHeatmap
             v-if="
-              showHeatmap
-              && selectedSnapshot?.kind === 'http'
-              && selectedSnapshot.supportsRanges
-              && selectedSnapshot.chunks?.length
+              showHeatmap &&
+              selectedSnapshot?.kind === 'http' &&
+              selectedSnapshot.supportsRanges &&
+              selectedSnapshot.chunks?.length
             "
             :chunks="selectedSnapshot.chunks"
             :title="t('inspector.chunkProgress')"
@@ -421,9 +364,10 @@ watch(
             </div>
           </dl>
 
-          <p v-if="selectedOverview.error" class="status-banner status-banner--error">
-            {{ selectedOverview.error }}
-          </p>
+          <div v-if="selectedOverview.error" class="status-banner status-banner--error">
+            <span class="status-banner__icon i-ri-error-warning-line" aria-hidden="true" />
+            <span class="status-banner__message">{{ toFriendlyError(selectedOverview.error) }}</span>
+          </div>
         </div>
 
         <!-- ── Files tab ── -->
@@ -466,8 +410,12 @@ watch(
                 <span class="text-value">{{ selectedOverview.destinationPath }}</span>
               </div>
               <div v-if="selectedOverview.infoHash" class="text-row text-row--wide">
-                <span class="text-label">{{ t('inspector.fields.infoHash') }}:</span>
-                <span class="text-value" style="font-family: var(--font-mono); word-break: break-all;">{{ selectedOverview.infoHash }}</span>
+                <span class="text-label">{{ t("inspector.fields.infoHash") }}:</span>
+                <span
+                  class="text-value"
+                  style="font-family: var(--font-mono); word-break: break-all"
+                  >{{ selectedOverview.infoHash }}</span
+                >
               </div>
               <div class="text-row text-row--wide">
                 <span class="text-label">{{ t("inspector.files.url") }}:</span>
@@ -481,7 +429,69 @@ watch(
                 </span>
               </div>
             </div>
-            <p class="file-list-placeholder">{{ t("inspector.files.noFileList") }}</p>
+
+            <section class="inspector-bt-section">
+              <div class="inspector-section-header">
+                <h3>{{ t("inspector.files.fileCount", { count: btFileList.length }) }}</h3>
+                <UiButton
+                  variant="ghost"
+                  size="sm"
+                  icon="i-ri-refresh-line"
+                  :loading="isFetchingBtFiles"
+                  @click="fetchBtFiles(selectedSnapshot!.id)"
+                >
+                  {{ t("inspector.files.refreshFiles") }}
+                </UiButton>
+              </div>
+
+              <div
+                v-if="isFetchingBtFiles && btFileList.length === 0"
+                class="file-list-placeholder"
+              >
+                {{ t("inspector.files.loadingFiles") }}
+              </div>
+
+              <div v-else-if="btFileList.length === 0" class="file-list-placeholder">
+                {{ t("inspector.files.noFileList") }}
+              </div>
+
+              <div v-else class="bt-file-list">
+                <div
+                  v-for="file in btFileList"
+                  :key="file.index"
+                  class="bt-file-row"
+                  :class="{ 'bt-file-row--excluded': !file.included }"
+                >
+                  <label class="bt-file-checkbox" @click.stop>
+                    <input
+                      type="checkbox"
+                      :checked="file.included"
+                      :disabled="isUpdatingFiles"
+                      @change="toggleFileInclusion(file.index, file.included)"
+                    />
+                  </label>
+                  <div class="bt-file-info">
+                    <span class="bt-file-path">{{ file.path }}</span>
+                    <div class="bt-file-meta">
+                      <span>{{ formatBytes(file.size) }}</span>
+                      <span class="bt-file-separator">·</span>
+                      <span>{{ formatBytes(file.downloadedBytes) }}</span>
+                      <span class="bt-file-separator">·</span>
+                      <span v-if="file.included" class="bt-file-included">{{
+                        t("inspector.files.included")
+                      }}</span>
+                      <span v-else class="bt-file-excluded-label">{{
+                        t("inspector.files.excluded")
+                      }}</span>
+                    </div>
+                    <UiProgress
+                      :value="file.size > 0 ? (file.downloadedBytes / file.size) * 100 : 0"
+                      class="bt-file-progress"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
           </template>
         </div>
 
@@ -527,11 +537,6 @@ watch(
         </div>
       </div>
     </template>
-
-    <div v-else class="inspector-empty">
-      <h3>{{ t("inspector.noSelectionTitle") }}</h3>
-      <p>{{ t("inspector.noSelectionDescription") }}</p>
-    </div>
   </section>
 </template>
 
@@ -540,29 +545,6 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.download-inspector :deep(.section-kicker) {
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-  font-size: 0.7rem;
-}
-
-.inspector-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-4);
-  flex-shrink: 0;
-}
-
-.inspector-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 
 /* ── Tab bar ── */
@@ -627,32 +609,18 @@ watch(
   flex-wrap: wrap;
 }
 
-.inspector-summary__cdn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-}
-
-.inspector-summary__cdn .i-ri-flashlight-fill {
-  font-size: 0.8rem;
-}
-
 .inspector-summary__copy h3,
-.inspector-summary__copy p,
-.inspector-empty h3,
-.inspector-empty p {
+.inspector-summary__copy p {
   margin: 0;
 }
 
-.inspector-summary__copy p,
-.inspector-empty p {
+.inspector-summary__copy p {
   color: var(--color-text-muted);
   font-size: 0.8rem;
   font-family: var(--font-mono);
 }
 
-.inspector-summary__copy h3,
-.inspector-empty h3 {
+.inspector-summary__copy h3 {
   color: var(--color-heading);
   font-size: var(--font-size-body);
 }
@@ -759,17 +727,6 @@ watch(
   text-transform: uppercase;
 }
 
-/* ── Empty state ── */
-
-.inspector-empty {
-  display: grid;
-  gap: var(--space-2);
-  min-height: 14rem;
-  place-content: center;
-  text-align: center;
-  padding: var(--space-3);
-}
-
 /* ── File list placeholder ── */
 
 .file-list-placeholder {
@@ -782,10 +739,112 @@ watch(
   border-radius: var(--radius-md);
 }
 
+/* ── BT file list ── */
+
+.bt-file-list {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1);
+  background: var(--color-panel-muted);
+}
+
+.bt-file-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.bt-file-row:hover {
+  background: var(--color-surface-muted);
+}
+
+.bt-file-row--excluded {
+  opacity: 0.55;
+}
+
+.bt-file-checkbox {
+  display: flex;
+  align-items: center;
+  padding-top: 0.15rem;
+  cursor: pointer;
+}
+
+.bt-file-checkbox input[type="checkbox"] {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.bt-file-info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.bt-file-path {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--color-text-main);
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+.bt-file-meta {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.bt-file-separator {
+  color: var(--color-border-strong);
+}
+
+.bt-file-included {
+  color: var(--color-success);
+}
+
+.bt-file-excluded-label {
+  color: var(--color-text-muted);
+}
+
+.bt-file-progress {
+  max-width: 100%;
+}
+
 /* ── Status banner ── */
 
 .status-banner {
   margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.status-banner--error {
+  border-left: 3px solid var(--color-danger-text);
+  box-shadow: var(--shadow-card);
+}
+
+.status-banner__icon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.status-banner__message {
+  flex: 1 1 auto;
+  line-height: 1.6;
 }
 
 @media (max-width: 760px) {

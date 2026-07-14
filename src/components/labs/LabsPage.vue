@@ -89,9 +89,7 @@ async function persistSettings(): Promise<boolean> {
     notifySuccess(t("settings.notifications.saved"));
     return true;
   } catch (error) {
-    notifyError(
-      error instanceof Error ? error.message : t("settings.notifications.saveFailed"),
-    );
+    notifyError(error instanceof Error ? error.message : t("settings.notifications.saveFailed"));
     return false;
   } finally {
     isSaving.value = false;
@@ -114,7 +112,6 @@ defineExpose({
 
 <template>
   <section class="labs-page">
-
     <div class="desk-panel__header labs-page__header">
       <div>
         <p class="section-kicker">{{ t("labs.kicker") }}</p>
@@ -146,11 +143,7 @@ defineExpose({
         :network-metrics-cards="networkMetricsCards"
       />
 
-      <LabsCdnAccelerationPanel
-        v-show="activeTab === 'cdnAcceleration'"
-        :draft="form"
-        :t="t"
-      />
+      <LabsCdnAccelerationPanel v-show="activeTab === 'cdnAcceleration'" :draft="form" :t="t" />
     </div>
 
     <div class="labs-save-bar">

@@ -49,6 +49,26 @@ pub enum TaskKind {
     Bt,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SortKey {
+    Name,
+    Size,
+    Progress,
+    Speed,
+    #[default]
+    AddedAt,
+    State,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SortDirection {
+    Asc,
+    #[default]
+    Desc,
+}
+
 /// Typed task identifier replacing fragile string-prefix routing.
 ///
 /// Both variants hold the **external** (wire-format) string so that `as_str()` returns
@@ -334,6 +354,16 @@ pub struct BtPieceInfo {
     pub completed: bool,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtFileStatus {
+    pub index: usize,
+    pub path: String,
+    pub size: u64,
+    pub downloaded_bytes: u64,
+    pub included: bool,
+}
+
 impl From<&DownloadSnapshot> for DownloadSummary {
     fn from(value: &DownloadSnapshot) -> Self {
         Self {
@@ -489,6 +519,18 @@ fn default_true() -> bool {
     true
 }
 
+fn default_visible_columns() -> Vec<String> {
+    vec![
+        "file".into(),
+        "size".into(),
+        "downloaded".into(),
+        "status".into(),
+        "progress".into(),
+        "speed".into(),
+        "eta".into(),
+    ]
+}
+
 pub fn default_tracker_list_url() -> String {
     String::from("https://cf.trackerslist.com/best.txt")
 }
@@ -605,7 +647,7 @@ pub enum ColorMode {
     System,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSettings {
     #[serde(default)]
@@ -618,6 +660,30 @@ pub struct AppearanceSettings {
     pub show_detail_info: bool,
     #[serde(default = "default_true")]
     pub show_heatmap: bool,
+    #[serde(default)]
+    pub sort_key: SortKey,
+    #[serde(default)]
+    pub sort_direction: SortDirection,
+    #[serde(default)]
+    pub compact_view: bool,
+    #[serde(default = "default_visible_columns")]
+    pub visible_columns: Vec<String>,
+}
+
+impl Default for AppearanceSettings {
+    fn default() -> Self {
+        Self {
+            theme_color: Default::default(),
+            background_opacity: Default::default(),
+            color_mode: Default::default(),
+            show_detail_info: true,
+            show_heatmap: true,
+            sort_key: Default::default(),
+            sort_direction: Default::default(),
+            compact_view: false,
+            visible_columns: default_visible_columns(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -726,7 +792,7 @@ mod tests {
     #[test]
     fn test_app_settings_backward_compat() {
         let json = r#"{
-            "appearance": {"themeColor": "default", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true},
+            "appearance": {"themeColor": "default", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true, "sortKey": "added_at", "sortDirection": "desc", "compactView": false, "visibleColumns": ["file", "size", "downloaded", "status", "progress", "speed", "eta"]},
             "proxy": {"mode": "system", "manualUrl": ""},
             "scheduler": {"mode": "traditional", "traditional": {"maxParallelTasks": 3}, "automatic": {"maxParallelThreads": 8, "maxThreadsPerTask": 4, "minThreadsPerTask": 1, "adaptiveProfile": "conservative"}},
             "download": {"defaultDownloadDir": "", "defaultMaxRetries": 3, "defaultChecksum": "blake3", "defaultUserAgent": ""},

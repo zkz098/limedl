@@ -33,16 +33,16 @@ download/
 
 ## WHERE TO LOOK
 
-| Task                 | Location                                                | Notes                                                  |
-| -------------------- | ------------------------------------------------------- | ------------------------------------------------------ |
-| HTTP download flow   | `http_executor.rs`                                      | Full HTTP download pipeline (probe → download → finalize) |
-| AIMD rate control    | `aimd.rs` → `AimdState`                                 | 8-field struct, used during chunked downloads          |
-| Settings management  | `settings.rs` → `normalize_settings`, `resolve_user_agent` | Settings normalization + HTTP client construction      |
-| Background scheduler | `scheduler.rs`                                          | Rebalance loop, adaptive thread allocation, network learning |
-| Task ID routing      | `commands.rs` → `dispatch_download_action!` macro       | Routes by `TaskId` enum (Http/Bt/Sftp)                 |
-| Torrent lifecycle    | `torrent.rs` → `impl TorrentManager`                    | Two separate impl blocks (line 62, line 349)           |
-| SFTP connection      | `sftp.rs`                                               | CONNECT_TIMEOUT 20s, IO_TIMEOUT 45s, BUFFER_SIZE 128KB |
-| Error conversion     | `commands.rs` → `into_command_result()`                 | Wraps `anyhow::Result` → `Result<T, String>`           |
+| Task                 | Location                                                   | Notes                                                        |
+| -------------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
+| HTTP download flow   | `http_executor.rs`                                         | Full HTTP download pipeline (probe → download → finalize)    |
+| AIMD rate control    | `aimd.rs` → `AimdState`                                    | 8-field struct, used during chunked downloads                |
+| Settings management  | `settings.rs` → `normalize_settings`, `resolve_user_agent` | Settings normalization + HTTP client construction            |
+| Background scheduler | `scheduler.rs`                                             | Rebalance loop, adaptive thread allocation, network learning |
+| Task ID routing      | `commands.rs` → `dispatch_download_action!` macro          | Routes by `TaskId` enum (Http/Bt/Sftp)                       |
+| Torrent lifecycle    | `torrent.rs` → `impl TorrentManager`                       | Two separate impl blocks (line 62, line 349)                 |
+| SFTP connection      | `sftp.rs`                                                  | CONNECT_TIMEOUT 20s, IO_TIMEOUT 45s, BUFFER_SIZE 128KB       |
+| Error conversion     | `commands.rs` → `into_command_result()`                    | Wraps `anyhow::Result` → `Result<T, String>`                 |
 
 ## CONVENTIONS
 

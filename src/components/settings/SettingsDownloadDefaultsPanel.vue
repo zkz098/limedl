@@ -76,8 +76,6 @@ const emit = defineEmits<{
         />
         <p class="settings-field__hint">{{ t("settings.defaultUserAgentHint") }}</p>
       </label>
-
-
     </div>
   </section>
 </template>

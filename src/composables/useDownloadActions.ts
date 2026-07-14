@@ -165,6 +165,125 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
     }
   }
 
+  async function runPauseAll() {
+    actionName.value = "BatchPause";
+    clearMessage();
+
+    const toPause = downloads.value.filter((d) => d.state === "downloading");
+    if (toPause.length === 0) {
+      setMessage(t("messages.pausedAll", { count: 0 }));
+      actionName.value = "";
+      return;
+    }
+
+    const results = await Promise.allSettled(toPause.map((d) => pauseDownload(d.id)));
+    let successCount = 0;
+    const errorMessages: string[] = [];
+
+    results.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        successCount++;
+        upsertSummary(toSummary(result.value));
+      } else {
+        errorMessages.push(`${toPause[i].fileName}: ${toMessage(result.reason)}`);
+      }
+    });
+
+    setMessage(t("messages.pausedAll", { count: successCount }));
+    if (errorMessages.length > 0) {
+      setError(errorMessages.join("; "));
+    }
+    actionName.value = "";
+  }
+
+  async function runResumeAll() {
+    actionName.value = "BatchResume";
+    clearMessage();
+
+    const toResume = downloads.value.filter((d) => d.state === "paused");
+    if (toResume.length === 0) {
+      setMessage(t("messages.resumedAll", { count: 0 }));
+      actionName.value = "";
+      return;
+    }
+
+    const results = await Promise.allSettled(toResume.map((d) => resumeDownload(d.id)));
+    let successCount = 0;
+    const errorMessages: string[] = [];
+
+    results.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        successCount++;
+        upsertSummary(toSummary(result.value));
+      } else {
+        errorMessages.push(`${toResume[i].fileName}: ${toMessage(result.reason)}`);
+      }
+    });
+
+    setMessage(t("messages.resumedAll", { count: successCount }));
+    if (errorMessages.length > 0) {
+      setError(errorMessages.join("; "));
+    }
+    actionName.value = "";
+  }
+
+  async function runClearCompleted() {
+    actionName.value = "BatchClear";
+    clearMessage();
+
+    const toClear = downloads.value.filter((d) => d.state === "completed");
+    if (toClear.length === 0) {
+      setMessage(t("messages.clearedCompleted", { count: 0 }));
+      actionName.value = "";
+      return;
+    }
+
+    const results = await Promise.allSettled(toClear.map((d) => removeDownload(d.id)));
+    let successCount = 0;
+    const errorMessages: string[] = [];
+
+    results.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        successCount++;
+        removeSummary(toClear[i].id);
+      } else {
+        errorMessages.push(`${toClear[i].fileName}: ${toMessage(result.reason)}`);
+      }
+    });
+
+    setMessage(t("messages.clearedCompleted", { count: successCount }));
+    if (errorMessages.length > 0) {
+      setError(errorMessages.join("; "));
+    }
+    actionName.value = "";
+  }
+
+  async function runBatchDelete(downloadIds: string[]) {
+    if (downloadIds.length === 0) return;
+
+    actionName.value = "BatchDelete";
+    clearMessage();
+
+    const results = await Promise.allSettled(downloadIds.map((id) => removeDownload(id)));
+    let successCount = 0;
+    const errorMessages: string[] = [];
+
+    results.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        successCount++;
+        removeSummary(downloadIds[i]);
+      } else {
+        errorMessages.push(`${downloadIds[i]}: ${toMessage(result.reason)}`);
+      }
+    });
+
+    setMessage(t("messages.batchDeleted", { count: successCount }));
+    if (errorMessages.length > 0) {
+      setError(errorMessages.join("; "));
+    }
+    actionName.value = "";
+  }
+
   return {
     actionName,
     allowAutoSelect,
@@ -188,5 +307,9 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
     runPauseFor: (downloadId: string) => runActionFor(downloadId, "Pause", pauseDownload),
     runResume: () => runAction("Resume", resumeDownload),
     runResumeFor: (downloadId: string) => runActionFor(downloadId, "Resume", resumeDownload),
+    runPauseAll,
+    runResumeAll,
+    runClearCompleted,
+    runBatchDelete,
   };
 }

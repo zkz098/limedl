@@ -295,6 +295,7 @@ fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest> {
         downloaded: row.get::<_, i64>(4)? as u64,
         completed: i64_to_bool(row.get::<_, i64>(5)?),
         claimed_by: row.get::<_, Option<i64>>(6)?.map(|v| v as usize),
+        dirty: false,
     })
 }
 
@@ -381,10 +382,7 @@ impl Database {
 
         // Remove any SFTP download entries whose IDs start with "sftp:"
         // after the SFTP protocol support was removed.
-        let _ = conn.execute(
-            "DELETE FROM downloads WHERE id LIKE 'sftp:%'",
-            [],
-        );
+        let _ = conn.execute("DELETE FROM downloads WHERE id LIKE 'sftp:%'", []);
 
         Ok(Self {
             conn: Mutex::new(conn),
@@ -459,15 +457,17 @@ impl Database {
         Ok(())
     }
 
-    /// Efficient incremental update for the 300 ms persist cycle.
+    /// Incremental update for the 300 ms persist cycle.
     ///
-    /// Uses a single transaction so the download row and chunk set stay
-    /// consistent.
+    /// Only writes chunks that have changed (dirty flag) since the last persist.
+    /// Uses `INSERT OR REPLACE` so each chunk is upserted individually without
+    /// a full DELETE + INSERT of the entire chunk set.
+    /// All operations run within a single transaction for consistency.
     pub(crate) fn update_download_progress(
         &self,
         id: &str,
         downloaded_bytes: u64,
-        chunks: &[ChunkManifest],
+        dirty_chunks: &[ChunkManifest],
         state: &str,
         updated_at_ms: u64,
     ) -> Result<()> {
@@ -483,21 +483,19 @@ impl Database {
             )
             .context("failed to update download progress row")?;
 
-            conn.execute("DELETE FROM chunks WHERE download_id = ?1", params![id])
-                .context("failed to delete old chunks")?;
-
-            if !chunks.is_empty() {
+            // Incremental chunk persist: only UPSERT dirty chunks.
+            if !dirty_chunks.is_empty() {
                 let mut stmt = conn
                     .prepare(
-                        "INSERT INTO chunks (download_id, chunk_index, start_byte, end_byte,
+                        "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
                                  downloaded, completed, claimed_by)
                          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                     )
-                    .context("failed to prepare chunk insert")?;
+                    .context("failed to prepare chunk upsert")?;
 
-                for chunk in chunks {
+                for chunk in dirty_chunks {
                     stmt.execute(rusqlite::params_from_iter(chunk_to_params(id, chunk)))
-                        .context("failed to insert chunk")?;
+                        .context("failed to upsert chunk")?;
                 }
             }
 

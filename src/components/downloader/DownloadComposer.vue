@@ -98,11 +98,10 @@ const threadHint = computed(() => {
         </div>
 
         <label class="field field--full">
-          <span class="field__label">{{ isBtTask ? t("composer.torrentSource") : t("composer.url") }}</span>
-          <div
-            class="source-field"
-            :class="{ 'source-field--with-picker': isBtTask }"
-          >
+          <span class="field__label">{{
+            isBtTask ? t("composer.torrentSource") : t("composer.url")
+          }}</span>
+          <div class="source-field" :class="{ 'source-field--with-picker': isBtTask }">
             <UiInput
               v-model="form.url"
               :type="isBtTask ? 'text' : 'url'"

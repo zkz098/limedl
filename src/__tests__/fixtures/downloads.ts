@@ -42,9 +42,7 @@ const defaultSummary: DownloadSummary = {
  * const task = createMockDownloadTask({ state: "downloading", downloadedBytes: 500 });
  * ```
  */
-export function createMockDownloadTask(
-  overrides?: Partial<DownloadSummary>,
-): DownloadSummary {
+export function createMockDownloadTask(overrides?: Partial<DownloadSummary>): DownloadSummary {
   const id = overrides?.id ?? nextId();
 
   return {

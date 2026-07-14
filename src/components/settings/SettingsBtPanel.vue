@@ -158,7 +158,7 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
           :model-value="draft.bt.defaultDownloadSpeedLimit ?? null"
           :min="0"
           :step="1024"
-          @update:model-value="draft.bt.defaultDownloadSpeedLimit = ($event ?? 0)"
+          @update:model-value="draft.bt.defaultDownloadSpeedLimit = $event ?? 0"
         />
         <p class="settings-field__hint">{{ t("settings.btDownloadSpeedLimitHint") }}</p>
       </label>
@@ -169,7 +169,7 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
           :model-value="draft.bt.defaultUploadSpeedLimit ?? null"
           :min="0"
           :step="1024"
-          @update:model-value="draft.bt.defaultUploadSpeedLimit = ($event ?? 0)"
+          @update:model-value="draft.bt.defaultUploadSpeedLimit = $event ?? 0"
         />
         <p class="settings-field__hint">{{ t("settings.btUploadSpeedLimitHint") }}</p>
       </label>

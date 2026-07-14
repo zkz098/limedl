@@ -2,14 +2,22 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { debounce } from "es-toolkit";
 
-import { formatBytes, formatEta, formatSpeed, isSizeUnknown, progressLabel, progressValue } from "../../lib/download-format";
+import { filterDownloads } from "../../lib/download-filter";
+import {
+  formatBytes,
+  formatEta,
+  formatSpeed,
+  isSizeUnknown,
+  progressLabel,
+  progressValue,
+} from "../../lib/download-format";
 import { useI18n } from "../../i18n";
+import type { ColumnKey } from "../../lib/column-defs";
 import type { DownloadSummary } from "../../types/download";
+import type { SortDirection, SortKey } from "../../types/settings";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
-
-type ColumnKey = "file" | "size" | "downloaded" | "status" | "progress" | "speed" | "uploadSpeed" | "seeds" | "eta";
 
 const props = defineProps<{
   downloads: DownloadSummary[];
@@ -19,6 +27,13 @@ const props = defineProps<{
   taskActionName: string;
   stateFilter?: string;
   searchQuery?: string;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  compactView: boolean;
+  visibleColumns: string[];
+  multiSelectMode: boolean;
+  selectedIds: Set<string>;
+  removedDownloadIds: string[];
 }>();
 
 const emit = defineEmits<{
@@ -30,6 +45,7 @@ const emit = defineEmits<{
   refresh: [];
   select: [downloadId: string];
   setBtSpeedLimit: [downloadId: string];
+  toggleSelect: [downloadId: string];
 }>();
 
 const pageSize = 20;
@@ -37,10 +53,8 @@ const syncShowDelayMs = 240;
 const syncHideDelayMs = 420;
 const { t } = useI18n();
 const currentPage = ref(1);
-const columnMenuOpen = ref(false);
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
 const isSyncIndicatorVisible = ref(false);
-const visibleColumns = ref<ColumnKey[]>(["file", "size", "downloaded", "status", "progress", "speed", "eta"]);
 
 const columnOptions = computed<Array<{ key: ColumnKey; label: string; alwaysVisible?: boolean }>>(
   () => [
@@ -56,31 +70,60 @@ const columnOptions = computed<Array<{ key: ColumnKey; label: string; alwaysVisi
   ],
 );
 
-const filteredDownloads = computed(() => {
-  let list = props.downloads;
-  const query = (props.searchQuery ?? '').trim().toLowerCase();
-  if (query) {
-    list = list.filter(
-      (d) => d.fileName.toLowerCase().includes(query) || d.url.toLowerCase().includes(query),
-    );
-  }
-  if (props.stateFilter) {
-    list = list.filter((d) => d.state === props.stateFilter);
-  }
+const visibleColumnKeys = computed(() => new Set(props.visibleColumns));
+const visibleColumnsOrdered = computed(() =>
+  columnOptions.value.filter((column) => visibleColumnKeys.value.has(column.key)),
+);
+
+const filteredDownloads = computed(() =>
+  filterDownloads(props.downloads, props.searchQuery ?? "", props.stateFilter ?? ""),
+);
+
+const sortedDownloads = computed(() => {
+  const list = [...filteredDownloads.value];
+  const direction = props.sortDirection === "asc" ? 1 : -1;
+
+  list.sort((a, b) => {
+    let comparison = 0;
+
+    switch (props.sortKey) {
+      case "name":
+        comparison = a.fileName.localeCompare(b.fileName);
+        break;
+      case "size":
+        comparison = (a.totalBytes ?? 0) - (b.totalBytes ?? 0);
+        break;
+      case "progress":
+        comparison = progressValue(a) - progressValue(b);
+        break;
+      case "speed":
+        comparison = (a.speedBytesPerSecond ?? 0) - (b.speedBytesPerSecond ?? 0);
+        break;
+      case "added_at":
+        comparison = (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0);
+        break;
+      case "state":
+        comparison = a.state.localeCompare(b.state);
+        break;
+    }
+
+    return comparison * direction;
+  });
+
   return list;
 });
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredDownloads.value.length / pageSize)));
+const totalPages = computed(() => Math.max(1, Math.ceil(sortedDownloads.value.length / pageSize)));
 const pagedDownloads = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
-  return filteredDownloads.value.slice(start, start + pageSize);
+  return sortedDownloads.value.slice(start, start + pageSize);
 });
 const pageStart = computed(() =>
-  filteredDownloads.value.length ? (currentPage.value - 1) * pageSize + 1 : 0,
+  sortedDownloads.value.length ? (currentPage.value - 1) * pageSize + 1 : 0,
 );
 const pageEnd = computed(() =>
-  filteredDownloads.value.length
-    ? Math.min(currentPage.value * pageSize, filteredDownloads.value.length)
+  sortedDownloads.value.length
+    ? Math.min(currentPage.value * pageSize, sortedDownloads.value.length)
     : 0,
 );
 const contextMenuDownload = computed(
@@ -112,7 +155,7 @@ const contextActionIcon = computed(() =>
 );
 
 watch(
-  () => filteredDownloads.value.length,
+  () => sortedDownloads.value.length,
   () => {
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value;
@@ -121,17 +164,16 @@ watch(
 );
 
 watch(
-  () => props.downloads,
-  (downloads) => {
-    if (!contextMenu.value) {
+  () => props.removedDownloadIds,
+  (ids) => {
+    if (!contextMenu.value || ids.length === 0) {
       return;
     }
 
-    if (!downloads.some((download) => download.id === contextMenu.value?.downloadId)) {
+    if (ids.includes(contextMenu.value.downloadId)) {
       contextMenu.value = null;
     }
   },
-  { deep: true },
 );
 
 watch(
@@ -166,6 +208,29 @@ watch(
   { immediate: true },
 );
 
+const allPageSelected = computed(() => {
+  if (!props.multiSelectMode || pagedDownloads.value.length === 0) return false;
+  return pagedDownloads.value.every((d) => props.selectedIds.has(d.id));
+});
+
+function toggleSelectAllOnPage() {
+  if (allPageSelected.value) {
+    // Deselect all on this page
+    pagedDownloads.value.forEach((d) => {
+      if (props.selectedIds.has(d.id)) {
+        emit("toggleSelect", d.id);
+      }
+    });
+  } else {
+    // Select all on this page
+    pagedDownloads.value.forEach((d) => {
+      if (!props.selectedIds.has(d.id)) {
+        emit("toggleSelect", d.id);
+      }
+    });
+  }
+}
+
 function toneForState(state: DownloadSummary["state"]): "info" | "success" | "warning" | "danger" {
   if (state === "completed") return "success";
   if (state === "failed" || state === "canceled") return "danger";
@@ -174,23 +239,7 @@ function toneForState(state: DownloadSummary["state"]): "info" | "success" | "wa
 }
 
 function isColumnVisible(key: ColumnKey) {
-  return visibleColumns.value.includes(key);
-}
-
-function toggleColumn(key: ColumnKey) {
-  const option = columnOptions.value.find((item) => item.key === key);
-  if (option?.alwaysVisible) {
-    return;
-  }
-
-  if (visibleColumns.value.includes(key)) {
-    visibleColumns.value = visibleColumns.value.filter((column) => column !== key);
-    return;
-  }
-
-  visibleColumns.value = columnOptions.value
-    .map((item) => item.key)
-    .filter((column) => column === key || visibleColumns.value.includes(column));
+  return props.visibleColumns.includes(key);
 }
 
 function goToPreviousPage() {
@@ -202,14 +251,13 @@ function goToNextPage() {
 }
 
 function closeMenus() {
-  columnMenuOpen.value = false;
   contextMenu.value = null;
 }
 
 function clampMenuPosition(clientX: number, clientY: number) {
-    const menuWidth = 220;
-    const menuHeight = 280;
-    const gutter = 12;
+  const menuWidth = 220;
+  const menuHeight = 280;
+  const gutter = 12;
 
   return {
     x: Math.max(gutter, Math.min(clientX, window.innerWidth - menuWidth - gutter)),
@@ -219,7 +267,6 @@ function clampMenuPosition(clientX: number, clientY: number) {
 
 function openTaskContextMenu(event: MouseEvent, downloadId: string) {
   emit("select", downloadId);
-  columnMenuOpen.value = false;
 
   const { x, y } = clampMenuPosition(event.clientX, event.clientY);
   contextMenu.value = { downloadId, x, y };
@@ -358,61 +405,18 @@ onUnmounted(() => {
         <span class="sync-pill" :data-active="isSyncIndicatorVisible">{{
           isSyncIndicatorVisible ? t("queue.autoSyncing") : t("queue.idle")
         }}</span>
-        <div class="column-menu">
-          <UiButton
-            type="button"
-            size="sm"
-            variant="ghost"
-            icon="i-ri-layout-column-line"
-            @click.stop="
-              contextMenu = null;
-              columnMenuOpen = !columnMenuOpen;
-            "
-          >
-            {{ t("queue.columns") }}
-          </UiButton>
-          <div v-if="columnMenuOpen" class="column-menu__panel" @pointerdown.stop>
-            <label
-              v-for="column in columnOptions"
-              :key="column.key"
-              class="column-menu__item"
-              :class="{
-                'column-menu__item--checked': isColumnVisible(column.key),
-                'column-menu__item--locked': column.alwaysVisible,
-              }"
-            >
-              <input
-                :checked="isColumnVisible(column.key)"
-                type="checkbox"
-                :disabled="column.alwaysVisible"
-                @change="toggleColumn(column.key)"
-              />
-              <span
-                class="column-menu__indicator"
-                :class="isColumnVisible(column.key) ? 'i-ri-check-line' : 'i-ri-add-line'"
-                aria-hidden="true"
-              />
-              <span>{{ column.label }}</span>
-            </label>
-          </div>
-        </div>
       </div>
     </div>
 
-    <div v-if="filteredDownloads.length" class="queue-panel__table">
+    <div v-if="sortedDownloads.length" class="queue-panel__table">
       <div class="queue-table-shell">
-        <table class="queue-table">
+        <table class="queue-table" :class="{ 'queue-table--compact': compactView }">
           <thead>
             <tr>
-              <th v-if="isColumnVisible('file')">{{ t("queue.file") }}</th>
-              <th v-if="isColumnVisible('size')">{{ t("queue.size") }}</th>
-              <th v-if="isColumnVisible('downloaded')">{{ t("queue.downloaded") }}</th>
-              <th v-if="isColumnVisible('status')">{{ t("queue.status") }}</th>
-              <th v-if="isColumnVisible('progress')">{{ t("queue.progress") }}</th>
-              <th v-if="isColumnVisible('speed')">{{ t("queue.speed") }}</th>
-              <th v-if="isColumnVisible('uploadSpeed')">{{ t("queue.upSpeed") }}</th>
-              <th v-if="isColumnVisible('seeds')">{{ t("queue.seeds") }}</th>
-              <th v-if="isColumnVisible('eta')">{{ t("queue.eta") }}</th>
+              <th v-if="multiSelectMode" class="queue-cell--checkbox">
+                <input type="checkbox" :checked="allPageSelected" @change="toggleSelectAllOnPage" />
+              </th>
+              <th v-for="column in visibleColumnsOrdered" :key="column.key">{{ column.label }}</th>
             </tr>
           </thead>
           <tbody>
@@ -420,10 +424,22 @@ onUnmounted(() => {
               v-for="download in pagedDownloads"
               :key="download.id"
               class="queue-row"
-              :class="{ 'queue-row--active': download.id === selectedId }"
-              @click="$emit('select', download.id)"
+              :class="{
+                'queue-row--active': !multiSelectMode && download.id === selectedId,
+                'queue-row--selected': multiSelectMode && selectedIds.has(download.id),
+              }"
+              @click="
+                multiSelectMode ? $emit('toggleSelect', download.id) : $emit('select', download.id)
+              "
               @contextmenu.prevent.stop="openTaskContextMenu($event, download.id)"
             >
+              <td v-if="multiSelectMode" class="queue-cell queue-cell--checkbox">
+                <input
+                  type="checkbox"
+                  :checked="selectedIds.has(download.id)"
+                  @change="$emit('toggleSelect', download.id)"
+                />
+              </td>
               <td v-if="isColumnVisible('file')" class="queue-cell queue-cell--file">
                 <div class="queue-file">
                   <span class="queue-file__title">
@@ -479,11 +495,19 @@ onUnmounted(() => {
               </td>
 
               <td v-if="isColumnVisible('uploadSpeed')" class="queue-cell queue-cell--up-speed">
-                {{ download.kind === 'bt' ? formatSpeed(download.uploadSpeedBytesPerSecond) : '\u2014' }}
+                {{
+                  download.kind === "bt"
+                    ? formatSpeed(download.uploadSpeedBytesPerSecond)
+                    : "\u2014"
+                }}
               </td>
 
               <td v-if="isColumnVisible('seeds')" class="queue-cell queue-cell--seeds">
-                {{ download.kind === 'bt' ? `${download.seedCount ?? '\u2014'}/${download.leechCount ?? '\u2014'}` : '\u2014' }}
+                {{
+                  download.kind === "bt"
+                    ? `${download.seedCount ?? "\u2014"}/${download.leechCount ?? "\u2014"}`
+                    : "\u2014"
+                }}
               </td>
 
               <td v-if="isColumnVisible('eta')" class="queue-cell queue-cell--eta">
@@ -496,7 +520,9 @@ onUnmounted(() => {
 
       <div class="queue-pagination">
         <p class="queue-pagination__summary">
-          {{ t("queue.showing", { start: pageStart, end: pageEnd, total: filteredDownloads.length }) }}
+          {{
+            t("queue.showing", { start: pageStart, end: pageEnd, total: sortedDownloads.length })
+          }}
         </p>
         <div class="queue-pagination__actions">
           <UiButton
@@ -542,11 +568,7 @@ onUnmounted(() => {
             <span>{{ contextActionLabel }}</span>
           </button>
           <template v-if="contextMenuDownload?.kind === 'bt'">
-            <button
-              type="button"
-              class="task-context-menu__item"
-              @click="onSetBtSpeedLimit"
-            >
+            <button type="button" class="task-context-menu__item" @click="onSetBtSpeedLimit">
               <span class="i-ri-speed-up-line" aria-hidden="true" />
               <span>{{ t("queue.setSpeedLimit") }}</span>
             </button>
@@ -634,76 +656,6 @@ onUnmounted(() => {
     color 0.2s ease;
 }
 
-.column-menu {
-  position: relative;
-}
-
-.column-menu__panel {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  right: 0;
-  z-index: 5;
-  min-width: 9rem;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.35rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-panel);
-  box-shadow: var(--shadow-card);
-}
-
-.column-menu__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.35rem 0.45rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  color: var(--color-text-main);
-  font-size: var(--font-size-small);
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.column-menu__item:hover {
-  background: var(--color-surface-muted);
-}
-
-.column-menu__item--checked {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent-soft-border);
-  color: var(--color-accent-strong);
-}
-
-.column-menu__item--locked {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.column-menu__indicator {
-  width: 1rem;
-  display: inline-flex;
-  justify-content: center;
-  color: inherit;
-  font-size: 0.9rem;
-}
-
-.column-menu__item input {
-  width: 0.9rem;
-  height: 0.9rem;
-  margin: 0;
-  accent-color: var(--color-accent);
-}
-
-.column-menu__item span:last-child {
-  flex: 1;
-}
-
 .queue-panel__table {
   display: grid;
   gap: 0.625rem;
@@ -759,10 +711,51 @@ onUnmounted(() => {
   border-top-color: var(--color-accent-soft-border);
 }
 
+.queue-row--selected {
+  background: var(--color-surface-muted);
+}
+
+.queue-row--selected td {
+  border-top-color: var(--color-border);
+}
+
+.queue-cell--checkbox {
+  width: 2.5rem;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;
+}
+
+.queue-cell--checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  margin: 0;
+}
+
 .queue-cell {
   padding: var(--space-1) var(--space-2);
   vertical-align: middle;
   font-size: 0.8125rem;
+}
+
+.queue-table--compact tbody tr {
+  min-height: 2.75rem;
+}
+
+.queue-table--compact .queue-cell {
+  padding: 0.125rem var(--space-1);
+  font-size: 0.75rem;
+}
+
+.queue-table--compact .queue-file__name {
+  font-size: 0.78rem;
+}
+
+.queue-table--compact .queue-file__path,
+.queue-table--compact .queue-file__meta {
+  font-size: 0.65rem;
 }
 
 .queue-cell--file {

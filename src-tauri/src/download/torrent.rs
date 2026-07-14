@@ -900,6 +900,67 @@ impl TorrentManager {
         Ok(pieces)
     }
 
+    pub fn get_torrent_files(&self, download_id: &str) -> Result<Vec<super::types::BtFileStatus>> {
+        if download_id.starts_with(BT_PENDING_PREFIX) {
+            return Ok(Vec::new());
+        }
+        let id = parse_bt_task_id(download_id)?;
+        let handle = self.get_handle(id)?;
+        let stats = handle.stats();
+
+        let details = self
+            .api
+            .api_torrent_details(TorrentIdOrHash::Id(id))
+            .map_err(|error| DownloadError::Torrent(error.to_string()))?;
+
+        let files = match details.files {
+            Some(files) if !files.is_empty() => files,
+            _ => {
+                // Single-file torrent or no file info — create a synthetic entry
+                return Ok(vec![super::types::BtFileStatus {
+                    index: 0,
+                    path: handle
+                        .name()
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| String::from("unknown")),
+                    size: stats.total_bytes,
+                    downloaded_bytes: stats.progress_bytes,
+                    included: true,
+                }]);
+            }
+        };
+
+        Ok(files
+            .iter()
+            .enumerate()
+            .map(|(i, file)| super::types::BtFileStatus {
+                index: i,
+                path: if file.components.is_empty() {
+                    file.name.clone()
+                } else {
+                    file.components.join("/")
+                },
+                size: file.length,
+                downloaded_bytes: stats.file_progress.get(i).copied().unwrap_or(0),
+                included: file.included,
+            })
+            .collect())
+    }
+
+    pub async fn update_torrent_files(
+        &self,
+        download_id: &str,
+        included_indices: Vec<usize>,
+    ) -> Result<()> {
+        let id = parse_bt_task_id(download_id)?;
+        let included: HashSet<usize> = included_indices.into_iter().collect();
+        self.api
+            .api_torrent_action_update_only_files(TorrentIdOrHash::Id(id), &included)
+            .await
+            .map(|_| ())
+            .map_err(|error| DownloadError::Torrent(error.to_string()))
+    }
+
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
         if is_pending_bt_task_id(download_id) {
             let managed_id = {

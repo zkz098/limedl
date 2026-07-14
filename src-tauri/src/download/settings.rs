@@ -11,8 +11,9 @@ use super::{
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
         CdnAccelerationSettings, DownloadDefaultsSettings, LogSettings, NetworkLearningMetrics,
-        NetworkLearningSettings, NetworkSceneProfile, NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
-        TraditionalSchedulerSettings, default_http_user_agent, default_tracker_list_url,
+        NetworkLearningSettings, NetworkSceneProfile, NotificationSettings, ProxyMode,
+        ProxySettings, SchedulerSettings, TraditionalSchedulerSettings, default_http_user_agent,
+        default_tracker_list_url,
     },
 };
 

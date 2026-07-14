@@ -38,7 +38,11 @@ const reversed = computed(() => props.notifications.slice().reverse());
           :class="`notification-toast--${notification.type}`"
           role="alert"
         >
-          <span class="notification-toast__icon" :class="iconFor(notification.type)" aria-hidden="true" />
+          <span
+            class="notification-toast__icon"
+            :class="iconFor(notification.type)"
+            aria-hidden="true"
+          />
           <span class="notification-toast__message">{{ notification.message }}</span>
           <button
             type="button"

@@ -163,3 +163,11 @@ export interface BtPieceInfo {
   index: number;
   completed: boolean;
 }
+
+export interface BtFileStatus {
+  index: number;
+  path: string;
+  size: number;
+  downloadedBytes: number;
+  included: boolean;
+}

@@ -61,6 +61,11 @@ pub(crate) struct ChunkManifest {
     pub(super) downloaded: u64,
     pub(super) completed: bool,
     pub(super) claimed_by: Option<usize>,
+    /// Tracks whether this chunk changed since the last incremental DB persist.
+    /// Reset to `false` after each `persist_manifest_snapshot` flush.
+    /// Serialisation is skipped — this is an internal-only flag.
+    #[serde(skip)]
+    pub(super) dirty: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -103,6 +108,7 @@ pub(super) fn plan_chunks(
             downloaded: 0,
             completed: false,
             claimed_by: None,
+            dirty: false,
         });
         index += 1;
         start = end + 1;

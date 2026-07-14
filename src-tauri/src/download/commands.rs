@@ -12,8 +12,9 @@ use super::{
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     torrent::{DownloadSourceKind, classify_download_source},
     types::{
-        AppSettings, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo, DownloadSnapshot,
-        DownloadSummary, SerializableError, StartDownloadRequest, TaskId, TorrentFileEntry,
+        AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
+        DownloadSnapshot, DownloadSummary, SerializableError, StartDownloadRequest, TaskId,
+        TorrentFileEntry,
     },
 };
 
@@ -53,11 +54,7 @@ fn protocol_for_task<'a>(state: &'a AppState, task_id: &TaskId) -> &'a dyn Downl
 }
 
 /// Produce the `.context()` error message for an action based on task kind.
-fn action_context(
-    task_id: &TaskId,
-    http: &'static str,
-    bt: &'static str,
-) -> &'static str {
+fn action_context(task_id: &TaskId, http: &'static str, bt: &'static str) -> &'static str {
     match task_id {
         TaskId::Http(_) => http,
         TaskId::Bt(_) => bt,
@@ -443,5 +440,33 @@ pub async fn bt_get_pieces(
             .torrent_manager
             .get_pieces(&download_id)
             .context("查询 BT 分片信息失败"),
+    )
+}
+
+#[tauri::command]
+pub async fn get_bt_files(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> CommandResult<Vec<BtFileStatus>> {
+    into_command_result(
+        state
+            .torrent_manager
+            .get_torrent_files(&download_id)
+            .context("查询 BT 文件列表失败"),
+    )
+}
+
+#[tauri::command]
+pub async fn update_bt_files(
+    state: State<'_, AppState>,
+    download_id: String,
+    included_indices: Vec<usize>,
+) -> CommandResult<()> {
+    into_command_result(
+        state
+            .torrent_manager
+            .update_torrent_files(&download_id, included_indices)
+            .await
+            .context("更新 BT 文件选择失败"),
     )
 }

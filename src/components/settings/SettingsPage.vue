@@ -231,9 +231,7 @@ async function persistSettings() {
 
     return true;
   } catch (error) {
-    notifyError(
-      error instanceof Error ? error.message : t("settings.notifications.saveFailed"),
-    );
+    notifyError(error instanceof Error ? error.message : t("settings.notifications.saveFailed"));
     return false;
   } finally {
     isSaving.value = false;
@@ -259,11 +257,7 @@ defineExpose({
 
 <template>
   <section class="settings-page">
-
-    <NotificationToast
-      :notifications="notifications"
-      @dismiss="dismiss"
-    />
+    <NotificationToast :notifications="notifications" @dismiss="dismiss" />
 
     <div class="desk-panel__header settings-page__header">
       <div>
@@ -334,11 +328,7 @@ defineExpose({
         @fetch-tracker-list="updateTrackerListFromUrl"
       />
 
-      <SettingsAria2RpcPanel
-        v-show="activeTab === 'aria2Rpc'"
-        :draft="form"
-        :t="t"
-      />
+      <SettingsAria2RpcPanel v-show="activeTab === 'aria2Rpc'" :draft="form" :t="t" />
 
       <SettingsLoggingPanel
         v-show="activeTab === 'logging'"
@@ -355,8 +345,7 @@ defineExpose({
         :proxy-mode-options="proxyModeOptions"
         :proxy-summary="proxySummary"
       />
-
-      </div>
+    </div>
 
     <div class="settings-save-bar">
       <p class="settings-save-bar__hint">{{ t("settings.saveHint") }}</p>

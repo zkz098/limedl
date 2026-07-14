@@ -88,16 +88,13 @@ where
 /// connection concurrency.
 fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: String) {
     {
-        let mut snapshot = managed.lock_snapshot();
-        snapshot.state = DownloadState::Retrying;
-        snapshot.error = Some(error.clone());
-        snapshot.updated_at_ms = now_ms();
-    }
-    {
-        let mut manifest = managed.lock_manifest();
-        manifest.state = DownloadState::Retrying;
-        manifest.error = Some(error);
-        manifest.updated_at_ms = now_ms();
+        let mut core = managed.lock_core();
+        core.snapshot.state = DownloadState::Retrying;
+        core.snapshot.error = Some(error.clone());
+        core.snapshot.updated_at_ms = now_ms();
+        core.manifest.state = DownloadState::Retrying;
+        core.manifest.error = Some(error);
+        core.manifest.updated_at_ms = now_ms();
     }
     let mut aimd = managed.lock_aimd();
     aimd.recent_penalty = true;

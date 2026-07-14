@@ -28,24 +28,25 @@ Tauri v2 desktop download manager — Rust backend (single crate) + Vue 3/TypeSc
 
 ## WHERE TO LOOK
 
-| Task | Location | Notes |
-|------|----------|-------|
-| Rust entry point | `src-tauri/src/main.rs` | 11-line shim, mimalloc allocator |
-| Tauri setup + IPC | `src-tauri/src/lib.rs` | 13 commands registered, 3 managers initialized |
-| HTTP download engine | `src-tauri/src/download/` | Split across: `manager.rs` (~1211 lines, lifecycle), `http_executor.rs` (~705 lines, HTTP execution), `checksum.rs`, `retry.rs`, `persistence.rs`, `settings.rs`, `scheduler.rs` — see child AGENTS.md |
-| BitTorrent | `src-tauri/src/download/torrent.rs` | librqbit wrapper |
-| SFTP | `src-tauri/src/download/sftp.rs` | ssh2 wrapper |
-| Tauri IPC commands | `src-tauri/src/download/commands.rs` | Thin dispatch layer |
-| Shared types | `src-tauri/src/download/types.rs` | AppSettings, enums, serde camelCase |
-| Frontend entry | `src/main.ts` | Vue app mount |
-| Download queue UI | `src/components/downloader/` | Queue table, inspector, composer |
-| Settings UI | `src/components/settings/` | 7 panels, dirty tracking |
-| Vue composables | `src/composables/` | useDownloader, useDownloadList, usePolling, etc. |
-| Tauri bridge | `src/lib/tauri/` | download-api.ts, settings-api.ts, dialog-api.ts |
+| Task                 | Location                             | Notes                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Rust entry point     | `src-tauri/src/main.rs`              | 11-line shim, mimalloc allocator                                                                                                                                                                       |
+| Tauri setup + IPC    | `src-tauri/src/lib.rs`               | 13 commands registered, 3 managers initialized                                                                                                                                                         |
+| HTTP download engine | `src-tauri/src/download/`            | Split across: `manager.rs` (~1211 lines, lifecycle), `http_executor.rs` (~705 lines, HTTP execution), `checksum.rs`, `retry.rs`, `persistence.rs`, `settings.rs`, `scheduler.rs` — see child AGENTS.md |
+| BitTorrent           | `src-tauri/src/download/torrent.rs`  | librqbit wrapper                                                                                                                                                                                       |
+| SFTP                 | `src-tauri/src/download/sftp.rs`     | ssh2 wrapper                                                                                                                                                                                           |
+| Tauri IPC commands   | `src-tauri/src/download/commands.rs` | Thin dispatch layer                                                                                                                                                                                    |
+| Shared types         | `src-tauri/src/download/types.rs`    | AppSettings, enums, serde camelCase                                                                                                                                                                    |
+| Frontend entry       | `src/main.ts`                        | Vue app mount                                                                                                                                                                                          |
+| Download queue UI    | `src/components/downloader/`         | Queue table, inspector, composer                                                                                                                                                                       |
+| Settings UI          | `src/components/settings/`           | 7 panels, dirty tracking                                                                                                                                                                               |
+| Vue composables      | `src/composables/`                   | useDownloader, useDownloadList, usePolling, etc.                                                                                                                                                       |
+| Tauri bridge         | `src/lib/tauri/`                     | download-api.ts, settings-api.ts, dialog-api.ts                                                                                                                                                        |
 
 ## CONVENTIONS
 
 ### Rust
+
 - **Toolchain**: stable (edition 2024, stabilized in Rust 1.85). Pinned via `rust-toolchain.toml` (`channel = "stable"`).
 - **Error handling**: Commands return `Result<T, String>`. Domain errors via `thiserror`. Propagation via `anyhow`.
 - **IO**: `tokio::fs` for async, `fs4` for file locking.
@@ -55,6 +56,7 @@ Tauri v2 desktop download manager — Rust backend (single crate) + Vue 3/TypeSc
 - **Build flags**: CPU-specific flags removed from `.cargo/config.toml` to avoid SIGILL on older hardware. Set `RUSTFLAGS` env var for release builds.
 
 ### Frontend
+
 - **All `<script setup lang="ts">`** — Composition API only. No Options API.
 - **Props/Emits**: `defineProps<T>()` / `defineEmits<{ event: [arg: Type] }>()` — type-only generics.
 - **CSS**: Scoped styles (`<style scoped>`). Use CSS custom properties (`var(--color-*)`, `var(--space-*)`).
@@ -64,6 +66,7 @@ Tauri v2 desktop download manager — Rust backend (single crate) + Vue 3/TypeSc
 - **Toggle switches**: Toggle text MUST describe the **feature** the toggle controls, NOT the current state or action. The toggle's visual on/off indicator already communicates state. Dynamic text that changes between "Enable X" / "Disable X" creates ambiguity — is it describing current state or the action to take? Use static feature names (e.g., `"DHT Network"` not `"Enable DHT"` / `"Disable DHT"`).
 
 ### Cross-cutting
+
 - **Package manager**: Bun (`bun install`, `bun run`, `bunx`). Lockfile: `bun.lock`.
 - **CI**: Linux-only, nightly Rust, no `cargo test` in CI, no Windows/macOS matrix.
 - **serde naming**: Uses `camelCase` (TS side) and `snake_case` (Rust enum variants serialized as strings).
@@ -99,6 +102,7 @@ cargo build          # Debug build
 ## NOTES
 
 ### Windows: Rust/Cargo Environment
+
 Before using `cargo`, `rustc`, or any Rust tooling in PowerShell, load the MSVC environment:
 
 ```powershell
@@ -108,7 +112,9 @@ Before using `cargo`, `rustc`, or any Rust tooling in PowerShell, load the MSVC 
 This is required for the MSVC linker (`link.exe`) to be available. Skipping this will cause linker errors.
 
 ### Post-Change Verification
+
 After making Rust changes:
+
 1. `cargo fmt` — format (if rustfmt is configured)
 2. `cargo clippy -- -D warnings` — lint with strict warnings
 3. `cargo check` — verify compilation

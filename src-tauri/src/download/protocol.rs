@@ -140,5 +140,3 @@ impl DownloadProtocol for TorrentManager {
         TorrentManager::list(self).await
     }
 }
-
-

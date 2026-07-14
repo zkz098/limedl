@@ -40,44 +40,55 @@ pub(super) fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> R
         return Err(destination_exists_error(destination_path));
     }
 
-    let staging_path = unique_finalizing_path(destination_path)?;
-    let mut source = File::open(temp_path)?;
-    let mut destination = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&staging_path)
-        .map_err(DownloadError::Io)?;
+    // Primary path: atomic rename (works on the same filesystem).
+    // rename is a metadata-only operation — no data copy, no sync_all needed.
+    // On same-volume moves this is O(1) and atomic on both POSIX and Windows.
+    match std::fs::rename(temp_path, destination_path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == ErrorKind::CrossesDevices => {
+            // Fallback: copy via staging path when source and destination
+            // reside on different mount points / drive letters.
+            let staging_path = unique_finalizing_path(destination_path)?;
+            let mut source = File::open(temp_path)?;
+            let mut destination = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&staging_path)
+                .map_err(DownloadError::Io)?;
 
-    if let Err(error) = io::copy(&mut source, &mut destination) {
-        drop(destination);
-        drop(source);
-        let _ = fs::remove_file(&staging_path);
-        return Err(error.into());
-    }
-    destination.flush()?;
-    destination.sync_all()?;
-    drop(destination);
-    drop(source);
+            if let Err(error) = io::copy(&mut source, &mut destination) {
+                drop(destination);
+                drop(source);
+                let _ = fs::remove_file(&staging_path);
+                return Err(error.into());
+            }
+            destination.flush()?;
+            destination.sync_all()?;
+            drop(destination);
+            drop(source);
 
-    if let Err(error) = fs::hard_link(&staging_path, destination_path) {
-        if error.kind() == ErrorKind::AlreadyExists
-            && files_have_same_content(&staging_path, destination_path)?
-        {
+            if let Err(error) = fs::hard_link(&staging_path, destination_path) {
+                if error.kind() == ErrorKind::AlreadyExists
+                    && files_have_same_content(&staging_path, destination_path)?
+                {
+                    fs::remove_file(&staging_path)?;
+                    fs::remove_file(temp_path)?;
+                    return Ok(());
+                }
+                if error.kind() == ErrorKind::AlreadyExists {
+                    let _ = fs::remove_file(&staging_path);
+                    return Err(destination_exists_error(destination_path));
+                }
+
+                fallback_copy_staging_to_destination(&staging_path, destination_path)?;
+            }
+
             fs::remove_file(&staging_path)?;
             fs::remove_file(temp_path)?;
-            return Ok(());
+            Ok(())
         }
-        if error.kind() == ErrorKind::AlreadyExists {
-            let _ = fs::remove_file(&staging_path);
-            return Err(destination_exists_error(destination_path));
-        }
-
-        fallback_copy_staging_to_destination(&staging_path, destination_path)?;
+        Err(e) => Err(e.into()),
     }
-
-    fs::remove_file(&staging_path)?;
-    fs::remove_file(temp_path)?;
-    Ok(())
 }
 
 fn fallback_copy_staging_to_destination(

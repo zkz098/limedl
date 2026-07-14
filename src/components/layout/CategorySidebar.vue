@@ -258,7 +258,9 @@ function handleNavigate(view: string) {
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .bottom-nav__item:hover {

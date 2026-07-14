@@ -104,11 +104,18 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
           class="settings-toggle"
           :class="{ 'settings-toggle--active': draft.scheduler.chunkSizeStrategy === 'adaptive' }"
           :aria-pressed="draft.scheduler.chunkSizeStrategy === 'adaptive'"
-          @click="draft.scheduler.chunkSizeStrategy = draft.scheduler.chunkSizeStrategy === 'adaptive' ? 'fixed' : 'adaptive'"
+          @click="
+            draft.scheduler.chunkSizeStrategy =
+              draft.scheduler.chunkSizeStrategy === 'adaptive' ? 'fixed' : 'adaptive'
+          "
         >
           <span
             class="settings-toggle__icon"
-            :class="draft.scheduler.chunkSizeStrategy === 'adaptive' ? 'i-ri-checkbox-circle-fill' : 'i-ri-checkbox-blank-circle-line'"
+            :class="
+              draft.scheduler.chunkSizeStrategy === 'adaptive'
+                ? 'i-ri-checkbox-circle-fill'
+                : 'i-ri-checkbox-blank-circle-line'
+            "
             aria-hidden="true"
           />
           <span class="settings-toggle__text">{{ t("settings.intelligentChunkAllocation") }}</span>

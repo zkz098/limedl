@@ -14,6 +14,8 @@ export interface UseDownloadListInput {
   ensureSelection: () => void;
   setMessage: (message: string) => void;
   setError: (message: string) => void;
+  /** Called with IDs removed after a bulk list refresh */
+  onDownloadsRemoved?: (removedIds: string[]) => void;
 }
 
 export function useDownloadList(input: UseDownloadListInput) {
@@ -37,7 +39,13 @@ export function useDownloadList(input: UseDownloadListInput) {
     isRefreshingList.value = true;
 
     try {
+      const oldIds = new Set(downloads.value.map((d) => d.id));
       downloads.value = await listDownloads();
+      const newIds = new Set(downloads.value.map((d) => d.id));
+      const removedIds = [...oldIds].filter((id) => !newIds.has(id));
+      if (removedIds.length > 0) {
+        input.onDownloadsRemoved?.(removedIds);
+      }
       ensureSelection();
 
       if (
