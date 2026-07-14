@@ -20,7 +20,12 @@ import {
 import { useDownloadActions } from "./useDownloadActions";
 import { useDownloadForm } from "./useDownloadForm";
 import { useDownloadList } from "./useDownloadList";
-import type { BtRuntimeStatus, DownloadProgress, DownloadSnapshot, DownloadSummary } from "../types/download";
+import type {
+  BtRuntimeStatus,
+  DownloadProgress,
+  DownloadSnapshot,
+  DownloadSummary,
+} from "../types/download";
 
 export interface UseDownloaderOptions {
   /** Called when a download transitions to failed (for in-app notification) */
@@ -96,13 +101,16 @@ function createDownloader(options?: UseDownloaderOptions) {
     existing.state = progress.state;
     existing.downloadedBytes = progress.downloadedBytes;
     if (progress.totalBytes !== undefined) existing.totalBytes = progress.totalBytes;
-    if (progress.speedBytesPerSecond !== undefined) existing.speedBytesPerSecond = progress.speedBytesPerSecond;
+    if (progress.speedBytesPerSecond !== undefined)
+      existing.speedBytesPerSecond = progress.speedBytesPerSecond;
     if (progress.etaSeconds !== undefined) existing.etaSeconds = progress.etaSeconds;
     existing.connectionCount = progress.connectionCount;
-    if (progress.allocatedThreadCount !== undefined) existing.allocatedThreadCount = progress.allocatedThreadCount;
+    if (progress.allocatedThreadCount !== undefined)
+      existing.allocatedThreadCount = progress.allocatedThreadCount;
     if (progress.error !== undefined) existing.error = progress.error;
     if (progress.uploadedBytes !== undefined) existing.uploadedBytes = progress.uploadedBytes;
-    if (progress.uploadSpeedBytesPerSecond !== undefined) existing.uploadSpeedBytesPerSecond = progress.uploadSpeedBytesPerSecond;
+    if (progress.uploadSpeedBytesPerSecond !== undefined)
+      existing.uploadSpeedBytesPerSecond = progress.uploadSpeedBytesPerSecond;
     if (progress.peerCount !== undefined) existing.peerCount = progress.peerCount;
     if (progress.uploadStatus !== undefined) existing.uploadStatus = progress.uploadStatus;
     if (progress.degraded !== undefined) existing.degraded = progress.degraded;
@@ -115,12 +123,18 @@ function createDownloader(options?: UseDownloaderOptions) {
         downloadedBytes: progress.downloadedBytes,
         state: progress.state,
         ...(progress.totalBytes !== undefined && { totalBytes: progress.totalBytes }),
-        ...(progress.speedBytesPerSecond !== undefined && { speedBytesPerSecond: progress.speedBytesPerSecond }),
+        ...(progress.speedBytesPerSecond !== undefined && {
+          speedBytesPerSecond: progress.speedBytesPerSecond,
+        }),
         ...(progress.etaSeconds !== undefined && { etaSeconds: progress.etaSeconds }),
-        ...(progress.connectionCount !== undefined && { connectionCount: progress.connectionCount }),
+        ...(progress.connectionCount !== undefined && {
+          connectionCount: progress.connectionCount,
+        }),
         ...(progress.error !== undefined && { error: progress.error }),
         ...(progress.uploadedBytes !== undefined && { uploadedBytes: progress.uploadedBytes }),
-        ...(progress.uploadSpeedBytesPerSecond !== undefined && { uploadSpeedBytesPerSecond: progress.uploadSpeedBytesPerSecond }),
+        ...(progress.uploadSpeedBytesPerSecond !== undefined && {
+          uploadSpeedBytesPerSecond: progress.uploadSpeedBytesPerSecond,
+        }),
         ...(progress.peerCount !== undefined && { peerCount: progress.peerCount }),
         ...(progress.uploadStatus !== undefined && { uploadStatus: progress.uploadStatus }),
         ...(progress.degraded !== undefined && { degraded: progress.degraded }),
@@ -430,6 +444,7 @@ function createDownloader(options?: UseDownloaderOptions) {
     selectedSnapshot: actions.selectedSnapshot,
     selectedSummary: actions.selectedSummary,
     submitStart: form.submitStart,
+    autoFillFromClipboard: form.autoFillFromClipboard,
   };
 }
 

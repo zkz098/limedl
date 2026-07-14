@@ -230,6 +230,34 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     }
   }
 
+  /**
+   * Reads the system clipboard and auto-fills the URL field if it contains
+   * a valid download URL (http, https, or magnet link). Also sets the
+   * appropriate protocol kind (http → "http", magnet → "bt").
+   *
+   * Silently ignores non-URL content and clipboard errors (no permission, etc.).
+   */
+  async function autoFillFromClipboard(): Promise<void> {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+
+      const trimmed = text.trim();
+
+      if (trimmed.startsWith("magnet:?")) {
+        form.kind = "bt";
+        form.url = trimmed;
+      } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        form.kind = "http";
+        form.url = trimmed;
+      }
+      // Other content — not a recognized download URL, do nothing.
+    } catch {
+      // Clipboard read failed (e.g. permission denied, WebView not focused).
+      // This is non-critical — silently ignore.
+    }
+  }
+
   return {
     form,
     isStarting,
@@ -241,5 +269,6 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     pickDestinationDirectory,
     pickTorrentSourceFile,
     submitStart,
+    autoFillFromClipboard,
   };
 }

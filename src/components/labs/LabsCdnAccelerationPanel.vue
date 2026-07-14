@@ -347,13 +347,19 @@ onUnmounted(() => {
     <!-- Enable toggle -->
     <label class="settings-field">
       <span class="settings-field__label">{{ t("settings.cdnAcceleration.enable") }}</span>
-      <UiSwitch v-model="draft.cdnAcceleration.enabled" :label="t('settings.cdnAcceleration.enable')" />
+      <UiSwitch
+        v-model="draft.cdnAcceleration.enabled"
+        :label="t('settings.cdnAcceleration.enable')"
+      />
     </label>
 
     <!-- Staged progress -->
     <div v-show="testing || phase" class="cdn-panel__progress mt-5">
       <div class="cdn-panel__progress-header flex items-center gap-2 mb-2">
-        <span class="cdn-panel__phase-icon i-ri-loader-4-line cdn-panel__spin text-accent-strong" aria-hidden="true" />
+        <span
+          class="cdn-panel__phase-icon i-ri-loader-4-line cdn-panel__spin text-accent-strong"
+          aria-hidden="true"
+        />
         <span v-if="phaseLabel" class="cdn-panel__phase-label text-sm">{{ phaseLabel }}</span>
       </div>
       <UiProgress :value="progressPercent" show-label :label="progressLabel" />
@@ -391,7 +397,10 @@ onUnmounted(() => {
     <p class="cdn-panel__hint mt-2 text-xs">{{ t("settings.cdnAcceleration.dataWarning") }}</p>
 
     <!-- Error display -->
-    <div v-if="statusType === 'error'" class="cdn-panel__error flex items-center gap-3 mt-4 px-4 py-3 rounded-md text-sm">
+    <div
+      v-if="statusType === 'error'"
+      class="cdn-panel__error flex items-center gap-3 mt-4 px-4 py-3 rounded-md text-sm"
+    >
       <span class="i-ri-error-warning-line" aria-hidden="true" />
       <span class="cdn-panel__error-msg flex-1 min-w-0">{{ draft.cdnAcceleration.lastError }}</span>
       <UiButton variant="secondary" size="sm" @click="startTest">
@@ -400,24 +409,41 @@ onUnmounted(() => {
     </div>
 
     <!-- Result card -->
-    <div v-if="statusType === 'ready' && hasResult" class="cdn-panel__result mt-4 px-4 py-3 rounded-md">
-      <div class="cdn-panel__result-grid grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+    <div
+      v-if="statusType === 'ready' && hasResult"
+      class="cdn-panel__result mt-4 px-4 py-3 rounded-md"
+    >
+      <div
+        class="cdn-panel__result-grid grid gap-3"
+        style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))"
+      >
         <div class="cdn-panel__result-item flex flex-col gap-1">
-          <span class="cdn-panel__result-key text-xs">{{ t("settings.cdnAcceleration.bestIp") }}</span>
+          <span class="cdn-panel__result-key text-xs">{{
+            t("settings.cdnAcceleration.bestIp")
+          }}</span>
           <span class="cdn-panel__result-value font-mono font-semibold cdn-panel__mono">{{
             draft.cdnAcceleration.activeIp
           }}</span>
         </div>
         <div class="cdn-panel__result-item flex flex-col gap-1">
-          <span class="cdn-panel__result-key text-xs">{{ t("settings.cdnAcceleration.speedMbps") }}</span>
-          <span class="cdn-panel__result-value font-mono font-semibold">{{ activeSpeedFormatted }} MB/s</span>
+          <span class="cdn-panel__result-key text-xs">{{
+            t("settings.cdnAcceleration.speedMbps")
+          }}</span>
+          <span class="cdn-panel__result-value font-mono font-semibold"
+            >{{ activeSpeedFormatted }} MB/s</span
+          >
         </div>
         <div v-if="lastTestTime" class="cdn-panel__result-item flex flex-col gap-1">
-          <span class="cdn-panel__result-key text-xs">{{ t("settings.cdnAcceleration.testedAt") }}</span>
+          <span class="cdn-panel__result-key text-xs">{{
+            t("settings.cdnAcceleration.testedAt")
+          }}</span>
           <span class="cdn-panel__result-value font-mono font-semibold">{{ lastTestTime }}</span>
         </div>
       </div>
-      <div v-if="speedImprovement != null || latencyImprovement != null" class="cdn-panel__speedup flex items-center gap-4 mt-3 pt-3 flex-wrap">
+      <div
+        v-if="speedImprovement != null || latencyImprovement != null"
+        class="cdn-panel__speedup flex items-center gap-4 mt-3 pt-3 flex-wrap"
+      >
         <div class="cdn-panel__speedup-item flex flex-col gap-1">
           <span class="cdn-panel__speedup-key text-xs">{{
             t("settings.cdnAcceleration.speedupSpeed")
@@ -445,7 +471,10 @@ onUnmounted(() => {
     </div>
 
     <!-- Candidate nodes table -->
-    <div v-if="candidates.length > 0" class="cdn-panel__candidates mt-5 border rounded-md overflow-hidden">
+    <div
+      v-if="candidates.length > 0"
+      class="cdn-panel__candidates mt-5 border rounded-md overflow-hidden"
+    >
       <div class="cdn-panel__candidates-header flex items-center justify-between px-4 py-3">
         <h4 class="cdn-panel__candidates-title m-0 text-sm font-semibold">
           {{ t("settings.cdnAcceleration.candidatesTitle") }}
@@ -466,10 +495,18 @@ onUnmounted(() => {
         <table class="cdn-panel__table w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateIp") }}</th>
-              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateLatency") }}</th>
-              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateThroughput") }}</th>
-              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">{{ t("settings.cdnAcceleration.candidateStatus") }}</th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">
+                {{ t("settings.cdnAcceleration.candidateIp") }}
+              </th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">
+                {{ t("settings.cdnAcceleration.candidateLatency") }}
+              </th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">
+                {{ t("settings.cdnAcceleration.candidateThroughput") }}
+              </th>
+              <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold">
+                {{ t("settings.cdnAcceleration.candidateStatus") }}
+              </th>
               <th class="px-4 py-2 text-left whitespace-nowrap text-xs font-semibold" />
             </tr>
           </thead>
@@ -479,8 +516,12 @@ onUnmounted(() => {
               :key="c.ip"
               :class="{ 'cdn-panel__row--active': c.ip === activeIp }"
             >
-              <td class="cdn-panel__mono font-mono text-xs px-4 py-2 whitespace-nowrap">{{ c.ip }}</td>
-              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">{{ fmtLatency(c.tcpLatencyMs) }} ms</td>
+              <td class="cdn-panel__mono font-mono text-xs px-4 py-2 whitespace-nowrap">
+                {{ c.ip }}
+              </td>
+              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">
+                {{ fmtLatency(c.tcpLatencyMs) }} ms
+              </td>
               <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">
                 {{ c.throughputMbps != null ? `${fmtSpeed(c.throughputMbps)} MB/s` : "-" }}
               </td>
@@ -507,8 +548,12 @@ onUnmounted(() => {
           </tbody>
           <tfoot v-if="defaultNode">
             <tr class="cdn-panel__row--default italic">
-              <td class="cdn-panel__mono font-mono text-xs px-4 py-2 whitespace-nowrap">{{ defaultNode.ip ?? "-" }}</td>
-              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">{{ fmtLatency(defaultNode.tcpLatencyMs) }} ms</td>
+              <td class="cdn-panel__mono font-mono text-xs px-4 py-2 whitespace-nowrap">
+                {{ defaultNode.ip ?? "-" }}
+              </td>
+              <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">
+                {{ fmtLatency(defaultNode.tcpLatencyMs) }} ms
+              </td>
               <td class="cdn-panel__metric font-mono px-4 py-2 whitespace-nowrap">
                 {{
                   defaultNode.throughputMbps != null
@@ -540,7 +585,10 @@ onUnmounted(() => {
         :aria-expanded="showAdvanced"
         @click="toggleAdvanced"
       >
-        <span class="i-ri-settings-3-line cdn-panel__advanced-toggle-icon text-lg" aria-hidden="true" />
+        <span
+          class="i-ri-settings-3-line cdn-panel__advanced-toggle-icon text-lg"
+          aria-hidden="true"
+        />
         <span class="cdn-panel__advanced-toggle-label flex-1">{{
           t("settings.cdnAcceleration.advancedSection")
         }}</span>
@@ -555,7 +603,10 @@ onUnmounted(() => {
           <h5 class="cdn-panel__advanced-title m-0 mb-2 text-xs font-semibold">
             {{ t("settings.cdnAcceleration.cloudflareRanges") }}
           </h5>
-          <div v-if="rangesLoaded" class="cdn-panel__ranges-list max-h-40 overflow-y-auto flex flex-wrap gap-1 p-2 border rounded-sm">
+          <div
+            v-if="rangesLoaded"
+            class="cdn-panel__ranges-list max-h-40 overflow-y-auto flex flex-wrap gap-1 p-2 border rounded-sm"
+          >
             <code
               v-for="range in cloudflareRanges"
               :key="range"
@@ -571,8 +622,12 @@ onUnmounted(() => {
 
         <!-- Manual IP Apply -->
         <div class="cdn-panel__advanced-block mb-4">
-          <h5 class="cdn-panel__advanced-title m-0 mb-2 text-xs font-semibold">{{ t("settings.cdnAcceleration.manualApply") }}</h5>
-          <p class="cdn-panel__hint mt-2 text-xs">{{ t("settings.cdnAcceleration.manualApplyHint") }}</p>
+          <h5 class="cdn-panel__advanced-title m-0 mb-2 text-xs font-semibold">
+            {{ t("settings.cdnAcceleration.manualApply") }}
+          </h5>
+          <p class="cdn-panel__hint mt-2 text-xs">
+            {{ t("settings.cdnAcceleration.manualApplyHint") }}
+          </p>
           <div class="cdn-panel__manual-row flex gap-2 items-start">
             <div class="cdn-panel__manual-input flex-1 min-w-0">
               <UiInput v-model="manualIp" placeholder="e.g. 104.16.0.1" :disabled="testing" />

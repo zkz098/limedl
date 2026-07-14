@@ -43,9 +43,7 @@ const selectedOption = computed(() =>
   selectedIndex.value >= 0 ? props.options[selectedIndex.value] : undefined,
 );
 
-const displayLabel = computed(
-  () => selectedOption.value?.label ?? props.placeholder,
-);
+const displayLabel = computed(() => selectedOption.value?.label ?? props.placeholder);
 
 const activeDescendantId = computed(() =>
   isOpen.value ? `${listboxId}-option-${activeIndex.value}` : undefined,
@@ -100,9 +98,7 @@ function handleType(char: string) {
 
   typeAhead.value += char;
   const query = typeAhead.value.toLowerCase();
-  const match = props.options.findIndex((option) =>
-    option.label.toLowerCase().startsWith(query),
-  );
+  const match = props.options.findIndex((option) => option.label.toLowerCase().startsWith(query));
 
   if (match !== -1) {
     activeIndex.value = match;
@@ -190,12 +186,7 @@ function handleCommonKeys(event: KeyboardEvent, source: "trigger" | "panel") {
       break;
 
     default:
-      if (
-        event.key.length === 1 &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey
-      ) {
+      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
         event.preventDefault();
         if (!isOpen.value) open();
         handleType(event.key);
@@ -269,10 +260,7 @@ onUnmounted(() => {
       @click="toggle"
       @keydown="onTriggerKeydown"
     >
-      <span
-        class="ui-select__label"
-        :class="{ 'is-placeholder': !selectedOption }"
-      >
+      <span class="ui-select__label" :class="{ 'is-placeholder': !selectedOption }">
         {{ displayLabel }}
       </span>
       <span
@@ -426,11 +414,15 @@ onUnmounted(() => {
 }
 
 .ui-select-panel-enter-active {
-  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
 }
 
 .ui-select-panel-leave-active {
-  transition: opacity 0.15s ease-in, transform 0.15s ease-in;
+  transition:
+    opacity 0.15s ease-in,
+    transform 0.15s ease-in;
 }
 
 .ui-select-panel-enter-from,

@@ -57,9 +57,18 @@ function handleNavigate(view: string) {
         :class="{ 'category-item--active': activeCategory === cat.key }"
         @click="handleCategoryClick(cat.key)"
       >
-        <span class="category-item__icon text-base flex-shrink-0" :class="cat.icon" aria-hidden="true" />
-        <span class="category-item__label flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{{ t(cat.labelKey) }}</span>
-        <span class="category-item__count text-xs rounded-full px-2 leading-[1.4] flex-shrink-0">{{ counts[cat.key] ?? 0 }}</span>
+        <span
+          class="category-item__icon text-base flex-shrink-0"
+          :class="cat.icon"
+          aria-hidden="true"
+        />
+        <span
+          class="category-item__label flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+          >{{ t(cat.labelKey) }}</span
+        >
+        <span class="category-item__count text-xs rounded-full px-2 leading-[1.4] flex-shrink-0">{{
+          counts[cat.key] ?? 0
+        }}</span>
       </button>
     </nav>
 

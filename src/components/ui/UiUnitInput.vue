@@ -32,14 +32,12 @@ function onInput(event: Event) {
 </script>
 
 <template>
-  <div
-    class="ui-unit-input"
-    :class="{ 'ui-unit-input--disabled': disabled }"
-  >
+  <div class="ui-unit-input" :class="{ 'ui-unit-input--disabled': disabled }">
     <span
       v-if="unit && unitPosition === 'prefix'"
       class="ui-unit-input__affix ui-unit-input__prefix"
-    >{{ unit }}</span>
+      >{{ unit }}</span
+    >
     <input
       :value="modelValue ?? ''"
       class="ui-unit-input__field"
@@ -55,7 +53,8 @@ function onInput(event: Event) {
     <span
       v-if="unit && unitPosition === 'suffix'"
       class="ui-unit-input__affix ui-unit-input__suffix"
-    >{{ unit }}</span>
+      >{{ unit }}</span
+    >
   </div>
 </template>
 

@@ -48,7 +48,11 @@ defineSlots<{
     :model-value="modelValue"
     :width="width"
     :close-on-overlay="closeOnOverlay"
-    @update:model-value="(value) => { if (!value) emit('cancel') }"
+    @update:model-value="
+      (value) => {
+        if (!value) emit('cancel');
+      }
+    "
   >
     <template #title>
       <div class="dialog-heading">
@@ -69,7 +73,12 @@ defineSlots<{
       <p class="confirm-delete__message">{{ message }}</p>
       <slot />
       <div class="confirm-delete__actions">
-        <UiButton type="button" variant="secondary" :disabled="cancelDisabled" @click="emit('cancel')">
+        <UiButton
+          type="button"
+          variant="secondary"
+          :disabled="cancelDisabled"
+          @click="emit('cancel')"
+        >
           {{ cancelText }}
         </UiButton>
         <slot name="extra-actions" />

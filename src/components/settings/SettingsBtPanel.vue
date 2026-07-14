@@ -94,7 +94,10 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
 
       <label class="settings-field settings-field--wide">
         <span class="settings-field__label">{{ t("settings.btPauseUpload") }}</span>
-        <UiSwitch v-model="draft.bt.pauseUploadWhenLimitReached" :label="t('settings.btAutoPauseUpload')" />
+        <UiSwitch
+          v-model="draft.bt.pauseUploadWhenLimitReached"
+          :label="t('settings.btAutoPauseUpload')"
+        />
         <p class="settings-field__hint">{{ t("settings.btPauseUploadHint") }}</p>
       </label>
 

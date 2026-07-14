@@ -34,6 +34,7 @@ Skipping this will cause linker errors (`LINK : fatal error LNK1181`).
 ### Task ID routing
 
 Download tasks use prefixed IDs to route to the correct protocol executor:
+
 - `http:` prefix → HTTP download path
 - `bt:` prefix → BitTorrent path
 
@@ -41,13 +42,13 @@ The `DownloadProtocol` trait (`src-tauri/src/download/protocol.rs`) abstracts bo
 
 ### Key subsystems
 
-| Component | Location | Role |
-|-----------|----------|------|
-| `DownloadManager` | `src-tauri/src/download/manager.rs` (1200+ lines) | Core HTTP download orchestration |
-| `TorrentManager` | `src-tauri/src/download/torrent.rs` (1600+ lines) | BitTorrent via librqbit |
-| `CdnAccelerator` | `src-tauri/src/download/cdn/` | Cloudflare IP range probing & DNS rewriting |
-| Aria2 RPC server | `src-tauri/src/download/aria2_rpc.rs` | Axum WebSocket server emulating aria2 RPC protocol |
-| SQLite persistence | `src-tauri/src/download/database.rs` | rusqlite with `bundled` feature |
+| Component          | Location                                          | Role                                               |
+| ------------------ | ------------------------------------------------- | -------------------------------------------------- |
+| `DownloadManager`  | `src-tauri/src/download/manager.rs` (1200+ lines) | Core HTTP download orchestration                   |
+| `TorrentManager`   | `src-tauri/src/download/torrent.rs` (1600+ lines) | BitTorrent via librqbit                            |
+| `CdnAccelerator`   | `src-tauri/src/download/cdn/`                     | Cloudflare IP range probing & DNS rewriting        |
+| Aria2 RPC server   | `src-tauri/src/download/aria2_rpc.rs`             | Axum WebSocket server emulating aria2 RPC protocol |
+| SQLite persistence | `src-tauri/src/download/database.rs`              | rusqlite with `bundled` feature                    |
 
 ### Startup & shutdown
 

@@ -91,6 +91,7 @@ const {
   selectedSnapshot,
   selectedSummary,
   submitStart,
+  autoFillFromClipboard,
   setNotificationsEnabled,
 } = useDownloader(downloaderOptions);
 
@@ -115,10 +116,7 @@ const selectedIds = ref<Set<string>>(new Set());
 const showBatchDeleteDialog = ref(false);
 const removedDownloadIds = ref<string[]>([]);
 
-const {
-  appSettings,
-  applyAppearanceSettings,
-} = useAppSettings({
+const { appSettings, applyAppearanceSettings } = useAppSettings({
   sortKey,
   sortDirection,
   compactView,
@@ -367,6 +365,7 @@ watch(
     }
 
     applyAppSettingsDefaults(appSettings.value);
+    autoFillFromClipboard();
   },
 );
 </script>
@@ -376,80 +375,156 @@ watch(
     <NotificationToast :notifications="notifications" @dismiss="dismiss" />
 
     <!-- Top toolbar (only show on home view) -->
-    <TopToolbar v-if="currentView === 'home'" :search-query="searchQuery" :has-selection="!!selectedId"
-      :bt-status="btStatusData" :sort-key="sortKey" :sort-direction="sortDirection" :compact-view="compactView"
-      :visible-columns="visibleColumns" :multi-select-mode="multiSelectMode" :selected-count="selectedIds.size"
-      :filtered-count="filteredDownloads.length" :game-mode="gameMode"
-      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb" :overclock-mode="overclockMode"
+    <TopToolbar
+      v-if="currentView === 'home'"
+      :search-query="searchQuery"
+      :has-selection="!!selectedId"
+      :bt-status="btStatusData"
+      :sort-key="sortKey"
+      :sort-direction="sortDirection"
+      :compact-view="compactView"
+      :visible-columns="visibleColumns"
+      :multi-select-mode="multiSelectMode"
+      :selected-count="selectedIds.size"
+      :filtered-count="filteredDownloads.length"
+      :game-mode="gameMode"
+      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb"
+      :overclock-mode="overclockMode"
       @update:search-query="searchQuery = $event"
-      @update:sort-key="sortKey = $event" @update:sort-direction="sortDirection = $event"
-      @update:compact-view="compactView = $event" @update:visible-columns="visibleColumns = $event"
-      @add-task="showComposerDialog = true" @delete="handleDelete" @refresh="handleRefresh"
-      @update:multi-select-mode="handleToggleMultiSelectMode" @pause-all="runPauseAll" @resume-all="runResumeAll"
-      @clear-completed="runClearCompleted" @select-all="handleSelectAll" @deselect-all="handleDeselectAll"
-      @batch-delete="handleBatchDelete" @toggle-game-mode="handleToggleGameMode"
-      @toggle-overclock-mode="handleToggleOverclockMode" />
+      @update:sort-key="sortKey = $event"
+      @update:sort-direction="sortDirection = $event"
+      @update:compact-view="compactView = $event"
+      @update:visible-columns="visibleColumns = $event"
+      @add-task="showComposerDialog = true"
+      @delete="handleDelete"
+      @refresh="handleRefresh"
+      @update:multi-select-mode="handleToggleMultiSelectMode"
+      @pause-all="runPauseAll"
+      @resume-all="runResumeAll"
+      @clear-completed="runClearCompleted"
+      @select-all="handleSelectAll"
+      @deselect-all="handleDeselectAll"
+      @batch-delete="handleBatchDelete"
+      @toggle-game-mode="handleToggleGameMode"
+      @toggle-overclock-mode="handleToggleOverclockMode"
+    />
 
     <!-- Main layout: sidebar + content -->
     <div class="app-body">
-      <CategorySidebar :active-category="activeCategory" :current-view="currentView" :counts="categoryCounts"
-        :stats="sidebarStats" @update:active-category="activeCategory = $event" @navigate="navigateTo" />
+      <CategorySidebar
+        :active-category="activeCategory"
+        :current-view="currentView"
+        :counts="categoryCounts"
+        :stats="sidebarStats"
+        @update:active-category="activeCategory = $event"
+        @navigate="navigateTo"
+      />
 
       <main class="content-area">
         <!-- Home view: table + detail panel -->
         <template v-if="currentView === 'home'">
           <div class="table-wrapper">
-            <DownloadQueueTable :downloads="downloads" :selected-id="selectedId" :task-action-name="actionName"
-              :is-auto-refreshing="isAutoRefreshing" :state-filter="activeCategory" :search-query="searchQuery"
-              :view-options="viewOptions" :multi-select="multiSelectState" @copy-link="runCopyLink"
-              @delete-task="runDeleteTask" @delete-task-permanently="requestPermanentDelete"
-              @open-in-explorer="runOpenInExplorer" @pause-or-resume="handleTaskPauseOrResume" @select="selectDownload"
-              @toggle-select="handleToggleSelect" />
+            <DownloadQueueTable
+              :downloads="downloads"
+              :selected-id="selectedId"
+              :task-action-name="actionName"
+              :is-auto-refreshing="isAutoRefreshing"
+              :state-filter="activeCategory"
+              :search-query="searchQuery"
+              :view-options="viewOptions"
+              :multi-select="multiSelectState"
+              @copy-link="runCopyLink"
+              @delete-task="runDeleteTask"
+              @delete-task-permanently="requestPermanentDelete"
+              @open-in-explorer="runOpenInExplorer"
+              @pause-or-resume="handleTaskPauseOrResume"
+              @select="selectDownload"
+              @toggle-select="handleToggleSelect"
+            />
           </div>
 
           <!-- Collapsible bottom detail panel -->
           <div class="detail-panel" :class="{ collapsed: detailCollapsed }">
             <div class="detail-panel__header" @click="detailCollapsed = !detailCollapsed">
               <div class="detail-panel__title">
-                <i class="detail-panel__arrow"
-                  :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'" />
+                <i
+                  class="detail-panel__arrow"
+                  :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'"
+                />
                 <span class="detail-panel__filename">{{
                   selectedOverview ? selectedOverview.fileName : t("detail.noSelection")
-                  }}</span>
+                }}</span>
                 <template v-if="selectedOverview">
                   <UiBadge :tone="stateTone" size="sm">{{
                     t(`states.${selectedOverview.state}`)
-                    }}</UiBadge>
-                  <UiBadge v-if="selectedOverview.cdnAccelerated" tone="warning" size="sm" class="detail-panel__cdn">
+                  }}</UiBadge>
+                  <UiBadge
+                    v-if="selectedOverview.cdnAccelerated"
+                    tone="warning"
+                    size="sm"
+                    class="detail-panel__cdn"
+                  >
                     <span class="i-ri-flashlight-fill" aria-hidden="true" />
                     {{ t("inspector.cdnAccelerated") }}
                   </UiBadge>
                 </template>
               </div>
               <div v-if="selectedOverview" class="detail-panel__actions">
-                <UiButton type="button" size="sm" variant="secondary" icon="i-ri-refresh-line"
-                  @click.stop="handleRefreshSelected">
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  icon="i-ri-refresh-line"
+                  @click.stop="handleRefreshSelected"
+                >
                   {{ isRefreshingStatus ? t("common.refreshing") : t("common.refresh") }}
                 </UiButton>
-                <UiButton type="button" size="sm" variant="ghost" icon="i-ri-pause-line" :disabled="!canPause"
-                  @click.stop="runPause">
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  icon="i-ri-pause-line"
+                  :disabled="!canPause"
+                  @click.stop="runPause"
+                >
                   {{ actionName === "Pause" ? t("inspector.pausing") : t("inspector.pause") }}
                 </UiButton>
-                <UiButton type="button" size="sm" variant="ghost" icon="i-ri-play-line" :disabled="!canResume"
-                  @click.stop="runResume">
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  icon="i-ri-play-line"
+                  :disabled="!canResume"
+                  @click.stop="runResume"
+                >
                   {{ actionName === "Resume" ? t("inspector.resuming") : t("inspector.resume") }}
                 </UiButton>
-                <UiButton type="button" size="sm" variant="danger" icon="i-ri-close-circle-line" :disabled="!canCancel"
-                  @click.stop="runCancel">
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  icon="i-ri-close-circle-line"
+                  :disabled="!canCancel"
+                  @click.stop="runCancel"
+                >
                   {{ actionName === "Cancel" ? t("inspector.canceling") : t("inspector.cancel") }}
                 </UiButton>
-                <UiButton type="button" size="sm" variant="ghost" icon="i-ri-close-line"
-                  @click.stop="selectDownload(null)" />
+                <UiButton
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  icon="i-ri-close-line"
+                  @click.stop="selectDownload(null)"
+                />
               </div>
             </div>
             <div v-show="!detailCollapsed" class="detail-panel__body">
-              <DownloadInspector v-if="selectedOverview" :selected-overview="selectedOverview"
-                :selected-snapshot="selectedSnapshot" :show-detail-info="showDetailInfo" />
+              <DownloadInspector
+                v-if="selectedOverview"
+                :selected-overview="selectedOverview"
+                :selected-snapshot="selectedSnapshot"
+                :show-detail-info="showDetailInfo"
+              />
               <div v-else class="detail-panel__empty">
                 <i class="i-ri-cursor-line" />
                 <p>{{ t("detail.selectPrompt") }}</p>
@@ -468,9 +543,15 @@ watch(
             <i class="i-ri-close-line" />
           </button>
           <div class="modal-panel__body">
-            <SettingsPage ref="settingsPage" :settings="appSettings" :game-mode="gameMode"
-              :buffer-usage-bytes="bufferUsageBytes" :buffer-limit-bytes="bufferLimitBytes"
-              @dirty-change="handleSettingsDirtyChange" @saved="handleSettingsSaved" />
+            <SettingsPage
+              ref="settingsPage"
+              :settings="appSettings"
+              :game-mode="gameMode"
+              :buffer-usage-bytes="bufferUsageBytes"
+              :buffer-limit-bytes="bufferLimitBytes"
+              @dirty-change="handleSettingsDirtyChange"
+              @saved="handleSettingsSaved"
+            />
           </div>
         </div>
       </div>
@@ -482,8 +563,12 @@ watch(
             <i class="i-ri-close-line" />
           </button>
           <div class="modal-panel__body">
-            <LabsPage ref="labsPage" :settings="appSettings" @dirty-change="handleLabsDirtyChange"
-              @saved="handleLabsSaved" />
+            <LabsPage
+              ref="labsPage"
+              :settings="appSettings"
+              @dirty-change="handleLabsDirtyChange"
+              @saved="handleLabsSaved"
+            />
           </div>
         </div>
       </div>
@@ -492,55 +577,87 @@ watch(
     <!-- Dialogs -->
     <UiDialog v-model="showComposerDialog" width="min(46rem, calc(100vw - 1.5rem))">
       <template #title>
-        <div class="dialog-heading">
-          <div>
-            <p class="section-kicker">{{ t("dialog.newTransfer") }}</p>
-            <h2>{{ t("dialog.newTaskTitle") }}</h2>
-          </div>
+        <div class="dialog-heading dialog-heading--inline">
           <span class="dialog-heading__icon i-ri-download-cloud-2-line" aria-hidden="true" />
+          <h2>{{ t("dialog.newTaskTitle") }}</h2>
         </div>
       </template>
 
-      <DownloadComposer :form="form" :is-picking-directory="isPickingDirectory" :is-picking-torrent="isPickingTorrent"
-        :is-starting="isStarting" :settings="appSettings" @pick-directory="pickDestinationDirectory"
-        @pick-torrent="pickTorrentSourceFile" @submit="handleSubmitStart" />
+      <DownloadComposer
+        :form="form"
+        :is-picking-directory="isPickingDirectory"
+        :is-picking-torrent="isPickingTorrent"
+        :is-starting="isStarting"
+        :settings="appSettings"
+        @pick-directory="pickDestinationDirectory"
+        @pick-torrent="pickTorrentSourceFile"
+        @submit="handleSubmitStart"
+      />
     </UiDialog>
 
-    <ConfirmDialog :model-value="Boolean(pendingPermanentDeleteId)"
-      :kicker="t('dialog.confirmDelete')" :title="t('dialog.permanentDeleteTitle')"
+    <ConfirmDialog
+      :model-value="Boolean(pendingPermanentDeleteId)"
+      :kicker="t('dialog.confirmDelete')"
+      :title="t('dialog.permanentDeleteTitle')"
       :message="t('dialog.permanentDeleteMessage')"
-      :confirm-text="actionName === 'Purge' ? t('dialog.deleting') : t('dialog.confirmPermanentDelete')"
-      :cancel-text="t('common.cancel')" icon="i-ri-delete-bin-line" :icon-danger="true"
-      confirm-icon="i-ri-delete-bin-line" :confirm-loading="actionName === 'Purge'"
-      :cancel-disabled="actionName === 'Purge'" :close-on-overlay="actionName !== 'Purge'"
-      @cancel="cancelPermanentDelete" @confirm="confirmPermanentDelete">
+      :confirm-text="
+        actionName === 'Purge' ? t('dialog.deleting') : t('dialog.confirmPermanentDelete')
+      "
+      :cancel-text="t('common.cancel')"
+      icon="i-ri-delete-bin-line"
+      :icon-danger="true"
+      confirm-icon="i-ri-delete-bin-line"
+      :confirm-loading="actionName === 'Purge'"
+      :cancel-disabled="actionName === 'Purge'"
+      :close-on-overlay="actionName !== 'Purge'"
+      @cancel="cancelPermanentDelete"
+      @confirm="confirmPermanentDelete"
+    >
       <div v-if="pendingPermanentDeleteTask" class="confirm-delete__target">
-        <span>{{ t('dialog.targetFile') }}</span>
+        <span>{{ t("dialog.targetFile") }}</span>
         <strong>{{ pendingPermanentDeleteTask.fileName }}</strong>
       </div>
     </ConfirmDialog>
 
-    <ConfirmDialog :model-value="showUnsavedSettingsDialog"
-      :kicker="unsavedDialogKicker" :title="unsavedDialogTitle"
+    <ConfirmDialog
+      :model-value="showUnsavedSettingsDialog"
+      :kicker="unsavedDialogKicker"
+      :title="unsavedDialogTitle"
       :message="unsavedDialogMessage"
       icon="i-ri-error-warning-line"
-      :confirm-text="isSavingBeforeNavigation ? t('common.saving') : t('dialog.saveSettingsAndLeave')"
-      :cancel-text="t('dialog.keepEditing')" confirm-variant="primary"
-      confirm-icon="i-ri-save-line" :confirm-loading="isSavingBeforeNavigation"
-      @cancel="cancelDiscardSettings" @confirm="saveSettingsAndNavigate">
+      :confirm-text="
+        isSavingBeforeNavigation ? t('common.saving') : t('dialog.saveSettingsAndLeave')
+      "
+      :cancel-text="t('dialog.keepEditing')"
+      confirm-variant="primary"
+      confirm-icon="i-ri-save-line"
+      :confirm-loading="isSavingBeforeNavigation"
+      @cancel="cancelDiscardSettings"
+      @confirm="saveSettingsAndNavigate"
+    >
       <template #extra-actions>
-        <UiButton type="button" variant="danger" icon="i-ri-arrow-right-line" @click="confirmDiscardSettings">
-          {{ t('dialog.discardSettings') }}
+        <UiButton
+          type="button"
+          variant="danger"
+          icon="i-ri-arrow-right-line"
+          @click="confirmDiscardSettings"
+        >
+          {{ t("dialog.discardSettings") }}
         </UiButton>
       </template>
     </ConfirmDialog>
 
-    <ConfirmDialog :model-value="showBatchDeleteDialog"
-      :kicker="t('dialog.confirmDelete')" :title="t('dialog.batchDeleteTitle')"
+    <ConfirmDialog
+      :model-value="showBatchDeleteDialog"
+      :kicker="t('dialog.confirmDelete')"
+      :title="t('dialog.batchDeleteTitle')"
       :message="t('dialog.batchDeleteMessage', { count: selectedIds.size })"
-      :confirm-text="t('dialog.confirmBatchDelete')" :cancel-text="t('common.cancel')"
+      :confirm-text="t('dialog.confirmBatchDelete')"
+      :cancel-text="t('common.cancel')"
       confirm-icon="i-ri-delete-bin-line"
-      @cancel="showBatchDeleteDialog = false" @confirm="confirmBatchDelete" />
+      @cancel="showBatchDeleteDialog = false"
+      @confirm="confirmBatchDelete"
+    />
   </div>
 </template>
 
@@ -773,6 +890,16 @@ watch(
 }
 
 /* ── Dialog styles ── */
+
+.dialog-heading--inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dialog-heading--inline h2 {
+  margin: 0;
+}
 
 .confirm-delete__target {
   display: grid;

@@ -210,7 +210,9 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
       items: toPause,
       apiCall: pauseDownload,
       successMessageKey: "messages.pausedAll",
-      onSuccess: (_id, snapshot) => { upsertSummary(toSummary(snapshot)); },
+      onSuccess: (_id, snapshot) => {
+        upsertSummary(toSummary(snapshot));
+      },
     });
   }
 
@@ -221,7 +223,9 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
       items: toResume,
       apiCall: resumeDownload,
       successMessageKey: "messages.resumedAll",
-      onSuccess: (_id, snapshot) => { upsertSummary(toSummary(snapshot)); },
+      onSuccess: (_id, snapshot) => {
+        upsertSummary(toSummary(snapshot));
+      },
     });
   }
 
@@ -232,7 +236,9 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
       items: toClear,
       apiCall: removeDownload,
       successMessageKey: "messages.clearedCompleted",
-      onSuccess: (id) => { removeSummary(id); },
+      onSuccess: (id) => {
+        removeSummary(id);
+      },
     });
   }
 
@@ -247,7 +253,9 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
       items,
       apiCall: removeDownload,
       successMessageKey: "messages.batchDeleted",
-      onSuccess: (id) => { removeSummary(id); },
+      onSuccess: (id) => {
+        removeSummary(id);
+      },
     });
   }
 

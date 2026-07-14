@@ -214,7 +214,10 @@ onUnmounted(() => {
     <template v-if="multiSelectMode">
       <div class="toolbar-divider w-px h-5 flex-shrink-0" />
       <div class="toolbar-batch-actions flex items-center gap-1">
-        <span v-if="selectedCount > 0" class="toolbar-selected-count text-sm font-semibold whitespace-nowrap px-1">
+        <span
+          v-if="selectedCount > 0"
+          class="toolbar-selected-count text-sm font-semibold whitespace-nowrap px-1"
+        >
           {{ t("toolbar.selectedCount", { count: selectedCount }) }}
         </span>
         <UiButton variant="ghost" size="sm" icon="i-ri-pause-line" @click="$emit('pauseAll')">
@@ -251,12 +254,12 @@ onUnmounted(() => {
     <div class="toolbar-view-controls flex items-center gap-1 flex-shrink-0">
       <div class="sort-control flex items-center gap-1">
         <UiSelect
-            :model-value="sortKey"
-            :options="sortOptions"
-            :aria-label="t('toolbar.sortBy.label')"
-            class="sort-control__select"
-            @update:model-value="handleSortKeyChange"
-          />
+          :model-value="sortKey"
+          :options="sortOptions"
+          :aria-label="t('toolbar.sortBy.label')"
+          class="sort-control__select"
+          @update:model-value="handleSortKeyChange"
+        />
         <UiButton
           size="sm"
           variant="ghost"
@@ -284,7 +287,11 @@ onUnmounted(() => {
         >
           {{ t("toolbar.columns") }}
         </UiButton>
-        <div v-if="columnMenuOpen" class="column-menu__panel absolute top-[calc(100%+0.35rem)] right-0 z-5 min-w-36 grid gap-[0.15rem] p-[0.35rem] border rounded-md" @pointerdown.stop>
+        <div
+          v-if="columnMenuOpen"
+          class="column-menu__panel absolute top-[calc(100%+0.35rem)] right-0 z-5 min-w-36 grid gap-[0.15rem] p-[0.35rem] border rounded-md"
+          @pointerdown.stop
+        >
           <label
             v-for="column in columnOptions"
             :key="column.key"
@@ -316,7 +323,10 @@ onUnmounted(() => {
     <div class="toolbar-spacer flex-1" />
 
     <div class="toolbar-search relative w-64">
-      <span class="toolbar-search__icon i-ri-search-line absolute left-[0.625rem] top-1/2 -translate-y-1/2 text-sm pointer-events-none" aria-hidden="true" />
+      <span
+        class="toolbar-search__icon i-ri-search-line absolute left-[0.625rem] top-1/2 -translate-y-1/2 text-sm pointer-events-none"
+        aria-hidden="true"
+      />
       <input
         :value="searchQuery"
         type="text"
@@ -336,15 +346,24 @@ onUnmounted(() => {
     </div>
 
     <div v-if="btStatus" class="toolbar-bt flex items-center gap-2 flex-shrink-0">
-      <span class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap" :title="t('toolbar.dhtNodes')">
+      <span
+        class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap"
+        :title="t('toolbar.dhtNodes')"
+      >
         <span class="i-ri-global-line" aria-hidden="true" />
         <span>{{ btStatus.dhtNodes }}</span>
       </span>
-      <span class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap" :title="t('toolbar.uploadSpeed')">
+      <span
+        class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap"
+        :title="t('toolbar.uploadSpeed')"
+      >
         <span class="i-ri-upload-2-line" aria-hidden="true" />
         <span>{{ formatSpeed(btStatus.uploadSpeed) }}</span>
       </span>
-      <span class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap" :title="t('toolbar.peers')">
+      <span
+        class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap"
+        :title="t('toolbar.peers')"
+      >
         <span class="i-ri-users-line" aria-hidden="true" />
         <span>{{ btStatus.peers }}</span>
       </span>

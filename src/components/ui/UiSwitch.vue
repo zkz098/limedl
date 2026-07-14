@@ -22,11 +22,7 @@ function onInputChange(event: Event): void {
 </script>
 
 <template>
-  <label
-    class="ui-switch"
-    :class="{ 'ui-switch--disabled': disabled }"
-    :aria-disabled="disabled"
-  >
+  <label class="ui-switch" :class="{ 'ui-switch--disabled': disabled }" :aria-disabled="disabled">
     <span v-if="label || $slots.default" class="ui-switch__label">
       <slot>{{ label }}</slot>
     </span>

@@ -258,58 +258,118 @@ defineExpose({
     </div>
 
     <div class="settings-page__layout flex flex-1 gap-5 min-h-0 overflow-hidden">
-      <aside class="settings-page__sidebar w-52 flex-none flex flex-col gap-3 pb-4" role="tablist" :aria-label="t('settings.title')">
+      <aside
+        class="settings-page__sidebar w-52 flex-none flex flex-col gap-3 pb-4"
+        role="tablist"
+        :aria-label="t('settings.title')"
+      >
         <nav class="settings-page__tabs flex flex-col gap-1">
-          <button v-for="tab in tabs" :key="tab.id" type="button" role="tab"
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            type="button"
+            role="tab"
             :class="[
               'relative min-h-[2.75rem] flex items-center gap-[0.6rem] px-[0.9rem] border border-transparent rounded-md text-sm text-left cursor-pointer select-none transition-colors duration-150',
               activeTab === tab.id
                 ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)] font-semibold before:absolute before:left-0 before:top-[0.55rem] before:bottom-[0.55rem] before:w-[3px] before:rounded-r-[2px] before:bg-[var(--color-accent-strong)]'
                 : 'text-[var(--color-text-muted)] bg-transparent hover:text-[var(--color-heading)] hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:border-[var(--color-accent-strong)] focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]',
-            ]" :aria-selected="activeTab === tab.id"
-            @click="activeTab = tab.id">
+            ]"
+            :aria-selected="activeTab === tab.id"
+            @click="activeTab = tab.id"
+          >
             <span :class="tab.icon" aria-hidden="true" />
             <span>{{ t(tab.labelKey) }}</span>
           </button>
         </nav>
 
         <div class="settings-page__save flex-none flex flex-col gap-2 mt-auto pt-3">
-          <p class="settings-page__save-hint m-0 text-xs leading-[1.45]">{{ t("settings.saveHint") }}</p>
-          <UiButton type="button" icon="i-ri-save-line" block :loading="isSaving" @click="persistSettings">
+          <p class="settings-page__save-hint m-0 text-xs leading-[1.45]">
+            {{ t("settings.saveHint") }}
+          </p>
+          <UiButton
+            type="button"
+            icon="i-ri-save-line"
+            block
+            :loading="isSaving"
+            @click="persistSettings"
+          >
             {{ isSaving ? t("common.saving") : t("common.save") }}
           </UiButton>
         </div>
       </aside>
 
       <div class="settings-page__content flex-1 overflow-y-auto min-w-0 min-h-0 pb-4">
-        <SettingsAppearancePanel v-show="activeTab === 'appearance'" :draft="form" :t="t" :language="language"
-          :language-options="languageOptions" :color-mode-options="colorModeOptions"
-          :background-opacity-options="backgroundOpacityOptions" @change-language="changeLanguage" />
+        <SettingsAppearancePanel
+          v-show="activeTab === 'appearance'"
+          :draft="form"
+          :t="t"
+          :language="language"
+          :language-options="languageOptions"
+          :color-mode-options="colorModeOptions"
+          :background-opacity-options="backgroundOpacityOptions"
+          @change-language="changeLanguage"
+        />
 
-        <SettingsSchedulerPanel v-show="activeTab === 'scheduler'" :draft="form" :t="t"
-          :scheduler-mode-options="schedulerModeOptions" :adaptive-profile-options="adaptiveProfileOptions"
-          :global-speed-limit-mi-bps="globalSpeedLimitMiBps" @update:globalSpeedLimitMiBps="setGlobalSpeedLimitMiBps" />
+        <SettingsSchedulerPanel
+          v-show="activeTab === 'scheduler'"
+          :draft="form"
+          :t="t"
+          :scheduler-mode-options="schedulerModeOptions"
+          :adaptive-profile-options="adaptiveProfileOptions"
+          :global-speed-limit-mi-bps="globalSpeedLimitMiBps"
+          @update:globalSpeedLimitMiBps="setGlobalSpeedLimitMiBps"
+        />
 
-        <SettingsDownloadDefaultsPanel v-show="activeTab === 'downloads'" :draft="form" :t="t"
-          :checksum-options="checksumOptions" :download-summary="downloadSummary"
-          :is-picking-directory="isPickingDirectory" :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
-          @pick-directory="pickDefaultDownloadDirectory" />
+        <SettingsDownloadDefaultsPanel
+          v-show="activeTab === 'downloads'"
+          :draft="form"
+          :t="t"
+          :checksum-options="checksumOptions"
+          :download-summary="downloadSummary"
+          :is-picking-directory="isPickingDirectory"
+          :default-user-agent-placeholder="DEFAULT_HTTP_USER_AGENT"
+          @pick-directory="pickDefaultDownloadDirectory"
+        />
 
-        <SettingsIoBaselinePanel v-show="activeTab === 'downloads'" :draft="form" :t="t" :game-mode="gameMode ?? false"
-          :buffer-usage-bytes="bufferUsageBytes ?? 0" :buffer-limit-bytes="bufferLimitBytes ?? 0" />
+        <SettingsIoBaselinePanel
+          v-show="activeTab === 'downloads'"
+          :draft="form"
+          :t="t"
+          :game-mode="gameMode ?? false"
+          :buffer-usage-bytes="bufferUsageBytes ?? 0"
+          :buffer-limit-bytes="bufferLimitBytes ?? 0"
+        />
 
-        <SettingsBtPanel v-show="activeTab === 'bt'" :draft="form" :t="t" :bt-summary="btSummary"
-          :bt-upload-limit-mi-b="btUploadLimitMiB" :is-fetching-tracker-list="isFetchingTrackerList"
-          :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL" @update:btUploadLimitMiB="setBtUploadLimitMiB"
-          @fetch-tracker-list="updateTrackerListFromUrl" />
+        <SettingsBtPanel
+          v-show="activeTab === 'bt'"
+          :draft="form"
+          :t="t"
+          :bt-summary="btSummary"
+          :bt-upload-limit-mi-b="btUploadLimitMiB"
+          :is-fetching-tracker-list="isFetchingTrackerList"
+          :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL"
+          @update:btUploadLimitMiB="setBtUploadLimitMiB"
+          @fetch-tracker-list="updateTrackerListFromUrl"
+        />
 
         <SettingsAria2RpcPanel v-show="activeTab === 'aria2Rpc'" :draft="form" :t="t" />
 
-        <SettingsLoggingPanel v-show="activeTab === 'logging'" :draft="form" :t="t" :log-level-options="logLevelOptions"
-          :logging-summary="loggingSummary" />
+        <SettingsLoggingPanel
+          v-show="activeTab === 'logging'"
+          :draft="form"
+          :t="t"
+          :log-level-options="logLevelOptions"
+          :logging-summary="loggingSummary"
+        />
 
-        <SettingsProxyPanel v-show="activeTab === 'proxy'" :draft="form" :t="t" :proxy-mode-options="proxyModeOptions"
-          :proxy-summary="proxySummary" />
+        <SettingsProxyPanel
+          v-show="activeTab === 'proxy'"
+          :draft="form"
+          :t="t"
+          :proxy-mode-options="proxyModeOptions"
+          :proxy-summary="proxySummary"
+        />
       </div>
     </div>
   </section>
@@ -397,8 +457,8 @@ defineExpose({
   background: var(--color-accent-strong);
 }
 
-.settings-page__tab>[class*="i-ri-"],
-.labs-page__tab>[class*="i-ri-"] {
+.settings-page__tab > [class*="i-ri-"],
+.labs-page__tab > [class*="i-ri-"] {
   flex: 0 0 auto;
   font-size: 1.05rem;
 }
@@ -432,7 +492,6 @@ defineExpose({
 }
 
 @media (max-width: 840px) {
-
   .settings-page__layout,
   .labs-page__layout {
     flex-direction: column;
@@ -657,7 +716,6 @@ defineExpose({
 }
 
 @media (max-width: 960px) {
-
   .settings-page .settings-grid,
   .labs-page .settings-grid,
   .settings-page .settings-metrics-grid,
@@ -667,7 +725,6 @@ defineExpose({
 }
 
 @media (max-width: 840px) {
-
   .settings-page .settings-grid,
   .labs-page .settings-grid,
   .settings-page .settings-metrics-grid,

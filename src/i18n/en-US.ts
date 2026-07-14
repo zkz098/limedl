@@ -148,13 +148,14 @@ const enUS = {
     composer: {
       source: "Source",
       sourceTitle: "Download Source",
-      url: "Download URL",
+      sourceUrl: "Download URL",
+      sourceUrlPlaceholder: "Paste a link or choose a torrent file",
       httpSource: "HTTP",
       btSource: "BT",
       torrentSource: "Magnet / .torrent",
-      chooseTorrent: "Choose .torrent",
-      fileName: "File name (optional)",
-      fileNamePlaceholder: "Rename file",
+      chooseTorrent: "Choose torrent file",
+      fileName: "Filename",
+      fileNamePlaceholder: "Auto-extracted from link",
       userAgent: "User-Agent",
       userAgentPlaceholder: "Use the default User-Agent from Settings",
       userAgentHint: "Leave empty to use the global default UA. Some sites reject non-browser UAs.",
@@ -181,6 +182,9 @@ const enUS = {
       btDownloadLimitHint: "0 or empty means no limit",
       btUploadLimit: "UL Speed Limit (bytes/s, 0 = unlimited)",
       btUploadLimitHint: "0 or empty means no limit",
+      advancedOptions: "Advanced options",
+      checksum: "Checksum mode",
+      urlInvalid: "Please enter a valid download URL",
       starting: "Starting...",
       start: "Start download",
     },
@@ -231,7 +235,8 @@ const enUS = {
       upSpeed: "\u2191 Speed",
       seeds: "Seeds",
       degraded: "Degraded",
-      degradedHint: "Memory buffer is full; writing directly to disk. HDD performance may be affected.",
+      degradedHint:
+        "Memory buffer is full; writing directly to disk. HDD performance may be affected.",
       hdd: "HDD",
       hddHint: "HDD optimized mode: memory buffer turns random writes into sequential writes",
       flushing: "Writing to disk...",
@@ -493,9 +498,11 @@ const enUS = {
       },
       githubMirror: {
         title: "GitHub Mirror",
-        description: "Automatically rewrite GitHub download URLs through mirror proxies for faster downloads.",
+        description:
+          "Automatically rewrite GitHub download URLs through mirror proxies for faster downloads.",
         enableLabel: "Enable GitHub Mirror",
-        enableDescription: "Downloads from github.com will be redirected through configured mirrors.",
+        enableDescription:
+          "Downloads from github.com will be redirected through configured mirrors.",
         addMirror: "Add Mirror",
         mirrorUrl: "Mirror URL",
         mirrorUrlPlaceholder: "https://ghproxy.com",
@@ -506,8 +513,7 @@ const enUS = {
       },
       unsetDefaultPath: "No default path",
       summaries: {
-        traditional:
-          "Traditional mode runs up to {{tasks}} tasks at once.",
+        traditional: "Traditional mode runs up to {{tasks}} tasks at once.",
         automatic:
           "Automatic mode uses a {{threads}} thread budget, a {{perTask}} per-task limit, and the {{profile}} profile.",
         proxyDisabled: "Currently connecting directly without a proxy.",
@@ -543,9 +549,11 @@ const enUS = {
         kicker: "I/O Optimization",
         title: "Disk Write Optimization",
         bufferLimit: "HDD Buffer Limit",
-        bufferLimitHint: "Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes.",
+        bufferLimitHint:
+          "Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes.",
         gameModeBuffer: "Game Mode Buffer",
-        gameModeBufferHint: "Buffer limit when game mode is active, reducing impact on gaming performance.",
+        gameModeBufferHint:
+          "Buffer limit when game mode is active, reducing impact on gaming performance.",
         status: "Current Status",
         bufferUsage: "Buffer Usage",
       },
