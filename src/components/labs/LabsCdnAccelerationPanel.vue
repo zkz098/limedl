@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import UiButton from "../ui/UiButton.vue";
-import UiCard from "../ui/UiCard.vue";
 import UiBadge from "../ui/UiBadge.vue";
+import SettingsSection from "../settings/SettingsSection.vue";
+import SettingsField from "../settings/SettingsField.vue";
 import UiProgress from "../ui/UiProgress.vue";
-import UiInput from "../ui/UiInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";
 import {
@@ -21,7 +22,7 @@ import type {
   CdnTestProgress,
   PhaseProgress,
   DefaultNodeResult,
-} from "../../lib/tauri/cdn-api";
+} from "../../types/cdn";
 import { listen } from "@tauri-apps/api/event";
 import { useIntervalFn } from "@vueuse/core";
 
@@ -333,25 +334,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="cdn-panel__header flex items-start justify-between gap-3">
-        <div>
-          <p class="section-kicker">{{ t("settings.cdnAcceleration.title") }}</p>
-          <p class="panel-title">{{ t("settings.cdnAcceleration.description") }}</p>
-        </div>
-        <UiBadge :tone="statusBadgeTone" size="sm">{{ statusBadgeLabel }}</UiBadge>
-      </div>
-    </template>
+  <SettingsSection
+    :title="t('settings.cdnAcceleration.title')"
+    icon="i-ri-cloud-line"
+    :summary="t('settings.cdnAcceleration.description')"
+  >
+    <div class="cdn-panel__status flex items-start gap-3 mb-4">
+      <UiBadge :tone="statusBadgeTone" size="sm">{{ statusBadgeLabel }}</UiBadge>
+    </div>
 
     <!-- Enable toggle -->
-    <label class="settings-field">
-      <span class="settings-field__label">{{ t("settings.cdnAcceleration.enable") }}</span>
+    <SettingsField :label="t('settings.cdnAcceleration.enable')">
       <UiSwitch
         v-model="draft.cdnAcceleration.enabled"
         :label="t('settings.cdnAcceleration.enable')"
       />
-    </label>
+    </SettingsField>
 
     <!-- Staged progress -->
     <div v-show="testing || phase" class="cdn-panel__progress mt-5">
@@ -630,7 +628,7 @@ onUnmounted(() => {
           </p>
           <div class="cdn-panel__manual-row flex gap-2 items-start">
             <div class="cdn-panel__manual-input flex-1 min-w-0">
-              <UiInput v-model="manualIp" placeholder="e.g. 104.16.0.1" :disabled="testing" />
+              <UiTextField v-model="manualIp" placeholder="e.g. 104.16.0.1" :disabled="testing" />
             </div>
             <UiButton
               variant="secondary"
@@ -645,7 +643,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>
 
 <style scoped>

@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use reqwest::{Client, Proxy, Url, header, redirect::Policy};
+use reqwest::{Client, ClientBuilder, Proxy, Url, header, redirect::Policy};
 
 use super::{
     error::{DownloadError, Result},
@@ -162,6 +162,7 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
     };
 
     Ok(BtSettings {
+        backend: settings.backend,
         dht_enabled: settings.dht_enabled,
         tracker_list,
         tracker_list_url,
@@ -299,8 +300,19 @@ fn normalize_github_mirror_settings(settings: GitHubMirrorSettings) -> GitHubMir
 }
 
 pub(crate) fn build_http_client(settings: &AppSettings) -> Result<Client> {
+    let builder = Client::builder();
+    let builder = configure_client_builder(builder, settings)?;
+    builder.build().map_err(DownloadError::from)
+}
+
+/// Apply shared proxy, user-agent, redirect, and TCP settings to a `ClientBuilder`.
+/// Callers can chain additional configuration (e.g., `resolve_to_addrs`) afterward.
+pub(crate) fn configure_client_builder(
+    mut builder: ClientBuilder,
+    settings: &AppSettings,
+) -> Result<ClientBuilder> {
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
-    let mut builder = Client::builder()
+    builder = builder
         .redirect(Policy::limited(10))
         .tcp_nodelay(true)
         .read_timeout(Duration::from_secs(15))
@@ -318,7 +330,7 @@ pub(crate) fn build_http_client(settings: &AppSettings) -> Result<Client> {
         }
     }
 
-    builder.build().map_err(DownloadError::from)
+    Ok(builder)
 }
 
 pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { t } from "../../i18n";
-import { formatSpeed } from "../../lib/download-format";
+import StatRow from "../sidebar/StatRow.vue";
 
 const props = defineProps<{
   activeCategory: string;
@@ -11,7 +10,7 @@ const props = defineProps<{
     totalTasks: number;
     activeTasks: number;
     completedTasks: number;
-    currentSpeed: number;
+    currentSpeed: string;
   };
 }>();
 
@@ -34,8 +33,6 @@ const navItems = [
   { view: "settings", icon: "i-ri-settings-line" },
   { view: "labs", icon: "i-ri-flask-line" },
 ];
-
-const formattedSpeed = computed(() => formatSpeed(props.stats.currentSpeed));
 
 function handleCategoryClick(key: string) {
   emit("update:activeCategory", key);
@@ -75,22 +72,10 @@ function handleNavigate(view: string) {
     <div class="category-sidebar__divider h-px my-2" aria-hidden="true" />
 
     <div class="category-sidebar__stats flex flex-col gap-1">
-      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
-        <span class="stat-row__label">{{ t("stats.totalTasks") }}</span>
-        <span class="stat-row__value font-semibold font-mono">{{ stats.totalTasks }}</span>
-      </div>
-      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
-        <span class="stat-row__label">{{ t("stats.active") }}</span>
-        <span class="stat-row__value font-semibold font-mono">{{ stats.activeTasks }}</span>
-      </div>
-      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
-        <span class="stat-row__label">{{ t("stats.completed") }}</span>
-        <span class="stat-row__value font-semibold font-mono">{{ stats.completedTasks }}</span>
-      </div>
-      <div class="stat-row flex items-center justify-between gap-2 text-sm leading-[1.4]">
-        <span class="stat-row__label">{{ t("stats.currentSpeed") }}</span>
-        <span class="stat-row__value font-semibold font-mono">{{ formattedSpeed }}</span>
-      </div>
+      <StatRow :label="t('stats.totalTasks')" :value="stats.totalTasks" />
+      <StatRow :label="t('stats.active')" :value="stats.activeTasks" />
+      <StatRow :label="t('stats.completed')" :value="stats.completedTasks" />
+      <StatRow :label="t('stats.currentSpeed')" :value="stats.currentSpeed" />
     </div>
 
     <div class="category-sidebar__spacer flex-1" />
@@ -170,16 +155,6 @@ function handleNavigate(view: string) {
 
 .category-sidebar__divider {
   background: var(--color-border);
-}
-
-/* ── Stats ── */
-
-.stat-row__label {
-  color: var(--color-text-muted);
-}
-
-.stat-row__value {
-  color: var(--color-text-main);
 }
 
 /* ── Spacer ── */

@@ -128,6 +128,7 @@ export function useAppSettings(params: UseAppSettingsParams) {
   });
 
   onBeforeUnmount(() => {
+    debouncedSaveAppearance.cancel();
     colorSchemeQuery?.removeEventListener("change", handleSystemColorSchemeChange);
   });
 

@@ -6,7 +6,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant},
 };
 
 use foldhash::HashMap;
@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 use super::{
     aimd::{self, AimdState},
+    bt_backend::BtBackend,
     buffer_pool::BufferPool,
     database::Database,
     disk_detect::detect_disk_type,
@@ -37,7 +38,7 @@ use super::{
         build_segment_request, extract_total_bytes, header_string, if_range_header,
         infer_file_name, supports_ranges, validate_probe_response, validate_segment_response,
     },
-    lock_or_recover,
+    lock,
     logging::apply_logging_settings,
     manifest::{
         CHUNK_SIZE, ChunkManifest, Manifest, RemoteMetadata, contiguous_prefix_end,
@@ -46,8 +47,6 @@ use super::{
     },
     migration::migrate_json_manifests,
     rate_limiter::RateLimiter,
-
-    torrent::TorrentManager,
     types::{
         AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadProgress,
         DownloadSnapshot, DownloadState, DownloadSummary, SchedulerMode,
@@ -55,6 +54,7 @@ use super::{
     },
 };
 
+use super::now_ms;
 use super::mirror::rewrite as mirror_rewrite;
 use super::settings::{
     build_http_client, load_settings, normalize_settings, persist_settings, resolve_user_agent,
@@ -71,7 +71,7 @@ pub(crate) const MAX_TRADITIONAL_THREADS: usize = 32;
 #[derive(Clone)]
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
-    pub torrent_manager: Arc<TorrentManager>,
+    pub bt_backend: Arc<dyn BtBackend>,
     pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
@@ -87,7 +87,7 @@ impl AppState {
                 summary
             }));
         }
-        if let Ok(bt) = self.torrent_manager.list().await {
+        if let Ok(bt) = self.bt_backend.list().await {
             summaries.extend(bt);
         }
 
@@ -110,7 +110,29 @@ pub struct DownloadManager {
     rate_limiter: Arc<RateLimiter>,
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) overclock_mode: AtomicBool,
+    pub(crate) shutdown_token: CancellationToken,
     app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
+}
+
+impl Clone for DownloadManager {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            state_dir: self.state_dir.clone(),
+            settings_path: self.settings_path.clone(),
+            settings: self.settings.clone(),
+            downloads: self.downloads.clone(),
+            db: self.db.clone(),
+            rebalance_notify: self.rebalance_notify.clone(),
+            shutdown_token: self.shutdown_token.clone(),
+            event_tx: self.event_tx.clone(),
+            cdn_accelerator: self.cdn_accelerator.clone(),
+            rate_limiter: self.rate_limiter.clone(),
+            buffer_pool: self.buffer_pool.clone(),
+            overclock_mode: AtomicBool::new(self.overclock_mode.load(Ordering::Relaxed)),
+            app_handle: self.app_handle.clone(),
+        }
+    }
 }
 
 /// Merged core of snapshot + manifest, protected by a single Mutex.
@@ -129,7 +151,7 @@ pub(crate) struct ManagedDownload {
 
 impl ManagedDownload {
     pub(crate) fn lock_core(&self) -> MutexGuard<'_, DownloadCore> {
-        lock_or_recover(&self.core, "core")
+        lock(&self.core)
     }
 
     fn lock_runtime(&self) -> MutexGuard<'_, Option<CancellationToken>> {
@@ -192,11 +214,28 @@ impl DownloadManager {
             rate_limiter,
             buffer_pool,
             overclock_mode: AtomicBool::new(false),
+            shutdown_token: CancellationToken::new(),
             app_handle: Arc::new(Mutex::new(None)),
         };
 
         manager.load_downloads_from_db()?;
         Ok(manager)
+    }
+
+    /// Signal the scheduler loop and all active chunk workers to stop gracefully.
+    pub async fn shutdown(&self) {
+        // Stop the scheduler loop
+        self.shutdown_token.cancel();
+
+        // Cancel all active download runtimes so chunk workers exit
+        let downloads = self.downloads.read().await;
+        for managed in downloads.values() {
+            if let Some(token) = managed.lock_runtime().take() {
+                token.cancel();
+            }
+            // Wake the stop_notify so any wait_until_stopped loops break
+            managed.stop_notify.notify_one();
+        }
     }
 
     pub async fn settings(&self) -> Result<AppSettings> {
@@ -634,6 +673,14 @@ impl DownloadManager {
         Ok(items)
     }
 
+    /// Get a single download summary by internal ID.
+    pub async fn get_summary(&self, download_id: &str) -> Option<DownloadSummary> {
+        let downloads = self.downloads.read().await;
+        downloads
+            .get(download_id)
+            .map(|managed| DownloadSummary::from(&self.build_snapshot(managed.clone())))
+    }
+
     async fn spawn_download(&self, managed: Arc<ManagedDownload>, max_retries: u32) -> Result<()> {
         {
             let mut runtime = managed.lock_runtime();
@@ -643,7 +690,7 @@ impl DownloadManager {
             *runtime = Some(CancellationToken::new());
         }
 
-        let manager = self.clone_arc();
+        let manager = Arc::new(self.clone());
         let token = managed
             .lock_runtime()
             .clone()
@@ -1057,24 +1104,6 @@ impl DownloadManager {
         }
     }
 
-    fn clone_arc(&self) -> Arc<Self> {
-        Arc::new(Self {
-            client: self.client.clone(),
-            state_dir: self.state_dir.clone(),
-            settings_path: self.settings_path.clone(),
-            settings: self.settings.clone(),
-            downloads: self.downloads.clone(),
-            db: self.db.clone(),
-            rebalance_notify: self.rebalance_notify.clone(),
-            event_tx: self.event_tx.clone(),
-            cdn_accelerator: self.cdn_accelerator.clone(),
-            rate_limiter: self.rate_limiter.clone(),
-            buffer_pool: self.buffer_pool.clone(),
-            overclock_mode: AtomicBool::new(self.overclock_mode.load(Ordering::Relaxed)),
-            app_handle: self.app_handle.clone(),
-        })
-    }
-
     #[allow(dead_code)]
     pub fn game_mode(&self) -> bool {
         self.buffer_pool.game_mode()
@@ -1330,13 +1359,6 @@ fn is_network_error(error: &DownloadError) -> bool {
         DownloadError::Http(e) => e.is_connect() || e.is_timeout() || e.is_body(),
         _ => false,
     }
-}
-
-pub(crate) fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0))
-        .as_millis() as u64
 }
 
 #[cfg(test)]

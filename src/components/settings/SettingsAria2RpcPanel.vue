@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import UiCard from "../ui/UiCard.vue";
-import UiInput from "../ui/UiInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 const props = defineProps<{
   draft: AppSettings;
@@ -31,32 +32,19 @@ const secretModel = computed({
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.aria2RpcTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-server-line" aria-hidden="true" />
-      </div>
-    </template>
-
+  <SettingsSection :title="t('settings.aria2RpcTitle')" icon="i-ri-server-line">
     <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.aria2RpcService") }}</span>
+      <SettingsField :label="t('settings.aria2RpcService')">
         <UiSwitch v-model="draft.aria2Rpc.enabled" :label="t('settings.aria2RpcService')" />
-      </label>
+      </SettingsField>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.aria2RpcPort") }}</span>
-        <UiInput v-model="portModel" placeholder="6800" />
-      </label>
+      <SettingsField :label="t('settings.aria2RpcPort')">
+        <UiTextField v-model="portModel" placeholder="6800" />
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.aria2RpcSecret") }}</span>
-        <UiInput v-model="secretModel" :placeholder="t('settings.aria2RpcSecretHint')" />
-        <p class="settings-field__hint">{{ t("settings.aria2RpcHint") }}</p>
-      </label>
+      <SettingsField wide :label="t('settings.aria2RpcSecret')" :hint="t('settings.aria2RpcHint')">
+        <UiTextField v-model="secretModel" :placeholder="t('settings.aria2RpcSecretHint')" />
+      </SettingsField>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>

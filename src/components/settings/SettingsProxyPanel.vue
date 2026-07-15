@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import UiCard from "../ui/UiCard.vue";
-import UiInput from "../ui/UiInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import type { AppSettings, ProxyMode } from "../../types/settings";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 defineProps<{
   draft: AppSettings;
@@ -13,31 +14,15 @@ defineProps<{
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.proxyTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-global-line" aria-hidden="true" />
-      </div>
-    </template>
-
-    <p class="settings-section__summary">{{ proxySummary }}</p>
-
+  <SettingsSection :title="t('settings.proxyTitle')" icon="i-ri-global-line" :summary="proxySummary">
     <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.proxyMode") }}</span>
+      <SettingsField :label="t('settings.proxyMode')">
         <UiSelect v-model="draft.proxy.mode" :options="proxyModeOptions" />
-      </label>
+      </SettingsField>
 
-      <label v-if="draft.proxy.mode === 'manual'" class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.proxyAddress") }}</span>
-        <UiInput v-model="draft.proxy.manualUrl" type="text" placeholder="http://127.0.0.1:7890" />
-        <p class="settings-field__hint">
-          {{ t("settings.proxyHint") }}
-        </p>
-      </label>
+      <SettingsField v-if="draft.proxy.mode === 'manual'" wide :label="t('settings.proxyAddress')" :hint="t('settings.proxyHint')">
+        <UiTextField v-model="draft.proxy.manualUrl" type="text" placeholder="http://127.0.0.1:7890" />
+      </SettingsField>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>

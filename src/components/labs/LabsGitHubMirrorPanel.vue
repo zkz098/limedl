@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import UiButton from "../ui/UiButton.vue";
-import UiCard from "../ui/UiCard.vue";
-import UiInput from "../ui/UiInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
+import SettingsSection from "../settings/SettingsSection.vue";
+import SettingsField from "../settings/SettingsField.vue";
 import type { AppSettings } from "../../types/settings";
 
 const props = defineProps<{
@@ -85,24 +86,14 @@ function onDragEnd(): void {
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="github-mirror-panel__header">
-        <div>
-          <p class="section-kicker">{{ t("settings.githubMirror.title") }}</p>
-          <p class="panel-title">{{ t("settings.githubMirror.description") }}</p>
-        </div>
-      </div>
-    </template>
-
-    <div class="settings-section__head">
-      <div>
-        <p class="settings-section__summary">
-          {{ t("settings.githubMirror.enableDescription") }}
-        </p>
-      </div>
+  <SettingsSection
+    :title="t('settings.githubMirror.title')"
+    icon="i-ri-git-repository-line"
+    :summary="t('settings.githubMirror.description')"
+  >
+    <SettingsField :label="t('settings.githubMirror.enableLabel')" :hint="t('settings.githubMirror.enableDescription')">
       <UiSwitch v-model="githubMirrorEnabled" :label="t('settings.githubMirror.enableLabel')" />
-    </div>
+    </SettingsField>
 
     <div v-show="draft.githubMirror?.enabled" class="github-mirror-panel__list-section">
       <div class="github-mirror-panel__list-header">
@@ -143,7 +134,7 @@ function onDragEnd(): void {
             :title="t('settings.githubMirror.dragHint')"
           />
           <div class="github-mirror-panel__url">
-            <UiInput
+            <UiTextField
               v-model="mirror.url"
               type="url"
               inputmode="url"
@@ -165,7 +156,7 @@ function onDragEnd(): void {
         </li>
       </ul>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>
 
 <style scoped>

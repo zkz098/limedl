@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import UiButton from "../ui/UiButton.vue";
-import UiCard from "../ui/UiCard.vue";
-import UiInput from "../ui/UiInput.vue";
-import UiNumberField from "../ui/UiNumberField.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import type { ChecksumMode } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 defineProps<{
   draft: AppSettings;
@@ -22,23 +22,11 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.downloadsTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-download-2-line" aria-hidden="true" />
-      </div>
-    </template>
-
-    <p class="settings-section__summary">{{ downloadSummary }}</p>
-
+  <SettingsSection :title="t('settings.downloadsTitle')" icon="i-ri-download-2-line" :summary="downloadSummary">
     <div class="settings-grid">
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.defaultDownloadLocation") }}</span>
+      <SettingsField wide :label="t('settings.defaultDownloadLocation')" :hint="t('settings.defaultDownloadHint')">
         <div class="settings-directory-field">
-          <UiInput
+          <UiTextField
             v-model="draft.download.defaultDownloadDir"
             type="text"
             :placeholder="t('settings.defaultDownloadPlaceholder')"
@@ -53,31 +41,23 @@ const emit = defineEmits<{
             {{ isPickingDirectory ? t("common.browsing") : t("common.browse") }}
           </UiButton>
         </div>
-        <p class="settings-field__hint">
-          {{ t("settings.defaultDownloadHint") }}
-        </p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.defaultRetries") }}</span>
-        <UiNumberField v-model="draft.download.defaultMaxRetries" :min="0" :max="20" />
-      </label>
+      <SettingsField :label="t('settings.defaultRetries')">
+        <UiTextField type="number" v-model="draft.download.defaultMaxRetries" :min="0" :max="20" />
+      </SettingsField>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.globalChecksum") }}</span>
+      <SettingsField :label="t('settings.globalChecksum')" :hint="t('settings.checksumHint')">
         <UiSelect v-model="draft.download.defaultChecksum" :options="checksumOptions" />
-        <p class="settings-field__hint">{{ t("settings.checksumHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.defaultUserAgent") }}</span>
-        <UiInput
+      <SettingsField wide :label="t('settings.defaultUserAgent')" :hint="t('settings.defaultUserAgentHint')">
+        <UiTextField
           v-model="draft.download.defaultUserAgent"
           type="text"
           :placeholder="defaultUserAgentPlaceholder"
         />
-        <p class="settings-field__hint">{{ t("settings.defaultUserAgentHint") }}</p>
-      </label>
+      </SettingsField>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>

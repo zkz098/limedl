@@ -7,7 +7,7 @@ import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
 import { useI18n } from "../../i18n";
-import { toFriendlyError } from "../../composables/downloadHelpers";
+import { toFriendlyError, toneForState } from "../../composables/downloadHelpers";
 import {
   formatBytes,
   formatEta,
@@ -97,15 +97,7 @@ const detailRows = computed<DetailRow[]>(() => {
   ];
 });
 
-const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger">(() => {
-  const state = props.selectedOverview?.state;
-
-  if (!state) return "neutral";
-  if (state === "completed") return "success";
-  if (state === "failed" || state === "canceled") return "danger";
-  if (state === "queued" || state === "paused") return "warning";
-  return "info";
-});
+const stateTone = computed(() => toneForState(props.selectedOverview?.state ?? ""));
 
 // ── BT composable ──
 

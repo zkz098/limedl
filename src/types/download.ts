@@ -1,3 +1,5 @@
+import type { SortDirection, SortKey } from "./settings";
+
 export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
 export type ThreadMode = "fixed" | "adaptive";
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
@@ -202,4 +204,17 @@ export interface BtFileStatus {
   size: number;
   downloadedBytes: number;
   included: boolean;
+}
+
+export interface ViewOptions {
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  compactView: boolean;
+  visibleColumns: string[];
+}
+
+export interface MultiSelectState {
+  multiSelectMode: boolean;
+  selectedIds: Set<string>;
+  removedDownloadIds: string[];
 }

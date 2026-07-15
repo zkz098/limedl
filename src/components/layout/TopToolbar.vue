@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, ref } from "vue";
 
 import { t } from "../../i18n";
 import { formatSpeed } from "../../lib/download-format";
 import type { ColumnKey } from "../../lib/column-defs";
 import { VALID_COLUMN_KEYS } from "../../lib/column-defs";
+import { useFloatingClose } from "../../composables/useFloatingClose";
 import type { SortDirection, SortKey } from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
 import UiSelect from "../ui/UiSelect.vue";
@@ -51,7 +52,8 @@ const emit = defineEmits<{
 }>();
 
 const columnMenuOpen = ref(false);
-const columnMenuButtonRef = ref<HTMLButtonElement | null>(null);
+const columnMenuPanelRef = ref<HTMLDivElement | null>(null);
+useFloatingClose(columnMenuPanelRef, columnMenuOpen, closeColumnMenu);
 
 const sortOptions = computed<Array<{ value: SortKey; label: string }>>(() => [
   { value: "name", label: t("toolbar.sortBy.name") },
@@ -147,35 +149,6 @@ function toggleColumn(key: string) {
 function closeColumnMenu() {
   columnMenuOpen.value = false;
 }
-
-function handleGlobalPointerDown(event: PointerEvent) {
-  if (!columnMenuOpen.value) {
-    return;
-  }
-
-  const target = event.target as Node;
-  if (columnMenuButtonRef.value?.contains(target)) {
-    return;
-  }
-
-  closeColumnMenu();
-}
-
-function handleEscape(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    closeColumnMenu();
-  }
-}
-
-onMounted(() => {
-  window.addEventListener("pointerdown", handleGlobalPointerDown);
-  window.addEventListener("keydown", handleEscape);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("pointerdown", handleGlobalPointerDown);
-  window.removeEventListener("keydown", handleEscape);
-});
 </script>
 
 <template>
@@ -278,7 +251,6 @@ onUnmounted(() => {
 
       <div class="column-menu relative">
         <UiButton
-          ref="columnMenuButtonRef"
           size="sm"
           variant="ghost"
           icon="i-ri-settings-3-line"
@@ -289,8 +261,8 @@ onUnmounted(() => {
         </UiButton>
         <div
           v-if="columnMenuOpen"
+          ref="columnMenuPanelRef"
           class="column-menu__panel absolute top-[calc(100%+0.35rem)] right-0 z-5 min-w-36 grid gap-[0.15rem] p-[0.35rem] border rounded-md"
-          @pointerdown.stop
         >
           <label
             v-for="column in columnOptions"

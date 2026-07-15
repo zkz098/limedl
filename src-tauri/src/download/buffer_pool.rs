@@ -45,6 +45,8 @@ pub struct DownloadBuffer {
     pool: Option<Arc<BufferPool>>,
     /// Local capacity limit when no pool is attached, in bytes.
     local_limit: AtomicU64,
+    /// Whether any chunk write degraded to direct disk I/O (pool full or local limit exceeded).
+    degraded: AtomicBool,
 }
 
 impl DownloadBuffer {
@@ -55,6 +57,7 @@ impl DownloadBuffer {
             buffered_bytes: AtomicU64::new(0),
             pool: Some(pool),
             local_limit: AtomicU64::new(0),
+            degraded: AtomicBool::new(false),
         }
     }
 
@@ -69,6 +72,7 @@ impl DownloadBuffer {
             buffered_bytes: AtomicU64::new(0),
             pool: None,
             local_limit: AtomicU64::new(limit_bytes),
+            degraded: AtomicBool::new(false),
         }
     }
 
@@ -83,6 +87,7 @@ impl DownloadBuffer {
         if let Some(ref pool) = self.pool {
             // Pool-backed: check global budget
             if !pool.try_reserve(len) {
+                self.degraded.store(true, Ordering::Relaxed);
                 return BufferResult::Degraded;
             }
         } else {
@@ -92,6 +97,7 @@ impl DownloadBuffer {
                 let mut current = self.buffered_bytes.load(Ordering::Relaxed);
                 loop {
                     if current + len > limit {
+                        self.degraded.store(true, Ordering::Relaxed);
                         return BufferResult::Degraded;
                     }
                     match self.buffered_bytes.compare_exchange_weak(
@@ -185,9 +191,7 @@ impl DownloadBuffer {
     /// Whether any chunks were degraded (written directly to disk) during this download.
     #[allow(dead_code)]
     pub fn has_degraded(&self) -> bool {
-        // We track this via a flag that gets set when buffer_chunk returns Degraded
-        // This is set externally by the caller
-        false
+        self.degraded.load(Ordering::Relaxed)
     }
 }
 

@@ -12,14 +12,14 @@ use tokio::time::sleep;
 
 use download::CdnAccelerator;
 use download::{
-    cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager, RateLimiter,
-    TorrentManager, bt_get_peers, bt_get_pieces, bt_get_trackers, bt_preview_torrent,
-    bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel, cdn_candidates, cdn_clear,
-    cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test, download_cancel, download_list,
-    download_open_in_explorer, download_pause, download_purge, download_remove, download_resume,
-    download_start, download_status, get_bt_files, get_io_status, get_overclock_mode,
-    init_logging, settings_fetch_tracker_list, settings_get, settings_save,
-    toggle_game_mode, toggle_overclock_mode, update_bt_files,
+    cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, BtBackendKind, DownloadManager,
+    OwnBtBackend, RateLimiter, TorrentManager, bt_get_peers, bt_get_pieces, bt_get_trackers,
+    bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel,
+    cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
+    download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
+    download_remove, download_resume, download_start, download_status, get_bt_files,
+    get_io_status, get_overclock_mode, init_logging, settings_fetch_tracker_list, settings_get,
+    settings_save, toggle_game_mode, toggle_overclock_mode, update_bt_files,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -53,19 +53,27 @@ pub fn run() {
                 init_logging(&settings.logging, &state_dir).context("初始化日志系统失败")?;
                 cleanup_old_aria2_temp_files();
 
-                let torrent_manager = tauri::async_runtime::block_on(TorrentManager::new(
-                    state_dir.join("torrents"),
-                    &settings,
-                ))
-                .context("初始化 BT 管理器失败")?;
-                let torrent_manager = Arc::new(torrent_manager);
-                torrent_manager.set_app_handle(app.handle().clone());
+                let bt_backend: Arc<dyn download::BtBackend> = match settings.bt.backend {
+                    BtBackendKind::Rqbit => {
+                        let tm = tauri::async_runtime::block_on(TorrentManager::new(
+                            state_dir.join("torrents"),
+                            &settings,
+                        ))
+                        .context("初始化 rqbit BT 管理器失败")?;
+                        Arc::new(tm)
+                    }
+                    BtBackendKind::Own => {
+                        tracing::warn!("自研 BT 后端开发中，功能不可用");
+                        Arc::new(OwnBtBackend::new())
+                    }
+                };
+                bt_backend.set_app_handle(app.handle().clone());
                 // spawn_upload_policy_loop() calls tokio::spawn internally, which
                 // requires an active Tokio runtime context. The setup closure runs
                 // on the main thread outside any runtime, so enter Tauri's async
                 // runtime context before invoking it.
                 tauri::async_runtime::block_on(async {
-                    torrent_manager.spawn_upload_policy_loop();
+                    bt_backend.clone().spawn_upload_policy_loop();
                 });
 
                 let cdn_accelerator = Arc::new(CdnAccelerator::new());
@@ -87,11 +95,11 @@ pub fn run() {
                 // download-complete / download-error events at their natural lifecycle points.
                 let (event_tx, _event_rx) = broadcast::channel(256);
                 download_manager.set_event_tx(event_tx.clone());
-                torrent_manager.set_event_tx(event_tx.clone());
+                bt_backend.set_event_tx(event_tx.clone());
 
                 app.manage(AppState {
                     manager: download_manager.clone(),
-                    torrent_manager: torrent_manager.clone(),
+                    bt_backend: bt_backend.clone(),
                     cdn_accelerator: cdn_accelerator.clone(),
                     app_handle: app_handle.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
@@ -99,15 +107,16 @@ pub fn run() {
 
                 {
                     let mgr = download_manager.clone();
-                    let tm = torrent_manager.clone();
+                    let bt = bt_backend.clone();
                     let cdna = cdn_accelerator.clone();
+                    let rpc_shutdown = rpc_shutdown.clone();
                     tauri::async_runtime::spawn(async move {
                         let state = AppState {
                             manager: mgr,
-                            torrent_manager: tm,
+                            bt_backend: bt,
                             cdn_accelerator: cdna,
                             app_handle,
-                            rpc_shutdown: Default::default(),
+                            rpc_shutdown,
                         };
                         loop {
                             sleep(Duration::from_secs(300)).await;
@@ -120,7 +129,7 @@ pub fn run() {
                     let (tx, rx) = tokio::sync::watch::channel(false);
                     let rpc_server = Aria2RpcServer::new(
                         download_manager.clone(),
-                        torrent_manager.clone(),
+                        bt_backend.clone(),
                         &settings.aria2_rpc,
                         event_tx,
                     );
@@ -145,9 +154,11 @@ pub fn run() {
                 api.prevent_close();
                 let handle = window.app_handle().clone();
                 let state = window.state::<AppState>();
-                let tm = state.torrent_manager.clone();
+                let dm = state.manager.clone();
+                let bt = state.bt_backend.clone();
                 tauri::async_runtime::spawn(async move {
-                    tm.shutdown().await;
+                    dm.shutdown().await;
+                    bt.shutdown().await;
                     handle.exit(0);
                 });
             }

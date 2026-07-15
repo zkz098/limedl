@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { debounce } from "es-toolkit";
 
-import { filterDownloads } from "../../lib/download-filter";
 import {
   formatBytes,
   formatEta,
@@ -13,19 +12,21 @@ import {
 } from "../../lib/download-format";
 import { useI18n } from "../../i18n";
 import type { ColumnKey } from "../../lib/column-defs";
+import { VALID_COLUMN_KEYS } from "../../lib/column-defs";
 import type { DownloadSummary } from "../../types/download";
-import type { ViewOptions, MultiSelectState } from "./queue-types";
+import type { ViewOptions, MultiSelectState } from "../../types/download";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
+import UiEmptyState from "../ui/UiEmptyState.vue";
+import { toneForState } from "../../composables/downloadHelpers";
+import { useFloatingClose } from "../../composables/useFloatingClose";
 
 const props = defineProps<{
   downloads: DownloadSummary[];
   selectedId: string | null;
   taskActionName: string;
   isAutoRefreshing: boolean;
-  stateFilter?: string;
-  searchQuery?: string;
   viewOptions: ViewOptions;
   multiSelect: MultiSelectState;
 }>();
@@ -47,20 +48,28 @@ const syncHideDelayMs = 420;
 const { t } = useI18n();
 const currentPage = ref(1);
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
+const contextMenuPanelRef = ref<HTMLElement | null>(null);
 const isSyncIndicatorVisible = ref(false);
 
+const columnLabelMap: Record<ColumnKey, () => string> = {
+  file: () => t("queue.file"),
+  size: () => t("queue.size"),
+  downloaded: () => t("queue.downloaded"),
+  status: () => t("queue.status"),
+  progress: () => t("queue.progress"),
+  speed: () => t("queue.speed"),
+  uploadSpeed: () => t("queue.upSpeed"),
+  seeds: () => t("queue.seeds"),
+  eta: () => t("queue.eta"),
+};
+
 const columnOptions = computed<Array<{ key: ColumnKey; label: string; alwaysVisible?: boolean }>>(
-  () => [
-    { key: "file", label: t("queue.file"), alwaysVisible: true },
-    { key: "size", label: t("queue.size") },
-    { key: "downloaded", label: t("queue.downloaded") },
-    { key: "status", label: t("queue.status") },
-    { key: "progress", label: t("queue.progress") },
-    { key: "speed", label: t("queue.speed") },
-    { key: "uploadSpeed", label: t("queue.upSpeed") },
-    { key: "seeds", label: t("queue.seeds") },
-    { key: "eta", label: t("queue.eta") },
-  ],
+  () =>
+    VALID_COLUMN_KEYS.map((key) => ({
+      key,
+      label: columnLabelMap[key](),
+      alwaysVisible: key === "file",
+    })),
 );
 
 const visibleColumnKeys = computed(() => new Set(props.viewOptions.visibleColumns));
@@ -68,9 +77,7 @@ const visibleColumnsOrdered = computed(() =>
   columnOptions.value.filter((column) => visibleColumnKeys.value.has(column.key)),
 );
 
-const filteredDownloads = computed(() =>
-  filterDownloads(props.downloads, props.searchQuery ?? "", props.stateFilter ?? ""),
-);
+const filteredDownloads = computed(() => props.downloads);
 
 const sortedDownloads = computed(() => {
   const list = [...filteredDownloads.value];
@@ -224,15 +231,8 @@ function toggleSelectAllOnPage() {
   }
 }
 
-function toneForState(state: DownloadSummary["state"]): "info" | "success" | "warning" | "danger" {
-  if (state === "completed") return "success";
-  if (state === "failed" || state === "canceled") return "danger";
-  if (state === "queued" || state === "paused") return "warning";
-  return "info";
-}
-
 function isColumnVisible(key: ColumnKey) {
-  return props.viewOptions.visibleColumns.includes(key);
+  return visibleColumnKeys.value.has(key);
 }
 
 function goToPreviousPage() {
@@ -246,6 +246,9 @@ function goToNextPage() {
 function closeMenus() {
   contextMenu.value = null;
 }
+
+const showContextMenu = computed(() => contextMenu.value !== null);
+useFloatingClose(contextMenuPanelRef, showContextMenu, closeMenus);
 
 function clampMenuPosition(clientX: number, clientY: number) {
   const menuWidth = 220;
@@ -263,16 +266,6 @@ function openTaskContextMenu(event: MouseEvent, downloadId: string) {
 
   const { x, y } = clampMenuPosition(event.clientX, event.clientY);
   contextMenu.value = { downloadId, x, y };
-}
-
-function handleGlobalPointerDown() {
-  closeMenus();
-}
-
-function handleEscape(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    closeMenus();
-  }
 }
 
 function handlePauseOrResume() {
@@ -383,19 +376,7 @@ function metaForDownload(download: DownloadSummary) {
   return parts.join(" · ");
 }
 
-onMounted(() => {
-  window.addEventListener("pointerdown", handleGlobalPointerDown);
-  window.addEventListener("resize", closeMenus);
-  window.addEventListener("scroll", closeMenus, true);
-  window.addEventListener("keydown", handleEscape);
-});
 
-onUnmounted(() => {
-  window.removeEventListener("pointerdown", handleGlobalPointerDown);
-  window.removeEventListener("resize", closeMenus);
-  window.removeEventListener("scroll", closeMenus, true);
-  window.removeEventListener("keydown", handleEscape);
-});
 </script>
 
 <template>
@@ -651,6 +632,7 @@ onUnmounted(() => {
       <Teleport to="body">
         <div
           v-if="contextMenu && contextMenuDownload"
+          ref="contextMenuPanelRef"
           class="task-context-menu fixed z-30 min-w-48 grid gap-[0.15rem] p-[0.35rem] border rounded-md"
           :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
           @pointerdown.stop
@@ -710,21 +692,17 @@ onUnmounted(() => {
       </Teleport>
     </div>
 
-    <div
+    <UiEmptyState
       v-else-if="downloads.length"
-      class="queue-empty grid gap-2 place-items-center min-h-[18rem] text-center border border-dashed rounded-md"
-    >
-      <span class="queue-empty__icon text-[1.75rem] i-ri-search-eye-line" aria-hidden="true" />
-      <h3 class="m-0">{{ t("queue.noResults") }}</h3>
-    </div>
-    <div
+      icon="i-ri-search-eye-line"
+      :title="t('queue.noResults')"
+    />
+    <UiEmptyState
       v-else
-      class="queue-empty grid gap-2 place-items-center min-h-[18rem] text-center border border-dashed rounded-md"
-    >
-      <span class="queue-empty__icon text-[1.75rem] i-ri-inbox-archive-line" aria-hidden="true" />
-      <h3 class="m-0">{{ t("queue.emptyTitle") }}</h3>
-      <p class="m-0">{{ t("queue.emptyDescription") }}</p>
-    </div>
+      icon="i-ri-inbox-archive-line"
+      :title="t('queue.emptyTitle')"
+      :description="t('queue.emptyDescription')"
+    />
   </section>
 </template>
 

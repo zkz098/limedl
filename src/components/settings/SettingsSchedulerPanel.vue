@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import UiCard from "../ui/UiCard.vue";
-import UiNumberField from "../ui/UiNumberField.vue";
-import UiUnitInput from "../ui/UiUnitInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { AdaptiveProfile, AppSettings, SchedulerMode } from "../../types/settings";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 const emit = defineEmits<{
   "update:globalSpeedLimitMiBps": [value: number | null];
@@ -27,90 +27,70 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.schedulerTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-git-branch-line" aria-hidden="true" />
-      </div>
-    </template>
-
+  <SettingsSection :title="t('settings.schedulerTitle')" icon="i-ri-git-branch-line">
     <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.allocationMode") }}</span>
+      <SettingsField :label="t('settings.allocationMode')">
         <UiSelect v-model="draft.scheduler.mode" :options="schedulerModeOptions" />
-      </label>
+      </SettingsField>
 
-      <label v-if="isTraditional" class="settings-field">
-        <span class="settings-field__label">{{ t("settings.maxParallelTasks") }}</span>
-        <UiNumberField v-model="draft.scheduler.traditional.maxParallelTasks" :min="1" :max="32" />
-        <p class="settings-field__hint">{{ t("settings.traditionalHint") }}</p>
-      </label>
+      <SettingsField v-if="isTraditional" :label="t('settings.maxParallelTasks')" :hint="t('settings.traditionalHint')">
+        <UiTextField type="number" v-model="draft.scheduler.traditional.maxParallelTasks" :min="1" :max="32" />
+      </SettingsField>
 
       <template v-else>
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.maxParallelThreads") }}</span>
-          <UiNumberField
+        <SettingsField :label="t('settings.maxParallelThreads')">
+          <UiTextField
+            type="number"
             v-model="draft.scheduler.automatic.maxParallelThreads"
             :min="1"
             :max="64"
           />
-        </label>
+        </SettingsField>
 
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.maxThreadsPerTask") }}</span>
-          <UiNumberField
+        <SettingsField :label="t('settings.maxThreadsPerTask')">
+          <UiTextField
+            type="number"
             v-model="draft.scheduler.automatic.maxThreadsPerTask"
             :min="1"
             :max="maxThreadsPerTaskMax"
           />
-        </label>
+        </SettingsField>
 
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.minThreadsPerTask") }}</span>
-          <UiNumberField
+        <SettingsField :label="t('settings.minThreadsPerTask')" :hint="t('settings.minThreadsHint')">
+          <UiTextField
+            type="number"
             v-model="draft.scheduler.automatic.minThreadsPerTask"
             :min="0"
             :max="draft.scheduler.automatic.maxThreadsPerTask"
           />
-          <p class="settings-field__hint">{{ t("settings.minThreadsHint") }}</p>
-        </label>
+        </SettingsField>
 
-        <label class="settings-field settings-field--wide">
-          <span class="settings-field__label">{{ t("settings.adaptiveProfile") }}</span>
+        <SettingsField wide :label="t('settings.adaptiveProfile')" :hint="t('settings.adaptiveProfileHint')">
           <UiSelect
             v-model="draft.scheduler.automatic.adaptiveProfile"
             :options="adaptiveProfileOptions"
           />
-          <p class="settings-field__hint">
-            {{ t("settings.adaptiveProfileHint") }}
-          </p>
-        </label>
+        </SettingsField>
       </template>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.globalSpeedLimit") }}</span>
-        <UiUnitInput
+      <SettingsField wide :label="t('settings.globalSpeedLimit')" :hint="t('settings.globalSpeedLimitHint')">
+        <UiTextField
+          type="number"
           :model-value="globalSpeedLimitMiBps"
           :min="0"
           :max="1048576"
           unit="MiB/s"
-          @update:model-value="emit('update:globalSpeedLimitMiBps', $event)"
+          @update:model-value="emit('update:globalSpeedLimitMiBps', $event as number | null)"
         />
-        <p class="settings-field__hint">{{ t("settings.globalSpeedLimitHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.intelligentChunkAllocation") }}</span>
+      <SettingsField wide :label="t('settings.intelligentChunkAllocation')" :hint="t('settings.intelligentChunkAllocationHint')">
         <UiSwitch
           :model-value="draft.scheduler.chunkSizeStrategy === 'adaptive'"
           :label="t('settings.intelligentChunkAllocation')"
           @update:model-value="draft.scheduler.chunkSizeStrategy = $event ? 'adaptive' : 'fixed'"
         />
-        <p class="settings-field__hint">{{ t("settings.intelligentChunkAllocationHint") }}</p>
-      </label>
+      </SettingsField>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>

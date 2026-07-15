@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import UiButton from "../ui/UiButton.vue";
-import UiCard from "../ui/UiCard.vue";
-import UiInput from "../ui/UiInput.vue";
-import UiUnitInput from "../ui/UiUnitInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
+import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
-import type { AppSettings } from "../../types/settings";
+import type { AppSettings, BtBackendKind } from "../../types/settings";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 const props = defineProps<{
   draft: AppSettings;
@@ -29,32 +30,38 @@ const trackerListEntries = computed(() =>
 );
 
 const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
+
+const isOwnBackend = computed(() => props.draft.bt.backend === "own");
+
+const backendOptions = [
+  { label: props.t("settings.btBackendRqbit"), value: "rqbit" as BtBackendKind },
+  { label: props.t("settings.btBackendOwn"), value: "own" as BtBackendKind },
+];
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.btTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-seedling-line" aria-hidden="true" />
+  <SettingsSection :title="t('settings.btTitle')" icon="i-ri-seedling-line" :summary="btSummary">
+    <SettingsField wide :label="t('settings.btBackendLabel')">
+      <div class="settings-inline-field">
+        <UiSelect
+          v-model="draft.bt.backend"
+          :options="backendOptions"
+          :placeholder="t('settings.btBackendLabel')"
+        />
       </div>
-    </template>
-
-    <p class="settings-section__summary">{{ btSummary }}</p>
+      <p v-if="isOwnBackend" class="settings-field__hint" style="color: var(--color-warning, #f0a030)">
+        {{ t("settings.btBackendOwnWarning") }}
+      </p>
+    </SettingsField>
 
     <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.btDht") }}</span>
+      <SettingsField :label="t('settings.btDht')" :hint="t('settings.btDhtHint')">
         <UiSwitch v-model="draft.bt.dhtEnabled" :label="t('settings.btDhtNetwork')" />
-        <p class="settings-field__hint">{{ t("settings.btDhtHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.btTrackerListUrl") }}</span>
+      <SettingsField wide :label="t('settings.btTrackerListUrl')" :hint="t('settings.btTrackerListUrlHint')">
         <div class="settings-inline-field">
-          <UiInput
+          <UiTextField
             v-model="draft.bt.trackerListUrl"
             type="url"
             inputmode="url"
@@ -75,11 +82,9 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
             }}
           </UiButton>
         </div>
-        <p class="settings-field__hint">{{ t("settings.btTrackerListUrlHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.btTrackerList") }}</span>
+      <SettingsField wide :label="t('settings.btTrackerList')" :hint="t('settings.btTrackerListHint', { count: trackerListEntries.length })">
         <textarea
           v-model="draft.bt.trackerList"
           class="settings-textarea"
@@ -87,36 +92,30 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
           rows="5"
           spellcheck="false"
         />
-        <p class="settings-field__hint">
-          {{ t("settings.btTrackerListHint", { count: trackerListEntries.length }) }}
-        </p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.btPauseUpload") }}</span>
+      <SettingsField wide :label="t('settings.btPauseUpload')" :hint="t('settings.btPauseUploadHint')">
         <UiSwitch
           v-model="draft.bt.pauseUploadWhenLimitReached"
           :label="t('settings.btAutoPauseUpload')"
         />
-        <p class="settings-field__hint">{{ t("settings.btPauseUploadHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.btUploadLimit") }}</span>
-        <UiUnitInput
+      <SettingsField :label="t('settings.btUploadLimit')" :hint="t('settings.btUploadLimitHint')">
+        <UiTextField
+          type="number"
           :model-value="btUploadLimitMiB"
           :min="0"
           :max="10485760"
           :disabled="!pauseEnabled"
           unit="MiB"
-          @update:model-value="emit('update:btUploadLimitMiB', $event)"
+          @update:model-value="emit('update:btUploadLimitMiB', $event as number | null)"
         />
-        <p class="settings-field__hint">{{ t("settings.btUploadLimitHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.btRatioLimit") }}</span>
-        <UiUnitInput
+      <SettingsField :label="t('settings.btRatioLimit')" :hint="t('settings.btRatioLimitHint')">
+        <UiTextField
+          type="number"
           v-model="draft.bt.uploadRatioLimit"
           :min="0"
           :max="100"
@@ -124,37 +123,34 @@ const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
           :disabled="!pauseEnabled"
           unit="x"
         />
-        <p class="settings-field__hint">{{ t("settings.btRatioLimitHint") }}</p>
-      </label>
+      </SettingsField>
 
       <!-- TODO M2 (Oracle): These two speed-limit fields are frontend-only for now.
            The Rust BtSettings in src-tauri/src/download/types.rs does not yet have
            default_download_speed_limit / default_upload_speed_limit fields.
            Values entered here are NOT persisted to the backend and will be lost on restart.
            Once backend support is added, also wire them into SettingsPage.vue's save payload. -->
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.btDownloadSpeedLimit") }}</span>
-        <UiUnitInput
+      <SettingsField :label="t('settings.btDownloadSpeedLimit')" :hint="t('settings.btDownloadSpeedLimitHint')">
+        <UiTextField
+          type="number"
           :model-value="draft.bt.defaultDownloadSpeedLimit ?? null"
           :min="0"
           :step="1024"
           unit="B/s"
-          @update:model-value="draft.bt.defaultDownloadSpeedLimit = $event ?? 0"
+          @update:model-value="draft.bt.defaultDownloadSpeedLimit = Number($event ?? 0)"
         />
-        <p class="settings-field__hint">{{ t("settings.btDownloadSpeedLimitHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.btUploadSpeedLimit") }}</span>
-        <UiUnitInput
+      <SettingsField :label="t('settings.btUploadSpeedLimit')" :hint="t('settings.btUploadSpeedLimitHint')">
+        <UiTextField
+          type="number"
           :model-value="draft.bt.defaultUploadSpeedLimit ?? null"
           :min="0"
           :step="1024"
           unit="B/s"
-          @update:model-value="draft.bt.defaultUploadSpeedLimit = $event ?? 0"
+          @update:model-value="draft.bt.defaultUploadSpeedLimit = Number($event ?? 0)"
         />
-        <p class="settings-field__hint">{{ t("settings.btUploadSpeedLimitHint") }}</p>
-      </label>
+      </SettingsField>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>

@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
 use foldhash::{HashMap, HashSet};
@@ -21,12 +21,13 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use super::{
+    bt_backend::BtBackend,
     error::{DownloadError, Result},
-    lock_or_recover,
+    lock, now_ms,
     types::{
-        AppSettings, BtRuntimeStatus, BtSettings, BtUploadStatus, ChecksumMode, DownloadProgress,
-        DownloadSnapshot, DownloadState, DownloadSummary, ProxyMode, StartDownloadRequest,
-        TaskKind, ThreadMode,
+        AppSettings, BtBackendKind, BtRuntimeStatus, BtSettings, BtUploadStatus, ChecksumMode,
+        DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary, ProxyMode,
+        StartDownloadRequest, TaskKind, ThreadMode, TorrentFileEntry,
     },
 };
 
@@ -86,7 +87,7 @@ async fn persist_pending_map(
     pending_file: &Path,
 ) {
     let snapshot: Vec<PendingTorrentRecord> = {
-        let map = lock_or_recover(pending, "pending torrents");
+        let map = lock(pending);
         map.iter()
             .map(|(k, v)| PendingTorrentRecord {
                 pending_id: k.clone(),
@@ -224,7 +225,7 @@ impl TorrentManager {
             return;
         }
 
-        let bt_settings = lock_or_recover(&self.bt_settings, "bt settings").clone();
+        let bt_settings = lock(&self.bt_settings).clone();
 
         for record in records {
             let join = self.spawn_add_torrent(
@@ -238,7 +239,7 @@ impl TorrentManager {
                 false,
             );
 
-            lock_or_recover(&self.pending, "pending torrents").insert(
+            lock(&self.pending).insert(
                 record.pending_id.clone(),
                 PendingTorrent {
                     source: record.source,
@@ -261,12 +262,12 @@ impl TorrentManager {
         tracing::info!("BT session shutting down...");
         // Phase 1: cancel the policy loop and wait for it to exit
         let task_handle = {
-            let mut cancel = lock_or_recover(&self.upload_policy_cancel, "upload_policy_cancel");
+            let mut cancel = lock(&self.upload_policy_cancel);
             cancel.take()
         };
         drop(task_handle); // dropping Sender signals the loop to break
         let task_handle = {
-            let mut task_slot = lock_or_recover(&self.upload_policy_task, "upload_policy_task");
+            let mut task_slot = lock(&self.upload_policy_task);
             task_slot.take()
         };
         if let Some(handle) = task_handle {
@@ -291,17 +292,17 @@ impl TorrentManager {
         let (tx, mut rx) = tokio::sync::watch::channel(());
 
         {
-            let mut cancel = lock_or_recover(&self.upload_policy_cancel, "upload_policy_cancel");
+            let mut cancel = lock(&self.upload_policy_cancel);
             cancel.take();
         }
         {
-            let mut task_slot = lock_or_recover(&self.upload_policy_task, "upload_policy_task");
+            let mut task_slot = lock(&self.upload_policy_task);
             if let Some(handle) = task_slot.take() {
                 handle.abort();
             }
         }
 
-        *lock_or_recover(&self.upload_policy_cancel, "upload policy cancel") = Some(tx);
+        *lock(&self.upload_policy_cancel) = Some(tx);
 
         let this = Arc::clone(self);
 
@@ -323,7 +324,7 @@ impl TorrentManager {
                             let id = bt_handle.id();
                             let snapshot = this.snapshot_from_handle(id, bt_handle);
                             let progress = DownloadProgress::from(&snapshot);
-                            let app_guard = lock_or_recover(&this.app_handle, "bt app_handle");
+                            let app_guard = lock(&this.app_handle);
                             if let Some(ref app) = *app_guard {
                                 let _ = app.emit("download-progress", &progress);
                             }
@@ -337,20 +338,20 @@ impl TorrentManager {
             }
         });
 
-        *lock_or_recover(&self.upload_policy_task, "upload policy task") = Some(handle);
+        *lock(&self.upload_policy_task) = Some(handle);
     }
 
     pub fn update_settings(&self, settings: &AppSettings) {
-        *lock_or_recover(&self.bt_settings, "bt settings") = settings.bt.clone();
+        *lock(&self.bt_settings) = settings.bt.clone();
     }
 
     pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
-        *lock_or_recover(&self.event_tx, "torrent event tx") = Some(tx);
+        *lock(&self.event_tx) = Some(tx);
     }
 
     /// Inject the Tauri app handle so the BT engine can emit `download-progress` events.
     pub fn set_app_handle(&self, handle: tauri::AppHandle) {
-        *lock_or_recover(&self.app_handle, "torrent app_handle") = Some(handle);
+        *lock(&self.app_handle) = Some(handle);
     }
 
     pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
@@ -452,7 +453,7 @@ impl TorrentManager {
 
             let mut added_without_owner = None;
             {
-                let mut pending = lock_or_recover(&pending, "pending torrents");
+                let mut pending = lock(&pending);
                 if let Some(task) = pending.get_mut(&pending_id) {
                     task.join = None;
                     task.state = match result {
@@ -480,7 +481,7 @@ impl TorrentManager {
     async fn restart_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
         let mut managed_id = None;
         let (source, destination_dir, created_at_ms) = {
-            let mut pending = lock_or_recover(&self.pending, "pending torrents");
+            let mut pending = lock(&self.pending);
             let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
 
             match task.state {
@@ -519,7 +520,7 @@ impl TorrentManager {
         );
 
         let snapshot = {
-            let mut pending = lock_or_recover(&self.pending, "pending torrents");
+            let mut pending = lock(&self.pending);
             let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
             task.state = PendingTorrentState::Resolving;
             task.join = Some(join);
@@ -534,7 +535,7 @@ impl TorrentManager {
     async fn pause_pending(&self, pending_id: &str) -> Result<DownloadSnapshot> {
         let mut snapshot = None;
         let managed_id = {
-            let mut pending = lock_or_recover(&self.pending, "pending torrents");
+            let mut pending = lock(&self.pending);
             let task = pending.get_mut(pending_id).ok_or(DownloadError::NotFound)?;
             if let PendingTorrentState::Added(id) = task.state {
                 Some(id)
@@ -730,9 +731,9 @@ impl TorrentManager {
 
         // Store/clear per-torrent limit
         if download_limit_bps.is_none() && upload_limit_bps.is_none() {
-            lock_or_recover(&self.per_torrent_limits, "per_torrent_limits").remove(&id);
+            lock(&self.per_torrent_limits).remove(&id);
         } else {
-            lock_or_recover(&self.per_torrent_limits, "per_torrent_limits").insert(
+            lock(&self.per_torrent_limits).insert(
                 id,
                 LimitsConfig {
                     download_bps: dl,
@@ -746,13 +747,13 @@ impl TorrentManager {
 
         // Clear upload_paused flag unless user explicitly set upload to 1 bps
         if upload_limit_bps.and_then(|b| NonZeroU32::new(b as u32)) != NonZeroU32::new(1) {
-            let mut paused = lock_or_recover(&self.upload_paused, "upload paused set");
+            let mut paused = lock(&self.upload_paused);
             paused.remove(&id);
         }
     }
 
     fn recompute_session_limits(&self) {
-        let limits = lock_or_recover(&self.per_torrent_limits, "per_torrent_limits");
+        let limits = lock(&self.per_torrent_limits);
         let effective_dl = {
             let dl_limits: Vec<NonZeroU32> =
                 limits.values().filter_map(|l| l.download_bps).collect();
@@ -960,7 +961,7 @@ impl TorrentManager {
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
         if is_pending_bt_task_id(download_id) {
             let managed_id = {
-                let pending = lock_or_recover(&self.pending, "pending torrents");
+                let pending = lock(&self.pending);
                 let task = pending.get(download_id).ok_or(DownloadError::NotFound)?;
                 match task.state {
                     PendingTorrentState::Added(id) => Some(id),
@@ -986,7 +987,7 @@ impl TorrentManager {
         let mut pending_snapshots = Vec::new();
         let mut represented_ids = HashSet::default();
         {
-            let pending = lock_or_recover(&self.pending, "pending torrents");
+            let pending = lock(&self.pending);
             for (pending_id, task) in pending.iter() {
                 if let PendingTorrentState::Added(id) = task.state {
                     represented_ids.insert(id);
@@ -1023,11 +1024,11 @@ impl TorrentManager {
     /// frontend immediately displays it (instead of waiting for the periodic
     /// `download-progress` polling loop).
     pub(crate) fn emit_pending_summary(&self, pending_id: &str) {
-        let handle = lock_or_recover(&self.app_handle, "bt app_handle");
+        let handle = lock(&self.app_handle);
         let Some(ref handle) = *handle else {
             return;
         };
-        let pending = lock_or_recover(&self.pending, "pending torrents");
+        let pending = lock(&self.pending);
         if let Some(task) = pending.get(pending_id) {
             let snapshot = self.pending_snapshot(pending_id, task);
             let summary = DownloadSummary::from(&snapshot);
@@ -1036,7 +1037,7 @@ impl TorrentManager {
     }
 
     pub fn runtime_status(&self) -> BtRuntimeStatus {
-        let dht_enabled = lock_or_recover(&self.bt_settings, "bt settings").dht_enabled;
+        let dht_enabled = lock(&self.bt_settings).dht_enabled;
         let dht_nodes = self
             .api
             .api_dht_stats()
@@ -1063,7 +1064,7 @@ impl TorrentManager {
         let seed_count: Option<u64> = None;
         let leech_count: Option<u64> = None;
 
-        let pending_count = lock_or_recover(&self.pending, "pending torrents")
+        let pending_count = lock(&self.pending)
             .values()
             .filter(|task| {
                 matches!(
@@ -1097,7 +1098,7 @@ impl TorrentManager {
     }
 
     fn pending_managed_id(&self, pending_id: &str) -> Option<usize> {
-        let pending = lock_or_recover(&self.pending, "pending torrents");
+        let pending = lock(&self.pending);
         pending.get(pending_id).and_then(|task| match task.state {
             PendingTorrentState::Added(id) => Some(id),
             _ => None,
@@ -1179,7 +1180,7 @@ impl TorrentManager {
             .lock()
             .remove(&id);
         {
-            let mut limits = lock_or_recover(&self.per_torrent_limits, "per_torrent_limits");
+            let mut limits = lock(&self.per_torrent_limits);
             if limits.remove(&id).is_some() {
                 drop(limits);
                 self.recompute_session_limits();
@@ -1191,7 +1192,7 @@ impl TorrentManager {
     async fn delete_pending(&self, pending_id: &str, delete_files: bool) -> Result<()> {
         // PHASE 1: synchronous lock; extract the entry
         let task = {
-            let mut pending = lock_or_recover(&self.pending, "pending torrents");
+            let mut pending = lock(&self.pending);
             pending.remove(pending_id).ok_or(DownloadError::NotFound)?
         };
 
@@ -1212,11 +1213,11 @@ impl TorrentManager {
                 .await
             {
                 Ok(()) => {
-                    lock_or_recover(&self.output_folders, "output folders").remove(&id);
+                    lock(&self.output_folders).remove(&id);
                 }
                 Err(e) => {
                     // Restore the entry so user can retry
-                    lock_or_recover(&self.pending, "pending torrents").insert(
+                    lock(&self.pending).insert(
                         pending_id.to_string(),
                         PendingTorrent {
                             source,
@@ -1239,7 +1240,7 @@ impl TorrentManager {
 
     fn enforce_upload_policy(&self, handle: &Arc<ManagedTorrent>) {
         let stats = handle.stats();
-        let settings = lock_or_recover(&self.bt_settings, "bt settings").clone();
+        let settings = lock(&self.bt_settings).clone();
         let limit_reached =
             upload_limit_reached(&settings, stats.uploaded_bytes, stats.progress_bytes);
 
@@ -1251,7 +1252,7 @@ impl TorrentManager {
 
         if should_pause_upload {
             let is_new = {
-                let mut paused = lock_or_recover(&self.upload_paused, "upload paused set");
+                let mut paused = lock(&self.upload_paused);
                 paused.insert(id)
             };
             if is_new {
@@ -1260,13 +1261,13 @@ impl TorrentManager {
             }
         } else {
             let was_paused = {
-                let mut paused = lock_or_recover(&self.upload_paused, "upload paused set");
+                let mut paused = lock(&self.upload_paused);
                 paused.remove(&id)
             };
             if was_paused {
                 // TODO M5: merge into single lock scope if enforce_upload_policy ever goes async
                 let still_paused =
-                    !lock_or_recover(&self.upload_paused, "upload paused set").is_empty();
+                    !lock(&self.upload_paused).is_empty();
                 if !still_paused {
                     tracing::debug!("upload policy: resuming upload (all limits cleared)");
                     self.session.ratelimits.set_upload_bps(None);
@@ -1281,7 +1282,7 @@ impl TorrentManager {
         stats_state: TorrentStatsState,
         upload_speed_mbps: f64,
     ) -> BtUploadStatus {
-        if lock_or_recover(&self.upload_paused, "upload paused set").contains(&id) {
+        if lock(&self.upload_paused).contains(&id) {
             return BtUploadStatus::PausedByLimit;
         }
         match stats_state {
@@ -1344,11 +1345,11 @@ impl TorrentManager {
 
         // Detect terminal state transitions and broadcast events
         {
-            let mut last_states = lock_or_recover(&self.last_states, "torrent last states");
+            let mut last_states = lock(&self.last_states);
             let prev_state = last_states.get(&id).copied();
             if prev_state != Some(state) {
                 last_states.insert(id, state);
-                if let Some(ref tx) = *lock_or_recover(&self.event_tx, "torrent event tx") {
+                if let Some(ref tx) = *lock(&self.event_tx) {
                     let gid = crate::download::aria2_rpc::internal_id_to_gid(&bt_task_id(id));
                     match state {
                         DownloadState::Completed => {
@@ -1410,13 +1411,13 @@ impl TorrentManager {
             seed_count: None,
             leech_count: None,
             download_limit_bps: {
-                let limit_map = lock_or_recover(&self.per_torrent_limits, "per_torrent_limits");
+                let limit_map = lock(&self.per_torrent_limits);
                 limit_map
                     .get(&id)
                     .and_then(|cfg| cfg.download_bps.map(|n| n.get() as u64))
             },
             upload_limit_bps: {
-                let limit_map = lock_or_recover(&self.per_torrent_limits, "per_torrent_limits");
+                let limit_map = lock(&self.per_torrent_limits);
                 limit_map
                     .get(&id)
                     .and_then(|cfg| cfg.upload_bps.map(|n| n.get() as u64))
@@ -1548,14 +1549,6 @@ fn mib_per_second_to_bytes_per_second(value: f64) -> f64 {
     value * 1024.0 * 1024.0
 }
 
-// TODO L3: now_ms duplicated across files; consolidate into shared utility
-fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0)
-}
-
 fn build_event_json(method: &str, gid: &str) -> String {
     serde_json::to_string(&serde_json::json!({
         "jsonrpc": "2.0",
@@ -1563,6 +1556,123 @@ fn build_event_json(method: &str, gid: &str) -> String {
         "params": [{"gid": gid}]
     }))
     .unwrap_or_default()
+}
+
+// ── BtBackend impl ────────────────────────────────────────────────────
+
+use async_trait::async_trait;
+use super::protocol::DownloadProtocol;
+
+#[async_trait]
+impl BtBackend for TorrentManager {
+    fn set_app_handle(&self, handle: tauri::AppHandle) {
+        TorrentManager::set_app_handle(self, handle);
+    }
+
+    fn set_event_tx(&self, tx: tokio::sync::broadcast::Sender<String>) {
+        TorrentManager::set_event_tx(self, tx);
+    }
+
+    fn spawn_upload_policy_loop(self: std::sync::Arc<Self>) {
+        TorrentManager::spawn_upload_policy_loop(&self);
+    }
+
+    async fn shutdown(&self) {
+        TorrentManager::shutdown(self).await;
+    }
+
+    fn update_settings(&self, settings: &AppSettings) {
+        TorrentManager::update_settings(self, settings);
+    }
+
+    async fn start(&self, request: StartDownloadRequest) -> Result<String> {
+        TorrentManager::start(self, request).await
+    }
+
+    async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        TorrentManager::pause(self, download_id).await
+    }
+
+    async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        TorrentManager::resume(self, download_id).await
+    }
+
+    async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        TorrentManager::cancel(self, download_id).await
+    }
+
+    async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        TorrentManager::remove(self, download_id).await
+    }
+
+    async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        TorrentManager::purge(self, download_id).await
+    }
+
+    async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
+        TorrentManager::open_in_explorer(self, download_id).await
+    }
+
+    async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        TorrentManager::status(self, download_id).await
+    }
+
+    async fn list(&self) -> Result<Vec<DownloadSummary>> {
+        TorrentManager::list(self).await
+    }
+
+    fn set_speed_limit(
+        &self,
+        download_id: &str,
+        download_limit_bps: Option<u64>,
+        upload_limit_bps: Option<u64>,
+    ) {
+        TorrentManager::set_speed_limit(self, download_id, download_limit_bps, upload_limit_bps);
+    }
+
+    async fn preview_torrent(&self, source: &str) -> Result<Vec<TorrentFileEntry>> {
+        TorrentManager::preview_torrent(self, source).await
+    }
+
+    fn get_peers(&self, download_id: &str) -> Result<Vec<super::types::BtPeerInfo>> {
+        TorrentManager::get_peers(self, download_id)
+    }
+
+    fn get_trackers(&self, download_id: &str) -> Result<Vec<super::types::BtTrackerInfo>> {
+        TorrentManager::get_trackers(self, download_id)
+    }
+
+    fn get_pieces(&self, download_id: &str) -> Result<Vec<super::types::BtPieceInfo>> {
+        TorrentManager::get_pieces(self, download_id)
+    }
+
+    fn get_torrent_files(&self, download_id: &str) -> Result<Vec<super::types::BtFileStatus>> {
+        TorrentManager::get_torrent_files(self, download_id)
+    }
+
+    async fn update_torrent_files(
+        &self,
+        download_id: &str,
+        included_indices: Vec<usize>,
+    ) -> Result<()> {
+        TorrentManager::update_torrent_files(self, download_id, included_indices).await
+    }
+
+    fn runtime_status(&self) -> BtRuntimeStatus {
+        TorrentManager::runtime_status(self)
+    }
+
+    fn emit_pending_summary(&self, pending_id: &str) {
+        TorrentManager::emit_pending_summary(self, pending_id);
+    }
+
+    fn backend_kind(&self) -> BtBackendKind {
+        BtBackendKind::Rqbit
+    }
+
+    fn as_download_protocol(&self) -> &dyn DownloadProtocol {
+        self
+    }
 }
 
 #[cfg(test)]

@@ -1,10 +1,11 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
-use reqwest::{Client, Proxy, redirect::Policy};
+use reqwest::Client;
 
 use super::ip_ranges::{CLOUDFLARE_IPV4_RANGES, network_address, parse_cidr};
-use crate::download::types::{AppSettings, ProxyMode};
+use crate::download::settings::configure_client_builder;
+use crate::download::types::AppSettings;
 
 /// Cloudflare IPv6 CIDR ranges.
 /// Source: https://www.cloudflare.com/ips-v6
@@ -28,24 +29,9 @@ pub(crate) fn build_accelerated_client(
     ip: Ipv4Addr,
     settings: &AppSettings,
 ) -> Result<Client, Box<dyn std::error::Error + Send + Sync>> {
-    let mut builder = Client::builder()
-        .redirect(Policy::limited(10))
-        .tcp_nodelay(true)
-        .read_timeout(Duration::from_secs(15))
-        .user_agent(settings.download.default_user_agent.clone());
-
-    match settings.proxy.mode {
-        ProxyMode::Disabled => {
-            builder = builder.no_proxy();
-        }
-        ProxyMode::System => {
-            // Use reqwest default (environment variables).
-        }
-        ProxyMode::Manual => {
-            let proxy = Proxy::all(&settings.proxy.manual_url)?;
-            builder = builder.proxy(proxy);
-        }
-    }
+    let builder = Client::builder();
+    let mut builder = configure_client_builder(builder, settings)
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
     // DNS override: resolve the domain to the specified IP.
     // Port 0 means "use URL scheme default" (443 for https, 80 for http).

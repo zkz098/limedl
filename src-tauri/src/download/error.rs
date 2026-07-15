@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum DownloadError {
     #[error("unsupported url scheme")]
     UnsupportedScheme,
@@ -54,6 +55,8 @@ impl DownloadError {
             Self::Torrent(_) => "torrent",
             Self::InsufficientDiskSpace { .. } => "insufficient_disk_space",
             Self::Internal(_) => "internal",
+            #[allow(unreachable_patterns)]
+            _ => "unknown",
         }
     }
 }

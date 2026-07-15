@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::download::calculate_checksum;
+use crate::download::now_ms;
 use crate::download::persistence::persist_manifest_snapshot;
 use crate::download::retry::request_with_retry;
 
@@ -223,17 +224,22 @@ impl super::DownloadManager {
         token: CancellationToken,
         max_retries: u32,
     ) -> Result<RunOutcome> {
-        let file_path = PathBuf::from(managed.lock_core().manifest.temp_path.clone());
+        let (temp_path, total_bytes, destination_dir) = {
+            let core = managed.lock_core();
+            (
+                core.manifest.temp_path.clone(),
+                core.manifest.total_bytes,
+                core.manifest.destination_dir.clone(),
+            )
+        };
+        let file_path = PathBuf::from(temp_path);
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let file = open_download_file(&file_path, managed.lock_core().manifest.total_bytes)?;
+        let file = open_download_file(&file_path, total_bytes)?;
 
         // HDD/SSD optimization: set up buffered writing
-        let disk_type = {
-            let destination_dir = managed.lock_core().manifest.destination_dir.clone();
-            self.resolve_disk_type(Path::new(&destination_dir)).await
-        };
+        let disk_type = self.resolve_disk_type(Path::new(&destination_dir)).await;
         const SSD_WRITE_COMBINE_BYTES: u64 = 4 * 1024 * 1024; // 4 MiB
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
             Some(Arc::new(DownloadBuffer::new(self.buffer_pool.clone())))
@@ -508,7 +514,7 @@ impl super::DownloadManager {
 
                 let db = self.db.clone();
                 let rate_limiter = self.rate_limiter.clone();
-                let manager_for_worker = self.clone_arc();
+                let manager_for_worker = Arc::new(self.clone());
                 let managed = managed.clone();
                 let client = client.clone();
                 let token = token.clone();
@@ -516,7 +522,7 @@ impl super::DownloadManager {
                 let wbuf = write_buffer.clone();
                 let dtyp = disk_type;
                 workers.spawn(async move {
-                    download_chunk(
+                    download_chunk(ChunkWorkerCtx {
                         managed,
                         client,
                         token,
@@ -525,10 +531,10 @@ impl super::DownloadManager {
                         max_retries,
                         db,
                         rate_limiter,
-                        manager_for_worker,
-                        wbuf,
-                        dtyp,
-                    )
+                        manager: manager_for_worker,
+                        write_buffer: wbuf,
+                        disk_type: dtyp,
+                    })
                     .await
                 });
                 next_worker_id = next_worker_id.saturating_add(1);
@@ -769,8 +775,7 @@ fn finalize_was_canceled(managed: &Arc<ManagedDownload>, token: &CancellationTok
     core.snapshot.state == DownloadState::Canceled || core.manifest.state == DownloadState::Canceled
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn download_chunk(
+struct ChunkWorkerCtx {
     managed: Arc<ManagedDownload>,
     client: Client,
     token: CancellationToken,
@@ -782,26 +787,28 @@ async fn download_chunk(
     manager: Arc<super::DownloadManager>,
     write_buffer: Option<Arc<DownloadBuffer>>,
     disk_type: DiskType,
-) -> Result<ChunkWorkerOutcome> {
-    let mut current = chunk.start + chunk.downloaded;
-    let end = chunk.end;
+}
+
+async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
+    let mut current = ctx.chunk.start + ctx.chunk.downloaded;
+    let end = ctx.chunk.end;
     if current > end {
-        mark_chunk_released(&managed, chunk.index);
+        mark_chunk_released(&ctx.managed, ctx.chunk.index);
         return Ok(ChunkWorkerOutcome::Finished);
     }
 
     let mut last_persist = Instant::now();
     while current <= end {
-        if token.is_cancelled() {
-            mark_chunk_released(&managed, chunk.index);
-            return Ok(match managed.lock_core().snapshot.state {
+        if ctx.token.is_cancelled() {
+            mark_chunk_released(&ctx.managed, ctx.chunk.index);
+            return Ok(match ctx.managed.lock_core().snapshot.state {
                 DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
                 _ => ChunkWorkerOutcome::Paused,
             });
         }
 
         let (url, user_agent, validator) = {
-            let core = managed.lock_core();
+            let core = ctx.managed.lock_core();
             (
                 core.manifest.final_url.clone(),
                 core.manifest.user_agent.clone(),
@@ -811,7 +818,7 @@ async fn download_chunk(
 
         let response = request_with_retry(
             || {
-                let client = client.clone();
+                let client = ctx.client.clone();
                 let url = url.clone();
                 let user_agent = user_agent.clone();
                 let validator = validator.clone();
@@ -821,14 +828,14 @@ async fn download_chunk(
                         .await
                 }
             },
-            token.clone(),
-            max_retries,
-            managed.clone(),
+            ctx.token.clone(),
+            ctx.max_retries,
+            ctx.managed.clone(),
         )
         .await?;
 
         if response.status() == StatusCode::OK {
-            mark_chunk_released(&managed, chunk.index);
+            mark_chunk_released(&ctx.managed, ctx.chunk.index);
             return Ok(ChunkWorkerOutcome::RestartSingle);
         }
 
@@ -836,54 +843,54 @@ async fn download_chunk(
 
         let mut stream = response.bytes_stream();
         while let Some(bytes) = tokio::select! {
-            _ = token.cancelled() => {
-                mark_chunk_released(&managed, chunk.index);
-                return Ok(cancellation_chunk_outcome(&managed));
+            _ = ctx.token.cancelled() => {
+                mark_chunk_released(&ctx.managed, ctx.chunk.index);
+                return Ok(cancellation_chunk_outcome(&ctx.managed));
             }
             next = stream.next() => next,
         } {
             let bytes = bytes?;
-            rate_limiter.consume(bytes.len()).await;
+            ctx.rate_limiter.consume(bytes.len()).await;
             if current + bytes.len() as u64 - 1 > end {
-                mark_chunk_released(&managed, chunk.index);
+                mark_chunk_released(&ctx.managed, ctx.chunk.index);
                 return Err(DownloadError::InvalidResponse(String::from(
                     "segment body exceeded requested range",
                 )));
             }
 
-            if let Some(ref buf) = write_buffer {
+            if let Some(ref buf) = ctx.write_buffer {
                 match buf.buffer_chunk(current, bytes.clone()) {
                     BufferResult::Buffered => {}
                     BufferResult::Degraded => {
-                        write_all_at(&file, &bytes, current)?;
-                        if disk_type == DiskType::Hdd {
-                            let mut core = managed.lock_core();
+                        write_all_at(&ctx.file, &bytes, current)?;
+                        if ctx.disk_type == DiskType::Hdd {
+                            let mut core = ctx.managed.lock_core();
                             core.snapshot.degraded = true;
                         }
                     }
                 }
             } else {
-                write_all_at(&file, &bytes, current)?;
+                write_all_at(&ctx.file, &bytes, current)?;
             }
             current += bytes.len() as u64;
             {
-                record_progress_on_managed(&managed, Some(chunk.index), bytes.len() as u64);
+                record_progress_on_managed(&ctx.managed, Some(ctx.chunk.index), bytes.len() as u64);
             }
             if last_persist.elapsed() >= PERSIST_INTERVAL {
-                persist_manifest_snapshot(&db, &managed).await?;
+                persist_manifest_snapshot(&ctx.db, &ctx.managed).await?;
                 last_persist = Instant::now();
-                manager.emit_progress(&managed);
+                ctx.manager.emit_progress(&ctx.managed);
             }
         }
     }
 
     {
-        let mut core = managed.lock_core();
+        let mut core = ctx.managed.lock_core();
         if let Some(target) = core
             .manifest
             .chunks
             .iter_mut()
-            .find(|candidate| candidate.index == chunk.index)
+            .find(|candidate| candidate.index == ctx.chunk.index)
         {
             target.completed = true;
             target.downloaded = target.end.saturating_sub(target.start) + 1;

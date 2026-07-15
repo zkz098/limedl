@@ -2,8 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 import UiButton from "../ui/UiButton.vue";
-import UiInput from "../ui/UiInput.vue";
-import UiNumberField from "../ui/UiNumberField.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import { useI18n } from "../../i18n";
 
@@ -26,7 +25,7 @@ defineEmits<{
 
 const { t } = useI18n();
 
-const urlInputRef = ref<InstanceType<typeof UiInput> | null>(null);
+const urlInputRef = ref<InstanceType<typeof UiTextField> | null>(null);
 const isAdvancedOpen = ref(false);
 const urlError = ref("");
 
@@ -216,7 +215,7 @@ onMounted(() => {
               <span class="composer-protocol__icon" :class="protocolIcon" aria-hidden="true" />
               <span class="composer-protocol__text">{{ protocolLabel }}</span>
             </button>
-            <UiInput
+            <UiTextField
               ref="urlInputRef"
               v-model="form.url"
               type="text"
@@ -242,7 +241,7 @@ onMounted(() => {
         <!-- File name -->
         <label class="composer-field">
           <span class="composer-field__label">{{ t("composer.fileName") }}</span>
-          <UiInput
+          <UiTextField
             v-model="form.fileName"
             type="text"
             :placeholder="t('composer.fileNamePlaceholder')"
@@ -253,7 +252,7 @@ onMounted(() => {
         <label class="composer-field">
           <span class="composer-field__label">{{ t("composer.savePath") }}</span>
           <div class="composer-destination">
-            <UiInput
+            <UiTextField
               :model-value="form.destinationDir || t('composer.chooseFolder')"
               readonly
               @click="$emit('pickDirectory')"
@@ -307,12 +306,12 @@ onMounted(() => {
 
                   <label class="composer-field composer-field--compact">
                     <span class="composer-field__label">{{ t("composer.retries") }}</span>
-                    <UiNumberField v-model="form.maxRetries" :min="0" />
+                    <UiTextField type="number" v-model="form.maxRetries" :min="0" />
                   </label>
 
                   <label class="composer-field composer-field--compact">
                     <span class="composer-field__label">{{ t("composer.userAgent") }}</span>
-                    <UiInput
+                    <UiTextField
                       v-model="form.userAgent"
                       type="text"
                       :placeholder="t('composer.userAgentPlaceholder')"
@@ -327,12 +326,12 @@ onMounted(() => {
                   <template v-if="form.kind === 'bt'">
                     <label class="composer-field composer-field--compact">
                       <span class="composer-field__label">{{ t("composer.btDownloadLimit") }}</span>
-                      <UiNumberField v-model="form.downloadLimitBps" :min="0" />
+                      <UiTextField type="number" v-model="form.downloadLimitBps" :min="0" />
                     </label>
 
                     <label class="composer-field composer-field--compact">
                       <span class="composer-field__label">{{ t("composer.btUploadLimit") }}</span>
-                      <UiNumberField v-model="form.uploadLimitBps" :min="0" />
+                      <UiTextField type="number" v-model="form.uploadLimitBps" :min="0" />
                     </label>
                   </template>
                 </div>
@@ -426,7 +425,7 @@ onMounted(() => {
   box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-danger-text) 16%, transparent);
 }
 
-.composer-source :deep(.ui-input) {
+.composer-source :deep(.ui-textfield) {
   flex: 1 1 auto;
   min-height: 2.5rem;
   border: none;
@@ -484,7 +483,7 @@ onMounted(() => {
   align-items: center;
 }
 
-.composer-destination :deep(.ui-input) {
+.composer-destination :deep(.ui-textfield) {
   padding-right: 2.75rem;
   cursor: pointer;
 }

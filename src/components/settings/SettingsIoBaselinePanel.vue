@@ -3,8 +3,9 @@ import { computed } from "vue";
 
 import { formatBytes } from "../../lib/download-format";
 import type { AppSettings } from "../../types/settings";
-import UiCard from "../ui/UiCard.vue";
-import UiUnitInput from "../ui/UiUnitInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 const props = defineProps<{
   draft: AppSettings;
@@ -39,44 +40,31 @@ const bufferUsageText = computed(() => {
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.ioBaseline.title") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-hard-drive-2-line" aria-hidden="true" />
-      </div>
-    </template>
-
+  <SettingsSection :title="t('settings.ioBaseline.title')" icon="i-ri-hard-drive-2-line">
     <div class="settings-grid">
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.ioBaseline.bufferLimit") }}</span>
-        <UiUnitInput v-model="bufferLimit" :min="64" :max="32768" unit="MB" />
-        <p class="settings-field__hint">{{ t("settings.ioBaseline.bufferLimitHint") }}</p>
-      </label>
+      <SettingsField wide :label="t('settings.ioBaseline.bufferLimit')" :hint="t('settings.ioBaseline.bufferLimitHint')">
+        <UiTextField type="number" v-model="bufferLimit" :min="64" :max="32768" unit="MB" />
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.ioBaseline.gameModeBuffer") }}</span>
-        <UiUnitInput
+      <SettingsField wide :label="t('settings.ioBaseline.gameModeBuffer')" :hint="t('settings.ioBaseline.gameModeBufferHint')">
+        <UiTextField
+          type="number"
           v-model="gameModeBuffer"
           :min="16"
           :max="4096"
           :disabled="!gameMode"
           unit="MB"
         />
-        <p class="settings-field__hint">{{ t("settings.ioBaseline.gameModeBufferHint") }}</p>
-      </label>
+      </SettingsField>
 
-      <div class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.ioBaseline.status") }}</span>
+      <SettingsField wide :label="t('settings.ioBaseline.status')">
         <div class="io-status-bar">
           <span class="io-status-bar__label">{{ t("settings.ioBaseline.bufferUsage") }}</span>
           <span class="io-status-bar__value">{{ bufferUsageText }}</span>
         </div>
-      </div>
+      </SettingsField>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>
 
 <style scoped>

@@ -414,6 +414,10 @@ const enUS = {
       btDownloadSpeedLimitHint: "0 = unlimited",
       btUploadSpeedLimit: "Default Upload Speed Limit",
       btUploadSpeedLimitHint: "0 = unlimited",
+      btBackendLabel: "BT Engine",
+      btBackendRqbit: "rqbit (default)",
+      btBackendOwn: "Own (WIP)",
+      btBackendOwnWarning: "The own BT backend is still under development and not yet available. Please use the rqbit backend.",
       defaultDownloadLocation: "Default download location",
       defaultDownloadPlaceholder: "Tasks still require a folder when this is empty",
       defaultDownloadHint:

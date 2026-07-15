@@ -83,6 +83,32 @@ The `DownloadProtocol` trait (`src-tauri/src/download/protocol.rs`) abstracts bo
 - Rust: `cargo check --workspace` → `cargo clippy --workspace -- -D warnings` → `cargo test --workspace`
 - Rust clippy denies all warnings
 
+## Frontend UI
+
+### Design system & component catalog
+
+**Before writing any frontend UI code**, read the guides:
+
+- **`.opencode/guides/ui-design-guide.md`** — Design tokens (colors, typography, spacing, radii, shadows), icon system, CSS conventions, theme/dark-mode, accessibility minimums, responsive breakpoints
+- **`.opencode/guides/ui-component-guide.md`** — Complete catalog of every shared UI component with props, slots, emits, and usage examples. Always check this before creating new UI — a component likely already exists.
+
+Key rules:
+- Never hardcode colors, spacing, or radii — use `var(--token)` from `src/styles.css`
+- Use `i-ri-*` classes for icons (Remix Icon via UnoCSS), always add `aria-hidden="true"`
+- Use `<style scoped>` in `.vue` SFCs; non-scoped CSS only for page-level shared layout classes
+- `:focus-visible` required on every interactive element
+- Empty states: use `UiEmptyState` component, never ad-hoc markup
+- Settings/labs panels: use `SettingsSection` + `SettingsField` components
+- Dialogs: `UiDialog` or `ConfirmDialog`; fullscreen: `ModalOverlay`
+
+### Frontend stack
+
+- **Framework**: Vue 3 Composition API + `<script setup lang="ts">`
+- **CSS**: UnoCSS (`presetUno` + `presetIcons`) + scoped CSS with design tokens
+- **State**: Composables (`use*` pattern in `src/composables/`), no Pinia/Vuex
+- **i18n**: `useI18n()` → `{ t, language, languageOptions, setLanguage, supportedLanguages }` from `src/i18n/`
+- **Tauri bridge**: `src/lib/tauri/*-api.ts` typed wrappers (never call `invoke` directly)
+
 ## Build flags
 
 - `.cargo/config.toml` notes that `target-cpu=x86-64-v3` flags were removed to avoid SIGILL. For release builds, set `RUSTFLAGS` manually if desired (see comments in file).

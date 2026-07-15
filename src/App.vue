@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { computed, onErrorCaptured, ref, useTemplateRef, watch } from "vue";
+import { computed, onErrorCaptured, ref, useTemplateRef, watch, type Ref } from "vue";
 import { filterDownloads } from "./lib/download-filter";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
 import DownloadComposer from "./components/downloader/DownloadComposer.vue";
-import DownloadInspector from "./components/downloader/DownloadInspector.vue";
 import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
+import DetailPanel from "./components/downloader/DetailPanel.vue";
 import LabsPage from "./components/labs/LabsPage.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
-import UiBadge from "./components/ui/UiBadge.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
@@ -17,14 +16,23 @@ import { useDownloader } from "./composables/useDownloader";
 import type { UseDownloaderOptions } from "./composables/useDownloader";
 import { useIoBaseline } from "./composables/useIoBaseline";
 import { useOverclock } from "./composables/useOverclock";
+import { useCategoryCounts } from "./composables/useCategoryCounts";
 import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
 import { useAppSettings } from "./composables/useAppSettings";
 import { useViewNavigation } from "./composables/useViewNavigation";
+import { useMultiSelect } from "./composables/useMultiSelect";
 import { DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
 import NotificationToast from "./components/ui/NotificationToast.vue";
+import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings, SortDirection, SortKey } from "./types/settings";
-import type { ViewOptions, MultiSelectState } from "./components/downloader/queue-types";
+import type { ViewOptions, MultiSelectState } from "./types/download";
+
+// Multi-select refs (declared before downloaderOptions closure)
+let multiSelectMode = ref(false);
+let selectedIds = ref<Set<string>>(new Set());
+let showBatchDeleteDialog = ref(false);
+let removedDownloadIds = ref<string[]>([]);
 
 const downloaderOptions: UseDownloaderOptions = {
   onDownloadFailed: (fileName, reason) => {
@@ -95,11 +103,26 @@ const {
   setNotificationsEnabled,
 } = useDownloader(downloaderOptions);
 
+const { categoryCounts, sidebarStats } = useCategoryCounts(downloads);
+
+const ms = useMultiSelect(downloads as Ref<Array<{ id: string }>>);
+// Reassign refs to the composable's refs so closure captures work correctly
+multiSelectMode = ms.multiSelectMode;
+selectedIds = ms.selectedIds;
+showBatchDeleteDialog = ms.showBatchDeleteDialog;
+removedDownloadIds = ms.removedDownloadIds;
+const {
+  handleToggleMultiSelectMode,
+  handleToggleSelect,
+  handleSelectAll,
+  handleDeselectAll,
+  handleBatchDelete,
+} = ms;
+
 const { t } = useI18n();
 const { gameMode, bufferUsageBytes, bufferLimitBytes, setGameMode } = useIoBaseline();
 const { overclockMode, setOverclockMode } = useOverclock();
 const showComposerDialog = ref(false);
-const detailCollapsed = ref(false);
 const activeCategory = ref("");
 const searchQuery = ref("");
 const sortKey = ref<SortKey>("added_at");
@@ -109,12 +132,6 @@ const visibleColumns = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 const pendingPermanentDeleteId = ref<string | null>(null);
 const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
 const labsPageRef = useTemplateRef<InstanceType<typeof LabsPage>>("labsPage");
-
-// Multi-select mode
-const multiSelectMode = ref(false);
-const selectedIds = ref<Set<string>>(new Set());
-const showBatchDeleteDialog = ref(false);
-const removedDownloadIds = ref<string[]>([]);
 
 const { appSettings, applyAppearanceSettings } = useAppSettings({
   sortKey,
@@ -159,16 +176,6 @@ const { notifications, notifyError, dismiss } = useNotification();
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
 
-const stateTone = computed<"neutral" | "info" | "success" | "warning" | "danger">(() => {
-  const state = selectedOverview.value?.state;
-
-  if (!state) return "neutral";
-  if (state === "completed") return "success";
-  if (state === "failed" || state === "canceled") return "danger";
-  if (state === "queued" || state === "paused") return "warning";
-  return "info";
-});
-
 const showDetailInfo = computed(() => appSettings.value?.appearance?.showDetailInfo ?? true);
 
 const viewOptions = computed<ViewOptions>(() => ({
@@ -187,26 +194,6 @@ const multiSelectState = computed<MultiSelectState>(() => ({
 const pendingPermanentDeleteTask = computed(
   () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
 );
-
-const categoryCounts = computed(() => {
-  const all = downloads.value.length;
-  const downloading = downloads.value.filter((d) => d.state === "downloading").length;
-  const paused = downloads.value.filter((d) => d.state === "paused").length;
-  const completed = downloads.value.filter((d) => d.state === "completed").length;
-  const failed = downloads.value.filter((d) => d.state === "failed").length;
-  const active = downloads.value.filter((d) => d.state === "downloading").length;
-  return { "": all, downloading, paused, completed, failed, active };
-});
-
-const sidebarStats = computed(() => {
-  const totalSpeed = downloads.value.reduce((sum, d) => sum + (d.speedBytesPerSecond ?? 0), 0);
-  return {
-    totalTasks: downloads.value.length,
-    activeTasks: downloads.value.filter((d) => d.state === "downloading").length,
-    completedTasks: downloads.value.filter((d) => d.state === "completed").length,
-    currentSpeed: totalSpeed,
-  };
-});
 
 const btStatusData = computed(() => {
   if (!btRuntimeStatus.value) return null;
@@ -260,36 +247,6 @@ function handleDelete() {
 
 function handleRefresh() {
   void refreshList();
-}
-
-// Multi-select handlers
-function handleToggleMultiSelectMode(enabled: boolean) {
-  multiSelectMode.value = enabled;
-  if (!enabled) {
-    selectedIds.value = new Set();
-  }
-}
-
-function handleToggleSelect(downloadId: string) {
-  const next = new Set(selectedIds.value);
-  if (next.has(downloadId)) {
-    next.delete(downloadId);
-  } else {
-    next.add(downloadId);
-  }
-  selectedIds.value = next;
-}
-
-function handleSelectAll() {
-  selectedIds.value = new Set(filteredDownloads.value.map((d) => d.id));
-}
-
-function handleDeselectAll() {
-  selectedIds.value = new Set();
-}
-
-function handleBatchDelete() {
-  showBatchDeleteDialog.value = true;
 }
 
 async function handleToggleGameMode() {
@@ -349,15 +306,6 @@ function handleLabsDirtyChange(isDirty: boolean) {
 }
 
 watch(
-  () => selectedId.value,
-  (nextId) => {
-    if (!nextId) {
-      detailCollapsed.value = false;
-    }
-  },
-);
-
-watch(
   () => showComposerDialog.value,
   (isOpen) => {
     if (!isOpen || !appSettings.value) {
@@ -414,7 +362,7 @@ watch(
       <CategorySidebar
         :active-category="activeCategory"
         :current-view="currentView"
-        :counts="categoryCounts"
+        :counts="categoryCounts as unknown as Record<string, number>"
         :stats="sidebarStats"
         @update:active-category="activeCategory = $event"
         @navigate="navigateTo"
@@ -425,12 +373,10 @@ watch(
         <template v-if="currentView === 'home'">
           <div class="table-wrapper">
             <DownloadQueueTable
-              :downloads="downloads"
+              :downloads="filteredDownloads"
               :selected-id="selectedId"
               :task-action-name="actionName"
               :is-auto-refreshing="isAutoRefreshing"
-              :state-filter="activeCategory"
-              :search-query="searchQuery"
               :view-options="viewOptions"
               :multi-select="multiSelectState"
               @copy-link="runCopyLink"
@@ -444,135 +390,47 @@ watch(
           </div>
 
           <!-- Collapsible bottom detail panel -->
-          <div class="detail-panel" :class="{ collapsed: detailCollapsed }">
-            <div class="detail-panel__header" @click="detailCollapsed = !detailCollapsed">
-              <div class="detail-panel__title">
-                <i
-                  class="detail-panel__arrow"
-                  :class="detailCollapsed ? 'i-ri-arrow-up-line' : 'i-ri-arrow-down-line'"
-                />
-                <span class="detail-panel__filename">{{
-                  selectedOverview ? selectedOverview.fileName : t("detail.noSelection")
-                }}</span>
-                <template v-if="selectedOverview">
-                  <UiBadge :tone="stateTone" size="sm">{{
-                    t(`states.${selectedOverview.state}`)
-                  }}</UiBadge>
-                  <UiBadge
-                    v-if="selectedOverview.cdnAccelerated"
-                    tone="warning"
-                    size="sm"
-                    class="detail-panel__cdn"
-                  >
-                    <span class="i-ri-flashlight-fill" aria-hidden="true" />
-                    {{ t("inspector.cdnAccelerated") }}
-                  </UiBadge>
-                </template>
-              </div>
-              <div v-if="selectedOverview" class="detail-panel__actions">
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  icon="i-ri-refresh-line"
-                  @click.stop="handleRefreshSelected"
-                >
-                  {{ isRefreshingStatus ? t("common.refreshing") : t("common.refresh") }}
-                </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  icon="i-ri-pause-line"
-                  :disabled="!canPause"
-                  @click.stop="runPause"
-                >
-                  {{ actionName === "Pause" ? t("inspector.pausing") : t("inspector.pause") }}
-                </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  icon="i-ri-play-line"
-                  :disabled="!canResume"
-                  @click.stop="runResume"
-                >
-                  {{ actionName === "Resume" ? t("inspector.resuming") : t("inspector.resume") }}
-                </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="danger"
-                  icon="i-ri-close-circle-line"
-                  :disabled="!canCancel"
-                  @click.stop="runCancel"
-                >
-                  {{ actionName === "Cancel" ? t("inspector.canceling") : t("inspector.cancel") }}
-                </UiButton>
-                <UiButton
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  icon="i-ri-close-line"
-                  @click.stop="selectDownload(null)"
-                />
-              </div>
-            </div>
-            <div v-show="!detailCollapsed" class="detail-panel__body">
-              <DownloadInspector
-                v-if="selectedOverview"
-                :selected-overview="selectedOverview"
-                :selected-snapshot="selectedSnapshot"
-                :show-detail-info="showDetailInfo"
-              />
-              <div v-else class="detail-panel__empty">
-                <i class="i-ri-cursor-line" />
-                <p>{{ t("detail.selectPrompt") }}</p>
-              </div>
-            </div>
-          </div>
+          <DetailPanel
+            v-if="selectedId"
+            :selected-overview="selectedOverview"
+            :selected-snapshot="selectedSnapshot"
+            :selected-id="selectedId"
+            :can-pause="canPause"
+            :can-resume="canResume"
+            :can-cancel="canCancel"
+            :action-name="actionName"
+            :is-refreshing-status="isRefreshingStatus"
+            :show-detail-info="showDetailInfo"
+            @close="selectDownload(null)"
+            @refresh="handleRefreshSelected"
+            @pause="runPause"
+            @resume="runResume"
+            @cancel="runCancel"
+          />
         </template>
       </main>
     </div>
 
     <!-- Settings & Labs as centered modal overlays -->
-    <Transition name="overlay-fade">
-      <div v-if="currentView === 'settings'" class="fullscreen-overlay">
-        <div class="modal-panel">
-          <button class="overlay-close" @click="navigateTo('home')" :title="t('nav.back')">
-            <i class="i-ri-close-line" />
-          </button>
-          <div class="modal-panel__body">
-            <SettingsPage
-              ref="settingsPage"
-              :settings="appSettings"
-              :game-mode="gameMode"
-              :buffer-usage-bytes="bufferUsageBytes"
-              :buffer-limit-bytes="bufferLimitBytes"
-              @dirty-change="handleSettingsDirtyChange"
-              @saved="handleSettingsSaved"
-            />
-          </div>
-        </div>
-      </div>
-    </Transition>
-    <Transition name="overlay-fade">
-      <div v-if="currentView === 'labs'" class="fullscreen-overlay">
-        <div class="modal-panel">
-          <button class="overlay-close" @click="navigateTo('home')" :title="t('nav.back')">
-            <i class="i-ri-close-line" />
-          </button>
-          <div class="modal-panel__body">
-            <LabsPage
-              ref="labsPage"
-              :settings="appSettings"
-              @dirty-change="handleLabsDirtyChange"
-              @saved="handleLabsSaved"
-            />
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <ModalOverlay :model-value="currentView === 'settings'" @close="navigateTo('home')">
+      <SettingsPage
+        ref="settingsPage"
+        :settings="appSettings"
+        :game-mode="gameMode"
+        :buffer-usage-bytes="bufferUsageBytes"
+        :buffer-limit-bytes="bufferLimitBytes"
+        @dirty-change="handleSettingsDirtyChange"
+        @saved="handleSettingsSaved"
+      />
+    </ModalOverlay>
+    <ModalOverlay :model-value="currentView === 'labs'" @close="navigateTo('home')">
+      <LabsPage
+        ref="labsPage"
+        :settings="appSettings"
+        @dirty-change="handleLabsDirtyChange"
+        @saved="handleLabsSaved"
+      />
+    </ModalOverlay>
 
     <!-- Dialogs -->
     <UiDialog v-model="showComposerDialog" width="min(46rem, calc(100vw - 1.5rem))">
@@ -691,202 +549,6 @@ watch(
   overflow: auto;
   min-height: 0;
   padding: var(--space-4);
-}
-
-/* ── Detail panel ── */
-
-.detail-panel {
-  flex-shrink: 0;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-panel);
-  max-height: 40vh;
-  display: flex;
-  flex-direction: column;
-  transition: max-height 0.2s ease;
-}
-
-.detail-panel.collapsed {
-  max-height: 3.75rem;
-}
-
-.detail-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  cursor: pointer;
-  user-select: none;
-  border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
-}
-
-.detail-panel.collapsed .detail-panel__header {
-  border-bottom: none;
-}
-
-.detail-panel__title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: 1;
-  min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-main);
-}
-
-.detail-panel__arrow {
-  color: var(--color-accent);
-  flex-shrink: 0;
-}
-
-.detail-panel__filename {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.detail-panel__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-}
-
-.detail-panel__cdn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-}
-
-.detail-panel__cdn .i-ri-flashlight-fill {
-  font-size: 0.8rem;
-}
-
-.detail-panel__body {
-  flex: 1;
-  overflow: auto;
-  min-height: 0;
-}
-
-.detail-panel__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
-  color: var(--color-text-soft);
-  gap: var(--space-2);
-}
-
-.detail-panel__empty i {
-  font-size: 1.5rem;
-}
-
-/* ── Modal overlays ── */
-
-.fullscreen-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
-  overflow: auto;
-  background: var(--surface-overlay-bg);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-}
-
-.modal-panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 64rem;
-  height: calc(100vh - 2 * var(--space-6));
-  background: var(--color-panel);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow:
-    0 8px 32px oklch(0 0 0 / 0.12),
-    0 2px 8px oklch(0 0 0 / 0.08);
-  overflow: hidden;
-}
-
-.modal-panel__body {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: var(--space-4) var(--space-4) 0;
-}
-
-.overlay-close {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 10;
-  width: 2.25rem;
-  height: 2.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-panel);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1.125rem;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.overlay-close:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text-main);
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-active .modal-panel,
-.overlay-fade-leave-active .modal-panel {
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
-}
-
-.overlay-fade-enter-from .modal-panel,
-.overlay-fade-leave-to .modal-panel {
-  transform: scale(0.97);
-  opacity: 0;
-}
-
-@media (max-width: 680px) {
-  .fullscreen-overlay {
-    padding: var(--space-4);
-  }
-
-  .modal-panel {
-    max-height: calc(100vh - 2 * var(--space-4));
-  }
-
-  .modal-panel__body {
-    padding: var(--space-3) var(--space-3) 0;
-  }
 }
 
 /* ── Dialog styles ── */

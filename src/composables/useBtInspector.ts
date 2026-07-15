@@ -30,95 +30,43 @@ export function useBtInspector(taskId: Ref<string | null>) {
 
   const isUpdatingFiles = ref(false);
 
-  /** AbortController to cancel in-flight fetches on taskId change. */
-  let abortController: AbortController | null = null;
-
-  async function fetchFiles() {
+  async function fetchTabData<T>(
+    name: keyof typeof isLoading,
+    fetcher: (id: string) => Promise<T>,
+    onSuccess: (data: T) => void,
+    emptyValue: T,
+  ) {
+    if (!taskId.value) return;
+    isLoading[name] = true;
+    errors[name] = "";
     const id = taskId.value;
-    if (!id) return;
-    isLoading.files = true;
-    errors.files = "";
     try {
-      const result = await getBtFiles(id);
+      const data = await fetcher(id);
+      if (taskId.value === id) onSuccess(data);
+    } catch (e) {
       if (taskId.value === id) {
-        files.value = result;
-      }
-    } catch {
-      if (taskId.value === id) {
-        files.value = [];
-        errors.files = "Failed to fetch file list";
+        onSuccess(emptyValue);
+        errors[name] = String(e);
       }
     } finally {
-      if (taskId.value === id) {
-        isLoading.files = false;
-      }
+      if (taskId.value === id) isLoading[name] = false;
     }
+  }
+
+  async function fetchFiles() {
+    await fetchTabData("files", getBtFiles, (data) => { files.value = data; }, []);
   }
 
   async function fetchPeers() {
-    const id = taskId.value;
-    if (!id) return;
-    isLoading.peers = true;
-    errors.peers = "";
-    try {
-      const result = await getBtPeers(id);
-      if (taskId.value === id) {
-        peers.value = result;
-      }
-    } catch {
-      if (taskId.value === id) {
-        peers.value = [];
-        errors.peers = "Failed to fetch peers";
-      }
-    } finally {
-      if (taskId.value === id) {
-        isLoading.peers = false;
-      }
-    }
+    await fetchTabData("peers", getBtPeers, (data) => { peers.value = data; }, []);
   }
 
   async function fetchTrackers() {
-    const id = taskId.value;
-    if (!id) return;
-    isLoading.trackers = true;
-    errors.trackers = "";
-    try {
-      const result = await getBtTrackers(id);
-      if (taskId.value === id) {
-        trackers.value = result;
-      }
-    } catch {
-      if (taskId.value === id) {
-        trackers.value = [];
-        errors.trackers = "Failed to fetch trackers";
-      }
-    } finally {
-      if (taskId.value === id) {
-        isLoading.trackers = false;
-      }
-    }
+    await fetchTabData("trackers", getBtTrackers, (data) => { trackers.value = data; }, []);
   }
 
   async function fetchPieces() {
-    const id = taskId.value;
-    if (!id) return;
-    isLoading.pieces = true;
-    errors.pieces = "";
-    try {
-      const result = await getBtPieces(id);
-      if (taskId.value === id) {
-        pieces.value = result;
-      }
-    } catch {
-      if (taskId.value === id) {
-        pieces.value = [];
-        errors.pieces = "Failed to fetch pieces";
-      }
-    } finally {
-      if (taskId.value === id) {
-        isLoading.pieces = false;
-      }
-    }
+    await fetchTabData("pieces", getBtPieces, (data) => { pieces.value = data; }, []);
   }
 
   async function toggleFileInclusion(fileIndex: number, currentlyIncluded: boolean) {
@@ -161,10 +109,6 @@ export function useBtInspector(taskId: Ref<string | null>) {
   watch(
     taskId,
     (id) => {
-      // Abort any in-flight requests before starting new ones
-      abortController?.abort();
-      abortController = new AbortController();
-
       if (id) {
         void Promise.all([fetchPeers(), fetchTrackers(), fetchPieces()]);
       } else {

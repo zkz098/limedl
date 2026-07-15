@@ -1,12 +1,12 @@
 use std::time::Duration;
 
 use anyhow::{Context, anyhow};
-use tauri::State;
+use tauri::{Emitter, State};
 
 use super::{
     Aria2RpcServer,
     error::extract_kind_from_anyhow,
-    lock_or_recover,
+    lock,
     manager::AppState,
     protocol::DownloadProtocol,
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
@@ -49,7 +49,7 @@ fn format_anyhow_chain(error: anyhow::Error) -> String {
 /// a two-branch match.
 fn protocol_for_task<'a>(state: &'a AppState, task_id: &TaskId) -> &'a dyn DownloadProtocol {
     match task_id {
-        TaskId::Bt(_) => &*state.torrent_manager,
+        TaskId::Bt(_) => state.bt_backend.as_download_protocol(),
         TaskId::Http(_) => &*state.manager,
     }
 }
@@ -60,6 +60,16 @@ fn action_context(task_id: &TaskId, http: &'static str, bt: &'static str) -> &'s
         TaskId::Http(_) => http,
         TaskId::Bt(_) => bt,
     }
+}
+
+/// Emit a single `download-updated` event for the given snapshot.
+///
+/// Snapshots returned by the protocol layer already have the correct ID
+/// prefix (`http:` for HTTP, `bt:` for BT), so no additional prefixing is
+/// needed here.
+fn emit_snapshot_update(state: &AppState, snapshot: &DownloadSnapshot) {
+    let summary = DownloadSummary::from(snapshot);
+    let _ = state.app_handle.emit("download-updated", &summary);
 }
 
 #[tauri::command]
@@ -85,7 +95,7 @@ pub async fn download_start(
                     Ok(TaskId::make_http(id))
                 }
                 DownloadSourceKind::Torrent => state
-                    .torrent_manager
+                    .bt_backend
                     .start(request)
                     .await
                     .context("启动 BT 下载失败"),
@@ -93,7 +103,21 @@ pub async fn download_start(
         }
         .await,
     );
-    state.emit_all_downloads().await;
+    if let Ok(ref task_id) = result {
+        if task_id.starts_with("bt:") {
+            // BT: use status() to get a snapshot (handles pending & active)
+            if let Ok(snapshot) = state.bt_backend.status(task_id).await {
+                emit_snapshot_update(&state, &snapshot);
+            }
+        } else {
+            // HTTP: strip prefix, query internal manager, re-add prefix
+            let internal_id = task_id.strip_prefix("http:").unwrap_or(task_id);
+            if let Some(mut summary) = state.manager.get_summary(internal_id).await {
+                summary.id = TaskId::make_http(summary.id);
+                let _ = state.app_handle.emit("download-updated", &summary);
+            }
+        }
+    }
     result
 }
 
@@ -113,7 +137,9 @@ pub async fn download_pause(
                 "暂停 BT 下载失败",
             )),
     );
-    state.emit_all_downloads().await;
+    if let Ok(ref snapshot) = result {
+        emit_snapshot_update(&state, snapshot);
+    }
     result
 }
 
@@ -133,7 +159,9 @@ pub async fn download_resume(
                 "恢复 BT 下载失败",
             )),
     );
-    state.emit_all_downloads().await;
+    if let Ok(ref snapshot) = result {
+        emit_snapshot_update(&state, snapshot);
+    }
     result
 }
 
@@ -153,7 +181,9 @@ pub async fn download_cancel(
                 "取消 BT 下载失败",
             )),
     );
-    state.emit_all_downloads().await;
+    // NOTE: do NOT emit snapshot update for cancel — the frontend handles
+    // UI removal via its own removeSummary() call on the command return value.
+    // Emitting here would race with removeSummary and re-add the download.
     result
 }
 
@@ -173,7 +203,8 @@ pub async fn download_remove(
                 "移除 BT 下载失败",
             )),
     );
-    state.emit_all_downloads().await;
+    // NOTE: do NOT emit snapshot update for remove — the frontend handles
+    // UI removal via its own removeSummary() call on the command return value.
     result
 }
 
@@ -193,7 +224,8 @@ pub async fn download_purge(
                 "彻底删除 BT 下载失败",
             )),
     );
-    state.emit_all_downloads().await;
+    // NOTE: do NOT emit snapshot update for purge — the frontend handles
+    // UI removal via its own removeSummary() call on the command return value.
     result
 }
 
@@ -250,7 +282,7 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
                 .collect::<Vec<_>>();
             downloads.extend(
                 state
-                    .torrent_manager
+                    .bt_backend
                     .list()
                     .await
                     .context("读取 BT 下载列表失败")?,
@@ -264,7 +296,7 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
 
 #[tauri::command]
 pub async fn bt_runtime_status(state: State<'_, AppState>) -> CommandResult<BtRuntimeStatus> {
-    Ok(state.torrent_manager.runtime_status())
+    Ok(state.bt_backend.runtime_status())
 }
 
 #[tauri::command]
@@ -291,7 +323,7 @@ pub async fn settings_save(
                 .update_settings(settings)
                 .await
                 .context("保存设置失败")?;
-            state.torrent_manager.update_settings(&saved);
+            state.bt_backend.update_settings(&saved);
 
             // Sync CDN acceleration settings — clear accelerator when disabled
             if !saved.cdn_acceleration.enabled {
@@ -301,17 +333,17 @@ pub async fn settings_save(
             let new_rpc = &saved.aria2_rpc;
             if old_rpc != *new_rpc {
                 // Signal existing RPC server to shut down gracefully
-                if let Some(tx) = lock_or_recover(&state.rpc_shutdown, "rpc_shutdown").take() {
+                if let Some(tx) = lock(&state.rpc_shutdown).take() {
                     let _ = tx.send(true);
                 }
                 if new_rpc.enabled {
                     let (tx, rx) = tokio::sync::watch::channel(false);
                     let (event_tx, _event_rx) = tokio::sync::broadcast::channel(256);
                     state.manager.set_event_tx(event_tx.clone());
-                    state.torrent_manager.set_event_tx(event_tx.clone());
+                    state.bt_backend.set_event_tx(event_tx.clone());
                     let rpc_server = Aria2RpcServer::new(
                         state.manager.clone(),
-                        state.torrent_manager.clone(),
+                        state.bt_backend.clone(),
                         new_rpc,
                         event_tx,
                     );
@@ -320,7 +352,7 @@ pub async fn settings_save(
                             tracing::error!("Aria2 RPC server stopped: {error}");
                         }
                     });
-                    *lock_or_recover(&state.rpc_shutdown, "rpc_shutdown") = Some(tx);
+                    *lock(&state.rpc_shutdown) = Some(tx);
                     tracing::info!("Aria2 RPC 服务器已重启 (port: {})", new_rpc.port);
                 } else {
                     tracing::info!("Aria2 RPC 服务器已停止");
@@ -383,7 +415,7 @@ pub async fn bt_set_speed_limit(
     let task_id = TaskId::parse(&download_id);
     match &task_id {
         TaskId::Bt(_) => {
-            state.torrent_manager.set_speed_limit(
+            state.bt_backend.set_speed_limit(
                 &download_id,
                 download_limit_bps,
                 upload_limit_bps,
@@ -404,7 +436,7 @@ pub async fn bt_preview_torrent(
 ) -> CommandResult<Vec<TorrentFileEntry>> {
     into_command_result(
         state
-            .torrent_manager
+            .bt_backend
             .preview_torrent(&source)
             .await
             .context("预览 BT 种子文件失败"),
@@ -418,7 +450,7 @@ pub async fn bt_get_peers(
 ) -> CommandResult<Vec<BtPeerInfo>> {
     into_command_result(
         state
-            .torrent_manager
+            .bt_backend
             .get_peers(&download_id)
             .context("查询 BT 节点信息失败"),
     )
@@ -431,7 +463,7 @@ pub async fn bt_get_trackers(
 ) -> CommandResult<Vec<BtTrackerInfo>> {
     into_command_result(
         state
-            .torrent_manager
+            .bt_backend
             .get_trackers(&download_id)
             .context("查询 BT 追踪器信息失败"),
     )
@@ -444,7 +476,7 @@ pub async fn bt_get_pieces(
 ) -> CommandResult<Vec<BtPieceInfo>> {
     into_command_result(
         state
-            .torrent_manager
+            .bt_backend
             .get_pieces(&download_id)
             .context("查询 BT 分片信息失败"),
     )
@@ -457,7 +489,7 @@ pub async fn get_bt_files(
 ) -> CommandResult<Vec<BtFileStatus>> {
     into_command_result(
         state
-            .torrent_manager
+            .bt_backend
             .get_torrent_files(&download_id)
             .context("查询 BT 文件列表失败"),
     )
@@ -471,7 +503,7 @@ pub async fn update_bt_files(
 ) -> CommandResult<()> {
     into_command_result(
         state
-            .torrent_manager
+            .bt_backend
             .update_torrent_files(&download_id, included_indices)
             .await
             .context("更新 BT 文件选择失败"),

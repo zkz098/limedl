@@ -15,9 +15,10 @@ use super::{
     error::Result,
     manager::{
         DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS,
-        log_background_error, now_ms, sync_snapshot_with_manifest,
+        log_background_error, sync_snapshot_with_manifest,
     },
     manifest::Manifest,
+    now_ms,
     persistence::persist_manifest_snapshot,
     types::{
         AdaptiveProfile, AppSettings, DownloadState, ProxyMode, SchedulerMode, ThreadMode,
@@ -35,6 +36,10 @@ impl DownloadManager {
                 tokio::select! {
                     _ = tokio::time::sleep(SCHEDULER_TICK) => {}
                     _ = self.rebalance_notify.notified() => {}
+                    _ = self.shutdown_token.cancelled() => {
+                        tracing::info!("DownloadManager scheduler loop shutting down");
+                        break;
+                    }
                 }
 
                 if let Err(error) = self.update_adaptive_targets().await {

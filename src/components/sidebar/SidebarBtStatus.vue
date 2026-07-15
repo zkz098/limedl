@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { formatBytes, formatSpeed } from "../../lib/download-format";
 import { t } from "../../i18n";
 import type { BtRuntimeStatus } from "../../types/download";
+import StatRow from "./StatRow.vue";
 
 const props = defineProps<{
   status: BtRuntimeStatus | null;
@@ -14,10 +15,7 @@ const statusLabel = computed(() =>
   isConnected.value ? t("sidebar.btConnected") : t("sidebar.btDisconnected"),
 );
 const dhtNodesLabel = computed(() => {
-  if (!props.status?.dhtEnabled) {
-    return t("common.disabled");
-  }
-
+  if (!props.status?.dhtEnabled) return t("common.disabled");
   return typeof props.status.dhtNodes === "number"
     ? String(props.status.dhtNodes)
     : t("common.unknown");
@@ -45,34 +43,13 @@ const leechCountLabel = computed(() =>
     </div>
 
     <div class="sidebar-bt__grid">
-      <p>
-        <span>{{ t("sidebar.btDhtNodes") }}</span>
-        <strong>{{ dhtNodesLabel }}</strong>
-      </p>
-      <p>
-        <span>{{ t("sidebar.btUploadSpeed") }}</span>
-        <strong>{{ uploadSpeedLabel }}</strong>
-      </p>
-      <p>
-        <span>{{ t("sidebar.btPeers") }}</span>
-        <strong>{{ peerCountLabel }}</strong>
-      </p>
-      <p>
-        <span>{{ t("sidebar.btTorrents") }}</span>
-        <strong>{{ torrentCountLabel }}</strong>
-      </p>
-      <p>
-        <span>{{ t("sidebar.btUploaded") }}</span>
-        <strong>{{ uploadedLabel }}</strong>
-      </p>
-      <p>
-        <span>{{ t("sidebar.btSeeds") }}</span>
-        <strong>{{ seedCountLabel }}</strong>
-      </p>
-      <p>
-        <span>{{ t("sidebar.btLeeches") }}</span>
-        <strong>{{ leechCountLabel }}</strong>
-      </p>
+      <StatRow :label="t('sidebar.btDhtNodes')" :value="dhtNodesLabel" />
+      <StatRow :label="t('sidebar.btUploadSpeed')" :value="uploadSpeedLabel" />
+      <StatRow :label="t('sidebar.btPeers')" :value="peerCountLabel" />
+      <StatRow :label="t('sidebar.btTorrents')" :value="torrentCountLabel" />
+      <StatRow :label="t('sidebar.btUploaded')" :value="uploadedLabel" />
+      <StatRow :label="t('sidebar.btSeeds')" :value="seedCountLabel" />
+      <StatRow :label="t('sidebar.btLeeches')" :value="leechCountLabel" />
     </div>
   </section>
 </template>
@@ -120,26 +97,5 @@ const leechCountLabel = computed(() =>
 .sidebar-bt__grid {
   display: grid;
   gap: 0.35rem;
-}
-
-.sidebar-bt__grid p {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-
-.sidebar-bt__grid strong {
-  min-width: 0;
-  color: var(--color-heading);
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  text-align: right;
-  overflow-wrap: anywhere;
 }
 </style>

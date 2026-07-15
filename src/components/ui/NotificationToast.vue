@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-
-export interface Notification {
-  id: number;
-  message: string;
-  type: "info" | "success" | "error" | "warning";
-}
+import type { Notification } from "../../types/notification";
 
 const props = defineProps<{
   notifications: Notification[];

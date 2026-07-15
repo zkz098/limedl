@@ -21,8 +21,8 @@ use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
 use super::{
+    bt_backend::BtBackend,
     manager::DownloadManager,
-    torrent::TorrentManager,
     types::{
         Aria2RpcSettings, DownloadState, DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
     },
@@ -99,39 +99,37 @@ pub fn internal_id_to_gid(internal_id: &str) -> String {
 }
 
 async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<String> {
-    // Check cache first (short lock hold)
-    let cached = {
+    // Check cache first
+    {
         let cache = ctx.gid_cache.lock().await;
-        cache.get(gid).cloned()
-    };
-
-    if let Some(id) = cached {
-        return Some(id);
-    }
-
-    // Cache miss — do async work without holding the lock
-    let list = ctx.manager.list().await.ok();
-    let torrent_list = ctx.torrent_manager.list().await.ok();
-
-    // Re-acquire lock and populate cache
-    let mut cache = ctx.gid_cache.lock().await;
-
-    // Populate from HTTP downloads
-    if let Some(ref list) = list {
-        for s in list {
-            let key = internal_id_to_gid(&s.id);
-            cache.entry(key).or_insert_with(|| s.id.clone());
-        }
-    }
-    // Populate from torrent downloads
-    if let Some(ref list) = torrent_list {
-        for s in list {
-            let key = internal_id_to_gid(&s.id);
-            cache.entry(key).or_insert_with(|| s.id.clone());
+        if let Some(id) = cache.get(gid) {
+            return Some(id.clone());
         }
     }
 
-    cache.get(gid).cloned()
+    // Cache miss — scan HTTP downloads stopping at first match
+    if let Ok(list) = ctx.manager.list().await {
+        for s in &list {
+            if internal_id_to_gid(&s.id) == gid {
+                let mut cache = ctx.gid_cache.lock().await;
+                cache.insert(gid.to_string(), s.id.clone());
+                return Some(s.id.clone());
+            }
+        }
+    }
+
+    // Fall back to scanning BT downloads
+    if let Ok(bt_list) = ctx.bt_backend.list().await {
+        for s in &bt_list {
+            if internal_id_to_gid(&s.id) == gid {
+                let mut cache = ctx.gid_cache.lock().await;
+                cache.insert(gid.to_string(), s.id.clone());
+                return Some(s.id.clone());
+            }
+        }
+    }
+
+    None
 }
 
 fn state_to_aria2(state: &DownloadState) -> &'static str {
@@ -211,7 +209,7 @@ fn build_file_list(summary: &DownloadSummary) -> Value {
 
 struct RpcContext {
     manager: Arc<DownloadManager>,
-    torrent_manager: Arc<TorrentManager>,
+    bt_backend: Arc<dyn BtBackend>,
     secret: Option<String>,
     event_tx: broadcast::Sender<String>,
     gid_cache: Mutex<HashMap<String, String>>,
@@ -449,7 +447,7 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
     };
 
     let id = ctx
-        .torrent_manager
+        .bt_backend
         .start(request)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
@@ -457,7 +455,7 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
     // Emit Tauri `download-updated` event so the frontend displays the task
     // immediately. Without this the BT task only appears after librqbit
     // resolves the metadata and the `download-progress` polling loop fires.
-    ctx.torrent_manager.emit_pending_summary(&id);
+    ctx.bt_backend.emit_pending_summary(&id);
 
     let gid = internal_id_to_gid(&id);
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
@@ -562,11 +560,16 @@ async fn handle_tell_status(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    let summary = get_all_summaries(ctx)
-        .await?
-        .into_iter()
-        .find(|s| s.id == internal_id)
-        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+    // O(1) lookup on DownloadManager first (covers all HTTP downloads).
+    let summary = if let Some(s) = ctx.manager.get_summary(&internal_id).await {
+        s
+    } else {
+        // BT downloads require scanning the torrent list.
+        let all = get_all_summaries(ctx).await?;
+        all.into_iter()
+            .find(|s| s.id == internal_id)
+            .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?
+    };
 
     Ok(summary_to_aria2_status(&summary))
 }
@@ -867,7 +870,7 @@ async fn get_all_summaries(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, Jso
         .list()
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
-    if let Ok(bt) = ctx.torrent_manager.list().await {
+    if let Ok(bt) = ctx.bt_backend.list().await {
         all.extend(bt);
     }
     Ok(all)
@@ -882,19 +885,19 @@ async fn rpc_dispatch_action(
     let result: anyhow::Result<()> = match &task_id {
         TaskId::Bt(_) => match action {
             "pause" => ctx
-                .torrent_manager
+                .bt_backend
                 .pause(internal_id)
                 .await
                 .map(|_| ())
                 .map_err(|e| anyhow::anyhow!("{e}")),
             "resume" => ctx
-                .torrent_manager
+                .bt_backend
                 .resume(internal_id)
                 .await
                 .map(|_| ())
                 .map_err(|e| anyhow::anyhow!("{e}")),
             "remove" => ctx
-                .torrent_manager
+                .bt_backend
                 .remove(internal_id)
                 .await
                 .map(|_| ())
@@ -1089,7 +1092,7 @@ pub struct Aria2RpcServer {
 impl Aria2RpcServer {
     pub fn new(
         manager: Arc<DownloadManager>,
-        torrent_manager: Arc<TorrentManager>,
+        bt_backend: Arc<dyn BtBackend>,
         settings: &Aria2RpcSettings,
         event_tx: broadcast::Sender<String>,
     ) -> Self {
@@ -1097,7 +1100,7 @@ impl Aria2RpcServer {
 
         let ctx = Arc::new(RpcContext {
             manager,
-            torrent_manager,
+            bt_backend,
             secret,
             event_tx,
             gid_cache: Mutex::new(HashMap::default()),

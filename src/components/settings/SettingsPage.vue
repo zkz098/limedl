@@ -2,6 +2,7 @@
 import { computed, ref, toRef, watch } from "vue";
 
 import { useI18n } from "../../i18n";
+import { useAsyncGuard } from "../../composables/useAsyncGuard";
 import { useNotification } from "../../composables/useNotification";
 import { pickDirectory } from "../../lib/tauri/dialog-api";
 import { fetchTrackerList, saveAppSettings } from "../../lib/tauri/settings-api";
@@ -108,9 +109,9 @@ const { form, buildSettingsPayload, savedSettingsSnapshot } = useSettingsForm({
 
 // ── State──────────────────────────────────────────────────────────
 
-const isSaving = ref(false);
-const isPickingDirectory = ref(false);
-const isFetchingTrackerList = ref(false);
+const { isBusy: isSaving, run: runSave } = useAsyncGuard();
+const { isBusy: isPickingDirectory, run: runPickDirectory } = useAsyncGuard();
+const { isBusy: isFetchingTrackerList, run: runFetchTrackerList } = useAsyncGuard();
 
 // ── Summaries (from composable)────────────────────────────────────
 
@@ -152,83 +153,65 @@ function changeLanguage(nextLanguage: SupportedLanguage) {
 // ── Actions ───────────────────────────────────────────────────────
 
 async function pickDefaultDownloadDirectory() {
-  if (isPickingDirectory.value) {
-    return;
-  }
-
-  isPickingDirectory.value = true;
-
-  try {
-    const selectedPath = await pickDirectory();
-    if (selectedPath) {
-      form.download.defaultDownloadDir = selectedPath;
+  await runPickDirectory(async () => {
+    try {
+      const selectedPath = await pickDirectory();
+      if (selectedPath) {
+        form.download.defaultDownloadDir = selectedPath;
+      }
+    } catch (error) {
+      notifyError(
+        error instanceof Error ? error.message : t("settings.notifications.chooseDirectoryFailed"),
+      );
     }
-  } catch (error) {
-    notifyError(
-      error instanceof Error ? error.message : t("settings.notifications.chooseDirectoryFailed"),
-    );
-  } finally {
-    isPickingDirectory.value = false;
-  }
+  });
 }
 
 async function updateTrackerListFromUrl() {
-  if (isFetchingTrackerList.value) {
-    return;
-  }
-
-  isFetchingTrackerList.value = true;
-
-  try {
-    form.bt.trackerList = await fetchTrackerList(
-      form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
-    );
-    notifySuccess(
-      t("settings.notifications.trackerListUpdated", {
-        count: trackerListEntries.value.length,
-      }),
-    );
-  } catch (error) {
-    notifyError(
-      error instanceof Error ? error.message : t("settings.notifications.trackerListUpdateFailed"),
-    );
-  } finally {
-    isFetchingTrackerList.value = false;
-  }
+  await runFetchTrackerList(async () => {
+    try {
+      form.bt.trackerList = await fetchTrackerList(
+        form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
+      );
+      notifySuccess(
+        t("settings.notifications.trackerListUpdated", {
+          count: trackerListEntries.value.length,
+        }),
+      );
+    } catch (error) {
+      notifyError(
+        error instanceof Error ? error.message : t("settings.notifications.trackerListUpdateFailed"),
+      );
+    }
+  });
 }
 
 async function persistSettings() {
-  if (isSaving.value) {
-    return false;
-  }
+  return (await runSave(async () => {
+    const persisted = props.settings;
+    const btChanged =
+      persisted != null &&
+      (persisted.bt.dhtEnabled !== form.bt.dhtEnabled ||
+        persisted.bt.trackerList !== form.bt.trackerList);
 
-  isSaving.value = true;
+    try {
+      const saved = await saveAppSettings(buildSettingsPayload());
 
-  const persisted = props.settings;
-  const btChanged =
-    persisted != null &&
-    (persisted.bt.dhtEnabled !== form.bt.dhtEnabled ||
-      persisted.bt.trackerList !== form.bt.trackerList);
+      savedSettingsSnapshot.value = serializeSettings(saved);
+      emit("saved", saved);
+      emit("dirtyChange", false);
+      notifySuccess(t("settings.notifications.saved"));
 
-  try {
-    const saved = await saveAppSettings(buildSettingsPayload());
+      if (btChanged) {
+        notifyInfo(t("settings.notifications.btRestartRequired"), 5000);
+      }
 
-    savedSettingsSnapshot.value = serializeSettings(saved);
-    emit("saved", saved);
-    emit("dirtyChange", false);
-    notifySuccess(t("settings.notifications.saved"));
-
-    if (btChanged) {
-      notifyInfo(t("settings.notifications.btRestartRequired"), 5000);
+      return true;
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : t("settings.notifications.saveFailed"));
+      return false;
     }
-
-    return true;
-  } catch (error) {
-    notifyError(error instanceof Error ? error.message : t("settings.notifications.saveFailed"));
-    return false;
-  } finally {
-    isSaving.value = false;
-  }
+  })) ?? false;
 }
 
 const activeTab = ref("appearance");
@@ -549,34 +532,25 @@ defineExpose({
 /* across SettingsPage and LabsPage to avoid duplication.              */
 /* ────────────────────────────────────────────────────────────────── */
 
-.settings-page .settings-section,
-.labs-page .settings-section {
+.settings-page .settings-section {
   display: grid;
   gap: 1rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-panel);
-  box-shadow: var(--shadow-card);
 }
 
-.settings-page .settings-section__head,
-.labs-page .settings-section__head {
+.settings-page .settings-section__head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.settings-page .settings-section__head h3,
-.labs-page .settings-section__head h3 {
+.settings-page .settings-section__head h3 {
   margin: 0.2rem 0 0;
   color: var(--color-heading);
   font-size: 1rem;
 }
 
-.settings-page .settings-section__icon,
-.labs-page .settings-section__icon {
+.settings-page .settings-section__icon {
   width: 2.25rem;
   height: 2.25rem;
   display: inline-flex;
@@ -588,8 +562,7 @@ defineExpose({
   border: 1px solid var(--color-border);
 }
 
-.settings-page .settings-section__summary,
-.labs-page .settings-section__summary {
+.settings-page .settings-section__summary {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.88rem;

@@ -1,11 +1,6 @@
 import { ref } from "vue";
 import { createGlobalState } from "@vueuse/core";
-
-export interface Notification {
-  id: number;
-  message: string;
-  type: "info" | "success" | "error" | "warning";
-}
+import type { Notification } from "../types/notification";
 
 export const useNotification = createGlobalState(() => {
   let nextId = 0;

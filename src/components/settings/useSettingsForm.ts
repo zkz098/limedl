@@ -55,6 +55,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       defaultUserAgent: DEFAULT_HTTP_USER_AGENT,
     },
     bt: {
+      backend: "rqbit",
       dhtEnabled: true,
       trackerList: "",
       trackerListUrl: DEFAULT_TRACKER_LIST_URL,
@@ -137,6 +138,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         defaultUserAgent: form.download.defaultUserAgent,
       },
       bt: {
+        backend: form.bt.backend,
         dhtEnabled: form.bt.dhtEnabled,
         trackerList: form.bt.trackerList,
         trackerListUrl: form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,

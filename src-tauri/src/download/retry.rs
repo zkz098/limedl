@@ -14,7 +14,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::error::{DownloadError, Result};
 use super::http::{ResponseDisposition, classify_download_response};
-use super::manager::{ManagedDownload, now_ms};
+use super::manager::ManagedDownload;
+use super::now_ms;
 use super::types::DownloadState;
 
 /// Wraps an HTTP request factory with retry logic and exponential backoff.

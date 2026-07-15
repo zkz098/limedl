@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::net::Ipv4Addr;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
@@ -157,7 +158,7 @@ pub(crate) async fn fetch_ranges_from_url(url: &str) -> anyhow::Result<Vec<Ipv4A
 }
 
 pub(crate) async fn get_ip_ranges(
-    cache: &Mutex<IpRangesCache>,
+    cache: Arc<Mutex<IpRangesCache>>,
     cancel: CancellationToken,
 ) -> IpRangesCache {
     // Fast path: cache is valid (<24h, non-empty) — return immediately.
@@ -175,9 +176,9 @@ pub(crate) async fn get_ip_ranges(
             let stale = cached.clone();
             drop(cached);
 
-            // Spawn a best-effort background refresh. Since the cache is borrowed
-            // (&Mutex) we cannot hand ownership to the spawned task; the fetch still
-            // runs but does not update the cache. The stale data is returned immediately.
+            // Spawn a best-effort background refresh using a cloned Arc so the
+            // spawned task can update the cache with fresh data.
+            let cache_clone = cache.clone();
             tokio::spawn(async move {
                 match fetch_cloudflare_ipv4_ranges().await {
                     Ok(ips) => {
@@ -185,6 +186,12 @@ pub(crate) async fn get_ip_ranges(
                             ips_len = ips.len(),
                             "Background Cloudflare IP refresh succeeded"
                         );
+                        let mut cached = cache_clone.lock().await;
+                        *cached = IpRangesCache {
+                            ips,
+                            fetched_at: Instant::now(),
+                            from_fallback: false,
+                        };
                     }
                     Err(e) => {
                         tracing::warn!("Background Cloudflare IP refresh failed: {e}");
@@ -309,19 +316,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_caching_returns_cached_data() {
-        let cache = Mutex::new(IpRangesCache {
+        let cache = Arc::new(Mutex::new(IpRangesCache {
             ips: vec![Ipv4Addr::new(1, 1, 1, 1), Ipv4Addr::new(2, 2, 2, 2)],
             fetched_at: Instant::now(),
             from_fallback: true,
-        });
+        }));
 
-        let first = get_ip_ranges(&cache, CancellationToken::new()).await;
+        let first = get_ip_ranges(Arc::clone(&cache), CancellationToken::new()).await;
         assert_eq!(first.ips.len(), 2);
         assert_eq!(first.ips[0], Ipv4Addr::new(1, 1, 1, 1));
         assert_eq!(first.ips[1], Ipv4Addr::new(2, 2, 2, 2));
         assert!(first.from_fallback);
 
-        let second = get_ip_ranges(&cache, CancellationToken::new()).await;
+        let second = get_ip_ranges(Arc::clone(&cache), CancellationToken::new()).await;
         assert_eq!(second.ips.len(), 2);
         assert_eq!(second.ips[0], Ipv4Addr::new(1, 1, 1, 1));
         assert_eq!(second.ips[1], Ipv4Addr::new(2, 2, 2, 2));
@@ -377,17 +384,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_ip_ranges_cancellation() {
-        let cache = Mutex::new(IpRangesCache {
+        let cache = Arc::new(Mutex::new(IpRangesCache {
             ips: Vec::new(),
             fetched_at: Instant::now(),
             from_fallback: true,
-        });
+        }));
 
         let cancel = CancellationToken::new();
         cancel.cancel();
 
         // With empty cache and cancelled token, must fall back to static ranges
-        let result = get_ip_ranges(&cache, cancel).await;
+        let result = get_ip_ranges(Arc::clone(&cache), cancel).await;
         assert_eq!(
             result.ips.len(),
             45,
@@ -398,14 +405,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_ip_ranges_returns_valid_cache() {
-        let cache = Mutex::new(IpRangesCache {
+        let cache = Arc::new(Mutex::new(IpRangesCache {
             ips: vec![Ipv4Addr::new(10, 0, 0, 1), Ipv4Addr::new(10, 0, 0, 2)],
             fetched_at: Instant::now(),
             from_fallback: false,
-        });
+        }));
 
         // Fresh, non-empty cache must return immediately with cached data
-        let result = get_ip_ranges(&cache, CancellationToken::new()).await;
+        let result = get_ip_ranges(Arc::clone(&cache), CancellationToken::new()).await;
         assert_eq!(result.ips.len(), 2);
         assert_eq!(result.ips[0], Ipv4Addr::new(10, 0, 0, 1));
         assert_eq!(result.ips[1], Ipv4Addr::new(10, 0, 0, 2));

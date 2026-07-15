@@ -6,14 +6,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
-use reqwest::redirect::Policy;
-use reqwest::{Client, Proxy, Url};
+use reqwest::{Client, Url};
 use tokio::net::TcpStream;
 use tokio::task::JoinSet;
 use tokio::time::timeout;
 
 use crate::download::error::{DownloadError, Result};
-use crate::download::types::{AppSettings, ProxyMode, default_http_user_agent};
+use crate::download::settings::configure_client_builder;
+use crate::download::types::{AppSettings, default_http_user_agent};
 
 /// Cloudflare CDN speed test endpoint (~100MB file).
 /// Cloudflare rejects requests for files larger than 99_999_999 bytes with HTTP 403.
@@ -195,12 +195,9 @@ fn build_throughput_client(
         user_agent.to_string()
     };
 
-    let mut builder = Client::builder()
+    let builder = Client::builder()
         .resolve_to_addrs(hostname, &[addr])
-        .tcp_nodelay(true)
         .connect_timeout(Duration::from_secs(5))
-        .read_timeout(Duration::from_secs(15))
-        .user_agent(user_agent)
         .default_headers(reqwest::header::HeaderMap::from_iter([
             (
                 reqwest::header::ACCEPT,
@@ -210,20 +207,11 @@ fn build_throughput_client(
                 reqwest::header::ACCEPT_LANGUAGE,
                 reqwest::header::HeaderValue::from_static("en-US,en;q=0.9"),
             ),
-        ]))
-        .redirect(Policy::limited(10));
+        ]));
 
-    match settings.proxy.mode {
-        ProxyMode::Disabled => {
-            builder = builder.no_proxy();
-        }
-        ProxyMode::System => {}
-        ProxyMode::Manual => {
-            let proxy = Proxy::all(&settings.proxy.manual_url)
-                .map_err(|e| DownloadError::InvalidProxy(e.to_string()))?;
-            builder = builder.proxy(proxy);
-        }
-    }
+    let mut builder = configure_client_builder(builder, settings)?;
+    // Override user_agent with our custom fallback logic
+    builder = builder.user_agent(user_agent);
 
     builder.build().map_err(DownloadError::from)
 }

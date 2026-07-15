@@ -94,12 +94,12 @@ impl CdnAccelerator {
             *this.phase.write().await = Some(CdnTestPhase::FetchingRanges);
             *this.phase_progress.write().await = (0, 0);
 
-            let ip_cache = tokio::sync::Mutex::new(IpRangesCache {
+            let ip_cache = Arc::new(tokio::sync::Mutex::new(IpRangesCache {
                 ips: Vec::new(),
                 fetched_at: Instant::now(),
                 from_fallback: true,
-            });
-            let range_data = get_ip_ranges(&ip_cache, token.child_token()).await;
+            }));
+            let range_data = get_ip_ranges(ip_cache, token.child_token()).await;
 
             // Check cancellation before starting the heavy work.
             if token.is_cancelled() {

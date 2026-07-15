@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import UiCard from "../ui/UiCard.vue";
-import UiInput from "../ui/UiInput.vue";
+import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings, LogLevel } from "../../types/settings";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 defineProps<{
   draft: AppSettings;
@@ -14,38 +15,23 @@ defineProps<{
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="settings-section__head">
-        <div>
-          <h3>{{ t("settings.loggingTitle") }}</h3>
-        </div>
-        <span class="settings-section__icon i-ri-file-list-3-line" aria-hidden="true" />
-      </div>
-    </template>
-
-    <p class="settings-section__summary">{{ loggingSummary }}</p>
-
+  <SettingsSection :title="t('settings.loggingTitle')" icon="i-ri-file-list-3-line" :summary="loggingSummary">
     <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.loggingEnabled") }}</span>
+      <SettingsField :label="t('settings.loggingEnabled')">
         <UiSwitch v-model="draft.logging.enabled" :label="t('settings.loggingToggleText')" />
-      </label>
+      </SettingsField>
 
-      <label class="settings-field">
-        <span class="settings-field__label">{{ t("settings.loggingLevel") }}</span>
+      <SettingsField :label="t('settings.loggingLevel')">
         <UiSelect v-model="draft.logging.level" :options="logLevelOptions" />
-      </label>
+      </SettingsField>
 
-      <label class="settings-field settings-field--wide">
-        <span class="settings-field__label">{{ t("settings.loggingPath") }}</span>
-        <UiInput
+      <SettingsField wide :label="t('settings.loggingPath')" :hint="t('settings.loggingPathHint')">
+        <UiTextField
           v-model="draft.logging.filePath"
           type="text"
           :placeholder="t('settings.loggingPathPlaceholder')"
         />
-        <p class="settings-field__hint">{{ t("settings.loggingPathHint") }}</p>
-      </label>
+      </SettingsField>
     </div>
-  </UiCard>
+  </SettingsSection>
 </template>

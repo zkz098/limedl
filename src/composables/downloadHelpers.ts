@@ -2,7 +2,6 @@ import { t } from "../i18n";
 import type { DownloadSnapshot, DownloadState, DownloadSummary } from "../types/download";
 
 export const terminalStates: DownloadState[] = ["completed", "failed", "canceled"];
-export const autoRefreshIntervalMs = 1500;
 
 export function canPauseState(state?: DownloadState | null) {
   return Boolean(state && ["queued", "downloading", "retrying", "verifying"].includes(state));
@@ -121,4 +120,11 @@ export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     downloadLimitBps,
     uploadLimitBps,
   };
+}
+
+export function toneForState(state: string): "info" | "success" | "warning" | "danger" {
+  if (state === "completed") return "success";
+  if (state === "failed" || state === "canceled") return "danger";
+  if (state === "queued" || state === "paused") return "warning";
+  return "info";
 }

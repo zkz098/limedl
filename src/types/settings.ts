@@ -54,7 +54,11 @@ export interface DownloadDefaultsSettings {
   defaultUserAgent: string;
 }
 
+export type BtBackendKind = "rqbit" | "own";
+
 export interface BtSettings {
+  /** BT engine implementation to use. */
+  backend: BtBackendKind;
   pauseUploadWhenLimitReached: boolean;
   uploadLimitBytes: number;
   uploadRatioLimit: number;

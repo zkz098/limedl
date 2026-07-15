@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import UiCard from "../ui/UiCard.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { SupportedLanguage } from "../../i18n/resources";
@@ -9,6 +8,8 @@ import type {
   ColorMode,
   ThemeColor,
 } from "../../types/settings";
+import SettingsField from "./SettingsField.vue";
+import SettingsSection from "./SettingsSection.vue";
 
 defineProps<{
   draft: AppSettings;
@@ -26,40 +27,27 @@ const emit = defineEmits<{
 
 <template>
   <div class="appearance-panel">
-    <UiCard>
-      <template #header>
-        <div class="settings-section__head">
-          <h3>{{ t("settings.languageTitle") }}</h3>
-          <span class="settings-section__icon i-ri-translate-2" aria-hidden="true" />
-        </div>
-      </template>
-
+    <SettingsSection
+      :title="t('settings.languageTitle')"
+      icon="i-ri-translate-2"
+    >
       <UiSelect
         :model-value="language"
         :options="languageOptions"
         @update:model-value="emit('changeLanguage', $event as SupportedLanguage)"
       />
-    </UiCard>
+    </SettingsSection>
 
-    <UiCard>
-      <template #header>
-        <div class="settings-section__head">
-          <div>
-            <h3>{{ t("settings.appearanceTitle") }}</h3>
-          </div>
-          <span class="settings-section__icon i-ri-palette-line" aria-hidden="true" />
-        </div>
-      </template>
-
+    <SettingsSection
+      :title="t('settings.appearanceTitle')"
+      icon="i-ri-palette-line"
+    >
       <div class="settings-grid">
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.colorMode") }}</span>
+        <SettingsField :label="t('settings.colorMode')" :hint="t('settings.colorModeHint')">
           <UiSelect v-model="draft.appearance.colorMode" :options="colorModeOptions" />
-          <p class="settings-field__hint">{{ t("settings.colorModeHint") }}</p>
-        </label>
+        </SettingsField>
 
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.themeColor") }}</span>
+        <SettingsField :label="t('settings.themeColor')">
           <div class="theme-color-options">
             <button
               v-for="color in ['amber', 'sky', 'lime'] as ThemeColor[]"
@@ -80,57 +68,39 @@ const emit = defineEmits<{
               />
             </button>
           </div>
-        </label>
+        </SettingsField>
 
-        <label class="settings-field">
-          <span class="settings-field__label">{{ t("settings.backgroundOpacity") }}</span>
+        <SettingsField :label="t('settings.backgroundOpacity')" :hint="t('settings.backgroundOpacityHint')">
           <UiSelect
             v-model="draft.appearance.backgroundOpacity"
             :options="backgroundOpacityOptions"
           />
-          <p class="settings-field__hint">{{ t("settings.backgroundOpacityHint") }}</p>
-        </label>
+        </SettingsField>
       </div>
-    </UiCard>
+    </SettingsSection>
 
-    <UiCard>
-      <template #header>
-        <div class="settings-section__head">
-          <div>
-            <h3>{{ t("settings.infoPanelTitle") }}</h3>
-          </div>
-          <span class="settings-section__icon i-ri-information-line" aria-hidden="true" />
-        </div>
-      </template>
-
+    <SettingsSection
+      :title="t('settings.infoPanelTitle')"
+      icon="i-ri-information-line"
+    >
       <div class="settings-grid">
-        <UiSwitch
-          v-model="draft.appearance.showDetailInfo"
-          :label="t('settings.detailInfoPanel')"
-        />
-        <p class="settings-field__hint">{{ t("settings.detailInfoHint") }}</p>
+        <SettingsField :label="t('settings.detailInfoPanel')" :hint="t('settings.detailInfoHint')">
+          <UiSwitch v-model="draft.appearance.showDetailInfo" />
+        </SettingsField>
       </div>
-    </UiCard>
+    </SettingsSection>
 
-    <UiCard>
-      <template #header>
-        <div class="settings-section__head">
-          <div>
-            <h3>{{ t("settings.notificationSettings.title") }}</h3>
-          </div>
-          <span class="settings-section__icon i-ri-notification-3-line" aria-hidden="true" />
-        </div>
-      </template>
-
-      <p class="settings-section__summary">{{ t("settings.notificationSettings.description") }}</p>
-
+    <SettingsSection
+      :title="t('settings.notificationSettings.title')"
+      icon="i-ri-notification-3-line"
+      :summary="t('settings.notificationSettings.description')"
+    >
       <div class="settings-grid">
-        <UiSwitch
-          v-model="draft.notifications.enabled"
-          :label="t('settings.notificationSettings.toggleLabel')"
-        />
+        <SettingsField :label="t('settings.notificationSettings.toggleLabel')">
+          <UiSwitch v-model="draft.notifications.enabled" />
+        </SettingsField>
       </div>
-    </UiCard>
+    </SettingsSection>
   </div>
 </template>
 

@@ -16,8 +16,9 @@ use anyhow::{Context, Result};
 use super::{
     aimd::AimdState,
     database::{self, Database},
-    manager::{DownloadCore, DownloadManager, ManagedDownload, now_ms},
+    manager::{DownloadCore, DownloadManager, ManagedDownload},
     manifest::{ChunkManifest, snapshot_from_manifest},
+    now_ms,
     types::DownloadState,
 };
 
@@ -31,7 +32,7 @@ impl DownloadManager {
     pub(crate) fn load_downloads_from_db(&self) -> Result<()> {
         let manifests = self
             .db
-            .list_downloads()
+            .list_download_headers()
             .context("failed to load downloads from database")?;
 
         for mut manifest in manifests {
@@ -54,6 +55,20 @@ impl DownloadManager {
                 manifest.connection_count = 0;
                 manifest.allocated_thread_count = Some(0);
                 manifest.updated_at_ms = now_ms();
+            }
+
+            // Lazy chunk loading: only load chunks for non-terminal downloads.
+            // Completed / Failed / Canceled downloads don't need chunks at startup;
+            // they'll be loaded on-demand if the user resumes or inspects them.
+            let needs_chunks = !matches!(
+                manifest.state,
+                DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+            );
+            if needs_chunks {
+                manifest.chunks = self
+                    .db
+                    .load_chunks(&manifest.id)
+                    .unwrap_or_default();
             }
 
             let snapshot = snapshot_from_manifest(&manifest);

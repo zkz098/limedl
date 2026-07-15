@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { CdnAccelerationSettings } from "../types/settings";
-import type { CdnDetail, SpeedTestCandidate, CdnTestProgress } from "../lib/tauri/cdn-api";
+import type { CdnDetail, CdnTestProgress, SpeedTestCandidate } from "../types/cdn";
 
 describe("CdnAccelerationSettings", () => {
   it("validates default shape", () => {

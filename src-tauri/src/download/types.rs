@@ -33,6 +33,16 @@ pub enum DownloadState {
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+pub enum BtBackendKind {
+    /// librqbit-based backend (current default, fully functional).
+    #[default]
+    Rqbit,
+    /// Self-owned BT backend (work-in-progress, not yet implemented).
+    Own,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum BtUploadStatus {
     #[default]
     Idle,
@@ -541,6 +551,9 @@ pub struct BtPortRange {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {
+    /// Which BT engine implementation to use.
+    #[serde(default)]
+    pub backend: BtBackendKind,
     #[serde(default = "default_true")]
     pub dht_enabled: bool,
     #[serde(default)]
@@ -559,6 +572,7 @@ pub struct BtSettings {
 impl Default for BtSettings {
     fn default() -> Self {
         Self {
+            backend: BtBackendKind::default(),
             dht_enabled: true,
             tracker_list: String::new(),
             tracker_list_url: default_tracker_list_url(),

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use foldhash::HashMap;
 use parking_lot::Mutex;
 
 use anyhow::{Context, Result};
@@ -312,6 +313,24 @@ fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest> {
     })
 }
 
+// ── Compatibility helpers ────────────────────────────────────────
+
+/// Check whether a table has a given column by querying PRAGMA table_info.
+fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+    // SAFETY: `table` is always a hardcoded literal ("downloads"), never user input.
+    // If this function is ever made generic over table names, the format! must be
+    // replaced with a parameterized query or a whitelist check.
+    let mut stmt = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .context("failed to query table info")?;
+    let exists = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .context("failed to map column names")?
+        .filter_map(|r| r.ok())
+        .any(|name| name == column);
+    Ok(exists)
+}
+
 // ── Schema ───────────────────────────────────────────────────────
 
 const CREATE_TABLES_SQL: &str = "
@@ -342,11 +361,7 @@ CREATE TABLE IF NOT EXISTS downloads (
     checksum TEXT,
     error TEXT,
     created_at_ms INTEGER NOT NULL,
-    updated_at_ms INTEGER NOT NULL,
-    chunk_size INTEGER NOT NULL DEFAULT 4194304,
-    mirror_url TEXT,
-    mirror_urls TEXT NOT NULL DEFAULT '[]',
-    current_mirror_index INTEGER NOT NULL DEFAULT 0
+    updated_at_ms INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS chunks (
@@ -362,48 +377,149 @@ CREATE TABLE IF NOT EXISTS chunks (
 );
 ";
 
+// ── Schema migrations ────────────────────────────────────────────
+
+struct Migration {
+    version: u32,
+    name: &'static str,
+    up: fn(&Connection) -> Result<()>,
+}
+
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        name: "initial_schema",
+        up: |conn| {
+            conn.execute_batch(CREATE_TABLES_SQL)
+                .context("failed to create initial schema")?;
+            Ok(())
+        },
+    },
+    Migration {
+        version: 2,
+        name: "add_chunk_size",
+        up: |conn| {
+            conn.execute(
+                "ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304",
+                [],
+            ).context("failed to add chunk_size column")?;
+            Ok(())
+        },
+    },
+    Migration {
+        version: 3,
+        name: "add_mirror_columns",
+        up: |conn| {
+            conn.execute(
+                "ALTER TABLE downloads ADD COLUMN mirror_url TEXT",
+                [],
+            ).context("failed to add mirror_url column")?;
+            conn.execute(
+                "ALTER TABLE downloads ADD COLUMN mirror_urls TEXT NOT NULL DEFAULT '[]'",
+                [],
+            ).context("failed to add mirror_urls column")?;
+            conn.execute(
+                "ALTER TABLE downloads ADD COLUMN current_mirror_index INTEGER NOT NULL DEFAULT 0",
+                [],
+            ).context("failed to add current_mirror_index column")?;
+            Ok(())
+        },
+    },
+    Migration {
+        version: 4,
+        name: "cleanup_sftp_tasks",
+        up: |conn| {
+            // One-time cleanup: remove SFTP download entries after protocol removal.
+            conn.execute("DELETE FROM downloads WHERE id LIKE 'sftp:%'", [])
+                .context("failed to clean up SFTP tasks")?;
+            Ok(())
+        },
+    },
+    Migration {
+        version: 5,
+        name: "add_business_indexes",
+        up: |conn| {
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_downloads_state ON downloads(state)",
+                [],
+            ).context("failed to create idx_downloads_state")?;
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_downloads_created ON downloads(created_at_ms DESC)",
+                [],
+            ).context("failed to create idx_downloads_created")?;
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_chunks_claimed ON chunks(claimed_by) WHERE claimed_by IS NOT NULL",
+                [],
+            ).context("failed to create idx_chunks_claimed")?;
+            Ok(())
+        },
+    },
+];
+
 // ── Database impl ────────────────────────────────────────────────
 
 impl Database {
     /// Open (or create) the SQLite database at `path`.
     ///
-    /// Enables WAL mode and foreign keys, then ensures the schema exists.
+    /// Enables WAL mode, foreign keys, and performance PRAGMAs,
+    /// then runs schema migrations.
     pub(crate) fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)
             .with_context(|| format!("failed to open database at {}", path.display()))?;
 
+        // ── PRAGMA configuration ─────────────────────────────────
         conn.execute_batch("PRAGMA journal_mode = WAL;")
             .context("failed to enable WAL mode")?;
         conn.execute_batch("PRAGMA wal_autocheckpoint = 4096;")
             .context("failed to set WAL auto-checkpoint")?;
         conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
-        conn.execute_batch(CREATE_TABLES_SQL)
-            .context("failed to create tables")?;
+        conn.execute_batch("PRAGMA busy_timeout = 5000;")
+            .context("failed to set busy timeout")?;
+        conn.execute_batch("PRAGMA synchronous = NORMAL;")
+            .context("failed to set synchronous mode")?;
+        conn.execute_batch("PRAGMA cache_size = -8000;")
+            .context("failed to set cache size")?;
 
-        // Backfill chunk_size for pre-existing rows; ignore error if column already exists.
-        let _ = conn.execute(
-            "ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304",
-            [],
-        );
+        // ── Schema migrations ────────────────────────────────────
+        let mut current_version: u32 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .context("failed to read schema version")?;
 
-        // Backfill mirror columns for pre-existing rows (GitHub mirror feature).
-        let _ = conn.execute(
-            "ALTER TABLE downloads ADD COLUMN mirror_url TEXT",
-            [],
-        );
-        let _ = conn.execute(
-            "ALTER TABLE downloads ADD COLUMN mirror_urls TEXT NOT NULL DEFAULT '[]'",
-            [],
-        );
-        let _ = conn.execute(
-            "ALTER TABLE downloads ADD COLUMN current_mirror_index INTEGER NOT NULL DEFAULT 0",
-            [],
-        );
+        // Compatibility: detect columns already backfilled by the old let _ = code
+        // (which never set user_version), so existing databases don't fail migrations.
+        if current_version < 4 {
+            if table_has_column(&conn, "downloads", "chunk_size")? {
+                conn.pragma_update(None, "user_version", 2)?;
+                current_version = 2;
+            }
+            if table_has_column(&conn, "downloads", "mirror_urls")? {
+                conn.pragma_update(None, "user_version", 3)?;
+                current_version = 3;
+            }
+        }
 
-        // Remove any SFTP download entries whose IDs start with "sftp:"
-        // after the SFTP protocol support was removed.
-        let _ = conn.execute("DELETE FROM downloads WHERE id LIKE 'sftp:%'", []);
+        for migration in MIGRATIONS.iter().filter(|m| m.version > current_version) {
+            tracing::info!(
+                "Running migration v{}: {}",
+                migration.version,
+                migration.name
+            );
+            (migration.up)(&conn)
+                .with_context(|| {
+                    format!(
+                        "migration v{} ({}) failed",
+                        migration.version, migration.name
+                    )
+                })?;
+            conn.pragma_update(None, "user_version", migration.version)
+                .with_context(|| {
+                    format!(
+                        "failed to update schema version to {}",
+                        migration.version
+                    )
+                })?;
+        }
 
         Ok(Self {
             conn: Mutex::new(conn),
@@ -412,7 +528,7 @@ impl Database {
 
     /// Create an in-memory SQLite database for testing.
     ///
-    /// Enables foreign keys and runs the CREATE TABLE statements.
+    /// Enables foreign keys and busy timeout, then runs all migrations.
     /// Does NOT enable WAL mode (unnecessary for in-memory single-connection tests
     /// and can cause "database is locked" errors).
     #[cfg(test)]
@@ -421,8 +537,15 @@ impl Database {
             .context("failed to open in-memory database")?;
         conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
-        conn.execute_batch(CREATE_TABLES_SQL)
-            .context("failed to create tables")?;
+        conn.execute_batch("PRAGMA busy_timeout = 5000;")
+            .context("failed to set busy timeout")?;
+        // Run all migrations (no WAL for in-memory — causes "database is locked" errors)
+        for migration in MIGRATIONS {
+            (migration.up)(&conn)
+                .with_context(|| format!("test migration v{} failed", migration.version))?;
+        }
+        conn.pragma_update(None, "user_version", MIGRATIONS.last().unwrap().version)
+            .context("failed to set schema version")?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -434,34 +557,124 @@ impl Database {
 
     // ── download CRUD ────────────────────────────────────────
 
-    /// Insert a new download (or replace if the id already exists).
-    /// Also inserts all chunks.
+    /// Insert a new download (or update if the id already exists).
+    ///
+    /// For new downloads (first insert), all chunks are written via
+    /// [`replace_chunks_inner`].  For existing downloads, the 31-column
+    /// download row is updated via `UPDATE` (avoiding FK CASCADE on chunks),
+    /// and only **dirty** chunks are upserted — the 300 ms persist cycle
+    /// already keeps non-dirty chunks up to date, so re-writing them all
+    /// on every state transition would be wasteful I/O.
     pub(crate) fn insert_download(&self, manifest: &Manifest) -> Result<()> {
         let conn = self.lock_conn();
 
-        let params = manifest_to_row(manifest);
-        conn.execute(
-            "INSERT OR REPLACE INTO downloads (
-                id, url, final_url, user_agent, destination_dir, file_name,
-                file_name_locked, destination_path, temp_path, total_bytes,
-                downloaded_bytes, supports_ranges, connection_count, thread_mode,
-                requested_thread_count, desired_thread_count, allocated_thread_count,
-                adaptive_profile_snapshot, thread_note, etag, last_modified,
-                state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
-                chunk_size, mirror_url, mirror_urls, current_mirror_index
-            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,
-                      ?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,
-                      ?22,?23,?24,?25,?26,?27,?28,?29,?30,?31)",
-            rusqlite::params_from_iter(params),
-        )
-        .with_context(|| format!("failed to insert download {}", manifest.id))?;
+        // ── Is this a new download or an update to an existing one? ──
+        let is_new: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM downloads WHERE id = ?1",
+                params![manifest.id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|count| count == 0)
+            .unwrap_or(true); // query failure → safe to treat as new
 
-        self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
+        if is_new {
+            // ── New download: INSERT + full chunk write ────────────
+            let params = manifest_to_row(manifest);
+            conn.execute(
+                "INSERT INTO downloads (
+                    id, url, final_url, user_agent, destination_dir, file_name,
+                    file_name_locked, destination_path, temp_path, total_bytes,
+                    downloaded_bytes, supports_ranges, connection_count, thread_mode,
+                    requested_thread_count, desired_thread_count, allocated_thread_count,
+                    adaptive_profile_snapshot, thread_note, etag, last_modified,
+                    state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
+                    chunk_size, mirror_url, mirror_urls, current_mirror_index
+                ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,
+                          ?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,
+                          ?22,?23,?24,?25,?26,?27,?28,?29,?30,?31)",
+                rusqlite::params_from_iter(params),
+            )
+            .with_context(|| format!("failed to insert download {}", manifest.id))?;
+
+            if !manifest.chunks.is_empty() {
+                self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
+            }
+        } else {
+            // ── Existing download: UPDATE (avoids FK CASCADE on chunks)
+            //    + incremental dirty chunk upsert, atomic in a single
+            //    transaction ────────────────────────────────────────────
+            conn.execute_batch("BEGIN IMMEDIATE")
+                .context("failed to begin transaction")?;
+
+            let result = (|| -> Result<()> {
+                let mut params = manifest_to_row(manifest);
+                let id_value = params.remove(0); // id is first in manifest_to_row
+                params.push(id_value); // append for WHERE clause
+
+                conn.execute(
+                    "UPDATE downloads SET
+                        url = ?1, final_url = ?2, user_agent = ?3, destination_dir = ?4,
+                        file_name = ?5, file_name_locked = ?6, destination_path = ?7,
+                        temp_path = ?8, total_bytes = ?9, downloaded_bytes = ?10,
+                        supports_ranges = ?11, connection_count = ?12, thread_mode = ?13,
+                        requested_thread_count = ?14, desired_thread_count = ?15,
+                        allocated_thread_count = ?16, adaptive_profile_snapshot = ?17,
+                        thread_note = ?18, etag = ?19, last_modified = ?20,
+                        state = ?21, checksum_mode = ?22, checksum = ?23, error = ?24,
+                        created_at_ms = ?25, updated_at_ms = ?26, chunk_size = ?27,
+                        mirror_url = ?28, mirror_urls = ?29, current_mirror_index = ?30
+                     WHERE id = ?31",
+                    rusqlite::params_from_iter(params),
+                )
+                .with_context(|| format!("failed to update download {}", manifest.id))?;
+
+                // Only upsert chunks whose dirty flag is set.
+                if !manifest.chunks.is_empty() {
+                    let dirty_chunks: Vec<&ChunkManifest> =
+                        manifest.chunks.iter().filter(|c| c.dirty).collect();
+                    if !dirty_chunks.is_empty() {
+                        let mut stmt = conn
+                            .prepare(
+                                "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
+                                         downloaded, completed, claimed_by)
+                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                            )
+                            .context("failed to prepare chunk upsert")?;
+                        for chunk in dirty_chunks {
+                            stmt.execute(rusqlite::params_from_iter(chunk_to_params(
+                                &manifest.id,
+                                chunk,
+                            )))
+                            .context("failed to upsert chunk")?;
+                        }
+                    }
+                }
+
+                Ok(())
+            })();
+
+            match result {
+                Ok(()) => {
+                    conn.execute_batch("COMMIT")
+                        .context("failed to commit transaction")?;
+                }
+                Err(e) => {
+                    let _ = conn.execute_batch("ROLLBACK");
+                    return Err(e);
+                }
+            }
+        }
 
         Ok(())
     }
 
-    /// Full update of all download fields and chunks.
+    /// Full persist escape hatch — writes all fields and replaces all chunks.
+    ///
+    /// Unlike [`insert_download`] (which does incremental dirty-chunk upserts for
+    /// existing downloads), this method unconditionally deletes and re-inserts
+    /// every chunk.  Use sparingly — only when a complete chunk replacement is
+    /// required (e.g. the test helper).
     #[allow(dead_code)]
     pub(crate) fn update_download(&self, manifest: &Manifest) -> Result<()> {
         let conn = self.lock_conn();
@@ -612,13 +825,46 @@ impl Database {
             .collect::<std::result::Result<Vec<_>, _>>()
             .context("failed to collect chunks")?;
 
+        // Build a lookup map: download_id → Vec<ChunkManifest>
+        let mut chunk_map: HashMap<String, Vec<ChunkManifest>> = HashMap::default();
         for (download_id, chunk) in all_chunks {
-            if let Some(manifest) = manifests.iter_mut().find(|m| m.id == download_id) {
-                manifest.chunks.push(chunk);
+            chunk_map.entry(download_id).or_default().push(chunk);
+        }
+
+        // Assign chunks to manifests in O(1) per manifest
+        for manifest in &mut manifests {
+            if let Some(chunks) = chunk_map.remove(&manifest.id) {
+                manifest.chunks = chunks;
             }
         }
 
         Ok(manifests)
+    }
+
+    /// Return all download manifests WITHOUT chunks populated.
+    ///
+    /// Used at startup for fast loading; chunks are loaded on-demand via
+    /// [`load_chunks`] for non-terminal downloads only.
+    pub(crate) fn list_download_headers(&self) -> Result<Vec<Manifest>> {
+        let conn = self.lock_conn();
+
+        let mut stmt = conn
+            .prepare("SELECT * FROM downloads ORDER BY created_at_ms DESC")
+            .context("failed to prepare list_download_headers query")?;
+
+        let manifests: Vec<Manifest> = stmt
+            .query_map([], row_to_manifest)
+            .context("failed to map download rows")?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .context("failed to collect downloads")?;
+
+        Ok(manifests)
+    }
+
+    /// Load chunks for a single download on demand (lazy loading).
+    pub(crate) fn load_chunks(&self, download_id: &str) -> Result<Vec<ChunkManifest>> {
+        let conn = self.lock_conn();
+        self.fetch_chunks_inner(&conn, download_id)
     }
 
     /// Total number of downloads.
@@ -957,7 +1203,7 @@ mod tests {
 
     #[timeout(30_000)]
     #[test]
-    fn insert_duplicate_id_replaces() {
+    fn insert_existing_incremental_chunks() {
         let db = Database::open_in_memory().unwrap();
 
         // Insert original with 2 chunks
@@ -985,24 +1231,34 @@ mod tests {
         db.insert_download(&orig).unwrap();
         assert_eq!(db.count_downloads().unwrap(), 1);
 
-        // Replace with 1 chunk and different url / file_name
+        // Update metadata + upsert only the dirty chunk (index 0).
+        // Chunk 1 is kept from the original insert (non-dirty, unchanged).
         let mut replacement = new_test_manifest("dup", "https://b.com/replaced", "replaced.txt");
-        replacement.chunks = vec![ChunkManifest {
-            index: 0,
-            start: 0,
-            end: 199,
-            downloaded: 100,
-            completed: false,
-            claimed_by: None,
-            dirty: false,
-        }];
+        replacement.chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 199,
+                downloaded: 100,
+                completed: false,
+                claimed_by: None,
+                dirty: true, // only this chunk gets upserted
+            },
+            // chunk 1 is absent from the manifest — it stays in the DB from
+            // the original insert because we do not DELETE all chunks.
+        ];
         db.insert_download(&replacement).unwrap();
 
         let loaded = db.get_download("dup").unwrap().expect("should exist");
         assert_eq!(loaded.url, "https://b.com/replaced");
         assert_eq!(loaded.file_name, "replaced.txt");
-        assert_eq!(loaded.chunks.len(), 1);
+        // Both original chunks remain; only chunk 0 was upserted with new values.
+        assert_eq!(loaded.chunks.len(), 2);
         assert_eq!(loaded.chunks[0].downloaded, 100);
+        assert_eq!(loaded.chunks[0].end, 199);
+        // Chunk 1 is unchanged from the original insert.
+        assert_eq!(loaded.chunks[1].downloaded, 0);
+        assert_eq!(loaded.chunks[1].end, 999);
     }
 
     #[timeout(30_000)]
@@ -1275,5 +1531,129 @@ mod tests {
         let loaded = db.get_download("claim-none").unwrap().expect("should exist");
         assert_eq!(loaded.chunks.len(), 1);
         assert!(loaded.chunks[0].claimed_by.is_none());
+    }
+
+    // ── Follow-up 2: new tests ───────────────────────────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn list_download_headers_returns_no_chunks() {
+        let db = Database::open_in_memory().unwrap();
+
+        let mut m = new_test_manifest("hdr", "https://example.com/hdr", "header.bin");
+        m.chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 99,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 100,
+                end: 199,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 2,
+                start: 200,
+                end: 299,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        db.insert_download(&m).unwrap();
+
+        let headers = db.list_download_headers().unwrap();
+        assert_eq!(headers.len(), 1);
+        assert!(headers[0].chunks.is_empty(), "chunks should not be populated");
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn load_chunks_returns_chunks_on_demand() {
+        let db = Database::open_in_memory().unwrap();
+
+        let mut m = new_test_manifest("chk-id", "https://example.com/chk", "chunk.bin");
+        m.chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 499,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 500,
+                end: 999,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        db.insert_download(&m).unwrap();
+
+        let chunks = db.load_chunks("chk-id").unwrap();
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks[0].index, 0);
+        assert_eq!(chunks[0].start, 0);
+        assert_eq!(chunks[0].end, 499);
+        assert_eq!(chunks[1].index, 1);
+        assert_eq!(chunks[1].start, 500);
+        assert_eq!(chunks[1].end, 999);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn load_chunks_nonexistent_returns_empty() {
+        let db = Database::open_in_memory().unwrap();
+        let chunks = db.load_chunks("no-such-download").unwrap();
+        assert!(chunks.is_empty());
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn table_has_column_detects_existing_column() {
+        let db = Database::open_in_memory().unwrap();
+        let conn = db.lock_conn();
+
+        // Verify the backfilled columns exist after migration
+        let mut stmt = conn
+            .prepare("PRAGMA table_info(downloads)")
+            .unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert!(
+            columns.contains(&"chunk_size".to_string()),
+            "chunk_size column should exist"
+        );
+        assert!(
+            columns.contains(&"mirror_urls".to_string()),
+            "mirror_urls column should exist"
+        );
+        assert!(
+            columns.contains(&"mirror_url".to_string()),
+            "mirror_url column should exist"
+        );
+        assert!(
+            columns.contains(&"current_mirror_index".to_string()),
+            "current_mirror_index column should exist"
+        );
     }
 }
