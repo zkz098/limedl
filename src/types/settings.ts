@@ -54,7 +54,7 @@ export interface DownloadDefaultsSettings {
   defaultUserAgent: string;
 }
 
-export type BtBackendKind = "rqbit" | "own";
+export type BtBackendKind = "rqbit" | "irontide";
 
 export interface BtSettings {
   /** BT engine implementation to use. */

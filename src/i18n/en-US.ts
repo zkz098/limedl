@@ -416,8 +416,8 @@ const enUS = {
       btUploadSpeedLimitHint: "0 = unlimited",
       btBackendLabel: "BT Engine",
       btBackendRqbit: "rqbit (default)",
-      btBackendOwn: "Own (WIP)",
-      btBackendOwnWarning: "The own BT backend is still under development and not yet available. Please use the rqbit backend.",
+      btBackendIrontide: "irontide",
+      btBackendIrontideHint: "irontide is a full-featured BitTorrent engine supporting 35 BEPs including DHT, µTP, PEX, and more.",
       defaultDownloadLocation: "Default download location",
       defaultDownloadPlaceholder: "Tasks still require a folder when this is empty",
       defaultDownloadHint:

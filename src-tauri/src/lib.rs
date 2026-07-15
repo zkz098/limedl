@@ -53,6 +53,9 @@ pub fn run() {
                 init_logging(&settings.logging, &state_dir).context("初始化日志系统失败")?;
                 cleanup_old_aria2_temp_files();
 
+                // We keep a separate ref to `OwnBtBackend` so we can call
+                // `setup_alert_bridge` later (after `event_tx` is wired up).
+                let _own_bt_for_alerts: Option<Arc<OwnBtBackend>>;
                 let bt_backend: Arc<dyn download::BtBackend> = match settings.bt.backend {
                     BtBackendKind::Rqbit => {
                         let tm = tauri::async_runtime::block_on(TorrentManager::new(
@@ -60,11 +63,19 @@ pub fn run() {
                             &settings,
                         ))
                         .context("初始化 rqbit BT 管理器失败")?;
+                        _own_bt_for_alerts = None;
                         Arc::new(tm)
                     }
-                    BtBackendKind::Own => {
-                        tracing::warn!("自研 BT 后端开发中，功能不可用");
-                        Arc::new(OwnBtBackend::new())
+                    BtBackendKind::Irontide => {
+                        let own = tauri::async_runtime::block_on(OwnBtBackend::new(
+                            &settings,
+                            state_dir.join("torrents"),
+                            state_dir.join("bt_files"),
+                        ))
+                        .context("初始化 irontide BT 后端失败")?;
+                        let own = Arc::new(own);
+                        _own_bt_for_alerts = Some(own.clone());
+                        own
                     }
                 };
                 bt_backend.set_app_handle(app.handle().clone());
@@ -96,6 +107,11 @@ pub fn run() {
                 let (event_tx, _event_rx) = broadcast::channel(256);
                 download_manager.set_event_tx(event_tx.clone());
                 bt_backend.set_event_tx(event_tx.clone());
+
+                // Start the alert bridge for the irontide backend.
+                if let Some(ref own) = _own_bt_for_alerts {
+                    tauri::async_runtime::block_on(own.setup_alert_bridge());
+                }
 
                 app.manage(AppState {
                     manager: download_manager.clone(),

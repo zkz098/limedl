@@ -37,8 +37,9 @@ pub enum BtBackendKind {
     /// librqbit-based backend (current default, fully functional).
     #[default]
     Rqbit,
-    /// Self-owned BT backend (work-in-progress, not yet implemented).
-    Own,
+    /// irontide-based backend (Bittorrent engine with 35 BEPs).
+    #[serde(alias = "own")]
+    Irontide,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]

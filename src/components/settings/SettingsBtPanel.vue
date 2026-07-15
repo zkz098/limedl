@@ -31,11 +31,11 @@ const trackerListEntries = computed(() =>
 
 const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
 
-const isOwnBackend = computed(() => props.draft.bt.backend === "own");
+const isIrontideBackend = computed(() => props.draft.bt.backend === "irontide");
 
 const backendOptions = [
   { label: props.t("settings.btBackendRqbit"), value: "rqbit" as BtBackendKind },
-  { label: props.t("settings.btBackendOwn"), value: "own" as BtBackendKind },
+  { label: props.t("settings.btBackendIrontide"), value: "irontide" as BtBackendKind },
 ];
 </script>
 
@@ -49,8 +49,8 @@ const backendOptions = [
           :placeholder="t('settings.btBackendLabel')"
         />
       </div>
-      <p v-if="isOwnBackend" class="settings-field__hint" style="color: var(--color-warning, #f0a030)">
-        {{ t("settings.btBackendOwnWarning") }}
+      <p v-if="isIrontideBackend" class="settings-field__hint">
+        {{ t("settings.btBackendIrontideHint") }}
       </p>
     </SettingsField>
 
