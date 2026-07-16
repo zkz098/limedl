@@ -21,10 +21,11 @@ use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
 use super::{
-    bt_backend::BtBackend,
+    bt_backend_own::OwnBtBackend,
     manager::DownloadManager,
     types::{
-        Aria2RpcSettings, DownloadState, DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
+        Aria2RpcSettings, BtPeerInfo, DownloadState, DownloadSummary, StartDownloadRequest,
+        TaskId, TaskKind,
     },
 };
 
@@ -209,7 +210,7 @@ fn build_file_list(summary: &DownloadSummary) -> Value {
 
 struct RpcContext {
     manager: Arc<DownloadManager>,
-    bt_backend: Arc<dyn BtBackend>,
+    bt_backend: Arc<OwnBtBackend>,
     secret: Option<String>,
     event_tx: broadcast::Sender<String>,
     gid_cache: Mutex<HashMap<String, String>>,
@@ -453,8 +454,8 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
     // Emit Tauri `download-updated` event so the frontend displays the task
-    // immediately. Without this the BT task only appears after librqbit
-    // resolves the metadata and the `download-progress` polling loop fires.
+    // immediately. Without this the BT task only appears after the
+    // `download-progress` polling loop fires.
     ctx.bt_backend.emit_pending_summary(&id);
 
     let gid = internal_id_to_gid(&id);
@@ -715,10 +716,58 @@ async fn handle_get_uris(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, 
     }]))
 }
 
-async fn handle_get_peers(_ctx: &RpcContext, _params: Vec<Value>) -> Result<Value, JsonRpcError> {
-    // Peers are tracked via librqbit internally; full peer enumeration requires
-    // deeper integration. Return empty list as a placeholder.
-    Ok(Value::Array(vec![]))
+async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
+    let params = strip_token(params);
+    check_token(ctx, &params)?;
+    let gid = extract_gid(&params)?;
+    let internal_id = resolve_gid(ctx, &gid)
+        .await
+        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+
+    // HTTP downloads don't have BitTorrent peers — return empty array.
+    let bt_id = match TaskId::parse(&internal_id) {
+        TaskId::Bt(id) => id,
+        TaskId::Http(_) => return Ok(Value::Array(vec![])),
+    };
+
+    let peers = ctx
+        .bt_backend
+        .get_peers(&bt_id)
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+
+    let aria2_peers: Vec<Value> = peers
+        .iter()
+        .map(|p| peer_info_to_aria2_peer(p))
+        .collect();
+
+    Ok(Value::Array(aria2_peers))
+}
+
+fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
+    let (ip, port) = match p.address.rsplit_once(':') {
+        Some((ip, port_str)) => (
+            ip.to_string(),
+            port_str.parse::<u16>().unwrap_or(0),
+        ),
+        None => (p.address.clone(), 0),
+    };
+
+    // Decode 'am_choking' from flags ('c' character)
+    let am_choking = p.flags.contains('c');
+    // seeder if progress >= 1.0 (100% complete)
+    let seeder = p.progress >= 1.0;
+
+    serde_json::json!({
+        "peerId": "",
+        "ip": ip,
+        "port": port,
+        "bitfield": "",
+        "amChoking": if am_choking { "true" } else { "false" },
+        "peerChoking": "false",
+        "downloadSpeed": p.download_speed.to_string(),
+        "uploadSpeed": p.upload_speed.to_string(),
+        "seeder": if seeder { "true" } else { "false" },
+    })
 }
 
 async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
@@ -1092,7 +1141,7 @@ pub struct Aria2RpcServer {
 impl Aria2RpcServer {
     pub fn new(
         manager: Arc<DownloadManager>,
-        bt_backend: Arc<dyn BtBackend>,
+        bt_backend: Arc<OwnBtBackend>,
         settings: &Aria2RpcSettings,
         event_tx: broadcast::Sender<String>,
     ) -> Self {

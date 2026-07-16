@@ -25,7 +25,7 @@ defineProps<{
         <UiSelect v-model="draft.logging.level" :options="logLevelOptions" />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.loggingPath')" :hint="t('settings.loggingPathHint')">
+      <SettingsField wide :label="t('settings.loggingPath')" :info-tooltip="t('settings.loggingPathHint')">
         <UiTextField
           v-model="draft.logging.filePath"
           type="text"

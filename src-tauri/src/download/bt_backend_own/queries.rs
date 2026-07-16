@@ -1,0 +1,318 @@
+use std::path::PathBuf;
+use std::collections::HashSet;
+
+use irontide::core::Id20;
+use tauri::Emitter;
+
+use super::OwnBtBackend;
+use super::snapshot::{build_peer_flags, preview_entries_from_meta};
+use super::super::error::{DownloadError, Result};
+use super::super::types::{
+    BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
+    BtUploadStatus, DownloadState, DownloadSummary, TaskKind,
+    ThreadMode, TorrentFileEntry,
+};
+use super::super::{lock, now_ms};
+
+impl OwnBtBackend {
+    pub fn set_speed_limit(
+        &self,
+        download_id: &str,
+        download_limit_bps: Option<u64>,
+        upload_limit_bps: Option<u64>,
+    ) {
+        let info_hash = match Self::parse_info_hash(download_id) {
+            Ok(h) => h,
+            Err(_) => {
+                tracing::warn!("irontide: set_speed_limit: invalid task id {download_id}");
+                return;
+            }
+        };
+
+        tokio::task::block_in_place(|| {
+            self.runtime_handle.block_on(async {
+                if let Some(bps) = download_limit_bps {
+                    let _ = self.session.set_download_limit(info_hash, bps).await;
+                }
+                if let Some(bps) = upload_limit_bps {
+                    let _ = self.session.set_upload_limit(info_hash, bps).await;
+                }
+            });
+        });
+    }
+
+    pub async fn preview_torrent(&self, source: &str) -> Result<Vec<TorrentFileEntry>> {
+        let source = source.trim();
+        if source.to_ascii_lowercase().starts_with("magnet:") {
+            return Err(DownloadError::TorrentInvalidData(
+                "cannot preview magnet link; metadata not yet available".into(),
+            ));
+        }
+
+        // Read torrent bytes from URL (with proxy support) or local file
+        let bytes: Vec<u8> = if source.starts_with("http://") || source.starts_with("https://") {
+            self.fetch_url_bytes(source).await?
+        } else {
+            tokio::fs::read(source)
+                .await
+                .map_err(|e| DownloadError::TorrentIo(format!("failed to read torrent file: {e}")))?
+        };
+
+        // Parse the torrent metainfo and extract file list
+        let meta = irontide::core::torrent_from_bytes_any(&bytes)
+            .map_err(|e| DownloadError::TorrentInvalidData(format!("failed to parse torrent: {e}")))?;
+
+        let entries = preview_entries_from_meta(&meta);
+
+        Ok(entries)
+    }
+
+    pub fn get_peers(&self, download_id: &str) -> Result<Vec<BtPeerInfo>> {
+        let info_hash = Self::parse_info_hash(download_id)?;
+        let peers = tokio::task::block_in_place(|| {
+            self.runtime_handle
+                .block_on(self.session.get_peer_info(info_hash))
+        })
+        .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        Ok(peers
+            .iter()
+            .map(|p| BtPeerInfo {
+                address: p.addr.to_string(),
+                client: p.client.clone(),
+                flags: build_peer_flags(p),
+                download_speed: p.download_rate as f64,
+                upload_speed: p.upload_rate as f64,
+                progress: p.progress as f64,
+            })
+            .collect())
+    }
+
+    pub fn get_trackers(&self, download_id: &str) -> Result<Vec<BtTrackerInfo>> {
+        let info_hash = Self::parse_info_hash(download_id)?;
+        let trackers = tokio::task::block_in_place(|| {
+            self.runtime_handle
+                .block_on(self.session.tracker_list(info_hash))
+        })
+        .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        Ok(trackers
+            .iter()
+            .map(|t| BtTrackerInfo {
+                url: t.url.clone(),
+            })
+            .collect())
+    }
+
+    pub fn get_pieces(&self, download_id: &str) -> Result<Vec<BtPieceInfo>> {
+        let info_hash = Self::parse_info_hash(download_id)?;
+        // Use torrent_stats to get pieces_have/pieces_total and derive piece info
+        let stats = tokio::task::block_in_place(|| {
+            self.runtime_handle
+                .block_on(self.session.torrent_stats(info_hash))
+        })
+        .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+
+        let total = stats.pieces_total as u64;
+        let have = stats.pieces_have as u64;
+        Ok((0..total)
+            .map(|i| BtPieceInfo {
+                index: i,
+                completed: i < have,
+            })
+            .collect())
+    }
+
+    pub fn get_torrent_files(&self, download_id: &str) -> Result<Vec<BtFileStatus>> {
+        let info_hash = Self::parse_info_hash(download_id)?;
+
+        // Use torrent_file + file_progress + file_status to build file status
+        let meta_fut = self.session.torrent_file(info_hash);
+        let progress_fut = self.session.file_progress(info_hash);
+        let status_fut = self.session.file_status(info_hash);
+
+        let (meta_result, progress_result, status_result) =
+            tokio::task::block_in_place(|| {
+                self.runtime_handle.block_on(async { tokio::join!(meta_fut, progress_fut, status_fut) })
+            });
+
+        let file_progress = progress_result.map_err(|e| {
+            DownloadError::TorrentIo(format!("failed to get file progress: {e}"))
+        })?;
+
+        let file_statuses = status_result.ok();
+
+        match meta_result {
+            Ok(Some(meta)) => {
+                let files = meta.info.files.unwrap_or_default();
+                Ok(files
+                    .iter()
+                    .enumerate()
+                    .map(|(i, f)| {
+                        let path: PathBuf = f.path.iter().collect();
+                        // Use file_status mode as a proxy for included/excluded.
+                        // Closed = skipped/excluded, ReadOnly/ReadWrite = included.
+                        let included = file_statuses.as_ref().map_or(true, |sts| {
+                            sts.get(i).map_or(true, |fs| {
+                                !matches!(fs.mode, irontide::session::FileMode::Closed)
+                            })
+                        });
+                        BtFileStatus {
+                            index: i,
+                            path: path.to_string_lossy().to_string(),
+                            size: f.length,
+                            downloaded_bytes: file_progress.get(i).copied().unwrap_or(0),
+                            included,
+                        }
+                    })
+                    .collect())
+            }
+            Ok(None) => {
+                // No metadata yet (magnet still resolving)
+                Ok(Vec::new())
+            }
+            Err(e) => Err(DownloadError::TorrentIo(format!(
+                "failed to get torrent file info: {e}"
+            ))),
+        }
+    }
+
+    pub async fn update_torrent_files(
+        &self,
+        download_id: &str,
+        included_indices: Vec<usize>,
+    ) -> Result<()> {
+        let info_hash = Self::parse_info_hash(download_id)?;
+
+        // Get the torrent metadata to know how many files there are
+        let meta = self
+            .session
+            .torrent_file(info_hash)
+            .await
+            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+
+        let Some(meta) = meta else {
+            return Err(DownloadError::TorrentInvalidData(
+                "torrent metadata not yet available".into(),
+            ));
+        };
+
+        let file_count = meta.info.files.map_or(1, |f| f.len());
+        let included_set: HashSet<usize> =
+            included_indices.into_iter().collect();
+
+        for i in 0..file_count {
+            let priority = if included_set.contains(&i) {
+                irontide::core::FilePriority::Normal
+            } else {
+                irontide::core::FilePriority::Skip
+            };
+            self.session
+                .set_file_priority(info_hash, i, priority)
+                .await
+                .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn runtime_status(&self) -> BtRuntimeStatus {
+        let dht_enabled = lock(&self.bt_settings).dht_enabled;
+
+        let (dht_nodes, torrent_count, peer_count, upload_speed, uploaded) = tokio::task::block_in_place(|| {
+            let dht_nodes = self.runtime_handle
+                .block_on(self.session.session_stats())
+                .ok()
+                .map(|s| s.dht_nodes);
+
+            let torrents: Vec<Id20> = self.runtime_handle
+                .block_on(self.session.list_torrents())
+                .unwrap_or_default();
+
+            let count = torrents.len();
+            let mut peers = 0usize;
+            let mut up_speed = 0.0f64;
+            let mut uploaded: u64 = 0;
+            for ih in &torrents {
+                if let Ok(stats) = self.runtime_handle.block_on(self.session.torrent_stats(*ih)) {
+                    peers += stats.peers_connected;
+                    up_speed += stats.upload_payload_rate as f64;
+                    uploaded += stats.uploaded;
+                }
+            }
+
+            (dht_nodes, count, peers, up_speed, uploaded)
+        });
+
+        let connected = peer_count > 0 || dht_nodes.unwrap_or(0) > 0 || upload_speed > 0.0;
+
+        BtRuntimeStatus {
+            connected,
+            dht_enabled,
+            dht_nodes,
+            torrent_count,
+            peer_count,
+            upload_speed_bytes_per_second: (upload_speed > 0.0).then_some(upload_speed),
+            uploaded_bytes: uploaded,
+            updated_at_ms: now_ms(),
+            seed_count: None,
+            leech_count: None,
+        }
+    }
+
+    pub fn emit_pending_summary(&self, pending_id: &str) {
+        let handle_guard = lock(&self.app_handle);
+        let Some(ref handle) = *handle_guard else { return };
+
+        // Try to get stats; if not available yet, emit a minimal snapshot.
+        match Self::parse_info_hash(pending_id) {
+            Ok(info_hash) => {
+                if let Ok(stats) = tokio::task::block_in_place(|| {
+                    self.runtime_handle.block_on(self.session.torrent_stats(info_hash))
+                })
+                {
+                    let snapshot =
+                        self.stats_to_snapshot(pending_id, &info_hash, &stats);
+                    let summary = DownloadSummary::from(&snapshot);
+                    let _ = handle.emit("download-updated", &summary);
+                    return;
+                }
+            }
+            Err(_) => {}
+        }
+
+        // Fallback: emit a queued-state summary
+        let summary = DownloadSummary {
+            id: pending_id.to_string(),
+            kind: TaskKind::Bt,
+            state: DownloadState::Queued,
+            url: String::new(),
+            file_name: String::from("Pending torrent"),
+            destination_path: self.default_output_dir.to_string_lossy().to_string(),
+            total_bytes: None,
+            downloaded_bytes: 0,
+            connection_count: 0,
+            thread_mode: ThreadMode::Fixed,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile: None,
+            thread_note: Some(String::from("Adding torrent to irontide session")),
+            speed_bytes_per_second: None,
+            eta_seconds: None,
+            uploaded_bytes: Some(0),
+            upload_speed_bytes_per_second: None,
+            peer_count: Some(0),
+            upload_status: Some(BtUploadStatus::Idle),
+            info_hash: None,
+            error: None,
+            cdn_accelerated: false,
+            created_at_ms: now_ms(),
+            seed_count: None,
+            leech_count: None,
+            download_limit_bps: None,
+            upload_limit_bps: None,
+            chunks: vec![],
+            mirror_url: None,
+        };
+        let _ = handle.emit("download-updated", &summary);
+    }
+}

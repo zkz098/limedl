@@ -58,6 +58,9 @@
 
   --color-focus-ring: oklch(0.85 0.18 130 / 0.2);
 
+  --color-tooltip-bg: oklch(0.22 0 0 / 0.96);
+  --color-tooltip-text: oklch(0.96 0 0);
+
   --color-danger-bg: oklch(0.93 0.03 25);
   --color-danger-border: oklch(0.85 0.06 25);
   --color-danger-text: oklch(0.55 0.18 25);
@@ -132,6 +135,9 @@
   --color-accent-border: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
   --color-accent-strong: color-mix(in srgb, var(--color-accent) 88%, white);
   --color-focus-ring: color-mix(in srgb, var(--color-accent) 22%, transparent);
+
+  --color-tooltip-bg: oklch(0.22 0 0 / 0.96);
+  --color-tooltip-text: oklch(0.96 0 0);
 
   --color-danger-bg: oklch(0.3 0.06 25);
   --color-danger-border: oklch(0.45 0.1 25);

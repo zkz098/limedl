@@ -55,15 +55,32 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       defaultUserAgent: DEFAULT_HTTP_USER_AGENT,
     },
     bt: {
-      backend: "rqbit",
-      dhtEnabled: true,
-      trackerList: "",
-      trackerListUrl: DEFAULT_TRACKER_LIST_URL,
       pauseUploadWhenLimitReached: false,
       uploadLimitBytes: 0,
       uploadRatioLimit: 0,
-      defaultDownloadSpeedLimit: 0,
-      defaultUploadSpeedLimit: 0,
+      dhtEnabled: true,
+      trackerList: "",
+      trackerListUrl: DEFAULT_TRACKER_LIST_URL,
+      listenPort: null,
+      listenPortRange: null,
+      upnpEnabled: false,
+      enableNatpmp: true,
+      enableIpv6: true,
+      enablePex: true,
+      enableLsd: true,
+      enableUtp: true,
+      enableFastExtension: true,
+      enableHolepunch: true,
+      enableWebSeed: true,
+      enableSuperSeeding: false,
+      preallocateMode: "none",
+      encryptionMode: "enabled",
+      maxDownloads: 3,
+      maxSeeds: 5,
+      maxTorrents: 100,
+      activeLimit: 500,
+      globalDownloadRateLimit: 0,
+      globalUploadRateLimit: 0,
     },
     logging: {
       enabled: true,
@@ -94,6 +111,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       gameModeBufferMb: 128,
       gameMode: false,
       diskTypeOverrides: {},
+      maxParallelHdd: 4,
+      gameModeMaxParallel: 1,
     },
   });
 
@@ -138,15 +157,32 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         defaultUserAgent: form.download.defaultUserAgent,
       },
       bt: {
-        backend: form.bt.backend,
-        dhtEnabled: form.bt.dhtEnabled,
-        trackerList: form.bt.trackerList,
-        trackerListUrl: form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
         pauseUploadWhenLimitReached: form.bt.pauseUploadWhenLimitReached,
         uploadLimitBytes: form.bt.uploadLimitBytes,
         uploadRatioLimit: form.bt.uploadRatioLimit,
-        // TODO: Add defaultDownloadSpeedLimit and defaultUploadSpeedLimit to save payload
-        // once backend BtSettings in src-tauri/src/download/types.rs supports them.
+        dhtEnabled: form.bt.dhtEnabled,
+        trackerList: form.bt.trackerList,
+        trackerListUrl: form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL,
+        listenPort: form.bt.listenPort ?? null,
+        listenPortRange: form.bt.listenPortRange,
+        upnpEnabled: form.bt.upnpEnabled,
+        enableNatpmp: form.bt.enableNatpmp,
+        enableIpv6: form.bt.enableIpv6,
+        enablePex: form.bt.enablePex,
+        enableLsd: form.bt.enableLsd,
+        enableUtp: form.bt.enableUtp,
+        enableFastExtension: form.bt.enableFastExtension,
+        enableHolepunch: form.bt.enableHolepunch,
+        enableWebSeed: form.bt.enableWebSeed,
+        enableSuperSeeding: form.bt.enableSuperSeeding,
+        preallocateMode: form.bt.preallocateMode,
+        encryptionMode: form.bt.encryptionMode,
+        maxDownloads: form.bt.maxDownloads,
+        maxSeeds: form.bt.maxSeeds,
+        maxTorrents: form.bt.maxTorrents,
+        activeLimit: form.bt.activeLimit,
+        globalDownloadRateLimit: form.bt.globalDownloadRateLimit,
+        globalUploadRateLimit: form.bt.globalUploadRateLimit,
       },
       logging: {
         enabled: form.logging.enabled,
@@ -173,6 +209,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         gameModeBufferMb: Math.max(16, Math.min(4096, form.ioBaseline.gameModeBufferMb ?? 128)),
         gameMode: form.ioBaseline.gameMode ?? false,
         diskTypeOverrides: { ...form.ioBaseline.diskTypeOverrides },
+        maxParallelHdd: Math.max(1, Math.min(16, form.ioBaseline.maxParallelHdd ?? 4)),
+        gameModeMaxParallel: Math.max(1, Math.min(8, form.ioBaseline.gameModeMaxParallel ?? 1)),
       },
     };
   }
@@ -231,8 +269,26 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.bt.pauseUploadWhenLimitReached = nextSettings.bt.pauseUploadWhenLimitReached;
       form.bt.uploadLimitBytes = nextSettings.bt.uploadLimitBytes;
       form.bt.uploadRatioLimit = nextSettings.bt.uploadRatioLimit;
-      form.bt.defaultDownloadSpeedLimit = nextSettings.bt.defaultDownloadSpeedLimit ?? 0;
-      form.bt.defaultUploadSpeedLimit = nextSettings.bt.defaultUploadSpeedLimit ?? 0;
+      form.bt.listenPort = nextSettings.bt.listenPort ?? null;
+      form.bt.listenPortRange = nextSettings.bt.listenPortRange ?? null;
+      form.bt.upnpEnabled = nextSettings.bt.upnpEnabled ?? false;
+      form.bt.enableNatpmp = nextSettings.bt.enableNatpmp ?? true;
+      form.bt.enableIpv6 = nextSettings.bt.enableIpv6 ?? true;
+      form.bt.enablePex = nextSettings.bt.enablePex ?? true;
+      form.bt.enableLsd = nextSettings.bt.enableLsd ?? true;
+      form.bt.enableUtp = nextSettings.bt.enableUtp ?? true;
+      form.bt.enableFastExtension = nextSettings.bt.enableFastExtension ?? true;
+      form.bt.enableHolepunch = nextSettings.bt.enableHolepunch ?? true;
+      form.bt.enableWebSeed = nextSettings.bt.enableWebSeed ?? true;
+      form.bt.enableSuperSeeding = nextSettings.bt.enableSuperSeeding ?? false;
+      form.bt.preallocateMode = nextSettings.bt.preallocateMode ?? "none";
+      form.bt.encryptionMode = nextSettings.bt.encryptionMode ?? "enabled";
+      form.bt.maxDownloads = nextSettings.bt.maxDownloads ?? 3;
+      form.bt.maxSeeds = nextSettings.bt.maxSeeds ?? 5;
+      form.bt.maxTorrents = nextSettings.bt.maxTorrents ?? 100;
+      form.bt.activeLimit = nextSettings.bt.activeLimit ?? 500;
+      form.bt.globalDownloadRateLimit = nextSettings.bt.globalDownloadRateLimit ?? 0;
+      form.bt.globalUploadRateLimit = nextSettings.bt.globalUploadRateLimit ?? 0;
       form.logging.enabled = nextSettings.logging?.enabled ?? true;
       form.logging.level = nextSettings.logging?.level ?? "info";
       form.logging.filePath = nextSettings.logging?.filePath ?? "";
@@ -252,6 +308,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         gameModeBufferMb: nextSettings.ioBaseline?.gameModeBufferMb ?? 128,
         gameMode: nextSettings.ioBaseline?.gameMode ?? false,
         diskTypeOverrides: { ...nextSettings.ioBaseline?.diskTypeOverrides },
+        maxParallelHdd: nextSettings.ioBaseline?.maxParallelHdd ?? 4,
+        gameModeMaxParallel: nextSettings.ioBaseline?.gameModeMaxParallel ?? 1,
       };
       savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
       onDirtyChange?.(false);

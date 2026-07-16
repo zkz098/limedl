@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, anyhow};
@@ -10,13 +11,13 @@ use super::{
     manager::AppState,
     protocol::DownloadProtocol,
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
-    torrent::{DownloadSourceKind, classify_download_source},
     types::{
         AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
-        DownloadSnapshot, DownloadSummary, SerializableError, StartDownloadRequest, TaskId,
-        TorrentFileEntry,
+        DownloadSnapshot, DownloadSummary, DownloadSourceKind, SerializableError,
+        StartDownloadRequest, TaskId, TaskKind, TorrentFileEntry,
     },
 };
+use super::error::DownloadError;
 use serde_json::json;
 
 type CommandResult<T> = std::result::Result<T, SerializableError>;
@@ -44,12 +45,40 @@ fn format_anyhow_chain(error: anyhow::Error) -> String {
     messages.join(": ")
 }
 
+/// Classify a download request as HTTP or torrent based on URL inspection.
+fn classify_download_source(request: &StartDownloadRequest) -> std::result::Result<DownloadSourceKind, DownloadError> {
+    if let Some(kind) = request.kind {
+        return Ok(match kind {
+            TaskKind::Http => DownloadSourceKind::Http,
+            TaskKind::Bt => DownloadSourceKind::Torrent,
+        });
+    }
+
+    let source = request.url.trim();
+    let lower = source.to_ascii_lowercase();
+
+    if lower.starts_with("magnet:") || lower.ends_with(".torrent") {
+        return Ok(DownloadSourceKind::Torrent);
+    }
+
+    if lower.starts_with("http://") || lower.starts_with("https://") {
+        return Ok(DownloadSourceKind::Http);
+    }
+
+    let path = Path::new(source);
+    if path.extension().and_then(|value| value.to_str()) == Some("torrent") {
+        return Ok(DownloadSourceKind::Torrent);
+    }
+
+    Err(DownloadError::UnsupportedScheme)
+}
+
 /// Select the [`DownloadProtocol`] implementation that matches the given
 /// [`TaskId`] variant, so that commands can write a single call instead of
 /// a two-branch match.
 fn protocol_for_task<'a>(state: &'a AppState, task_id: &TaskId) -> &'a dyn DownloadProtocol {
     match task_id {
-        TaskId::Bt(_) => state.bt_backend.as_download_protocol(),
+        TaskId::Bt(_) => &*state.bt_backend,
         TaskId::Http(_) => &*state.manager,
     }
 }
@@ -402,9 +431,8 @@ pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandRes
     )
 }
 
-/// Set per-torrent speed limits. The effective session limit is the minimum of
-/// all per-torrent limits since librqbit applies ratelimits at the session level.
-/// Passing `None` for both axes clears this torrent's override and recomputes.
+/// Set per-torrent speed limits.
+/// Passing `None` for both axes clears this torrent's override.
 #[tauri::command]
 pub async fn bt_set_speed_limit(
     state: State<'_, AppState>,
@@ -528,6 +556,9 @@ pub async fn get_io_status(
         "gameMode": pool.game_mode(),
         "bufferUsageBytes": pool.current_usage(),
         "bufferLimitBytes": pool.effective_limit(),
+        "activeSlots": pool.active_slots(),
+        "maxSlots": pool.max_slots(),
+        "queuedCount": pool.queued_count(),
         "degradationCount": pool.degradation_count(),
     }))
 }

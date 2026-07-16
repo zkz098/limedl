@@ -26,7 +26,7 @@ use uuid::Uuid;
 
 use super::{
     aimd::{self, AimdState},
-    bt_backend::BtBackend,
+    bt_backend_own::OwnBtBackend,
     buffer_pool::BufferPool,
     database::Database,
     disk_detect::detect_disk_type,
@@ -71,7 +71,7 @@ pub(crate) const MAX_TRADITIONAL_THREADS: usize = 32;
 #[derive(Clone)]
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
-    pub bt_backend: Arc<dyn BtBackend>,
+    pub bt_backend: Arc<OwnBtBackend>,
     pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
@@ -199,6 +199,8 @@ impl DownloadManager {
         let buffer_pool = Arc::new(BufferPool::new(
             io.buffer_limit_mb,
             io.game_mode_buffer_mb,
+            io.max_parallel_hdd,
+            io.game_mode_max_parallel,
         ));
 
         let manager = Self {
@@ -354,6 +356,8 @@ impl DownloadManager {
         self.buffer_pool.update_limits(
             normalized.io_baseline.buffer_limit_mb,
             normalized.io_baseline.game_mode_buffer_mb,
+            normalized.io_baseline.max_parallel_hdd,
+            normalized.io_baseline.game_mode_max_parallel,
         );
         self.buffer_pool.set_game_mode(normalized.io_baseline.game_mode);
         let next_client = build_http_client(&normalized)?;

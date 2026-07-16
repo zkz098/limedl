@@ -24,7 +24,7 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 // Priority values.
-// NOTE: librqbit's AddTorrentOptions.only_files is a flat index list (all-or-nothing per file).
+// NOTE: The torrent engine uses a flat index list for file selection (all-or-nothing per file).
 // Low / Normal / High distinction is cosmetic and does NOT affect the actual download.
 // Only Skip (priority 0) maps to "excluded from selectedFileIndices".
 const PRIORITY_SKIP = 0;

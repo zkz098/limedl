@@ -2,7 +2,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod aimd;
 mod aria2_rpc;
-pub(crate) mod bt_backend;
 mod bt_backend_own;
 mod buffer_pool;
 mod cdn;
@@ -24,14 +23,12 @@ mod rate_limiter;
 pub(crate) mod retry;
 pub(crate) mod scheduler;
 pub(crate) mod settings;
-mod torrent;
 mod types;
 
 pub(crate) use checksum::calculate_checksum;
 
 pub use aria2_rpc::Aria2RpcServer;
 pub(crate) use aria2_rpc::cleanup_old_aria2_temp_files;
-pub(crate) use bt_backend::BtBackend;
 pub(crate) use bt_backend_own::OwnBtBackend;
 pub(crate) use cdn::CdnAccelerator;
 pub use cdn::commands::{
@@ -48,8 +45,6 @@ pub use commands::{
 pub use logging::init_logging;
 pub use manager::{AppState, DownloadManager};
 pub use rate_limiter::RateLimiter;
-pub use torrent::TorrentManager;
-pub use types::BtBackendKind;
 
 pub(crate) fn lock<T>(
     mutex: &parking_lot::Mutex<T>,

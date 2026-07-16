@@ -29,6 +29,12 @@ pub enum DownloadError {
     InvalidProxy(String),
     #[error("torrent error: {0}")]
     Torrent(String),
+    #[error("torrent network error: {0}")]
+    TorrentNetwork(String),
+    #[error("torrent data error: {0}")]
+    TorrentInvalidData(String),
+    #[error("torrent io error: {0}")]
+    TorrentIo(String),
     #[error(
         "insufficient disk space: {available} bytes available, {required} bytes required (incl. 10% buffer)"
     )]
@@ -53,6 +59,9 @@ impl DownloadError {
             Self::InvalidResponse(_) => "invalid_response",
             Self::InvalidProxy(_) => "invalid_proxy",
             Self::Torrent(_) => "torrent",
+            Self::TorrentNetwork(_) => "torrent_network",
+            Self::TorrentInvalidData(_) => "torrent_invalid_data",
+            Self::TorrentIo(_) => "torrent_io",
             Self::InsufficientDiskSpace { .. } => "insufficient_disk_space",
             Self::Internal(_) => "internal",
             #[allow(unreachable_patterns)]

@@ -65,7 +65,7 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
           />
         </SettingsField>
 
-        <SettingsField wide :label="t('settings.adaptiveProfile')" :hint="t('settings.adaptiveProfileHint')">
+        <SettingsField wide :label="t('settings.adaptiveProfile')" :info-tooltip="t('settings.adaptiveProfileHint')">
           <UiSelect
             v-model="draft.scheduler.automatic.adaptiveProfile"
             :options="adaptiveProfileOptions"
@@ -73,7 +73,7 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
         </SettingsField>
       </template>
 
-      <SettingsField wide :label="t('settings.globalSpeedLimit')" :hint="t('settings.globalSpeedLimitHint')">
+      <SettingsField wide :label="t('settings.globalSpeedLimit')" :info-tooltip="t('settings.globalSpeedLimitHint')">
         <UiTextField
           type="number"
           :model-value="globalSpeedLimitMiBps"
@@ -84,7 +84,7 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
         />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.intelligentChunkAllocation')" :hint="t('settings.intelligentChunkAllocationHint')">
+      <SettingsField wide :label="t('settings.intelligentChunkAllocation')" :info-tooltip="t('settings.intelligentChunkAllocationHint')">
         <UiSwitch
           :model-value="draft.scheduler.chunkSizeStrategy === 'adaptive'"
           :label="t('settings.intelligentChunkAllocation')"

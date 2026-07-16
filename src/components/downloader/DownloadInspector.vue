@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 import BtPeerTable from "./BtPeerTable.vue";
 import BtTrackerTable from "./BtTrackerTable.vue";
@@ -32,8 +32,12 @@ const activeTab = ref<"overview" | "files" | "peersTrackers">("overview");
 
 const isBtTask = computed(() => props.selectedOverview?.kind === "bt");
 
+// Use selectedOverview (summary + snapshot) instead of selectedSnapshot alone,
+// because selectedSnapshot may be null when the inspector first opens (e.g. after
+// a page refresh, the snapshot is fetched separately). The summary is available
+// immediately and carries the same id+kind needed for BT queries.
 const btTaskId = computed(() =>
-  props.selectedSnapshot?.kind === "bt" ? props.selectedSnapshot.id : null,
+  props.selectedOverview?.kind === "bt" ? props.selectedOverview.id : null,
 );
 
 watch(
@@ -107,10 +111,12 @@ const {
   trackers: trackerList,
   pieces: pieceList,
   isLoading,
+  errors: btErrors,
   isUpdatingFiles,
   fetchFiles: fetchBtFiles,
   fetchPeers: fetchBtPeers,
   fetchTrackers: fetchBtTrackers,
+  fetchPieces: fetchBtPieces,
   toggleFileInclusion,
 } = useBtInspector(btTaskId);
 
@@ -122,6 +128,34 @@ const isFetchingTrackers = computed(() => isLoading.trackers);
 watch([btTaskId, activeTab], ([id, tab]) => {
   if (id && tab === "files") {
     void fetchBtFiles();
+  }
+});
+
+// Fetch BT peers/trackers/pieces whenever the Peers & Trackers tab becomes active
+watch([btTaskId, activeTab], ([id, tab]) => {
+  if (id && tab === "peersTrackers") {
+    void Promise.all([fetchBtPeers(), fetchBtTrackers(), fetchBtPieces()]);
+  }
+});
+
+// Poll peers/trackers data every 5s while the tab is active
+let peersTrackerInterval: ReturnType<typeof setInterval> | null = null;
+watch([btTaskId, activeTab], ([id, tab]) => {
+  if (peersTrackerInterval) {
+    clearInterval(peersTrackerInterval);
+    peersTrackerInterval = null;
+  }
+  if (id && tab === "peersTrackers") {
+    peersTrackerInterval = setInterval(() => {
+      void Promise.all([fetchBtPeers(), fetchBtTrackers(), fetchBtPieces()]);
+    }, 5000);
+  }
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+  if (peersTrackerInterval) {
+    clearInterval(peersTrackerInterval);
+    peersTrackerInterval = null;
   }
 });
 </script>
@@ -596,6 +630,12 @@ watch([btTaskId, activeTab], ([id, tab]) => {
               </UiButton>
             </div>
             <BtTrackerTable :trackers="trackerList" />
+            <p
+              v-if="btErrors.trackers"
+              class="mt-[var(--space-1)] text-[0.75rem] text-[var(--color-text-error)]"
+            >
+              {{ btErrors.trackers }}
+            </p>
           </section>
         </div>
       </div>

@@ -30,43 +30,49 @@ export function useBtInspector(taskId: Ref<string | null>) {
 
   const isUpdatingFiles = ref(false);
 
+  // Per-tab version counters to reject stale concurrent callbacks.
+  // Without this, overlapping calls (polling + manual refresh) can
+  // overwrite each other with stale / empty data on a last-write-wins basis.
+  const version = reactive({ files: 0, peers: 0, trackers: 0, pieces: 0 });
+
   async function fetchTabData<T>(
     name: keyof typeof isLoading,
     fetcher: (id: string) => Promise<T>,
     onSuccess: (data: T) => void,
-    emptyValue: T,
   ) {
     if (!taskId.value) return;
+    const ver = ++version[name];
     isLoading[name] = true;
     errors[name] = "";
     const id = taskId.value;
     try {
       const data = await fetcher(id);
-      if (taskId.value === id) onSuccess(data);
+      // Reject if either: the taskId changed, or a newer call of the same kind has started.
+      if (version[name] === ver && taskId.value === id) onSuccess(data);
     } catch (e) {
-      if (taskId.value === id) {
-        onSuccess(emptyValue);
+      if (version[name] === ver && taskId.value === id) {
         errors[name] = String(e);
+        console.error(`[useBtInspector] ${name} fetch failed:`, e);
       }
     } finally {
-      if (taskId.value === id) isLoading[name] = false;
+      if (version[name] === ver && taskId.value === id) isLoading[name] = false;
     }
   }
 
   async function fetchFiles() {
-    await fetchTabData("files", getBtFiles, (data) => { files.value = data; }, []);
+    await fetchTabData("files", getBtFiles, (data) => { files.value = data; });
   }
 
   async function fetchPeers() {
-    await fetchTabData("peers", getBtPeers, (data) => { peers.value = data; }, []);
+    await fetchTabData("peers", getBtPeers, (data) => { peers.value = data; });
   }
 
   async function fetchTrackers() {
-    await fetchTabData("trackers", getBtTrackers, (data) => { trackers.value = data; }, []);
+    await fetchTabData("trackers", getBtTrackers, (data) => { trackers.value = data; });
   }
 
   async function fetchPieces() {
-    await fetchTabData("pieces", getBtPieces, (data) => { pieces.value = data; }, []);
+    await fetchTabData("pieces", getBtPieces, (data) => { pieces.value = data; });
   }
 
   async function toggleFileInclusion(fileIndex: number, currentlyIncluded: boolean) {

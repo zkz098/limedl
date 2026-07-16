@@ -108,6 +108,30 @@ Modal dialog with teleport, overlay, Escape-to-close, and transition animation.
 
 ---
 
+### InfoTooltip
+
+Information icon with hover tooltip for supplementary explanations. Designed for settings fields and other contexts where brief help text is needed.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `text` | `string` | required | Tooltip message (supports line breaks via `\n`) |
+
+```html
+<InfoTooltip :text="t('settings.concurrencyHint')" />
+```
+
+**Behavior**:
+- Desktop: hover triggers tooltip after 300ms delay
+- Mobile/touch: tap to toggle tooltip open/closed
+- Single instance — only one tooltip open at a time
+- Dismisses on click-outside, Escape key, or re-tapping the icon
+
+**Positioning**: Uses `@floating-ui/dom` with `top` placement, auto-flipping to `bottom` when near viewport edge. Arrow points to the trigger icon.
+
+**Design tokens**: Uses `--color-tooltip-bg` (dark background) and `--color-tooltip-text` (light text) — both defined in `styles.css` and consistent across light/dark themes.
+
+---
+
 ### UiEmptyState
 
 Empty container placeholder with icon, title, and optional description.

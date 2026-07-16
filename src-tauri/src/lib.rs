@@ -12,8 +12,8 @@ use tokio::time::sleep;
 
 use download::CdnAccelerator;
 use download::{
-    cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, BtBackendKind, DownloadManager,
-    OwnBtBackend, RateLimiter, TorrentManager, bt_get_peers, bt_get_pieces, bt_get_trackers,
+    cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager,
+    OwnBtBackend, RateLimiter, bt_get_peers, bt_get_pieces, bt_get_trackers,
     bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel,
     cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
@@ -53,30 +53,14 @@ pub fn run() {
                 init_logging(&settings.logging, &state_dir).context("初始化日志系统失败")?;
                 cleanup_old_aria2_temp_files();
 
-                // We keep a separate ref to `OwnBtBackend` so we can call
-                // `setup_alert_bridge` later (after `event_tx` is wired up).
-                let _own_bt_for_alerts: Option<Arc<OwnBtBackend>>;
-                let bt_backend: Arc<dyn download::BtBackend> = match settings.bt.backend {
-                    BtBackendKind::Rqbit => {
-                        let tm = tauri::async_runtime::block_on(TorrentManager::new(
-                            state_dir.join("torrents"),
-                            &settings,
-                        ))
-                        .context("初始化 rqbit BT 管理器失败")?;
-                        _own_bt_for_alerts = None;
-                        Arc::new(tm)
-                    }
-                    BtBackendKind::Irontide => {
-                        let own = tauri::async_runtime::block_on(OwnBtBackend::new(
-                            &settings,
-                            state_dir.join("torrents"),
-                            state_dir.join("bt_files"),
-                        ))
-                        .context("初始化 irontide BT 后端失败")?;
-                        let own = Arc::new(own);
-                        _own_bt_for_alerts = Some(own.clone());
-                        own
-                    }
+                let bt_backend: Arc<OwnBtBackend> = {
+                    let own = tauri::async_runtime::block_on(OwnBtBackend::new(
+                        &settings,
+                        state_dir.join("torrents"),
+                        state_dir.join("bt_files"),
+                    ))
+                    .context("初始化 irontide BT 后端失败")?;
+                    Arc::new(own)
                 };
                 bt_backend.set_app_handle(app.handle().clone());
                 // spawn_upload_policy_loop() calls tokio::spawn internally, which
@@ -109,9 +93,7 @@ pub fn run() {
                 bt_backend.set_event_tx(event_tx.clone());
 
                 // Start the alert bridge for the irontide backend.
-                if let Some(ref own) = _own_bt_for_alerts {
-                    tauri::async_runtime::block_on(own.setup_alert_bridge());
-                }
+                tauri::async_runtime::block_on(bt_backend.setup_alert_bridge());
 
                 app.manage(AppState {
                     manager: download_manager.clone(),

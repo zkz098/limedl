@@ -177,7 +177,7 @@ const enUS = {
         "Fixed threads in automatic mode are still constrained by the global budget and per-task limit {{count}}.",
       btStrategyTitle: "BT Transfer",
       btHint:
-        "BT tasks are managed by rqbit for connections, pieces, and seeding. Thread, retry, and checksum settings do not apply.",
+        "BT tasks are managed by the torrent engine for connections, pieces, and seeding. Thread, retry, and checksum settings do not apply.",
       btDownloadLimit: "DL Speed Limit (bytes/s, 0 = unlimited)",
       btDownloadLimitHint: "0 or empty means no limit",
       btUploadLimit: "UL Speed Limit (bytes/s, 0 = unlimited)",
@@ -414,10 +414,69 @@ const enUS = {
       btDownloadSpeedLimitHint: "0 = unlimited",
       btUploadSpeedLimit: "Default Upload Speed Limit",
       btUploadSpeedLimitHint: "0 = unlimited",
-      btBackendLabel: "BT Engine",
-      btBackendRqbit: "rqbit (default)",
       btBackendIrontide: "irontide",
-      btBackendIrontideHint: "irontide is a full-featured BitTorrent engine supporting 35 BEPs including DHT, µTP, PEX, and more.",
+
+      // BT sub-group headers
+      btGroupNetwork: "Network & Ports",
+      btGroupProtocols: "Discovery & Protocols",
+      btGroupDiskSecurity: "Disk & Security",
+      btGroupQueue: "Queue Strategy",
+      btGroupRateLimit: "Rate Limits",
+      btGroupTracker: "Tracker",
+      btGroupSeeding: "Seeding & Limits",
+
+      // Network
+      btListenPort: "Listen Port",
+      btListenPortHint: "Leave empty for auto-assignment. 1024–65535",
+      btUpnp: "UPnP",
+      btUpnpHint: "Automatically configure port mapping via UPnP IGD",
+      btNatpmp: "NAT-PMP",
+      btNatpmpHint: "Automatically configure port mapping via NAT-PMP/PCP",
+      btIpv6: "IPv6",
+      btIpv6Hint: "Enable IPv6 dual-stack support",
+
+      // Discovery protocols
+      btPex: "PEX",
+      btPexHint: "Peer Exchange — discover more peers from connected peers",
+      btLsd: "LSD",
+      btLsdHint: "Local Service Discovery — find peers on the local network",
+      btUtp: "µTP",
+      btUtpHint: "Micro Transport Protocol, low-latency congestion-aware transport (BEP 29)",
+      btFastExtension: "Fast Extension",
+      btFastExtensionHint: "Speed up download startup (BEP 6)",
+      btHolepunch: "Holepunch",
+      btHolepunchHint: "NAT traversal, help peers behind routers connect directly (BEP 55)",
+      btWebSeed: "Web Seed",
+      btWebSeedHint: "Also fetch data from HTTP servers",
+      btSuperSeeding: "Super Seeding",
+      btSuperSeedingHint: "Super seeding mode to reduce seeder upload bandwidth (BEP 16)",
+
+      // Disk & security
+      btPreallocateMode: "Preallocation Mode",
+      btPreallocateNone: "Sparse (no preallocation)",
+      btPreallocateFull: "Full preallocation",
+      btPreallocateHint: "Full preallocation reduces disk fragmentation but is slower on task creation. irontide only.",
+      btEncryptionMode: "Protocol Encryption",
+      btEncryptionEnabled: "Enabled",
+      btEncryptionDisabled: "Disabled",
+      btEncryptionForced: "Forced",
+      btEncryptionHint: "MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only.",
+
+      // Queue strategy
+      btMaxDownloads: "Max Downloads",
+      btMaxDownloadsHint: "Maximum number of auto-managed active downloads",
+      btMaxSeeds: "Max Seeds",
+      btMaxSeedsHint: "Maximum number of auto-managed active seeds",
+      btMaxTorrents: "Max Torrents",
+      btMaxTorrentsHint: "Maximum total number of torrents allowed",
+      btActiveLimit: "Active Limit",
+      btActiveLimitHint: "Hard limit on total active torrents (downloading + seeding + checking)",
+
+      // Rate limits
+      btGlobalDownloadRateLimit: "Global Download Rate Limit",
+      btGlobalDownloadRateLimitHint: "0 = unlimited",
+      btGlobalUploadRateLimit: "Global Upload Rate Limit",
+      btGlobalUploadRateLimitHint: "0 = unlimited",
       defaultDownloadLocation: "Default download location",
       defaultDownloadPlaceholder: "Tasks still require a folder when this is empty",
       defaultDownloadHint:
@@ -527,8 +586,8 @@ const enUS = {
         download:
           "Default location: {{location}}; default retries: {{retries}}; global checksum: {{checksum}}; UA: {{userAgent}}.",
         btDisabled:
-          "DHT: {{dht}}; trackers: {{trackers}}; BT upload will not be paused automatically.",
-        bt: "DHT: {{dht}}; trackers: {{trackers}}; pause upload after {{uploadLimit}} uploaded or share ratio {{ratioLimit}}.",
+          "{{engine}} · DHT: {{dht}} · Trackers: {{trackers}}; BT upload will not be paused automatically.",
+        bt: "{{engine}} · DHT: {{dht}} · Trackers: {{trackers}}; pause upload after {{uploadLimit}} uploaded or share ratio {{ratioLimit}}.",
         loggingDisabled: "Logging is currently disabled.",
         loggingEnabled: "Logging enabled (level: {{level}}, path: {{path}}).",
       },
@@ -558,8 +617,13 @@ const enUS = {
         gameModeBuffer: "Game Mode Buffer",
         gameModeBufferHint:
           "Buffer limit when game mode is active, reducing impact on gaming performance.",
+        maxParallelHdd: "Max Parallel HDD Downloads",
+        maxParallelHddHint: "Maximum number of HDD downloads that can use the buffer simultaneously. Each gets an equal share of the buffer pool.",
+        gameModeMaxParallel: "Game Mode Parallel Limit",
+        gameModeMaxParallelHint: "Maximum parallel HDD downloads when game mode is active.",
         status: "Current Status",
         bufferUsage: "Buffer Usage",
+        activeSlots: "Active Slots",
       },
     },
     notifications: {

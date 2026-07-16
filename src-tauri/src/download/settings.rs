@@ -69,6 +69,8 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         buffer_limit_mb: settings.io_baseline.buffer_limit_mb.clamp(64, 32768),
         game_mode_buffer_mb: settings.io_baseline.game_mode_buffer_mb.clamp(16, 4096),
         game_mode: settings.io_baseline.game_mode,
+        max_parallel_hdd: settings.io_baseline.max_parallel_hdd.clamp(1, 16),
+        game_mode_max_parallel: settings.io_baseline.game_mode_max_parallel.clamp(1, 4),
         disk_type_overrides: settings.io_baseline.disk_type_overrides,
     };
 
@@ -162,7 +164,6 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
     };
 
     Ok(BtSettings {
-        backend: settings.backend,
         dht_enabled: settings.dht_enabled,
         tracker_list,
         tracker_list_url,
@@ -175,6 +176,24 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
         },
         upnp_enabled: settings.upnp_enabled,
         listen_port_range,
+        listen_port: settings.listen_port.filter(|&p| (1024..=65535).contains(&p)),
+        enable_natpmp: settings.enable_natpmp,
+        enable_ipv6: settings.enable_ipv6,
+        enable_pex: settings.enable_pex,
+        enable_lsd: settings.enable_lsd,
+        enable_utp: settings.enable_utp,
+        enable_fast_extension: settings.enable_fast_extension,
+        enable_holepunch: settings.enable_holepunch,
+        enable_web_seed: settings.enable_web_seed,
+        enable_super_seeding: settings.enable_super_seeding,
+        global_download_rate_limit: settings.global_download_rate_limit,
+        global_upload_rate_limit: settings.global_upload_rate_limit,
+        preallocate_mode: settings.preallocate_mode,
+        encryption_mode: settings.encryption_mode,
+        max_downloads: settings.max_downloads,
+        max_seeds: settings.max_seeds,
+        max_torrents: settings.max_torrents,
+        active_limit: settings.active_limit,
     })
 }
 

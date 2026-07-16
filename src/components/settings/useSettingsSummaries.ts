@@ -97,11 +97,13 @@ export function useSettingsSummaries(
   );
 
   const btSummary = computed(() => {
+    const engineLabel = t("settings.btBackendIrontide");
     const dhtLabel = draft.bt.dhtEnabled ? t("common.enabled") : t("common.disabled");
     const trackerCount = trackerListEntries.value.length;
 
     if (!draft.bt.pauseUploadWhenLimitReached) {
       return t("settings.summaries.btDisabled", {
+        engine: engineLabel,
         dht: dhtLabel,
         trackers: trackerCount,
       });
@@ -115,6 +117,7 @@ export function useSettingsSummaries(
         : t("common.disabled");
 
     return t("settings.summaries.bt", {
+      engine: engineLabel,
       dht: dhtLabel,
       trackers: trackerCount,
       uploadLimit,

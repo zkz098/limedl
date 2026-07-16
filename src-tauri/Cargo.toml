@@ -38,7 +38,6 @@ tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 mimalloc = "0.1.48"
 fs4 = { version = "0.13", features = ["sync"] }
-librqbit = "8.1.1"
 irontide = { version = "1", default-features = false, features = ["crypto-ring"] }
 anyhow = "1"
 time = ">=0.3.2, <0.4"

@@ -9,7 +9,7 @@ use crate::download::now_ms;
 use crate::download::persistence::persist_manifest_snapshot;
 use crate::download::retry::request_with_retry;
 
-use super::super::buffer_pool::{DownloadBuffer, BufferResult};
+use super::super::buffer_pool::DownloadBuffer;
 use super::super::types::DiskType;
 
 impl super::DownloadManager {
@@ -236,15 +236,23 @@ impl super::DownloadManager {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let file = open_download_file(&file_path, total_bytes)?;
+        let file = Arc::new(open_download_file(&file_path, total_bytes)?);
 
         // HDD/SSD optimization: set up buffered writing
         let disk_type = self.resolve_disk_type(Path::new(&destination_dir)).await;
         const SSD_WRITE_COMBINE_BYTES: u64 = 4 * 1024 * 1024; // 4 MiB
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
-            Some(Arc::new(DownloadBuffer::new(self.buffer_pool.clone())))
+            let slot = self.buffer_pool.acquire_slot().await;
+            Some(Arc::new(DownloadBuffer::new(
+                self.buffer_pool.clone(),
+                slot,
+                file.clone(),
+            )))
         } else {
-            Some(Arc::new(DownloadBuffer::new_local(SSD_WRITE_COMBINE_BYTES)))
+            Some(Arc::new(DownloadBuffer::new_local(
+                SSD_WRITE_COMBINE_BYTES,
+                file.clone(),
+            )))
         };  // always Some — SSD uses small local buffer for write combining
 
         // Set disk_type on snapshot for frontend badge display
@@ -260,7 +268,7 @@ impl super::DownloadManager {
                 WaitState::Running => {}
                 WaitState::Paused => {
                     if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_to_disk(&file)
+                        && let Err(e) = buf.flush_all().await
                     {
                         tracing::warn!("flush on pause failed: {e}");
                     }
@@ -320,7 +328,7 @@ impl super::DownloadManager {
                 start_offset
             } else {
                 if start_offset > 0 {
-                    reset_download_file(&file, managed.lock_core().manifest.total_bytes)?;
+                    reset_download_file(&*file, managed.lock_core().manifest.total_bytes)?;
                     self.reset_progress(&managed, true);
                     if let Some(ref buf) = write_buffer {
                         buf.clear();
@@ -340,27 +348,27 @@ impl super::DownloadManager {
             }
 
             while let Some(chunk) = tokio::select! {
-                _ = token.cancelled() => return Ok(cancellation_outcome(&managed)),
+                _ = token.cancelled() => {
+                    if let Some(ref buf) = write_buffer {
+                        buf.drain_background().await;
+                    }
+                    return Ok(cancellation_outcome(&managed));
+                }
                 chunk = stream.next() => chunk,
             } {
                 let chunk = chunk?;
                 self.rate_limiter.consume(chunk.len()).await;
                 if let Some(ref buf) = write_buffer {
-                    match buf.buffer_chunk(absolute_offset, chunk.clone()) {
-                        BufferResult::Buffered => {}
-                        BufferResult::Degraded => {
-                            write_all_at(&file, &chunk, absolute_offset)?;
-                            // Only mark degraded for HDD pool exhaustion,
-                            // not for SSD local-limit buffer (which is
-                            // expected to fill quickly on chunked downloads).
-                            if disk_type == DiskType::Hdd {
-                                let mut core = managed.lock_core();
-                                core.snapshot.degraded = true;
-                            }
+                    if buf.buffer_chunk(absolute_offset, chunk.clone()).await.is_err() {
+                        // Background flush failed — fall back to direct write.
+                        write_all_at(&*file, &chunk, absolute_offset)?;
+                        if disk_type == DiskType::Hdd {
+                            let mut core = managed.lock_core();
+                            core.snapshot.degraded = true;
                         }
                     }
                 } else {
-                    write_all_at(&file, &chunk, absolute_offset)?;
+                    write_all_at(&*file, &chunk, absolute_offset)?;
                 }
                 absolute_offset += chunk.len() as u64;
                 self.record_progress(&managed, None, chunk.len() as u64);
@@ -387,7 +395,7 @@ impl super::DownloadManager {
                     }
                     self.emit_progress(&managed);
 
-                    let flush_result = buf.flush_to_disk(&file);
+                    let flush_result = buf.flush_all().await;
 
                     // Always clear the flag, even on error
                     {
@@ -424,10 +432,15 @@ impl super::DownloadManager {
             self.resolve_disk_type(Path::new(&destination_dir)).await
         };
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
-            Some(Arc::new(DownloadBuffer::new(self.buffer_pool.clone())))
+            let slot = self.buffer_pool.acquire_slot().await;
+            Some(Arc::new(DownloadBuffer::new(
+                self.buffer_pool.clone(),
+                slot,
+                file.clone(),
+            )))
         } else {
             // SSD: 4 MiB local write-combining buffer
-            Some(Arc::new(DownloadBuffer::new_local(4 * 1024 * 1024)))
+            Some(Arc::new(DownloadBuffer::new_local(4 * 1024 * 1024, file.clone())))
         };
 
         // Set disk_type on snapshot for frontend badge display
@@ -441,6 +454,9 @@ impl super::DownloadManager {
 
         loop {
             if token.is_cancelled() {
+                if let Some(ref buf) = write_buffer {
+                    buf.drain_background().await;
+                }
                 shutdown_chunk_workers(&managed, &mut workers).await;
                 return Ok(cancellation_outcome(&managed));
             }
@@ -455,7 +471,7 @@ impl super::DownloadManager {
                     }
                     self.emit_progress(&managed);
 
-                    let flush_result = buf.flush_to_disk(&file);
+                    let flush_result = buf.flush_all().await;
 
                     // Always clear the flag, even on error
                     {
@@ -474,7 +490,7 @@ impl super::DownloadManager {
                     WaitState::Running => {}
                 WaitState::Paused => {
                     if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_to_disk(&file)
+                        && let Err(e) = buf.flush_all().await
                     {
                         tracing::warn!("flush on pause failed: {e}");
                     }
@@ -551,6 +567,9 @@ impl super::DownloadManager {
 
             let join_result = tokio::select! {
                 _ = token.cancelled() => {
+                    if let Some(ref buf) = write_buffer {
+                        buf.drain_background().await;
+                    }
                     shutdown_chunk_workers(&managed, &mut workers).await;
                     return Ok(cancellation_outcome(&managed));
                 }
@@ -586,7 +605,7 @@ impl super::DownloadManager {
                 ChunkWorkerOutcome::Paused => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
                     if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_to_disk(&file)
+                        && let Err(e) = buf.flush_all().await
                     {
                         tracing::warn!("flush on pause failed: {e}");
                     }
@@ -859,14 +878,12 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
             }
 
             if let Some(ref buf) = ctx.write_buffer {
-                match buf.buffer_chunk(current, bytes.clone()) {
-                    BufferResult::Buffered => {}
-                    BufferResult::Degraded => {
-                        write_all_at(&ctx.file, &bytes, current)?;
-                        if ctx.disk_type == DiskType::Hdd {
-                            let mut core = ctx.managed.lock_core();
-                            core.snapshot.degraded = true;
-                        }
+                if buf.buffer_chunk(current, bytes.clone()).await.is_err() {
+                    // Background flush failed — fall back to direct write.
+                    write_all_at(&ctx.file, &bytes, current)?;
+                    if ctx.disk_type == DiskType::Hdd {
+                        let mut core = ctx.managed.lock_core();
+                        core.snapshot.degraded = true;
                     }
                 }
             } else {

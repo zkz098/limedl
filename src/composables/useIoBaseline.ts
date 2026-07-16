@@ -50,6 +50,9 @@ export function useIoBaseline() {
   const bufferUsageBytes = computed(() => status.value?.bufferUsageBytes ?? 0);
   const bufferLimitBytes = computed(() => status.value?.bufferLimitBytes ?? 0);
   const degradationCount = computed(() => status.value?.degradationCount ?? 0);
+  const activeSlots = computed(() => status.value?.activeSlots ?? 0);
+  const maxSlots = computed(() => status.value?.maxSlots ?? 0);
+  const queuedCount = computed(() => status.value?.queuedCount ?? 0);
 
   async function setGameMode(enabled: boolean) {
     if (isToggling.value) {
@@ -79,6 +82,9 @@ export function useIoBaseline() {
     bufferUsageBytes,
     bufferLimitBytes,
     degradationCount,
+    activeSlots,
+    maxSlots,
+    queuedCount,
     isToggling,
     setGameMode,
     refreshStatus,

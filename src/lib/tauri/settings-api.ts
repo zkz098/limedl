@@ -7,6 +7,9 @@ export interface IoStatus {
   bufferUsageBytes: number;
   bufferLimitBytes: number;
   degradationCount: number;
+  activeSlots: number;
+  maxSlots: number;
+  queuedCount: number;
 }
 
 export function getAppSettings() {

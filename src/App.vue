@@ -120,7 +120,7 @@ const {
 } = ms;
 
 const { t } = useI18n();
-const { gameMode, bufferUsageBytes, bufferLimitBytes, setGameMode } = useIoBaseline();
+const { gameMode, bufferUsageBytes, bufferLimitBytes, activeSlots, maxSlots, queuedCount, setGameMode } = useIoBaseline();
 const { overclockMode, setOverclockMode } = useOverclock();
 const showComposerDialog = ref(false);
 const activeCategory = ref("");
@@ -419,6 +419,9 @@ watch(
         :game-mode="gameMode"
         :buffer-usage-bytes="bufferUsageBytes"
         :buffer-limit-bytes="bufferLimitBytes"
+        :active-slots="activeSlots"
+        :max-slots="maxSlots"
+        :queued-count="queuedCount"
         @dirty-change="handleSettingsDirtyChange"
         @saved="handleSettingsSaved"
       />

@@ -43,7 +43,7 @@ const emit = defineEmits<{
       icon="i-ri-palette-line"
     >
       <div class="settings-grid">
-        <SettingsField :label="t('settings.colorMode')" :hint="t('settings.colorModeHint')">
+        <SettingsField :label="t('settings.colorMode')" :info-tooltip="t('settings.colorModeHint')">
           <UiSelect v-model="draft.appearance.colorMode" :options="colorModeOptions" />
         </SettingsField>
 
@@ -70,7 +70,7 @@ const emit = defineEmits<{
           </div>
         </SettingsField>
 
-        <SettingsField :label="t('settings.backgroundOpacity')" :hint="t('settings.backgroundOpacityHint')">
+        <SettingsField :label="t('settings.backgroundOpacity')" :info-tooltip="t('settings.backgroundOpacityHint')">
           <UiSelect
             v-model="draft.appearance.backgroundOpacity"
             :options="backgroundOpacityOptions"
@@ -84,7 +84,7 @@ const emit = defineEmits<{
       icon="i-ri-information-line"
     >
       <div class="settings-grid">
-        <SettingsField :label="t('settings.detailInfoPanel')" :hint="t('settings.detailInfoHint')">
+        <SettingsField :label="t('settings.detailInfoPanel')" :info-tooltip="t('settings.detailInfoHint')">
           <UiSwitch v-model="draft.appearance.showDetailInfo" />
         </SettingsField>
       </div>

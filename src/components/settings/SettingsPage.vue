@@ -42,6 +42,9 @@ const props = defineProps<{
   gameMode?: boolean;
   bufferUsageBytes?: number;
   bufferLimitBytes?: number;
+  activeSlots?: number;
+  maxSlots?: number;
+  queuedCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -322,6 +325,9 @@ defineExpose({
           :game-mode="gameMode ?? false"
           :buffer-usage-bytes="bufferUsageBytes ?? 0"
           :buffer-limit-bytes="bufferLimitBytes ?? 0"
+          :active-slots="activeSlots ?? 0"
+          :max-slots="maxSlots ?? 0"
+          :queued-count="queuedCount ?? 0"
         />
 
         <SettingsBtPanel

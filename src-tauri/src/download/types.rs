@@ -31,15 +31,10 @@ pub enum DownloadState {
     Canceled,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum BtBackendKind {
-    /// librqbit-based backend (current default, fully functional).
-    #[default]
-    Rqbit,
-    /// irontide-based backend (Bittorrent engine with 35 BEPs).
-    #[serde(alias = "own")]
-    Irontide,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum DownloadSourceKind {
+    Http,
+    Torrent,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -542,6 +537,30 @@ pub struct DownloadDefaultsSettings {
     pub default_user_agent: String,
 }
 
+/// Preallocation strategy for torrent files.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BtPreallocateMode {
+    /// Sparse files (no preallocation).
+    #[default]
+    None,
+    /// Full preallocation.
+    Full,
+}
+
+/// Protocol encryption (MSE/PE) mode.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BtEncryptionMode {
+    /// Encryption enabled but not required.
+    #[default]
+    Enabled,
+    /// Encryption disabled.
+    Disabled,
+    /// Require encryption.
+    Forced,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPortRange {
@@ -552,9 +571,6 @@ pub struct BtPortRange {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {
-    /// Which BT engine implementation to use.
-    #[serde(default)]
-    pub backend: BtBackendKind,
     #[serde(default = "default_true")]
     pub dht_enabled: bool,
     #[serde(default)]
@@ -568,12 +584,73 @@ pub struct BtSettings {
     pub upnp_enabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub listen_port_range: Option<BtPortRange>,
+
+    // -- Network & ports --
+    /// TCP listen port. None = OS assigns.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listen_port: Option<u16>,
+    /// Enable NAT-PMP/PCP port mapping.
+    #[serde(default = "default_true")]
+    pub enable_natpmp: bool,
+    /// Enable IPv6 dual-stack.
+    #[serde(default = "default_true")]
+    pub enable_ipv6: bool,
+
+    // -- Discovery protocols --
+    /// Peer Exchange (BEP 11).
+    #[serde(default = "default_true")]
+    pub enable_pex: bool,
+    /// Local Service Discovery (BEP 14).
+    #[serde(default = "default_true")]
+    pub enable_lsd: bool,
+    /// µTP micro transport protocol (BEP 29).
+    #[serde(default = "default_true")]
+    pub enable_utp: bool,
+    /// Fast Extension (BEP 6).
+    #[serde(default = "default_true")]
+    pub enable_fast_extension: bool,
+    /// Holepunch (BEP 55).
+    #[serde(default = "default_true")]
+    pub enable_holepunch: bool,
+    /// HTTP Web Seed support.
+    #[serde(default = "default_true")]
+    pub enable_web_seed: bool,
+    /// Super seeding mode (BEP 16). Default OFF.
+    #[serde(default)]
+    pub enable_super_seeding: bool,
+
+    // -- Global rate limits (bytes/sec, 0 = unlimited) --
+    #[serde(default)]
+    pub global_download_rate_limit: u64,
+    #[serde(default)]
+    pub global_upload_rate_limit: u64,
+
+    // -- Disk & security --
+    /// File preallocation strategy. (irontide only)
+    #[serde(default)]
+    pub preallocate_mode: BtPreallocateMode,
+    /// Protocol encryption mode. (irontide only)
+    #[serde(default)]
+    pub encryption_mode: BtEncryptionMode,
+
+    // -- Queue strategy --
+    /// Max auto-managed active downloads. (irontide only)
+    #[serde(default = "default_max_downloads")]
+    pub max_downloads: u32,
+    /// Max auto-managed active seed tasks. (irontide only)
+    #[serde(default = "default_max_seeds")]
+    pub max_seeds: u32,
+    /// Max total torrents. (irontide only)
+    #[serde(default = "default_max_torrents")]
+    pub max_torrents: u32,
+    /// Hard limit on total active torrents (downloading + seeding + checking). (irontide only)
+    #[serde(default = "default_active_limit")]
+    pub active_limit: u32,
 }
 
 impl Default for BtSettings {
     fn default() -> Self {
         Self {
-            backend: BtBackendKind::default(),
             dht_enabled: true,
             tracker_list: String::new(),
             tracker_list_url: default_tracker_list_url(),
@@ -582,6 +659,24 @@ impl Default for BtSettings {
             upload_ratio_limit: 0.0,
             upnp_enabled: false,
             listen_port_range: None,
+            listen_port: None,
+            enable_natpmp: true,
+            enable_ipv6: true,
+            enable_pex: true,
+            enable_lsd: true,
+            enable_utp: true,
+            enable_fast_extension: true,
+            enable_holepunch: true,
+            enable_web_seed: true,
+            enable_super_seeding: false,
+            global_download_rate_limit: 0,
+            global_upload_rate_limit: 0,
+            preallocate_mode: BtPreallocateMode::default(),
+            encryption_mode: BtEncryptionMode::default(),
+            max_downloads: default_max_downloads(),
+            max_seeds: default_max_seeds(),
+            max_torrents: default_max_torrents(),
+            active_limit: default_active_limit(),
         }
     }
 }
@@ -589,6 +684,11 @@ impl Default for BtSettings {
 fn default_true() -> bool {
     true
 }
+
+fn default_max_downloads() -> u32 { 3 }
+fn default_max_seeds() -> u32 { 5 }
+fn default_max_torrents() -> u32 { 100 }
+fn default_active_limit() -> u32 { 500 }
 
 fn default_visible_columns() -> Vec<String> {
     vec![
@@ -753,6 +853,14 @@ pub struct IoBaselineSettings {
     /// Whether game/performance mode is currently active (runtime-only, never persisted).
     #[serde(default, skip)]
     pub game_mode: bool,
+    /// Maximum number of parallel HDD download buffers (slots).
+    /// Default: 4. User can adjust.
+    #[serde(default = "default_max_parallel_hdd")]
+    pub max_parallel_hdd: u32,
+    /// Reduced max-parallel when game mode is active.
+    /// Default: 1.
+    #[serde(default = "default_game_mode_max_parallel")]
+    pub game_mode_max_parallel: u32,
     /// User-specified disk type overrides keyed by directory path.
     /// e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
     #[serde(default)]
@@ -767,12 +875,22 @@ fn default_game_mode_buffer_mb() -> u64 {
     128
 }
 
+fn default_max_parallel_hdd() -> u32 {
+    4
+}
+
+fn default_game_mode_max_parallel() -> u32 {
+    1
+}
+
 impl Default for IoBaselineSettings {
     fn default() -> Self {
         Self {
             buffer_limit_mb: default_buffer_limit_mb(),
             game_mode_buffer_mb: default_game_mode_buffer_mb(),
             game_mode: false,
+            max_parallel_hdd: default_max_parallel_hdd(),
+            game_mode_max_parallel: default_game_mode_max_parallel(),
             disk_type_overrides: foldhash::HashMap::default(),
         }
     }

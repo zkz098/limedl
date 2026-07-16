@@ -54,21 +54,55 @@ export interface DownloadDefaultsSettings {
   defaultUserAgent: string;
 }
 
-export type BtBackendKind = "rqbit" | "irontide";
-
+export type BtPreallocateMode = "none" | "full";
+export type BtEncryptionMode = "enabled" | "disabled" | "forced";
 export interface BtSettings {
-  /** BT engine implementation to use. */
-  backend: BtBackendKind;
   pauseUploadWhenLimitReached: boolean;
   uploadLimitBytes: number;
   uploadRatioLimit: number;
   dhtEnabled: boolean;
   trackerList: string;
   trackerListUrl: string;
-  /** Bytes/sec global default download limit; 0 = unlimited. TODO: add backend support in src-tauri types.rs BtSettings. */
-  defaultDownloadSpeedLimit?: number;
-  /** Bytes/sec global default upload limit; 0 = unlimited. TODO: add backend support in src-tauri types.rs BtSettings. */
-  defaultUploadSpeedLimit?: number;
+  /** TCP listen port. null = OS assigns. */
+  listenPort: number | null;
+  /** Port range for TCP listen. null = any. */
+  listenPortRange: { start: number; end: number } | null;
+  /** Enable UPnP IGD port mapping. */
+  upnpEnabled: boolean;
+  /** Enable NAT-PMP/PCP port mapping. */
+  enableNatpmp: boolean;
+  /** Enable IPv6 dual-stack. */
+  enableIpv6: boolean;
+  /** Peer Exchange BEP 11. */
+  enablePex: boolean;
+  /** Local Service Discovery BEP 14. */
+  enableLsd: boolean;
+  /** µTP BEP 29. */
+  enableUtp: boolean;
+  /** Fast Extension BEP 6. */
+  enableFastExtension: boolean;
+  /** Holepunch BEP 55. */
+  enableHolepunch: boolean;
+  /** HTTP Web Seed. */
+  enableWebSeed: boolean;
+  /** Super seeding BEP 16. */
+  enableSuperSeeding: boolean;
+  /** Global download rate limit in bytes/sec. 0 = unlimited. */
+  globalDownloadRateLimit: number;
+  /** Global upload rate limit in bytes/sec. 0 = unlimited. */
+  globalUploadRateLimit: number;
+  /** File preallocation strategy. */
+  preallocateMode: BtPreallocateMode;
+  /** Protocol encryption (MSE/PE) mode. */
+  encryptionMode: BtEncryptionMode;
+  /** Max auto-managed active downloads. */
+  maxDownloads: number;
+  /** Max auto-managed active seeds. */
+  maxSeeds: number;
+  /** Max total torrents. */
+  maxTorrents: number;
+  /** Hard limit on total active torrents. */
+  activeLimit: number;
 }
 
 export interface LogSettings {
@@ -115,6 +149,8 @@ export interface IoBaselineSettings {
   gameModeBufferMb: number;
   gameMode: boolean;
   diskTypeOverrides: Record<string, DiskType>;
+  maxParallelHdd: number;
+  gameModeMaxParallel: number;
 }
 
 export interface AppSettings {

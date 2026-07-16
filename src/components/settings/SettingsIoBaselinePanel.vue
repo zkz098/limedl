@@ -13,6 +13,9 @@ const props = defineProps<{
   gameMode: boolean;
   bufferUsageBytes: number;
   bufferLimitBytes: number;
+  activeSlots: number;
+  maxSlots: number;
+  queuedCount: number;
 }>();
 
 const bufferLimit = computed({
@@ -32,21 +35,39 @@ const gameModeBuffer = computed({
   },
 });
 
+const maxParallelHdd = computed({
+  get: () => props.draft.ioBaseline.maxParallelHdd,
+  set: (value: number | null) => {
+    props.draft.ioBaseline.maxParallelHdd = Math.max(1, Math.min(16, Math.trunc(value ?? 4)));
+  },
+});
+
+const gameModeMaxParallel = computed({
+  get: () => props.draft.ioBaseline.gameModeMaxParallel,
+  set: (value: number | null) => {
+    props.draft.ioBaseline.gameModeMaxParallel = Math.max(1, Math.min(8, Math.trunc(value ?? 1)));
+  },
+});
+
 const bufferUsageText = computed(() => {
   const usage = formatBytes(props.bufferUsageBytes);
   const limit = formatBytes(props.bufferLimitBytes);
   return `${usage} / ${limit}`;
+});
+
+const slotUsageText = computed(() => {
+  return `${props.activeSlots} / ${props.maxSlots} (queued: ${props.queuedCount})`;
 });
 </script>
 
 <template>
   <SettingsSection :title="t('settings.ioBaseline.title')" icon="i-ri-hard-drive-2-line">
     <div class="settings-grid">
-      <SettingsField wide :label="t('settings.ioBaseline.bufferLimit')" :hint="t('settings.ioBaseline.bufferLimitHint')">
+      <SettingsField wide :label="t('settings.ioBaseline.bufferLimit')" :info-tooltip="t('settings.ioBaseline.bufferLimitHint')">
         <UiTextField type="number" v-model="bufferLimit" :min="64" :max="32768" unit="MB" />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.ioBaseline.gameModeBuffer')" :hint="t('settings.ioBaseline.gameModeBufferHint')">
+      <SettingsField wide :label="t('settings.ioBaseline.gameModeBuffer')" :info-tooltip="t('settings.ioBaseline.gameModeBufferHint')">
         <UiTextField
           type="number"
           v-model="gameModeBuffer"
@@ -57,10 +78,30 @@ const bufferUsageText = computed(() => {
         />
       </SettingsField>
 
+      <SettingsField wide :label="t('settings.ioBaseline.maxParallelHdd')" :info-tooltip="t('settings.ioBaseline.maxParallelHddHint')">
+        <UiTextField type="number" v-model="maxParallelHdd" :min="1" :max="16" />
+      </SettingsField>
+
+      <SettingsField wide :label="t('settings.ioBaseline.gameModeMaxParallel')" :info-tooltip="t('settings.ioBaseline.gameModeMaxParallelHint')">
+        <UiTextField
+          type="number"
+          v-model="gameModeMaxParallel"
+          :min="1"
+          :max="8"
+          :disabled="!gameMode"
+        />
+      </SettingsField>
+
       <SettingsField wide :label="t('settings.ioBaseline.status')">
         <div class="io-status-bar">
-          <span class="io-status-bar__label">{{ t("settings.ioBaseline.bufferUsage") }}</span>
-          <span class="io-status-bar__value">{{ bufferUsageText }}</span>
+          <div class="io-status-bar__row">
+            <span class="io-status-bar__label">{{ t("settings.ioBaseline.bufferUsage") }}</span>
+            <span class="io-status-bar__value">{{ bufferUsageText }}</span>
+          </div>
+          <div class="io-status-bar__row">
+            <span class="io-status-bar__label">{{ t("settings.ioBaseline.activeSlots") }}</span>
+            <span class="io-status-bar__value">{{ slotUsageText }}</span>
+          </div>
         </div>
       </SettingsField>
     </div>
@@ -70,16 +111,22 @@ const bufferUsageText = computed(() => {
 <style scoped>
 .io-status-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.25rem;
   min-height: 2.25rem;
-  padding: 0 0.75rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-panel-muted);
   color: var(--color-text-main);
   font-size: 0.85rem;
+}
+
+.io-status-bar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .io-status-bar__label {

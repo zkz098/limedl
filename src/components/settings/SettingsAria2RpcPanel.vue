@@ -42,7 +42,7 @@ const secretModel = computed({
         <UiTextField v-model="portModel" placeholder="6800" />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.aria2RpcSecret')" :hint="t('settings.aria2RpcHint')">
+      <SettingsField wide :label="t('settings.aria2RpcSecret')" :info-tooltip="t('settings.aria2RpcHint')">
         <UiTextField v-model="secretModel" :placeholder="t('settings.aria2RpcSecretHint')" />
       </SettingsField>
     </div>

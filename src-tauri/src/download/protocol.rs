@@ -2,7 +2,6 @@ use async_trait::async_trait;
 
 use super::error::Result;
 use super::manager::DownloadManager;
-use super::torrent::TorrentManager;
 use super::types::{DownloadSnapshot, DownloadSummary, TaskId};
 
 /// Common protocol interface for all download managers (HTTP, BitTorrent).
@@ -99,44 +98,5 @@ impl DownloadProtocol for DownloadManager {
 
     async fn list(&self) -> Result<Vec<DownloadSummary>> {
         DownloadManager::list(self).await.map(prefix_http_summaries)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// BitTorrent – delegates directly (the manager already handles "bt:" prefix).
-// ---------------------------------------------------------------------------
-
-#[async_trait]
-impl DownloadProtocol for TorrentManager {
-    async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        TorrentManager::pause(self, download_id).await
-    }
-
-    async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        TorrentManager::resume(self, download_id).await
-    }
-
-    async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        TorrentManager::cancel(self, download_id).await
-    }
-
-    async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        TorrentManager::remove(self, download_id).await
-    }
-
-    async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        TorrentManager::purge(self, download_id).await
-    }
-
-    async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
-        TorrentManager::open_in_explorer(self, download_id).await
-    }
-
-    async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        TorrentManager::status(self, download_id).await
-    }
-
-    async fn list(&self) -> Result<Vec<DownloadSummary>> {
-        TorrentManager::list(self).await
     }
 }

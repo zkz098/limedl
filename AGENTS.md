@@ -40,21 +40,31 @@ Download tasks use prefixed IDs to route to the correct protocol executor:
 
 The `DownloadProtocol` trait (`src-tauri/src/download/protocol.rs`) abstracts both.
 
-### Key subsystems
+### Subsystem documentation
 
-| Component          | Location                                          | Role                                               |
-| ------------------ | ------------------------------------------------- | -------------------------------------------------- |
-| `DownloadManager`  | `src-tauri/src/download/manager.rs` (1200+ lines) | Core HTTP download orchestration                   |
-| `TorrentManager`   | `src-tauri/src/download/torrent.rs` (1600+ lines) | BitTorrent via librqbit                            |
-| `CdnAccelerator`   | `src-tauri/src/download/cdn/`                     | Cloudflare IP range probing & DNS rewriting        |
-| Aria2 RPC server   | `src-tauri/src/download/aria2_rpc.rs`             | Axum WebSocket server emulating aria2 RPC protocol |
-| SQLite persistence | `src-tauri/src/download/database.rs`              | rusqlite with `bundled` feature                    |
+Detailed four-section docs (module responsibility, key structs, key methods, data flow) live in `.opencode/guides/`. **Before modifying any subsystem, read its guide first.**
+
+| Guide | Source (Rust) | Role |
+|---|---|---|
+| `subsystem-download-manager.md` | `download/manager.rs` + `http_executor.rs` + `scheduler.rs` + `aimd.rs` | HTTP download lifecycle orchestration |
+| `subsystem-bt-backend.md` | `download/bt_backend_own/` | BitTorrent via irontide engine |
+| `subsystem-cdn-accelerator.md` | `download/cdn/` | Cloudflare IP probing & DNS rewriting (currently Cloudflare-only) |
+| `subsystem-aria2-rpc.md` | `download/aria2_rpc.rs` | Axum WebSocket + HTTP JSON-RPC emulating aria2 protocol |
+| `subsystem-database.md` | `download/database.rs` | rusqlite with `bundled` feature |
+| `subsystem-buffer-pool.md` | `download/buffer_pool.rs` | HDD double-buffer / SSD write-combining memory pool |
+| `subsystem-settings.md` | `download/settings.rs` + `types.rs` | JSON-based settings load/save, HTTP client builder |
+
+**Cross-cutting docs**: `core-data-flow.md` — full HTTP download lifecycle across all subsystems.
+
+### Documentation maintenance
+
+> **After any add/modify/delete/refactor, update the corresponding subsystem guide.** Outdated docs are worse than no docs — they actively mislead. At minimum: check that struct fields, method signatures, and file paths still match the source. If a new subsystem or protocol is added, create its guide following the four-section template.
 
 ### Startup & shutdown
 
 - App entry: `src-tauri/src/lib.rs` → `run()`
-- On startup: state dirs → RateLimiter → DownloadManager → logging → TorrentManager → CdnAccelerator → optional Aria2 RPC
-- On window close: TorrentManager is gracefully shut down before exit (intercepted close event)
+- On startup: state dirs → RateLimiter → DownloadManager → logging → OwnBtBackend → CdnAccelerator → optional Aria2 RPC
+- On window close: DownloadManager.shutdown() → OwnBtBackend.shutdown() → exit
 - Allocator: `mimalloc` set as global allocator in `main.rs`
 
 ## Tauri dev workflow
@@ -71,10 +81,16 @@ The `DownloadProtocol` trait (`src-tauri/src/download/protocol.rs`) abstracts bo
 
 ## Testing
 
-- Frontend tests: `src/__tests__/`, Vitest + jsdom, mock Tauri API via `src/__tests__/mocks/tauri-mock.ts`
-- Rust unit tests: inline `#[cfg(test)]` modules
-- Rust integration tests: `src-tauri/src/download/tests/`
-- CI runs both `bun run test` and `cargo test --workspace`
+See **`.opencode/guides/testing-guide.md`** for test patterns, mock setup, and E2E configuration.
+
+Quick ref: `bun run test` (frontend), `cargo test --workspace` (Rust), `e2e/` (Playwright, pending).
+
+## Core data flow & buffer pool
+
+Moved to standalone guides — read them before touching download pipeline or I/O code:
+
+- **`.opencode/guides/core-data-flow.md`** — HTTP download full lifecycle through 6 subsystems
+- **`.opencode/guides/subsystem-buffer-pool.md`** — HDD double-buffer vs SSD write-combining, game mode, slot management
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -85,21 +101,7 @@ The `DownloadProtocol` trait (`src-tauri/src/download/protocol.rs`) abstracts bo
 
 ## Frontend UI
 
-### Design system & component catalog
-
-**Before writing any frontend UI code**, read the guides:
-
-- **`.opencode/guides/ui-design-guide.md`** — Design tokens (colors, typography, spacing, radii, shadows), icon system, CSS conventions, theme/dark-mode, accessibility minimums, responsive breakpoints
-- **`.opencode/guides/ui-component-guide.md`** — Complete catalog of every shared UI component with props, slots, emits, and usage examples. Always check this before creating new UI — a component likely already exists.
-
-Key rules:
-- Never hardcode colors, spacing, or radii — use `var(--token)` from `src/styles.css`
-- Use `i-ri-*` classes for icons (Remix Icon via UnoCSS), always add `aria-hidden="true"`
-- Use `<style scoped>` in `.vue` SFCs; non-scoped CSS only for page-level shared layout classes
-- `:focus-visible` required on every interactive element
-- Empty states: use `UiEmptyState` component, never ad-hoc markup
-- Settings/labs panels: use `SettingsSection` + `SettingsField` components
-- Dialogs: `UiDialog` or `ConfirmDialog`; fullscreen: `ModalOverlay`
+**Before writing any frontend UI code**, read `.opencode/guides/ui-design-guide.md` (design tokens) and `.opencode/guides/ui-component-guide.md` (component catalog). Key rules: never hardcode colors/spacing (use `var(--token)`), use `i-ri-*` for icons with `aria-hidden="true"`, `<style scoped>` only, `:focus-visible` on all interactive elements.
 
 ### Frontend stack
 

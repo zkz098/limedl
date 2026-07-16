@@ -93,8 +93,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     form.userAgent = settings.download.defaultUserAgent;
     applySchedulerDefaults(settings.scheduler.mode, settings.scheduler.automatic.maxThreadsPerTask);
     // TODO: Pre-fill form.downloadLimitBps / form.uploadLimitBps from
-    // settings.bt.defaultDownloadSpeedLimit / defaultUploadSpeedLimit
-    // once those fields are added to the BtSettings interface in settings.ts.
+    // per-download defaults once those fields are exposed via settings.
   }
 
   function buildStartRequest(): StartDownloadRequest {

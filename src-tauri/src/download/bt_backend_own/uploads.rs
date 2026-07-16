@@ -1,0 +1,125 @@
+use std::sync::Arc;
+use std::time::Duration;
+
+use dashmap::DashMap;
+use irontide::core::Id20;
+use parking_lot::Mutex;
+use tauri::Emitter;
+
+use super::OwnBtBackend;
+use super::super::lock;
+
+impl OwnBtBackend {
+    pub fn spawn_upload_policy_loop(self: Arc<Self>) {
+        // Cancel any existing loop
+        let handle = {
+            let mut slot = lock(&self.upload_policy_task);
+            slot.take()
+        };
+        if let Some(h) = handle {
+            h.abort();
+        }
+
+        let session = self.session.clone();
+        let bt_settings = self.bt_settings.clone();
+        let task_map = self.task_map.clone();
+        let app_handle = self.app_handle.clone();
+        let paused_by_limit = self.paused_by_limit.clone();
+
+        let join = tokio::spawn(async move {
+            upload_policy_loop(session, bt_settings, task_map, app_handle, paused_by_limit).await;
+        });
+
+        *lock(&self.upload_policy_task) = Some(join);
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  Upload policy loop
+// ---------------------------------------------------------------------------
+
+/// Background loop that periodically enforces upload limits per-torrent.
+async fn upload_policy_loop(
+    session: irontide::session::SessionHandle,
+    bt_settings: Arc<Mutex<super::super::types::BtSettings>>,
+    task_map: Arc<DashMap<String, Id20>>,
+    app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
+    paused_by_limit: Arc<DashMap<Id20, ()>>,
+) {
+    let mut interval = tokio::time::interval(Duration::from_secs(5));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    tracing::info!("irontide upload policy loop started");
+
+    loop {
+        interval.tick().await;
+
+        let settings = lock(&bt_settings).clone();
+        if settings.upload_limit_bytes == 0 && settings.upload_ratio_limit == 0.0 {
+            // If limits were cleared, un-pause any previously paused torrents.
+            if !paused_by_limit.is_empty() {
+                let to_unpause: Vec<Id20> =
+                    paused_by_limit.iter().map(|e| *e.key()).collect();
+                paused_by_limit.clear();
+                for ih in &to_unpause {
+                    let _ = session.set_upload_limit(*ih, 0).await;
+                    // Emit a download-updated to reflect unpaused upload status
+                    emit_upload_policy_event(&app_handle, *ih, "idle");
+                }
+            }
+            continue;
+        }
+
+        for entry in task_map.iter() {
+            let info_hash = *entry.value();
+            match session.torrent_stats(info_hash).await {
+                Ok(stats) => {
+                    let limit_reached = settings.upload_limit_bytes > 0
+                        && stats.uploaded >= settings.upload_limit_bytes;
+                    let ratio_reached = settings.upload_ratio_limit > 0.0
+                        && stats.total_done > 0
+                        && (stats.uploaded as f64)
+                            >= stats.total_done as f64 * settings.upload_ratio_limit;
+
+                    if limit_reached || ratio_reached {
+                        if settings.pause_upload_when_limit_reached {
+                            if paused_by_limit.get(&info_hash).is_none() {
+                                paused_by_limit.insert(info_hash, ());
+                                let _ = session.set_upload_limit(info_hash, 1).await;
+                                // Emit a download-updated reflecting PausedByLimit
+                                emit_upload_policy_event(&app_handle, info_hash, "paused_by_limit");
+                            }
+                        }
+                        // When pause_upload_when_limit_reached is false, we do NOT
+                        // modify the upload rate — upload_limit_bytes is an absolute
+                        // byte threshold, not a rate to enforce.
+                    } else if paused_by_limit.get(&info_hash).is_some() {
+                        // Was previously paused; un-pause by removing the rate cap.
+                        // irontide treats 0 as unlimited.
+                        paused_by_limit.remove(&info_hash);
+                        let _ = session.set_upload_limit(info_hash, 0).await;
+                        emit_upload_policy_event(&app_handle, info_hash, "idle");
+                    }
+                }
+                Err(e) => {
+                    tracing::trace!("upload policy: stats error for {info_hash}: {e}");
+                }
+            }
+        }
+    }
+}
+
+/// Emit a `download-updated` event from the upload policy loop with the given upload status.
+fn emit_upload_policy_event(
+    app_handle: &Arc<Mutex<Option<tauri::AppHandle>>>,
+    info_hash: Id20,
+    upload_status: &str,
+) {
+    if let Some(ref app) = *lock(app_handle) {
+        let task_id = format!("{}{}", super::BT_PREFIX, info_hash.to_hex());
+        let _ = app.emit(
+            "download-updated",
+            serde_json::json!({"id": task_id, "uploadStatus": upload_status}),
+        );
+    }
+}

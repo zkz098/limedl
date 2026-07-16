@@ -20,7 +20,7 @@ defineProps<{
         <UiSelect v-model="draft.proxy.mode" :options="proxyModeOptions" />
       </SettingsField>
 
-      <SettingsField v-if="draft.proxy.mode === 'manual'" wide :label="t('settings.proxyAddress')" :hint="t('settings.proxyHint')">
+      <SettingsField v-if="draft.proxy.mode === 'manual'" wide :label="t('settings.proxyAddress')" :info-tooltip="t('settings.proxyHint')">
         <UiTextField v-model="draft.proxy.manualUrl" type="text" placeholder="http://127.0.0.1:7890" />
       </SettingsField>
     </div>
