@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::download::calculate_checksum;
+use crate::download::event_bus::DownloadEvent;
 use crate::download::now_ms;
 use crate::download::persistence::persist_manifest_snapshot;
 use crate::download::retry::request_with_retry;
@@ -90,6 +91,7 @@ impl super::DownloadManager {
             thread_count: current_manifest.requested_thread_count,
             max_retries: None,
             checksum: Some(current_manifest.checksum_mode),
+            expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
@@ -647,12 +649,13 @@ impl super::DownloadManager {
             return Ok(RunOutcome::Canceled);
         }
 
-        let (temp_path, destination_path, checksum_mode) = {
+        let (temp_path, destination_path, checksum_mode, expected_checksum) = {
             let core = managed.lock_core();
             (
                 PathBuf::from(core.manifest.temp_path.clone()),
                 PathBuf::from(core.manifest.destination_path.clone()),
                 core.manifest.checksum_mode,
+                core.manifest.expected_checksum.clone(),
             )
         };
 
@@ -660,6 +663,28 @@ impl super::DownloadManager {
             ChecksumMode::None => None,
             mode => Some(calculate_checksum(temp_path.clone(), mode).await?),
         };
+
+        // Verify expected checksum if one was provided
+        if let (Some(expected), Some(computed)) = (&expected_checksum, &checksum) {
+            if !expected.eq_ignore_ascii_case(computed) {
+                let error_msg = format!("Checksum mismatch: expected {expected}, got {computed}");
+                {
+                    let mut core = managed.lock_core();
+                    core.snapshot.state = DownloadState::Failed;
+                    core.snapshot.error = Some(error_msg.clone());
+                    core.snapshot.connection_count = 0;
+                    core.snapshot.allocated_thread_count = Some(0);
+                    core.snapshot.updated_at_ms = now_ms();
+                    core.manifest.state = DownloadState::Failed;
+                    core.manifest.error = Some(error_msg);
+                    core.manifest.connection_count = 0;
+                    core.manifest.allocated_thread_count = Some(0);
+                    core.manifest.updated_at_ms = now_ms();
+                }
+                self.persist(managed.clone()).await?;
+                return Ok(RunOutcome::Finished);
+            }
+        }
 
         if finalize_was_canceled(&managed, &token) {
             return Ok(RunOutcome::Canceled);
@@ -712,16 +737,16 @@ impl super::DownloadManager {
         }
         self.persist(managed.clone()).await?;
 
-        // Broadcast aria2.onDownloadComplete via RPC event channel
-        let event_tx = self.event_tx.lock();
-        if let Some(ref tx) = *event_tx {
-            let download_id = managed.lock_core().snapshot.id.clone();
-            let gid = format!(
-                "{:016x}",
-                xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
-            );
-            let _ = tx.send(build_rpc_notification("aria2.onDownloadComplete", &gid));
-        }
+        // Broadcast aria2.onDownloadComplete via EventBus
+        let download_id = managed.lock_core().snapshot.id.clone();
+        let gid = format!(
+            "{:016x}",
+            xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
+        );
+        self.event_bus.publish(DownloadEvent::Aria2Notification {
+            event_name: "aria2.onDownloadComplete".into(),
+            gid,
+        });
 
         Ok(RunOutcome::Finished)
     }

@@ -171,25 +171,54 @@ ntest       # #[timeout(ms)] 测试超时注解
 
 ### Current State
 
-- 框架已配置：`e2e/` 目录存在，Playwright 依赖已安装
-- `e2e/tests/` 为空，测试待编写
-- 运行前需先构建应用：`bun run tauri build`
+- 框架已配置：`e2e/` 目录存在，含 `playwright.config.ts`、`fixtures.ts`、`tests/smoke.spec.ts`
+- Playwright 依赖 `@playwright/test` 安装在根 `package.json` devDependencies 中
+- 运行前需先启动 Tauri 应用：`bun run tauri dev`（在另一个终端）
 
-### Setup
+### E2E 脚本
 
-E2E 测试需要 Tauri 应用运行中。配置 Playwright 连接到 Tauri webview：
+定义在根 `package.json`：
+
+| 命令 | 用途 |
+|---|---|
+| `bun run test:e2e` | 运行所有 E2E 测试（headless） |
+| `bun run test:e2e:ui` | 打开 Playwright UI 模式运行测试 |
+
+### 运行前提
+
+```bash
+# 终端 1: 启动 Tauri 开发模式
+bun run tauri dev
+
+# 终端 2: 运行 E2E 测试
+bun run test:e2e
+```
+
+### 配置 (`e2e/playwright.config.ts`)
+
+- 测试目录：`./tests`
+- 超时：60 秒/测试
+- 重试：0（本地和 CI 均无重试）
+- Reporters：`html`（输出到 `playwright-report/`）+ `list`
+- 浏览器：Chromium 固定（Tauri Windows/Linux 使用 Chromium）
+- 截图：仅在失败时
+- `baseURL`：`http://localhost:1420`（Vite dev server 端口）
+- `headless: true`
+- CI：目前不运行，因为需要桌面环境。将来可使用 `xvfb-run`（Linux）或 Tauri 测试工具
+
+### Fixtures (`e2e/fixtures.ts`)
 
 ```ts
-// e2e/fixtures.ts — 示例模式
-import { test as base, _electron as electron } from "@playwright/test";
+import { test as base } from "@playwright/test";
 
 export const test = base.extend({
-  app: async ({}, use) => {
-    // 启动 Tauri 应用或连接到已运行的实例
-    // ...
-  },
+  // 未来：添加自定义 fixture（如自动启动 app、DB helpers）
 });
+
+export { expect } from "@playwright/test";
 ```
+
+当前 fixture 只导出基础 `test` 和 `expect`。Tauri 应用需手动启动（通过 `bun run tauri dev`），测试通过 `page.goto("/")` 连接到 Vite dev server。
 
 ### Writing E2E Tests
 
@@ -211,10 +240,15 @@ test("add and start HTTP download", async ({ page }) => {
 });
 ```
 
+### 现有 Smoke Tests (`e2e/tests/smoke.spec.ts`)
+
+- `page loads and renders the app root`：验证 `#app` 挂载点、`.app-root` 元素可见、页面标题为 "Downloader"
+- `main UI elements are present on the home view`：验证侧边栏和主内容区域存在
+
 ### Tauri E2E 注意事项
 
 - Tauri webview 不支持 `localhost` 的本地 mock 服务器（安全限制），需要真实 URL 或本地文件服务器
-- 使用 `data-testid` 属性定位元素，不要依赖 CSS 类名
+- 使用 `data-testid` 属性定位元素，不要依赖 CSS 类名（smoke 测试目前使用 CSS class fallback，因为尚未添加 `data-testid`）
 - 下载测试需要：一个可访问的测试文件服务器 + 足够的磁盘空间
 
 ---

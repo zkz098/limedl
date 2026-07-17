@@ -3,21 +3,22 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use parking_lot::Mutex;
-use tokio::sync::broadcast;
 
-use super::OwnBtBackend;
+use super::IrontideBtBackend;
 use super::super::error::Result;
-use super::super::settings::build_http_client;
+use crate::download::event_bus::EventBus;
+use crate::download::http_client_factory::build_http_client;
 use super::super::types::AppSettings;
 use super::super::types::{BtEncryptionMode, BtPreallocateMode};
 use super::super::lock;
 
-impl OwnBtBackend {
-    /// Create a new irontide session and wrap it in an `OwnBtBackend`.
+impl IrontideBtBackend {
+    /// Create a new irontide session and wrap it in an `IrontideBtBackend`.
     pub async fn new(
         settings: &AppSettings,
         state_dir: PathBuf,
         default_output_dir: PathBuf,
+        event_bus: Arc<EventBus>,
     ) -> Result<Self> {
         let bt = &settings.bt;
 
@@ -96,24 +97,15 @@ impl OwnBtBackend {
             state_dir,
             default_output_dir,
             bt_settings: Arc::new(Mutex::new(bt.clone())),
-            event_tx: Arc::new(Mutex::new(None)),
+            event_bus,
             task_map: Arc::new(DashMap::new()),
             alert_task: Arc::new(Mutex::new(None)),
             upload_policy_task: Arc::new(Mutex::new(None)),
-            app_handle: Arc::new(Mutex::new(None)),
             http_client,
             global_speed_limit_bps: settings.global_speed_limit_bps,
             paused_by_limit: Arc::new(DashMap::new()),
             runtime_handle,
         })
-    }
-
-    pub fn set_app_handle(&self, handle: tauri::AppHandle) {
-        *lock(&self.app_handle) = Some(handle);
-    }
-
-    pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
-        *lock(&self.event_tx) = Some(tx);
     }
 
     pub async fn shutdown(&self) {

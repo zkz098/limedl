@@ -1,4 +1,4 @@
-import { reactive, ref, type Ref } from "vue";
+import { computed, reactive, ref, watch, type Ref } from "vue";
 
 import { setBtSpeedLimit, startDownload } from "../lib/tauri/download-api";
 import { pickDirectory, pickTorrentFile } from "../lib/tauri/dialog-api";
@@ -52,6 +52,88 @@ export function useDownloadForm(input: UseDownloadFormInput) {
 
   const isPickingDirectory = ref(false);
   const isPickingTorrent = ref(false);
+
+  // ── Form validation & auto-detection ──────────────────────────────
+
+  const isFormValid = computed(() => form.url.trim() !== "" && form.destinationDir.trim() !== "");
+  const isFileNameLocked = ref(false);
+  const autoDetectFileName = ref(true);
+
+  const DEFAULT_THREAD_COUNT = 8;
+  const MAX_THREADS = 128;
+
+  /**
+   * Extracts a file name from a URL and sets form.fileName.
+   * Does nothing when isFileNameLocked is true.
+   */
+  function autoSetFileName(url: string): void {
+    if (isFileNameLocked.value) return;
+
+    const trimmed = url.trim();
+    if (!trimmed) {
+      form.fileName = "";
+      return;
+    }
+
+    // Magnet link — extract display name from dn parameter
+    if (trimmed.toLowerCase().startsWith("magnet:")) {
+      const queryIndex = trimmed.indexOf("?");
+      const query = queryIndex >= 0 ? trimmed.slice(queryIndex + 1) : "";
+      const dn = new URLSearchParams(query).get("dn");
+      form.fileName = dn ? decodeURIComponent(dn) : "";
+      return;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      const segment = parsed.pathname.split("/").pop();
+      form.fileName = segment ? decodeURIComponent(segment) : "";
+    } catch {
+      form.fileName = "";
+    }
+  }
+
+  /** Reset form to initial defaults. */
+  function resetForm(): void {
+    form.kind = "http";
+    form.url = "";
+    form.destinationDir = "";
+    form.fileName = "";
+    form.userAgent = "";
+    form.threadMode = "adaptive";
+    form.threadCount = DEFAULT_THREAD_COUNT;
+    form.maxRetries = 5;
+    form.checksum = "blake3" as ChecksumMode;
+    form.downloadLimitBps = null;
+    form.uploadLimitBps = null;
+    isFileNameLocked.value = false;
+    autoDetectFileName.value = true;
+  }
+
+  /** Clamp thread count to valid range [1, MAX_THREADS]. */
+  function clampThreadCount(value: number): number {
+    return Math.max(1, Math.min(MAX_THREADS, Math.trunc(value)));
+  }
+
+  /** Validate and clamp form.threadCount in place. */
+  function validateThreadCount(): void {
+    if (typeof form.threadCount === "number" && Number.isFinite(form.threadCount)) {
+      form.threadCount = clampThreadCount(form.threadCount);
+    } else {
+      form.threadCount = DEFAULT_THREAD_COUNT;
+    }
+  }
+
+  // ── URL change auto-detect ───────────────────────────────────────
+
+  watch(
+    () => form.url,
+    (newUrl) => {
+      if (newUrl && autoDetectFileName.value) {
+        autoSetFileName(newUrl);
+      }
+    },
+  );
 
   function applySchedulerDefaults(mode: SchedulerMode, maxThreadsPerTask?: number) {
     if (form.kind !== "http") {
@@ -117,11 +199,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
       }
 
       if (typeof form.threadCount === "number" && Number.isFinite(form.threadCount)) {
-        const threadCount = Math.trunc(form.threadCount);
-
-        if (threadCount > 0) {
-          request.threadCount = threadCount;
-        }
+        request.threadCount = clampThreadCount(form.threadCount);
       }
 
       if (typeof form.maxRetries === "number" && Number.isFinite(form.maxRetries)) {
@@ -189,6 +267,8 @@ export function useDownloadForm(input: UseDownloadFormInput) {
   }
 
   async function submitStart() {
+    if (isStarting.value) return;
+
     if (!form.url.trim() || !form.destinationDir.trim()) {
       setError(
         form.kind === "bt" ? t("messages.torrentStartRequired") : t("messages.startRequired"),
@@ -222,6 +302,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
       await refreshList();
       await refreshStatus(downloadId, { silent: true });
       setMessage(t("messages.downloadQueued", { id: downloadId }));
+      resetForm();
     } catch (error) {
       setError(toMessage(error));
     } finally {
@@ -262,9 +343,16 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     isStarting,
     isPickingDirectory,
     isPickingTorrent,
+    isFormValid,
+    isFileNameLocked,
+    autoDetectFileName,
     applySchedulerDefaults,
     applyAppSettingsDefaults,
     buildStartRequest,
+    autoSetFileName,
+    resetForm,
+    clampThreadCount,
+    validateThreadCount,
     pickDestinationDirectory,
     pickTorrentSourceFile,
     submitStart,

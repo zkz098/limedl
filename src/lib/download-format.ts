@@ -12,7 +12,7 @@ export function formatTokenLabel(value?: string) {
 }
 
 export function formatBytes(value?: number) {
-  if (typeof value !== "number") {
+  if (typeof value !== "number" || Number.isNaN(value)) {
     return "—";
   }
 
@@ -34,7 +34,7 @@ export function formatBytes(value?: number) {
 }
 
 export function formatSpeed(value?: number) {
-  if (typeof value !== "number") {
+  if (typeof value !== "number" || Number.isNaN(value)) {
     return "—";
   }
 

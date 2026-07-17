@@ -47,7 +47,7 @@ DownloadManager::start()
    - Returns `RemoteMetadata { total_bytes: Option<u64>, supports_ranges: bool, etag: Option<String>, file_name: Option<String>, final_url: String }`
 6. Builds `Manifest` with chunk plan: 1 chunk for single-threaded, N chunks for multi-segment (chunk size from settings or adaptive)
 7. Inserts manifest + chunks into SQLite via `Database::insert_download()`
-8. Resolves disk type via `disk_detect.rs` (Win32 `IOCTL_STORAGE_QUERY_PROPERTY`) → `DiskType::Ssd` or `DiskType::Hdd`
+8. Resolves disk type via `file_ops/mod.rs` (Win32 `IOCTL_STORAGE_QUERY_PROPERTY`) → `DiskType::Ssd` or `DiskType::Hdd`
 
 **Decision point**: `supports_parallelism(total_bytes, supports_ranges, chunk_size)` determines single vs multi-segment.
 
@@ -88,7 +88,7 @@ DownloadManager::start()
 17. All chunks complete → `finalize_download()`:
     - `DownloadBuffer::drain_background()` → await any in-flight background flushes
     - `DownloadBuffer::flush_all()` → final flush to disk
-    - `calculate_checksum(file, mode)` via `checksum.rs` (Blake3 / SHA256 / XXH3-128)
+    - `calculate_checksum(file, mode)` via `checksum/mod.rs` (Blake3 / SHA256 / XXH3-128)
     - Rename `destination_path.tmp` → `destination_path`
     - Update SQLite: `state = "completed"`, `updated_at_ms`, final checksum
     - Emit `"download-updated"` Tauri event via `app_handle.emit()`
@@ -100,10 +100,10 @@ DownloadManager::start()
 | Phase | Subsystems involved |
 |---|---|
 | Phase 1 | `commands.rs`, `protocol.rs` (TaskId routing) |
-| Phase 2 | `manager.rs`, `http_executor.rs`, `manifest.rs`, `database.rs`, `disk_detect.rs` |
+| Phase 2 | `manager.rs`, `http_executor.rs`, `manifest.rs`, `database.rs`, `file_ops/mod.rs` |
 | Phase 3 | `http_executor.rs`, `buffer_pool.rs`, `database.rs`, `rate_limiter.rs` |
 | Phase 4 | `scheduler.rs`, `aimd.rs`, `rate_limiter.rs` |
-| Phase 5 | `http_executor.rs`, `buffer_pool.rs`, `checksum.rs`, `database.rs`, `retry.rs`, `file_alloc.rs` |
+| Phase 5 | `http_executor.rs`, `buffer_pool.rs`, `checksum/mod.rs`, `database.rs`, `retry.rs`, `file_ops/mod.rs` |
 
 ## Key Data Types in Flight
 

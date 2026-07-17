@@ -11,8 +11,8 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 - `src-tauri/src/download/aimd.rs` (249 行) — AIMD 吞吐量状态机
 - `src-tauri/src/download/manifest.rs` (286 行) — Manifest/ChunkManifest 类型
 - `src-tauri/src/download/retry.rs` (103 行) — 指数退避重试
-- `src-tauri/src/download/file_alloc.rs` (346 行) — 文件创建、预分配、整理
-- `src-tauri/src/download/checksum.rs` (95 行) — Blake3/SHA256/XXH3 校验和
+- `src-tauri/src/download/file_ops/mod.rs` — 文件创建、预分配、整理、磁盘检测
+- `src-tauri/src/download/checksum/mod.rs` — Blake3/SHA256/XXH3 校验和
 - `src-tauri/src/download/rate_limiter.rs` (266 行) — 全局令牌桶速率限制
 - `src-tauri/src/download/protocol.rs` (87 行) — DownloadProtocol trait
 
@@ -24,6 +24,7 @@ Tauri 命令注入的全局状态：
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
     pub bt_backend: Arc<OwnBtBackend>,
+    pub registry: Arc<ProtocolRegistry>,
     pub cdn_accelerator: Arc<CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
     pub rpc_shutdown: Arc<Mutex<Option<watch::Sender<bool>>>>,
@@ -40,11 +41,12 @@ pub struct DownloadManager {
     pub(crate) downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
     pub(crate) db: Arc<Database>,
     pub(crate) rebalance_notify: Arc<Notify>,              // 调度器唤醒信号
+    pub(crate) event_bus: Arc<EventBus>,                   // 统一事件总线（替代 event_tx + app_handle 双通道）
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) overclock_mode: AtomicBool,
     pub(crate) shutdown_token: CancellationToken,
     rate_limiter: Arc<RateLimiter>,
-    // 内部字段: event_tx, cdn_accelerator, app_handle
+    cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
 }
 ```
 
@@ -94,7 +96,7 @@ pub(crate) struct AimdState {
 
 ### DownloadManager — 构造 & 生命周期
 ```rust
-pub fn new(state_dir: PathBuf, rate_limiter: Arc<RateLimiter>) -> Result<Self>
+pub fn new(state_dir: PathBuf, rate_limiter: Arc<RateLimiter>, event_bus: Arc<EventBus>) -> Result<Self>
 pub async fn shutdown(&self)
 ```
 
@@ -103,10 +105,10 @@ pub async fn shutdown(&self)
 pub async fn settings(&self) -> Result<AppSettings>
 pub fn initial_settings(&self) -> AppSettings
 pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings>
-pub fn set_event_tx(&self, tx: broadcast::Sender<String>)
-pub fn set_app_handle(&self, handle: tauri::AppHandle)
 pub fn set_cdn_accelerator(&self, acc: Arc<CdnAccelerator>)
 ```
+
+**注**：`set_event_tx()` 和 `set_app_handle()` 已移除。事件通过 `event_bus: Arc<EventBus>` 统一处理，前端发送由 EventBus 内部订阅自动完成。
 
 ### DownloadManager — 下载 CRUD（全 pub）
 ```rust
@@ -151,9 +153,32 @@ async fn download_single(&self, managed: Arc<ManagedDownload>, client: Client, t
 // 多流并行下载（JoinSet<ChunkWorkerOutcome>）
 async fn download_chunked(&self, managed: Arc<ManagedDownload>, client: Client, token: CancellationToken, max_retries: u32) -> Result<RunOutcome>
 
-// 最终化：flush → 校验和 → 重命名 → 更新 DB
+// 最终化：flush → 校验和 → 完整性验证 → 重命名 → 更新 DB
 async fn finalize_download(&self, managed: Arc<ManagedDownload>, token: CancellationToken) -> Result<RunOutcome>
 ```
+
+### 完整性校验（Integrity Verification）
+
+`finalize_download()` 在 Phase 5（最终化）中增加了可选的完整性校验步骤：
+
+1. **`expected_checksum` 字段**：`StartDownloadRequest` 和 `Manifest` 均包含 `pub expected_checksum: Option<String>`，用于传入预期的哈希值（如 Blake3 十六进制串）。`#[serde(default)]` 确保向后兼容。
+
+2. **校验流程**：
+   - 计算下载文件的校验和（根据 `checksum_mode` 选择算法）
+   - 如果 `expected_checksum` 为 `Some(expected)` 且 `calculated != expected`：
+     - 设置 `state = DownloadState::Failed`
+     - 设置 `error = "Checksum mismatch: expected {expected}, got {computed}"`
+     - **不执行** `finalize_temp_file()`——.tmp 文件保留不动
+     - 返回 `RunOutcome::Finished`（任务结束但状态为 Failed）
+   - 如果 `expected_checksum` 为 `None`，保持原行为：计算、存储、重命名、完成
+
+3. **数据流**：
+   ```
+   StartDownloadRequest.expected_checksum
+     → Manifest.expected_checksum (manager.rs:440)
+       → finalize_download() 提取并比对 (http_executor.rs:652-687)
+         → 匹配 → Completed；不匹配 → Failed（保留 .tmp）
+   ```
 
 ### 工作器内部枚举
 定义在 `manager.rs`（非 `http_executor.rs`）：
@@ -203,7 +228,7 @@ DownloadManager::start()
   ├─ spawn run_download()
   │    ├─ probe() → RemoteMetadata
   │    ├─ download_chunked() / download_single()
-  │    └─ finalize_download() → checksum → rename → emit
+  │    └─ finalize_download() → checksum → verify → rename → emit
   └─ scheduler loop (2s) → AIMD → rebalance
 ```
 
@@ -212,3 +237,5 @@ DownloadManager::start()
 - `DownloadCore.snapshot` 在 workers 中通过 `ManagedDownload::lock_core()` 更新，注意 Mutex 竞争
 - AIMD 状态变更在 scheduler.rs 中，不在 workers 中；workers 只报告下载字节数
 - `rebalance_allocations()` 修改 `allocated_thread_count`，worker 通过 `CancellationToken` 感知变更
+- 所有事件（前端更新 + 内部订阅）通过 `event_bus: Arc<EventBus>` 统一发布，不再使用 `app_handle.emit()` 和 `broadcast::Sender<String>` 双通道模式
+- `EventBus::publish()` 自动将事件转发到 Tauri 前端（通过 `app_handle.emit()`）和内部广播通道

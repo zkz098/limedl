@@ -4,7 +4,7 @@ use std::time::Duration;
 use reqwest::Client;
 
 use super::ip_ranges::{CLOUDFLARE_IPV4_RANGES, network_address, parse_cidr};
-use crate::download::settings::configure_client_builder;
+use crate::download::http_client_factory::configure_client_builder;
 use crate::download::types::AppSettings;
 
 /// Cloudflare IPv6 CIDR ranges.

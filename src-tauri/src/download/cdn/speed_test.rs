@@ -12,7 +12,7 @@ use tokio::task::JoinSet;
 use tokio::time::timeout;
 
 use crate::download::error::{DownloadError, Result};
-use crate::download::settings::configure_client_builder;
+use crate::download::http_client_factory::configure_client_builder;
 use crate::download::types::{AppSettings, default_http_user_agent};
 
 /// Cloudflare CDN speed test endpoint (~100MB file).

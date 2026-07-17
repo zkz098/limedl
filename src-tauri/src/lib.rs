@@ -7,13 +7,13 @@ use std::time::Duration;
 
 use anyhow::Context;
 use tauri::Manager;
-use tokio::sync::broadcast;
 use tokio::time::sleep;
 
+use download::event_bus::EventBus;
 use download::CdnAccelerator;
 use download::{
     cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager,
-    OwnBtBackend, RateLimiter, bt_get_peers, bt_get_pieces, bt_get_trackers,
+    IrontideBtBackend, RateLimiter, bt_get_peers, bt_get_pieces, bt_get_trackers,
     bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel,
     cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
@@ -41,28 +41,33 @@ pub fn run() {
 
                 let rate_limiter = Arc::new(RateLimiter::default());
 
-                let download_manager =
-                    DownloadManager::new(state_dir.clone(), rate_limiter.clone()).with_context(
-                        || format!("初始化下载管理器失败: {}", state_dir.display()),
-                    )?;
+                let event_bus = Arc::new(EventBus::new(256));
+                event_bus.set_app_handle(app.handle().clone());
+
+                let download_manager = DownloadManager::new(
+                    state_dir.clone(),
+                    rate_limiter.clone(),
+                    event_bus.clone(),
+                )
+                .with_context(|| format!("初始化下载管理器失败: {}", state_dir.display()))?;
                 let download_manager = Arc::new(download_manager);
-                download_manager.set_app_handle(app.handle().clone());
                 download_manager.clone().start_scheduler_loop();
 
                 let settings = download_manager.initial_settings();
                 init_logging(&settings.logging, &state_dir).context("初始化日志系统失败")?;
                 cleanup_old_aria2_temp_files();
 
-                let bt_backend: Arc<OwnBtBackend> = {
-                    let own = tauri::async_runtime::block_on(OwnBtBackend::new(
+                let bt_backend: Arc<IrontideBtBackend> = {
+                    let own = tauri::async_runtime::block_on(IrontideBtBackend::new(
                         &settings,
                         state_dir.join("torrents"),
                         state_dir.join("bt_files"),
+                        event_bus.clone(),
                     ))
                     .context("初始化 irontide BT 后端失败")?;
                     Arc::new(own)
                 };
-                bt_backend.set_app_handle(app.handle().clone());
+
                 // spawn_upload_policy_loop() calls tokio::spawn internally, which
                 // requires an active Tokio runtime context. The setup closure runs
                 // on the main thread outside any runtime, so enter Tauri's async
@@ -85,37 +90,37 @@ pub fn run() {
 
                 let rpc_shutdown = Arc::new(Mutex::new(None::<tokio::sync::watch::Sender<bool>>));
 
-                // Create a shared broadcast channel for Aria2 RPC event notifications.
-                // The sender is injected into all three managers so they can broadcast
-                // download-complete / download-error events at their natural lifecycle points.
-                let (event_tx, _event_rx) = broadcast::channel(256);
-                download_manager.set_event_tx(event_tx.clone());
-                bt_backend.set_event_tx(event_tx.clone());
+                // Create the backend registry that routes protocol methods to the correct backend.
+                use download::types::TaskKind;
+                use download::backend_registry::BackendRegistry;
+
+                let mut registry = BackendRegistry::new();
+                registry.register(TaskKind::Http, (*download_manager).clone());
+                registry.register(TaskKind::Bt, (*bt_backend).clone());
+                let registry = Arc::new(registry);
 
                 // Start the alert bridge for the irontide backend.
                 tauri::async_runtime::block_on(bt_backend.setup_alert_bridge());
 
                 app.manage(AppState {
-                    manager: download_manager.clone(),
-                    bt_backend: bt_backend.clone(),
+                    registry: registry.clone(),
+                    event_bus: event_bus.clone(),
+                    rate_limiter: rate_limiter.clone(),
                     cdn_accelerator: cdn_accelerator.clone(),
                     app_handle: app_handle.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
                 });
 
                 {
-                    let mgr = download_manager.clone();
-                    let bt = bt_backend.clone();
-                    let cdna = cdn_accelerator.clone();
-                    let rpc_shutdown = rpc_shutdown.clone();
+                    let state = AppState {
+                        registry: registry.clone(),
+                        event_bus: event_bus.clone(),
+                        rate_limiter: rate_limiter.clone(),
+                        cdn_accelerator: cdn_accelerator.clone(),
+                        app_handle: app_handle.clone(),
+                        rpc_shutdown: rpc_shutdown.clone(),
+                    };
                     tauri::async_runtime::spawn(async move {
-                        let state = AppState {
-                            manager: mgr,
-                            bt_backend: bt,
-                            cdn_accelerator: cdna,
-                            app_handle,
-                            rpc_shutdown,
-                        };
                         loop {
                             sleep(Duration::from_secs(300)).await;
                             state.emit_all_downloads().await;
@@ -126,10 +131,9 @@ pub fn run() {
                 if settings.aria2_rpc.enabled {
                     let (tx, rx) = tokio::sync::watch::channel(false);
                     let rpc_server = Aria2RpcServer::new(
-                        download_manager.clone(),
-                        bt_backend.clone(),
+                        registry.clone(),
                         &settings.aria2_rpc,
-                        event_tx,
+                        event_bus.clone(),
                     );
                     tauri::async_runtime::spawn(async move {
                         if let Err(error) = rpc_server.serve(rx).await {
@@ -152,11 +156,11 @@ pub fn run() {
                 api.prevent_close();
                 let handle = window.app_handle().clone();
                 let state = window.state::<AppState>();
-                let dm = state.manager.clone();
-                let bt = state.bt_backend.clone();
+                let registry = state.registry.clone();
                 tauri::async_runtime::spawn(async move {
-                    dm.shutdown().await;
-                    bt.shutdown().await;
+                    for backend in registry.iter() {
+                        let _ = backend.shutdown().await;
+                    }
                     handle.exit(0);
                 });
             }

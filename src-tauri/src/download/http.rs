@@ -712,6 +712,7 @@ mod tests {
             cdn_accelerated: false,
             checksum_mode: crate::download::types::ChecksumMode::None,
             checksum: None,
+            expected_checksum: None,
             error: None,
             created_at_ms: 0,
             updated_at_ms: 0,

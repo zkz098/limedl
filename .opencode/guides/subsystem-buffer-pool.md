@@ -6,7 +6,7 @@
 
 **涉及文件**：
 - `src-tauri/src/download/buffer_pool.rs` (705 行) — BufferPool + DownloadBuffer + SlotGuard
-- `src-tauri/src/download/disk_detect.rs` (169 行) — Win32 IOCTL 磁盘类型检测
+- `src-tauri/src/download/file_ops/mod.rs` (disk_detect 部分) — Win32 IOCTL 磁盘类型检测
 
 ## 关键结构体
 
@@ -48,7 +48,7 @@ pub struct DownloadBuffer {
 pub enum DiskType { Ssd, Hdd }
 ```
 定义在 `types.rs`，公开类型。
-由 `disk_detect.rs` 在下载开始时通过 Win32 `IOCTL_STORAGE_QUERY_PROPERTY` 检测。
+由 `file_ops/mod.rs` 中的 `detect_disk_type()` 在下载开始时通过 Win32 `IOCTL_STORAGE_QUERY_PROPERTY` 检测。
 
 ## 关键方法
 

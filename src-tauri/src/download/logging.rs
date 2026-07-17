@@ -122,16 +122,25 @@ pub fn init_logging(settings: &LogSettings, state_dir: &Path) -> anyhow::Result<
                 runtime: runtime.clone(),
             });
 
-    tracing_subscriber::registry()
+    // try_init returns Err if a global subscriber is already set (e.g. from
+    // another test running in parallel). Treat this as a success and just
+    // store our control handle so future apply_logging_settings() calls can
+    // update the level filter.
+    let init_result = tracing_subscriber::registry()
         .with(level_layer)
         .with(fmt_layer)
-        .try_init()
-        .context("failed to initialize tracing subscriber")?;
+        .try_init();
+    if let Err(e) = &init_result {
+        tracing::warn!("tracing subscriber already initialized (from another test?): {e}");
+    }
 
-    let _ = LOGGER_CONTROL.set(LoggerControl {
+    let set_result = LOGGER_CONTROL.set(LoggerControl {
         runtime,
         level_reload,
     });
+    if set_result.is_err() {
+        tracing::debug!("logger control already set by another test");
+    }
 
     tracing::info!("logging initialized");
     Ok(())

@@ -4,15 +4,16 @@ use std::time::Duration;
 use irontide::core::Id20;
 use irontide::prelude::*;
 
-use super::OwnBtBackend;
+use super::IrontideBtBackend;
 use super::super::error::{DownloadError, Result};
 use super::super::types::{
     ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary,
     StartDownloadRequest, TaskKind, ThreadMode,
 };
+use crate::download::event_bus::DownloadEvent;
 use super::super::{lock, now_ms};
 
-impl OwnBtBackend {
+impl IrontideBtBackend {
     // ── Private helpers ────────────────────────────────────────────────
 
     /// Parse the info hash from a `bt:`-prefixed task ID.
@@ -52,17 +53,13 @@ impl OwnBtBackend {
         }
     }
 
-    /// Emit an event via the Aria2 RPC broadcast channel.
+    /// Emit an event via the EventBus Aria2 notification.
     fn emit_aria2_event(&self, method: &str, task_id: &str) {
-        let tx_guard = lock(&self.event_tx);
-        let Some(ref tx) = *tx_guard else { return };
         let gid = super::super::aria2_rpc::internal_id_to_gid(task_id);
-        let payload = serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": [{"gid": gid}]
+        self.event_bus.publish(DownloadEvent::Aria2Notification {
+            event_name: method.to_string(),
+            gid,
         });
-        let _ = tx.send(serde_json::to_string(&payload).unwrap_or_default());
     }
 
     // ── Download operations ───────────────────────────────────────────────

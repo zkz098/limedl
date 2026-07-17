@@ -3,26 +3,24 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use irontide::core::Id20;
-use parking_lot::Mutex;
-use tauri::Emitter;
 use tokio::sync::broadcast;
 
-use super::OwnBtBackend;
+use super::IrontideBtBackend;
 use super::snapshot::{map_state, estimate_eta, StateHelpers};
 use super::super::types::DownloadState;
 use super::super::lock;
+use crate::download::event_bus::{DownloadEvent, EventBus};
 
-impl OwnBtBackend {
+impl IrontideBtBackend {
     /// Spawn the alert bridge that listens for irontide alerts and forwards
     /// relevant events to the frontend / Aria2 RPC channel.
     pub async fn setup_alert_bridge(self: &Arc<Self>) {
         let session = self.session.clone();
-        let event_tx = self.event_tx.clone();
+        let event_bus = self.event_bus.clone();
         let task_map = self.task_map.clone();
-        let app_handle = self.app_handle.clone();
 
         let handle = tokio::spawn(async move {
-            alert_bridge_loop(session, event_tx, task_map, app_handle).await;
+            alert_bridge_loop(session, event_bus, task_map).await;
         });
 
         *lock(&self.alert_task) = Some(handle);
@@ -82,9 +80,8 @@ pub(crate) fn extract_info_hash<'a>(kind: &'a irontide::session::AlertKind) -> O
 /// with periodic progress emission every 2 seconds for all active torrents.
 async fn alert_bridge_loop(
     session: irontide::session::SessionHandle,
-    event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
+    event_bus: Arc<EventBus>,
     task_map: Arc<DashMap<String, Id20>>,
-    app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 ) {
     use irontide::session::AlertKind;
 
@@ -122,69 +119,87 @@ async fn alert_bridge_loop(
                         if !task_map.contains_key(&task_id) {
                             task_map.insert(task_id.clone(), *info_hash);
                         }
-                        emit_alert_event(&event_tx, "aria2.onDownloadStart", &task_id);
+                        event_bus.publish(DownloadEvent::Aria2Notification {
+                            event_name: "aria2.onDownloadStart".into(),
+                            gid: crate::download::aria2_rpc::internal_id_to_gid(&task_id),
+                        });
                     }
                     AlertKind::TorrentRemoved { .. } => {
                         task_map.remove(&task_id);
                     }
                     AlertKind::TorrentPaused { .. } => {
-                        emit_alert_event(&event_tx, "aria2.onDownloadPause", &task_id);
+                        event_bus.publish(DownloadEvent::Aria2Notification {
+                            event_name: "aria2.onDownloadPause".into(),
+                            gid: crate::download::aria2_rpc::internal_id_to_gid(&task_id),
+                        });
                     }
                     AlertKind::TorrentResumed { .. } => {
-                        emit_alert_event(&event_tx, "aria2.onDownloadStart", &task_id);
+                        event_bus.publish(DownloadEvent::Aria2Notification {
+                            event_name: "aria2.onDownloadStart".into(),
+                            gid: crate::download::aria2_rpc::internal_id_to_gid(&task_id),
+                        });
                     }
                     AlertKind::TorrentFinished { .. } => {
-                        emit_alert_event(&event_tx, "aria2.onDownloadComplete", &task_id);
-                        emit_alert_event(
-                            &event_tx,
-                            "aria2.onBtDownloadComplete",
-                            &task_id,
-                        );
+                        event_bus.publish(DownloadEvent::Aria2Notification {
+                            event_name: "aria2.onDownloadComplete".into(),
+                            gid: crate::download::aria2_rpc::internal_id_to_gid(&task_id),
+                        });
+                        event_bus.publish(DownloadEvent::Aria2Notification {
+                            event_name: "aria2.onBtDownloadComplete".into(),
+                            gid: crate::download::aria2_rpc::internal_id_to_gid(&task_id),
+                        });
 
-                        // Fetch stats OUTSIDE the app_handle lock so the guard drops before .await
+                        // Fetch stats
                         let stats = session.torrent_stats(*info_hash).await.ok();
-                        if let Some(ref app) = *lock(&app_handle) {
-                            let _ = app.emit("download-completed", serde_json::json!({"id": task_id}));
-                            if let Some(ref s) = stats {
-                                let progress = serde_json::json!({
-                                    "id": task_id,
-                                    "state": "completed",
-                                    "downloadedBytes": s.total_done,
-                                    "totalBytes": s.total,
-                                    "speedBytesPerSecond": 0,
-                                    "connectionCount": s.peers_connected,
-                                    "uploadedBytes": s.uploaded,
-                                    "uploadSpeedBytesPerSecond": 0,
-                                    "peerCount": s.peers_connected,
-                                    "uploadStatus": "idle",
-                                });
-                                let _ = app.emit("download-progress", &progress);
-                            }
-                            // Emit download-updated so the frontend gets the full summary update
-                            let updated = serde_json::json!({
+
+                        // Emit progress with final stats
+                        if let Some(ref s) = stats {
+                            let progress = serde_json::json!({
                                 "id": task_id,
                                 "state": "completed",
-                                "downloadedBytes": stats.as_ref().map(|s| s.total_done),
-                                "totalBytes": stats.as_ref().map(|s| s.total),
-                                "uploadedBytes": stats.as_ref().and_then(|s| if s.uploaded > 0 { Some(s.uploaded) } else { None }),
+                                "downloadedBytes": s.total_done,
+                                "totalBytes": s.total,
+                                "speedBytesPerSecond": 0,
+                                "connectionCount": s.peers_connected,
+                                "uploadedBytes": s.uploaded,
+                                "uploadSpeedBytesPerSecond": 0,
+                                "peerCount": s.peers_connected,
                                 "uploadStatus": "idle",
-                                "connectionCount": stats.as_ref().map(|s| s.peers_connected).unwrap_or(0),
-                                "peerCount": stats.as_ref().map(|s| s.peers_connected),
                             });
-                            let _ = app.emit("download-updated", &updated);
+                            event_bus.publish(DownloadEvent::Progress {
+                                id: task_id.clone(),
+                                progress_json: progress,
+                            });
                         }
+
+                        // Emit download-updated so the frontend gets the full summary update
+                        let updated = serde_json::json!({
+                            "id": task_id,
+                            "state": "completed",
+                            "downloadedBytes": stats.as_ref().map(|s| s.total_done),
+                            "totalBytes": stats.as_ref().map(|s| s.total),
+                            "uploadedBytes": stats.as_ref().and_then(|s| if s.uploaded > 0 { Some(s.uploaded) } else { None }),
+                            "uploadStatus": "idle",
+                            "connectionCount": stats.as_ref().map(|s| s.peers_connected).unwrap_or(0),
+                            "peerCount": stats.as_ref().map(|s| s.peers_connected),
+                        });
+                        event_bus.publish(DownloadEvent::Updated {
+                            id: task_id,
+                            summary_json: updated,
+                        });
                     }
                     AlertKind::MetadataReceived { name, .. } => {
                         tracing::debug!("irontide: metadata received for {info_hash} ({name})");
                     }
                     AlertKind::TorrentError { message, .. } => {
-                        emit_alert_event(&event_tx, "aria2.onDownloadError", &task_id);
-                        if let Some(ref app) = *lock(&app_handle) {
-                            let _ = app.emit(
-                                "download-error",
-                                serde_json::json!({"id": task_id, "error": message}),
-                            );
-                        }
+                        event_bus.publish(DownloadEvent::Aria2Notification {
+                            event_name: "aria2.onDownloadError".into(),
+                            gid: crate::download::aria2_rpc::internal_id_to_gid(&task_id),
+                        });
+                        event_bus.publish(DownloadEvent::Updated {
+                            id: task_id.clone(),
+                            summary_json: serde_json::json!({"id": task_id, "state": "error", "error": message}),
+                        });
                     }
                     AlertKind::StateChanged { prev_state, new_state, .. } => {
                         tracing::trace!(
@@ -199,12 +214,10 @@ async fn alert_bridge_loop(
                     }
                     AlertKind::TrackerReply { num_peers, url, .. } => {
                         if *num_peers > 0 {
-                            if let Some(ref app) = *lock(&app_handle) {
-                                let _ = app.emit(
-                                    "tracker-info",
-                                    serde_json::json!({"id": task_id, "tracker": url, "peers": num_peers}),
-                                );
-                            }
+                            event_bus.publish(DownloadEvent::Updated {
+                                id: task_id.clone(),
+                                summary_json: serde_json::json!({"id": task_id, "tracker": url, "peers": num_peers}),
+                            });
                         }
                     }
                     AlertKind::TrackerError { message, url, .. } => {
@@ -279,9 +292,10 @@ async fn alert_bridge_loop(
                             "etaSeconds": eta,
                         });
 
-                        if let Some(ref app) = *lock(&app_handle) {
-                            let _ = app.emit("download-progress", &progress);
-                        }
+                        event_bus.publish(DownloadEvent::Progress {
+                            id: task_id,
+                            progress_json: progress,
+                        });
                     }
                 }
             }
@@ -291,20 +305,3 @@ async fn alert_bridge_loop(
     tracing::info!("irontide alert bridge stopped");
 }
 
-/// Helper: emit an event to the Aria2 RPC channel.
-pub(crate) fn emit_alert_event(
-    event_tx: &Arc<Mutex<Option<broadcast::Sender<String>>>>,
-    method: &str,
-    task_id: &str,
-) {
-    // Aria2 RPC broadcast
-    if let Some(ref tx) = *lock(event_tx) {
-        let gid = super::super::aria2_rpc::internal_id_to_gid(task_id);
-        let payload = serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": [{"gid": gid}]
-        });
-        let _ = tx.send(serde_json::to_string(&payload).unwrap_or_default());
-    }
-}

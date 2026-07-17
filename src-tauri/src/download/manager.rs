@@ -11,13 +11,14 @@ use std::{
 
 use foldhash::HashMap;
 use parking_lot::{Mutex, MutexGuard};
+use tauri::Emitter;
 
 use anyhow::Context;
+use async_trait::async_trait;
 use futures_util::StreamExt;
 use reqwest::{Client, StatusCode, Url, header};
-use tauri::Emitter;
 use tokio::{
-    sync::{Notify, RwLock, broadcast},
+    sync::{Notify, RwLock},
     task::JoinSet,
     time::sleep,
 };
@@ -26,13 +27,13 @@ use uuid::Uuid;
 
 use super::{
     aimd::{self, AimdState},
-    bt_backend_own::OwnBtBackend,
     buffer_pool::BufferPool,
     database::Database,
-    disk_detect::detect_disk_type,
     error::{DownloadError, Result},
-    file_alloc::{
-        check_disk_space, finalize_temp_file, open_download_file, reset_download_file, write_all_at,
+    event_bus::{DownloadEvent, EventBus},
+    file_ops::{
+        check_disk_space, detect_disk_type, finalize_temp_file, open_download_file,
+        reset_download_file, write_all_at,
     },
     http::{
         build_segment_request, extract_total_bytes, header_string, if_range_header,
@@ -46,6 +47,7 @@ use super::{
         validators_changed,
     },
     migration::migrate_json_manifests,
+    protocol::DownloadBackend,
     rate_limiter::RateLimiter,
     types::{
         AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadProgress,
@@ -56,8 +58,9 @@ use super::{
 
 use super::now_ms;
 use super::mirror::rewrite as mirror_rewrite;
+use super::http_client_factory::build_http_client;
 use super::settings::{
-    build_http_client, load_settings, normalize_settings, persist_settings, resolve_user_agent,
+    load_settings, normalize_settings, persist_settings, resolve_user_agent,
 };
 
 #[path = "http_executor.rs"]
@@ -70,8 +73,9 @@ pub(crate) const MAX_TRADITIONAL_THREADS: usize = 32;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub manager: Arc<DownloadManager>,
-    pub bt_backend: Arc<OwnBtBackend>,
+    pub registry: Arc<super::backend_registry::BackendRegistry>,
+    pub event_bus: Arc<EventBus>,
+    pub rate_limiter: Arc<RateLimiter>,
     pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
@@ -79,20 +83,12 @@ pub struct AppState {
 
 impl AppState {
     pub async fn emit_all_downloads(&self) {
-        let mut summaries = Vec::new();
-
-        if let Ok(http) = self.manager.list().await {
-            summaries.extend(http.into_iter().map(|mut summary| {
-                summary.id = TaskId::make_http(summary.id);
-                summary
-            }));
-        }
-        if let Ok(bt) = self.bt_backend.list().await {
-            summaries.extend(bt);
-        }
-
-        for summary in &summaries {
-            let _ = self.app_handle.emit("download-updated", summary);
+        for backend in self.registry.iter() {
+            if let Ok(summaries) = backend.list().await {
+                for summary in summaries {
+                    let _ = self.app_handle.emit("download-updated", &summary);
+                }
+            }
         }
     }
 }
@@ -105,13 +101,12 @@ pub struct DownloadManager {
     pub(crate) downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
     pub(crate) db: Arc<Database>,
     pub(crate) rebalance_notify: Arc<Notify>,
-    event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
+    pub(crate) event_bus: Arc<EventBus>,
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
     rate_limiter: Arc<RateLimiter>,
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) overclock_mode: AtomicBool,
     pub(crate) shutdown_token: CancellationToken,
-    app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 }
 
 impl Clone for DownloadManager {
@@ -125,12 +120,11 @@ impl Clone for DownloadManager {
             db: self.db.clone(),
             rebalance_notify: self.rebalance_notify.clone(),
             shutdown_token: self.shutdown_token.clone(),
-            event_tx: self.event_tx.clone(),
+            event_bus: self.event_bus.clone(),
             cdn_accelerator: self.cdn_accelerator.clone(),
             rate_limiter: self.rate_limiter.clone(),
             buffer_pool: self.buffer_pool.clone(),
             overclock_mode: AtomicBool::new(self.overclock_mode.load(Ordering::Relaxed)),
-            app_handle: self.app_handle.clone(),
         }
     }
 }
@@ -179,7 +173,11 @@ enum ChunkWorkerOutcome {
 }
 
 impl DownloadManager {
-    pub fn new(state_dir: PathBuf, rate_limiter: Arc<RateLimiter>) -> Result<Self> {
+    pub fn new(
+        state_dir: PathBuf,
+        rate_limiter: Arc<RateLimiter>,
+        event_bus: Arc<EventBus>,
+    ) -> Result<Self> {
         fs::create_dir_all(&state_dir)?;
 
         let settings_path = state_dir
@@ -211,13 +209,12 @@ impl DownloadManager {
             downloads: Arc::new(RwLock::new(HashMap::default())),
             db,
             rebalance_notify: Arc::new(Notify::new()),
-            event_tx: Arc::new(Mutex::new(None)),
+            event_bus,
             cdn_accelerator: Arc::new(RwLock::new(None)),
             rate_limiter,
             buffer_pool,
             overclock_mode: AtomicBool::new(false),
             shutdown_token: CancellationToken::new(),
-            app_handle: Arc::new(Mutex::new(None)),
         };
 
         manager.load_downloads_from_db()?;
@@ -257,16 +254,6 @@ impl DownloadManager {
                 .clone()
         });
         if dir.is_empty() { None } else { Some(dir) }
-    }
-
-    pub fn set_event_tx(&self, tx: broadcast::Sender<String>) {
-        *self.event_tx.lock() = Some(tx);
-    }
-
-    /// Inject the Tauri app handle so the download engine can emit events to the frontend
-    /// on state transitions (completed, failed, paused) without requiring a 2-second poll loop.
-    pub fn set_app_handle(&self, handle: tauri::AppHandle) {
-        *self.app_handle.lock() = Some(handle);
     }
 
     /// Inject the CDN accelerator reference after both manager and accelerator are created.
@@ -414,6 +401,13 @@ impl DownloadManager {
         let supports_parallel = true;
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);
+        // Validate: if expected_checksum is provided, checksum_mode must not be None
+        if request.expected_checksum.is_some() && request.checksum == Some(ChecksumMode::None) {
+            return Err(DownloadError::InvalidRequest(
+                "checksum_mode is required when expected_checksum is provided".into(),
+            ));
+        }
+
         let thread_note = Some(String::from("等待服务器响应"));
         let now = now_ms();
 
@@ -443,6 +437,7 @@ impl DownloadManager {
             state: DownloadState::Queued,
             checksum_mode: request.checksum.unwrap_or_default(),
             checksum: None,
+            expected_checksum: request.expected_checksum.clone(),
             error: None,
             created_at_ms: now,
             updated_at_ms: now,
@@ -792,16 +787,16 @@ impl DownloadManager {
                         }
                         manager.emit_single_summary(&managed);
 
-                        // Broadcast aria2.onDownloadError
-                        let event_tx = manager.event_tx.lock();
-                        if let Some(ref tx) = *event_tx {
-                            let download_id = managed.lock_core().snapshot.id.clone();
-                            let gid = format!(
-                                "{:016x}",
-                                xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
-                            );
-                            let _ = tx.send(build_rpc_notification("aria2.onDownloadError", &gid));
-                        }
+                        // Broadcast aria2.onDownloadError via EventBus
+                        let download_id = managed.lock_core().snapshot.id.clone();
+                        let gid = format!(
+                            "{:016x}",
+                            xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
+                        );
+                        manager.event_bus.publish(DownloadEvent::Aria2Notification {
+                            event_name: "aria2.onDownloadError".into(),
+                            gid,
+                        });
 
                         break;
                     }
@@ -903,23 +898,27 @@ impl DownloadManager {
     /// it emits for a single download at its state transition point rather than
     /// scanning every download on a fixed schedule.
     pub(crate) fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
-        let handle = self.app_handle.lock();
-        let Some(ref handle) = *handle else { return };
         let snapshot = self.build_snapshot(managed.clone());
         let mut summary = DownloadSummary::from(&snapshot);
         summary.id = TaskId::make_http(summary.id);
-        let _ = handle.emit("download-updated", &summary);
+        let json = serde_json::to_value(&summary).unwrap_or_default();
+        self.event_bus.publish(DownloadEvent::Updated {
+            id: summary.id.clone(),
+            summary_json: json,
+        });
     }
 
     /// Emit a lightweight `download-progress` event for incremental UI updates.
     /// Called after each persist cycle (~300ms for HTTP, ~2s for BT).
     pub(crate) fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
-        let handle = self.app_handle.lock();
-        let Some(ref handle) = *handle else { return };
         let snapshot = self.build_snapshot(managed.clone());
         let mut progress = DownloadProgress::from(&snapshot);
         progress.id = TaskId::make_http(progress.id);
-        let _ = handle.emit("download-progress", &progress);
+        let json = serde_json::to_value(&progress).unwrap_or_default();
+        self.event_bus.publish(DownloadEvent::Progress {
+            id: progress.id.clone(),
+            progress_json: json,
+        });
     }
 
     fn record_progress(
@@ -1140,6 +1139,68 @@ impl DownloadManager {
     }
 }
 
+// ---------------------------------------------------------------------------
+//  DownloadBackend implementation for DownloadManager (HTTP backend)
+//  Handles http: prefix stripping/adding.
+// ---------------------------------------------------------------------------
+
+#[async_trait]
+impl DownloadBackend for DownloadManager {
+    async fn start(&self, request: StartDownloadRequest) -> Result<String> {
+        let id = DownloadManager::start(self, request).await?;
+        Ok(TaskId::make_http(id))
+    }
+
+    async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
+        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
+        DownloadManager::pause(self, inner).await
+    }
+
+    async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
+        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
+        DownloadManager::resume(self, inner).await
+    }
+
+    async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
+        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
+        DownloadManager::cancel(self, inner).await
+    }
+
+    async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
+        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
+        DownloadManager::remove(self, inner).await
+    }
+
+    async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
+        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
+        DownloadManager::purge(self, inner).await
+    }
+
+    async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()> {
+        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
+        DownloadManager::open_in_explorer(self, inner).await
+    }
+
+    async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
+        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
+        DownloadManager::status(self, inner).await
+    }
+
+    async fn list(&self) -> Result<Vec<DownloadSummary>> {
+        DownloadManager::list(self).await
+    }
+
+    async fn update_settings(&self, settings: &AppSettings) -> Result<()> {
+        let _ = DownloadManager::update_settings(self, settings.clone()).await?;
+        Ok(())
+    }
+
+    async fn shutdown(&self) -> Result<()> {
+        DownloadManager::shutdown(self).await;
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 enum WaitState {
     Running,
@@ -1343,15 +1404,6 @@ fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutc
         DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
         _ => ChunkWorkerOutcome::Paused,
     }
-}
-
-fn build_rpc_notification(method: &str, gid: &str) -> String {
-    serde_json::to_string(&serde_json::json!({
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": [{"gid": gid}]
-    }))
-    .unwrap_or_default()
 }
 
 /// Returns `true` if the error represents a transport-level network failure

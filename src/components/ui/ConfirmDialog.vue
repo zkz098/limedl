@@ -77,7 +77,7 @@ defineSlots<{
           type="button"
           variant="secondary"
           :disabled="cancelDisabled"
-          @click="emit('cancel')"
+          @click="emit('cancel'); emit('update:modelValue', false)"
         >
           {{ cancelText }}
         </UiButton>

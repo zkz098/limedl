@@ -1,17 +1,18 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod aimd;
+pub(crate) mod event_bus;
 mod aria2_rpc;
 mod bt_backend_own;
 mod buffer_pool;
 mod cdn;
 pub(crate) mod checksum;
-pub(crate) mod disk_detect;
 mod commands;
 pub(crate) mod database;
 mod error;
-mod file_alloc;
+pub(crate) mod file_ops;
 mod http;
+pub(crate) mod http_client_factory;
 mod logging;
 mod manager;
 mod manifest;
@@ -19,17 +20,21 @@ mod mirror;
 pub(crate) mod migration;
 pub(crate) mod persistence;
 pub(crate) mod protocol;
+pub(crate) mod backend_registry;
 mod rate_limiter;
 pub(crate) mod retry;
 pub(crate) mod scheduler;
 pub(crate) mod settings;
-mod types;
+pub(crate) mod types;
+
+#[cfg(test)]
+pub(crate) mod test_harness;
 
 pub(crate) use checksum::calculate_checksum;
 
 pub use aria2_rpc::Aria2RpcServer;
 pub(crate) use aria2_rpc::cleanup_old_aria2_temp_files;
-pub(crate) use bt_backend_own::OwnBtBackend;
+pub(crate) use bt_backend_own::IrontideBtBackend;
 pub(crate) use cdn::CdnAccelerator;
 pub use cdn::commands::{
     cdn_apply, cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status,

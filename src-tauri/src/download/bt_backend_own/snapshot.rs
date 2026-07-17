@@ -6,7 +6,7 @@ use super::super::types::{
 };
 use super::super::now_ms;
 
-impl super::OwnBtBackend {
+impl super::IrontideBtBackend {
     /// Build a `DownloadSnapshot` from irontide stats.
     pub(crate) fn stats_to_snapshot(
         &self,

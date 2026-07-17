@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::download::event_bus::EventBus;
 use crate::download::types::IoBaselineSettings;
 use axum::{
     Router,
@@ -96,8 +97,13 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
     });
 
     let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let manager =
-        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
+        DownloadManager::new(
+            temp.path().join("state"),
+            Arc::new(RateLimiter::default()),
+            Arc::new(EventBus::new(256)),
+        )?;
     let id = tokio::time::timeout(
         Duration::from_millis(200),
         manager.start(StartDownloadRequest {
@@ -110,6 +116,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
             thread_count: None,
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
@@ -158,8 +165,13 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
     });
 
     let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let manager =
-        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
+        DownloadManager::new(
+            temp.path().join("state"),
+            Arc::new(RateLimiter::default()),
+            Arc::new(EventBus::new(256)),
+        )?;
     manager
         .update_settings(AppSettings {
             appearance: Default::default(),
@@ -196,6 +208,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             thread_count: Some(4),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
@@ -213,6 +226,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             thread_count: Some(4),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
@@ -257,8 +271,13 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     });
 
     let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let manager =
-        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
+        DownloadManager::new(
+            temp.path().join("state"),
+            Arc::new(RateLimiter::default()),
+            Arc::new(EventBus::new(256)),
+        )?;
     manager
         .update_settings(AppSettings {
             appearance: Default::default(),
@@ -298,6 +317,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             thread_count: Some(3),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
@@ -315,6 +335,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             thread_count: Some(3),
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
@@ -349,8 +370,13 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
     });
 
     let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let manager =
-        DownloadManager::new(temp.path().join("state"), Arc::new(RateLimiter::default()))?;
+        DownloadManager::new(
+            temp.path().join("state"),
+            Arc::new(RateLimiter::default()),
+            Arc::new(EventBus::new(256)),
+        )?;
     manager
         .update_settings(AppSettings {
             appearance: Default::default(),
@@ -390,6 +416,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             thread_count: None,
             max_retries: Some(1),
             checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
@@ -406,6 +433,137 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
     ));
     let _ = manager.remove(&id).await;
     Ok(())
+}
+
+#[tokio::test]
+#[timeout(30_000)]
+async fn checksum_match_succeeds() -> TestResult {
+    let payload = Arc::new(vec![42_u8; 64 * 1024]);
+    let state = single_file_state("/file.bin", payload.clone(), "\"chk-good\"", 50);
+
+    let app = Router::new()
+        .route("/file.bin", get(file_get).head(file_head))
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    tokio::spawn(async move {
+        if let Err(error) = axum::serve(listener, app).await {
+            eprintln!("[downloader:test] server stopped: {error}");
+        }
+    });
+
+    let temp = tempdir()?;
+    let manager = DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(256)),
+    )?;
+
+    // Compute the expected good checksum for the payload
+    let expected_good = super::super::checksum::hash_slices(
+        ChecksumMode::Blake3,
+        &[&payload],
+    );
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: format!("http://{address}/file.bin"),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: Some(String::from("chk-good.bin")),
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(1),
+            checksum: Some(ChecksumMode::Blake3),
+            expected_checksum: Some(expected_good),
+            selected_file_indices: None,
+            start_paused: false,
+            mirror_urls: None,
+        })
+        .await?;
+
+    // Wait for terminal state
+    let status = wait_for_terminal(&manager, &id).await;
+    assert_eq!(status.state, DownloadState::Completed, "expected Completed with matching checksum, got {:?} error={:?}", status.state, status.error);
+
+    let _ = manager.remove(&id).await;
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(30_000)]
+async fn checksum_mismatch_detected() -> TestResult {
+    let payload = Arc::new(vec![42_u8; 64 * 1024]);
+    let state = single_file_state("/file.bin", payload, "\"chk-bad\"", 50);
+
+    let app = Router::new()
+        .route("/file.bin", get(file_get).head(file_head))
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    tokio::spawn(async move {
+        if let Err(error) = axum::serve(listener, app).await {
+            eprintln!("[downloader:test] server stopped: {error}");
+        }
+    });
+
+    let temp = tempdir()?;
+    let manager = DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(256)),
+    )?;
+
+    // Wrong expected checksum — should cause mismatch
+    let expected_bad = String::from("0000000000000000000000000000000000000000000000000000000000000000");
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: format!("http://{address}/file.bin"),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: Some(String::from("chk-bad.bin")),
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(1),
+            checksum: Some(ChecksumMode::Blake3),
+            expected_checksum: Some(expected_bad),
+            selected_file_indices: None,
+            start_paused: false,
+            mirror_urls: None,
+        })
+        .await?;
+
+    // Wait for terminal state
+    let status = wait_for_terminal(&manager, &id).await;
+    assert_eq!(status.state, DownloadState::Failed, "expected Failed on checksum mismatch, got {:?}", status.state);
+    let error_msg = status.error.unwrap_or_default();
+    assert!(error_msg.contains("Checksum mismatch"), "error should contain 'Checksum mismatch', got: {error_msg}");
+
+    // Verify the temp file was NOT renamed to destination
+    let dest_path = std::path::Path::new(&status.destination_path);
+    assert!(!dest_path.exists(), "destination file should not exist on checksum mismatch");
+
+    let _ = manager.remove(&id).await;
+    Ok(())
+}
+
+/// Poll until the download reaches a terminal state (Completed, Failed, or Canceled).
+async fn wait_for_terminal(manager: &DownloadManager, id: &str) -> DownloadSnapshot {
+    loop {
+        let status = manager.status(id).await.unwrap();
+        if matches!(
+            status.state,
+            DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+        ) {
+            return status;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
 async fn file_head(

@@ -2,9 +2,8 @@ use std::path::PathBuf;
 use std::collections::HashSet;
 
 use irontide::core::Id20;
-use tauri::Emitter;
 
-use super::OwnBtBackend;
+use super::IrontideBtBackend;
 use super::snapshot::{build_peer_flags, preview_entries_from_meta};
 use super::super::error::{DownloadError, Result};
 use super::super::types::{
@@ -13,8 +12,9 @@ use super::super::types::{
     ThreadMode, TorrentFileEntry,
 };
 use super::super::{lock, now_ms};
+use crate::download::event_bus::DownloadEvent;
 
-impl OwnBtBackend {
+impl IrontideBtBackend {
     pub fn set_speed_limit(
         &self,
         download_id: &str,
@@ -259,60 +259,64 @@ impl OwnBtBackend {
     }
 
     pub fn emit_pending_summary(&self, pending_id: &str) {
-        let handle_guard = lock(&self.app_handle);
-        let Some(ref handle) = *handle_guard else { return };
-
         // Try to get stats; if not available yet, emit a minimal snapshot.
-        match Self::parse_info_hash(pending_id) {
+        let summary = match Self::parse_info_hash(pending_id) {
             Ok(info_hash) => {
-                if let Ok(stats) = tokio::task::block_in_place(|| {
+                match tokio::task::block_in_place(|| {
                     self.runtime_handle.block_on(self.session.torrent_stats(info_hash))
-                })
-                {
-                    let snapshot =
-                        self.stats_to_snapshot(pending_id, &info_hash, &stats);
-                    let summary = DownloadSummary::from(&snapshot);
-                    let _ = handle.emit("download-updated", &summary);
-                    return;
+                }) {
+                    Ok(stats) => {
+                        let snapshot =
+                            self.stats_to_snapshot(pending_id, &info_hash, &stats);
+                        DownloadSummary::from(&snapshot)
+                    }
+                    Err(_) => fallback_pending_summary(pending_id, &self.default_output_dir),
                 }
             }
-            Err(_) => {}
-        }
-
-        // Fallback: emit a queued-state summary
-        let summary = DownloadSummary {
-            id: pending_id.to_string(),
-            kind: TaskKind::Bt,
-            state: DownloadState::Queued,
-            url: String::new(),
-            file_name: String::from("Pending torrent"),
-            destination_path: self.default_output_dir.to_string_lossy().to_string(),
-            total_bytes: None,
-            downloaded_bytes: 0,
-            connection_count: 0,
-            thread_mode: ThreadMode::Fixed,
-            requested_thread_count: None,
-            desired_thread_count: None,
-            allocated_thread_count: None,
-            adaptive_profile: None,
-            thread_note: Some(String::from("Adding torrent to irontide session")),
-            speed_bytes_per_second: None,
-            eta_seconds: None,
-            uploaded_bytes: Some(0),
-            upload_speed_bytes_per_second: None,
-            peer_count: Some(0),
-            upload_status: Some(BtUploadStatus::Idle),
-            info_hash: None,
-            error: None,
-            cdn_accelerated: false,
-            created_at_ms: now_ms(),
-            seed_count: None,
-            leech_count: None,
-            download_limit_bps: None,
-            upload_limit_bps: None,
-            chunks: vec![],
-            mirror_url: None,
+            Err(_) => fallback_pending_summary(pending_id, &self.default_output_dir),
         };
-        let _ = handle.emit("download-updated", &summary);
+
+        let summary_json = serde_json::to_value(&summary).unwrap_or_default();
+        self.event_bus.publish(DownloadEvent::Updated {
+            id: pending_id.to_string(),
+            summary_json,
+        });
+    }
+}
+
+/// Build a queued-state summary for a pending torrent.
+fn fallback_pending_summary(pending_id: &str, default_output_dir: &std::path::Path) -> DownloadSummary {
+    DownloadSummary {
+        id: pending_id.to_string(),
+        kind: TaskKind::Bt,
+        state: DownloadState::Queued,
+        url: String::new(),
+        file_name: String::from("Pending torrent"),
+        destination_path: default_output_dir.to_string_lossy().to_string(),
+        total_bytes: None,
+        downloaded_bytes: 0,
+        connection_count: 0,
+        thread_mode: ThreadMode::Fixed,
+        requested_thread_count: None,
+        desired_thread_count: None,
+        allocated_thread_count: None,
+        adaptive_profile: None,
+        thread_note: Some(String::from("Adding torrent to irontide session")),
+        speed_bytes_per_second: None,
+        eta_seconds: None,
+        uploaded_bytes: Some(0),
+        upload_speed_bytes_per_second: None,
+        peer_count: Some(0),
+        upload_status: Some(BtUploadStatus::Idle),
+        info_hash: None,
+        error: None,
+        cdn_accelerated: false,
+        created_at_ms: now_ms(),
+        seed_count: None,
+        leech_count: None,
+        download_limit_bps: None,
+        upload_limit_bps: None,
+        chunks: vec![],
+        mirror_url: None,
     }
 }

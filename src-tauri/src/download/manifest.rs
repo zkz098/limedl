@@ -39,6 +39,8 @@ pub(crate) struct Manifest {
     pub(super) cdn_accelerated: bool,
     pub(super) checksum_mode: ChecksumMode,
     pub(super) checksum: Option<String>,
+    #[serde(default)]
+    pub(super) expected_checksum: Option<String>,
     pub(super) error: Option<String>,
     pub(super) created_at_ms: u64,
     pub(super) updated_at_ms: u64,

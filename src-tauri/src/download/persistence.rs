@@ -170,3 +170,7 @@ pub(crate) async fn persist_manifest_snapshot(
     .context("failed to persist download snapshot")?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "tests/persistence_tests.rs"]
+mod tests;

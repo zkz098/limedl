@@ -23,11 +23,10 @@ pub struct OwnBtBackend {
     pub(crate) state_dir: PathBuf,
     pub(crate) default_output_dir: PathBuf,
     pub(crate) bt_settings: Arc<Mutex<BtSettings>>,
-    pub(crate) event_tx: Arc<Mutex<Option<broadcast::Sender<String>>>>,
+    pub(crate) event_bus: Arc<EventBus>,                      // 统一事件总线
     pub(crate) task_map: Arc<DashMap<String, Id20>>,          // download_id → info_hash 映射
     pub(crate) alert_task: Arc<Mutex<Option<JoinHandle<()>>>>,
     pub(crate) upload_policy_task: Arc<Mutex<Option<JoinHandle<()>>>>,
-    pub(crate) app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
     pub(crate) http_client: Option<reqwest::Client>,           // 用于获取 .torrent 文件
     pub(crate) global_speed_limit_bps: u64,
     pub(crate) paused_by_limit: Arc<DashMap<Id20, ()>>,
@@ -39,9 +38,7 @@ pub struct OwnBtBackend {
 
 ### 构造 & 生命周期
 ```rust
-pub async fn new(settings: &AppSettings, state_dir: PathBuf, default_output_dir: PathBuf) -> Result<Self>
-pub fn set_app_handle(&self, handle: tauri::AppHandle)
-pub fn set_event_tx(&self, tx: broadcast::Sender<String>)
+pub async fn new(settings: &AppSettings, state_dir: PathBuf, default_output_dir: PathBuf, event_bus: Arc<EventBus>) -> Result<Self>
 pub async fn shutdown(&self)
 pub fn update_settings(&self, settings: &AppSettings)
 ```
@@ -93,9 +90,12 @@ OwnBtBackend::start()
   ├─ task_map.insert(download_id → info_hash)
   └─ setup_alert_bridge()
        └─ 后台循环接收 irontide 告警
-            ├─ stats_alert → stats_to_snapshot() → emit "download-updated"
+            ├─ stats_alert → stats_to_snapshot() → EventBus::publish(Updated/Progress)
             ├─ metadata_received → 文件列表可用
-            └─ torrent_finished → 标记 completed
+            └─ torrent_finished → 标记 completed → EventBus::publish(Aria2Notification/Progress/Updated)
+
+事件发送：所有告警和状态变更通过 EventBus.publish() 统一发布。EventBus 自动将事件转发到
+Tauri 前端（emit）和内部订阅者（Aria2 RPC 桥接）。不再直接持有 app_handle 或 event_tx。
 
 上传策略循环（spawn_upload_policy_loop）：
   ├─ 每 N 秒检查全局上传速率

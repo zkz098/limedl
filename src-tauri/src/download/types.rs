@@ -31,12 +31,6 @@ pub enum DownloadState {
     Canceled,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum DownloadSourceKind {
-    Http,
-    Torrent,
-}
-
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BtUploadStatus {
@@ -47,7 +41,7 @@ pub enum BtUploadStatus {
     PausedByLimit,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Hash, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskKind {
     #[default]
@@ -113,6 +107,13 @@ impl TaskId {
         match self {
             TaskId::Http(id) => Some(id.strip_prefix("http:").unwrap_or(id)),
             _ => None,
+        }
+    }
+
+    pub(crate) fn kind(&self) -> TaskKind {
+        match self {
+            TaskId::Http(_) => TaskKind::Http,
+            TaskId::Bt(_) => TaskKind::Bt,
         }
     }
 
@@ -193,6 +194,8 @@ pub struct StartDownloadRequest {
     pub thread_count: Option<usize>,
     pub max_retries: Option<u32>,
     pub checksum: Option<ChecksumMode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_checksum: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_file_indices: Option<Vec<usize>>,
     #[serde(default)]

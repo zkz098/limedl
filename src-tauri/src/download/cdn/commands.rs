@@ -8,6 +8,7 @@ use super::accelerator::AccelState;
 use super::ip_ranges::CLOUDFLARE_IPV4_RANGES;
 use super::speed_test::{CdnTestPhase, DefaultNodeResult, SpeedTestResult};
 use crate::download::manager::AppState;
+use crate::download::manager::DownloadManager;
 
 /// Return the 15 static Cloudflare IPv4 CIDR range strings from the bundled fallback list.
 ///
@@ -30,7 +31,9 @@ pub async fn cdn_fetch_ranges(_state: State<'_, AppState>) -> Result<Vec<String>
 /// Calling this when a test is already running is a no-op.
 #[tauri::command]
 pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
-    let settings = state.manager.settings().await.map_err(|e| e.to_string())?;
+    let dm = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| "HTTP backend not available".to_string())?;
+    let settings = dm.settings().await.map_err(|e| e.to_string())?;
 
     state
         .cdn_accelerator
@@ -39,7 +42,9 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let acc = state.cdn_accelerator.clone();
-    let mgr = state.manager.clone();
+    let mgr = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| "HTTP backend not available".to_string())?
+        .clone();
     let handle = state.app_handle.clone();
 
     tauri::async_runtime::spawn(async move {
@@ -153,7 +158,9 @@ pub async fn cdn_apply(
 ) -> Result<(), String> {
     let ip: Ipv4Addr = ip.parse().map_err(|e| format!("Invalid IP address: {e}"))?;
 
-    let settings = state.manager.settings().await.map_err(|e| e.to_string())?;
+    let dm = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| "HTTP backend not available".to_string())?;
+    let settings = dm.settings().await.map_err(|e| e.to_string())?;
 
     state
         .cdn_accelerator
@@ -162,7 +169,9 @@ pub async fn cdn_apply(
         .map_err(|e| e.to_string())?;
 
     // Persist the applied IP to settings so it survives restart.
-    if let Ok(mut current) = state.manager.settings().await {
+    let dm = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| "HTTP backend not available".to_string())?;
+    if let Ok(mut current) = dm.settings().await {
         current.cdn_acceleration.active_ip = Some(ip.to_string());
         current.cdn_acceleration.active_speed_mbps = Some(speed_mbps);
         current.cdn_acceleration.last_test_at_ms = Some(
@@ -172,7 +181,7 @@ pub async fn cdn_apply(
                 .as_millis() as u64,
         );
         current.cdn_acceleration.last_error = None;
-        let _ = state.manager.update_settings(current).await;
+        let _ = dm.update_settings(current).await;
     }
 
     Ok(())

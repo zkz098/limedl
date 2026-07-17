@@ -17,11 +17,13 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing;
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
 use super::{
-    bt_backend_own::OwnBtBackend,
+    backend_registry::BackendRegistry,
+    bt_backend_own::IrontideBtBackend,
+    event_bus::{DownloadEvent, EventBus},
     manager::DownloadManager,
     types::{
         Aria2RpcSettings, BtPeerInfo, DownloadState, DownloadSummary, StartDownloadRequest,
@@ -108,24 +110,15 @@ async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<String> {
         }
     }
 
-    // Cache miss — scan HTTP downloads stopping at first match
-    if let Ok(list) = ctx.manager.list().await {
-        for s in &list {
-            if internal_id_to_gid(&s.id) == gid {
-                let mut cache = ctx.gid_cache.lock().await;
-                cache.insert(gid.to_string(), s.id.clone());
-                return Some(s.id.clone());
-            }
-        }
-    }
-
-    // Fall back to scanning BT downloads
-    if let Ok(bt_list) = ctx.bt_backend.list().await {
-        for s in &bt_list {
-            if internal_id_to_gid(&s.id) == gid {
-                let mut cache = ctx.gid_cache.lock().await;
-                cache.insert(gid.to_string(), s.id.clone());
-                return Some(s.id.clone());
+    // Cache miss — scan all backends
+    for backend in ctx.registry.iter() {
+        if let Ok(list) = backend.list().await {
+            for s in &list {
+                if internal_id_to_gid(&s.id) == gid {
+                    let mut cache = ctx.gid_cache.lock().await;
+                    cache.insert(gid.to_string(), s.id.clone());
+                    return Some(s.id.clone());
+                }
             }
         }
     }
@@ -209,17 +202,16 @@ fn build_file_list(summary: &DownloadSummary) -> Value {
 }
 
 struct RpcContext {
-    manager: Arc<DownloadManager>,
-    bt_backend: Arc<OwnBtBackend>,
+    registry: Arc<BackendRegistry>,
     secret: Option<String>,
-    event_tx: broadcast::Sender<String>,
+    event_bus: Arc<EventBus>,
     gid_cache: Mutex<HashMap<String, String>>,
 }
 
 impl RpcContext {
     fn settings_default_download_dir(&self) -> String {
-        self.manager
-            .settings_default_download_dir()
+        self.registry.get_typed::<DownloadManager>()
+            .and_then(|dm| dm.settings_default_download_dir())
             .unwrap_or_else(|| dirs_next().unwrap_or_else(default_downloads_dir))
     }
 }
@@ -329,13 +321,16 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         thread_count: extract_option_usize(options, "split"),
         max_retries: extract_option_u32(options, "max-tries"),
         checksum: None,
+        expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
     };
 
-    let id = ctx
-        .manager
+    let dm = ctx.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
+
+    let id = dm
         .start(request)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
@@ -347,17 +342,15 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     if start_paused {
-        let _ = ctx.manager.pause(&task_id).await;
+        let _ = dm.pause(&task_id).await;
     }
 
     // Emit Tauri `download-updated` event so the frontend displays the task
-    // immediately. Without this the task only appears after the first
-    // `download-progress` event (~300ms+ into the download) or the 5-minute
-    // periodic `emit_all_downloads` poll.
+    // immediately.
     {
-        let downloads = ctx.manager.downloads.read().await;
+        let downloads = dm.downloads.read().await;
         if let Some(managed) = downloads.get(&id) {
-            ctx.manager.emit_single_summary(managed);
+            dm.emit_single_summary(managed);
         }
     }
 
@@ -442,21 +435,23 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         thread_count: None,
         max_retries: None,
         checksum: None,
+        expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
     };
 
-    let id = ctx
-        .bt_backend
+    let bt = ctx.registry.get_typed::<IrontideBtBackend>()
+        .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?;
+
+    let id = bt
         .start(request)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
     // Emit Tauri `download-updated` event so the frontend displays the task
-    // immediately. Without this the BT task only appears after the
-    // `download-progress` polling loop fires.
-    ctx.bt_backend.emit_pending_summary(&id);
+    // immediately.
+    bt.emit_pending_summary(&id);
 
     let gid = internal_id_to_gid(&id);
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
@@ -489,14 +484,10 @@ fn extract_option_u32(options: Option<&serde_json::Map<String, Value>>, key: &st
 }
 
 fn broadcast_event(ctx: &RpcContext, method: &str, gid: &str) {
-    let _ = ctx.event_tx.send(
-        serde_json::to_string(&JsonRpcNotification {
-            jsonrpc: "2.0",
-            method: method.to_string(),
-            params: vec![serde_json::json!({"gid": gid})],
-        })
-        .unwrap_or_default(),
-    );
+    ctx.event_bus.publish(DownloadEvent::Aria2Notification {
+        event_name: method.to_string(),
+        gid: gid.to_string(),
+    });
 }
 
 async fn handle_pause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
@@ -562,10 +553,16 @@ async fn handle_tell_status(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
     // O(1) lookup on DownloadManager first (covers all HTTP downloads).
-    let summary = if let Some(s) = ctx.manager.get_summary(&internal_id).await {
-        s
+    let summary = if let Some(dm) = ctx.registry.get_typed::<DownloadManager>() {
+        if let Some(s) = dm.get_summary(&internal_id).await {
+            s
+        } else {
+            let all = get_all_summaries(ctx).await?;
+            all.into_iter()
+                .find(|s| s.id == internal_id)
+                .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?
+        }
     } else {
-        // BT downloads require scanning the torrent list.
         let all = get_all_summaries(ctx).await?;
         all.into_iter()
             .find(|s| s.id == internal_id)
@@ -731,7 +728,9 @@ async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
     };
 
     let peers = ctx
-        .bt_backend
+        .registry
+        .get_typed::<IrontideBtBackend>()
+        .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?
         .get_peers(&bt_id)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
@@ -771,8 +770,9 @@ fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
 }
 
 async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
-    let settings = ctx
-        .manager
+    let dm = ctx.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
+    let settings = dm
         .settings()
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
@@ -799,8 +799,9 @@ async fn handle_change_global_option(
         .and_then(|v| v.as_object())
         .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing options object"))?;
 
-    let mut settings = ctx
-        .manager
+    let dm = ctx.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
+    let mut settings = dm
         .settings()
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
@@ -834,8 +835,7 @@ async fn handle_change_global_option(
         // global limits are not yet implemented.
     }
 
-    ctx.manager
-        .update_settings(settings)
+    dm.update_settings(settings)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
@@ -914,13 +914,12 @@ fn parse_int_param(params: &[Value], index: usize) -> Option<usize> {
 }
 
 async fn get_all_summaries(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, JsonRpcError> {
-    let mut all = ctx
-        .manager
-        .list()
-        .await
-        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
-    if let Ok(bt) = ctx.bt_backend.list().await {
-        all.extend(bt);
+    let mut all = Vec::new();
+    for backend in ctx.registry.iter() {
+        match backend.list().await {
+            Ok(summaries) => all.extend(summaries),
+            Err(e) => tracing::warn!("get_all_summaries: backend list failed: {e}"),
+        }
     }
     Ok(all)
 }
@@ -931,49 +930,12 @@ async fn rpc_dispatch_action(
     action: &str,
 ) -> Result<(), JsonRpcError> {
     let task_id = TaskId::parse(internal_id);
-    let result: anyhow::Result<()> = match &task_id {
-        TaskId::Bt(_) => match action {
-            "pause" => ctx
-                .bt_backend
-                .pause(internal_id)
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            "resume" => ctx
-                .bt_backend
-                .resume(internal_id)
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            "remove" => ctx
-                .bt_backend
-                .remove(internal_id)
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            _ => Err(anyhow::anyhow!("unsupported action for BT: {action}")),
-        },
-        TaskId::Http(_) => match action {
-            "pause" => ctx
-                .manager
-                .pause(task_id.http_inner().unwrap_or(""))
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            "resume" => ctx
-                .manager
-                .resume(task_id.http_inner().unwrap_or(""))
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            "remove" => ctx
-                .manager
-                .remove(task_id.http_inner().unwrap_or(""))
-                .await
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("{e}")),
-            _ => Err(anyhow::anyhow!("unsupported action for HTTP: {action}")),
-        },
+    let backend = ctx.registry.dispatch(&task_id);
+    let result: anyhow::Result<()> = match action {
+        "pause" => backend.pause(&task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        "resume" => backend.resume(&task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        "remove" => backend.remove(&task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        _ => Err(anyhow::anyhow!("unsupported action: {action}")),
     };
 
     result.map_err(|e| make_error(ERR_INTERNAL, e.to_string()))
@@ -1035,25 +997,32 @@ async fn handle_websocket_upgrade(
 async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
     let (sender, mut receiver) = socket.split();
     let sender = Arc::new(tokio::sync::Mutex::new(sender));
-    let mut event_rx = ctx.event_tx.subscribe();
+    let mut event_rx = ctx.event_bus.subscribe();
 
     let sender_events = sender.clone();
     let mut send_events = tokio::spawn(async move {
         loop {
             match event_rx.recv().await {
-                Ok(msg) => {
+                Ok(DownloadEvent::Aria2Notification { event_name, gid }) => {
+                    let notification = serde_json::to_string(&JsonRpcNotification {
+                        jsonrpc: "2.0",
+                        method: event_name,
+                        params: vec![serde_json::json!({"gid": gid})],
+                    })
+                    .unwrap_or_default();
                     if sender_events
                         .lock()
                         .await
-                        .send(Message::Text(msg.into()))
+                        .send(Message::Text(notification.into()))
                         .await
                         .is_err()
                     {
                         break;
                     }
                 }
-                Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                Err(broadcast::error::RecvError::Closed) => break,
+                Ok(_) => {} // ignore non-Aria2 events
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             }
         }
     });
@@ -1140,18 +1109,16 @@ pub struct Aria2RpcServer {
 
 impl Aria2RpcServer {
     pub fn new(
-        manager: Arc<DownloadManager>,
-        bt_backend: Arc<OwnBtBackend>,
+        registry: Arc<BackendRegistry>,
         settings: &Aria2RpcSettings,
-        event_tx: broadcast::Sender<String>,
+        event_bus: Arc<EventBus>,
     ) -> Self {
         let secret = settings.secret.clone().filter(|s| !s.is_empty());
 
         let ctx = Arc::new(RpcContext {
-            manager,
-            bt_backend,
+            registry,
             secret,
-            event_tx,
+            event_bus,
             gid_cache: Mutex::new(HashMap::default()),
         });
 
@@ -1189,3 +1156,7 @@ impl Aria2RpcServer {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "tests/aria2_rpc_tests.rs"]
+mod tests;

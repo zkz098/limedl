@@ -386,4 +386,8 @@ fn effective_automatic_task_cap(settings: &AppSettings) -> usize {
     settings.scheduler.automatic.max_threads_per_task.max(1)
 }
 
+#[cfg(test)]
+#[path = "tests/scheduler_tests.rs"]
+mod tests;
+
 

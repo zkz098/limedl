@@ -116,8 +116,12 @@ fn try_consume(inner: &Arc<Mutex<Inner>>, n: u64) -> Option<u64> {
         inner.tokens -= n as f64;
         None
     } else {
+        // Preserve existing tokens — they will be refilled during the sleep
+        // so that the next attempt has accumulated enough for a successful
+        // consume.  Previously this line set `inner.tokens = 0.0`, which
+        // discarded partial progress and caused an infinite oscillation
+        // when `n > rate × (elapsed since last attempt)`.
         let deficit = n as f64 - inner.tokens;
-        inner.tokens = 0.0;
         // deficit bytes / rate bytes/sec  →  seconds  →  nanos
         let wait_ns = (deficit / inner.rate as f64 * 1_000_000_000.0) as u64;
         Some(wait_ns.max(1)) // at least 1 ns to avoid busy-spin
@@ -131,6 +135,7 @@ fn lock_inner(inner: &Arc<Mutex<Inner>>) -> parking_lot::MutexGuard<'_, Inner> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     // ── helpers ─────────────────────────────────────────────
 
@@ -302,5 +307,220 @@ mod tests {
     fn consume_blocking_unlimited_returns_immediately() {
         let limiter = RateLimiter::default();
         limiter.consume_blocking(10_000);
+    }
+
+    // ── concurrent stress tests ────────────────────────────
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ntest::timeout(15_000)]
+    async fn concurrent_token_consumption_no_deadlock() {
+        let limiter = Arc::new(init_limiter(1_000_000));
+        let mut handles = Vec::with_capacity(10);
+
+        for _ in 0..10 {
+            let limiter = limiter.clone();
+            handles.push(tokio::spawn(async move {
+                for _ in 0..100 {
+                    limiter.consume(1024).await;
+                }
+            }));
+        }
+
+        let all = futures_util::future::join_all(handles);
+        tokio::time::timeout(Duration::from_secs(10), all)
+            .await
+            .expect("deadlock or timeout: not all tasks completed within 10s")
+            .into_iter()
+            .for_each(|r| r.expect("task panicked"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ntest::timeout(15_000)]
+    async fn concurrent_token_fairness() {
+        let limiter = Arc::new(init_limiter(50_000));
+        let barrier = Arc::new(tokio::sync::Barrier::new(5));
+
+        let handles: Vec<_> = (0..5)
+            .map(|_| {
+                let limiter = limiter.clone();
+                let barrier = barrier.clone();
+                tokio::spawn(async move {
+                    barrier.wait().await;
+                    let start = tokio::time::Instant::now();
+                    for _ in 0..10 {
+                        limiter.consume(100).await;
+                    }
+                    start.elapsed()
+                })
+            })
+            .collect();
+
+        let results: Vec<Duration> = futures_util::future::join_all(handles)
+            .await
+            .into_iter()
+            .map(|r| r.expect("task panicked"))
+            .collect();
+
+        let max = results.iter().max().unwrap().as_nanos();
+        let min = results.iter().min().unwrap().as_nanos();
+
+        assert!(
+            max <= min * 5,
+            "fairness violation: fastest task={}ns, slowest task={}ns (ratio={})",
+            min,
+            max,
+            max as f64 / min as f64
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ntest::timeout(15_000)]
+    async fn concurrent_refill_while_consuming() {
+        let limiter = Arc::new(init_limiter(100_000));
+        let consumed = Arc::new(AtomicU64::new(0));
+        let start = tokio::time::Instant::now();
+
+        // Consumer tasks
+        let mut consumer_handles = Vec::new();
+        for _ in 0..10 {
+            let limiter = limiter.clone();
+            let consumed = consumed.clone();
+            consumer_handles.push(tokio::spawn(async move {
+                for _ in 0..30 {
+                    limiter.consume(1024).await;
+                    consumed.fetch_add(1024, Ordering::Relaxed);
+                }
+            }));
+        }
+
+        // Refiller task — periodically triggers refill via set_rate
+        let limiter_r = limiter.clone();
+        let refiller = tokio::spawn(async move {
+            for _ in 0..15 {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                limiter_r.set_rate(100_000); // triggers refill + resets last_refill
+            }
+        });
+
+        let all_consumers = futures_util::future::join_all(consumer_handles);
+        tokio::time::timeout(Duration::from_secs(10), async {
+            all_consumers.await;
+            refiller.await.expect("refiller panicked");
+        })
+        .await
+        .expect("timeout: deadlock or hang");
+
+        let elapsed = start.elapsed().as_secs_f64();
+        let total_consumed = consumed.load(Ordering::Relaxed) as f64;
+        let remaining = lock_inner(&limiter.inner).tokens;
+
+        // Invariant checks
+        assert!(remaining >= 0.0, "negative tokens: {}", remaining);
+        assert!(
+            remaining <= 200_000.0,
+            "tokens exceeded capacity: {}",
+            remaining
+        );
+        assert!(total_consumed > 0.0, "no tokens were consumed");
+
+        // Conservative integrity check: the total tokens accounted for
+        // (consumed + remaining) should not exceed what could have been
+        // generated: initial_tokens(capacity) + rate * elapsed.
+        let upper_bound = 200_000.0 + 100_000.0 * elapsed;
+        assert!(
+            total_consumed + remaining <= upper_bound + 1000.0,
+            "possible token leak: consumed={:.0}, remaining={:.0}, max_possible={:.0}",
+            total_consumed,
+            remaining,
+            upper_bound
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ntest::timeout(30_000)]
+    async fn concurrent_speed_limit_enforcement_under_load() {
+        const LIMIT: u64 = 1_000_000; // 1 MB/s
+        const TOLERANCE: f64 = 0.20; // 20% margin (partial token preservation loosens enforcement)
+
+        let limiter = Arc::new(RateLimiter::default());
+        limiter.set_rate(LIMIT);
+
+        let consumed = Arc::new(AtomicU64::new(0));
+        let stop = Arc::new(AtomicU64::new(0));
+        let barrier = Arc::new(tokio::sync::Barrier::new(21)); // 20 consumers + main
+
+        let mut handles = Vec::with_capacity(20);
+        for _ in 0..20 {
+            let limiter = limiter.clone();
+            let consumed = consumed.clone();
+            let stop = stop.clone();
+            let barrier = barrier.clone();
+            handles.push(tokio::spawn(async move {
+                barrier.wait().await; // sync start
+                loop {
+                    if stop.load(Ordering::Relaxed) != 0 {
+                        break;
+                    }
+                    limiter.consume(16_384).await;
+                    consumed.fetch_add(16_384, Ordering::Relaxed);
+                }
+            }));
+        }
+
+        // Wait for all 20 consumers to be ready, then start the clock
+        barrier.wait().await;
+        let start = tokio::time::Instant::now();
+
+        // Let them run for the measurement window
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        stop.store(1, Ordering::Relaxed);
+        let elapsed = start.elapsed().as_secs_f64();
+
+        // Wait for all tasks to finish
+        for h in handles {
+            tokio::time::timeout(Duration::from_secs(5), h)
+                .await
+                .expect("task did not stop")
+                .expect("task panicked");
+        }
+
+        let total = consumed.load(Ordering::Relaxed);
+        let throughput = total as f64 / elapsed;
+        let max_allowed = LIMIT as f64 * (1.0 + TOLERANCE);
+
+        assert!(
+            throughput <= max_allowed,
+            "throughput {:.0} B/s exceeds limit+tolerance {:.0} B/s (limit={} B/s, total={} B, elapsed={:.2}s)",
+            throughput,
+            max_allowed,
+            LIMIT,
+            total,
+            elapsed
+        );
+        assert!(total > 0, "no data consumed");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ntest::timeout(30_000)]
+    async fn massive_concurrent_contention() {
+        // Very low rate → high contention for scarce tokens
+        let limiter = Arc::new(init_limiter(1000));
+
+        let mut handles = Vec::with_capacity(50);
+        for _ in 0..50 {
+            let limiter = limiter.clone();
+            handles.push(tokio::spawn(async move {
+                for _ in 0..5 {
+                    limiter.consume(100).await;
+                }
+            }));
+        }
+
+        let all = futures_util::future::join_all(handles);
+        tokio::time::timeout(Duration::from_secs(30), all)
+            .await
+            .expect("timeout or hang under massive contention")
+            .into_iter()
+            .for_each(|r| r.expect("task panicked"));
     }
 }

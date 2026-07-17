@@ -463,3 +463,6 @@ export function useDownloader(options?: UseDownloaderOptions) {
   downloaderInstance = createDownloader(options);
   return downloaderInstance;
 }
+
+/** @internal Exported for testing */
+export { createDownloader };

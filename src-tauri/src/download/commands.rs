@@ -9,15 +9,16 @@ use super::{
     error::extract_kind_from_anyhow,
     lock,
     manager::AppState,
-    protocol::DownloadProtocol,
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     types::{
         AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
-        DownloadSnapshot, DownloadSummary, DownloadSourceKind, SerializableError,
+        DownloadSnapshot, DownloadSummary, SerializableError,
         StartDownloadRequest, TaskId, TaskKind, TorrentFileEntry,
     },
 };
 use super::error::DownloadError;
+use super::bt_backend_own::IrontideBtBackend;
+use super::manager::DownloadManager;
 use serde_json::json;
 
 type CommandResult<T> = std::result::Result<T, SerializableError>;
@@ -45,57 +46,36 @@ fn format_anyhow_chain(error: anyhow::Error) -> String {
     messages.join(": ")
 }
 
-/// Classify a download request as HTTP or torrent based on URL inspection.
-fn classify_download_source(request: &StartDownloadRequest) -> std::result::Result<DownloadSourceKind, DownloadError> {
+fn internal_error(msg: &str) -> anyhow::Error {
+    anyhow!(msg.to_string())
+}
+
+/// Classify a download request as HTTP or BT based on URL inspection.
+fn classify_request_kind(request: &StartDownloadRequest) -> Result<TaskKind, DownloadError> {
     if let Some(kind) = request.kind {
-        return Ok(match kind {
-            TaskKind::Http => DownloadSourceKind::Http,
-            TaskKind::Bt => DownloadSourceKind::Torrent,
-        });
+        return Ok(kind);
     }
 
     let source = request.url.trim();
     let lower = source.to_ascii_lowercase();
 
     if lower.starts_with("magnet:") || lower.ends_with(".torrent") {
-        return Ok(DownloadSourceKind::Torrent);
+        return Ok(TaskKind::Bt);
     }
 
     if lower.starts_with("http://") || lower.starts_with("https://") {
-        return Ok(DownloadSourceKind::Http);
+        return Ok(TaskKind::Http);
     }
 
     let path = Path::new(source);
-    if path.extension().and_then(|value| value.to_str()) == Some("torrent") {
-        return Ok(DownloadSourceKind::Torrent);
+    if path.extension().and_then(|v| v.to_str()) == Some("torrent") {
+        return Ok(TaskKind::Bt);
     }
 
     Err(DownloadError::UnsupportedScheme)
 }
 
-/// Select the [`DownloadProtocol`] implementation that matches the given
-/// [`TaskId`] variant, so that commands can write a single call instead of
-/// a two-branch match.
-fn protocol_for_task<'a>(state: &'a AppState, task_id: &TaskId) -> &'a dyn DownloadProtocol {
-    match task_id {
-        TaskId::Bt(_) => &*state.bt_backend,
-        TaskId::Http(_) => &*state.manager,
-    }
-}
-
-/// Produce the `.context()` error message for an action based on task kind.
-fn action_context(task_id: &TaskId, http: &'static str, bt: &'static str) -> &'static str {
-    match task_id {
-        TaskId::Http(_) => http,
-        TaskId::Bt(_) => bt,
-    }
-}
-
 /// Emit a single `download-updated` event for the given snapshot.
-///
-/// Snapshots returned by the protocol layer already have the correct ID
-/// prefix (`http:` for HTTP, `bt:` for BT), so no additional prefixing is
-/// needed here.
 fn emit_snapshot_update(state: &AppState, snapshot: &DownloadSnapshot) {
     let summary = DownloadSummary::from(snapshot);
     let _ = state.app_handle.emit("download-updated", &summary);
@@ -109,42 +89,24 @@ pub async fn download_start(
     let result = into_command_result(
         async {
             // Populate mirror URLs from settings before starting
-            let mirror_urls = state.manager.mirror_urls_for(&request.url).await;
+            let mirror_urls = state.registry.get_typed::<DownloadManager>()
+                .ok_or_else(|| internal_error("HTTP backend not found"))?
+                .mirror_urls_for(&request.url).await;
             if mirror_urls.len() > 1 {
                 request.mirror_urls = Some(mirror_urls);
             }
 
-            match classify_download_source(&request).context("无法识别下载任务类型")? {
-                DownloadSourceKind::Http => {
-                    let id = state
-                        .manager
-                        .start(request)
-                        .await
-                        .context("启动 HTTP 下载失败")?;
-                    Ok(TaskId::make_http(id))
-                }
-                DownloadSourceKind::Torrent => state
-                    .bt_backend
-                    .start(request)
-                    .await
-                    .context("启动 BT 下载失败"),
-            }
+            let kind = classify_request_kind(&request).context("无法识别下载任务类型")?;
+            let backend = state.registry.by_kind(kind);
+            backend.start(request).await.context("启动下载任务失败")
         }
         .await,
     );
     if let Ok(ref task_id) = result {
-        if task_id.starts_with("bt:") {
-            // BT: use status() to get a snapshot (handles pending & active)
-            if let Ok(snapshot) = state.bt_backend.status(task_id).await {
-                emit_snapshot_update(&state, &snapshot);
-            }
-        } else {
-            // HTTP: strip prefix, query internal manager, re-add prefix
-            let internal_id = task_id.strip_prefix("http:").unwrap_or(task_id);
-            if let Some(mut summary) = state.manager.get_summary(internal_id).await {
-                summary.id = TaskId::make_http(summary.id);
-                let _ = state.app_handle.emit("download-updated", &summary);
-            }
+        let task_id_parsed = TaskId::parse(task_id);
+        let backend = state.registry.dispatch(&task_id_parsed);
+        if let Ok(snapshot) = backend.status(&task_id_parsed).await {
+            emit_snapshot_update(&state, &snapshot);
         }
     }
     result
@@ -157,14 +119,12 @@ pub async fn download_pause(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     let result = into_command_result(
-        protocol_for_task(&state, &task_id)
-            .pause(task_id.as_str())
+        state
+            .registry
+            .dispatch(&task_id)
+            .pause(&task_id)
             .await
-            .context(action_context(
-                &task_id,
-                "暂停 HTTP 下载失败",
-                "暂停 BT 下载失败",
-            )),
+            .context("暂停下载任务失败"),
     );
     if let Ok(ref snapshot) = result {
         emit_snapshot_update(&state, snapshot);
@@ -179,14 +139,12 @@ pub async fn download_resume(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     let result = into_command_result(
-        protocol_for_task(&state, &task_id)
-            .resume(task_id.as_str())
+        state
+            .registry
+            .dispatch(&task_id)
+            .resume(&task_id)
             .await
-            .context(action_context(
-                &task_id,
-                "恢复 HTTP 下载失败",
-                "恢复 BT 下载失败",
-            )),
+            .context("恢复下载任务失败"),
     );
     if let Ok(ref snapshot) = result {
         emit_snapshot_update(&state, snapshot);
@@ -201,18 +159,13 @@ pub async fn download_cancel(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     let result = into_command_result(
-        protocol_for_task(&state, &task_id)
-            .cancel(task_id.as_str())
+        state
+            .registry
+            .dispatch(&task_id)
+            .cancel(&task_id)
             .await
-            .context(action_context(
-                &task_id,
-                "取消 HTTP 下载失败",
-                "取消 BT 下载失败",
-            )),
+            .context("取消下载任务失败"),
     );
-    // NOTE: do NOT emit snapshot update for cancel — the frontend handles
-    // UI removal via its own removeSummary() call on the command return value.
-    // Emitting here would race with removeSummary and re-add the download.
     result
 }
 
@@ -223,17 +176,13 @@ pub async fn download_remove(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     let result = into_command_result(
-        protocol_for_task(&state, &task_id)
-            .remove(task_id.as_str())
+        state
+            .registry
+            .dispatch(&task_id)
+            .remove(&task_id)
             .await
-            .context(action_context(
-                &task_id,
-                "移除 HTTP 下载失败",
-                "移除 BT 下载失败",
-            )),
+            .context("移除下载任务失败"),
     );
-    // NOTE: do NOT emit snapshot update for remove — the frontend handles
-    // UI removal via its own removeSummary() call on the command return value.
     result
 }
 
@@ -244,17 +193,13 @@ pub async fn download_purge(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     let result = into_command_result(
-        protocol_for_task(&state, &task_id)
-            .purge(task_id.as_str())
+        state
+            .registry
+            .dispatch(&task_id)
+            .purge(&task_id)
             .await
-            .context(action_context(
-                &task_id,
-                "彻底删除 HTTP 下载失败",
-                "彻底删除 BT 下载失败",
-            )),
+            .context("彻底删除下载任务失败"),
     );
-    // NOTE: do NOT emit snapshot update for purge — the frontend handles
-    // UI removal via its own removeSummary() call on the command return value.
     result
 }
 
@@ -265,14 +210,12 @@ pub async fn download_open_in_explorer(
 ) -> CommandResult<()> {
     let task_id = TaskId::parse(&download_id);
     into_command_result(
-        protocol_for_task(&state, &task_id)
-            .open_in_explorer(task_id.as_str())
+        state
+            .registry
+            .dispatch(&task_id)
+            .open_in_explorer(&task_id)
             .await
-            .context(action_context(
-                &task_id,
-                "在资源管理器打开 HTTP 下载失败",
-                "在资源管理器打开 BT 下载失败",
-            )),
+            .context("在资源管理器打开下载任务失败"),
     )
 }
 
@@ -283,14 +226,12 @@ pub async fn download_status(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     into_command_result(
-        protocol_for_task(&state, &task_id)
-            .status(task_id.as_str())
+        state
+            .registry
+            .dispatch(&task_id)
+            .status(&task_id)
             .await
-            .context(action_context(
-                &task_id,
-                "查询 HTTP 下载状态失败",
-                "查询 BT 下载状态失败",
-            )),
+            .context("查询下载任务状态失败"),
     )
 }
 
@@ -298,26 +239,15 @@ pub async fn download_status(
 pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<DownloadSummary>> {
     into_command_result(
         async {
-            let mut downloads = state
-                .manager
-                .list()
-                .await
-                .context("读取 HTTP 下载列表失败")?
-                .into_iter()
-                .map(|mut summary| {
-                    summary.id = TaskId::make_http(summary.id);
-                    summary
-                })
-                .collect::<Vec<_>>();
-            downloads.extend(
-                state
-                    .bt_backend
-                    .list()
-                    .await
-                    .context("读取 BT 下载列表失败")?,
-            );
-            downloads.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
-            Ok(downloads)
+            let mut all: Vec<DownloadSummary> = Vec::new();
+            for backend in state.registry.iter() {
+                match backend.list().await {
+                    Ok(summaries) => all.extend(summaries),
+                    Err(e) => tracing::warn!("failed to list from backend: {e}"),
+                }
+            }
+            all.sort_by_key(|s| std::cmp::Reverse(s.created_at_ms));
+            Ok(all)
         }
         .await,
     )
@@ -325,12 +255,26 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
 
 #[tauri::command]
 pub async fn bt_runtime_status(state: State<'_, AppState>) -> CommandResult<BtRuntimeStatus> {
-    Ok(state.bt_backend.runtime_status())
+    into_command_result(
+        async {
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| internal_error("BT backend not registered"))?;
+            Ok(bt.runtime_status())
+        }
+        .await,
+    )
 }
 
 #[tauri::command]
 pub async fn settings_get(state: State<'_, AppState>) -> CommandResult<AppSettings> {
-    into_command_result(state.manager.settings().await.context("读取设置失败"))
+    into_command_result(
+        async {
+            let dm = state.registry.get_typed::<DownloadManager>()
+                .ok_or_else(|| internal_error("HTTP backend not found"))?;
+            dm.settings().await.context("读取设置失败")
+        }
+        .await,
+    )
 }
 
 #[tauri::command]
@@ -340,19 +284,22 @@ pub async fn settings_save(
 ) -> CommandResult<AppSettings> {
     into_command_result(
         async {
-            let old_rpc = state
-                .manager
+            let dm = state.registry.get_typed::<DownloadManager>()
+                .ok_or_else(|| internal_error("HTTP backend not found"))?;
+
+            let old_rpc = dm
                 .settings()
                 .await
                 .context("读取当前设置失败")?
                 .aria2_rpc;
 
-            let saved = state
-                .manager
-                .update_settings(settings)
-                .await
-                .context("保存设置失败")?;
-            state.bt_backend.update_settings(&saved);
+            // Broadcast settings to all backends (each backend extracts its subset)
+            for backend in state.registry.iter() {
+                let _ = backend.update_settings(&settings).await;
+            }
+
+            // Re-read normalized/saved settings for the return value
+            let saved = dm.settings().await.context("读取设置失败")?;
 
             // Sync CDN acceleration settings — clear accelerator when disabled
             if !saved.cdn_acceleration.enabled {
@@ -367,14 +314,10 @@ pub async fn settings_save(
                 }
                 if new_rpc.enabled {
                     let (tx, rx) = tokio::sync::watch::channel(false);
-                    let (event_tx, _event_rx) = tokio::sync::broadcast::channel(256);
-                    state.manager.set_event_tx(event_tx.clone());
-                    state.bt_backend.set_event_tx(event_tx.clone());
                     let rpc_server = Aria2RpcServer::new(
-                        state.manager.clone(),
-                        state.bt_backend.clone(),
+                        state.registry.clone(),
                         new_rpc,
-                        event_tx,
+                        state.event_bus.clone(),
                     );
                     tauri::async_runtime::spawn(async move {
                         if let Err(error) = rpc_server.serve(rx).await {
@@ -432,7 +375,6 @@ pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandRes
 }
 
 /// Set per-torrent speed limits.
-/// Passing `None` for both axes clears this torrent's override.
 #[tauri::command]
 pub async fn bt_set_speed_limit(
     state: State<'_, AppState>,
@@ -443,7 +385,12 @@ pub async fn bt_set_speed_limit(
     let task_id = TaskId::parse(&download_id);
     match &task_id {
         TaskId::Bt(_) => {
-            state.bt_backend.set_speed_limit(
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| SerializableError {
+                    kind: String::from("internal"),
+                    message: String::from("BT backend not registered"),
+                })?;
+            bt.set_speed_limit(
                 &download_id,
                 download_limit_bps,
                 upload_limit_bps,
@@ -463,11 +410,14 @@ pub async fn bt_preview_torrent(
     source: String,
 ) -> CommandResult<Vec<TorrentFileEntry>> {
     into_command_result(
-        state
-            .bt_backend
-            .preview_torrent(&source)
-            .await
-            .context("预览 BT 种子文件失败"),
+        async {
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| internal_error("BT backend not registered"))?;
+            bt.preview_torrent(&source)
+                .await
+                .context("预览 BT 种子文件失败")
+        }
+        .await,
     )
 }
 
@@ -477,10 +427,13 @@ pub async fn bt_get_peers(
     download_id: String,
 ) -> CommandResult<Vec<BtPeerInfo>> {
     into_command_result(
-        state
-            .bt_backend
-            .get_peers(&download_id)
-            .context("查询 BT 节点信息失败"),
+        async {
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| internal_error("BT backend not registered"))?;
+            bt.get_peers(&download_id)
+                .context("查询 BT 节点信息失败")
+        }
+        .await,
     )
 }
 
@@ -490,10 +443,13 @@ pub async fn bt_get_trackers(
     download_id: String,
 ) -> CommandResult<Vec<BtTrackerInfo>> {
     into_command_result(
-        state
-            .bt_backend
-            .get_trackers(&download_id)
-            .context("查询 BT 追踪器信息失败"),
+        async {
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| internal_error("BT backend not registered"))?;
+            bt.get_trackers(&download_id)
+                .context("查询 BT 追踪器信息失败")
+        }
+        .await,
     )
 }
 
@@ -503,10 +459,13 @@ pub async fn bt_get_pieces(
     download_id: String,
 ) -> CommandResult<Vec<BtPieceInfo>> {
     into_command_result(
-        state
-            .bt_backend
-            .get_pieces(&download_id)
-            .context("查询 BT 分片信息失败"),
+        async {
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| internal_error("BT backend not registered"))?;
+            bt.get_pieces(&download_id)
+                .context("查询 BT 分片信息失败")
+        }
+        .await,
     )
 }
 
@@ -516,10 +475,13 @@ pub async fn get_bt_files(
     download_id: String,
 ) -> CommandResult<Vec<BtFileStatus>> {
     into_command_result(
-        state
-            .bt_backend
-            .get_torrent_files(&download_id)
-            .context("查询 BT 文件列表失败"),
+        async {
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| internal_error("BT backend not registered"))?;
+            bt.get_torrent_files(&download_id)
+                .context("查询 BT 文件列表失败")
+        }
+        .await,
     )
 }
 
@@ -530,11 +492,14 @@ pub async fn update_bt_files(
     included_indices: Vec<usize>,
 ) -> CommandResult<()> {
     into_command_result(
-        state
-            .bt_backend
-            .update_torrent_files(&download_id, included_indices)
-            .await
-            .context("更新 BT 文件选择失败"),
+        async {
+            let bt = state.registry.get_typed::<IrontideBtBackend>()
+                .ok_or_else(|| internal_error("BT backend not registered"))?;
+            bt.update_torrent_files(&download_id, included_indices)
+                .await
+                .context("更新 BT 文件选择失败")
+        }
+        .await,
     )
 }
 
@@ -543,7 +508,12 @@ pub async fn toggle_game_mode(
     state: State<'_, AppState>,
     enabled: bool,
 ) -> CommandResult<bool> {
-    state.manager.set_game_mode(enabled);
+    let dm = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| return SerializableError {
+            kind: String::from("internal"),
+            message: String::from("HTTP backend not found"),
+        })?;
+    dm.set_game_mode(enabled);
     Ok(enabled)
 }
 
@@ -551,7 +521,12 @@ pub async fn toggle_game_mode(
 pub async fn get_io_status(
     state: State<'_, AppState>,
 ) -> CommandResult<serde_json::Value> {
-    let pool = &state.manager.buffer_pool;
+    let dm = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| return SerializableError {
+            kind: String::from("internal"),
+            message: String::from("HTTP backend not found"),
+        })?;
+    let pool = &dm.buffer_pool;
     Ok(json!({
         "gameMode": pool.game_mode(),
         "bufferUsageBytes": pool.current_usage(),
@@ -568,7 +543,12 @@ pub async fn toggle_overclock_mode(
     state: State<'_, AppState>,
     enabled: bool,
 ) -> CommandResult<bool> {
-    state.manager.set_overclock_mode(enabled);
+    let dm = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| return SerializableError {
+            kind: String::from("internal"),
+            message: String::from("HTTP backend not found"),
+        })?;
+    dm.set_overclock_mode(enabled);
     Ok(enabled)
 }
 
@@ -576,5 +556,14 @@ pub async fn toggle_overclock_mode(
 pub async fn get_overclock_mode(
     state: State<'_, AppState>,
 ) -> CommandResult<bool> {
-    Ok(state.manager.overclock_mode())
+    let dm = state.registry.get_typed::<DownloadManager>()
+        .ok_or_else(|| return SerializableError {
+            kind: String::from("internal"),
+            message: String::from("HTTP backend not found"),
+        })?;
+    Ok(dm.overclock_mode())
 }
+
+#[cfg(test)]
+#[path = "tests/commands_tests.rs"]
+mod tests;

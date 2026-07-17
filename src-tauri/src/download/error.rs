@@ -25,6 +25,8 @@ pub enum DownloadError {
     Serde(#[from] serde_json::Error),
     #[error("invalid server response: {0}")]
     InvalidResponse(String),
+    #[error("invalid request: {0}")]
+    InvalidRequest(String),
     #[error("invalid proxy configuration: {0}")]
     InvalidProxy(String),
     #[error("torrent error: {0}")]
@@ -57,6 +59,7 @@ impl DownloadError {
             Self::Io(_) => "io",
             Self::Serde(_) => "serde",
             Self::InvalidResponse(_) => "invalid_response",
+            Self::InvalidRequest(_) => "invalid_request",
             Self::InvalidProxy(_) => "invalid_proxy",
             Self::Torrent(_) => "torrent",
             Self::TorrentNetwork(_) => "torrent_network",

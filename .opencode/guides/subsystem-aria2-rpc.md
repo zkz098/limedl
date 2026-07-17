@@ -22,9 +22,9 @@ pub struct Aria2RpcServer {
 struct RpcContext {
     manager: Arc<DownloadManager>,
     bt_backend: Arc<OwnBtBackend>,
-    secret: Option<String>,                     // RPC 密钥
-    event_tx: broadcast::Sender<String>,        // 事件广播
-    gid_cache: Mutex<HashMap<String, String>>,  // internal_id → GID 映射缓存
+    secret: Option<String>,                        // RPC 密钥
+    event_bus: Arc<EventBus>,                      // 统一事件总线
+    gid_cache: Mutex<HashMap<String, String>>,     // internal_id → GID 映射缓存
 }
 ```
 
@@ -52,7 +52,7 @@ pub fn new(
     manager: Arc<DownloadManager>,
     bt_backend: Arc<OwnBtBackend>,
     settings: &Aria2RpcSettings,
-    event_tx: broadcast::Sender<String>,
+    event_bus: Arc<EventBus>,
 ) -> Self
 
 // 启动服务器（阻塞直到 shutdown 信号）
@@ -109,8 +109,8 @@ dispatch_method(method, params)
   └─ 内部状态转换为 aria2 格式的 JSON 响应
   ↓
 事件通知（通过 WebSocket 推送）
-  ├─ 监听 broadcast::channel 中的 "download-updated" 事件
-  ├─ 转换为 aria2 事件格式
+  ├─ 订阅 EventBus，过滤 DownloadEvent::Aria2Notification
+  ├─ 转换为 aria2 事件格式 (JsonRpcNotification)
   └─ 通过 WebSocket 推送到已连接的客户端
 ```
 
