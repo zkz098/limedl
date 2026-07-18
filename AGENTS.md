@@ -96,7 +96,7 @@ Moved to standalone guides — read them before touching download pipeline or I/
 
 - Ubuntu-latest only
 - Frontend: `bun install --frozen-lockfile` → `bun run lint` → `bunx vue-tsc --noEmit` → `bun run test`
-- Rust: `cargo check --workspace` → `cargo clippy --workspace -- -D warnings` → `cargo test --workspace`
+- Rust: `cargo check --manifest-path src-tauri/Cargo.toml` → `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` → `cargo test --manifest-path src-tauri/Cargo.toml`
 - Rust clippy denies all warnings
 
 ## Frontend UI
