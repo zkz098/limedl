@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     environment: "jsdom",
+    exclude: ["node_modules/", "e2e/", ".opencode/", "**/node_modules/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

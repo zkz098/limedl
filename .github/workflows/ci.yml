@@ -12,17 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.x
-      - run: echo 'precedence ::ffff:0:0/96 100' | sudo tee -a /etc/gai.conf
-      - run: bun ci
-        env:
-          BUN_FEATURE_FLAG_DISABLE_IPV6: "1"
-          BUN_CONFIG_HTTP_RETRY_COUNT: "10"
-      - run: bun run lint
-      - run: bunx vue-tsc --noEmit
-      - run: bun run test
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm exec vue-tsc --noEmit
+      - run: pnpm run test
 
   check-rust:
     name: Check & Lint (Rust)

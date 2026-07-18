@@ -14,13 +14,13 @@ Skipping this will cause linker errors (`LINK : fatal error LNK1181`).
 
 ## Package manager & tooling
 
-- **Package manager**: Bun (`bun.lock`, not `package-lock.json`). Use `bun install --frozen-lockfile`, not `npm install`.
-- **Lint**: `bun run lint` (oxlint, correctness/suspicious = error, perf = warn)
-- **Format**: `bun run format` (oxfmt — not prettier)
-- **Type-check**: `bunx vue-tsc --noEmit` (Vue type-checking, separate from build)
-- **Test (frontend)**: `bun run test` (Vitest + jsdom)
-- **Test (Rust)**: `cargo test --workspace` from repo root
-- **Build order**: `vue-tsc --noEmit` then `vite build` (enforced by `bun run build`)
+- **Package manager**: pnpm v11 (managed by corepack, `packageManager` field in `package.json`). Use `pnpm install --frozen-lockfile`, not `bun install`.
+- **Lint**: `pnpm run lint` (oxlint, correctness/suspicious = error, perf = warn)
+- **Format**: `pnpm run format` (oxfmt — not prettier)
+- **Type-check**: `pnpm exec vue-tsc --noEmit` (Vue type-checking, separate from build)
+- **Test (frontend)**: `pnpm run test` (Vitest + jsdom)
+- **Test (Rust)**: `cargo test --manifest-path src-tauri/Cargo.toml`
+- **Build order**: `vue-tsc --noEmit` then `vite build` (enforced by `pnpm run build`)
 
 ## Architecture
 
@@ -69,8 +69,8 @@ Detailed four-section docs (module responsibility, key structs, key methods, dat
 
 ## Tauri dev workflow
 
-- `bun run tauri dev` — starts Vite dev server (port 1420) then opens Tauri window
-- `bun run tauri build` — builds frontend then compiles Rust + bundles
+- `pnpm run tauri dev` — starts Vite dev server (port 1420) then opens Tauri window
+- `pnpm run tauri build` — builds frontend then compiles Rust + bundles
 - CSP is disabled (`"csp": null` in `tauri.conf.json`)
 
 ## Serialization conventions
@@ -83,7 +83,7 @@ Detailed four-section docs (module responsibility, key structs, key methods, dat
 
 See **`.opencode/guides/testing-guide.md`** for test patterns, mock setup, and E2E configuration.
 
-Quick ref: `bun run test` (frontend), `cargo test --workspace` (Rust), `e2e/` (Playwright, pending).
+Quick ref: `pnpm run test` (frontend), `cargo test --manifest-path src-tauri/Cargo.toml` (Rust), `e2e/` (Playwright, pending).
 
 ## Core data flow & buffer pool
 
@@ -95,7 +95,7 @@ Moved to standalone guides — read them before touching download pipeline or I/
 ## CI (`.github/workflows/ci.yml`)
 
 - Ubuntu-latest only
-- Frontend: `bun install --frozen-lockfile` → `bun run lint` → `bunx vue-tsc --noEmit` → `bun run test`
+- Frontend: Node.js 24 + corepack → `pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm exec vue-tsc --noEmit` → `pnpm run test`
 - Rust: `cargo check --manifest-path src-tauri/Cargo.toml` → `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` → `cargo test --manifest-path src-tauri/Cargo.toml`
 - Rust clippy denies all warnings
 
