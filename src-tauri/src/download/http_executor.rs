@@ -330,7 +330,7 @@ impl super::DownloadManager {
                 start_offset
             } else {
                 if start_offset > 0 {
-                    reset_download_file(&*file, managed.lock_core().manifest.total_bytes)?;
+                    reset_download_file(&file, managed.lock_core().manifest.total_bytes)?;
                     self.reset_progress(&managed, true);
                     if let Some(ref buf) = write_buffer {
                         buf.clear();
@@ -363,14 +363,14 @@ impl super::DownloadManager {
                 if let Some(ref buf) = write_buffer {
                     if buf.buffer_chunk(absolute_offset, chunk.clone()).await.is_err() {
                         // Background flush failed — fall back to direct write.
-                        write_all_at(&*file, &chunk, absolute_offset)?;
+                        write_all_at(&file, &chunk, absolute_offset)?;
                         if disk_type == DiskType::Hdd {
                             let mut core = managed.lock_core();
                             core.snapshot.degraded = true;
                         }
                     }
                 } else {
-                    write_all_at(&*file, &chunk, absolute_offset)?;
+                    write_all_at(&file, &chunk, absolute_offset)?;
                 }
                 absolute_offset += chunk.len() as u64;
                 self.record_progress(&managed, None, chunk.len() as u64);
@@ -665,8 +665,9 @@ impl super::DownloadManager {
         };
 
         // Verify expected checksum if one was provided
-        if let (Some(expected), Some(computed)) = (&expected_checksum, &checksum) {
-            if !expected.eq_ignore_ascii_case(computed) {
+        if let (Some(expected), Some(computed)) = (&expected_checksum, &checksum)
+            && !expected.eq_ignore_ascii_case(computed)
+        {
                 let error_msg = format!("Checksum mismatch: expected {expected}, got {computed}");
                 {
                     let mut core = managed.lock_core();
@@ -683,7 +684,6 @@ impl super::DownloadManager {
                 }
                 self.persist(managed.clone()).await?;
                 return Ok(RunOutcome::Finished);
-            }
         }
 
         if finalize_was_canceled(&managed, &token) {

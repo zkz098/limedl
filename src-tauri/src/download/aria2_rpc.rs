@@ -16,7 +16,6 @@ use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing;
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -381,10 +380,8 @@ pub(crate) fn cleanup_old_aria2_temp_files() {
             Ok(created) => now.duration_since(created).unwrap_or_default(),
             Err(_) => continue,
         };
-        if age >= one_hour {
-            if std::fs::remove_file(&path).is_ok() {
-                removed += 1;
-            }
+        if age >= one_hour && std::fs::remove_file(&path).is_ok() {
+            removed += 1;
         }
     }
 
@@ -736,7 +733,7 @@ async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
 
     let aria2_peers: Vec<Value> = peers
         .iter()
-        .map(|p| peer_info_to_aria2_peer(p))
+        .map(peer_info_to_aria2_peer)
         .collect();
 
     Ok(Value::Array(aria2_peers))

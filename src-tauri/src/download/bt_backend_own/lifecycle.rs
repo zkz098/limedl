@@ -140,9 +140,10 @@ impl IrontideBtBackend {
         }
 
         // Apply selected file priorities if given
-        if let Some(indices) = &request.selected_file_indices {
-            if let Ok(files) = self.session.torrent_file(info_hash).await {
-                if let Some(meta) = files {
+        if let Some(indices) = &request.selected_file_indices
+            && let Ok(files) = self.session.torrent_file(info_hash).await
+            && let Some(meta) = files
+        {
                     let file_count = meta.info.files.map_or(1, |f| f.len());
                     for i in 0..file_count {
                         let priority = if indices.contains(&i) {
@@ -155,8 +156,6 @@ impl IrontideBtBackend {
                             .set_file_priority(info_hash, i, priority)
                             .await;
                     }
-                }
-            }
         }
 
         // Emit a pending summary so the frontend shows the task immediately.

@@ -32,7 +32,7 @@ impl IrontideBtBackend {
 // ---------------------------------------------------------------------------
 
 /// Extract the `Id20` info hash from an `AlertKind`, if the variant carries one.
-pub(crate) fn extract_info_hash<'a>(kind: &'a irontide::session::AlertKind) -> Option<&'a Id20> {
+pub(crate) fn extract_info_hash(kind: &irontide::session::AlertKind) -> Option<&Id20> {
     use irontide::session::AlertKind::*;
     match kind {
         TorrentAdded { info_hash, .. }

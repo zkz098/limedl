@@ -112,10 +112,10 @@ pub(crate) async fn is_cloudflare_domain(url: &str) -> bool {
     // Check cache first.
     {
         let cache = DNS_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((result, cached_at)) = cache.get(hostname) {
-            if cached_at.elapsed() < DNS_CACHE_TTL {
-                return *result;
-            }
+        if let Some((result, cached_at)) = cache.get(hostname)
+            && cached_at.elapsed() < DNS_CACHE_TTL
+        {
+            return *result;
         }
     }
 

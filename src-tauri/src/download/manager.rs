@@ -2,13 +2,14 @@ use std::{
     fs, io,
     net::Ipv4Addr,
     path::{Path, PathBuf},
-    process::Command,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
     time::{Duration, Instant},
 };
+#[cfg(windows)]
+use std::process::Command;
 
 use foldhash::HashMap;
 use parking_lot::{Mutex, MutexGuard, RwLock as ParkingRwLock};

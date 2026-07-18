@@ -81,18 +81,14 @@ async fn upload_policy_loop(
                         && (stats.uploaded as f64)
                             >= stats.total_done as f64 * settings.upload_ratio_limit;
 
-                    if limit_reached || ratio_reached {
-                        if settings.pause_upload_when_limit_reached {
-                            if paused_by_limit.get(&info_hash).is_none() {
+                    if (limit_reached || ratio_reached)
+                        && settings.pause_upload_when_limit_reached
+                        && paused_by_limit.get(&info_hash).is_none()
+                    {
                                 paused_by_limit.insert(info_hash, ());
                                 let _ = session.set_upload_limit(info_hash, 1).await;
                                 // Emit a download-updated reflecting PausedByLimit
                                 emit_upload_policy_event(&event_bus, info_hash, "paused_by_limit");
-                            }
-                        }
-                        // When pause_upload_when_limit_reached is false, we do NOT
-                        // modify the upload rate — upload_limit_bytes is an absolute
-                        // byte threshold, not a rate to enforce.
                     } else if paused_by_limit.get(&info_hash).is_some() {
                         // Was previously paused; un-pause by removing the rate cap.
                         // irontide treats 0 as unlimited.

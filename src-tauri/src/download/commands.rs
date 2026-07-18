@@ -158,15 +158,14 @@ pub async fn download_cancel(
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
-    let result = into_command_result(
+    into_command_result(
         state
             .registry
             .dispatch(&task_id)
             .cancel(&task_id)
             .await
             .context("取消下载任务失败"),
-    );
-    result
+    )
 }
 
 #[tauri::command]
@@ -175,15 +174,14 @@ pub async fn download_remove(
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
-    let result = into_command_result(
+    into_command_result(
         state
             .registry
             .dispatch(&task_id)
             .remove(&task_id)
             .await
             .context("移除下载任务失败"),
-    );
-    result
+    )
 }
 
 #[tauri::command]
@@ -192,15 +190,14 @@ pub async fn download_purge(
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
-    let result = into_command_result(
+    into_command_result(
         state
             .registry
             .dispatch(&task_id)
             .purge(&task_id)
             .await
             .context("彻底删除下载任务失败"),
-    );
-    result
+    )
 }
 
 #[tauri::command]
@@ -509,7 +506,7 @@ pub async fn toggle_game_mode(
     enabled: bool,
 ) -> CommandResult<bool> {
     let dm = state.registry.get_typed::<DownloadManager>()
-        .ok_or_else(|| return SerializableError {
+        .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),
         })?;
@@ -522,7 +519,7 @@ pub async fn get_io_status(
     state: State<'_, AppState>,
 ) -> CommandResult<serde_json::Value> {
     let dm = state.registry.get_typed::<DownloadManager>()
-        .ok_or_else(|| return SerializableError {
+        .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),
         })?;
@@ -544,7 +541,7 @@ pub async fn toggle_overclock_mode(
     enabled: bool,
 ) -> CommandResult<bool> {
     let dm = state.registry.get_typed::<DownloadManager>()
-        .ok_or_else(|| return SerializableError {
+        .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),
         })?;
@@ -557,7 +554,7 @@ pub async fn get_overclock_mode(
     state: State<'_, AppState>,
 ) -> CommandResult<bool> {
     let dm = state.registry.get_typed::<DownloadManager>()
-        .ok_or_else(|| return SerializableError {
+        .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),
         })?;

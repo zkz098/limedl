@@ -150,8 +150,8 @@ impl IrontideBtBackend {
                         let path: PathBuf = f.path.iter().collect();
                         // Use file_status mode as a proxy for included/excluded.
                         // Closed = skipped/excluded, ReadOnly/ReadWrite = included.
-                        let included = file_statuses.as_ref().map_or(true, |sts| {
-                            sts.get(i).map_or(true, |fs| {
+                        let included = file_statuses.as_ref().is_none_or(|sts| {
+                            sts.get(i).is_none_or(|fs| {
                                 !matches!(fs.mode, irontide::session::FileMode::Closed)
                             })
                         });
