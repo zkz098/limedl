@@ -926,6 +926,8 @@ pub struct AppSettings {
     pub notifications: NotificationSettings,
     #[serde(default)]
     pub io_baseline: IoBaselineSettings,
+    #[serde(default)]
+    pub autostart: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

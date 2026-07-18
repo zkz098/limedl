@@ -114,6 +114,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
     },
+    autostart: false,
   });
 
   const savedSettingsSnapshot = ref("");
@@ -212,6 +213,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         maxParallelHdd: Math.max(1, Math.min(16, form.ioBaseline.maxParallelHdd ?? 4)),
         gameModeMaxParallel: Math.max(1, Math.min(8, form.ioBaseline.gameModeMaxParallel ?? 1)),
       },
+      autostart: form.autostart ?? false,
     };
   }
 

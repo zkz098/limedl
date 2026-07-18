@@ -6,7 +6,9 @@ use parking_lot::Mutex;
 use std::time::Duration;
 
 use anyhow::Context;
+use tauri::Emitter;
 use tauri::Manager;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tokio::time::sleep;
 
 use download::event_bus::EventBus;
@@ -24,12 +26,38 @@ use download::{
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let run_result = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = app.emit("single-instance", ());
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+                let _ = window.show();
+            }
+        }));
+    }
+
+    let run_result = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_os::init())
         .setup(|app| {
             #[cfg(desktop)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            // Hide window when launched via autostart
+            let is_autostart = std::env::args().any(|a| a == "--hidden");
+            if is_autostart
+                && let Some(window) = app.get_webview_window("main")
+            {
+                let _ = window.hide();
+            }
+
+            app.handle().plugin(tauri_plugin_autostart::Builder::new()
+                .args(["--hidden"])
+                .build())?;
 
             (|| -> anyhow::Result<()> {
                 let state_dir = app
@@ -151,7 +179,59 @@ pub fn run() {
             })()
             .map_err(|error| -> Box<dyn std::error::Error> {
                 Box::new(std::io::Error::other(error.to_string()))
-            })
+            })?;
+
+            // Build system tray (desktop only)
+            #[cfg(desktop)]
+            {
+                use tauri::menu::{MenuBuilder, MenuItemBuilder};
+
+                let tray = TrayIconBuilder::new()
+                    .icon(app.default_window_icon().cloned().unwrap())
+                    .tooltip("flareget")
+                    .show_menu_on_left_click(false)
+                    .on_tray_icon_event(|tray, event| {
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            let app = tray.app_handle();
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    })
+                    .build(app)?;
+
+                let show_item = MenuItemBuilder::with_id("show", "Show Window").build(app)?;
+                let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+                let menu = MenuBuilder::new(app)
+                    .item(&show_item)
+                    .item(&quit_item)
+                    .build()?;
+                tray.set_menu(Some(menu))?;
+
+                let app_handle_menu = app.handle().clone();
+                tray.on_menu_event(move |_tray, event| {
+                    match event.id().as_ref() {
+                        "show" => {
+                            if let Some(window) = app_handle_menu.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "quit" => {
+                            app_handle_menu.exit(0);
+                        }
+                        _ => {}
+                    }
+                });
+            }
+
+            Ok(())
         })
         .plugin(tauri_plugin_opener::init())
         .on_window_event(|window, event| {

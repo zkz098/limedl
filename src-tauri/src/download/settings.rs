@@ -105,6 +105,7 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         global_speed_limit_bps: settings.global_speed_limit_bps,
         notifications: settings.notifications.clone(),
         io_baseline,
+        autostart: settings.autostart,
     })
 }
 
@@ -342,6 +343,7 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         global_speed_limit_bps: 0,
         notifications: NotificationSettings::default(),
         io_baseline: IoBaselineSettings::default(),
+        autostart: false,
     })
 }
 

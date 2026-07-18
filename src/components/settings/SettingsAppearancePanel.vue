@@ -10,6 +10,7 @@ import type {
 } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
+import { enable as enableAutostart, disable as disableAutostart } from "@tauri-apps/plugin-autostart";
 
 defineProps<{
   draft: AppSettings;
@@ -19,6 +20,19 @@ defineProps<{
   colorModeOptions: Array<{ label: string; value: ColorMode }>;
   backgroundOpacityOptions: Array<{ label: string; value: BackgroundOpacityPreset }>;
 }>();
+
+// Autostart toggle — syncs with the plugin directly
+async function onAutostartChange(value: boolean) {
+  try {
+    if (value) {
+      await enableAutostart();
+    } else {
+      await disableAutostart();
+    }
+  } catch {
+    // ignore errors (e.g. permission denied)
+  }
+}
 
 const emit = defineEmits<{
   changeLanguage: [language: SupportedLanguage];
@@ -98,6 +112,20 @@ const emit = defineEmits<{
       <div class="settings-grid">
         <SettingsField :label="t('settings.notificationSettings.toggleLabel')">
           <UiSwitch v-model="draft.notifications.enabled" />
+        </SettingsField>
+      </div>
+    </SettingsSection>
+
+    <SettingsSection
+      :title="t('settings.startupTitle')"
+      icon="i-ri-windows-line"
+    >
+      <div class="settings-grid">
+        <SettingsField :label="t('settings.autoStart')" :info-tooltip="t('settings.autoStartHint')">
+          <UiSwitch
+            :model-value="draft.autostart"
+            @update:model-value="onAutostartChange"
+          />
         </SettingsField>
       </div>
     </SettingsSection>

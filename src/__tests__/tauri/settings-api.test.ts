@@ -93,6 +93,7 @@ function makeAppSettings(overrides?: Partial<AppSettings>): AppSettings {
       maxParallelHdd: 2,
       gameModeMaxParallel: 1,
     },
+    autostart: false,
     ...overrides,
   };
 }

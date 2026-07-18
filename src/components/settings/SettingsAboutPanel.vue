@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useI18n } from "../../i18n";
 import { useAppUpdate } from "../../composables/useAppUpdate";
+import { platform, arch, version as osVersion } from "@tauri-apps/plugin-os";
+import { getVersion, getName, getTauriVersion } from "@tauri-apps/api/app";
 import SettingsSection from "./SettingsSection.vue";
 import SettingsField from "./SettingsField.vue";
 import UiButton from "../ui/UiButton.vue";
@@ -27,6 +29,27 @@ const {
   downloadAndInstall,
   acknowledgeUpdate,
 } = useAppUpdate();
+
+// System info
+const appName = ref("");
+const appVersion = ref("");
+const tauriVer = ref("");
+const osPlatform = ref("");
+const osArch = ref("");
+const osVer = ref("");
+
+onMounted(async () => {
+  try {
+    appName.value = await getName();
+    appVersion.value = await getVersion();
+    tauriVer.value = await getTauriVersion();
+  } catch { /* ignored */ }
+  try {
+    osPlatform.value = platform();
+    osArch.value = arch();
+    osVer.value = osVersion();
+  } catch { /* ignored */ }
+});
 
 const channelOptions = computed(() => [
   { label: t("settings.aboutChannelStable"), value: "stable" as const },
@@ -93,6 +116,41 @@ const showVersionBadge = computed(() => {
 
 <template>
   <div class="about-panel flex flex-col gap-5">
+    <!-- Logo + App Name -->
+    <div class="flex flex-col items-center gap-4 py-4">
+      <img
+        src="../../../src-tauri/icons/flareget-logo.svg"
+        alt="flareget"
+        class="about-logo w-20 h-20 rounded-xl object-contain"
+      />
+      <div class="flex flex-col items-center gap-1">
+        <span class="text-lg font-bold text-[var(--color-heading)]">{{ appName || "flareget" }}</span>
+        <span class="text-sm text-[var(--color-text-muted)]">v{{ appVersion || "0.1.0" }}</span>
+      </div>
+    </div>
+
+    <!-- System Information -->
+    <SettingsSection :title="t('settings.aboutSystemInfo')" icon="i-ri-computer-line">
+      <div class="flex flex-col gap-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-[var(--color-text-muted)]">{{ t("settings.aboutOs") }}</span>
+          <span class="font-medium text-[var(--color-heading)]">{{ osPlatform || "\u2014" }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-[var(--color-text-muted)]">{{ t("settings.aboutArchitecture") }}</span>
+          <span class="font-medium text-[var(--color-heading)]">{{ osArch || "\u2014" }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-[var(--color-text-muted)]">{{ t("settings.aboutOsVersion") }}</span>
+          <span class="font-medium text-[var(--color-heading)]">{{ osVer || "\u2014" }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-[var(--color-text-muted)]">{{ t("settings.aboutTauriVersion") }}</span>
+          <span class="font-medium text-[var(--color-heading)]">{{ tauriVer || "\u2014" }}</span>
+        </div>
+      </div>
+    </SettingsSection>
+
     <!-- Version Info -->
     <SettingsSection :title="t('settings.aboutTitle')" icon="i-ri-information-line">
       <div class="flex flex-col gap-3">
@@ -238,6 +296,10 @@ const showVersionBadge = computed(() => {
 <style scoped>
 .about-panel {
   max-width: 48rem;
+}
+
+.about-logo {
+  background: var(--color-surface-muted);
 }
 
 .about-channel-btn:focus-visible {

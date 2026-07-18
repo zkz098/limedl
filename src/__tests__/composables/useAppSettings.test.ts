@@ -111,6 +111,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       maxParallelHdd: 2,
       gameModeMaxParallel: 4,
     },
+    autostart: false,
     ...overrides,
   };
 }

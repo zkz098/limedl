@@ -166,4 +166,5 @@ export interface AppSettings {
   githubMirror: GitHubMirrorSettings;
   notifications: NotificationSettings;
   ioBaseline: IoBaselineSettings;
+  autostart: boolean;
 }
