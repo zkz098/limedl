@@ -15,7 +15,11 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.x
-      - run: bun install --frozen-lockfile
+      - run: echo 'precedence ::ffff:0:0/96 100' | sudo tee -a /etc/gai.conf
+      - run: bun ci
+        env:
+          BUN_FEATURE_FLAG_DISABLE_IPV6: "1"
+          BUN_CONFIG_HTTP_RETRY_COUNT: "10"
       - run: bun run lint
       - run: bunx vue-tsc --noEmit
       - run: bun run test
