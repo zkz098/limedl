@@ -26,8 +26,12 @@ jobs:
             tauri-args: ""
 
           - runner: macos-latest
-            target: apple-aarch64
-            tauri-args: "--target aarch64-apple-darwin"
+            target: apple-universal
+            tauri-args: "--target universal-apple-darwin"
+
+          - runner: windows-latest
+            target: windows-aarch64
+            tauri-args: "--target aarch64-pc-windows-msvc"
 
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +65,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: "aarch64-apple-darwin"
+          targets: "aarch64-apple-darwin,x86_64-apple-darwin,aarch64-pc-windows-msvc"
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -74,7 +78,7 @@ jobs:
       # When absent, defaults to ad-hoc signing. This prevents the Tauri bundler
       # from importing an empty certificate (which would fail with SecKeychainItemImport).
       - name: Configure macOS code signing
-        if: matrix.target == 'apple-aarch64'
+        if: matrix.target == 'apple-universal'
         shell: bash
         run: |
           if [ -n "$CERT" ]; then
@@ -114,8 +118,9 @@ jobs:
             | Platform | File |
             |---|---|
             | Windows x64 | `.msi` / `.exe` installer |
+            | Windows ARM64 | `.msi` / `.exe` installer |
             | Linux x64 | `.deb` / `.AppImage` package |
-            | macOS Apple Silicon | `.dmg` disk image |
+            | macOS Universal | `.dmg` disk image |
 
             ### Changes
             See the [changelog](https://github.com/${{ github.repository }}/releases) for details.
