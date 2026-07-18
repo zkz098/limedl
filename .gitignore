@@ -26,6 +26,8 @@ target-*
 
 # Test coverage output
 coverage/
+playwright-report/
+test-results/
 
 # Large binary archives (OS images, datasets, etc.)
 *.tar.gz
