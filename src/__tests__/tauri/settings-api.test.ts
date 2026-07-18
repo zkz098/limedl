@@ -4,11 +4,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 import type { AppSettings } from "../../types/settings";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  createMockInvoke,
-  resetTauriMocks,
-  mockTauriCommandValue,
-} from "../mocks/tauri-mock";
+import { createMockInvoke, resetTauriMocks, mockTauriCommandValue } from "../mocks/tauri-mock";
 import {
   getAppSettings,
   saveAppSettings,
@@ -29,6 +25,7 @@ function makeAppSettings(overrides?: Partial<AppSettings>): AppSettings {
       backgroundOpacity: "default",
       colorMode: "system",
       showDetailInfo: false,
+      showHeatmap: false,
       sortKey: "name",
       sortDirection: "asc",
       compactView: false,
@@ -80,9 +77,21 @@ function makeAppSettings(overrides?: Partial<AppSettings>): AppSettings {
       maxTorrents: 10,
       activeLimit: 10,
     },
-    logging: { enabled: false, level: "info", filePath: "" },
+    logging: {
+      enabled: false,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: false, port: 6800, secret: null },
-    cdnAcceleration: { enabled: false, activeIp: null, activeSpeedMbps: null, lastTestAtMs: null, lastError: null },
+    cdnAcceleration: {
+      enabled: false,
+      activeIp: null,
+      activeSpeedMbps: null,
+      lastTestAtMs: null,
+      lastError: null,
+    },
     githubMirror: { enabled: false, mirrors: [] },
     notifications: { enabled: true },
     ioBaseline: {
@@ -94,6 +103,8 @@ function makeAppSettings(overrides?: Partial<AppSettings>): AppSettings {
       gameModeMaxParallel: 1,
     },
     autostart: false,
+    setupCompleted: false,
+    lastSetupStep: null,
     ...overrides,
   };
 }
@@ -106,7 +117,9 @@ beforeEach(() => {
 
 describe("settings-api", () => {
   it("getAppSettings calls settings_get", async () => {
-    const settings = makeAppSettings({ download: { ...makeAppSettings().download, defaultDownloadDir: "/downloads" } });
+    const settings = makeAppSettings({
+      download: { ...makeAppSettings().download, defaultDownloadDir: "/downloads" },
+    });
     mockTauriCommandValue("settings_get", settings);
 
     const result = await getAppSettings();
@@ -116,7 +129,9 @@ describe("settings-api", () => {
   });
 
   it("saveAppSettings calls settings_save with settings", async () => {
-    const settings = makeAppSettings({ scheduler: { ...makeAppSettings().scheduler, traditional: { maxParallelTasks: 5 } } });
+    const settings = makeAppSettings({
+      scheduler: { ...makeAppSettings().scheduler, traditional: { maxParallelTasks: 5 } },
+    });
     mockTauriCommandValue("settings_save", settings);
 
     const result = await saveAppSettings(settings);

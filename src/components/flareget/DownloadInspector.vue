@@ -140,17 +140,21 @@ watch([btTaskId, activeTab], ([id, tab]) => {
 
 // Poll peers/trackers data every 5s while the tab is active
 let peersTrackerInterval: ReturnType<typeof setInterval> | null = null;
-watch([btTaskId, activeTab], ([id, tab]) => {
-  if (peersTrackerInterval) {
-    clearInterval(peersTrackerInterval);
-    peersTrackerInterval = null;
-  }
-  if (id && tab === "peersTrackers") {
-    peersTrackerInterval = setInterval(() => {
-      void Promise.all([fetchBtPeers(), fetchBtTrackers(), fetchBtPieces()]);
-    }, 5000);
-  }
-}, { immediate: true });
+watch(
+  [btTaskId, activeTab],
+  ([id, tab]) => {
+    if (peersTrackerInterval) {
+      clearInterval(peersTrackerInterval);
+      peersTrackerInterval = null;
+    }
+    if (id && tab === "peersTrackers") {
+      peersTrackerInterval = setInterval(() => {
+        void Promise.all([fetchBtPeers(), fetchBtTrackers(), fetchBtPieces()]);
+      }, 5000);
+    }
+  },
+  { immediate: true },
+);
 
 onBeforeUnmount(() => {
   if (peersTrackerInterval) {

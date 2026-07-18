@@ -5,12 +5,14 @@
 协议抽象层：定义 `DownloadProtocol` trait 作为 HTTP 和 BT 下载的统一接口，通过 `ProtocolRegistry` 消除 `commands.rs` 中的硬编码协议路由。提供协议无关的 `start/pause/resume/cancel/remove/purge/open/status/list` 操作。
 
 **涉及文件**：
+
 - `src-tauri/src/download/protocol.rs` (100+ 行) — DownloadProtocol trait + HTTP 适配器
 - `src-tauri/src/download/protocol_registry.rs` — ProtocolRegistry 路由表
 
 ## 关键结构体
 
 ### DownloadProtocol trait (pub(crate))
+
 ```rust
 #[async_trait]
 pub(crate) trait DownloadProtocol: Send + Sync {
@@ -27,6 +29,7 @@ pub(crate) trait DownloadProtocol: Send + Sync {
 ```
 
 ### ProtocolRegistry (pub(crate))
+
 ```rust
 pub(crate) struct ProtocolRegistry {
     http: Arc<dyn DownloadProtocol>,
@@ -59,6 +62,7 @@ commands.rs 接收 Tauri IPC
 ```
 
 **重要约定**：
+
 - ProtocolRegistry 使用具体字段（http/bt）而非 HashMap — 避免泛型分发复杂度，新协议只需加字段
 - `start()` 方法返回的 ID 已包含协议前缀（`"http:"` 或 `"bt:"`），调用方无需再添加
 - trait 中所有方法接受带前缀的 download_id（外部格式），HTTP 适配器负责 `strip_http_prefix` + `prefix_http_snapshot`

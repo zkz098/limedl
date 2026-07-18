@@ -1,8 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type {
-  CdnDetail,
-  SpeedTestCandidate,
-} from "../../types/cdn";
+import type { CdnDetail, SpeedTestCandidate } from "../../types/cdn";
 
 export function fetchCloudflareRanges() {
   return invoke<string[]>("cdn_fetch_ranges");

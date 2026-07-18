@@ -72,7 +72,9 @@ function compareVersions(a: string, b: string): number {
 }
 
 function isBusy(): boolean {
-  return status.value === "checking" || status.value === "downloading" || status.value === "installing";
+  return (
+    status.value === "checking" || status.value === "downloading" || status.value === "installing"
+  );
 }
 
 // ── Actions ───────────────────────────────────────────────────────

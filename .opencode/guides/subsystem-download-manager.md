@@ -5,6 +5,7 @@
 HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文件元数据 → 规划分块策略 → 执行单流或多流下载 → 校验和验证 → 最终化文件。同时管理自适应调速（AIMD）和调度器（scheduler）。
 
 **涉及文件**：
+
 - `src-tauri/src/download/manager.rs` (1240 行) — 主管理器，下载 CRUD
 - `src-tauri/src/download/http_executor.rs` (847 行) — HTTP 探测、单流/多流执行
 - `src-tauri/src/download/scheduler.rs` (347 行) — 后台调度循环 + 线程重分配
@@ -19,7 +20,9 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 ## 关键结构体
 
 ### AppState (pub)
+
 Tauri 命令注入的全局状态：
+
 ```rust
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
@@ -32,6 +35,7 @@ pub struct AppState {
 ```
 
 ### DownloadManager (pub)
+
 ```rust
 pub struct DownloadManager {
     client: Arc<RwLock<Client>>,                          // reqwest HTTP 客户端
@@ -51,7 +55,9 @@ pub struct DownloadManager {
 ```
 
 ### ManagedDownload (pub(crate))
+
 每个下载任务的核心包装：
+
 ```rust
 pub(crate) struct ManagedDownload {
     pub(crate) core: Mutex<DownloadCore>,
@@ -62,6 +68,7 @@ pub(crate) struct ManagedDownload {
 ```
 
 ### DownloadCore (pub(crate))
+
 ```rust
 pub(crate) struct DownloadCore {
     pub(crate) snapshot: DownloadSnapshot,   // 实时下载状态（序列化到前端）
@@ -70,6 +77,7 @@ pub(crate) struct DownloadCore {
 ```
 
 ### AimdState (pub(crate))
+
 ```rust
 pub(crate) struct AimdState {
     pub(crate) last_sample_bytes: u64,
@@ -85,6 +93,7 @@ pub(crate) struct AimdState {
     pub(crate) penalty_count: u32,
 }
 ```
+
 **AIMD Profile 影响**：三个 profile 控制增减幅度和冷却时间：
 | Profile | 初始线程 | 减少系数 | 冷却时间 |
 |---|---|---|---|
@@ -95,12 +104,14 @@ pub(crate) struct AimdState {
 ## 关键方法
 
 ### DownloadManager — 构造 & 生命周期
+
 ```rust
 pub fn new(state_dir: PathBuf, rate_limiter: Arc<RateLimiter>, event_bus: Arc<EventBus>) -> Result<Self>
 pub async fn shutdown(&self)
 ```
 
 ### DownloadManager — 设置 & 注入
+
 ```rust
 pub async fn settings(&self) -> Result<AppSettings>
 pub fn initial_settings(&self) -> AppSettings
@@ -111,6 +122,7 @@ pub fn set_cdn_accelerator(&self, acc: Arc<CdnAccelerator>)
 **注**：`set_event_tx()` 和 `set_app_handle()` 已移除。事件通过 `event_bus: Arc<EventBus>` 统一处理，前端发送由 EventBus 内部订阅自动完成。
 
 ### DownloadManager — 下载 CRUD（全 pub）
+
 ```rust
 pub async fn start(&self, request: StartDownloadRequest) -> Result<String>
 pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot>
@@ -125,6 +137,7 @@ pub async fn get_summary(&self, download_id: &str) -> Option<DownloadSummary>
 ```
 
 ### DownloadManager — 游戏模式 & 超频
+
 ```rust
 pub fn game_mode(&self) -> bool
 pub fn set_game_mode(&self, enabled: bool)
@@ -133,6 +146,7 @@ pub fn overclock_mode(&self) -> bool
 ```
 
 ### DownloadManager — 调度器（pub(crate)）
+
 ```rust
 pub(crate) fn start_scheduler_loop(self: Arc<Self>)
 pub(crate) async fn update_adaptive_targets(&self) -> Result<()>
@@ -140,6 +154,7 @@ pub(crate) async fn rebalance_allocations(&self) -> Result<()>
 ```
 
 ### http_executor 内部方法（pub(super)，impl DownloadManager）
+
 ```rust
 // 探测远程文件元数据（HEAD 或 GET Range:0-0 请求）
 async fn probe(&self, url: &str, user_agent: &str) -> Result<RemoteMetadata>
@@ -181,13 +196,16 @@ async fn finalize_download(&self, managed: Arc<ManagedDownload>, token: Cancella
    ```
 
 ### 工作器内部枚举
+
 定义在 `manager.rs`（非 `http_executor.rs`）：
+
 ```rust
 enum RunOutcome { Finished, Paused, Canceled }
 enum ChunkWorkerOutcome { Finished, RestartSingle, Paused, Canceled }
 ```
 
 ### 调度器辅助函数
+
 ```rust
 // 调度循环每 2s 唤醒一次（或由 rebalance_notify 触发）
 // → update_adaptive_targets() → rebalance_allocations()
@@ -199,6 +217,7 @@ enum ChunkWorkerOutcome { Finished, RestartSingle, Paused, Canceled }
 ```
 
 ### DownloadProtocol trait
+
 ```rust
 #[async_trait]
 pub(crate) trait DownloadProtocol: Send + Sync {
@@ -219,6 +238,7 @@ pub(crate) trait DownloadProtocol: Send + Sync {
 > 完整的 5 阶段跨子系统流程见 **`.opencode/guides/core-data-flow.md`**。
 
 简图：
+
 ```
 用户点击下载
   ↓
@@ -233,6 +253,7 @@ DownloadManager::start()
 ```
 
 **重要约定**：
+
 - 修改 manager.rs 中的下载状态逻辑前，务必先读 `http_executor.rs` 理解 worker 生命周期
 - `DownloadCore.snapshot` 在 workers 中通过 `ManagedDownload::lock_core()` 更新，注意 Mutex 竞争
 - AIMD 状态变更在 scheduler.rs 中，不在 workers 中；workers 只报告下载字节数

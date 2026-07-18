@@ -18,6 +18,7 @@ export interface AppearanceSettings {
   backgroundOpacity: BackgroundOpacityPreset;
   colorMode: ColorMode;
   showDetailInfo: boolean;
+  showHeatmap: boolean;
   sortKey: SortKey;
   sortDirection: SortDirection;
   compactView: boolean;
@@ -109,6 +110,8 @@ export interface LogSettings {
   enabled: boolean;
   level: LogLevel;
   filePath: string;
+  retentionCount: number | null;
+  retentionDays: number | null;
 }
 
 export interface Aria2RpcSettings {
@@ -167,4 +170,8 @@ export interface AppSettings {
   notifications: NotificationSettings;
   ioBaseline: IoBaselineSettings;
   autostart: boolean;
+  /** Whether the setup wizard has been completed */
+  setupCompleted: boolean;
+  /** Last setup step index (0-based), null if never started or completed */
+  lastSetupStep: number | null;
 }

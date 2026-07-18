@@ -310,9 +310,7 @@ describe("useDownloadForm", () => {
     expect(selectedId.value).toBe("http:test-123");
     expect(refreshList).toHaveBeenCalledTimes(1);
     expect(refreshStatus).toHaveBeenCalledWith("http:test-123", { silent: true });
-    expect(setMessage).toHaveBeenCalledWith(
-      'messages.downloadQueued {"id":"http:test-123"}',
-    );
+    expect(setMessage).toHaveBeenCalledWith('messages.downloadQueued {"id":"http:test-123"}');
     // Form should be reset after successful start
     expect(form.url).toBe("");
     expect(form.fileName).toBe("");

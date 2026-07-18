@@ -9,9 +9,7 @@ const props = defineProps<{ trackers: BtTrackerInfo[] }>();
 
 const { t } = useI18n();
 
-const columns: DataTableColumn[] = [
-  { key: "url", label: t("inspector.trackerTable.url") },
-];
+const columns: DataTableColumn[] = [{ key: "url", label: t("inspector.trackerTable.url") }];
 
 const rows = computed(() =>
   props.trackers.map((tracker) => ({
@@ -21,11 +19,7 @@ const rows = computed(() =>
 </script>
 
 <template>
-  <DataTable
-    :columns="columns"
-    :rows="rows"
-    :empty-title="t('inspector.trackerTable.empty')"
-  />
+  <DataTable :columns="columns" :rows="rows" :empty-title="t('inspector.trackerTable.empty')" />
 </template>
 
 <style scoped>

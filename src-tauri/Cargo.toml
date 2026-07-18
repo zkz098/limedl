@@ -63,7 +63,7 @@ serde_with = ">=3.21.0"
 # Download manager is I/O-bound, not CPU-bound — size matters for distribution.
 codegen-units = 1
 lto = "thin" # Thin LTO: ~90% of fat LTO benefit at ~20% of link time
-opt-level = 3 # Full optimization for runtime speed
+opt-level = 2 # Balanced optimization for runtime speed
 panic = "abort" # Strip unwinding machinery → smaller binary
 strip = true # Strip debug symbols
 

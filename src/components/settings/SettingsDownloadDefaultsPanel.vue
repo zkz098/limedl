@@ -22,9 +22,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <SettingsSection :title="t('settings.downloadsTitle')" icon="i-ri-download-2-line" :summary="downloadSummary">
+  <SettingsSection
+    :title="t('settings.downloadsTitle')"
+    icon="i-ri-download-2-line"
+    :summary="downloadSummary"
+  >
     <div class="settings-grid">
-      <SettingsField wide :label="t('settings.defaultDownloadLocation')" :info-tooltip="t('settings.defaultDownloadHint')">
+      <SettingsField
+        wide
+        :label="t('settings.defaultDownloadLocation')"
+        :info-tooltip="t('settings.defaultDownloadHint')"
+      >
         <div class="settings-directory-field">
           <UiTextField
             v-model="draft.download.defaultDownloadDir"
@@ -47,11 +55,18 @@ const emit = defineEmits<{
         <UiTextField type="number" v-model="draft.download.defaultMaxRetries" :min="0" :max="20" />
       </SettingsField>
 
-      <SettingsField :label="t('settings.globalChecksum')" :info-tooltip="t('settings.checksumHint')">
+      <SettingsField
+        :label="t('settings.globalChecksum')"
+        :info-tooltip="t('settings.checksumHint')"
+      >
         <UiSelect v-model="draft.download.defaultChecksum" :options="checksumOptions" />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.defaultUserAgent')" :info-tooltip="t('settings.defaultUserAgentHint')">
+      <SettingsField
+        wide
+        :label="t('settings.defaultUserAgent')"
+        :info-tooltip="t('settings.defaultUserAgentHint')"
+      >
         <UiTextField
           v-model="draft.download.defaultUserAgent"
           type="text"

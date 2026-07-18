@@ -19,10 +19,7 @@ defineProps<{
 
 <template>
   <template v-if="rows.length === 0">
-    <UiEmptyState
-      :title="emptyTitle ?? ''"
-      :icon="emptyIcon"
-    />
+    <UiEmptyState :title="emptyTitle ?? ''" :icon="emptyIcon" />
   </template>
   <table v-else class="data-table">
     <thead>

@@ -1,20 +1,6 @@
 <script setup lang="ts">
-import {
-  arrow,
-  autoUpdate,
-  computePosition,
-  flip,
-  offset,
-  shift,
-} from "@floating-ui/dom";
-import {
-  computed,
-  nextTick,
-  onUnmounted,
-  ref,
-  useId,
-  watch,
-} from "vue";
+import { arrow, autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
+import { computed, nextTick, onUnmounted, ref, useId, watch } from "vue";
 import { useFloatingClose } from "../../composables/useFloatingClose";
 
 const props = defineProps<{
@@ -168,11 +154,7 @@ watch(isOpen, (opened) => {
       if (!isOpen.value) return;
       updatePosition();
       if (triggerRef.value && popupRef.value) {
-        cleanupAutoUpdate = autoUpdate(
-          triggerRef.value,
-          popupRef.value,
-          updatePosition,
-        );
+        cleanupAutoUpdate = autoUpdate(triggerRef.value, popupRef.value, updatePosition);
       }
     });
   } else if (cleanupAutoUpdate) {

@@ -106,6 +106,8 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         notifications: settings.notifications.clone(),
         io_baseline,
         autostart: settings.autostart,
+        setup_completed: settings.setup_completed,
+        last_setup_step: settings.last_setup_step.map(|s| s.clamp(0, 9)),
     })
 }
 
@@ -344,6 +346,8 @@ pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         notifications: NotificationSettings::default(),
         io_baseline: IoBaselineSettings::default(),
         autostart: false,
+        setup_completed: false,
+        last_setup_step: None,
     })
 }
 

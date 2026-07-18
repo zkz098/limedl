@@ -5,11 +5,13 @@
 统一的事件发布/订阅总线，取代当前 `broadcast::channel<String>` + `app_handle.emit()` 双通道模式。提供强类型事件发布、Tauri 前端自动转发、多订阅者支持。所有下载子系统通过 EventBus 发布状态变更，消费者通过 subscribe() 接收。
 
 **涉及文件**：
+
 - `src-tauri/src/download/event_bus/mod.rs` — EventBus + DownloadEvent 定义
 
 ## 关键结构体
 
 ### DownloadEvent (pub(crate))
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
@@ -23,6 +25,7 @@ pub(crate) enum DownloadEvent {
 ```
 
 ### EventBus (pub(crate))
+
 ```rust
 pub(crate) struct EventBus {
     tx: broadcast::Sender<DownloadEvent>,
@@ -66,6 +69,7 @@ EventBus::publish(DownloadEvent)
 - capacity 参数建议设为 256（与当前 commands.rs 中的设置一致）
 
 **重要约定**：
+
 - EventBus 是可 Clone 的轻量句柄（Arc 内部），各子系统持有自己的克隆
 - `subscribe()` 返回的 receiver 只能接收订阅后发布的事件，不回溯历史
 - Aria2Notification 变体用于兼容 aria2 RPC 协议的事件名（aria2.onDownloadStart 等）

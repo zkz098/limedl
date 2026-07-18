@@ -41,6 +41,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       backgroundOpacity: "default",
       colorMode: "system",
       showDetailInfo: false,
+      showHeatmap: false,
       sortKey: "added_at",
       sortDirection: "desc",
       compactView: false,
@@ -92,7 +93,13 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       maxTorrents: 10,
       activeLimit: 15,
     },
-    logging: { enabled: false, level: "info", filePath: "" },
+    logging: {
+      enabled: false,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: false, port: 6800, secret: null },
     cdnAcceleration: {
       enabled: false,
@@ -112,6 +119,8 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       gameModeMaxParallel: 4,
     },
     autostart: false,
+    setupCompleted: false,
+    lastSetupStep: null,
     ...overrides,
   };
 }
@@ -120,9 +129,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
  * Convenience helper: returns a full AppSettings with only the `appearance`
  * fields overridden from defaults.
  */
-function settingsWithAppearance(
-  overrides: Partial<AppSettings["appearance"]> = {},
-): AppSettings {
+function settingsWithAppearance(overrides: Partial<AppSettings["appearance"]> = {}): AppSettings {
   const base = createDefaultSettings();
   base.appearance = { ...base.appearance, ...overrides };
   return base;
@@ -137,9 +144,7 @@ describe("useAppSettings", () => {
   let setNotificationsEnabled: (enabled: boolean) => void;
   let matchMediaMock: ReturnType<typeof vi.fn>;
 
-  function createParams(
-    overrides: Partial<UseAppSettingsParams> = {},
-  ): UseAppSettingsParams {
+  function createParams(overrides: Partial<UseAppSettingsParams> = {}): UseAppSettingsParams {
     return {
       sortKey,
       sortDirection,
@@ -207,7 +212,7 @@ describe("useAppSettings", () => {
       expect(document.documentElement.dataset.colorMode).toBe("light");
     });
 
-    it('resolves system to dark when prefers-color-scheme: dark', () => {
+    it("resolves system to dark when prefers-color-scheme: dark", () => {
       matchMediaMock.mockImplementation((query: string) => ({
         matches: query === "(prefers-color-scheme: dark)",
         media: query,
@@ -280,10 +285,7 @@ describe("useAppSettings", () => {
       await nextTick();
 
       expect(composable.appSettings.value).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to load app settings",
-        expect.any(Error),
-      );
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to load app settings", expect.any(Error));
       consoleSpy.mockRestore();
     });
 

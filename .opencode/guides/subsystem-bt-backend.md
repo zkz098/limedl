@@ -5,6 +5,7 @@
 通过 irontide 库管理 BitTorrent 下载的完整生命周期。负责会话管理、torrent 元数据解析、对等节点连接、文件选择、上传策略，以及进度/状态查询。bt 任务使用 `bt:` 前缀的 TaskId。
 
 **涉及文件**：
+
 - `src-tauri/src/download/bt_backend_own/mod.rs` (90 行) — OwnBtBackend 结构体定义
 - `src-tauri/src/download/bt_backend_own/protocol.rs` (302 行) — 下载操作实现（start/pause/resume/cancel...）
 - `src-tauri/src/download/bt_backend_own/session.rs` (148 行) — irontide Session 初始化/关闭
@@ -17,6 +18,7 @@
 ## 关键结构体
 
 ### OwnBtBackend (pub(crate))
+
 ```rust
 pub struct OwnBtBackend {
     pub(crate) session: irontide::session::SessionHandle,
@@ -37,6 +39,7 @@ pub struct OwnBtBackend {
 ## 关键方法
 
 ### 构造 & 生命周期
+
 ```rust
 pub async fn new(settings: &AppSettings, state_dir: PathBuf, default_output_dir: PathBuf, event_bus: Arc<EventBus>) -> Result<Self>
 pub async fn shutdown(&self)
@@ -44,6 +47,7 @@ pub fn update_settings(&self, settings: &AppSettings)
 ```
 
 ### 下载操作（实现 DownloadProtocol trait）
+
 ```rust
 pub async fn start(&self, request: StartDownloadRequest) -> Result<String>
 pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot>
@@ -57,6 +61,7 @@ pub async fn list(&self) -> Result<Vec<DownloadSummary>>
 ```
 
 ### BT 特有查询
+
 ```rust
 pub fn set_speed_limit(&self, download_id: &str, download_limit_bps: Option<u64>, upload_limit_bps: Option<u64>)
 pub async fn preview_torrent(&self, source: &str) -> Result<Vec<TorrentFileEntry>>
@@ -70,6 +75,7 @@ pub fn emit_pending_summary(&self, pending_id: &str)
 ```
 
 ### 内部辅助
+
 ```rust
 pub fn spawn_upload_policy_loop(self: Arc<Self>)
 pub(crate) fn stats_to_snapshot(&self, task_id: &str, info_hash: &Id20, stats: &irontide::session::TorrentStats) -> DownloadSnapshot
@@ -104,6 +110,7 @@ Tauri 前端（emit）和内部订阅者（Aria2 RPC 桥接）。不再直接持
 ```
 
 **重要约定**：
+
 - BT 任务的 download_id 格式为 `bt:{info_hash_hex}`（40 字符十六进制 info hash），不是 UUID
 - `task_map` 维护 download_id → Id20(info_hash) 的映射关系
 - irontide 通过告警系统异步推送状态变更，不要轮询 session 获取状态

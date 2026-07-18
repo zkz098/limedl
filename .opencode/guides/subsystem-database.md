@@ -5,6 +5,7 @@
 使用 rusqlite (bundled SQLite) 持久化下载任务的状态、分块进度和元数据。取代了早期的 JSON 文件方案。数据库文件位于 state_dir 下，通过 `Database` 结构体提供 CRUD 操作。
 
 **涉及文件**：
+
 - `src-tauri/src/download/database.rs` (1499 行) — 数据库层完整实现
 - `src-tauri/src/download/migration.rs` (231 行) — JSON → SQLite 迁移逻辑
 - `src-tauri/src/download/persistence.rs` (154 行) — 从 DB 加载下载任务到内存
@@ -12,6 +13,7 @@
 ## 关键结构体
 
 ### Database (pub(crate))
+
 ```rust
 pub(crate) struct Database {
     conn: Mutex<Connection>,  // rusqlite::Connection，Mutex 保护并发访问
@@ -19,6 +21,7 @@ pub(crate) struct Database {
 ```
 
 ### Manifest (pub(crate)) — 主要持久化单元
+
 ```rust
 // 存储在 downloads 表中，对应下载任务的完整元数据
 pub(crate) struct Manifest {
@@ -61,6 +64,7 @@ pub(crate) struct Manifest {
 ## 关键方法
 
 ### Database
+
 ```rust
 pub(crate) fn open(path: &Path) -> Result<Self>
 #[cfg(test)]
@@ -90,6 +94,7 @@ pub(crate) fn count_downloads(&self) -> Result<usize>
 ```
 
 ### ChunkManifest — 分块状态
+
 ```rust
 // 存储在 chunks 表中
 pub(crate) struct ChunkManifest {
@@ -107,6 +112,7 @@ pub(crate) struct ChunkManifest {
 ## SQLite 表结构
 
 ### downloads 表
+
 ```sql
 CREATE TABLE IF NOT EXISTS downloads (
     id TEXT PRIMARY KEY,
@@ -146,6 +152,7 @@ CREATE TABLE IF NOT EXISTS downloads (
 ```
 
 ### chunks 表
+
 ```sql
 CREATE TABLE IF NOT EXISTS chunks (
     download_id TEXT NOT NULL,
@@ -161,6 +168,7 @@ CREATE TABLE IF NOT EXISTS chunks (
 ```
 
 ### 索引
+
 ```sql
 CREATE INDEX IF NOT EXISTS idx_downloads_state ON downloads(state);
 CREATE INDEX IF NOT EXISTS idx_downloads_created ON downloads(created_at_ms);
@@ -199,6 +207,7 @@ Database::delete_download(id) → DELETE FROM downloads WHERE id=?
 ```
 
 **重要约定**：
+
 - `Connection` 被 `Mutex` 保护，所有 DB 操作是同步的（阻塞调用线程），由 tokio 的 `spawn_blocking` 包装
 - 枚举值以 snake_case 字符串存储（`"downloading"`, `"blake3"` 等）
 - `Manifest` 的 `Serialize`/`Deserialize` 用于 JSON 序列化（aria2 RPC 响应），与 SQLite 列存储是两套映射

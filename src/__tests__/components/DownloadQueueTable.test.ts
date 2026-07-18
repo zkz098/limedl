@@ -119,9 +119,7 @@ describe("DownloadQueueTable", () => {
   });
 
   it("renders progress bar for downloading tasks", () => {
-    const downloads = [
-      createMockDownload({ id: "http:1", state: "downloading" }),
-    ];
+    const downloads = [createMockDownload({ id: "http:1", state: "downloading" })];
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({ downloads }),
       global: { stubs },
@@ -189,9 +187,7 @@ describe("DownloadQueueTable", () => {
   // ── Selection ──────────────────────────────────────────────
 
   it("clicking a row emits select event with download id", async () => {
-    const downloads = [
-      createMockDownload({ id: "http:select-1", fileName: "select-me.zip" }),
-    ];
+    const downloads = [createMockDownload({ id: "http:select-1", fileName: "select-me.zip" })];
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({ downloads }),
       global: { stubs },
@@ -291,9 +287,7 @@ describe("DownloadQueueTable", () => {
   // ── Context Menu ───────────────────────────────────────────
 
   it("right-click opens context menu at mouse position", async () => {
-    const downloads = [
-      createMockDownload({ id: "http:ctx-1", fileName: "context-test.zip" }),
-    ];
+    const downloads = [createMockDownload({ id: "http:ctx-1", fileName: "context-test.zip" })];
 
     // Stub Teleport to render children inline (avoids jsdom Teleport issues)
     const inlineTeleportStubs = {
@@ -347,9 +341,7 @@ describe("DownloadQueueTable", () => {
   });
 
   it("clicking row in multiSelect mode emits toggleSelect", async () => {
-    const downloads = [
-      createMockDownload({ id: "http:ms-1", fileName: "multi-select.zip" }),
-    ];
+    const downloads = [createMockDownload({ id: "http:ms-1", fileName: "multi-select.zip" })];
 
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({

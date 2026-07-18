@@ -52,9 +52,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2RTVFQzcwMjEyMDYyQTYKUldTbVlpQWhjT3psZHJoTE13aTdHRUhsSkxJSDEyRmtuemVIVXlTMjE1RldpWDZsMlpTcW03aXoK",
-      "endpoints": [
-        "https://github.com/zkz098/flareget/releases/latest/download/latest.json"
-      ]
+      "endpoints": ["https://github.com/zkz098/flareget/releases/latest/download/latest.json"]
     }
   }
 }

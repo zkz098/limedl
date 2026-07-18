@@ -5,6 +5,7 @@
 通过探测 Cloudflare IP 范围中延迟最低的节点，创建 DNS 重写后的 `reqwest::Client` 加速 HTTP 下载。**当前硬编码 Cloudflare，未抽象为多 CDN 架构。如需支持其他 CDN（Akamai、Fastly 等），需重构此模块。**
 
 **涉及文件**：
+
 - `src-tauri/src/download/cdn/mod.rs` (9 行) — 模块导出
 - `src-tauri/src/download/cdn/accelerator.rs` (408 行) — CdnAccelerator 状态机
 - `src-tauri/src/download/cdn/commands.rs` (282 行) — Tauri CDN 命令
@@ -15,6 +16,7 @@
 ## 关键结构体
 
 ### CdnAccelerator (pub(crate))
+
 ```rust
 pub(crate) struct CdnAccelerator {
     state: RwLock<AccelState>,
@@ -30,9 +32,11 @@ pub(crate) struct CdnAccelerator {
 ```
 
 ### AccelState (pub(crate))
+
 ```rust
 pub(crate) enum AccelState { Idle, Testing, Ready, Error(String) }
 ```
+
 - `Idle`: 未启用或已清除
 - `Testing`: 正在测试各 IP 节点（FetchingRanges → Screening → MeasuringThroughput）
 - `Ready`: 已有选中的加速 IP，`accelerated_client` 可用
@@ -41,6 +45,7 @@ pub(crate) enum AccelState { Idle, Testing, Ready, Error(String) }
 ## 关键方法
 
 ### CdnAccelerator
+
 ```rust
 pub(crate) fn new() -> Self
 
@@ -96,6 +101,7 @@ DownloadManager 使用 accelerated_client 发起下载请求
 ```
 
 **重要约定**：
+
 - CDN 加速仅对使用 Cloudflare CDN 的下载链接有效
 - `accelerated_client` 是普通的 `reqwest::Client`，DNS 解析在底层被改写
 - 测试流程可被 `cancel_test()` 中断，会重置为 Idle

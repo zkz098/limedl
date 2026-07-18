@@ -375,8 +375,6 @@ function metaForDownload(download: DownloadSummary) {
 
   return parts.join(" · ");
 }
-
-
 </script>
 
 <template>

@@ -10,7 +10,10 @@ import type {
 } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
-import { enable as enableAutostart, disable as disableAutostart } from "@tauri-apps/plugin-autostart";
+import {
+  enable as enableAutostart,
+  disable as disableAutostart,
+} from "@tauri-apps/plugin-autostart";
 
 defineProps<{
   draft: AppSettings;
@@ -41,10 +44,7 @@ const emit = defineEmits<{
 
 <template>
   <div class="appearance-panel">
-    <SettingsSection
-      :title="t('settings.languageTitle')"
-      icon="i-ri-translate-2"
-    >
+    <SettingsSection :title="t('settings.languageTitle')" icon="i-ri-translate-2">
       <UiSelect
         :model-value="language"
         :options="languageOptions"
@@ -52,10 +52,7 @@ const emit = defineEmits<{
       />
     </SettingsSection>
 
-    <SettingsSection
-      :title="t('settings.appearanceTitle')"
-      icon="i-ri-palette-line"
-    >
+    <SettingsSection :title="t('settings.appearanceTitle')" icon="i-ri-palette-line">
       <div class="settings-grid">
         <SettingsField :label="t('settings.colorMode')" :info-tooltip="t('settings.colorModeHint')">
           <UiSelect v-model="draft.appearance.colorMode" :options="colorModeOptions" />
@@ -84,7 +81,10 @@ const emit = defineEmits<{
           </div>
         </SettingsField>
 
-        <SettingsField :label="t('settings.backgroundOpacity')" :info-tooltip="t('settings.backgroundOpacityHint')">
+        <SettingsField
+          :label="t('settings.backgroundOpacity')"
+          :info-tooltip="t('settings.backgroundOpacityHint')"
+        >
           <UiSelect
             v-model="draft.appearance.backgroundOpacity"
             :options="backgroundOpacityOptions"
@@ -93,12 +93,12 @@ const emit = defineEmits<{
       </div>
     </SettingsSection>
 
-    <SettingsSection
-      :title="t('settings.infoPanelTitle')"
-      icon="i-ri-information-line"
-    >
+    <SettingsSection :title="t('settings.infoPanelTitle')" icon="i-ri-information-line">
       <div class="settings-grid">
-        <SettingsField :label="t('settings.detailInfoPanel')" :info-tooltip="t('settings.detailInfoHint')">
+        <SettingsField
+          :label="t('settings.detailInfoPanel')"
+          :info-tooltip="t('settings.detailInfoHint')"
+        >
           <UiSwitch v-model="draft.appearance.showDetailInfo" />
         </SettingsField>
       </div>
@@ -116,16 +116,10 @@ const emit = defineEmits<{
       </div>
     </SettingsSection>
 
-    <SettingsSection
-      :title="t('settings.startupTitle')"
-      icon="i-ri-windows-line"
-    >
+    <SettingsSection :title="t('settings.startupTitle')" icon="i-ri-windows-line">
       <div class="settings-grid">
         <SettingsField :label="t('settings.autoStart')" :info-tooltip="t('settings.autoStartHint')">
-          <UiSwitch
-            :model-value="draft.autostart"
-            @update:model-value="onAutostartChange"
-          />
+          <UiSwitch :model-value="draft.autostart" @update:model-value="onAutostartChange" />
         </SettingsField>
       </div>
     </SettingsSection>

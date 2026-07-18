@@ -51,6 +51,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   saved: [settings: AppSettings];
   dirtyChange: [isDirty: boolean];
+  restartSetup: [];
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
@@ -184,38 +185,44 @@ async function updateTrackerListFromUrl() {
       );
     } catch (error) {
       notifyError(
-        error instanceof Error ? error.message : t("settings.notifications.trackerListUpdateFailed"),
+        error instanceof Error
+          ? error.message
+          : t("settings.notifications.trackerListUpdateFailed"),
       );
     }
   });
 }
 
 async function persistSettings() {
-  return (await runSave(async () => {
-    const persisted = props.settings;
-    const btChanged =
-      persisted != null &&
-      (persisted.bt.dhtEnabled !== form.bt.dhtEnabled ||
-        persisted.bt.trackerList !== form.bt.trackerList);
+  return (
+    (await runSave(async () => {
+      const persisted = props.settings;
+      const btChanged =
+        persisted != null &&
+        (persisted.bt.dhtEnabled !== form.bt.dhtEnabled ||
+          persisted.bt.trackerList !== form.bt.trackerList);
 
-    try {
-      const saved = await saveAppSettings(buildSettingsPayload());
+      try {
+        const saved = await saveAppSettings(buildSettingsPayload());
 
-      savedSettingsSnapshot.value = serializeSettings(saved);
-      emit("saved", saved);
-      emit("dirtyChange", false);
-      notifySuccess(t("settings.notifications.saved"));
+        savedSettingsSnapshot.value = serializeSettings(saved);
+        emit("saved", saved);
+        emit("dirtyChange", false);
+        notifySuccess(t("settings.notifications.saved"));
 
-      if (btChanged) {
-        notifyInfo(t("settings.notifications.btRestartRequired"), 5000);
+        if (btChanged) {
+          notifyInfo(t("settings.notifications.btRestartRequired"), 5000);
+        }
+
+        return true;
+      } catch (error) {
+        notifyError(
+          error instanceof Error ? error.message : t("settings.notifications.saveFailed"),
+        );
+        return false;
       }
-
-      return true;
-    } catch (error) {
-      notifyError(error instanceof Error ? error.message : t("settings.notifications.saveFailed"));
-      return false;
-    }
-  })) ?? false;
+    })) ?? false
+  );
 }
 
 const activeTab = ref("appearance");
@@ -362,7 +369,7 @@ defineExpose({
           :proxy-summary="proxySummary"
         />
 
-        <SettingsAboutPanel v-show="activeTab === 'about'" />
+        <SettingsAboutPanel v-show="activeTab === 'about'" @restart-setup="emit('restartSetup')" />
       </div>
     </div>
   </section>

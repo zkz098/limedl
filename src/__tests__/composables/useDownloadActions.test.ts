@@ -25,11 +25,11 @@ vi.mock("../../lib/tauri/download-api", () => ({
 }));
 
 import { resetTauriMocks } from "../mocks/tauri-mock";
-import { useDownloadActions, type UseDownloadActionsInput } from "../../composables/useDownloadActions";
 import {
-  createMockDownloadSnapshot,
-  resetMockIds,
-} from "../fixtures/downloads";
+  useDownloadActions,
+  type UseDownloadActionsInput,
+} from "../../composables/useDownloadActions";
+import { createMockDownloadSnapshot, resetMockIds } from "../fixtures/downloads";
 import type { DownloadSnapshot, DownloadSummary } from "../../types/download";
 
 // Get the mocked API functions

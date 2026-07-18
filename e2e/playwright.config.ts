@@ -18,10 +18,7 @@ export default defineConfig({
   timeout: 60_000,
   retries: 0,
   workers: 1,
-  reporter: [
-    ["html", { outputFolder: "playwright-report" }],
-    ["list"],
-  ],
+  reporter: [["html", { outputFolder: "playwright-report" }], ["list"]],
   use: {
     // Tauri uses Chromium on Windows/Linux, WebKit on macOS.
     // We pin chromium so tests are consistent across dev machines.

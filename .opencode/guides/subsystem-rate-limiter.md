@@ -5,19 +5,23 @@
 全局令牌桶速率限制器，控制所有下载任务的总带宽消耗。提供异步（tokio）和同步（spawn_blocking）两种消费接口。Phase 8 将统一 HTTP 和 BT 的速率控制，替代 BT 当前的 `paused_by_limit: DashMap` 手动暂停机制。
 
 **涉及文件**：
+
 - `src-tauri/src/download/rate_limiter/mod.rs` (306 行) — RateLimiter 结构体 + 测试
 
 ## 关键结构体
 
 ### RateLimiter (pub)
+
 ```rust
 pub struct RateLimiter {
     inner: Arc<Mutex<Inner>>,
 }
 ```
+
 线程安全的令牌桶。Clone 通过 Arc 实现，整个应用共享单个实例。
 
 ### Inner (私有)
+
 ```rust
 struct Inner {
     rate: u64,           // 字节/秒限制 (0 = 无限制)
@@ -66,6 +70,7 @@ manager.update_settings() → rate_limiter.set_rate(global_speed_limit_bps)
 ```
 
 **重要约定**：
+
 - 速率 0 表示无限速，`consume()` 和 `consume_blocking()` 立即返回
 - `set_rate()` 在切换速率时保留已积累的令牌（按新容量封顶）
 - 令牌桶容量 = `max(2 * rate, 1)`，提供初始突发能力

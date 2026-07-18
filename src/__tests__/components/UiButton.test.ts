@@ -131,9 +131,7 @@ describe("UiButton", () => {
     const wrapper = mount(UiButton, {
       props: { loading: true },
     });
-    expect(wrapper.find(".ui-button__spinner").attributes("aria-hidden")).toBe(
-      "true",
-    );
+    expect(wrapper.find(".ui-button__spinner").attributes("aria-hidden")).toBe("true");
   });
 
   it("disables button when loading is true", () => {

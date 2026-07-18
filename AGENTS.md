@@ -44,15 +44,15 @@ The `DownloadProtocol` trait (`src-tauri/src/download/protocol.rs`) abstracts bo
 
 Detailed four-section docs (module responsibility, key structs, key methods, data flow) live in `.opencode/guides/`. **Before modifying any subsystem, read its guide first.**
 
-| Guide | Source (Rust) | Role |
-|---|---|---|
-| `subsystem-download-manager.md` | `download/manager.rs` + `http_executor.rs` + `scheduler.rs` + `aimd.rs` | HTTP download lifecycle orchestration |
-| `subsystem-bt-backend.md` | `download/bt_backend_own/` | BitTorrent via irontide engine |
-| `subsystem-cdn-accelerator.md` | `download/cdn/` | Cloudflare IP probing & DNS rewriting (currently Cloudflare-only) |
-| `subsystem-aria2-rpc.md` | `download/aria2_rpc.rs` | Axum WebSocket + HTTP JSON-RPC emulating aria2 protocol |
-| `subsystem-database.md` | `download/database.rs` | rusqlite with `bundled` feature |
-| `subsystem-buffer-pool.md` | `download/buffer_pool.rs` | HDD double-buffer / SSD write-combining memory pool |
-| `subsystem-settings.md` | `download/settings.rs` + `types.rs` | JSON-based settings load/save, HTTP client builder |
+| Guide                           | Source (Rust)                                                           | Role                                                              |
+| ------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `subsystem-download-manager.md` | `download/manager.rs` + `http_executor.rs` + `scheduler.rs` + `aimd.rs` | HTTP download lifecycle orchestration                             |
+| `subsystem-bt-backend.md`       | `download/bt_backend_own/`                                              | BitTorrent via irontide engine                                    |
+| `subsystem-cdn-accelerator.md`  | `download/cdn/`                                                         | Cloudflare IP probing & DNS rewriting (currently Cloudflare-only) |
+| `subsystem-aria2-rpc.md`        | `download/aria2_rpc.rs`                                                 | Axum WebSocket + HTTP JSON-RPC emulating aria2 protocol           |
+| `subsystem-database.md`         | `download/database.rs`                                                  | rusqlite with `bundled` feature                                   |
+| `subsystem-buffer-pool.md`      | `download/buffer_pool.rs`                                               | HDD double-buffer / SSD write-combining memory pool               |
+| `subsystem-settings.md`         | `download/settings.rs` + `types.rs`                                     | JSON-based settings load/save, HTTP client builder                |
 
 **Cross-cutting docs**: `core-data-flow.md` — full HTTP download lifecycle across all subsystems.
 

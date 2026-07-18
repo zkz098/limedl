@@ -12,7 +12,7 @@ vi.mock("vue", async () => {
   const actual = await vi.importActual<typeof import("vue")>("vue");
   return {
     ...actual,
-      onMounted: vi.fn((cb: () => Promise<void>) => {
+    onMounted: vi.fn((cb: () => Promise<void>) => {
       capturedOnMounted = cb;
     }),
     onUnmounted: vi.fn((cb: () => void) => {
@@ -206,9 +206,7 @@ describe("useFlareget", () => {
         downloadedBytes: 0,
       });
       mockListDownloads.mockResolvedValue([task]);
-      mockGetDownloadStatus.mockResolvedValue(
-        createMockDownloadSnapshot({ id: "task-1" }),
-      );
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
       // Fire onMounted to start listeners + refresh list
       await capturedOnMounted!();
@@ -228,9 +226,7 @@ describe("useFlareget", () => {
         connectionCount: 4,
       });
 
-      const entry = flareget.downloads.value.find(
-        (d: DownloadSummary) => d.id === "task-1",
-      );
+      const entry = flareget.downloads.value.find((d: DownloadSummary) => d.id === "task-1");
       expect(entry.state).toBe("downloading");
       expect(entry.downloadedBytes).toBe(2048);
       expect(entry.speedBytesPerSecond).toBe(1_048_576);
@@ -249,9 +245,7 @@ describe("useFlareget", () => {
       });
 
       expect(flareget.downloads.value).toHaveLength(1);
-      expect(
-        flareget.downloads.value[0].downloadedBytes,
-      ).toBe(originalBytes);
+      expect(flareget.downloads.value[0].downloadedBytes).toBe(originalBytes);
     });
 
     it("patches selectedSnapshot when id matches", async () => {
@@ -280,9 +274,7 @@ describe("useFlareget", () => {
     it("submitForm starts a download", async () => {
       mockStartDownload.mockResolvedValue("download-1");
       mockListDownloads.mockResolvedValue([]);
-      mockGetDownloadStatus.mockResolvedValue(
-        createMockDownloadSnapshot({ id: "download-1" }),
-      );
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "download-1" }));
 
       flareget.form.url = "https://example.com/file.zip";
       flareget.form.destinationDir = "C:\\Downloads";
@@ -302,9 +294,7 @@ describe("useFlareget", () => {
     it("resetForm clears form fields after submit", async () => {
       mockStartDownload.mockResolvedValue("download-2");
       mockListDownloads.mockResolvedValue([]);
-      mockGetDownloadStatus.mockResolvedValue(
-        createMockDownloadSnapshot({ id: "download-2" }),
-      );
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "download-2" }));
 
       flareget.form.url = "https://example.com/another.zip";
       flareget.form.destinationDir = "C:\\Downloads";
@@ -414,9 +404,7 @@ describe("useFlareget", () => {
         fileName: "test.zip",
       });
       mockListDownloads.mockResolvedValue([task]);
-      mockGetDownloadStatus.mockResolvedValue(
-        createMockDownloadSnapshot({ id: "task-1" }),
-      );
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
       await capturedOnMounted!();
       await vi.waitFor(() => {
@@ -433,10 +421,7 @@ describe("useFlareget", () => {
       onUpdated!(JSON.parse(JSON.stringify(failedSummary)));
 
       expect(onDownloadFailed).toHaveBeenCalledTimes(1);
-      expect(onDownloadFailed).toHaveBeenCalledWith(
-        "test.zip",
-        expect.any(String),
-      );
+      expect(onDownloadFailed).toHaveBeenCalledWith("test.zip", expect.any(String));
     });
   });
 });

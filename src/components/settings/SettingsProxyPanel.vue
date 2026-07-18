@@ -14,14 +14,27 @@ defineProps<{
 </script>
 
 <template>
-  <SettingsSection :title="t('settings.proxyTitle')" icon="i-ri-global-line" :summary="proxySummary">
+  <SettingsSection
+    :title="t('settings.proxyTitle')"
+    icon="i-ri-global-line"
+    :summary="proxySummary"
+  >
     <div class="settings-grid">
       <SettingsField :label="t('settings.proxyMode')">
         <UiSelect v-model="draft.proxy.mode" :options="proxyModeOptions" />
       </SettingsField>
 
-      <SettingsField v-if="draft.proxy.mode === 'manual'" wide :label="t('settings.proxyAddress')" :info-tooltip="t('settings.proxyHint')">
-        <UiTextField v-model="draft.proxy.manualUrl" type="text" placeholder="http://127.0.0.1:7890" />
+      <SettingsField
+        v-if="draft.proxy.mode === 'manual'"
+        wide
+        :label="t('settings.proxyAddress')"
+        :info-tooltip="t('settings.proxyHint')"
+      >
+        <UiTextField
+          v-model="draft.proxy.manualUrl"
+          type="text"
+          placeholder="http://127.0.0.1:7890"
+        />
       </SettingsField>
     </div>
   </SettingsSection>

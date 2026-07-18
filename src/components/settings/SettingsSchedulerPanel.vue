@@ -33,8 +33,17 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
         <UiSelect v-model="draft.scheduler.mode" :options="schedulerModeOptions" />
       </SettingsField>
 
-      <SettingsField v-if="isTraditional" :label="t('settings.maxParallelTasks')" :hint="t('settings.traditionalHint')">
-        <UiTextField type="number" v-model="draft.scheduler.traditional.maxParallelTasks" :min="1" :max="32" />
+      <SettingsField
+        v-if="isTraditional"
+        :label="t('settings.maxParallelTasks')"
+        :hint="t('settings.traditionalHint')"
+      >
+        <UiTextField
+          type="number"
+          v-model="draft.scheduler.traditional.maxParallelTasks"
+          :min="1"
+          :max="32"
+        />
       </SettingsField>
 
       <template v-else>
@@ -56,7 +65,10 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
           />
         </SettingsField>
 
-        <SettingsField :label="t('settings.minThreadsPerTask')" :hint="t('settings.minThreadsHint')">
+        <SettingsField
+          :label="t('settings.minThreadsPerTask')"
+          :hint="t('settings.minThreadsHint')"
+        >
           <UiTextField
             type="number"
             v-model="draft.scheduler.automatic.minThreadsPerTask"
@@ -65,7 +77,11 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
           />
         </SettingsField>
 
-        <SettingsField wide :label="t('settings.adaptiveProfile')" :info-tooltip="t('settings.adaptiveProfileHint')">
+        <SettingsField
+          wide
+          :label="t('settings.adaptiveProfile')"
+          :info-tooltip="t('settings.adaptiveProfileHint')"
+        >
           <UiSelect
             v-model="draft.scheduler.automatic.adaptiveProfile"
             :options="adaptiveProfileOptions"
@@ -73,7 +89,11 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
         </SettingsField>
       </template>
 
-      <SettingsField wide :label="t('settings.globalSpeedLimit')" :info-tooltip="t('settings.globalSpeedLimitHint')">
+      <SettingsField
+        wide
+        :label="t('settings.globalSpeedLimit')"
+        :info-tooltip="t('settings.globalSpeedLimitHint')"
+      >
         <UiTextField
           type="number"
           :model-value="globalSpeedLimitMiBps"
@@ -84,7 +104,11 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
         />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.intelligentChunkAllocation')" :info-tooltip="t('settings.intelligentChunkAllocationHint')">
+      <SettingsField
+        wide
+        :label="t('settings.intelligentChunkAllocation')"
+        :info-tooltip="t('settings.intelligentChunkAllocationHint')"
+      >
         <UiSwitch
           :model-value="draft.scheduler.chunkSizeStrategy === 'adaptive'"
           :label="t('settings.intelligentChunkAllocation')"

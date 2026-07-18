@@ -5,13 +5,16 @@
 管理磁盘 I/O 写缓冲，针对 HDD 和 SSD 采用不同策略以最大化写入吞吐量。HDD 使用全局共享的双缓冲池（减少磁盘寻道），SSD 使用本地写合并（无需全局池）。同时配合游戏模式动态缩减内存占用。
 
 **涉及文件**：
+
 - `src-tauri/src/download/buffer_pool.rs` (705 行) — BufferPool + DownloadBuffer + SlotGuard
 - `src-tauri/src/download/file_ops/mod.rs` (disk_detect 部分) — Win32 IOCTL 磁盘类型检测
 
 ## 关键结构体
 
 ### BufferPool (pub)
+
 全局共享的内存管理池，限制并发写操作数量和总内存占用：
+
 ```rust
 pub struct BufferPool {
     total_limit_mb: AtomicU64,              // 正常模式内存上限 (MB)
@@ -26,7 +29,9 @@ pub struct BufferPool {
 ```
 
 ### SlotGuard (pub)
+
 RAII 守卫，持有信号量许可。drop 时自动归还：
+
 ```rust
 pub struct SlotGuard {
     permit: Option<OwnedSemaphorePermit>,
@@ -34,7 +39,9 @@ pub struct SlotGuard {
 ```
 
 ### DownloadBuffer (pub)
+
 每个下载任务独立的写缓冲：
+
 ```rust
 pub struct DownloadBuffer {
     mode: BufferMode,
@@ -44,15 +51,18 @@ pub struct DownloadBuffer {
 ```
 
 ### DiskType (pub)
+
 ```rust
 pub enum DiskType { Ssd, Hdd }
 ```
+
 定义在 `types.rs`，公开类型。
 由 `file_ops/mod.rs` 中的 `detect_disk_type()` 在下载开始时通过 Win32 `IOCTL_STORAGE_QUERY_PROPERTY` 检测。
 
 ## 关键方法
 
 ### BufferPool
+
 ```rust
 pub fn new(total_limit_mb: u64, game_mode_limit_mb: u64, max_parallel: u32, game_mode_max_parallel: u32) -> Self
 
@@ -84,6 +94,7 @@ pub fn update_limits(&self, total_limit_mb: u64, game_mode_limit_mb: u64, max_pa
 ```
 
 ### DownloadBuffer
+
 ```rust
 // HDD 模式：创建池支持的双缓冲
 pub fn new(pool: Arc<BufferPool>, slot: SlotGuard, file: Arc<File>) -> Self
@@ -106,15 +117,15 @@ pub fn clear(&self)
 
 ## HDD vs SSD 模式对比
 
-| 特性 | HDD (DoubleBuffer) | SSD (LocalBuffer) |
-|---|---|---|
-| 内存来源 | 全局 BufferPool | 本地 4 MiB 限制 |
-| 并发控制 | semaphore acquire (可排队等待) | 无争用 |
-| 缓冲结构 | 两个 DashMap ping-pong | 单个 DashMap |
-| Flush 方式 | spawn_blocking 异步刷盘 | 同步 flush |
-| Flush 触发 | 半缓冲满 OR 2s 定时器 | 缓冲满时 |
-| 游戏模式影响 | 缩减 limit/parallel | 无影响 |
-| 设计目的 | 批量顺序写减少寻道 | 本地写合并足够 |
+| 特性         | HDD (DoubleBuffer)             | SSD (LocalBuffer) |
+| ------------ | ------------------------------ | ----------------- |
+| 内存来源     | 全局 BufferPool                | 本地 4 MiB 限制   |
+| 并发控制     | semaphore acquire (可排队等待) | 无争用            |
+| 缓冲结构     | 两个 DashMap ping-pong         | 单个 DashMap      |
+| Flush 方式   | spawn_blocking 异步刷盘        | 同步 flush        |
+| Flush 触发   | 半缓冲满 OR 2s 定时器          | 缓冲满时          |
+| 游戏模式影响 | 缩减 limit/parallel            | 无影响            |
+| 设计目的     | 批量顺序写减少寻道             | 本地写合并足够    |
 
 ## 数据流向
 
@@ -146,6 +157,7 @@ SlotGuard drop → release_slot() → 归还池槽位
 ```
 
 **重要约定**：
+
 - HDD 是全局稀缺资源，slot semaphore 会导致新下载任务排队等待
 - `half_size()` 保证每个下载至少 64 KiB 缓冲，避免极端配置导致过小缓冲区
 - 游戏模式仅影响 HDD 池（缩减内存和并发），SSD 不受影响

@@ -5,6 +5,7 @@
 统一构建所有 `reqwest::Client` 实例。从 `settings` 子系统中独立出来，提供共享的客户端构建器配置（代理、User-Agent、超时、重定向策略），供 DownloadManager、BT Backend、CDN Accelerator 使用。
 
 **涉及文件**：
+
 - `src-tauri/src/download/http_client_factory/mod.rs` (~50 行) — build_http_client + configure_client_builder + normalize_user_agent
 
 ## 关键结构体
@@ -53,6 +54,7 @@ pub(crate) fn configure_client_builder(builder: ClientBuilder, settings: &AppSet
 ```
 
 **重要约定**：
+
 - `configure_client_builder` 返回 `ClientBuilder` 而非 `Client`，允许调用方追加额外配置（如 DNS 重写、自定义 header）
 - User-Agent 从设置读取，空值时回退到 Chrome 内置 UA（通过 `normalize_user_agent`）
 - ProxyMode::System 时 reqwest 自动使用系统代理（不设置 `no_proxy` 也不显式设置 proxy）

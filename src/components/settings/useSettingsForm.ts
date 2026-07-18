@@ -26,6 +26,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       backgroundOpacity: "default",
       colorMode: "system",
       showDetailInfo: true,
+      showHeatmap: true,
       sortKey: "added_at",
       sortDirection: "desc",
       compactView: false,
@@ -86,6 +87,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       enabled: true,
       level: "info",
       filePath: "",
+      retentionCount: null,
+      retentionDays: null,
     },
     aria2Rpc: {
       enabled: true,
@@ -115,6 +118,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       gameModeMaxParallel: 1,
     },
     autostart: false,
+    setupCompleted: false,
+    lastSetupStep: null,
   });
 
   const savedSettingsSnapshot = ref("");
@@ -129,6 +134,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         backgroundOpacity: form.appearance.backgroundOpacity,
         colorMode: form.appearance.colorMode,
         showDetailInfo: form.appearance.showDetailInfo,
+        showHeatmap: form.appearance.showHeatmap,
         sortKey: form.appearance.sortKey,
         sortDirection: form.appearance.sortDirection,
         compactView: form.appearance.compactView,
@@ -189,6 +195,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         enabled: form.logging.enabled,
         level: form.logging.level,
         filePath: form.logging.filePath.trim(),
+        retentionCount: form.logging.retentionCount ?? null,
+        retentionDays: form.logging.retentionDays ?? null,
       },
       aria2Rpc: {
         enabled: form.aria2Rpc.enabled,
@@ -214,6 +222,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         gameModeMaxParallel: Math.max(1, Math.min(8, form.ioBaseline.gameModeMaxParallel ?? 1)),
       },
       autostart: form.autostart ?? false,
+      setupCompleted: form.setupCompleted ?? false,
+      lastSetupStep: form.lastSetupStep ?? null,
     };
   }
 
@@ -235,6 +245,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.appearance.backgroundOpacity = nextSettings.appearance?.backgroundOpacity ?? "default";
       form.appearance.colorMode = nextSettings.appearance?.colorMode ?? "system";
       form.appearance.showDetailInfo = nextSettings.appearance?.showDetailInfo ?? true;
+      form.appearance.showHeatmap = nextSettings.appearance?.showHeatmap ?? true;
       form.appearance.sortKey = nextSettings.appearance?.sortKey ?? "added_at";
       form.appearance.sortDirection = nextSettings.appearance?.sortDirection ?? "desc";
       form.appearance.compactView = nextSettings.appearance?.compactView ?? false;
@@ -294,6 +305,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.logging.enabled = nextSettings.logging?.enabled ?? true;
       form.logging.level = nextSettings.logging?.level ?? "info";
       form.logging.filePath = nextSettings.logging?.filePath ?? "";
+      form.logging.retentionCount = nextSettings.logging?.retentionCount ?? null;
+      form.logging.retentionDays = nextSettings.logging?.retentionDays ?? null;
       form.aria2Rpc.enabled = nextSettings.aria2Rpc?.enabled ?? true;
       form.aria2Rpc.port = nextSettings.aria2Rpc?.port ?? 6800;
       form.aria2Rpc.secret = nextSettings.aria2Rpc?.secret ?? null;
@@ -313,6 +326,9 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         maxParallelHdd: nextSettings.ioBaseline?.maxParallelHdd ?? 4,
         gameModeMaxParallel: nextSettings.ioBaseline?.gameModeMaxParallel ?? 1,
       };
+      form.autostart = nextSettings.autostart ?? false;
+      form.setupCompleted = nextSettings.setupCompleted ?? false;
+      form.lastSetupStep = nextSettings.lastSetupStep ?? null;
       savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
       onDirtyChange?.(false);
     },

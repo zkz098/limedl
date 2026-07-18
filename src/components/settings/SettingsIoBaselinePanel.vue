@@ -63,11 +63,19 @@ const slotUsageText = computed(() => {
 <template>
   <SettingsSection :title="t('settings.ioBaseline.title')" icon="i-ri-hard-drive-2-line">
     <div class="settings-grid">
-      <SettingsField wide :label="t('settings.ioBaseline.bufferLimit')" :info-tooltip="t('settings.ioBaseline.bufferLimitHint')">
+      <SettingsField
+        wide
+        :label="t('settings.ioBaseline.bufferLimit')"
+        :info-tooltip="t('settings.ioBaseline.bufferLimitHint')"
+      >
         <UiTextField type="number" v-model="bufferLimit" :min="64" :max="32768" unit="MB" />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.ioBaseline.gameModeBuffer')" :info-tooltip="t('settings.ioBaseline.gameModeBufferHint')">
+      <SettingsField
+        wide
+        :label="t('settings.ioBaseline.gameModeBuffer')"
+        :info-tooltip="t('settings.ioBaseline.gameModeBufferHint')"
+      >
         <UiTextField
           type="number"
           v-model="gameModeBuffer"
@@ -78,11 +86,19 @@ const slotUsageText = computed(() => {
         />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.ioBaseline.maxParallelHdd')" :info-tooltip="t('settings.ioBaseline.maxParallelHddHint')">
+      <SettingsField
+        wide
+        :label="t('settings.ioBaseline.maxParallelHdd')"
+        :info-tooltip="t('settings.ioBaseline.maxParallelHddHint')"
+      >
         <UiTextField type="number" v-model="maxParallelHdd" :min="1" :max="16" />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.ioBaseline.gameModeMaxParallel')" :info-tooltip="t('settings.ioBaseline.gameModeMaxParallelHint')">
+      <SettingsField
+        wide
+        :label="t('settings.ioBaseline.gameModeMaxParallel')"
+        :info-tooltip="t('settings.ioBaseline.gameModeMaxParallelHint')"
+      >
         <UiTextField
           type="number"
           v-model="gameModeMaxParallel"

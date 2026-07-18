@@ -91,7 +91,10 @@ function onDragEnd(): void {
     icon="i-ri-git-repository-line"
     :summary="t('settings.githubMirror.description')"
   >
-    <SettingsField :label="t('settings.githubMirror.enableLabel')" :hint="t('settings.githubMirror.enableDescription')">
+    <SettingsField
+      :label="t('settings.githubMirror.enableLabel')"
+      :hint="t('settings.githubMirror.enableDescription')"
+    >
       <UiSwitch v-model="githubMirrorEnabled" :label="t('settings.githubMirror.enableLabel')" />
     </SettingsField>
 

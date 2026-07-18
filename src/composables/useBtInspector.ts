@@ -60,19 +60,27 @@ export function useBtInspector(taskId: Ref<string | null>) {
   }
 
   async function fetchFiles() {
-    await fetchTabData("files", getBtFiles, (data) => { files.value = data; });
+    await fetchTabData("files", getBtFiles, (data) => {
+      files.value = data;
+    });
   }
 
   async function fetchPeers() {
-    await fetchTabData("peers", getBtPeers, (data) => { peers.value = data; });
+    await fetchTabData("peers", getBtPeers, (data) => {
+      peers.value = data;
+    });
   }
 
   async function fetchTrackers() {
-    await fetchTabData("trackers", getBtTrackers, (data) => { trackers.value = data; });
+    await fetchTabData("trackers", getBtTrackers, (data) => {
+      trackers.value = data;
+    });
   }
 
   async function fetchPieces() {
-    await fetchTabData("pieces", getBtPieces, (data) => { pieces.value = data; });
+    await fetchTabData("pieces", getBtPieces, (data) => {
+      pieces.value = data;
+    });
   }
 
   async function toggleFileInclusion(fileIndex: number, currentlyIncluded: boolean) {

@@ -928,6 +928,10 @@ pub struct AppSettings {
     pub io_baseline: IoBaselineSettings,
     #[serde(default)]
     pub autostart: bool,
+    #[serde(default)]
+    pub setup_completed: bool,
+    #[serde(default)]
+    pub last_setup_step: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

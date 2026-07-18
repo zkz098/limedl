@@ -4,14 +4,15 @@
 
 ## Quick Reference
 
-| Layer | Command | Framework | Location |
-|---|---|---|---|
-| Frontend unit | `bun run test` | Vitest + jsdom | `src/__tests__/` |
-| Rust unit | `cargo test --workspace` | Rust `#[test]` | 内联 `#[cfg(test)]` |
+| Layer            | Command                  | Framework      | Location                        |
+| ---------------- | ------------------------ | -------------- | ------------------------------- |
+| Frontend unit    | `bun run test`           | Vitest + jsdom | `src/__tests__/`                |
+| Rust unit        | `cargo test --workspace` | Rust `#[test]` | 内联 `#[cfg(test)]`             |
 | Rust integration | `cargo test --workspace` | Rust `#[test]` | `src-tauri/src/download/tests/` |
-| E2E | (pending setup) | Playwright | `e2e/` |
+| E2E              | (pending setup)          | Playwright     | `e2e/`                          |
 
 **Before any Rust test on Windows**, initialize MSVC:
+
 ```powershell
 & "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
 ```
@@ -69,7 +70,7 @@ mockTauriCommand("download_start", (args) => {
 
 ```ts
 vi.mock("../../i18n", () => ({
-  t: vi.fn((key: string) => key),           // 返回原始 key
+  t: vi.fn((key: string) => key), // 返回原始 key
   // 或带插值:
   t: vi.fn((key: string, options?: Record<string, unknown>) => {
     if (options) return `${key} ${JSON.stringify(options)}`;
@@ -179,9 +180,9 @@ ntest       # #[timeout(ms)] 测试超时注解
 
 定义在根 `package.json`：
 
-| 命令 | 用途 |
-|---|---|
-| `bun run test:e2e` | 运行所有 E2E 测试（headless） |
+| 命令                  | 用途                            |
+| --------------------- | ------------------------------- |
+| `bun run test:e2e`    | 运行所有 E2E 测试（headless）   |
 | `bun run test:e2e:ui` | 打开 Playwright UI 模式运行测试 |
 
 ### 运行前提

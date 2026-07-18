@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onErrorCaptured, onMounted, ref, useTemplateRef, watch, type Ref } from "vue";
+import { getVersion } from "@tauri-apps/api/app";
 import { filterDownloads } from "./lib/download-filter";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
@@ -8,6 +9,7 @@ import DownloadQueueTable from "./components/flareget/DownloadQueueTable.vue";
 import DetailPanel from "./components/flareget/DetailPanel.vue";
 import LabsPage from "./components/labs/LabsPage.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
+import SetupWizard from "./components/setup/SetupWizard.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
@@ -28,6 +30,7 @@ import NotificationToast from "./components/ui/NotificationToast.vue";
 import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings, SortDirection, SortKey } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
+import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
 
 // Multi-select refs (declared before flaregetOptions closure)
 let multiSelectMode = ref(false);
@@ -121,7 +124,15 @@ const {
 } = ms;
 
 const { t } = useI18n();
-const { gameMode, bufferUsageBytes, bufferLimitBytes, activeSlots, maxSlots, queuedCount, setGameMode } = useIoBaseline();
+const {
+  gameMode,
+  bufferUsageBytes,
+  bufferLimitBytes,
+  activeSlots,
+  maxSlots,
+  queuedCount,
+  setGameMode,
+} = useIoBaseline();
 const { overclockMode, setOverclockMode } = useOverclock();
 const showComposerDialog = ref(false);
 const activeCategory = ref("");
@@ -142,6 +153,89 @@ const { appSettings, applyAppearanceSettings } = useAppSettings({
   applyAppSettingsDefaults,
   setNotificationsEnabled,
 });
+
+// ── Setup wizard integration ──
+const showSetupWizard = ref<boolean | null>(null);
+const setupInitialSettings = ref<AppSettings | null>(null);
+const appVersion = ref("");
+
+const setupStartStep = computed(() => {
+  const lastStep = setupInitialSettings.value?.lastSetupStep;
+  if (lastStep != null && !setupInitialSettings.value?.setupCompleted) {
+    return lastStep;
+  }
+  return 0;
+});
+
+// Check localStorage cache first for instant decision
+const cachedSetupDone = localStorage.getItem("flareget.setupCompleted");
+if (cachedSetupDone === "true") {
+  showSetupWizard.value = false;
+}
+
+function checkSetupState() {
+  if (appSettings.value) {
+    if (appSettings.value.setupCompleted) {
+      localStorage.setItem("flareget.setupCompleted", "true");
+      showSetupWizard.value = false;
+    } else if (showSetupWizard.value === null) {
+      setupInitialSettings.value = appSettings.value;
+      showSetupWizard.value = true;
+    }
+  }
+}
+
+watch(appSettings, checkSetupState);
+
+async function handleSetupCompleted(settings: AppSettings) {
+  // Cache in localStorage for fast boot
+  localStorage.setItem("flareget.setupCompleted", "true");
+  // Update the global appSettings
+  appSettings.value = settings;
+  // Apply appearance settings (theme, color mode) to document
+  applyAppearanceSettings(settings);
+  // Apply download defaults (auto-fill composer)
+  applyAppSettingsDefaults(settings);
+  // Notifications
+  setNotificationsEnabled(settings.notifications?.enabled ?? true);
+  // Hide wizard, show main app
+  showSetupWizard.value = false;
+}
+
+async function handleSetupClosed() {
+  // User closed wizard without completing (Escape key).
+  // Reload settings from disk since wizard may have written partial changes.
+  try {
+    const updated = await getAppSettings();
+    appSettings.value = updated;
+    applyAppearanceSettings(updated);
+  } catch {
+    // If reload fails, keep the stale value — better than crashing
+  }
+  showSetupWizard.value = false;
+}
+
+async function handleRestartSetup() {
+  const currentSettings = appSettings.value;
+  if (!currentSettings) return;
+
+  // Restart uses the last-persisted settings as the wizard's starting point.
+  // Unsaved draft changes in the settings panel are intentionally discarded —
+  // the user is explicitly choosing to re-run the setup wizard.
+  localStorage.removeItem("flareget.setupCompleted");
+  currentSettings.setupCompleted = false;
+  currentSettings.lastSetupStep = null;
+
+  try {
+    await saveAppSettings(currentSettings);
+  } catch (e) {
+    console.error("Failed to reset setup state:", e);
+  }
+
+  setupInitialSettings.value = { ...currentSettings };
+  showSetupWizard.value = true;
+}
+// ── End setup wizard integration ──
 
 const {
   currentView,
@@ -179,6 +273,19 @@ const { updateAvailable, runStartupCheck } = useAppUpdate();
 
 onMounted(() => {
   runStartupCheck();
+  checkSetupState();
+
+  // Fetch real app version from Tauri metadata
+  getVersion().then((v) => { appVersion.value = v; }).catch(() => {});
+
+  // Safety: if settings never load (backend crash, IPC failure),
+  // bail out to the main app after 5 seconds instead of showing an infinite spinner
+  setTimeout(() => {
+    if (showSetupWizard.value === null) {
+      console.warn("Settings never loaded, showing main app as fallback");
+      showSetupWizard.value = false;
+    }
+  }, 5000);
 });
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
@@ -326,7 +433,28 @@ watch(
 </script>
 
 <template>
-  <div class="app-root">
+  <!-- Loading state while determining setup state -->
+  <template v-if="showSetupWizard === null">
+    <div class="app-loading">
+      <div class="app-loading__spinner i-ri-loader-4-line" aria-hidden="true" />
+    </div>
+  </template>
+
+  <!-- Setup wizard -->
+  <template v-else-if="showSetupWizard">
+    <Transition name="wizard">
+      <SetupWizard
+        :app-version="appVersion || undefined"
+        :initial-settings="setupInitialSettings ?? undefined"
+        :start-from-step="setupStartStep"
+        @completed="handleSetupCompleted"
+        @close="handleSetupClosed"
+      />
+    </Transition>
+  </template>
+
+  <!-- Normal app layout -->
+  <div v-else class="app-root">
     <NotificationToast :notifications="notifications" @dismiss="dismiss" />
 
     <!-- Top toolbar (only show on home view) -->
@@ -432,6 +560,7 @@ watch(
         :queued-count="queuedCount"
         @dirty-change="handleSettingsDirtyChange"
         @saved="handleSettingsSaved"
+        @restart-setup="handleRestartSetup"
       />
     </ModalOverlay>
     <ModalOverlay :model-value="currentView === 'labs'" @close="navigateTo('home')">
@@ -596,5 +725,51 @@ watch(
   color: var(--color-heading);
   font-size: var(--font-size-small);
   overflow-wrap: anywhere;
+}
+
+/* ── Loading / splash screen ── */
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--color-bg-base);
+}
+
+.app-loading__spinner {
+  font-size: 2.5rem;
+  color: var(--color-accent);
+  animation: app-loading-spin 1s linear infinite;
+}
+
+@keyframes app-loading-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-loading__spinner {
+    animation: none;
+  }
+}
+
+/* ── Wizard exit transition (entrance handled internally by SetupWizard) ── */
+.wizard-leave-active {
+  transition: opacity 250ms ease, transform 250ms ease;
+}
+
+.wizard-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-leave-active {
+    transition: none;
+  }
 }
 </style>

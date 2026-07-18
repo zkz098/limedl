@@ -43,10 +43,9 @@ function onInput(event: Event) {
     class="ui-textfield-wrapper"
     :class="{ 'ui-textfield-wrapper--disabled': disabled }"
   >
-    <span
-      v-if="unitPosition === 'prefix'"
-      class="ui-textfield__affix ui-textfield__prefix"
-    >{{ unit }}</span>
+    <span v-if="unitPosition === 'prefix'" class="ui-textfield__affix ui-textfield__prefix">{{
+      unit
+    }}</span>
     <input
       :value="type === 'number' ? (modelValue ?? '') : modelValue"
       class="ui-textfield"
@@ -59,10 +58,9 @@ function onInput(event: Event) {
       :step="step"
       @input="onInput"
     />
-    <span
-      v-if="unitPosition === 'suffix'"
-      class="ui-textfield__affix ui-textfield__suffix"
-    >{{ unit }}</span>
+    <span v-if="unitPosition === 'suffix'" class="ui-textfield__affix ui-textfield__suffix">{{
+      unit
+    }}</span>
   </div>
   <input
     v-else

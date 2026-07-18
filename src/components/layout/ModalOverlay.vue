@@ -22,11 +22,7 @@ function handleOverlayClick(event: MouseEvent) {
 
 <template>
   <Transition name="overlay-fade">
-    <div
-      v-if="modelValue"
-      class="fullscreen-overlay"
-      @click="handleOverlayClick"
-    >
+    <div v-if="modelValue" class="fullscreen-overlay" @click="handleOverlayClick">
       <div class="modal-panel">
         <button class="overlay-close" @click="handleClose">
           <i class="i-ri-close-line" />

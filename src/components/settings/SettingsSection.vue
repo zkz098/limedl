@@ -29,7 +29,9 @@ defineProps<{
   padding: var(--space-5, 1.25rem);
   box-shadow: var(--shadow-card, 0 1px 3px rgba(0, 0, 0, 0.08));
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .settings-section:hover {

@@ -15,7 +15,11 @@ defineProps<{
 </script>
 
 <template>
-  <SettingsSection :title="t('settings.loggingTitle')" icon="i-ri-file-list-3-line" :summary="loggingSummary">
+  <SettingsSection
+    :title="t('settings.loggingTitle')"
+    icon="i-ri-file-list-3-line"
+    :summary="loggingSummary"
+  >
     <div class="settings-grid">
       <SettingsField :label="t('settings.loggingEnabled')">
         <UiSwitch v-model="draft.logging.enabled" :label="t('settings.loggingToggleText')" />
@@ -25,7 +29,11 @@ defineProps<{
         <UiSelect v-model="draft.logging.level" :options="logLevelOptions" />
       </SettingsField>
 
-      <SettingsField wide :label="t('settings.loggingPath')" :info-tooltip="t('settings.loggingPathHint')">
+      <SettingsField
+        wide
+        :label="t('settings.loggingPath')"
+        :info-tooltip="t('settings.loggingPathHint')"
+      >
         <UiTextField
           v-model="draft.logging.filePath"
           type="text"

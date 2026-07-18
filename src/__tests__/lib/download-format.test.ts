@@ -134,59 +134,53 @@ describe("isSizeUnknown", () => {
   });
 
   it("returns false when totalBytes > 0", () => {
-    expect(isSizeUnknown({ downloadedBytes: 0, totalBytes: 500, state: "downloading" })).toBe(false);
+    expect(isSizeUnknown({ downloadedBytes: 0, totalBytes: 500, state: "downloading" })).toBe(
+      false,
+    );
   });
 });
 
 describe("progressValue", () => {
   it("returns 0 when totalBytes is 0 and not completed", () => {
-    expect(
-      progressValue({ downloadedBytes: 0, totalBytes: 0, state: "downloading" }),
-    ).toBe(0);
+    expect(progressValue({ downloadedBytes: 0, totalBytes: 0, state: "downloading" })).toBe(0);
   });
 
   it("returns 100 when state is completed and totalBytes is 0", () => {
-    expect(
-      progressValue({ downloadedBytes: 0, totalBytes: 0, state: "completed" }),
-    ).toBe(100);
+    expect(progressValue({ downloadedBytes: 0, totalBytes: 0, state: "completed" })).toBe(100);
   });
 
   it("returns 50 when downloadedBytes is half of totalBytes", () => {
-    expect(
-      progressValue({ downloadedBytes: 50, totalBytes: 100, state: "downloading" }),
-    ).toBe(50);
+    expect(progressValue({ downloadedBytes: 50, totalBytes: 100, state: "downloading" })).toBe(50);
   });
 
   it("returns 100 when downloadedBytes equals totalBytes", () => {
-    expect(
-      progressValue({ downloadedBytes: 100, totalBytes: 100, state: "downloading" }),
-    ).toBe(100);
+    expect(progressValue({ downloadedBytes: 100, totalBytes: 100, state: "downloading" })).toBe(
+      100,
+    );
   });
 
   it("returns 100 (capped) when downloadedBytes > totalBytes", () => {
-    expect(
-      progressValue({ downloadedBytes: 200, totalBytes: 100, state: "downloading" }),
-    ).toBe(100);
+    expect(progressValue({ downloadedBytes: 200, totalBytes: 100, state: "downloading" })).toBe(
+      100,
+    );
   });
 });
 
 describe("progressLabel", () => {
   it('returns "100%" when completed with unknown size', () => {
-    expect(
-      progressLabel({ downloadedBytes: 0, totalBytes: 0, state: "completed" }),
-    ).toBe("100%");
+    expect(progressLabel({ downloadedBytes: 0, totalBytes: 0, state: "completed" })).toBe("100%");
   });
 
   it("returns pending label when not completed with unknown size", () => {
-    expect(
-      progressLabel({ downloadedBytes: 0, totalBytes: 0, state: "downloading" }),
-    ).toBe("queue.pendingSize");
+    expect(progressLabel({ downloadedBytes: 0, totalBytes: 0, state: "downloading" })).toBe(
+      "queue.pendingSize",
+    );
   });
 
   it('returns "50.0%" when at half progress', () => {
-    expect(
-      progressLabel({ downloadedBytes: 50, totalBytes: 100, state: "downloading" }),
-    ).toBe("50.0%");
+    expect(progressLabel({ downloadedBytes: 50, totalBytes: 100, state: "downloading" })).toBe(
+      "50.0%",
+    );
   });
 });
 

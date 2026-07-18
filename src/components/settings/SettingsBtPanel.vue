@@ -162,7 +162,10 @@ function toggleRateLimit() {
               />
             </SettingsField>
 
-            <SettingsField :label="t('settings.btUploadLimit')" :hint="t('settings.btUploadLimitHint')">
+            <SettingsField
+              :label="t('settings.btUploadLimit')"
+              :hint="t('settings.btUploadLimitHint')"
+            >
               <UiTextField
                 type="number"
                 :model-value="btUploadLimitMiB"
@@ -174,7 +177,10 @@ function toggleRateLimit() {
               />
             </SettingsField>
 
-            <SettingsField :label="t('settings.btRatioLimit')" :hint="t('settings.btRatioLimitHint')">
+            <SettingsField
+              :label="t('settings.btRatioLimit')"
+              :hint="t('settings.btRatioLimitHint')"
+            >
               <UiTextField
                 type="number"
                 :model-value="draft.bt.uploadRatioLimit"
@@ -279,11 +285,11 @@ function toggleRateLimit() {
               />
             </SettingsField>
 
-            <SettingsField :label="t('settings.btHolepunch')" :info-tooltip="t('settings.btHolepunchHint')">
-              <UiSwitch
-                v-model="draft.bt.enableHolepunch"
-                :label="t('settings.btHolepunch')"
-              />
+            <SettingsField
+              :label="t('settings.btHolepunch')"
+              :info-tooltip="t('settings.btHolepunchHint')"
+            >
+              <UiSwitch v-model="draft.bt.enableHolepunch" :label="t('settings.btHolepunch')" />
             </SettingsField>
 
             <SettingsField :label="t('settings.btWebSeed')" :hint="t('settings.btWebSeedHint')">
@@ -373,48 +379,28 @@ function toggleRateLimit() {
               :label="t('settings.btMaxDownloads')"
               :info-tooltip="t('settings.btMaxDownloadsHint')"
             >
-              <UiTextField
-                type="number"
-                v-model="draft.bt.maxDownloads"
-                :min="1"
-                :max="1000"
-              />
+              <UiTextField type="number" v-model="draft.bt.maxDownloads" :min="1" :max="1000" />
             </SettingsField>
 
             <SettingsField
               :label="t('settings.btMaxSeeds')"
               :info-tooltip="t('settings.btMaxSeedsHint')"
             >
-              <UiTextField
-                type="number"
-                v-model="draft.bt.maxSeeds"
-                :min="0"
-                :max="1000"
-              />
+              <UiTextField type="number" v-model="draft.bt.maxSeeds" :min="0" :max="1000" />
             </SettingsField>
 
             <SettingsField
               :label="t('settings.btMaxTorrents')"
               :info-tooltip="t('settings.btMaxTorrentsHint')"
             >
-              <UiTextField
-                type="number"
-                v-model="draft.bt.maxTorrents"
-                :min="1"
-                :max="10000"
-              />
+              <UiTextField type="number" v-model="draft.bt.maxTorrents" :min="1" :max="10000" />
             </SettingsField>
 
             <SettingsField
               :label="t('settings.btActiveLimit')"
               :info-tooltip="t('settings.btActiveLimitHint')"
             >
-              <UiTextField
-                type="number"
-                v-model="draft.bt.activeLimit"
-                :min="1"
-                :max="10000"
-              />
+              <UiTextField type="number" v-model="draft.bt.activeLimit" :min="1" :max="10000" />
             </SettingsField>
           </div>
         </div>

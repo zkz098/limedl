@@ -4,11 +4,26 @@ import { useI18n } from "../../i18n";
 import { useAppUpdate } from "../../composables/useAppUpdate";
 import { platform, arch, version as osVersion } from "@tauri-apps/plugin-os";
 import { getVersion, getName, getTauriVersion } from "@tauri-apps/api/app";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import SettingsSection from "./SettingsSection.vue";
 import SettingsField from "./SettingsField.vue";
 import UiButton from "../ui/UiButton.vue";
 
+const GITHUB_REPO_URL = "https://github.com/zkz098/flareget";
+
+async function openGitHub() {
+  try {
+    await openUrl(GITHUB_REPO_URL);
+  } catch (err) {
+    console.error("Failed to open GitHub URL:", err);
+  }
+}
+
 const { t } = useI18n();
+
+const emit = defineEmits<{
+  "restart-setup": [];
+}>();
 const {
   status,
   progressPercent,
@@ -43,12 +58,16 @@ onMounted(async () => {
     appName.value = await getName();
     appVersion.value = await getVersion();
     tauriVer.value = await getTauriVersion();
-  } catch { /* ignored */ }
+  } catch {
+    /* ignored */
+  }
   try {
     osPlatform.value = platform();
     osArch.value = arch();
     osVer.value = osVersion();
-  } catch { /* ignored */ }
+  } catch {
+    /* ignored */
+  }
 });
 
 const channelOptions = computed(() => [
@@ -124,7 +143,9 @@ const showVersionBadge = computed(() => {
         class="about-logo w-20 h-20 rounded-xl object-contain"
       />
       <div class="flex flex-col items-center gap-1">
-        <span class="text-lg font-bold text-[var(--color-heading)]">{{ appName || "flareget" }}</span>
+        <span class="text-lg font-bold text-[var(--color-heading)]">{{
+          appName || "flareget"
+        }}</span>
         <span class="text-sm text-[var(--color-text-muted)]">v{{ appVersion || "0.1.0" }}</span>
       </div>
     </div>
@@ -151,6 +172,32 @@ const showVersionBadge = computed(() => {
       </div>
     </SettingsSection>
 
+    <!-- Setup Wizard -->
+    <SettingsSection :title="t('settings.aboutRestartSetupTitle')" icon="i-ri-guide-line">
+      <div class="settings-grid">
+        <SettingsField>
+          <UiButton variant="secondary" icon="i-ri-restart-line" @click="emit('restart-setup')">
+            {{ t('settings.aboutRestartSetupButton') }}
+          </UiButton>
+        </SettingsField>
+      </div>
+    </SettingsSection>
+
+    <!-- GitHub -->
+    <SettingsSection :title="t('settings.aboutGitHubTitle')" icon="i-ri-github-fill">
+      <div class="settings-grid">
+        <SettingsField>
+          <UiButton
+            variant="secondary"
+            icon="i-ri-external-link-line"
+            @click="openGitHub"
+          >
+            {{ t('settings.aboutGitHubLink') }}
+          </UiButton>
+        </SettingsField>
+      </div>
+    </SettingsSection>
+
     <!-- Version Info -->
     <SettingsSection :title="t('settings.aboutTitle')" icon="i-ri-information-line">
       <div class="flex flex-col gap-3">
@@ -159,13 +206,17 @@ const showVersionBadge = computed(() => {
             <div
               class="about-version-badge w-14 h-14 flex items-center justify-center rounded-xl"
               :class="{
-                'bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]': updateAvailable && status === 'available',
-                'bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]': status === 'up-to-date' || status === 'idle',
+                'bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]':
+                  updateAvailable && status === 'available',
+                'bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]':
+                  status === 'up-to-date' || status === 'idle',
                 'bg-[var(--color-error-soft)] text-[var(--color-error)]': status === 'error',
                 'bg-[var(--color-warning-soft)] text-[var(--color-warning)]': status === 'newer',
               }"
             >
-              <span class="text-xl font-bold">{{ showVersionBadge ? (currentVersion || "0.1.0") : "?" }}</span>
+              <span class="text-xl font-bold">{{
+                showVersionBadge ? currentVersion || "0.1.0" : "?"
+              }}</span>
             </div>
             <div class="flex flex-col gap-0.5">
               <span class="text-sm text-[var(--color-text-muted)]">
@@ -178,8 +229,13 @@ const showVersionBadge = computed(() => {
           </div>
 
           <div v-if="latestVersion && status === 'available'" class="flex items-center gap-1.5">
-            <span class="i-ri-arrow-right-line text-[var(--color-accent-strong)]" aria-hidden="true" />
-            <span class="text-sm font-semibold text-[var(--color-accent-strong)]">v{{ latestVersion }}</span>
+            <span
+              class="i-ri-arrow-right-line text-[var(--color-accent-strong)]"
+              aria-hidden="true"
+            />
+            <span class="text-sm font-semibold text-[var(--color-accent-strong)]"
+              >v{{ latestVersion }}</span
+            >
           </div>
         </div>
       </div>
@@ -199,9 +255,11 @@ const showVersionBadge = computed(() => {
               :key="opt.value"
               type="button"
               class="about-channel-btn px-4 py-2 rounded-md border text-sm font-medium cursor-pointer transition-colors duration-150"
-              :class="channel === opt.value
-                ? 'border-[var(--color-accent-strong)] bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]'
-                : 'border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text-main)] hover:border-[var(--color-border-strong)]'"
+              :class="
+                channel === opt.value
+                  ? 'border-[var(--color-accent-strong)] bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text-main)] hover:border-[var(--color-border-strong)]'
+              "
               @click="handleChannelChange(opt.value)"
             >
               {{ opt.label }}
@@ -214,14 +272,18 @@ const showVersionBadge = computed(() => {
     <!-- Download Progress -->
     <SettingsSection
       v-if="status === 'downloading' || status === 'installing'"
-      :title="status === 'installing' ? t('settings.aboutInstalling') : t('settings.aboutDownloading')"
+      :title="
+        status === 'installing' ? t('settings.aboutInstalling') : t('settings.aboutDownloading')
+      "
     >
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
           <span>{{ formattedDownloaded }}{{ formattedTotal ? ` / ${formattedTotal}` : "" }}</span>
           <span>{{ progressPercent }}%</span>
         </div>
-        <div class="about-progress-track w-full h-2 rounded-full bg-[var(--color-surface-muted)] overflow-hidden">
+        <div
+          class="about-progress-track w-full h-2 rounded-full bg-[var(--color-surface-muted)] overflow-hidden"
+        >
           <div
             class="about-progress-fill h-full rounded-full transition-[width] duration-300 ease-out bg-[var(--color-accent-strong)]"
             :style="{ width: `${progressPercent}%` }"
@@ -239,10 +301,7 @@ const showVersionBadge = computed(() => {
       :title="t('settings.aboutChangelog')"
     >
       <div class="flex flex-col gap-1">
-        <span
-          v-if="latestDate"
-          class="text-xs text-[var(--color-text-muted)]"
-        >
+        <span v-if="latestDate" class="text-xs text-[var(--color-text-muted)]">
           {{ t("settings.aboutReleaseDate") }}: {{ latestDate }}
         </span>
         <div class="about-changelog text-sm leading-relaxed text-[var(--color-text-main)] mt-2">
@@ -259,11 +318,10 @@ const showVersionBadge = computed(() => {
     </SettingsSection>
 
     <!-- Error display -->
-    <SettingsSection
-      v-if="status === 'error' && errorMessage"
-      title=""
-    >
-      <div class="flex items-start gap-2 p-3 rounded-md bg-[var(--color-error-soft)] text-[var(--color-error)]">
+    <SettingsSection v-if="status === 'error' && errorMessage" title="">
+      <div
+        class="flex items-start gap-2 p-3 rounded-md bg-[var(--color-error-soft)] text-[var(--color-error)]"
+      >
         <span class="i-ri-error-warning-line flex-shrink-0 mt-0.5" aria-hidden="true" />
         <span class="text-sm">{{ errorMessage }}</span>
       </div>

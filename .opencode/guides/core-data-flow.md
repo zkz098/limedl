@@ -54,6 +54,7 @@ DownloadManager::start()
 ## Phase 3 — Download Execution
 
 ### Multi-segment (supports_ranges && total_bytes > threshold)
+
 9. Spawns `download_chunked()` → creates `JoinSet<ChunkWorkerOutcome>`
 10. For each worker thread (up to `allocated_thread_count`):
     - Calls `claim_next_chunk(manifest, worker_id)` → marks chunk as claimed → gets `ChunkManifest`
@@ -66,6 +67,7 @@ DownloadManager::start()
 11. Worker count changes are signaled via `rebalance_notify` → the `download_chunked` main loop detects the change and calls `shutdown_chunk_workers()` to terminate excess workers
 
 ### Single-stream (no Range support or small file)
+
 12. `download_single()`: sequential GET request with `Range: bytes=downloaded-` header for resumption
 13. Data flows directly to `DownloadBuffer` → periodic flush → `Database::update_download_progress()`
 
@@ -97,12 +99,12 @@ DownloadManager::start()
 
 ## Subsystem Interaction Map
 
-| Phase | Subsystems involved |
-|---|---|
-| Phase 1 | `commands.rs`, `protocol.rs` (TaskId routing) |
-| Phase 2 | `manager.rs`, `http_executor.rs`, `manifest.rs`, `database.rs`, `file_ops/mod.rs` |
-| Phase 3 | `http_executor.rs`, `buffer_pool.rs`, `database.rs`, `rate_limiter.rs` |
-| Phase 4 | `scheduler.rs`, `aimd.rs`, `rate_limiter.rs` |
+| Phase   | Subsystems involved                                                                                   |
+| ------- | ----------------------------------------------------------------------------------------------------- |
+| Phase 1 | `commands.rs`, `protocol.rs` (TaskId routing)                                                         |
+| Phase 2 | `manager.rs`, `http_executor.rs`, `manifest.rs`, `database.rs`, `file_ops/mod.rs`                     |
+| Phase 3 | `http_executor.rs`, `buffer_pool.rs`, `database.rs`, `rate_limiter.rs`                                |
+| Phase 4 | `scheduler.rs`, `aimd.rs`, `rate_limiter.rs`                                                          |
 | Phase 5 | `http_executor.rs`, `buffer_pool.rs`, `checksum/mod.rs`, `database.rs`, `retry.rs`, `file_ops/mod.rs` |
 
 ## Key Data Types in Flight
@@ -115,6 +117,7 @@ StartDownloadRequest  (前端表单)
 ```
 
 **Event emission**:
+
 - `DownloadManager::emit_single_summary()` → `app_handle.emit("download-updated", DownloadSummary)` (Tauri event, JSON)
 - `DownloadManager::emit_progress()` → `app_handle.emit("download-progress", DownloadProgress)` (high-frequency update)
 - Aria2 RPC: listens on `broadcast::channel` for `"download-updated"` string events → converts to WebSocket push

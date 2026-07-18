@@ -5,13 +5,16 @@
 管理应用配置的加载、验证、持久化和分发。配置以 JSON 格式存储在 `settings.json`（原子写入），通过 `AppSettings` 结构体封装所有设置分类。同时负责构建 reqwest HTTP 客户端（代理、UA、超时等）。
 
 **涉及文件**：
+
 - `src-tauri/src/download/settings.rs` (365 行) — 设置加载/验证/持久化 + HTTP 客户端构建
 - `src-tauri/src/download/types.rs` (970 行) — AppSettings 及所有子设置结构体定义
 
 ## 关键结构体
 
 ### AppSettings (pub)
+
 所有设置的根结构体：
+
 ```rust
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,6 +35,7 @@ pub struct AppSettings {
 ```
 
 ### 子设置结构体（节选关键字段）
+
 ```rust
 pub struct ProxySettings {
     pub mode: ProxyMode,         // Disabled | System | Manual
@@ -63,6 +67,7 @@ pub struct IoBaselineSettings {
 ```
 
 ### 关键枚举
+
 ```rust
 pub enum ThreadMode { Fixed, Adaptive }        // default: Adaptive
 pub enum AdaptiveProfile { Conservative, Balanced, Aggressive }  // default: Balanced
@@ -76,6 +81,7 @@ pub enum ColorMode { Light, Dark, System }               // default: System
 ## 关键方法
 
 ### 设置加载/持久化 (settings.rs)
+
 ```rust
 // 从 settings.json 加载，失败回退到 AppSettings::default()
 pub(crate) fn load_settings(settings_path: &Path) -> Result<AppSettings>
@@ -88,6 +94,7 @@ pub(crate) fn normalize_settings(settings: AppSettings) -> Result<AppSettings>
 ```
 
 ### HTTP 客户端构建 (settings.rs)
+
 ```rust
 // 根据 AppSettings 构建标准 reqwest::Client
 pub(crate) fn build_http_client(settings: &AppSettings) -> Result<Client>
@@ -97,6 +104,7 @@ pub(crate) fn configure_client_builder(mut builder: ClientBuilder, settings: &Ap
 ```
 
 ### User-Agent 解析 (settings.rs)
+
 ```rust
 // 解析最终使用的 UA：请求中的 UA > 默认 UA > Chrome 内置回退 UA
 pub(crate) fn resolve_user_agent(request_user_agent: Option<&str>, default_user_agent: &str) -> Result<String>
@@ -128,6 +136,7 @@ settings_save() Tauri 命令
 ```
 
 **重要约定**：
+
 - 配置通过 JSON 文件持久化，不是 SQLite（只有下载任务数据用 SQLite）
 - `normalize_settings()` 是关键验证点，所有从外部进入的设置必须经过此函数
 - HTTP 客户端在设置变更时需要重建（代理、UA 变更）

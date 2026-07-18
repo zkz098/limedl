@@ -90,27 +90,21 @@ describe("ConfirmDialog", () => {
   describe("Events", () => {
     it("clicking confirm button emits confirm event", async () => {
       const wrapper = createWrapper();
-      const confirmButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Delete")!;
+      const confirmButton = wrapper.findAll("button").find((b) => b.text() === "Delete")!;
       await confirmButton.trigger("click");
       expect(wrapper.emitted("confirm")).toHaveLength(1);
     });
 
     it("clicking cancel button emits cancel event", async () => {
       const wrapper = createWrapper();
-      const cancelButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Cancel")!;
+      const cancelButton = wrapper.findAll("button").find((b) => b.text() === "Cancel")!;
       await cancelButton.trigger("click");
       expect(wrapper.emitted("cancel")).toHaveLength(1);
     });
 
     it("cancel also emits update:modelValue false", async () => {
       const wrapper = createWrapper();
-      const cancelButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Cancel")!;
+      const cancelButton = wrapper.findAll("button").find((b) => b.text() === "Cancel")!;
       await cancelButton.trigger("click");
       expect(wrapper.emitted("update:modelValue")).toBeTruthy();
       expect(wrapper.emitted("update:modelValue")![0]).toEqual([false]);
@@ -120,44 +114,34 @@ describe("ConfirmDialog", () => {
   describe("States", () => {
     it("confirmLoading disables confirm button", () => {
       const wrapper = createWrapper({ confirmLoading: true });
-      const confirmButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Delete")!;
+      const confirmButton = wrapper.findAll("button").find((b) => b.text() === "Delete")!;
       // UiButton maps loading → disabled attribute on native <button>
       expect(confirmButton.attributes("disabled")).toBeDefined();
     });
 
     it("confirmDisabled disables confirm button", () => {
       const wrapper = createWrapper({ confirmDisabled: true });
-      const confirmButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Delete")!;
+      const confirmButton = wrapper.findAll("button").find((b) => b.text() === "Delete")!;
       expect(confirmButton.attributes("disabled")).toBeDefined();
     });
 
     it("cancelDisabled disables cancel button", () => {
       const wrapper = createWrapper({ cancelDisabled: true });
-      const cancelButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Cancel")!;
+      const cancelButton = wrapper.findAll("button").find((b) => b.text() === "Cancel")!;
       expect(cancelButton.attributes("disabled")).toBeDefined();
     });
   });
 
   describe("Props", () => {
-    it('confirmVariant changes confirm button variant class', () => {
+    it("confirmVariant changes confirm button variant class", () => {
       const wrapper = createWrapper({ confirmVariant: "primary" });
-      const confirmButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Delete")!;
+      const confirmButton = wrapper.findAll("button").find((b) => b.text() === "Delete")!;
       expect(confirmButton.classes()).toContain("ui-button--primary");
     });
 
     it('default confirmVariant is "danger"', () => {
       const wrapper = createWrapper();
-      const confirmButton = wrapper
-        .findAll("button")
-        .find((b) => b.text() === "Delete")!;
+      const confirmButton = wrapper.findAll("button").find((b) => b.text() === "Delete")!;
       expect(confirmButton.classes()).toContain("ui-button--danger");
     });
 

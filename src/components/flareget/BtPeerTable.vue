@@ -34,11 +34,7 @@ const rows = computed(() =>
 </script>
 
 <template>
-  <DataTable
-    :columns="columns"
-    :rows="rows"
-    :empty-title="t('inspector.peerTable.empty')"
-  />
+  <DataTable :columns="columns" :rows="rows" :empty-title="t('inspector.peerTable.empty')" />
 </template>
 
 <style scoped>
