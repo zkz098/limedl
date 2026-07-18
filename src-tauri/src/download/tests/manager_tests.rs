@@ -194,6 +194,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
             io_baseline: IoBaselineSettings::default(),
+            autostart: false,
         })
         .await?;
 
@@ -303,6 +304,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
             io_baseline: IoBaselineSettings::default(),
+            autostart: false,
         })
         .await?;
 
@@ -402,6 +404,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
             io_baseline: IoBaselineSettings::default(),
+            autostart: false,
         })
         .await?;
 
