@@ -26,3 +26,18 @@ target-*
 
 # Test coverage output
 coverage/
+
+# Large binary archives (OS images, datasets, etc.)
+*.tar.gz
+*.tar
+*.tar.xz
+*.tar.bz2
+*.zip
+*.iso
+*.img
+*.dmg
+*.vhd
+*.vhdx
+*.ova
+*.ovf
+*.qcow2
