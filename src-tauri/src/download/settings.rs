@@ -566,6 +566,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn test_normalize_download_dir_absolute_windows() {
         assert_eq!(
@@ -574,6 +575,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn test_normalize_download_dir_absolute_windows_forward_slashes() {
         // On Windows, `C:/Users/test/downloads` is also absolute
