@@ -40,7 +40,7 @@ mimalloc = "0.1.48"
 fs4 = { version = "0.13", features = ["sync"] }
 irontide = { version = "1", default-features = false, features = ["crypto-ring"] }
 anyhow = "1"
-time = ">=0.3.2, <0.4"
+time = ">=0.3.47, <0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
 axum = { version = "0.8", features = ["ws"] }
@@ -52,6 +52,7 @@ dashmap = "6"
 bytes = "1"
 foldhash = "0.2"
 parking_lot = "0.12"
+serde_with = ">=3.21.0"
 
 [profile.release]
 # Optimized for binary size while preserving good runtime performance.
