@@ -1,9 +1,19 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[cfg(any(test, feature = "test-utils"))]
+#[cfg_attr(not(test), allow(dead_code))]
+pub mod aimd;
+
+#[cfg(not(any(test, feature = "test-utils")))]
 mod aimd;
 pub(crate) mod event_bus;
 mod aria2_rpc;
 mod bt_backend_own;
+#[cfg(any(test, feature = "test-utils"))]
+#[cfg_attr(not(test), allow(dead_code))]
+pub mod buffer_pool;
+
+#[cfg(not(any(test, feature = "test-utils")))]
 mod buffer_pool;
 mod cdn;
 pub(crate) mod checksum;
@@ -27,8 +37,9 @@ pub(crate) mod scheduler;
 pub(crate) mod settings;
 pub(crate) mod types;
 
-#[cfg(test)]
-pub(crate) mod test_harness;
+#[cfg(any(test, feature = "test-utils"))]
+#[cfg_attr(not(test), allow(dead_code))]
+pub mod test_harness;
 
 pub(crate) use checksum::calculate_checksum;
 

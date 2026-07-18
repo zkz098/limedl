@@ -1,5 +1,16 @@
 mod download;
 
+#[cfg(any(test, feature = "test-utils"))]
+pub use download::aimd;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub use download::buffer_pool;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub use download::test_harness;
+
+pub use download::RateLimiter;
+
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -15,7 +26,7 @@ use download::event_bus::EventBus;
 use download::CdnAccelerator;
 use download::{
     cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager,
-    IrontideBtBackend, RateLimiter, bt_get_peers, bt_get_pieces, bt_get_trackers,
+    IrontideBtBackend, bt_get_peers, bt_get_pieces, bt_get_trackers,
     bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel,
     cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,

@@ -57,6 +57,7 @@ bytes = "1"
 foldhash = "0.2"
 parking_lot = "0.12"
 serde_with = ">=3.21.0"
+rand = { version = "0.8", optional = true }
 
 [profile.release]
 # Optimized for binary size while preserving good runtime performance.
@@ -67,7 +68,31 @@ opt-level = 2 # Balanced optimization for runtime speed
 panic = "abort" # Strip unwinding machinery → smaller binary
 strip = true # Strip debug symbols
 
+[features]
+test-utils = ["rand"]
+
 [dev-dependencies]
 tempfile = "3"
 ntest = "0.9"
 rand = "0.8"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "aimd"
+harness = false
+required-features = ["test-utils"]
+
+[[bench]]
+name = "rate_limiter"
+harness = false
+required-features = ["test-utils"]
+
+[[bench]]
+name = "download_e2e"
+harness = false
+required-features = ["test-utils"]
+
+[[bench]]
+name = "buffer_pool"
+harness = false
+required-features = ["test-utils"]

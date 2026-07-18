@@ -98,6 +98,26 @@ impl RateLimiter {
     }
 }
 
+#[cfg(any(test, feature = "test-utils"))]
+impl RateLimiter {
+    /// Set token count directly for testing/benchmarking.
+    /// Clamped to [0, capacity] range.
+    pub fn set_tokens(&self, tokens: f64) {
+        let mut inner = self.inner.lock();
+        inner.tokens = tokens.clamp(0.0, inner.capacity as f64);
+    }
+
+    /// Get the number of tokens currently in the bucket.
+    pub fn tokens(&self) -> f64 {
+        self.inner.lock().tokens
+    }
+
+    /// Get the current capacity (bucket size).
+    pub fn capacity(&self) -> u64 {
+        self.inner.lock().capacity
+    }
+}
+
 /// Tries to consume `n` tokens from the bucket.
 ///
 /// Returns `None` on success (budget granted), or `Some(wait_nanos)` if
