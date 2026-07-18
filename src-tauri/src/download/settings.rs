@@ -355,3 +355,627 @@ pub(crate) async fn persist_settings(settings_path: &Path, settings: &AppSetting
     tokio::fs::rename(&temp_path, settings_path).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::download::types::BtPortRange;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    // -----------------------------------------------------------------------
+    // normalize_proxy_settings
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_proxy_disabled_clears_url() {
+        let input = ProxySettings {
+            mode: ProxyMode::Disabled,
+            manual_url: "http://should-be-cleared".into(),
+        };
+        let result = normalize_proxy_settings(input).unwrap();
+        assert_eq!(result.mode, ProxyMode::Disabled);
+        assert!(result.manual_url.is_empty());
+    }
+
+    #[test]
+    fn test_normalize_proxy_system_clears_url() {
+        let input = ProxySettings {
+            mode: ProxyMode::System,
+            manual_url: "http://should-be-cleared".into(),
+        };
+        let result = normalize_proxy_settings(input).unwrap();
+        assert_eq!(result.mode, ProxyMode::System);
+        assert!(result.manual_url.is_empty());
+    }
+
+    #[test]
+    fn test_normalize_proxy_manual_valid_url_ok() {
+        let input = ProxySettings {
+            mode: ProxyMode::Manual,
+            manual_url: "http://proxy:8080".into(),
+        };
+        let result = normalize_proxy_settings(input).unwrap();
+        assert_eq!(result.mode, ProxyMode::Manual);
+        assert_eq!(result.manual_url, "http://proxy:8080");
+    }
+
+    #[test]
+    fn test_normalize_proxy_manual_empty_url_err() {
+        let input = ProxySettings {
+            mode: ProxyMode::Manual,
+            manual_url: String::new(),
+        };
+        let err = normalize_proxy_settings(input).unwrap_err();
+        assert!(matches!(err, DownloadError::InvalidProxy(_)));
+    }
+
+    #[test]
+    fn test_normalize_proxy_manual_invalid_url_err() {
+        let input = ProxySettings {
+            mode: ProxyMode::Manual,
+            manual_url: "not-a-url".into(),
+        };
+        let err = normalize_proxy_settings(input).unwrap_err();
+        assert!(matches!(err, DownloadError::InvalidProxy(_)));
+    }
+
+    #[test]
+    fn test_normalize_proxy_manual_url_trimmed() {
+        let input = ProxySettings {
+            mode: ProxyMode::Manual,
+            manual_url: "  http://proxy:8080  ".into(),
+        };
+        let result = normalize_proxy_settings(input).unwrap();
+        assert_eq!(result.manual_url, "http://proxy:8080");
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_min_threads
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_min_threads_zero_with_max_eight() {
+        assert_eq!(normalize_min_threads(0, 8), 4);
+    }
+
+    #[test]
+    fn test_normalize_min_threads_zero_with_max_one() {
+        assert_eq!(normalize_min_threads(0, 1), 1);
+    }
+
+    #[test]
+    fn test_normalize_min_threads_within_range() {
+        assert_eq!(normalize_min_threads(3, 8), 3);
+    }
+
+    #[test]
+    fn test_normalize_min_threads_clamped_to_max() {
+        assert_eq!(normalize_min_threads(10, 8), 8);
+    }
+
+    #[test]
+    fn test_normalize_min_threads_zero_with_max_two() {
+        assert_eq!(normalize_min_threads(0, 2), 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_logging_settings
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_logging_retention_count_clamped() {
+        let input = LogSettings {
+            retention_count: Some(500),
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert_eq!(result.retention_count, Some(500));
+
+        let input = LogSettings {
+            retention_count: Some(2000),
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert_eq!(result.retention_count, Some(1000));
+
+        let input = LogSettings {
+            retention_count: Some(0),
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert_eq!(result.retention_count, Some(0));
+    }
+
+    #[test]
+    fn test_normalize_logging_retention_days_clamped() {
+        let input = LogSettings {
+            retention_days: Some(365),
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert_eq!(result.retention_days, Some(365));
+
+        let input = LogSettings {
+            retention_days: Some(5000),
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert_eq!(result.retention_days, Some(3650));
+
+        let input = LogSettings {
+            retention_days: Some(0),
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert_eq!(result.retention_days, Some(0));
+    }
+
+    #[test]
+    fn test_normalize_logging_file_path_trimmed() {
+        let input = LogSettings {
+            file_path: "  /var/log/app/  ".into(),
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert_eq!(result.file_path, "/var/log/app/");
+    }
+
+    #[test]
+    fn test_normalize_logging_none_preserved() {
+        let input = LogSettings {
+            retention_count: None,
+            retention_days: None,
+            ..LogSettings::default()
+        };
+        let result = normalize_logging_settings(input);
+        assert!(result.retention_count.is_none());
+        assert!(result.retention_days.is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_download_dir
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_download_dir_empty() {
+        assert_eq!(normalize_download_dir(""), "");
+    }
+
+    #[test]
+    fn test_normalize_download_dir_whitespace_only() {
+        assert_eq!(normalize_download_dir("   \t  "), "");
+    }
+
+    #[test]
+    fn test_normalize_download_dir_relative_path() {
+        assert_eq!(normalize_download_dir("downloads"), "");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_normalize_download_dir_absolute_unix() {
+        assert_eq!(
+            normalize_download_dir("/home/user/downloads"),
+            "/home/user/downloads"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_normalize_download_dir_absolute_unix_is_not_absolute_on_windows() {
+        assert_eq!(
+            normalize_download_dir("/home/user/downloads"),
+            "",
+        );
+    }
+
+    #[test]
+    fn test_normalize_download_dir_absolute_windows() {
+        assert_eq!(
+            normalize_download_dir(r"C:\Users\test\downloads"),
+            r"C:\Users\test\downloads"
+        );
+    }
+
+    #[test]
+    fn test_normalize_download_dir_absolute_windows_forward_slashes() {
+        // On Windows, `C:/Users/test/downloads` is also absolute
+        assert_eq!(
+            normalize_download_dir("C:/Users/test/downloads"),
+            "C:/Users/test/downloads"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_tracker_list
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_tracker_list_dedup_sorted() {
+        let input = "udp://tracker.opentrackr.org:1337\nhttp://tracker.example.com\nudp://tracker.opentrackr.org:1337";
+        let result = normalize_tracker_list(input).unwrap();
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "http://tracker.example.com/");
+        assert_eq!(lines[1], "udp://tracker.opentrackr.org:1337");
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_empty() {
+        let result = normalize_tracker_list("").unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_invalid_scheme() {
+        let err = normalize_tracker_list("ftp://tracker.example.com").unwrap_err();
+        assert!(matches!(err, DownloadError::InvalidResponse(_)));
+        assert!(err.to_string().contains("unsupported tracker scheme"));
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_empty_lines_filtered() {
+        let input = "udp://tracker.opentrackr.org:1337\n\n\nhttp://example.com\n";
+        let result = normalize_tracker_list(input).unwrap();
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_lines_trimmed() {
+        let input = "  udp://tracker.opentrackr.org:1337  \n  http://example.com  ";
+        let result = normalize_tracker_list(input).unwrap();
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_unsupported_scheme_err() {
+        let err = normalize_tracker_list("ws://tracker.example.com").unwrap_err();
+        assert!(matches!(err, DownloadError::InvalidResponse(_)));
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_tracker_list_url
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_tracker_list_url_empty_returns_default() {
+        let result = normalize_tracker_list_url("").unwrap();
+        assert_eq!(result, default_tracker_list_url());
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_url_valid_http() {
+        let result = normalize_tracker_list_url("http://example.com/list.txt").unwrap();
+        assert_eq!(result, "http://example.com/list.txt");
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_url_valid_https() {
+        let result = normalize_tracker_list_url("https://trackers.example.com/best.txt").unwrap();
+        assert_eq!(result, "https://trackers.example.com/best.txt");
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_url_invalid_scheme() {
+        let err = normalize_tracker_list_url("ftp://example.com/list.txt").unwrap_err();
+        assert!(matches!(err, DownloadError::InvalidResponse(_)));
+    }
+
+    #[test]
+    fn test_normalize_tracker_list_url_invalid_url() {
+        let err = normalize_tracker_list_url("not a url").unwrap_err();
+        assert!(matches!(err, DownloadError::InvalidResponse(_)));
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_github_mirror_settings
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_github_mirror_empty() {
+        let input = GitHubMirrorSettings::default();
+        let result = normalize_github_mirror_settings(input);
+        assert!(result.mirrors.is_empty());
+    }
+
+    #[test]
+    fn test_normalize_github_mirror_valid_urls_filtered_and_ordered() {
+        let input = GitHubMirrorSettings {
+            enabled: true,
+            mirrors: vec![
+                MirrorEntry {
+                    url: "https://mirror2.example.com".into(),
+                    enabled: true,
+                    order: 99,
+                },
+                MirrorEntry {
+                    url: "https://mirror1.example.com".into(),
+                    enabled: true,
+                    order: 42,
+                },
+            ],
+        };
+        let result = normalize_github_mirror_settings(input);
+        assert_eq!(result.mirrors.len(), 2);
+        // order should be reassigned: 0, 1 based on iteration order
+        assert_eq!(result.mirrors[0].order, 0);
+        assert_eq!(result.mirrors[1].order, 1);
+        assert_eq!(result.mirrors[0].url, "https://mirror2.example.com");
+        assert_eq!(result.mirrors[1].url, "https://mirror1.example.com");
+    }
+
+    #[test]
+    fn test_normalize_github_mirror_invalid_urls_filtered() {
+        let input = GitHubMirrorSettings {
+            enabled: true,
+            mirrors: vec![
+                MirrorEntry {
+                    url: "ftp://mirror.example.com".into(),
+                    enabled: true,
+                    order: 0,
+                },
+                MirrorEntry {
+                    url: "not-a-url".into(),
+                    enabled: true,
+                    order: 1,
+                },
+                MirrorEntry {
+                    url: "https://valid.example.com".into(),
+                    enabled: true,
+                    order: 2,
+                },
+            ],
+        };
+        let result = normalize_github_mirror_settings(input);
+        assert_eq!(result.mirrors.len(), 1);
+        assert_eq!(result.mirrors[0].url, "https://valid.example.com");
+    }
+
+    #[test]
+    fn test_normalize_github_mirror_empty_url_filtered() {
+        let input = GitHubMirrorSettings {
+            enabled: true,
+            mirrors: vec![
+                MirrorEntry {
+                    url: "".into(),
+                    enabled: true,
+                    order: 0,
+                },
+                MirrorEntry {
+                    url: "  ".into(),
+                    enabled: true,
+                    order: 1,
+                },
+                MirrorEntry {
+                    url: "https://real.example.com".into(),
+                    enabled: true,
+                    order: 2,
+                },
+            ],
+        };
+        let result = normalize_github_mirror_settings(input);
+        assert_eq!(result.mirrors.len(), 1);
+        assert_eq!(result.mirrors[0].url, "https://real.example.com");
+    }
+
+    // -----------------------------------------------------------------------
+    // resolve_user_agent
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_resolve_user_agent_custom() {
+        let result = resolve_user_agent(Some("MyAgent/1.0"), "Default/1.0").unwrap();
+        assert_eq!(result, "MyAgent/1.0");
+    }
+
+    #[test]
+    fn test_resolve_user_agent_falls_back_to_default() {
+        let result = resolve_user_agent(None, "Default/1.0").unwrap();
+        assert_eq!(result, "Default/1.0");
+    }
+
+    #[test]
+    fn test_resolve_user_agent_empty_string_falls_back() {
+        let result = resolve_user_agent(Some(""), "Default/1.0").unwrap();
+        assert_eq!(result, "Default/1.0");
+    }
+
+    #[test]
+    fn test_resolve_user_agent_whitespace_falls_back() {
+        let result = resolve_user_agent(Some("   "), "Default/1.0").unwrap();
+        assert_eq!(result, "Default/1.0");
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_bt_settings
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_bt_empty_tracker_list_ok() {
+        let input = BtSettings {
+            tracker_list: String::new(),
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!(result.tracker_list.is_empty());
+    }
+
+    #[test]
+    fn test_normalize_bt_upload_limit_clamped() {
+        const MAX_UPLOAD_LIMIT_BYTES: u64 = 10 * 1024 * 1024 * 1024 * 1024; // 10 TiB
+        let input = BtSettings {
+            upload_limit_bytes: MAX_UPLOAD_LIMIT_BYTES + 1,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert_eq!(result.upload_limit_bytes, MAX_UPLOAD_LIMIT_BYTES);
+
+        let input = BtSettings {
+            upload_limit_bytes: u64::MAX,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert_eq!(result.upload_limit_bytes, MAX_UPLOAD_LIMIT_BYTES);
+    }
+
+    #[test]
+    fn test_normalize_bt_upload_ratio_clamped() {
+        let input = BtSettings {
+            upload_ratio_limit: 200.0,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!((result.upload_ratio_limit - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_normalize_bt_upload_ratio_nan_inf() {
+        let input = BtSettings {
+            upload_ratio_limit: f64::NAN,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!((result.upload_ratio_limit - 0.0).abs() < f64::EPSILON);
+
+        let input = BtSettings {
+            upload_ratio_limit: f64::INFINITY,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!((result.upload_ratio_limit - 0.0).abs() < f64::EPSILON);
+
+        let input = BtSettings {
+            upload_ratio_limit: f64::NEG_INFINITY,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!((result.upload_ratio_limit - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_normalize_bt_listen_port_range_start_gt_end_err() {
+        let input = BtSettings {
+            listen_port_range: Some(BtPortRange { start: 7000, end: 6000 }),
+            ..BtSettings::default()
+        };
+        let err = normalize_bt_settings(input).unwrap_err();
+        assert!(err.to_string().contains("listen_port_range"));
+    }
+
+    #[test]
+    fn test_normalize_bt_listen_port_range_below_1025_err() {
+        let input = BtSettings {
+            listen_port_range: Some(BtPortRange { start: 1024, end: 2048 }),
+            ..BtSettings::default()
+        };
+        let err = normalize_bt_settings(input).unwrap_err();
+        assert!(err.to_string().contains("listen_port_range"));
+    }
+
+    #[test]
+    fn test_normalize_bt_listen_port_below_1024_filtered() {
+        let input = BtSettings {
+            listen_port: Some(1023),
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!(result.listen_port.is_none());
+    }
+
+    #[test]
+    fn test_normalize_bt_listen_port_none_preserved() {
+        let input = BtSettings {
+            listen_port: None,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!(result.listen_port.is_none());
+    }
+
+    #[test]
+    fn test_normalize_bt_valid_port_range_and_settings_ok() {
+        let input = BtSettings {
+            listen_port_range: Some(BtPortRange { start: 6881, end: 6889 }),
+            listen_port: Some(6881),
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert_eq!(result.listen_port_range, Some(BtPortRange { start: 6881, end: 6889 }));
+        assert_eq!(result.listen_port, Some(6881));
+    }
+
+    // -----------------------------------------------------------------------
+    // load_settings
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_load_settings_file_not_found_returns_default() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("nonexistent.json");
+        let result = load_settings(&path).unwrap();
+        // Compare with default
+        let default = AppSettings::default();
+        assert_eq!(result.proxy.mode, default.proxy.mode);
+        assert_eq!(result.proxy.manual_url, default.proxy.manual_url);
+    }
+
+    #[test]
+    fn test_load_settings_valid_json_full_fields() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let json = r#"{
+            "appearance": {"themeColor": "lime", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true, "sortKey": "added_at", "sortDirection": "desc", "compactView": false, "visibleColumns": ["file", "size", "downloaded", "status", "progress", "speed", "eta"]},
+            "proxy": {"mode": "manual", "manualUrl": "http://proxy:8080"},
+            "scheduler": {"mode": "automatic", "traditional": {"maxParallelTasks": 3}, "automatic": {"maxParallelThreads": 8, "maxThreadsPerTask": 4, "minThreadsPerTask": 2, "adaptiveProfile": "balanced"}},
+            "download": {"defaultDownloadDir": "", "defaultMaxRetries": 5, "defaultChecksum": "blake3", "defaultUserAgent": "TestAgent/1.0"},
+            "bt": {"dhtEnabled": true, "trackerList": "", "trackerListUrl": "", "pauseUploadWhenLimitReached": false, "uploadLimitBytes": 0, "uploadRatioLimit": 0.0},
+            "logging": {"enabled": true, "level": "info", "filePath": ""},
+            "aria2Rpc": {"enabled": false, "port": 6800, "secret": null},
+            "cdnAcceleration": {"enabled": false, "activeIp": null, "activeSpeedMbps": null, "lastTestAtMs": null, "lastError": null},
+            "notifications": {"enabled": true},
+            "ioBaseline": {"bufferLimitMb": 1024, "gameModeBufferMb": 128, "gameMode": false, "maxParallelHdd": 4, "gameModeMaxParallel": 1}
+        }"#;
+        let mut file = fs::File::create(&path).unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+        drop(file);
+
+        let result = load_settings(&path).unwrap();
+        assert_eq!(result.proxy.mode, ProxyMode::Manual);
+        assert_eq!(result.proxy.manual_url, "http://proxy:8080");
+    }
+
+    #[test]
+    fn test_load_settings_legacy_proxy_only() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("legacy.json");
+        let json = r#"{"mode": "manual", "manualUrl": "http://legacy-proxy:3128"}"#;
+        let mut file = fs::File::create(&path).unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+        drop(file);
+
+        let result = load_settings(&path).unwrap();
+        assert_eq!(result.proxy.mode, ProxyMode::Manual);
+        assert_eq!(result.proxy.manual_url, "http://legacy-proxy:3128");
+    }
+
+    // -----------------------------------------------------------------------
+    // persist_settings roundtrip
+    // -----------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_persist_and_load_roundtrip() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("roundtrip.json");
+
+        let original = AppSettings {
+            proxy: ProxySettings {
+                mode: ProxyMode::Manual,
+                manual_url: "http://test-proxy:9090".into(),
+            },
+            ..AppSettings::default()
+        };
+
+        // Persist
+        persist_settings(&path, &original).await.unwrap();
+
+        // Load back
+        let loaded = load_settings(&path).unwrap();
+
+        // Compare fields
+        assert_eq!(loaded.proxy.mode, original.proxy.mode);
+        assert_eq!(loaded.proxy.manual_url, original.proxy.manual_url);
+        assert!(path.exists());
+    }
+}

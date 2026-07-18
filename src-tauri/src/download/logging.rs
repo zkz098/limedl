@@ -74,7 +74,7 @@ impl<'a> MakeWriter<'a> for DynamicFileWriter {
             && let Err(error) = fs::create_dir_all(parent)
         {
             eprintln!(
-                "[downloader] failed to create log directory {}: {error}",
+                "[flareget] failed to create log directory {}: {error}",
                 parent.display()
             );
             return DynamicFileWriterGuard { file: None };
@@ -86,7 +86,7 @@ impl<'a> MakeWriter<'a> for DynamicFileWriter {
             .open(&runtime.file_path)
             .map_err(|error| {
                 eprintln!(
-                    "[downloader] failed to open log file {}: {error}",
+                    "[flareget] failed to open log file {}: {error}",
                     runtime.file_path.display()
                 );
                 error
@@ -174,7 +174,7 @@ pub fn apply_logging_settings(settings: &LogSettings, state_dir: &Path) -> anyho
 fn resolve_log_file_path(settings: &LogSettings, state_dir: &Path) -> PathBuf {
     let configured = settings.file_path.trim();
     if configured.is_empty() {
-        return state_dir.join("logs").join("downloader.log");
+        return state_dir.join("logs").join("flareget.log");
     }
 
     PathBuf::from(configured)
@@ -242,8 +242,8 @@ fn find_rotated_logs(log_path: &Path) -> Vec<(PathBuf, u32)> {
     result
 }
 
-/// Shift-right rotate log files: `downloader.log` → `downloader.1.log`,
-/// `downloader.N.log` → `downloader.(N+1).log`.
+/// Shift-right rotate log files: `flareget.log` → `flareget.1.log`,
+/// `flareget.N.log` → `flareget.(N+1).log`.
 fn rotate_startup_logs(log_path: &Path) {
     let dir = match log_path.parent() {
         Some(d) => d,
@@ -265,7 +265,7 @@ fn rotate_startup_logs(log_path: &Path) {
         let new_path = dir.join(&new_name);
         if let Err(e) = fs::rename(path, &new_path) {
             eprintln!(
-                "[downloader] failed to rotate log file {} -> {}: {e}",
+                "[flareget] failed to rotate log file {} -> {}: {e}",
                 path.display(),
                 new_path.display()
             );
@@ -279,7 +279,7 @@ fn rotate_startup_logs(log_path: &Path) {
         let first_path = dir.join(&first_name);
         if let Err(e) = fs::rename(current, &first_path) {
             eprintln!(
-                "[downloader] failed to rotate current log file {} -> {}: {e}",
+                "[flareget] failed to rotate current log file {} -> {}: {e}",
                 current.display(),
                 first_path.display()
             );
@@ -295,7 +295,7 @@ fn cleanup_by_count(log_path: &Path, count: u32) {
             && let Err(e) = fs::remove_file(path)
         {
             eprintln!(
-                "[downloader] failed to remove old log file {}: {e}",
+                "[flareget] failed to remove old log file {}: {e}",
                 path.display()
             );
         }
@@ -318,21 +318,21 @@ fn cleanup_by_age(log_path: &Path, days: u32) {
                         && let Err(e) = fs::remove_file(path)
                     {
                         eprintln!(
-                            "[downloader] failed to remove old log file {}: {e}",
+                            "[flareget] failed to remove old log file {}: {e}",
                             path.display()
                         );
                     }
                 }
                 Err(e) => {
                     eprintln!(
-                        "[downloader] failed to get modified time for {}: {e}",
+                        "[flareget] failed to get modified time for {}: {e}",
                         path.display()
                     );
                 }
             },
             Err(e) => {
                 eprintln!(
-                    "[downloader] failed to stat log file {}: {e}",
+                    "[flareget] failed to stat log file {}: {e}",
                     path.display()
                 );
             }
@@ -347,7 +347,7 @@ fn cleanup_by_age(log_path: &Path, days: u32) {
         && let Err(e) = fs::remove_file(log_path)
     {
         eprintln!(
-            "[downloader] failed to remove old current log file {}: {e}",
+            "[flareget] failed to remove old current log file {}: {e}",
             log_path.display()
         );
     }
@@ -373,7 +373,7 @@ fn perform_startup_rotation(log_path: &Path, retention_count: Option<u32>, reten
         Ok(f) => f,
         Err(e) => {
             eprintln!(
-                "[downloader] failed to open log lock file {}: {e}",
+                "[flareget] failed to open log lock file {}: {e}",
                 lock_path.display()
             );
             return;
@@ -384,14 +384,14 @@ fn perform_startup_rotation(log_path: &Path, retention_count: Option<u32>, reten
         Ok(true) => { /* lock acquired */ }
         Ok(false) => {
             eprintln!(
-                "[downloader] another process holds the log lock ({}), skipping rotation",
+                "[flareget] another process holds the log lock ({}), skipping rotation",
                 lock_path.display()
             );
             return;
         }
         Err(e) => {
             eprintln!(
-                "[downloader] failed to acquire log lock on {}: {e}",
+                "[flareget] failed to acquire log lock on {}: {e}",
                 lock_path.display()
             );
             return;

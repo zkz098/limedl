@@ -348,7 +348,7 @@ pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandRes
             let response = reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::limited(5))
                 .timeout(Duration::from_secs(15))
-                .user_agent("downloader/0.1")
+                .user_agent("flareget/0.1")
                 .build()
                 .context("创建 HTTP 客户端失败")?
                 .get(tracker_list_url)

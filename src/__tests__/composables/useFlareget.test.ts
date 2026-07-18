@@ -94,9 +94,9 @@ const mockResumeDownload = vi.mocked(resumeDownload);
 
 // ── Suite ───────────────────────────────────────────────────────────────────
 
-describe("useDownloader", () => {
+describe("useFlareget", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let downloader: any;
+  let flareget: any;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -108,8 +108,8 @@ describe("useDownloader", () => {
     onUpdated = null;
 
     // Dynamically import to get a fresh module (clears the singleton guard)
-    const mod = await import("../../composables/useDownloader");
-    downloader = mod.createDownloader();
+    const mod = await import("../../composables/useFlareget");
+    flareget = mod.createFlareget();
   });
 
   afterEach(() => {
@@ -121,11 +121,11 @@ describe("useDownloader", () => {
 
   describe("initialization", () => {
     it("creates with empty downloads", () => {
-      expect(downloader.downloads.value).toEqual([]);
+      expect(flareget.downloads.value).toEqual([]);
     });
 
     it("creates with null selectedId", () => {
-      expect(downloader.selectedId.value).toBeNull();
+      expect(flareget.selectedId.value).toBeNull();
     });
   });
 
@@ -139,11 +139,11 @@ describe("useDownloader", () => {
       });
       mockGetDownloadStatus.mockResolvedValue(snapshot);
 
-      await downloader.refreshStatus("task-1", { silent: true });
+      await flareget.refreshStatus("task-1", { silent: true });
 
-      expect(downloader.downloads.value).toHaveLength(1);
-      expect(downloader.downloads.value[0].id).toBe("task-1");
-      expect(downloader.downloads.value[0].fileName).toBe("test.zip");
+      expect(flareget.downloads.value).toHaveLength(1);
+      expect(flareget.downloads.value[0].id).toBe("task-1");
+      expect(flareget.downloads.value[0].fileName).toBe("test.zip");
     });
 
     it("adds new download to front of non-empty list", async () => {
@@ -153,8 +153,8 @@ describe("useDownloader", () => {
         fileName: "old.zip",
       });
       mockGetDownloadStatus.mockResolvedValueOnce(existingSnap);
-      await downloader.refreshStatus("existing-1", { silent: true });
-      expect(downloader.downloads.value).toHaveLength(1);
+      await flareget.refreshStatus("existing-1", { silent: true });
+      expect(flareget.downloads.value).toHaveLength(1);
 
       // New download should land at index 0 (unshift)
       const newSnap = createMockDownloadSnapshot({
@@ -162,11 +162,11 @@ describe("useDownloader", () => {
         fileName: "new.zip",
       });
       mockGetDownloadStatus.mockResolvedValueOnce(newSnap);
-      await downloader.refreshStatus("new-1", { silent: true });
+      await flareget.refreshStatus("new-1", { silent: true });
 
-      expect(downloader.downloads.value).toHaveLength(2);
-      expect(downloader.downloads.value[0].id).toBe("new-1");
-      expect(downloader.downloads.value[1].id).toBe("existing-1");
+      expect(flareget.downloads.value).toHaveLength(2);
+      expect(flareget.downloads.value[0].id).toBe("new-1");
+      expect(flareget.downloads.value[1].id).toBe("existing-1");
     });
 
     it("updates existing download in-place", async () => {
@@ -176,8 +176,8 @@ describe("useDownloader", () => {
         downloadedBytes: 100,
       });
       mockGetDownloadStatus.mockResolvedValueOnce(snap1);
-      await downloader.refreshStatus("task-1", { silent: true });
-      expect(downloader.downloads.value[0].downloadedBytes).toBe(100);
+      await flareget.refreshStatus("task-1", { silent: true });
+      expect(flareget.downloads.value[0].downloadedBytes).toBe(100);
 
       // Same id — in-place update
       const snap2 = createMockDownloadSnapshot({
@@ -187,11 +187,11 @@ describe("useDownloader", () => {
         totalBytes: 500,
       });
       mockGetDownloadStatus.mockResolvedValueOnce(snap2);
-      await downloader.refreshStatus("task-1", { silent: true });
+      await flareget.refreshStatus("task-1", { silent: true });
 
-      expect(downloader.downloads.value).toHaveLength(1);
-      expect(downloader.downloads.value[0].state).toBe("completed");
-      expect(downloader.downloads.value[0].downloadedBytes).toBe(500);
+      expect(flareget.downloads.value).toHaveLength(1);
+      expect(flareget.downloads.value[0].state).toBe("completed");
+      expect(flareget.downloads.value[0].downloadedBytes).toBe(500);
     });
   });
 
@@ -228,7 +228,7 @@ describe("useDownloader", () => {
         connectionCount: 4,
       });
 
-      const entry = downloader.downloads.value.find(
+      const entry = flareget.downloads.value.find(
         (d: DownloadSummary) => d.id === "task-1",
       );
       expect(entry.state).toBe("downloading");
@@ -238,8 +238,8 @@ describe("useDownloader", () => {
     });
 
     it("does nothing for non-existent download id", () => {
-      expect(downloader.downloads.value).toHaveLength(1);
-      const originalBytes = downloader.downloads.value[0].downloadedBytes;
+      expect(flareget.downloads.value).toHaveLength(1);
+      const originalBytes = flareget.downloads.value[0].downloadedBytes;
 
       onProgress!({
         id: "non-existent",
@@ -248,17 +248,17 @@ describe("useDownloader", () => {
         connectionCount: 2,
       });
 
-      expect(downloader.downloads.value).toHaveLength(1);
+      expect(flareget.downloads.value).toHaveLength(1);
       expect(
-        downloader.downloads.value[0].downloadedBytes,
+        flareget.downloads.value[0].downloadedBytes,
       ).toBe(originalBytes);
     });
 
     it("patches selectedSnapshot when id matches", async () => {
       // selectDownload sets selectedId and refreshStatus sets selectedSnapshot
-      await downloader.selectDownload("task-1");
+      await flareget.selectDownload("task-1");
       await vi.waitFor(() => {
-        expect(downloader.selectedSnapshot.value).not.toBeNull();
+        expect(flareget.selectedSnapshot.value).not.toBeNull();
       });
 
       onProgress!({
@@ -269,8 +269,8 @@ describe("useDownloader", () => {
         connectionCount: 6,
       });
 
-      expect(downloader.selectedSnapshot.value!.downloadedBytes).toBe(5000);
-      expect(downloader.selectedSnapshot.value!.state).toBe("downloading");
+      expect(flareget.selectedSnapshot.value!.downloadedBytes).toBe(5000);
+      expect(flareget.selectedSnapshot.value!.state).toBe("downloading");
     });
   });
 
@@ -284,11 +284,11 @@ describe("useDownloader", () => {
         createMockDownloadSnapshot({ id: "download-1" }),
       );
 
-      downloader.form.url = "https://example.com/file.zip";
-      downloader.form.destinationDir = "C:\\Downloads";
-      downloader.form.fileName = "test.zip";
+      flareget.form.url = "https://example.com/file.zip";
+      flareget.form.destinationDir = "C:\\Downloads";
+      flareget.form.fileName = "test.zip";
 
-      await downloader.submitStart();
+      await flareget.submitStart();
 
       expect(mockStartDownload).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -306,22 +306,22 @@ describe("useDownloader", () => {
         createMockDownloadSnapshot({ id: "download-2" }),
       );
 
-      downloader.form.url = "https://example.com/another.zip";
-      downloader.form.destinationDir = "C:\\Downloads";
-      downloader.form.fileName = "custom.zip";
-      downloader.form.userAgent = "TestAgent/1.0";
-      downloader.form.threadMode = "fixed";
-      downloader.form.threadCount = 4;
+      flareget.form.url = "https://example.com/another.zip";
+      flareget.form.destinationDir = "C:\\Downloads";
+      flareget.form.fileName = "custom.zip";
+      flareget.form.userAgent = "TestAgent/1.0";
+      flareget.form.threadMode = "fixed";
+      flareget.form.threadCount = 4;
 
-      await downloader.submitStart();
+      await flareget.submitStart();
 
       // After resetForm:
-      expect(downloader.form.url).toBe("");
-      expect(downloader.form.destinationDir).toBe("");
-      expect(downloader.form.fileName).toBe("");
-      expect(downloader.form.userAgent).toBe("");
-      expect(downloader.form.threadMode).toBe("adaptive");
-      expect(downloader.form.threadCount).toBe(8);
+      expect(flareget.form.url).toBe("");
+      expect(flareget.form.destinationDir).toBe("");
+      expect(flareget.form.fileName).toBe("");
+      expect(flareget.form.userAgent).toBe("");
+      expect(flareget.form.threadMode).toBe("adaptive");
+      expect(flareget.form.threadCount).toBe(8);
     });
   });
 
@@ -336,8 +336,8 @@ describe("useDownloader", () => {
         fileName: "test.zip",
       });
       mockGetDownloadStatus.mockResolvedValue(snap);
-      await downloader.refreshStatus("task-1", { silent: true });
-      await downloader.selectDownload("task-1");
+      await flareget.refreshStatus("task-1", { silent: true });
+      await flareget.selectDownload("task-1");
     });
 
     it("pause pauses the selected download", async () => {
@@ -348,7 +348,7 @@ describe("useDownloader", () => {
       });
       mockPauseDownload.mockResolvedValue(pausedSnap);
 
-      await downloader.runPause();
+      await flareget.runPause();
 
       expect(mockPauseDownload).toHaveBeenCalledWith("task-1");
     });
@@ -361,7 +361,7 @@ describe("useDownloader", () => {
       });
       mockResumeDownload.mockResolvedValue(resumedSnap);
 
-      await downloader.runResume();
+      await flareget.runResume();
 
       expect(mockResumeDownload).toHaveBeenCalledWith("task-1");
     });
@@ -374,11 +374,11 @@ describe("useDownloader", () => {
       const tasks = createMockDownloadList(2, { fileName: "test.zip" });
       mockListDownloads.mockResolvedValue(tasks);
 
-      await downloader.refreshList();
+      await flareget.refreshList();
 
       expect(mockListDownloads).toHaveBeenCalled();
-      expect(downloader.downloads.value).toHaveLength(2);
-      expect(downloader.downloads.value[0].fileName).toBe("test.zip");
+      expect(flareget.downloads.value).toHaveLength(2);
+      expect(flareget.downloads.value[0].fileName).toBe("test.zip");
     });
 
     it("refreshStatus fetches single download status", async () => {
@@ -388,11 +388,11 @@ describe("useDownloader", () => {
       });
       mockGetDownloadStatus.mockResolvedValue(snapshot);
 
-      await downloader.refreshStatus("status-1", { silent: true });
+      await flareget.refreshStatus("status-1", { silent: true });
 
       expect(mockGetDownloadStatus).toHaveBeenCalledWith("status-1");
-      expect(downloader.downloads.value).toHaveLength(1);
-      expect(downloader.downloads.value[0].fileName).toBe("status.zip");
+      expect(flareget.downloads.value).toHaveLength(1);
+      expect(flareget.downloads.value[0].fileName).toBe("status.zip");
     });
   });
 
@@ -402,10 +402,10 @@ describe("useDownloader", () => {
     it("download failed triggers onDownloadFailed callback", async () => {
       const onDownloadFailed = vi.fn();
 
-      // Create a fresh downloader with the callback
+      // Create a fresh flareget with the callback
       vi.resetModules();
-      const mod = await import("../../composables/useDownloader");
-      mod.createDownloader({ onDownloadFailed });
+      const mod = await import("../../composables/useFlareget");
+      mod.createFlareget({ onDownloadFailed });
 
       // Populate the list and start listeners
       const task = createMockDownloadTask({

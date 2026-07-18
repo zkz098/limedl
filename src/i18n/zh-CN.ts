@@ -1,7 +1,7 @@
 const zhCN = {
   translation: {
     common: {
-      appName: "Downloader",
+      appName: "Flareget",
       close: "关闭",
       cancel: "取消",
       browse: "浏览",
@@ -482,9 +482,9 @@ const zhCN = {
       loggingToggleText: "日志",
       loggingLevel: "日志级别",
       loggingPath: "日志文件路径",
-      loggingPathPlaceholder: "留空使用默认路径（应用数据目录/logs/downloader.log）",
+      loggingPathPlaceholder: "留空使用默认路径（应用数据目录/logs/flareget.log）",
       loggingPathHint:
-        "支持绝对路径或相对路径；留空时自动写入应用数据目录下的 logs/downloader.log。",
+        "支持绝对路径或相对路径；留空时自动写入应用数据目录下的 logs/flareget.log。",
       loggingAutoPath: "自动路径",
       network: "网络",
       proxyTitle: "代理",

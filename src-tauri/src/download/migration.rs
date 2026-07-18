@@ -34,7 +34,7 @@ pub(crate) fn migrate_json_manifests(db: &Database, state_dir: &Path) -> Result<
             Ok(c) => c,
             Err(error) => {
                 eprintln!(
-                    "[downloader] migration: skip unreadable {}: {error}",
+                    "[flareget] migration: skip unreadable {}: {error}",
                     path.display()
                 );
                 continue;
@@ -45,7 +45,7 @@ pub(crate) fn migrate_json_manifests(db: &Database, state_dir: &Path) -> Result<
             Ok(m) => m,
             Err(error) => {
                 eprintln!(
-                    "[downloader] migration: skip invalid manifest {}: {error}",
+                    "[flareget] migration: skip invalid manifest {}: {error}",
                     path.display()
                 );
                 continue;
@@ -58,7 +58,7 @@ pub(crate) fn migrate_json_manifests(db: &Database, state_dir: &Path) -> Result<
         let migrated_path = path.with_extension("json.migrated");
         if let Err(error) = fs::rename(&path, &migrated_path) {
             eprintln!(
-                "[downloader] migration: failed to rename {} → {}: {error}",
+                "[flareget] migration: failed to rename {} → {}: {error}",
                 path.display(),
                 migrated_path.display()
             );

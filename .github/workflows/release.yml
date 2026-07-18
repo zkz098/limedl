@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            target: windows-x64
+            tauri-args: ""
+
+          - runner: ubuntu-22.04
+            target: linux-x64
+            tauri-args: ""
+
+          - runner: macos-latest
+            target: apple-aarch64
+            tauri-args: "--target aarch64-apple-darwin"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Platform dependencies ──────────────────────────────────
+      - name: Install Linux system dependencies
+        if: matrix.target == 'linux-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            patchelf \
+            xdg-utils \
+            mold
+          # libappindicator3-dev was dropped in Ubuntu 24.04; ayatana is the successor
+          sudo apt-get install -y libappindicator3-dev 2>/dev/null \
+            || sudo apt-get install -y libayatana-appindicator3-dev
+
+      # ── Bun ────────────────────────────────────────────────────
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      # ── Rust ───────────────────────────────────────────────────
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: "aarch64-apple-darwin"
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          cache-on-failure: true
+
+      # ── Build & Release ────────────────────────────────────────
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS: use secret-provided identity; fall back to ad-hoc signing
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || (matrix.target == 'apple-aarch64' && '-' || '') }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID || '' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '' }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD || '' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+        with:
+          # Create release only for tag pushes; manual dispatch builds without release
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: "Flareget ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}"
+          releaseBody: |
+            ## Flareget ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}
+
+            ### Downloads
+
+            | Platform | File |
+            |---|---|
+            | Windows x64 | `.msi` / `.exe` installer |
+            | Linux x64 | `.deb` / `.AppImage` package |
+            | macOS Apple Silicon | `.dmg` disk image |
+
+            ### Changes
+            See the [changelog](https://github.com/${{ github.repository }}/releases) for details.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.tauri-args }}

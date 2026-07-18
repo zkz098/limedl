@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Playwright E2E configuration for Tauri downloader
+ * Playwright E2E configuration for Tauri flareget
  *
  * IMPORTANT: These tests require a running Tauri app. They do NOT launch the app automatically.
  *

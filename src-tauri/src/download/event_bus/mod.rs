@@ -94,6 +94,7 @@ impl EventBus {
     }
 
     /// Returns the number of active receivers.
+    #[allow(dead_code)]
     pub(crate) fn receiver_count(&self) -> usize {
         self.tx.receiver_count()
     }

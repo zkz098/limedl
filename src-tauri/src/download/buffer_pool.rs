@@ -168,10 +168,11 @@ impl BufferPool {
 
     /// Update all limit and parallelism parameters from settings.
     ///
-    /// Note: this does NOT resize the semaphore dynamically. The semaphore
-    /// capacity was set at construction time (or from a previous
-    /// `update_limits` that requires a restart). Current max-parallel values
-    /// are used for `half_size()` computation and display only.
+    /// When `max_parallel` or `game_mode_max_parallel` (depending on game mode)
+    /// is increased, the semaphore is grown dynamically so that new downloads
+    /// can take advantage of the higher concurrency without a restart.
+    /// Decreasing is intentionally not supported — existing permits are safe to
+    /// keep and will naturally return to the pool on drop.
     pub fn update_limits(
         &self,
         total_limit_mb: u64,
@@ -179,6 +180,7 @@ impl BufferPool {
         max_parallel: u32,
         game_mode_max_parallel: u32,
     ) {
+        let old_max = self.effective_max_parallel();
         self.total_limit_mb
             .store(total_limit_mb, Ordering::Relaxed);
         self.game_mode_limit_mb
@@ -186,6 +188,13 @@ impl BufferPool {
         self.max_parallel.store(max_parallel, Ordering::Relaxed);
         self.game_mode_max_parallel
             .store(game_mode_max_parallel, Ordering::Relaxed);
+        let new_max = self.effective_max_parallel();
+        // Grow the semaphore when the limit increases. Decreasing is
+        // intentionally not supported — existing permits are safe to keep.
+        if new_max > old_max {
+            self.slot_semaphore
+                .add_permits((new_max - old_max) as usize);
+        }
     }
 
     /// Number of slots currently acquired by active downloads.
@@ -331,7 +340,8 @@ impl DownloadBuffer {
             } => {
                 self.buffer_chunk_local(
                     chunks, buffered_bytes, *local_limit, file, offset, data,
-                );
+                )
+                .await;
                 Ok(())
             }
         }
@@ -491,7 +501,7 @@ impl DownloadBuffer {
 
     /// Local (SSD) mode: insert if under the local limit; otherwise flush the
     /// current buffer synchronously (blocking the current task) and retry.
-    fn buffer_chunk_local(
+    async fn buffer_chunk_local(
         &self,
         chunks: &Arc<DashMap<u64, Bytes>>,
         buffered_bytes: &AtomicU64,
@@ -516,18 +526,26 @@ impl DownloadBuffer {
         // Exceeded limit — undo the speculative add, then fall through to flush.
         buffered_bytes.fetch_sub(len, Ordering::Relaxed);
 
-        // Buffer is full — flush synchronously, then insert.
-        // This blocks the async task but is fast for small SSD-local buffers.
-            let mut entries: Vec<(u64, Bytes)> =
-                chunks.iter().map(|e| (*e.key(), e.value().clone())).collect();
-            chunks.clear();
-        entries.sort_by_key(|(k, _)| *k);
-        for (off, chunk) in &entries {
-            if let Err(e) = write_all_at(file, chunk, *off) {
-                tracing::error!("SSD local buffer flush failed at offset {off}: {e}");
-            }
-        }
+        // Buffer is full — flush via spawn_blocking so we don't
+        // block the tokio async runtime.
+        let file = file.clone();
+        let chunks_map = Arc::clone(chunks);
+        let mut entries: Vec<(u64, Bytes)> = chunks_map
+            .iter()
+            .map(|e| (*e.key(), e.value().clone()))
+            .collect();
+        chunks_map.clear();
         let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
+        tokio::task::spawn_blocking(move || {
+            entries.sort_by_key(|(k, _)| *k);
+            for (off, chunk) in &entries {
+                if let Err(e) = write_all_at(&file, chunk, *off) {
+                    tracing::error!("SSD local buffer flush failed at offset {off}: {e}");
+                }
+            }
+        })
+        .await
+        .expect("spawn_blocking panicked during SSD flush");
         buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
 
         // Now insert the new chunk.

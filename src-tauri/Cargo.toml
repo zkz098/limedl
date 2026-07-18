@@ -1,8 +1,8 @@
 [package]
-name = "downloader"
+name = "flareget"
 version = "0.1.0"
 description = "Tauri v2 desktop download manager — HTTP, BitTorrent"
-authors = ["downloader contributors"]
+authors = ["flareget contributors"]
 edition = "2024"
 build = "build.rs"
 
@@ -12,7 +12,7 @@ build = "build.rs"
 # The _lib suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "downloader_lib"
+name = "flareget_lib"
 crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
@@ -52,6 +52,15 @@ dashmap = "6"
 bytes = "1"
 foldhash = "0.2"
 parking_lot = "0.12"
+
+[profile.release]
+# Optimized for binary size while preserving good runtime performance.
+# Download manager is I/O-bound, not CPU-bound — size matters for distribution.
+codegen-units = 1
+lto = "thin" # Thin LTO: ~90% of fat LTO benefit at ~20% of link time
+opt-level = 3 # Full optimization for runtime speed
+panic = "abort" # Strip unwinding machinery → smaller binary
+strip = true # Strip debug symbols
 
 [dev-dependencies]
 tempfile = "3"

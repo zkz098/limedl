@@ -27,7 +27,7 @@ import type {
   DownloadSummary,
 } from "../types/download";
 
-export interface UseDownloaderOptions {
+export interface UseFlaregetOptions {
   /** Called when a download transitions to failed (for in-app notification) */
   onDownloadFailed?: (fileName: string, reason: string) => void;
   /** Called when one or more downloads are removed from the list */
@@ -49,7 +49,7 @@ async function fireNotification(title: string, body: string) {
   }
 }
 
-function createDownloader(options?: UseDownloaderOptions) {
+function createFlareget(options?: UseFlaregetOptions) {
   const downloads = ref<DownloadSummary[]>([]);
   const selectedId = ref<string | null>(null);
   const selectedSnapshot = ref<DownloadSnapshot | null>(null);
@@ -449,20 +449,20 @@ function createDownloader(options?: UseDownloaderOptions) {
 }
 
 // Singleton guard — ensures all callers share the same reactive instance.
-// useDownloader manages Tauri event listeners and global download state;
+// useFlareget manages Tauri event listeners and global download state;
 // accidental re-instantiation would create duplicate listeners and desync state.
-let downloaderInstance: ReturnType<typeof createDownloader> | null = null;
+let flaregetInstance: ReturnType<typeof createFlareget> | null = null;
 
-export function useDownloader(options?: UseDownloaderOptions) {
-  if (downloaderInstance) {
+export function useFlareget(options?: UseFlaregetOptions) {
+  if (flaregetInstance) {
     if (import.meta.env.DEV && options) {
-      console.warn("[useDownloader] Already created — options from this caller ignored.");
+      console.warn("[useFlareget] Already created — options from this caller ignored.");
     }
-    return downloaderInstance;
+    return flaregetInstance;
   }
-  downloaderInstance = createDownloader(options);
-  return downloaderInstance;
+  flaregetInstance = createFlareget(options);
+  return flaregetInstance;
 }
 
 /** @internal Exported for testing */
-export { createDownloader };
+export { createFlareget };

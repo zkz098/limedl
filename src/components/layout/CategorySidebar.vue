@@ -95,7 +95,7 @@ function handleNavigate(view: string) {
         </button>
       </div>
       <div class="bottom-brand flex items-center gap-[0.35rem] text-xs font-semibold opacity-60">
-        <span class="i-ri-download-cloud-2-line bottom-brand__icon text-sm" aria-hidden="true" />
+        <span class="i-ri-sparkling-line bottom-brand__icon text-sm" aria-hidden="true" />
         <span class="bottom-brand__text">{{ t("common.appName") }}</span>
       </div>
     </div>

@@ -1,6 +1,6 @@
-# UI Design Guide — downloader
+# UI Design Guide — flareget
 
-> Design tokens, patterns, and conventions for the downloader frontend (Vue 3 + TypeScript + UnoCSS).
+> Design tokens, patterns, and conventions for the flareget frontend (Vue 3 + TypeScript + UnoCSS).
 
 ## Tech Stack
 

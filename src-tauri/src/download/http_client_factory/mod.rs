@@ -43,7 +43,11 @@ pub(crate) fn configure_client_builder(
         .redirect(Policy::limited(10))
         .tcp_nodelay(true)
         .read_timeout(Duration::from_secs(15))
-        .user_agent(default_user_agent);
+        .user_agent(default_user_agent)
+        .connect_timeout(Duration::from_secs(30))
+        .pool_max_idle_per_host(20)
+        .pool_idle_timeout(Duration::from_secs(120))
+        .tcp_keepalive(Some(Duration::from_secs(60)));
 
     match settings.proxy.mode {
         ProxyMode::Disabled => {

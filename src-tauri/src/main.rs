@@ -7,5 +7,5 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
-    downloader_lib::run()
+    flareget_lib::run()
 }

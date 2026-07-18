@@ -1,5 +1,8 @@
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::time::Duration;
+use std::sync::LazyLock;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use reqwest::Client;
 
@@ -17,6 +20,14 @@ const CLOUDFLARE_IPV6_RANGES: &[&str] = &[
     "2a06:98c0::/29",
     "2c0f:f248::/32",
 ];
+
+/// TTL for cached `is_cloudflare_domain()` DNS results.
+const DNS_CACHE_TTL: Duration = Duration::from_secs(300);
+
+/// Cached DNS resolution results for `is_cloudflare_domain()`.
+/// Maps hostname → (is_cloudflare, cached_at).
+static DNS_CACHE: LazyLock<Mutex<HashMap<String, (bool, Instant)>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Build a separate reqwest Client that resolves `domain` to a specific IPv4 address.
 ///
@@ -98,6 +109,16 @@ pub(crate) async fn is_cloudflare_domain(url: &str) -> bool {
         return false;
     };
 
+    // Check cache first.
+    {
+        let cache = DNS_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((result, cached_at)) = cache.get(hostname) {
+            if cached_at.elapsed() < DNS_CACHE_TTL {
+                return *result;
+            }
+        }
+    }
+
     // DNS resolution with 3s timeout.
     // Port 0 avoids actual connection — only resolves the address.
     let addrs = match tokio::time::timeout(
@@ -109,15 +130,24 @@ pub(crate) async fn is_cloudflare_domain(url: &str) -> bool {
         Ok(Ok(addrs)) => addrs,
         _ => {
             tracing::debug!("is_cloudflare_domain: DNS resolution failed for {hostname}");
+            // DNS failures are transient — do NOT cache so retries are possible.
             return false;
         }
     };
 
     // Check if any resolved address is in Cloudflare CIDR ranges (both IPv4 and IPv6).
-    addrs.into_iter().any(|addr| match addr.ip() {
+    let is_cf = addrs.into_iter().any(|addr| match addr.ip() {
         IpAddr::V4(v4) => ip_in_cloudflare_ranges(v4),
         IpAddr::V6(v6) => ip_in_cloudflare_ipv6_ranges(v6),
-    })
+    });
+
+    // Cache the result (both true and false from a successful DNS lookup).
+    {
+        let mut cache = DNS_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        cache.insert(hostname.to_string(), (is_cf, Instant::now()));
+    }
+
+    is_cf
 }
 
 #[cfg(test)]

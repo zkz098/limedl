@@ -798,6 +798,7 @@ impl Database {
     }
 
     /// Return every download in the database, each with its chunks populated.
+    #[allow(dead_code)]
     pub(crate) fn list_downloads(&self) -> Result<Vec<Manifest>> {
         let conn = self.lock_conn();
 

@@ -362,7 +362,7 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
 /// Removes `.torrent` files in the aria2 temp directory that are older than 1 hour.
 /// This is a best-effort cleanup — all errors are silently ignored.
 pub(crate) fn cleanup_old_aria2_temp_files() {
-    let temp_dir = std::env::temp_dir().join("downloader_aria2");
+    let temp_dir = std::env::temp_dir().join("flareget_aria2");
     let Ok(entries) = std::fs::read_dir(&temp_dir) else {
         return;
     };
@@ -408,7 +408,7 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
 
     cleanup_old_aria2_temp_files();
 
-    let temp_dir = std::env::temp_dir().join("downloader_aria2");
+    let temp_dir = std::env::temp_dir().join("flareget_aria2");
     std::fs::create_dir_all(&temp_dir).ok();
     let torrent_path = temp_dir.join(format!("{}.torrent", uuid::Uuid::new_v4()));
     std::fs::write(&torrent_path, &torrent_bytes)

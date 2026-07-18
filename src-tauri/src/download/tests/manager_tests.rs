@@ -92,7 +92,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
     let address = listener.local_addr()?;
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
-            eprintln!("[downloader:test] server stopped: {error}");
+            eprintln!("[flareget:test] server stopped: {error}");
         }
     });
 
@@ -160,7 +160,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
     let address = listener.local_addr()?;
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
-            eprintln!("[downloader:test] server stopped: {error}");
+            eprintln!("[flareget:test] server stopped: {error}");
         }
     });
 
@@ -266,7 +266,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         ));
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
-            eprintln!("[downloader:test] server stopped: {error}");
+            eprintln!("[flareget:test] server stopped: {error}");
         }
     });
 
@@ -365,7 +365,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
     let address = listener.local_addr()?;
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
-            eprintln!("[downloader:test] server stopped: {error}");
+            eprintln!("[flareget:test] server stopped: {error}");
         }
     });
 
@@ -449,7 +449,7 @@ async fn checksum_match_succeeds() -> TestResult {
     let address = listener.local_addr()?;
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
-            eprintln!("[downloader:test] server stopped: {error}");
+            eprintln!("[flareget:test] server stopped: {error}");
         }
     });
 
@@ -506,7 +506,7 @@ async fn checksum_mismatch_detected() -> TestResult {
     let address = listener.local_addr()?;
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
-            eprintln!("[downloader:test] server stopped: {error}");
+            eprintln!("[flareget:test] server stopped: {error}");
         }
     });
 

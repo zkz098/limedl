@@ -736,7 +736,7 @@ pub struct LogSettings {
     #[serde(default)]
     pub file_path: String,
 
-    /// Maximum number of rotated startup log files to keep (e.g., `downloader.1.log`, `downloader.2.log`, ...).
+    /// Maximum number of rotated startup log files to keep (e.g., `flareget.1.log`, `flareget.2.log`, ...).
     /// `None` = no count-based cleanup. `Some(0)` = delete all old logs.
     #[serde(default)]
     pub retention_count: Option<u32>,

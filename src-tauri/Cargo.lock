@@ -1034,49 +1034,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "downloader"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "blake3",
- "bytes",
- "dashmap",
- "foldhash 0.2.0",
- "fs4",
- "futures-util",
- "irontide",
- "mimalloc",
- "ntest",
- "parking_lot",
- "rand 0.8.7",
- "reqwest 0.13.4",
- "rusqlite",
- "sanitize-filename",
- "serde",
- "serde_json",
- "sha2",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tempfile",
- "thiserror 1.0.69",
- "time",
- "tokio",
- "tokio-util",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "urlencoding",
- "uuid",
- "xxhash-rust",
-]
-
-[[package]]
 name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1303,6 +1260,49 @@ name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+
+[[package]]
+name = "flareget"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "blake3",
+ "bytes",
+ "dashmap",
+ "foldhash 0.2.0",
+ "fs4",
+ "futures-util",
+ "irontide",
+ "mimalloc",
+ "ntest",
+ "parking_lot",
+ "rand 0.8.7",
+ "reqwest 0.13.4",
+ "rusqlite",
+ "sanitize-filename",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tempfile",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "urlencoding",
+ "uuid",
+ "xxhash-rust",
+]
 
 [[package]]
 name = "flate2"

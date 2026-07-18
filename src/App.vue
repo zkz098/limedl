@@ -3,17 +3,17 @@ import { computed, onErrorCaptured, ref, useTemplateRef, watch, type Ref } from 
 import { filterDownloads } from "./lib/download-filter";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
-import DownloadComposer from "./components/downloader/DownloadComposer.vue";
-import DownloadQueueTable from "./components/downloader/DownloadQueueTable.vue";
-import DetailPanel from "./components/downloader/DetailPanel.vue";
+import DownloadComposer from "./components/flareget/DownloadComposer.vue";
+import DownloadQueueTable from "./components/flareget/DownloadQueueTable.vue";
+import DetailPanel from "./components/flareget/DetailPanel.vue";
 import LabsPage from "./components/labs/LabsPage.vue";
 import SettingsPage from "./components/settings/SettingsPage.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
-import { useDownloader } from "./composables/useDownloader";
-import type { UseDownloaderOptions } from "./composables/useDownloader";
+import { useFlareget } from "./composables/useFlareget";
+import type { UseFlaregetOptions } from "./composables/useFlareget";
 import { useIoBaseline } from "./composables/useIoBaseline";
 import { useOverclock } from "./composables/useOverclock";
 import { useCategoryCounts } from "./composables/useCategoryCounts";
@@ -28,13 +28,13 @@ import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings, SortDirection, SortKey } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
 
-// Multi-select refs (declared before downloaderOptions closure)
+// Multi-select refs (declared before flaregetOptions closure)
 let multiSelectMode = ref(false);
 let selectedIds = ref<Set<string>>(new Set());
 let showBatchDeleteDialog = ref(false);
 let removedDownloadIds = ref<string[]>([]);
 
-const downloaderOptions: UseDownloaderOptions = {
+const flaregetOptions: UseFlaregetOptions = {
   onDownloadFailed: (fileName, reason) => {
     notifyError(
       t("messages.downloadFailed", {
@@ -101,7 +101,7 @@ const {
   submitStart,
   autoFillFromClipboard,
   setNotificationsEnabled,
-} = useDownloader(downloaderOptions);
+} = useFlareget(flaregetOptions);
 
 const { categoryCounts, sidebarStats } = useCategoryCounts(downloads);
 

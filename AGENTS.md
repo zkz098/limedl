@@ -1,4 +1,4 @@
-# AGENTS.md — downloader
+# AGENTS.md — flareget
 
 > Compact instruction file for OpenCode sessions. Only includes what an agent would likely miss.
 
@@ -29,7 +29,7 @@ Skipping this will cause linker errors (`LINK : fatal error LNK1181`).
 - **Frontend**: Vue 3 + TypeScript + UnoCSS (`src/`)
 - **Backend**: Rust + Tauri v2 (`src-tauri/`)
 - **Rust edition**: 2024
-- **Rust lib name**: `downloader_lib` (suffixed `_lib` to avoid Windows name collision with binary — see `Cargo.toml` comment and [cargo#8519](https://github.com/rust-lang/cargo/issues/8519))
+- **Rust lib name**: `flareget_lib` (suffixed `_lib` to avoid Windows name collision with binary — see `Cargo.toml` comment and [cargo#8519](https://github.com/rust-lang/cargo/issues/8519))
 
 ### Task ID routing
 
@@ -113,4 +113,14 @@ Moved to standalone guides — read them before touching download pipeline or I/
 
 ## Build flags
 
-- `.cargo/config.toml` notes that `target-cpu=x86-64-v3` flags were removed to avoid SIGILL. For release builds, set `RUSTFLAGS` manually if desired (see comments in file).
+- `.cargo/config.toml` sets `target-cpu=x86-64-v3` for x86_64 targets (app targets modern desktops — Haswell 2013+ / Excavator 2015+). macOS aarch64 is unaffected.
+
+## Known warnings
+
+### `LNK4078` on Windows release builds
+
+```
+resource.lib : warning LNK4078: found multiple ".rsrc" sections with different attributes (40000040)
+```
+
+**Harmless.** Caused by `build.rs` manually embedding a ComCtl32 v6 manifest for the binary target, while `tauri_build::build()` also embeds one via `tauri-winres`. The manual embedding is intentional — it ensures the manifest is present in test binaries (`cargo test --workspace`), not just the release binary. Do not remove the custom `build.rs` manifest code.

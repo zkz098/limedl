@@ -33,7 +33,7 @@ pub fn run() {
                     .path()
                     .app_local_data_dir()
                     .or_else(|_| app.path().app_data_dir())
-                    .unwrap_or_else(|_| std::env::temp_dir().join("downloader"))
+                    .unwrap_or_else(|_| std::env::temp_dir().join("flareget"))
                     .join("downloads");
 
                 std::fs::create_dir_all(&state_dir)
@@ -202,6 +202,6 @@ pub fn run() {
         .run(tauri::generate_context!());
 
     if let Err(error) = run_result {
-        eprintln!("[downloader] tauri runtime failed: {error}");
+        eprintln!("[flareget] tauri runtime failed: {error}");
     }
 }

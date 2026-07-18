@@ -1,5 +1,6 @@
 use std::{
     fs, io,
+    net::Ipv4Addr,
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -10,7 +11,7 @@ use std::{
 };
 
 use foldhash::HashMap;
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::{Mutex, MutexGuard, RwLock as ParkingRwLock};
 use tauri::Emitter;
 
 use anyhow::Context;
@@ -75,6 +76,7 @@ pub(crate) const MAX_TRADITIONAL_THREADS: usize = 32;
 pub struct AppState {
     pub registry: Arc<super::backend_registry::BackendRegistry>,
     pub event_bus: Arc<EventBus>,
+    #[allow(dead_code)]
     pub rate_limiter: Arc<RateLimiter>,
     pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
@@ -103,6 +105,7 @@ pub struct DownloadManager {
     pub(crate) rebalance_notify: Arc<Notify>,
     pub(crate) event_bus: Arc<EventBus>,
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
+    pub(crate) cdn_client_cache: Arc<ParkingRwLock<HashMap<(String, Ipv4Addr), Client>>>,
     rate_limiter: Arc<RateLimiter>,
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) overclock_mode: AtomicBool,
@@ -122,6 +125,7 @@ impl Clone for DownloadManager {
             shutdown_token: self.shutdown_token.clone(),
             event_bus: self.event_bus.clone(),
             cdn_accelerator: self.cdn_accelerator.clone(),
+            cdn_client_cache: self.cdn_client_cache.clone(),
             rate_limiter: self.rate_limiter.clone(),
             buffer_pool: self.buffer_pool.clone(),
             overclock_mode: AtomicBool::new(self.overclock_mode.load(Ordering::Relaxed)),
@@ -211,6 +215,7 @@ impl DownloadManager {
             rebalance_notify: Arc::new(Notify::new()),
             event_bus,
             cdn_accelerator: Arc::new(RwLock::new(None)),
+            cdn_client_cache: Arc::new(ParkingRwLock::new(HashMap::default())),
             rate_limiter,
             buffer_pool,
             overclock_mode: AtomicBool::new(false),
@@ -261,6 +266,8 @@ impl DownloadManager {
         tokio::task::block_in_place(|| {
             *self.cdn_accelerator.blocking_write() = Some(acc);
         });
+        // Clear CDN client cache since the accelerator IP has changed.
+        self.cdn_client_cache.write().clear();
     }
 
     /// Resolve the HTTP client to use for a given URL.
@@ -315,12 +322,21 @@ impl DownloadManager {
         };
 
         if let Some(ip) = ip {
-            // Briefly re-acquire settings read lock for build_accelerated_client
-            // which needs proxy and user-agent settings.
+            // Check cache first
+            let cache_key = (host.to_string(), ip);
+            {
+                let cache = self.cdn_client_cache.read();
+                if let Some(cached_client) = cache.get(&cache_key) {
+                    tracing::debug!("resolve_client: using cached CDN client for {host} via {ip}");
+                    return (cached_client.clone(), true);
+                }
+            }
+            // Cache miss — build new accelerated client
             let settings = self.settings.read().await;
             match super::cdn::build_accelerated_client(host, ip, &settings) {
                 Ok(accelerated) => {
                     tracing::info!("resolve_client: CDN acceleration active for {host} via {ip}");
+                    self.cdn_client_cache.write().insert(cache_key, accelerated.clone());
                     return (accelerated, true);
                 }
                 Err(e) => {
@@ -338,6 +354,8 @@ impl DownloadManager {
 
     pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings> {
         let normalized = normalize_settings(settings)?;
+
+        // Apply non-client-affecting settings immediately
         self.rate_limiter
             .set_rate(normalized.global_speed_limit_bps);
         self.buffer_pool.update_limits(
@@ -347,11 +365,25 @@ impl DownloadManager {
             normalized.io_baseline.game_mode_max_parallel,
         );
         self.buffer_pool.set_game_mode(normalized.io_baseline.game_mode);
-        let next_client = build_http_client(&normalized)?;
+
+        // Only rebuild client when proxy or user-agent actually changed
+        let client_changed = {
+            let current = self.settings.read().await;
+            current.proxy.mode != normalized.proxy.mode
+                || current.proxy.manual_url != normalized.proxy.manual_url
+                || current.download.default_user_agent != normalized.download.default_user_agent
+        };
 
         persist_settings(&self.settings_path, &normalized).await?;
         *self.settings.write().await = normalized.clone();
-        *self.client.write().await = next_client;
+
+        if client_changed {
+            let next_client = build_http_client(&normalized)?;
+            *self.client.write().await = next_client;
+        }
+        // Clear CDN client cache since settings may have changed the active IP
+        self.cdn_client_cache.write().clear();
+
         apply_logging_settings(&normalized.logging, &self.state_dir).map_err(|error| {
             DownloadError::InvalidResponse(format!("failed to apply logging settings: {error}"))
         })?;

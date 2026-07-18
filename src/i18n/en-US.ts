@@ -1,7 +1,7 @@
 const enUS = {
   translation: {
     common: {
-      appName: "Downloader",
+      appName: "Flareget",
       close: "Close",
       cancel: "Cancel",
       browse: "Browse",
@@ -504,9 +504,9 @@ const enUS = {
       loggingToggleText: "Logging",
       loggingLevel: "Log level",
       loggingPath: "Log file path",
-      loggingPathPlaceholder: "Leave empty to use default (app-data/logs/downloader.log)",
+      loggingPathPlaceholder: "Leave empty to use default (app-data/logs/flareget.log)",
       loggingPathHint:
-        "Supports absolute or relative paths. Leave empty to write to logs/downloader.log under app data.",
+        "Supports absolute or relative paths. Leave empty to write to logs/flareget.log under app data.",
       loggingAutoPath: "Auto path",
       network: "Network",
       proxyTitle: "Proxy",

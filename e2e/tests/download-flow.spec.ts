@@ -1,7 +1,7 @@
 /**
  * Download flow E2E tests
  *
- * These tests verify the complete user flow through the downloader UI:
+ * These tests verify the complete user flow through the Tauri flareget UI:
  * navigation between views, opening the download composer, URL input,
  * and form validation.
  *

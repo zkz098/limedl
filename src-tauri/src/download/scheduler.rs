@@ -9,6 +9,7 @@ use std::{
 };
 
 use foldhash::HashMap;
+use reqwest::Url;
 
 use super::{
     aimd,
@@ -26,6 +27,9 @@ use super::{
 };
 
 const SCHEDULER_TICK: Duration = Duration::from_secs(2);
+
+/// Maximum concurrent connections (threads) allowed to a single hostname.
+const MAX_CONNECTIONS_PER_HOST: usize = 6;
 
 // ── DownloadManager scheduler/rebalance methods ──────────────────────────────
 
@@ -129,7 +133,7 @@ impl DownloadManager {
             let increase_threshold: f64 = match profile {
                 AdaptiveProfile::Conservative => 0.08,
                 AdaptiveProfile::Balanced => 0.04,
-                AdaptiveProfile::Aggressive => 0.0,
+                AdaptiveProfile::Aggressive => 0.03,
             };
             let samples_needed: u32 = match profile {
                 AdaptiveProfile::Conservative => 2,
@@ -210,6 +214,7 @@ impl DownloadManager {
                 entries.sort_by_key(|managed| managed.lock_core().manifest.created_at_ms);
 
                 let mut running = 0usize;
+                let mut host_threads: HashMap<String, usize> = HashMap::default();
                 for managed in entries {
                     let mut core = managed.lock_core();
                     let manifest = &mut core.manifest;
@@ -230,10 +235,29 @@ impl DownloadManager {
 
                     if running < settings.scheduler.traditional.max_parallel_tasks {
                         let allocation = effective_allocation_cap(manifest, &settings).max(1);
-                        manifest.allocated_thread_count = Some(allocation);
-                        manifest.connection_count = allocation;
-                        manifest.state = DownloadState::Downloading;
-                        running = running.saturating_add(1);
+                        // Apply per-host connection cap
+                        let allocation = if let Some(host) = hostname_from_manifest(manifest) {
+                            let used = host_threads.get(&host).copied().unwrap_or(0);
+                            let remaining = MAX_CONNECTIONS_PER_HOST.saturating_sub(used);
+                            let capped = allocation.min(remaining);
+                            if capped > 0 {
+                                host_threads.insert(host, used + capped);
+                            }
+                            capped
+                        } else {
+                            allocation
+                        };
+
+                        if allocation > 0 {
+                            manifest.allocated_thread_count = Some(allocation);
+                            manifest.connection_count = allocation;
+                            manifest.state = DownloadState::Downloading;
+                            running = running.saturating_add(1);
+                        } else {
+                            manifest.allocated_thread_count = Some(0);
+                            manifest.connection_count = 0;
+                            manifest.state = DownloadState::Queued;
+                        }
                     } else {
                         manifest.allocated_thread_count = Some(0);
                         manifest.connection_count = 0;
@@ -267,6 +291,9 @@ impl DownloadManager {
                 let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
                 let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
                 let mut allocations: HashMap<String, usize> = HashMap::default();
+                let mut host_threads: HashMap<String, usize> = HashMap::default();
+
+                // Initial minimum allocation with per-host cap
                 for managed in &candidates {
                     let core = managed.lock_core();
                     if remaining_budget == 0 {
@@ -278,19 +305,42 @@ impl DownloadManager {
                     } else {
                         remaining_budget
                     };
+                    // Apply per-host connection cap
+                    let start = if let Some(host) = hostname_from_manifest(&core.manifest) {
+                        let used = host_threads.get(&host).copied().unwrap_or(0);
+                        let remaining = MAX_CONNECTIONS_PER_HOST.saturating_sub(used);
+                        let capped = start.min(remaining);
+                        if capped > 0 {
+                            host_threads.insert(host, used + capped);
+                        }
+                        capped
+                    } else {
+                        start
+                    };
                     allocations.insert(core.manifest.id.clone(), start);
                     remaining_budget = remaining_budget.saturating_sub(start);
                 }
 
+                // Round-robin additional allocation with per-host cap
                 while remaining_budget > 0 {
                     let mut granted = false;
                     for managed in &candidates {
                         let core = managed.lock_core();
                         let entry = allocations.entry(core.manifest.id.clone()).or_insert(0);
                         let cap = effective_allocation_cap(&core.manifest, &settings);
-                        if *entry < cap {
+
+                        // Check per-host cap — skip if host is at its limit
+                        let host = hostname_from_manifest(&core.manifest);
+                        let host_at_cap = host.as_ref().is_some_and(|h| {
+                            host_threads.get(h).copied().unwrap_or(0) >= MAX_CONNECTIONS_PER_HOST
+                        });
+
+                        if *entry < cap && !host_at_cap {
                             *entry += 1;
                             remaining_budget -= 1;
+                            if let Some(ref h) = host {
+                                *host_threads.entry(h.clone()).or_insert(0) += 1;
+                            }
                             granted = true;
                             if remaining_budget == 0 {
                                 break;
@@ -351,6 +401,14 @@ impl DownloadManager {
 }
 
 // ── Scheduler helper functions ───────────────────────────────────────────────
+
+/// Extract the hostname from a download's final_url for per-host connection limiting.
+/// Returns None if the URL cannot be parsed or has no host.
+fn hostname_from_manifest(manifest: &Manifest) -> Option<String> {
+    Url::parse(&manifest.final_url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h.to_string()))
+}
 
 /// Returns the number of bytes remaining to download.
 fn remaining_bytes(manifest: &Manifest) -> u64 {
