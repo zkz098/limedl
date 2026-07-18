@@ -5,7 +5,6 @@ use ntest::timeout;
 use tempfile::tempdir;
 use tokio::time::sleep;
 
-use crate::download::checksum::hash_slices;
 use crate::download::event_bus::EventBus;
 use crate::download::rate_limiter::RateLimiter;
 use crate::download::test_harness::TestServer;

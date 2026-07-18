@@ -121,6 +121,7 @@ impl TestServer {
     }
 
     /// Gracefully stop the server (drops `self`, sending the shutdown signal).
+    #[allow(dead_code)]
     pub fn close(self) {
         // `_shutdown` is dropped here → oneshot sender is dropped → receiver
         // gets `Canceled` → graceful shutdown future completes → server stops.
@@ -169,7 +170,7 @@ impl TestServer {
     /// (`x-checksum-blake3`, `x-checksum-sha256`, `x-checksum-xxh3`).
     /// The `_mode` parameter indicates which checksum the caller intends
     /// to validate and is provided for documentation / future use.
-    #[allow(unused_variables)]
+    #[allow(dead_code, unused_variables)]
     pub fn file_url_with_checksum(&self, _mode: &str) -> String {
         self.file_url()
     }

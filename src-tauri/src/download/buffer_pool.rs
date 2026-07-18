@@ -818,6 +818,7 @@ mod tests {
     }
 
     /// Read the full content of a temp file into a `Vec<u8>`.
+    #[allow(dead_code)]
     fn read_file(dir: &tempfile::TempDir) -> Vec<u8> {
         let path = dir.path().join("test.bin");
         fs::read(&path).expect("read file")
@@ -1292,7 +1293,7 @@ mod tests {
         let mut total_written = 0u64;
         // Write 3 chunks (150% of half) to force a flip.
         for i in 0..3u64 {
-            let payload = vec![(i as u8); chunk_size as usize];
+            let payload = vec![i as u8; chunk_size as usize];
             buf.buffer_chunk(i * chunk_size, Bytes::from(payload))
                 .await
                 .unwrap();
@@ -1534,7 +1535,7 @@ mod tests {
         // Fill active half with small chunks summing > half_size.
         let small = half / 4; // 25% of half each
         for i in 0..5u64 {
-            let payload = vec![(i as u8); small as usize];
+            let payload = vec![i as u8; small as usize];
             buf2
                 .buffer_chunk(i * small, Bytes::from(payload))
                 .await
@@ -1652,7 +1653,7 @@ mod tests {
     #[timeout(30000)]
     async fn test_concurrent_hdd_buffer_chunks() {
         let pool = Arc::new(BufferPool::new(32, 128, 4, 1));
-        let half = pool.half_size();
+        let _half = pool.half_size();
         let (_dir, file) = temp_file();
         let file_arc = file.clone();
 
@@ -1666,7 +1667,7 @@ mod tests {
         for i in 0..num_chunks {
             let b = buf.clone();
             handles.push(tokio::spawn(async move {
-                let payload = vec![(i as u8); chunk_size as usize];
+                let payload = vec![i as u8; chunk_size as usize];
                 b.buffer_chunk(i * chunk_size, Bytes::from(payload))
                     .await
                     .unwrap();
@@ -1701,7 +1702,7 @@ mod tests {
         for i in 0..num_chunks {
             let b = buf.clone();
             handles.push(tokio::spawn(async move {
-                let payload = vec![(i as u8); 1024];
+                let payload = vec![i as u8; 1024];
                 b.buffer_chunk(i * 1024, Bytes::from(payload))
                     .await
                     .unwrap();
@@ -1770,7 +1771,7 @@ mod tests {
         // Create a second buffer in game mode.
         let (_dir2, file2) = temp_file();
         let slot2 = pool.acquire_slot().await;
-        let buf2 = DownloadBuffer::new(pool.clone(), slot2, file2);
+        let _buf2 = DownloadBuffer::new(pool.clone(), slot2, file2);
 
         // buf2's half_size should be smaller (game mode).
         // But we can't directly compare half_sizes since they're stored internally.
