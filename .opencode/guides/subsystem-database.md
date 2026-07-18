@@ -6,9 +6,9 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/database.rs` (1499 行) — 数据库层完整实现
-- `src-tauri/src/download/migration.rs` (231 行) — JSON → SQLite 迁移逻辑
-- `src-tauri/src/download/persistence.rs` (154 行) — 从 DB 加载下载任务到内存
+- `crates/flareget-core/src/database.rs` (1499 行) — 数据库层完整实现
+- `crates/flareget-core/src/migration.rs` (231 行) — JSON → SQLite 迁移逻辑
+- `crates/flareget-core/src/persistence.rs` (154 行) — 从 DB 加载下载任务到内存
 
 ## 关键结构体
 

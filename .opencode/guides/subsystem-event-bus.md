@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/event_bus/mod.rs` — EventBus + DownloadEvent 定义
+- `crates/flareget-core/src/event_bus/mod.rs` — EventBus + DownloadEvent 定义
 
 ## 关键结构体
 

@@ -36,7 +36,7 @@ DownloadManager::start()
 2. `src/lib/tauri/download-api.ts` calls `invoke("download_start", request)` → Tauri IPC bridge
 3. `commands::download_start()` (Rust) dispatches via `TaskId::parse()`:
    - `http:` prefix → `DownloadManager::start()`
-   - `bt:` prefix → `OwnBtBackend::start()`
+   - `bt:` prefix → `IrontideBtBackend::start()`
 
 **Key types**: `StartDownloadRequest { url, destination_dir, file_name?, thread_mode?, thread_count?, max_retries?, checksum?, start_paused?, mirror_urls? }`
 

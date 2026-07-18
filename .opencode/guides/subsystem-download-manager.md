@@ -6,16 +6,16 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 
 **涉及文件**：
 
-- `src-tauri/src/download/manager.rs` (1240 行) — 主管理器，下载 CRUD
-- `src-tauri/src/download/http_executor.rs` (847 行) — HTTP 探测、单流/多流执行
-- `src-tauri/src/download/scheduler.rs` (347 行) — 后台调度循环 + 线程重分配
-- `src-tauri/src/download/aimd.rs` (249 行) — AIMD 吞吐量状态机
-- `src-tauri/src/download/manifest.rs` (286 行) — Manifest/ChunkManifest 类型
-- `src-tauri/src/download/retry.rs` (103 行) — 指数退避重试
-- `src-tauri/src/download/file_ops/mod.rs` — 文件创建、预分配、整理、磁盘检测
-- `src-tauri/src/download/checksum/mod.rs` — Blake3/SHA256/XXH3 校验和
-- `src-tauri/src/download/rate_limiter.rs` (266 行) — 全局令牌桶速率限制
-- `src-tauri/src/download/protocol.rs` (87 行) — DownloadProtocol trait
+- `crates/flareget-core/src/manager.rs` (1240 行) — 主管理器，下载 CRUD
+- `crates/flareget-core/src/http_executor.rs` (847 行) — HTTP 探测、单流/多流执行
+- `crates/flareget-core/src/scheduler.rs` (347 行) — 后台调度循环 + 线程重分配
+- `crates/flareget-core/src/aimd.rs` (249 行) — AIMD 吞吐量状态机
+- `crates/flareget-core/src/manifest.rs` (286 行) — Manifest/ChunkManifest 类型
+- `crates/flareget-core/src/retry.rs` (103 行) — 指数退避重试
+- `crates/flareget-core/src/file_ops/mod.rs` — 文件创建、预分配、整理、磁盘检测
+- `crates/flareget-core/src/checksum/mod.rs` — Blake3/SHA256/XXH3 校验和
+- `crates/flareget-core/src/rate_limiter.rs` (266 行) — 全局令牌桶速率限制
+- `crates/flareget-core/src/protocol.rs` (87 行) — DownloadBackend trait
 
 ## 关键结构体
 
@@ -26,8 +26,8 @@ Tauri 命令注入的全局状态：
 ```rust
 pub struct AppState {
     pub manager: Arc<DownloadManager>,
-    pub bt_backend: Arc<OwnBtBackend>,
-    pub registry: Arc<ProtocolRegistry>,
+    pub bt_backend: Arc<IrontideBtBackend>,
+    pub registry: Arc<BackendRegistry>,
     pub cdn_accelerator: Arc<CdnAccelerator>,
     pub app_handle: tauri::AppHandle,
     pub rpc_shutdown: Arc<Mutex<Option<watch::Sender<bool>>>>,
@@ -216,21 +216,24 @@ enum ChunkWorkerOutcome { Finished, RestartSingle, Paused, Canceled }
 //   Automatic 模式: 按剩余字节排序（大文件优先），分配 max_parallel_threads 预算
 ```
 
-### DownloadProtocol trait
+### DownloadBackend trait
 
 ```rust
 #[async_trait]
-pub(crate) trait DownloadProtocol: Send + Sync {
-    async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn open_in_explorer(&self, download_id: &str) -> Result<()>;
-    async fn status(&self, download_id: &str) -> Result<DownloadSnapshot>;
+pub trait DownloadBackend: Send + Sync {
+    async fn start(&self, request: StartDownloadRequest) -> Result<String>;
+    async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()>;
+    async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
     async fn list(&self) -> Result<Vec<DownloadSummary>>;
+    async fn update_settings(&self, settings: &AppSettings) -> Result<()>;
+    async fn shutdown(&self) -> Result<()>;
 }
-// DownloadManager 和 OwnBtBackend 都实现了此 trait
+// DownloadManager 和 IrontideBtBackend 都实现了此 trait
 ```
 
 ## 数据流向

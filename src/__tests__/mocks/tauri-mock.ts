@@ -5,9 +5,9 @@
  * ```ts
  * import { vi } from "vitest";
  *
- * vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+ * vi.mock("#invoke", () => ({ invoke: vi.fn() }));
  *
- * import { invoke } from "@tauri-apps/api/core";
+ * import { invoke } from "#invoke";
  * import { createMockInvoke, mockTauriCommandValue, resetTauriMocks } from "../mocks/tauri-mock";
  *
  * beforeEach(() => {

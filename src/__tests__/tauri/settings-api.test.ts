@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("#invoke", () => ({ invoke: vi.fn() }));
 
 import type { AppSettings } from "../../types/settings";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "#invoke";
 import { createMockInvoke, resetTauriMocks, mockTauriCommandValue } from "../mocks/tauri-mock";
 import {
   getAppSettings,

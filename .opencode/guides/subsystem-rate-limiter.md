@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/rate_limiter/mod.rs` (306 行) — RateLimiter 结构体 + 测试
+- `crates/flareget-core/src/rate_limiter/mod.rs` (306 行) — RateLimiter 结构体 + 测试
 
 ## 关键结构体
 

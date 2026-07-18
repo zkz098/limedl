@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/checksum/mod.rs` (104 行) — ChecksumHasher + calculate_checksum
+- `crates/flareget-core/src/checksum/mod.rs` (104 行) — ChecksumHasher + calculate_checksum
 
 ## 关键结构体
 

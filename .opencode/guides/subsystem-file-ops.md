@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/file_ops/mod.rs` (~597 行) — 文件操作 + 磁盘检测
+- `crates/flareget-core/src/file_ops/mod.rs` (~597 行) — 文件操作 + 磁盘检测
 
 ## 关键结构体
 

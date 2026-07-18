@@ -1,4 +1,4 @@
-# Subsystem: BitTorrent Backend (OwnBtBackend)
+# Subsystem: BitTorrent Backend (IrontideBtBackend)
 
 ## 模块职责
 
@@ -6,21 +6,21 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/bt_backend_own/mod.rs` (90 行) — OwnBtBackend 结构体定义
-- `src-tauri/src/download/bt_backend_own/protocol.rs` (302 行) — 下载操作实现（start/pause/resume/cancel...）
-- `src-tauri/src/download/bt_backend_own/session.rs` (148 行) — irontide Session 初始化/关闭
-- `src-tauri/src/download/bt_backend_own/snapshot.rs` (187 行) — 从 irontide stats 构建 DownloadSnapshot
-- `src-tauri/src/download/bt_backend_own/queries.rs` (283 行) — 对等节点/区块/tracker/file 状态查询
-- `src-tauri/src/download/bt_backend_own/alerts.rs` (291 行) — irontide 告警事件桥接
-- `src-tauri/src/download/bt_backend_own/uploads.rs` (111 行) — 上传策略循环
-- `src-tauri/src/download/bt_backend_own/tests.rs` (438 行)
+- `crates/flareget-core/src/bt_backend_own/mod.rs` (90 行) — IrontideBtBackend 结构体定义
+- `crates/flareget-core/src/bt_backend_own/protocol.rs` (302 行) — 下载操作实现（start/pause/resume/cancel...）
+- `crates/flareget-core/src/bt_backend_own/session.rs` (148 行) — irontide Session 初始化/关闭
+- `crates/flareget-core/src/bt_backend_own/snapshot.rs` (187 行) — 从 irontide stats 构建 DownloadSnapshot
+- `crates/flareget-core/src/bt_backend_own/queries.rs` (283 行) — 对等节点/区块/tracker/file 状态查询
+- `crates/flareget-core/src/bt_backend_own/alerts.rs` (291 行) — irontide 告警事件桥接
+- `crates/flareget-core/src/bt_backend_own/uploads.rs` (111 行) — 上传策略循环
+- `crates/flareget-core/src/bt_backend_own/tests.rs` (438 行)
 
 ## 关键结构体
 
-### OwnBtBackend (pub(crate))
+### IrontideBtBackend (pub)
 
 ```rust
-pub struct OwnBtBackend {
+pub struct IrontideBtBackend {
     pub(crate) session: irontide::session::SessionHandle,
     pub(crate) state_dir: PathBuf,
     pub(crate) default_output_dir: PathBuf,
@@ -46,7 +46,7 @@ pub async fn shutdown(&self)
 pub fn update_settings(&self, settings: &AppSettings)
 ```
 
-### 下载操作（实现 DownloadProtocol trait）
+### 下载操作（实现 DownloadBackend trait）
 
 ```rust
 pub async fn start(&self, request: StartDownloadRequest) -> Result<String>
@@ -90,7 +90,7 @@ pub(crate) async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>>
   ↓
 commands::bt_start() → TaskId::parse("bt:...")
   ↓
-OwnBtBackend::start()
+IrontideBtBackend::start()
   ├─ 解析 URL → 获取 .torrent 元数据（magnet link 通过 DHT 获取，文件直接下载）
   ├─ SessionHandle::add_torrent() → 加入 irontide 会话
   ├─ task_map.insert(download_id → info_hash)

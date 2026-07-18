@@ -1,24 +1,22 @@
-use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, anyhow};
-use tauri::{Emitter, State};
+use tauri::State;
 
-use super::{
-    Aria2RpcServer,
+use flareget_core::{
     error::extract_kind_from_anyhow,
+    event_bus::DownloadEvent,
     lock,
-    manager::AppState,
+    manager::{AppState, DownloadManager},
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     types::{
         AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
         DownloadSnapshot, DownloadSummary, SerializableError,
-        StartDownloadRequest, TaskId, TaskKind, TorrentFileEntry,
+        StartDownloadRequest, TaskId, TorrentFileEntry,
     },
 };
-use super::error::DownloadError;
-use super::bt_backend_own::IrontideBtBackend;
-use super::manager::DownloadManager;
+use super::aria2_rpc::Aria2RpcServer;
+use super::IrontideBtBackend;
 use serde_json::json;
 
 type CommandResult<T> = std::result::Result<T, SerializableError>;
@@ -50,35 +48,12 @@ fn internal_error(msg: &str) -> anyhow::Error {
     anyhow!(msg.to_string())
 }
 
-/// Classify a download request as HTTP or BT based on URL inspection.
-fn classify_request_kind(request: &StartDownloadRequest) -> Result<TaskKind, DownloadError> {
-    if let Some(kind) = request.kind {
-        return Ok(kind);
-    }
-
-    let source = request.url.trim();
-    let lower = source.to_ascii_lowercase();
-
-    if lower.starts_with("magnet:") || lower.ends_with(".torrent") {
-        return Ok(TaskKind::Bt);
-    }
-
-    if lower.starts_with("http://") || lower.starts_with("https://") {
-        return Ok(TaskKind::Http);
-    }
-
-    let path = Path::new(source);
-    if path.extension().and_then(|v| v.to_str()) == Some("torrent") {
-        return Ok(TaskKind::Bt);
-    }
-
-    Err(DownloadError::UnsupportedScheme)
-}
-
 /// Emit a single `download-updated` event for the given snapshot.
 fn emit_snapshot_update(state: &AppState, snapshot: &DownloadSnapshot) {
     let summary = DownloadSummary::from(snapshot);
-    let _ = state.app_handle.emit("download-updated", &summary);
+    let summary_json = serde_json::to_value(&summary).unwrap_or_default();
+    let id = summary.id.clone();
+    state.event_bus.publish(DownloadEvent::Updated { id, summary_json });
 }
 
 #[tauri::command]
@@ -96,17 +71,19 @@ pub async fn download_start(
                 request.mirror_urls = Some(mirror_urls);
             }
 
-            let kind = classify_request_kind(&request).context("无法识别下载任务类型")?;
-            let backend = state.registry.by_kind(kind);
+            let kind = request.classify_kind().map_err(|e| anyhow!(e)).context("无法识别下载任务类型")?;
+            let backend = state.registry.by_kind(kind)
+                .map_err(|e| internal_error(&e.to_string()))?;
             backend.start(request).await.context("启动下载任务失败")
         }
         .await,
     );
     if let Ok(ref task_id) = result {
         let task_id_parsed = TaskId::parse(task_id);
-        let backend = state.registry.dispatch(&task_id_parsed);
-        if let Ok(snapshot) = backend.status(&task_id_parsed).await {
-            emit_snapshot_update(&state, &snapshot);
+        if let Ok(backend) = state.registry.dispatch(&task_id_parsed) {
+            if let Ok(snapshot) = backend.status(&task_id_parsed).await {
+                emit_snapshot_update(&state, &snapshot);
+            }
         }
     }
     result
@@ -119,12 +96,12 @@ pub async fn download_pause(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     let result = into_command_result(
-        state
-            .registry
-            .dispatch(&task_id)
-            .pause(&task_id)
-            .await
-            .context("暂停下载任务失败"),
+        async {
+            let backend = state.registry.dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend.pause(&task_id).await
+                .context("暂停下载任务失败")
+        }.await,
     );
     if let Ok(ref snapshot) = result {
         emit_snapshot_update(&state, snapshot);
@@ -139,12 +116,12 @@ pub async fn download_resume(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     let result = into_command_result(
-        state
-            .registry
-            .dispatch(&task_id)
-            .resume(&task_id)
-            .await
-            .context("恢复下载任务失败"),
+        async {
+            let backend = state.registry.dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend.resume(&task_id).await
+                .context("恢复下载任务失败")
+        }.await,
     );
     if let Ok(ref snapshot) = result {
         emit_snapshot_update(&state, snapshot);
@@ -159,12 +136,12 @@ pub async fn download_cancel(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     into_command_result(
-        state
-            .registry
-            .dispatch(&task_id)
-            .cancel(&task_id)
-            .await
-            .context("取消下载任务失败"),
+        async {
+            let backend = state.registry.dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend.cancel(&task_id).await
+                .context("取消下载任务失败")
+        }.await,
     )
 }
 
@@ -175,12 +152,12 @@ pub async fn download_remove(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     into_command_result(
-        state
-            .registry
-            .dispatch(&task_id)
-            .remove(&task_id)
-            .await
-            .context("移除下载任务失败"),
+        async {
+            let backend = state.registry.dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend.remove(&task_id).await
+                .context("移除下载任务失败")
+        }.await,
     )
 }
 
@@ -191,12 +168,12 @@ pub async fn download_purge(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     into_command_result(
-        state
-            .registry
-            .dispatch(&task_id)
-            .purge(&task_id)
-            .await
-            .context("彻底删除下载任务失败"),
+        async {
+            let backend = state.registry.dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend.purge(&task_id).await
+                .context("彻底删除下载任务失败")
+        }.await,
     )
 }
 
@@ -207,12 +184,12 @@ pub async fn download_open_in_explorer(
 ) -> CommandResult<()> {
     let task_id = TaskId::parse(&download_id);
     into_command_result(
-        state
-            .registry
-            .dispatch(&task_id)
-            .open_in_explorer(&task_id)
-            .await
-            .context("在资源管理器打开下载任务失败"),
+        async {
+            let backend = state.registry.dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend.open_in_explorer(&task_id).await
+                .context("在资源管理器打开下载任务失败")
+        }.await,
     )
 }
 
@@ -223,31 +200,18 @@ pub async fn download_status(
 ) -> CommandResult<DownloadSnapshot> {
     let task_id = TaskId::parse(&download_id);
     into_command_result(
-        state
-            .registry
-            .dispatch(&task_id)
-            .status(&task_id)
-            .await
-            .context("查询下载任务状态失败"),
+        async {
+            let backend = state.registry.dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend.status(&task_id).await
+                .context("查询下载任务状态失败")
+        }.await,
     )
 }
 
 #[tauri::command]
 pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<DownloadSummary>> {
-    into_command_result(
-        async {
-            let mut all: Vec<DownloadSummary> = Vec::new();
-            for backend in state.registry.iter() {
-                match backend.list().await {
-                    Ok(summaries) => all.extend(summaries),
-                    Err(e) => tracing::warn!("failed to list from backend: {e}"),
-                }
-            }
-            all.sort_by_key(|s| std::cmp::Reverse(s.created_at_ms));
-            Ok(all)
-        }
-        .await,
-    )
+    into_command_result(Ok(state.registry.list_all().await))
 }
 
 #[tauri::command]
@@ -291,9 +255,7 @@ pub async fn settings_save(
                 .aria2_rpc;
 
             // Broadcast settings to all backends (each backend extracts its subset)
-            for backend in state.registry.iter() {
-                let _ = backend.update_settings(&settings).await;
-            }
+            state.registry.update_all_settings(&settings).await;
 
             // Re-read normalized/saved settings for the return value
             let saved = dm.settings().await.context("读取设置失败")?;

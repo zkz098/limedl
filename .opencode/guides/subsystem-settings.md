@@ -6,8 +6,8 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/settings.rs` (365 行) — 设置加载/验证/持久化 + HTTP 客户端构建
-- `src-tauri/src/download/types.rs` (970 行) — AppSettings 及所有子设置结构体定义
+- `crates/flareget-core/src/settings.rs` (365 行) — 设置加载/验证/持久化 + HTTP 客户端构建
+- `crates/flareget-core/src/types.rs` (970 行) — AppSettings 及所有子设置结构体定义
 
 ## 关键结构体
 
@@ -128,7 +128,7 @@ settings_save() Tauri 命令
   │    ├─ 更新内存中的 settings
   │    ├─ 分发到各子系统：
   │    │    ├─ BufferPool::update_limits()  (io_baseline)
-  │    │    ├─ OwnBtBackend::update_settings()  (bt)
+  │    │    ├─ IrontideBtBackend::update_settings()  (bt)
   │    │    ├─ RateLimiter::update_limit()  (global_speed_limit_bps)
   │    │    └─ CdnAccelerator::init_from_settings()  (cdn_acceleration)
   │    └─ persist_settings() → 写入 settings.json.tmp → rename

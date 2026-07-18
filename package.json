@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
+    "build:nas": "vue-tsc --noEmit && vite build --mode nas",
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "oxlint --type-aware --type-check .",

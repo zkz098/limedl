@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ref } from "vue";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("#invoke", () => ({ invoke: vi.fn() }));
 
 // Mock the i18n module so `t()` returns predictable keys
 vi.mock("../../i18n", () => ({
@@ -14,7 +14,7 @@ vi.mock("../../i18n", () => ({
   }),
 }));
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "#invoke";
 import {
   createMockInvoke,
   mockTauriCommand,

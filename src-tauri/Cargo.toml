@@ -19,21 +19,16 @@ crate-type = ["staticlib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+flareget-core = { path = "../crates/flareget-core", features = ["aria2-rpc"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
-tokio-util = { version = "0.7", features = ["rt"] }
 reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls", "http2"] }
 futures-util = "0.3"
-blake3 = "1"
-sha2 = "0.10"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
-sanitize-filename = "0.5"
-thiserror = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
-urlencoding = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-updater = "2"
@@ -41,35 +36,17 @@ tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-os = "2"
 mimalloc = "0.1.48"
-fs4 = { version = "0.13", features = ["sync"] }
 irontide = { version = "1", default-features = false, features = ["crypto-ring"] }
 anyhow = "1"
-time = ">=0.3.47, <0.4"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
-axum = { version = "0.8", features = ["ws"] }
-tower-http = { version = "0.6", features = ["cors"] }
-base64 = "0.22"
-rusqlite = { version = "0.34", features = ["bundled"] }
 async-trait = "0.1"
 dashmap = "6"
-bytes = "1"
 foldhash = "0.2"
 parking_lot = "0.12"
-serde_with = ">=3.21.0"
 rand = { version = "0.8", optional = true }
 
-[profile.release]
-# Optimized for binary size while preserving good runtime performance.
-# Download manager is I/O-bound, not CPU-bound — size matters for distribution.
-codegen-units = 4
-lto = "thin" # Thin LTO: ~90% of fat LTO benefit at ~20% of link time
-opt-level = 2 # Balanced optimization for runtime speed
-panic = "abort" # Strip unwinding machinery → smaller binary
-strip = true # Strip debug symbols
-
 [features]
-test-utils = ["rand"]
+test-utils = ["flareget-core/test-utils", "flareget-core/aria2-rpc", "rand"]
 
 [dev-dependencies]
 tempfile = "3"

@@ -1,70 +1,77 @@
-# Subsystem: ProtocolRegistry + DownloadProtocol
+# Subsystem: BackendRegistry + DownloadBackend
 
 ## 模块职责
 
-协议抽象层：定义 `DownloadProtocol` trait 作为 HTTP 和 BT 下载的统一接口，通过 `ProtocolRegistry` 消除 `commands.rs` 中的硬编码协议路由。提供协议无关的 `start/pause/resume/cancel/remove/purge/open/status/list` 操作。
+协议抽象层：定义 `DownloadBackend` trait 作为 HTTP 和 BT 下载的统一接口，通过 `BackendRegistry` 消除 `commands.rs` 中的硬编码协议路由。提供协议无关的 `start/pause/resume/cancel/remove/purge/open/status/list` 操作。
 
 **涉及文件**：
 
-- `src-tauri/src/download/protocol.rs` (100+ 行) — DownloadProtocol trait + HTTP 适配器
-- `src-tauri/src/download/protocol_registry.rs` — ProtocolRegistry 路由表
+- `crates/flareget-core/src/protocol.rs` — DownloadBackend trait + HTTP 适配器
+- `crates/flareget-core/src/backend_registry.rs` — BackendRegistry 路由表
 
 ## 关键结构体
 
-### DownloadProtocol trait (pub(crate))
+### DownloadBackend trait (pub)
 
 ```rust
 #[async_trait]
-pub(crate) trait DownloadProtocol: Send + Sync {
+pub trait DownloadBackend: Send + Sync {
     async fn start(&self, request: StartDownloadRequest) -> Result<String>;
-    async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot>;
-    async fn open_in_explorer(&self, download_id: &str) -> Result<()>;
-    async fn status(&self, download_id: &str) -> Result<DownloadSnapshot>;
+    async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
+    async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()>;
+    async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
     async fn list(&self) -> Result<Vec<DownloadSummary>>;
+    async fn update_settings(&self, settings: &AppSettings) -> Result<()>;
+    async fn shutdown(&self) -> Result<()>;
 }
 ```
 
-### ProtocolRegistry (pub(crate))
+### BackendRegistry (pub)
 
 ```rust
-pub(crate) struct ProtocolRegistry {
-    http: Arc<dyn DownloadProtocol>,
-    bt: Arc<dyn DownloadProtocol>,
+pub struct BackendRegistry {
+    http: Arc<dyn DownloadBackend>,
+    bt: Option<Arc<dyn DownloadBackend>>,
 }
 ```
 
 ## 关键方法
 
 ```rust
-impl ProtocolRegistry {
-    pub(crate) fn new(http: Arc<dyn DownloadProtocol>, bt: Arc<dyn DownloadProtocol>) -> Self
-    pub(crate) fn for_task(&self, task_id: &TaskId) -> &dyn DownloadProtocol
-    pub(crate) async fn start(&self, kind: DownloadSourceKind, request: StartDownloadRequest) -> Result<String>
+impl BackendRegistry {
+    pub fn new() -> Self
+    pub fn register(&mut self, kind: TaskKind, backend: Arc<dyn DownloadBackend>)
+    pub fn dispatch(&self, task_id: &TaskId) -> &dyn DownloadBackend
+    pub fn by_kind(&self, kind: TaskKind) -> &dyn DownloadBackend
+    pub fn get_typed<T: 'static>(&self) -> Option<&T>
+    pub fn list_all(&self) -> Vec<DownloadSummary>
+    pub fn iter(&self) -> BackendIterator<'_>
 }
 ```
 
 ## 数据流向
 
 ```
-commands.rs 接收 Tauri IPC
+commands.rs 接收 Tauri IPC / rpc.rs 接收 WebSocket JSON-RPC
   ↓
-├─ download_start: classify_download_source(url) → DownloadSourceKind
-│    └─ registry.start(kind, request) → protocol.start() → 返回 prefixed ID
+├─ download.start: classify_kind(url) → TaskKind
+│    └─ registry.by_kind(kind) → &dyn DownloadBackend
+│         └─ backend.start(request) → 返回 prefixed ID
 │
 └─ 其他命令: TaskId::parse(download_id)
-     └─ registry.for_task(&task_id) → &dyn DownloadProtocol
-          ├─ HTTP → DownloadProtocol impl (protocol.rs, 前缀适配)
-          └─ BT   → DownloadProtocol impl (bt_backend_own/mod.rs)
+     └─ registry.dispatch(&task_id) → &dyn DownloadBackend
+          ├─ HTTP → DownloadBackend impl (manager.rs, TaskId::http_inner)
+          └─ BT   → DownloadBackend impl (bt_backend_own/mod.rs)
 ```
 
 **重要约定**：
 
-- ProtocolRegistry 使用具体字段（http/bt）而非 HashMap — 避免泛型分发复杂度，新协议只需加字段
+- BackendRegistry 使用 `register()` 注册协议；`dispatch()` 通过 TaskId 前缀路由
 - `start()` 方法返回的 ID 已包含协议前缀（`"http:"` 或 `"bt:"`），调用方无需再添加
-- trait 中所有方法接受带前缀的 download_id（外部格式），HTTP 适配器负责 `strip_http_prefix` + `prefix_http_snapshot`
-- `list()` 方法在 commands.rs 中单独调用（不走 registry），因为需要合并两个协议的列表
-- 添加新协议（如 ftp:）时：在 types.rs 增加 `DownloadSourceKind` 变体 → ProtocolRegistry 加字段 → 实现 DownloadProtocol trait
+- `get_typed::<T>()` 返回原始类型引用，用于访问协议特有方法（如 `set_speed_limit`）
+- `list_all()` 合并所有注册后端的列表并排序
+- Tauri 和 WebSocket RPC 共享同一个 BackendRegistry

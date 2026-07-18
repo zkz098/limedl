@@ -23,7 +23,7 @@ import type {
   PhaseProgress,
   DefaultNodeResult,
 } from "../../types/cdn";
-import { listen } from "@tauri-apps/api/event";
+import { listen } from "#event";
 import { useIntervalFn } from "@vueuse/core";
 
 const props = defineProps<{

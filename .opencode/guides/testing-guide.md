@@ -8,7 +8,7 @@
 | ---------------- | ------------------------ | -------------- | ------------------------------- |
 | Frontend unit    | `bun run test`           | Vitest + jsdom | `src/__tests__/`                |
 | Rust unit        | `cargo test --workspace` | Rust `#[test]` | 内联 `#[cfg(test)]`             |
-| Rust integration | `cargo test --workspace` | Rust `#[test]` | `src-tauri/src/download/tests/` |
+| Rust integration | `cargo test --workspace` | Rust `#[test]` | `crates/flareget-core/src/tests/` |
 | E2E              | (pending setup)          | Playwright     | `e2e/`                          |
 
 **Before any Rust test on Windows**, initialize MSVC:
@@ -129,7 +129,7 @@ bun run test path/to/test   # 运行单个测试文件
 ### Organization
 
 - **单元测试**: 内联在源码文件底部 `#[cfg(test)] mod tests { ... }`
-- **集成测试**: `src-tauri/src/download/tests/manager_tests.rs`（使用本地 HTTP mock 服务器）
+- **集成测试**: `crates/flareget-core/src/tests/manager_tests.rs`（使用本地 HTTP mock 服务器）
 
 ### Test Helpers (manager_tests.rs pattern)
 

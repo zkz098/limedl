@@ -20,13 +20,14 @@ use anyhow::Context;
 use tauri::Emitter;
 use tauri::Manager;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-use download::event_bus::EventBus;
+use download::event_bus::DownloadEvent;
 use download::CdnAccelerator;
 use download::{
-    cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager,
-    IrontideBtBackend, bt_get_peers, bt_get_pieces, bt_get_trackers,
+    bootstrap, cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager,
+    bt_get_peers, bt_get_pieces, bt_get_trackers,
     bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel,
     cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
     download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
@@ -78,88 +79,77 @@ pub fn run() {
                     .unwrap_or_else(|_| std::env::temp_dir().join("flareget"))
                     .join("downloads");
 
-                std::fs::create_dir_all(&state_dir)
-                    .with_context(|| format!("创建下载状态目录失败: {}", state_dir.display()))?;
+                let core = tauri::async_runtime::block_on(bootstrap::bootstrap(state_dir.clone()))
+                    .with_context(|| "初始化核心子系统失败")?;
 
-                let rate_limiter = Arc::new(RateLimiter::default());
-
-                let event_bus = Arc::new(EventBus::new(256));
-                event_bus.set_app_handle(app.handle().clone());
-
-                let download_manager = DownloadManager::new(
-                    state_dir.clone(),
-                    rate_limiter.clone(),
-                    event_bus.clone(),
-                )
-                .with_context(|| format!("初始化下载管理器失败: {}", state_dir.display()))?;
-                let download_manager = Arc::new(download_manager);
-                download_manager.clone().start_scheduler_loop();
-
-                let settings = download_manager.initial_settings();
-                init_logging(&settings.logging, &state_dir).context("初始化日志系统失败")?;
-                cleanup_old_aria2_temp_files();
-
-                let bt_backend: Arc<IrontideBtBackend> = {
-                    let own = tauri::async_runtime::block_on(IrontideBtBackend::new(
-                        &settings,
-                        state_dir.join("torrents"),
-                        state_dir.join("bt_files"),
-                        event_bus.clone(),
-                    ))
-                    .context("初始化 irontide BT 后端失败")?;
-                    Arc::new(own)
-                };
-
-                // spawn_upload_policy_loop() calls tokio::spawn internally, which
-                // requires an active Tokio runtime context. The setup closure runs
-                // on the main thread outside any runtime, so enter Tauri's async
-                // runtime context before invoking it.
-                tauri::async_runtime::block_on(async {
-                    bt_backend.clone().spawn_upload_policy_loop();
-                });
-
-                let cdn_accelerator = Arc::new(CdnAccelerator::new());
-                download_manager.set_cdn_accelerator(cdn_accelerator.clone());
-
-                // Restore CDN acceleration state from persisted settings so
-                // downloads can use the previously-selected IP immediately on restart.
+                // Subscribe to EventBus and forward events to Tauri frontend
                 {
-                    let initial = download_manager.initial_settings();
-                    tauri::async_runtime::block_on(cdn_accelerator.init_from_settings(&initial));
+                    let mut rx = core.event_bus.subscribe();
+                    let app_handle_tx = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        loop {
+                            match rx.recv().await {
+                                Ok(event) => {
+                                    match &event {
+                                        DownloadEvent::Updated { id: _, summary_json } => {
+                                            let _ = app_handle_tx.emit("download-updated", summary_json);
+                                        }
+                                        DownloadEvent::Progress { id: _, progress_json } => {
+                                            let _ = app_handle_tx.emit("download-progress", progress_json);
+                                        }
+                                        DownloadEvent::Aria2Notification { event_name, gid } => {
+                                            let _ = app_handle_tx.emit(event_name, gid);
+                                        }
+                                        DownloadEvent::CdnProgress { phase, current, total } => {
+                                            let _ = app_handle_tx.emit("cdn-test-progress", serde_json::json!({
+                                                "phase": phase,
+                                                "current": current,
+                                                "total": total,
+                                            }));
+                                        }
+                                        DownloadEvent::CdnComplete { state, active_ip, active_speed_mbps } => {
+                                            let _ = app_handle_tx.emit("cdn-test-complete", serde_json::json!({
+                                                "state": state,
+                                                "activeIp": active_ip,
+                                                "activeSpeedMbps": active_speed_mbps,
+                                            }));
+                                        }
+                                    }
+                                }
+                                Err(broadcast::error::RecvError::Lagged(n)) => {
+                                    tracing::warn!("EventBus subscriber lagged by {n} messages");
+                                }
+                                Err(broadcast::error::RecvError::Closed) => break,
+                            }
+                        }
+                    });
                 }
 
-                let app_handle = app.handle().clone();
+                init_logging(&core.settings.logging, &state_dir).context("初始化日志系统失败")?;
+                cleanup_old_aria2_temp_files();
+
+                // CDN accelerator setup
+                let cdn_accelerator = Arc::new(CdnAccelerator::new());
+                core.download_manager.set_cdn_accelerator(cdn_accelerator.clone());
+                tauri::async_runtime::block_on(cdn_accelerator.init_from_settings(&core.settings));
 
                 let rpc_shutdown = Arc::new(Mutex::new(None::<tokio::sync::watch::Sender<bool>>));
 
-                // Create the backend registry that routes protocol methods to the correct backend.
-                use download::types::TaskKind;
-                use download::backend_registry::BackendRegistry;
-
-                let mut registry = BackendRegistry::new();
-                registry.register(TaskKind::Http, (*download_manager).clone());
-                registry.register(TaskKind::Bt, (*bt_backend).clone());
-                let registry = Arc::new(registry);
-
-                // Start the alert bridge for the irontide backend.
-                tauri::async_runtime::block_on(bt_backend.setup_alert_bridge());
-
                 app.manage(AppState {
-                    registry: registry.clone(),
-                    event_bus: event_bus.clone(),
-                    rate_limiter: rate_limiter.clone(),
+                    registry: core.registry.clone(),
+                    event_bus: core.event_bus.clone(),
+                    rate_limiter: core.rate_limiter.clone(),
                     cdn_accelerator: cdn_accelerator.clone(),
-                    app_handle: app_handle.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
                 });
 
+                // Periodic emit task
                 {
                     let state = AppState {
-                        registry: registry.clone(),
-                        event_bus: event_bus.clone(),
-                        rate_limiter: rate_limiter.clone(),
+                        registry: core.registry.clone(),
+                        event_bus: core.event_bus.clone(),
+                        rate_limiter: core.rate_limiter.clone(),
                         cdn_accelerator: cdn_accelerator.clone(),
-                        app_handle: app_handle.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                     };
                     tauri::async_runtime::spawn(async move {
@@ -170,12 +160,13 @@ pub fn run() {
                     });
                 }
 
-                if settings.aria2_rpc.enabled {
+                // Aria2 RPC startup
+                if core.settings.aria2_rpc.enabled {
                     let (tx, rx) = tokio::sync::watch::channel(false);
                     let rpc_server = Aria2RpcServer::new(
-                        registry.clone(),
-                        &settings.aria2_rpc,
-                        event_bus.clone(),
+                        core.registry.clone(),
+                        &core.settings.aria2_rpc,
+                        core.event_bus.clone(),
                     );
                     tauri::async_runtime::spawn(async move {
                         if let Err(error) = rpc_server.serve(rx).await {
@@ -252,8 +243,17 @@ pub fn run() {
                 let state = window.state::<AppState>();
                 let registry = state.registry.clone();
                 tauri::async_runtime::spawn(async move {
-                    for backend in registry.iter() {
-                        let _ = backend.shutdown().await;
+                    // Shutdown all backends (cancels scheduler + worker tokens)
+                    registry.shutdown_all().await;
+                    // Wait for buffer pool to drain (max 5 seconds)
+                    let dm = registry.get_typed::<DownloadManager>();
+                    if let Some(dm) = dm {
+                        let start = std::time::Instant::now();
+                        while dm.buffer_pool.active_slots() > 0
+                            && start.elapsed() < std::time::Duration::from_secs(5)
+                        {
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        }
                     }
                     handle.exit(0);
                 });

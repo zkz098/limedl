@@ -1,16 +1,16 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 
 use anyhow::anyhow;
 use ntest::timeout;
 use tempfile::tempdir;
 
-use crate::download::error::DownloadError;
-use crate::download::event_bus::EventBus;
-use crate::download::types::{
+use flareget_core::error::DownloadError;
+use flareget_core::event_bus::EventBus;
+use flareget_core::types::{
     StartDownloadRequest, TaskKind,
 };
-use crate::download::RateLimiter;
-use crate::download::DownloadManager;
+use flareget_core::RateLimiter;
+use flareget_core::DownloadManager;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -41,7 +41,7 @@ fn make_manager(tmp: &tempfile::TempDir) -> DownloadManager {
     DownloadManager::new(
         tmp.path().join("state"),
         Arc::new(RateLimiter::default()),
-        Arc::new(EventBus::new(256)),
+        Arc::new(EventBus::new(1024)),
     )
     .unwrap()
 }
@@ -54,7 +54,7 @@ fn make_manager(tmp: &tempfile::TempDir) -> DownloadManager {
 #[timeout(10_000)]
 fn classify_http_url() {
     let req = make_request("https://example.com/file.zip", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Http);
 }
 
@@ -65,7 +65,7 @@ fn classify_magnet_link() {
         "magnet:?xt=urn:btih:0000000000000000000000000000000000000000",
         None,
     );
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Bt);
 }
 
@@ -73,7 +73,7 @@ fn classify_magnet_link() {
 #[timeout(10_000)]
 fn classify_torrent_file_extension() {
     let req = make_request("file.torrent", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Bt);
 }
 
@@ -85,7 +85,7 @@ fn classify_explicit_kind_http() {
         "magnet:?xt=urn:btih:0000000000000000000000000000000000000000",
         Some(TaskKind::Http),
     );
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Http);
 }
 
@@ -93,7 +93,7 @@ fn classify_explicit_kind_http() {
 #[timeout(10_000)]
 fn classify_explicit_kind_bt() {
     let req = make_request("https://example.com/file.zip", Some(TaskKind::Bt));
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Bt);
 }
 
@@ -101,7 +101,7 @@ fn classify_explicit_kind_bt() {
 #[timeout(10_000)]
 fn classify_local_torrent_path() {
     let req = make_request("/path/to/file.torrent", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Bt);
 }
 
@@ -109,7 +109,7 @@ fn classify_local_torrent_path() {
 #[timeout(10_000)]
 fn classify_unknown_scheme_errors() {
     let req = make_request("ftp://example.com/file", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert!(matches!(result, Err(DownloadError::UnsupportedScheme)));
 }
 
@@ -117,7 +117,7 @@ fn classify_unknown_scheme_errors() {
 #[timeout(10_000)]
 fn classify_empty_url_errors() {
     let req = make_request("", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert!(matches!(result, Err(DownloadError::UnsupportedScheme)));
 }
 
@@ -125,7 +125,7 @@ fn classify_empty_url_errors() {
 #[timeout(10_000)]
 fn classify_whitespace_url_errors() {
     let req = make_request("   ", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert!(matches!(result, Err(DownloadError::UnsupportedScheme)));
 }
 
@@ -134,7 +134,7 @@ fn classify_whitespace_url_errors() {
 fn classify_http_with_case_insensitive_scheme() {
     // URL is lowered internally so uppercase schemes still match
     let req = make_request("HTTP://EXAMPLE.COM/FILE.ZIP", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Http);
 }
 
@@ -142,7 +142,7 @@ fn classify_http_with_case_insensitive_scheme() {
 #[timeout(10_000)]
 fn classify_magnet_with_case_insensitive_scheme() {
     let req = make_request("MAGNET:?xt=urn:btih:...", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Bt);
 }
 
@@ -150,7 +150,7 @@ fn classify_magnet_with_case_insensitive_scheme() {
 #[timeout(10_000)]
 fn classify_torrent_extension_case_insensitive() {
     let req = make_request("file.TORRENT", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Bt);
 }
 
@@ -160,7 +160,7 @@ fn classify_url_with_torrent_extension() {
     // URL ending in .torrent even with query params — the raw lowered string
     // won't end with ".torrent" due to the query, but Path::extension catches it
     let req = make_request("https://example.com/file.torrent?download=1", None);
-    let result = super::classify_request_kind(&req);
+    let result = req.classify_kind();
     assert_eq!(result.unwrap(), TaskKind::Http);
 }
 

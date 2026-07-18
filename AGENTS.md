@@ -19,53 +19,96 @@ Skipping this will cause linker errors (`LINK : fatal error LNK1181`).
 - **Format**: `pnpm run format` (oxfmt — not prettier)
 - **Type-check**: `pnpm exec vue-tsc --noEmit` (Vue type-checking, separate from build)
 - **Test (frontend)**: `pnpm run test` (Vitest + jsdom)
-- **Test (Rust)**: `cargo test --manifest-path src-tauri/Cargo.toml`
+- **Test (Rust - workspace)**: `cargo test --workspace`
+- **Test (Rust - core only)**: `cargo test --manifest-path crates/flareget-core/Cargo.toml`
+- **Test (Rust - Tauri)**: `cargo test --manifest-path src-tauri/Cargo.toml --features test-utils`
 - **Build order**: `vue-tsc --noEmit` then `vite build` (enforced by `pnpm run build`)
 
 ## Architecture
 
-### Tauri v2 desktop download manager
+### Workspace layout (3 crates)
 
-- **Frontend**: Vue 3 + TypeScript + UnoCSS (`src/`)
-- **Backend**: Rust + Tauri v2 (`src-tauri/`)
-- **Rust edition**: 2024
-- **Rust lib name**: `flareget_lib` (suffixed `_lib` to avoid Windows name collision with binary — see `Cargo.toml` comment and [cargo#8519](https://github.com/rust-lang/cargo/issues/8519))
+```
+flareget/
+├── crates/
+│   ├── flareget-core/       # Pure download engine (zero UI deps)
+│   └── flareget-server/     # axum HTTP/WS server + CLI binary
+├── src-tauri/               # Tauri v2 desktop app (thin shell)
+├── src/                     # Vue 3 frontend (shared across targets)
+└── Cargo.toml               # workspace [members]
+```
 
-### Task ID routing
+- **`flareget-core`**: Download engine — manager, scheduler, buffer pool, CDN, BT backend, settings, database, event bus, checksum, rate limiter. All modules live in `crates/flareget-core/src/`.
+- **`flareget-server`**: NAS/headless daemon. Axum HTTP server + WebSocket JSON-RPC 2.0 + CLI (`daemon` / `download` subcommands) + HTTP Basic Auth + static file serving. Entry: `crates/flareget-server/src/main.rs`.
+- **`src-tauri`**: Tauri v2 desktop app. Thin commands layer (`commands.rs`, `commands_cdn.rs`, `aria2_rpc.rs`) that dispatches to `flareget_core::BackendRegistry`. Entry: `src-tauri/src/lib.rs`.
 
-Download tasks use prefixed IDs to route to the correct protocol executor:
+### Multi-platform support
 
-- `http:` prefix → HTTP download path
-- `bt:` prefix → BitTorrent path
+| Target | Frontend | Backend | Build |
+|--------|----------|---------|-------|
+| Tauri Desktop | Vue 3 via Tauri IPC (`#invoke` → `@tauri-apps/api/core`) | `src-tauri/` | `pnpm run tauri dev` / `pnpm run tauri build` |
+| NAS WebUI | Same Vue 3 via WebSocket (`#invoke` → `ws-invoke.ts`) | `flareget-server` | `pnpm run build:nas` |
+| CLI | N/A | `flareget-server` | `flareget daemon` / `flareget download <url>` |
 
-The `DownloadProtocol` trait (`src-tauri/src/download/protocol.rs`) abstracts both.
+### Frontend dual-mode (`#invoke` / `#event`)
 
-### Subsystem documentation
+The Vue frontend uses import aliases so the same code runs on both Tauri IPC and WebSocket:
 
-Detailed four-section docs (module responsibility, key structs, key methods, data flow) live in `.opencode/guides/`. **Before modifying any subsystem, read its guide first.**
+- **Tauri mode**: `#invoke` → `@tauri-apps/api/core`, `#event` → `@tauri-apps/api/event`
+- **NAS mode**: `#invoke` → `src/lib/ws/ws-invoke.ts`, `#event` → `src/lib/ws/ws-event.ts`
 
-| Guide                           | Source (Rust)                                                           | Role                                                              |
-| ------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `subsystem-download-manager.md` | `download/manager.rs` + `http_executor.rs` + `scheduler.rs` + `aimd.rs` | HTTP download lifecycle orchestration                             |
-| `subsystem-bt-backend.md`       | `download/bt_backend_own/`                                              | BitTorrent via irontide engine                                    |
-| `subsystem-cdn-accelerator.md`  | `download/cdn/`                                                         | Cloudflare IP probing & DNS rewriting (currently Cloudflare-only) |
-| `subsystem-aria2-rpc.md`        | `download/aria2_rpc.rs`                                                 | Axum WebSocket + HTTP JSON-RPC emulating aria2 protocol           |
-| `subsystem-database.md`         | `download/database.rs`                                                  | rusqlite with `bundled` feature                                   |
-| `subsystem-buffer-pool.md`      | `download/buffer_pool.rs`                                               | HDD double-buffer / SSD write-combining memory pool               |
-| `subsystem-settings.md`         | `download/settings.rs` + `types.rs`                                     | JSON-based settings load/save, HTTP client builder                |
+Switched via `vite.config.ts` resolve.alias based on `mode === "nas"`.
 
-**Cross-cutting docs**: `core-data-flow.md` — full HTTP download lifecycle across all subsystems.
+**Never call `invoke` directly** — use the typed wrappers in `src/lib/tauri/*-api.ts`. These import from `#invoke`.
+
+### Event system (EventBus)
+
+`EventBus` (`crates/flareget-core/src/event_bus/mod.rs`) is a pure `tokio::sync::broadcast::channel<DownloadEvent>` with zero UI dependency. Each adapter subscribes independently:
+
+- **Tauri**: `src-tauri/src/lib.rs` spawns a background task that subscribes to EventBus and calls `app_handle.emit()` for each event type
+- **NAS WebSocket**: `rpc.rs` spawns a per-connection task that subscribes to EventBus and relays events over WebSocket
+- **Aria2 RPC**: subscribed directly via `event_bus.subscribe()`
+
+### Protocol routing (BackendRegistry + DownloadBackend)
+
+`DownloadBackend` trait (`crates/flareget-core/src/protocol.rs`) defines the unified API for all download protocols. `BackendRegistry` (`crates/flareget-core/src/backend_registry.rs`) routes by `TaskId` prefix:
+
+- `http:` prefix → `DownloadManager` (HTTP downloads)
+- `bt:` prefix → `IrontideBtBackend` (BitTorrent)
+
+Tauri commands and WebSocket RPC both dispatch through the same registry.
+
+### Startup & shutdown
+
+**Tauri** (`src-tauri/src/lib.rs`):
+state dirs → RateLimiter → EventBus → DownloadManager → IrontideBtBackend → CdnAccelerator → BackendRegistry → optional Aria2 RPC → app.manage(AppState)
+
+**NAS daemon** (`crates/flareget-server/src/main.rs`):
+config load → state dirs → RateLimiter → EventBus → DownloadManager → BackendRegistry → axum router (WebSocket RPC + static files) → serve
+
+### Rust edition & lib names
+
+- Edition: 2024 (all crates)
+- `flareget-core` lib name: `flareget_core`
+- `src-tauri` lib name: `flareget_lib` (suffixed `_lib` to avoid Windows name collision)
 
 ### Documentation maintenance
 
 > **After any add/modify/delete/refactor, update the corresponding subsystem guide.** Outdated docs are worse than no docs — they actively mislead. At minimum: check that struct fields, method signatures, and file paths still match the source. If a new subsystem or protocol is added, create its guide following the four-section template.
 
-### Startup & shutdown
+### Subsystem documentation
 
-- App entry: `src-tauri/src/lib.rs` → `run()`
-- On startup: state dirs → RateLimiter → DownloadManager → logging → OwnBtBackend → CdnAccelerator → optional Aria2 RPC
-- On window close: DownloadManager.shutdown() → OwnBtBackend.shutdown() → exit
-- Allocator: `mimalloc` set as global allocator in `main.rs`
+Detailed four-section docs (module responsibility, key structs, key methods, data flow) live in `.opencode/guides/`. **Before modifying any subsystem, read its guide first.**
+
+| Guide | Source (Rust) | Role |
+|-------|---------------|------|
+| `subsystem-download-manager.md` | `manager.rs` + `http_executor.rs` + `scheduler.rs` + `aimd.rs` | HTTP download lifecycle |
+| `subsystem-bt-backend.md` | `bt_backend_own/` | BitTorrent via irontide engine |
+| `subsystem-cdn-accelerator.md` | `cdn/` | Cloudflare IP probing & DNS rewriting |
+| `subsystem-aria2-rpc.md` | `aria2_rpc.rs` (Tauri crate: `src-tauri/src/download/`) | Axum WebSocket + HTTP JSON-RPC |
+| `subsystem-database.md` | `database.rs` | rusqlite with `bundled` feature |
+| `subsystem-buffer-pool.md` | `buffer_pool.rs` | HDD double-buffer / SSD write-combining |
+| `subsystem-settings.md` | `settings.rs` + `types.rs` | JSON-based settings load/save |
 
 ## Tauri dev workflow
 
@@ -83,7 +126,7 @@ Detailed four-section docs (module responsibility, key structs, key methods, dat
 
 See **`.opencode/guides/testing-guide.md`** for test patterns, mock setup, and E2E configuration.
 
-Quick ref: `pnpm run test` (frontend), `cargo test --manifest-path src-tauri/Cargo.toml` (Rust), `e2e/` (Playwright, pending).
+Quick ref: `pnpm run test` (frontend), `cargo test --workspace` (Rust), `e2e/` (Playwright, pending).
 
 ## Core data flow & buffer pool
 
@@ -96,7 +139,7 @@ Moved to standalone guides — read them before touching download pipeline or I/
 
 - Ubuntu-latest only
 - Frontend: Node.js 24 + corepack → `pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm exec vue-tsc --noEmit` → `pnpm run test`
-- Rust: `cargo check --manifest-path src-tauri/Cargo.toml` → `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` → `cargo test --manifest-path src-tauri/Cargo.toml`
+- Rust: `cargo check --workspace` → `cargo clippy --workspace -- -D warnings` → `cargo test --workspace`
 - Rust clippy denies all warnings
 
 ## Frontend UI
@@ -109,7 +152,7 @@ Moved to standalone guides — read them before touching download pipeline or I/
 - **CSS**: UnoCSS (`presetUno` + `presetIcons`) + scoped CSS with design tokens
 - **State**: Composables (`use*` pattern in `src/composables/`), no Pinia/Vuex
 - **i18n**: `useI18n()` → `{ t, language, languageOptions, setLanguage, supportedLanguages }` from `src/i18n/`
-- **Tauri bridge**: `src/lib/tauri/*-api.ts` typed wrappers (never call `invoke` directly)
+- **Tauri bridge**: `src/lib/tauri/*-api.ts` typed wrappers. All import `invoke` from `#invoke` (NOT `@tauri-apps/api/core` directly). See `src/lib/ws/ws-invoke.ts` for the WebSocket-equivalent implementation.
 
 ## Build flags
 

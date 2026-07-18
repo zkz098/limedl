@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ── Mock Tauri core ─────────────────────────────────────────────────────────
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("#invoke", () => ({ invoke: vi.fn() }));
 
 // ── Mock Vue lifecycle hooks ────────────────────────────────────────────────
 // Capture onMounted/onUnmounted callbacks so tests can trigger them manually.
@@ -26,7 +26,7 @@ vi.mock("vue", async () => {
 let onProgress: ((payload: Record<string, unknown>) => void) | null = null;
 let onUpdated: ((payload: Record<string, unknown>) => void) | null = null;
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("#event", () => ({
   listen: vi.fn((event: string, handler: (evt: { payload: unknown }) => void) => {
     if (event === "download-progress") {
       onProgress = (payload) => handler({ payload });

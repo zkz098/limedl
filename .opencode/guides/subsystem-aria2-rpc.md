@@ -24,7 +24,7 @@ pub struct Aria2RpcServer {
 ```rust
 struct RpcContext {
     manager: Arc<DownloadManager>,
-    bt_backend: Arc<OwnBtBackend>,
+    bt_backend: Arc<IrontideBtBackend>,
     secret: Option<String>,                        // RPC 密钥
     event_bus: Arc<EventBus>,                      // 统一事件总线
     gid_cache: Mutex<HashMap<String, String>>,     // internal_id → GID 映射缓存
@@ -55,7 +55,7 @@ struct JsonRpcResponse {
 ```rust
 pub fn new(
     manager: Arc<DownloadManager>,
-    bt_backend: Arc<OwnBtBackend>,
+    bt_backend: Arc<IrontideBtBackend>,
     settings: &Aria2RpcSettings,
     event_bus: Arc<EventBus>,
 ) -> Self
@@ -111,7 +111,7 @@ Axum Router
   ↓
 dispatch_method(method, params)
   ├─ 解析 JSON-RPC 请求 → 路由到对应 handler
-  ├─ handler 调用 DownloadManager / OwnBtBackend 方法
+  ├─ handler 调用 DownloadManager / IrontideBtBackend 方法
   └─ 内部状态转换为 aria2 格式的 JSON 响应
   ↓
 事件通知（通过 WebSocket 推送）
