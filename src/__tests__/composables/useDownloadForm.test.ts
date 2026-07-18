@@ -240,7 +240,7 @@ describe("useDownloadForm", () => {
     const p1 = pickDestinationDirectory();
     const p2 = pickDestinationDirectory(); // should be a no-op
 
-    resolvePicker!("/path");
+    resolvePicker("/path");
     await p1;
     await p2;
 
@@ -280,7 +280,7 @@ describe("useDownloadForm", () => {
     const p1 = pickTorrentSourceFile();
     const p2 = pickTorrentSourceFile();
 
-    resolvePicker!("/t.torrent");
+    resolvePicker("/t.torrent");
     await p1;
     await p2;
 

@@ -27,7 +27,7 @@ import { createMockInvoke, resetTauriMocks } from "../mocks/tauri-mock";
 import { getAppSettings, saveAppSettings } from "../../lib/tauri/settings-api";
 import { useAppSettings, type UseAppSettingsParams } from "../../composables/useAppSettings";
 import { DEFAULT_VISIBLE_COLUMNS } from "../../lib/column-defs";
-import type { AppSettings, ColorMode, SortKey, SortDirection } from "../../types/settings";
+import type { AppSettings, SortKey, SortDirection } from "../../types/settings";
 
 const mockInvoke = vi.mocked(invoke);
 const mockGetAppSettings = vi.mocked(getAppSettings);
@@ -132,24 +132,22 @@ describe("useAppSettings", () => {
   let sortDirection: Ref<SortDirection>;
   let compactView: Ref<boolean>;
   let visibleColumns: Ref<string[]>;
-  let applyAppSettingsDefaults: ReturnType<typeof vi.fn>;
-  let setNotificationsEnabled: ReturnType<typeof vi.fn>;
+  let applyAppSettingsDefaults: (settings: AppSettings) => void;
+  let setNotificationsEnabled: (enabled: boolean) => void;
   let matchMediaMock: ReturnType<typeof vi.fn>;
 
   function createParams(
     overrides: Partial<UseAppSettingsParams> = {},
   ): UseAppSettingsParams {
     return {
-      sortKey: sortKey as UseAppSettingsParams["sortKey"],
-      sortDirection: sortDirection as UseAppSettingsParams["sortDirection"],
-      compactView: compactView as UseAppSettingsParams["compactView"],
-      visibleColumns: visibleColumns as UseAppSettingsParams["visibleColumns"],
-      applyAppSettingsDefaults:
-        applyAppSettingsDefaults as UseAppSettingsParams["applyAppSettingsDefaults"],
-      setNotificationsEnabled:
-        setNotificationsEnabled as UseAppSettingsParams["setNotificationsEnabled"],
+      sortKey,
+      sortDirection,
+      compactView,
+      visibleColumns,
+      applyAppSettingsDefaults,
+      setNotificationsEnabled,
       ...overrides,
-    } as UseAppSettingsParams;
+    };
   }
 
   beforeEach(() => {
@@ -242,21 +240,15 @@ describe("useAppSettings", () => {
 
     it("falls back to defaults when appearance fields are missing", () => {
       const { applyAppearanceSettings } = useAppSettings(createParams());
-      // Provide an AppSettings with undefined appearance fields by constructing
-      // an incomplete appearance manually.
-      applyAppearanceSettings({
-        ...createDefaultSettings(),
-        appearance: {
-          themeColor: undefined as unknown as AppSettings["appearance"]["themeColor"],
-          backgroundOpacity: undefined as unknown as AppSettings["appearance"]["backgroundOpacity"],
-          colorMode: undefined as unknown as ColorMode,
-          showDetailInfo: false,
-          sortKey: "added_at",
-          sortDirection: "desc",
-          compactView: false,
-          visibleColumns: [],
-        },
+      // Provide an AppSettings with undefined appearance fields by mutating
+      // a properly constructed object via Object.assign (avoids type assertions).
+      const settings = createDefaultSettings();
+      Object.assign(settings.appearance, {
+        themeColor: undefined,
+        backgroundOpacity: undefined,
+        colorMode: undefined,
       });
+      applyAppearanceSettings(settings);
 
       expect(document.documentElement.dataset.theme).toBe("lime");
       expect(document.documentElement.dataset.surface).toBe("default");
@@ -478,7 +470,8 @@ describe("useAppSettings", () => {
     });
 
     it("uses default sort key 'added_at' when settings value is null", async () => {
-      const settings = settingsWithAppearance({ sortKey: null as unknown as SortKey });
+      const nullOverride: any = null;
+      const settings = settingsWithAppearance({ sortKey: nullOverride });
       mockGetAppSettings.mockResolvedValue(settings);
 
       useAppSettings(createParams());
@@ -488,8 +481,9 @@ describe("useAppSettings", () => {
     });
 
     it("uses default sort direction 'desc' when settings value is null", async () => {
+      const nullOverride: any = null;
       const settings = settingsWithAppearance({
-        sortDirection: null as unknown as SortDirection,
+        sortDirection: nullOverride,
       });
       mockGetAppSettings.mockResolvedValue(settings);
 

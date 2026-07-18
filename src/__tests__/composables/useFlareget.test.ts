@@ -12,8 +12,8 @@ vi.mock("vue", async () => {
   const actual = await vi.importActual<typeof import("vue")>("vue");
   return {
     ...actual,
-    onMounted: vi.fn((cb: () => void) => {
-      capturedOnMounted = cb as () => Promise<void>;
+      onMounted: vi.fn((cb: () => Promise<void>) => {
+      capturedOnMounted = cb;
     }),
     onUnmounted: vi.fn((cb: () => void) => {
       capturedOnUnmounted = cb;
@@ -430,7 +430,7 @@ describe("useFlareget", () => {
         fileName: "test.zip",
         error: "Connection reset by peer",
       });
-      onUpdated!(failedSummary as unknown as Record<string, unknown>);
+      onUpdated!(JSON.parse(JSON.stringify(failedSummary)));
 
       expect(onDownloadFailed).toHaveBeenCalledTimes(1);
       expect(onDownloadFailed).toHaveBeenCalledWith(
