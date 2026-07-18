@@ -47,11 +47,17 @@ jobs:
           sudo apt-get install -y libappindicator3-dev 2>/dev/null \
             || sudo apt-get install -y libayatana-appindicator3-dev
 
-      # ── Bun ────────────────────────────────────────────────────
-      - uses: oven-sh/setup-bun@v2
+      # ── pnpm ──────────────────────────────────────────────────
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Install frontend dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # ── Rust ───────────────────────────────────────────────────
       - name: Install Rust toolchain
@@ -98,4 +104,5 @@ jobs:
             See the [changelog](https://github.com/${{ github.repository }}/releases) for details.
           releaseDraft: true
           prerelease: false
+          uploadUpdaterJson: true
           args: ${{ matrix.tauri-args }}

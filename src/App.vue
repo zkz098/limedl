@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onErrorCaptured, ref, useTemplateRef, watch, type Ref } from "vue";
+import { computed, onErrorCaptured, onMounted, ref, useTemplateRef, watch, type Ref } from "vue";
 import { filterDownloads } from "./lib/download-filter";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
@@ -22,6 +22,7 @@ import { useI18n } from "./i18n";
 import { useAppSettings } from "./composables/useAppSettings";
 import { useViewNavigation } from "./composables/useViewNavigation";
 import { useMultiSelect } from "./composables/useMultiSelect";
+import { useAppUpdate } from "./composables/useAppUpdate";
 import { DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
 import NotificationToast from "./components/ui/NotificationToast.vue";
 import ModalOverlay from "./components/layout/ModalOverlay.vue";
@@ -173,6 +174,12 @@ onErrorCaptured((err, _instance, info) => {
 });
 
 const { notifications, notifyError, dismiss } = useNotification();
+
+const { updateAvailable, runStartupCheck } = useAppUpdate();
+
+onMounted(() => {
+  runStartupCheck();
+});
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
 
@@ -364,6 +371,7 @@ watch(
         :current-view="currentView"
         :counts="categoryCounts as unknown as Record<string, number>"
         :stats="sidebarStats"
+        :update-available="updateAvailable"
         @update:active-category="activeCategory = $event"
         @navigate="navigateTo"
       />

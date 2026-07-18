@@ -36,6 +36,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 urlencoding = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
 mimalloc = "0.1.48"
 fs4 = { version = "0.13", features = ["sync"] }
 irontide = { version = "1", default-features = false, features = ["crypto-ring"] }

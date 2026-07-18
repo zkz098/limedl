@@ -27,6 +27,7 @@ import SettingsIoBaselinePanel from "./SettingsIoBaselinePanel.vue";
 import SettingsLoggingPanel from "./SettingsLoggingPanel.vue";
 import SettingsProxyPanel from "./SettingsProxyPanel.vue";
 import SettingsSchedulerPanel from "./SettingsSchedulerPanel.vue";
+import SettingsAboutPanel from "./SettingsAboutPanel.vue";
 
 import {
   DEFAULT_HTTP_USER_AGENT,
@@ -227,6 +228,7 @@ const tabs = [
   { id: "aria2Rpc", icon: "i-ri-terminal-box-line", labelKey: "settings.aria2Rpc" },
   { id: "logging", icon: "i-ri-file-list-3-line", labelKey: "settings.logging" },
   { id: "proxy", icon: "i-ri-global-line", labelKey: "settings.proxyTitle" },
+  { id: "about", icon: "i-ri-information-line", labelKey: "settings.aboutKicker" },
 ] as const;
 
 defineExpose({
@@ -359,6 +361,8 @@ defineExpose({
           :proxy-mode-options="proxyModeOptions"
           :proxy-summary="proxySummary"
         />
+
+        <SettingsAboutPanel v-show="activeTab === 'about'" />
       </div>
     </div>
   </section>

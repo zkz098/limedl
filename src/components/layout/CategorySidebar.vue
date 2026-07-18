@@ -12,6 +12,7 @@ const props = defineProps<{
     completedTasks: number;
     currentSpeed: string;
   };
+  updateAvailable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -86,12 +87,18 @@ function handleNavigate(view: string) {
           v-for="nav in navItems"
           :key="nav.view"
           type="button"
-          class="bottom-nav__item flex items-center justify-center w-9 h-9 p-2 border-none rounded-md bg-transparent cursor-pointer"
+          class="bottom-nav__item flex items-center justify-center w-9 h-9 p-2 border-none rounded-md bg-transparent cursor-pointer relative"
           :class="{ 'bottom-nav__item--active': currentView === nav.view }"
           :aria-label="t(`nav.${nav.view}`)"
           @click="handleNavigate(nav.view)"
         >
           <span class="bottom-nav__icon text-xl" :class="nav.icon" aria-hidden="true" />
+          <!-- Red dot badge for update available -->
+          <span
+            v-if="nav.view === 'settings' && updateAvailable"
+            class="bottom-nav__badge absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--color-error)] border-2 border-[var(--color-panel)]"
+            aria-label="Update available"
+          />
         </button>
       </div>
       <div class="bottom-brand flex items-center gap-[0.35rem] text-xs font-semibold opacity-60">
