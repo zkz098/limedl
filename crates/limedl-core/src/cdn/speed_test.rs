@@ -604,6 +604,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "network-dependent: TEST-NET-1 (192.0.2.0/24) may be intercepted by proxies/VPNs in some environments"]
     async fn test_throughput_unreachable() {
         // 192.0.2.0/24 is TEST-NET-1 — RFC 5737 reserved, never routable
         let unreachable = Ipv4Addr::new(192, 0, 2, 1);

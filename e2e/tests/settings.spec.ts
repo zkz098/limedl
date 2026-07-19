@@ -155,7 +155,7 @@ test.describe("Settings page", () => {
     const saveParams = await wsMocker.waitForMethod("settings.save");
     expect(saveParams).toBeDefined();
     // Verify the appearance.themeColor was changed to "sky" in the saved payload
-    const payload = saveParams as Record<string, unknown>;
+    const payload = saveParams;
     expect(payload).toBeDefined();
 
     // Respond with the saved settings
@@ -243,7 +243,7 @@ test.describe("Settings page", () => {
     // Wait for settings.save
     const saveParams = await wsMocker.waitForMethod("settings.save");
     expect(saveParams).toBeDefined();
-    const payload = saveParams as Record<string, unknown>;
+    const payload = saveParams;
     expect(payload).toBeDefined();
 
     // Respond with saved settings

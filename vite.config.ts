@@ -1,30 +1,31 @@
-import { defineConfig } from "vite";
+import { defineConfig, type UserConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import UnoCSS from "unocss/vite";
 import { fileURLToPath } from "node:url";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
-export default defineConfig(async ({ mode }) => {
+export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   const isNas = mode === "nas";
 
+  const nasAlias = {
+    "#invoke": fileURLToPath(new URL("./src/lib/ws/ws-invoke.ts", import.meta.url)),
+    "#event": fileURLToPath(new URL("./src/lib/ws/ws-event.ts", import.meta.url)),
+    "@tauri-apps/plugin-notification": fileURLToPath(
+      new URL("./src/lib/ws/ws-notification-mock.ts", import.meta.url),
+    ),
+  };
+
+  const tauriAlias = {
+    "#invoke": "@tauri-apps/api/core",
+    "#event": "@tauri-apps/api/event",
+  };
+
   return {
-    plugins: [vue(), UnoCSS()],
+    plugins: [vue(), ...UnoCSS()],
     clearScreen: false,
     resolve: {
-      alias: isNas
-        ? {
-            "#invoke": fileURLToPath(new URL("./src/lib/ws/ws-invoke.ts", import.meta.url)),
-            "#event": fileURLToPath(new URL("./src/lib/ws/ws-event.ts", import.meta.url)),
-            "@tauri-apps/plugin-notification": fileURLToPath(
-              new URL("./src/lib/ws/ws-notification-mock.ts", import.meta.url),
-            ),
-          }
-        : {
-            "#invoke": "@tauri-apps/api/core",
-            "#event": "@tauri-apps/api/event",
-          },
+      alias: isNas ? nasAlias : tauriAlias,
     },
     server: {
       port: 1420,

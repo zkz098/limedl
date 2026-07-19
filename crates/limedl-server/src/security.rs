@@ -11,17 +11,6 @@ pub fn nas_csp_header() -> HeaderValue {
     )
 }
 
-/// Builds a layer that sets all recommended security headers on every response.
-pub fn security_headers_layer() -> SetResponseHeaderLayer<HeaderValue> {
-    // Use X-Content-Type-Options as the canonical header; the layer is generic
-    // over a single header, but we chain multiple layers in the router.
-    // This convenience function returns the CSP layer; the caller adds the rest.
-    SetResponseHeaderLayer::overriding(
-        HeaderName::from_static("content-security-policy"),
-        nas_csp_header(),
-    )
-}
-
 /// Convenience: all security header layers as a tuple of layers.
 /// Use in router: `.layer(security_headers_layers())`
 pub fn security_headers_layers() -> (

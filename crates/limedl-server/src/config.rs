@@ -51,16 +51,6 @@ impl ServerConfig {
         }
     }
 
-    /// Save config to JSON file
-    #[allow(dead_code)]
-    pub fn save(&self, config_path: &PathBuf) -> anyhow::Result<()> {
-        if let Some(parent) = config_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let content = serde_json::to_string_pretty(self)?;
-        std::fs::write(config_path, content)?;
-        Ok(())
-    }
 }
 
 impl Default for ServerConfig {

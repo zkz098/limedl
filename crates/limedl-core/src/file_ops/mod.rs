@@ -217,13 +217,12 @@ fn cleanup_finalizing_paths(destination_path: &Path) -> Result<()> {
         if candidate_name
             .to_string_lossy()
             .starts_with(&prefix.to_string_lossy().to_string())
+            && let Err(e) = fs::remove_file(entry.path())
         {
-            if let Err(e) = fs::remove_file(entry.path()) {
-                tracing::warn!(
-                    "Failed to clean up finalizing file {}: {e}",
-                    entry.path().display()
-                );
-            }
+            tracing::warn!(
+                "Failed to clean up finalizing file {}: {e}",
+                entry.path().display()
+            );
         }
     }
     Ok(())

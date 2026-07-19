@@ -80,10 +80,10 @@ pub async fn download_start(
     );
     if let Ok(ref task_id) = result {
         let task_id_parsed = TaskId::parse(task_id);
-        if let Ok(backend) = state.registry.dispatch(&task_id_parsed) {
-            if let Ok(snapshot) = backend.status(&task_id_parsed).await {
-                emit_snapshot_update(&state, &snapshot);
-            }
+        if let Ok(backend) = state.registry.dispatch(&task_id_parsed)
+            && let Ok(snapshot) = backend.status(&task_id_parsed).await
+        {
+            emit_snapshot_update(&state, &snapshot);
         }
     }
     result

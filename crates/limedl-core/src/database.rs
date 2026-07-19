@@ -918,7 +918,6 @@ impl Database {
     }
 
     /// Fetch all chunks for a download (caller must hold the lock).
-    #[allow(dead_code)]
     fn fetch_chunks_inner(
         &self,
         conn: &Connection,

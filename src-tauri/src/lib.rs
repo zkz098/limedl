@@ -138,7 +138,6 @@ pub fn run() {
                 app.manage(AppState {
                     registry: core.registry.clone(),
                     event_bus: core.event_bus.clone(),
-                    rate_limiter: core.rate_limiter.clone(),
                     cdn_accelerator: cdn_accelerator.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
                 });
@@ -148,7 +147,6 @@ pub fn run() {
                     let state = AppState {
                         registry: core.registry.clone(),
                         event_bus: core.event_bus.clone(),
-                        rate_limiter: core.rate_limiter.clone(),
                         cdn_accelerator: cdn_accelerator.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                     };

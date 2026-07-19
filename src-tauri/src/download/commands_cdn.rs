@@ -70,7 +70,7 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
                         tracing::debug!(
                             "cdn poll: Testing phase={phase_str} progress={current}/{total}",
                         );
-                        let _ = event_bus.publish(DownloadEvent::CdnProgress {
+                        event_bus.publish(DownloadEvent::CdnProgress {
                             phase: phase_str.to_string(),
                             current,
                             total,
@@ -104,7 +104,7 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
                         let _ = mgr.update_settings(current).await;
                     }
 
-                    let _ = event_bus.publish(DownloadEvent::CdnComplete {
+                    event_bus.publish(DownloadEvent::CdnComplete {
                         state: "Ready".to_string(),
                         active_ip: ip.map(|i| i.to_string()),
                         active_speed_mbps: speed,
@@ -124,7 +124,7 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
                         let _ = mgr.update_settings(current).await;
                     }
 
-                    let _ = event_bus.publish(DownloadEvent::CdnComplete {
+                    event_bus.publish(DownloadEvent::CdnComplete {
                         state: format!("Error: {msg}"),
                         active_ip: None,
                         active_speed_mbps: None,

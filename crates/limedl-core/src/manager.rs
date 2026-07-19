@@ -76,8 +76,6 @@ pub const MAX_TRADITIONAL_THREADS: usize = 32;
 pub struct AppState {
     pub registry: Arc<super::backend_registry::BackendRegistry>,
     pub event_bus: Arc<EventBus>,
-    #[allow(dead_code)]
-    pub rate_limiter: Arc<RateLimiter>,
     pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
 }

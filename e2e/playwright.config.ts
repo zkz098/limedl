@@ -19,7 +19,7 @@ import { defineConfig } from "@playwright/test";
  */
 
 // Determine browser for the default nas-webui project
-const defaultBrowserName = process.env.PLAYWRIGHT_BROWSER || "chromium";
+const defaultBrowserName = (process.env.PLAYWRIGHT_BROWSER || "chromium") as "chromium" | "firefox" | "webkit";
 
 export default defineConfig({
   testDir: "./tests",

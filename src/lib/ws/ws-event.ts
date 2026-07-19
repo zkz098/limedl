@@ -23,10 +23,12 @@ setEventDispatcher((eventName: string, payload: unknown) => {
   }
 });
 
+// oxlint-disable-next-line no-unnecessary-type-parameters
 export async function listen<T>(
   event: string,
   handler: (event: { payload: T }) => void,
 ): Promise<UnlistenFn> {
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const wrapped: EventCallback = (e) => handler(e as { payload: T });
 
   if (!listeners.has(event)) {

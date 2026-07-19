@@ -75,9 +75,4 @@ impl EventBus {
         self.tx.subscribe()
     }
 
-    /// Returns the number of active receivers.
-    #[allow(dead_code)]
-    pub fn receiver_count(&self) -> usize {
-        self.tx.receiver_count()
-    }
 }

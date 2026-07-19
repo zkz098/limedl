@@ -40,13 +40,17 @@ const METHOD_MAP: Record<string, string> = {
   settings_fetch_tracker_list: 'settings.fetchTrackerList',
 };
 
+function isNonNullObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function transformParams(cmd: string, args?: Record<string, unknown>): Record<string, unknown> {
   if (!args) return {};
 
   switch (cmd) {
     // download_start: unwrap { request: StartDownloadRequest } → StartDownloadRequest
     case 'download_start':
-      return (args.request as Record<string, unknown>) || args;
+      return isNonNullObject(args.request) ? args.request : args;
 
     // Commands that rename downloadId → taskId
     case 'download_pause':
@@ -60,7 +64,7 @@ function transformParams(cmd: string, args?: Record<string, unknown>): Record<st
 
     // settings_save: { settings: AppSettings } → AppSettings (flat)
     case 'settings_save':
-      return (args.settings as Record<string, unknown>) || args;
+      return isNonNullObject(args.settings) ? args.settings : args;
 
     // bt_set_speed_limit: rename params
     case 'bt_set_speed_limit':
@@ -265,10 +269,12 @@ function getWs(): Promise<WebSocket> {
       });
       socket.addEventListener('message', (event) => {
         try {
-          const data = JSON.parse(event.data as string);
+          const rawData = event.data;
+          if (typeof rawData !== 'string') return;
+          const data = JSON.parse(rawData);
           // Check if it's a JSON-RPC response (has id)
-          if (data.jsonrpc === '2.0' && data.id !== undefined && data.id !== null) {
-            const id = data.id as number;
+          if (data.jsonrpc === '2.0' && typeof data.id === 'number') {
+            const id = data.id;
             const req = pending.get(id);
             if (req) {
               clearTimeout(req.timer);
@@ -349,6 +355,7 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
 
     // Store the full message so it can be retried after reconnect
     pending.set(id, {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       resolve: resolve as (v: unknown) => void,
       reject,
       timer,

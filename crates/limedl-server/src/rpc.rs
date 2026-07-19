@@ -15,7 +15,7 @@ const MAX_MESSAGE_SIZE: usize = 4 * 1024 * 1024;
 
 /// JSON-RPC 2.0 request
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
+#[allow(dead_code)] // fields read by serde Deserialize but not accessed directly
 struct JsonRpcRequest {
     jsonrpc: String,
     id: serde_json::Value,
@@ -62,7 +62,6 @@ impl JsonRpcError {
         }
     }
 
-    #[allow(dead_code)]
     fn server_error(msg: impl Into<String>) -> Self {
         JsonRpcError {
             code: -32000,
@@ -612,7 +611,7 @@ async fn handle_bt_runtime_status(
     let bt = state.registry.get_typed::<limedl_core::IrontideBtBackend>()
         .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
     let status = bt.runtime_status();
-    Ok(serde_json::to_value(status).map_err(|e| JsonRpcError::server_error(e.to_string()))?)
+    serde_json::to_value(status).map_err(|e| JsonRpcError::server_error(e.to_string()))
 }
 
 // ── Handler: bt.setSpeedLimit ──────────────────────────────────────
@@ -645,7 +644,7 @@ async fn handle_bt_preview_torrent(
         .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
     let entries = bt.preview_torrent(source).await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
-    Ok(serde_json::to_value(entries).map_err(|e| JsonRpcError::server_error(e.to_string()))?)
+    serde_json::to_value(entries).map_err(|e| JsonRpcError::server_error(e.to_string()))
 }
 
 // ── Handler: bt.getPeers / getTrackers / getPieces / getFiles ──────

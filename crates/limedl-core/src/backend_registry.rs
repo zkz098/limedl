@@ -13,6 +13,12 @@ pub struct BackendRegistry {
     all: Vec<(TaskKind, Arc<dyn DownloadBackend>)>,
 }
 
+impl Default for BackendRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BackendRegistry {
     pub fn new() -> Self {
         Self {

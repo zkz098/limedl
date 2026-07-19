@@ -120,14 +120,6 @@ impl TestServer {
         }
     }
 
-    /// Gracefully stop the server (drops `self`, sending the shutdown signal).
-    #[allow(dead_code)]
-    pub fn close(self) {
-        // `_shutdown` is dropped here → oneshot sender is dropped → receiver
-        // gets `Canceled` → graceful shutdown future completes → server stops.
-        drop(self);
-    }
-
     /// URL for the full file download (`GET /file`).
     ///
     /// The `/file` endpoint does **not** set `Accept-Ranges` so the downloader

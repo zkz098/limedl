@@ -817,13 +817,6 @@ mod tests {
         (dir, Arc::new(file))
     }
 
-    /// Read the full content of a temp file into a `Vec<u8>`.
-    #[allow(dead_code)]
-    fn read_file(dir: &tempfile::TempDir) -> Vec<u8> {
-        let path = dir.path().join("test.bin");
-        fs::read(&path).expect("read file")
-    }
-
     // -----------------------------------------------------------------------
     // BufferPool construction & defaults
     // -----------------------------------------------------------------------

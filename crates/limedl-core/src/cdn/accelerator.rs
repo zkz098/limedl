@@ -44,6 +44,12 @@ pub struct CdnAccelerator {
     default_node: RwLock<Option<DefaultNodeResult>>,
 }
 
+impl Default for CdnAccelerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CdnAccelerator {
     /// Create a new accelerator in [`AccelState::Idle`].
     pub fn new() -> Self {
