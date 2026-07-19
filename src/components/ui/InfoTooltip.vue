@@ -2,6 +2,7 @@
 import { arrow, autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
 import { computed, nextTick, onUnmounted, ref, useId, watch } from "vue";
 import { useFloatingClose } from "../../composables/useFloatingClose";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   text: string;
@@ -185,7 +186,7 @@ onUnmounted(() => {
       type="button"
       class="info-tooltip__icon"
       :class="{ 'is-open': isOpen }"
-      aria-label="Information"
+      :aria-label="t('common.information')"
       :aria-describedby="isOpen ? tooltipId : undefined"
       @mouseenter="onMouseEnter"
       @mouseleave="onMouseLeave"

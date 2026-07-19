@@ -9,7 +9,7 @@ mod common;
 use std::time::{Duration, Instant};
 
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, black_box};
-use flareget_lib::aimd::{AimdState, AdaptiveProfile, initial_desired_threads, reduce_threads};
+use limedl_lib::aimd::{AimdState, AdaptiveProfile, initial_desired_threads, reduce_threads};
 
 // ── sample_throughput ───────────────────────────────────────────────────────
 

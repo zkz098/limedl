@@ -35,7 +35,7 @@ function handleClick(index: number) {
 </script>
 
 <template>
-  <nav class="setup-step-indicator" aria-label="Setup steps">
+  <nav class="setup-step-indicator" :aria-label="t('setupWizard.stepsLabel')">
     <div class="setup-step-indicator__header">
       <span class="setup-step-indicator__count">
         {{ t("setupWizard.stepIndicator", { current: currentStepIndex + 1, total: steps.length }) }}

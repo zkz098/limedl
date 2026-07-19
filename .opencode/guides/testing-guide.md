@@ -1,4 +1,4 @@
-# Testing Guide — flareget
+# Testing Guide — limedl
 
 > Core test patterns, mock setup, and commands. Focus on patterns, not exhaustive examples.
 
@@ -8,7 +8,7 @@
 | ---------------- | ------------------------ | -------------- | ------------------------------- |
 | Frontend unit    | `bun run test`           | Vitest + jsdom | `src/__tests__/`                |
 | Rust unit        | `cargo test --workspace` | Rust `#[test]` | 内联 `#[cfg(test)]`             |
-| Rust integration | `cargo test --workspace` | Rust `#[test]` | `crates/flareget-core/src/tests/` |
+| Rust integration | `cargo test --workspace` | Rust `#[test]` | `crates/limedl-core/src/tests/` |
 | E2E              | (pending setup)          | Playwright     | `e2e/`                          |
 
 **Before any Rust test on Windows**, initialize MSVC:
@@ -129,7 +129,7 @@ bun run test path/to/test   # 运行单个测试文件
 ### Organization
 
 - **单元测试**: 内联在源码文件底部 `#[cfg(test)] mod tests { ... }`
-- **集成测试**: `crates/flareget-core/src/tests/manager_tests.rs`（使用本地 HTTP mock 服务器）
+- **集成测试**: `crates/limedl-core/src/tests/manager_tests.rs`（使用本地 HTTP mock 服务器）
 
 ### Test Helpers (manager_tests.rs pattern)
 
@@ -152,9 +152,9 @@ fn single_file_state(path: &str, bytes: Arc<Vec<u8>>, etag: &str, delay_ms: u64)
 ```bash
 cargo test --workspace                          # 所有测试
 cargo test --workspace -- --test-threads=1      # 单线程
-cargo test -p flareget_lib                    # 仅 Rust 库
-cargo test -p flareget_lib -- manager         # 按名称过滤
-cargo test -p flareget_lib -- --nocapture     # 显示 println 输出
+cargo test -p limedl_lib                    # 仅 Rust 库
+cargo test -p limedl_lib -- manager         # 按名称过滤
+cargo test -p limedl_lib -- --nocapture     # 显示 println 输出
 ```
 
 ### Key Test Dependencies
@@ -243,7 +243,7 @@ test("add and start HTTP download", async ({ page }) => {
 
 ### 现有 Smoke Tests (`e2e/tests/smoke.spec.ts`)
 
-- `page loads and renders the app root`：验证 `#app` 挂载点、`.app-root` 元素可见、页面标题为 "Flareget"
+- `page loads and renders the app root`：验证 `#app` 挂载点、`.app-root` 元素可见、页面标题为 "Limedl"
 - `main UI elements are present on the home view`：验证侧边栏和主内容区域存在
 
 ### Tauri E2E 注意事项
@@ -275,4 +275,4 @@ CI（`.github/workflows/ci.yml`）在 Ubuntu 上运行，流水线如下：
 1. **Rust 集成测试**（`manager_tests.rs` 扩展）：覆盖完整下载流程（单流、多流、断点续传、校验和验证、取消/暂停）
 2. **E2E 测试**（`e2e/tests/`）：覆盖核心用户流程（添加下载、暂停/恢复、删除、设置页面）
 3. **Rust 单元测试**：`buffer_pool.rs`、`scheduler.rs`、`database.rs` 的关键逻辑
-4. **前端 composable 测试**：`useFlareget.ts`、`useDownloadActions.ts`、`useDownloadForm.ts`
+4. **前端 composable 测试**：`useLimedl.ts`、`useDownloadActions.ts`、`useDownloadForm.ts`

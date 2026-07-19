@@ -6,16 +6,16 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 
 **涉及文件**：
 
-- `crates/flareget-core/src/manager.rs` (1240 行) — 主管理器，下载 CRUD
-- `crates/flareget-core/src/http_executor.rs` (847 行) — HTTP 探测、单流/多流执行
-- `crates/flareget-core/src/scheduler.rs` (347 行) — 后台调度循环 + 线程重分配
-- `crates/flareget-core/src/aimd.rs` (249 行) — AIMD 吞吐量状态机
-- `crates/flareget-core/src/manifest.rs` (286 行) — Manifest/ChunkManifest 类型
-- `crates/flareget-core/src/retry.rs` (103 行) — 指数退避重试
-- `crates/flareget-core/src/file_ops/mod.rs` — 文件创建、预分配、整理、磁盘检测
-- `crates/flareget-core/src/checksum/mod.rs` — Blake3/SHA256/XXH3 校验和
-- `crates/flareget-core/src/rate_limiter.rs` (266 行) — 全局令牌桶速率限制
-- `crates/flareget-core/src/protocol.rs` (87 行) — DownloadBackend trait
+- `crates/limedl-core/src/manager.rs` (1240 行) — 主管理器，下载 CRUD
+- `crates/limedl-core/src/http_executor.rs` (847 行) — HTTP 探测、单流/多流执行
+- `crates/limedl-core/src/scheduler.rs` (347 行) — 后台调度循环 + 线程重分配
+- `crates/limedl-core/src/aimd.rs` (249 行) — AIMD 吞吐量状态机
+- `crates/limedl-core/src/manifest.rs` (286 行) — Manifest/ChunkManifest 类型
+- `crates/limedl-core/src/retry.rs` (103 行) — 指数退避重试
+- `crates/limedl-core/src/file_ops/mod.rs` — 文件创建、预分配、整理、磁盘检测
+- `crates/limedl-core/src/checksum/mod.rs` — Blake3/SHA256/XXH3 校验和
+- `crates/limedl-core/src/rate_limiter.rs` (266 行) — 全局令牌桶速率限制
+- `crates/limedl-core/src/protocol.rs` (87 行) — DownloadBackend trait
 
 ## 关键结构体
 

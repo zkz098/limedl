@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `crates/flareget-core/src/http_client_factory/mod.rs` (~50 行) — build_http_client + configure_client_builder + normalize_user_agent
+- `crates/limedl-core/src/http_client_factory/mod.rs` (~50 行) — build_http_client + configure_client_builder + normalize_user_agent
 
 ## 关键结构体
 

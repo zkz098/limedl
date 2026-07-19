@@ -1,9 +1,10 @@
 const enUS = {
   translation: {
     common: {
-      appName: "Flareget",
+      appName: "Limedl",
       close: "Close",
       cancel: "Cancel",
+      information: "Information",
       browse: "Browse",
       browsing: "Opening...",
       refresh: "Refresh",
@@ -107,6 +108,7 @@ const enUS = {
       btUploaded: "Uploaded",
       btSeeds: "Seeds",
       btLeeches: "Leeches",
+      updateAvailable: "Update available",
     },
     dialog: {
       newTransfer: "New Transfer",
@@ -128,6 +130,8 @@ const enUS = {
       batchDeleteMessage:
         "This will remove {{count}} tasks (downloaded files are kept). This action cannot be undone.",
       confirmBatchDelete: "Delete",
+      chooseFolder: "Choose destination folder",
+      chooseTorrent: "Choose torrent file",
     },
     filePicker: {
       title: "Select Files to Download",
@@ -241,6 +245,9 @@ const enUS = {
       hddHint: "HDD optimized mode: memory buffer turns random writes into sequential writes",
       flushing: "Writing to disk...",
       flushingShort: "Flushing",
+      pageSize: "Per page",
+      showAll: "All",
+      rowsPerPage: "Rows per page",
     },
     inspector: {
       kicker: "Inspector",
@@ -506,9 +513,9 @@ const enUS = {
       loggingToggleText: "Logging",
       loggingLevel: "Log level",
       loggingPath: "Log file path",
-      loggingPathPlaceholder: "Leave empty to use default (app-data/logs/flareget.log)",
+      loggingPathPlaceholder: "Leave empty to use default (app-data/logs/limedl.log)",
       loggingPathHint:
-        "Supports absolute or relative paths. Leave empty to write to logs/flareget.log under app data.",
+        "Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data.",
       loggingAutoPath: "Auto path",
       network: "Network",
       proxyTitle: "Proxy",
@@ -613,7 +620,7 @@ const enUS = {
       startupTitle: "Startup",
       autoStart: "Launch at system startup",
       autoStartHint:
-        "Start flareget automatically when you log in. The app will start minimized to the system tray.",
+        "Start Limedl automatically when you log in. The app will start minimized to the system tray.",
       aboutRestartSetupTitle: "Setup Wizard",
       aboutRestartSetupButton: "Re-run Setup Wizard",
       aboutSystemInfo: "System Information",
@@ -622,7 +629,7 @@ const enUS = {
       aboutOsVersion: "OS Version",
       aboutTauriVersion: "Tauri Runtime",
       aboutKicker: "About",
-      aboutTitle: "About flareget",
+      aboutTitle: "About Limedl",
       aboutVersion: "Current Version",
       aboutChannel: "Update Channel",
       aboutChannelStable: "Stable",
@@ -665,8 +672,14 @@ const enUS = {
       },
     },
     notifications: {
+      title: "Notifications",
+      dismiss: "Dismiss",
       downloadComplete: "Download Complete",
+      downloadCompleteBody: "{{fileName}} has finished downloading.",
       downloadFailed: "Download Failed",
+      downloadFailedBody: "{{fileName}} download failed.",
+      networkOffline: "Network connection lost. Please check your internet.",
+      networkOnline: "Network connection restored.",
     },
     errors: {
       http401: "Authentication required. Please check your credentials.",
@@ -680,8 +693,15 @@ const enUS = {
       dnsFailure: "DNS resolution failed. Could not find the server address.",
       insufficientDiskSpace: "Insufficient disk space. Free up space and try again.",
       networkError: "Network error. Please check your internet connection.",
+      permissionDenied: "Permission denied. Check file access rights.",
       serverError: "Server returned an error. Please try again later.",
       unknown: "An unknown error occurred.",
+    },
+    errorBoundary: {
+      title: "Something went wrong",
+      description: "This section encountered an error. You can try again.",
+      retry: "Retry",
+      details: "Error details",
     },
     messages: {
       noDownloads: "No downloads yet. Start one from the form.",
@@ -700,6 +720,8 @@ const enUS = {
       resumedAll: "Resumed {{count}} tasks",
       clearedCompleted: "Cleared {{count}} completed tasks",
       batchDeleted: "Deleted {{count}} tasks",
+      connectionLost: "Connection to server lost. Reconnecting...",
+      connectionRestored: "Connection to server restored.",
     },
     actions: {
       Cancel: "Cancel",
@@ -748,7 +770,7 @@ const enUS = {
       xxh3_128: "XXH3-128",
     },
     setupWizard: {
-      welcomeTitle: "Welcome to Flareget",
+      welcomeTitle: "Welcome to Limedl",
       welcomeSubtitle:
         "Let's take a minute to set up the basics. You can skip any step and change settings later.",
       startButton: "Start Setup",
@@ -769,7 +791,7 @@ const enUS = {
       completeButton: "Complete Setup",
       languageTitle: "Choose Language",
       languageDescription:
-        "Choose the display language for Flareget. You can change it anytime in settings.",
+        "Choose the display language for Limedl. You can change it anytime in settings.",
       cdnTitle: "CDN Acceleration",
       cdnDescription:
         "For files hosted on Cloudflare, automatically find and use the fastest edge node. The speed test uses some bandwidth and can be run later in settings.",
@@ -781,7 +803,7 @@ const enUS = {
       cdnActiveIp: "Active edge IP",
       rpcTitle: "Aria2 RPC",
       rpcDescription:
-        "When enabled, browser extensions like Aria2 Explorer can send downloads directly to Flareget.",
+        "When enabled, browser extensions like Aria2 Explorer can send downloads directly to Limedl.",
       rpcEnableLabel: "Enable RPC Service",
       rpcPortLabel: "RPC Port",
       rpcSecretLabel: "Secret (optional)",
@@ -796,7 +818,7 @@ const enUS = {
       directoryPlaceholder: "Choose or enter a download directory...",
       directoryBrowse: "Browse",
       appearanceTitle: "Choose Appearance",
-      appearanceDescription: "Customize how Flareget looks.",
+      appearanceDescription:         "Customize how Limedl looks.",
       autostartTitle: "System Settings",
       autostartDescription: "Auto-start, desktop notifications, and proxy configuration. You can change these anytime in Settings.",
       autostartEnableLabel: "Start automatically at login",
@@ -804,7 +826,7 @@ const enUS = {
       themeColorLabel: "Theme Color",
       backgroundOpacityLabel: "Background Opacity",
       summaryTitle: "Review Your Settings",
-      summaryDescription: "Here's what you chose. Click Complete to save and start using Flareget.",
+      summaryDescription: "Here's what you chose. Click Complete to save and start using Limedl.",
       summaryLanguage: "Language",
       summaryCdn: "CDN Acceleration",
       summaryRpc: "Aria2 RPC",
@@ -824,6 +846,8 @@ const enUS = {
       completionDone: "Setup Complete",
       completionError:
         "Some settings could not be saved. Please configure them manually in Settings.",
+      ariaLabel: "Setup wizard",
+      stepsLabel: "Setup steps",
     },
   },
 } as const;

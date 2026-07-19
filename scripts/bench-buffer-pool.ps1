@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Run the flareget buffer pool benchmarks and show HDD optimization gains.
+    Run the limedl buffer pool benchmarks and show HDD optimization gains.
 
 .DESCRIPTION
     Detects the disk type (HDD/SSD) of the target path, runs three I/O benchmarks:
@@ -40,7 +40,7 @@ if ($diskInfo) {
 }
 
 # ── 2. Ensure the target directory exists ─────────────────────────────────────
-$benchDir = Join-Path $DiskPath "flareget_bench"
+$benchDir = Join-Path $DiskPath "limedl_bench"
 New-Item -ItemType Directory -Force -Path $benchDir | Out-Null
 $Env:BENCH_DISK = $benchDir
 

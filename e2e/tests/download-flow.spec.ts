@@ -1,7 +1,7 @@
 /**
  * Download flow E2E tests
  *
- * These tests verify the complete user flow through the Tauri flareget UI:
+ * These tests verify the complete user flow through the Tauri limedl UI:
  * navigation between views, opening the download composer, URL input,
  * and form validation.
  *

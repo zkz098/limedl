@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { t } from "../../i18n";
 import type { Notification } from "../../types/notification";
 
 const props = defineProps<{
@@ -24,7 +25,7 @@ const reversed = computed(() => props.notifications.slice().reverse());
 
 <template>
   <Teleport to="body">
-    <div class="notification-toast-stack" role="region" aria-label="Notifications">
+    <div class="notification-toast-stack" role="region" :aria-label="t('notifications.title')">
       <TransitionGroup name="toast">
         <div
           v-for="notification in reversed"
@@ -42,7 +43,7 @@ const reversed = computed(() => props.notifications.slice().reverse());
           <button
             type="button"
             class="notification-toast__close"
-            aria-label="Dismiss"
+            :aria-label="t('notifications.dismiss')"
             @click="emit('dismiss', notification.id)"
           >
             <span class="i-ri-close-line" aria-hidden="true" />

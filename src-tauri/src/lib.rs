@@ -76,7 +76,7 @@ pub fn run() {
                     .path()
                     .app_local_data_dir()
                     .or_else(|_| app.path().app_data_dir())
-                    .unwrap_or_else(|_| std::env::temp_dir().join("flareget"))
+                    .unwrap_or_else(|_| std::env::temp_dir().join("limedl"))
                     .join("downloads");
 
                 let core = tauri::async_runtime::block_on(bootstrap::bootstrap(state_dir.clone()))
@@ -169,7 +169,7 @@ pub fn run() {
                         core.event_bus.clone(),
                     );
                     tauri::async_runtime::spawn(async move {
-                        if let Err(error) = rpc_server.serve(rx).await {
+                        if let Err(error) = rpc_server.serve(rx, vec![]).await {
                             tracing::error!("Aria2 RPC server stopped: {error}");
                         }
                     });
@@ -190,7 +190,7 @@ pub fn run() {
 
                 let tray = TrayIconBuilder::new()
                     .icon(app.default_window_icon().cloned().unwrap())
-                    .tooltip("flareget")
+                    .tooltip("limedl")
                     .show_menu_on_left_click(false)
                     .on_tray_icon_event(|tray, event| {
                         if let TrayIconEvent::Click {
@@ -296,6 +296,6 @@ pub fn run() {
         .run(tauri::generate_context!());
 
     if let Err(error) = run_result {
-        eprintln!("[flareget] tauri runtime failed: {error}");
+        eprintln!("[limedl] tauri runtime failed: {error}");
     }
 }

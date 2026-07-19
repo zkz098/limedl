@@ -1,8 +1,8 @@
 [package]
-name = "flareget"
+name = "limedl"
 version = "0.1.0"
 description = "Tauri v2 desktop download manager — HTTP, BitTorrent"
-authors = ["flareget contributors"]
+authors = ["limedl contributors"]
 edition = "2024"
 build = "build.rs"
 
@@ -12,14 +12,14 @@ build = "build.rs"
 # The _lib suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "flareget_lib"
+name = "limedl_lib"
 crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-flareget-core = { path = "../crates/flareget-core", features = ["aria2-rpc"] }
+limedl-core = { path = "../crates/limedl-core", features = ["aria2-rpc"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -46,7 +46,7 @@ parking_lot = "0.12"
 rand = { version = "0.8", optional = true }
 
 [features]
-test-utils = ["flareget-core/test-utils", "flareget-core/aria2-rpc", "rand"]
+test-utils = ["limedl-core/test-utils", "limedl-core/aria2-rpc", "rand"]
 
 [dev-dependencies]
 tempfile = "3"

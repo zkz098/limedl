@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "flareget",
+  "productName": "limedl",
   "version": "0.1.0",
-  "identifier": "com.zkz20.flareget",
+  "identifier": "com.zkz20.limedl",
   "build": {
     "beforeDevCommand": "pnpm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "flareget",
+        "title": "limedl",
         "width": 1440,
         "height": 920,
         "minWidth": 1180,
@@ -20,7 +20,18 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self' asset: http://asset.localhost",
+        "connect-src": "ipc: http://ipc.localhost",
+        "style-src": "'unsafe-inline' 'self'",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "font-src": "'self' asset:",
+        "script-src": "'self'",
+        "media-src": "'self'",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'self'"
+      }
     },
     "trayIcon": {
       "iconPath": "icons/32x32.png",
@@ -52,7 +63,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2RTVFQzcwMjEyMDYyQTYKUldTbVlpQWhjT3psZHJoTE13aTdHRUhsSkxJSDEyRmtuemVIVXlTMjE1RldpWDZsMlpTcW03aXoK",
-      "endpoints": ["https://github.com/zkz098/flareget/releases/latest/download/latest.json"]
+      "endpoints": ["https://github.com/zkz098/limedl/releases/latest/download/latest.json"]
     }
   }
 }

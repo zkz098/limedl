@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use criterion::{criterion_group, criterion_main, Criterion, black_box, BenchmarkId};
 use common::BenchHarness;
-use flareget_lib::RateLimiter;
+use limedl_lib::RateLimiter;
 
 // ── helpers ──────────────────────────────────────────────────────────────
 

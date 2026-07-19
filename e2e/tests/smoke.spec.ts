@@ -12,7 +12,7 @@ test.describe("smoke", () => {
     await expect(page.locator(".app-root")).toBeVisible();
 
     // Verify the page title (set in index.html)
-    await expect(page).toHaveTitle(/Flareget/i);
+    await expect(page).toHaveTitle(/Limedl/i);
   });
 
   test("main UI elements are present on the home view", async ({ page }) => {

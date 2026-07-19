@@ -3,14 +3,14 @@
 ## Workspace structure
 
 ```
-flareget/
+limedl/
 ├── Cargo.toml                 # workspace root [members: crates/*, src-tauri]
 ├── package.json               # pnpm workspace (frontend only)
 ├── src/                       # Vue 3 frontend (shared)
 ├── crates/
-│   ├── flareget-core/         # Pure download engine
+│   ├── limedl-core/         # Pure download engine
 │   │   └── src/               # 22 modules: event_bus, types, protocol, manager, bt_backend_own, ...
-│   └── flareget-server/       # NAS/headless daemon + CLI
+│   └── limedl-server/       # NAS/headless daemon + CLI
 │       └── src/
 │           ├── main.rs        # CLI entry (clap: daemon | download)
 │           ├── rpc.rs         # WebSocket JSON-RPC 2.0 dispatch
@@ -20,7 +20,7 @@ flareget/
     └── src/
         ├── lib.rs             # Tauri app entry, EventBus→Tauri bridge
         └── download/
-            ├── mod.rs         # Re-exports from flareget-core
+            ├── mod.rs         # Re-exports from limedl-core
             ├── commands.rs    # Tauri IPC commands (thin dispatch)
             ├── commands_cdn.rs
             └── aria2_rpc.rs
@@ -49,7 +49,7 @@ Vue UI → #invoke → ws-invoke.ts → WebSocket JSON-RPC
 ### CLI daemon
 
 ```
-flareget daemon → main.rs
+limedl daemon → main.rs
   → axum HTTP server (same as NAS WebUI backend)
   → serves Vue dist/ as static files
   → WebSocket RPC on /ws
@@ -58,14 +58,14 @@ flareget daemon → main.rs
 ### CLI single download
 
 ```
-flareget download <url> → main.rs
+limedl download <url> → main.rs
   → DownloadManager (temp state dir) → HTTP GET → file
   → EventBus.subscribe() → stdout progress
 ```
 
 ## Key traits
 
-### DownloadBackend (crates/flareget-core/src/protocol.rs)
+### DownloadBackend (crates/limedl-core/src/protocol.rs)
 
 ```rust
 #[async_trait]
@@ -86,7 +86,7 @@ pub trait DownloadBackend: Send + Sync {
 
 Implemented by `DownloadManager` (HTTP) and `IrontideBtBackend` (BitTorrent).
 
-### BackendRegistry (crates/flareget-core/src/backend_registry.rs)
+### BackendRegistry (crates/limedl-core/src/backend_registry.rs)
 
 Routes operations by TaskId prefix:
 - `dispatch(&TaskId)` → returns `&dyn DownloadBackend`
@@ -115,27 +115,27 @@ HTTP Basic Auth on WebSocket upgrade path (`/ws`). Credentials configured via `c
 | `pnpm run build` | Tauri desktop | `src-tauri/target/` |
 | `pnpm run build:nas` | NAS WebUI | `dist/` (copy to server) |
 | `pnpm run tauri dev` | Tauri dev | hot-reload |
-| `cargo build -p flareget-server` | CLI binary | `target/debug/flareget.exe` |
+| `cargo build -p limedl-server` | CLI binary | `target/debug/limedl.exe` |
 
 ## Module index
 
 | Module | Crate | Source |
 |--------|-------|--------|
-| event_bus | core | `crates/flareget-core/src/event_bus/mod.rs` |
-| types | core | `crates/flareget-core/src/types.rs` |
-| protocol (DownloadBackend) | core | `crates/flareget-core/src/protocol.rs` |
-| backend_registry | core | `crates/flareget-core/src/backend_registry.rs` |
-| manager (DownloadManager) | core | `crates/flareget-core/src/manager.rs` |
-| bt_backend_own (IrontideBtBackend) | core | `crates/flareget-core/src/bt_backend_own/` |
-| cdn (CdnAccelerator) | core | `crates/flareget-core/src/cdn/` |
-| database | core | `crates/flareget-core/src/database.rs` |
-| buffer_pool | core | `crates/flareget-core/src/buffer_pool.rs` |
-| scheduler + aimd | core | `crates/flareget-core/src/scheduler.rs` + `aimd.rs` |
-| rate_limiter | core | `crates/flareget-core/src/rate_limiter/` |
-| checksum | core | `crates/flareget-core/src/checksum/` |
-| file_ops | core | `crates/flareget-core/src/file_ops/` |
-| settings | core | `crates/flareget-core/src/settings.rs` |
+| event_bus | core | `crates/limedl-core/src/event_bus/mod.rs` |
+| types | core | `crates/limedl-core/src/types.rs` |
+| protocol (DownloadBackend) | core | `crates/limedl-core/src/protocol.rs` |
+| backend_registry | core | `crates/limedl-core/src/backend_registry.rs` |
+| manager (DownloadManager) | core | `crates/limedl-core/src/manager.rs` |
+| bt_backend_own (IrontideBtBackend) | core | `crates/limedl-core/src/bt_backend_own/` |
+| cdn (CdnAccelerator) | core | `crates/limedl-core/src/cdn/` |
+| database | core | `crates/limedl-core/src/database.rs` |
+| buffer_pool | core | `crates/limedl-core/src/buffer_pool.rs` |
+| scheduler + aimd | core | `crates/limedl-core/src/scheduler.rs` + `aimd.rs` |
+| rate_limiter | core | `crates/limedl-core/src/rate_limiter/` |
+| checksum | core | `crates/limedl-core/src/checksum/` |
+| file_ops | core | `crates/limedl-core/src/file_ops/` |
+| settings | core | `crates/limedl-core/src/settings.rs` |
 | Tauri commands | tauri | `src-tauri/src/download/commands.rs` |
 | Aria2 RPC | tauri | `src-tauri/src/download/aria2_rpc.rs` |
-| NAS server | server | `crates/flareget-server/src/main.rs` + `rpc.rs` |
+| NAS server | server | `crates/limedl-server/src/main.rs` + `rpc.rs` |
 | WebSocket client | frontend | `src/lib/ws/ws-invoke.ts` + `ws-event.ts` |

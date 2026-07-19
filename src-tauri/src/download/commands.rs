@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::{Context, anyhow};
 use tauri::State;
 
-use flareget_core::{
+use limedl_core::{
     error::extract_kind_from_anyhow,
     event_bus::DownloadEvent,
     lock,
@@ -278,8 +278,9 @@ pub async fn settings_save(
                         new_rpc,
                         state.event_bus.clone(),
                     );
+                    let cors_origins = new_rpc.cors_allowed_origins.clone();
                     tauri::async_runtime::spawn(async move {
-                        if let Err(error) = rpc_server.serve(rx).await {
+                        if let Err(error) = rpc_server.serve(rx, cors_origins).await {
                             tracing::error!("Aria2 RPC server stopped: {error}");
                         }
                     });
@@ -307,7 +308,7 @@ pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandRes
             let response = reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::limited(5))
                 .timeout(Duration::from_secs(15))
-                .user_agent("flareget/0.1")
+                .user_agent("limedl/0.1")
                 .build()
                 .context("创建 HTTP 客户端失败")?
                 .get(tracker_list_url)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, type Component } from "vue";
 import { onKeyStroke } from "@vueuse/core";
-import logoUrl from "../../assets/flareget-logo.svg";
+import logoUrl from "../../assets/limedl-logo.svg";
 
 import { useI18n } from "../../i18n";
 import { useSetupWizard } from "../../composables/useSetupWizard";
@@ -27,7 +27,7 @@ const props = withDefaults(
     startFromStep?: number;
   }>(),
   {
-    appName: "Flareget",
+    appName: "Limedl",
     appVersion: "",
     startFromStep: 0,
   },
@@ -122,7 +122,7 @@ onKeyStroke("Escape", () => {
 </script>
 
 <template>
-  <div class="setup-wizard" role="dialog" aria-modal="true" aria-label="Setup wizard">
+  <div class="setup-wizard" role="dialog" aria-modal="true" :aria-label="t('setupWizard.ariaLabel')">
     <div class="setup-wizard__overlay" />
     <div class="setup-wizard__panel">
       <SetupStepIndicator
@@ -134,7 +134,7 @@ onKeyStroke("Escape", () => {
       <div class="setup-wizard__body">
         <header class="setup-wizard__header">
           <div class="setup-wizard__brand">
-            <img :src="logoUrl" class="setup-wizard__brand-logo" alt="Flareget" />
+            <img :src="logoUrl" class="setup-wizard__brand-logo" alt="Limedl" />
             <span class="setup-wizard__brand-name">{{ appName }}</span>
             <span class="setup-wizard__brand-version">{{ appVersion }}</span>
           </div>

@@ -6,12 +6,12 @@
 
 **涉及文件**：
 
-- `crates/flareget-core/src/cdn/mod.rs` (9 行) — 模块导出
-- `crates/flareget-core/src/cdn/accelerator.rs` (408 行) — CdnAccelerator 状态机
+- `crates/limedl-core/src/cdn/mod.rs` (9 行) — 模块导出
+- `crates/limedl-core/src/cdn/accelerator.rs` (408 行) — CdnAccelerator 状态机
 - `src-tauri/src/download/cdn/commands.rs` (282 行) — Tauri CDN 命令
-- `crates/flareget-core/src/cdn/ip_ranges.rs` (369 行) — Cloudflare IP 范围抓取/解析
-- `crates/flareget-core/src/cdn/resolver.rs` (195 行) — DNS 重写 + 加速 HTTP 客户端构建
-- `crates/flareget-core/src/cdn/speed_test.rs` (662 行) — 速度测试逻辑
+- `crates/limedl-core/src/cdn/ip_ranges.rs` (369 行) — Cloudflare IP 范围抓取/解析
+- `crates/limedl-core/src/cdn/resolver.rs` (195 行) — DNS 重写 + 加速 HTTP 客户端构建
+- `crates/limedl-core/src/cdn/speed_test.rs` (662 行) — 速度测试逻辑
 
 ## 关键结构体
 

@@ -1,5 +1,5 @@
 {
-  "name": "flareget",
+  "name": "limedl",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
-    "test:e2e:ui": "playwright test --config e2e/playwright.config.ts --ui"
+    "test:e2e:ui": "playwright test --config e2e/playwright.config.ts --ui",
+    "test:e2e:nas": "playwright test --config e2e/playwright.config.ts --project=nas-webui",
+    "test:e2e:nas:ui": "playwright test --config e2e/playwright.config.ts --project=nas-webui --ui",
+    "test:e2e:nas:real": "cross-env LIMEDL_E2E_REAL_SERVER=1 playwright test --config e2e/playwright.config.ts --project=nas-webui e2e/tests/integration-real.spec.ts"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.8.0",
@@ -40,6 +43,7 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "^4.1.10",
     "@vue/test-utils": "^2.4.11",
+    "cross-env": "^10.1.0",
     "jsdom": "^29.1.1",
     "oxfmt": "^0.54.0",
     "oxlint": "^1.69.0",

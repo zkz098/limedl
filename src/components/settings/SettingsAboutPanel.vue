@@ -9,7 +9,7 @@ import SettingsSection from "./SettingsSection.vue";
 import SettingsField from "./SettingsField.vue";
 import UiButton from "../ui/UiButton.vue";
 
-const GITHUB_REPO_URL = "https://github.com/zkz098/flareget";
+const GITHUB_REPO_URL = "https://github.com/zkz098/limedl";
 
 async function openGitHub() {
   try {
@@ -138,13 +138,13 @@ const showVersionBadge = computed(() => {
     <!-- Logo + App Name -->
     <div class="flex flex-col items-center gap-4 py-4">
       <img
-        src="../../../src-tauri/icons/flareget-logo.svg"
-        alt="flareget"
+        src="../../../src-tauri/icons/limedl-logo.svg"
+        alt="Limedl"
         class="about-logo w-20 h-20 rounded-xl object-contain"
       />
       <div class="flex flex-col items-center gap-1">
         <span class="text-lg font-bold text-[var(--color-heading)]">{{
-          appName || "flareget"
+          appName || "Limedl"
         }}</span>
         <span class="text-sm text-[var(--color-text-muted)]">v{{ appVersion || "0.1.0" }}</span>
       </div>

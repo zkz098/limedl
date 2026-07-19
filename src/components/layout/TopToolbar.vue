@@ -310,16 +310,17 @@ function closeColumnMenu() {
         v-if="searchQuery"
         type="button"
         class="toolbar-search__clear absolute right-[0.375rem] top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5 border-none rounded-sm bg-transparent cursor-pointer text-xs p-0"
-        aria-label="Clear search"
+        :aria-label="t('queue.clearSearch')"
         @click="handleSearchClear"
       >
         <span class="i-ri-close-line" aria-hidden="true" />
       </button>
     </div>
 
-    <div v-if="btStatus" class="toolbar-bt flex items-center gap-2 flex-shrink-0">
+    <div v-if="btStatus" class="toolbar-bt flex items-center gap-2 flex-shrink-0" data-testid="toolbar-bt-status">
       <span
         class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap"
+        data-testid="toolbar-bt-dht-count"
         :title="t('toolbar.dhtNodes')"
       >
         <span class="i-ri-global-line" aria-hidden="true" />
@@ -327,6 +328,7 @@ function closeColumnMenu() {
       </span>
       <span
         class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap"
+        data-testid="toolbar-bt-upload-speed"
         :title="t('toolbar.uploadSpeed')"
       >
         <span class="i-ri-upload-2-line" aria-hidden="true" />

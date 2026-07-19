@@ -1,9 +1,9 @@
-// Tauri-specific modules — everything else lives in flareget-core
+// Tauri-specific modules — everything else lives in limedl-core
 pub(crate) mod commands;
 pub(crate) mod commands_cdn;
 
-// Re-export everything from flareget_core so existing import paths in lib.rs still work.
-pub use flareget_core::*;
+// Re-export everything from limedl_core so existing import paths in lib.rs still work.
+pub use limedl_core::*;
 
 // Re-export Tauri-specific commands
 pub use commands::{

@@ -6,8 +6,8 @@
 
 **涉及文件**：
 
-- `crates/flareget-core/src/settings.rs` (365 行) — 设置加载/验证/持久化 + HTTP 客户端构建
-- `crates/flareget-core/src/types.rs` (970 行) — AppSettings 及所有子设置结构体定义
+- `crates/limedl-core/src/settings.rs` (365 行) — 设置加载/验证/持久化 + HTTP 客户端构建
+- `crates/limedl-core/src/types.rs` (970 行) — AppSettings 及所有子设置结构体定义
 
 ## 关键结构体
 

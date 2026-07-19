@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import DownloadQueueTable from "../../components/flareget/DownloadQueueTable.vue";
+import DownloadQueueTable from "../../components/limedl/DownloadQueueTable.vue";
 import type { DownloadSummary, ViewOptions, MultiSelectState } from "../../types/download";
 
 // ── Mocks ──

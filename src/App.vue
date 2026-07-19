@@ -1,21 +1,40 @@
 <script setup lang="ts">
-import { computed, onErrorCaptured, onMounted, ref, useTemplateRef, watch, type Ref } from "vue";
+import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onUnmounted, ref, watch, type Ref } from "vue";
 import { getVersion } from "@tauri-apps/api/app";
 import { filterDownloads } from "./lib/download-filter";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
-import DownloadComposer from "./components/flareget/DownloadComposer.vue";
-import DownloadQueueTable from "./components/flareget/DownloadQueueTable.vue";
-import DetailPanel from "./components/flareget/DetailPanel.vue";
-import LabsPage from "./components/labs/LabsPage.vue";
-import SettingsPage from "./components/settings/SettingsPage.vue";
-import SetupWizard from "./components/setup/SetupWizard.vue";
+import DownloadComposer from "./components/limedl/DownloadComposer.vue";
+import DownloadQueueTable from "./components/limedl/DownloadQueueTable.vue";
+import DetailPanel from "./components/limedl/DetailPanel.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
-import { useFlareget } from "./composables/useFlareget";
-import type { UseFlaregetOptions } from "./composables/useFlareget";
+import ErrorBoundary from "./components/ui/ErrorBoundary.vue";
+
+const SettingsPage = defineAsyncComponent({
+  loader: () => import("./components/settings/SettingsPage.vue"),
+  loadingComponent: {
+    template: '<div class="async-loader"><div class="async-loader__spinner"></div></div>',
+  },
+});
+
+const LabsPage = defineAsyncComponent({
+  loader: () => import("./components/labs/LabsPage.vue"),
+  loadingComponent: {
+    template: '<div class="async-loader"><div class="async-loader__spinner"></div></div>',
+  },
+});
+
+const SetupWizard = defineAsyncComponent({
+  loader: () => import("./components/setup/SetupWizard.vue"),
+  loadingComponent: {
+    template: '<div class="async-loader"><div class="async-loader__spinner"></div></div>',
+  },
+});
+import { useLimedl } from "./composables/useLimedl";
+import type { UseLimedlOptions } from "./composables/useLimedl";
 import { useIoBaseline } from "./composables/useIoBaseline";
 import { useOverclock } from "./composables/useOverclock";
 import { useCategoryCounts } from "./composables/useCategoryCounts";
@@ -23,8 +42,10 @@ import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
 import { useAppSettings } from "./composables/useAppSettings";
 import { useViewNavigation } from "./composables/useViewNavigation";
+import type { PersistablePage } from "./composables/useViewNavigation";
 import { useMultiSelect } from "./composables/useMultiSelect";
 import { useAppUpdate } from "./composables/useAppUpdate";
+import { useNetworkStatus } from "./composables/useNetworkStatus";
 import { DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
 import NotificationToast from "./components/ui/NotificationToast.vue";
 import ModalOverlay from "./components/layout/ModalOverlay.vue";
@@ -32,13 +53,13 @@ import type { AppSettings, SortDirection, SortKey } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
 import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
 
-// Multi-select refs (declared before flaregetOptions closure)
+// Multi-select refs (declared before limedlOptions closure)
 let multiSelectMode = ref(false);
 let selectedIds = ref<Set<string>>(new Set());
 let showBatchDeleteDialog = ref(false);
 let removedDownloadIds = ref<string[]>([]);
 
-const flaregetOptions: UseFlaregetOptions = {
+const limedlOptions: UseLimedlOptions = {
   onDownloadFailed: (fileName, reason) => {
     notifyError(
       t("messages.downloadFailed", {
@@ -105,7 +126,7 @@ const {
   submitStart,
   autoFillFromClipboard,
   setNotificationsEnabled,
-} = useFlareget(flaregetOptions);
+} = useLimedl(limedlOptions);
 
 const { categoryCounts, sidebarStats } = useCategoryCounts(downloads);
 
@@ -142,8 +163,8 @@ const sortDirection = ref<SortDirection>("desc");
 const compactView = ref(false);
 const visibleColumns = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 const pendingPermanentDeleteId = ref<string | null>(null);
-const settingsPageRef = useTemplateRef<InstanceType<typeof SettingsPage>>("settingsPage");
-const labsPageRef = useTemplateRef<InstanceType<typeof LabsPage>>("labsPage");
+const settingsPageRef = ref<PersistablePage | null>(null);
+const labsPageRef = ref<PersistablePage | null>(null);
 
 const { appSettings, applyAppearanceSettings } = useAppSettings({
   sortKey,
@@ -168,7 +189,7 @@ const setupStartStep = computed(() => {
 });
 
 // Check localStorage cache first for instant decision
-const cachedSetupDone = localStorage.getItem("flareget.setupCompleted");
+const cachedSetupDone = localStorage.getItem("limedl.setupCompleted");
 if (cachedSetupDone === "true") {
   showSetupWizard.value = false;
 }
@@ -176,7 +197,7 @@ if (cachedSetupDone === "true") {
 function checkSetupState() {
   if (appSettings.value) {
     if (appSettings.value.setupCompleted) {
-      localStorage.setItem("flareget.setupCompleted", "true");
+      localStorage.setItem("limedl.setupCompleted", "true");
       showSetupWizard.value = false;
     } else if (showSetupWizard.value === null) {
       setupInitialSettings.value = appSettings.value;
@@ -189,7 +210,7 @@ watch(appSettings, checkSetupState);
 
 async function handleSetupCompleted(settings: AppSettings) {
   // Cache in localStorage for fast boot
-  localStorage.setItem("flareget.setupCompleted", "true");
+  localStorage.setItem("limedl.setupCompleted", "true");
   // Update the global appSettings
   appSettings.value = settings;
   // Apply appearance settings (theme, color mode) to document
@@ -222,7 +243,7 @@ async function handleRestartSetup() {
   // Restart uses the last-persisted settings as the wizard's starting point.
   // Unsaved draft changes in the settings panel are intentionally discarded —
   // the user is explicitly choosing to re-run the setup wizard.
-  localStorage.removeItem("flareget.setupCompleted");
+  localStorage.removeItem("limedl.setupCompleted");
   currentSettings.setupCompleted = false;
   currentSettings.lastSetupStep = null;
 
@@ -286,6 +307,27 @@ onMounted(() => {
       showSetupWizard.value = false;
     }
   }, 5000);
+
+  // ── Network & connection monitoring ──
+  // Browser online/offline detection (works in all modes)
+  const networkStatus = useNetworkStatus();
+  networkStatus.start();
+  onUnmounted(() => networkStatus.stop());
+
+  // WebSocket reconnection monitoring (NAS mode only)
+  // Shows toast when the WS link drops / reconnects
+  if (import.meta.env.MODE === 'nas') {
+    import('./lib/ws/ws-invoke').then(({ connectionStatus }) => {
+      // eslint-disable-next-line vue/no-setup-props-destructure
+      watch(connectionStatus, (status, prev) => {
+        if (status === 'reconnecting' && prev !== 'reconnecting') {
+          useNotification().notifyWarning(t('messages.connectionLost'), 10000);
+        } else if (status === 'connected' && prev === 'reconnecting') {
+          useNotification().notifySuccess(t('messages.connectionRestored'));
+        }
+      });
+    });
+  }
 });
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
@@ -508,68 +550,76 @@ watch(
         <!-- Home view: table + detail panel -->
         <template v-if="currentView === 'home'">
           <div class="table-wrapper">
-            <DownloadQueueTable
-              :downloads="filteredDownloads"
-              :selected-id="selectedId"
-              :task-action-name="actionName"
-              :is-auto-refreshing="isAutoRefreshing"
-              :view-options="viewOptions"
-              :multi-select="multiSelectState"
-              @copy-link="runCopyLink"
-              @delete-task="runDeleteTask"
-              @delete-task-permanently="requestPermanentDelete"
-              @open-in-explorer="runOpenInExplorer"
-              @pause-or-resume="handleTaskPauseOrResume"
-              @select="selectDownload"
-              @toggle-select="handleToggleSelect"
-            />
+            <ErrorBoundary>
+              <DownloadQueueTable
+                :downloads="filteredDownloads"
+                :selected-id="selectedId"
+                :task-action-name="actionName"
+                :is-auto-refreshing="isAutoRefreshing"
+                :view-options="viewOptions"
+                :multi-select="multiSelectState"
+                @copy-link="runCopyLink"
+                @delete-task="runDeleteTask"
+                @delete-task-permanently="requestPermanentDelete"
+                @open-in-explorer="runOpenInExplorer"
+                @pause-or-resume="handleTaskPauseOrResume"
+                @select="selectDownload"
+                @toggle-select="handleToggleSelect"
+              />
+            </ErrorBoundary>
           </div>
 
           <!-- Collapsible bottom detail panel -->
-          <DetailPanel
-            v-if="selectedId"
-            :selected-overview="selectedOverview"
-            :selected-snapshot="selectedSnapshot"
-            :selected-id="selectedId"
-            :can-pause="canPause"
-            :can-resume="canResume"
-            :can-cancel="canCancel"
-            :action-name="actionName"
-            :is-refreshing-status="isRefreshingStatus"
-            :show-detail-info="showDetailInfo"
-            @close="selectDownload(null)"
-            @refresh="handleRefreshSelected"
-            @pause="runPause"
-            @resume="runResume"
-            @cancel="runCancel"
-          />
+          <ErrorBoundary>
+            <DetailPanel
+              v-if="selectedId"
+              :selected-overview="selectedOverview"
+              :selected-snapshot="selectedSnapshot"
+              :selected-id="selectedId"
+              :can-pause="canPause"
+              :can-resume="canResume"
+              :can-cancel="canCancel"
+              :action-name="actionName"
+              :is-refreshing-status="isRefreshingStatus"
+              :show-detail-info="showDetailInfo"
+              @close="selectDownload(null)"
+              @refresh="handleRefreshSelected"
+              @pause="runPause"
+              @resume="runResume"
+              @cancel="runCancel"
+            />
+          </ErrorBoundary>
         </template>
       </main>
     </div>
 
     <!-- Settings & Labs as centered modal overlays -->
     <ModalOverlay :model-value="currentView === 'settings'" @close="navigateTo('home')">
-      <SettingsPage
-        ref="settingsPage"
-        :settings="appSettings"
-        :game-mode="gameMode"
-        :buffer-usage-bytes="bufferUsageBytes"
-        :buffer-limit-bytes="bufferLimitBytes"
-        :active-slots="activeSlots"
-        :max-slots="maxSlots"
-        :queued-count="queuedCount"
-        @dirty-change="handleSettingsDirtyChange"
-        @saved="handleSettingsSaved"
-        @restart-setup="handleRestartSetup"
-      />
+      <ErrorBoundary>
+        <SettingsPage
+          ref="settingsPage"
+          :settings="appSettings"
+          :game-mode="gameMode"
+          :buffer-usage-bytes="bufferUsageBytes"
+          :buffer-limit-bytes="bufferLimitBytes"
+          :active-slots="activeSlots"
+          :max-slots="maxSlots"
+          :queued-count="queuedCount"
+          @dirty-change="handleSettingsDirtyChange"
+          @saved="handleSettingsSaved"
+          @restart-setup="handleRestartSetup"
+        />
+      </ErrorBoundary>
     </ModalOverlay>
     <ModalOverlay :model-value="currentView === 'labs'" @close="navigateTo('home')">
-      <LabsPage
-        ref="labsPage"
-        :settings="appSettings"
-        @dirty-change="handleLabsDirtyChange"
-        @saved="handleLabsSaved"
-      />
+      <ErrorBoundary>
+        <LabsPage
+          ref="labsPage"
+          :settings="appSettings"
+          @dirty-change="handleLabsDirtyChange"
+          @saved="handleLabsSaved"
+        />
+      </ErrorBoundary>
     </ModalOverlay>
 
     <!-- Dialogs -->
@@ -770,6 +820,37 @@ watch(
 @media (prefers-reduced-motion: reduce) {
   .wizard-leave-active {
     transition: none;
+  }
+}
+</style>
+
+<style>
+/* ── Async component loading spinner (global — used by defineAsyncComponent loadingComponent) ── */
+.async-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.async-loader__spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: async-loader-spin 0.8s linear infinite;
+}
+
+@keyframes async-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .async-loader__spinner {
+    animation: none;
   }
 }
 </style>

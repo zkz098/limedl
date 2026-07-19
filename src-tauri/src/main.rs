@@ -7,5 +7,5 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
-    flareget_lib::run()
+    limedl_lib::run()
 }

@@ -1,4 +1,4 @@
-//! Shared benchmark harness for flareget benchmarks.
+//! Shared benchmark harness for limedl benchmarks.
 //!
 //! Provides a [`BenchHarness`] struct that owns a multi-threaded tokio runtime
 //! and a local HTTP [`TestServer`] serving deterministic random content.
@@ -6,7 +6,7 @@
 //! # Usage
 //!
 //! ```ignore
-//! use flareget_lib::test_harness::TestServer;
+//! use limedl_lib::test_harness::TestServer;
 //! use common::BenchHarness;
 //!
 //! let harness = BenchHarness::new(1024 * 1024);
@@ -14,7 +14,7 @@
 //! ```
 
 use std::sync::Arc;
-use flareget_lib::test_harness::TestServer;
+use limedl_lib::test_harness::TestServer;
 
 /// Benchmark harness owning a tokio runtime and a local test server.
 ///

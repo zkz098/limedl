@@ -22,6 +22,7 @@ const errorPatterns: [RegExp, string][] = [
   [/timed out|timeout/i, "errors.connectionTimeout"],
   [/dns|name resolution/i, "errors.dnsFailure"],
   [/insufficient disk space|disk space/i, "errors.insufficientDiskSpace"],
+  [/permission denied/i, "errors.permissionDenied"],
   [/no route to host|network is unreachable|network error/i, "errors.networkError"],
   [/internal server error|server error/i, "errors.serverError"],
 ];

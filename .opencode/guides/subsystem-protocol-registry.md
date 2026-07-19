@@ -6,8 +6,8 @@
 
 **涉及文件**：
 
-- `crates/flareget-core/src/protocol.rs` — DownloadBackend trait + HTTP 适配器
-- `crates/flareget-core/src/backend_registry.rs` — BackendRegistry 路由表
+- `crates/limedl-core/src/protocol.rs` — DownloadBackend trait + HTTP 适配器
+- `crates/limedl-core/src/backend_registry.rs` — BackendRegistry 路由表
 
 ## 关键结构体
 

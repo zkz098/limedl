@@ -1,8 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/flareget-core",
-    "crates/flareget-server",
+    "crates/limedl-core",
+    "crates/limedl-server",
     "src-tauri",
 ]
 

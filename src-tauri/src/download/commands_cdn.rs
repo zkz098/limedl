@@ -3,7 +3,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use flareget_core::{
+use limedl_core::{
     AppState, DownloadManager, DownloadEvent,
     cdn::{
         accelerator::AccelState,

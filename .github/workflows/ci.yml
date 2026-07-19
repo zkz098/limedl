@@ -34,8 +34,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: cargo check --workspace
       - run: cargo clippy --workspace -- -D warnings
-      - run: cargo test --manifest-path crates/flareget-core/Cargo.toml --features "test-utils,aria2-rpc"
-      - run: cargo test --manifest-path crates/flareget-server/Cargo.toml
+      - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
+      - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
       - run: cargo test --manifest-path src-tauri/Cargo.toml
 
   bench-rust:

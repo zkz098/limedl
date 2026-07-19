@@ -109,9 +109,9 @@ jobs:
         with:
           # Create release only for tag pushes; manual dispatch builds without release
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: "Flareget ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}"
+          releaseName: "Limedl ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}"
           releaseBody: |
-            ## Flareget ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}
+            ## Limedl ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}
 
             ### Downloads
 

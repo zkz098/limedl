@@ -1,6 +1,6 @@
-# UI Design Guide — flareget
+# UI Design Guide — limedl
 
-> Design tokens, patterns, and conventions for the flareget frontend (Vue 3 + TypeScript + UnoCSS).
+> Design tokens, patterns, and conventions for the limedl frontend (Vue 3 + TypeScript + UnoCSS).
 
 ## Tech Stack
 

@@ -12,6 +12,7 @@ defineProps<{
     <div class="ui-progress__track">
       <div
         class="ui-progress__value"
+        data-testid="task-progress-bar"
         :class="{ 'ui-progress__value--indeterminate': indeterminate }"
         :style="indeterminate ? undefined : { width: `${Math.max(0, Math.min(value, 100))}%` }"
       />

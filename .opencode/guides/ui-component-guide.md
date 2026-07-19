@@ -1,4 +1,4 @@
-# UI Component Guide — flareget
+# UI Component Guide — limedl
 
 > Complete catalog of shared UI components. All imports are relative to `src/components/`.
 
@@ -487,7 +487,7 @@ Key-value stat display row for sidebar panels.
 
 ## Domain Components
 
-### DetailPanel (`src/components/flareget/`)
+### DetailPanel (`src/components/limedl/`)
 
 Collapsible detail panel for the selected download task. Shows filename, state badge, CDN badge, action buttons (refresh/pause/resume/cancel/close), and the `DownloadInspector` body.
 

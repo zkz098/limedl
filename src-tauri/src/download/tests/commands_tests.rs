@@ -4,13 +4,13 @@ use anyhow::anyhow;
 use ntest::timeout;
 use tempfile::tempdir;
 
-use flareget_core::error::DownloadError;
-use flareget_core::event_bus::EventBus;
-use flareget_core::types::{
+use limedl_core::error::DownloadError;
+use limedl_core::event_bus::EventBus;
+use limedl_core::types::{
     StartDownloadRequest, TaskKind,
 };
-use flareget_core::RateLimiter;
-use flareget_core::DownloadManager;
+use limedl_core::RateLimiter;
+use limedl_core::DownloadManager;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 

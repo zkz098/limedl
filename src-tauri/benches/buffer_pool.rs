@@ -25,7 +25,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use common::BenchHarness;
-use flareget_lib::buffer_pool::{BufferPool, DownloadBuffer};
+use limedl_lib::buffer_pool::{BufferPool, DownloadBuffer};
 
 // ── Configuration ────────────────────────────────────────────────────────────
 // 100 MB total data, written in 1 MB chunks.
@@ -65,7 +65,7 @@ fn bench_double_hdd(c: &mut Criterion) {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
                     let file_path =
-                        format!("{path}/flareget_bench_hdd_{}.tmp", uuid::Uuid::new_v4());
+                        format!("{path}/limedl_bench_hdd_{}.tmp", uuid::Uuid::new_v4());
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = DownloadBuffer::new(pool.clone(), slot, file.clone());
 
@@ -110,7 +110,7 @@ fn bench_local_ssd(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path =
-                        format!("{path}/flareget_bench_ssd_{}.tmp", uuid::Uuid::new_v4());
+                        format!("{path}/limedl_bench_ssd_{}.tmp", uuid::Uuid::new_v4());
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = DownloadBuffer::new_local(8 * 1024 * 1024, file.clone());
 
@@ -153,7 +153,7 @@ fn bench_direct_write(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path =
-                        format!("{path}/flareget_bench_direct_{}.tmp", uuid::Uuid::new_v4());
+                        format!("{path}/limedl_bench_direct_{}.tmp", uuid::Uuid::new_v4());
                     let mut file = File::create(&file_path).unwrap();
 
                     for i in 0..CHUNK_COUNT {
@@ -219,7 +219,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
                     let file_path = format!(
-                        "{path}/flareget_bench_mshdd_{}.tmp",
+                        "{path}/limedl_bench_mshdd_{}.tmp",
                         uuid::Uuid::new_v4()
                     );
                     let file = Arc::new(File::create(&file_path).unwrap());
@@ -259,7 +259,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = format!(
-                        "{path}/flareget_bench_msssd_{}.tmp",
+                        "{path}/limedl_bench_msssd_{}.tmp",
                         uuid::Uuid::new_v4()
                     );
                     let file = Arc::new(File::create(&file_path).unwrap());
@@ -300,7 +300,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = format!(
-                        "{path}/flareget_bench_msdirect_{}.tmp",
+                        "{path}/limedl_bench_msdirect_{}.tmp",
                         uuid::Uuid::new_v4()
                     );
                     let file = Arc::new(File::create(&file_path).unwrap());

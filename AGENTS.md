@@ -1,4 +1,4 @@
-# AGENTS.md — flareget
+# AGENTS.md — limedl
 
 > Compact instruction file for OpenCode sessions. Only includes what an agent would likely miss.
 
@@ -20,7 +20,7 @@ Skipping this will cause linker errors (`LINK : fatal error LNK1181`).
 - **Type-check**: `pnpm exec vue-tsc --noEmit` (Vue type-checking, separate from build)
 - **Test (frontend)**: `pnpm run test` (Vitest + jsdom)
 - **Test (Rust - workspace)**: `cargo test --workspace`
-- **Test (Rust - core only)**: `cargo test --manifest-path crates/flareget-core/Cargo.toml`
+- **Test (Rust - core only)**: `cargo test --manifest-path crates/limedl-core/Cargo.toml`
 - **Test (Rust - Tauri)**: `cargo test --manifest-path src-tauri/Cargo.toml --features test-utils`
 - **Build order**: `vue-tsc --noEmit` then `vite build` (enforced by `pnpm run build`)
 
@@ -29,26 +29,26 @@ Skipping this will cause linker errors (`LINK : fatal error LNK1181`).
 ### Workspace layout (3 crates)
 
 ```
-flareget/
+limedl/
 ├── crates/
-│   ├── flareget-core/       # Pure download engine (zero UI deps)
-│   └── flareget-server/     # axum HTTP/WS server + CLI binary
+│   ├── limedl-core/       # Pure download engine (zero UI deps)
+│   └── limedl-server/     # axum HTTP/WS server + CLI binary
 ├── src-tauri/               # Tauri v2 desktop app (thin shell)
 ├── src/                     # Vue 3 frontend (shared across targets)
 └── Cargo.toml               # workspace [members]
 ```
 
-- **`flareget-core`**: Download engine — manager, scheduler, buffer pool, CDN, BT backend, settings, database, event bus, checksum, rate limiter. All modules live in `crates/flareget-core/src/`.
-- **`flareget-server`**: NAS/headless daemon. Axum HTTP server + WebSocket JSON-RPC 2.0 + CLI (`daemon` / `download` subcommands) + HTTP Basic Auth + static file serving. Entry: `crates/flareget-server/src/main.rs`.
-- **`src-tauri`**: Tauri v2 desktop app. Thin commands layer (`commands.rs`, `commands_cdn.rs`, `aria2_rpc.rs`) that dispatches to `flareget_core::BackendRegistry`. Entry: `src-tauri/src/lib.rs`.
+- **`limedl-core`**: Download engine — manager, scheduler, buffer pool, CDN, BT backend, settings, database, event bus, checksum, rate limiter. All modules live in `crates/limedl-core/src/`.
+- **`limedl-server`**: NAS/headless daemon. Axum HTTP server + WebSocket JSON-RPC 2.0 + CLI (`daemon` / `download` subcommands) + HTTP Basic Auth + static file serving. Entry: `crates/limedl-server/src/main.rs`.
+- **`src-tauri`**: Tauri v2 desktop app. Thin commands layer (`commands.rs`, `commands_cdn.rs`, `aria2_rpc.rs`) that dispatches to `limedl_core::BackendRegistry`. Entry: `src-tauri/src/lib.rs`.
 
 ### Multi-platform support
 
 | Target | Frontend | Backend | Build |
 |--------|----------|---------|-------|
 | Tauri Desktop | Vue 3 via Tauri IPC (`#invoke` → `@tauri-apps/api/core`) | `src-tauri/` | `pnpm run tauri dev` / `pnpm run tauri build` |
-| NAS WebUI | Same Vue 3 via WebSocket (`#invoke` → `ws-invoke.ts`) | `flareget-server` | `pnpm run build:nas` |
-| CLI | N/A | `flareget-server` | `flareget daemon` / `flareget download <url>` |
+| NAS WebUI | Same Vue 3 via WebSocket (`#invoke` → `ws-invoke.ts`) | `limedl-server` | `pnpm run build:nas` |
+| CLI | N/A | `limedl-server` | `limedl daemon` / `limedl download <url>` |
 
 ### Frontend dual-mode (`#invoke` / `#event`)
 
@@ -63,7 +63,7 @@ Switched via `vite.config.ts` resolve.alias based on `mode === "nas"`.
 
 ### Event system (EventBus)
 
-`EventBus` (`crates/flareget-core/src/event_bus/mod.rs`) is a pure `tokio::sync::broadcast::channel<DownloadEvent>` with zero UI dependency. Each adapter subscribes independently:
+`EventBus` (`crates/limedl-core/src/event_bus/mod.rs`) is a pure `tokio::sync::broadcast::channel<DownloadEvent>` with zero UI dependency. Each adapter subscribes independently:
 
 - **Tauri**: `src-tauri/src/lib.rs` spawns a background task that subscribes to EventBus and calls `app_handle.emit()` for each event type
 - **NAS WebSocket**: `rpc.rs` spawns a per-connection task that subscribes to EventBus and relays events over WebSocket
@@ -71,7 +71,7 @@ Switched via `vite.config.ts` resolve.alias based on `mode === "nas"`.
 
 ### Protocol routing (BackendRegistry + DownloadBackend)
 
-`DownloadBackend` trait (`crates/flareget-core/src/protocol.rs`) defines the unified API for all download protocols. `BackendRegistry` (`crates/flareget-core/src/backend_registry.rs`) routes by `TaskId` prefix:
+`DownloadBackend` trait (`crates/limedl-core/src/protocol.rs`) defines the unified API for all download protocols. `BackendRegistry` (`crates/limedl-core/src/backend_registry.rs`) routes by `TaskId` prefix:
 
 - `http:` prefix → `DownloadManager` (HTTP downloads)
 - `bt:` prefix → `IrontideBtBackend` (BitTorrent)
@@ -83,14 +83,14 @@ Tauri commands and WebSocket RPC both dispatch through the same registry.
 **Tauri** (`src-tauri/src/lib.rs`):
 state dirs → RateLimiter → EventBus → DownloadManager → IrontideBtBackend → CdnAccelerator → BackendRegistry → optional Aria2 RPC → app.manage(AppState)
 
-**NAS daemon** (`crates/flareget-server/src/main.rs`):
+**NAS daemon** (`crates/limedl-server/src/main.rs`):
 config load → state dirs → RateLimiter → EventBus → DownloadManager → BackendRegistry → axum router (WebSocket RPC + static files) → serve
 
 ### Rust edition & lib names
 
 - Edition: 2024 (all crates)
-- `flareget-core` lib name: `flareget_core`
-- `src-tauri` lib name: `flareget_lib` (suffixed `_lib` to avoid Windows name collision)
+- `limedl-core` lib name: `limedl_core`
+- `src-tauri` lib name: `limedl_lib` (suffixed `_lib` to avoid Windows name collision)
 
 ### Documentation maintenance
 

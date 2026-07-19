@@ -17,7 +17,7 @@ export type UpdateStatus =
 
 export type UpdateChannel = "stable" | "beta";
 
-const CHANNEL_STORAGE_KEY = "flareget.updateChannel";
+const CHANNEL_STORAGE_KEY = "limedl.updateChannel";
 const STARTUP_CHECK_TIMEOUT_MS = 5_000;
 
 // ── Module-level singleton state ──────────────────────────────────

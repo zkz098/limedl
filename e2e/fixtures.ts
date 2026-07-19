@@ -1,17 +1,30 @@
 import { test as base } from "@playwright/test";
+import { WsMocker } from "./helpers/ws-mocker";
+
+type MyFixtures = {
+  wsMocker: WsMocker;
+};
 
 /**
- * Tauri E2E test fixtures.
+ * Extended test fixture with WebSocket mocking support for NAS WebUI tests.
  *
- * Since Tauri runs as a native desktop app (not a browser tab), tests connect to
- * the Chromium webview that Tauri embeds. Currently the Tauri app must be launched
- * manually (e.g. via `bun run tauri dev`) before running tests.
+ * Usage:
+ * ```ts
+ * import { test, expect } from "../fixtures";
  *
- * Future enhancement: auto-launch the Tauri app using Playwright's `_electron`
- * module or a custom fixture with child_process + Tauri CLI.
+ * test("mocked download start", async ({ page, wsMocker }) => {
+ *   await wsMocker.install(page);
+ *   await page.goto("/");
+ *   // ...
+ * });
+ * ```
  */
-export const test = base.extend({
-  // Future: add custom fixtures here (e.g. auto-launch app, DB helpers)
+export const test = base.extend<MyFixtures>({
+  wsMocker: async ({ page }, use) => {
+    const mocker = new WsMocker();
+    await mocker.install(page);
+    await use(mocker);
+  },
 });
 
 export { expect } from "@playwright/test";

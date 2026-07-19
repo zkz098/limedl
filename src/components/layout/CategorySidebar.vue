@@ -97,7 +97,7 @@ function handleNavigate(view: string) {
           <span
             v-if="nav.view === 'settings' && updateAvailable"
             class="bottom-nav__badge absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--color-error)] border-2 border-[var(--color-panel)]"
-            aria-label="Update available"
+            :aria-label="t('sidebar.updateAvailable')"
           />
         </button>
       </div>

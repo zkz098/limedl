@@ -3,7 +3,7 @@ import { computed, readonly, ref } from "vue";
 
 import { resources, supportedLanguages, type SupportedLanguage } from "./resources";
 
-const storageKey = "flareget.language";
+const storageKey = "limedl.language";
 
 function isSupportedLanguage(value: string): value is SupportedLanguage {
   return (supportedLanguages as readonly string[]).includes(value);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "../../../i18n";
 import type { AppSettings } from "../../../types/settings";
-import logoUrl from "../../../assets/flareget-logo.svg";
+import logoUrl from "../../../assets/limedl-logo.svg";
 
 const { t } = useI18n();
 
@@ -17,7 +17,7 @@ defineEmits<{
 <template>
   <div class="step-welcome">
     <div class="step-welcome__hero">
-      <img :src="logoUrl" class="step-welcome__logo" alt="Flareget" />
+      <img :src="logoUrl" class="step-welcome__logo" alt="Limedl" />
       <h1 class="step-welcome__title">{{ t("setupWizard.welcomeTitle") }}</h1>
       <p class="step-welcome__subtitle">{{ t("setupWizard.welcomeSubtitle") }}</p>
     </div>
