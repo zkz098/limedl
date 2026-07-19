@@ -431,7 +431,8 @@ async fn handle_download_action(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task_id = TaskId::parse(task_id_str);
+    let task_id = TaskId::from_legacy_string(task_id_str)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let backend = state.registry.dispatch(&task_id)
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     let snapshot = match method {
@@ -495,7 +496,8 @@ async fn handle_open_in_explorer(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task_id = TaskId::parse(task_id_str);
+    let task_id = TaskId::from_legacy_string(task_id_str)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let backend = state.registry.dispatch(&task_id)
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     backend
@@ -627,7 +629,12 @@ async fn handle_bt_set_speed_limit(
     let ul_limit = params.get("uploadLimitBps").and_then(|v| v.as_u64());
     let bt = state.registry.get_typed::<limedl_core::IrontideBtBackend>()
         .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
-    bt.set_speed_limit(task_id, dl_limit, ul_limit);
+    let task = TaskId::from_legacy_string(task_id)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
+    let TaskId::Bt(info_hash) = task else {
+        return Err(JsonRpcError::invalid_params("Task is not a BitTorrent download"));
+    };
+    bt.set_speed_limit(info_hash, dl_limit, ul_limit);
     Ok(serde_json::json!({}))
 }
 
@@ -659,21 +666,26 @@ async fn handle_bt_get_details(
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
     let bt = state.registry.get_typed::<limedl_core::IrontideBtBackend>()
         .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
+    let task = TaskId::from_legacy_string(task_id)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
+    let TaskId::Bt(info_hash) = task else {
+        return Err(JsonRpcError::invalid_params("Task is not a BitTorrent download"));
+    };
     let result = match method {
         "bt.getPeers" => {
-            let peers = bt.get_peers(task_id).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+            let peers = bt.get_peers(info_hash).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(peers)
         }
         "bt.getTrackers" => {
-            let trackers = bt.get_trackers(task_id).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+            let trackers = bt.get_trackers(info_hash).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(trackers)
         }
         "bt.getPieces" => {
-            let pieces = bt.get_pieces(task_id).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+            let pieces = bt.get_pieces(info_hash).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(pieces)
         }
         "bt.getFiles" => {
-            let files = bt.get_torrent_files(task_id).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+            let files = bt.get_torrent_files(info_hash).map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(files)
         }
         _ => unreachable!(),
@@ -696,7 +708,12 @@ async fn handle_bt_update_files(
         .unwrap_or_default();
     let bt = state.registry.get_typed::<limedl_core::IrontideBtBackend>()
         .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
-    bt.update_torrent_files(task_id, included_indices).await
+    let task = TaskId::from_legacy_string(task_id)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
+    let TaskId::Bt(info_hash) = task else {
+        return Err(JsonRpcError::invalid_params("Task is not a BitTorrent download"));
+    };
+    bt.update_torrent_files(info_hash, included_indices).await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     Ok(serde_json::json!({}))
 }
@@ -787,7 +804,7 @@ mod tests {
         assert!(result.is_ok(), "download.start failed: {:?}", result.err());
         let value = result.unwrap();
         assert!(
-            value.get("taskId").and_then(|v| v.as_str()).is_some(),
+            value.get("taskId").is_some() && value["taskId"]["id"].as_str().is_some(),
             "response missing taskId: {value:?}"
         );
     }

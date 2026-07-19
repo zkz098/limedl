@@ -81,7 +81,7 @@ pub(crate) fn extract_info_hash(kind: &irontide::session::AlertKind) -> Option<&
 async fn alert_bridge_loop(
     session: irontide::session::SessionHandle,
     event_bus: Arc<EventBus>,
-    task_map: Arc<DashMap<String, Id20>>,
+    task_map: Arc<DashMap<Id20, Id20>>,
 ) {
     use irontide::session::AlertKind;
 
@@ -112,41 +112,41 @@ async fn alert_bridge_loop(
                     continue;
                 };
 
-                let task_id = format!("{}{}", super::BT_PREFIX, info_hash.to_hex());
+                let task_id = info_hash.to_hex();
 
                 match &alert.kind {
                     AlertKind::TorrentAdded { .. } => {
-                        if !task_map.contains_key(&task_id) {
-                            task_map.insert(task_id.clone(), *info_hash);
+                        if !task_map.contains_key(info_hash) {
+                            task_map.insert(*info_hash, *info_hash);
                         }
                         event_bus.publish(DownloadEvent::Aria2Notification {
                             event_name: "aria2.onDownloadStart".into(),
-                            gid: super::internal_id_to_gid(&task_id),
+                            gid: super::internal_id_to_gid(info_hash),
                         });
                     }
                     AlertKind::TorrentRemoved { .. } => {
-                        task_map.remove(&task_id);
+                        task_map.remove(info_hash);
                     }
                     AlertKind::TorrentPaused { .. } => {
                         event_bus.publish(DownloadEvent::Aria2Notification {
                             event_name: "aria2.onDownloadPause".into(),
-                            gid: super::internal_id_to_gid(&task_id),
+                            gid: super::internal_id_to_gid(info_hash),
                         });
                     }
                     AlertKind::TorrentResumed { .. } => {
                         event_bus.publish(DownloadEvent::Aria2Notification {
                             event_name: "aria2.onDownloadStart".into(),
-                            gid: super::internal_id_to_gid(&task_id),
+                            gid: super::internal_id_to_gid(info_hash),
                         });
                     }
                     AlertKind::TorrentFinished { .. } => {
                         event_bus.publish(DownloadEvent::Aria2Notification {
                             event_name: "aria2.onDownloadComplete".into(),
-                            gid: super::internal_id_to_gid(&task_id),
+                            gid: super::internal_id_to_gid(info_hash),
                         });
                         event_bus.publish(DownloadEvent::Aria2Notification {
                             event_name: "aria2.onBtDownloadComplete".into(),
-                            gid: super::internal_id_to_gid(&task_id),
+                            gid: super::internal_id_to_gid(info_hash),
                         });
 
                         // Fetch stats
@@ -194,7 +194,7 @@ async fn alert_bridge_loop(
                     AlertKind::TorrentError { message, .. } => {
                         event_bus.publish(DownloadEvent::Aria2Notification {
                             event_name: "aria2.onDownloadError".into(),
-                            gid: super::internal_id_to_gid(&task_id),
+                            gid: super::internal_id_to_gid(info_hash),
                         });
                         event_bus.publish(DownloadEvent::Updated {
                             id: task_id.clone(),
@@ -247,10 +247,10 @@ async fn alert_bridge_loop(
             }
             _ = progress_timer.tick() => {
                 // Periodic progress emission for all active torrents.
-                let hashes: Vec<Id20> = task_map.iter().map(|e| *e.value()).collect();
+                let hashes: Vec<Id20> = task_map.iter().map(|e| *e.key()).collect();
                 for info_hash in hashes {
                     if let Ok(stats) = session.torrent_stats(info_hash).await {
-                        let task_id = format!("{}{}", super::BT_PREFIX, info_hash.to_hex());
+                        let task_id = info_hash.to_hex();
 
                         // Build a DownloadProgress-compatible JSON for the frontend.
                         let dl_state = map_state(&stats.state);

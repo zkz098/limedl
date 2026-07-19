@@ -29,6 +29,8 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
 parking_lot = "0.12"
 futures-util = "0.3"
 base64 = "0.22"
+rand = "0.8"
+irontide = { version = "1", default-features = false, features = ["crypto-ring"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 
 [dev-dependencies]

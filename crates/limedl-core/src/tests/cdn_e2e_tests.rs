@@ -196,14 +196,17 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
         user_agent: None,
     };
     let id = dm.start(request).await.unwrap();
-    let task_id = TaskId::parse(&id);
-    let inner = task_id.http_inner().unwrap();
+    let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let inner = match task_id {
+        TaskId::Http(u) => u,
+        TaskId::Bt(_) => unreachable!(),
+    };
 
     // Wait briefly for the download to start and resolve_client to be called
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
     // Check the snapshot — cdn_accelerated should be true
-    let snapshot = dm.status(inner).await.unwrap();
+    let snapshot = dm.status(&inner.to_string()).await.unwrap();
     assert!(
         snapshot.cdn_accelerated,
         "CDN acceleration should be active for a Cloudflare domain.\n\
@@ -214,6 +217,6 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
     );
 
     // Cleanup
-    let _ = dm.cancel(inner).await;
+    let _ = dm.cancel(&inner.to_string()).await;
     core.registry.shutdown_all().await;
 }

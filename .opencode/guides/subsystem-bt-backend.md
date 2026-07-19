@@ -2,12 +2,12 @@
 
 ## 模块职责
 
-通过 irontide 库管理 BitTorrent 下载的完整生命周期。负责会话管理、torrent 元数据解析、对等节点连接、文件选择、上传策略，以及进度/状态查询。bt 任务使用 `bt:` 前缀的 TaskId。
+通过 irontide 库管理 BitTorrent 下载的完整生命周期。负责会话管理、torrent 元数据解析、对等节点连接、文件选择、上传策略，以及进度/状态查询。bt 任务使用 `TaskId::Bt(Id20)`，ID 为原始 info_hash hex 字符串。
 
 **涉及文件**：
 
-- `crates/limedl-core/src/bt_backend_own/mod.rs` (90 行) — IrontideBtBackend 结构体定义
-- `crates/limedl-core/src/bt_backend_own/protocol.rs` (302 行) — 下载操作实现（start/pause/resume/cancel...）
+- `crates/limedl-core/src/bt_backend_own/mod.rs` (~115 行) — IrontideBtBackend 结构体定义 + DownloadBackend trait 实现
+- `crates/limedl-core/src/bt_backend_own/lifecycle.rs` — 生命周期方法（start/pause/resume/cancel/remove/purge）
 - `crates/limedl-core/src/bt_backend_own/session.rs` (148 行) — irontide Session 初始化/关闭
 - `crates/limedl-core/src/bt_backend_own/snapshot.rs` (187 行) — 从 irontide stats 构建 DownloadSnapshot
 - `crates/limedl-core/src/bt_backend_own/queries.rs` (283 行) — 对等节点/区块/tracker/file 状态查询
@@ -88,7 +88,7 @@ pub(crate) async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>>
 ```
 用户提交 BT 任务（magnet link 或 .torrent 文件）
   ↓
-commands::bt_start() → TaskId::parse("bt:...")
+commands::download_start() → classify_kind() → registry.by_kind() → IrontideBtBackend::start()
   ↓
 IrontideBtBackend::start()
   ├─ 解析 URL → 获取 .torrent 元数据（magnet link 通过 DHT 获取，文件直接下载）
@@ -111,7 +111,7 @@ Tauri 前端（emit）和内部订阅者（Aria2 RPC 桥接）。不再直接持
 
 **重要约定**：
 
-- BT 任务的 download_id 格式为 `bt:{info_hash_hex}`（40 字符十六进制 info hash），不是 UUID
+- BT 任务的 download_id 格式为原始 info_hash hex 字符串（40 字符十六进制 info hash），不是 UUID，且不再包含 `bt:` 前缀
 - `task_map` 维护 download_id → Id20(info_hash) 的映射关系
 - irontide 通过告警系统异步推送状态变更，不要轮询 session 获取状态
 - `stats_to_snapshot()` 是状态转换的核心桥梁

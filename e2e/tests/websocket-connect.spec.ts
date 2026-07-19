@@ -42,7 +42,7 @@ test.describe("WebSocket connection", () => {
 
     // Respond with taskId using respondToMethod which auto-matches the request ID
     const responded = wsMocker.respondToMethod("download.start", {
-      taskId: "http:test-conn-001",
+      taskId: { kind: "http", id: "test-conn-001" },
     });
     expect(responded).toBe(true);
 
@@ -54,7 +54,7 @@ test.describe("WebSocket connection", () => {
     await wsMocker.waitForMethod("download.status");
     wsMocker.respondToMethod(
       "download.status",
-      makeMockSummary("http:test-conn-001"),
+      makeMockSummary("test-conn-001"),
     );
   });
 
@@ -72,7 +72,7 @@ test.describe("WebSocket connection", () => {
     // Send a progress event directly (simulating server push without a prior request).
     // This tests that the event dispatcher works without errors.
     wsMocker.sendEvent("progress", {
-      id: "http:test-conn-002",
+      id: "test-conn-002",
       state: "downloading",
       downloadedBytes: 1000,
       totalBytes: 10000,

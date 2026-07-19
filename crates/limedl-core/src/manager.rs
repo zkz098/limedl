@@ -50,6 +50,7 @@ use super::{
     migration::migrate_json_manifests,
     protocol::DownloadBackend,
     rate_limiter::RateLimiter,
+    slot_guard::DownloadSlotGuard,
     types::{
         AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadProgress,
         DownloadSnapshot, DownloadState, DownloadSummary, SchedulerMode,
@@ -114,9 +115,9 @@ pub struct DownloadManager {
     /// Active BT download counter (for concurrent throttling)
     pub active_bt_count: Arc<AtomicUsize>,
     /// Maximum concurrent HTTP downloads
-    pub max_concurrent_http: usize,
+    pub max_concurrent_http: AtomicUsize,
     /// Maximum concurrent BT downloads
-    pub max_concurrent_bt: usize,
+    pub max_concurrent_bt: AtomicUsize,
 }
 
 impl Clone for DownloadManager {
@@ -138,8 +139,8 @@ impl Clone for DownloadManager {
             overclock_mode: AtomicBool::new(self.overclock_mode.load(Ordering::Relaxed)),
             active_http_count: self.active_http_count.clone(),
             active_bt_count: self.active_bt_count.clone(),
-            max_concurrent_http: self.max_concurrent_http,
-            max_concurrent_bt: self.max_concurrent_bt,
+            max_concurrent_http: AtomicUsize::new(self.max_concurrent_http.load(Ordering::Relaxed)),
+            max_concurrent_bt: AtomicUsize::new(self.max_concurrent_bt.load(Ordering::Relaxed)),
         }
     }
 }
@@ -271,8 +272,8 @@ impl DownloadManager {
             shutdown_token: CancellationToken::new(),
             active_http_count: Arc::new(AtomicUsize::new(0)),
             active_bt_count: Arc::new(AtomicUsize::new(0)),
-            max_concurrent_http: 5,
-            max_concurrent_bt: 3,
+            max_concurrent_http: AtomicUsize::new(5),
+            max_concurrent_bt: AtomicUsize::new(3),
         };
 
         manager.load_downloads_from_db()?;
@@ -430,6 +431,12 @@ impl DownloadManager {
         persist_settings(&self.settings_path, &normalized).await?;
         *self.settings.write().await = normalized.clone();
 
+        // Update concurrent download limits from settings
+        if let Some(ref limits) = normalized.download_limits {
+            self.max_concurrent_http.store(limits.max_concurrent_http, Ordering::Release);
+            self.max_concurrent_bt.store(limits.max_concurrent_bt, Ordering::Release);
+        }
+
         if client_changed {
             let next_client = build_http_client(&normalized)?;
             *self.client.write().await = next_client;
@@ -446,7 +453,7 @@ impl DownloadManager {
         Ok(normalized)
     }
 
-    pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
+    pub async fn start(&self, request: StartDownloadRequest) -> Result<Uuid> {
         let url = Url::parse(&request.url)
             .map_err(|error| DownloadError::InvalidResponse(error.to_string()))?;
         if !matches!(url.scheme(), "http" | "https") {
@@ -457,7 +464,7 @@ impl DownloadManager {
         let slot = self.try_acquire_http()?;
 
         let settings = self.settings.read().await.clone();
-        let download_id = Uuid::new_v4().to_string();
+        let download_id = Uuid::new_v4();
         let user_agent = resolve_user_agent(
             request.user_agent.as_deref(),
             &settings.download.default_user_agent,
@@ -502,7 +509,7 @@ impl DownloadManager {
         let now = now_ms();
 
         let mut manifest = Manifest {
-            id: download_id.clone(),
+            id: download_id.to_string(),
             url: request.url.clone(),
             final_url: request.url.clone(),
             user_agent,
@@ -560,7 +567,7 @@ impl DownloadManager {
         self.downloads
             .write()
             .await
-            .insert(download_id.clone(), managed.clone());
+            .insert(download_id.to_string(), managed.clone());
 
         self.spawn_download(managed, request.max_retries.unwrap_or(DEFAULT_RETRIES), slot)
             .await?;
@@ -1016,8 +1023,8 @@ impl DownloadManager {
     /// scanning every download on a fixed schedule.
     pub fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
         let snapshot = self.build_snapshot(managed.clone());
-        let mut summary = DownloadSummary::from(&snapshot);
-        summary.id = TaskId::make_http(summary.id);
+        let summary = DownloadSummary::from(&snapshot);
+        // id is already the raw UUID, no prefix needed
         let json = serde_json::to_value(&summary).unwrap_or_default();
         self.event_bus.publish(DownloadEvent::Updated {
             id: summary.id.clone(),
@@ -1029,8 +1036,8 @@ impl DownloadManager {
     /// Called after each persist cycle (~300ms for HTTP, ~2s for BT).
     pub fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
         let snapshot = self.build_snapshot(managed.clone());
-        let mut progress = DownloadProgress::from(&snapshot);
-        progress.id = TaskId::make_http(progress.id);
+        let progress = DownloadProgress::from(&snapshot);
+        // id is already the raw UUID, no prefix needed
         let json = serde_json::to_value(&progress).unwrap_or_default();
         self.event_bus.publish(DownloadEvent::Progress {
             id: progress.id.clone(),
@@ -1264,7 +1271,7 @@ impl DownloadManager {
     /// Try to acquire an HTTP download slot.
     /// Returns `Ok(DownloadSlotGuard)` if under limit, `Err` if at capacity.
     pub fn try_acquire_http(&self) -> std::result::Result<DownloadSlotGuard, DownloadError> {
-        let max = self.max_concurrent_http;
+        let max = self.max_concurrent_http.load(Ordering::Acquire);
         let counter = &self.active_http_count;
         loop {
             let current = counter.load(Ordering::Acquire);
@@ -1275,22 +1282,15 @@ impl DownloadManager {
                 .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
                 .is_ok()
             {
-                return Ok(DownloadSlotGuard {
-                    counter: Some(self.active_http_count.clone()),
-                });
+                return Ok(DownloadSlotGuard::new(self.active_http_count.clone()));
             }
         }
     }
 
-    // TODO: Integrate with BT backend start path.
-    // Currently IrontideBtBackend bypasses DownloadManager::start(), so this throttle
-    // is not enforced for BT downloads. Need to pass the AtomicUsize counter to the
-    // BT backend and call try_acquire_bt before starting BT tasks.
-    #[allow(dead_code)]
     /// Try to acquire a BT download slot.
     /// Returns `Ok(DownloadSlotGuard)` if under limit, `Err` if at capacity.
     pub fn try_acquire_bt(&self) -> std::result::Result<DownloadSlotGuard, DownloadError> {
-        let max = self.max_concurrent_bt;
+        let max = self.max_concurrent_bt.load(Ordering::Acquire);
         let counter = &self.active_bt_count;
         loop {
             let current = counter.load(Ordering::Acquire);
@@ -1301,84 +1301,71 @@ impl DownloadManager {
                 .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
                 .is_ok()
             {
-                return Ok(DownloadSlotGuard {
-                    counter: Some(self.active_bt_count.clone()),
-                });
+                return Ok(DownloadSlotGuard::new(self.active_bt_count.clone()));
             }
-        }
-    }
-}
-
-/// Guard that decrements an active download counter on drop.
-///
-/// Created by [`DownloadManager::try_acquire_http`] or
-/// [`DownloadManager::try_acquire_bt`]. When the guard is dropped
-/// (e.g., when a background download task finishes), the counter
-/// is automatically decremented.
-pub struct DownloadSlotGuard {
-    counter: Option<Arc<AtomicUsize>>,
-}
-
-impl DownloadSlotGuard {
-    /// Create a no-op guard that does nothing on drop.
-    pub fn none() -> Self {
-        Self { counter: None }
-    }
-}
-
-impl Drop for DownloadSlotGuard {
-    fn drop(&mut self) {
-        if let Some(ref counter) = self.counter {
-            counter.fetch_sub(1, Ordering::Release);
         }
     }
 }
 
 // ---------------------------------------------------------------------------
 //  DownloadBackend implementation for DownloadManager (HTTP backend)
-//  Handles http: prefix stripping/adding.
+//  Adapts between typed TaskId and internal Uuid-based download IDs.
 // ---------------------------------------------------------------------------
 
 #[async_trait]
 impl DownloadBackend for DownloadManager {
-    async fn start(&self, request: StartDownloadRequest) -> Result<String> {
-        let id = DownloadManager::start(self, request).await?;
-        Ok(TaskId::make_http(id))
+    async fn start(&self, request: StartDownloadRequest) -> Result<TaskId> {
+        let uuid = DownloadManager::start(self, request).await?;
+        Ok(TaskId::Http(uuid))
     }
 
     async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
-        DownloadManager::pause(self, inner).await
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::pause(self, &uuid.to_string()).await
     }
 
     async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
-        DownloadManager::resume(self, inner).await
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::resume(self, &uuid.to_string()).await
     }
 
     async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
-        DownloadManager::cancel(self, inner).await
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::cancel(self, &uuid.to_string()).await
     }
 
     async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
-        DownloadManager::remove(self, inner).await
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::remove(self, &uuid.to_string()).await
     }
 
     async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
-        DownloadManager::purge(self, inner).await
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::purge(self, &uuid.to_string()).await
     }
 
     async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()> {
-        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
-        DownloadManager::open_in_explorer(self, inner).await
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::open_in_explorer(self, &uuid.to_string()).await
     }
 
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let inner = task_id.http_inner().ok_or(DownloadError::NotFound)?;
-        DownloadManager::status(self, inner).await
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::status(self, &uuid.to_string()).await
     }
 
     async fn list(&self) -> Result<Vec<DownloadSummary>> {

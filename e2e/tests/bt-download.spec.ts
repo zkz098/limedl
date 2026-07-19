@@ -18,7 +18,7 @@ import { expectTaskVisible, expectTaskState } from "../helpers/download-asserts"
 import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 
 test.describe("BitTorrent download", () => {
-  const TASK_ID = "bt:test-bt-001";
+  const TASK_ID = "test-bt-001";
 
   test("creates a BT download via magnet link and shows file picker", async ({ page, wsMocker }) => {
     await page.goto("/");
@@ -45,7 +45,7 @@ test.describe("BitTorrent download", () => {
     expect(startParams).toHaveProperty("url", magnetLink);
 
     // Respond with a taskId
-    wsMocker.respondToMethod("download.start", { taskId: TASK_ID });
+    wsMocker.respondToMethod("download.start", { taskId: { kind: "bt", id: TASK_ID } });
 
     // The frontend now sends bt.previewTorrent to get file listing
     const previewPromise = wsMocker.waitForMethod("bt.previewTorrent");
@@ -77,7 +77,7 @@ test.describe("BitTorrent download", () => {
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
 
-    await seedDownloadTask(page, wsMocker, TASK_ID);
+    await seedDownloadTask(page, wsMocker, TASK_ID, { kind: "bt" });
     await expectTaskVisible(page, TASK_ID);
 
     // Send progress to set downloading state
@@ -148,7 +148,7 @@ test.describe("BitTorrent download", () => {
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
 
-    await seedDownloadTask(page, wsMocker, TASK_ID);
+    await seedDownloadTask(page, wsMocker, TASK_ID, { kind: "bt" });
     await expectTaskVisible(page, TASK_ID);
 
     // Send progress to show the task as downloading

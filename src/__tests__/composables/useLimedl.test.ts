@@ -272,7 +272,7 @@ describe("useLimedl", () => {
 
   describe("form composition", () => {
     it("submitForm starts a download", async () => {
-      mockStartDownload.mockResolvedValue("download-1");
+      mockStartDownload.mockResolvedValue({ kind: "http", id: "download-1" });
       mockListDownloads.mockResolvedValue([]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "download-1" }));
 
@@ -292,7 +292,7 @@ describe("useLimedl", () => {
     });
 
     it("resetForm clears form fields after submit", async () => {
-      mockStartDownload.mockResolvedValue("download-2");
+      mockStartDownload.mockResolvedValue({ kind: "http", id: "download-2" });
       mockListDownloads.mockResolvedValue([]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "download-2" }));
 

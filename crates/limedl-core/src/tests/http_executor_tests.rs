@@ -74,7 +74,7 @@ async fn single_stream_download_completes_successfully() -> TestResult {
         })
         .await?;
 
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
         status.state, DownloadState::Completed,
         "expected Completed, got {:?} with error={:?}",
@@ -91,7 +91,7 @@ async fn single_stream_download_completes_successfully() -> TestResult {
     let expected = generate_test_content(server.file_size);
     assert_eq!(downloaded, expected, "downloaded file content does not match server data");
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -126,14 +126,14 @@ async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
         })
         .await?;
 
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
         status.state, DownloadState::Completed,
         "expected Completed with matching Blake3 checksum, got {:?} error={:?}",
         status.state, status.error
     );
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -170,7 +170,7 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
         })
         .await?;
 
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
         status.state, DownloadState::Failed,
         "expected Failed on checksum mismatch, got {:?}",
@@ -185,7 +185,7 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
     let dest_path = std::path::Path::new(&status.destination_path);
     assert!(!dest_path.exists(), "destination file should not exist on checksum mismatch");
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -224,7 +224,7 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
         })
         .await?;
 
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
         status.state, DownloadState::Completed,
         "expected Completed for multi-stream download, got {:?} with error={:?}",
@@ -240,7 +240,7 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
     let expected = generate_test_content(server.file_size);
     assert_eq!(downloaded, expected, "multi-stream downloaded content mismatch");
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -275,12 +275,12 @@ async fn multi_stream_blake3_checksum_match() -> TestResult {
         })
         .await?;
 
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(status.state, DownloadState::Completed,
         "multi-stream Blake3 checksum should match, got {:?}",
         status.state);
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -315,12 +315,12 @@ async fn multi_stream_sha256_checksum_match() -> TestResult {
         })
         .await?;
 
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(status.state, DownloadState::Completed,
         "multi-stream SHA-256 checksum should match, got {:?}",
         status.state);
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -364,7 +364,7 @@ async fn cancel_download_while_in_progress() -> TestResult {
     sleep(Duration::from_millis(800)).await;
 
     // cancel() returns the final snapshot and removes the download from the manager
-    let status = manager.cancel(&id).await?;
+    let status = manager.cancel(&id.to_string()).await?;
     assert_eq!(status.state, DownloadState::Canceled,
         "expected Canceled, got {:?}", status.state);
 

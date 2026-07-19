@@ -9,7 +9,7 @@
   ↓
 DownloadComposer.vue → download-api.ts → invoke("download_start")
   ↓
-commands::download_start() → TaskId::parse() 按前缀路由
+commands::download_start() → classify_kind() → registry.by_kind() 路由
   ↓ (http: 前缀)
 DownloadManager::start()
   ├─ 创建 ManagedDownload { core, aimd, runtime }
@@ -34,9 +34,9 @@ DownloadManager::start()
 
 1. User fills form in `DownloadComposer.vue` → emits `StartDownloadRequest` (JSON, camelCase fields)
 2. `src/lib/tauri/download-api.ts` calls `invoke("download_start", request)` → Tauri IPC bridge
-3. `commands::download_start()` (Rust) dispatches via `TaskId::parse()`:
-   - `http:` prefix → `DownloadManager::start()`
-   - `bt:` prefix → `IrontideBtBackend::start()`
+3. `commands::download_start()` (Rust) dispatches via `classify_kind()`:
+   - HTTP URL → `DownloadManager::start()` returns `TaskId::Http(uuid)`
+   - magnet/torrent → `IrontideBtBackend::start()` returns `TaskId::Bt(info_hash)`
 
 **Key types**: `StartDownloadRequest { url, destination_dir, file_name?, thread_mode?, thread_count?, max_retries?, checksum?, start_paused?, mirror_urls? }`
 

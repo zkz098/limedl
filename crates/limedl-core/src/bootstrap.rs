@@ -53,6 +53,8 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
                 bt_state_dir,
                 bt_output_dir,
                 event_bus.clone(),
+                download_manager.active_bt_count.clone(),
+                download_manager.max_concurrent_bt.load(std::sync::atomic::Ordering::Relaxed),
             )
             .await?,
         );

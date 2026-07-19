@@ -150,10 +150,10 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
     sleep(Duration::from_millis(800)).await;
 
     // Pause — this persists Paused state to the DB
-    manager.pause(&id).await?;
+    manager.pause(&id.to_string()).await?;
 
     // Save the snapshot before dropping the manager
-    let before_drop = manager.status(&id).await?;
+    let before_drop = manager.status(&id.to_string()).await?;
     assert!(
         before_drop.downloaded_bytes > 0,
         "expected some progress before restart"
@@ -174,7 +174,7 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
     let list = manager2.list().await?;
     assert!(!list.is_empty(), "should have recovered at least one download");
 
-    let recovered = manager2.status(&id).await?;
+    let recovered = manager2.status(&id.to_string()).await?;
     assert_eq!(
         recovered.state,
         DownloadState::Paused,
@@ -186,7 +186,7 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
     );
 
     // Cleanup
-    let _ = manager2.remove(&id).await;
+    let _ = manager2.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -222,7 +222,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
         .await?;
 
     // Wait for completion
-    let terminal = wait_for_terminal(&manager, &id).await;
+    let terminal = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
         terminal.state,
         DownloadState::Completed,
@@ -258,7 +258,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
         "lost downloads after restart"
     );
 
-    let recovered = manager2.status(&id).await?;
+    let recovered = manager2.status(&id.to_string()).await?;
     assert_eq!(
         recovered.state,
         DownloadState::Completed,
@@ -269,7 +269,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
         "destination file must still exist after restart"
     );
 
-    let _ = manager2.remove(&id).await;
+    let _ = manager2.remove(&id.to_string()).await;
     Ok(())
 }
 

@@ -7,8 +7,8 @@ use super::types::{DownloadSnapshot, DownloadSummary, StartDownloadRequest, Task
 /// Each backend is responsible for its own ID prefix handling.
 #[async_trait]
 pub trait DownloadBackend: Send + Sync + 'static {
-    /// Start a new download. Returns the prefixed task ID (e.g. "http:uuid", "bt:hexhash").
-    async fn start(&self, request: StartDownloadRequest) -> Result<String>;
+    /// Start a new download. Returns the strongly-typed task ID.
+    async fn start(&self, request: StartDownloadRequest) -> Result<TaskId>;
 
     async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
     async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;

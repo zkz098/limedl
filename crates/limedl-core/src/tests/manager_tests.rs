@@ -128,7 +128,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
     )
     .await??;
 
-    let initial = manager.status(&id).await?;
+    let initial = manager.status(&id.to_string()).await?;
     assert_eq!(initial.file_name, "slow.bin");
     assert!(matches!(
         initial.state,
@@ -136,17 +136,17 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
     ));
 
     for _ in 0..30 {
-        let status = manager.status(&id).await?;
+        let status = manager.status(&id.to_string()).await?;
         if status.file_name == "server-name.bin" {
-            let _ = manager.remove(&id).await;
+            let _ = manager.remove(&id.to_string()).await;
             return Ok(());
         }
         sleep(Duration::from_millis(100)).await;
     }
 
-    let status = manager.status(&id).await?;
+    let status = manager.status(&id.to_string()).await?;
     assert_eq!(status.file_name, "server-name.bin");
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -240,16 +240,16 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
         .await?;
 
     sleep(Duration::from_millis(400)).await;
-    let first_status = manager.status(&first).await?;
-    let second_status = manager.status(&second).await?;
+    let first_status = manager.status(&first.to_string()).await?;
+    let second_status = manager.status(&second.to_string()).await?;
 
     assert!(matches!(
         first_status.state,
         DownloadState::Downloading | DownloadState::Retrying | DownloadState::Completed
     ));
     assert_eq!(second_status.state, DownloadState::Queued);
-    let _ = manager.remove(&first).await;
-    let _ = manager.remove(&second).await;
+    let _ = manager.remove(&first.to_string()).await;
+    let _ = manager.remove(&second.to_string()).await;
     Ok(())
 }
 
@@ -351,12 +351,12 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         .await?;
 
     sleep(Duration::from_millis(500)).await;
-    let big_status = manager.status(&big).await?;
-    let small_status = manager.status(&small).await?;
+    let big_status = manager.status(&big.to_string()).await?;
+    let small_status = manager.status(&small.to_string()).await?;
 
     assert!(big_status.connection_count >= small_status.connection_count);
-    let _ = manager.remove(&big).await;
-    let _ = manager.remove(&small).await;
+    let _ = manager.remove(&big.to_string()).await;
+    let _ = manager.remove(&small.to_string()).await;
     Ok(())
 }
 
@@ -436,12 +436,12 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
     sleep(Duration::from_secs(2)).await;
     manager.update_adaptive_targets().await?;
     manager.rebalance_allocations().await?;
-    let snapshot = manager.status(&id).await?;
+    let snapshot = manager.status(&id.to_string()).await?;
     assert!(matches!(
         snapshot.desired_thread_count,
         Some(thread_count) if thread_count >= 3
     ));
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -495,10 +495,10 @@ async fn checksum_match_succeeds() -> TestResult {
         .await?;
 
     // Wait for terminal state
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(status.state, DownloadState::Completed, "expected Completed with matching checksum, got {:?} error={:?}", status.state, status.error);
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -549,7 +549,7 @@ async fn checksum_mismatch_detected() -> TestResult {
         .await?;
 
     // Wait for terminal state
-    let status = wait_for_terminal(&manager, &id).await;
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(status.state, DownloadState::Failed, "expected Failed on checksum mismatch, got {:?}", status.state);
     let error_msg = status.error.unwrap_or_default();
     assert!(error_msg.contains("Checksum mismatch"), "error should contain 'Checksum mismatch', got: {error_msg}");
@@ -558,7 +558,7 @@ async fn checksum_mismatch_detected() -> TestResult {
     let dest_path = std::path::Path::new(&status.destination_path);
     assert!(!dest_path.exists(), "destination file should not exist on checksum mismatch");
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 

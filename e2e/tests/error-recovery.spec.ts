@@ -22,7 +22,7 @@ import {
 
 test.describe("error recovery", () => {
   test("download persists across page reload", async ({ page, wsMocker }) => {
-    const TASK_ID = "http:err-recovery-001";
+    const TASK_ID = "err-recovery-001";
 
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
@@ -46,7 +46,7 @@ test.describe("error recovery", () => {
   });
 
   test("paused download can be resumed after page reload", async ({ page, wsMocker }) => {
-    const TASK_ID = "http:err-recovery-002";
+    const TASK_ID = "err-recovery-002";
 
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
@@ -104,7 +104,7 @@ test.describe("error recovery", () => {
   });
 
   test("failed download shows error state and supports retry", async ({ page, wsMocker }) => {
-    const TASK_ID = "http:err-recovery-003";
+    const TASK_ID = "err-recovery-003";
 
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
@@ -161,7 +161,7 @@ test.describe("error recovery", () => {
   });
 
   test("network error recovery — task survives WebSocket disconnect", async ({ page, wsMocker }) => {
-    const TASK_ID = "http:err-recovery-004";
+    const TASK_ID = "err-recovery-004";
 
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
@@ -206,7 +206,7 @@ test.describe("error recovery", () => {
 
     // Send an updated event with a nonexistent task ID.
     // The frontend should ignore it gracefully without crashing.
-    wsMocker.sendEvent("updated", makeMockSummary("http:nonexistent-999", {
+    wsMocker.sendEvent("updated", makeMockSummary("nonexistent-999", {
       state: "failed",
       error: "Some error",
     }));
@@ -215,11 +215,11 @@ test.describe("error recovery", () => {
     // This assertion also acts as a synchronization point — by the time
     // it resolves, enough time has passed for any error handlers to fire.
     await expect(
-      page.locator('[data-testid="download-row-http:nonexistent-999"]'),
+      page.locator('[data-testid="download-row-nonexistent-999"]'),
     ).not.toBeVisible();
 
     // Verify no console errors related to the invalid task were triggered.
-    const relevantErrors = errors.filter(e => e.includes("nonexistent-999") || e.includes("http:nonexistent"));
+    const relevantErrors = errors.filter(e => e.includes("nonexistent-999"));
     expect(relevantErrors).toHaveLength(0);
   });
 });

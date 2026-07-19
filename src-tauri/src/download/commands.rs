@@ -60,7 +60,7 @@ fn emit_snapshot_update(state: &AppState, snapshot: &DownloadSnapshot) {
 pub async fn download_start(
     state: State<'_, AppState>,
     mut request: StartDownloadRequest,
-) -> CommandResult<String> {
+) -> CommandResult<TaskId> {
     let result = into_command_result(
         async {
             // Populate mirror URLs from settings before starting
@@ -79,9 +79,8 @@ pub async fn download_start(
         .await,
     );
     if let Ok(ref task_id) = result {
-        let task_id_parsed = TaskId::parse(task_id);
-        if let Ok(backend) = state.registry.dispatch(&task_id_parsed)
-            && let Ok(snapshot) = backend.status(&task_id_parsed).await
+        if let Ok(backend) = state.registry.dispatch(task_id)
+            && let Ok(snapshot) = backend.status(task_id).await
         {
             emit_snapshot_update(&state, &snapshot);
         }
@@ -94,7 +93,11 @@ pub async fn download_pause(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::parse(&download_id);
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
     let result = into_command_result(
         async {
             let backend = state.registry.dispatch(&task_id)
@@ -114,7 +117,11 @@ pub async fn download_resume(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::parse(&download_id);
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
     let result = into_command_result(
         async {
             let backend = state.registry.dispatch(&task_id)
@@ -134,7 +141,11 @@ pub async fn download_cancel(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::parse(&download_id);
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
     into_command_result(
         async {
             let backend = state.registry.dispatch(&task_id)
@@ -150,7 +161,11 @@ pub async fn download_remove(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::parse(&download_id);
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
     into_command_result(
         async {
             let backend = state.registry.dispatch(&task_id)
@@ -166,7 +181,11 @@ pub async fn download_purge(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::parse(&download_id);
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
     into_command_result(
         async {
             let backend = state.registry.dispatch(&task_id)
@@ -182,7 +201,11 @@ pub async fn download_open_in_explorer(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<()> {
-    let task_id = TaskId::parse(&download_id);
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
     into_command_result(
         async {
             let backend = state.registry.dispatch(&task_id)
@@ -198,7 +221,11 @@ pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::parse(&download_id);
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
     into_command_result(
         async {
             let backend = state.registry.dispatch(&task_id)
@@ -342,26 +369,28 @@ pub async fn bt_set_speed_limit(
     download_limit_bps: Option<u64>,
     upload_limit_bps: Option<u64>,
 ) -> CommandResult<()> {
-    let task_id = TaskId::parse(&download_id);
-    match &task_id {
-        TaskId::Bt(_) => {
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| SerializableError {
-                    kind: String::from("internal"),
-                    message: String::from("BT backend not registered"),
-                })?;
-            bt.set_speed_limit(
-                &download_id,
-                download_limit_bps,
-                upload_limit_bps,
-            );
-            Ok(())
-        }
-        _ => Err(SerializableError {
+    let task_id = TaskId::from_legacy_string(&download_id)
+        .map_err(|e| SerializableError {
+            kind: "parse".into(),
+            message: format!("Invalid task ID: {e}"),
+        })?;
+    let TaskId::Bt(info_hash) = &task_id else {
+        return Err(SerializableError {
             kind: String::from("unsupported"),
             message: String::from("speed limit only supported for BT tasks"),
-        }),
-    }
+        });
+    };
+    let bt = state.registry.get_typed::<IrontideBtBackend>()
+        .ok_or_else(|| SerializableError {
+            kind: String::from("internal"),
+            message: String::from("BT backend not registered"),
+        })?;
+    bt.set_speed_limit(
+        *info_hash,
+        download_limit_bps,
+        upload_limit_bps,
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -388,9 +417,14 @@ pub async fn bt_get_peers(
 ) -> CommandResult<Vec<BtPeerInfo>> {
     into_command_result(
         async {
+            let task_id = TaskId::from_legacy_string(&download_id)
+                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
+            let TaskId::Bt(info_hash) = &task_id else {
+                return Err(anyhow!("Not a BT task"));
+            };
             let bt = state.registry.get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_peers(&download_id)
+            bt.get_peers(*info_hash)
                 .context("查询 BT 节点信息失败")
         }
         .await,
@@ -404,9 +438,14 @@ pub async fn bt_get_trackers(
 ) -> CommandResult<Vec<BtTrackerInfo>> {
     into_command_result(
         async {
+            let task_id = TaskId::from_legacy_string(&download_id)
+                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
+            let TaskId::Bt(info_hash) = &task_id else {
+                return Err(anyhow!("Not a BT task"));
+            };
             let bt = state.registry.get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_trackers(&download_id)
+            bt.get_trackers(*info_hash)
                 .context("查询 BT 追踪器信息失败")
         }
         .await,
@@ -420,9 +459,14 @@ pub async fn bt_get_pieces(
 ) -> CommandResult<Vec<BtPieceInfo>> {
     into_command_result(
         async {
+            let task_id = TaskId::from_legacy_string(&download_id)
+                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
+            let TaskId::Bt(info_hash) = &task_id else {
+                return Err(anyhow!("Not a BT task"));
+            };
             let bt = state.registry.get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_pieces(&download_id)
+            bt.get_pieces(*info_hash)
                 .context("查询 BT 分片信息失败")
         }
         .await,
@@ -436,9 +480,14 @@ pub async fn get_bt_files(
 ) -> CommandResult<Vec<BtFileStatus>> {
     into_command_result(
         async {
+            let task_id = TaskId::from_legacy_string(&download_id)
+                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
+            let TaskId::Bt(info_hash) = &task_id else {
+                return Err(anyhow!("Not a BT task"));
+            };
             let bt = state.registry.get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_torrent_files(&download_id)
+            bt.get_torrent_files(*info_hash)
                 .context("查询 BT 文件列表失败")
         }
         .await,
@@ -453,9 +502,14 @@ pub async fn update_bt_files(
 ) -> CommandResult<()> {
     into_command_result(
         async {
+            let task_id = TaskId::from_legacy_string(&download_id)
+                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
+            let TaskId::Bt(info_hash) = &task_id else {
+                return Err(anyhow!("Not a BT task"));
+            };
             let bt = state.registry.get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.update_torrent_files(&download_id, included_indices)
+            bt.update_torrent_files(*info_hash, included_indices)
                 .await
                 .context("更新 BT 文件选择失败")
         }

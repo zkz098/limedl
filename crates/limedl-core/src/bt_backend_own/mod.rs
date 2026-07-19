@@ -14,23 +14,24 @@ pub(crate) mod uploads;
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
 use dashmap::DashMap;
 use irontide::core::Id20;
 use parking_lot::Mutex;
 
+use crate::error::DownloadError;
 use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::protocol::DownloadBackend;
+use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};
 
-/// Task ID prefix for irontide-managed torrents.
-pub(crate) const BT_PREFIX: &str = "bt:";
-
-/// Compute an Aria2-compatible GID from an internal task ID.
-pub(crate) fn internal_id_to_gid(internal_id: &str) -> String {
-    let hash = xxhash_rust::xxh3::xxh3_64(internal_id.as_bytes());
+/// Compute an Aria2-compatible GID from an info hash.
+pub(crate) fn internal_id_to_gid(info_hash: &Id20) -> String {
+    let hex = info_hash.to_hex();
+    let hash = xxhash_rust::xxh3::xxh3_64(hex.as_bytes());
     format!("{:016x}", hash)
 }
 
@@ -40,10 +41,9 @@ pub(crate) fn internal_id_to_gid(internal_id: &str) -> String {
 
 /// Irontide-based BitTorrent backend (production, 35 BEPs).
 ///
-/// Each torrent is tracked by a task ID of the form `bt:<info_hash_hex>`.
+/// Each torrent is tracked by its raw info-hash hex string (no prefix).
 /// Metadata resolution is handled automatically by irontide (for magnet links),
 /// so there is no separate "pending" phase — the info hash is known immediately.
-#[derive(Clone)]
 pub struct IrontideBtBackend {
     /// The irontide session handle.
     pub(crate) session: irontide::session::SessionHandle,
@@ -55,8 +55,8 @@ pub struct IrontideBtBackend {
     pub(crate) bt_settings: Arc<Mutex<crate::types::BtSettings>>,
     /// Central event bus for publishing download events to subscribers and frontend.
     pub(crate) event_bus: Arc<EventBus>,
-    /// Map of task ID (`bt:<hex>`) → irontide info hash.
-    pub(crate) task_map: Arc<DashMap<String, Id20>>,
+    /// Map of info hash → info hash (used as a set of active torrents).
+    pub(crate) task_map: Arc<DashMap<Id20, Id20>>,
     /// Join handle for the alert bridge background task.
     pub(crate) alert_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Join handle for the upload policy background task.
@@ -69,6 +69,34 @@ pub struct IrontideBtBackend {
     pub(crate) paused_by_limit: Arc<DashMap<Id20, ()>>,
     /// Tokio runtime handle, captured at construction time.
     pub(crate) runtime_handle: tokio::runtime::Handle,
+    /// Active BT download counter (shared with DownloadManager for global throttle).
+    pub(crate) active_bt_count: Arc<AtomicUsize>,
+    /// Maximum concurrent BT downloads allowed.
+    pub(crate) max_concurrent_bt: AtomicUsize,
+    /// Guards holding BT download slots for active torrents.
+    pub(crate) bt_slot_guards: Arc<DashMap<Id20, DownloadSlotGuard>>,
+}
+
+impl Clone for IrontideBtBackend {
+    fn clone(&self) -> Self {
+        Self {
+            session: self.session.clone(),
+            state_dir: self.state_dir.clone(),
+            default_output_dir: self.default_output_dir.clone(),
+            bt_settings: self.bt_settings.clone(),
+            event_bus: self.event_bus.clone(),
+            task_map: self.task_map.clone(),
+            alert_task: self.alert_task.clone(),
+            upload_policy_task: self.upload_policy_task.clone(),
+            http_client: self.http_client.clone(),
+            global_speed_limit_bps: self.global_speed_limit_bps,
+            paused_by_limit: self.paused_by_limit.clone(),
+            runtime_handle: self.runtime_handle.clone(),
+            active_bt_count: self.active_bt_count.clone(),
+            max_concurrent_bt: AtomicUsize::new(self.max_concurrent_bt.load(Ordering::Relaxed)),
+            bt_slot_guards: self.bt_slot_guards.clone(),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -77,36 +105,58 @@ pub struct IrontideBtBackend {
 
 #[async_trait]
 impl DownloadBackend for IrontideBtBackend {
-    async fn start(&self, request: StartDownloadRequest) -> Result<String> {
-        self.start(request).await
+    async fn start(&self, request: StartDownloadRequest) -> Result<TaskId> {
+        let info_hash = self.start(request).await?;
+        Ok(TaskId::Bt(info_hash))
     }
 
     async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        self.pause(task_id.as_str()).await
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.pause(info_hash).await
     }
 
     async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        self.resume(task_id.as_str()).await
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.resume(info_hash).await
     }
 
     async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        self.cancel(task_id.as_str()).await
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.cancel(info_hash).await
     }
 
     async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        self.remove(task_id.as_str()).await
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.remove(info_hash).await
     }
 
     async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        self.purge(task_id.as_str()).await
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.purge(info_hash).await
     }
 
     async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()> {
-        self.open_in_explorer(task_id.as_str()).await
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.open_in_explorer(info_hash).await
     }
 
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        self.status(task_id.as_str()).await
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.status(info_hash).await
     }
 
     async fn list(&self) -> Result<Vec<DownloadSummary>> {

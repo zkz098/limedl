@@ -1,6 +1,8 @@
 ﻿use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use irontide::core::Id20;
+use uuid::Uuid;
 
 use super::error::DownloadError;
 
@@ -73,47 +75,19 @@ pub enum SortDirection {
     Desc,
 }
 
-/// Typed task identifier replacing fragile string-prefix routing.
+/// Strongly-typed task identifier. Variants hold validated inner types.
 ///
-/// Both variants hold the **external** (wire-format) string so that `as_str()` returns
-/// exactly what the frontend sent.  Use `parse()` to construct from a raw download id and
-/// `http_inner()` to strip the `"http:"` prefix before routing to the HTTP manager.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Wire format (serialization) emits `{ kind, id }` struct.
+/// Deserialization accepts BOTH:
+///   - New: `{ "kind": "http"|"bt", "id": "..." }`
+///   - Legacy: `"http:uuid"` or `"bt:hex"` strings
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskId {
-    Http(String),
-    Bt(String),
+    Http(Uuid),
+    Bt(Id20),
 }
 
 impl TaskId {
-    /// Construct a `TaskId` by inspecting the string prefix.
-    ///
-    /// - Starts with `"bt:"` → `Bt`
-    /// - Everything else     → `Http`
-    pub fn parse(id: &str) -> Self {
-        if id.starts_with("bt:") {
-            TaskId::Bt(id.to_string())
-        } else {
-            TaskId::Http(id.to_string())
-        }
-    }
-
-    /// The external (wire-format) string that this `TaskId` was constructed from.
-    pub fn as_str(&self) -> &str {
-        match self {
-            TaskId::Http(id) | TaskId::Bt(id) => id.as_str(),
-        }
-    }
-
-    /// Strip the `"http:"` prefix for routing to the HTTP download manager.
-    ///
-    /// Returns `None` if called on a non-`Http` variant.
-    pub fn http_inner(&self) -> Option<&str> {
-        match self {
-            TaskId::Http(id) => Some(id.strip_prefix("http:").unwrap_or(id)),
-            _ => None,
-        }
-    }
-
     pub fn kind(&self) -> TaskKind {
         match self {
             TaskId::Http(_) => TaskKind::Http,
@@ -121,21 +95,104 @@ impl TaskId {
         }
     }
 
-    /// Produce an external (prefixed) HTTP task id from a raw internal UUID string.
-    pub fn make_http(uuid: String) -> String {
-        format!("http:{uuid}")
+    /// Raw canonical string: UUID hyphenated for Http, lowercase hex for Bt.
+    pub fn raw_id(&self) -> String {
+        match self {
+            TaskId::Http(uuid) => uuid.to_string(),
+            TaskId::Bt(info_hash) => info_hash.to_hex(),
+        }
+    }
+
+    /// Parse from legacy prefixed string: "http:uuid" or "bt:hex".
+    /// Returns error if the inner part is invalid.
+    pub fn from_legacy_string(s: &str) -> Result<Self, DownloadError> {
+        if let Some(hex) = s.strip_prefix("bt:") {
+            return Id20::from_hex(hex)
+                .map(TaskId::Bt)
+                .map_err(|e| DownloadError::InvalidRequest(format!("invalid bt id: {e}")));
+        }
+        let raw = s.strip_prefix("http:").unwrap_or(s);
+        // Try UUID first (HTTP), then Id20 (BT for bare hex strings)
+        if let Ok(uuid) = Uuid::parse_str(raw) {
+            return Ok(TaskId::Http(uuid));
+        }
+        if let Ok(info_hash) = Id20::from_hex(raw) {
+            return Ok(TaskId::Bt(info_hash));
+        }
+        Err(DownloadError::InvalidRequest(format!("invalid task id: cannot parse {s:?}")))
     }
 }
 
-impl From<&str> for TaskId {
-    fn from(id: &str) -> Self {
-        TaskId::parse(id)
+impl From<Uuid> for TaskId {
+    fn from(u: Uuid) -> Self {
+        TaskId::Http(u)
+    }
+}
+
+impl From<Id20> for TaskId {
+    fn from(i: Id20) -> Self {
+        TaskId::Bt(i)
+    }
+}
+
+// ── Serialization: emit { kind, id } ──
+impl Serialize for TaskId {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut st = s.serialize_struct("TaskId", 2)?;
+        st.serialize_field("kind", &self.kind())?;
+        st.serialize_field("id", &self.raw_id())?;
+        st.end()
+    }
+}
+
+use serde::de::{self, Visitor, MapAccess};
+
+struct TaskIdVisitor;
+impl<'de> Visitor<'de> for TaskIdVisitor {
+    type Value = TaskId;
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a TaskId object {kind, id} or legacy string \"http:uuid\"/\"bt:hex\"")
+    }
+
+    fn visit_str<E: de::Error>(self, v: &str) -> Result<TaskId, E> {
+        TaskId::from_legacy_string(v).map_err(|e| de::Error::custom(e))
+    }
+
+    fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<TaskId, M::Error> {
+        let mut kind: Option<TaskKind> = None;
+        let mut id: Option<String> = None;
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                "kind" => kind = Some(map.next_value()?),
+                "id" => id = Some(map.next_value()?),
+                _ => { let _: de::IgnoredAny = map.next_value()?; }
+            }
+        }
+        match (kind, id) {
+            (Some(TaskKind::Http), Some(id)) => Uuid::parse_str(&id)
+                .map(TaskId::Http)
+                .map_err(|e| de::Error::custom(format!("invalid UUID: {e}"))),
+            (Some(TaskKind::Bt), Some(id)) => Id20::from_hex(&id)
+                .map(TaskId::Bt)
+                .map_err(|e| de::Error::custom(format!("invalid info hash: {e}"))),
+            (None, _) => Err(de::Error::missing_field("kind")),
+            (_, None) => Err(de::Error::missing_field("id")),
+        }
+    }
+}
+
+// ── Deserialization: accept both { kind, id } and legacy "http:..." / "bt:..." ──
+impl<'de> Deserialize<'de> for TaskId {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        d.deserialize_any(TaskIdVisitor)
     }
 }
 
 impl std::fmt::Display for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+        f.write_str(&self.raw_id())
     }
 }
 

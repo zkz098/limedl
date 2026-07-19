@@ -6,7 +6,7 @@
 
 | Layer            | Command                  | Framework      | Location                        |
 | ---------------- | ------------------------ | -------------- | ------------------------------- |
-| Frontend unit    | `bun run test`           | Vitest + jsdom | `src/__tests__/`                |
+| Frontend unit    | `pnpm run test`           | Vitest + jsdom | `src/__tests__/`                |
 | Rust unit        | `cargo test --workspace` | Rust `#[test]` | 内联 `#[cfg(test)]`             |
 | Rust integration | `cargo test --workspace` | Rust `#[test]` | `crates/limedl-core/src/tests/` |
 | E2E              | (pending setup)          | Playwright     | `e2e/`                          |
@@ -62,7 +62,7 @@ mockTauriCommandValue("download_list", [
 // 注册动态 handler（需要逻辑时）
 mockTauriCommand("download_start", (args) => {
   if (!args?.url) throw new Error("URL required");
-  return "http:generated-uuid";
+  return { kind: "http", id: "generated-uuid" };
 });
 ```
 
@@ -117,9 +117,9 @@ function createList() {
 ### Running
 
 ```bash
-bun run test                # 运行所有测试
-bun run test -- --watch     # watch 模式
-bun run test path/to/test   # 运行单个测试文件
+pnpm run test                # 运行所有测试
+pnpm run test -- --watch     # watch 模式
+pnpm run test path/to/test   # 运行单个测试文件
 ```
 
 ---
@@ -174,7 +174,7 @@ ntest       # #[timeout(ms)] 测试超时注解
 
 - 框架已配置：`e2e/` 目录存在，含 `playwright.config.ts`、`fixtures.ts`、`tests/smoke.spec.ts`
 - Playwright 依赖 `@playwright/test` 安装在根 `package.json` devDependencies 中
-- 运行前需先启动 Tauri 应用：`bun run tauri dev`（在另一个终端）
+- 运行前需先启动 Tauri 应用：`pnpm run tauri dev`（在另一个终端）
 
 ### E2E 脚本
 
@@ -182,17 +182,17 @@ ntest       # #[timeout(ms)] 测试超时注解
 
 | 命令                  | 用途                            |
 | --------------------- | ------------------------------- |
-| `bun run test:e2e`    | 运行所有 E2E 测试（headless）   |
-| `bun run test:e2e:ui` | 打开 Playwright UI 模式运行测试 |
+| `pnpm run test:e2e`    | 运行所有 E2E 测试（headless）   |
+| `pnpm run test:e2e:ui` | 打开 Playwright UI 模式运行测试 |
 
 ### 运行前提
 
 ```bash
 # 终端 1: 启动 Tauri 开发模式
-bun run tauri dev
+pnpm run tauri dev
 
 # 终端 2: 运行 E2E 测试
-bun run test:e2e
+pnpm run test:e2e
 ```
 
 ### 配置 (`e2e/playwright.config.ts`)
@@ -219,7 +219,7 @@ export const test = base.extend({
 export { expect } from "@playwright/test";
 ```
 
-当前 fixture 只导出基础 `test` 和 `expect`。Tauri 应用需手动启动（通过 `bun run tauri dev`），测试通过 `page.goto("/")` 连接到 Vite dev server。
+当前 fixture 只导出基础 `test` 和 `expect`。Tauri 应用需手动启动（通过 `pnpm run tauri dev`），测试通过 `page.goto("/")` 连接到 Vite dev server。
 
 ### Writing E2E Tests
 
@@ -258,10 +258,10 @@ test("add and start HTTP download", async ({ page }) => {
 
 CI（`.github/workflows/ci.yml`）在 Ubuntu 上运行，流水线如下：
 
-1. `bun install --frozen-lockfile`
-2. `bun run lint` (oxlint)
-3. `bunx vue-tsc --noEmit`
-4. `bun run test` (Vitest)
+1. `pnpm install --frozen-lockfile`
+2. `pnpm run lint` (oxlint)
+3. `pnpm exec vue-tsc --noEmit`
+4. `pnpm run test` (Vitest)
 5. `cargo check --workspace`
 6. `cargo clippy --workspace -- -D warnings`
 7. `cargo test --workspace`

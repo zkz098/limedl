@@ -35,17 +35,17 @@ beforeEach(() => {
 describe("download-api", () => {
   it("startDownload calls download_start with request", async () => {
     const request = { url: "https://example.com/file.zip", destinationDir: "/tmp" };
-    const expectedId = "http:new-id";
+    const expectedId = { kind: "http", id: "new-id" };
     mockTauriCommandValue("download_start", expectedId);
 
     const result = await startDownload(request);
 
     expect(mockInvoke).toHaveBeenCalledWith("download_start", { request });
-    expect(result).toBe(expectedId);
+    expect(result.id).toBe("new-id");
   });
 
   it("pauseDownload calls download_pause with downloadId", async () => {
-    const downloadId = "http:abc123";
+    const downloadId = "abc123";
     const snapshot = { id: downloadId, status: "paused" };
     mockTauriCommandValue("download_pause", snapshot);
 
@@ -56,7 +56,7 @@ describe("download-api", () => {
   });
 
   it("resumeDownload calls download_resume with downloadId", async () => {
-    const downloadId = "http:abc123";
+    const downloadId = "abc123";
     const snapshot = { id: downloadId, status: "downloading" };
     mockTauriCommandValue("download_resume", snapshot);
 
@@ -67,7 +67,7 @@ describe("download-api", () => {
   });
 
   it("cancelDownload calls download_cancel with downloadId", async () => {
-    const downloadId = "http:abc123";
+    const downloadId = "abc123";
     const snapshot = { id: downloadId, status: "cancelled" };
     mockTauriCommandValue("download_cancel", snapshot);
 
@@ -78,7 +78,7 @@ describe("download-api", () => {
   });
 
   it("removeDownload calls download_remove with downloadId", async () => {
-    const downloadId = "http:abc123";
+    const downloadId = "abc123";
     const snapshot = { id: downloadId, status: "removed" };
     mockTauriCommandValue("download_remove", snapshot);
 
@@ -89,7 +89,7 @@ describe("download-api", () => {
   });
 
   it("purgeDownload calls download_purge with downloadId", async () => {
-    const downloadId = "http:abc123";
+    const downloadId = "abc123";
     const snapshot = { id: downloadId, status: "purged" };
     mockTauriCommandValue("download_purge", snapshot);
 
@@ -100,7 +100,7 @@ describe("download-api", () => {
   });
 
   it("openDownloadInExplorer calls download_open_in_explorer with downloadId", async () => {
-    const downloadId = "http:abc123";
+    const downloadId = "abc123";
     mockTauriCommandValue("download_open_in_explorer", undefined);
 
     const result = await openDownloadInExplorer(downloadId);
@@ -110,7 +110,7 @@ describe("download-api", () => {
   });
 
   it("getDownloadStatus calls download_status with downloadId", async () => {
-    const downloadId = "http:abc123";
+    const downloadId = "abc123";
     const snapshot = { id: downloadId, status: "downloading" };
     mockTauriCommandValue("download_status", snapshot);
 
@@ -122,8 +122,8 @@ describe("download-api", () => {
 
   it("listDownloads calls download_list", async () => {
     const summaries = [
-      { id: "http:1", url: "https://example.com/1.zip", status: "completed" },
-      { id: "http:2", url: "https://example.com/2.zip", status: "downloading" },
+      { id: "1", url: "https://example.com/1.zip", status: "completed" },
+      { id: "2", url: "https://example.com/2.zip", status: "downloading" },
     ];
     mockTauriCommandValue("download_list", summaries);
 
@@ -144,7 +144,7 @@ describe("download-api", () => {
   });
 
   it("getBtPeers calls bt_get_peers with downloadId", async () => {
-    const downloadId = "bt:abc";
+    const downloadId = "abc";
     const peers = [{ ip: "1.2.3.4", port: 6881 }];
     mockTauriCommandValue("bt_get_peers", peers);
 
@@ -155,7 +155,7 @@ describe("download-api", () => {
   });
 
   it("getBtTrackers calls bt_get_trackers with downloadId", async () => {
-    const downloadId = "bt:abc";
+    const downloadId = "abc";
     const trackers = [{ url: "udp://tracker.example.com:6969", status: "working" }];
     mockTauriCommandValue("bt_get_trackers", trackers);
 
@@ -166,7 +166,7 @@ describe("download-api", () => {
   });
 
   it("getBtPieces calls bt_get_pieces with downloadId", async () => {
-    const downloadId = "bt:abc";
+    const downloadId = "abc";
     const pieces = [{ index: 0, status: "downloaded" }];
     mockTauriCommandValue("bt_get_pieces", pieces);
 
@@ -177,7 +177,7 @@ describe("download-api", () => {
   });
 
   it("setBtSpeedLimit calls bt_set_speed_limit with downloadId and limits", async () => {
-    const downloadId = "bt:abc";
+    const downloadId = "abc";
     const downloadLimitBps = 102400;
     const uploadLimitBps = 51200;
     mockTauriCommandValue("bt_set_speed_limit", undefined);
@@ -193,7 +193,7 @@ describe("download-api", () => {
   });
 
   it("setBtSpeedLimit calls bt_set_speed_limit with partial limits", async () => {
-    const downloadId = "bt:abc";
+    const downloadId = "abc";
     mockTauriCommandValue("bt_set_speed_limit", undefined);
 
     const result = await setBtSpeedLimit(downloadId, 204800);
@@ -218,7 +218,7 @@ describe("download-api", () => {
   });
 
   it("getBtFiles calls get_bt_files with downloadId", async () => {
-    const downloadId = "bt:abc";
+    const downloadId = "abc";
     const files = [{ path: "movie.mp4", included: true }];
     mockTauriCommandValue("get_bt_files", files);
 
@@ -229,7 +229,7 @@ describe("download-api", () => {
   });
 
   it("updateBtFiles calls update_bt_files with downloadId and includedIndices", async () => {
-    const downloadId = "bt:abc";
+    const downloadId = "abc";
     const includedIndices = [0, 2, 4];
     mockTauriCommandValue("update_bt_files", undefined);
 

@@ -12,8 +12,13 @@ import type {
   TorrentFileEntry,
 } from "../../types/download";
 
+export interface TaskIdResult {
+  kind: "http" | "bt";
+  id: string;
+}
+
 export function startDownload(request: StartDownloadRequest) {
-  return invoke<string>("download_start", { request });
+  return invoke<TaskIdResult>("download_start", { request });
 }
 
 export function pauseDownload(downloadId: string) {

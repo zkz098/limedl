@@ -15,10 +15,12 @@ use axum::{
 };
 use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
+use irontide::core::Id20;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
+use uuid::Uuid;
 
 use crate::{
     backend_registry::BackendRegistry,
@@ -101,13 +103,12 @@ pub fn internal_id_to_gid(internal_id: &str) -> String {
     format!("{:016x}", hash)
 }
 
-async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<String> {
+async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
     // Check cache first
     {
         let cache = ctx.gid_cache.lock().await;
-        if let Some(id) = cache.get(gid) {
-            // Strip protocol prefix (http:, bt:) for use in get_summary etc.
-            return Some(strip_protocol_prefix(id));
+        if let Some(task_id) = cache.get(gid) {
+            return Some(task_id.clone());
         }
     }
 
@@ -116,24 +117,19 @@ async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<String> {
         if let Ok(list) = backend.list().await {
             for s in &list {
                 if internal_id_to_gid(&s.id) == gid {
+                    let task_id = match s.kind {
+                        TaskKind::Http => TaskId::Http(Uuid::parse_str(&s.id).ok()?),
+                        TaskKind::Bt => TaskId::Bt(Id20::from_hex(&s.id).ok()?),
+                    };
                     let mut cache = ctx.gid_cache.lock().await;
-                    cache.insert(gid.to_string(), s.id.clone());
-                    return Some(s.id.clone());
+                    cache.insert(gid.to_string(), task_id.clone());
+                    return Some(task_id);
                 }
             }
         }
     }
 
     None
-}
-
-/// Strip protocol prefix (e.g. "http:", "bt:") from a task ID, returning the raw UUID.
-fn strip_protocol_prefix(id: &str) -> String {
-    if let Some(pos) = id.find(':') {
-        id[pos + 1..].to_string()
-    } else {
-        id.to_string()
-    }
 }
 
 fn state_to_aria2(state: &DownloadState) -> &'static str {
@@ -215,7 +211,7 @@ struct RpcContext {
     registry: Arc<BackendRegistry>,
     secret: Option<String>,
     event_bus: Arc<EventBus>,
-    gid_cache: Mutex<HashMap<String, String>>,
+    gid_cache: Mutex<HashMap<String, TaskId>>,
 }
 
 impl RpcContext {
@@ -344,7 +340,9 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     if let Some(existing_id) = dm.find_active_by_url(&request.url).await {
         let gid = internal_id_to_gid(&existing_id);
         // Cache the GID so resolve_gid can find it without scanning.
-        ctx.gid_cache.lock().await.insert(gid.clone(), existing_id.clone());
+        if let Ok(uuid) = Uuid::parse_str(&existing_id) {
+            ctx.gid_cache.lock().await.insert(gid.clone(), TaskId::Http(uuid));
+        }
         return Ok(Value::String(gid));
     }
 
@@ -359,21 +357,21 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         .unwrap_or(false);
     if start_paused {
         // Pass raw UUID — DownloadManager's downloads map is keyed by raw UUID, not "http:uuid"
-        let _ = dm.pause(&id).await;
+        let _ = dm.pause(&id.to_string()).await;
     }
 
     // Emit Tauri `download-updated` event so the frontend displays the task
     // immediately.
     {
         let downloads = dm.downloads.read().await;
-        if let Some(managed) = downloads.get(&id) {
+        if let Some(managed) = downloads.get(&id.to_string()) {
             dm.emit_single_summary(managed);
         }
     }
 
-    let gid = internal_id_to_gid(&id);
+    let gid = internal_id_to_gid(&id.to_string());
     // Cache the GID so resolve_gid can find it without scanning.
-    ctx.gid_cache.lock().await.insert(gid.clone(), id);
+    ctx.gid_cache.lock().await.insert(gid.clone(), TaskId::Http(id));
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
     Ok(Value::String(gid))
 }
@@ -468,9 +466,9 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
 
     // Emit Tauri `download-updated` event so the frontend displays the task
     // immediately.
-    bt.emit_pending_summary(&id);
+    bt.emit_pending_summary(id);
 
-    let gid = internal_id_to_gid(&id);
+    let gid = internal_id_to_gid(&id.to_hex());
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
     Ok(Value::String(gid))
 }
@@ -511,11 +509,11 @@ async fn handle_pause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, Jso
     let params = strip_token(params);
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
-    let internal_id = resolve_gid(ctx, &gid)
+    let task_id = resolve_gid(ctx, &gid)
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    rpc_dispatch_action(ctx, &internal_id, "pause").await?;
+    rpc_dispatch_action(ctx, &task_id, "pause").await?;
     broadcast_event(ctx, "aria2.onDownloadPause", &gid);
     Ok(Value::String(gid))
 }
@@ -524,18 +522,28 @@ async fn handle_unpause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     let params = strip_token(params);
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
-    let internal_id = resolve_gid(ctx, &gid)
+    let task_id = resolve_gid(ctx, &gid)
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    rpc_dispatch_action(ctx, &internal_id, "resume").await?;
+    rpc_dispatch_action(ctx, &task_id, "resume").await?;
     Ok(Value::String(gid))
 }
 
 async fn handle_pause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     let all = get_all_summaries(ctx).await?;
     for s in &all {
-        let _ = rpc_dispatch_action(ctx, &s.id, "pause").await;
+        let task_id = match s.kind {
+            TaskKind::Http => match Uuid::parse_str(&s.id) {
+                Ok(uuid) => TaskId::Http(uuid),
+                Err(_) => continue,
+            },
+            TaskKind::Bt => match Id20::from_hex(&s.id) {
+                Ok(ih) => TaskId::Bt(ih),
+                Err(_) => continue,
+            },
+        };
+        let _ = rpc_dispatch_action(ctx, &task_id, "pause").await;
     }
     Ok(Value::String("OK".to_string()))
 }
@@ -543,7 +551,17 @@ async fn handle_pause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
 async fn handle_unpause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     let all = get_all_summaries(ctx).await?;
     for s in &all {
-        let _ = rpc_dispatch_action(ctx, &s.id, "resume").await;
+        let task_id = match s.kind {
+            TaskKind::Http => match Uuid::parse_str(&s.id) {
+                Ok(uuid) => TaskId::Http(uuid),
+                Err(_) => continue,
+            },
+            TaskKind::Bt => match Id20::from_hex(&s.id) {
+                Ok(ih) => TaskId::Bt(ih),
+                Err(_) => continue,
+            },
+        };
+        let _ = rpc_dispatch_action(ctx, &task_id, "resume").await;
     }
     Ok(Value::String("OK".to_string()))
 }
@@ -552,11 +570,11 @@ async fn handle_remove(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, Js
     let params = strip_token(params);
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
-    let internal_id = resolve_gid(ctx, &gid)
+    let task_id = resolve_gid(ctx, &gid)
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    rpc_dispatch_action(ctx, &internal_id, "remove").await?;
+    rpc_dispatch_action(ctx, &task_id, "remove").await?;
     broadcast_event(ctx, "aria2.onDownloadStop", &gid);
     Ok(Value::String(gid))
 }
@@ -565,24 +583,25 @@ async fn handle_tell_status(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
     let params = strip_token(params);
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
-    let internal_id = resolve_gid(ctx, &gid)
+    let task_id = resolve_gid(ctx, &gid)
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
+    let raw_id = task_id.raw_id();
     // O(1) lookup on DownloadManager first (covers all HTTP downloads).
     let summary = if let Some(dm) = ctx.registry.get_typed::<DownloadManager>() {
-        if let Some(s) = dm.get_summary(&internal_id).await {
+        if let Some(s) = dm.get_summary(&raw_id).await {
             s
         } else {
             let all = get_all_summaries(ctx).await?;
             all.into_iter()
-                .find(|s| s.id == internal_id)
+                .find(|s| s.id == raw_id)
                 .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?
         }
     } else {
         let all = get_all_summaries(ctx).await?;
         all.into_iter()
-            .find(|s| s.id == internal_id)
+            .find(|s| s.id == raw_id)
             .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?
     };
 
@@ -697,14 +716,15 @@ async fn handle_get_files(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
     let params = strip_token(params);
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
-    let internal_id = resolve_gid(ctx, &gid)
+    let task_id = resolve_gid(ctx, &gid)
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
+    let raw_id = task_id.raw_id();
     let summary = get_all_summaries(ctx)
         .await?
         .into_iter()
-        .find(|s| s.id == internal_id)
+        .find(|s| s.id == raw_id)
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
     Ok(build_file_list(&summary))
@@ -714,14 +734,15 @@ async fn handle_get_uris(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, 
     let params = strip_token(params);
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
-    let internal_id = resolve_gid(ctx, &gid)
+    let task_id = resolve_gid(ctx, &gid)
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
+    let raw_id = task_id.raw_id();
     let summary = get_all_summaries(ctx)
         .await?
         .into_iter()
-        .find(|s| s.id == internal_id)
+        .find(|s| s.id == raw_id)
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
     Ok(serde_json::json!([{
@@ -734,21 +755,20 @@ async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
     let params = strip_token(params);
     check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
-    let internal_id = resolve_gid(ctx, &gid)
+    let task_id = resolve_gid(ctx, &gid)
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
     // HTTP downloads don't have BitTorrent peers — return empty array.
-    let bt_id = match TaskId::parse(&internal_id) {
-        TaskId::Bt(id) => id,
-        TaskId::Http(_) => return Ok(Value::Array(vec![])),
+    let TaskId::Bt(info_hash) = &task_id else {
+        return Ok(Value::Array(vec![]));
     };
 
     let peers = ctx
         .registry
         .get_typed::<IrontideBtBackend>()
         .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?
-        .get_peers(&bt_id)
+        .get_peers(*info_hash)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
     let aria2_peers: Vec<Value> = peers
@@ -943,16 +963,15 @@ async fn get_all_summaries(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, Jso
 
 async fn rpc_dispatch_action(
     ctx: &RpcContext,
-    internal_id: &str,
+    task_id: &TaskId,
     action: &str,
 ) -> Result<(), JsonRpcError> {
-    let task_id = TaskId::parse(internal_id);
-    let backend = ctx.registry.dispatch(&task_id)
+    let backend = ctx.registry.dispatch(task_id)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
     let result: anyhow::Result<()> = match action {
-        "pause" => backend.pause(&task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
-        "resume" => backend.resume(&task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
-        "remove" => backend.remove(&task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        "pause" => backend.pause(task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        "resume" => backend.resume(task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        "remove" => backend.remove(task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
         _ => Err(anyhow::anyhow!("unsupported action: {action}")),
     };
 

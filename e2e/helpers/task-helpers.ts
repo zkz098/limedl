@@ -21,11 +21,12 @@ export async function seedDownloadTask(
   page: Page,
   wsMocker: WsMocker,
   taskId: string,
-  options: { url?: string; fileName?: string; totalBytes?: number } = {},
+  options: { url?: string; fileName?: string; totalBytes?: number; kind?: string } = {},
 ): Promise<void> {
   const url = options.url ?? "http://127.0.0.1:9876/10mb.bin";
   const fileName = options.fileName ?? "10mb.bin";
   const totalBytes = options.totalBytes ?? 10_000_000;
+  const kind = options.kind ?? "http";
 
   // Open composer dialog
   await page.getByRole("button", { name: "Add Task" }).click();
@@ -38,7 +39,7 @@ export async function seedDownloadTask(
   await startPromise;
 
   // Respond to download.start
-  wsMocker.respondToMethod("download.start", { taskId });
+  wsMocker.respondToMethod("download.start", { taskId: { kind, id: taskId } });
 
   // Respond to download.list
   await wsMocker.waitForMethod("download.list");
@@ -46,7 +47,7 @@ export async function seedDownloadTask(
 
   // Respond to download.status
   await wsMocker.waitForMethod("download.status");
-  wsMocker.respondToMethod("download.status", makeMockSummary(taskId, { url, fileName, totalBytes }));
+  wsMocker.respondToMethod("download.status", makeMockSummary(taskId, { url, fileName, totalBytes, kind }));
 }
 
 /** Create a realistic mock DownloadSummary for test responses */

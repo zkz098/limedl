@@ -43,3 +43,6 @@ test-results/
 *.ova
 *.ovf
 *.qcow2
+
+# Deepwork state
+.slim/deepwork/

@@ -38,7 +38,7 @@ function createProps(overrides: Record<string, unknown> = {}) {
 
 function createMockDownload(overrides: Record<string, unknown> = {}): DownloadSummary {
   return {
-    id: "http:test-1",
+    id: "test-1",
     kind: "http",
     state: "downloading",
     fileName: "test.zip",
@@ -90,9 +90,9 @@ describe("DownloadQueueTable", () => {
 
   it("renders rows for each download in downloads prop", () => {
     const downloads = [
-      createMockDownload({ id: "http:1", fileName: "a.zip" }),
-      createMockDownload({ id: "http:2", fileName: "b.zip" }),
-      createMockDownload({ id: "http:3", fileName: "c.zip" }),
+      createMockDownload({ id: "1", fileName: "a.zip" }),
+      createMockDownload({ id: "2", fileName: "b.zip" }),
+      createMockDownload({ id: "3", fileName: "c.zip" }),
     ];
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({ downloads }),
@@ -105,8 +105,8 @@ describe("DownloadQueueTable", () => {
 
   it("renders file name in each row", () => {
     const downloads = [
-      createMockDownload({ id: "http:1", fileName: "my-document.pdf" }),
-      createMockDownload({ id: "http:2", fileName: "image.png" }),
+      createMockDownload({ id: "1", fileName: "my-document.pdf" }),
+      createMockDownload({ id: "2", fileName: "image.png" }),
     ];
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({ downloads }),
@@ -119,7 +119,7 @@ describe("DownloadQueueTable", () => {
   });
 
   it("renders progress bar for downloading tasks", () => {
-    const downloads = [createMockDownload({ id: "http:1", state: "downloading" })];
+    const downloads = [createMockDownload({ id: "1", state: "downloading" })];
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({ downloads }),
       global: { stubs },
@@ -134,7 +134,7 @@ describe("DownloadQueueTable", () => {
   it("shows first page when more than pageSize downloads", () => {
     const downloads = Array.from({ length: 25 }, (_, i) =>
       createMockDownload({
-        id: `http:${i + 1}`,
+        id: `${i + 1}`,
         fileName: `file-${i + 1}.zip`,
         createdAtMs: 1000 + i,
       }),
@@ -158,7 +158,7 @@ describe("DownloadQueueTable", () => {
   it("clicking next page shows page 2 content", async () => {
     const downloads = Array.from({ length: 25 }, (_, i) =>
       createMockDownload({
-        id: `http:${i + 1}`,
+        id: `${i + 1}`,
         fileName: `file-${i + 1}.zip`,
         createdAtMs: 1000 + i,
       }),
@@ -187,7 +187,7 @@ describe("DownloadQueueTable", () => {
   // ── Selection ──────────────────────────────────────────────
 
   it("clicking a row emits select event with download id", async () => {
-    const downloads = [createMockDownload({ id: "http:select-1", fileName: "select-me.zip" })];
+    const downloads = [createMockDownload({ id: "select-1", fileName: "select-me.zip" })];
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({ downloads }),
       global: { stubs },
@@ -197,16 +197,16 @@ describe("DownloadQueueTable", () => {
     await row.trigger("click");
 
     expect(wrapper.emitted("select")).toBeTruthy();
-    expect(wrapper.emitted("select")![0]).toEqual(["http:select-1"]);
+    expect(wrapper.emitted("select")![0]).toEqual(["select-1"]);
   });
 
   it("selectedId prop highlights the correct row", () => {
     const downloads = [
-      createMockDownload({ id: "http:active-1", fileName: "active.zip" }),
-      createMockDownload({ id: "http:inactive-1", fileName: "inactive.zip" }),
+      createMockDownload({ id: "active-1", fileName: "active.zip" }),
+      createMockDownload({ id: "inactive-1", fileName: "inactive.zip" }),
     ];
     const wrapper = mount(DownloadQueueTable, {
-      props: createProps({ downloads, selectedId: "http:active-1" }),
+      props: createProps({ downloads, selectedId: "active-1" }),
       global: { stubs },
     });
 
@@ -225,9 +225,9 @@ describe("DownloadQueueTable", () => {
 
   it("changing sortKey prop reorders the rows", async () => {
     const downloads = [
-      createMockDownload({ id: "http:a", fileName: "alpha.zip", createdAtMs: 300 }),
-      createMockDownload({ id: "http:b", fileName: "beta.zip", createdAtMs: 100 }),
-      createMockDownload({ id: "http:c", fileName: "gamma.zip", createdAtMs: 200 }),
+      createMockDownload({ id: "a", fileName: "alpha.zip", createdAtMs: 300 }),
+      createMockDownload({ id: "b", fileName: "beta.zip", createdAtMs: 100 }),
+      createMockDownload({ id: "c", fileName: "gamma.zip", createdAtMs: 200 }),
     ];
 
     // Start with descending added_at (300, 200, 100)
@@ -260,9 +260,9 @@ describe("DownloadQueueTable", () => {
 
   it("sort by name in ascending order", () => {
     const downloads = [
-      createMockDownload({ id: "http:c", fileName: "c.zip", createdAtMs: 100 }),
-      createMockDownload({ id: "http:a", fileName: "a.zip", createdAtMs: 200 }),
-      createMockDownload({ id: "http:b", fileName: "b.zip", createdAtMs: 300 }),
+      createMockDownload({ id: "c", fileName: "c.zip", createdAtMs: 100 }),
+      createMockDownload({ id: "a", fileName: "a.zip", createdAtMs: 200 }),
+      createMockDownload({ id: "b", fileName: "b.zip", createdAtMs: 300 }),
     ];
 
     const wrapper = mount(DownloadQueueTable, {
@@ -287,7 +287,7 @@ describe("DownloadQueueTable", () => {
   // ── Context Menu ───────────────────────────────────────────
 
   it("right-click opens context menu at mouse position", async () => {
-    const downloads = [createMockDownload({ id: "http:ctx-1", fileName: "context-test.zip" })];
+    const downloads = [createMockDownload({ id: "ctx-1", fileName: "context-test.zip" })];
 
     // Stub Teleport to render children inline (avoids jsdom Teleport issues)
     const inlineTeleportStubs = {
@@ -319,8 +319,8 @@ describe("DownloadQueueTable", () => {
 
   it("multi-select checkbox appears when multiSelect.multiSelectMode is true", () => {
     const downloads = [
-      createMockDownload({ id: "http:ms-1", fileName: "multi-select.zip" }),
-      createMockDownload({ id: "http:ms-2", fileName: "another.zip" }),
+      createMockDownload({ id: "ms-1", fileName: "multi-select.zip" }),
+      createMockDownload({ id: "ms-2", fileName: "another.zip" }),
     ];
 
     const wrapper = mount(DownloadQueueTable, {
@@ -341,7 +341,7 @@ describe("DownloadQueueTable", () => {
   });
 
   it("clicking row in multiSelect mode emits toggleSelect", async () => {
-    const downloads = [createMockDownload({ id: "http:ms-1", fileName: "multi-select.zip" })];
+    const downloads = [createMockDownload({ id: "ms-1", fileName: "multi-select.zip" })];
 
     const wrapper = mount(DownloadQueueTable, {
       props: createProps({
@@ -359,6 +359,6 @@ describe("DownloadQueueTable", () => {
     await row.trigger("click");
 
     expect(wrapper.emitted("toggleSelect")).toBeTruthy();
-    expect(wrapper.emitted("toggleSelect")![0]).toEqual(["http:ms-1"]);
+    expect(wrapper.emitted("toggleSelect")![0]).toEqual(["ms-1"]);
   });
 });

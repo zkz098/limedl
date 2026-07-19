@@ -17,18 +17,10 @@ use crate::event_bus::DownloadEvent;
 impl IrontideBtBackend {
     pub fn set_speed_limit(
         &self,
-        download_id: &str,
+        info_hash: Id20,
         download_limit_bps: Option<u64>,
         upload_limit_bps: Option<u64>,
     ) {
-        let info_hash = match Self::parse_info_hash(download_id) {
-            Ok(h) => h,
-            Err(_) => {
-                tracing::warn!("irontide: set_speed_limit: invalid task id {download_id}");
-                return;
-            }
-        };
-
         tokio::task::block_in_place(|| {
             self.runtime_handle.block_on(async {
                 if let Some(bps) = download_limit_bps {
@@ -67,8 +59,7 @@ impl IrontideBtBackend {
         Ok(entries)
     }
 
-    pub fn get_peers(&self, download_id: &str) -> Result<Vec<BtPeerInfo>> {
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub fn get_peers(&self, info_hash: Id20) -> Result<Vec<BtPeerInfo>> {
         let peers = tokio::task::block_in_place(|| {
             self.runtime_handle
                 .block_on(self.session.get_peer_info(info_hash))
@@ -87,8 +78,7 @@ impl IrontideBtBackend {
             .collect())
     }
 
-    pub fn get_trackers(&self, download_id: &str) -> Result<Vec<BtTrackerInfo>> {
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub fn get_trackers(&self, info_hash: Id20) -> Result<Vec<BtTrackerInfo>> {
         let trackers = tokio::task::block_in_place(|| {
             self.runtime_handle
                 .block_on(self.session.tracker_list(info_hash))
@@ -102,8 +92,7 @@ impl IrontideBtBackend {
             .collect())
     }
 
-    pub fn get_pieces(&self, download_id: &str) -> Result<Vec<BtPieceInfo>> {
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub fn get_pieces(&self, info_hash: Id20) -> Result<Vec<BtPieceInfo>> {
         // Use torrent_stats to get pieces_have/pieces_total and derive piece info
         let stats = tokio::task::block_in_place(|| {
             self.runtime_handle
@@ -121,8 +110,7 @@ impl IrontideBtBackend {
             .collect())
     }
 
-    pub fn get_torrent_files(&self, download_id: &str) -> Result<Vec<BtFileStatus>> {
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub fn get_torrent_files(&self, info_hash: Id20) -> Result<Vec<BtFileStatus>> {
 
         // Use torrent_file + file_progress + file_status to build file status
         let meta_fut = self.session.torrent_file(info_hash);
@@ -177,10 +165,9 @@ impl IrontideBtBackend {
 
     pub async fn update_torrent_files(
         &self,
-        download_id: &str,
+        info_hash: Id20,
         included_indices: Vec<usize>,
     ) -> Result<()> {
-        let info_hash = Self::parse_info_hash(download_id)?;
 
         // Get the torrent metadata to know how many files there are
         let meta = self
@@ -258,27 +245,23 @@ impl IrontideBtBackend {
         }
     }
 
-    pub fn emit_pending_summary(&self, pending_id: &str) {
+    pub fn emit_pending_summary(&self, info_hash: Id20) {
+        let id_hex = info_hash.to_hex();
         // Try to get stats; if not available yet, emit a minimal snapshot.
-        let summary = match Self::parse_info_hash(pending_id) {
-            Ok(info_hash) => {
-                match tokio::task::block_in_place(|| {
-                    self.runtime_handle.block_on(self.session.torrent_stats(info_hash))
-                }) {
-                    Ok(stats) => {
-                        let snapshot =
-                            self.stats_to_snapshot(pending_id, &info_hash, &stats);
-                        DownloadSummary::from(&snapshot)
-                    }
-                    Err(_) => fallback_pending_summary(pending_id, &self.default_output_dir),
-                }
+        let summary = match tokio::task::block_in_place(|| {
+            self.runtime_handle.block_on(self.session.torrent_stats(info_hash))
+        }) {
+            Ok(stats) => {
+                let snapshot =
+                    self.stats_to_snapshot(&info_hash, &stats);
+                DownloadSummary::from(&snapshot)
             }
-            Err(_) => fallback_pending_summary(pending_id, &self.default_output_dir),
+            Err(_) => fallback_pending_summary(&id_hex, &self.default_output_dir),
         };
 
         let summary_json = serde_json::to_value(&summary).unwrap_or_default();
         self.event_bus.publish(DownloadEvent::Updated {
-            id: pending_id.to_string(),
+            id: id_hex,
             summary_json,
         });
     }

@@ -34,12 +34,15 @@ async fn download_survives_restart() {
             mirror_urls: None, user_agent: None,
         };
         let id = dm.start(request).await.unwrap();
-        let task_id = TaskId::parse(&id);
-        let inner = task_id.http_inner().unwrap();
+        let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+        let inner = match task_id {
+            TaskId::Http(u) => u,
+            TaskId::Bt(_) => unreachable!(),
+        };
 
         // Wait briefly for some progress, then pause to get a stable snapshot
         tokio::time::sleep(std::time::Duration::from_millis(800)).await;
-        let _snapshot = dm.pause(inner).await.unwrap();
+        let _snapshot = dm.pause(&inner.to_string()).await.unwrap();
 
         // Drop core without calling shutdown_all() — simulates crash
         drop(core);
@@ -54,8 +57,13 @@ async fn download_survives_restart() {
         // The download should be in the list, in Paused state
         let list = dm.list().await.unwrap();
         let restored = list.iter().find(|s| {
-            let tid = TaskId::parse(&s.id);
-            tid.http_inner().map(|i| i == download_id).unwrap_or(false)
+            let Ok(tid) = TaskId::from_legacy_string(&s.id) else {
+                return false;
+            };
+            match tid {
+                TaskId::Http(u) => u.to_string() == download_id,
+                _ => false,
+            }
         }).expect("Download should survive restart and appear in list");
 
         // State must be Paused (in-flight states reset to Paused on restart)

@@ -42,7 +42,7 @@ impl IrontideBtBackend {
 async fn upload_policy_loop(
     session: irontide::session::SessionHandle,
     bt_settings: Arc<Mutex<crate::types::BtSettings>>,
-    task_map: Arc<DashMap<String, Id20>>,
+    task_map: Arc<DashMap<Id20, Id20>>,
     event_bus: Arc<EventBus>,
     paused_by_limit: Arc<DashMap<Id20, ()>>,
 ) {
@@ -71,7 +71,7 @@ async fn upload_policy_loop(
         }
 
         for entry in task_map.iter() {
-            let info_hash = *entry.value();
+            let info_hash = *entry.key();
             match session.torrent_stats(info_hash).await {
                 Ok(stats) => {
                     let limit_reached = settings.upload_limit_bytes > 0
@@ -111,7 +111,7 @@ fn emit_upload_policy_event(
     info_hash: Id20,
     upload_status: &str,
 ) {
-    let task_id = format!("{}{}", super::BT_PREFIX, info_hash.to_hex());
+    let task_id = info_hash.to_hex();
     event_bus.publish(DownloadEvent::Updated {
         id: task_id,
         summary_json: serde_json::json!({"uploadStatus": upload_status}),

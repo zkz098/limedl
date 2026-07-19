@@ -16,9 +16,9 @@ import { expectTaskVisible, expectTaskState } from "../helpers/download-asserts"
 
 test.describe("batch operations", () => {
   const TASK_IDS = [
-    "http:batch-001",
-    "http:batch-002",
-    "http:batch-003",
+    "batch-001",
+    "batch-002",
+    "batch-003",
   ];
 
   test.beforeEach(async ({ page, wsMocker }) => {

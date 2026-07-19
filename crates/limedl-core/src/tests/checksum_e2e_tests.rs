@@ -34,13 +34,16 @@ async fn checksum_correct_completes() {
         user_agent: None,
     };
     let id = dm.start(request).await.unwrap();
-    let task_id = TaskId::parse(&id);
-    let inner = task_id.http_inner().unwrap();
+    let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let inner = match task_id {
+        TaskId::Http(u) => u,
+        TaskId::Bt(_) => unreachable!(),
+    };
 
     // Wait for download to complete (poll with timeout)
     let start = std::time::Instant::now();
     loop {
-        let snapshot = dm.status(inner).await.unwrap();
+        let snapshot = dm.status(&inner.to_string()).await.unwrap();
         match snapshot.state {
             DownloadState::Completed => break,
             DownloadState::Failed => panic!("Download failed: {:?}", snapshot.error),
@@ -89,13 +92,16 @@ async fn checksum_wrong_fails() {
         user_agent: None,
     };
     let id = dm.start(request).await.unwrap();
-    let task_id = TaskId::parse(&id);
-    let inner = task_id.http_inner().unwrap();
+    let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let inner = match task_id {
+        TaskId::Http(u) => u,
+        TaskId::Bt(_) => unreachable!(),
+    };
 
     // Wait for download to fail due to checksum mismatch
     let start = std::time::Instant::now();
     loop {
-        let snapshot = dm.status(inner).await.unwrap();
+        let snapshot = dm.status(&inner.to_string()).await.unwrap();
         match snapshot.state {
             DownloadState::Failed => {
                 assert!(snapshot.error.is_some(), "Failed state must include error message");

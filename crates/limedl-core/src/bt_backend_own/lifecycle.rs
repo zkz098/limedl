@@ -1,4 +1,5 @@
 ﻿use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use irontide::core::Id20;
@@ -6,6 +7,7 @@ use irontide::prelude::*;
 
 use super::IrontideBtBackend;
 use crate::error::{io_error_with_path, DownloadError, Result};
+use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
     ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary,
     StartDownloadRequest, TaskKind, ThreadMode,
@@ -15,14 +17,6 @@ use crate::{lock, now_ms};
 
 impl IrontideBtBackend {
     // ── Private helpers ────────────────────────────────────────────────
-
-    /// Parse the info hash from a `bt:`-prefixed task ID.
-    pub(crate) fn parse_info_hash(download_id: &str) -> Result<Id20> {
-        let hex = download_id
-            .strip_prefix(super::BT_PREFIX)
-            .ok_or(DownloadError::NotFound)?;
-        Id20::from_hex(hex).map_err(|_| DownloadError::NotFound)
-    }
 
     /// Fetch bytes from a URL using the configured HTTP client (with proxy support).
     pub(crate) async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>> {
@@ -54,17 +48,36 @@ impl IrontideBtBackend {
     }
 
     /// Emit an event via the EventBus Aria2 notification.
-    fn emit_aria2_event(&self, method: &str, task_id: &str) {
-        let gid = super::internal_id_to_gid(task_id);
+    fn emit_aria2_event(&self, method: &str, info_hash: &Id20) {
+        let gid = super::internal_id_to_gid(info_hash);
         self.event_bus.publish(DownloadEvent::Aria2Notification {
             event_name: method.to_string(),
             gid,
         });
     }
 
+    /// Try to acquire a BT download slot.
+    /// Fails with `TooManyConcurrentDownloads` if at capacity.
+    fn try_acquire_bt_slot(&self) -> Result<DownloadSlotGuard> {
+        let max = self.max_concurrent_bt.load(Ordering::Acquire);
+        let counter = &self.active_bt_count;
+        loop {
+            let current = counter.load(Ordering::Acquire);
+            if current >= max {
+                return Err(DownloadError::TooManyConcurrentDownloads);
+            }
+            if counter
+                .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                return Ok(DownloadSlotGuard::new(self.active_bt_count.clone()));
+            }
+        }
+    }
+
     // ── Download operations ───────────────────────────────────────────────
 
-    pub async fn start(&self, request: StartDownloadRequest) -> Result<String> {
+    pub async fn start(&self, request: StartDownloadRequest) -> Result<Id20> {
         let source = request.url.trim();
         if source.is_empty() {
             return Err(DownloadError::InvalidResponse(
@@ -110,6 +123,9 @@ impl IrontideBtBackend {
             params
         };
 
+        // Acquire a concurrent BT download slot (throttle)
+        let _guard = self.try_acquire_bt_slot()?;
+
         let info_hash = params
             .add_to(&self.session)
             .await
@@ -127,9 +143,9 @@ impl IrontideBtBackend {
             }
         }
 
-        let task_id = format!("{}{}", super::BT_PREFIX, info_hash.to_hex());
-
-        self.task_map.insert(task_id.clone(), info_hash);
+        self.task_map.insert(info_hash, info_hash);
+        // Store the guard so it lives for the torrent's lifetime
+        self.bt_slot_guards.insert(info_hash, _guard);
 
         // Apply global download speed limit if configured
         if self.global_speed_limit_bps > 0 {
@@ -159,38 +175,36 @@ impl IrontideBtBackend {
         }
 
         // Emit a pending summary so the frontend shows the task immediately.
-        self.emit_pending_summary(&task_id);
+        self.emit_pending_summary(info_hash);
 
-        tracing::info!("irontide: started torrent {task_id}");
-        Ok(task_id)
+        tracing::info!("irontide: started torrent {}", info_hash.to_hex());
+        Ok(info_hash)
     }
 
-    pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub async fn pause(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         self.session
             .pause_torrent(info_hash)
             .await
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
 
-        self.emit_aria2_event("aria2.onDownloadPause", download_id);
-        self.status(download_id).await
+        self.emit_aria2_event("aria2.onDownloadPause", &info_hash);
+        self.status(info_hash).await
     }
 
-    pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub async fn resume(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         self.session
             .resume_torrent(info_hash)
             .await
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
 
-        self.emit_aria2_event("aria2.onDownloadStart", download_id);
-        self.status(download_id).await
+        self.emit_aria2_event("aria2.onDownloadStart", &info_hash);
+        self.status(info_hash).await
     }
 
-    pub async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
+    pub async fn cancel(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         // Try to get status, but proceed even if it fails (torrent might already be gone).
         let fallback_snapshot = || DownloadSnapshot {
-            id: download_id.to_string(),
+            id: info_hash.to_hex(),
             kind: TaskKind::Bt,
             state: DownloadState::Canceled,
             url: String::new(),
@@ -233,21 +247,10 @@ impl IrontideBtBackend {
             disk_type: None,
             flushing: false,
         };
-        let snapshot = self.status(download_id).await.unwrap_or_else(|_| fallback_snapshot());
-        let info_hash = match Self::parse_info_hash(download_id) {
-            Ok(h) => h,
-            Err(_) => {
-                // Already removed from task_map, just return canceled snapshot
-                self.task_map.remove(download_id);
-                return Ok(DownloadSnapshot {
-                    state: DownloadState::Canceled,
-                    updated_at_ms: now_ms(),
-                    ..snapshot
-                });
-            }
-        };
+        let snapshot = self.status(info_hash).await.unwrap_or_else(|_| fallback_snapshot());
         let _ = self.session.remove_torrent(info_hash).await;
-        self.task_map.remove(download_id);
+        self.bt_slot_guards.remove(&info_hash);
+        self.task_map.remove(&info_hash);
 
         Ok(DownloadSnapshot {
             state: DownloadState::Canceled,
@@ -256,30 +259,30 @@ impl IrontideBtBackend {
         })
     }
 
-    pub async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let snapshot = self.status(download_id).await?;
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub async fn remove(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
+        let snapshot = self.status(info_hash).await?;
         self.session
             .remove_torrent(info_hash)
             .await
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
-        self.task_map.remove(download_id);
+        self.bt_slot_guards.remove(&info_hash);
+        self.task_map.remove(&info_hash);
         Ok(snapshot)
     }
 
-    pub async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let snapshot = self.status(download_id).await?;
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub async fn purge(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
+        let snapshot = self.status(info_hash).await?;
         self.session
             .remove_torrent_with_files(info_hash)
             .await
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
-        self.task_map.remove(download_id);
+        self.bt_slot_guards.remove(&info_hash);
+        self.task_map.remove(&info_hash);
         Ok(snapshot)
     }
 
-    pub async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
-        let snapshot = self.status(download_id).await?;
+    pub async fn open_in_explorer(&self, info_hash: Id20) -> Result<()> {
+        let snapshot = self.status(info_hash).await?;
         let path = PathBuf::from(&snapshot.destination_path);
         if path.exists() {
             #[cfg(windows)]
@@ -294,14 +297,13 @@ impl IrontideBtBackend {
         )))
     }
 
-    pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let info_hash = Self::parse_info_hash(download_id)?;
+    pub async fn status(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         let stats = self
             .session
             .torrent_stats(info_hash)
             .await
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
-        Ok(self.stats_to_snapshot(download_id, &info_hash, &stats))
+        Ok(self.stats_to_snapshot(&info_hash, &stats))
     }
 
     pub async fn list(&self) -> Result<Vec<DownloadSummary>> {
@@ -313,10 +315,9 @@ impl IrontideBtBackend {
 
         let mut summaries = Vec::with_capacity(info_hashes.len());
         for info_hash in &info_hashes {
-            let task_id = format!("{}{}", super::BT_PREFIX, info_hash.to_hex());
             match self.session.torrent_stats(*info_hash).await {
                 Ok(stats) => {
-                    let snapshot = self.stats_to_snapshot(&task_id, info_hash, &stats);
+                    let snapshot = self.stats_to_snapshot(info_hash, &stats);
                     summaries.push(DownloadSummary::from(&snapshot));
                 }
                 Err(e) => {

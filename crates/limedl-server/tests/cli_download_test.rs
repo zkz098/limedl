@@ -37,11 +37,14 @@ async fn cli_download_from_test_server() {
     let id = dm.start(request).await.unwrap();
 
     // Wait for download to complete (poll with timeout)
-    let task_id = limedl_core::types::TaskId::parse(&id);
-    let inner = task_id.http_inner().unwrap();
+    let task_id = limedl_core::types::TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let limedl_core::types::TaskId::Http(uuid) = &task_id else {
+        panic!("Expected HTTP TaskId from download start");
+    };
+    let inner = uuid.to_string();
     let start = std::time::Instant::now();
     loop {
-        let snapshot = dm.status(inner).await.unwrap();
+        let snapshot = dm.status(&inner).await.unwrap();
         if snapshot.state == limedl_core::types::DownloadState::Completed {
             break;
         }

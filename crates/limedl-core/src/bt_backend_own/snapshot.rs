@@ -10,7 +10,6 @@ impl super::IrontideBtBackend {
     /// Build a `DownloadSnapshot` from irontide stats.
     pub(crate) fn stats_to_snapshot(
         &self,
-        task_id: &str,
         info_hash: &Id20,
         stats: &irontide::session::TorrentStats,
     ) -> DownloadSnapshot {
@@ -31,11 +30,11 @@ impl super::IrontideBtBackend {
             (stats.upload_payload_rate > 0).then_some(stats.upload_payload_rate as f64);
 
         DownloadSnapshot {
-            id: task_id.to_string(),
+            id: info_hash.to_hex(),
             kind: TaskKind::Bt,
             state,
-            url: info_hash.to_string(),
-            final_url: info_hash.to_string(),
+            url: info_hash.to_hex(),
+            final_url: info_hash.to_hex(),
             file_name: stats.name.clone(),
             destination_path: self.default_output_dir.to_string_lossy().to_string(),
             temp_path: self.state_dir.to_string_lossy().to_string(),
@@ -78,7 +77,7 @@ impl super::IrontideBtBackend {
                     }
                 }
             }),
-            info_hash: Some(info_hash.to_string()),
+            info_hash: Some(info_hash.to_hex()),
             created_at_ms: now,
             updated_at_ms: now,
             cdn_accelerated: false,

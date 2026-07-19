@@ -109,15 +109,19 @@ async fn find_active_by_url_dedup() {
         user_agent: None,
     };
     let id = dm.start(request).await.unwrap();
-    let task_id = TaskId::parse(&id);
+    let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let uuid = match task_id {
+        TaskId::Http(u) => u,
+        TaskId::Bt(_) => unreachable!(),
+    };
 
     // Second check: now it should find the active download
     let found = dm.find_active_by_url(url).await;
     assert!(found.is_some());
-    assert_eq!(found.unwrap(), task_id.http_inner().unwrap());
+    assert_eq!(found.unwrap(), uuid.to_string());
 
     // Cancel the download (makes it terminal)
-    dm.cancel(&task_id.http_inner().unwrap()).await.unwrap();
+    dm.cancel(&uuid.to_string()).await.unwrap();
 
     // Third check: terminal downloads should NOT be found
     assert!(dm.find_active_by_url(url).await.is_none());
@@ -178,10 +182,12 @@ async fn find_active_by_url_different_urls() {
     assert_ne!(found1, found2);
 
     // Cleanup
-    let tid1 = TaskId::parse(&id1);
-    let tid2 = TaskId::parse(&id2);
-    dm.cancel(&tid1.http_inner().unwrap()).await.unwrap();
-    dm.cancel(&tid2.http_inner().unwrap()).await.unwrap();
+    let tid1 = TaskId::from_legacy_string(&id1.to_string()).unwrap();
+    let tid2 = TaskId::from_legacy_string(&id2.to_string()).unwrap();
+    let TaskId::Http(uuid1) = tid1 else { unreachable!() };
+    let TaskId::Http(uuid2) = tid2 else { unreachable!() };
+    dm.cancel(&uuid1.to_string()).await.unwrap();
+    dm.cancel(&uuid2.to_string()).await.unwrap();
 
     dm.shutdown().await;
 }

@@ -15,7 +15,7 @@ import {
 import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 
 test.describe("download progress bar", () => {
-  const TASK_ID = "http:test-progress-001";
+  const TASK_ID = "test-progress-001";
   const TOTAL_BYTES = 10_000_000;
 
   test.beforeEach(async ({ page }) => {

@@ -157,9 +157,9 @@ async fn traditional_mode_limits_concurrent_tasks() -> TestResult {
 
     // The scheduler assigned states during start() — no extra sleep needed.
     // The 2 s server delay keeps tasks 1 & 2 in Downloading.
-    let s1 = manager.status(&id1).await?;
-    let s2 = manager.status(&id2).await?;
-    let s3 = manager.status(&id3).await?;
+    let s1 = manager.status(&id1.to_string()).await?;
+    let s2 = manager.status(&id2.to_string()).await?;
+    let s3 = manager.status(&id3.to_string()).await?;
 
     assert_eq!(
         s1.state,
@@ -178,7 +178,7 @@ async fn traditional_mode_limits_concurrent_tasks() -> TestResult {
     );
 
     // Still in progress — cancel to clean up.
-    for id in [&id1, &id2, &id3] {
+    for id in [&id1.to_string(), &id2.to_string(), &id3.to_string()] {
         let _ = manager.cancel(id).await;
     }
 
@@ -229,8 +229,8 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     manager.update_adaptive_targets().await?;
     manager.rebalance_allocations().await?;
 
-    let big = manager.status(&big_id).await?;
-    let small = manager.status(&small_id).await?;
+    let big = manager.status(&big_id.to_string()).await?;
+    let small = manager.status(&small_id.to_string()).await?;
 
     assert!(
         big.connection_count >= small.connection_count,
@@ -239,8 +239,8 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         small.connection_count,
     );
 
-    let _ = manager.cancel(&big_id).await;
-    let _ = manager.cancel(&small_id).await;
+    let _ = manager.cancel(&big_id.to_string()).await;
+    let _ = manager.cancel(&small_id.to_string()).await;
     Ok(())
 }
 
@@ -279,7 +279,7 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
 
     // Wait for some progress (at ~1 MB/s we should have >0 after 1200 ms).
     tokio::time::sleep(Duration::from_millis(1200)).await;
-    let before = manager.status(&id).await?;
+    let before = manager.status(&id.to_string()).await?;
     assert!(
         before.downloaded_bytes > 0,
         "expected progress before pause, got 0"
@@ -287,7 +287,7 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
     let bytes_before = before.downloaded_bytes;
 
     // Pause.
-    let paused = manager.pause(&id).await?;
+    let paused = manager.pause(&id.to_string()).await?;
     assert_eq!(paused.state, DownloadState::Paused);
 
     let bytes_at_pause = paused.downloaded_bytes;
@@ -299,7 +299,7 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
     );
 
     // Resume.
-    let resumed = manager.resume(&id).await?;
+    let resumed = manager.resume(&id.to_string()).await?;
     assert!(
         matches!(resumed.state, DownloadState::Queued | DownloadState::Downloading),
         "resume gave {:?}",
@@ -315,7 +315,7 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
         .await?;
 
     // Wait for completion.
-    let done = tokio::time::timeout(Duration::from_secs(120), wait_for_terminal(&manager, &id))
+    let done = tokio::time::timeout(Duration::from_secs(120), wait_for_terminal(&manager, &id.to_string()))
         .await
         .map_err(|_| "timeout waiting for resume")?;
 
@@ -327,7 +327,7 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
     );
     assert_eq!(done.state, DownloadState::Completed);
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -362,20 +362,20 @@ async fn cancel_stops_download() -> TestResult {
 
     // Give it time to start (state should be Downloading due to server delay).
     tokio::time::sleep(Duration::from_millis(500)).await;
-    let before = manager.status(&id).await?;
+    let before = manager.status(&id.to_string()).await?;
     assert!(
         matches!(before.state, DownloadState::Downloading),
         "state was {:?}",
         before.state
     );
 
-    let canceled = manager.cancel(&id).await?;
+    let canceled = manager.cancel(&id.to_string()).await?;
     assert_eq!(canceled.state, DownloadState::Canceled);
 
     // Cancelled downloads should be removed from the list.
     let list = manager.list().await?;
     assert!(
-        list.iter().all(|s| s.id != id),
+        list.iter().all(|s| s.id != id.to_string()),
         "canceled download should not appear"
     );
 
@@ -423,7 +423,7 @@ async fn scheduler_respects_global_speed_limit() -> TestResult {
         .await?;
 
     let start = std::time::Instant::now();
-    let done = tokio::time::timeout(Duration::from_secs(120), wait_for_terminal(&manager, &id))
+    let done = tokio::time::timeout(Duration::from_secs(120), wait_for_terminal(&manager, &id.to_string()))
         .await
         .map_err(|_| "timeout")?;
 
@@ -438,7 +438,7 @@ async fn scheduler_respects_global_speed_limit() -> TestResult {
         limit_bps
     );
 
-    let _ = manager.remove(&id).await;
+    let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
 
@@ -474,13 +474,13 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
 
     // Second should be queued (max_parallel_tasks = 1).
     // The scheduler assigned states during start() — no sleep needed here.
-    let s2 = manager.status(&id2).await?;
+    let s2 = manager.status(&id2.to_string()).await?;
     assert_eq!(s2.state, DownloadState::Queued);
 
     // Wait for first to complete.
     let s1 = tokio::time::timeout(
         Duration::from_secs(30),
-        wait_for_terminal(&manager, &id1),
+        wait_for_terminal(&manager, &id1.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for first")?;
@@ -489,7 +489,7 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
     // Trigger rebalance so scheduler allocates to queued download.
     manager.rebalance_allocations().await?;
 
-    let s2 = manager.status(&id2).await?;
+    let s2 = manager.status(&id2.to_string()).await?;
     assert!(
         matches!(s2.state, DownloadState::Downloading | DownloadState::Completed),
         "second should be running after first finished, got {:?}",
@@ -499,13 +499,13 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
     // Wait for second to finish as well.
     let _s2_done = tokio::time::timeout(
         Duration::from_secs(30),
-        wait_for_terminal(&manager, &id2),
+        wait_for_terminal(&manager, &id2.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for second")?;
 
-    let _ = manager.remove(&id1).await;
-    let _ = manager.remove(&id2).await;
+    let _ = manager.remove(&id1.to_string()).await;
+    let _ = manager.remove(&id2.to_string()).await;
     Ok(())
 }
 
@@ -551,8 +551,8 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
     manager.update_adaptive_targets().await?;
     manager.rebalance_allocations().await?;
 
-    let s1 = manager.status(&id1).await?;
-    let s2 = manager.status(&id2).await?;
+    let s1 = manager.status(&id1.to_string()).await?;
+    let s2 = manager.status(&id2.to_string()).await?;
 
     let diff = (s1.connection_count as i64 - s2.connection_count as i64).unsigned_abs();
     assert!(
@@ -566,13 +566,13 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
     // Wait for both to complete.
     let done1 = tokio::time::timeout(
         Duration::from_secs(60),
-        wait_for_terminal(&manager, &id1),
+        wait_for_terminal(&manager, &id1.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for first download")?;
     let done2 = tokio::time::timeout(
         Duration::from_secs(60),
-        wait_for_terminal(&manager, &id2),
+        wait_for_terminal(&manager, &id2.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for second download")?;
@@ -580,8 +580,8 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
     assert_eq!(done1.state, DownloadState::Completed, "error={:?}", done1.error);
     assert_eq!(done2.state, DownloadState::Completed, "error={:?}", done2.error);
 
-    let _ = manager.remove(&id1).await;
-    let _ = manager.remove(&id2).await;
+    let _ = manager.remove(&id1.to_string()).await;
+    let _ = manager.remove(&id2.to_string()).await;
     Ok(())
 }
 
@@ -656,8 +656,8 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     manager.update_adaptive_targets().await?;
     manager.rebalance_allocations().await?;
 
-    let fixed_snap = manager.status(&fixed_id).await?;
-    let adaptive_snap = manager.status(&adaptive_id).await?;
+    let fixed_snap = manager.status(&fixed_id.to_string()).await?;
+    let adaptive_snap = manager.status(&adaptive_id.to_string()).await?;
 
     let total = fixed_snap.connection_count + adaptive_snap.connection_count;
 
@@ -690,13 +690,13 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     // Wait for both to complete.
     let done_fixed = tokio::time::timeout(
         Duration::from_secs(60),
-        wait_for_terminal(&manager, &fixed_id),
+        wait_for_terminal(&manager, &fixed_id.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for fixed download")?;
     let done_adaptive = tokio::time::timeout(
         Duration::from_secs(60),
-        wait_for_terminal(&manager, &adaptive_id),
+        wait_for_terminal(&manager, &adaptive_id.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for adaptive download")?;
@@ -704,8 +704,8 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     assert_eq!(done_fixed.state, DownloadState::Completed, "error={:?}", done_fixed.error);
     assert_eq!(done_adaptive.state, DownloadState::Completed, "error={:?}", done_adaptive.error);
 
-    let _ = manager.remove(&fixed_id).await;
-    let _ = manager.remove(&adaptive_id).await;
+    let _ = manager.remove(&fixed_id.to_string()).await;
+    let _ = manager.remove(&adaptive_id.to_string()).await;
     Ok(())
 }
 
@@ -752,13 +752,13 @@ async fn rate_limiter_shared_across_multiple_downloads() -> TestResult {
 
     let done1 = tokio::time::timeout(
         Duration::from_secs(90),
-        wait_for_terminal(&manager, &id1),
+        wait_for_terminal(&manager, &id1.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for first download")?;
     let done2 = tokio::time::timeout(
         Duration::from_secs(90),
-        wait_for_terminal(&manager, &id2),
+        wait_for_terminal(&manager, &id2.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for second download")?;
@@ -780,8 +780,8 @@ async fn rate_limiter_shared_across_multiple_downloads() -> TestResult {
     assert_eq!(done1.state, DownloadState::Completed, "error={:?}", done1.error);
     assert_eq!(done2.state, DownloadState::Completed, "error={:?}", done2.error);
 
-    let _ = manager.remove(&id1).await;
-    let _ = manager.remove(&id2).await;
+    let _ = manager.remove(&id1.to_string()).await;
+    let _ = manager.remove(&id2.to_string()).await;
     Ok(())
 }
 
@@ -827,11 +827,11 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Pause the first.
-    let paused = manager.pause(&id1).await?;
+    let paused = manager.pause(&id1.to_string()).await?;
     assert_eq!(paused.state, DownloadState::Paused);
 
     // The second download must still be active (Downloading or Completed).
-    let other = manager.status(&id2).await?;
+    let other = manager.status(&id2.to_string()).await?;
     assert!(
         matches!(other.state, DownloadState::Downloading | DownloadState::Completed),
         "second download should be running after first is paused, got {:?}",
@@ -839,7 +839,7 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
     );
 
     // Resume the paused download.
-    let resumed = manager.resume(&id1).await?;
+    let resumed = manager.resume(&id1.to_string()).await?;
     assert!(
         matches!(resumed.state, DownloadState::Queued | DownloadState::Downloading),
         "resume gave {:?}",
@@ -857,13 +857,13 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
     // Wait for both to complete.
     let done1 = tokio::time::timeout(
         Duration::from_secs(60),
-        wait_for_terminal(&manager, &id1),
+        wait_for_terminal(&manager, &id1.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for first download after resume")?;
     let done2 = tokio::time::timeout(
         Duration::from_secs(60),
-        wait_for_terminal(&manager, &id2),
+        wait_for_terminal(&manager, &id2.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for second download")?;
@@ -871,8 +871,8 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
     assert_eq!(done1.state, DownloadState::Completed, "error={:?}", done1.error);
     assert_eq!(done2.state, DownloadState::Completed, "error={:?}", done2.error);
 
-    let _ = manager.remove(&id1).await;
-    let _ = manager.remove(&id2).await;
+    let _ = manager.remove(&id1.to_string()).await;
+    let _ = manager.remove(&id2.to_string()).await;
     Ok(())
 }
 
@@ -908,15 +908,15 @@ async fn cancel_one_unblocks_queued() -> TestResult {
     let id2 = manager.start(req_fixed(&url, &out, "cancel-second.bin")).await?;
 
     // Second must be queued (max_parallel_tasks=1).
-    let s2 = manager.status(&id2).await?;
+    let s2 = manager.status(&id2.to_string()).await?;
     assert_eq!(s2.state, DownloadState::Queued);
 
     // Cancel the first — this removes it and triggers rebalance.
-    let canceled = manager.cancel(&id1).await?;
+    let canceled = manager.cancel(&id1.to_string()).await?;
     assert_eq!(canceled.state, DownloadState::Canceled);
 
     // After cancel + rebalance, the second should be running or already complete.
-    let s2 = manager.status(&id2).await?;
+    let s2 = manager.status(&id2.to_string()).await?;
     assert!(
         matches!(s2.state, DownloadState::Downloading | DownloadState::Completed),
         "second download should be running after first canceled, got {:?}",
@@ -926,12 +926,12 @@ async fn cancel_one_unblocks_queued() -> TestResult {
     // Wait for the second to finish.
     let done2 = tokio::time::timeout(
         Duration::from_secs(30),
-        wait_for_terminal(&manager, &id2),
+        wait_for_terminal(&manager, &id2.to_string()),
     )
     .await
     .map_err(|_| "timeout waiting for second download after cancel")?;
     assert_eq!(done2.state, DownloadState::Completed);
 
-    let _ = manager.remove(&id2).await;
+    let _ = manager.remove(&id2.to_string()).await;
     Ok(())
 }

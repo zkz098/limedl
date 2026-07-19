@@ -40,7 +40,7 @@ async fn scheduler_respects_max_parallel_tasks() {
             mirror_urls: None, user_agent: None,
         };
         let id = dm.start(request).await.unwrap();
-        ids.push(id);
+        ids.push(id.to_string());
     }
 
     // Wait for scheduler to process
@@ -66,9 +66,9 @@ async fn scheduler_respects_max_parallel_tasks() {
 
     // Cleanup: cancel all downloads
     for id in &ids {
-        let task_id = TaskId::parse(id);
-        if let Some(inner) = task_id.http_inner() {
-            let _ = dm.cancel(inner).await;
+        let task_id = TaskId::from_legacy_string(id).unwrap();
+        if let TaskId::Http(inner) = &task_id {
+            let _ = dm.cancel(&inner.to_string()).await;
         }
     }
 

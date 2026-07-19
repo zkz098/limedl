@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref, nextTick } from "vue";
 
 vi.mock("../../lib/tauri/download-api", () => ({
-  startDownload: vi.fn().mockResolvedValue("http:test-id"),
+  startDownload: vi.fn().mockResolvedValue({ kind: "http", id: "test-id" }),
   setBtSpeedLimit: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -290,7 +290,7 @@ describe("useDownloadForm", () => {
   // ── submitStart ────────────────────────────────────────────────────
 
   it("with valid form calls startDownload, refreshes list, resets form", async () => {
-    mockStartDownload.mockResolvedValue("http:test-123");
+    mockStartDownload.mockResolvedValue({ kind: "http", id: "test-123" });
     const { submitStart, form } = createForm();
 
     form.url = "https://example.com/file.zip";
@@ -307,10 +307,10 @@ describe("useDownloadForm", () => {
         fileName: "file.zip",
       }),
     );
-    expect(selectedId.value).toBe("http:test-123");
+    expect(selectedId.value).toBe("test-123");
     expect(refreshList).toHaveBeenCalledTimes(1);
-    expect(refreshStatus).toHaveBeenCalledWith("http:test-123", { silent: true });
-    expect(setMessage).toHaveBeenCalledWith('messages.downloadQueued {"id":"http:test-123"}');
+    expect(refreshStatus).toHaveBeenCalledWith("test-123", { silent: true });
+    expect(setMessage).toHaveBeenCalledWith('messages.downloadQueued {"id":"test-123"}');
     // Form should be reset after successful start
     expect(form.url).toBe("");
     expect(form.fileName).toBe("");
@@ -351,7 +351,7 @@ describe("useDownloadForm", () => {
   });
 
   it("when already starting does not call startDownload again", async () => {
-    mockStartDownload.mockResolvedValue("http:test-123");
+    mockStartDownload.mockResolvedValue({ kind: "http", id: "test-123" });
     const { submitStart, form } = createForm();
 
     form.url = "https://example.com/file.zip";
@@ -375,7 +375,7 @@ describe("useDownloadForm", () => {
   });
 
   it("clears message before starting", async () => {
-    mockStartDownload.mockResolvedValue("http:test-123");
+    mockStartDownload.mockResolvedValue({ kind: "http", id: "test-123" });
     const { submitStart, form } = createForm();
 
     form.url = "https://example.com/file.zip";
@@ -506,7 +506,7 @@ describe("useDownloadForm", () => {
     const { setBtSpeedLimit } = await import("../../lib/tauri/download-api");
     const mockSetBtSpeedLimit = vi.mocked(setBtSpeedLimit);
     mockSetBtSpeedLimit.mockResolvedValue(undefined);
-    mockStartDownload.mockResolvedValue("bt:test-456");
+    mockStartDownload.mockResolvedValue({ kind: "bt", id: "test-456" });
 
     const { submitStart, form } = createForm();
 
@@ -518,13 +518,13 @@ describe("useDownloadForm", () => {
 
     await submitStart();
 
-    expect(mockSetBtSpeedLimit).toHaveBeenCalledWith("bt:test-456", 500_000, 100_000);
+    expect(mockSetBtSpeedLimit).toHaveBeenCalledWith("test-456", 500_000, 100_000);
   });
 
   it("does not set BT speed limits when limits are null", async () => {
     const { setBtSpeedLimit } = await import("../../lib/tauri/download-api");
     const mockSetBtSpeedLimit = vi.mocked(setBtSpeedLimit);
-    mockStartDownload.mockResolvedValue("bt:test-789");
+    mockStartDownload.mockResolvedValue({ kind: "bt", id: "test-789" });
 
     const { submitStart, form } = createForm();
 

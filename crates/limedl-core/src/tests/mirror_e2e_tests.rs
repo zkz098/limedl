@@ -47,13 +47,16 @@ async fn mirror_fallback_on_primary_failure() {
         user_agent: None,
     };
     let id = dm.start(request).await.unwrap();
-    let task_id = TaskId::parse(&id);
-    let inner = task_id.http_inner().unwrap();
+    let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let inner = match task_id {
+        TaskId::Http(u) => u,
+        TaskId::Bt(_) => unreachable!(),
+    };
 
     // Wait for download to complete (should succeed via mirror fallback)
     let start = std::time::Instant::now();
     loop {
-        let snapshot = dm.status(inner).await.unwrap();
+        let snapshot = dm.status(&inner.to_string()).await.unwrap();
         match snapshot.state {
             DownloadState::Completed => {
                 // Verify the final URL is the mirror URL (not the broken primary)

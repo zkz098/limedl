@@ -14,7 +14,7 @@ import { expectTaskVisible, expectTaskState } from "../helpers/download-asserts"
 import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 
 test.describe("pause and resume", () => {
-  const TASK_ID = "http:test-pause-001";
+  const TASK_ID = "test-pause-001";
 
   test.beforeEach(async ({ page, wsMocker }) => {
     await page.goto("/");

@@ -281,9 +281,9 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     try {
       clearMessage();
 
-      const downloadId = await startDownload(buildStartRequest());
+      const taskId = await startDownload(buildStartRequest());
       allowAutoSelect.value = true;
-      selectedId.value = downloadId;
+      selectedId.value = taskId.id;
 
       // For BT downloads, apply initial per-download speed limits after start
       // (the StartDownloadRequest no longer carries these fields).
@@ -292,7 +292,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
         const ul = form.uploadLimitBps;
         if ((dl !== null && dl > 0) || (ul !== null && ul > 0)) {
           try {
-            await setBtSpeedLimit(downloadId, dl ?? undefined, ul ?? undefined);
+            await setBtSpeedLimit(taskId.id, dl ?? undefined, ul ?? undefined);
           } catch {
             // Non-critical — speed limit is optional, the download is already running.
           }
@@ -300,8 +300,8 @@ export function useDownloadForm(input: UseDownloadFormInput) {
       }
 
       await refreshList();
-      await refreshStatus(downloadId, { silent: true });
-      setMessage(t("messages.downloadQueued", { id: downloadId }));
+      await refreshStatus(taskId.id, { silent: true });
+      setMessage(t("messages.downloadQueued", { id: taskId.id }));
       resetForm();
     } catch (error) {
       setError(toMessage(error));
