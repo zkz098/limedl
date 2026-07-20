@@ -1,4 +1,4 @@
-﻿use ntest::timeout;
+use ntest::timeout;
 use tempfile::TempDir;
 
 /// Integration test: download a file from the test HTTP server using the core
@@ -66,10 +66,7 @@ async fn cli_download_from_test_server() {
     // Verify content checksum
     let content = std::fs::read(&output_path).unwrap();
     let slices: &[&[u8]] = &[&content];
-    let hash = limedl_core::checksum::hash_slices(
-        limedl_core::types::ChecksumMode::Blake3,
-        slices,
-    );
+    let hash = limedl_core::checksum::hash_slices(limedl_core::types::ChecksumMode::Blake3, slices);
     assert_eq!(
         hash, server.blake3_hash,
         "Blake3 checksum mismatch after download"

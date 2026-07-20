@@ -1,4 +1,4 @@
-﻿use std::path::Path;
+use std::path::Path;
 
 use foldhash::HashMap;
 use parking_lot::Mutex;
@@ -6,9 +6,11 @@ use parking_lot::Mutex;
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params, types::Value};
 
-
 use super::manifest::{ChunkManifest, Manifest};
 use super::types::{AdaptiveProfile, ChecksumMode, DownloadState, ThreadMode};
+
+#[cfg(test)]
+use super::error::DownloadError;
 
 type RusqliteResult<T> = std::result::Result<T, rusqlite::Error>;
 
@@ -403,7 +405,8 @@ const MIGRATIONS: &[Migration] = &[
             conn.execute(
                 "ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304",
                 [],
-            ).context("failed to add chunk_size column")?;
+            )
+            .context("failed to add chunk_size column")?;
             Ok(())
         },
     },
@@ -411,18 +414,18 @@ const MIGRATIONS: &[Migration] = &[
         version: 3,
         name: "add_mirror_columns",
         up: |conn| {
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN mirror_url TEXT",
-                [],
-            ).context("failed to add mirror_url column")?;
+            conn.execute("ALTER TABLE downloads ADD COLUMN mirror_url TEXT", [])
+                .context("failed to add mirror_url column")?;
             conn.execute(
                 "ALTER TABLE downloads ADD COLUMN mirror_urls TEXT NOT NULL DEFAULT '[]'",
                 [],
-            ).context("failed to add mirror_urls column")?;
+            )
+            .context("failed to add mirror_urls column")?;
             conn.execute(
                 "ALTER TABLE downloads ADD COLUMN current_mirror_index INTEGER NOT NULL DEFAULT 0",
                 [],
-            ).context("failed to add current_mirror_index column")?;
+            )
+            .context("failed to add current_mirror_index column")?;
             Ok(())
         },
     },
@@ -443,11 +446,13 @@ const MIGRATIONS: &[Migration] = &[
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_downloads_state ON downloads(state)",
                 [],
-            ).context("failed to create idx_downloads_state")?;
+            )
+            .context("failed to create idx_downloads_state")?;
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_downloads_created ON downloads(created_at_ms DESC)",
                 [],
-            ).context("failed to create idx_downloads_created")?;
+            )
+            .context("failed to create idx_downloads_created")?;
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_chunks_claimed ON chunks(claimed_by) WHERE claimed_by IS NOT NULL",
                 [],
@@ -506,19 +511,15 @@ impl Database {
                 migration.version,
                 migration.name
             );
-            (migration.up)(&conn)
-                .with_context(|| {
-                    format!(
-                        "migration v{} ({}) failed",
-                        migration.version, migration.name
-                    )
-                })?;
+            (migration.up)(&conn).with_context(|| {
+                format!(
+                    "migration v{} ({}) failed",
+                    migration.version, migration.name
+                )
+            })?;
             conn.pragma_update(None, "user_version", migration.version)
                 .with_context(|| {
-                    format!(
-                        "failed to update schema version to {}",
-                        migration.version
-                    )
+                    format!("failed to update schema version to {}", migration.version)
                 })?;
         }
 
@@ -534,8 +535,7 @@ impl Database {
     /// and can cause "database is locked" errors).
     #[cfg(test)]
     pub fn open_in_memory() -> Result<Self> {
-        let conn = Connection::open_in_memory()
-            .context("failed to open in-memory database")?;
+        let conn = Connection::open_in_memory().context("failed to open in-memory database")?;
         conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
         conn.execute_batch("PRAGMA busy_timeout = 5000;")
@@ -545,7 +545,11 @@ impl Database {
             (migration.up)(&conn)
                 .with_context(|| format!("test migration v{} failed", migration.version))?;
         }
-        conn.pragma_update(None, "user_version", MIGRATIONS.last().unwrap().version)
+        let current_version = MIGRATIONS
+            .last()
+            .map(|m| m.version)
+            .ok_or_else(|| DownloadError::DatabaseInit("no migrations defined".into()))?;
+        conn.pragma_update(None, "user_version", current_version)
             .context("failed to set schema version")?;
         Ok(Self {
             conn: Mutex::new(conn),
@@ -960,9 +964,9 @@ impl<T> OptionalExt<T> for Result<T, rusqlite::Error> {
 mod tests {
     use ntest::timeout;
 
-    use super::*;
     use super::super::manifest::CHUNK_SIZE;
     use super::super::types::default_http_user_agent;
+    use super::*;
 
     /// Helper: create a `Manifest` with sensible defaults for testing.
     fn new_test_manifest(id: &str, url: &str, file_name: &str) -> Manifest {
@@ -1154,7 +1158,10 @@ mod tests {
         }];
 
         db.insert_download(&manifest).unwrap();
-        let loaded = db.get_download("all-fields").unwrap().expect("should exist");
+        let loaded = db
+            .get_download("all-fields")
+            .unwrap()
+            .expect("should exist");
 
         assert_eq!(loaded.id, "all-fields");
         assert_eq!(loaded.url, "https://example.com/file");
@@ -1386,7 +1393,10 @@ mod tests {
         db.update_download_progress("empty-chunks", 100, &[], "downloading", 3000)
             .unwrap();
 
-        let loaded = db.get_download("empty-chunks").unwrap().expect("should exist");
+        let loaded = db
+            .get_download("empty-chunks")
+            .unwrap()
+            .expect("should exist");
         assert_eq!(loaded.downloaded_bytes, 100);
         assert_eq!(loaded.state, DownloadState::Downloading);
         assert_eq!(loaded.updated_at_ms, 3000);
@@ -1530,7 +1540,10 @@ mod tests {
             dirty: false,
         }];
         db.insert_download(&m).unwrap();
-        let loaded = db.get_download("claim-none").unwrap().expect("should exist");
+        let loaded = db
+            .get_download("claim-none")
+            .unwrap()
+            .expect("should exist");
         assert_eq!(loaded.chunks.len(), 1);
         assert!(loaded.chunks[0].claimed_by.is_none());
     }
@@ -1576,7 +1589,10 @@ mod tests {
 
         let headers = db.list_download_headers().unwrap();
         assert_eq!(headers.len(), 1);
-        assert!(headers[0].chunks.is_empty(), "chunks should not be populated");
+        assert!(
+            headers[0].chunks.is_empty(),
+            "chunks should not be populated"
+        );
     }
 
     #[timeout(30_000)]
@@ -1632,9 +1648,7 @@ mod tests {
         let conn = db.lock_conn();
 
         // Verify the backfilled columns exist after migration
-        let mut stmt = conn
-            .prepare("PRAGMA table_info(downloads)")
-            .unwrap();
+        let mut stmt = conn.prepare("PRAGMA table_info(downloads)").unwrap();
         let columns: Vec<String> = stmt
             .query_map([], |row| row.get::<_, String>(1))
             .unwrap()
@@ -1656,6 +1670,28 @@ mod tests {
         assert!(
             columns.contains(&"current_mirror_index".to_string()),
             "current_mirror_index column should exist"
+        );
+    }
+
+    #[test]
+    fn empty_migrations_returns_err() {
+        let empty: &[Migration] = &[];
+        let result = empty
+            .last()
+            .map(|m| m.version)
+            .ok_or_else(|| DownloadError::DatabaseInit("no migrations defined".into()));
+        assert!(result.is_err(), "expected Err for empty migrations slice");
+        let err = result.unwrap_err();
+        assert_eq!(
+            err.kind(),
+            "database_init",
+            "unexpected error kind: {}",
+            err.kind()
+        );
+        assert!(
+            err.to_string().contains("database initialization error"),
+            "unexpected error message: {}",
+            err.to_string()
         );
     }
 }

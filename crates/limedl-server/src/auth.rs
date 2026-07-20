@@ -1,6 +1,6 @@
-﻿use axum::{
+use axum::{
     body::Body,
-    http::{header, Request, StatusCode},
+    http::{Request, StatusCode, header},
     middleware::Next,
     response::Response,
 };
@@ -10,10 +10,7 @@ use super::config::AuthConfig;
 /// axum middleware: check Basic Auth header or ?token= query parameter before
 /// allowing WebSocket upgrade. The token parameter is base64(username:password).
 /// If AuthConfig is None, all requests pass through.
-pub async fn basic_auth_middleware(
-    req: Request<Body>,
-    next: Next,
-) -> Result<Response, StatusCode> {
+pub async fn basic_auth_middleware(req: Request<Body>, next: Next) -> Result<Response, StatusCode> {
     // Extract auth config from request extensions (set in router setup)
     let auth_config = req
         .extensions()
@@ -74,7 +71,5 @@ pub async fn basic_auth_middleware(
 
 fn base64_decode(input: &str) -> Option<Vec<u8>> {
     use base64::Engine;
-    base64::engine::general_purpose::STANDARD
-        .decode(input)
-        .ok()
+    base64::engine::general_purpose::STANDARD.decode(input).ok()
 }

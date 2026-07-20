@@ -1,4 +1,4 @@
-﻿//! EventBus — unified publish/subscribe event bus for all download subsystems.
+//! EventBus — unified publish/subscribe event bus for all download subsystems.
 //!
 //! Pure broadcast channel. Tauri frontend emission is handled by an independent
 //! subscriber task in the application layer.
@@ -24,10 +24,7 @@ pub enum DownloadEvent {
         progress_json: serde_json::Value,
     },
     /// BT-specific: aria2-compatible event notifications.
-    Aria2Notification {
-        event_name: String,
-        gid: String,
-    },
+    Aria2Notification { event_name: String, gid: String },
     /// CDN speed test progress update.
     CdnProgress {
         phase: String,
@@ -41,10 +38,7 @@ pub enum DownloadEvent {
         active_speed_mbps: Option<f64>,
     },
     /// A warning or informational message for a specific download.
-    Warning {
-        id: String,
-        message: String,
-    },
+    Warning { id: String, message: String },
 }
 
 // ── EventBus ──────────────────────────────────────────────────────────────
@@ -79,5 +73,4 @@ impl EventBus {
     pub fn subscribe(&self) -> broadcast::Receiver<DownloadEvent> {
         self.tx.subscribe()
     }
-
 }

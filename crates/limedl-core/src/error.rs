@@ -47,6 +47,8 @@ pub enum DownloadError {
         "insufficient disk space: {available} bytes available, {required} bytes required (incl. 10% buffer)"
     )]
     InsufficientDiskSpace { available: u64, required: u64 },
+    #[error("database initialization error: {0}")]
+    DatabaseInit(String),
     #[error("internal error: {0}")]
     Internal(String),
     #[error("too many concurrent downloads")]
@@ -75,6 +77,7 @@ impl DownloadError {
             Self::TorrentInvalidData(_) => "torrent_invalid_data",
             Self::TorrentIo(_) => "torrent_io",
             Self::InsufficientDiskSpace { .. } => "insufficient_disk_space",
+            Self::DatabaseInit(_) => "database_init",
             Self::TooManyConcurrentDownloads => "too_many_concurrent_downloads",
             Self::Internal(_) => "internal",
             #[allow(unreachable_patterns)]

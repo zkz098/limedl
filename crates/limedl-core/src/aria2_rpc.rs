@@ -1,5 +1,5 @@
-﻿use std::{path::PathBuf, sync::Arc};
 use std::time::Duration;
+use std::{path::PathBuf, sync::Arc};
 
 use foldhash::HashMap;
 
@@ -9,7 +9,7 @@ use axum::{
         WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
-    http::{header, HeaderValue, Method, StatusCode},
+    http::{HeaderValue, Method, StatusCode, header},
     response::{IntoResponse, Response},
     routing::post,
 };
@@ -28,8 +28,8 @@ use crate::{
     event_bus::{DownloadEvent, EventBus},
     manager::DownloadManager,
     types::{
-        Aria2RpcSettings, BtPeerInfo, DownloadState, DownloadSummary, StartDownloadRequest,
-        TaskId, TaskKind,
+        Aria2RpcSettings, BtPeerInfo, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
+        TaskKind,
     },
 };
 
@@ -108,7 +108,7 @@ async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
     {
         let cache = ctx.gid_cache.lock().await;
         if let Some(task_id) = cache.get(gid) {
-            return Some(task_id.clone());
+            return Some(*task_id);
         }
     }
 
@@ -122,7 +122,7 @@ async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
                         TaskKind::Bt => TaskId::Bt(Id20::from_hex(&s.id).ok()?),
                     };
                     let mut cache = ctx.gid_cache.lock().await;
-                    cache.insert(gid.to_string(), task_id.clone());
+                    cache.insert(gid.to_string(), task_id);
                     return Some(task_id);
                 }
             }
@@ -216,7 +216,8 @@ struct RpcContext {
 
 impl RpcContext {
     fn settings_default_download_dir(&self) -> String {
-        self.registry.get_typed::<DownloadManager>()
+        self.registry
+            .get_typed::<DownloadManager>()
             .and_then(|dm| dm.settings_default_download_dir())
             .unwrap_or_else(|| dirs_next().unwrap_or_else(default_downloads_dir))
     }
@@ -333,7 +334,9 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         mirror_urls: None,
     };
 
-    let dm = ctx.registry.get_typed::<DownloadManager>()
+    let dm = ctx
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
 
     // Dedup: if a non-terminal download for this URL already exists, return its GID
@@ -341,7 +344,10 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         let gid = internal_id_to_gid(&existing_id);
         // Cache the GID so resolve_gid can find it without scanning.
         if let Ok(uuid) = Uuid::parse_str(&existing_id) {
-            ctx.gid_cache.lock().await.insert(gid.clone(), TaskId::Http(uuid));
+            ctx.gid_cache
+                .lock()
+                .await
+                .insert(gid.clone(), TaskId::Http(uuid));
         }
         return Ok(Value::String(gid));
     }
@@ -371,7 +377,10 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
 
     let gid = internal_id_to_gid(&id.to_string());
     // Cache the GID so resolve_gid can find it without scanning.
-    ctx.gid_cache.lock().await.insert(gid.clone(), TaskId::Http(id));
+    ctx.gid_cache
+        .lock()
+        .await
+        .insert(gid.clone(), TaskId::Http(id));
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
     Ok(Value::String(gid))
 }
@@ -456,7 +465,9 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         mirror_urls: None,
     };
 
-    let bt = ctx.registry.get_typed::<IrontideBtBackend>()
+    let bt = ctx
+        .registry
+        .get_typed::<IrontideBtBackend>()
         .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?;
 
     let id = bt
@@ -771,20 +782,14 @@ async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
         .get_peers(*info_hash)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
-    let aria2_peers: Vec<Value> = peers
-        .iter()
-        .map(peer_info_to_aria2_peer)
-        .collect();
+    let aria2_peers: Vec<Value> = peers.iter().map(peer_info_to_aria2_peer).collect();
 
     Ok(Value::Array(aria2_peers))
 }
 
 fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
     let (ip, port) = match p.address.rsplit_once(':') {
-        Some((ip, port_str)) => (
-            ip.to_string(),
-            port_str.parse::<u16>().unwrap_or(0),
-        ),
+        Some((ip, port_str)) => (ip.to_string(), port_str.parse::<u16>().unwrap_or(0)),
         None => (p.address.clone(), 0),
     };
 
@@ -807,7 +812,9 @@ fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
 }
 
 async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
-    let dm = ctx.registry.get_typed::<DownloadManager>()
+    let dm = ctx
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
     let settings = dm
         .settings()
@@ -836,7 +843,9 @@ async fn handle_change_global_option(
         .and_then(|v| v.as_object())
         .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing options object"))?;
 
-    let dm = ctx.registry.get_typed::<DownloadManager>()
+    let dm = ctx
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
     let mut settings = dm
         .settings()
@@ -966,12 +975,26 @@ async fn rpc_dispatch_action(
     task_id: &TaskId,
     action: &str,
 ) -> Result<(), JsonRpcError> {
-    let backend = ctx.registry.dispatch(task_id)
+    let backend = ctx
+        .registry
+        .dispatch(task_id)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
     let result: anyhow::Result<()> = match action {
-        "pause" => backend.pause(task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
-        "resume" => backend.resume(task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
-        "remove" => backend.remove(task_id).await.map(|_| ()).map_err(|e| anyhow::anyhow!("{e}")),
+        "pause" => backend
+            .pause(task_id)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::anyhow!("{e}")),
+        "resume" => backend
+            .resume(task_id)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::anyhow!("{e}")),
+        "remove" => backend
+            .remove(task_id)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::anyhow!("{e}")),
         _ => Err(anyhow::anyhow!("unsupported action: {action}")),
     };
 
@@ -1179,11 +1202,7 @@ impl Aria2RpcServer {
                     "http://127.0.0.1".parse::<HeaderValue>().unwrap(),
                 ])
                 .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-                .allow_headers([
-                    header::CONTENT_TYPE,
-                    header::AUTHORIZATION,
-                    header::ACCEPT,
-                ])
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT])
                 .allow_credentials(true)
                 .max_age(Duration::from_secs(86400))
         } else {
@@ -1205,22 +1224,14 @@ impl Aria2RpcServer {
                         "http://127.0.0.1".parse::<HeaderValue>().unwrap(),
                     ])
                     .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-                    .allow_headers([
-                        header::CONTENT_TYPE,
-                        header::AUTHORIZATION,
-                        header::ACCEPT,
-                    ])
+                    .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT])
                     .allow_credentials(true)
                     .max_age(Duration::from_secs(86400))
             } else {
                 CorsLayer::new()
                     .allow_origin(origins)
                     .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-                    .allow_headers([
-                        header::CONTENT_TYPE,
-                        header::AUTHORIZATION,
-                        header::ACCEPT,
-                    ])
+                    .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT])
                     .allow_credentials(true)
                     .max_age(Duration::from_secs(86400))
             }

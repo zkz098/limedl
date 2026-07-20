@@ -1,4 +1,4 @@
-﻿use std::{
+use std::{
     fs, io,
     path::{Path, PathBuf},
 };
@@ -10,9 +10,9 @@ use super::{
     http_client_factory::normalize_user_agent,
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        CdnAccelerationSettings, DownloadDefaultsSettings, GitHubMirrorSettings, IoBaselineSettings,
-        LogSettings, MirrorEntry, NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
-        TraditionalSchedulerSettings, default_tracker_list_url,
+        CdnAccelerationSettings, DownloadDefaultsSettings, GitHubMirrorSettings,
+        IoBaselineSettings, LogSettings, MirrorEntry, NotificationSettings, ProxyMode,
+        ProxySettings, SchedulerSettings, TraditionalSchedulerSettings, default_tracker_list_url,
     },
 };
 
@@ -109,6 +109,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         setup_completed: settings.setup_completed,
         last_setup_step: settings.last_setup_step.map(|s| s.clamp(0, 9)),
         download_limits: settings.download_limits.clone(),
+        max_in_memory_downloads: clamp_max_in_memory(settings.max_in_memory_downloads),
     })
 }
 
@@ -118,6 +119,11 @@ fn normalize_min_threads(raw: usize, max_per_task: usize) -> usize {
     } else {
         raw.clamp(1, max_per_task)
     }
+}
+
+/// 0 = unlimited (no eviction). Positive values clamped to [10, 10000].
+fn clamp_max_in_memory(raw: usize) -> usize {
+    if raw == 0 { 0 } else { raw.clamp(10, 10000) }
 }
 
 fn normalize_logging_settings(settings: LogSettings) -> LogSettings {
@@ -180,7 +186,9 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
         },
         upnp_enabled: settings.upnp_enabled,
         listen_port_range,
-        listen_port: settings.listen_port.filter(|&p| (1024..=65535).contains(&p)),
+        listen_port: settings
+            .listen_port
+            .filter(|&p| (1024..=65535).contains(&p)),
         enable_natpmp: settings.enable_natpmp,
         enable_ipv6: settings.enable_ipv6,
         enable_pex: settings.enable_pex,
@@ -350,6 +358,7 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         setup_completed: false,
         last_setup_step: None,
         download_limits: None,
+        max_in_memory_downloads: 200,
     })
 }
 
@@ -568,10 +577,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_normalize_download_dir_absolute_unix_is_not_absolute_on_windows() {
-        assert_eq!(
-            normalize_download_dir("/home/user/downloads"),
-            "",
-        );
+        assert_eq!(normalize_download_dir("/home/user/downloads"), "",);
     }
 
     #[cfg(windows)]
@@ -859,7 +865,10 @@ mod tests {
     #[test]
     fn test_normalize_bt_listen_port_range_start_gt_end_err() {
         let input = BtSettings {
-            listen_port_range: Some(BtPortRange { start: 7000, end: 6000 }),
+            listen_port_range: Some(BtPortRange {
+                start: 7000,
+                end: 6000,
+            }),
             ..BtSettings::default()
         };
         let err = normalize_bt_settings(input).unwrap_err();
@@ -869,7 +878,10 @@ mod tests {
     #[test]
     fn test_normalize_bt_listen_port_range_below_1025_err() {
         let input = BtSettings {
-            listen_port_range: Some(BtPortRange { start: 1024, end: 2048 }),
+            listen_port_range: Some(BtPortRange {
+                start: 1024,
+                end: 2048,
+            }),
             ..BtSettings::default()
         };
         let err = normalize_bt_settings(input).unwrap_err();
@@ -899,12 +911,21 @@ mod tests {
     #[test]
     fn test_normalize_bt_valid_port_range_and_settings_ok() {
         let input = BtSettings {
-            listen_port_range: Some(BtPortRange { start: 6881, end: 6889 }),
+            listen_port_range: Some(BtPortRange {
+                start: 6881,
+                end: 6889,
+            }),
             listen_port: Some(6881),
             ..BtSettings::default()
         };
         let result = normalize_bt_settings(input).unwrap();
-        assert_eq!(result.listen_port_range, Some(BtPortRange { start: 6881, end: 6889 }));
+        assert_eq!(
+            result.listen_port_range,
+            Some(BtPortRange {
+                start: 6881,
+                end: 6889
+            })
+        );
         assert_eq!(result.listen_port, Some(6881));
     }
 

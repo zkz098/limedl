@@ -1,4 +1,4 @@
-﻿//! Integration tests for crash recovery via persistence.rs.
+//! Integration tests for crash recovery via persistence.rs.
 //!
 //! These tests simulate app restart scenarios by creating a [`DownloadManager`],
 //! letting it make progress, dropping it, and building a new manager from the
@@ -26,7 +26,7 @@ use crate::{
     database::Database,
     event_bus::EventBus,
     manager::DownloadManager,
-    manifest::{ChunkManifest, Manifest, CHUNK_SIZE},
+    manifest::{CHUNK_SIZE, ChunkManifest, Manifest},
     rate_limiter::RateLimiter,
     test_harness::TestServer,
     types::{
@@ -128,11 +128,7 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
         .start(StartDownloadRequest {
             kind: None,
             url: server.file_url_bandwidth(500_000), // ~500 Kbps
-            destination_dir: _tmp
-                .path()
-                .join("out")
-                .to_string_lossy()
-                .to_string(),
+            destination_dir: _tmp.path().join("out").to_string_lossy().to_string(),
             file_name: Some("crash-recovery.bin".to_string()),
             user_agent: None,
             thread_mode: Some(ThreadMode::Fixed),
@@ -172,7 +168,10 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
     )?;
 
     let list = manager2.list().await?;
-    assert!(!list.is_empty(), "should have recovered at least one download");
+    assert!(
+        !list.is_empty(),
+        "should have recovered at least one download"
+    );
 
     let recovered = manager2.status(&id.to_string()).await?;
     assert_eq!(
@@ -203,11 +202,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
         .start(StartDownloadRequest {
             kind: None,
             url: server.file_url_range(), // fast, multi-threaded
-            destination_dir: _tmp
-                .path()
-                .join("out")
-                .to_string_lossy()
-                .to_string(),
+            destination_dir: _tmp.path().join("out").to_string_lossy().to_string(),
             file_name: Some("complete-me.bin".to_string()),
             user_agent: None,
             thread_mode: Some(ThreadMode::Fixed),
@@ -253,10 +248,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
     )?;
 
     let after = manager2.list().await?;
-    assert!(
-        after.len() >= before.len(),
-        "lost downloads after restart"
-    );
+    assert!(after.len() >= before.len(), "lost downloads after restart");
 
     let recovered = manager2.status(&id.to_string()).await?;
     assert_eq!(
@@ -296,7 +288,11 @@ async fn verifying_promoted_to_completed_if_dest_exists() -> TestResult {
     let db = Database::open(&db_path)?;
     let mut manifest = make_test_manifest("verify-promote", DownloadState::Verifying);
     manifest.destination_path = dest_path.to_string_lossy().to_string();
-    manifest.temp_path = temp.path().join("no-such-temp.part").to_string_lossy().to_string();
+    manifest.temp_path = temp
+        .path()
+        .join("no-such-temp.part")
+        .to_string_lossy()
+        .to_string();
     manifest.total_bytes = Some(std::fs::metadata(&dest_path)?.len());
     manifest.downloaded_bytes = manifest.total_bytes.unwrap();
     db.insert_download(&manifest)?;

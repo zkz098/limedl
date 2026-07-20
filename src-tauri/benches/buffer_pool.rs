@@ -23,8 +23,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use bytes::Bytes;
-use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use common::BenchHarness;
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use limedl_lib::buffer_pool::{BufferPool, DownloadBuffer};
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -64,8 +64,7 @@ fn bench_double_hdd(c: &mut Criterion) {
                 for _ in 0..iters {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
-                    let file_path =
-                        format!("{path}/limedl_bench_hdd_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = format!("{path}/limedl_bench_hdd_{}.tmp", uuid::Uuid::new_v4());
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = DownloadBuffer::new(pool.clone(), slot, file.clone());
 
@@ -109,8 +108,7 @@ fn bench_local_ssd(c: &mut Criterion) {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
-                    let file_path =
-                        format!("{path}/limedl_bench_ssd_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = format!("{path}/limedl_bench_ssd_{}.tmp", uuid::Uuid::new_v4());
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = DownloadBuffer::new_local(8 * 1024 * 1024, file.clone());
 
@@ -164,10 +162,8 @@ fn bench_direct_write(c: &mut Criterion) {
                         // but there is zero application-level buffering or pipelining.
                         file = tokio::task::spawn_blocking(move || {
                             use std::io::{Seek, SeekFrom, Write};
-                            file.seek(SeekFrom::Start(offset))
-                                .expect("seek failed");
-                            file.write_all(&data)
-                                .expect("write_all failed");
+                            file.seek(SeekFrom::Start(offset)).expect("seek failed");
+                            file.write_all(&data).expect("write_all failed");
                             file
                         })
                         .await
@@ -218,10 +214,8 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                 for _ in 0..iters {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
-                    let file_path = format!(
-                        "{path}/limedl_bench_mshdd_{}.tmp",
-                        uuid::Uuid::new_v4()
-                    );
+                    let file_path =
+                        format!("{path}/limedl_bench_mshdd_{}.tmp", uuid::Uuid::new_v4());
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = Arc::new(DownloadBuffer::new(pool.clone(), slot, file.clone()));
 
@@ -258,13 +252,10 @@ fn bench_multi_stream_random(c: &mut Criterion) {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
-                    let file_path = format!(
-                        "{path}/limedl_bench_msssd_{}.tmp",
-                        uuid::Uuid::new_v4()
-                    );
+                    let file_path =
+                        format!("{path}/limedl_bench_msssd_{}.tmp", uuid::Uuid::new_v4());
                     let file = Arc::new(File::create(&file_path).unwrap());
-                    let buffer =
-                        Arc::new(DownloadBuffer::new_local(8 * 1024 * 1024, file.clone()));
+                    let buffer = Arc::new(DownloadBuffer::new_local(8 * 1024 * 1024, file.clone()));
 
                     const STREAMS: usize = 4;
                     let per_stream = offsets.len() / STREAMS;
@@ -299,10 +290,8 @@ fn bench_multi_stream_random(c: &mut Criterion) {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
-                    let file_path = format!(
-                        "{path}/limedl_bench_msdirect_{}.tmp",
-                        uuid::Uuid::new_v4()
-                    );
+                    let file_path =
+                        format!("{path}/limedl_bench_msdirect_{}.tmp", uuid::Uuid::new_v4());
                     let file = Arc::new(File::create(&file_path).unwrap());
 
                     const STREAMS: usize = 4;

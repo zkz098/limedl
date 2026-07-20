@@ -1,4 +1,4 @@
-﻿use std::time::Duration;
+use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use ntest::timeout;
@@ -33,7 +33,9 @@ async fn start_ws_server() -> (String, tokio::sync::watch::Sender<bool>, TempDir
     let rpc = Aria2RpcServer::new(core.registry.clone(), &settings, core.event_bus.clone());
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
-    tokio::spawn(async move { let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await; });
+    tokio::spawn(async move {
+        let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await;
+    });
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 

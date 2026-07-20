@@ -1,4 +1,4 @@
-﻿//! Integration tests for the scheduler (rebalance logic) via DownloadManager.
+//! Integration tests for the scheduler (rebalance logic) via DownloadManager.
 //!
 //! Each test creates a real HTTP server (via [`TestServer`]), a real
 //! [`DownloadManager`], and exercises scheduler behaviour through
@@ -301,7 +301,10 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
     // Resume.
     let resumed = manager.resume(&id.to_string()).await?;
     assert!(
-        matches!(resumed.state, DownloadState::Queued | DownloadState::Downloading),
+        matches!(
+            resumed.state,
+            DownloadState::Queued | DownloadState::Downloading
+        ),
         "resume gave {:?}",
         resumed.state
     );
@@ -315,9 +318,12 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
         .await?;
 
     // Wait for completion.
-    let done = tokio::time::timeout(Duration::from_secs(120), wait_for_terminal(&manager, &id.to_string()))
-        .await
-        .map_err(|_| "timeout waiting for resume")?;
+    let done = tokio::time::timeout(
+        Duration::from_secs(120),
+        wait_for_terminal(&manager, &id.to_string()),
+    )
+    .await
+    .map_err(|_| "timeout waiting for resume")?;
 
     assert!(
         done.downloaded_bytes >= bytes_at_pause,
@@ -423,14 +429,22 @@ async fn scheduler_respects_global_speed_limit() -> TestResult {
         .await?;
 
     let start = std::time::Instant::now();
-    let done = tokio::time::timeout(Duration::from_secs(120), wait_for_terminal(&manager, &id.to_string()))
-        .await
-        .map_err(|_| "timeout")?;
+    let done = tokio::time::timeout(
+        Duration::from_secs(120),
+        wait_for_terminal(&manager, &id.to_string()),
+    )
+    .await
+    .map_err(|_| "timeout")?;
 
     let elapsed = start.elapsed().as_secs_f64();
     let avg_speed = file_size as f64 / elapsed;
 
-    assert_eq!(done.state, DownloadState::Completed, "error={:?}", done.error);
+    assert_eq!(
+        done.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done.error
+    );
     assert!(
         avg_speed <= limit_bps as f64 * 2.0,
         "avg speed {:.0} bps exceeded 2x limit {} bps",
@@ -491,7 +505,10 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
 
     let s2 = manager.status(&id2.to_string()).await?;
     assert!(
-        matches!(s2.state, DownloadState::Downloading | DownloadState::Completed),
+        matches!(
+            s2.state,
+            DownloadState::Downloading | DownloadState::Completed
+        ),
         "second should be running after first finished, got {:?}",
         s2.state
     );
@@ -543,8 +560,12 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
     let out = _tmp.path().join("out").to_string_lossy().to_string();
     let url = server.file_url_range();
 
-    let id1 = manager.start(req_adaptive(&url, &out, "fair-first.bin")).await?;
-    let id2 = manager.start(req_adaptive(&url, &out, "fair-second.bin")).await?;
+    let id1 = manager
+        .start(req_adaptive(&url, &out, "fair-first.bin"))
+        .await?;
+    let id2 = manager
+        .start(req_adaptive(&url, &out, "fair-second.bin"))
+        .await?;
 
     // Wait for probes to finish, then rebalance so allocations are final.
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -577,8 +598,18 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
     .await
     .map_err(|_| "timeout waiting for second download")?;
 
-    assert_eq!(done1.state, DownloadState::Completed, "error={:?}", done1.error);
-    assert_eq!(done2.state, DownloadState::Completed, "error={:?}", done2.error);
+    assert_eq!(
+        done1.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done1.error
+    );
+    assert_eq!(
+        done2.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done2.error
+    );
 
     let _ = manager.remove(&id1.to_string()).await;
     let _ = manager.remove(&id2.to_string()).await;
@@ -664,9 +695,7 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     assert_eq!(
         fixed_snap.connection_count, 2,
         "Fixed-mode download should have exactly 2 threads, got {}. state={:?} supports_ranges={}",
-        fixed_snap.connection_count,
-        fixed_snap.state,
-        fixed_snap.supports_ranges,
+        fixed_snap.connection_count, fixed_snap.state, fixed_snap.supports_ranges,
     );
     assert!(
         adaptive_snap.connection_count >= 1,
@@ -701,8 +730,18 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     .await
     .map_err(|_| "timeout waiting for adaptive download")?;
 
-    assert_eq!(done_fixed.state, DownloadState::Completed, "error={:?}", done_fixed.error);
-    assert_eq!(done_adaptive.state, DownloadState::Completed, "error={:?}", done_adaptive.error);
+    assert_eq!(
+        done_fixed.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done_fixed.error
+    );
+    assert_eq!(
+        done_adaptive.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done_adaptive.error
+    );
 
     let _ = manager.remove(&fixed_id.to_string()).await;
     let _ = manager.remove(&adaptive_id.to_string()).await;
@@ -777,8 +816,18 @@ async fn rate_limiter_shared_across_multiple_downloads() -> TestResult {
         limit_bps,
     );
 
-    assert_eq!(done1.state, DownloadState::Completed, "error={:?}", done1.error);
-    assert_eq!(done2.state, DownloadState::Completed, "error={:?}", done2.error);
+    assert_eq!(
+        done1.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done1.error
+    );
+    assert_eq!(
+        done2.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done2.error
+    );
 
     let _ = manager.remove(&id1.to_string()).await;
     let _ = manager.remove(&id2.to_string()).await;
@@ -833,7 +882,10 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
     // The second download must still be active (Downloading or Completed).
     let other = manager.status(&id2.to_string()).await?;
     assert!(
-        matches!(other.state, DownloadState::Downloading | DownloadState::Completed),
+        matches!(
+            other.state,
+            DownloadState::Downloading | DownloadState::Completed
+        ),
         "second download should be running after first is paused, got {:?}",
         other.state,
     );
@@ -841,7 +893,10 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
     // Resume the paused download.
     let resumed = manager.resume(&id1.to_string()).await?;
     assert!(
-        matches!(resumed.state, DownloadState::Queued | DownloadState::Downloading),
+        matches!(
+            resumed.state,
+            DownloadState::Queued | DownloadState::Downloading
+        ),
         "resume gave {:?}",
         resumed.state,
     );
@@ -868,8 +923,18 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
     .await
     .map_err(|_| "timeout waiting for second download")?;
 
-    assert_eq!(done1.state, DownloadState::Completed, "error={:?}", done1.error);
-    assert_eq!(done2.state, DownloadState::Completed, "error={:?}", done2.error);
+    assert_eq!(
+        done1.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done1.error
+    );
+    assert_eq!(
+        done2.state,
+        DownloadState::Completed,
+        "error={:?}",
+        done2.error
+    );
 
     let _ = manager.remove(&id1.to_string()).await;
     let _ = manager.remove(&id2.to_string()).await;
@@ -904,8 +969,12 @@ async fn cancel_one_unblocks_queued() -> TestResult {
     let out = _tmp.path().join("out").to_string_lossy().to_string();
     let url = server.file_url();
 
-    let id1 = manager.start(req_fixed(&url, &out, "cancel-first.bin")).await?;
-    let id2 = manager.start(req_fixed(&url, &out, "cancel-second.bin")).await?;
+    let id1 = manager
+        .start(req_fixed(&url, &out, "cancel-first.bin"))
+        .await?;
+    let id2 = manager
+        .start(req_fixed(&url, &out, "cancel-second.bin"))
+        .await?;
 
     // Second must be queued (max_parallel_tasks=1).
     let s2 = manager.status(&id2.to_string()).await?;
@@ -918,7 +987,10 @@ async fn cancel_one_unblocks_queued() -> TestResult {
     // After cancel + rebalance, the second should be running or already complete.
     let s2 = manager.status(&id2.to_string()).await?;
     assert!(
-        matches!(s2.state, DownloadState::Downloading | DownloadState::Completed),
+        matches!(
+            s2.state,
+            DownloadState::Downloading | DownloadState::Completed
+        ),
         "second download should be running after first canceled, got {:?}",
         s2.state,
     );

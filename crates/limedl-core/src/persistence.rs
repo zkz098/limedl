@@ -1,13 +1,10 @@
-﻿//! DB persistence and migration-related code — extracted from manager.rs
+//! DB persistence and migration-related code — extracted from manager.rs
 //! (Phase 3 of the manager.rs split).
 //!
 //! Contains `impl DownloadManager` methods for loading/persisting downloads
 //! as well as the free function `persist_manifest_snapshot`.
 
-use std::{
-    path::Path,
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 
 use parking_lot::Mutex;
 
@@ -65,10 +62,7 @@ impl DownloadManager {
                 DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
             );
             if needs_chunks {
-                manifest.chunks = self
-                    .db
-                    .load_chunks(&manifest.id)
-                    .unwrap_or_default();
+                manifest.chunks = self.db.load_chunks(&manifest.id).unwrap_or_default();
             }
 
             let snapshot = snapshot_from_manifest(&manifest);

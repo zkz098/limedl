@@ -1,4 +1,4 @@
-﻿use std::{
+use std::{
     fs::{self, OpenOptions},
     io::{self, BufWriter, Write},
     path::{Path, PathBuf},
@@ -106,7 +106,11 @@ pub fn init_logging(settings: &LogSettings, state_dir: &Path) -> anyhow::Result<
     let file_path = resolve_log_file_path(settings, state_dir);
 
     // Perform startup log rotation and retention cleanup
-    perform_startup_rotation(&file_path, settings.retention_count, settings.retention_days);
+    perform_startup_rotation(
+        &file_path,
+        settings.retention_count,
+        settings.retention_days,
+    );
 
     let runtime = Arc::new(RwLock::new(LoggerRuntime {
         enabled: settings.enabled,
@@ -331,10 +335,7 @@ fn cleanup_by_age(log_path: &Path, days: u32) {
                 }
             },
             Err(e) => {
-                eprintln!(
-                    "[limedl] failed to stat log file {}: {e}",
-                    path.display()
-                );
+                eprintln!("[limedl] failed to stat log file {}: {e}", path.display());
             }
         }
     }
@@ -356,7 +357,11 @@ fn cleanup_by_age(log_path: &Path, days: u32) {
 /// Perform startup log rotation and retention cleanup.
 /// Acquires an exclusive file lock on `<log_dir>/.lock` to prevent concurrent
 /// rotation from multiple instances.
-fn perform_startup_rotation(log_path: &Path, retention_count: Option<u32>, retention_days: Option<u32>) {
+fn perform_startup_rotation(
+    log_path: &Path,
+    retention_count: Option<u32>,
+    retention_days: Option<u32>,
+) {
     let log_dir = match log_path.parent() {
         Some(d) => d,
         None => return,

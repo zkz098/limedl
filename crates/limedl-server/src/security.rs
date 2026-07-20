@@ -1,10 +1,10 @@
-﻿use axum::http::header::{HeaderName, HeaderValue};
+use axum::http::header::{HeaderName, HeaderValue};
 use tower_http::set_header::SetResponseHeaderLayer;
 
 /// Returns the Content-Security-Policy header value for the NAS WebUI.
 pub fn nas_csp_header() -> HeaderValue {
     HeaderValue::from_static(
-         "default-src 'self'; connect-src 'self' ws://localhost:9090; \
+        "default-src 'self'; connect-src 'self' ws://localhost:9090; \
          style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; \
          font-src 'self'; script-src 'self'; object-src 'none'; \
          base-uri 'self'; form-action 'self'",

@@ -1,4 +1,4 @@
-﻿use ntest::timeout;
+use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{ChecksumMode, DownloadState, StartDownloadRequest, TaskId};
@@ -104,7 +104,10 @@ async fn checksum_wrong_fails() {
         let snapshot = dm.status(&inner.to_string()).await.unwrap();
         match snapshot.state {
             DownloadState::Failed => {
-                assert!(snapshot.error.is_some(), "Failed state must include error message");
+                assert!(
+                    snapshot.error.is_some(),
+                    "Failed state must include error message"
+                );
                 break;
             }
             DownloadState::Completed => {

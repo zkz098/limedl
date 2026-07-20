@@ -1,4 +1,4 @@
-﻿#![allow(dead_code)]
+#![allow(dead_code)]
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
@@ -316,10 +316,7 @@ pub async fn measure_throughput(
 ///
 /// Wraps `TcpStream::connect` with a timeout. Returns `Some(elapsed)` on
 /// successful connect or `None` if the connection times out or is refused.
-pub async fn measure_tcp_latency(
-    addr: SocketAddr,
-    connect_timeout: Duration,
-) -> Option<Duration> {
+pub async fn measure_tcp_latency(addr: SocketAddr, connect_timeout: Duration) -> Option<Duration> {
     let start = Instant::now();
     match timeout(connect_timeout, TcpStream::connect(addr)).await {
         Ok(Ok(stream)) => {

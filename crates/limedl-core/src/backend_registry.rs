@@ -1,4 +1,4 @@
-﻿use std::any::{Any, TypeId};
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -41,20 +41,23 @@ impl BackendRegistry {
     /// Dispatch by task ID for common operations.
     pub fn dispatch(&self, task_id: &TaskId) -> Result<&dyn DownloadBackend, DownloadError> {
         let kind = task_id.kind();
-        self.by_kind.get(&kind).map(|arc| arc.as_ref())
+        self.by_kind
+            .get(&kind)
+            .map(|arc| arc.as_ref())
             .ok_or(DownloadError::Internal("unregistered protocol kind".into()))
     }
 
     /// Get a backend for the given kind (trait-object reference).
     pub fn by_kind(&self, kind: TaskKind) -> Result<&dyn DownloadBackend, DownloadError> {
-        self.by_kind.get(&kind).map(|arc| arc.as_ref())
+        self.by_kind
+            .get(&kind)
+            .map(|arc| arc.as_ref())
             .ok_or(DownloadError::Internal("unregistered protocol kind".into()))
     }
 
     /// Get a concrete backend reference for protocol-specific commands.
     pub fn get_typed<T: DownloadBackend + 'static>(&self) -> Option<&T> {
-        self.by_type.get(&TypeId::of::<T>())?
-            .downcast_ref::<T>()
+        self.by_type.get(&TypeId::of::<T>())?.downcast_ref::<T>()
     }
 
     /// Iterate all backends for list merge, settings broadcast, shutdown.

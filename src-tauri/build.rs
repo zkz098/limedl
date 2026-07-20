@@ -59,16 +59,15 @@ fn main() {
             .unwrap_or(false);
 
         // cvtres.exe → .obj
-        let cvtres_ok = rc_ok
-            && {
-                let out_arg = format!("/out:{}", obj_file.display());
-                Command::new(cvtres)
-                    .arg(&out_arg)
-                    .arg(&res_file)
-                    .status()
-                    .map(|s| s.success())
-                    .unwrap_or(false)
-            };
+        let cvtres_ok = rc_ok && {
+            let out_arg = format!("/out:{}", obj_file.display());
+            Command::new(cvtres)
+                .arg(&out_arg)
+                .arg(&res_file)
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false)
+        };
 
         if cvtres_ok {
             // Link the manifest-only .obj to all targets as a direct

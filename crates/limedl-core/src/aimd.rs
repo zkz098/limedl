@@ -1,4 +1,4 @@
-﻿use std::time::{Duration, Instant};
+use std::time::{Duration, Instant};
 
 pub use super::types::AdaptiveProfile;
 
@@ -59,11 +59,7 @@ pub fn initial_desired_threads(profile: AdaptiveProfile) -> usize {
     }
 }
 
-pub fn reduce_threads(
-    current: usize,
-    profile: AdaptiveProfile,
-    min_threads: usize,
-) -> usize {
+pub fn reduce_threads(current: usize, profile: AdaptiveProfile, min_threads: usize) -> usize {
     let reduced = match profile {
         AdaptiveProfile::Conservative => ((current as f64) * 0.7).ceil() as usize,
         AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => {

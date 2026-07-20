@@ -1,4 +1,4 @@
-﻿//! Scheduler and rebalance logic — extracted from manager.rs
+//! Scheduler and rebalance logic — extracted from manager.rs
 //! (Phase 5 of the manager.rs split).
 //!
 //! Contains the background scheduler loop and adaptive AIMD thread rebalancing.
@@ -15,15 +15,13 @@ use super::{
     aimd,
     error::Result,
     manager::{
-        DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS,
-        log_background_error, sync_snapshot_with_manifest,
+        DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS, log_background_error,
+        sync_snapshot_with_manifest,
     },
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshot,
-    types::{
-        AdaptiveProfile, AppSettings, DownloadState, ProxyMode, SchedulerMode, ThreadMode,
-    },
+    types::{AdaptiveProfile, AppSettings, DownloadState, ProxyMode, SchedulerMode, ThreadMode},
 };
 
 const SCHEDULER_TICK: Duration = Duration::from_secs(2);
@@ -447,5 +445,3 @@ fn effective_automatic_task_cap(settings: &AppSettings) -> usize {
 #[cfg(test)]
 #[path = "tests/scheduler_tests.rs"]
 mod tests;
-
-

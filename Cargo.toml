@@ -18,3 +18,14 @@ lto = "thin" # Thin LTO: ~90% of fat LTO benefit at ~20% of link time
 opt-level = 2 # Balanced optimization for runtime speed
 panic = "abort" # Strip unwinding machinery → smaller binary
 strip = true # Strip debug symbols
+
+# ── CI-optimized dev profile ────────────────────────────────────
+[profile.dev]
+debug = "line-tables-only"  # Keep backtraces, skip full debug info
+
+[profile.dev.package."*"]
+opt-level = 1   # Light optimization for dependencies (faster test binaries)
+debug = false    # Skip debug info for dependencies
+
+[profile.test]
+inherits = "dev"  # Use dev profile settings

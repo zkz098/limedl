@@ -1,4 +1,4 @@
-﻿//! Integration tests for retry.rs (retry/backoff logic) and CDN fallback scenarios.
+//! Integration tests for retry.rs (retry/backoff logic) and CDN fallback scenarios.
 //!
 //! # Test structure
 //!
@@ -278,7 +278,10 @@ async fn retry_max_attempts_exhausted() -> TestResult {
     assert!(result.is_err(), "expected error after exhausting retries");
     match result.unwrap_err() {
         DownloadError::InvalidResponse(msg) => {
-            assert!(msg.contains("503"), "error should mention status code, got: {msg}");
+            assert!(
+                msg.contains("503"),
+                "error should mention status code, got: {msg}"
+            );
         }
         other => panic!("expected InvalidResponse, got: {other}"),
     }

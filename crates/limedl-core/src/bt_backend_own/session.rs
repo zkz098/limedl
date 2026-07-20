@@ -1,17 +1,19 @@
-﻿use std::path::PathBuf;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
 use dashmap::DashMap;
 use parking_lot::Mutex;
 
+use irontide::core::Id20;
+
 use super::IrontideBtBackend;
 use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::http_client_factory::build_http_client;
+use crate::lock;
 use crate::types::AppSettings;
 use crate::types::{BtEncryptionMode, BtPreallocateMode};
-use crate::lock;
 
 impl IrontideBtBackend {
     /// Create a new irontide session and wrap it in an `IrontideBtBackend`.
@@ -53,7 +55,9 @@ impl IrontideBtBackend {
             .active_limit(bt.active_limit as i32);
 
         // Set listen port if configured
-        let port = bt.listen_port.or_else(|| bt.listen_port_range.as_ref().map(|r| r.start));
+        let port = bt
+            .listen_port
+            .or_else(|| bt.listen_port_range.as_ref().map(|r| r.start));
         if let Some(p) = port {
             builder = builder.listen_port(p);
         }
@@ -137,7 +141,22 @@ impl IrontideBtBackend {
             }
         }
 
-        // Phase 3: graceful shutdown
+        // Phase 3: flush resume data for all active torrents so in-flight disk
+        // I/O has a chance to complete before session shutdown
+        let active_count = self.task_map.len();
+        if active_count > 0 {
+            tracing::info!("BT backend: flushing {active_count} active torrents...");
+            let info_hashes: Vec<Id20> = self.task_map.iter().map(|entry| *entry.key()).collect();
+            for info_hash in &info_hashes {
+                if let Err(e) = self.session.save_torrent_resume_data(*info_hash).await {
+                    tracing::warn!("irontide: failed to save resume data for {info_hash}: {e}");
+                }
+            }
+        }
+
+        // Phase 4: graceful shutdown — allow a brief grace period for pending
+        // disk writes to finish before the session is torn down
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         let _ = self.session.shutdown().await;
 
         tracing::info!("irontide backend shut down.");

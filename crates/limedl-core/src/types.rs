@@ -1,7 +1,7 @@
-﻿use std::path::Path;
+use std::path::Path;
 
-use serde::{Deserialize, Serialize};
 use irontide::core::Id20;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::error::DownloadError;
@@ -119,7 +119,9 @@ impl TaskId {
         if let Ok(info_hash) = Id20::from_hex(raw) {
             return Ok(TaskId::Bt(info_hash));
         }
-        Err(DownloadError::InvalidRequest(format!("invalid task id: cannot parse {s:?}")))
+        Err(DownloadError::InvalidRequest(format!(
+            "invalid task id: cannot parse {s:?}"
+        )))
     }
 }
 
@@ -146,7 +148,7 @@ impl Serialize for TaskId {
     }
 }
 
-use serde::de::{self, Visitor, MapAccess};
+use serde::de::{self, MapAccess, Visitor};
 
 struct TaskIdVisitor;
 impl<'de> Visitor<'de> for TaskIdVisitor {
@@ -167,7 +169,9 @@ impl<'de> Visitor<'de> for TaskIdVisitor {
             match key.as_str() {
                 "kind" => kind = Some(map.next_value()?),
                 "id" => id = Some(map.next_value()?),
-                _ => { let _: de::IgnoredAny = map.next_value()?; }
+                _ => {
+                    let _: de::IgnoredAny = map.next_value()?;
+                }
             }
         }
         match (kind, id) {
@@ -777,10 +781,18 @@ fn default_true() -> bool {
     true
 }
 
-fn default_max_downloads() -> u32 { 3 }
-fn default_max_seeds() -> u32 { 5 }
-fn default_max_torrents() -> u32 { 100 }
-fn default_active_limit() -> u32 { 500 }
+fn default_max_downloads() -> u32 {
+    3
+}
+fn default_max_seeds() -> u32 {
+    5
+}
+fn default_max_torrents() -> u32 {
+    100
+}
+fn default_active_limit() -> u32 {
+    500
+}
 
 fn default_visible_columns() -> Vec<String> {
     vec![
@@ -988,6 +1000,10 @@ impl Default for IoBaselineSettings {
     }
 }
 
+fn default_max_in_memory_downloads() -> usize {
+    200
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -1023,6 +1039,10 @@ pub struct AppSettings {
     pub last_setup_step: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub download_limits: Option<DownloadLimits>,
+    /// Maximum number of completed/failed/canceled downloads kept in memory.
+    /// Older terminal-state entries are evicted when this limit is exceeded.
+    #[serde(default = "default_max_in_memory_downloads")]
+    pub max_in_memory_downloads: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

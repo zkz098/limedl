@@ -1,4 +1,4 @@
-﻿//! HTTP download execution — extracted from manager.rs to reduce the god object.
+//! HTTP download execution — extracted from manager.rs to reduce the god object.
 //!
 //! Contains the HTTP-specific download flow: probing, single-stream and chunked
 //! parallel downloads, chunk worker, and finalization with checksum verification.
@@ -170,8 +170,10 @@ impl super::DownloadManager {
                  Ensure the destination drive is formatted as NTFS, exFAT, ext4, or APFS.",
             );
             tracing::warn!("{msg}");
-            self.event_bus
-                .publish(DownloadEvent::Warning { id: managed.lock_core().manifest.id.clone(), message: msg });
+            self.event_bus.publish(DownloadEvent::Warning {
+                id: managed.lock_core().manifest.id.clone(),
+                message: msg,
+            });
         }
 
         if refresh_aimd {
@@ -271,7 +273,7 @@ impl super::DownloadManager {
                 SSD_WRITE_COMBINE_BYTES,
                 file.clone(),
             )))
-        };  // always Some — SSD uses small local buffer for write combining
+        }; // always Some — SSD uses small local buffer for write combining
 
         // Set disk_type on snapshot for frontend badge display
         {
@@ -280,6 +282,7 @@ impl super::DownloadManager {
         }
 
         let mut last_persist = Instant::now();
+        let mut last_disk_check = Instant::now();
 
         loop {
             match self.wait_until_active(&managed, &token).await {
@@ -377,7 +380,11 @@ impl super::DownloadManager {
                 let chunk = chunk?;
                 self.rate_limiter.consume(chunk.len()).await;
                 if let Some(ref buf) = write_buffer {
-                    if buf.buffer_chunk(absolute_offset, chunk.clone()).await.is_err() {
+                    if buf
+                        .buffer_chunk(absolute_offset, chunk.clone())
+                        .await
+                        .is_err()
+                    {
                         // Background flush failed — fall back to direct write.
                         write_all_at(&file, &chunk, absolute_offset)?;
                         if disk_type == DiskType::Hdd {
@@ -394,6 +401,45 @@ impl super::DownloadManager {
                     persist_manifest_snapshot(&self.db, &managed).await?;
                     last_persist = Instant::now();
                     self.emit_progress(&managed);
+                }
+                if last_disk_check.elapsed() >= Duration::from_secs(30) {
+                    let (total_bytes, downloaded_bytes, destination_dir) = {
+                        let core = managed.lock_core();
+                        (
+                            core.manifest.total_bytes,
+                            core.manifest.downloaded_bytes,
+                            core.manifest.destination_dir.clone(),
+                        )
+                    };
+                    if let Some(total) = total_bytes {
+                        let remaining = total.saturating_sub(downloaded_bytes);
+                        if remaining > 0
+                            && check_disk_space(Path::new(&destination_dir), remaining).is_err()
+                        {
+                            let msg =
+                                format!("Insufficient disk space: {remaining} bytes remaining");
+                            {
+                                let mut core = managed.lock_core();
+                                core.snapshot.state = DownloadState::Failed;
+                                core.snapshot.error = Some(msg.clone());
+                                core.snapshot.connection_count = 0;
+                                core.snapshot.updated_at_ms = now_ms();
+                                core.manifest.state = DownloadState::Failed;
+                                core.manifest.error = Some(msg);
+                                core.manifest.connection_count = 0;
+                                core.manifest.updated_at_ms = now_ms();
+                            }
+                            self.event_bus.publish(DownloadEvent::Warning {
+                                id: managed.lock_core().manifest.id.clone(),
+                                message: "disk full".into(),
+                            });
+                            return Err(DownloadError::InsufficientDiskSpace {
+                                available: 0,
+                                required: remaining,
+                            });
+                        }
+                    }
+                    last_disk_check = Instant::now();
                 }
             }
 
@@ -458,7 +504,10 @@ impl super::DownloadManager {
             )))
         } else {
             // SSD: 4 MiB local write-combining buffer
-            Some(Arc::new(DownloadBuffer::new_local(4 * 1024 * 1024, file.clone())))
+            Some(Arc::new(DownloadBuffer::new_local(
+                4 * 1024 * 1024,
+                file.clone(),
+            )))
         };
 
         // Set disk_type on snapshot for frontend badge display
@@ -469,6 +518,7 @@ impl super::DownloadManager {
 
         let mut workers = JoinSet::new();
         let mut next_worker_id = 0usize;
+        let mut last_disk_check = Instant::now();
 
         loop {
             if token.is_cancelled() {
@@ -477,6 +527,45 @@ impl super::DownloadManager {
                 }
                 shutdown_chunk_workers(&managed, &mut workers).await;
                 return Ok(cancellation_outcome(&managed));
+            }
+
+            if last_disk_check.elapsed() >= Duration::from_secs(30) {
+                let (total_bytes, downloaded_bytes, destination_dir) = {
+                    let core = managed.lock_core();
+                    (
+                        core.manifest.total_bytes,
+                        core.manifest.downloaded_bytes,
+                        core.manifest.destination_dir.clone(),
+                    )
+                };
+                if let Some(total) = total_bytes {
+                    let remaining = total.saturating_sub(downloaded_bytes);
+                    if remaining > 0
+                        && check_disk_space(Path::new(&destination_dir), remaining).is_err()
+                    {
+                        let msg = format!("Insufficient disk space: {remaining} bytes remaining");
+                        {
+                            let mut core = managed.lock_core();
+                            core.snapshot.state = DownloadState::Failed;
+                            core.snapshot.error = Some(msg.clone());
+                            core.snapshot.connection_count = 0;
+                            core.snapshot.updated_at_ms = now_ms();
+                            core.manifest.state = DownloadState::Failed;
+                            core.manifest.error = Some(msg);
+                            core.manifest.connection_count = 0;
+                            core.manifest.updated_at_ms = now_ms();
+                        }
+                        self.event_bus.publish(DownloadEvent::Warning {
+                            id: managed.lock_core().manifest.id.clone(),
+                            message: "disk full".into(),
+                        });
+                        return Err(DownloadError::InsufficientDiskSpace {
+                            available: 0,
+                            required: remaining,
+                        });
+                    }
+                }
+                last_disk_check = Instant::now();
             }
 
             if all_chunks_completed(&managed) {
@@ -506,14 +595,14 @@ impl super::DownloadManager {
             if allocation == 0 && workers.is_empty() {
                 match self.wait_until_active(&managed, &token).await {
                     WaitState::Running => {}
-                WaitState::Paused => {
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on pause failed: {e}");
+                    WaitState::Paused => {
+                        if let Some(ref buf) = write_buffer
+                            && let Err(e) = buf.flush_all().await
+                        {
+                            tracing::warn!("flush on pause failed: {e}");
+                        }
+                        return Ok(RunOutcome::Paused);
                     }
-                    return Ok(RunOutcome::Paused);
-                }
                     WaitState::Canceled => return Ok(RunOutcome::Canceled),
                 }
             }
@@ -684,22 +773,27 @@ impl super::DownloadManager {
         if let (Some(expected), Some(computed)) = (&expected_checksum, &checksum)
             && !expected.eq_ignore_ascii_case(computed)
         {
-                let error_msg = format!("Checksum mismatch: expected {expected}, got {computed}");
-                {
-                    let mut core = managed.lock_core();
-                    core.snapshot.state = DownloadState::Failed;
-                    core.snapshot.error = Some(error_msg.clone());
-                    core.snapshot.connection_count = 0;
-                    core.snapshot.allocated_thread_count = Some(0);
-                    core.snapshot.updated_at_ms = now_ms();
-                    core.manifest.state = DownloadState::Failed;
-                    core.manifest.error = Some(error_msg);
-                    core.manifest.connection_count = 0;
-                    core.manifest.allocated_thread_count = Some(0);
-                    core.manifest.updated_at_ms = now_ms();
-                }
-                self.persist(managed.clone()).await?;
-                return Ok(RunOutcome::Finished);
+            let error_msg = format!("Checksum mismatch: expected {expected}, got {computed}");
+            {
+                let mut core = managed.lock_core();
+                core.snapshot.state = DownloadState::Failed;
+                core.snapshot.error = Some(error_msg.clone());
+                core.snapshot.connection_count = 0;
+                core.snapshot.allocated_thread_count = Some(0);
+                core.snapshot.updated_at_ms = now_ms();
+                core.manifest.state = DownloadState::Failed;
+                core.manifest.error = Some(error_msg);
+                core.manifest.connection_count = 0;
+                core.manifest.allocated_thread_count = Some(0);
+                core.manifest.updated_at_ms = now_ms();
+            }
+            self.persist(managed.clone()).await?;
+            return Ok(RunOutcome::Finished);
+        }
+
+        // Log success when checksum was computed and either matched or not checked
+        if checksum_mode != ChecksumMode::None {
+            tracing::info!("checksum verified");
         }
 
         if finalize_was_canceled(&managed, &token) {

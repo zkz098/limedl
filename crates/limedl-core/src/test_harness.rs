@@ -1,4 +1,4 @@
-﻿//! Reusable test harness for download integration tests.
+//! Reusable test harness for download integration tests.
 //! Provides a local HTTP server serving deterministic random content
 //! with known checksums, range request support, bandwidth simulation,
 //! and failure injection endpoints.
@@ -29,8 +29,8 @@ use axum::{
 };
 use bytes::Bytes;
 use futures_util::stream;
-use rand::{RngCore, SeedableRng};
 use rand::rngs::StdRng;
+use rand::{RngCore, SeedableRng};
 use tokio::time::sleep;
 
 use super::checksum::hash_slices;
@@ -247,10 +247,7 @@ async fn serve_file_range(
     add_checksum_headers(&mut resp_headers, &state);
 
     // Try to extract a Range header
-    let Some(range_value) = req_headers
-        .get(header::RANGE)
-        .and_then(|v| v.to_str().ok())
-    else {
+    let Some(range_value) = req_headers.get(header::RANGE).and_then(|v| v.to_str().ok()) else {
         // No range → full file
         resp_headers.insert(header::CONTENT_LENGTH, usize_header_value(data_len));
         return (StatusCode::OK, resp_headers, state.data.to_vec()).into_response();
@@ -392,23 +389,20 @@ async fn serve_file_bandwidth(
     let total_len = data.len();
 
     // Build a stream that yields 64 KB chunks with delays.
-    let stream = stream::unfold(
-        (data, 0usize),
-        move |(data, offset)| {
-            let delay = delay_per_chunk;
-            async move {
-                if offset >= data.len() {
-                    return None;
-                }
-                let end = (offset + CHUNK_SIZE).min(data.len());
-                let chunk = Bytes::copy_from_slice(&data[offset..end]);
-                if delay > Duration::ZERO {
-                    tokio::time::sleep(delay).await;
-                }
-                Some((Ok::<Bytes, Infallible>(chunk), (data, end)))
+    let stream = stream::unfold((data, 0usize), move |(data, offset)| {
+        let delay = delay_per_chunk;
+        async move {
+            if offset >= data.len() {
+                return None;
             }
-        },
-    );
+            let end = (offset + CHUNK_SIZE).min(data.len());
+            let chunk = Bytes::copy_from_slice(&data[offset..end]);
+            if delay > Duration::ZERO {
+                tokio::time::sleep(delay).await;
+            }
+            Some((Ok::<Bytes, Infallible>(chunk), (data, end)))
+        }
+    });
 
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_LENGTH, usize_header_value(total_len));

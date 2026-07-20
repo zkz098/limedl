@@ -1,4 +1,4 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 use std::time::Duration;
 
 use dashmap::DashMap;
@@ -6,10 +6,10 @@ use irontide::core::Id20;
 use tokio::sync::broadcast;
 
 use super::IrontideBtBackend;
-use super::snapshot::{map_state, estimate_eta, StateHelpers};
-use crate::types::DownloadState;
-use crate::lock;
+use super::snapshot::{StateHelpers, estimate_eta, map_state};
 use crate::event_bus::{DownloadEvent, EventBus};
+use crate::lock;
+use crate::types::DownloadState;
 
 impl IrontideBtBackend {
     /// Spawn the alert bridge that listens for irontide alerts and forwards
@@ -304,4 +304,3 @@ async fn alert_bridge_loop(
 
     tracing::info!("irontide alert bridge stopped");
 }
-

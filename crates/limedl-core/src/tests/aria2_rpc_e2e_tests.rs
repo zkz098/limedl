@@ -1,4 +1,4 @@
-﻿//! E2E tests for Aria2 RPC HTTP endpoint.
+//! E2E tests for Aria2 RPC HTTP endpoint.
 //!
 //! Starts a real Aria2RpcServer backed by live subsystems, then sends
 //! HTTP POST requests via reqwest to validate protocol compatibility.
@@ -15,7 +15,12 @@ use crate::types::Aria2RpcSettings;
 
 /// Bootstrap subsystems, start an Aria2RpcServer on a random port,
 /// and return the HTTP base URL and shutdown channel.
-async fn start_rpc_server() -> (String, tokio::sync::watch::Sender<bool>, TempDir, Arc<EventBus>) {
+async fn start_rpc_server() -> (
+    String,
+    tokio::sync::watch::Sender<bool>,
+    TempDir,
+    Arc<EventBus>,
+) {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
     let dest_dir = tmp.path().join("output");
@@ -34,11 +39,7 @@ async fn start_rpc_server() -> (String, tokio::sync::watch::Sender<bool>, TempDi
         secret: None,
         cors_allowed_origins: vec![],
     };
-    let rpc = Aria2RpcServer::new(
-        core.registry.clone(),
-        &settings,
-        core.event_bus.clone(),
-    );
+    let rpc = Aria2RpcServer::new(core.registry.clone(), &settings, core.event_bus.clone());
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     tokio::spawn(async move {
@@ -113,7 +114,13 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
     assert_eq!(gid.len(), 16, "GID should be 16 hex chars");
 
     // ── Test 2: aria2.tellStatus ──
-    let resp = rpc_call(&client, &rpc_url, "aria2.tellStatus", serde_json::json!([gid])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid]),
+    )
+    .await;
 
     assert_eq!(resp["jsonrpc"], "2.0");
     let status = &resp["result"];
@@ -139,16 +146,10 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
         "tellStatus must include status"
     );
     assert!(
-        status
-            .get("files")
-            .and_then(|v| v.as_array())
-            .is_some(),
+        status.get("files").and_then(|v| v.as_array()).is_some(),
         "tellStatus must include files array"
     );
-    assert!(
-        status.get("dir").is_some(),
-        "tellStatus must include dir"
-    );
+    assert!(status.get("dir").is_some(), "tellStatus must include dir");
 
     // ── Test 3: aria2.tellActive ──
     let resp = rpc_call(
@@ -180,8 +181,7 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
         .as_array()
         .expect("tellWaiting must return array");
     // Download is either active or waiting — at least one of tellActive/tellWaiting should contain it
-    let found = active.iter().any(|s| s["gid"] == gid)
-        || waiting.iter().any(|s| s["gid"] == gid);
+    let found = active.iter().any(|s| s["gid"] == gid) || waiting.iter().any(|s| s["gid"] == gid);
     assert!(
         found,
         "Download GID {gid} must appear in either tellActive or tellWaiting"
@@ -253,13 +253,7 @@ async fn aria2_add_uri_missing_uris_returns_error() {
     let (rpc_url, shutdown_tx, _tmp, _event_bus) = start_rpc_server().await;
     let client = reqwest::Client::new();
 
-    let resp = rpc_call(
-        &client,
-        &rpc_url,
-        "aria2.addUri",
-        serde_json::json!([]),
-    )
-    .await;
+    let resp = rpc_call(&client, &rpc_url, "aria2.addUri", serde_json::json!([])).await;
 
     assert!(resp["error"].is_object(), "Missing URIs must return error");
     assert_eq!(resp["error"]["code"], -32602);

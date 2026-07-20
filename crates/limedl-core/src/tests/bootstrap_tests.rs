@@ -1,13 +1,13 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 
 use ntest::timeout;
 use tempfile::TempDir;
 
+use crate::DownloadManager;
+use crate::EventBus;
+use crate::RateLimiter;
 use crate::bootstrap::bootstrap;
 use crate::types::{StartDownloadRequest, TaskId};
-use crate::RateLimiter;
-use crate::EventBus;
-use crate::DownloadManager;
 
 // ---------------------------------------------------------------------------
 // Test 1 – bootstrap creates all subsystems
@@ -63,12 +63,8 @@ async fn bootstrap_creates_state_dir() {
 fn make_manager(state_dir: &std::path::Path) -> Arc<DownloadManager> {
     let rate_limiter = Arc::new(RateLimiter::default());
     let event_bus = Arc::new(EventBus::new(1024));
-    let dm = DownloadManager::new(
-        state_dir.to_path_buf(),
-        rate_limiter,
-        event_bus,
-    )
-    .expect("DownloadManager::new");
+    let dm = DownloadManager::new(state_dir.to_path_buf(), rate_limiter, event_bus)
+        .expect("DownloadManager::new");
     let dm = Arc::new(dm);
     dm.clone().start_scheduler_loop();
     dm
@@ -177,15 +173,25 @@ async fn find_active_by_url_different_urls() {
     let id2 = dm.start(request2).await.unwrap();
 
     // Each URL should find its own download
-    let found1 = dm.find_active_by_url("https://example.com/file1.bin").await.unwrap();
-    let found2 = dm.find_active_by_url("https://example.com/file2.bin").await.unwrap();
+    let found1 = dm
+        .find_active_by_url("https://example.com/file1.bin")
+        .await
+        .unwrap();
+    let found2 = dm
+        .find_active_by_url("https://example.com/file2.bin")
+        .await
+        .unwrap();
     assert_ne!(found1, found2);
 
     // Cleanup
     let tid1 = TaskId::from_legacy_string(&id1.to_string()).unwrap();
     let tid2 = TaskId::from_legacy_string(&id2.to_string()).unwrap();
-    let TaskId::Http(uuid1) = tid1 else { unreachable!() };
-    let TaskId::Http(uuid2) = tid2 else { unreachable!() };
+    let TaskId::Http(uuid1) = tid1 else {
+        unreachable!()
+    };
+    let TaskId::Http(uuid2) = tid2 else {
+        unreachable!()
+    };
     dm.cancel(&uuid1.to_string()).await.unwrap();
     dm.cancel(&uuid2.to_string()).await.unwrap();
 

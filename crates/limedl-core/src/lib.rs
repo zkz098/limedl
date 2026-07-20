@@ -1,29 +1,29 @@
-﻿use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-pub mod event_bus;
-pub mod error;
-pub mod types;
-pub mod protocol;
 pub mod backend_registry;
+pub mod bootstrap;
+pub mod bt_backend_own;
+pub mod cdn;
+pub mod checksum;
 pub mod database;
+pub mod error;
+pub mod event_bus;
 pub mod file_ops;
-pub mod http_client_factory;
 pub mod http;
-pub mod manifest;
+pub mod http_client_factory;
+pub mod logging;
 pub mod manager;
+pub mod manifest;
 pub mod migration;
 pub mod mirror;
 pub mod persistence;
+pub mod protocol;
+pub mod rate_limiter;
 pub mod retry;
 pub mod scheduler;
 pub mod settings;
-pub mod logging;
-pub mod cdn;
-pub mod bt_backend_own;
-pub mod checksum;
-pub mod rate_limiter;
-pub mod bootstrap;
 pub mod slot_guard;
+pub mod types;
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
@@ -43,24 +43,20 @@ mod buffer_pool;
 #[cfg_attr(not(test), allow(dead_code))]
 pub mod test_harness;
 
+pub use backend_registry::BackendRegistry;
 pub use bt_backend_own::IrontideBtBackend;
 pub use cdn::CdnAccelerator;
-pub use manager::{AppState, DownloadManager};
-pub use rate_limiter::RateLimiter;
-pub use event_bus::{DownloadEvent, EventBus};
-pub use protocol::DownloadBackend;
-pub use backend_registry::BackendRegistry;
-pub use error::DownloadError;
 pub use checksum::calculate_checksum;
-pub use settings::{
-    normalize_tracker_list_lossy,
-    normalize_tracker_list_url,
-};
+pub use error::DownloadError;
+pub use event_bus::{DownloadEvent, EventBus};
 pub use logging::init_logging;
+pub use manager::{AppState, DownloadManager};
+pub use protocol::DownloadBackend;
+pub use rate_limiter::RateLimiter;
+pub use settings::{normalize_tracker_list_lossy, normalize_tracker_list_url};
 
-// The Aria2 JSON-RPC server is an experimental compatibility layer.
-// It is not yet considered stable for production use.
-// Enable with `--features aria2-rpc` when building.
+// Aria2 JSON-RPC compatibility layer (enabled by default in the desktop app,
+// available via `--features aria2-rpc` for NAS/server builds).
 #[cfg(feature = "aria2-rpc")]
 pub mod aria2_rpc;
 #[cfg(feature = "aria2-rpc")]

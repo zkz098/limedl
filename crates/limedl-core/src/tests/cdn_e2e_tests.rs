@@ -1,5 +1,5 @@
-﻿use std::sync::Arc;
 use ntest::timeout;
+use std::sync::Arc;
 use tempfile::TempDir;
 
 use crate::cdn::CdnAccelerator;
@@ -15,7 +15,9 @@ async fn cdn_settings_survive_restart() {
 
     // Phase 1: enable CDN with a known IP, save settings
     {
-        let core = crate::bootstrap::bootstrap(state_dir.clone()).await.unwrap();
+        let core = crate::bootstrap::bootstrap(state_dir.clone())
+            .await
+            .unwrap();
         let dm = &core.download_manager;
 
         let mut settings = dm.settings().await.unwrap();
@@ -29,16 +31,25 @@ async fn cdn_settings_survive_restart() {
 
     // Phase 2: re-bootstrap, verify CDN settings loaded correctly
     {
-        let core = crate::bootstrap::bootstrap(state_dir.clone()).await.unwrap();
+        let core = crate::bootstrap::bootstrap(state_dir.clone())
+            .await
+            .unwrap();
         let dm = &core.download_manager;
         let settings = dm.settings().await.unwrap();
 
-        assert!(settings.cdn_acceleration.enabled,
-            "CDN should remain enabled after restart");
-        assert_eq!(settings.cdn_acceleration.active_ip.as_deref(), Some(test_ip.as_str()),
-            "active_ip should survive restart");
-        assert!((settings.cdn_acceleration.active_speed_mbps.unwrap() - 150.0).abs() < 1.0,
-            "active_speed_mbps should survive restart");
+        assert!(
+            settings.cdn_acceleration.enabled,
+            "CDN should remain enabled after restart"
+        );
+        assert_eq!(
+            settings.cdn_acceleration.active_ip.as_deref(),
+            Some(test_ip.as_str()),
+            "active_ip should survive restart"
+        );
+        assert!(
+            (settings.cdn_acceleration.active_speed_mbps.unwrap() - 150.0).abs() < 1.0,
+            "active_speed_mbps should survive restart"
+        );
 
         core.registry.shutdown_all().await;
     }
@@ -71,17 +82,25 @@ async fn cdn_accelerator_init_and_clear() {
 
     // Verify active_ip is restored
     let active = accelerator.active_ip().await;
-    assert!(active.is_some(), "Accelerator should have active IP after init_from_settings");
-    assert_eq!(active.unwrap().to_string(), test_ip,
-        "Accelerator active IP should match settings");
+    assert!(
+        active.is_some(),
+        "Accelerator should have active IP after init_from_settings"
+    );
+    assert_eq!(
+        active.unwrap().to_string(),
+        test_ip,
+        "Accelerator active IP should match settings"
+    );
 
     // Clear the accelerator
     accelerator.clear().await;
 
     // Verify no active IP after clear
     let active_after_clear = accelerator.active_ip().await;
-    assert!(active_after_clear.is_none(),
-        "Accelerator should have no active IP after clear()");
+    assert!(
+        active_after_clear.is_none(),
+        "Accelerator should have no active IP after clear()"
+    );
 
     core.registry.shutdown_all().await;
 }
@@ -95,7 +114,9 @@ async fn cdn_disable_clears_active_ip() {
 
     // Phase 1: enable CDN with an IP
     {
-        let core = crate::bootstrap::bootstrap(state_dir.clone()).await.unwrap();
+        let core = crate::bootstrap::bootstrap(state_dir.clone())
+            .await
+            .unwrap();
         let dm = &core.download_manager;
 
         let mut settings = dm.settings().await.unwrap();
@@ -108,7 +129,9 @@ async fn cdn_disable_clears_active_ip() {
 
     // Phase 2: re-bootstrap, disable CDN, save, re-bootstrap again
     {
-        let core = crate::bootstrap::bootstrap(state_dir.clone()).await.unwrap();
+        let core = crate::bootstrap::bootstrap(state_dir.clone())
+            .await
+            .unwrap();
         let dm = &core.download_manager;
 
         let mut settings = dm.settings().await.unwrap();
@@ -120,12 +143,13 @@ async fn cdn_disable_clears_active_ip() {
 
     // Phase 3: verify CDN is disabled
     {
-        let core = crate::bootstrap::bootstrap(state_dir.clone()).await.unwrap();
+        let core = crate::bootstrap::bootstrap(state_dir.clone())
+            .await
+            .unwrap();
         let dm = &core.download_manager;
         let settings = dm.settings().await.unwrap();
 
-        assert!(!settings.cdn_acceleration.enabled,
-            "CDN should be disabled");
+        assert!(!settings.cdn_acceleration.enabled, "CDN should be disabled");
 
         core.registry.shutdown_all().await;
     }
@@ -212,8 +236,7 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
         "CDN acceleration should be active for a Cloudflare domain.\n\
          cdn_accelerated flag: {}\n\
          Download state: {:?}",
-        snapshot.cdn_accelerated,
-        snapshot.state,
+        snapshot.cdn_accelerated, snapshot.state,
     );
 
     // Cleanup

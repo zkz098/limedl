@@ -8,8 +8,8 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, black_box};
-use limedl_lib::aimd::{AimdState, AdaptiveProfile, initial_desired_threads, reduce_threads};
+use criterion::{BatchSize, BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use limedl_lib::aimd::{AdaptiveProfile, AimdState, initial_desired_threads, reduce_threads};
 
 // ── sample_throughput ───────────────────────────────────────────────────────
 

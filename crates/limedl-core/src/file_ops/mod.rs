@@ -1,4 +1,4 @@
-﻿// ── File Allocation ──────────────────────────────────
+// ── File Allocation ──────────────────────────────────
 
 use std::{
     ffi::OsString,
@@ -11,12 +11,11 @@ use fs4::fs_std::FileExt;
 
 use tracing;
 
-use super::error::{io_error_with_path, DownloadError, Result};
+use super::error::{DownloadError, Result, io_error_with_path};
 
 pub fn open_download_file(path: &Path, total_size: Option<u64>) -> Result<File> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;
+        fs::create_dir_all(parent).map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;
     }
 
     let file = OpenOptions::new()
@@ -66,7 +65,10 @@ pub fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<(
                 drop(destination);
                 drop(source);
                 if let Err(e) = fs::remove_file(&staging_path) {
-                    tracing::warn!("Failed to clean up staging file {}: {e}", staging_path.display());
+                    tracing::warn!(
+                        "Failed to clean up staging file {}: {e}",
+                        staging_path.display()
+                    );
                 }
                 return Err(error.into());
             }
@@ -79,8 +81,10 @@ pub fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<(
                 if error.kind() == ErrorKind::AlreadyExists
                     && files_have_same_content(&staging_path, destination_path)?
                 {
-                    fs::remove_file(&staging_path).map_err(|e| io_error_with_path(e, staging_path.to_string_lossy()))?;
-                    fs::remove_file(temp_path).map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
+                    fs::remove_file(&staging_path)
+                        .map_err(|e| io_error_with_path(e, staging_path.to_string_lossy()))?;
+                    fs::remove_file(temp_path)
+                        .map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
                     return Ok(());
                 }
                 if error.kind() == ErrorKind::AlreadyExists {
@@ -91,8 +95,10 @@ pub fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<(
                 fallback_copy_staging_to_destination(&staging_path, destination_path)?;
             }
 
-            fs::remove_file(&staging_path).map_err(|e| io_error_with_path(e, staging_path.to_string_lossy()))?;
-            fs::remove_file(temp_path).map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
+            fs::remove_file(&staging_path)
+                .map_err(|e| io_error_with_path(e, staging_path.to_string_lossy()))?;
+            fs::remove_file(temp_path)
+                .map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
             Ok(())
         }
         Err(e) => Err(e.into()),
@@ -144,10 +150,7 @@ fn copy_file_buffered(source: &mut File, dest: &mut File) -> io::Result<u64> {
             while !buf.is_empty() {
                 match dest.write(buf) {
                     Ok(0) => {
-                        return Err(io::Error::new(
-                            ErrorKind::WriteZero,
-                            "write returned zero",
-                        ))
+                        return Err(io::Error::new(ErrorKind::WriteZero, "write returned zero"));
                     }
                     Ok(n) => buf = &buf[n..],
                     Err(e) if e.kind() == ErrorKind::Interrupted => continue,
@@ -208,11 +211,10 @@ fn cleanup_finalizing_paths(destination_path: &Path) -> Result<()> {
         value
     };
 
-    for entry in fs::read_dir(parent)
-        .map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?
+    for entry in
+        fs::read_dir(parent).map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?
     {
-        let entry = entry
-            .map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;
+        let entry = entry.map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;
         let candidate_name = entry.file_name();
         if candidate_name
             .to_string_lossy()
@@ -386,7 +388,10 @@ mod imp {
 
     /// Convert a string to a null-terminated wide string (UTF-16).
     fn to_wide_null(s: &str) -> Vec<u16> {
-        OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+        OsStr::new(s)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
     }
 
     /// Open the volume handle for a drive letter (e.g., "C:" → `\\.\C:`).

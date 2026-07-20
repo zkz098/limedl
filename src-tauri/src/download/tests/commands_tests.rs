@@ -1,16 +1,14 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use ntest::timeout;
 use tempfile::tempdir;
 
+use limedl_core::DownloadManager;
+use limedl_core::RateLimiter;
 use limedl_core::error::DownloadError;
 use limedl_core::event_bus::EventBus;
-use limedl_core::types::{
-    StartDownloadRequest, TaskKind,
-};
-use limedl_core::RateLimiter;
-use limedl_core::DownloadManager;
+use limedl_core::types::{StartDownloadRequest, TaskKind};
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 

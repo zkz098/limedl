@@ -31,7 +31,8 @@ jobs:
           toolchain: stable
           components: clippy
       - uses: swatinem/rust-cache@v2
-      - run: cargo check --workspace
+      - name: Enable lld-link
+        run: echo "RUSTFLAGS=-C linker=lld-link" >> "$env:GITHUB_ENV"
       - run: cargo clippy --workspace -- -D warnings
 
   check-rust:
@@ -44,8 +45,7 @@ jobs:
           toolchain: stable
           components: clippy
       - uses: swatinem/rust-cache@v2
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - run: cargo check --workspace
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf mold
       - run: cargo clippy --workspace -- -D warnings
       - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
       - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
@@ -60,7 +60,7 @@ jobs:
         with:
           toolchain: stable
       - uses: swatinem/rust-cache@v2
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf mold
 
       - name: Restore main baseline
         uses: actions/cache/restore@v4
@@ -105,4 +105,24 @@ jobs:
         with:
           name: criterion-report
           path: criterion-baseline/report/
+
+  supply-chain:
+    name: Supply Chain (cargo-deny + cargo-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - uses: swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo deny check -W rejected bans licenses sources
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit
 

@@ -1,4 +1,4 @@
-﻿//! Unit tests for aria2_rpc.rs — JSON-RPC gateway.
+//! Unit tests for aria2_rpc.rs — JSON-RPC gateway.
 //!
 //! Coverage:
 //!   - JSON-RPC protocol types: JsonRpcResponse, JsonRpcError serialization
@@ -15,7 +15,7 @@
 
 use super::*;
 use ntest::timeout;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 // ── JSON-RPC response serialization ───────────────────────────────────────
 
@@ -34,7 +34,10 @@ fn success_response_serializes_correctly() {
     assert_eq!(parsed["jsonrpc"], "2.0");
     assert_eq!(parsed["id"], 1);
     assert_eq!(parsed["result"], "ok");
-    assert!(parsed.get("error").is_none(), "success response must not have error field");
+    assert!(
+        parsed.get("error").is_none(),
+        "success response must not have error field"
+    );
 }
 
 #[test]
@@ -54,7 +57,10 @@ fn error_response_serializes_correctly() {
 
     assert_eq!(parsed["jsonrpc"], "2.0");
     assert_eq!(parsed["id"], 1);
-    assert!(parsed.get("result").is_none(), "error response must not have result field");
+    assert!(
+        parsed.get("result").is_none(),
+        "error response must not have result field"
+    );
     assert_eq!(parsed["error"]["code"], -32601);
     assert_eq!(parsed["error"]["message"], "Not found");
 }
@@ -73,9 +79,18 @@ fn notification_response_omits_id_and_result_and_error() {
     let parsed: Value = serde_json::from_str(&json_str).expect("valid JSON");
 
     assert_eq!(parsed["jsonrpc"], "2.0");
-    assert!(parsed.get("id").is_none(), "notification must not have id field");
-    assert!(parsed.get("result").is_none(), "notification must not have result field");
-    assert!(parsed.get("error").is_none(), "notification must not have error field");
+    assert!(
+        parsed.get("id").is_none(),
+        "notification must not have id field"
+    );
+    assert!(
+        parsed.get("result").is_none(),
+        "notification must not have result field"
+    );
+    assert!(
+        parsed.get("error").is_none(),
+        "notification must not have error field"
+    );
 }
 
 // ── Error codes and factory functions ─────────────────────────────────────
@@ -191,7 +206,9 @@ fn success_response_factory_serialization() {
 fn handle_version_returns_version_info() {
     let result = handle_version();
     assert_eq!(result["version"], "0.1.0");
-    let features = result["enabledFeatures"].as_array().expect("enabledFeatures should be an array");
+    let features = result["enabledFeatures"]
+        .as_array()
+        .expect("enabledFeatures should be an array");
     assert!(features.contains(&json!("BitTorrent")));
     assert!(features.contains(&json!("HTTPS")));
     assert!(features.contains(&json!("Async DNS")));
@@ -331,7 +348,8 @@ fn deserialize_valid_request() {
 #[timeout(10_000)]
 fn deserialize_request_without_id() {
     // Notifications omit the id field
-    let json_str = r#"{"jsonrpc":"2.0","method":"aria2.addUri","params":[["http://example.com/file.zip"]]}"#;
+    let json_str =
+        r#"{"jsonrpc":"2.0","method":"aria2.addUri","params":[["http://example.com/file.zip"]]}"#;
     let req: JsonRpcRequest = serde_json::from_str(json_str).expect("deserialize notification");
 
     assert_eq!(req.jsonrpc, "2.0");
@@ -369,7 +387,10 @@ fn deserialize_request_with_null_id() {
     let json_str = r#"{"jsonrpc":"2.0","id":null,"method":"aria2.getVersion"}"#;
     let req: JsonRpcRequest = serde_json::from_str(json_str).expect("deserialize with null id");
 
-    assert_eq!(req.id, None, "JSON null should deserialize as None for Option<Value>");
+    assert_eq!(
+        req.id, None,
+        "JSON null should deserialize as None for Option<Value>"
+    );
 }
 
 #[test]
@@ -377,7 +398,10 @@ fn deserialize_request_with_null_id() {
 fn deserialize_invalid_json_returns_error() {
     let json_str = r#"{bad json}"#;
     let result: Result<JsonRpcRequest, _> = serde_json::from_str(json_str);
-    assert!(result.is_err(), "malformed JSON should fail deserialization");
+    assert!(
+        result.is_err(),
+        "malformed JSON should fail deserialization"
+    );
 }
 
 #[test]

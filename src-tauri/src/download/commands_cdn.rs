@@ -1,10 +1,10 @@
-﻿use std::net::Ipv4Addr;
+use std::net::Ipv4Addr;
 
 use serde::Serialize;
 use tauri::State;
 
 use limedl_core::{
-    AppState, DownloadManager, DownloadEvent,
+    AppState, DownloadEvent, DownloadManager,
     cdn::{
         accelerator::AccelState,
         ip_ranges::CLOUDFLARE_IPV4_RANGES,
@@ -33,7 +33,9 @@ pub async fn cdn_fetch_ranges(_state: State<'_, AppState>) -> Result<Vec<String>
 /// Calling this when a test is already running is a no-op.
 #[tauri::command]
 pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
-    let dm = state.registry.get_typed::<DownloadManager>()
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| "HTTP backend not available".to_string())?;
     let settings = dm.settings().await.map_err(|e| e.to_string())?;
 
@@ -45,7 +47,9 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
 
     let event_bus = state.event_bus.clone();
     let acc = state.cdn_accelerator.clone();
-    let mgr = state.registry.get_typed::<DownloadManager>()
+    let mgr = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| "HTTP backend not available".to_string())?
         .clone();
 
@@ -151,7 +155,9 @@ pub async fn cdn_apply(
 ) -> Result<(), String> {
     let ip: Ipv4Addr = ip.parse().map_err(|e| format!("Invalid IP address: {e}"))?;
 
-    let dm = state.registry.get_typed::<DownloadManager>()
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| "HTTP backend not available".to_string())?;
     let settings = dm.settings().await.map_err(|e| e.to_string())?;
 
@@ -162,7 +168,9 @@ pub async fn cdn_apply(
         .map_err(|e| e.to_string())?;
 
     // Persist the applied IP to settings so it survives restart.
-    let dm = state.registry.get_typed::<DownloadManager>()
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| "HTTP backend not available".to_string())?;
     if let Ok(mut current) = dm.settings().await {
         current.cdn_acceleration.active_ip = Some(ip.to_string());

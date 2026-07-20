@@ -1,4 +1,4 @@
-﻿use std::net::IpAddr;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -7,8 +7,8 @@ use clap::{Parser, Subcommand};
 mod auth;
 mod config;
 mod rate_limiter;
-mod security;
 mod rpc;
+mod security;
 
 use config::ServerConfig;
 use rpc::RpcState;
@@ -60,9 +60,7 @@ async fn main() -> anyhow::Result<()> {
             user,
             pass,
         } => run_daemon(config_path, port, user, pass).await,
-        Commands::Download { url, output } => {
-            run_single_download(&url, output.as_ref()).await
-        }
+        Commands::Download { url, output } => run_single_download(&url, output.as_ref()).await,
     }
 }
 
@@ -73,11 +71,11 @@ async fn run_daemon(
     pass: Option<String>,
 ) -> anyhow::Result<()> {
     use axum::{
+        Router,
         body::Body,
         extract::{DefaultBodyLimit, Request},
         middleware::{self, Next},
         routing::get,
-        Router,
     };
 
     // Load config
@@ -98,6 +96,25 @@ async fn run_daemon(
 
     // ── Startup security check ──────────────────────────────────────────
     check_listen_safety(&cfg.host, cfg.port, cfg.auth.is_some())?;
+
+    // ── TLS config validation ──────────────────────────────────────────────
+    #[cfg(feature = "tls")]
+    if cfg.tls.enabled {
+        let cert_path =
+            cfg.tls.cert_path.as_deref().ok_or_else(|| {
+                anyhow::anyhow!("TLS is enabled but cert_path is not set in config")
+            })?;
+        let key_path =
+            cfg.tls.key_path.as_deref().ok_or_else(|| {
+                anyhow::anyhow!("TLS is enabled but key_path is not set in config")
+            })?;
+        if !std::path::Path::new(cert_path).exists() {
+            anyhow::bail!("TLS certificate file not found: {cert_path}");
+        }
+        if !std::path::Path::new(key_path).exists() {
+            anyhow::bail!("TLS key file not found: {key_path}");
+        }
+    }
 
     // Ensure data directory exists
     std::fs::create_dir_all(&cfg.data_dir)?;
@@ -169,7 +186,64 @@ async fn run_daemon(
     }
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app).await?;
+
+    let registry = core.registry.clone();
+    let download_manager = core.download_manager.clone();
+    let shutdown_signal = async move {
+        let _ = tokio::signal::ctrl_c().await;
+        tracing::info!("Shutting down gracefully...");
+        registry.shutdown_all().await;
+        let start = std::time::Instant::now();
+        while download_manager.buffer_pool.active_slots() > 0
+            && start.elapsed() < std::time::Duration::from_secs(5)
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        if download_manager.buffer_pool.active_slots() > 0 {
+            tracing::warn!("Buffer pool drain timed out");
+        }
+    };
+    #[cfg(feature = "tls")]
+    {
+        if cfg.tls.enabled {
+            let cert = cfg
+                .tls
+                .cert_path
+                .as_ref()
+                .expect("TLS cert_path should be validated");
+            let key = cfg
+                .tls
+                .key_path
+                .as_ref()
+                .expect("TLS key_path should be validated");
+            let tls_config =
+                axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key).await?;
+            let std_listener = listener.into_std()?;
+            let handle = axum_server::Handle::new();
+            let server =
+                axum_server::from_tcp_rustls(std_listener, tls_config).handle(handle.clone());
+            tracing::info!("HTTPS enabled");
+            let serve_handle = tokio::spawn(server.serve(app.into_make_service()));
+            shutdown_signal.await;
+            handle.graceful_shutdown(None);
+            serve_handle.await??;
+        } else {
+            tracing::info!(
+                "HTTP only (set tls.enabled=true and provide cert_path/key_path for HTTPS)"
+            );
+            axum::serve(listener, app)
+                .with_graceful_shutdown(shutdown_signal)
+                .await?;
+        }
+    }
+    #[cfg(not(feature = "tls"))]
+    {
+        tracing::info!("HTTP only (compile with --features tls for HTTPS support)");
+        axum::serve(listener, app)
+            .with_graceful_shutdown(shutdown_signal)
+            .await?;
+    }
+    tracing::info!("Server shut down");
 
     Ok(())
 }

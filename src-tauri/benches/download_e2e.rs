@@ -12,8 +12,8 @@
 
 mod common;
 
-use criterion::{criterion_group, criterion_main, Criterion, Throughput, black_box};
 use common::BenchHarness;
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 /// File size served by the test server for every scenario.
 ///

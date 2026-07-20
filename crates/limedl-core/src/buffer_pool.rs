@@ -1,4 +1,4 @@
-﻿//! Double-buffer cache for HDD download optimization.
+//! Double-buffer cache for HDD download optimization.
 //!
 //! Replaces the old single-buffer design with a ping-pong (double-buffer)
 //! per-download architecture. Each HDD download gets a slot from a global
@@ -12,15 +12,33 @@
 
 use bytes::Bytes;
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use std::fs::File;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
-use parking_lot::Mutex;
 use tokio::sync::{Notify, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 
 use super::error::DownloadError;
 use super::file_ops::write_all_at;
+
+// ---------------------------------------------------------------------------
+// FlipTokenGuard — RAII guard for the flip token
+// ---------------------------------------------------------------------------
+
+/// RAII guard that releases the flip token and notifies waiters on drop.
+/// Prevents deadlock if the flip section panics.
+struct FlipTokenGuard<'a> {
+    token: &'a AtomicBool,
+    notify: &'a Notify,
+}
+
+impl<'a> Drop for FlipTokenGuard<'a> {
+    fn drop(&mut self) {
+        self.token.store(false, Ordering::Release);
+        self.notify.notify_waiters();
+    }
+}
 
 // ---------------------------------------------------------------------------
 // SlotGuard — RAII guard for a semaphore permit
@@ -107,10 +125,7 @@ impl BufferPool {
     /// FIFO, but Tokio's `Semaphore` is fair under contention.
     pub async fn acquire_slot(&self) -> SlotGuard {
         let sem = self.slot_semaphore.clone();
-        let permit = sem
-            .acquire_owned()
-            .await
-            .expect("semaphore closed");
+        let permit = sem.acquire_owned().await.expect("semaphore closed");
         self.active_count.fetch_add(1, Ordering::Relaxed);
         SlotGuard::new(permit)
     }
@@ -181,8 +196,7 @@ impl BufferPool {
         game_mode_max_parallel: u32,
     ) {
         let old_max = self.effective_max_parallel();
-        self.total_limit_mb
-            .store(total_limit_mb, Ordering::Relaxed);
+        self.total_limit_mb.store(total_limit_mb, Ordering::Relaxed);
         self.game_mode_limit_mb
             .store(game_mode_limit_mb, Ordering::Relaxed);
         self.max_parallel.store(max_parallel, Ordering::Relaxed);
@@ -326,9 +340,20 @@ impl DownloadBuffer {
                 ..
             } => {
                 self.buffer_chunk_double(
-                    half_a, half_b, active_is_a, usage_a, usage_b,
-                    *half_size, flush_handle, notify, error_flag, flip_token,
-                    pool, file, offset, data,
+                    half_a,
+                    half_b,
+                    active_is_a,
+                    usage_a,
+                    usage_b,
+                    *half_size,
+                    flush_handle,
+                    notify,
+                    error_flag,
+                    flip_token,
+                    pool,
+                    file,
+                    offset,
+                    data,
                 )
                 .await
             }
@@ -338,10 +363,8 @@ impl DownloadBuffer {
                 local_limit,
                 file,
             } => {
-                self.buffer_chunk_local(
-                    chunks, buffered_bytes, *local_limit, file, offset, data,
-                )
-                .await;
+                self.buffer_chunk_local(chunks, buffered_bytes, *local_limit, file, offset, data)
+                    .await;
                 Ok(())
             }
         }
@@ -410,15 +433,18 @@ impl DownloadBuffer {
                 continue;
             }
 
-                // We hold the flip token. Before proceeding, check if a
-                // background flush from a previous flip is still running.
-                let prev_handle = flush_handle.lock().take();
-                if let Some(h) = prev_handle {
-                    // Wait for it to finish.
-                    let _ = h.await;
-                // Release our token and retry — the flushed half is now empty.
-                flip_token.store(false, Ordering::Release);
-                notify.notify_waiters();
+            // Guard releases the flip token on drop (even if the section panics).
+            let _guard = FlipTokenGuard {
+                token: flip_token,
+                notify,
+            };
+
+            // We hold the flip token. Before proceeding, check if a
+            // background flush from a previous flip is still running.
+            let prev_handle = flush_handle.lock().take();
+            if let Some(h) = prev_handle {
+                // Wait for it to finish.
+                let _ = h.await;
                 if error_flag.load(Ordering::Acquire) {
                     return Err(DownloadError::Internal(
                         "background buffer flush failed".into(),
@@ -430,8 +456,7 @@ impl DownloadBuffer {
             // Sanity: the inactive half should be empty (no flush running).
             let inactive_usage_val = inactive_usage.load(Ordering::Acquire);
             if inactive_usage_val > 0 {
-                let cleared: u64 =
-                    inactive_map.iter().map(|e| e.value().len() as u64).sum();
+                let cleared: u64 = inactive_map.iter().map(|e| e.value().len() as u64).sum();
                 inactive_map.clear();
                 inactive_usage.store(0, Ordering::Release);
                 pool.sub_usage(cleared);
@@ -443,8 +468,10 @@ impl DownloadBuffer {
 
             // ---- FLIP ----
             // Drain the active half, reset usage, subtract from pool.
-            let old_entries: Vec<(u64, Bytes)> =
-                active_map.iter().map(|e| (*e.key(), e.value().clone())).collect();
+            let old_entries: Vec<(u64, Bytes)> = active_map
+                .iter()
+                .map(|e| (*e.key(), e.value().clone()))
+                .collect();
             active_map.clear();
             let old_bytes: u64 = old_entries.iter().map(|(_, d)| d.len() as u64).sum();
             active_usage.store(0, Ordering::Release);
@@ -455,14 +482,16 @@ impl DownloadBuffer {
             let bg_error = Arc::clone(error_flag);
             let bg_notify = notify.clone();
             let bg_handle = tokio::spawn(async move {
-                let blocking_result = tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {
-                    let mut sorted = old_entries;
-                    sorted.sort_by_key(|(k, _)| *k);
-                    for (off, chunk) in &sorted {
-                        write_all_at(&bg_file, chunk, *off)?;
-                    }
-                    Ok(())
-                })
+                let blocking_result = tokio::task::spawn_blocking(
+                    move || -> std::result::Result<(), DownloadError> {
+                        let mut sorted = old_entries;
+                        sorted.sort_by_key(|(k, _)| *k);
+                        for (off, chunk) in &sorted {
+                            write_all_at(&bg_file, chunk, *off)?;
+                        }
+                        Ok(())
+                    },
+                )
                 .await;
 
                 match blocking_result {
@@ -484,13 +513,13 @@ impl DownloadBuffer {
             // Atomically flip the active half.
             active_is_a.store(!is_a, Ordering::Release);
 
-            // Release flip token.
-            flip_token.store(false, Ordering::Release);
-            notify.notify_waiters();
-
             // Insert the current chunk into the new active half (which is empty).
             let new_is_a = active_is_a.load(Ordering::Acquire);
-            let (new_map, new_usage) = if new_is_a { (half_a, usage_a) } else { (half_b, usage_b) };
+            let (new_map, new_usage) = if new_is_a {
+                (half_a, usage_a)
+            } else {
+                (half_b, usage_b)
+            };
             new_map.insert(offset, data);
             new_usage.fetch_add(len, Ordering::Release);
             pool.add_usage(len);
@@ -618,15 +647,16 @@ impl DownloadBuffer {
                 if chunks.is_empty() {
                     return Ok(());
                 }
-                let mut entries: Vec<(u64, Bytes)> =
-                    chunks.iter().map(|e| (*e.key(), e.value().clone())).collect();
+                let mut entries: Vec<(u64, Bytes)> = chunks
+                    .iter()
+                    .map(|e| (*e.key(), e.value().clone()))
+                    .collect();
                 chunks.clear();
                 entries.sort_by_key(|(k, _)| *k);
                 for (off, chunk) in &entries {
                     write_all_at(file, chunk, *off)?;
                 }
-                let flushed: u64 =
-                    entries.iter().map(|(_, d)| d.len() as u64).sum();
+                let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
                 buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
                 Ok(())
             }
@@ -645,7 +675,8 @@ impl DownloadBuffer {
             return Ok(());
         }
 
-        let entries: Vec<(u64, Bytes)> = half.iter().map(|e| (*e.key(), e.value().clone())).collect();
+        let entries: Vec<(u64, Bytes)> =
+            half.iter().map(|e| (*e.key(), e.value().clone())).collect();
         half.clear();
         let bytes: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
         usage.store(0, Ordering::Release);
@@ -732,9 +763,7 @@ impl DownloadBuffer {
             BufferMode::Double {
                 usage_a, usage_b, ..
             } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
-            BufferMode::Local {
-                buffered_bytes, ..
-            } => buffered_bytes.load(Ordering::Relaxed),
+            BufferMode::Local { buffered_bytes, .. } => buffered_bytes.load(Ordering::Relaxed),
         }
     }
 
@@ -1315,8 +1344,7 @@ mod tests {
             let off = (i * chunk_size) as usize;
             let expected_byte = i as u8;
             assert_eq!(
-                content[off],
-                expected_byte,
+                content[off], expected_byte,
                 "byte at offset {off} should be {expected_byte}"
             );
         }
@@ -1468,7 +1496,9 @@ mod tests {
         let slot = pool.acquire_slot().await;
         let buf = DownloadBuffer::new(pool.clone(), slot, file);
 
-        buf.buffer_chunk(0, Bytes::from("discard me")).await.unwrap();
+        buf.buffer_chunk(0, Bytes::from("discard me"))
+            .await
+            .unwrap();
         assert_eq!(buf.len(), 10);
 
         buf.clear();
@@ -1489,7 +1519,9 @@ mod tests {
         let (_dir, file) = temp_file();
         let buf = DownloadBuffer::new_local(4 * MB, file);
 
-        buf.buffer_chunk(0, Bytes::from("discard me")).await.unwrap();
+        buf.buffer_chunk(0, Bytes::from("discard me"))
+            .await
+            .unwrap();
         assert_eq!(buf.len(), 10);
 
         buf.clear();
@@ -1529,8 +1561,7 @@ mod tests {
         let small = half / 4; // 25% of half each
         for i in 0..5u64 {
             let payload = vec![i as u8; small as usize];
-            buf2
-                .buffer_chunk(i * small, Bytes::from(payload))
+            buf2.buffer_chunk(i * small, Bytes::from(payload))
                 .await
                 .unwrap();
         }
@@ -1597,9 +1628,7 @@ mod tests {
         // Buffer some data first.
         {
             let buf = DownloadBuffer::new(pool.clone(), slot, file);
-            buf.buffer_chunk(0, Bytes::from("data"))
-                .await
-                .unwrap();
+            buf.buffer_chunk(0, Bytes::from("data")).await.unwrap();
             assert!(pool.current_usage() > 0);
         }
         // Drop should clear usage.
@@ -1939,9 +1968,7 @@ mod tests {
         let buf = DownloadBuffer::new(pool.clone(), slot, file);
 
         // Without flag, buffer_chunk works
-        buf.buffer_chunk(0, Bytes::from("normal"))
-            .await
-            .unwrap();
+        buf.buffer_chunk(0, Bytes::from("normal")).await.unwrap();
 
         // Set the error flag
         if let BufferMode::Double { error_flag, .. } = &buf.mode {
@@ -2045,9 +2072,7 @@ mod tests {
         }
 
         // buffer_chunk returns Err
-        assert!(
-            buf.buffer_chunk(0, Bytes::from("data")).await.is_err()
-        );
+        assert!(buf.buffer_chunk(0, Bytes::from("data")).await.is_err());
 
         // Flag should still be set (not auto-cleared on error)
         assert!(buf.has_degraded());
@@ -2122,5 +2147,36 @@ mod tests {
         let content = fs::read(_dir.path().join("test.bin")).unwrap();
         assert_eq!(&content[0..5], b"first");
         assert_eq!(&content[10..16], b"second");
+    }
+
+    // -----------------------------------------------------------------------
+    // FlipTokenGuard panic recovery
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn flip_token_recovers_from_panic() {
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+        use std::sync::atomic::AtomicBool;
+        use tokio::sync::Notify;
+
+        let token = AtomicBool::new(true);
+        let notify = Notify::new();
+
+        // Simulate: inside the flip section, a panic occurs.
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let _guard = FlipTokenGuard {
+                token: &token,
+                notify: &notify,
+            };
+            panic!("simulated flip section panic");
+        }));
+
+        assert!(result.is_err(), "expected panic to be caught");
+
+        // Guard was dropped during unwind — token must be released.
+        assert!(
+            !token.load(Ordering::Acquire),
+            "flip_token should be false after guard drop on unwind"
+        );
     }
 }

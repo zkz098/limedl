@@ -1,4 +1,4 @@
-﻿use ntest::timeout;
+use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{DownloadState, StartDownloadRequest, TaskId};
@@ -33,11 +33,16 @@ async fn scheduler_respects_max_parallel_tasks() {
             url: url.clone(),
             destination_dir: dest_dir.to_string_lossy().to_string(),
             file_name: Some(format!("test_{i}.bin")),
-            kind: None, thread_mode: None, thread_count: Some(1),
+            kind: None,
+            thread_mode: None,
+            thread_count: Some(1),
             max_retries: Some(1),
-            checksum: None, expected_checksum: None, selected_file_indices: None,
+            checksum: None,
+            expected_checksum: None,
+            selected_file_indices: None,
             start_paused: false,
-            mirror_urls: None, user_agent: None,
+            mirror_urls: None,
+            user_agent: None,
         };
         let id = dm.start(request).await.unwrap();
         ids.push(id.to_string());
@@ -48,21 +53,27 @@ async fn scheduler_respects_max_parallel_tasks() {
 
     // Count states
     let list = dm.list().await.unwrap();
-    let downloading: Vec<_> = list.iter()
+    let downloading: Vec<_> = list
+        .iter()
         .filter(|s| s.state == DownloadState::Downloading)
         .collect();
-    let queued: Vec<_> = list.iter()
+    let queued: Vec<_> = list
+        .iter()
         .filter(|s| s.state == DownloadState::Queued)
         .collect();
 
-    assert!(downloading.len() <= 2,
+    assert!(
+        downloading.len() <= 2,
         "Expected ≤2 downloading, got {}: {:?}",
         downloading.len(),
-        downloading.iter().map(|s| &s.id).collect::<Vec<_>>());
-    assert!(queued.len() >= 3,
+        downloading.iter().map(|s| &s.id).collect::<Vec<_>>()
+    );
+    assert!(
+        queued.len() >= 3,
         "Expected ≥3 queued, got {}: {:?}",
         queued.len(),
-        queued.iter().map(|s| &s.id).collect::<Vec<_>>());
+        queued.iter().map(|s| &s.id).collect::<Vec<_>>()
+    );
 
     // Cleanup: cancel all downloads
     for id in &ids {

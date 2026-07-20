@@ -1,0 +1,16 @@
+# limedl build configuration
+# See AGENTS.md for the MSVC environment setup required before building on Windows.
+
+[target.x86_64-pc-windows-msvc]
+# Target modern desktops: Haswell 2013+ / Excavator 2015+
+rustflags = ["-C", "target-cpu=x86-64-v3"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
+
+[target.aarch64-apple-darwin]
+# apple-universal already covers both x86_64 and aarch64; aarch64 has no x86-64-v3 equivalent
+rustflags = ["-C", "target-cpu=apple-m1"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "target-cpu=x86-64-v3"]

@@ -1,4 +1,4 @@
-﻿use std::path::PathBuf;
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -6,13 +6,13 @@ use irontide::core::Id20;
 use irontide::prelude::*;
 
 use super::IrontideBtBackend;
-use crate::error::{io_error_with_path, DownloadError, Result};
+use crate::error::{DownloadError, Result, io_error_with_path};
+use crate::event_bus::DownloadEvent;
 use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
-    ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary,
-    StartDownloadRequest, TaskKind, ThreadMode,
+    ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, StartDownloadRequest, TaskKind,
+    ThreadMode,
 };
-use crate::event_bus::DownloadEvent;
 use crate::{lock, now_ms};
 
 impl IrontideBtBackend {
@@ -21,28 +21,30 @@ impl IrontideBtBackend {
     /// Fetch bytes from a URL using the configured HTTP client (with proxy support).
     pub(crate) async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>> {
         if let Some(ref client) = self.http_client {
-            let resp = client
-                .get(url)
-                .send()
-                .await
-                .map_err(|e| DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}")))?;
+            let resp = client.get(url).send().await.map_err(|e| {
+                DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}"))
+            })?;
             resp.bytes()
                 .await
-                .map_err(|e| DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}")))
+                .map_err(|e| {
+                    DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
+                })
                 .map(|b| b.to_vec())
         } else {
             let client = reqwest::Client::builder()
                 .timeout(Duration::from_secs(30))
                 .build()
-                .map_err(|e| DownloadError::TorrentNetwork(format!("failed to build http client: {e}")))?;
-            let resp = client
-                .get(url)
-                .send()
-                .await
-                .map_err(|e| DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}")))?;
+                .map_err(|e| {
+                    DownloadError::TorrentNetwork(format!("failed to build http client: {e}"))
+                })?;
+            let resp = client.get(url).send().await.map_err(|e| {
+                DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}"))
+            })?;
             resp.bytes()
                 .await
-                .map_err(|e| DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}")))
+                .map_err(|e| {
+                    DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
+                })
                 .map(|b| b.to_vec())
         }
     }
@@ -101,10 +103,9 @@ impl IrontideBtBackend {
 
         // Build AddTorrentParams from source.
         let params = if source.to_ascii_lowercase().starts_with("magnet:") {
-            let magnet =
-                irontide::core::Magnet::parse(source).map_err(|e| {
-                    DownloadError::TorrentInvalidData(format!("invalid magnet link: {e}"))
-                })?;
+            let magnet = irontide::core::Magnet::parse(source).map_err(|e| {
+                DownloadError::TorrentInvalidData(format!("invalid magnet link: {e}"))
+            })?;
             AddTorrentParams::from_magnet(magnet)
         } else if source.starts_with("http://") || source.starts_with("https://") {
             // Fetch .torrent from URL (with proxy support)
@@ -139,7 +140,10 @@ impl IrontideBtBackend {
                 if tracker.is_empty() {
                     continue;
                 }
-                let _ = self.session.add_tracker(info_hash, tracker.to_string()).await;
+                let _ = self
+                    .session
+                    .add_tracker(info_hash, tracker.to_string())
+                    .await;
             }
         }
 
@@ -160,18 +164,15 @@ impl IrontideBtBackend {
             && let Ok(files) = self.session.torrent_file(info_hash).await
             && let Some(meta) = files
         {
-                    let file_count = meta.info.files.map_or(1, |f| f.len());
-                    for i in 0..file_count {
-                        let priority = if indices.contains(&i) {
-                            irontide::core::FilePriority::Normal
-                        } else {
-                            irontide::core::FilePriority::Skip
-                        };
-                        let _ = self
-                            .session
-                            .set_file_priority(info_hash, i, priority)
-                            .await;
-                    }
+            let file_count = meta.info.files.map_or(1, |f| f.len());
+            for i in 0..file_count {
+                let priority = if indices.contains(&i) {
+                    irontide::core::FilePriority::Normal
+                } else {
+                    irontide::core::FilePriority::Skip
+                };
+                let _ = self.session.set_file_priority(info_hash, i, priority).await;
+            }
         }
 
         // Emit a pending summary so the frontend shows the task immediately.
@@ -247,7 +248,10 @@ impl IrontideBtBackend {
             disk_type: None,
             flushing: false,
         };
-        let snapshot = self.status(info_hash).await.unwrap_or_else(|_| fallback_snapshot());
+        let snapshot = self
+            .status(info_hash)
+            .await
+            .unwrap_or_else(|_| fallback_snapshot());
         let _ = self.session.remove_torrent(info_hash).await;
         self.bt_slot_guards.remove(&info_hash);
         self.task_map.remove(&info_hash);

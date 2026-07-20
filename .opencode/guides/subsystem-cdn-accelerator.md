@@ -107,3 +107,7 @@ DownloadManager 使用 accelerated_client 发起下载请求
 - 测试流程可被 `cancel_test()` 中断，会重置为 Idle
 - 启动时 `init_from_settings()` 从持久化设置恢复之前选择的 IP
 - 此模块当前**未设计多 CDN 抽象**，扩展需重构 `ip_ranges.rs` 和 `resolver.rs`
+
+## NAS（limedl-server / WebSocket）CDN 制限
+
+NAS mode (limedl-server WebSocket) does NOT implement CDN test/apply/clear/cancel/candidates operations. These commands exist only on the Tauri desktop path via `src-tauri/src/commands_cdn.rs`. The NAS dispatcher in `crates/limedl-server/src/rpc.rs` returns a `-32001` error for CDN methods.

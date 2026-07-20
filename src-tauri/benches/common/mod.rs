@@ -13,8 +13,8 @@
 //! let url = harness.server.file_url();
 //! ```
 
-use std::sync::Arc;
 use limedl_lib::test_harness::TestServer;
+use std::sync::Arc;
 
 /// Benchmark harness owning a tokio runtime and a local test server.
 ///

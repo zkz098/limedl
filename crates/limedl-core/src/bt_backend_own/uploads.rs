@@ -1,4 +1,4 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 use std::time::Duration;
 
 use dashmap::DashMap;
@@ -6,8 +6,8 @@ use irontide::core::Id20;
 use parking_lot::Mutex;
 
 use super::IrontideBtBackend;
-use crate::lock;
 use crate::event_bus::{DownloadEvent, EventBus};
+use crate::lock;
 
 impl IrontideBtBackend {
     pub fn spawn_upload_policy_loop(self: Arc<Self>) {
@@ -58,8 +58,7 @@ async fn upload_policy_loop(
         if settings.upload_limit_bytes == 0 && settings.upload_ratio_limit == 0.0 {
             // If limits were cleared, un-pause any previously paused torrents.
             if !paused_by_limit.is_empty() {
-                let to_unpause: Vec<Id20> =
-                    paused_by_limit.iter().map(|e| *e.key()).collect();
+                let to_unpause: Vec<Id20> = paused_by_limit.iter().map(|e| *e.key()).collect();
                 paused_by_limit.clear();
                 for ih in &to_unpause {
                     let _ = session.set_upload_limit(*ih, 0).await;
@@ -85,10 +84,10 @@ async fn upload_policy_loop(
                         && settings.pause_upload_when_limit_reached
                         && paused_by_limit.get(&info_hash).is_none()
                     {
-                                paused_by_limit.insert(info_hash, ());
-                                let _ = session.set_upload_limit(info_hash, 1).await;
-                                // Emit a download-updated reflecting PausedByLimit
-                                emit_upload_policy_event(&event_bus, info_hash, "paused_by_limit");
+                        paused_by_limit.insert(info_hash, ());
+                        let _ = session.set_upload_limit(info_hash, 1).await;
+                        // Emit a download-updated reflecting PausedByLimit
+                        emit_upload_policy_event(&event_bus, info_hash, "paused_by_limit");
                     } else if paused_by_limit.get(&info_hash).is_some() {
                         // Was previously paused; un-pause by removing the rate cap.
                         // irontide treats 0 as unlimited.
@@ -106,11 +105,7 @@ async fn upload_policy_loop(
 }
 
 /// Emit a `download-updated` event from the upload policy loop with the given upload status.
-fn emit_upload_policy_event(
-    event_bus: &Arc<EventBus>,
-    info_hash: Id20,
-    upload_status: &str,
-) {
+fn emit_upload_policy_event(event_bus: &Arc<EventBus>, info_hash: Id20, upload_status: &str) {
     let task_id = info_hash.to_hex();
     event_bus.publish(DownloadEvent::Updated {
         id: task_id,

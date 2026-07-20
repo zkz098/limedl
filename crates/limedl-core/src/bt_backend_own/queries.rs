@@ -1,18 +1,17 @@
-﻿use std::path::PathBuf;
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use irontide::core::Id20;
 
 use super::IrontideBtBackend;
 use super::snapshot::{build_peer_flags, preview_entries_from_meta};
 use crate::error::{DownloadError, Result};
+use crate::event_bus::DownloadEvent;
 use crate::types::{
-    BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
-    BtUploadStatus, DownloadState, DownloadSummary, TaskKind,
-    ThreadMode, TorrentFileEntry,
+    BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo, BtUploadStatus,
+    DownloadState, DownloadSummary, TaskKind, ThreadMode, TorrentFileEntry,
 };
 use crate::{lock, now_ms};
-use crate::event_bus::DownloadEvent;
 
 impl IrontideBtBackend {
     pub fn set_speed_limit(
@@ -45,14 +44,15 @@ impl IrontideBtBackend {
         let bytes: Vec<u8> = if source.starts_with("http://") || source.starts_with("https://") {
             self.fetch_url_bytes(source).await?
         } else {
-            tokio::fs::read(source)
-                .await
-                .map_err(|e| DownloadError::TorrentIo(format!("failed to read torrent file: {e}")))?
+            tokio::fs::read(source).await.map_err(|e| {
+                DownloadError::TorrentIo(format!("failed to read torrent file: {e}"))
+            })?
         };
 
         // Parse the torrent metainfo and extract file list
-        let meta = irontide::core::torrent_from_bytes_any(&bytes)
-            .map_err(|e| DownloadError::TorrentInvalidData(format!("failed to parse torrent: {e}")))?;
+        let meta = irontide::core::torrent_from_bytes_any(&bytes).map_err(|e| {
+            DownloadError::TorrentInvalidData(format!("failed to parse torrent: {e}"))
+        })?;
 
         let entries = preview_entries_from_meta(&meta);
 
@@ -86,9 +86,7 @@ impl IrontideBtBackend {
         .map_err(|e| DownloadError::Torrent(e.to_string()))?;
         Ok(trackers
             .iter()
-            .map(|t| BtTrackerInfo {
-                url: t.url.clone(),
-            })
+            .map(|t| BtTrackerInfo { url: t.url.clone() })
             .collect())
     }
 
@@ -111,20 +109,18 @@ impl IrontideBtBackend {
     }
 
     pub fn get_torrent_files(&self, info_hash: Id20) -> Result<Vec<BtFileStatus>> {
-
         // Use torrent_file + file_progress + file_status to build file status
         let meta_fut = self.session.torrent_file(info_hash);
         let progress_fut = self.session.file_progress(info_hash);
         let status_fut = self.session.file_status(info_hash);
 
-        let (meta_result, progress_result, status_result) =
-            tokio::task::block_in_place(|| {
-                self.runtime_handle.block_on(async { tokio::join!(meta_fut, progress_fut, status_fut) })
-            });
+        let (meta_result, progress_result, status_result) = tokio::task::block_in_place(|| {
+            self.runtime_handle
+                .block_on(async { tokio::join!(meta_fut, progress_fut, status_fut) })
+        });
 
-        let file_progress = progress_result.map_err(|e| {
-            DownloadError::TorrentIo(format!("failed to get file progress: {e}"))
-        })?;
+        let file_progress = progress_result
+            .map_err(|e| DownloadError::TorrentIo(format!("failed to get file progress: {e}")))?;
 
         let file_statuses = status_result.ok();
 
@@ -168,7 +164,6 @@ impl IrontideBtBackend {
         info_hash: Id20,
         included_indices: Vec<usize>,
     ) -> Result<()> {
-
         // Get the torrent metadata to know how many files there are
         let meta = self
             .session
@@ -183,8 +178,7 @@ impl IrontideBtBackend {
         };
 
         let file_count = meta.info.files.map_or(1, |f| f.len());
-        let included_set: HashSet<usize> =
-            included_indices.into_iter().collect();
+        let included_set: HashSet<usize> = included_indices.into_iter().collect();
 
         for i in 0..file_count {
             let priority = if included_set.contains(&i) {
@@ -204,30 +198,36 @@ impl IrontideBtBackend {
     pub fn runtime_status(&self) -> BtRuntimeStatus {
         let dht_enabled = lock(&self.bt_settings).dht_enabled;
 
-        let (dht_nodes, torrent_count, peer_count, upload_speed, uploaded) = tokio::task::block_in_place(|| {
-            let dht_nodes = self.runtime_handle
-                .block_on(self.session.session_stats())
-                .ok()
-                .map(|s| s.dht_nodes);
+        let (dht_nodes, torrent_count, peer_count, upload_speed, uploaded) =
+            tokio::task::block_in_place(|| {
+                let dht_nodes = self
+                    .runtime_handle
+                    .block_on(self.session.session_stats())
+                    .ok()
+                    .map(|s| s.dht_nodes);
 
-            let torrents: Vec<Id20> = self.runtime_handle
-                .block_on(self.session.list_torrents())
-                .unwrap_or_default();
+                let torrents: Vec<Id20> = self
+                    .runtime_handle
+                    .block_on(self.session.list_torrents())
+                    .unwrap_or_default();
 
-            let count = torrents.len();
-            let mut peers = 0usize;
-            let mut up_speed = 0.0f64;
-            let mut uploaded: u64 = 0;
-            for ih in &torrents {
-                if let Ok(stats) = self.runtime_handle.block_on(self.session.torrent_stats(*ih)) {
-                    peers += stats.peers_connected;
-                    up_speed += stats.upload_payload_rate as f64;
-                    uploaded += stats.uploaded;
+                let count = torrents.len();
+                let mut peers = 0usize;
+                let mut up_speed = 0.0f64;
+                let mut uploaded: u64 = 0;
+                for ih in &torrents {
+                    if let Ok(stats) = self
+                        .runtime_handle
+                        .block_on(self.session.torrent_stats(*ih))
+                    {
+                        peers += stats.peers_connected;
+                        up_speed += stats.upload_payload_rate as f64;
+                        uploaded += stats.uploaded;
+                    }
                 }
-            }
 
-            (dht_nodes, count, peers, up_speed, uploaded)
-        });
+                (dht_nodes, count, peers, up_speed, uploaded)
+            });
 
         let connected = peer_count > 0 || dht_nodes.unwrap_or(0) > 0 || upload_speed > 0.0;
 
@@ -249,11 +249,11 @@ impl IrontideBtBackend {
         let id_hex = info_hash.to_hex();
         // Try to get stats; if not available yet, emit a minimal snapshot.
         let summary = match tokio::task::block_in_place(|| {
-            self.runtime_handle.block_on(self.session.torrent_stats(info_hash))
+            self.runtime_handle
+                .block_on(self.session.torrent_stats(info_hash))
         }) {
             Ok(stats) => {
-                let snapshot =
-                    self.stats_to_snapshot(&info_hash, &stats);
+                let snapshot = self.stats_to_snapshot(&info_hash, &stats);
                 DownloadSummary::from(&snapshot)
             }
             Err(_) => fallback_pending_summary(&id_hex, &self.default_output_dir),
@@ -268,7 +268,10 @@ impl IrontideBtBackend {
 }
 
 /// Build a queued-state summary for a pending torrent.
-fn fallback_pending_summary(pending_id: &str, default_output_dir: &std::path::Path) -> DownloadSummary {
+fn fallback_pending_summary(
+    pending_id: &str,
+    default_output_dir: &std::path::Path,
+) -> DownloadSummary {
     DownloadSummary {
         id: pending_id.to_string(),
         kind: TaskKind::Bt,

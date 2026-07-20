@@ -9,8 +9,8 @@ mod common;
 
 use std::sync::Arc;
 
-use criterion::{criterion_group, criterion_main, Criterion, black_box, BenchmarkId};
 use common::BenchHarness;
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use limedl_lib::RateLimiter;
 
 // ── helpers ──────────────────────────────────────────────────────────────
@@ -23,9 +23,7 @@ fn bench_consume_unlimited(c: &mut Criterion) {
 
     c.bench_function("rate_limiter/consume_unlimited", |b| {
         b.iter(|| {
-            harness
-                .rt
-                .block_on(limiter.consume(black_box(4096)));
+            harness.rt.block_on(limiter.consume(black_box(4096)));
         });
     });
 }
@@ -42,9 +40,7 @@ fn bench_consume_limited(c: &mut Criterion) {
 
     c.bench_function("rate_limiter/consume_limited", |b| {
         b.iter(|| {
-            harness
-                .rt
-                .block_on(limiter.consume(black_box(8192)));
+            harness.rt.block_on(limiter.consume(black_box(8192)));
         });
     });
 }

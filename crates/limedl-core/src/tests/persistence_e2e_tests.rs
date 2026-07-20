@@ -1,4 +1,4 @@
-﻿use ntest::timeout;
+use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{DownloadState, StartDownloadRequest, TaskId};
@@ -20,18 +20,25 @@ async fn download_survives_restart() {
 
     // Phase 1: start a download, let it get some progress, then drop everything
     let download_id = {
-        let core = crate::bootstrap::bootstrap(state_dir.clone()).await.unwrap();
+        let core = crate::bootstrap::bootstrap(state_dir.clone())
+            .await
+            .unwrap();
         let dm = &core.download_manager;
 
         let request = StartDownloadRequest {
             url: url.clone(),
             destination_dir: dest_dir.to_string_lossy().to_string(),
             file_name: Some("test.bin".into()),
-            kind: None, thread_mode: None, thread_count: Some(1),
+            kind: None,
+            thread_mode: None,
+            thread_count: Some(1),
             max_retries: Some(1),
-            checksum: None, expected_checksum: None, selected_file_indices: None,
+            checksum: None,
+            expected_checksum: None,
+            selected_file_indices: None,
             start_paused: false,
-            mirror_urls: None, user_agent: None,
+            mirror_urls: None,
+            user_agent: None,
         };
         let id = dm.start(request).await.unwrap();
         let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
@@ -51,28 +58,40 @@ async fn download_survives_restart() {
 
     // Phase 2: re-bootstrap from the same state_dir
     {
-        let core = crate::bootstrap::bootstrap(state_dir.clone()).await.unwrap();
+        let core = crate::bootstrap::bootstrap(state_dir.clone())
+            .await
+            .unwrap();
         let dm = &core.download_manager;
 
         // The download should be in the list, in Paused state
         let list = dm.list().await.unwrap();
-        let restored = list.iter().find(|s| {
-            let Ok(tid) = TaskId::from_legacy_string(&s.id) else {
-                return false;
-            };
-            match tid {
-                TaskId::Http(u) => u.to_string() == download_id,
-                _ => false,
-            }
-        }).expect("Download should survive restart and appear in list");
+        let restored = list
+            .iter()
+            .find(|s| {
+                let Ok(tid) = TaskId::from_legacy_string(&s.id) else {
+                    return false;
+                };
+                match tid {
+                    TaskId::Http(u) => u.to_string() == download_id,
+                    _ => false,
+                }
+            })
+            .expect("Download should survive restart and appear in list");
 
         // State must be Paused (in-flight states reset to Paused on restart)
-        assert_eq!(restored.state, DownloadState::Paused,
-            "Download should be Paused after restart, got {:?}", restored.state);
+        assert_eq!(
+            restored.state,
+            DownloadState::Paused,
+            "Download should be Paused after restart, got {:?}",
+            restored.state
+        );
 
         // File info should be preserved
         assert_eq!(restored.url, url);
-        assert!(restored.total_bytes.is_some(), "Total bytes should be known after first start");
+        assert!(
+            restored.total_bytes.is_some(),
+            "Total bytes should be known after first start"
+        );
 
         core.registry.shutdown_all().await;
     }

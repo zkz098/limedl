@@ -1,12 +1,12 @@
-﻿//! Shared subsystem initialization used by both Tauri desktop and NAS server.
+//! Shared subsystem initialization used by both Tauri desktop and NAS server.
 //! Single canonical initialization sequence — add new subsystems here once.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::error::Result;
 use crate::backend_registry::BackendRegistry;
 use crate::bt_backend_own::IrontideBtBackend;
+use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::manager::DownloadManager;
 use crate::rate_limiter::RateLimiter;
@@ -31,11 +31,8 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     let rate_limiter = Arc::new(RateLimiter::default());
     let event_bus = Arc::new(EventBus::new(1024));
 
-    let download_manager = DownloadManager::new(
-        state_dir.clone(),
-        rate_limiter.clone(),
-        event_bus.clone(),
-    )?;
+    let download_manager =
+        DownloadManager::new(state_dir.clone(), rate_limiter.clone(), event_bus.clone())?;
     let download_manager = Arc::new(download_manager);
     download_manager.clone().start_scheduler_loop();
 
@@ -54,7 +51,9 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
                 bt_output_dir,
                 event_bus.clone(),
                 download_manager.active_bt_count.clone(),
-                download_manager.max_concurrent_bt.load(std::sync::atomic::Ordering::Relaxed),
+                download_manager
+                    .max_concurrent_bt
+                    .load(std::sync::atomic::Ordering::Relaxed),
             )
             .await?,
         );

@@ -1,4 +1,4 @@
-﻿use std::path::PathBuf;
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -18,12 +18,29 @@ pub struct ServerConfig {
     /// Path to web UI static files (Vue dist/), default "./dist"
     #[serde(default = "default_web_dir")]
     pub web_dir: PathBuf,
+    /// Optional TLS configuration
+    #[serde(default)]
+    pub tls: TlsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
     pub username: String,
     pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TlsConfig {
+    /// Enable HTTPS. Requires cert_path and key_path.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Path to PEM-encoded TLS certificate.
+    #[serde(default)]
+    pub cert_path: Option<String>,
+    /// Path to PEM-encoded TLS private key.
+    #[serde(default)]
+    pub key_path: Option<String>,
 }
 
 fn default_host() -> String {
@@ -50,7 +67,6 @@ impl ServerConfig {
             Ok(ServerConfig::default())
         }
     }
-
 }
 
 impl Default for ServerConfig {
@@ -61,6 +77,7 @@ impl Default for ServerConfig {
             data_dir: default_data_dir(),
             auth: None,
             web_dir: default_web_dir(),
+            tls: TlsConfig::default(),
         }
     }
 }

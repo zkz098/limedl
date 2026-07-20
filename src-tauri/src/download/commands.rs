@@ -1,8 +1,10 @@
-﻿use std::time::Duration;
+use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use tauri::State;
 
+use super::IrontideBtBackend;
+use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::{
     error::extract_kind_from_anyhow,
     event_bus::DownloadEvent,
@@ -11,12 +13,10 @@ use limedl_core::{
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     types::{
         AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
-        DownloadSnapshot, DownloadSummary, SerializableError,
-        StartDownloadRequest, TaskId, TorrentFileEntry,
+        DownloadSnapshot, DownloadSummary, SerializableError, StartDownloadRequest, TaskId,
+        TorrentFileEntry,
     },
 };
-use super::aria2_rpc::Aria2RpcServer;
-use super::IrontideBtBackend;
 use serde_json::json;
 
 type CommandResult<T> = std::result::Result<T, SerializableError>;
@@ -53,7 +53,9 @@ fn emit_snapshot_update(state: &AppState, snapshot: &DownloadSnapshot) {
     let summary = DownloadSummary::from(snapshot);
     let summary_json = serde_json::to_value(&summary).unwrap_or_default();
     let id = summary.id.clone();
-    state.event_bus.publish(DownloadEvent::Updated { id, summary_json });
+    state
+        .event_bus
+        .publish(DownloadEvent::Updated { id, summary_json });
 }
 
 #[tauri::command]
@@ -64,26 +66,33 @@ pub async fn download_start(
     let result = into_command_result(
         async {
             // Populate mirror URLs from settings before starting
-            let mirror_urls = state.registry.get_typed::<DownloadManager>()
+            let mirror_urls = state
+                .registry
+                .get_typed::<DownloadManager>()
                 .ok_or_else(|| internal_error("HTTP backend not found"))?
-                .mirror_urls_for(&request.url).await;
+                .mirror_urls_for(&request.url)
+                .await;
             if mirror_urls.len() > 1 {
                 request.mirror_urls = Some(mirror_urls);
             }
 
-            let kind = request.classify_kind().map_err(|e| anyhow!(e)).context("无法识别下载任务类型")?;
-            let backend = state.registry.by_kind(kind)
+            let kind = request
+                .classify_kind()
+                .map_err(|e| anyhow!(e))
+                .context("无法识别下载任务类型")?;
+            let backend = state
+                .registry
+                .by_kind(kind)
                 .map_err(|e| internal_error(&e.to_string()))?;
             backend.start(request).await.context("启动下载任务失败")
         }
         .await,
     );
-    if let Ok(ref task_id) = result {
-        if let Ok(backend) = state.registry.dispatch(task_id)
-            && let Ok(snapshot) = backend.status(task_id).await
-        {
-            emit_snapshot_update(&state, &snapshot);
-        }
+    if let Ok(ref task_id) = result
+        && let Ok(backend) = state.registry.dispatch(task_id)
+        && let Ok(snapshot) = backend.status(task_id).await
+    {
+        emit_snapshot_update(&state, &snapshot);
     }
     result
 }
@@ -93,18 +102,19 @@ pub async fn download_pause(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     let result = into_command_result(
         async {
-            let backend = state.registry.dispatch(&task_id)
+            let backend = state
+                .registry
+                .dispatch(&task_id)
                 .map_err(|e| internal_error(&e.to_string()))?;
-            backend.pause(&task_id).await
-                .context("暂停下载任务失败")
-        }.await,
+            backend.pause(&task_id).await.context("暂停下载任务失败")
+        }
+        .await,
     );
     if let Ok(ref snapshot) = result {
         emit_snapshot_update(&state, snapshot);
@@ -117,18 +127,19 @@ pub async fn download_resume(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     let result = into_command_result(
         async {
-            let backend = state.registry.dispatch(&task_id)
+            let backend = state
+                .registry
+                .dispatch(&task_id)
                 .map_err(|e| internal_error(&e.to_string()))?;
-            backend.resume(&task_id).await
-                .context("恢复下载任务失败")
-        }.await,
+            backend.resume(&task_id).await.context("恢复下载任务失败")
+        }
+        .await,
     );
     if let Ok(ref snapshot) = result {
         emit_snapshot_update(&state, snapshot);
@@ -141,18 +152,19 @@ pub async fn download_cancel(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     into_command_result(
         async {
-            let backend = state.registry.dispatch(&task_id)
+            let backend = state
+                .registry
+                .dispatch(&task_id)
                 .map_err(|e| internal_error(&e.to_string()))?;
-            backend.cancel(&task_id).await
-                .context("取消下载任务失败")
-        }.await,
+            backend.cancel(&task_id).await.context("取消下载任务失败")
+        }
+        .await,
     )
 }
 
@@ -161,18 +173,19 @@ pub async fn download_remove(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     into_command_result(
         async {
-            let backend = state.registry.dispatch(&task_id)
+            let backend = state
+                .registry
+                .dispatch(&task_id)
                 .map_err(|e| internal_error(&e.to_string()))?;
-            backend.remove(&task_id).await
-                .context("移除下载任务失败")
-        }.await,
+            backend.remove(&task_id).await.context("移除下载任务失败")
+        }
+        .await,
     )
 }
 
@@ -181,18 +194,22 @@ pub async fn download_purge(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     into_command_result(
         async {
-            let backend = state.registry.dispatch(&task_id)
+            let backend = state
+                .registry
+                .dispatch(&task_id)
                 .map_err(|e| internal_error(&e.to_string()))?;
-            backend.purge(&task_id).await
+            backend
+                .purge(&task_id)
+                .await
                 .context("彻底删除下载任务失败")
-        }.await,
+        }
+        .await,
     )
 }
 
@@ -201,18 +218,22 @@ pub async fn download_open_in_explorer(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     into_command_result(
         async {
-            let backend = state.registry.dispatch(&task_id)
+            let backend = state
+                .registry
+                .dispatch(&task_id)
                 .map_err(|e| internal_error(&e.to_string()))?;
-            backend.open_in_explorer(&task_id).await
+            backend
+                .open_in_explorer(&task_id)
+                .await
                 .context("在资源管理器打开下载任务失败")
-        }.await,
+        }
+        .await,
     )
 }
 
@@ -221,18 +242,22 @@ pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     into_command_result(
         async {
-            let backend = state.registry.dispatch(&task_id)
+            let backend = state
+                .registry
+                .dispatch(&task_id)
                 .map_err(|e| internal_error(&e.to_string()))?;
-            backend.status(&task_id).await
+            backend
+                .status(&task_id)
+                .await
                 .context("查询下载任务状态失败")
-        }.await,
+        }
+        .await,
     )
 }
 
@@ -245,7 +270,9 @@ pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<Down
 pub async fn bt_runtime_status(state: State<'_, AppState>) -> CommandResult<BtRuntimeStatus> {
     into_command_result(
         async {
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
+            let bt = state
+                .registry
+                .get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
             Ok(bt.runtime_status())
         }
@@ -257,7 +284,9 @@ pub async fn bt_runtime_status(state: State<'_, AppState>) -> CommandResult<BtRu
 pub async fn settings_get(state: State<'_, AppState>) -> CommandResult<AppSettings> {
     into_command_result(
         async {
-            let dm = state.registry.get_typed::<DownloadManager>()
+            let dm = state
+                .registry
+                .get_typed::<DownloadManager>()
                 .ok_or_else(|| internal_error("HTTP backend not found"))?;
             dm.settings().await.context("读取设置失败")
         }
@@ -272,14 +301,12 @@ pub async fn settings_save(
 ) -> CommandResult<AppSettings> {
     into_command_result(
         async {
-            let dm = state.registry.get_typed::<DownloadManager>()
+            let dm = state
+                .registry
+                .get_typed::<DownloadManager>()
                 .ok_or_else(|| internal_error("HTTP backend not found"))?;
 
-            let old_rpc = dm
-                .settings()
-                .await
-                .context("读取当前设置失败")?
-                .aria2_rpc;
+            let old_rpc = dm.settings().await.context("读取当前设置失败")?.aria2_rpc;
 
             // Broadcast settings to all backends (each backend extracts its subset)
             state.registry.update_all_settings(&settings).await;
@@ -369,27 +396,24 @@ pub async fn bt_set_speed_limit(
     download_limit_bps: Option<u64>,
     upload_limit_bps: Option<u64>,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id)
-        .map_err(|e| SerializableError {
-            kind: "parse".into(),
-            message: format!("Invalid task ID: {e}"),
-        })?;
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
     let TaskId::Bt(info_hash) = &task_id else {
         return Err(SerializableError {
             kind: String::from("unsupported"),
             message: String::from("speed limit only supported for BT tasks"),
         });
     };
-    let bt = state.registry.get_typed::<IrontideBtBackend>()
+    let bt = state
+        .registry
+        .get_typed::<IrontideBtBackend>()
         .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("BT backend not registered"),
         })?;
-    bt.set_speed_limit(
-        *info_hash,
-        download_limit_bps,
-        upload_limit_bps,
-    );
+    bt.set_speed_limit(*info_hash, download_limit_bps, upload_limit_bps);
     Ok(())
 }
 
@@ -400,7 +424,9 @@ pub async fn bt_preview_torrent(
 ) -> CommandResult<Vec<TorrentFileEntry>> {
     into_command_result(
         async {
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
+            let bt = state
+                .registry
+                .get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
             bt.preview_torrent(&source)
                 .await
@@ -422,10 +448,11 @@ pub async fn bt_get_peers(
             let TaskId::Bt(info_hash) = &task_id else {
                 return Err(anyhow!("Not a BT task"));
             };
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
+            let bt = state
+                .registry
+                .get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_peers(*info_hash)
-                .context("查询 BT 节点信息失败")
+            bt.get_peers(*info_hash).context("查询 BT 节点信息失败")
         }
         .await,
     )
@@ -443,7 +470,9 @@ pub async fn bt_get_trackers(
             let TaskId::Bt(info_hash) = &task_id else {
                 return Err(anyhow!("Not a BT task"));
             };
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
+            let bt = state
+                .registry
+                .get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
             bt.get_trackers(*info_hash)
                 .context("查询 BT 追踪器信息失败")
@@ -464,10 +493,11 @@ pub async fn bt_get_pieces(
             let TaskId::Bt(info_hash) = &task_id else {
                 return Err(anyhow!("Not a BT task"));
             };
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
+            let bt = state
+                .registry
+                .get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_pieces(*info_hash)
-                .context("查询 BT 分片信息失败")
+            bt.get_pieces(*info_hash).context("查询 BT 分片信息失败")
         }
         .await,
     )
@@ -485,7 +515,9 @@ pub async fn get_bt_files(
             let TaskId::Bt(info_hash) = &task_id else {
                 return Err(anyhow!("Not a BT task"));
             };
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
+            let bt = state
+                .registry
+                .get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
             bt.get_torrent_files(*info_hash)
                 .context("查询 BT 文件列表失败")
@@ -507,7 +539,9 @@ pub async fn update_bt_files(
             let TaskId::Bt(info_hash) = &task_id else {
                 return Err(anyhow!("Not a BT task"));
             };
-            let bt = state.registry.get_typed::<IrontideBtBackend>()
+            let bt = state
+                .registry
+                .get_typed::<IrontideBtBackend>()
                 .ok_or_else(|| internal_error("BT backend not registered"))?;
             bt.update_torrent_files(*info_hash, included_indices)
                 .await
@@ -518,11 +552,10 @@ pub async fn update_bt_files(
 }
 
 #[tauri::command]
-pub async fn toggle_game_mode(
-    state: State<'_, AppState>,
-    enabled: bool,
-) -> CommandResult<bool> {
-    let dm = state.registry.get_typed::<DownloadManager>()
+pub async fn toggle_game_mode(state: State<'_, AppState>, enabled: bool) -> CommandResult<bool> {
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),
@@ -532,10 +565,10 @@ pub async fn toggle_game_mode(
 }
 
 #[tauri::command]
-pub async fn get_io_status(
-    state: State<'_, AppState>,
-) -> CommandResult<serde_json::Value> {
-    let dm = state.registry.get_typed::<DownloadManager>()
+pub async fn get_io_status(state: State<'_, AppState>) -> CommandResult<serde_json::Value> {
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),
@@ -557,7 +590,9 @@ pub async fn toggle_overclock_mode(
     state: State<'_, AppState>,
     enabled: bool,
 ) -> CommandResult<bool> {
-    let dm = state.registry.get_typed::<DownloadManager>()
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),
@@ -567,10 +602,10 @@ pub async fn toggle_overclock_mode(
 }
 
 #[tauri::command]
-pub async fn get_overclock_mode(
-    state: State<'_, AppState>,
-) -> CommandResult<bool> {
-    let dm = state.registry.get_typed::<DownloadManager>()
+pub async fn get_overclock_mode(state: State<'_, AppState>) -> CommandResult<bool> {
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
         .ok_or_else(|| SerializableError {
             kind: String::from("internal"),
             message: String::from("HTTP backend not found"),

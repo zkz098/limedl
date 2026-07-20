@@ -52,7 +52,6 @@ impl ChecksumHasher {
 }
 
 /// Compute checksum from ordered byte slices (for in-memory buffer use).
-#[allow(dead_code)]
 pub fn hash_slices(mode: ChecksumMode, slices: &[&[u8]]) -> String {
     use blake3::Hasher;
     use sha2::{Digest, Sha256};

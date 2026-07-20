@@ -1,4 +1,4 @@
-﻿mod download;
+mod download;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub use download::aimd;
@@ -23,17 +23,17 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-use download::event_bus::DownloadEvent;
 use download::CdnAccelerator;
+use download::event_bus::DownloadEvent;
 use download::{
-    bootstrap, cleanup_old_aria2_temp_files, AppState, Aria2RpcServer, DownloadManager,
-    bt_get_peers, bt_get_pieces, bt_get_trackers,
-    bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply, cdn_cancel,
-    cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
-    download_cancel, download_list, download_open_in_explorer, download_pause, download_purge,
-    download_remove, download_resume, download_start, download_status, get_bt_files,
-    get_io_status, get_overclock_mode, init_logging, settings_fetch_tracker_list, settings_get,
-    settings_save, toggle_game_mode, toggle_overclock_mode, update_bt_files,
+    AppState, Aria2RpcServer, DownloadManager, bootstrap, bt_get_peers, bt_get_pieces,
+    bt_get_trackers, bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply,
+    cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
+    cleanup_old_aria2_temp_files, download_cancel, download_list, download_open_in_explorer,
+    download_pause, download_purge, download_remove, download_resume, download_start,
+    download_status, get_bt_files, get_io_status, get_overclock_mode, init_logging,
+    settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode,
+    toggle_overclock_mode, update_bt_files,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -57,20 +57,22 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
             #[cfg(desktop)]
-            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
-            app.handle().plugin(tauri_plugin_clipboard_manager::init())?;
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle()
+                .plugin(tauri_plugin_clipboard_manager::init())?;
 
             // Hide window when launched via autostart
             let is_autostart = std::env::args().any(|a| a == "--hidden");
-            if is_autostart
-                && let Some(window) = app.get_webview_window("main")
-            {
+            if is_autostart && let Some(window) = app.get_webview_window("main") {
                 let _ = window.hide();
             }
 
-            app.handle().plugin(tauri_plugin_autostart::Builder::new()
-                .args(["--hidden"])
-                .build())?;
+            app.handle().plugin(
+                tauri_plugin_autostart::Builder::new()
+                    .args(["--hidden"])
+                    .build(),
+            )?;
 
             (|| -> anyhow::Result<()> {
                 let state_dir = app
@@ -83,61 +85,13 @@ pub fn run() {
                 let core = tauri::async_runtime::block_on(bootstrap::bootstrap(state_dir.clone()))
                     .with_context(|| "初始化核心子系统失败")?;
 
-                // Subscribe to EventBus and forward events to Tauri frontend
-                {
-                    let mut rx = core.event_bus.subscribe();
-                    let app_handle_tx = app.handle().clone();
-                    tauri::async_runtime::spawn(async move {
-                        loop {
-                            match rx.recv().await {
-                                Ok(event) => {
-                                    match &event {
-                                        DownloadEvent::Updated { id: _, summary_json } => {
-                                            let _ = app_handle_tx.emit("download-updated", summary_json);
-                                        }
-                                        DownloadEvent::Progress { id: _, progress_json } => {
-                                            let _ = app_handle_tx.emit("download-progress", progress_json);
-                                        }
-                                        DownloadEvent::Aria2Notification { event_name, gid } => {
-                                            let _ = app_handle_tx.emit(event_name, gid);
-                                        }
-                                        DownloadEvent::CdnProgress { phase, current, total } => {
-                                            let _ = app_handle_tx.emit("cdn-test-progress", serde_json::json!({
-                                                "phase": phase,
-                                                "current": current,
-                                                "total": total,
-                                            }));
-                                        }
-                                        DownloadEvent::CdnComplete { state, active_ip, active_speed_mbps } => {
-                                            let _ = app_handle_tx.emit("cdn-test-complete", serde_json::json!({
-                                                "state": state,
-                                                "activeIp": active_ip,
-                                                "activeSpeedMbps": active_speed_mbps,
-                                            }));
-                                        }
-                                        DownloadEvent::Warning { id, message } => {
-                                            let _ = app_handle_tx.emit("download-warning", serde_json::json!({
-                                                "id": id,
-                                                "message": message,
-                                            }));
-                                        }
-                                    }
-                                }
-                                Err(broadcast::error::RecvError::Lagged(n)) => {
-                                    tracing::warn!("EventBus subscriber lagged by {n} messages");
-                                }
-                                Err(broadcast::error::RecvError::Closed) => break,
-                            }
-                        }
-                    });
-                }
-
                 init_logging(&core.settings.logging, &state_dir).context("初始化日志系统失败")?;
                 cleanup_old_aria2_temp_files();
 
                 // CDN accelerator setup
                 let cdn_accelerator = Arc::new(CdnAccelerator::new());
-                core.download_manager.set_cdn_accelerator(cdn_accelerator.clone());
+                core.download_manager
+                    .set_cdn_accelerator(cdn_accelerator.clone());
                 tauri::async_runtime::block_on(cdn_accelerator.init_from_settings(&core.settings));
 
                 let rpc_shutdown = Arc::new(Mutex::new(None::<tokio::sync::watch::Sender<bool>>));
@@ -149,6 +103,85 @@ pub fn run() {
                     rpc_shutdown: rpc_shutdown.clone(),
                 });
 
+                // Subscribe to EventBus and forward events to Tauri frontend
+                {
+                    let mut rx = core.event_bus.subscribe();
+                    let app_handle_tx = app.handle().clone();
+                    let state = AppState {
+                        registry: core.registry.clone(),
+                        event_bus: core.event_bus.clone(),
+                        cdn_accelerator: cdn_accelerator.clone(),
+                        rpc_shutdown: rpc_shutdown.clone(),
+                    };
+                    tauri::async_runtime::spawn(async move {
+                        loop {
+                            match rx.recv().await {
+                                Ok(event) => match &event {
+                                    DownloadEvent::Updated {
+                                        id: _,
+                                        summary_json,
+                                    } => {
+                                        let _ =
+                                            app_handle_tx.emit("download-updated", summary_json);
+                                    }
+                                    DownloadEvent::Progress {
+                                        id: _,
+                                        progress_json,
+                                    } => {
+                                        let _ =
+                                            app_handle_tx.emit("download-progress", progress_json);
+                                    }
+                                    DownloadEvent::Aria2Notification { event_name, gid } => {
+                                        let _ = app_handle_tx.emit(event_name, gid);
+                                    }
+                                    DownloadEvent::CdnProgress {
+                                        phase,
+                                        current,
+                                        total,
+                                    } => {
+                                        let _ = app_handle_tx.emit(
+                                            "cdn-test-progress",
+                                            serde_json::json!({
+                                                "phase": phase,
+                                                "current": current,
+                                                "total": total,
+                                            }),
+                                        );
+                                    }
+                                    DownloadEvent::CdnComplete {
+                                        state,
+                                        active_ip,
+                                        active_speed_mbps,
+                                    } => {
+                                        let _ = app_handle_tx.emit(
+                                            "cdn-test-complete",
+                                            serde_json::json!({
+                                                "state": state,
+                                                "activeIp": active_ip,
+                                                "activeSpeedMbps": active_speed_mbps,
+                                            }),
+                                        );
+                                    }
+                                    DownloadEvent::Warning { id, message } => {
+                                        let _ = app_handle_tx.emit(
+                                            "download-warning",
+                                            serde_json::json!({
+                                                "id": id,
+                                                "message": message,
+                                            }),
+                                        );
+                                    }
+                                },
+                                Err(broadcast::error::RecvError::Lagged(n)) => {
+                                    tracing::warn!("EventBus subscriber lagged by {n} messages");
+                                    state.emit_all_downloads().await;
+                                }
+                                Err(broadcast::error::RecvError::Closed) => break,
+                            }
+                        }
+                    });
+                }
+
                 // Periodic emit task
                 {
                     let state = AppState {
@@ -159,7 +192,7 @@ pub fn run() {
                     };
                     tauri::async_runtime::spawn(async move {
                         loop {
-                            sleep(Duration::from_secs(300)).await;
+                            sleep(Duration::from_secs(30)).await;
                             state.emit_all_downloads().await;
                         }
                     });
@@ -228,19 +261,17 @@ pub fn run() {
                 tray.set_menu(Some(menu))?;
 
                 let app_handle_menu = app.handle().clone();
-                tray.on_menu_event(move |_tray, event| {
-                    match event.id().as_ref() {
-                        "show" => {
-                            if let Some(window) = app_handle_menu.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                tray.on_menu_event(move |_tray, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(window) = app_handle_menu.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
-                        "quit" => {
-                            app_handle_menu.exit(0);
-                        }
-                        _ => {}
                     }
+                    "quit" => {
+                        app_handle_menu.exit(0);
+                    }
+                    _ => {}
                 });
             }
 

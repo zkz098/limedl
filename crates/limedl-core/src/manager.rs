@@ -1,4 +1,6 @@
-﻿use std::{
+#[cfg(windows)]
+use std::process::Command;
+use std::{
     fs, io,
     net::Ipv4Addr,
     path::{Path, PathBuf},
@@ -8,8 +10,6 @@
     },
     time::{Duration, Instant},
 };
-#[cfg(windows)]
-use std::process::Command;
 
 use foldhash::HashMap;
 use parking_lot::{Mutex, MutexGuard, RwLock as ParkingRwLock};
@@ -30,7 +30,7 @@ use super::{
     aimd::{self, AimdState},
     buffer_pool::BufferPool,
     database::Database,
-    error::{io_error_with_path, DownloadError, Result},
+    error::{DownloadError, Result, io_error_with_path},
     event_bus::{DownloadEvent, EventBus},
     file_ops::{
         check_disk_space, detect_disk_type, finalize_temp_file, open_download_file,
@@ -53,17 +53,15 @@ use super::{
     slot_guard::DownloadSlotGuard,
     types::{
         AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadProgress,
-        DownloadSnapshot, DownloadState, DownloadSummary, SchedulerMode,
-        StartDownloadRequest, TaskId, TaskKind, ThreadMode,
+        DownloadSnapshot, DownloadState, DownloadSummary, SchedulerMode, StartDownloadRequest,
+        TaskId, TaskKind, ThreadMode,
     },
 };
 
-use super::now_ms;
-use super::mirror::rewrite as mirror_rewrite;
 use super::http_client_factory::build_http_client;
-use super::settings::{
-    load_settings, normalize_settings, persist_settings, resolve_user_agent,
-};
+use super::mirror::rewrite as mirror_rewrite;
+use super::now_ms;
+use super::settings::{load_settings, normalize_settings, persist_settings, resolve_user_agent};
 
 #[path = "http_executor.rs"]
 mod http_executor;
@@ -88,7 +86,8 @@ impl AppState {
                 for summary in summaries {
                     let summary_json = serde_json::to_value(&summary).unwrap_or_default();
                     let id = summary.id.clone();
-                    self.event_bus.publish(DownloadEvent::Updated { id, summary_json });
+                    self.event_bus
+                        .publish(DownloadEvent::Updated { id, summary_json });
                 }
             }
         }
@@ -202,7 +201,7 @@ impl ManagedDownload {
         lock(&self.core)
     }
 
-    fn lock_runtime(&self) -> MutexGuard<'_, Option<CancellationToken>> {
+    pub fn lock_runtime(&self) -> MutexGuard<'_, Option<CancellationToken>> {
         self.runtime.lock()
     }
 
@@ -390,7 +389,9 @@ impl DownloadManager {
             match super::cdn::build_accelerated_client(host, ip, &settings) {
                 Ok(accelerated) => {
                     tracing::info!("resolve_client: CDN acceleration active for {host} via {ip}");
-                    self.cdn_client_cache.write().insert(cache_key, accelerated.clone());
+                    self.cdn_client_cache
+                        .write()
+                        .insert(cache_key, accelerated.clone());
                     return (accelerated, true);
                 }
                 Err(e) => {
@@ -418,7 +419,8 @@ impl DownloadManager {
             normalized.io_baseline.max_parallel_hdd,
             normalized.io_baseline.game_mode_max_parallel,
         );
-        self.buffer_pool.set_game_mode(normalized.io_baseline.game_mode);
+        self.buffer_pool
+            .set_game_mode(normalized.io_baseline.game_mode);
 
         // Only rebuild client when proxy or user-agent actually changed
         let client_changed = {
@@ -433,8 +435,10 @@ impl DownloadManager {
 
         // Update concurrent download limits from settings
         if let Some(ref limits) = normalized.download_limits {
-            self.max_concurrent_http.store(limits.max_concurrent_http, Ordering::Release);
-            self.max_concurrent_bt.store(limits.max_concurrent_bt, Ordering::Release);
+            self.max_concurrent_http
+                .store(limits.max_concurrent_http, Ordering::Release);
+            self.max_concurrent_bt
+                .store(limits.max_concurrent_bt, Ordering::Release);
         }
 
         if client_changed {
@@ -480,9 +484,8 @@ impl DownloadManager {
                 "download destination directory must be an absolute path",
             )));
         }
-        fs::create_dir_all(&destination_dir).map_err(|e| {
-            io_error_with_path(e, destination_dir.to_string_lossy())
-        })?;
+        fs::create_dir_all(&destination_dir)
+            .map_err(|e| io_error_with_path(e, destination_dir.to_string_lossy()))?;
 
         let chosen_name = request
             .file_name
@@ -569,8 +572,12 @@ impl DownloadManager {
             .await
             .insert(download_id.to_string(), managed.clone());
 
-        self.spawn_download(managed, request.max_retries.unwrap_or(DEFAULT_RETRIES), slot)
-            .await?;
+        self.spawn_download(
+            managed,
+            request.max_retries.unwrap_or(DEFAULT_RETRIES),
+            slot,
+        )
+        .await?;
         self.rebalance_allocations().await?;
         self.rebalance_notify.notify_waiters();
 
@@ -833,7 +840,10 @@ impl DownloadManager {
                     (vec![core.manifest.url.clone()], 0)
                 } else {
                     let urls = core.manifest.mirror_urls.clone();
-                    let idx = core.manifest.current_mirror_index.min(urls.len().saturating_sub(1));
+                    let idx = core
+                        .manifest
+                        .current_mirror_index
+                        .min(urls.len().saturating_sub(1));
                     (urls, idx)
                 }
             };
@@ -934,6 +944,8 @@ impl DownloadManager {
             if should_persist && let Err(error) = manager.persist(managed.clone()).await {
                 log_background_error("persist background download state", &error);
             }
+            // Evict terminal entries so the map doesn't grow unbounded.
+            manager.evict_completed().await;
             {
                 let mut runtime = managed.lock_runtime();
                 *runtime = None;
@@ -991,11 +1003,7 @@ impl DownloadManager {
         } else {
             Some(snapshot.downloaded_bytes as f64 / elapsed)
         };
-        let speed = managed
-            .aimd
-            .lock()
-            .last_throughput
-            .or(average_speed);
+        let speed = managed.aimd.lock().last_throughput.or(average_speed);
         let eta = match (snapshot.total_bytes, speed) {
             (Some(total), Some(speed)) if speed > 0.0 && total >= snapshot.downloaded_bytes => {
                 Some(((total - snapshot.downloaded_bytes) as f64 / speed).ceil() as u64)
@@ -1013,6 +1021,46 @@ impl DownloadManager {
             eta
         };
         snapshot
+    }
+
+    /// Evict terminal-state downloads (Completed/Failed/Canceled) when the
+    /// in-memory map exceeds `max_in_memory_downloads`.  Removes the oldest
+    /// terminal entries first.  Returns the number of entries removed.
+    pub async fn evict_completed(&self) -> usize {
+        let limit = self.settings.read().await.max_in_memory_downloads;
+        if limit == 0 {
+            return 0;
+        }
+
+        let mut evicted = 0;
+        let mut map = self.downloads.write().await;
+        if map.len() <= limit {
+            return 0;
+        }
+
+        // Collect terminal-state entries with their creation timestamps.
+        let mut terminal: Vec<(String, u64)> = Vec::new();
+        for (id, managed) in map.iter() {
+            let core = managed.lock_core();
+            if matches!(
+                core.snapshot.state,
+                DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+            ) {
+                terminal.push((id.clone(), core.snapshot.created_at_ms));
+            }
+        }
+
+        // Sort oldest first.
+        terminal.sort_by_key(|(_, created)| *created);
+
+        let excess = map.len().saturating_sub(limit);
+        let to_remove = terminal.len().min(excess);
+        for (id, _) in terminal.iter().take(to_remove) {
+            map.remove(id);
+            evicted += 1;
+        }
+
+        evicted
     }
 
     /// Build a [`DownloadSummary`] from a managed download and emit a
@@ -1116,9 +1164,8 @@ impl DownloadManager {
         let manifest = managed.lock_core().manifest.clone();
         let destination_path = PathBuf::from(manifest.destination_path);
         if destination_path.exists() {
-            fs::remove_file(&destination_path).map_err(|e| {
-                io_error_with_path(e, destination_path.to_string_lossy())
-            })?;
+            fs::remove_file(&destination_path)
+                .map_err(|e| io_error_with_path(e, destination_path.to_string_lossy()))?;
         }
         Ok(())
     }
@@ -1127,9 +1174,8 @@ impl DownloadManager {
         let manifest = managed.lock_core().manifest.clone();
         let temp_path = PathBuf::from(manifest.temp_path);
         if temp_path.exists() {
-            fs::remove_file(&temp_path).map_err(|e| {
-                io_error_with_path(e, temp_path.to_string_lossy())
-            })?;
+            fs::remove_file(&temp_path)
+                .map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
         }
         let _file = open_download_file(&temp_path, manifest.total_bytes)?;
         Ok(())

@@ -1,10 +1,10 @@
-﻿use irontide::core::Id20;
+use irontide::core::Id20;
 
+use crate::now_ms;
 use crate::types::{
     BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState, TaskKind, ThreadMode,
     TorrentFileEntry,
 };
-use crate::now_ms;
 
 impl super::IrontideBtBackend {
     /// Build a `DownloadSnapshot` from irontide stats.
@@ -64,7 +64,11 @@ impl super::IrontideBtBackend {
                 estimate_eta(total, downloaded, speed)
             },
             uploaded_bytes: Some(stats.uploaded),
-            upload_speed_bytes_per_second: if state.is_terminal() { None } else { upload_speed },
+            upload_speed_bytes_per_second: if state.is_terminal() {
+                None
+            } else {
+                upload_speed
+            },
             peer_count: Some(peer_count),
             upload_status: Some({
                 if self.paused_by_limit.contains_key(info_hash) {
@@ -140,7 +144,9 @@ pub(crate) fn build_peer_flags(peer: &irontide::session::PeerInfo) -> String {
 }
 
 /// Extract file entries from parsed torrent metadata for preview.
-pub(crate) fn preview_entries_from_meta(meta: &irontide::core::TorrentMeta) -> Vec<TorrentFileEntry> {
+pub(crate) fn preview_entries_from_meta(
+    meta: &irontide::core::TorrentMeta,
+) -> Vec<TorrentFileEntry> {
     match meta {
         irontide::core::TorrentMeta::V1(v1) => v1_file_entries(v1),
         irontide::core::TorrentMeta::Hybrid(v1, _) => v1_file_entries(v1),

@@ -1,9 +1,9 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 
 use dashmap::DashMap;
 use governor::clock::DefaultClock;
-use governor::state::direct::NotKeyed;
 use governor::state::InMemoryState;
+use governor::state::direct::NotKeyed;
 use governor::{Quota, RateLimiter};
 use nonzero_ext::nonzero;
 
@@ -67,12 +67,10 @@ impl WsRateLimiter {
         Self {
             connections: DashMap::new(),
             global_safe: RateLimiter::direct(
-                Quota::per_second(nonzero!(500u32))
-                    .allow_burst(nonzero!(750u32)),
+                Quota::per_second(nonzero!(500u32)).allow_burst(nonzero!(750u32)),
             ),
             global_mutating: RateLimiter::direct(
-                Quota::per_second(nonzero!(50u32))
-                    .allow_burst(nonzero!(100u32)),
+                Quota::per_second(nonzero!(50u32)).allow_burst(nonzero!(100u32)),
             ),
         }
     }
@@ -81,11 +79,7 @@ impl WsRateLimiter {
     ///
     /// Returns `Ok(())` if within limits, or `Err` with a reason message
     /// if throttled.
-    pub fn check(
-        &self,
-        connection_id: &str,
-        class: MethodClass,
-    ) -> Result<(), &'static str> {
+    pub fn check(&self, connection_id: &str, class: MethodClass) -> Result<(), &'static str> {
         // Look up per-connection limiters
         let conn = self
             .connections
@@ -117,12 +111,10 @@ impl WsRateLimiter {
     pub fn register(&self, id: &str) {
         let limits = Arc::new(ConnLimits {
             safe: RateLimiter::direct(
-                Quota::per_second(nonzero!(100u32))
-                    .allow_burst(nonzero!(150u32)),
+                Quota::per_second(nonzero!(100u32)).allow_burst(nonzero!(150u32)),
             ),
             mutating: RateLimiter::direct(
-                Quota::per_second(nonzero!(10u32))
-                    .allow_burst(nonzero!(20u32)),
+                Quota::per_second(nonzero!(10u32)).allow_burst(nonzero!(20u32)),
             ),
         });
         self.connections.insert(id.to_owned(), limits);

@@ -70,8 +70,17 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "./src-tauri -> target"
+          workspaces: "."
           cache-on-failure: true
+
+      # ── Fast linker ──────────────────────────────────────────────
+      - name: Enable mold linker (Linux)
+        if: matrix.target == 'linux-x64'
+        run: echo "RUSTFLAGS=-C link-arg=-fuse-ld=mold" >> "$GITHUB_ENV"
+
+      - name: Enable lld-link (Windows)
+        if: runner.os == 'Windows'
+        run: echo "RUSTFLAGS=-C linker=lld-link" >> "$GITHUB_ENV"
 
       # ── macOS code signing ──────────────────────────────────────
       # Only sets APPLE_* env vars when the certificate secret is actually present.

@@ -1,18 +1,15 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 use std::time::Duration;
 
 use ntest::timeout;
 use tempfile::tempdir;
 use tokio::time::sleep;
 
+use crate::DownloadManager;
 use crate::event_bus::EventBus;
 use crate::rate_limiter::RateLimiter;
 use crate::test_harness::TestServer;
-use crate::types::{
-    ChecksumMode, DownloadState, StartDownloadRequest, ThreadMode,
-};
-use crate::DownloadManager;
-
+use crate::types::{ChecksumMode, DownloadState, StartDownloadRequest, ThreadMode};
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -30,9 +27,9 @@ async fn wait_for_terminal(manager: &DownloadManager, id: &str) -> crate::types:
 }
 
 fn generate_test_content(size: u64) -> Vec<u8> {
+    use rand::RngCore;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
-    use rand::RngCore;
     let mut rng = StdRng::seed_from_u64(42);
     let mut data = vec![0u8; size as usize];
     rng.fill_bytes(&mut data);
@@ -76,20 +73,29 @@ async fn single_stream_download_completes_successfully() -> TestResult {
 
     let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
-        status.state, DownloadState::Completed,
+        status.state,
+        DownloadState::Completed,
         "expected Completed, got {:?} with error={:?}",
-        status.state, status.error
+        status.state,
+        status.error
     );
     assert_eq!(status.total_bytes, Some(server.file_size));
     assert_eq!(status.downloaded_bytes, server.file_size);
 
     let dest_path = std::path::Path::new(&status.destination_path);
-    assert!(dest_path.exists(), "destination file should exist at {}", status.destination_path);
+    assert!(
+        dest_path.exists(),
+        "destination file should exist at {}",
+        status.destination_path
+    );
     let downloaded = tokio::fs::read(dest_path).await?;
     assert_eq!(downloaded.len() as u64, server.file_size);
 
     let expected = generate_test_content(server.file_size);
-    assert_eq!(downloaded, expected, "downloaded file content does not match server data");
+    assert_eq!(
+        downloaded, expected,
+        "downloaded file content does not match server data"
+    );
 
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
@@ -128,9 +134,11 @@ async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
 
     let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
-        status.state, DownloadState::Completed,
+        status.state,
+        DownloadState::Completed,
         "expected Completed with matching Blake3 checksum, got {:?} error={:?}",
-        status.state, status.error
+        status.state,
+        status.error
     );
 
     let _ = manager.remove(&id.to_string()).await;
@@ -150,7 +158,8 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
         Arc::new(EventBus::new(1024)),
     )?;
 
-    let wrong_checksum = "0000000000000000000000000000000000000000000000000000000000000000".to_string();
+    let wrong_checksum =
+        "0000000000000000000000000000000000000000000000000000000000000000".to_string();
 
     let id = manager
         .start(StartDownloadRequest {
@@ -172,7 +181,8 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
 
     let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
-        status.state, DownloadState::Failed,
+        status.state,
+        DownloadState::Failed,
         "expected Failed on checksum mismatch, got {:?}",
         status.state
     );
@@ -183,7 +193,10 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
     );
 
     let dest_path = std::path::Path::new(&status.destination_path);
-    assert!(!dest_path.exists(), "destination file should not exist on checksum mismatch");
+    assert!(
+        !dest_path.exists(),
+        "destination file should not exist on checksum mismatch"
+    );
 
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
@@ -226,9 +239,11 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
 
     let status = wait_for_terminal(&manager, &id.to_string()).await;
     assert_eq!(
-        status.state, DownloadState::Completed,
+        status.state,
+        DownloadState::Completed,
         "expected Completed for multi-stream download, got {:?} with error={:?}",
-        status.state, status.error
+        status.state,
+        status.error
     );
     assert_eq!(status.total_bytes, Some(server.file_size));
     assert_eq!(status.downloaded_bytes, server.file_size);
@@ -238,7 +253,10 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
     assert_eq!(downloaded.len() as u64, server.file_size);
 
     let expected = generate_test_content(server.file_size);
-    assert_eq!(downloaded, expected, "multi-stream downloaded content mismatch");
+    assert_eq!(
+        downloaded, expected,
+        "multi-stream downloaded content mismatch"
+    );
 
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
@@ -276,9 +294,12 @@ async fn multi_stream_blake3_checksum_match() -> TestResult {
         .await?;
 
     let status = wait_for_terminal(&manager, &id.to_string()).await;
-    assert_eq!(status.state, DownloadState::Completed,
+    assert_eq!(
+        status.state,
+        DownloadState::Completed,
         "multi-stream Blake3 checksum should match, got {:?}",
-        status.state);
+        status.state
+    );
 
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
@@ -316,9 +337,12 @@ async fn multi_stream_sha256_checksum_match() -> TestResult {
         .await?;
 
     let status = wait_for_terminal(&manager, &id.to_string()).await;
-    assert_eq!(status.state, DownloadState::Completed,
+    assert_eq!(
+        status.state,
+        DownloadState::Completed,
         "multi-stream SHA-256 checksum should match, got {:?}",
-        status.state);
+        status.state
+    );
 
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
@@ -365,11 +389,18 @@ async fn cancel_download_while_in_progress() -> TestResult {
 
     // cancel() returns the final snapshot and removes the download from the manager
     let status = manager.cancel(&id.to_string()).await?;
-    assert_eq!(status.state, DownloadState::Canceled,
-        "expected Canceled, got {:?}", status.state);
+    assert_eq!(
+        status.state,
+        DownloadState::Canceled,
+        "expected Canceled, got {:?}",
+        status.state
+    );
 
     let dest_path = std::path::Path::new(&status.destination_path);
-    assert!(!dest_path.exists(), "destination file should not exist after cancel");
+    assert!(
+        !dest_path.exists(),
+        "destination file should not exist after cancel"
+    );
 
     // The download is already removed by cancel(), so remove() would fail — skip it.
     Ok(())

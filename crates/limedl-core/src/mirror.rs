@@ -1,4 +1,4 @@
-﻿use urlencoding::encode as url_encode;
+use urlencoding::encode as url_encode;
 
 use super::types::{GitHubMirrorSettings, MirrorEntry};
 
@@ -68,8 +68,14 @@ mod tests {
     #[test]
     fn disabled_returns_original() {
         let settings = GitHubMirrorSettings::default(); // enabled = false
-        let urls = rewrite("https://github.com/user/repo/releases/v1.0/file.zip", &settings);
-        assert_eq!(urls, vec!["https://github.com/user/repo/releases/v1.0/file.zip"]);
+        let urls = rewrite(
+            "https://github.com/user/repo/releases/v1.0/file.zip",
+            &settings,
+        );
+        assert_eq!(
+            urls,
+            vec!["https://github.com/user/repo/releases/v1.0/file.zip"]
+        );
     }
 
     #[test]
@@ -92,13 +98,19 @@ mod tests {
                 order: 0,
             }],
         };
-        let urls = rewrite("https://github.com/user/repo/releases/v1.0/file.zip", &settings);
+        let urls = rewrite(
+            "https://github.com/user/repo/releases/v1.0/file.zip",
+            &settings,
+        );
         assert_eq!(urls.len(), 2);
         assert_eq!(
             urls[0],
             "https://mirror.example.com/https%3A%2F%2Fgithub.com%2Fuser%2Frepo%2Freleases%2Fv1.0%2Ffile.zip"
         );
-        assert_eq!(urls[1], "https://github.com/user/repo/releases/v1.0/file.zip");
+        assert_eq!(
+            urls[1],
+            "https://github.com/user/repo/releases/v1.0/file.zip"
+        );
     }
 
     #[test]
