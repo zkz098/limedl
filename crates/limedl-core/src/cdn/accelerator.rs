@@ -1,6 +1,7 @@
 ﻿#![allow(dead_code)]
 
 use std::net::Ipv4Addr;
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -28,6 +29,9 @@ pub enum AccelState {
     Error(String),
 }
 
+/// Sentinel value for phase_atomic meaning "no active phase".
+const PHASE_NONE: u8 = 0xFF;
+
 /// State machine that manages the CDN acceleration lifecycle.
 ///
 /// Callers wrap this in an `Arc<CdnAccelerator>` and pass it to methods that
@@ -38,8 +42,12 @@ pub struct CdnAccelerator {
     active_speed_mbps: RwLock<Option<f64>>,
     cancel_token: RwLock<Option<CancellationToken>>,
     accelerated_client: RwLock<Option<reqwest::Client>>,
-    phase: RwLock<Option<CdnTestPhase>>,
-    phase_progress: RwLock<(u64, u64)>,
+    /// Atomic phase indicator: 0=FetchingRanges, 1=Screening,
+    /// 2=MeasuringThroughput, 0xFF=None. Written from sync progress
+    /// callbacks without spawning.
+    phase_atomic: AtomicU8,
+    phase_progress_current: AtomicU64,
+    phase_progress_total: AtomicU64,
     all_candidates: RwLock<Vec<SpeedTestResult>>,
     default_node: RwLock<Option<DefaultNodeResult>>,
 }
@@ -59,8 +67,9 @@ impl CdnAccelerator {
             active_speed_mbps: RwLock::new(None),
             cancel_token: RwLock::new(None),
             accelerated_client: RwLock::new(None),
-            phase: RwLock::new(None),
-            phase_progress: RwLock::new((0, 0)),
+            phase_atomic: AtomicU8::new(PHASE_NONE),
+            phase_progress_current: AtomicU64::new(0),
+            phase_progress_total: AtomicU64::new(0),
             all_candidates: RwLock::new(Vec::new()),
             default_node: RwLock::new(None),
         }
@@ -97,8 +106,9 @@ impl CdnAccelerator {
         tokio::spawn(async move {
             // ── Phase: FetchingRanges ────────────────────────────
             tracing::info!("cdn test: phase=FetchingRanges");
-            *this.phase.write().await = Some(CdnTestPhase::FetchingRanges);
-            *this.phase_progress.write().await = (0, 0);
+            this.phase_atomic.store(CdnTestPhase::FetchingRanges as u8, Ordering::Release);
+            this.phase_progress_current.store(0, Ordering::Release);
+            this.phase_progress_total.store(0, Ordering::Release);
 
             let ip_cache = Arc::new(tokio::sync::Mutex::new(IpRangesCache {
                 ips: Vec::new(),
@@ -111,8 +121,9 @@ impl CdnAccelerator {
             if token.is_cancelled() {
                 tracing::info!("cdn test: cancelled during FetchingRanges");
                 *this.state.write().await = AccelState::Idle;
-                *this.phase.write().await = None;
-                *this.phase_progress.write().await = (0, 0);
+                this.phase_atomic.store(PHASE_NONE, Ordering::Release);
+                this.phase_progress_current.store(0, Ordering::Release);
+            this.phase_progress_total.store(0, Ordering::Release);
                 return;
             }
 
@@ -126,8 +137,9 @@ impl CdnAccelerator {
             if ips.is_empty() {
                 tracing::error!("cdn test: no Cloudflare IPs available");
                 *this.state.write().await = AccelState::Error("no Cloudflare IPs available".into());
-                *this.phase.write().await = None;
-                *this.phase_progress.write().await = (0, 0);
+                this.phase_atomic.store(PHASE_NONE, Ordering::Release);
+                this.phase_progress_current.store(0, Ordering::Release);
+            this.phase_progress_total.store(0, Ordering::Release);
                 return;
             }
 
@@ -140,19 +152,26 @@ impl CdnAccelerator {
             let acc_ref = Arc::clone(&this);
             let progress_cb: crate::cdn::speed_test::ProgressFn =
                 Box::new(move |phase, current, total| {
-                    let a = Arc::clone(&acc_ref);
-                    tokio::spawn(async move {
-                        *a.phase.write().await = Some(phase);
-                        *a.phase_progress.write().await = (current, total);
-                    });
+                    // Direct atomic stores — no tokio::spawn needed since
+                    // the callback is already called from a sync context.
+                    acc_ref
+                        .phase_atomic
+                        .store(phase as u8, Ordering::Release);
+                    acc_ref
+                        .phase_progress_current
+                        .store(current, Ordering::Release);
+                    acc_ref
+                        .phase_progress_total
+                        .store(total, Ordering::Release);
                 });
 
             let (results, default_node) = tokio::select! {
                 _ = token.cancelled() => {
                     tracing::info!("cdn test: cancelled during speed test");
                     *this.state.write().await = AccelState::Idle;
-                    *this.phase.write().await = None;
-                    *this.phase_progress.write().await = (0, 0);
+                    this.phase_atomic.store(PHASE_NONE, Ordering::Release);
+                    this.phase_progress_current.store(0, Ordering::Release);
+                    this.phase_progress_total.store(0, Ordering::Release);
                     return;
                 }
                 r = async {
@@ -166,8 +185,9 @@ impl CdnAccelerator {
             if token.is_cancelled() {
                 tracing::info!("cdn test: cancelled after speed test completed");
                 *this.state.write().await = AccelState::Idle;
-                *this.phase.write().await = None;
-                *this.phase_progress.write().await = (0, 0);
+                this.phase_atomic.store(PHASE_NONE, Ordering::Release);
+                this.phase_progress_current.store(0, Ordering::Release);
+            this.phase_progress_total.store(0, Ordering::Release);
                 return;
             }
 
@@ -235,8 +255,9 @@ impl CdnAccelerator {
                 }
             }
 
-            *this.phase.write().await = None;
-            *this.phase_progress.write().await = (0, 0);
+            this.phase_atomic.store(PHASE_NONE, Ordering::Release);
+            this.phase_progress_current.store(0, Ordering::Release);
+            this.phase_progress_total.store(0, Ordering::Release);
         });
 
         Ok(())
@@ -320,8 +341,9 @@ impl CdnAccelerator {
         *self.active_speed_mbps.write().await = None;
         *self.cancel_token.write().await = None;
         *self.accelerated_client.write().await = None;
-        *self.phase.write().await = None;
-        *self.phase_progress.write().await = (0, 0);
+        self.phase_atomic.store(PHASE_NONE, Ordering::Release);
+        self.phase_progress_current.store(0, Ordering::Release);
+        self.phase_progress_total.store(0, Ordering::Release);
         *self.all_candidates.write().await = Vec::new();
         *self.default_node.write().await = None;
     }
@@ -344,12 +366,20 @@ impl CdnAccelerator {
 
     /// Return the current test phase, or None if no test is active.
     pub async fn phase(&self) -> Option<CdnTestPhase> {
-        *self.phase.read().await
+        let p = self.phase_atomic.load(Ordering::Acquire);
+        match p {
+            0 => Some(CdnTestPhase::FetchingRanges),
+            1 => Some(CdnTestPhase::Screening),
+            2 => Some(CdnTestPhase::MeasuringThroughput),
+            _ => None,
+        }
     }
 
     /// Return the current phase progress as (current, total).
     pub async fn phase_progress(&self) -> (u64, u64) {
-        *self.phase_progress.read().await
+        let current = self.phase_progress_current.load(Ordering::Acquire);
+        let total = self.phase_progress_total.load(Ordering::Acquire);
+        (current, total)
     }
 
     /// Return all candidates from the most recent speed test.

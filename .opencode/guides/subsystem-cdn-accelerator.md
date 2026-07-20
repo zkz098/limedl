@@ -50,8 +50,12 @@ pub struct CdnAccelerator {
     active_speed_mbps: RwLock<Option<f64>>,
     cancel_token: RwLock<Option<CancellationToken>>,
     accelerated_client: RwLock<Option<reqwest::Client>>,   // DNS 重写后的 HTTP 客户端
-    phase: RwLock<Option<CdnTestPhase>>,
-    phase_progress: RwLock<(u64, u64)>,
+    /// Atomic phase indicator: 0=FetchingRanges, 1=Screening,
+    /// 2=MeasuringThroughput, 0xFF=None. Written from sync progress
+    /// callbacks without spawning.
+    phase_atomic: AtomicU8,
+    phase_progress_current: AtomicU64,
+    phase_progress_total: AtomicU64,
     all_candidates: RwLock<Vec<SpeedTestResult>>,
     default_node: RwLock<Option<DefaultNodeResult>>,
 }
@@ -112,11 +116,13 @@ pub async fn status(&self) -> AccelState
 pub async fn get_client(&self) -> Option<reqwest::Client>
 pub async fn active_ip(&self) -> Option<Ipv4Addr>
 pub async fn active_speed_mbps(&self) -> Option<f64>
-pub async fn phase(&self) -> Option<CdnTestPhase>
-pub async fn phase_progress(&self) -> (u64, u64)
+pub async fn phase(&self) -> Option<CdnTestPhase>       // 内部用 AtomicU8 load，无 RwLock 争用
+pub async fn phase_progress(&self) -> (u64, u64)        // 内部从两个独立 AtomicU64 load
 pub async fn candidates(&self) -> Vec<SpeedTestResult>
 pub async fn default_node(&self) -> Option<DefaultNodeResult>
 ```
+
+> **性能优化**：`phase_atomic`、`phase_progress_current`、`phase_progress_total` 使用 `AtomicU8`/`AtomicU64` 替代原来的 `RwLock<Option<CdnTestPhase>>` + `RwLock<(u64, u64)>`。`progress_cb` 闭包内直接做 atomic store，消除了每 speed test 55+ 次 `tokio::spawn` 的开销。`CdnTestPhase` 标记 `#[repr(u8)]`，`PHASE_NONE = 0xFF` 作为"无活跃阶段"的哨兵值。
 
 ## 数据流向（重构后）
 

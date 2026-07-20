@@ -66,7 +66,9 @@ EventBus::publish(DownloadEvent)
 - `publish()` 同时处理 Tauri 前端发射和内部广播，调用方只需调用一次
 - `set_app_handle()` 延迟注入，支持两阶段构造（与现有 `AppState` 模式兼容）
 - 使用 `tokio::sync::broadcast` 而非自定义 channel，利用其 lagged-receiver 检测和内存效率
-- capacity 参数建议设为 256（与当前 commands.rs 中的设置一致）
+- capacity 参数：生产环境 8192（`bootstrap.rs` + `limedl-server/src/main.rs`），测试环境 1024（有意为之以保持 Lagged 行为的可复现性）
+- Progress 事件在 `http_executor.rs` 端有 500ms 节流：周期性 persist 时上次 emit 距今 ≥500ms 才发送 progress 事件（persist 照常做）；终态 progress（completed/failed/canceled 路径）始终立即 emit 不节流
+- Lagged fallback 触发的 `emit_all_downloads` 兜底行为不变
 
 **重要约定**：
 

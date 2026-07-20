@@ -32,6 +32,7 @@ pub const SPEED_TEST_DURATION: Duration = Duration::from_secs(10);
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[repr(u8)]
 pub enum CdnTestPhase {
     FetchingRanges,
     Screening,

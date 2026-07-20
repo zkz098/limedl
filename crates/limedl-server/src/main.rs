@@ -316,7 +316,7 @@ async fn run_single_download(url: &str, output: Option<&PathBuf>) -> anyhow::Res
     std::fs::create_dir_all(&state_dir)?;
 
     let rate_limiter = Arc::new(limedl_core::RateLimiter::default());
-    let event_bus = Arc::new(limedl_core::EventBus::new(1024));
+    let event_bus = Arc::new(limedl_core::EventBus::new(8192));
 
     let download_manager = Arc::new(limedl_core::DownloadManager::new(
         state_dir.clone(),

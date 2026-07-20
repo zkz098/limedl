@@ -277,7 +277,7 @@ impl Scheduler {
                 }
             }
             SchedulerMode::Automatic => {
-                let mut candidates = entries
+                let candidates = entries
                     .into_iter()
                     .filter(|managed| {
                         let core = managed.lock_core();
@@ -292,10 +292,28 @@ impl Scheduler {
                     })
                     .collect::<Vec<_>>();
 
-                candidates.sort_by(|left, right| {
-                    remaining_bytes(&right.lock_core().manifest)
-                        .cmp(&remaining_bytes(&left.lock_core().manifest))
-                });
+                // Pre-snapshot remaining bytes to avoid repeated lock
+                // acquisitions during sort (each sort_by callback would
+                // lock both candidates otherwise). Snapshot inside a
+                // block so the MutexGuard is dropped before `m` moves.
+                let mut with_remaining: Vec<(u64, _)> = candidates
+                    .into_iter()
+                    .map(|m| {
+                        let remaining = {
+                            let core = m.lock_core();
+                            remaining_bytes(&core.manifest)
+                        };
+                        (remaining, m)
+                    })
+                    .collect();
+                with_remaining.sort_by_key(|(r, _)| *r);
+                // Reverse to get descending order (largest remaining first),
+                // matching the original right.cmp(left) ordering.
+                let candidates = with_remaining
+                    .into_iter()
+                    .rev()
+                    .map(|(_, m)| m)
+                    .collect::<Vec<_>>();
 
                 let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
                 let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);

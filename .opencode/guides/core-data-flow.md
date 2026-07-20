@@ -71,7 +71,7 @@ DownloadManager::start()
 12. `download_single()`: sequential GET request with `Range: bytes=downloaded-` header for resumption
 13. Data flows directly to `DownloadBuffer` → periodic flush → `Database::update_download_progress()`
 
-**Global rate limiting**: `RateLimiter` (token bucket) enforces `global_speed_limit_bps` across all downloads. Workers check rate limiter before each read.
+**Global rate limiting**: `RateLimiter` (token bucket) enforces `global_speed_limit_bps` across all downloads. Workers accumulate bytes across chunks and call `rate_limiter.consume(accumulated)` in batches (~256KB or 8 chunks, whichever comes first). Batch threshold is well below AIMD's 2s sampling window so convergence is unaffected. Remaining bytes are flushed on normal loop exit.
 
 ## Phase 4 — Scheduling & Adaptation
 
@@ -119,7 +119,7 @@ StartDownloadRequest  (前端表单)
 **Event emission**:
 
 - `DownloadManager::emit_single_summary()` → `app_handle.emit("download-updated", DownloadSummary)` (Tauri event, JSON)
-- `DownloadManager::emit_progress()` → `app_handle.emit("download-progress", DownloadProgress)` (high-frequency update)
+- `DownloadManager::emit_progress()` → `app_handle.emit("download-progress", DownloadProgress)` (throttled to ≤1 event per 500ms in periodic persist path; terminal states — completed/failed/canceled — bypass throttling and emit immediately)
 - Aria2 RPC: listens on `broadcast::channel` for `"download-updated"` string events → converts to WebSocket push
 
 **Serialization note**: All types use `#[serde(rename_all = "camelCase")]` — fields are `camelCase` in JSON/frontend, `snake_case` enum variants in JSON.

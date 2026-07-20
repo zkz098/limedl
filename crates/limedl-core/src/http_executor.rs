@@ -334,6 +334,11 @@ impl HttpExecutor {
 
         let mut last_persist = Instant::now();
         let mut last_disk_check = Instant::now();
+        // ── progress throttling ──
+        let mut last_progress_emit = Instant::now();
+        // ── rate limiter batch consume ──
+        let mut bytes_since_consume: usize = 0;
+        let mut chunks_since_consume: usize = 0;
 
         loop {
             match dm.task_lifecycle.wait_until_active(&dm, &managed, &token).await {
@@ -421,6 +426,10 @@ impl HttpExecutor {
 
             while let Some(chunk) = tokio::select! {
                 _ = token.cancelled() => {
+                    // Flush remaining rate limiter bytes before exiting
+                    if bytes_since_consume > 0 {
+                        dm.rate_limiter.consume(bytes_since_consume).await;
+                    }
                     if let Some(ref buf) = write_buffer {
                         buf.drain_background().await;
                     }
@@ -429,7 +438,16 @@ impl HttpExecutor {
                 chunk = stream.next() => chunk,
             } {
                 let chunk = chunk?;
-                dm.rate_limiter.consume(chunk.len()).await;
+                // ── batch rate limiter consume ──
+                const BATCH_BYTES: usize = 256 * 1024; // 256 KB
+                const BATCH_CHUNKS: usize = 8;
+                bytes_since_consume += chunk.len();
+                chunks_since_consume += 1;
+                if bytes_since_consume >= BATCH_BYTES || chunks_since_consume >= BATCH_CHUNKS {
+                    dm.rate_limiter.consume(bytes_since_consume).await;
+                    bytes_since_consume = 0;
+                    chunks_since_consume = 0;
+                }
                 if let Some(ref buf) = write_buffer {
                     if buf
                         .buffer_chunk(absolute_offset, chunk.clone())
@@ -451,7 +469,11 @@ impl HttpExecutor {
                 if last_persist.elapsed() >= PERSIST_INTERVAL {
                     persist_manifest_snapshot(&dm.db, &managed).await?;
                     last_persist = Instant::now();
-                    dm.task_lifecycle.emit_progress(&dm, &managed);
+                    // Throttle progress events: at most once per 500ms
+                    if last_progress_emit.elapsed() >= Duration::from_millis(500) {
+                        dm.task_lifecycle.emit_progress(&dm, &managed);
+                        last_progress_emit = Instant::now();
+                    }
                 }
                 if last_disk_check.elapsed() >= Duration::from_secs(30) {
                     let (total_bytes, downloaded_bytes, destination_dir) = {
@@ -492,6 +514,11 @@ impl HttpExecutor {
                     }
                     last_disk_check = Instant::now();
                 }
+            }
+
+            // Flush remaining rate limiter bytes after stream ends
+            if bytes_since_consume > 0 {
+                dm.rate_limiter.consume(bytes_since_consume).await;
             }
 
             let finished = {
@@ -1008,6 +1035,11 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
     }
 
     let mut last_persist = Instant::now();
+    // ── progress throttling ──
+    let mut last_progress_emit = Instant::now();
+    // ── rate limiter batch consume ──
+    let mut bytes_since_consume: usize = 0;
+    let mut chunks_since_consume: usize = 0;
     while current <= end {
         if ctx.token.is_cancelled() {
             mark_chunk_released(&ctx.managed, ctx.chunk.index);
@@ -1054,13 +1086,26 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
         let mut stream = response.bytes_stream();
         while let Some(bytes) = tokio::select! {
             _ = ctx.token.cancelled() => {
+                // Flush remaining rate limiter bytes before exiting
+                if bytes_since_consume > 0 {
+                    ctx.rate_limiter.consume(bytes_since_consume).await;
+                }
                 mark_chunk_released(&ctx.managed, ctx.chunk.index);
                 return Ok(cancellation_chunk_outcome(&ctx.managed));
             }
             next = stream.next() => next,
         } {
             let bytes = bytes?;
-            ctx.rate_limiter.consume(bytes.len()).await;
+            // ── batch rate limiter consume ──
+            const BATCH_BYTES: usize = 256 * 1024; // 256 KB
+            const BATCH_CHUNKS: usize = 8;
+            bytes_since_consume += bytes.len();
+            chunks_since_consume += 1;
+            if bytes_since_consume >= BATCH_BYTES || chunks_since_consume >= BATCH_CHUNKS {
+                ctx.rate_limiter.consume(bytes_since_consume).await;
+                bytes_since_consume = 0;
+                chunks_since_consume = 0;
+            }
             if current + bytes.len() as u64 - 1 > end {
                 mark_chunk_released(&ctx.managed, ctx.chunk.index);
                 return Err(DownloadError::InvalidResponse(String::from(
@@ -1087,9 +1132,18 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
             if last_persist.elapsed() >= PERSIST_INTERVAL {
                 persist_manifest_snapshot(&ctx.db, &ctx.managed).await?;
                 last_persist = Instant::now();
-                ctx.manager.task_lifecycle.emit_progress(&ctx.manager, &ctx.managed);
+                // Throttle progress events: at most once per 500ms
+                if last_progress_emit.elapsed() >= Duration::from_millis(500) {
+                    ctx.manager.task_lifecycle.emit_progress(&ctx.manager, &ctx.managed);
+                    last_progress_emit = Instant::now();
+                }
             }
         }
+    }
+
+    // Flush remaining rate limiter bytes after chunk completes
+    if bytes_since_consume > 0 {
+        ctx.rate_limiter.consume(bytes_since_consume).await;
     }
 
     {

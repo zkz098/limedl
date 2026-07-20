@@ -478,31 +478,35 @@ impl DownloadBuffer {
             pool.sub_usage(old_bytes);
 
             // Spawn background flush for the old active half's data.
+            // Uses a single spawn_blocking with catch_unwind to handle both
+            // I/O errors and panics inside the blocking thread, storing the
+            // error flag and notifying waiters before the closure returns.
             let bg_file = file.clone();
             let bg_error = Arc::clone(error_flag);
             let bg_notify = notify.clone();
-            let bg_handle = tokio::spawn(async move {
-                let blocking_result = tokio::task::spawn_blocking(
-                    move || -> std::result::Result<(), DownloadError> {
-                        let mut sorted = old_entries;
-                        sorted.sort_by_key(|(k, _)| *k);
-                        for (off, chunk) in &sorted {
-                            write_all_at(&bg_file, chunk, *off)?;
-                        }
-                        Ok(())
-                    },
-                )
-                .await;
-
-                match blocking_result {
+            let bg_handle: JoinHandle<()> = tokio::task::spawn_blocking(move || {
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let mut sorted = old_entries;
+                    sorted.sort_by_key(|(k, _)| *k);
+                    for (off, chunk) in &sorted {
+                        write_all_at(&bg_file, chunk, *off)?;
+                    }
+                    Ok::<_, DownloadError>(())
+                }));
+                match result {
                     Ok(Ok(())) => {}
                     Ok(Err(e)) => {
                         bg_error.store(true, Ordering::Release);
                         tracing::error!("background HDD buffer flush failed: {e}");
                     }
-                    Err(join_e) => {
+                    Err(payload) => {
                         bg_error.store(true, Ordering::Release);
-                        tracing::error!("background flush task panicked: {join_e}");
+                        let msg = payload
+                            .downcast_ref::<String>()
+                            .map(|s| s.as_str())
+                            .or_else(|| payload.downcast_ref::<&'static str>().copied())
+                            .unwrap_or("<non-string panic payload>");
+                        tracing::error!("background flush task panicked: {msg}");
                     }
                 }
                 bg_notify.notify_waiters();

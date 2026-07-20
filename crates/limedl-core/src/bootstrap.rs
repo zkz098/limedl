@@ -31,7 +31,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     std::fs::create_dir_all(&state_dir)?;
 
     let rate_limiter = Arc::new(RateLimiter::default());
-    let event_bus = Arc::new(EventBus::new(1024));
+    let event_bus = Arc::new(EventBus::new(8192));
 
     let download_manager =
         DownloadManager::new(state_dir.clone(), rate_limiter.clone(), event_bus.clone())?;
