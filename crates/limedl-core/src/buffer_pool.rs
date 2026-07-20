@@ -10,8 +10,8 @@
 //! SSD downloads use a simpler local-only buffer for write combining without
 //! the double-buffer machinery.
 
+use std::collections::BTreeMap;
 use bytes::Bytes;
-use dashmap::DashMap;
 use parking_lot::Mutex;
 use std::fs::File;
 use std::sync::Arc;
@@ -244,8 +244,8 @@ impl BufferPool {
 enum BufferMode {
     /// Double-buffer mode used for HDD downloads.
     Double {
-        half_a: Arc<DashMap<u64, Bytes>>,
-        half_b: Arc<DashMap<u64, Bytes>>,
+        half_a: Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        half_b: Arc<Mutex<BTreeMap<u64, Bytes>>>,
         active_is_a: AtomicBool, // true = half_a is receiving writes
         usage_a: AtomicU64,
         usage_b: AtomicU64,
@@ -261,7 +261,7 @@ enum BufferMode {
     },
     /// Local-limit mode used for SSD write combining.
     Local {
-        chunks: Arc<DashMap<u64, Bytes>>,
+        chunks: Arc<Mutex<BTreeMap<u64, Bytes>>>,
         buffered_bytes: AtomicU64,
         local_limit: u64,
         file: Arc<File>,
@@ -285,8 +285,8 @@ impl DownloadBuffer {
         let half_size = pool.half_size();
         Self {
             mode: BufferMode::Double {
-                half_a: Arc::new(DashMap::new()),
-                half_b: Arc::new(DashMap::new()),
+                half_a: Arc::new(Mutex::new(BTreeMap::new())),
+                half_b: Arc::new(Mutex::new(BTreeMap::new())),
                 active_is_a: AtomicBool::new(true),
                 usage_a: AtomicU64::new(0),
                 usage_b: AtomicU64::new(0),
@@ -309,7 +309,7 @@ impl DownloadBuffer {
     pub fn new_local(limit_bytes: u64, file: Arc<File>) -> Self {
         Self {
             mode: BufferMode::Local {
-                chunks: Arc::new(DashMap::new()),
+                chunks: Arc::new(Mutex::new(BTreeMap::new())),
                 buffered_bytes: AtomicU64::new(0),
                 local_limit: limit_bytes,
                 file,
@@ -374,8 +374,8 @@ impl DownloadBuffer {
     #[allow(clippy::too_many_arguments)]
     async fn buffer_chunk_double(
         &self,
-        half_a: &Arc<DashMap<u64, Bytes>>,
-        half_b: &Arc<DashMap<u64, Bytes>>,
+        half_a: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        half_b: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         active_is_a: &AtomicBool,
         usage_a: &AtomicU64,
         usage_b: &AtomicU64,
@@ -419,7 +419,7 @@ impl DownloadBuffer {
             // Fast path — room available in the active half.
             let current = active_usage.load(Ordering::Acquire);
             if current + len <= half_size {
-                active_map.insert(offset, data);
+                active_map.lock().insert(offset, data);
                 active_usage.fetch_add(len, Ordering::Release);
                 pool.add_usage(len);
                 return Ok(());
@@ -456,8 +456,12 @@ impl DownloadBuffer {
             // Sanity: the inactive half should be empty (no flush running).
             let inactive_usage_val = inactive_usage.load(Ordering::Acquire);
             if inactive_usage_val > 0 {
-                let cleared: u64 = inactive_map.iter().map(|e| e.value().len() as u64).sum();
-                inactive_map.clear();
+                let cleared: u64 = {
+                    let mut map = inactive_map.lock();
+                    let sum = map.values().map(|d| d.len() as u64).sum();
+                    map.clear();
+                    sum
+                };
                 inactive_usage.store(0, Ordering::Release);
                 pool.sub_usage(cleared);
                 tracing::warn!(
@@ -468,11 +472,10 @@ impl DownloadBuffer {
 
             // ---- FLIP ----
             // Drain the active half, reset usage, subtract from pool.
-            let old_entries: Vec<(u64, Bytes)> = active_map
-                .iter()
-                .map(|e| (*e.key(), e.value().clone()))
-                .collect();
-            active_map.clear();
+            let old_entries: Vec<(u64, Bytes)> = {
+                let mut map = active_map.lock();
+                std::mem::take(&mut *map).into_iter().collect()
+            };
             let old_bytes: u64 = old_entries.iter().map(|(_, d)| d.len() as u64).sum();
             active_usage.store(0, Ordering::Release);
             pool.sub_usage(old_bytes);
@@ -486,9 +489,8 @@ impl DownloadBuffer {
             let bg_notify = notify.clone();
             let bg_handle: JoinHandle<()> = tokio::task::spawn_blocking(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    let mut sorted = old_entries;
-                    sorted.sort_by_key(|(k, _)| *k);
-                    for (off, chunk) in &sorted {
+                    // old_entries is already sorted by key from BTreeMap drain
+                    for (off, chunk) in &old_entries {
                         write_all_at(&bg_file, chunk, *off)?;
                     }
                     Ok::<_, DownloadError>(())
@@ -524,7 +526,7 @@ impl DownloadBuffer {
             } else {
                 (half_b, usage_b)
             };
-            new_map.insert(offset, data);
+            new_map.lock().insert(offset, data);
             new_usage.fetch_add(len, Ordering::Release);
             pool.add_usage(len);
 
@@ -536,7 +538,7 @@ impl DownloadBuffer {
     /// current buffer synchronously (blocking the current task) and retry.
     async fn buffer_chunk_local(
         &self,
-        chunks: &Arc<DashMap<u64, Bytes>>,
+        chunks: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         buffered_bytes: &AtomicU64,
         local_limit: u64,
         file: &Arc<File>,
@@ -553,7 +555,7 @@ impl DownloadBuffer {
         let new_total = prev.saturating_add(len);
         if local_limit == 0 || new_total <= local_limit {
             // Room was available — insert and we're done.
-            chunks.insert(offset, data);
+            chunks.lock().insert(offset, data);
             return;
         }
         // Exceeded limit — undo the speculative add, then fall through to flush.
@@ -562,15 +564,12 @@ impl DownloadBuffer {
         // Buffer is full — flush via spawn_blocking so we don't
         // block the tokio async runtime.
         let file = file.clone();
-        let chunks_map = Arc::clone(chunks);
-        let mut entries: Vec<(u64, Bytes)> = chunks_map
-            .iter()
-            .map(|e| (*e.key(), e.value().clone()))
-            .collect();
-        chunks_map.clear();
+        let entries: Vec<(u64, Bytes)> = {
+            let mut map = chunks.lock();
+            std::mem::take(&mut *map).into_iter().collect()
+        };
         let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
         tokio::task::spawn_blocking(move || {
-            entries.sort_by_key(|(k, _)| *k);
             for (off, chunk) in &entries {
                 if let Err(e) = write_all_at(&file, chunk, *off) {
                     tracing::error!("SSD local buffer flush failed at offset {off}: {e}");
@@ -582,7 +581,7 @@ impl DownloadBuffer {
         buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
 
         // Now insert the new chunk.
-        chunks.insert(offset, data);
+        chunks.lock().insert(offset, data);
         buffered_bytes.fetch_add(len, Ordering::Relaxed);
     }
 
@@ -648,15 +647,13 @@ impl DownloadBuffer {
                 file,
                 ..
             } => {
-                if chunks.is_empty() {
-                    return Ok(());
-                }
-                let mut entries: Vec<(u64, Bytes)> = chunks
-                    .iter()
-                    .map(|e| (*e.key(), e.value().clone()))
-                    .collect();
-                chunks.clear();
-                entries.sort_by_key(|(k, _)| *k);
+                let entries: Vec<(u64, Bytes)> = {
+                    let mut map = chunks.lock();
+                    if map.is_empty() {
+                        return Ok(());
+                    }
+                    std::mem::take(&mut *map).into_iter().collect()
+                };
                 for (off, chunk) in &entries {
                     write_all_at(file, chunk, *off)?;
                 }
@@ -667,30 +664,28 @@ impl DownloadBuffer {
         }
     }
 
-    /// Helper: drain a single half's DashMap and write everything to disk
+    /// Helper: drain a single half's buffer and write everything to disk
     /// via `spawn_blocking`.
     async fn flush_one_half(
-        half: &Arc<DashMap<u64, Bytes>>,
+        half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         usage: &AtomicU64,
         file: &Arc<File>,
         pool: &Arc<BufferPool>,
     ) -> Result<(), DownloadError> {
-        if half.is_empty() {
-            return Ok(());
-        }
-
-        let entries: Vec<(u64, Bytes)> =
-            half.iter().map(|e| (*e.key(), e.value().clone())).collect();
-        half.clear();
+        let entries: Vec<(u64, Bytes)> = {
+            let mut map = half.lock();
+            if map.is_empty() {
+                return Ok(());
+            }
+            std::mem::take(&mut *map).into_iter().collect()
+        };
         let bytes: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
         usage.store(0, Ordering::Release);
         pool.sub_usage(bytes);
 
         let f = file.clone();
         tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {
-            let mut sorted = entries;
-            sorted.sort_by_key(|(k, _)| *k);
-            for (off, chunk) in &sorted {
+            for (off, chunk) in &entries {
                 write_all_at(&f, chunk, *off)?;
             }
             Ok(())
@@ -735,12 +730,14 @@ impl DownloadBuffer {
                 ..
             } => {
                 let (a_bytes, b_bytes) = {
-                    let a: u64 = half_a.iter().map(|e| e.value().len() as u64).sum();
-                    let b: u64 = half_b.iter().map(|e| e.value().len() as u64).sum();
-                    (a, b)
+                    let mut a = half_a.lock();
+                    let mut b = half_b.lock();
+                    let a_sum = a.values().map(|d| d.len() as u64).sum::<u64>();
+                    let b_sum = b.values().map(|d| d.len() as u64).sum::<u64>();
+                    a.clear();
+                    b.clear();
+                    (a_sum, b_sum)
                 };
-                half_a.clear();
-                half_b.clear();
                 usage_a.store(0, Ordering::Release);
                 usage_b.store(0, Ordering::Release);
                 if a_bytes + b_bytes > 0 {
@@ -753,8 +750,12 @@ impl DownloadBuffer {
                 buffered_bytes,
                 ..
             } => {
-                let bytes: u64 = chunks.iter().map(|e| e.value().len() as u64).sum();
-                chunks.clear();
+                let bytes: u64 = {
+                    let mut map = chunks.lock();
+                    let sum = map.values().map(|d| d.len() as u64).sum();
+                    map.clear();
+                    sum
+                };
                 buffered_bytes.fetch_sub(bytes, Ordering::Relaxed);
             }
         }
@@ -795,12 +796,14 @@ impl Drop for DownloadBuffer {
                 ..
             } => {
                 let (a_bytes, b_bytes) = {
-                    let a: u64 = half_a.iter().map(|e| e.value().len() as u64).sum();
-                    let b: u64 = half_b.iter().map(|e| e.value().len() as u64).sum();
-                    (a, b)
+                    let mut a = half_a.lock();
+                    let mut b = half_b.lock();
+                    let a_sum = a.values().map(|d| d.len() as u64).sum::<u64>();
+                    let b_sum = b.values().map(|d| d.len() as u64).sum::<u64>();
+                    a.clear();
+                    b.clear();
+                    (a_sum, b_sum)
                 };
-                half_a.clear();
-                half_b.clear();
                 usage_a.store(0, Ordering::Release);
                 usage_b.store(0, Ordering::Release);
                 error_flag.store(false, Ordering::Release);
@@ -817,8 +820,12 @@ impl Drop for DownloadBuffer {
                 buffered_bytes,
                 ..
             } => {
-                let bytes: u64 = chunks.iter().map(|e| e.value().len() as u64).sum();
-                chunks.clear();
+                let bytes: u64 = {
+                    let mut map = chunks.lock();
+                    let sum = map.values().map(|d| d.len() as u64).sum();
+                    map.clear();
+                    sum
+                };
                 buffered_bytes.fetch_sub(bytes, Ordering::Relaxed);
             }
         }

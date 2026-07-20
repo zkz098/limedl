@@ -16,9 +16,12 @@
 
 ```rust
 pub(crate) struct Database {
-    conn: Mutex<Connection>,  // rusqlite::Connection，Mutex 保护并发访问
+    write_conn: Arc<Mutex<Connection>>,  // 写连接，WAL 模式
+    read_conn: Arc<Mutex<Connection>>,   // 读连接，PRAGMA query_only=1
 }
 ```
+
+双连接设计：`open()` 创建两个 `Connection` 到同一文件。write_conn 执行 PRAGMA + migration；read_conn 设 `PRAGMA query_only=1` + `PRAGMA busy_timeout=5000`，WAL 模式下 reader 不被 writer 阻塞。`open_in_memory()` 测试用共享同一 `Arc<Mutex<Connection>>`（in-memory SQLite 多 `:memory:` 会变成独立 DB），未设 query_only。
 
 ### Manifest (pub(crate)) — 主要持久化单元
 
@@ -66,9 +69,13 @@ pub(crate) struct Manifest {
 ### Database
 
 ```rust
-pub(crate) fn open(path: &Path) -> Result<Self>
+pub(crate) fn open(path: &Path) -> Result<Self>     // 双连接：write_conn PRAGMA+迁移，read_conn query_only
 #[cfg(test)]
-pub(crate) fn open_in_memory() -> Result<Self>   // 测试用内存数据库
+pub(crate) fn open_in_memory() -> Result<Self>       // 测试用内存数据库，共享同一连接
+
+// 内部：写方法用 lock_write()，读方法用 lock_read()
+fn lock_write(&self) -> MutexGuard<'_, Connection>  // self.write_conn.lock()
+fn lock_read(&self) -> MutexGuard<'_, Connection>   // self.read_conn.lock()
 
 // 创建表结构（幂等，含 ALTER TABLE 迁移）
 pub(crate) fn create_tables(&self) -> Result<()>
@@ -79,6 +86,7 @@ pub(crate) fn update_download_progress(
     &self, id: &str, downloaded_bytes: u64, dirty_chunks: &[ChunkManifest],
     state: &str, updated_at_ms: u64,
 ) -> Result<()>
+pub(crate) fn delete_download(&self, id: &str) -> Result<()>
 
 // 读取
 pub(crate) fn get_download(&self, id: &str) -> Result<Option<Manifest>>
@@ -86,12 +94,11 @@ pub(crate) fn list_downloads(&self) -> Result<Vec<Manifest>>
 pub(crate) fn list_download_headers(&self) -> Result<Vec<Manifest>>  // 不含 chunks 的轻量查询
 pub(crate) fn load_chunks(&self, download_id: &str) -> Result<Vec<ChunkManifest>>
 
-// 删除
-pub(crate) fn delete_download(&self, id: &str) -> Result<()>
-
 // 统计
 pub(crate) fn count_downloads(&self) -> Result<usize>
 ```
+
+> 旧版 `manifest_to_row()`（将 ~20 个 String 字段克隆进 `Vec<Value>`）已删除。新增私有辅助函数 `insert_manifest_row()` / `update_manifest_row()`，使用 `prepare_cached` + `named_params!` 直接传 `&str`/`Option<&str>` 引用，零 String 克隆。辅助函数 `opt_u64_to_value` / `opt_usize_to_value` 一并删除。`prepare_cached` 在两个连接独立缓存（per-connection resource，不能跨连接共享）。
 
 ### ChunkManifest — 分块状态
 
@@ -208,7 +215,11 @@ Database::delete_download(id) → DELETE FROM downloads WHERE id=?
 
 **重要约定**：
 
-- `Connection` 被 `Mutex` 保护，所有 DB 操作是同步的（阻塞调用线程），由 tokio 的 `spawn_blocking` 包装
+- `write_conn` / `read_conn` 分别被 `Mutex` 保护，所有 DB 操作是同步的（阻塞调用线程），由 tokio 的 `spawn_blocking` 包装
+- 写方法调用 `lock_write()` 获取 `write_conn`；读方法调用 `lock_read()` 获取 `read_conn`。WAL 模式下 reader 不被 writer 阻塞，实现读写并发
+- `read_conn` 设 `PRAGMA query_only=1`，保证只读操作不会意外修改数据库
+- `open_in_memory()` 让 `write_conn` 和 `read_conn` 共享同一 `Arc<Mutex<Connection>>`（in-memory SQLite 不允许两个 `:memory:` 连接）
+- `prepare_cached` 在两个连接上各自独立缓存 prepared statement，不能跨连接共享
 - 枚举值以 snake_case 字符串存储（`"downloading"`, `"blake3"` 等）
 - `Manifest` 的 `Serialize`/`Deserialize` 用于 JSON 序列化（aria2 RPC 响应），与 SQLite 列存储是两套映射
 - `migration.rs` 处理从旧 JSON 文件方案到 SQLite 的迁移，新安装不触发

@@ -363,7 +363,7 @@ pub trait DownloadBackend: Send + Sync + 'static {
 | `supports_parallelism` | manager.rs | 判断是否支持多流并行 |
 | `resolve_thread_settings` | manager.rs | 根据设置和请求解析线程模式/数量 |
 | `thread_note` | manager.rs | 生成线程模式的中文说明文本 |
-| `sync_snapshot_with_manifest` | manager.rs | 将 manifest 字段同步到 snapshot |
+| `sync_snapshot_from_manifest` | manager.rs | 将 manifest 字段同步到 snapshot。**COW 优化**：fast path（chunk 结构未变：数量相等且每对 index/start/end 一致）原地更新三个状态字段（downloaded/completed/claimed_by），零 alloc；slow path（结构变化或初始空 snapshot）全量 `Vec::with_capacity` 重建。`!is_empty()` 守卫防止空 snapshot + 空 manifest 误走 fast path。 |
 | `record_progress_on_managed` | manager.rs | 记录 chunk 下载进度 |
 | `unique_destination_path` | manager.rs | 生成不冲突的目标文件路径 |
 | `log_background_error` | manager.rs | 记录后台错误日志 |

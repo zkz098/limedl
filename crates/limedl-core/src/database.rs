@@ -1,10 +1,11 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use foldhash::HashMap;
 use parking_lot::Mutex;
 
 use anyhow::{Context, Result};
-use rusqlite::{Connection, params, types::Value};
+use rusqlite::{named_params, Connection, params, types::Value};
 
 use super::manifest::{ChunkManifest, Manifest};
 use super::types::{AdaptiveProfile, ChecksumMode, DownloadState, ThreadMode};
@@ -17,7 +18,8 @@ type RusqliteResult<T> = std::result::Result<T, rusqlite::Error>;
 // ── Database struct ──────────────────────────────────────────────
 
 pub struct Database {
-    conn: Mutex<Connection>,
+    write_conn: Arc<Mutex<Connection>>,
+    read_conn: Arc<Mutex<Connection>>,
 }
 
 // ── Enum ↔ TEXT conversions (serde snake_case representation) ────
@@ -122,20 +124,6 @@ fn i64_to_bool(v: i64) -> bool {
     v != 0
 }
 
-fn opt_u64_to_value(v: Option<u64>) -> Value {
-    match v {
-        Some(n) => Value::Integer(n as i64),
-        None => Value::Null,
-    }
-}
-
-fn opt_usize_to_value(v: Option<usize>) -> Value {
-    match v {
-        Some(n) => Value::Integer(n as i64),
-        None => Value::Null,
-    }
-}
-
 // ── Manifest ↔ row conversion ────────────────────────────────────
 //
 // Column order in the downloads table:
@@ -154,79 +142,145 @@ fn opt_usize_to_value(v: Option<usize>) -> Value {
 //  24  error                       25  created_at_ms
 //  26  updated_at_ms               27  chunk_size
 
-fn manifest_to_row(manifest: &Manifest) -> Vec<Value> {
-    vec![
-        // 0: id
-        Value::Text(manifest.id.clone()),
-        // 1: url
-        Value::Text(manifest.url.clone()),
-        // 2: final_url
-        Value::Text(manifest.final_url.clone()),
-        // 3: user_agent
-        Value::Text(manifest.user_agent.clone()),
-        // 4: destination_dir
-        Value::Text(manifest.destination_dir.clone()),
-        // 5: file_name
-        Value::Text(manifest.file_name.clone()),
-        // 6: file_name_locked
-        Value::Integer(bool_to_i64(manifest.file_name_locked)),
-        // 7: destination_path
-        Value::Text(manifest.destination_path.clone()),
-        // 8: temp_path
-        Value::Text(manifest.temp_path.clone()),
-        // 9: total_bytes
-        opt_u64_to_value(manifest.total_bytes),
-        // 10: downloaded_bytes
-        Value::Integer(manifest.downloaded_bytes as i64),
-        // 11: supports_ranges
-        Value::Integer(bool_to_i64(manifest.supports_ranges)),
-        // 12: connection_count
-        Value::Integer(manifest.connection_count as i64),
-        // 13: thread_mode
-        Value::Text(thread_mode_to_text(manifest.thread_mode).to_owned()),
-        // 14: requested_thread_count
-        opt_usize_to_value(manifest.requested_thread_count),
-        // 15: desired_thread_count
-        opt_usize_to_value(manifest.desired_thread_count),
-        // 16: allocated_thread_count
-        opt_usize_to_value(manifest.allocated_thread_count),
-        // 17: adaptive_profile_snapshot
-        manifest.adaptive_profile_snapshot.map_or(Value::Null, |p| {
-            Value::Text(adaptive_profile_to_text(p).to_owned())
-        }),
-        // 18: thread_note
-        manifest
-            .thread_note
-            .clone()
-            .map_or(Value::Null, Value::Text),
-        // 19: etag
-        manifest.etag.clone().map_or(Value::Null, Value::Text),
-        // 20: last_modified
-        manifest
-            .last_modified
-            .clone()
-            .map_or(Value::Null, Value::Text),
-        // 21: state
-        Value::Text(state_to_text(manifest.state).to_owned()),
-        // 22: checksum_mode
-        Value::Text(checksum_mode_to_text(manifest.checksum_mode).to_owned()),
-        // 23: checksum
-        manifest.checksum.clone().map_or(Value::Null, Value::Text),
-        // 24: error
-        manifest.error.clone().map_or(Value::Null, Value::Text),
-        // 25: created_at_ms
-        Value::Integer(manifest.created_at_ms as i64),
-        // 26: updated_at_ms
-        Value::Integer(manifest.updated_at_ms as i64),
-        // 27: chunk_size
-        Value::Integer(manifest.chunk_size as i64),
-        // 28: mirror_url
-        manifest.mirror_url.clone().map_or(Value::Null, Value::Text),
-        // 29: mirror_urls (JSON-serialized)
-        Value::Text(serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into())),
-        // 30: current_mirror_index
-        Value::Integer(manifest.current_mirror_index as i64),
-    ]
+// ── Manifest named-param inserts/updates ──────────────────────────
+//
+// Replaces the old manifest_to_row() which cloned ~20 String fields into
+// a Vec<Value>.  Now uses rusqlite named_params! to pass &str references
+// directly, avoiding per-field clones.
+
+/// INSERT a full manifest row using named parameters.
+fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
+    let mirror_urls_json =
+        serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into());
+
+    let mut stmt = conn
+        .prepare_cached(
+            "INSERT INTO downloads (
+                id, url, final_url, user_agent, destination_dir, file_name,
+                file_name_locked, destination_path, temp_path, total_bytes,
+                downloaded_bytes, supports_ranges, connection_count, thread_mode,
+                requested_thread_count, desired_thread_count, allocated_thread_count,
+                adaptive_profile_snapshot, thread_note, etag, last_modified,
+                state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
+                chunk_size, mirror_url, mirror_urls, current_mirror_index
+            ) VALUES (
+                :id, :url, :final_url, :user_agent, :destination_dir, :file_name,
+                :file_name_locked, :destination_path, :temp_path, :total_bytes,
+                :downloaded_bytes, :supports_ranges, :connection_count, :thread_mode,
+                :requested_thread_count, :desired_thread_count, :allocated_thread_count,
+                :adaptive_profile_snapshot, :thread_note, :etag, :last_modified,
+                :state, :checksum_mode, :checksum, :error, :created_at_ms, :updated_at_ms,
+                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index
+            )",
+        )
+        .context("failed to prepare insert manifest")?;
+
+    stmt.execute(named_params! {
+        ":id": manifest.id.as_str(),
+        ":url": manifest.url.as_str(),
+        ":final_url": manifest.final_url.as_str(),
+        ":user_agent": manifest.user_agent.as_str(),
+        ":destination_dir": manifest.destination_dir.as_str(),
+        ":file_name": manifest.file_name.as_str(),
+        ":file_name_locked": manifest.file_name_locked,
+        ":destination_path": manifest.destination_path.as_str(),
+        ":temp_path": manifest.temp_path.as_str(),
+        ":total_bytes": manifest.total_bytes.map(|v| v as i64),
+        ":downloaded_bytes": manifest.downloaded_bytes as i64,
+        ":supports_ranges": manifest.supports_ranges,
+        ":connection_count": manifest.connection_count as i64,
+        ":thread_mode": thread_mode_to_text(manifest.thread_mode),
+        ":requested_thread_count": manifest.requested_thread_count.map(|v| v as i64),
+        ":desired_thread_count": manifest.desired_thread_count.map(|v| v as i64),
+        ":allocated_thread_count": manifest.allocated_thread_count.map(|v| v as i64),
+        ":adaptive_profile_snapshot": manifest.adaptive_profile_snapshot.map(adaptive_profile_to_text),
+        ":thread_note": manifest.thread_note.as_deref(),
+        ":etag": manifest.etag.as_deref(),
+        ":last_modified": manifest.last_modified.as_deref(),
+        ":state": state_to_text(manifest.state),
+        ":checksum_mode": checksum_mode_to_text(manifest.checksum_mode),
+        ":checksum": manifest.checksum.as_deref(),
+        ":error": manifest.error.as_deref(),
+        ":created_at_ms": manifest.created_at_ms as i64,
+        ":updated_at_ms": manifest.updated_at_ms as i64,
+        ":chunk_size": manifest.chunk_size as i64,
+        ":mirror_url": manifest.mirror_url.as_deref(),
+        ":mirror_urls": mirror_urls_json.as_str(),
+        ":current_mirror_index": manifest.current_mirror_index as i64,
+    })
+    .with_context(|| format!("failed to insert download {}", manifest.id))?;
+
+    Ok(())
+}
+
+/// UPDATE a full manifest row using named parameters.
+fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
+    let mirror_urls_json =
+        serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into());
+
+    let mut stmt = conn
+        .prepare_cached(
+            "UPDATE downloads SET
+                url = :url, final_url = :final_url, user_agent = :user_agent,
+                destination_dir = :destination_dir, file_name = :file_name,
+                file_name_locked = :file_name_locked,
+                destination_path = :destination_path, temp_path = :temp_path,
+                total_bytes = :total_bytes,
+                downloaded_bytes = :downloaded_bytes,
+                supports_ranges = :supports_ranges,
+                connection_count = :connection_count, thread_mode = :thread_mode,
+                requested_thread_count = :requested_thread_count,
+                desired_thread_count = :desired_thread_count,
+                allocated_thread_count = :allocated_thread_count,
+                adaptive_profile_snapshot = :adaptive_profile_snapshot,
+                thread_note = :thread_note, etag = :etag,
+                last_modified = :last_modified,
+                state = :state, checksum_mode = :checksum_mode,
+                checksum = :checksum, error = :error,
+                created_at_ms = :created_at_ms,
+                updated_at_ms = :updated_at_ms, chunk_size = :chunk_size,
+                mirror_url = :mirror_url, mirror_urls = :mirror_urls,
+                current_mirror_index = :current_mirror_index
+             WHERE id = :id",
+        )
+        .context("failed to prepare update manifest")?;
+
+    stmt.execute(named_params! {
+        ":id": manifest.id.as_str(),
+        ":url": manifest.url.as_str(),
+        ":final_url": manifest.final_url.as_str(),
+        ":user_agent": manifest.user_agent.as_str(),
+        ":destination_dir": manifest.destination_dir.as_str(),
+        ":file_name": manifest.file_name.as_str(),
+        ":file_name_locked": manifest.file_name_locked,
+        ":destination_path": manifest.destination_path.as_str(),
+        ":temp_path": manifest.temp_path.as_str(),
+        ":total_bytes": manifest.total_bytes.map(|v| v as i64),
+        ":downloaded_bytes": manifest.downloaded_bytes as i64,
+        ":supports_ranges": manifest.supports_ranges,
+        ":connection_count": manifest.connection_count as i64,
+        ":thread_mode": thread_mode_to_text(manifest.thread_mode),
+        ":requested_thread_count": manifest.requested_thread_count.map(|v| v as i64),
+        ":desired_thread_count": manifest.desired_thread_count.map(|v| v as i64),
+        ":allocated_thread_count": manifest.allocated_thread_count.map(|v| v as i64),
+        ":adaptive_profile_snapshot": manifest.adaptive_profile_snapshot.map(adaptive_profile_to_text),
+        ":thread_note": manifest.thread_note.as_deref(),
+        ":etag": manifest.etag.as_deref(),
+        ":last_modified": manifest.last_modified.as_deref(),
+        ":state": state_to_text(manifest.state),
+        ":checksum_mode": checksum_mode_to_text(manifest.checksum_mode),
+        ":checksum": manifest.checksum.as_deref(),
+        ":error": manifest.error.as_deref(),
+        ":created_at_ms": manifest.created_at_ms as i64,
+        ":updated_at_ms": manifest.updated_at_ms as i64,
+        ":chunk_size": manifest.chunk_size as i64,
+        ":mirror_url": manifest.mirror_url.as_deref(),
+        ":mirror_urls": mirror_urls_json.as_str(),
+        ":current_mirror_index": manifest.current_mirror_index as i64,
+    })
+    .with_context(|| format!("failed to update download {}", manifest.id))?;
+
+    Ok(())
 }
 
 fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
@@ -470,37 +524,37 @@ impl Database {
     /// Enables WAL mode, foreign keys, and performance PRAGMAs,
     /// then runs schema migrations.
     pub fn open(path: &Path) -> Result<Self> {
-        let conn = Connection::open(path)
+        let write_conn = Connection::open(path)
             .with_context(|| format!("failed to open database at {}", path.display()))?;
 
         // ── PRAGMA configuration ─────────────────────────────────
-        conn.execute_batch("PRAGMA journal_mode = WAL;")
+        write_conn.execute_batch("PRAGMA journal_mode = WAL;")
             .context("failed to enable WAL mode")?;
-        conn.execute_batch("PRAGMA wal_autocheckpoint = 4096;")
+        write_conn.execute_batch("PRAGMA wal_autocheckpoint = 4096;")
             .context("failed to set WAL auto-checkpoint")?;
-        conn.execute_batch("PRAGMA foreign_keys = ON;")
+        write_conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
-        conn.execute_batch("PRAGMA busy_timeout = 5000;")
+        write_conn.execute_batch("PRAGMA busy_timeout = 5000;")
             .context("failed to set busy timeout")?;
-        conn.execute_batch("PRAGMA synchronous = NORMAL;")
+        write_conn.execute_batch("PRAGMA synchronous = NORMAL;")
             .context("failed to set synchronous mode")?;
-        conn.execute_batch("PRAGMA cache_size = -8000;")
+        write_conn.execute_batch("PRAGMA cache_size = -8000;")
             .context("failed to set cache size")?;
 
         // ── Schema migrations ────────────────────────────────────
-        let mut current_version: u32 = conn
+        let mut current_version: u32 = write_conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .context("failed to read schema version")?;
 
         // Compatibility: detect columns already backfilled by the old let _ = code
         // (which never set user_version), so existing databases don't fail migrations.
         if current_version < 4 {
-            if table_has_column(&conn, "downloads", "chunk_size")? {
-                conn.pragma_update(None, "user_version", 2)?;
+            if table_has_column(&write_conn, "downloads", "chunk_size")? {
+                write_conn.pragma_update(None, "user_version", 2)?;
                 current_version = 2;
             }
-            if table_has_column(&conn, "downloads", "mirror_urls")? {
-                conn.pragma_update(None, "user_version", 3)?;
+            if table_has_column(&write_conn, "downloads", "mirror_urls")? {
+                write_conn.pragma_update(None, "user_version", 3)?;
                 current_version = 3;
             }
         }
@@ -511,20 +565,29 @@ impl Database {
                 migration.version,
                 migration.name
             );
-            (migration.up)(&conn).with_context(|| {
+            (migration.up)(&write_conn).with_context(|| {
                 format!(
                     "migration v{} ({}) failed",
                     migration.version, migration.name
                 )
             })?;
-            conn.pragma_update(None, "user_version", migration.version)
+            write_conn.pragma_update(None, "user_version", migration.version)
                 .with_context(|| {
                     format!("failed to update schema version to {}", migration.version)
                 })?;
         }
 
+        // ── Read connection (WAL-enabled, read-only) ────────────
+        let read_conn = Connection::open(path)
+            .with_context(|| format!("failed to open read database at {}", path.display()))?;
+        read_conn.execute_batch("PRAGMA query_only = 1;")
+            .context("failed to set query_only on read connection")?;
+        read_conn.execute_batch("PRAGMA busy_timeout = 5000;")
+            .context("failed to set busy timeout on read connection")?;
+
         Ok(Self {
-            conn: Mutex::new(conn),
+            write_conn: Arc::new(Mutex::new(write_conn)),
+            read_conn: Arc::new(Mutex::new(read_conn)),
         })
     }
 
@@ -551,13 +614,19 @@ impl Database {
             .ok_or_else(|| DownloadError::DatabaseInit("no migrations defined".into()))?;
         conn.pragma_update(None, "user_version", current_version)
             .context("failed to set schema version")?;
+        let conn = Arc::new(Mutex::new(conn));
         Ok(Self {
-            conn: Mutex::new(conn),
+            write_conn: conn.clone(),
+            read_conn: conn,
         })
     }
 
-    fn lock_conn(&self) -> parking_lot::MutexGuard<'_, Connection> {
-        self.conn.lock()
+    fn lock_write(&self) -> parking_lot::MutexGuard<'_, Connection> {
+        self.write_conn.lock()
+    }
+
+    fn lock_read(&self) -> parking_lot::MutexGuard<'_, Connection> {
+        self.read_conn.lock()
     }
 
     // ── download CRUD ────────────────────────────────────────
@@ -571,7 +640,7 @@ impl Database {
     /// already keeps non-dirty chunks up to date, so re-writing them all
     /// on every state transition would be wasteful I/O.
     pub fn insert_download(&self, manifest: &Manifest) -> Result<()> {
-        let conn = self.lock_conn();
+        let conn = self.lock_write();
 
         // ── Is this a new download or an update to an existing one? ──
         let is_new: bool = conn
@@ -585,22 +654,7 @@ impl Database {
 
         if is_new {
             // ── New download: INSERT + full chunk write ────────────
-            let params = manifest_to_row(manifest);
-            conn.execute(
-                "INSERT INTO downloads (
-                    id, url, final_url, user_agent, destination_dir, file_name,
-                    file_name_locked, destination_path, temp_path, total_bytes,
-                    downloaded_bytes, supports_ranges, connection_count, thread_mode,
-                    requested_thread_count, desired_thread_count, allocated_thread_count,
-                    adaptive_profile_snapshot, thread_note, etag, last_modified,
-                    state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
-                    chunk_size, mirror_url, mirror_urls, current_mirror_index
-                ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,
-                          ?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,
-                          ?22,?23,?24,?25,?26,?27,?28,?29,?30,?31)",
-                rusqlite::params_from_iter(params),
-            )
-            .with_context(|| format!("failed to insert download {}", manifest.id))?;
+            insert_manifest_row(&conn, manifest)?;
 
             if !manifest.chunks.is_empty() {
                 self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
@@ -613,26 +667,7 @@ impl Database {
                 .context("failed to begin transaction")?;
 
             let result = (|| -> Result<()> {
-                let mut params = manifest_to_row(manifest);
-                let id_value = params.remove(0); // id is first in manifest_to_row
-                params.push(id_value); // append for WHERE clause
-
-                conn.execute(
-                    "UPDATE downloads SET
-                        url = ?1, final_url = ?2, user_agent = ?3, destination_dir = ?4,
-                        file_name = ?5, file_name_locked = ?6, destination_path = ?7,
-                        temp_path = ?8, total_bytes = ?9, downloaded_bytes = ?10,
-                        supports_ranges = ?11, connection_count = ?12, thread_mode = ?13,
-                        requested_thread_count = ?14, desired_thread_count = ?15,
-                        allocated_thread_count = ?16, adaptive_profile_snapshot = ?17,
-                        thread_note = ?18, etag = ?19, last_modified = ?20,
-                        state = ?21, checksum_mode = ?22, checksum = ?23, error = ?24,
-                        created_at_ms = ?25, updated_at_ms = ?26, chunk_size = ?27,
-                        mirror_url = ?28, mirror_urls = ?29, current_mirror_index = ?30
-                     WHERE id = ?31",
-                    rusqlite::params_from_iter(params),
-                )
-                .with_context(|| format!("failed to update download {}", manifest.id))?;
+                update_manifest_row(&conn, manifest)?;
 
                 // Only upsert chunks whose dirty flag is set.
                 if !manifest.chunks.is_empty() {
@@ -682,30 +717,9 @@ impl Database {
     /// required (e.g. the test helper).
     #[allow(dead_code)]
     pub fn update_download(&self, manifest: &Manifest) -> Result<()> {
-        let conn = self.lock_conn();
+        let conn = self.lock_write();
 
-        // Reorder manifest_to_row: [id, url, final_url, ..., updated_at_ms]
-        // → [url, final_url, ..., updated_at_ms, id] for the UPDATE + WHERE.
-        let mut params = manifest_to_row(manifest);
-        let id_value = params.remove(0); // extract id from position 0
-        params.push(id_value); // append for WHERE clause
-
-        conn.execute(
-            "UPDATE downloads SET
-                url = ?1, final_url = ?2, user_agent = ?3, destination_dir = ?4,
-                file_name = ?5, file_name_locked = ?6, destination_path = ?7,
-                temp_path = ?8, total_bytes = ?9, downloaded_bytes = ?10,
-                supports_ranges = ?11, connection_count = ?12, thread_mode = ?13,
-                requested_thread_count = ?14, desired_thread_count = ?15,
-                allocated_thread_count = ?16, adaptive_profile_snapshot = ?17,
-                thread_note = ?18, etag = ?19, last_modified = ?20,
-                state = ?21, checksum_mode = ?22, checksum = ?23, error = ?24,
-                created_at_ms = ?25, updated_at_ms = ?26, chunk_size = ?27,
-                mirror_url = ?28, mirror_urls = ?29, current_mirror_index = ?30
-             WHERE id = ?31",
-            rusqlite::params_from_iter(params),
-        )
-        .with_context(|| format!("failed to update download {}", manifest.id))?;
+        update_manifest_row(&conn, manifest)?;
 
         self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
 
@@ -726,7 +740,7 @@ impl Database {
         state: &str,
         updated_at_ms: u64,
     ) -> Result<()> {
-        let conn = self.lock_conn();
+        let conn = self.lock_write();
 
         conn.execute_batch("BEGIN IMMEDIATE")
             .context("failed to begin transaction")?;
@@ -772,7 +786,7 @@ impl Database {
 
     /// Delete a download and all its chunks (cascaded via FK).
     pub fn delete_download(&self, id: &str) -> Result<()> {
-        let conn = self.lock_conn();
+        let conn = self.lock_write();
         conn.execute("DELETE FROM downloads WHERE id = ?1", params![id])
             .with_context(|| format!("failed to delete download {id}"))?;
         Ok(())
@@ -781,7 +795,7 @@ impl Database {
     /// Fetch a single download with its chunks.
     #[allow(dead_code)]
     pub fn get_download(&self, id: &str) -> Result<Option<Manifest>> {
-        let conn = self.lock_conn();
+        let conn = self.lock_read();
 
         let mut stmt = conn
             .prepare("SELECT * FROM downloads WHERE id = ?1")
@@ -804,7 +818,7 @@ impl Database {
     /// Return every download in the database, each with its chunks populated.
     #[allow(dead_code)]
     pub fn list_downloads(&self) -> Result<Vec<Manifest>> {
-        let conn = self.lock_conn();
+        let conn = self.lock_read();
 
         let mut stmt = conn
             .prepare("SELECT * FROM downloads ORDER BY created_at_ms DESC")
@@ -852,7 +866,7 @@ impl Database {
     /// Used at startup for fast loading; chunks are loaded on-demand via
     /// [`load_chunks`] for non-terminal downloads only.
     pub fn list_download_headers(&self) -> Result<Vec<Manifest>> {
-        let conn = self.lock_conn();
+        let conn = self.lock_read();
 
         let mut stmt = conn
             .prepare("SELECT * FROM downloads ORDER BY created_at_ms DESC")
@@ -869,14 +883,14 @@ impl Database {
 
     /// Load chunks for a single download on demand (lazy loading).
     pub fn load_chunks(&self, download_id: &str) -> Result<Vec<ChunkManifest>> {
-        let conn = self.lock_conn();
+        let conn = self.lock_read();
         self.fetch_chunks_inner(&conn, download_id)
     }
 
     /// Total number of downloads.
     #[allow(dead_code)]
     pub fn count_downloads(&self) -> Result<usize> {
-        let conn = self.lock_conn();
+        let conn = self.lock_read();
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM downloads", [], |row| row.get(0))
             .context("failed to count downloads")?;
@@ -1010,7 +1024,7 @@ mod tests {
 
     /// Helper: count chunks for a download by querying the chunks table directly.
     fn count_chunks(db: &Database, download_id: &str) -> usize {
-        let conn = db.lock_conn();
+        let conn = db.lock_read();
         conn.query_row(
             "SELECT COUNT(*) FROM chunks WHERE download_id = ?1",
             params![download_id],
@@ -1645,7 +1659,7 @@ mod tests {
     #[test]
     fn table_has_column_detects_existing_column() {
         let db = Database::open_in_memory().unwrap();
-        let conn = db.lock_conn();
+        let conn = db.lock_read();
 
         // Verify the backfilled columns exist after migration
         let mut stmt = conn.prepare("PRAGMA table_info(downloads)").unwrap();

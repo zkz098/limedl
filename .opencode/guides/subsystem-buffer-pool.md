@@ -45,8 +45,8 @@ pub struct SlotGuard {
 ```rust
 pub struct DownloadBuffer {
     mode: BufferMode,
-    // HDD 模式: BufferMode::Double { half_a: DashMap, half_b: DashMap, flush_handle, ... }
-    // SSD 模式: BufferMode::Local { buffer: DashMap, limit: u64, file: Arc<File> }
+    // HDD 模式: BufferMode::Double { half_a: Arc<Mutex<BTreeMap<u64, Bytes>>>, half_b: ..., flush_handle, ... }
+    // SSD 模式: BufferMode::Local { buffer: Arc<Mutex<BTreeMap<u64, Bytes>>>, limit: u64, file: Arc<File> }
 }
 ```
 
@@ -121,11 +121,13 @@ pub fn clear(&self)
 | ------------ | ------------------------------ | ----------------- |
 | 内存来源     | 全局 BufferPool                | 本地 4 MiB 限制   |
 | 并发控制     | semaphore acquire (可排队等待) | 无争用            |
-| 缓冲结构     | 两个 DashMap ping-pong         | 单个 DashMap      |
+| 缓冲结构     | 两个 Mutex<BTreeMap> ping-pong  | 单个 Mutex<BTreeMap> |
 | Flush 方式   | spawn_blocking 异步刷盘        | 同步 flush        |
 | Flush 触发   | 半缓冲满 OR 2s 定时器          | 缓冲满时          |
 | 游戏模式影响 | 缩减 limit/parallel            | 无影响            |
 | 设计目的     | 批量顺序写减少寻道             | 本地写合并足够    |
+
+> **DashMap → `Mutex<BTreeMap>` 变更**：`half_a`/`half_b`/`chunks` 从 `Arc<DashMap<u64, Bytes>>` 改为 `Arc<parking_lot::Mutex<BTreeMap<u64, Bytes>>>`。BTreeMap `into_iter()` 按 key 升序遍历，天然有序，移除了 4 处 `sort_by_key` 调用。Drain 用 `std::mem::take(&mut *map).into_iter().collect()`（BTreeMap::drain 是 nightly only）。BTreeMap move 语义避免 Bytes Arc::clone 调用；单 half 本质串行写，Mutex 不竞争。dashmap crate 保留（bt_backend_own/ 仍用）。
 
 ## 数据流向
 
@@ -142,7 +144,7 @@ buffer_chunk(offset, data)
   │    ├─ 半缓冲满 OR 2s 定时器触发 → 切换活跃半缓冲
   │    └─ 旧半缓冲 spawn_blocking → 写入文件 → 归还半缓冲
   └─ [SSD 模式]
-       ├─ 写入本地 DashMap
+       ├─ 写入本地 BTreeMap (Arc<Mutex<BTreeMap>>)
        └─ 缓冲满 → 同步写入文件 → 清空缓冲
 
 取消/暂停

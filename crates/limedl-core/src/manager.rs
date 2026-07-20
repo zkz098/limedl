@@ -212,18 +212,41 @@ impl DownloadCore {
         self.snapshot.last_modified = m.last_modified.clone();
         self.snapshot.error = m.error.clone();
         self.snapshot.updated_at_ms = m.updated_at_ms;
-        self.snapshot.chunks = m
-            .chunks
-            .iter()
-            .map(|c| ChunkInfo {
-                index: c.index,
-                start: c.start,
-                end: c.end,
-                downloaded: c.downloaded,
-                completed: c.completed,
-                claimed_by: c.claimed_by,
-            })
-            .collect();
+        // COW optimization: only rebuild Vec<ChunkInfo> when chunk structure
+        // (count + offset boundaries) changes; otherwise update state fields
+        // in-place to avoid per-tick allocation churn.
+        // Guard: skip the fast path when snapshot has no chunks yet (initial state);
+        // both empty or structure-mismatch → full rebuild.
+        if !self.snapshot.chunks.is_empty()
+            && self.snapshot.chunks.len() == m.chunks.len()
+            && self
+                .snapshot
+                .chunks
+                .iter()
+                .zip(m.chunks.iter())
+                .all(|(sc, mc)| sc.index == mc.index && sc.start == mc.start && sc.end == mc.end)
+        {
+            // Structure unchanged — update only state fields in-place
+            for (sc, mc) in self.snapshot.chunks.iter_mut().zip(m.chunks.iter()) {
+                sc.downloaded = mc.downloaded;
+                sc.completed = mc.completed;
+                sc.claimed_by = mc.claimed_by;
+            }
+        } else {
+            // Structure changed or empty — full rebuild
+            self.snapshot.chunks = m
+                .chunks
+                .iter()
+                .map(|c| ChunkInfo {
+                    index: c.index,
+                    start: c.start,
+                    end: c.end,
+                    downloaded: c.downloaded,
+                    completed: c.completed,
+                    claimed_by: c.claimed_by,
+                })
+                .collect();
+        }
     }
 }
 
