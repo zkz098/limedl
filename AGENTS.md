@@ -81,10 +81,10 @@ Tauri commands and WebSocket RPC both dispatch through the same registry.
 ### Startup & shutdown
 
 **Tauri** (`src-tauri/src/lib.rs`):
-state dirs → RateLimiter → EventBus → DownloadManager → IrontideBtBackend → CdnAccelerator → BackendRegistry → optional Aria2 RPC → app.manage(AppState)
+state dirs → RateLimiter → EventBus → DownloadManager → IrontideBtBackend → CdnService → BackendRegistry → optional Aria2 RPC → app.manage(AppState)
 
 **NAS daemon** (`crates/limedl-server/src/main.rs`):
-config load → state dirs → RateLimiter → EventBus → DownloadManager → BackendRegistry → axum router (WebSocket RPC + static files) → serve
+config load → state dirs → RateLimiter → EventBus → DownloadManager → CdnService → BackendRegistry → axum router (WebSocket RPC + static files) → serve
 
 ### Rust edition & lib names
 
@@ -137,10 +137,24 @@ Moved to standalone guides — read them before touching download pipeline or I/
 
 ## CI (`.github/workflows/ci.yml`)
 
-- Ubuntu-latest only
-- Frontend: Node.js 24 + corepack → `pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm exec vue-tsc --noEmit` → `pnpm run test`
-- Rust: `cargo check --workspace` → `cargo clippy --workspace -- -D warnings` → `cargo test --workspace`
-- Rust clippy denies all warnings
+Six-job matrix across three platforms:
+
+| Job | OS | Key steps |
+|-----|----|-----------|
+| **lint-typescript** | ubuntu-latest | `pnpm install --frozen-lockfile` → `pnpm run lint` → `vue-tsc --noEmit` → `pnpm run test` |
+| **check-windows** | windows-latest | `cargo clippy --workspace -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
+| **check-macos** | macos-14 | `cargo clippy --workspace -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
+| **check-rust** | ubuntu-latest | `cargo clippy --workspace -- -D warnings` → ts-rs bindings freshness check (see below) → 3× per-crate `cargo test` |
+| **bench-rust** | ubuntu-latest | `cargo bench` for `aimd` + `rate_limiter` benchmarks, with baseline comparison on `push` |
+| **supply-chain** | ubuntu-latest | `cargo deny check` (bans + licenses + sources) + `cargo audit` |
+
+Key constraints:
+
+- **clippy denies all warnings** (`-- -D warnings`) across all Rust jobs.
+- **ts-rs bindings freshness**: On `check-rust`, `cargo test --features ts export_typescript_bindings` regenerates `.ts` files, then `git diff --exit-code src/types/generated/ src/lib/ws/generated/` fails the job if generated files are out of sync with Rust structs/WS_COMMANDS. See [Frontend TS type generation](#frontend-ts-type-generation-ts-rs) and [WebSocket manifest 代码生成](#websocket-manifest-代码生成).
+- **Per-crate test** (not `--workspace`): core + server + Tauri each run separately with appropriate features (`test-utils,aria2-rpc` for core, no extra features for server, `test-utils` for Tauri).
+- **Windows build**: Uses `lld-link` linker for faster linking; ComCtl32 manifest is embedded via `build.rs` (harmless `LNK4078` warning — see [Known warnings](#known-warnings)).
+- **macOS**: No system deps needed (WebKit bundled with OS).
 
 ## Frontend UI
 
@@ -157,6 +171,113 @@ Moved to standalone guides — read them before touching download pipeline or I/
 ## Build flags
 
 - `.cargo/config.toml` sets `target-cpu=x86-64-v3` for x86_64 targets (app targets modern desktops — Haswell 2013+ / Excavator 2015+). macOS aarch64 is unaffected.
+
+## Frontend TS type generation (ts-rs)
+
+> **After adding/modifying any Rust struct/enum that is serialized to the frontend**, regenerate TypeScript bindings:
+
+```powershell
+# Initialize MSVC env first (Windows)
+& "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+# Regenerate
+$env:TS_RS_EXPORT_DIR="."
+cargo test --manifest-path crates/limedl-core/Cargo.toml --features ts -- export_typescript_bindings
+```
+
+This writes type definitions to `src/types/generated/types.ts`. The generated file must be committed alongside Rust changes.
+
+**Architecture:**
+- `crates/limedl-core/` has `ts-rs` as an **optional** dependency behind the `ts` feature (`ts-rs = { version = "12", optional = true }`; ts-rs v12 内置 serde-compat，Cargo.toml 中只需指定 version + optional = true，无需额外 feature 声明).
+- Types annotated with `#[cfg_attr(feature = "ts", derive(TS))]` and `#[cfg_attr(feature = "ts", ts(export, export_to = "..."))]` auto-export when compiled with `--features ts`.
+- The export test in `crates/limedl-core/src/tests/ts_export.rs` triggers export via `export_all()` calls.
+- The frontend files `src/types/settings.ts`, `src/types/download.ts`, and `src/types/cdn.ts` re-export generated types and add only pure-frontend types not present in Rust.
+
+**Rules:**
+- Never manually edit TypeScript types that match Rust serialized structs — edit the Rust source and regenerate.
+- After regenerating, run `git diff --stat src/types/generated/types.ts` to verify.
+- The CI's `check-rust` job (`.github/workflows/ci.yml`) should run the following step after `cargo clippy`:
+  ```yaml
+  - name: Check ts-rs bindings are up-to-date
+    run: |
+      cargo test --manifest-path crates/limedl-core/Cargo.toml --features ts export_typescript_bindings
+      git diff --exit-code src/types/generated/ src/lib/ws/generated/
+  ```
+  This ensures generated `.ts` files are committed alongside Rust changes. CI fails if the generated files are out of sync.
+
+## WebSocket manifest 代码生成
+
+> `src/lib/ws/ws-invoke.ts` 中的 `METHOD_MAP`（命令名映射）和 `applyTransform`（参数转换）不再手工维护。
+> 所有 WebSocket JSON-RPC 命令的注册信息统一声明在 Rust 端，构建时自动生成 TypeScript 文件。
+
+**Source of truth**: `crates/limedl-core/src/ws_manifest.rs`
+
+- [`WsCommandSpec`] 结构体定义：`tauri_name`（snake_case 命令名）、`rpc_method`（JSON-RPC method）、`param_transform`（参数变换方式）
+- [`ParamTransform`] enum：`Identity`（透传）、`Rename`（重命名单字段）、`UnwrapField`（展开嵌套对象）
+- [`WS_COMMANDS`] 常量数组列出全部命令——当前 32 条
+
+**生成时机**：`cargo test --features ts export_typescript_bindings`
+
+输出文件：`src/lib/ws/generated/ws-commands.ts`
+- `WsCommandSpec` TypeScript interface
+- `WS_COMMANDS` 常量数组
+- `METHOD_MAP` 便利查询表
+
+**添加新 WS 命令的步骤**：
+
+1. 在 `crates/limedl-core/src/ws_manifest.rs` 的 `WS_COMMANDS` 数组中添加一个 `WsCommandSpec` 条目
+2. 在 `crates/limedl-server/src/rpc.rs` 的 `dispatch_method` 中添加对应 handler 分支（并且如果命令属于分组 dispatch（如 download action、BT details、CDN routes），还需要在对应 sub-handler 中添加分支）
+3. 运行 `cargo test --features ts export_typescript_bindings` 自动生成 `src/lib/ws/generated/ws-commands.ts`
+4. 如果新命令需要特殊的参数转换（非 Identity），在 `ParamTransform` enum 中添加变体并在 `applyTransform` 函数（`src/lib/ws/ws-invoke.ts`）中处理新 kind
+5. 提交 ws_manifest.rs、rpc.rs 和生成的 ws-commands.ts
+
+> ⚠️ **rpc.rs 一致性警告**：`crates/limedl-core/src/ws_manifest.rs` 中的一致性测试 `all_rpc_methods_have_dispatch_arms` 会在编译期读取 rpc.rs 源码并验证每个 `tauri_name` 字符串都出现在 dispatch handler 中。如果忘记更新 rpc.rs，该测试会 fail。
+
+**不需要做的**：
+- 不再手工编辑 `METHOD_MAP`（已从 ws-invoke.ts 删除）
+- 不再手工添加 `transformParams` case 分支（已替换为通用 `applyTransform`）
+
+**CI 校验**：`git diff --exit-code src/types/generated/ src/lib/ws/generated/` 确保生成文件与 Rust 源同步。
+
+## WebSocket event manifest 代码生成
+
+> `src/lib/ws/ws-invoke.ts` 中的 `mapEventType`（事件名映射）不再手工维护。
+> 所有 WebSocket JSON-RPC notification 事件名的映射统一声明在 Rust 端，构建时自动生成 TypeScript 文件。
+
+**Source of truth**: `crates/limedl-core/src/ws_manifest.rs`（与命令 manifest 同一文件）
+
+- [`WsEventSpec`] 结构体定义：`ws_type`（RPC notification 的 type 字段值）、`tauri_event_name`（Tauri 前端事件名）
+- [`WS_EVENTS`] 常量数组列出全部事件映射——当前 6 条（覆盖 6 个 `DownloadEvent` variant：
+  - `updated` ↔ `download-updated`
+  - `progress` ↔ `download-progress`
+  - `aria2Notification` ↔ `aria2-notification`
+  - `cdnProgress` ↔ `cdn-test-progress`
+  - `cdnComplete` ↔ `cdn-test-complete`
+  - `warning` ↔ `download-warning`）
+
+**生成时机**：`cargo test --features ts export_typescript_bindings`
+
+输出文件：`src/lib/ws/generated/ws-events.ts`
+- `WsEventSpec` TypeScript interface
+- `WS_EVENTS` 常量数组
+- `EVENT_TYPE_MAP` 便利查询表（`ws_type` → `tauri_event_name`）
+
+**添加新 DownloadEvent variant 的步骤**：
+
+1. 在 `crates/limedl-core/src/event_bus/mod.rs` 的 `DownloadEvent` enum 中添加新 variant
+2. 在 `crates/limedl-core/src/ws_manifest.rs` 的 `WS_EVENTS` 数组中添加一个 `WsEventSpec` 条目
+3. 在 `src-tauri/src/lib.rs` 的 Tauri adapter event relay match 中添加对应 emit 分支
+4. 在 `crates/limedl-server/src/rpc.rs` 的 RPC adapter event relay match 中添加对应 notification handler 分支
+5. 运行 `cargo test --features ts export_typescript_bindings` 自动重新生成 `src/lib/ws/generated/ws-events.ts`
+6. 提交 event_bus/mod.rs、ws_manifest.rs、lib.rs、rpc.rs 和生成的 ws-events.ts
+
+> ⚠️ **一致性警告**：`ws_manifest.rs` 中的一致性测试 `ws_event_types_appear_in_rpc_adapter` 和 `ws_event_tauri_names_appear_in_lib_rs` 会在编译期读取 rpc.rs 和 lib.rs 源码，验证每个 `ws_type` 和 `tauri_event_name` 字符串分别出现在对应文件的 event relay handler 中。如果忘记更新任意一端，对应测试会 fail。
+>
+> 例外：`aria2Notification` 的 Tauri adapter 使用动态 event_name（直接透传 BT 后端的原始事件名），不在 lib.rs 中检查固定字符串。
+
+**不需要做的**：
+- 不再手工编辑 `mapEventType` 的 switch case（已替换为通用 `EVENT_TYPE_MAP` 查表）
+
+**CI 校验**：`git diff --exit-code src/types/generated/ src/lib/ws/generated/` 已覆盖 ws-events.ts，无需额外配置。
 
 ## Known warnings
 

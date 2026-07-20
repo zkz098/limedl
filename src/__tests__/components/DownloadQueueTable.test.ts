@@ -48,15 +48,23 @@ function createMockDownload(overrides: Record<string, unknown> = {}): DownloadSu
     downloadedBytes: 512 * 1024,
     connectionCount: 4,
     threadMode: "adaptive",
+    requestedThreadCount: null,
+    desiredThreadCount: null,
+    allocatedThreadCount: null,
+    adaptiveProfile: null,
+    threadNote: null,
     speedBytesPerSecond: 1024 * 100,
     etaSeconds: 5,
-    error: undefined,
+    uploadedBytes: null,
+    uploadSpeedBytesPerSecond: null,
+    peerCount: null,
+    uploadStatus: null,
+    infoHash: null,
+    error: null,
     cdnAccelerated: false,
-    degraded: false,
-    flushing: false,
     createdAtMs: 1000,
     ...overrides,
-  } as DownloadSummary;
+  } as unknown as DownloadSummary;
 }
 
 // ── Stubs ──

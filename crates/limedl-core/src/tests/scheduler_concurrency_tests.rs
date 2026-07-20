@@ -23,7 +23,7 @@ async fn scheduler_respects_max_parallel_tasks() {
     {
         let mut settings = dm.settings().await.unwrap();
         settings.scheduler.traditional.max_parallel_tasks = 2;
-        dm.update_settings(settings).await.unwrap();
+        dm.apply_settings(settings).await.unwrap();
     }
 
     // Start 5 downloads

@@ -1,7 +1,7 @@
 ﻿use async_trait::async_trait;
 
 use super::error::Result;
-use super::types::{DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};
+use super::types::{AppSettings, DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};
 
 /// Minimal common interface for all download protocol backends.
 /// Each backend is responsible for its own ID prefix handling.
@@ -18,4 +18,10 @@ pub trait DownloadBackend: Send + Sync + 'static {
     async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()>;
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
     async fn list(&self) -> Result<Vec<DownloadSummary>>;
+
+    /// Broadcast settings update to this backend.
+    async fn update_settings(&self, settings: &AppSettings) -> Result<()>;
+
+    /// Gracefully shut down this backend.
+    async fn shutdown(&self);
 }

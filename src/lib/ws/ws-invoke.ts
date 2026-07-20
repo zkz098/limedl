@@ -1,109 +1,57 @@
 // WebSocket-based invoke function mirroring @tauri-apps/api/core's invoke<T>()
 // Uses JSON-RPC 2.0 protocol over a single shared WebSocket connection.
 // Includes automatic reconnection with exponential backoff.
+//
+// Command names and parameter transforms are auto-generated from the Rust
+// source of truth (crates/limedl-core/src/ws_manifest.rs). Do NOT manually
+// edit METHOD_MAP or transformParams here — regenerate instead:
+//   cargo test --features ts export_typescript_bindings
 
 import { ref } from "vue";
-
-// Tauri command name → JSON-RPC method name
-const METHOD_MAP: Record<string, string> = {
-  download_start: 'download.start',
-  download_pause: 'download.pause',
-  download_resume: 'download.resume',
-  download_cancel: 'download.cancel',
-  download_remove: 'download.remove',
-  download_purge: 'download.purge',
-  download_status: 'download.status',
-  download_list: 'download.list',
-  download_open_in_explorer: 'download.openInExplorer',
-  settings_get: 'settings.get',
-  settings_save: 'settings.save',
-  bt_runtime_status: 'bt.runtimeStatus',
-  bt_set_speed_limit: 'bt.setSpeedLimit',
-  bt_preview_torrent: 'bt.previewTorrent',
-  bt_get_peers: 'bt.getPeers',
-  bt_get_trackers: 'bt.getTrackers',
-  bt_get_pieces: 'bt.getPieces',
-  get_bt_files: 'bt.getFiles',
-  update_bt_files: 'bt.updateFiles',
-  cdn_fetch_ranges: 'cdn.fetchRanges',
-  cdn_test: 'cdn.test',
-  cdn_apply: 'cdn.apply',
-  cdn_clear: 'cdn.clear',
-  cdn_status: 'cdn.status',
-  cdn_cancel: 'cdn.cancel',
-  cdn_detail: 'cdn.detail',
-  cdn_candidates: 'cdn.candidates',
-  toggle_game_mode: 'settings.toggleGameMode',
-  get_io_status: 'settings.getIoStatus',
-  toggle_overclock_mode: 'settings.toggleOverclockMode',
-  get_overclock_mode: 'settings.getOverclockMode',
-  settings_fetch_tracker_list: 'settings.fetchTrackerList',
-};
+import { METHOD_MAP, WS_COMMANDS } from "./generated/ws-commands";
+import type { WsCommandSpec } from "./generated/ws-commands";
+import { EVENT_TYPE_MAP } from "./generated/ws-events";
 
 function isNonNullObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function transformParams(cmd: string, args?: Record<string, unknown>): Record<string, unknown> {
+/**
+ * Apply parameter transformation according to the manifest spec.
+ *
+ * Replaces the previous hardcoded 12-rule switch statement with a generic
+ * handler driven by the transform kind declared in `WS_COMMANDS`.
+ */
+function applyTransform(spec: WsCommandSpec | undefined, args?: Record<string, unknown>): Record<string, unknown> {
   if (!args) return {};
+  if (!spec) return args;
 
-  switch (cmd) {
-    // download_start: unwrap { request: StartDownloadRequest } → StartDownloadRequest
-    case 'download_start':
-      return isNonNullObject(args.request) ? args.request : args;
-
-    // Commands that rename downloadId → taskId
-    case 'download_pause':
-    case 'download_resume':
-    case 'download_cancel':
-    case 'download_remove':
-    case 'download_purge':
-    case 'download_status':
-    case 'download_open_in_explorer':
-      return { taskId: args.downloadId };
-
-    // settings_save: { settings: AppSettings } → AppSettings (flat)
-    case 'settings_save':
-      return isNonNullObject(args.settings) ? args.settings : args;
-
-    // bt_set_speed_limit: rename params
-    case 'bt_set_speed_limit':
-      return {
-        taskId: args.downloadId,
-        downloadLimitBps: args.downloadLimitBps,
-        uploadLimitBps: args.uploadLimitBps,
-      };
-
-    // bt_preview_torrent: { source } → { source }
-    case 'bt_preview_torrent':
-      return { source: args.source };
-
-    // bt_get_peers/trackers/pieces/files: { downloadId } → { taskId }
-    case 'bt_get_peers':
-    case 'bt_get_trackers':
-    case 'bt_get_pieces':
-    case 'get_bt_files':
-      return { taskId: args.downloadId };
-
-    // update_bt_files: { downloadId, includedIndices } → { taskId, includedIndices }
-    case 'update_bt_files':
-      return { taskId: args.downloadId, includedIndices: args.includedIndices };
-
-    // cdn_apply: { ip, speedMbps } → { ip, speedMbps }
-    case 'cdn_apply':
-      return { ip: args.ip, speedMbps: args.speedMbps };
-
-    // toggle_game_mode / toggle_overclock_mode: { enabled } → { enabled }
-    case 'toggle_game_mode':
-    case 'toggle_overclock_mode':
-      return { enabled: args.enabled };
-
-    // settings_fetch_tracker_list: { trackerListUrl } → { trackerListUrl }
-    case 'settings_fetch_tracker_list':
-      return { trackerListUrl: args.trackerListUrl };
-
-    default:
+  switch (spec.paramTransform.kind) {
+    case 'identity':
       return args;
+
+    case 'rename': {
+      // Rename preserves all fields from `args` (not just `to`), unlike the
+      // old per-command whitelist that only kept known keys. Safe because
+      // typed wrappers don't pass extra fields and serde ignores unknowns.
+      const { from, to } = spec.paramTransform;
+      if (from in args) {
+        const result = { ...args };
+        result[to] = result[from];
+        delete result[from];
+        return result;
+      }
+      return args;
+    }
+
+    case 'unwrapField': {
+      const { field } = spec.paramTransform;
+      const value = args[field];
+      if (isNonNullObject(value)) {
+        return value as Record<string, unknown>;
+      }
+      return args;
+    }
   }
 }
 
@@ -312,22 +260,7 @@ function getWs(): Promise<WebSocket> {
 }
 
 function mapEventType(type: string, _payload: unknown): string | null {
-  switch (type) {
-    case 'updated':
-      return 'download-updated';
-    case 'progress':
-      return 'download-progress';
-    case 'aria2Notification':
-      return 'aria2-notification';
-    case 'cdnProgress':
-      return 'cdn-test-progress';
-    case 'cdnComplete':
-      return 'cdn-test-complete';
-    case 'warning':
-      return 'download-warning';
-    default:
-      return null;
-  }
+  return EVENT_TYPE_MAP[type] ?? null;
 }
 
 export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -346,7 +279,8 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
     }, 30000);
 
     const method = METHOD_MAP[cmd] || cmd;
-    const params = transformParams(cmd, args);
+    const spec = WS_COMMANDS.find(c => c.tauriName === cmd);
+    const params = applyTransform(spec, args);
 
     const message: Record<string, unknown> = {
       jsonrpc: '2.0',

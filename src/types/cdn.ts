@@ -1,29 +1,18 @@
-/** A single candidate IP from the CDN speed test. */
-export interface SpeedTestCandidate {
-  ip: string;
-  tcpLatencyMs: number;
-  throughputMbps: number | null;
-  error: string | null;
-}
+// ── Re-exported generated types (single source of truth from Rust) ──
+export type {
+  CdnTestPhase,
+  CdnTestProgress,
+  DefaultNodeResult,
+  SpeedTestResult,
+} from "./generated/types";
 
-/** Baseline measurement of the default DNS-resolved node (no IP override). */
-export interface DefaultNodeResult {
-  ip: string | null;
-  tcpLatencyMs: number;
-  throughputMbps: number | null;
-  error: string | null;
-}
+// ── Tauri-layer composite types (defined in src-tauri, not limedl-core) ──
+
+/** A single candidate IP from the CDN speed test. */
+export type SpeedTestCandidate = import("./generated/types").SpeedTestResult;
 
 /** Progress counter for a CDN test phase. */
 export interface PhaseProgress {
-  current: number;
-  total: number;
-}
-
-/** Progress event payload emitted via the `cdn-test-progress` Tauri event. */
-export interface CdnTestProgress {
-  /** Phase name in camelCase: "fetchingRanges" | "screening" | "measuringThroughput". */
-  phase: "fetchingRanges" | "screening" | "measuringThroughput";
   current: number;
   total: number;
 }
@@ -38,5 +27,5 @@ export interface CdnDetail {
   phaseProgress: PhaseProgress | null;
   /** All candidate IPs from the most recent speed test. */
   candidates: SpeedTestCandidate[];
-  defaultNode: DefaultNodeResult | null;
+  defaultNode: import("./generated/types").DefaultNodeResult | null;
 }

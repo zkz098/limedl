@@ -371,7 +371,7 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     {
         let downloads = dm.downloads.read().await;
         if let Some(managed) = downloads.get(&id.to_string()) {
-            dm.emit_single_summary(managed);
+            dm.task_lifecycle.emit_single_summary(dm, managed);
         }
     }
 
@@ -881,7 +881,7 @@ async fn handle_change_global_option(
         // global limits are not yet implemented.
     }
 
-    dm.update_settings(settings)
+    dm.apply_settings(settings)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 

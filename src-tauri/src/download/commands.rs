@@ -3,11 +3,9 @@ use std::time::Duration;
 use anyhow::{Context, anyhow};
 use tauri::State;
 
-use super::IrontideBtBackend;
 use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::{
     error::extract_kind_from_anyhow,
-    event_bus::DownloadEvent,
     lock,
     manager::{AppState, DownloadManager},
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
@@ -16,6 +14,7 @@ use limedl_core::{
         DownloadSnapshot, DownloadSummary, SerializableError, StartDownloadRequest, TaskId,
         TorrentFileEntry,
     },
+    Dispatcher,
 };
 use serde_json::json;
 
@@ -27,6 +26,11 @@ fn into_command_result<T>(result: anyhow::Result<T>) -> CommandResult<T> {
         let message = format_anyhow_chain(error);
         SerializableError { kind, message }
     })
+}
+
+/// Shim: convert a dispatcher `Result<T, DownloadError>` into `CommandResult<T>`.
+fn map_dl_err<T>(result: std::result::Result<T, limedl_core::DownloadError>) -> CommandResult<T> {
+    into_command_result(result.map_err(|e| anyhow!(e)))
 }
 
 fn format_anyhow_chain(error: anyhow::Error) -> String {
@@ -48,14 +52,8 @@ fn internal_error(msg: &str) -> anyhow::Error {
     anyhow!(msg.to_string())
 }
 
-/// Emit a single `download-updated` event for the given snapshot.
-fn emit_snapshot_update(state: &AppState, snapshot: &DownloadSnapshot) {
-    let summary = DownloadSummary::from(snapshot);
-    let summary_json = serde_json::to_value(&summary).unwrap_or_default();
-    let id = summary.id.clone();
-    state
-        .event_bus
-        .publish(DownloadEvent::Updated { id, summary_json });
+fn make_dispatcher(state: &AppState) -> Dispatcher {
+    Dispatcher::new(state.registry.clone(), state.event_bus.clone())
 }
 
 #[tauri::command]
@@ -76,23 +74,18 @@ pub async fn download_start(
                 request.mirror_urls = Some(mirror_urls);
             }
 
-            let kind = request
-                .classify_kind()
-                .map_err(|e| anyhow!(e))
-                .context("无法识别下载任务类型")?;
-            let backend = state
-                .registry
-                .by_kind(kind)
-                .map_err(|e| internal_error(&e.to_string()))?;
-            backend.start(request).await.context("启动下载任务失败")
+            let dispatcher = make_dispatcher(&state);
+            dispatcher.start(request).await.map_err(|e| anyhow!(e))
         }
         .await,
     );
-    if let Ok(ref task_id) = result
-        && let Ok(backend) = state.registry.dispatch(task_id)
-        && let Ok(snapshot) = backend.status(task_id).await
-    {
-        emit_snapshot_update(&state, &snapshot);
+    // Emit after start so the frontend gets the initial summary immediately.
+    // (BT backend already emits via emit_pending_summary; extra emit is harmless.)
+    if let Ok(ref task_id) = result {
+        let dispatcher = make_dispatcher(&state);
+        if let Ok(snapshot) = dispatcher.status(task_id).await {
+            dispatcher.emit_updated(&snapshot);
+        }
     }
     result
 }
@@ -106,20 +99,7 @@ pub async fn download_pause(
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
-    let result = into_command_result(
-        async {
-            let backend = state
-                .registry
-                .dispatch(&task_id)
-                .map_err(|e| internal_error(&e.to_string()))?;
-            backend.pause(&task_id).await.context("暂停下载任务失败")
-        }
-        .await,
-    );
-    if let Ok(ref snapshot) = result {
-        emit_snapshot_update(&state, snapshot);
-    }
-    result
+    map_dl_err(make_dispatcher(&state).pause(&task_id).await)
 }
 
 #[tauri::command]
@@ -131,20 +111,7 @@ pub async fn download_resume(
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
-    let result = into_command_result(
-        async {
-            let backend = state
-                .registry
-                .dispatch(&task_id)
-                .map_err(|e| internal_error(&e.to_string()))?;
-            backend.resume(&task_id).await.context("恢复下载任务失败")
-        }
-        .await,
-    );
-    if let Ok(ref snapshot) = result {
-        emit_snapshot_update(&state, snapshot);
-    }
-    result
+    map_dl_err(make_dispatcher(&state).resume(&task_id).await)
 }
 
 #[tauri::command]
@@ -156,16 +123,7 @@ pub async fn download_cancel(
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
-    into_command_result(
-        async {
-            let backend = state
-                .registry
-                .dispatch(&task_id)
-                .map_err(|e| internal_error(&e.to_string()))?;
-            backend.cancel(&task_id).await.context("取消下载任务失败")
-        }
-        .await,
-    )
+    map_dl_err(make_dispatcher(&state).cancel(&task_id).await)
 }
 
 #[tauri::command]
@@ -177,16 +135,7 @@ pub async fn download_remove(
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
-    into_command_result(
-        async {
-            let backend = state
-                .registry
-                .dispatch(&task_id)
-                .map_err(|e| internal_error(&e.to_string()))?;
-            backend.remove(&task_id).await.context("移除下载任务失败")
-        }
-        .await,
-    )
+    map_dl_err(make_dispatcher(&state).remove(&task_id).await)
 }
 
 #[tauri::command]
@@ -198,19 +147,7 @@ pub async fn download_purge(
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
-    into_command_result(
-        async {
-            let backend = state
-                .registry
-                .dispatch(&task_id)
-                .map_err(|e| internal_error(&e.to_string()))?;
-            backend
-                .purge(&task_id)
-                .await
-                .context("彻底删除下载任务失败")
-        }
-        .await,
-    )
+    map_dl_err(make_dispatcher(&state).purge(&task_id).await)
 }
 
 #[tauri::command]
@@ -246,38 +183,17 @@ pub async fn download_status(
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
-    into_command_result(
-        async {
-            let backend = state
-                .registry
-                .dispatch(&task_id)
-                .map_err(|e| internal_error(&e.to_string()))?;
-            backend
-                .status(&task_id)
-                .await
-                .context("查询下载任务状态失败")
-        }
-        .await,
-    )
+    map_dl_err(make_dispatcher(&state).status(&task_id).await)
 }
 
 #[tauri::command]
 pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<DownloadSummary>> {
-    into_command_result(Ok(state.registry.list_all().await))
+    map_dl_err(make_dispatcher(&state).list().await)
 }
 
 #[tauri::command]
 pub async fn bt_runtime_status(state: State<'_, AppState>) -> CommandResult<BtRuntimeStatus> {
-    into_command_result(
-        async {
-            let bt = state
-                .registry
-                .get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| internal_error("BT backend not registered"))?;
-            Ok(bt.runtime_status())
-        }
-        .await,
-    )
+    map_dl_err(make_dispatcher(&state).bt_runtime_status())
 }
 
 #[tauri::command]
@@ -316,7 +232,7 @@ pub async fn settings_save(
 
             // Sync CDN acceleration settings — clear accelerator when disabled
             if !saved.cdn_acceleration.enabled {
-                state.cdn_accelerator.clear().await;
+                state.cdn_service.clear().await;
             }
 
             let new_rpc = &saved.aria2_rpc;
@@ -400,21 +316,10 @@ pub async fn bt_set_speed_limit(
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
-    let TaskId::Bt(info_hash) = &task_id else {
-        return Err(SerializableError {
-            kind: String::from("unsupported"),
-            message: String::from("speed limit only supported for BT tasks"),
-        });
-    };
-    let bt = state
-        .registry
-        .get_typed::<IrontideBtBackend>()
-        .ok_or_else(|| SerializableError {
-            kind: String::from("internal"),
-            message: String::from("BT backend not registered"),
-        })?;
-    bt.set_speed_limit(*info_hash, download_limit_bps, upload_limit_bps);
-    Ok(())
+    map_dl_err(
+        make_dispatcher(&state)
+            .bt_set_speed_limit(&task_id, download_limit_bps, upload_limit_bps),
+    )
 }
 
 #[tauri::command]
@@ -422,18 +327,7 @@ pub async fn bt_preview_torrent(
     state: State<'_, AppState>,
     source: String,
 ) -> CommandResult<Vec<TorrentFileEntry>> {
-    into_command_result(
-        async {
-            let bt = state
-                .registry
-                .get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.preview_torrent(&source)
-                .await
-                .context("预览 BT 种子文件失败")
-        }
-        .await,
-    )
+    map_dl_err(make_dispatcher(&state).bt_preview_torrent(&source).await)
 }
 
 #[tauri::command]
@@ -441,21 +335,11 @@ pub async fn bt_get_peers(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtPeerInfo>> {
-    into_command_result(
-        async {
-            let task_id = TaskId::from_legacy_string(&download_id)
-                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
-            let TaskId::Bt(info_hash) = &task_id else {
-                return Err(anyhow!("Not a BT task"));
-            };
-            let bt = state
-                .registry
-                .get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_peers(*info_hash).context("查询 BT 节点信息失败")
-        }
-        .await,
-    )
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    map_dl_err(make_dispatcher(&state).bt_get_peers(&task_id))
 }
 
 #[tauri::command]
@@ -463,22 +347,11 @@ pub async fn bt_get_trackers(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtTrackerInfo>> {
-    into_command_result(
-        async {
-            let task_id = TaskId::from_legacy_string(&download_id)
-                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
-            let TaskId::Bt(info_hash) = &task_id else {
-                return Err(anyhow!("Not a BT task"));
-            };
-            let bt = state
-                .registry
-                .get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_trackers(*info_hash)
-                .context("查询 BT 追踪器信息失败")
-        }
-        .await,
-    )
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    map_dl_err(make_dispatcher(&state).bt_get_trackers(&task_id))
 }
 
 #[tauri::command]
@@ -486,21 +359,11 @@ pub async fn bt_get_pieces(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtPieceInfo>> {
-    into_command_result(
-        async {
-            let task_id = TaskId::from_legacy_string(&download_id)
-                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
-            let TaskId::Bt(info_hash) = &task_id else {
-                return Err(anyhow!("Not a BT task"));
-            };
-            let bt = state
-                .registry
-                .get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_pieces(*info_hash).context("查询 BT 分片信息失败")
-        }
-        .await,
-    )
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    map_dl_err(make_dispatcher(&state).bt_get_pieces(&task_id))
 }
 
 #[tauri::command]
@@ -508,22 +371,11 @@ pub async fn get_bt_files(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtFileStatus>> {
-    into_command_result(
-        async {
-            let task_id = TaskId::from_legacy_string(&download_id)
-                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
-            let TaskId::Bt(info_hash) = &task_id else {
-                return Err(anyhow!("Not a BT task"));
-            };
-            let bt = state
-                .registry
-                .get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.get_torrent_files(*info_hash)
-                .context("查询 BT 文件列表失败")
-        }
-        .await,
-    )
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    map_dl_err(make_dispatcher(&state).bt_get_files(&task_id))
 }
 
 #[tauri::command]
@@ -532,23 +384,11 @@ pub async fn update_bt_files(
     download_id: String,
     included_indices: Vec<usize>,
 ) -> CommandResult<()> {
-    into_command_result(
-        async {
-            let task_id = TaskId::from_legacy_string(&download_id)
-                .map_err(|e| anyhow!("Invalid task ID: {e}"))?;
-            let TaskId::Bt(info_hash) = &task_id else {
-                return Err(anyhow!("Not a BT task"));
-            };
-            let bt = state
-                .registry
-                .get_typed::<IrontideBtBackend>()
-                .ok_or_else(|| internal_error("BT backend not registered"))?;
-            bt.update_torrent_files(*info_hash, included_indices)
-                .await
-                .context("更新 BT 文件选择失败")
-        }
-        .await,
-    )
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    map_dl_err(make_dispatcher(&state).bt_update_files(&task_id, included_indices).await)
 }
 
 #[tauri::command]

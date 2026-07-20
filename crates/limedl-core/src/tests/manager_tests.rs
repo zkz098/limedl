@@ -174,7 +174,7 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
         Arc::new(EventBus::new(1024)),
     )?;
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             appearance: Default::default(),
             proxy: ProxySettings::default(),
             scheduler: SchedulerSettings {
@@ -281,7 +281,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         Arc::new(EventBus::new(1024)),
     )?;
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             appearance: Default::default(),
             proxy: ProxySettings::default(),
             scheduler: SchedulerSettings {
@@ -381,7 +381,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
         Arc::new(EventBus::new(1024)),
     )?;
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             appearance: Default::default(),
             proxy: ProxySettings::default(),
             scheduler: SchedulerSettings {
@@ -429,8 +429,8 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
         .await?;
 
     sleep(Duration::from_secs(2)).await;
-    manager.update_adaptive_targets().await?;
-    manager.rebalance_allocations().await?;
+    manager.scheduler.update_adaptive_targets(&manager).await?;
+    manager.scheduler.rebalance_allocations(&manager).await?;
     let snapshot = manager.status(&id.to_string()).await?;
     assert!(matches!(
         snapshot.desired_thread_count,
@@ -831,7 +831,7 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
 
     assert_eq!(manager.downloads.read().await.len(), 4);
 
-    let evicted = manager.evict_completed().await;
+    let evicted = manager.task_lifecycle.evict_completed(&manager).await;
     // limit=2, excess=2, terminal=[completed-old, completed-new, failed]
     // Should evict the 2 oldest terminal entries: completed-old and completed-new
     assert_eq!(evicted, 2, "should have evicted 2 terminal entries");

@@ -6,14 +6,14 @@
 
 **涉及文件**：
 
-- `crates/limedl-core/src/bt_backend_own/mod.rs` (~115 行) — IrontideBtBackend 结构体定义 + DownloadBackend trait 实现
+- `crates/limedl-core/src/bt_backend_own/mod.rs` — IrontideBtBackend 结构体定义 + DownloadBackend trait 实现
 - `crates/limedl-core/src/bt_backend_own/lifecycle.rs` — 生命周期方法（start/pause/resume/cancel/remove/purge）
-- `crates/limedl-core/src/bt_backend_own/session.rs` (148 行) — irontide Session 初始化/关闭
-- `crates/limedl-core/src/bt_backend_own/snapshot.rs` (187 行) — 从 irontide stats 构建 DownloadSnapshot
-- `crates/limedl-core/src/bt_backend_own/queries.rs` (283 行) — 对等节点/区块/tracker/file 状态查询
-- `crates/limedl-core/src/bt_backend_own/alerts.rs` (291 行) — irontide 告警事件桥接
-- `crates/limedl-core/src/bt_backend_own/uploads.rs` (111 行) — 上传策略循环
-- `crates/limedl-core/src/bt_backend_own/tests.rs` (438 行)
+- `crates/limedl-core/src/bt_backend_own/session.rs` — irontide Session 初始化/关闭
+- `crates/limedl-core/src/bt_backend_own/snapshot.rs` — 从 irontide stats 构建 DownloadSnapshot
+- `crates/limedl-core/src/bt_backend_own/queries.rs` — 对等节点/区块/tracker/file 状态查询
+- `crates/limedl-core/src/bt_backend_own/alerts.rs` — irontide 告警事件桥接
+- `crates/limedl-core/src/bt_backend_own/uploads.rs` — 上传策略循环
+- `crates/limedl-core/src/bt_backend_own/tests.rs`
 
 ## 关键结构体
 

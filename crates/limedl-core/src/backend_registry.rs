@@ -80,21 +80,17 @@ impl BackendRegistry {
 
     /// Broadcast settings to all registered backends.
     pub async fn update_all_settings(&self, settings: &AppSettings) {
-        if let Some(dm) = self.get_typed::<crate::manager::DownloadManager>() {
-            let _ = dm.update_settings(settings.clone()).await;
-        }
-        if let Some(bt) = self.get_typed::<crate::bt_backend_own::IrontideBtBackend>() {
-            bt.update_settings(settings);
+        for backend in self.iter() {
+            if let Err(e) = backend.update_settings(settings).await {
+                tracing::warn!("failed to update settings for a backend: {e}");
+            }
         }
     }
 
     /// Gracefully shut down all registered backends.
     pub async fn shutdown_all(&self) {
-        if let Some(dm) = self.get_typed::<crate::manager::DownloadManager>() {
-            dm.shutdown().await;
-        }
-        if let Some(bt) = self.get_typed::<crate::bt_backend_own::IrontideBtBackend>() {
-            bt.shutdown().await;
+        for backend in self.iter() {
+            backend.shutdown().await;
         }
     }
 }

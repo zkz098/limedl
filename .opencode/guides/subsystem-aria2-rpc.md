@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `src-tauri/src/download/aria2_rpc.rs` (1066 行) — Axum WebSocket + HTTP JSON-RPC 服务器完整实现
+- `src-tauri/src/download/aria2_rpc.rs` — Axum WebSocket + HTTP JSON-RPC 服务器完整实现
 
 ## 关键结构体
 

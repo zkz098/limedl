@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `crates/limedl-core/src/file_ops/mod.rs` (~597 行) — 文件操作 + 磁盘检测
+- `crates/limedl-core/src/file_ops/mod.rs` — 文件操作 + 磁盘检测
 
 ## 关键结构体
 

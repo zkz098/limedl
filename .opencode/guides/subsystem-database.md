@@ -6,9 +6,9 @@
 
 **涉及文件**：
 
-- `crates/limedl-core/src/database.rs` (1499 行) — 数据库层完整实现
-- `crates/limedl-core/src/migration.rs` (231 行) — JSON → SQLite 迁移逻辑
-- `crates/limedl-core/src/persistence.rs` (154 行) — 从 DB 加载下载任务到内存
+- `crates/limedl-core/src/database.rs` — 数据库层完整实现
+- `crates/limedl-core/src/migration.rs` — JSON → SQLite 迁移逻辑
+- `crates/limedl-core/src/persistence.rs` — 从 DB 加载下载任务到内存
 
 ## 关键结构体
 

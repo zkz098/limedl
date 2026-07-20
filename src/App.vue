@@ -573,7 +573,7 @@ watch(
           <ErrorBoundary>
             <DetailPanel
               v-if="selectedId"
-              :selected-overview="selectedOverview"
+              :selected-overview="selectedOverview as import('./types/download').DownloadSummary | null"
               :selected-snapshot="selectedSnapshot"
               :selected-id="selectedId"
               :can-pause="canPause"

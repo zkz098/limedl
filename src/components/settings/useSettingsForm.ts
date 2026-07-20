@@ -1,6 +1,6 @@
 import { computed, reactive, ref, watch, type Ref } from "vue";
 
-import type { AppSettings } from "../../types/settings";
+import type { AppSettings, IoBaselineSettings } from "../../types/settings";
 import { serializeSettings, settingsDraftSnapshot } from "./settingsUtils";
 import { DEFAULT_HTTP_USER_AGENT, DEFAULT_TRACKER_LIST_URL } from "./useSettingsSummaries";
 
@@ -94,6 +94,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       enabled: true,
       port: 6800,
       secret: null,
+      corsAllowedOrigins: [],
     },
     cdnAcceleration: {
       enabled: false,
@@ -120,6 +121,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     autostart: false,
     setupCompleted: false,
     lastSetupStep: null,
+    maxInMemoryDownloads: 200,
   });
 
   const savedSettingsSnapshot = ref("");
@@ -202,6 +204,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         enabled: form.aria2Rpc.enabled,
         port: form.aria2Rpc.port,
         secret: form.aria2Rpc.secret?.trim() || null,
+        corsAllowedOrigins: form.aria2Rpc.corsAllowedOrigins ?? [],
       },
       cdnAcceleration: {
         ...form.cdnAcceleration,
@@ -216,14 +219,14 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       ioBaseline: {
         bufferLimitMb: Math.max(64, Math.min(32768, form.ioBaseline.bufferLimitMb ?? 1024)),
         gameModeBufferMb: Math.max(16, Math.min(4096, form.ioBaseline.gameModeBufferMb ?? 128)),
-        gameMode: form.ioBaseline.gameMode ?? false,
         diskTypeOverrides: { ...form.ioBaseline.diskTypeOverrides },
         maxParallelHdd: Math.max(1, Math.min(16, form.ioBaseline.maxParallelHdd ?? 4)),
         gameModeMaxParallel: Math.max(1, Math.min(8, form.ioBaseline.gameModeMaxParallel ?? 1)),
-      },
+      } as IoBaselineSettings,
       autostart: form.autostart ?? false,
       setupCompleted: form.setupCompleted ?? false,
       lastSetupStep: form.lastSetupStep ?? null,
+      maxInMemoryDownloads: form.maxInMemoryDownloads ?? 200,
     };
   }
 

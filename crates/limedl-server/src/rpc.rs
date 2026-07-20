@@ -1,10 +1,14 @@
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use futures_util::{SinkExt, StreamExt};
 use limedl_core::types::StartDownloadRequest;
 use limedl_core::types::TaskId;
-use limedl_core::{BackendRegistry, DownloadEvent, DownloadManager, EventBus};
+use limedl_core::{
+    BackendRegistry, CdnService, Dispatcher, DownloadEvent, DownloadManager, EventBus,
+};
+use limedl_core::ws_manifest::WS_COMMANDS;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -78,6 +82,8 @@ pub struct RpcState {
     pub clients: Arc<Mutex<Vec<tokio::sync::mpsc::UnboundedSender<Message>>>>,
     /// WebSocket JSON-RPC rate limiter (per-connection + global)
     pub rate_limiter: Arc<WsRateLimiter>,
+    /// CDN acceleration service
+    pub cdn_service: Arc<CdnService>,
 }
 
 /// Handle WebSocket upgrade and run JSON-RPC loop
@@ -351,38 +357,56 @@ async fn handle_rpc(text: &str, state: &RpcState) -> JsonRpcResponse {
     }
 }
 
+/// Lookup table: rpc_method → tauri_name, built once from WS_COMMANDS.
+static RPC_METHOD_TO_TAURI: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+
+fn rpc_to_tauri(method: &str) -> Option<&'static str> {
+    RPC_METHOD_TO_TAURI
+        .get_or_init(|| {
+            WS_COMMANDS
+                .iter()
+                .map(|c| (c.rpc_method, c.tauri_name))
+                .collect()
+        })
+        .get(method)
+        .copied()
+}
+
 /// Dispatch method name to the appropriate backend call.
-/// Returns the result value on success, or a `JsonRpcError` with an
-/// appropriate JSON-RPC 2.0 error code on failure.
+/// Uses the rpc_method → tauri_name lookup from WS_COMMANDS to derive the
+/// routing key, eliminating the dual-source problem between rpc.rs and
+/// ws_manifest.rs.
 async fn dispatch_method(
     method: &str,
     params: Option<&serde_json::Value>,
     state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
-    match method {
-        "download.start" => handle_download_start(params, state).await,
-        "download.list" => handle_download_list(state).await,
-        "download.status" | "download.pause" | "download.resume" | "download.cancel"
-        | "download.remove" | "download.purge" => {
+    let tauri_name =
+        rpc_to_tauri(method).ok_or_else(|| JsonRpcError::method_not_found(method))?;
+    match tauri_name {
+        "download_start" => handle_download_start(params, state).await,
+        "download_list" => handle_download_list(state).await,
+        "download_pause" | "download_resume" | "download_cancel" | "download_remove"
+        | "download_purge" | "download_status" => {
             handle_download_action(method, params, state).await
         }
-        "settings.get" => handle_settings_get(state).await,
-        "settings.save" => handle_settings_save(params, state).await,
-        "download.openInExplorer" => handle_open_in_explorer(params, state).await,
-        "settings.toggleGameMode" => handle_toggle_game_mode(params, state).await,
-        "settings.getIoStatus" => handle_get_io_status(state).await,
-        "settings.toggleOverclockMode" => handle_toggle_overclock_mode(params, state).await,
-        "settings.getOverclockMode" => handle_get_overclock_mode(state).await,
-        "settings.fetchTrackerList" => handle_fetch_tracker_list(params, state).await,
-        "bt.runtimeStatus" => handle_bt_runtime_status(state).await,
-        "bt.setSpeedLimit" => handle_bt_set_speed_limit(params, state).await,
-        "bt.previewTorrent" => handle_bt_preview_torrent(params, state).await,
-        "bt.getPeers" | "bt.getTrackers" | "bt.getPieces" | "bt.getFiles" => {
+        "settings_get" => handle_settings_get(state).await,
+        "settings_save" => handle_settings_save(params, state).await,
+        "download_open_in_explorer" => handle_open_in_explorer(params, state).await,
+        "toggle_game_mode" => handle_toggle_game_mode(params, state).await,
+        "get_io_status" => handle_get_io_status(state).await,
+        "toggle_overclock_mode" => handle_toggle_overclock_mode(params, state).await,
+        "get_overclock_mode" => handle_get_overclock_mode(state).await,
+        "settings_fetch_tracker_list" => handle_fetch_tracker_list(params, state).await,
+        "bt_runtime_status" => handle_bt_runtime_status(state).await,
+        "bt_set_speed_limit" => handle_bt_set_speed_limit(params, state).await,
+        "bt_preview_torrent" => handle_bt_preview_torrent(params, state).await,
+        "bt_get_peers" | "bt_get_trackers" | "bt_get_pieces" | "get_bt_files" => {
             handle_bt_get_details(method, params, state).await
         }
-        "bt.updateFiles" => handle_bt_update_files(params, state).await,
-        "cdn.fetchRanges" | "cdn.status" | "cdn.detail" | "cdn.test" | "cdn.apply"
-        | "cdn.clear" | "cdn.cancel" | "cdn.candidates" => {
+        "update_bt_files" => handle_bt_update_files(params, state).await,
+        "cdn_fetch_ranges" | "cdn_status" | "cdn_detail" | "cdn_test" | "cdn_apply"
+        | "cdn_clear" | "cdn_cancel" | "cdn_candidates" => {
             handle_cdn_routes(method, params, state).await
         }
         _ => Err(JsonRpcError::method_not_found(method)),
@@ -390,6 +414,10 @@ async fn dispatch_method(
 }
 
 // ── Handler: download.start ────────────────────────────────────────
+
+fn make_dispatcher(state: &RpcState) -> Dispatcher {
+    Dispatcher::new(state.registry.clone(), state.event_bus.clone())
+}
 
 async fn handle_download_start(
     params: Option<&serde_json::Value>,
@@ -426,24 +454,29 @@ async fn handle_download_start(
         ));
     }
 
-    let kind = req
-        .classify_kind()
-        .map_err(|e| JsonRpcError::invalid_params(e.to_string()))?;
-    let backend = state
-        .registry
-        .by_kind(kind)
-        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
-    let task_id = backend
+    let dispatcher = make_dispatcher(state);
+    let task_id = dispatcher
         .start(req)
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+
+    // Emit initial state so the frontend sees the new task immediately.
+    // (BT backend already emits via emit_pending_summary; extra emit is harmless.)
+    if let Ok(snapshot) = dispatcher.status(&task_id).await {
+        dispatcher.emit_updated(&snapshot);
+    }
+
     Ok(serde_json::json!({ "taskId": task_id }))
 }
 
 // ── Handler: download.list ─────────────────────────────────────────
 
 async fn handle_download_list(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
-    let summaries = state.registry.list_all().await;
+    let dispatcher = make_dispatcher(state);
+    let summaries = dispatcher
+        .list()
+        .await
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     serde_json::to_value(summaries).map_err(|e| JsonRpcError::server_error(e.to_string()))
 }
 
@@ -461,17 +494,14 @@ async fn handle_download_action(
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
     let task_id = TaskId::from_legacy_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
-    let backend = state
-        .registry
-        .dispatch(&task_id)
-        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    let dispatcher = make_dispatcher(state);
     let snapshot = match method {
-        "download.status" => backend.status(&task_id).await,
-        "download.pause" => backend.pause(&task_id).await,
-        "download.resume" => backend.resume(&task_id).await,
-        "download.cancel" => backend.cancel(&task_id).await,
-        "download.remove" => backend.remove(&task_id).await,
-        "download.purge" => backend.purge(&task_id).await,
+        "download.status" => dispatcher.status(&task_id).await,
+        "download.pause" => dispatcher.pause(&task_id).await,
+        "download.resume" => dispatcher.resume(&task_id).await,
+        "download.cancel" => dispatcher.cancel(&task_id).await,
+        "download.remove" => dispatcher.remove(&task_id).await,
+        "download.purge" => dispatcher.purge(&task_id).await,
         _ => return Err(JsonRpcError::method_not_found(method)),
     }
     .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
@@ -647,11 +677,10 @@ async fn handle_fetch_tracker_list(
 // ── Handler: bt.runtimeStatus ──────────────────────────────────────
 
 async fn handle_bt_runtime_status(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
-    let bt = state
-        .registry
-        .get_typed::<limedl_core::IrontideBtBackend>()
-        .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
-    let status = bt.runtime_status();
+    let dispatcher = make_dispatcher(state);
+    let status = dispatcher
+        .bt_runtime_status()
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     serde_json::to_value(status).map_err(|e| JsonRpcError::server_error(e.to_string()))
 }
 
@@ -662,24 +691,18 @@ async fn handle_bt_set_speed_limit(
     state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
     let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
-    let task_id = params
+    let task_id_str = params
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
     let dl_limit = params.get("downloadLimitBps").and_then(|v| v.as_u64());
     let ul_limit = params.get("uploadLimitBps").and_then(|v| v.as_u64());
-    let bt = state
-        .registry
-        .get_typed::<limedl_core::IrontideBtBackend>()
-        .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
-    let task = TaskId::from_legacy_string(task_id)
+    let task = TaskId::from_legacy_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
-    let TaskId::Bt(info_hash) = task else {
-        return Err(JsonRpcError::invalid_params(
-            "Task is not a BitTorrent download",
-        ));
-    };
-    bt.set_speed_limit(info_hash, dl_limit, ul_limit);
+    let dispatcher = make_dispatcher(state);
+    dispatcher
+        .bt_set_speed_limit(&task, dl_limit, ul_limit)
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     Ok(serde_json::json!({}))
 }
 
@@ -694,12 +717,9 @@ async fn handle_bt_preview_torrent(
         .get("source")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing source"))?;
-    let bt = state
-        .registry
-        .get_typed::<limedl_core::IrontideBtBackend>()
-        .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
-    let entries = bt
-        .preview_torrent(source)
+    let dispatcher = make_dispatcher(state);
+    let entries = dispatcher
+        .bt_preview_torrent(source)
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     serde_json::to_value(entries).map_err(|e| JsonRpcError::server_error(e.to_string()))
@@ -713,43 +733,35 @@ async fn handle_bt_get_details(
     state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
     let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
-    let task_id = params
+    let task_id_str = params
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let bt = state
-        .registry
-        .get_typed::<limedl_core::IrontideBtBackend>()
-        .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
-    let task = TaskId::from_legacy_string(task_id)
+    let task = TaskId::from_legacy_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
-    let TaskId::Bt(info_hash) = task else {
-        return Err(JsonRpcError::invalid_params(
-            "Task is not a BitTorrent download",
-        ));
-    };
+    let dispatcher = make_dispatcher(state);
     let result = match method {
         "bt.getPeers" => {
-            let peers = bt
-                .get_peers(info_hash)
+            let peers = dispatcher
+                .bt_get_peers(&task)
                 .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(peers)
         }
         "bt.getTrackers" => {
-            let trackers = bt
-                .get_trackers(info_hash)
+            let trackers = dispatcher
+                .bt_get_trackers(&task)
                 .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(trackers)
         }
         "bt.getPieces" => {
-            let pieces = bt
-                .get_pieces(info_hash)
+            let pieces = dispatcher
+                .bt_get_pieces(&task)
                 .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(pieces)
         }
         "bt.getFiles" => {
-            let files = bt
-                .get_torrent_files(info_hash)
+            let files = dispatcher
+                .bt_get_files(&task)
                 .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
             serde_json::to_value(files)
         }
@@ -766,7 +778,7 @@ async fn handle_bt_update_files(
     state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
     let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
-    let task_id = params
+    let task_id_str = params
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
@@ -779,18 +791,11 @@ async fn handle_bt_update_files(
                 .collect()
         })
         .unwrap_or_default();
-    let bt = state
-        .registry
-        .get_typed::<limedl_core::IrontideBtBackend>()
-        .ok_or_else(|| JsonRpcError::server_error("BT backend not registered"))?;
-    let task = TaskId::from_legacy_string(task_id)
+    let task = TaskId::from_legacy_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
-    let TaskId::Bt(info_hash) = task else {
-        return Err(JsonRpcError::invalid_params(
-            "Task is not a BitTorrent download",
-        ));
-    };
-    bt.update_torrent_files(info_hash, included_indices)
+    let dispatcher = make_dispatcher(state);
+    dispatcher
+        .bt_update_files(&task, included_indices)
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     Ok(serde_json::json!({}))
@@ -800,7 +805,7 @@ async fn handle_bt_update_files(
 
 async fn handle_cdn_routes(
     method: &str,
-    _params: Option<&serde_json::Value>,
+    params: Option<&serde_json::Value>,
     state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
     match method {
@@ -810,33 +815,130 @@ async fn handle_cdn_routes(
             ))
         }
         "cdn.status" => {
-            let dm = state.registry.get_typed::<DownloadManager>().ok_or_else(|| {
-                JsonRpcError::server_error("HTTP backend not found")
-            })?;
-            let settings = dm.settings().await.map_err(|e| {
-                JsonRpcError::server_error(e.to_string())
-            })?;
-            let active = settings.cdn_acceleration.active_ip.is_some();
-            Ok(serde_json::json!(if active { "Ready" } else { "Idle" }))
+            let st = state.cdn_service.status().await;
+            let status_str: String = match st {
+                limedl_core::cdn::AccelState::Idle => "Idle".into(),
+                limedl_core::cdn::AccelState::Testing => "Testing".into(),
+                limedl_core::cdn::AccelState::Ready => "Ready".into(),
+                limedl_core::cdn::AccelState::Error(msg) => format!("Error: {msg}"),
+            };
+            Ok(serde_json::json!(status_str))
         }
         "cdn.detail" => {
+            let st = state.cdn_service.status().await;
+            let ip = state.cdn_service.active_ip().await.map(|i| i.to_string());
+            let speed = state.cdn_service.active_speed_mbps().await;
+            let state_str = match &st {
+                limedl_core::cdn::AccelState::Idle => "Idle".to_string(),
+                limedl_core::cdn::AccelState::Testing => "Testing".to_string(),
+                limedl_core::cdn::AccelState::Ready => "Ready".to_string(),
+                limedl_core::cdn::AccelState::Error(msg) => format!("Error: {msg}"),
+            };
+            // ── phase ────────────────────────────────────────────
+            let phase: Option<String> = state.cdn_service.phase().await.map(|p| match p {
+                limedl_core::cdn::CdnTestPhase::FetchingRanges => "FetchingRanges".into(),
+                limedl_core::cdn::CdnTestPhase::Screening => "Screening".into(),
+                limedl_core::cdn::CdnTestPhase::MeasuringThroughput => "MeasuringThroughput".into(),
+            });
+            let (current, total) = state.cdn_service.phase_progress().await;
+            let phase_progress: Option<serde_json::Value> = if total > 0 {
+                Some(serde_json::json!({ "current": current, "total": total }))
+            } else {
+                None
+            };
+            let candidates = state.cdn_service.candidates().await;
+            let default_node = state.cdn_service.default_node().await;
+            Ok(serde_json::json!({
+                "state": state_str,
+                "activeIp": ip,
+                "activeSpeedMbps": speed,
+                "phase": phase,
+                "phaseProgress": phase_progress,
+                "candidates": candidates,
+                "defaultNode": default_node,
+            }))
+        }
+        "cdn.test" => {
             let dm = state.registry.get_typed::<DownloadManager>().ok_or_else(|| {
                 JsonRpcError::server_error("HTTP backend not found")
             })?;
             let settings = dm.settings().await.map_err(|e| {
                 JsonRpcError::server_error(e.to_string())
             })?;
-            Ok(serde_json::json!({
-                "state": if settings.cdn_acceleration.active_ip.is_some() { "Ready" } else { "Idle" },
-                "activeIp": settings.cdn_acceleration.active_ip,
-                "activeSpeedMbps": settings.cdn_acceleration.active_speed_mbps,
-            }))
+            state.cdn_service.start_test(settings).await.map_err(|e| {
+                JsonRpcError::server_error(e.to_string())
+            })?;
+            let cdn = state.cdn_service.clone();
+            let event_bus = state.event_bus.clone();
+            let dm_for_monitor = state.registry.get_typed::<DownloadManager>()
+                .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?
+                .clone();
+            tokio::spawn(async move {
+                let outcome = cdn.monitor_test(event_bus).await;
+                let now_ms = limedl_core::now_ms();
+                if let Ok(mut current) = dm_for_monitor.settings().await {
+                    use limedl_core::cdn::accelerator::AccelState;
+                    match &outcome.state {
+                        AccelState::Ready => {
+                            current.cdn_acceleration.active_ip =
+                                outcome.active_ip.map(|i| i.to_string());
+                            current.cdn_acceleration.active_speed_mbps = outcome.active_speed_mbps;
+                            current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+                            current.cdn_acceleration.last_error = None;
+                        }
+                        AccelState::Error(msg) => {
+                            current.cdn_acceleration.last_error = Some(msg.clone());
+                            current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+                        }
+                        _ => {}
+                    }
+                    let _ = dm_for_monitor.apply_settings(current).await;
+                }
+            });
+            Ok(serde_json::json!(null))
         }
-        "cdn.test" | "cdn.apply" | "cdn.clear" | "cdn.cancel" | "cdn.candidates" => {
-            Err(JsonRpcError {
-                code: -32001,
-                message: "CDN speed test is not supported in NAS mode. Configure CDN via the desktop app or edit the config file directly.".to_string(),
-            })
+        "cdn.apply" => {
+            let ip_str = params
+                .and_then(|p| p.get("ip"))
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| JsonRpcError::invalid_params("Missing 'ip' parameter"))?;
+            let speed = params
+                .and_then(|p| p.get("speedMbps"))
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let ip: std::net::Ipv4Addr = ip_str.parse().map_err(|e| {
+                JsonRpcError::invalid_params(format!("Invalid IP address: {e}"))
+            })?;
+            let dm = state.registry.get_typed::<DownloadManager>().ok_or_else(|| {
+                JsonRpcError::server_error("HTTP backend not found")
+            })?;
+            let settings = dm.settings().await.map_err(|e| {
+                JsonRpcError::server_error(e.to_string())
+            })?;
+            state.cdn_service.apply_ip(ip, speed, &settings).await.map_err(|e| {
+                JsonRpcError::server_error(e.to_string())
+            })?;
+            // Persist
+            if let Ok(mut current) = dm.settings().await {
+                current.cdn_acceleration.active_ip = Some(ip_str.to_string());
+                current.cdn_acceleration.active_speed_mbps = Some(speed);
+                current.cdn_acceleration.last_test_at_ms = Some(limedl_core::now_ms());
+                current.cdn_acceleration.last_error = None;
+                let _ = dm.apply_settings(current).await;
+            }
+            Ok(serde_json::json!(null))
+        }
+        "cdn.clear" => {
+            state.cdn_service.clear().await;
+            Ok(serde_json::json!(null))
+        }
+        "cdn.cancel" => {
+            state.cdn_service.cancel_test();
+            Ok(serde_json::json!(null))
+        }
+        "cdn.candidates" => {
+            let candidates = state.cdn_service.candidates().await;
+            Ok(serde_json::to_value(candidates).unwrap_or_default())
         }
         _ => Err(JsonRpcError::method_not_found(method)),
     }
@@ -855,11 +957,17 @@ mod tests {
 
         let core = limedl_core::bootstrap::bootstrap(state_dir).await.unwrap();
 
+        // Initialize CDN service (same as Tauri setup does)
+        let cdn_accelerator = core.cdn_service.accelerator().clone();
+        core.download_manager.set_cdn_accelerator(cdn_accelerator);
+        core.cdn_service.init_from_settings(&core.settings).await;
+
         let rpc_state = Arc::new(RpcState {
             registry: core.registry,
             event_bus: core.event_bus,
             clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
             rate_limiter: Arc::new(crate::rate_limiter::WsRateLimiter::new()),
+            cdn_service: core.cdn_service,
         });
 
         (rpc_state, tmp)

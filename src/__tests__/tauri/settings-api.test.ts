@@ -84,7 +84,7 @@ function makeAppSettings(overrides?: Partial<AppSettings>): AppSettings {
       retentionCount: null,
       retentionDays: null,
     },
-    aria2Rpc: { enabled: false, port: 6800, secret: null },
+    aria2Rpc: { enabled: false, port: 6800, secret: null, corsAllowedOrigins: [], },
     cdnAcceleration: {
       enabled: false,
       activeIp: null,
@@ -105,6 +105,7 @@ function makeAppSettings(overrides?: Partial<AppSettings>): AppSettings {
     autostart: false,
     setupCompleted: false,
     lastSetupStep: null,
+    maxInMemoryDownloads: 200,
     ...overrides,
   };
 }

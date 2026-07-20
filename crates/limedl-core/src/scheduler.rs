@@ -2,6 +2,11 @@
 //! (Phase 5 of the manager.rs split).
 //!
 //! Contains the background scheduler loop and adaptive AIMD thread rebalancing.
+//!
+//! `Scheduler` is an independent actor type.  All its methods receive a
+//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
+//! state, avoiding any ownership cycle with `DownloadManager` (which holds
+//! `Arc<Scheduler>`).
 
 use std::{
     sync::Arc,
@@ -11,7 +16,7 @@ use std::{
 use foldhash::HashMap;
 use reqwest::Url;
 
-use super::{
+use crate::{
     aimd,
     error::Result,
     manager::{
@@ -29,33 +34,41 @@ const SCHEDULER_TICK: Duration = Duration::from_secs(2);
 /// Maximum concurrent connections (threads) allowed to a single hostname.
 const MAX_CONNECTIONS_PER_HOST: usize = 6;
 
-// ── DownloadManager scheduler/rebalance methods ──────────────────────────────
+/// Zero-sized actor type for scheduler and rebalance logic.
+///
+/// All methods receive `&DownloadManager` to access shared state.
+/// `DownloadManager` holds `Arc<Scheduler>` for delegation.
+pub struct Scheduler;
 
-impl DownloadManager {
-    pub fn start_scheduler_loop(self: Arc<Self>) {
+impl Scheduler {
+    /// Start the background scheduler loop (2s tick or rebalance_notify).
+    /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
+    /// `dm: Arc<DownloadManager>` for the spawned task.
+    pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<DownloadManager>) {
         tokio::spawn(async move {
             loop {
                 tokio::select! {
                     _ = tokio::time::sleep(SCHEDULER_TICK) => {}
-                    _ = self.rebalance_notify.notified() => {}
-                    _ = self.shutdown_token.cancelled() => {
-                        tracing::info!("DownloadManager scheduler loop shutting down");
+                    _ = dm.controls.rebalance_notify.notified() => {}
+                    _ = dm.controls.shutdown_token.cancelled() => {
+                        tracing::info!("Scheduler loop shutting down");
                         break;
                     }
                 }
 
-                if let Err(error) = self.update_adaptive_targets().await {
+                if let Err(error) = self.update_adaptive_targets(&dm).await {
                     log_background_error("update adaptive targets", &error);
                 }
-                if let Err(error) = self.rebalance_allocations().await {
+                if let Err(error) = self.rebalance_allocations(&dm).await {
                     log_background_error("rebalance allocations", &error);
                 }
             }
         });
     }
 
-    pub async fn update_adaptive_targets(&self) -> Result<()> {
-        let settings = self.settings.read().await.clone();
+    /// Update adaptive (AIMD) thread targets for all active downloads.
+    pub async fn update_adaptive_targets(&self, dm: &DownloadManager) -> Result<()> {
+        let settings = dm.settings.read().await.clone();
         if settings.scheduler.mode != SchedulerMode::Automatic {
             return Ok(());
         }
@@ -67,10 +80,10 @@ impl DownloadManager {
         let adaptive_cap = settings.scheduler.automatic.max_threads_per_task.max(1);
         let min_threads = settings.scheduler.automatic.min_threads_per_task.max(1);
 
-        let downloads = self.downloads.read().await;
+        let downloads = dm.downloads.read().await;
 
         // ── Overclock mode: pin all adaptive tasks at max threads ──────────
-        if self.overclock_mode() {
+        if dm.overclock_mode() {
             for managed in downloads.values() {
                 let mut core = managed.lock_core();
                 let manifest = &mut core.manifest;
@@ -193,19 +206,17 @@ impl DownloadManager {
         Ok(())
     }
 
-    pub async fn rebalance_allocations(&self) -> Result<()> {
-        let settings = self.settings.read().await.clone();
+    /// Rebalance thread allocations across all active downloads.
+    pub async fn rebalance_allocations(&self, dm: &DownloadManager) -> Result<()> {
+        let settings = dm.settings.read().await.clone();
 
         // Phase 1: collect all Arc references under the read lock, then drop it
-        // so that writers (download_start/cancel/remove) are not blocked during
-        // the rebalance computation and DB persistence (Phase 2).
         let (mut entries, all_downloads) = {
-            let guard = self.downloads.read().await;
+            let guard = dm.downloads.read().await;
             let entries: Vec<_> = guard.values().cloned().collect();
             let all_downloads = entries.clone();
             (entries, all_downloads)
         };
-        // Read lock is released — Phase 2 can proceed without blocking writers.
 
         match settings.scheduler.mode {
             SchedulerMode::Traditional => {
@@ -327,7 +338,7 @@ impl DownloadManager {
                         let entry = allocations.entry(core.manifest.id.clone()).or_insert(0);
                         let cap = effective_allocation_cap(&core.manifest, &settings);
 
-                        // Check per-host cap — skip if host is at its limit
+                        // Check per-host cap
                         let host = hostname_from_manifest(&core.manifest);
                         let host_at_cap = host.as_ref().is_some_and(|h| {
                             host_threads.get(h).copied().unwrap_or(0) >= MAX_CONNECTIONS_PER_HOST
@@ -384,7 +395,7 @@ impl DownloadManager {
 
         let mut first_error = None;
         for managed in &all_downloads {
-            if let Err(error) = persist_manifest_snapshot(&self.db, managed).await {
+            if let Err(error) = persist_manifest_snapshot(&dm.db, managed).await {
                 log_background_error("persist rebalanced manifest", &error);
                 if first_error.is_none() {
                     first_error = Some(error);
@@ -401,7 +412,6 @@ impl DownloadManager {
 // ── Scheduler helper functions ───────────────────────────────────────────────
 
 /// Extract the hostname from a download's final_url for per-host connection limiting.
-/// Returns None if the URL cannot be parsed or has no host.
 fn hostname_from_manifest(manifest: &Manifest) -> Option<String> {
     Url::parse(&manifest.final_url)
         .ok()

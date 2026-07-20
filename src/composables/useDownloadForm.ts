@@ -180,7 +180,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
   }
 
   function buildStartRequest(): StartDownloadRequest {
-    const request: StartDownloadRequest = {
+    const request: Partial<StartDownloadRequest> = {
       kind: form.kind,
       url: form.url.trim(),
       destinationDir: form.destinationDir.trim(),
@@ -223,7 +223,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
       }
     }
 
-    return request;
+    return request as StartDownloadRequest;
   }
 
   async function pickDestinationDirectory() {

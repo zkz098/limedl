@@ -113,7 +113,7 @@ export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     error,
     cdnAccelerated,
     degraded,
-    diskType,
+    diskType: diskType ?? undefined,
     flushing,
     createdAtMs,
     seedCount,

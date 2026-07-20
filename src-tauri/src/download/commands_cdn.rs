@@ -4,19 +4,36 @@ use serde::Serialize;
 use tauri::State;
 
 use limedl_core::{
-    AppState, DownloadEvent, DownloadManager,
+    AppState, CdnTestOutcome, DownloadManager,
     cdn::{
         accelerator::AccelState,
         ip_ranges::CLOUDFLARE_IPV4_RANGES,
-        speed_test::{CdnTestPhase, DefaultNodeResult, SpeedTestResult},
+        speed_test::{DefaultNodeResult, SpeedTestResult},
     },
 };
 
+/// Persist CDN test results to DownloadManager settings.
+async fn persist_cdn_outcome(outcome: &CdnTestOutcome, mgr: &DownloadManager) {
+    let now_ms = limedl_core::now_ms();
+    if let Ok(mut current) = mgr.settings().await {
+        match &outcome.state {
+            AccelState::Ready => {
+                current.cdn_acceleration.active_ip = outcome.active_ip.map(|i| i.to_string());
+                current.cdn_acceleration.active_speed_mbps = outcome.active_speed_mbps;
+                current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+                current.cdn_acceleration.last_error = None;
+            }
+            AccelState::Error(msg) => {
+                current.cdn_acceleration.last_error = Some(msg.clone());
+                current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+            }
+            _ => {}
+        }
+        let _ = mgr.apply_settings(current).await;
+    }
+}
+
 /// Return the 15 static Cloudflare IPv4 CIDR range strings from the bundled fallback list.
-///
-/// These are read directly from the compiled-in `CLOUDFLARE_IPV4_RANGES` constant
-/// — no HTTP fetch is performed.  This provides a fast, offline-safe way for the
-/// frontend to display available CDN probe ranges.
 #[tauri::command]
 pub async fn cdn_fetch_ranges(_state: State<'_, AppState>) -> Result<Vec<String>, String> {
     Ok(CLOUDFLARE_IPV4_RANGES
@@ -40,13 +57,13 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
     let settings = dm.settings().await.map_err(|e| e.to_string())?;
 
     state
-        .cdn_accelerator
+        .cdn_service
         .start_test(settings)
         .await
         .map_err(|e| e.to_string())?;
 
+    let cdn = state.cdn_service.clone();
     let event_bus = state.event_bus.clone();
-    let acc = state.cdn_accelerator.clone();
     let mgr = state
         .registry
         .get_typed::<DownloadManager>()
@@ -54,99 +71,14 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
         .clone();
 
     tauri::async_runtime::spawn(async move {
-        let mut was_testing = true;
-
-        loop {
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-
-            let st = acc.status().await;
-            match st {
-                AccelState::Testing => {
-                    was_testing = true;
-                    // Emit progress events during testing.
-                    if let Some(phase) = acc.phase().await {
-                        let (current, total) = acc.phase_progress().await;
-                        let phase_str = match phase {
-                            CdnTestPhase::FetchingRanges => "fetchingRanges",
-                            CdnTestPhase::Screening => "screening",
-                            CdnTestPhase::MeasuringThroughput => "measuringThroughput",
-                        };
-                        tracing::debug!(
-                            "cdn poll: Testing phase={phase_str} progress={current}/{total}",
-                        );
-                        event_bus.publish(DownloadEvent::CdnProgress {
-                            phase: phase_str.to_string(),
-                            current,
-                            total,
-                        });
-                    }
-                    continue;
-                }
-                AccelState::Idle => {
-                    if was_testing {
-                        tracing::info!(
-                            "cdn poll: Idle (was testing) — test ended without Ready/Error"
-                        );
-                        break;
-                    }
-                    continue;
-                }
-                AccelState::Ready => {
-                    tracing::info!("cdn poll: Ready — persisting results + emitting complete");
-                    let now_ms = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64;
-                    let ip = acc.active_ip().await;
-                    let speed = acc.active_speed_mbps().await;
-
-                    if let Ok(mut current) = mgr.settings().await {
-                        current.cdn_acceleration.active_ip = ip.map(|i| i.to_string());
-                        current.cdn_acceleration.active_speed_mbps = speed;
-                        current.cdn_acceleration.last_test_at_ms = Some(now_ms);
-                        current.cdn_acceleration.last_error = None;
-                        let _ = mgr.update_settings(current).await;
-                    }
-
-                    event_bus.publish(DownloadEvent::CdnComplete {
-                        state: "Ready".to_string(),
-                        active_ip: ip.map(|i| i.to_string()),
-                        active_speed_mbps: speed,
-                    });
-                    break;
-                }
-                AccelState::Error(msg) => {
-                    tracing::info!("cdn poll: Error — {msg}");
-                    let now_ms = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64;
-
-                    if let Ok(mut current) = mgr.settings().await {
-                        current.cdn_acceleration.last_error = Some(msg.clone());
-                        current.cdn_acceleration.last_test_at_ms = Some(now_ms);
-                        let _ = mgr.update_settings(current).await;
-                    }
-
-                    event_bus.publish(DownloadEvent::CdnComplete {
-                        state: format!("Error: {msg}"),
-                        active_ip: None,
-                        active_speed_mbps: None,
-                    });
-                    break;
-                }
-            }
-        }
+        let outcome = cdn.monitor_test(event_bus).await;
+        persist_cdn_outcome(&outcome, &mgr).await;
     });
 
     Ok(())
 }
 
 /// Build an accelerated reqwest client for the given IP and speed estimate.
-///
-/// The IP string is parsed into an [`Ipv4Addr`] and handed to the accelerator's
-/// [`apply_ip`](CdnAccelerator::apply_ip) method.  On success the accelerator state
-/// moves to [`AccelState::Ready`].
 #[tauri::command]
 pub async fn cdn_apply(
     state: State<'_, AppState>,
@@ -162,7 +94,7 @@ pub async fn cdn_apply(
     let settings = dm.settings().await.map_err(|e| e.to_string())?;
 
     state
-        .cdn_accelerator
+        .cdn_service
         .apply_ip(ip, speed_mbps, &settings)
         .await
         .map_err(|e| e.to_string())?;
@@ -175,37 +107,25 @@ pub async fn cdn_apply(
     if let Ok(mut current) = dm.settings().await {
         current.cdn_acceleration.active_ip = Some(ip.to_string());
         current.cdn_acceleration.active_speed_mbps = Some(speed_mbps);
-        current.cdn_acceleration.last_test_at_ms = Some(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as u64,
-        );
+        current.cdn_acceleration.last_test_at_ms = Some(limedl_core::now_ms());
         current.cdn_acceleration.last_error = None;
-        let _ = dm.update_settings(current).await;
+        let _ = dm.apply_settings(current).await;
     }
 
     Ok(())
 }
 
 /// Reset the accelerator to idle state, dropping any accelerated client.
-///
-/// This is always safe to call, even if no acceleration is active.
 #[tauri::command]
 pub async fn cdn_clear(state: State<'_, AppState>) -> Result<(), String> {
-    state.cdn_accelerator.clear().await;
+    state.cdn_service.clear().await;
     Ok(())
 }
 
-/// Return a human-readable string describing the current accelerator state:
-///
-/// - `"Idle"` — no active test or client.
-/// - `"Testing"` — speed test is running in the background.
-/// - `"Ready"` — test completed, accelerated client is available.
-/// - `"Error: {message}"` — test failed with the given reason.
+/// Return a human-readable string describing the current accelerator state.
 #[tauri::command]
 pub async fn cdn_status(state: State<'_, AppState>) -> Result<String, String> {
-    let st = state.cdn_accelerator.status().await;
+    let st = state.cdn_service.status().await;
     Ok(match st {
         AccelState::Idle => "Idle".to_string(),
         AccelState::Testing => "Testing".to_string(),
@@ -215,11 +135,9 @@ pub async fn cdn_status(state: State<'_, AppState>) -> Result<String, String> {
 }
 
 /// Cancel any running speed test and reset the accelerator to idle.
-///
-/// If no test is active this is a safe no-op.
 #[tauri::command]
 pub async fn cdn_cancel(state: State<'_, AppState>) -> Result<(), String> {
-    state.cdn_accelerator.cancel_test();
+    state.cdn_service.cancel_test();
     Ok(())
 }
 
@@ -247,26 +165,26 @@ pub struct CdnDetail {
 /// Return structured accelerator status including IP and speed.
 #[tauri::command]
 pub async fn cdn_detail(state: State<'_, AppState>) -> Result<CdnDetail, String> {
-    let st = state.cdn_accelerator.status().await;
+    let st = state.cdn_service.status().await;
     let ip = state
-        .cdn_accelerator
+        .cdn_service
         .active_ip()
         .await
         .map(|i| i.to_string());
-    let speed = state.cdn_accelerator.active_speed_mbps().await;
-    let phase = state.cdn_accelerator.phase().await.map(|p| match p {
-        CdnTestPhase::FetchingRanges => "FetchingRanges".to_string(),
-        CdnTestPhase::Screening => "Screening".to_string(),
-        CdnTestPhase::MeasuringThroughput => "MeasuringThroughput".to_string(),
+    let speed = state.cdn_service.active_speed_mbps().await;
+    let phase = state.cdn_service.phase().await.map(|p| match p {
+        limedl_core::cdn::CdnTestPhase::FetchingRanges => "FetchingRanges".to_string(),
+        limedl_core::cdn::CdnTestPhase::Screening => "Screening".to_string(),
+        limedl_core::cdn::CdnTestPhase::MeasuringThroughput => "MeasuringThroughput".to_string(),
     });
-    let (current, total) = state.cdn_accelerator.phase_progress().await;
+    let (current, total) = state.cdn_service.phase_progress().await;
     let phase_progress = if total > 0 {
         Some(PhaseProgress { current, total })
     } else {
         None
     };
-    let candidates = state.cdn_accelerator.candidates().await;
-    let default_node = state.cdn_accelerator.default_node().await;
+    let candidates = state.cdn_service.candidates().await;
+    let default_node = state.cdn_service.default_node().await;
 
     Ok(CdnDetail {
         state: match &st {
@@ -287,7 +205,7 @@ pub async fn cdn_detail(state: State<'_, AppState>) -> Result<CdnDetail, String>
 /// Return all candidate IPs from the most recent CDN speed test.
 #[tauri::command]
 pub async fn cdn_candidates(state: State<'_, AppState>) -> Result<Vec<SpeedTestResult>, String> {
-    Ok(state.cdn_accelerator.candidates().await)
+    Ok(state.cdn_service.candidates().await)
 }
 
 #[cfg(test)]
@@ -297,27 +215,20 @@ mod tests {
     /// `cdn_fetch_ranges` must return exactly 15 CIDR strings.
     #[test]
     fn fetch_ranges_returns_15_cidrs() {
-        // We call the function without a real Tauri State by constructing a
-        // minimal mock.  Since the function only reads the static constant,
-        // we can test it in isolation.
         let cidrs = CLOUDFLARE_IPV4_RANGES.to_vec();
         assert_eq!(cidrs.len(), 15);
-        // Spot-check a well-known entry.
         assert!(cidrs.contains(&"104.16.0.0/13"));
     }
 
     /// `cdn_apply` must reject invalid IP strings before calling the accelerator.
     #[tokio::test]
     async fn apply_rejects_invalid_ip() {
-        // We can't easily construct a full AppState here without Tauri runtime,
-        // so we test the IP parsing logic directly as a proxy.
         let bad: Result<Ipv4Addr, _> = "not-an-ip".parse();
         assert!(bad.is_err());
 
         let bad2: Result<Ipv4Addr, _> = "999.999.999.999".parse();
         assert!(bad2.is_err());
 
-        // Valid IPs parse correctly.
         let good: Ipv4Addr = "1.2.3.4".parse().unwrap();
         assert_eq!(good, Ipv4Addr::new(1, 2, 3, 4));
     }

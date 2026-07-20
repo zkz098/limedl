@@ -28,8 +28,21 @@ const defaultSummary: DownloadSummary = {
   downloadedBytes: 0,
   connectionCount: 0,
   threadMode: "fixed",
+  totalBytes: null,
+  requestedThreadCount: null,
+  desiredThreadCount: null,
+  allocatedThreadCount: null,
+  adaptiveProfile: null,
+  threadNote: null,
   speedBytesPerSecond: 0,
-  etaSeconds: undefined,
+  etaSeconds: null,
+  uploadedBytes: null,
+  uploadSpeedBytesPerSecond: null,
+  peerCount: null,
+  uploadStatus: null,
+  infoHash: null,
+  error: null,
+  cdnAccelerated: false,
   createdAtMs: Date.now(),
 };
 
@@ -170,12 +183,15 @@ export function createMockDownloadSnapshot(
     connectionCount: 4,
     threadMode: "fixed" as ThreadMode,
     checksumMode: "blake3",
+    cdnAccelerated: false,
+    degraded: false,
+    flushing: false,
     speedBytesPerSecond: 500 * 1024,
     etaSeconds: 18,
     createdAtMs: Date.now() - 60_000,
     updatedAtMs: Date.now(),
     ...overrides,
-  };
+  } as DownloadSnapshot;
 }
 
 /**

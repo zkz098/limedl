@@ -23,7 +23,7 @@ impl IrontideBtBackend {
         default_output_dir: PathBuf,
         event_bus: Arc<EventBus>,
         active_bt_count: Arc<AtomicUsize>,
-        max_concurrent_bt: usize,
+        max_concurrent_bt: Arc<AtomicUsize>,
     ) -> Result<Self> {
         let bt = &settings.bt;
 
@@ -113,7 +113,7 @@ impl IrontideBtBackend {
             paused_by_limit: Arc::new(DashMap::new()),
             runtime_handle,
             active_bt_count,
-            max_concurrent_bt: AtomicUsize::new(max_concurrent_bt),
+            max_concurrent_bt,
             bt_slot_guards: Arc::new(DashMap::new()),
         })
     }
@@ -162,7 +162,7 @@ impl IrontideBtBackend {
         tracing::info!("irontide backend shut down.");
     }
 
-    pub fn update_settings(&self, settings: &AppSettings) {
+    pub fn apply_settings(&self, settings: &AppSettings) {
         let bt = settings.bt.clone();
         *lock(&self.bt_settings) = bt.clone();
 

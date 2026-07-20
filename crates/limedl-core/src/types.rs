@@ -6,6 +6,11 @@ use uuid::Uuid;
 
 use super::error::DownloadError;
 
+#[cfg(feature = "ts")]
+use ts_rs::TS;
+
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializableError {
@@ -13,6 +18,8 @@ pub struct SerializableError {
     pub message: String,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ChecksumMode {
@@ -24,6 +31,8 @@ pub enum ChecksumMode {
     Xxh3128,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DownloadState {
@@ -37,6 +46,8 @@ pub enum DownloadState {
     Canceled,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BtUploadStatus {
@@ -47,6 +58,8 @@ pub enum BtUploadStatus {
     PausedByLimit,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Hash, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskKind {
@@ -55,6 +68,8 @@ pub enum TaskKind {
     Bt,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SortKey {
@@ -67,6 +82,8 @@ pub enum SortKey {
     State,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SortDirection {
@@ -200,6 +217,8 @@ impl std::fmt::Display for TaskId {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ThreadMode {
@@ -208,6 +227,8 @@ pub enum ThreadMode {
     Adaptive,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AdaptiveProfile {
@@ -217,6 +238,8 @@ pub enum AdaptiveProfile {
     Aggressive,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProxyMode {
@@ -226,6 +249,8 @@ pub enum ProxyMode {
     Manual,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SchedulerMode {
@@ -234,6 +259,8 @@ pub enum SchedulerMode {
     Automatic,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LogLevel {
@@ -245,6 +272,8 @@ pub enum LogLevel {
     Error,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartDownloadRequest {
@@ -252,12 +281,17 @@ pub struct StartDownloadRequest {
     pub kind: Option<TaskKind>,
     pub url: String,
     pub destination_dir: String,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_name: Option<String>,
     #[serde(default)]
     pub user_agent: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread_mode: Option<ThreadMode>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_retries: Option<u32>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub checksum: Option<ChecksumMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_checksum: Option<String>,
@@ -297,6 +331,8 @@ impl StartDownloadRequest {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChunkInfo {
@@ -305,9 +341,12 @@ pub struct ChunkInfo {
     pub end: u64,
     pub downloaded: u64,
     pub completed: bool,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub claimed_by: Option<usize>,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSnapshot {
@@ -320,27 +359,44 @@ pub struct DownloadSnapshot {
     pub file_name: String,
     pub destination_path: String,
     pub temp_path: String,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub total_bytes: Option<u64>,
     pub downloaded_bytes: u64,
     pub supports_ranges: bool,
     pub connection_count: usize,
     pub thread_mode: ThreadMode,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub requested_thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub desired_thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub allocated_thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub adaptive_profile: Option<AdaptiveProfile>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread_note: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
     pub checksum_mode: ChecksumMode,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_modified: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub speed_bytes_per_second: Option<f64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub eta_seconds: Option<u64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub uploaded_bytes: Option<u64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_speed_bytes_per_second: Option<f64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub peer_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_status: Option<BtUploadStatus>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub info_hash: Option<String>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
@@ -369,6 +425,8 @@ pub struct DownloadSnapshot {
     pub flushing: bool,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSummary {
@@ -379,22 +437,36 @@ pub struct DownloadSummary {
     pub url: String,
     pub file_name: String,
     pub destination_path: String,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub total_bytes: Option<u64>,
     pub downloaded_bytes: u64,
     pub connection_count: usize,
     pub thread_mode: ThreadMode,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub requested_thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub desired_thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub allocated_thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub adaptive_profile: Option<AdaptiveProfile>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread_note: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub speed_bytes_per_second: Option<f64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub eta_seconds: Option<u64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub uploaded_bytes: Option<u64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_speed_bytes_per_second: Option<f64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub peer_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_status: Option<BtUploadStatus>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub info_hash: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(default)]
     pub cdn_accelerated: bool,
@@ -415,21 +487,32 @@ pub struct DownloadSummary {
 
 /// Lightweight incremental progress update sent every ~300ms during active downloads.
 /// Contains only high-frequency fields. Static/low-frequency fields stay in `DownloadSummary`.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub id: String,
     pub state: DownloadState,
     pub downloaded_bytes: u64,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub total_bytes: Option<u64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub speed_bytes_per_second: Option<f64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub eta_seconds: Option<u64>,
     pub connection_count: usize,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub allocated_thread_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub uploaded_bytes: Option<u64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_speed_bytes_per_second: Option<f64>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub peer_count: Option<usize>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_status: Option<BtUploadStatus>,
     #[serde(default)]
     pub degraded: bool,
@@ -462,14 +545,18 @@ impl From<&DownloadSnapshot> for DownloadProgress {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtRuntimeStatus {
     pub connected: bool,
     pub dht_enabled: bool,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub dht_nodes: Option<usize>,
     pub torrent_count: usize,
     pub peer_count: usize,
+#[serde(default, skip_serializing_if = "Option::is_none")]
     pub upload_speed_bytes_per_second: Option<f64>,
     pub uploaded_bytes: u64,
     pub updated_at_ms: u64,
@@ -479,6 +566,8 @@ pub struct BtRuntimeStatus {
     pub leech_count: Option<u64>,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TorrentFileEntry {
@@ -487,6 +576,8 @@ pub struct TorrentFileEntry {
     pub size: u64,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPeerInfo {
@@ -498,12 +589,16 @@ pub struct BtPeerInfo {
     pub progress: f64,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtTrackerInfo {
     pub url: String,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPieceInfo {
@@ -511,6 +606,8 @@ pub struct BtPieceInfo {
     pub completed: bool,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtFileStatus {
@@ -559,6 +656,8 @@ impl From<&DownloadSnapshot> for DownloadSummary {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProxySettings {
@@ -566,6 +665,8 @@ pub struct ProxySettings {
     pub manual_url: String,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraditionalSchedulerSettings {
@@ -580,6 +681,8 @@ impl Default for TraditionalSchedulerSettings {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AutomaticSchedulerSettings {
@@ -605,6 +708,8 @@ impl Default for AutomaticSchedulerSettings {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ChunkSizeStrategy {
@@ -613,6 +718,8 @@ pub enum ChunkSizeStrategy {
     Fixed,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerSettings {
@@ -623,6 +730,8 @@ pub struct SchedulerSettings {
     pub chunk_size_strategy: ChunkSizeStrategy,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadDefaultsSettings {
@@ -634,6 +743,8 @@ pub struct DownloadDefaultsSettings {
 }
 
 /// Preallocation strategy for torrent files.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtPreallocateMode {
@@ -645,6 +756,8 @@ pub enum BtPreallocateMode {
 }
 
 /// Protocol encryption (MSE/PE) mode.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtEncryptionMode {
@@ -657,6 +770,8 @@ pub enum BtEncryptionMode {
     Forced,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPortRange {
@@ -664,6 +779,8 @@ pub struct BtPortRange {
     pub end: u16,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {
@@ -827,6 +944,8 @@ impl Default for DownloadDefaultsSettings {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogSettings {
@@ -860,6 +979,8 @@ impl Default for LogSettings {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ThemeColor {
@@ -869,6 +990,8 @@ pub enum ThemeColor {
     Lime,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BackgroundOpacityPreset {
@@ -878,6 +1001,8 @@ pub enum BackgroundOpacityPreset {
     Frosted,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ColorMode {
@@ -887,6 +1012,8 @@ pub enum ColorMode {
     System,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSettings {
@@ -926,6 +1053,8 @@ impl Default for AppearanceSettings {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationSettings {
@@ -934,6 +1063,8 @@ pub struct NotificationSettings {
 }
 
 /// Disk type for I/O optimization decisions.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DiskType {
@@ -943,6 +1074,8 @@ pub enum DiskType {
 }
 
 /// I/O baseline settings for HDD/SSD intelligent buffer optimization.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IoBaselineSettings {
@@ -955,6 +1088,7 @@ pub struct IoBaselineSettings {
     #[serde(default = "default_game_mode_buffer_mb")]
     pub game_mode_buffer_mb: u64,
     /// Whether game/performance mode is currently active (runtime-only, never persisted).
+    #[cfg_attr(feature = "ts", ts(type = "boolean"))]
     #[serde(default, skip)]
     pub game_mode: bool,
     /// Maximum number of parallel HDD download buffers (slots).
@@ -967,6 +1101,7 @@ pub struct IoBaselineSettings {
     pub game_mode_max_parallel: u32,
     /// User-specified disk type overrides keyed by directory path.
     /// e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
+    #[cfg_attr(feature = "ts", ts(type = "Record<string, DiskType>"))]
     #[serde(default)]
     pub disk_type_overrides: foldhash::HashMap<String, DiskType>,
 }
@@ -1004,6 +1139,8 @@ fn default_max_in_memory_downloads() -> usize {
     200
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -1045,6 +1182,8 @@ pub struct AppSettings {
     pub max_in_memory_downloads: usize,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Aria2RpcSettings {
@@ -1076,6 +1215,8 @@ impl Default for Aria2RpcSettings {
     }
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CdnAccelerationSettings {
@@ -1091,6 +1232,8 @@ pub struct CdnAccelerationSettings {
     pub last_error: Option<String>,
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MirrorEntry {
@@ -1105,6 +1248,8 @@ fn default_mirror_enabled() -> bool {
     true
 }
 
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitHubMirrorSettings {
@@ -1115,6 +1260,8 @@ pub struct GitHubMirrorSettings {
 }
 
 /// Limits on concurrent active downloads.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadLimits {

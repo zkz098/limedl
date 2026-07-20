@@ -1,177 +1,71 @@
-import type { AdaptiveProfile, ChecksumMode } from "./download";
+// ── Re-exported generated types (single source of truth from Rust) ──
+export type {
+  AdaptiveProfile,
+  AppearanceSettings,
+  AutomaticSchedulerSettings,
+  BackgroundOpacityPreset,
+  BtEncryptionMode,
+  BtPortRange,
+  BtPreallocateMode,
+  BtSettings,
+  CdnAccelerationSettings,
+  ChecksumMode,
+  ChunkSizeStrategy,
+  ColorMode,
+  DiskType,
+  DownloadDefaultsSettings,
+  DownloadLimits,
+  LogLevel,
+  LogSettings,
+  NotificationSettings,
+  ProxyMode,
+  ProxySettings,
+  SchedulerMode,
+  SchedulerSettings,
+  SortDirection,
+  SortKey,
+  ThemeColor,
+  TraditionalSchedulerSettings,
+} from "./generated/types";
 
-export type { AdaptiveProfile };
+// ── Import generated types for local extension ──
+import type {
+  AppSettings as GeneratedAppSettings,
+  Aria2RpcSettings as GeneratedAria2RpcSettings,
+  IoBaselineSettings as GeneratedIoBaselineSettings,
+  MirrorEntry as GeneratedMirrorEntry,
+} from "./generated/types";
 
-export type ProxyMode = "disabled" | "system" | "manual";
-export type SchedulerMode = "traditional" | "automatic";
-export type ChunkSizeStrategy = "fixed" | "adaptive";
-export type ThemeColor = "amber" | "sky" | "lime";
-export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
-export type ColorMode = "light" | "dark" | "system";
-export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+/** Aria2RpcSettings as generated from Rust. */
+export type Aria2RpcSettings = GeneratedAria2RpcSettings;
 
-export type SortKey = "name" | "size" | "progress" | "speed" | "added_at" | "state";
-export type SortDirection = "asc" | "desc";
-
-export interface AppearanceSettings {
-  themeColor: ThemeColor;
-  backgroundOpacity: BackgroundOpacityPreset;
-  colorMode: ColorMode;
-  showDetailInfo: boolean;
-  showHeatmap: boolean;
-  sortKey: SortKey;
-  sortDirection: SortDirection;
-  compactView: boolean;
-  visibleColumns: string[];
+/** IoBaselineSettings with frontend-only gameMode field (runtime-only, never persisted). */
+export interface IoBaselineSettings extends GeneratedIoBaselineSettings {
+  /** Whether game/performance mode is currently active (runtime-only, never persisted by backend). */
+  gameMode?: boolean;
 }
 
-export interface ProxySettings {
-  mode: ProxyMode;
-  manualUrl: string;
-}
-
-export interface TraditionalSchedulerSettings {
-  maxParallelTasks: number;
-}
-
-export interface AutomaticSchedulerSettings {
-  maxParallelThreads: number;
-  maxThreadsPerTask: number;
-  minThreadsPerTask: number;
-  adaptiveProfile: AdaptiveProfile;
-}
-
-export interface SchedulerSettings {
-  mode: SchedulerMode;
-  traditional: TraditionalSchedulerSettings;
-  automatic: AutomaticSchedulerSettings;
-  chunkSizeStrategy: ChunkSizeStrategy;
-}
-
-export interface DownloadDefaultsSettings {
-  defaultDownloadDir: string;
-  defaultMaxRetries: number;
-  defaultChecksum: ChecksumMode;
-  defaultUserAgent: string;
-}
-
-export type BtPreallocateMode = "none" | "full";
-export type BtEncryptionMode = "enabled" | "disabled" | "forced";
-export interface BtSettings {
-  pauseUploadWhenLimitReached: boolean;
-  uploadLimitBytes: number;
-  uploadRatioLimit: number;
-  dhtEnabled: boolean;
-  trackerList: string;
-  trackerListUrl: string;
-  /** TCP listen port. null = OS assigns. */
-  listenPort: number | null;
-  /** Port range for TCP listen. null = any. */
-  listenPortRange: { start: number; end: number } | null;
-  /** Enable UPnP IGD port mapping. */
-  upnpEnabled: boolean;
-  /** Enable NAT-PMP/PCP port mapping. */
-  enableNatpmp: boolean;
-  /** Enable IPv6 dual-stack. */
-  enableIpv6: boolean;
-  /** Peer Exchange BEP 11. */
-  enablePex: boolean;
-  /** Local Service Discovery BEP 14. */
-  enableLsd: boolean;
-  /** µTP BEP 29. */
-  enableUtp: boolean;
-  /** Fast Extension BEP 6. */
-  enableFastExtension: boolean;
-  /** Holepunch BEP 55. */
-  enableHolepunch: boolean;
-  /** HTTP Web Seed. */
-  enableWebSeed: boolean;
-  /** Super seeding BEP 16. */
-  enableSuperSeeding: boolean;
-  /** Global download rate limit in bytes/sec. 0 = unlimited. */
-  globalDownloadRateLimit: number;
-  /** Global upload rate limit in bytes/sec. 0 = unlimited. */
-  globalUploadRateLimit: number;
-  /** File preallocation strategy. */
-  preallocateMode: BtPreallocateMode;
-  /** Protocol encryption (MSE/PE) mode. */
-  encryptionMode: BtEncryptionMode;
-  /** Max auto-managed active downloads. */
-  maxDownloads: number;
-  /** Max auto-managed active seeds. */
-  maxSeeds: number;
-  /** Max total torrents. */
-  maxTorrents: number;
-  /** Hard limit on total active torrents. */
-  activeLimit: number;
-}
-
-export interface LogSettings {
-  enabled: boolean;
-  level: LogLevel;
-  filePath: string;
-  retentionCount: number | null;
-  retentionDays: number | null;
-}
-
-export interface Aria2RpcSettings {
-  enabled: boolean;
-  port: number;
-  secret: string | null;
-}
-
-export interface CdnAccelerationSettings {
-  enabled: boolean;
-  activeIp: string | null;
-  activeSpeedMbps: number | null;
-  lastTestAtMs: number | null;
-  lastError: string | null;
-}
-
-export interface MirrorEntry {
-  url: string;
-  enabled: boolean;
-  order: number;
+/** MirrorEntry with frontend-only _uid field. */
+export interface MirrorEntry extends GeneratedMirrorEntry {
   /** Frontend-only unique ID for stable v-for keys. Not serialized by backend. */
   _uid?: number;
 }
 
+/** GitHubMirrorSettings using extended MirrorEntry. */
 export interface GitHubMirrorSettings {
   enabled: boolean;
   mirrors: MirrorEntry[];
 }
 
-export interface NotificationSettings {
-  enabled: boolean;
-}
-
-export type DiskType = "ssd" | "hdd";
-
-export interface IoBaselineSettings {
-  bufferLimitMb: number;
-  gameModeBufferMb: number;
-  gameMode: boolean;
-  diskTypeOverrides: Record<string, DiskType>;
-  maxParallelHdd: number;
-  gameModeMaxParallel: number;
-}
-
-export interface AppSettings {
-  globalSpeedLimitBps: number;
-  appearance: AppearanceSettings;
-  proxy: ProxySettings;
-  scheduler: SchedulerSettings;
-  download: DownloadDefaultsSettings;
-  bt: BtSettings;
-  logging: LogSettings;
-  aria2Rpc: Aria2RpcSettings;
-  cdnAcceleration: CdnAccelerationSettings;
-  githubMirror: GitHubMirrorSettings;
-  notifications: NotificationSettings;
+/**
+ * AppSettings with frontend-extended sub-types.
+ * Generated counterpart is in generated/types.ts.
+ */
+export type AppSettings = Omit<
+  GeneratedAppSettings,
+  "ioBaseline" | "githubMirror" | "aria2Rpc"
+> & {
   ioBaseline: IoBaselineSettings;
-  autostart: boolean;
-  /** Whether the setup wizard has been completed */
-  setupCompleted: boolean;
-  /** Last setup step index (0-based), null if never started or completed */
-  lastSetupStep: number | null;
-}
+  githubMirror: GitHubMirrorSettings;
+  aria2Rpc: Aria2RpcSettings;
+};

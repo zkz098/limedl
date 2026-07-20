@@ -2,21 +2,74 @@
 //!
 //! Contains the HTTP-specific download flow: probing, single-stream and chunked
 //! parallel downloads, chunk worker, and finalization with checksum verification.
+//!
+//! `HttpExecutor` is an independent actor type.  All its methods receive a
+//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
+//! state, avoiding any ownership cycle with `DownloadManager` (which holds
+//! `Arc<HttpExecutor>`).
 
-use super::*;
-use crate::calculate_checksum;
-use crate::error::io_error_with_path;
-use crate::event_bus::DownloadEvent;
-use crate::now_ms;
-use crate::persistence::persist_manifest_snapshot;
-use crate::retry::request_with_retry;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
-use super::super::buffer_pool::DownloadBuffer;
-use super::super::types::DiskType;
+use futures_util::StreamExt;
+use reqwest::{Client, StatusCode, header};
+use tokio::{task::JoinSet, time::sleep};
+use tokio_util::sync::CancellationToken;
 
-impl super::DownloadManager {
-    async fn probe(&self, url: &str, user_agent: &str) -> Result<RemoteMetadata> {
-        let (client, _) = self.resolve_client(url).await;
+use crate::{
+    aimd::AimdState,
+    buffer_pool::DownloadBuffer,
+    calculate_checksum,
+    database::Database,
+    error::{DownloadError, Result, io_error_with_path},
+    event_bus::DownloadEvent,
+    file_ops::{
+        check_disk_space, finalize_temp_file, open_download_file,
+        reset_download_file, write_all_at,
+    },
+    http::{
+        build_segment_request, extract_total_bytes, header_string, if_range_header, infer_file_name,
+        supports_ranges, validate_probe_response, validate_segment_response,
+    },
+    manager::{
+        self, cancellation_chunk_outcome, cancellation_outcome,
+        ChunkWorkerOutcome, DownloadManager, ManagedDownload,
+        PERSIST_INTERVAL, RunOutcome, record_progress_on_managed, supports_parallelism,
+    },
+    manifest::{
+        ChunkManifest, RemoteMetadata, contiguous_prefix_end, has_partial_chunk_progress, plan_chunks, resolve_chunk_size,
+        validators_changed,
+    },
+    now_ms,
+    persistence::persist_manifest_snapshot,
+    rate_limiter::RateLimiter,
+    retry::request_with_retry,
+    types::{
+        ChecksumMode, DiskType, DownloadState, StartDownloadRequest,
+        TaskKind,
+    },
+};
+
+/// Zero-sized actor type for HTTP download execution.
+///
+/// All methods receive `&DownloadManager` or `Arc<DownloadManager>` to access
+/// shared state.  `DownloadManager` holds `Arc<HttpExecutor>` for delegation.
+pub struct HttpExecutor;
+
+impl HttpExecutor {
+    /// Probe a remote URL to obtain file metadata (final URL, file name,
+    /// content length, ETag, Last-Modified, range support).
+    pub(crate) async fn probe(
+        &self,
+        dm: &DownloadManager,
+        url: &str,
+        user_agent: &str,
+    ) -> Result<RemoteMetadata> {
+        let (client, _) = dm.resolve_client(url).await;
         let head = client
             .head(url)
             .header(header::USER_AGENT, user_agent)
@@ -55,29 +108,29 @@ impl super::DownloadManager {
         })
     }
 
-    pub async fn run_download(
+    /// Main download run loop.  Decides between single-stream and chunked
+    /// (parallel) download based on server capabilities.
+    pub(crate) async fn run_download(
         &self,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
         max_retries: u32,
     ) -> Result<()> {
         let current_manifest = { managed.lock_core().manifest.clone() };
-        // Use final_url for probing — this is the actual download URL
-        // (mirror URL if mirroring is active, or the original URL otherwise).
         let metadata = self
-            .probe(&current_manifest.final_url, &current_manifest.user_agent)
+            .probe(&dm, &current_manifest.final_url, &current_manifest.user_agent)
             .await?;
 
         // Check available disk space before starting the download
-        // Account for already-downloaded bytes to avoid false rejections on resume.
         if let Some(total_bytes) = metadata.total_bytes {
             let already_downloaded = current_manifest.downloaded_bytes;
             let needed = total_bytes.saturating_sub(already_downloaded);
             check_disk_space(Path::new(&current_manifest.destination_dir), needed)?;
         }
 
-        let settings = self.settings.read().await.clone();
+        let settings = dm.settings.read().await.clone();
         let chunk_size =
             resolve_chunk_size(settings.scheduler.chunk_size_strategy, metadata.total_bytes);
         let supports_parallel =
@@ -98,7 +151,7 @@ impl super::DownloadManager {
             mirror_urls: None,
         };
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
-            resolve_thread_settings(&settings, &request, supports_parallel);
+            manager::resolve_thread_settings(&settings, &request, supports_parallel);
         let mut reset_progress = false;
         let mut force_single_stream_restart = false;
         let mut refresh_aimd = false;
@@ -111,7 +164,7 @@ impl super::DownloadManager {
                     let destination_dir = PathBuf::from(&manifest.destination_dir);
                     manifest.file_name = safe_name.clone();
                     manifest.destination_path =
-                        unique_destination_path(&destination_dir, &safe_name)
+                        manager::unique_destination_path(&destination_dir, &safe_name)
                             .to_string_lossy()
                             .to_string();
                 }
@@ -151,7 +204,7 @@ impl super::DownloadManager {
             }
             manifest.desired_thread_count = desired_thread_count;
             manifest.adaptive_profile_snapshot = adaptive_profile;
-            manifest.thread_note = thread_note(supports_parallel, thread_mode, adaptive_profile);
+            manifest.thread_note = manager::thread_note(supports_parallel, thread_mode, adaptive_profile);
             manifest.updated_at_ms = now_ms();
             manifest.error = None;
             if !supports_parallel {
@@ -170,7 +223,7 @@ impl super::DownloadManager {
                  Ensure the destination drive is formatted as NTFS, exFAT, ext4, or APFS.",
             );
             tracing::warn!("{msg}");
-            self.event_bus.publish(DownloadEvent::Warning {
+            dm.event_bus.publish(DownloadEvent::Warning {
                 id: managed.lock_core().manifest.id.clone(),
                 message: msg,
             });
@@ -180,31 +233,28 @@ impl super::DownloadManager {
             let mut aimd = managed.lock_aimd();
             *aimd = AimdState::initial(adaptive_profile, desired_thread_count);
         }
-        self.rebalance_allocations().await?;
-        self.rebalance_notify.notify_waiters();
+        dm.scheduler.rebalance_allocations(&dm).await?;
+        dm.controls.rebalance_notify.notify_waiters();
         if reset_progress {
-            self.prepare_fresh_temp_file(&managed)?;
+            dm.task_lifecycle.prepare_fresh_temp_file(&dm, &managed)?;
             if force_single_stream_restart {
-                self.reset_progress(&managed, true);
+                dm.task_lifecycle.reset_progress(&dm, &managed, true);
             }
         }
 
         let outcome = if supports_parallel {
-            self.download_chunked(managed.clone(), client.clone(), token.clone(), max_retries)
+            self.download_chunked(dm.clone(), managed.clone(), client.clone(), token.clone(), max_retries)
                 .await?
         } else {
-            self.download_single(managed.clone(), client.clone(), token.clone(), max_retries)
+            self.download_single(dm.clone(), managed.clone(), client.clone(), token.clone(), max_retries)
                 .await?
         };
 
         match outcome {
             RunOutcome::Finished => {
-                match self
-                    .finalize_download(managed.clone(), token.clone())
-                    .await?
-                {
+                match self.finalize_download(dm.clone(), managed.clone(), token.clone()).await? {
                     RunOutcome::Finished => {
-                        self.emit_single_summary(&managed);
+                        dm.task_lifecycle.emit_single_summary(&dm, &managed);
                     }
                     RunOutcome::Canceled => {
                         return Ok(());
@@ -226,10 +276,10 @@ impl super::DownloadManager {
                     core.manifest.allocated_thread_count = Some(0);
                     core.manifest.updated_at_ms = now_ms();
                 }
-                self.emit_single_summary(&managed);
+                dm.task_lifecycle.emit_single_summary(&dm, &managed);
             }
             RunOutcome::Canceled => {
-                self.cleanup_files(&managed)?;
+                dm.task_lifecycle.cleanup_files(&dm, &managed)?;
             }
         }
 
@@ -238,6 +288,7 @@ impl super::DownloadManager {
 
     async fn download_single(
         &self,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -259,12 +310,12 @@ impl super::DownloadManager {
         let file = Arc::new(open_download_file(&file_path, total_bytes)?);
 
         // HDD/SSD optimization: set up buffered writing
-        let disk_type = self.resolve_disk_type(Path::new(&destination_dir)).await;
+        let disk_type = dm.resolve_disk_type(Path::new(&destination_dir)).await;
         const SSD_WRITE_COMBINE_BYTES: u64 = 4 * 1024 * 1024; // 4 MiB
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
-            let slot = self.buffer_pool.acquire_slot().await;
+            let slot = dm.buffer_pool.acquire_slot().await;
             Some(Arc::new(DownloadBuffer::new(
-                self.buffer_pool.clone(),
+                dm.buffer_pool.clone(),
                 slot,
                 file.clone(),
             )))
@@ -285,9 +336,9 @@ impl super::DownloadManager {
         let mut last_disk_check = Instant::now();
 
         loop {
-            match self.wait_until_active(&managed, &token).await {
-                WaitState::Running => {}
-                WaitState::Paused => {
+            match dm.task_lifecycle.wait_until_active(&dm, &managed, &token).await {
+                manager::WaitState::Running => {}
+                manager::WaitState::Paused => {
                     if let Some(ref buf) = write_buffer
                         && let Err(e) = buf.flush_all().await
                     {
@@ -295,7 +346,7 @@ impl super::DownloadManager {
                     }
                     return Ok(RunOutcome::Paused);
                 }
-                WaitState::Canceled => return Ok(RunOutcome::Canceled),
+                manager::WaitState::Canceled => return Ok(RunOutcome::Canceled),
             }
 
             let (url, user_agent, validator, state) = {
@@ -350,7 +401,7 @@ impl super::DownloadManager {
             } else {
                 if start_offset > 0 {
                     reset_download_file(&file, managed.lock_core().manifest.total_bytes)?;
-                    self.reset_progress(&managed, true);
+                    dm.task_lifecycle.reset_progress(&dm, &managed, true);
                     if let Some(ref buf) = write_buffer {
                         buf.clear();
                     }
@@ -378,7 +429,7 @@ impl super::DownloadManager {
                 chunk = stream.next() => chunk,
             } {
                 let chunk = chunk?;
-                self.rate_limiter.consume(chunk.len()).await;
+                dm.rate_limiter.consume(chunk.len()).await;
                 if let Some(ref buf) = write_buffer {
                     if buf
                         .buffer_chunk(absolute_offset, chunk.clone())
@@ -396,11 +447,11 @@ impl super::DownloadManager {
                     write_all_at(&file, &chunk, absolute_offset)?;
                 }
                 absolute_offset += chunk.len() as u64;
-                self.record_progress(&managed, None, chunk.len() as u64);
+                dm.task_lifecycle.record_progress(&dm, &managed, None, chunk.len() as u64);
                 if last_persist.elapsed() >= PERSIST_INTERVAL {
-                    persist_manifest_snapshot(&self.db, &managed).await?;
+                    persist_manifest_snapshot(&dm.db, &managed).await?;
                     last_persist = Instant::now();
-                    self.emit_progress(&managed);
+                    dm.task_lifecycle.emit_progress(&dm, &managed);
                 }
                 if last_disk_check.elapsed() >= Duration::from_secs(30) {
                     let (total_bytes, downloaded_bytes, destination_dir) = {
@@ -429,7 +480,7 @@ impl super::DownloadManager {
                                 core.manifest.connection_count = 0;
                                 core.manifest.updated_at_ms = now_ms();
                             }
-                            self.event_bus.publish(DownloadEvent::Warning {
+                            dm.event_bus.publish(DownloadEvent::Warning {
                                 id: managed.lock_core().manifest.id.clone(),
                                 message: "disk full".into(),
                             });
@@ -457,7 +508,7 @@ impl super::DownloadManager {
                         let mut core = managed.lock_core();
                         core.snapshot.flushing = true;
                     }
-                    self.emit_progress(&managed);
+                    dm.task_lifecycle.emit_progress(&dm, &managed);
 
                     let flush_result = buf.flush_all().await;
 
@@ -466,7 +517,7 @@ impl super::DownloadManager {
                         let mut core = managed.lock_core();
                         core.snapshot.flushing = false;
                     }
-                    self.emit_progress(&managed);
+                    dm.task_lifecycle.emit_progress(&dm, &managed);
                     flush_result?;
                 }
                 return Ok(RunOutcome::Finished);
@@ -476,6 +527,7 @@ impl super::DownloadManager {
 
     async fn download_chunked(
         &self,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -493,12 +545,12 @@ impl super::DownloadManager {
         // HDD/SSD optimization: set up buffered writing
         let disk_type = {
             let destination_dir = managed.lock_core().manifest.destination_dir.clone();
-            self.resolve_disk_type(Path::new(&destination_dir)).await
+            dm.resolve_disk_type(Path::new(&destination_dir)).await
         };
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
-            let slot = self.buffer_pool.acquire_slot().await;
+            let slot = dm.buffer_pool.acquire_slot().await;
             Some(Arc::new(DownloadBuffer::new(
-                self.buffer_pool.clone(),
+                dm.buffer_pool.clone(),
                 slot,
                 file.clone(),
             )))
@@ -555,7 +607,7 @@ impl super::DownloadManager {
                             core.manifest.connection_count = 0;
                             core.manifest.updated_at_ms = now_ms();
                         }
-                        self.event_bus.publish(DownloadEvent::Warning {
+                        dm.event_bus.publish(DownloadEvent::Warning {
                             id: managed.lock_core().manifest.id.clone(),
                             message: "disk full".into(),
                         });
@@ -576,7 +628,7 @@ impl super::DownloadManager {
                         let mut core = managed.lock_core();
                         core.snapshot.flushing = true;
                     }
-                    self.emit_progress(&managed);
+                    dm.task_lifecycle.emit_progress(&dm, &managed);
 
                     let flush_result = buf.flush_all().await;
 
@@ -585,7 +637,7 @@ impl super::DownloadManager {
                         let mut core = managed.lock_core();
                         core.snapshot.flushing = false;
                     }
-                    self.emit_progress(&managed);
+                    dm.task_lifecycle.emit_progress(&dm, &managed);
                     flush_result?;
                 }
                 return Ok(RunOutcome::Finished);
@@ -593,9 +645,9 @@ impl super::DownloadManager {
 
             let allocation = current_allocation(&managed);
             if allocation == 0 && workers.is_empty() {
-                match self.wait_until_active(&managed, &token).await {
-                    WaitState::Running => {}
-                    WaitState::Paused => {
+                match dm.task_lifecycle.wait_until_active(&dm, &managed, &token).await {
+                    manager::WaitState::Running => {}
+                    manager::WaitState::Paused => {
                         if let Some(ref buf) = write_buffer
                             && let Err(e) = buf.flush_all().await
                         {
@@ -603,7 +655,7 @@ impl super::DownloadManager {
                         }
                         return Ok(RunOutcome::Paused);
                     }
-                    WaitState::Canceled => return Ok(RunOutcome::Canceled),
+                    manager::WaitState::Canceled => return Ok(RunOutcome::Canceled),
                 }
             }
 
@@ -635,9 +687,9 @@ impl super::DownloadManager {
                     core.manifest.updated_at_ms = now_ms();
                 }
 
-                let db = self.db.clone();
-                let rate_limiter = self.rate_limiter.clone();
-                let manager_for_worker = Arc::new(self.clone());
+                let db = dm.db.clone();
+                let rate_limiter = dm.rate_limiter.clone();
+                let manager_for_worker = dm.clone();
                 let managed = managed.clone();
                 let client = client.clone();
                 let token = token.clone();
@@ -666,7 +718,7 @@ impl super::DownloadManager {
             if workers.is_empty() {
                 tokio::select! {
                     _ = token.cancelled() => return Ok(cancellation_outcome(&managed)),
-                    _ = self.rebalance_notify.notified() => {}
+                    _ = dm.controls.rebalance_notify.notified() => {}
                     _ = sleep(Duration::from_millis(120)) => {}
                 }
                 continue;
@@ -703,10 +755,10 @@ impl super::DownloadManager {
                 ChunkWorkerOutcome::RestartSingle => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
                     drop(file);
-                    self.prepare_fresh_temp_file(&managed)?;
-                    self.reset_progress(&managed, true);
+                    dm.task_lifecycle.prepare_fresh_temp_file(&dm, &managed)?;
+                    dm.task_lifecycle.reset_progress(&dm, &managed, true);
                     return self
-                        .download_single(managed, client, token, max_retries)
+                        .download_single(dm, managed, client, token, max_retries)
                         .await;
                 }
                 ChunkWorkerOutcome::Paused => {
@@ -728,6 +780,7 @@ impl super::DownloadManager {
 
     async fn finalize_download(
         &self,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         token: CancellationToken,
     ) -> Result<RunOutcome> {
@@ -748,7 +801,7 @@ impl super::DownloadManager {
             core.manifest.allocated_thread_count = Some(0);
             core.manifest.updated_at_ms = now_ms();
         }
-        self.persist(managed.clone()).await?;
+        dm.persist(managed.clone()).await?;
 
         if finalize_was_canceled(&managed, &token) {
             return Ok(RunOutcome::Canceled);
@@ -787,7 +840,7 @@ impl super::DownloadManager {
                 core.manifest.allocated_thread_count = Some(0);
                 core.manifest.updated_at_ms = now_ms();
             }
-            self.persist(managed.clone()).await?;
+            dm.persist(managed.clone()).await?;
             return Ok(RunOutcome::Finished);
         }
 
@@ -846,7 +899,7 @@ impl super::DownloadManager {
                 chunk.dirty = true;
             }
         }
-        self.persist(managed.clone()).await?;
+        dm.persist(managed.clone()).await?;
 
         // Broadcast aria2.onDownloadComplete via EventBus
         let download_id = managed.lock_core().snapshot.id.clone();
@@ -854,7 +907,7 @@ impl super::DownloadManager {
             "{:016x}",
             xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
         );
-        self.event_bus.publish(DownloadEvent::Aria2Notification {
+        dm.event_bus.publish(DownloadEvent::Aria2Notification {
             event_name: "aria2.onDownloadComplete".into(),
             gid,
         });
@@ -862,6 +915,8 @@ impl super::DownloadManager {
         Ok(RunOutcome::Finished)
     }
 }
+
+// ── Free helper functions ─────────────────────────────────────────────────────
 
 fn current_allocation(managed: &Arc<ManagedDownload>) -> usize {
     managed
@@ -880,7 +935,7 @@ fn all_chunks_completed(managed: &Arc<ManagedDownload>) -> bool {
         .all(|chunk| chunk.completed)
 }
 
-fn claim_next_chunk(manifest: &mut Manifest, worker_id: usize) -> Option<ChunkManifest> {
+fn claim_next_chunk(manifest: &mut crate::manifest::Manifest, worker_id: usize) -> Option<ChunkManifest> {
     let chunk = manifest
         .chunks
         .iter_mut()
@@ -939,7 +994,7 @@ struct ChunkWorkerCtx {
     max_retries: u32,
     db: Arc<Database>,
     rate_limiter: Arc<RateLimiter>,
-    manager: Arc<super::DownloadManager>,
+    manager: Arc<DownloadManager>,
     write_buffer: Option<Arc<DownloadBuffer>>,
     disk_type: DiskType,
 }
@@ -1032,7 +1087,7 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
             if last_persist.elapsed() >= PERSIST_INTERVAL {
                 persist_manifest_snapshot(&ctx.db, &ctx.managed).await?;
                 last_persist = Instant::now();
-                ctx.manager.emit_progress(&ctx.managed);
+                ctx.manager.task_lifecycle.emit_progress(&ctx.manager, &ctx.managed);
             }
         }
     }

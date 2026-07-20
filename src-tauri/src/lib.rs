@@ -23,10 +23,9 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-use download::CdnAccelerator;
 use download::event_bus::DownloadEvent;
 use download::{
-    AppState, Aria2RpcServer, DownloadManager, bootstrap, bt_get_peers, bt_get_pieces,
+    AppState, Aria2RpcServer, bootstrap, bt_get_peers, bt_get_pieces,
     bt_get_trackers, bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply,
     cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
     cleanup_old_aria2_temp_files, download_cancel, download_list, download_open_in_explorer,
@@ -89,17 +88,19 @@ pub fn run() {
                 cleanup_old_aria2_temp_files();
 
                 // CDN accelerator setup
-                let cdn_accelerator = Arc::new(CdnAccelerator::new());
+                let cdn_accelerator = core.cdn_service.accelerator().clone();
                 core.download_manager
-                    .set_cdn_accelerator(cdn_accelerator.clone());
-                tauri::async_runtime::block_on(cdn_accelerator.init_from_settings(&core.settings));
+                    .set_cdn_accelerator(cdn_accelerator);
+                tauri::async_runtime::block_on(
+                    core.cdn_service.init_from_settings(&core.settings),
+                );
 
                 let rpc_shutdown = Arc::new(Mutex::new(None::<tokio::sync::watch::Sender<bool>>));
 
                 app.manage(AppState {
                     registry: core.registry.clone(),
                     event_bus: core.event_bus.clone(),
-                    cdn_accelerator: cdn_accelerator.clone(),
+                    cdn_service: core.cdn_service.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
                 });
 
@@ -110,7 +111,7 @@ pub fn run() {
                     let state = AppState {
                         registry: core.registry.clone(),
                         event_bus: core.event_bus.clone(),
-                        cdn_accelerator: cdn_accelerator.clone(),
+                        cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                     };
                     tauri::async_runtime::spawn(async move {
@@ -187,7 +188,7 @@ pub fn run() {
                     let state = AppState {
                         registry: core.registry.clone(),
                         event_bus: core.event_bus.clone(),
-                        cdn_accelerator: cdn_accelerator.clone(),
+                        cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                     };
                     tauri::async_runtime::spawn(async move {
@@ -285,18 +286,8 @@ pub fn run() {
                 let state = window.state::<AppState>();
                 let registry = state.registry.clone();
                 tauri::async_runtime::spawn(async move {
-                    // Shutdown all backends (cancels scheduler + worker tokens)
+                    // Shutdown all backends (cancels scheduler + worker tokens, drains buffer pool)
                     registry.shutdown_all().await;
-                    // Wait for buffer pool to drain (max 5 seconds)
-                    let dm = registry.get_typed::<DownloadManager>();
-                    if let Some(dm) = dm {
-                        let start = std::time::Instant::now();
-                        while dm.buffer_pool.active_slots() > 0
-                            && start.elapsed() < std::time::Duration::from_secs(5)
-                        {
-                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                        }
-                    }
                     handle.exit(0);
                 });
             }

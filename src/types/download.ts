@@ -1,209 +1,73 @@
 import type { SortDirection, SortKey } from "./settings";
 
-export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
-export type ThreadMode = "fixed" | "adaptive";
-export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
-export type TaskKind = "http" | "bt";
-export type BtUploadStatus = "idle" | "uploading" | "paused" | "paused_by_limit";
+// ── Re-exported generated types (single source of truth from Rust) ──
+export type {
+  AdaptiveProfile,
+  BtFileStatus,
+  BtPeerInfo,
+  BtPieceInfo,
+  BtRuntimeStatus,
+  BtTrackerInfo,
+  BtUploadStatus,
+  ChecksumMode,
+  DownloadState,
+  TaskKind,
+  ThreadMode,
+  TorrentFileEntry,
+} from "./generated/types";
 
-export type DownloadState =
-  | "queued"
-  | "downloading"
-  | "paused"
-  | "retrying"
-  | "verifying"
-  | "completed"
-  | "failed"
-  | "canceled";
+// Import Rust types with aliases for local extension
+import type {
+  ChunkInfo as RustChunkInfo,
+  ChecksumMode as _ChecksumMode,
+  DownloadProgress as RustDownloadProgress,
+  DownloadSnapshot as RustDownloadSnapshot,
+  DownloadSummary as RustDownloadSummary,
+  StartDownloadRequest as RustStartDownloadRequest,
+  TaskKind as _TaskKind,
+  ThreadMode as _ThreadMode,
+} from "./generated/types";
 
-export interface StartDownloadRequest {
-  kind?: TaskKind;
-  url: string;
-  destinationDir: string;
-  fileName?: string;
-  userAgent?: string;
-  threadMode?: ThreadMode;
-  threadCount?: number;
-  maxRetries?: number;
-  checksum?: ChecksumMode;
-  selectedFileIndices?: number[];
-  startPaused?: boolean;
+// ── Frontend-extended types (compatible with existing code) ──
+
+/** DownloadSummary with additional runtime-only fields used by frontend. */
+export interface DownloadSummary extends RustDownloadSummary {
+  degraded?: boolean;
+  diskType?: "ssd" | "hdd";
+  flushing?: boolean;
 }
+// Re-add fields that are number|null in Rust but the frontend treats as optional
+// (this makes `undefined` a valid value alongside `null`)
+export type { RustDownloadSummary as _DownloadSummary };
+
+/** DownloadSnapshot with same variant. */
+export interface DownloadSnapshot extends RustDownloadSnapshot {}
+
+/** DownloadProgress with same variant. */
+export type DownloadProgress = RustDownloadProgress;
+
+/** StartDownloadRequest with same variant. */
+export interface StartDownloadRequest extends RustStartDownloadRequest {}
+
+/** ChunkInfo with same variant. */
+export type ChunkInfo = RustChunkInfo;
+
+// ── Pure frontend types (no Rust counterpart) ──
 
 export interface DownloadFormState {
-  kind: TaskKind;
+  kind: _TaskKind;
   url: string;
   destinationDir: string;
   fileName: string;
   userAgent: string;
-  threadMode: ThreadMode;
+  threadMode: _ThreadMode;
   threadCount: number | null;
   maxRetries: number | null;
-  checksum: ChecksumMode;
+  checksum: _ChecksumMode;
   downloadLimitBps: number | null;
   uploadLimitBps: number | null;
   selectedFileIndices?: number[];
   startPaused?: boolean;
-}
-
-export interface DownloadSummary {
-  id: string;
-  kind: TaskKind;
-  state: DownloadState;
-  url: string;
-  fileName: string;
-  destinationPath: string;
-  totalBytes?: number;
-  downloadedBytes: number;
-  connectionCount: number;
-  threadMode: ThreadMode;
-  requestedThreadCount?: number;
-  desiredThreadCount?: number;
-  allocatedThreadCount?: number;
-  adaptiveProfile?: AdaptiveProfile;
-  threadNote?: string;
-  speedBytesPerSecond?: number;
-  etaSeconds?: number;
-  uploadedBytes?: number;
-  uploadSpeedBytesPerSecond?: number;
-  peerCount?: number;
-  uploadStatus?: BtUploadStatus;
-  infoHash?: string;
-  error?: string;
-  cdnAccelerated?: boolean;
-  degraded?: boolean;
-  /** Disk type for this download; set after detection on the backend. */
-  diskType?: "ssd" | "hdd";
-  /** True while buffered data is being flushed to disk. */
-  flushing?: boolean;
-  createdAtMs: number;
-  seedCount?: number;
-  leechCount?: number;
-  downloadLimitBps?: number;
-  uploadLimitBps?: number;
-  chunks?: ChunkInfo[];
-}
-
-/** Lightweight progress payload sent every ~300ms during active downloads. */
-export interface DownloadProgress {
-  id: string;
-  state: DownloadState;
-  downloadedBytes: number;
-  totalBytes?: number;
-  speedBytesPerSecond?: number;
-  etaSeconds?: number;
-  connectionCount: number;
-  allocatedThreadCount?: number;
-  error?: string;
-  uploadedBytes?: number;
-  uploadSpeedBytesPerSecond?: number;
-  peerCount?: number;
-  uploadStatus?: BtUploadStatus;
-  degraded?: boolean;
-  /** Disk type for this download; set after detection on the backend. */
-  diskType?: "ssd" | "hdd";
-  /** True while buffered data is being flushed to disk. */
-  flushing?: boolean;
-}
-
-export interface ChunkInfo {
-  index: number;
-  start: number;
-  end: number;
-  downloaded: number;
-  completed: boolean;
-  claimedBy: number | null;
-}
-
-export interface DownloadSnapshot {
-  id: string;
-  kind: TaskKind;
-  state: DownloadState;
-  url: string;
-  finalUrl: string;
-  fileName: string;
-  destinationPath: string;
-  tempPath: string;
-  totalBytes?: number;
-  downloadedBytes: number;
-  supportsRanges: boolean;
-  connectionCount: number;
-  threadMode: ThreadMode;
-  requestedThreadCount?: number;
-  desiredThreadCount?: number;
-  allocatedThreadCount?: number;
-  adaptiveProfile?: AdaptiveProfile;
-  threadNote?: string;
-  checksum?: string;
-  checksumMode: ChecksumMode;
-  etag?: string;
-  lastModified?: string;
-  error?: string;
-  speedBytesPerSecond?: number;
-  etaSeconds?: number;
-  uploadedBytes?: number;
-  uploadSpeedBytesPerSecond?: number;
-  peerCount?: number;
-  uploadStatus?: BtUploadStatus;
-  infoHash?: string;
-  createdAtMs: number;
-  updatedAtMs: number;
-  cdnAccelerated?: boolean;
-  degraded?: boolean;
-  /** Disk type for this download; set after detection on the backend. */
-  diskType?: "ssd" | "hdd";
-  /** True while buffered data is being flushed to disk. */
-  flushing?: boolean;
-  chunks?: ChunkInfo[];
-  seedCount?: number;
-  leechCount?: number;
-  downloadLimitBps?: number;
-  uploadLimitBps?: number;
-}
-
-export interface BtRuntimeStatus {
-  connected: boolean;
-  dhtEnabled: boolean;
-  dhtNodes?: number;
-  torrentCount: number;
-  peerCount: number;
-  uploadSpeedBytesPerSecond?: number;
-  uploadedBytes: number;
-  updatedAtMs: number;
-  seedCount?: number;
-  leechCount?: number;
-}
-
-export interface TorrentFileEntry {
-  index: number;
-  path: string;
-  size: number;
-}
-
-export interface BtPeerInfo {
-  address: string;
-  client: string;
-  flags: string;
-  downloadSpeed: number;
-  uploadSpeed: number;
-  progress: number;
-}
-
-export interface BtTrackerInfo {
-  url: string;
-}
-
-export interface BtPieceInfo {
-  index: number;
-  completed: boolean;
-}
-
-export interface BtFileStatus {
-  index: number;
-  path: string;
-  size: number;
-  downloadedBytes: number;
-  included: boolean;
 }
 
 export interface ViewOptions {

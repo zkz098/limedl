@@ -3,7 +3,7 @@ import { t } from "../i18n";
 
 type ProgressShape = Pick<DownloadSummary, "downloadedBytes" | "totalBytes" | "state">;
 
-export function formatTokenLabel(value?: string) {
+export function formatTokenLabel(value?: string | null) {
   if (!value) {
     return t("common.unknown");
   }
@@ -11,7 +11,7 @@ export function formatTokenLabel(value?: string) {
   return t(`tokens.${value}`);
 }
 
-export function formatBytes(value?: number) {
+export function formatBytes(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "—";
   }
@@ -33,7 +33,7 @@ export function formatBytes(value?: number) {
   return `${size.toFixed(precision)} ${units[index]}`;
 }
 
-export function formatSpeed(value?: number) {
+export function formatSpeed(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "—";
   }
@@ -41,7 +41,7 @@ export function formatSpeed(value?: number) {
   return `${formatBytes(value)}/s`;
 }
 
-export function formatEta(value?: number) {
+export function formatEta(value?: number | null) {
   if (typeof value !== "number") {
     return "—";
   }
@@ -56,7 +56,7 @@ export function formatEta(value?: number) {
   return parts.join(" ");
 }
 
-export function formatTimestamp(value?: number) {
+export function formatTimestamp(value?: number | null) {
   if (typeof value !== "number") {
     return "—";
   }
@@ -67,7 +67,7 @@ export function formatTimestamp(value?: number) {
   }).format(value);
 }
 
-export function stateLabel(state?: DownloadState) {
+export function stateLabel(state?: DownloadState | null) {
   return state ? t(`states.${state}`) : formatTokenLabel(state);
 }
 

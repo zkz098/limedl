@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `crates/limedl-core/src/buffer_pool.rs` (705 行) — BufferPool + DownloadBuffer + SlotGuard
+- `crates/limedl-core/src/buffer_pool.rs` — BufferPool + DownloadBuffer + SlotGuard
 - `crates/limedl-core/src/file_ops/mod.rs` (disk_detect 部分) — Win32 IOCTL 磁盘类型检测
 
 ## 关键结构体

@@ -8,7 +8,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use foldhash::HashMap;
@@ -16,12 +16,9 @@ use parking_lot::{Mutex, MutexGuard, RwLock as ParkingRwLock};
 
 use anyhow::Context;
 use async_trait::async_trait;
-use futures_util::StreamExt;
-use reqwest::{Client, StatusCode, Url, header};
+use reqwest::{Client, Url};
 use tokio::{
     sync::{Notify, RwLock},
-    task::JoinSet,
-    time::sleep,
 };
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -32,29 +29,23 @@ use super::{
     database::Database,
     error::{DownloadError, Result, io_error_with_path},
     event_bus::{DownloadEvent, EventBus},
-    file_ops::{
-        check_disk_space, detect_disk_type, finalize_temp_file, open_download_file,
-        reset_download_file, write_all_at,
-    },
-    http::{
-        build_segment_request, extract_total_bytes, header_string, if_range_header,
-        infer_file_name, supports_ranges, validate_probe_response, validate_segment_response,
-    },
+    file_ops::detect_disk_type,
+    http_executor::HttpExecutor,
     lock,
     logging::apply_logging_settings,
     manifest::{
-        CHUNK_SIZE, ChunkManifest, Manifest, RemoteMetadata, contiguous_prefix_end,
-        has_partial_chunk_progress, plan_chunks, resolve_chunk_size, snapshot_from_manifest,
-        validators_changed,
+        CHUNK_SIZE, Manifest, snapshot_from_manifest,
     },
     migration::migrate_json_manifests,
     protocol::DownloadBackend,
     rate_limiter::RateLimiter,
+    scheduler::Scheduler,
     slot_guard::DownloadSlotGuard,
+    task_lifecycle::TaskLifecycle,
     types::{
-        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadProgress,
+        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType,
         DownloadSnapshot, DownloadState, DownloadSummary, SchedulerMode, StartDownloadRequest,
-        TaskId, TaskKind, ThreadMode,
+        TaskId, ThreadMode,
     },
 };
 
@@ -63,19 +54,16 @@ use super::mirror::rewrite as mirror_rewrite;
 use super::now_ms;
 use super::settings::{load_settings, normalize_settings, persist_settings, resolve_user_agent};
 
-#[path = "http_executor.rs"]
-mod http_executor;
-
 pub const DEFAULT_FIXED_THREADS: usize = 8;
-const DEFAULT_RETRIES: u32 = 4;
-const PERSIST_INTERVAL: Duration = Duration::from_millis(300);
+pub(crate) const DEFAULT_RETRIES: u32 = 4;
+pub(crate) const PERSIST_INTERVAL: Duration = Duration::from_millis(300);
 pub const MAX_TRADITIONAL_THREADS: usize = 32;
 
 #[derive(Clone)]
 pub struct AppState {
     pub registry: Arc<super::backend_registry::BackendRegistry>,
     pub event_bus: Arc<EventBus>,
-    pub cdn_accelerator: Arc<super::cdn::CdnAccelerator>,
+    pub cdn_service: Arc<super::cdn::CdnService>,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
 }
 
@@ -94,21 +82,10 @@ impl AppState {
     }
 }
 
-pub struct DownloadManager {
-    client: Arc<RwLock<Client>>,
-    state_dir: PathBuf,
-    settings_path: PathBuf,
-    pub settings: Arc<RwLock<AppSettings>>,
-    pub downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
-    pub db: Arc<Database>,
-    pub rebalance_notify: Arc<Notify>,
-    pub event_bus: Arc<EventBus>,
-    cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
-    pub cdn_client_cache: Arc<ParkingRwLock<HashMap<(String, Ipv4Addr), Client>>>,
-    rate_limiter: Arc<RateLimiter>,
-    pub buffer_pool: Arc<BufferPool>,
-    pub overclock_mode: AtomicBool,
-    pub shutdown_token: CancellationToken,
+// ── Sub-structures for field grouping ──────────────────────────────────
+
+/// Concurrency limits and counters for HTTP/BT download throttling.
+pub struct ConcurrencyLimits {
     /// Active HTTP download counter (for concurrent throttling)
     pub active_http_count: Arc<AtomicUsize>,
     /// Active BT download counter (for concurrent throttling)
@@ -116,30 +93,91 @@ pub struct DownloadManager {
     /// Maximum concurrent HTTP downloads
     pub max_concurrent_http: AtomicUsize,
     /// Maximum concurrent BT downloads
-    pub max_concurrent_bt: AtomicUsize,
+    pub max_concurrent_bt: Arc<AtomicUsize>,
+    /// Overclock mode flag (allows scheduler to pin all adaptive tasks at max threads)
+    pub overclock_mode: AtomicBool,
+}
+
+/// Runtime control signals for shutdown and scheduler rebalance coordination.
+pub struct RuntimeControls {
+    /// Cancellation token for graceful shutdown of scheduler loop and workers.
+    pub shutdown_token: CancellationToken,
+    /// Notify mechanism for triggering scheduler rebalance events.
+    pub rebalance_notify: Arc<Notify>,
+}
+
+/// HTTP client infrastructure including CDN accelerator reference and client cache.
+pub struct HttpClientInfra {
+    /// Base HTTP client (reqwest), rebuilt when proxy/user-agent changes.
+    client: Arc<RwLock<Client>>,
+    /// CDN client cache keyed by (hostname, IP) for accelerated domain connections.
+    pub cdn_client_cache: Arc<ParkingRwLock<HashMap<(String, Ipv4Addr), Client>>>,
+    /// Optional CDN accelerator for Cloudflare IP probing and DNS rewriting.
+    cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
+}
+
+/// File system paths for download state persistence and settings storage.
+pub struct StateDirs {
+    /// Directory for download state files (temp files, manifests).
+    pub(crate) state_dir: PathBuf,
+    /// Path to the settings.json file.
+    pub(crate) settings_path: PathBuf,
+}
+
+pub struct DownloadManager {
+    /// HTTP client infrastructure (client, CDN cache, CDN accelerator).
+    pub http: HttpClientInfra,
+    /// File system paths for state and settings.
+    pub dirs: StateDirs,
+    pub settings: Arc<RwLock<AppSettings>>,
+    pub downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
+    pub db: Arc<Database>,
+    pub event_bus: Arc<EventBus>,
+    pub(crate) rate_limiter: Arc<RateLimiter>,
+    pub buffer_pool: Arc<BufferPool>,
+    pub controls: RuntimeControls,
+    pub limits: ConcurrencyLimits,
+    /// HTTP download executor actor — handles probe, single/chunked download, finalize.
+    pub http_executor: Arc<HttpExecutor>,
+    /// Scheduler actor — handles background rebalance loop and thread allocation.
+    pub scheduler: Arc<Scheduler>,
+    /// Task lifecycle actor — handles state transitions, wait coordination, file ops,
+    /// progress recording, and event emission.
+    pub task_lifecycle: Arc<TaskLifecycle>,
 }
 
 impl Clone for DownloadManager {
     fn clone(&self) -> Self {
         Self {
-            client: self.client.clone(),
-            state_dir: self.state_dir.clone(),
-            settings_path: self.settings_path.clone(),
+            http: HttpClientInfra {
+                client: self.http.client.clone(),
+                cdn_client_cache: self.http.cdn_client_cache.clone(),
+                cdn_accelerator: self.http.cdn_accelerator.clone(),
+            },
+            dirs: StateDirs {
+                state_dir: self.dirs.state_dir.clone(),
+                settings_path: self.dirs.settings_path.clone(),
+            },
             settings: self.settings.clone(),
             downloads: self.downloads.clone(),
             db: self.db.clone(),
-            rebalance_notify: self.rebalance_notify.clone(),
-            shutdown_token: self.shutdown_token.clone(),
+            controls: RuntimeControls {
+                shutdown_token: self.controls.shutdown_token.clone(),
+                rebalance_notify: self.controls.rebalance_notify.clone(),
+            },
             event_bus: self.event_bus.clone(),
-            cdn_accelerator: self.cdn_accelerator.clone(),
-            cdn_client_cache: self.cdn_client_cache.clone(),
             rate_limiter: self.rate_limiter.clone(),
             buffer_pool: self.buffer_pool.clone(),
-            overclock_mode: AtomicBool::new(self.overclock_mode.load(Ordering::Relaxed)),
-            active_http_count: self.active_http_count.clone(),
-            active_bt_count: self.active_bt_count.clone(),
-            max_concurrent_http: AtomicUsize::new(self.max_concurrent_http.load(Ordering::Relaxed)),
-            max_concurrent_bt: AtomicUsize::new(self.max_concurrent_bt.load(Ordering::Relaxed)),
+            limits: ConcurrencyLimits {
+                active_http_count: self.limits.active_http_count.clone(),
+                active_bt_count: self.limits.active_bt_count.clone(),
+                max_concurrent_http: AtomicUsize::new(self.limits.max_concurrent_http.load(Ordering::Relaxed)),
+                max_concurrent_bt: self.limits.max_concurrent_bt.clone(),
+                overclock_mode: AtomicBool::new(self.limits.overclock_mode.load(Ordering::Relaxed)),
+            },
+            http_executor: self.http_executor.clone(),
+            scheduler: self.scheduler.clone(),
+            task_lifecycle: self.task_lifecycle.clone(),
         }
     }
 }
@@ -211,14 +249,14 @@ impl ManagedDownload {
 }
 
 #[derive(Debug)]
-enum RunOutcome {
+pub(crate) enum RunOutcome {
     Finished,
     Paused,
     Canceled,
 }
 
 #[derive(Debug)]
-enum ChunkWorkerOutcome {
+pub(crate) enum ChunkWorkerOutcome {
     Finished,
     RestartSingle,
     Paused,
@@ -255,44 +293,39 @@ impl DownloadManager {
         ));
 
         let manager = Self {
-            client: Arc::new(RwLock::new(client)),
-            state_dir,
-            settings_path,
+            http: HttpClientInfra {
+                client: Arc::new(RwLock::new(client)),
+                cdn_client_cache: Arc::new(ParkingRwLock::new(HashMap::default())),
+                cdn_accelerator: Arc::new(RwLock::new(None)),
+            },
+            dirs: StateDirs {
+                state_dir,
+                settings_path,
+            },
             settings: Arc::new(RwLock::new(settings)),
             downloads: Arc::new(RwLock::new(HashMap::default())),
             db,
-            rebalance_notify: Arc::new(Notify::new()),
             event_bus,
-            cdn_accelerator: Arc::new(RwLock::new(None)),
-            cdn_client_cache: Arc::new(ParkingRwLock::new(HashMap::default())),
             rate_limiter,
             buffer_pool,
-            overclock_mode: AtomicBool::new(false),
-            shutdown_token: CancellationToken::new(),
-            active_http_count: Arc::new(AtomicUsize::new(0)),
-            active_bt_count: Arc::new(AtomicUsize::new(0)),
-            max_concurrent_http: AtomicUsize::new(5),
-            max_concurrent_bt: AtomicUsize::new(3),
+            controls: RuntimeControls {
+                shutdown_token: CancellationToken::new(),
+                rebalance_notify: Arc::new(Notify::new()),
+            },
+            limits: ConcurrencyLimits {
+                active_http_count: Arc::new(AtomicUsize::new(0)),
+                active_bt_count: Arc::new(AtomicUsize::new(0)),
+                max_concurrent_http: AtomicUsize::new(5),
+                max_concurrent_bt: Arc::new(AtomicUsize::new(3)),
+                overclock_mode: AtomicBool::new(false),
+            },
+            http_executor: Arc::new(HttpExecutor),
+            scheduler: Arc::new(Scheduler),
+            task_lifecycle: Arc::new(TaskLifecycle),
         };
 
         manager.load_downloads_from_db()?;
         Ok(manager)
-    }
-
-    /// Signal the scheduler loop and all active chunk workers to stop gracefully.
-    pub async fn shutdown(&self) {
-        // Stop the scheduler loop
-        self.shutdown_token.cancel();
-
-        // Cancel all active download runtimes so chunk workers exit
-        let downloads = self.downloads.read().await;
-        for managed in downloads.values() {
-            if let Some(token) = managed.lock_runtime().take() {
-                token.cancel();
-            }
-            // Wake the stop_notify so any wait_until_stopped loops break
-            managed.stop_notify.notify_one();
-        }
     }
 
     pub async fn settings(&self) -> Result<AppSettings> {
@@ -317,10 +350,10 @@ impl DownloadManager {
     /// Inject the CDN accelerator reference after both manager and accelerator are created.
     pub fn set_cdn_accelerator(&self, acc: Arc<super::cdn::CdnAccelerator>) {
         tokio::task::block_in_place(|| {
-            *self.cdn_accelerator.blocking_write() = Some(acc);
+            *self.http.cdn_accelerator.blocking_write() = Some(acc);
         });
         // Clear CDN client cache since the accelerator IP has changed.
-        self.cdn_client_cache.write().clear();
+        self.http.cdn_client_cache.write().clear();
     }
 
     /// Resolve the HTTP client to use for a given URL.
@@ -328,7 +361,7 @@ impl DownloadManager {
     /// If CDN acceleration is enabled and an accelerated IP is available, this builds
     /// a domain-specific client that resolves the URL's hostname to the best Cloudflare IP.
     /// Otherwise falls back to the standard client.
-    async fn resolve_client(&self, url: &str) -> (Client, bool) {
+    pub(crate) async fn resolve_client(&self, url: &str) -> (Client, bool) {
         // Clone CDN settings under the read lock, then drop it immediately.
         // This prevents blocking update_settings() during the DNS lookup below.
         let (cdn_enabled, cdn_active_ip) = {
@@ -341,25 +374,25 @@ impl DownloadManager {
 
         if !cdn_enabled {
             tracing::debug!("resolve_client: CDN acceleration disabled");
-            return (self.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false);
         }
 
         if !super::cdn::is_cloudflare_domain(url).await {
             tracing::debug!("resolve_client: domain is not Cloudflare, using standard client");
-            return (self.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false);
         }
 
         let Ok(parsed) = reqwest::Url::parse(url) else {
             tracing::debug!("resolve_client: failed to parse URL: {url}");
-            return (self.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false);
         };
         let Some(host) = parsed.host_str() else {
             tracing::debug!("resolve_client: no host in URL: {url}");
-            return (self.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false);
         };
 
         // IP resolution: in-memory accelerator → persisted settings fallback
-        let ip = match self.cdn_accelerator.read().await.as_ref() {
+        let ip = match self.http.cdn_accelerator.read().await.as_ref() {
             Some(acc) => match acc.active_ip().await {
                 Some(ip) => {
                     tracing::debug!("resolve_client: using in-memory active IP: {ip}");
@@ -378,7 +411,7 @@ impl DownloadManager {
             // Check cache first
             let cache_key = (host.to_string(), ip);
             {
-                let cache = self.cdn_client_cache.read();
+                let cache = self.http.cdn_client_cache.read();
                 if let Some(cached_client) = cache.get(&cache_key) {
                     tracing::debug!("resolve_client: using cached CDN client for {host} via {ip}");
                     return (cached_client.clone(), true);
@@ -389,7 +422,7 @@ impl DownloadManager {
             match super::cdn::build_accelerated_client(host, ip, &settings) {
                 Ok(accelerated) => {
                     tracing::info!("resolve_client: CDN acceleration active for {host} via {ip}");
-                    self.cdn_client_cache
+                    self.http.cdn_client_cache
                         .write()
                         .insert(cache_key, accelerated.clone());
                     return (accelerated, true);
@@ -404,10 +437,10 @@ impl DownloadManager {
             tracing::debug!("resolve_client: no active IP available for {host}");
         }
 
-        (self.client.read().await.clone(), false)
+        (self.http.client.read().await.clone(), false)
     }
 
-    pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings> {
+    pub async fn apply_settings(&self, settings: AppSettings) -> Result<AppSettings> {
         let normalized = normalize_settings(settings)?;
 
         // Apply non-client-affecting settings immediately
@@ -430,29 +463,29 @@ impl DownloadManager {
                 || current.download.default_user_agent != normalized.download.default_user_agent
         };
 
-        persist_settings(&self.settings_path, &normalized).await?;
+        persist_settings(&self.dirs.settings_path, &normalized).await?;
         *self.settings.write().await = normalized.clone();
 
         // Update concurrent download limits from settings
         if let Some(ref limits) = normalized.download_limits {
-            self.max_concurrent_http
+            self.limits.max_concurrent_http
                 .store(limits.max_concurrent_http, Ordering::Release);
-            self.max_concurrent_bt
+            self.limits.max_concurrent_bt
                 .store(limits.max_concurrent_bt, Ordering::Release);
         }
 
         if client_changed {
             let next_client = build_http_client(&normalized)?;
-            *self.client.write().await = next_client;
+            *self.http.client.write().await = next_client;
         }
         // Clear CDN client cache since settings may have changed the active IP
-        self.cdn_client_cache.write().clear();
+        self.http.cdn_client_cache.write().clear();
 
-        apply_logging_settings(&normalized.logging, &self.state_dir).map_err(|error| {
+        apply_logging_settings(&normalized.logging, &self.dirs.state_dir).map_err(|error| {
             DownloadError::InvalidResponse(format!("failed to apply logging settings: {error}"))
         })?;
-        self.rebalance_allocations().await?;
-        self.rebalance_notify.notify_waiters();
+        self.scheduler.rebalance_allocations(self).await?;
+        self.controls.rebalance_notify.notify_waiters();
 
         Ok(normalized)
     }
@@ -497,7 +530,7 @@ impl DownloadManager {
         }
 
         let destination_path = unique_destination_path(&destination_dir, &safe_name);
-        let temp_path = self.state_dir.join(format!("{download_id}.part"));
+        let temp_path = self.dirs.state_dir.join(format!("{download_id}.part"));
         let supports_parallel = true;
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);
@@ -572,20 +605,17 @@ impl DownloadManager {
             .await
             .insert(download_id.to_string(), managed.clone());
 
-        self.spawn_download(
-            managed,
-            request.max_retries.unwrap_or(DEFAULT_RETRIES),
-            slot,
-        )
-        .await?;
-        self.rebalance_allocations().await?;
-        self.rebalance_notify.notify_waiters();
+        let dm = Arc::new(self.clone());
+        self.task_lifecycle.spawn_download(dm, managed, request.max_retries.unwrap_or(DEFAULT_RETRIES), slot)
+            .await?;
+        self.scheduler.rebalance_allocations(self).await?;
+        self.controls.rebalance_notify.notify_waiters();
 
         Ok(download_id)
     }
 
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.get(download_id).await?;
+        let managed = self.task_lifecycle.get(self, download_id).await?;
         {
             let mut core = managed.lock_core();
             if !matches!(
@@ -609,56 +639,66 @@ impl DownloadManager {
             token.cancel();
         }
 
-        self.wait_until_stopped(&managed).await;
+        self.task_lifecycle.wait_until_stopped(self, &managed).await;
         self.persist(managed.clone()).await?;
-        self.rebalance_allocations().await?;
-        self.rebalance_notify.notify_waiters();
-        Ok(self.build_snapshot(managed))
+        self.scheduler.rebalance_allocations(self).await?;
+        self.controls.rebalance_notify.notify_waiters();
+        Ok(self.task_lifecycle.build_snapshot(self, managed))
     }
 
     pub async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.get(download_id).await?;
-        {
-            let mut core = managed.lock_core();
-            if core.snapshot.state == DownloadState::Completed {
-                return Ok(core.snapshot.clone());
+        let managed = self.task_lifecycle.get(self, download_id).await?;
+
+        let is_completed = {
+            let core = managed.lock_core();
+            core.snapshot.state == DownloadState::Completed
+        };
+
+        if !is_completed {
+            {
+                let mut core = managed.lock_core();
+                core.snapshot.state = DownloadState::Canceled;
+                core.snapshot.connection_count = 0;
+                core.snapshot.allocated_thread_count = Some(0);
+                core.snapshot.updated_at_ms = now_ms();
+                core.manifest.state = DownloadState::Canceled;
+                core.manifest.connection_count = 0;
+                core.manifest.allocated_thread_count = Some(0);
+                core.manifest.updated_at_ms = now_ms();
             }
-            core.snapshot.state = DownloadState::Canceled;
-            core.snapshot.connection_count = 0;
-            core.snapshot.allocated_thread_count = Some(0);
-            core.snapshot.updated_at_ms = now_ms();
-            core.manifest.state = DownloadState::Canceled;
-            core.manifest.connection_count = 0;
-            core.manifest.allocated_thread_count = Some(0);
-            core.manifest.updated_at_ms = now_ms();
+
+            let token = { managed.lock_runtime().clone() };
+            if let Some(token) = &token {
+                token.cancel();
+            }
+            if token.is_some() {
+                self.task_lifecycle.wait_until_stopped(self, &managed).await;
+            }
+            self.task_lifecycle.cleanup_files(self, &managed)?;
         }
-        let token = { managed.lock_runtime().clone() };
-        if let Some(token) = &token {
-            token.cancel();
-        }
-        if token.is_some() {
-            self.wait_until_stopped(&managed).await;
-        }
-        self.cleanup_files(&managed)?;
+
+        // Remove from active list and trigger rebalance even when the
+        // download already completed — otherwise queued tasks may never
+        // be unblocked if the background scheduler loop hasn't ticked yet.
         self.downloads.write().await.remove(download_id);
         self.db
             .delete_download(download_id)
             .context("failed to delete canceled download from database")?;
-        self.rebalance_allocations().await?;
-        self.rebalance_notify.notify_waiters();
-        Ok(self.build_snapshot(managed))
+        self.scheduler.rebalance_allocations(self).await?;
+        self.controls.rebalance_notify.notify_waiters();
+        Ok(self.task_lifecycle.build_snapshot(self, managed))
     }
 
     pub async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        self.remove_internal(download_id, false).await
+        self.task_lifecycle.remove_internal(self, download_id, false).await
     }
 
     pub async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        self.remove_internal(download_id, true).await
+        self.task_lifecycle.remove_internal(self, download_id, true).await
     }
 
     pub async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
-        let managed = self.get(download_id).await?;
+        let managed = self.task_lifecycle.get(self, download_id).await?;
         let manifest = managed.lock_core().manifest.clone();
         let destination_path = PathBuf::from(&manifest.destination_path);
         let directory_path = PathBuf::from(&manifest.destination_dir);
@@ -688,7 +728,7 @@ impl DownloadManager {
     }
 
     pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.get(download_id).await?;
+        let managed = self.task_lifecycle.get(self, download_id).await?;
         // Phase 1: check state (read-only, drop lock before fallible ops)
         {
             let core = managed.lock_core();
@@ -756,16 +796,17 @@ impl DownloadManager {
         // Acquire a concurrent download slot (HTTP throttle) for resume
         let slot = self.try_acquire_http()?;
 
-        self.spawn_download(managed.clone(), DEFAULT_RETRIES, slot)
+        let dm = Arc::new(self.clone());
+        self.task_lifecycle.spawn_download(dm, managed.clone(), DEFAULT_RETRIES, slot)
             .await?;
-        self.rebalance_allocations().await?;
-        self.rebalance_notify.notify_waiters();
-        Ok(self.build_snapshot(managed))
+        self.scheduler.rebalance_allocations(self).await?;
+        self.controls.rebalance_notify.notify_waiters();
+        Ok(self.task_lifecycle.build_snapshot(self, managed))
     }
 
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.get(download_id).await?;
-        Ok(self.build_snapshot(managed))
+        let managed = self.task_lifecycle.get(self, download_id).await?;
+        Ok(self.task_lifecycle.build_snapshot(self, managed))
     }
 
     pub async fn list(&self) -> Result<Vec<DownloadSummary>> {
@@ -773,7 +814,7 @@ impl DownloadManager {
         let mut items = downloads
             .values()
             .cloned()
-            .map(|managed| DownloadSummary::from(&self.build_snapshot(managed)))
+            .map(|managed| DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed)))
             .collect::<Vec<_>>();
         items.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(items)
@@ -784,7 +825,7 @@ impl DownloadManager {
         let downloads = self.downloads.read().await;
         downloads
             .get(download_id)
-            .map(|managed| DownloadSummary::from(&self.build_snapshot(managed.clone())))
+            .map(|managed| DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed.clone())))
     }
 
     /// Find a non-terminal download by URL. Returns the internal download ID if found.
@@ -803,166 +844,6 @@ impl DownloadManager {
         }
         None
     }
-
-    async fn spawn_download(
-        &self,
-        managed: Arc<ManagedDownload>,
-        max_retries: u32,
-        slot: DownloadSlotGuard,
-    ) -> Result<()> {
-        {
-            let mut runtime = managed.lock_runtime();
-            if runtime.is_some() {
-                return Ok(());
-            }
-            *runtime = Some(CancellationToken::new());
-        }
-
-        let manager = Arc::new(self.clone());
-        let token = managed
-            .lock_runtime()
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("runtime token not set after initialization"))?;
-
-        self.persist(managed.clone()).await?;
-
-        tokio::spawn(async move {
-            // Hold the download slot guard for the lifetime of the task.
-            let _guard = slot;
-            // Build URL list for mirror retry.
-            // mirror::rewrite() already includes the original URL as the last
-            // element, so mirror_urls is always [mirror1, ..., original].
-            // Resume from current_mirror_index to preserve state across
-            // pause/resume cycles.
-            let (urls_to_try, start_index): (Vec<String>, usize) = {
-                let core = managed.lock_core();
-                if core.manifest.mirror_urls.is_empty() {
-                    (vec![core.manifest.url.clone()], 0)
-                } else {
-                    let urls = core.manifest.mirror_urls.clone();
-                    let idx = core
-                        .manifest
-                        .current_mirror_index
-                        .min(urls.len().saturating_sub(1));
-                    (urls, idx)
-                }
-            };
-
-            // Mirror mode is active when we have more than just the original URL.
-            let has_mirrors = urls_to_try.len() > 1;
-
-            // Use 1 retry for mirror mode (gives each mirror one retry on
-            // transient HTTP errors like 429/503), keep original retry count
-            // for non-mirror mode.
-            let actual_retries = if has_mirrors { 1 } else { max_retries };
-
-            for index in start_index..urls_to_try.len() {
-                let url_to_try = &urls_to_try[index];
-                // Update mirror tracking on manifest and snapshot
-                {
-                    let mut core = managed.lock_core();
-                    core.manifest.current_mirror_index = index;
-                    if has_mirrors {
-                        core.manifest.mirror_url = Some(url_to_try.clone());
-                        core.manifest.final_url = url_to_try.clone();
-                    }
-                    core.snapshot.mirror_url = core.manifest.mirror_url.clone();
-                    core.snapshot.final_url = core.manifest.final_url.clone();
-                }
-
-                // Resolve CDN-aware client for this URL
-                let (client, cdn_accelerated) = manager.resolve_client(url_to_try).await;
-                {
-                    let mut core = managed.lock_core();
-                    core.snapshot.cdn_accelerated = cdn_accelerated;
-                    core.manifest.cdn_accelerated = cdn_accelerated;
-                }
-
-                let result = manager
-                    .run_download(managed.clone(), client, token.clone(), actual_retries)
-                    .await;
-
-                match result {
-                    Ok(()) => {
-                        break;
-                    }
-                    Err(DownloadError::Interrupted) => {
-                        {
-                            let mut runtime = managed.lock_runtime();
-                            *runtime = None;
-                        }
-                        managed.stop_notify.notify_one();
-                        return;
-                    }
-                    Err(error) => {
-                        let is_network = is_network_error(&error);
-                        let has_more = index + 1 < urls_to_try.len();
-
-                        if has_mirrors && is_network && has_more {
-                            tracing::warn!(
-                                "mirror {index} failed with network error, trying next: {error}"
-                            );
-                            continue;
-                        }
-
-                        // Non-retryable error or last URL — set Failed state
-                        {
-                            let mut core = managed.lock_core();
-                            core.snapshot.state = DownloadState::Failed;
-                            core.snapshot.error = Some(error.to_string());
-                            core.snapshot.connection_count = 0;
-                            core.snapshot.allocated_thread_count = Some(0);
-                            core.snapshot.updated_at_ms = now_ms();
-                            core.manifest.state = DownloadState::Failed;
-                            core.manifest.error = Some(error.to_string());
-                            core.manifest.connection_count = 0;
-                            core.manifest.allocated_thread_count = Some(0);
-                            core.manifest.updated_at_ms = now_ms();
-                        }
-                        manager.emit_single_summary(&managed);
-
-                        // Broadcast aria2.onDownloadError via EventBus
-                        let download_id = managed.lock_core().snapshot.id.clone();
-                        let gid = format!(
-                            "{:016x}",
-                            xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
-                        );
-                        manager.event_bus.publish(DownloadEvent::Aria2Notification {
-                            event_name: "aria2.onDownloadError".into(),
-                            gid,
-                        });
-
-                        break;
-                    }
-                }
-            }
-
-            let should_persist = {
-                let core = managed.lock_core();
-                core.snapshot.state != DownloadState::Canceled
-            };
-            if should_persist && let Err(error) = manager.persist(managed.clone()).await {
-                log_background_error("persist background download state", &error);
-            }
-            // Evict terminal entries so the map doesn't grow unbounded.
-            manager.evict_completed().await;
-            {
-                let mut runtime = managed.lock_runtime();
-                *runtime = None;
-            }
-            managed.stop_notify.notify_one();
-            manager.rebalance_notify.notify_waiters();
-        });
-
-        Ok(())
-    }
-}
-
-fn is_terminal(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
-    )
 }
 
 impl DownloadManager {
@@ -975,312 +856,6 @@ impl DownloadManager {
         mirror_rewrite(url, &settings.github_mirror)
     }
 
-    fn build_snapshot(&self, managed: Arc<ManagedDownload>) -> DownloadSnapshot {
-        let core = managed.lock_core();
-        let mut snapshot = core.snapshot.clone();
-        let chunks: Vec<ChunkInfo> = core
-            .manifest
-            .chunks
-            .iter()
-            .map(|c| ChunkInfo {
-                index: c.index,
-                start: c.start,
-                end: c.end,
-                downloaded: c.downloaded,
-                completed: c.completed,
-                claimed_by: c.claimed_by,
-            })
-            .collect();
-        snapshot.chunks = chunks;
-        drop(core);
-        let elapsed = (snapshot
-            .updated_at_ms
-            .saturating_sub(snapshot.created_at_ms))
-        .max(1) as f64
-            / 1000.0;
-        let average_speed = if snapshot.downloaded_bytes == 0 {
-            None
-        } else {
-            Some(snapshot.downloaded_bytes as f64 / elapsed)
-        };
-        let speed = managed.aimd.lock().last_throughput.or(average_speed);
-        let eta = match (snapshot.total_bytes, speed) {
-            (Some(total), Some(speed)) if speed > 0.0 && total >= snapshot.downloaded_bytes => {
-                Some(((total - snapshot.downloaded_bytes) as f64 / speed).ceil() as u64)
-            }
-            _ => None,
-        };
-        snapshot.speed_bytes_per_second = if is_terminal(snapshot.state) {
-            None
-        } else {
-            speed
-        };
-        snapshot.eta_seconds = if is_terminal(snapshot.state) {
-            None
-        } else {
-            eta
-        };
-        snapshot
-    }
-
-    /// Evict terminal-state downloads (Completed/Failed/Canceled) when the
-    /// in-memory map exceeds `max_in_memory_downloads`.  Removes the oldest
-    /// terminal entries first.  Returns the number of entries removed.
-    pub async fn evict_completed(&self) -> usize {
-        let limit = self.settings.read().await.max_in_memory_downloads;
-        if limit == 0 {
-            return 0;
-        }
-
-        let mut evicted = 0;
-        let mut map = self.downloads.write().await;
-        if map.len() <= limit {
-            return 0;
-        }
-
-        // Collect terminal-state entries with their creation timestamps.
-        let mut terminal: Vec<(String, u64)> = Vec::new();
-        for (id, managed) in map.iter() {
-            let core = managed.lock_core();
-            if matches!(
-                core.snapshot.state,
-                DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
-            ) {
-                terminal.push((id.clone(), core.snapshot.created_at_ms));
-            }
-        }
-
-        // Sort oldest first.
-        terminal.sort_by_key(|(_, created)| *created);
-
-        let excess = map.len().saturating_sub(limit);
-        let to_remove = terminal.len().min(excess);
-        for (id, _) in terminal.iter().take(to_remove) {
-            map.remove(id);
-            evicted += 1;
-        }
-
-        evicted
-    }
-
-    /// Build a [`DownloadSummary`] from a managed download and emit a
-    /// `download-updated` Tauri event to the frontend.
-    ///
-    /// This is the targeted alternative to `AppState::emit_all_downloads()` —
-    /// it emits for a single download at its state transition point rather than
-    /// scanning every download on a fixed schedule.
-    pub fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
-        let snapshot = self.build_snapshot(managed.clone());
-        let summary = DownloadSummary::from(&snapshot);
-        // id is already the raw UUID, no prefix needed
-        let json = serde_json::to_value(&summary).unwrap_or_default();
-        self.event_bus.publish(DownloadEvent::Updated {
-            id: summary.id.clone(),
-            summary_json: json,
-        });
-    }
-
-    /// Emit a lightweight `download-progress` event for incremental UI updates.
-    /// Called after each persist cycle (~300ms for HTTP, ~2s for BT).
-    pub fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
-        let snapshot = self.build_snapshot(managed.clone());
-        let progress = DownloadProgress::from(&snapshot);
-        // id is already the raw UUID, no prefix needed
-        let json = serde_json::to_value(&progress).unwrap_or_default();
-        self.event_bus.publish(DownloadEvent::Progress {
-            id: progress.id.clone(),
-            progress_json: json,
-        });
-    }
-
-    fn record_progress(
-        &self,
-        managed: &Arc<ManagedDownload>,
-        chunk_index: Option<usize>,
-        bytes: u64,
-    ) {
-        let now = now_ms();
-        let mut core = managed.lock_core();
-        core.snapshot.downloaded_bytes = core.snapshot.downloaded_bytes.saturating_add(bytes);
-        core.snapshot.error = None;
-        core.snapshot.updated_at_ms = now;
-        core.manifest.downloaded_bytes = core.manifest.downloaded_bytes.saturating_add(bytes);
-        core.manifest.error = None;
-        core.manifest.updated_at_ms = now;
-        if let Some(index) = chunk_index
-            && let Some(chunk) = core
-                .manifest
-                .chunks
-                .iter_mut()
-                .find(|candidate| candidate.index == index)
-        {
-            chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-            chunk.dirty = true;
-            if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
-                chunk.completed = true;
-                chunk.claimed_by = None;
-            }
-        }
-    }
-
-    fn reset_progress(&self, managed: &Arc<ManagedDownload>, force_single_stream: bool) {
-        let now = now_ms();
-        let mut core = managed.lock_core();
-        core.snapshot.downloaded_bytes = 0;
-        core.snapshot.updated_at_ms = now;
-        core.manifest.downloaded_bytes = 0;
-        core.manifest.updated_at_ms = now;
-        for chunk in &mut core.manifest.chunks {
-            chunk.downloaded = 0;
-            chunk.completed = false;
-            chunk.claimed_by = None;
-            chunk.dirty = true;
-        }
-        if force_single_stream {
-            core.snapshot.connection_count = 1;
-            core.snapshot.supports_ranges = false;
-            core.snapshot.desired_thread_count = Some(1);
-            core.snapshot.allocated_thread_count = Some(1);
-            core.snapshot.thread_note = Some(String::from("单线程（服务器不支持分段）"));
-            core.manifest.connection_count = 1;
-            core.manifest.supports_ranges = false;
-            core.manifest.chunks.clear();
-            core.manifest.desired_thread_count = Some(1);
-            core.manifest.allocated_thread_count = Some(1);
-            core.manifest.thread_note = Some(String::from("单线程（服务器不支持分段）"));
-        }
-    }
-
-    fn cleanup_files(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.lock_core().manifest.clone();
-        let temp_path = PathBuf::from(manifest.temp_path);
-        if temp_path.exists() {
-            remove_file_if_exists(&temp_path)?;
-        }
-        Ok(())
-    }
-
-    fn cleanup_destination_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.lock_core().manifest.clone();
-        let destination_path = PathBuf::from(manifest.destination_path);
-        if destination_path.exists() {
-            fs::remove_file(&destination_path)
-                .map_err(|e| io_error_with_path(e, destination_path.to_string_lossy()))?;
-        }
-        Ok(())
-    }
-
-    fn prepare_fresh_temp_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.lock_core().manifest.clone();
-        let temp_path = PathBuf::from(manifest.temp_path);
-        if temp_path.exists() {
-            fs::remove_file(&temp_path)
-                .map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
-        }
-        let _file = open_download_file(&temp_path, manifest.total_bytes)?;
-        Ok(())
-    }
-
-    async fn get(&self, download_id: &str) -> Result<Arc<ManagedDownload>> {
-        self.downloads
-            .read()
-            .await
-            .get(download_id)
-            .cloned()
-            .ok_or(DownloadError::NotFound)
-    }
-
-    async fn wait_until_stopped(&self, managed: &Arc<ManagedDownload>) {
-        if managed.lock_runtime().is_none() {
-            return;
-        }
-        // Register interest before re-checking to avoid a missed notification.
-        // Notify stores one permit, so if the worker called notify_one() between
-        // the first check and here, the notified() future resolves immediately.
-        let notified = managed.stop_notify.notified();
-        if managed.lock_runtime().is_none() {
-            return;
-        }
-        notified.await;
-    }
-
-    async fn remove_internal(
-        &self,
-        download_id: &str,
-        purge_file: bool,
-    ) -> Result<DownloadSnapshot> {
-        let managed = self.get(download_id).await?;
-        let snapshot_before = self.build_snapshot(managed.clone());
-        let needs_cancel_state = matches!(
-            snapshot_before.state,
-            DownloadState::Queued
-                | DownloadState::Downloading
-                | DownloadState::Retrying
-                | DownloadState::Verifying
-                | DownloadState::Paused
-        );
-
-        if needs_cancel_state {
-            let mut core = managed.lock_core();
-            core.snapshot.state = DownloadState::Canceled;
-            core.snapshot.connection_count = 0;
-            core.snapshot.allocated_thread_count = Some(0);
-            core.snapshot.updated_at_ms = now_ms();
-            core.manifest.state = DownloadState::Canceled;
-            core.manifest.connection_count = 0;
-            core.manifest.allocated_thread_count = Some(0);
-            core.manifest.updated_at_ms = now_ms();
-        }
-
-        let token = { managed.lock_runtime().clone() };
-        if let Some(token) = token {
-            token.cancel();
-            self.wait_until_stopped(&managed).await;
-        }
-
-        self.cleanup_files(&managed)?;
-        if purge_file {
-            self.cleanup_destination_file(&managed)?;
-        }
-        self.downloads.write().await.remove(download_id);
-        self.db
-            .delete_download(download_id)
-            .context("failed to delete download from database")?;
-        self.rebalance_allocations().await?;
-        self.rebalance_notify.notify_waiters();
-        Ok(self.build_snapshot(managed))
-    }
-
-    async fn wait_until_active(
-        &self,
-        managed: &Arc<ManagedDownload>,
-        token: &CancellationToken,
-    ) -> WaitState {
-        loop {
-            {
-                let core = managed.lock_core();
-                if core.manifest.state == DownloadState::Canceled {
-                    return WaitState::Canceled;
-                }
-                if core.manifest.state == DownloadState::Paused {
-                    return WaitState::Paused;
-                }
-                if core.manifest.allocated_thread_count.unwrap_or(0) > 0 {
-                    return WaitState::Running;
-                }
-            }
-
-            tokio::select! {
-                _ = token.cancelled() => return match managed.lock_core().snapshot.state {
-                    DownloadState::Canceled => WaitState::Canceled,
-                    _ => WaitState::Paused,
-                },
-                _ = self.rebalance_notify.notified() => {}
-                _ = sleep(Duration::from_millis(120)) => {}
-            }
-        }
-    }
-
     #[allow(dead_code)]
     pub fn game_mode(&self) -> bool {
         self.buffer_pool.game_mode()
@@ -1291,12 +866,12 @@ impl DownloadManager {
     }
 
     pub fn set_overclock_mode(&self, enabled: bool) {
-        self.overclock_mode.store(enabled, Ordering::Relaxed);
-        self.rebalance_notify.notify_one();
+        self.limits.overclock_mode.store(enabled, Ordering::Relaxed);
+        self.controls.rebalance_notify.notify_one();
     }
 
     pub fn overclock_mode(&self) -> bool {
-        self.overclock_mode.load(Ordering::Relaxed)
+        self.limits.overclock_mode.load(Ordering::Relaxed)
     }
 
     /// Resolve the disk type for a given directory path.
@@ -1317,8 +892,8 @@ impl DownloadManager {
     /// Try to acquire an HTTP download slot.
     /// Returns `Ok(DownloadSlotGuard)` if under limit, `Err` if at capacity.
     pub fn try_acquire_http(&self) -> std::result::Result<DownloadSlotGuard, DownloadError> {
-        let max = self.max_concurrent_http.load(Ordering::Acquire);
-        let counter = &self.active_http_count;
+        let max = self.limits.max_concurrent_http.load(Ordering::Acquire);
+        let counter = &self.limits.active_http_count;
         loop {
             let current = counter.load(Ordering::Acquire);
             if current >= max {
@@ -1328,7 +903,7 @@ impl DownloadManager {
                 .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
                 .is_ok()
             {
-                return Ok(DownloadSlotGuard::new(self.active_http_count.clone()));
+                return Ok(DownloadSlotGuard::new(self.limits.active_http_count.clone()));
             }
         }
     }
@@ -1336,8 +911,8 @@ impl DownloadManager {
     /// Try to acquire a BT download slot.
     /// Returns `Ok(DownloadSlotGuard)` if under limit, `Err` if at capacity.
     pub fn try_acquire_bt(&self) -> std::result::Result<DownloadSlotGuard, DownloadError> {
-        let max = self.max_concurrent_bt.load(Ordering::Acquire);
-        let counter = &self.active_bt_count;
+        let max = self.limits.max_concurrent_bt.load(Ordering::Acquire);
+        let counter = &self.limits.active_bt_count;
         loop {
             let current = counter.load(Ordering::Acquire);
             if current >= max {
@@ -1347,7 +922,7 @@ impl DownloadManager {
                 .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
                 .is_ok()
             {
-                return Ok(DownloadSlotGuard::new(self.active_bt_count.clone()));
+                return Ok(DownloadSlotGuard::new(self.limits.active_bt_count.clone()));
             }
         }
     }
@@ -1417,20 +992,41 @@ impl DownloadBackend for DownloadManager {
     async fn list(&self) -> Result<Vec<DownloadSummary>> {
         DownloadManager::list(self).await
     }
+
+    async fn update_settings(&self, settings: &AppSettings) -> Result<()> {
+        self.apply_settings(settings.clone()).await?;
+        Ok(())
+    }
+
+    async fn shutdown(&self) {
+        self.task_lifecycle.shutdown(self).await;
+        // Wait for buffer pool to drain (max 5 seconds)
+        let start = std::time::Instant::now();
+        while self.buffer_pool.active_slots() > 0
+            && start.elapsed() < std::time::Duration::from_secs(5)
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        let remaining = self.buffer_pool.active_slots();
+        if remaining > 0 {
+            tracing::warn!("Buffer pool drain timed out after 5s, {remaining} slots still active");
+        }
+    }
 }
 
+/// Result of `wait_until_active()` — used by HttpExecutor.
 #[derive(Debug)]
-enum WaitState {
+pub(crate) enum WaitState {
     Running,
     Paused,
     Canceled,
 }
 
-fn supports_parallelism(total: Option<u64>, supports_ranges: bool, chunk_size: u64) -> bool {
+pub(crate) fn supports_parallelism(total: Option<u64>, supports_ranges: bool, chunk_size: u64) -> bool {
     supports_ranges && total.map(|value| value >= chunk_size * 2).unwrap_or(false)
 }
 
-fn resolve_thread_settings(
+pub(crate) fn resolve_thread_settings(
     settings: &AppSettings,
     request: &StartDownloadRequest,
     supports_parallel: bool,
@@ -1475,7 +1071,7 @@ fn resolve_thread_settings(
     }
 }
 
-fn thread_note(
+pub(crate) fn thread_note(
     supports_parallel: bool,
     thread_mode: ThreadMode,
     adaptive_profile: Option<AdaptiveProfile>,
@@ -1494,11 +1090,20 @@ fn thread_note(
     }
 }
 
-pub fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
+pub(crate) fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
     core.sync_snapshot_from_manifest();
 }
 
-fn record_progress_on_managed(
+/// Records download progress directly on a [`ManagedDownload`].
+///
+/// # Design note (duplication with [`TaskLifecycle::record_progress`])
+/// This free helper exists because chunk workers in [`http_executor`] hold
+/// only an `&Arc<ManagedDownload>` reference and do **not** have access to
+/// a `&DownloadManager` to call through `TaskLifecycle::record_progress`.
+///
+/// The body is **identical** to [`TaskLifecycle::record_progress`] in
+/// `task_lifecycle.rs`. If you modify one, you **must** update the other.
+pub(crate) fn record_progress_on_managed(
     managed: &Arc<ManagedDownload>,
     chunk_index: Option<usize>,
     bytes: u64,
@@ -1527,7 +1132,7 @@ fn record_progress_on_managed(
     }
 }
 
-fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
+pub(crate) fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
     let base = destination_dir.join(file_name);
     if !base.exists() {
         return base;
@@ -1565,40 +1170,21 @@ fn initial_file_name_from_url(url: &str) -> String {
         .unwrap_or_else(|| String::from("download"))
 }
 
-fn remove_file_if_exists(path: &Path) -> Result<()> {
-    match fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(io_error_with_path(error, path.to_string_lossy())),
-    }
-}
-
-pub fn log_background_error(context: &str, error: impl std::fmt::Display) {
+pub(crate) fn log_background_error(context: &str, error: impl std::fmt::Display) {
     tracing::warn!(context, %error, "background error");
 }
 
-fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
+pub(crate) fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
     match managed.lock_core().snapshot.state {
         DownloadState::Canceled => RunOutcome::Canceled,
         _ => RunOutcome::Paused,
     }
 }
 
-fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutcome {
+pub(crate) fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutcome {
     match managed.lock_core().snapshot.state {
         DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
         _ => ChunkWorkerOutcome::Paused,
-    }
-}
-
-/// Returns `true` if the error represents a transport-level network failure
-/// (connection refused, timeout, DNS resolution failure, TLS handshake failure)
-/// that might succeed with a different mirror.  Returns `false` for application-
-/// level errors (HTTP 4xx/5xx, invalid responses, I/O errors, etc.).
-fn is_network_error(error: &DownloadError) -> bool {
-    match error {
-        DownloadError::Http(e) => e.is_connect() || e.is_timeout() || e.is_body(),
-        _ => false,
     }
 }
 

@@ -24,7 +24,7 @@ async fn cdn_settings_survive_restart() {
         settings.cdn_acceleration.enabled = true;
         settings.cdn_acceleration.active_ip = Some(test_ip.clone());
         settings.cdn_acceleration.active_speed_mbps = Some(150.0);
-        dm.update_settings(settings).await.unwrap();
+        dm.apply_settings(settings).await.unwrap();
 
         core.registry.shutdown_all().await;
     }
@@ -71,7 +71,7 @@ async fn cdn_accelerator_init_and_clear() {
     let mut settings = dm.settings().await.unwrap();
     settings.cdn_acceleration.enabled = true;
     settings.cdn_acceleration.active_ip = Some(test_ip.clone());
-    dm.update_settings(settings).await.unwrap();
+    dm.apply_settings(settings).await.unwrap();
 
     // Create accelerator and init from the persisted settings
     let accelerator = Arc::new(CdnAccelerator::new());
@@ -122,7 +122,7 @@ async fn cdn_disable_clears_active_ip() {
         let mut settings = dm.settings().await.unwrap();
         settings.cdn_acceleration.enabled = true;
         settings.cdn_acceleration.active_ip = Some(String::from("1.1.1.1"));
-        dm.update_settings(settings).await.unwrap();
+        dm.apply_settings(settings).await.unwrap();
 
         core.registry.shutdown_all().await;
     }
@@ -136,7 +136,7 @@ async fn cdn_disable_clears_active_ip() {
 
         let mut settings = dm.settings().await.unwrap();
         settings.cdn_acceleration.enabled = false;
-        dm.update_settings(settings).await.unwrap();
+        dm.apply_settings(settings).await.unwrap();
 
         core.registry.shutdown_all().await;
     }
@@ -189,7 +189,7 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
     let mut settings = dm.settings().await.unwrap();
     settings.cdn_acceleration.enabled = true;
     settings.cdn_acceleration.active_ip = Some(String::from("1.1.1.1"));
-    dm.update_settings(settings).await.unwrap();
+    dm.apply_settings(settings).await.unwrap();
 
     // Create accelerator and init from persisted settings
     let accelerator = Arc::new(CdnAccelerator::new());

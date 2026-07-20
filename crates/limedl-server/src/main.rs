@@ -126,12 +126,18 @@ async fn run_daemon(
     // Initialize logging
     let _ = limedl_core::init_logging(&core.settings.logging, &state_dir);
 
+    // Initialize CDN service (same pattern as Tauri setup)
+    let cdn_accelerator = core.cdn_service.accelerator().clone();
+    core.download_manager.set_cdn_accelerator(cdn_accelerator);
+    core.cdn_service.init_from_settings(&core.settings).await;
+
     // Build RPC state
     let rpc_state = Arc::new(RpcState {
         registry: core.registry.clone(),
         event_bus: core.event_bus.clone(),
         clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
         rate_limiter: Arc::new(crate::rate_limiter::WsRateLimiter::new()),
+        cdn_service: core.cdn_service.clone(),
     });
 
     // Build router with auth wrapping ALL routes (including static files)
@@ -188,20 +194,10 @@ async fn run_daemon(
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
     let registry = core.registry.clone();
-    let download_manager = core.download_manager.clone();
     let shutdown_signal = async move {
         let _ = tokio::signal::ctrl_c().await;
         tracing::info!("Shutting down gracefully...");
         registry.shutdown_all().await;
-        let start = std::time::Instant::now();
-        while download_manager.buffer_pool.active_slots() > 0
-            && start.elapsed() < std::time::Duration::from_secs(5)
-        {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
-        if download_manager.buffer_pool.active_slots() > 0 {
-            tracing::warn!("Buffer pool drain timed out");
-        }
     };
     #[cfg(feature = "tls")]
     {

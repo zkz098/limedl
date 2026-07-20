@@ -66,7 +66,7 @@ fn make_manager(state_dir: &std::path::Path) -> Arc<DownloadManager> {
     let dm = DownloadManager::new(state_dir.to_path_buf(), rate_limiter, event_bus)
         .expect("DownloadManager::new");
     let dm = Arc::new(dm);
-    dm.clone().start_scheduler_loop();
+    dm.scheduler.clone().start_scheduler_loop(dm.clone());
     dm
 }
 
@@ -122,7 +122,7 @@ async fn find_active_by_url_dedup() {
     // Third check: terminal downloads should NOT be found
     assert!(dm.find_active_by_url(url).await.is_none());
 
-    dm.shutdown().await;
+    dm.task_lifecycle.shutdown(&dm).await;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,5 +195,5 @@ async fn find_active_by_url_different_urls() {
     dm.cancel(&uuid1.to_string()).await.unwrap();
     dm.cancel(&uuid2.to_string()).await.unwrap();
 
-    dm.shutdown().await;
+    dm.task_lifecycle.shutdown(&dm).await;
 }

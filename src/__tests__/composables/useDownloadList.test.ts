@@ -229,10 +229,13 @@ describe("useDownloadList", () => {
       connectionCount: 0,
       threadMode: "fixed",
       checksumMode: "blake3",
+      cdnAccelerated: false,
+      degraded: false,
+      flushing: false,
       downloadedBytes: 0,
       createdAtMs: Date.now(),
       updatedAtMs: Date.now(),
-    };
+    } as DownloadSnapshot;
 
     // ensureSelection will set selectedId to "task-1" from the fresh data,
     // but it's a mock - so it does nothing. Let's set it up so the condition

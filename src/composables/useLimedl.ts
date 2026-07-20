@@ -45,7 +45,7 @@ async function fireNotification(title: string, body: string) {
       sendNotification({ title, body });
     }
   } catch {
-    // Silently fail â€” notifications are non-critical
+    // Silently fail â€?notifications are non-critical
   }
 }
 
@@ -90,56 +90,56 @@ function createLimedl(options?: UseLimedlOptions) {
 
   /**
    * Apply a lightweight DownloadProgress patch to an existing download in the list.
-   * Mutates fields in-place on the existing reactive object â€” does NOT create a new array,
+   * Mutates fields in-place on the existing reactive object â€?does NOT create a new array,
    * avoiding full-list recomputation for every progress event.
    */
   function patchProgress(progress: DownloadProgress) {
     const existing = downloads.value.find((d) => d.id === progress.id);
     if (!existing) return;
 
-    // Mutate in-place â€” Vue 3 reactivity tracks per-field changes
+    // Mutate in-place â€?Vue 3 reactivity tracks per-field changes
     existing.state = progress.state;
     existing.downloadedBytes = progress.downloadedBytes;
-    if (progress.totalBytes !== undefined) existing.totalBytes = progress.totalBytes;
-    if (progress.speedBytesPerSecond !== undefined)
+    if (progress.totalBytes != null) existing.totalBytes = progress.totalBytes;
+    if (progress.speedBytesPerSecond != null)
       existing.speedBytesPerSecond = progress.speedBytesPerSecond;
-    if (progress.etaSeconds !== undefined) existing.etaSeconds = progress.etaSeconds;
+    if (progress.etaSeconds != null) existing.etaSeconds = progress.etaSeconds;
     existing.connectionCount = progress.connectionCount;
-    if (progress.allocatedThreadCount !== undefined)
+    if (progress.allocatedThreadCount != null)
       existing.allocatedThreadCount = progress.allocatedThreadCount;
-    if (progress.error !== undefined) existing.error = progress.error;
-    if (progress.uploadedBytes !== undefined) existing.uploadedBytes = progress.uploadedBytes;
-    if (progress.uploadSpeedBytesPerSecond !== undefined)
+    if (progress.error != null) existing.error = progress.error;
+    if (progress.uploadedBytes != null) existing.uploadedBytes = progress.uploadedBytes;
+    if (progress.uploadSpeedBytesPerSecond != null)
       existing.uploadSpeedBytesPerSecond = progress.uploadSpeedBytesPerSecond;
-    if (progress.peerCount !== undefined) existing.peerCount = progress.peerCount;
-    if (progress.uploadStatus !== undefined) existing.uploadStatus = progress.uploadStatus;
-    if (progress.degraded !== undefined) existing.degraded = progress.degraded;
-    if (progress.diskType !== undefined) existing.diskType = progress.diskType;
-    if (progress.flushing !== undefined) existing.flushing = progress.flushing;
+    if (progress.peerCount != null) existing.peerCount = progress.peerCount;
+    if (progress.uploadStatus != null) existing.uploadStatus = progress.uploadStatus;
+    if (progress.degraded != null) existing.degraded = progress.degraded;
+    if (progress.diskType != null) existing.diskType = progress.diskType;
+    if (progress.flushing != null) existing.flushing = progress.flushing;
 
     // Patch selectedSnapshot inline (same pattern as existing handleDownloadUpdated patching)
     if (selectedId.value === progress.id && selectedSnapshot.value) {
       Object.assign(selectedSnapshot.value, {
         downloadedBytes: progress.downloadedBytes,
         state: progress.state,
-        ...(progress.totalBytes !== undefined && { totalBytes: progress.totalBytes }),
-        ...(progress.speedBytesPerSecond !== undefined && {
+        ...(progress.totalBytes != null && { totalBytes: progress.totalBytes }),
+        ...(progress.speedBytesPerSecond != null && {
           speedBytesPerSecond: progress.speedBytesPerSecond,
         }),
-        ...(progress.etaSeconds !== undefined && { etaSeconds: progress.etaSeconds }),
+        ...(progress.etaSeconds != null && { etaSeconds: progress.etaSeconds }),
         ...(progress.connectionCount !== undefined && {
           connectionCount: progress.connectionCount,
         }),
-        ...(progress.error !== undefined && { error: progress.error }),
-        ...(progress.uploadedBytes !== undefined && { uploadedBytes: progress.uploadedBytes }),
-        ...(progress.uploadSpeedBytesPerSecond !== undefined && {
+        ...(progress.error != null && { error: progress.error }),
+        ...(progress.uploadedBytes != null && { uploadedBytes: progress.uploadedBytes }),
+        ...(progress.uploadSpeedBytesPerSecond != null && {
           uploadSpeedBytesPerSecond: progress.uploadSpeedBytesPerSecond,
         }),
-        ...(progress.peerCount !== undefined && { peerCount: progress.peerCount }),
-        ...(progress.uploadStatus !== undefined && { uploadStatus: progress.uploadStatus }),
-        ...(progress.degraded !== undefined && { degraded: progress.degraded }),
-        ...(progress.diskType !== undefined && { diskType: progress.diskType }),
-        ...(progress.flushing !== undefined && { flushing: progress.flushing }),
+        ...(progress.peerCount != null && { peerCount: progress.peerCount }),
+        ...(progress.uploadStatus != null && { uploadStatus: progress.uploadStatus }),
+        ...(progress.degraded != null && { degraded: progress.degraded }),
+        ...(progress.diskType != null && { diskType: progress.diskType }),
+        ...(progress.flushing != null && { flushing: progress.flushing }),
       });
     }
   }
@@ -469,7 +469,7 @@ function createLimedl(options?: UseLimedlOptions) {
   };
 }
 
-// Singleton guard â€” ensures all callers share the same reactive instance.
+// Singleton guard â€?ensures all callers share the same reactive instance.
 // useLimedl manages Tauri event listeners and global download state;
 // accidental re-instantiation would create duplicate listeners and desync state.
 let limedlInstance: ReturnType<typeof createLimedl> | null = null;
@@ -477,7 +477,7 @@ let limedlInstance: ReturnType<typeof createLimedl> | null = null;
 export function useLimedl(options?: UseLimedlOptions) {
   if (limedlInstance) {
     if (import.meta.env.DEV && options) {
-      console.warn("[useLimedl] Already created â€” options from this caller ignored.");
+      console.warn("[useLimedl] Already created â€?options from this caller ignored.");
     }
     return limedlInstance;
   }

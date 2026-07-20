@@ -15,6 +15,9 @@ use crate::error::{DownloadError, Result};
 use crate::http_client_factory::configure_client_builder;
 use crate::types::{AppSettings, default_http_user_agent};
 
+#[cfg(feature = "ts")]
+use ts_rs::TS;
+
 /// Cloudflare CDN speed test endpoint (~100MB file).
 /// Cloudflare rejects requests for files larger than 99_999_999 bytes with HTTP 403.
 pub const SPEED_TEST_URL: &str = "https://speed.cloudflare.com/__down?bytes=99999999";
@@ -25,6 +28,8 @@ pub const SPEED_TEST_DURATION: Duration = Duration::from_secs(10);
 // ── Progress reporting types ──────────────────────────────────
 
 /// Phases of the CDN speed test. Frontend consumes these as camelCase strings.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CdnTestPhase {
@@ -34,6 +39,8 @@ pub enum CdnTestPhase {
 }
 
 /// Progress snapshot emitted to the frontend during a CDN speed test.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CdnTestProgress {
@@ -72,9 +79,12 @@ impl Default for SpeedTestConfig {
 }
 
 /// Result for a single IP after the two-phase speed test.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpeedTestResult {
+    #[cfg_attr(feature = "ts", ts(type = "string"))]
     pub ip: Ipv4Addr,
     /// TCP connect latency in milliseconds.
     pub tcp_latency_ms: f64,
@@ -96,6 +106,8 @@ impl Default for SpeedTestResult {
 }
 
 /// Baseline measurement of the default DNS-resolved node (no IP override).
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DefaultNodeResult {

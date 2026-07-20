@@ -6,6 +6,7 @@ pub mod bt_backend_own;
 pub mod cdn;
 pub mod checksum;
 pub mod database;
+pub mod dispatcher;
 pub mod error;
 pub mod event_bus;
 pub mod file_ops;
@@ -13,6 +14,7 @@ pub mod http;
 pub mod http_client_factory;
 pub mod logging;
 pub mod manager;
+pub mod http_executor;
 pub mod manifest;
 pub mod migration;
 pub mod mirror;
@@ -23,7 +25,9 @@ pub mod retry;
 pub mod scheduler;
 pub mod settings;
 pub mod slot_guard;
+pub mod task_lifecycle;
 pub mod types;
+pub mod ws_manifest;
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
@@ -45,8 +49,9 @@ pub mod test_harness;
 
 pub use backend_registry::BackendRegistry;
 pub use bt_backend_own::IrontideBtBackend;
-pub use cdn::CdnAccelerator;
+pub use cdn::{CdnAccelerator, CdnService, CdnTestOutcome};
 pub use checksum::calculate_checksum;
+pub use dispatcher::Dispatcher;
 pub use error::DownloadError;
 pub use event_bus::{DownloadEvent, EventBus};
 pub use logging::init_logging;

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
 use crate::bt_backend_own::IrontideBtBackend;
+use crate::cdn::CdnService;
 use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::manager::DownloadManager;
@@ -20,6 +21,7 @@ pub struct CoreSystems {
     pub event_bus: Arc<EventBus>,
     pub rate_limiter: Arc<RateLimiter>,
     pub settings: AppSettings,
+    pub cdn_service: Arc<CdnService>,
 }
 
 /// Initialize all core subsystems in the correct order.
@@ -34,7 +36,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     let download_manager =
         DownloadManager::new(state_dir.clone(), rate_limiter.clone(), event_bus.clone())?;
     let download_manager = Arc::new(download_manager);
-    download_manager.clone().start_scheduler_loop();
+    download_manager.scheduler.clone().start_scheduler_loop(download_manager.clone());
 
     let settings = download_manager.initial_settings();
 
@@ -50,10 +52,8 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
                 bt_state_dir,
                 bt_output_dir,
                 event_bus.clone(),
-                download_manager.active_bt_count.clone(),
-                download_manager
-                    .max_concurrent_bt
-                    .load(std::sync::atomic::Ordering::Relaxed),
+                download_manager.limits.active_bt_count.clone(),
+                download_manager.limits.max_concurrent_bt.clone(),
             )
             .await?,
         );
@@ -68,6 +68,9 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     registry.register(TaskKind::Bt, (*bt_backend).clone());
     let registry = Arc::new(registry);
 
+    // Initialize CDN service
+    let cdn_service = Arc::new(CdnService::new());
+
     Ok(CoreSystems {
         download_manager,
         bt_backend,
@@ -75,5 +78,6 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
         event_bus,
         rate_limiter,
         settings,
+        cdn_service,
     })
 }

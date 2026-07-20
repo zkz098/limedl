@@ -100,7 +100,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       retentionCount: null,
       retentionDays: null,
     },
-    aria2Rpc: { enabled: false, port: 6800, secret: null },
+    aria2Rpc: { enabled: false, port: 6800, secret: null, corsAllowedOrigins: [], },
     cdnAcceleration: {
       enabled: false,
       activeIp: null,
@@ -121,6 +121,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
     autostart: false,
     setupCompleted: false,
     lastSetupStep: null,
+    maxInMemoryDownloads: 200,
     ...overrides,
   };
 }
@@ -169,7 +170,7 @@ describe("useAppSettings", () => {
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.surface;
 
-    // Mock matchMedia — default: no dark mode preference
+    // Mock matchMedia �?default: no dark mode preference
     matchMediaMock = vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,

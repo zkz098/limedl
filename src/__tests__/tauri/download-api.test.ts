@@ -34,7 +34,7 @@ beforeEach(() => {
 
 describe("download-api", () => {
   it("startDownload calls download_start with request", async () => {
-    const request = { url: "https://example.com/file.zip", destinationDir: "/tmp" };
+    const request = { url: "https://example.com/file.zip", destinationDir: "/tmp" } as Parameters<typeof startDownload>[0];
     const expectedId = { kind: "http", id: "new-id" };
     mockTauriCommandValue("download_start", expectedId);
 

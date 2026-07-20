@@ -14,7 +14,7 @@ pub(crate) mod uploads;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -26,7 +26,7 @@ use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::protocol::DownloadBackend;
 use crate::slot_guard::DownloadSlotGuard;
-use crate::types::{DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};
+use crate::types::{AppSettings, DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};
 
 /// Compute an Aria2-compatible GID from an info hash.
 pub(crate) fn internal_id_to_gid(info_hash: &Id20) -> String {
@@ -72,7 +72,7 @@ pub struct IrontideBtBackend {
     /// Active BT download counter (shared with DownloadManager for global throttle).
     pub(crate) active_bt_count: Arc<AtomicUsize>,
     /// Maximum concurrent BT downloads allowed.
-    pub(crate) max_concurrent_bt: AtomicUsize,
+    pub(crate) max_concurrent_bt: Arc<AtomicUsize>,
     /// Guards holding BT download slots for active torrents.
     pub(crate) bt_slot_guards: Arc<DashMap<Id20, DownloadSlotGuard>>,
 }
@@ -93,7 +93,7 @@ impl Clone for IrontideBtBackend {
             paused_by_limit: self.paused_by_limit.clone(),
             runtime_handle: self.runtime_handle.clone(),
             active_bt_count: self.active_bt_count.clone(),
-            max_concurrent_bt: AtomicUsize::new(self.max_concurrent_bt.load(Ordering::Relaxed)),
+            max_concurrent_bt: self.max_concurrent_bt.clone(),
             bt_slot_guards: self.bt_slot_guards.clone(),
         }
     }
@@ -161,5 +161,14 @@ impl DownloadBackend for IrontideBtBackend {
 
     async fn list(&self) -> Result<Vec<DownloadSummary>> {
         self.list().await
+    }
+
+    async fn update_settings(&self, settings: &AppSettings) -> Result<()> {
+        self.apply_settings(settings);
+        Ok(())
+    }
+
+    async fn shutdown(&self) {
+        self.shutdown().await;
     }
 }

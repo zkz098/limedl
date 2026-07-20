@@ -219,7 +219,7 @@ function toggleRateLimit() {
             >
               <UiTextField
                 type="number"
-                :model-value="draft.bt.listenPort"
+                :model-value="draft.bt.listenPort ?? null"
                 :min="1024"
                 :max="65535"
                 placeholder="42020"

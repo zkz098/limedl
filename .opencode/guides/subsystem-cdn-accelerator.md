@@ -1,4 +1,4 @@
-# Subsystem: CdnAccelerator
+# Subsystem: CdnAccelerator / CdnService
 
 ## 模块职责
 
@@ -6,19 +6,45 @@
 
 **涉及文件**：
 
-- `crates/limedl-core/src/cdn/mod.rs` (9 行) — 模块导出
-- `crates/limedl-core/src/cdn/accelerator.rs` (408 行) — CdnAccelerator 状态机
-- `src-tauri/src/download/cdn/commands.rs` (282 行) — Tauri CDN 命令
-- `crates/limedl-core/src/cdn/ip_ranges.rs` (369 行) — Cloudflare IP 范围抓取/解析
-- `crates/limedl-core/src/cdn/resolver.rs` (195 行) — DNS 重写 + 加速 HTTP 客户端构建
-- `crates/limedl-core/src/cdn/speed_test.rs` (662 行) — 速度测试逻辑
+- `crates/limedl-core/src/cdn/mod.rs` — 模块导出
+- `crates/limedl-core/src/cdn/accelerator.rs` — CdnAccelerator 状态机
+- `crates/limedl-core/src/cdn/service.rs` — **CdnService 统一抽象层（新增）**
+- `crates/limedl-core/src/cdn/ip_ranges.rs` — Cloudflare IP 范围抓取/解析
+- `crates/limedl-core/src/cdn/resolver.rs` — DNS 重写 + 加速 HTTP 客户端构建
+- `crates/limedl-core/src/cdn/speed_test.rs` — 速度测试逻辑
+- `src-tauri/src/download/commands_cdn.rs` — Tauri CDN 命令（通过 CdnService 委派）
+- `crates/limedl-server/src/rpc.rs` (CDN handlers 区) — NAS WebSocket CDN 命令（通过 CdnService 委派）
 
 ## 关键结构体
 
-### CdnAccelerator (pub(crate))
+### CdnService (pub) — 统一抽象层
 
 ```rust
-pub(crate) struct CdnAccelerator {
+pub struct CdnService {
+    accelerator: Arc<CdnAccelerator>,   // 内部状态机
+}
+```
+
+`CdnService` 包装 `CdnAccelerator`，对外暴露 CDN 操作的一组稳定方法。**Tauri 桌面和 NAS WebSocket 两种前端都通过此服务调用 CDN 操作**，消除了 commands_cdn.rs 和 rpc.rs 之间的重复实现。
+
+### CdnTestOutcome (pub)
+
+```rust
+pub struct CdnTestOutcome {
+    pub state: AccelState,
+    pub active_ip: Option<Ipv4Addr>,
+    pub active_speed_mbps: Option<f64>,
+    pub candidates: Vec<SpeedTestResult>,
+    pub default_node: Option<DefaultNodeResult>,
+}
+```
+
+由 `monitor_test()` 返回，供调用方（Tauri/NAS handler）持久化结果到 settings。
+
+### CdnAccelerator (pub)
+
+```rust
+pub struct CdnAccelerator {
     state: RwLock<AccelState>,
     active_ip: RwLock<Option<Ipv4Addr>>,
     active_speed_mbps: RwLock<Option<f64>>,
@@ -31,10 +57,10 @@ pub(crate) struct CdnAccelerator {
 }
 ```
 
-### AccelState (pub(crate))
+### AccelState (pub)
 
 ```rust
-pub(crate) enum AccelState { Idle, Testing, Ready, Error(String) }
+pub enum AccelState { Idle, Testing, Ready, Error(String) }
 ```
 
 - `Idle`: 未启用或已清除
@@ -44,38 +70,55 @@ pub(crate) enum AccelState { Idle, Testing, Ready, Error(String) }
 
 ## 关键方法
 
-### CdnAccelerator
+### CdnService (统一接口)
 
 ```rust
-pub(crate) fn new() -> Self
+// 构造
+pub fn new() -> Self
+pub fn from_accelerator(accelerator: Arc<CdnAccelerator>) -> Self
+pub fn accelerator(&self) -> &Arc<CdnAccelerator>
 
-// 从持久化设置恢复（启动时调用）
-pub(crate) async fn init_from_settings(self: &Arc<Self>, settings: &AppSettings)
-
-// 开始测试流程：FetchingRanges → Screening → MeasuringThroughput → Ready/Error
-pub(crate) async fn start_test(self: &Arc<Self>, settings: AppSettings) -> anyhow::Result<()>
-
-// 取消正在进行的测试
-pub(crate) fn cancel_test(&self)
-
-// 应用选中的 IP 节点（构建 DNS 重写客户端）
-pub(crate) async fn apply_ip(&self, ip: Ipv4Addr, speed_mbps: f64, settings: &AppSettings) -> anyhow::Result<()>
-
-// 清除加速状态，丢弃 accelerated_client
-pub(crate) async fn clear(&self)
+// 生命周期
+pub async fn start_test(self: &Arc<Self>, settings: AppSettings) -> anyhow::Result<()>
+pub fn cancel_test(&self)
+pub async fn apply_ip(&self, ip: Ipv4Addr, speed_mbps: f64, settings: &AppSettings) -> anyhow::Result<()>
+pub async fn clear(&self)
+pub async fn init_from_settings(self: &Arc<Self>, settings: &AppSettings)
 
 // 查询
-pub(crate) async fn status(&self) -> AccelState
-pub(crate) async fn get_client(&self) -> Option<reqwest::Client>
-pub(crate) async fn active_ip(&self) -> Option<Ipv4Addr>
-pub(crate) async fn active_speed_mbps(&self) -> Option<f64>
-pub(crate) async fn phase(&self) -> Option<CdnTestPhase>
-pub(crate) async fn phase_progress(&self) -> (u64, u64)
-pub(crate) async fn candidates(&self) -> Vec<SpeedTestResult>
-pub(crate) async fn default_node(&self) -> Option<DefaultNodeResult>
+pub async fn status(&self) -> AccelState
+pub async fn active_ip(&self) -> Option<Ipv4Addr>
+pub async fn active_speed_mbps(&self) -> Option<f64>
+pub async fn phase(&self) -> Option<CdnTestPhase>
+pub async fn phase_progress(&self) -> (u64, u64)
+pub async fn candidates(&self) -> Vec<SpeedTestResult>
+pub async fn default_node(&self) -> Option<DefaultNodeResult>
+pub async fn get_client(&self) -> Option<reqwest::Client>
+
+// 监控（在 background task 中调用，自动发布进度/完成事件到 EventBus）
+pub async fn monitor_test(self: &Arc<Self>, event_bus: Arc<EventBus>) -> CdnTestOutcome
 ```
 
-## 数据流向
+### CdnAccelerator（内部状态机，通常不直接使用）
+
+```rust
+pub fn new() -> Self
+pub async fn init_from_settings(self: &Arc<Self>, settings: &AppSettings)
+pub async fn start_test(self: &Arc<Self>, settings: AppSettings) -> anyhow::Result<()>
+pub fn cancel_test(&self)
+pub async fn apply_ip(&self, ip: Ipv4Addr, speed_mbps: f64, settings: &AppSettings) -> anyhow::Result<()>
+pub async fn clear(&self)
+pub async fn status(&self) -> AccelState
+pub async fn get_client(&self) -> Option<reqwest::Client>
+pub async fn active_ip(&self) -> Option<Ipv4Addr>
+pub async fn active_speed_mbps(&self) -> Option<f64>
+pub async fn phase(&self) -> Option<CdnTestPhase>
+pub async fn phase_progress(&self) -> (u64, u64)
+pub async fn candidates(&self) -> Vec<SpeedTestResult>
+pub async fn default_node(&self) -> Option<DefaultNodeResult>
+```
+
+## 数据流向（重构后）
 
 ```
 用户打开 CDN 加速面板（LabsCdnAccelerationPanel.vue）
@@ -84,21 +127,46 @@ pub(crate) async fn default_node(&self) -> Option<DefaultNodeResult>
   ↓
 cdn_fetch_ranges() → ip_ranges.rs 抓取 Cloudflare IP 范围列表
   ↓
-cdn_test() → accelerator.start_test()
+cdn_test() → CdnService::start_test() → CdnAccelerator::start_test()
   ├─ Phase: FetchingRanges → 获取所有 Cloudflare IP 段
-  ├─ Phase: Screening → ICMP ping / TCP connect 筛选低延迟 IP
+  ├─ Phase: Screening → TCP connect 筛选低延迟 IP
   ├─ Phase: MeasuringThroughput → 对每个候选 IP 做速度测试
   └─ 完成 → AccelState::Ready + 排序 candidates
   ↓
+CdnService::monitor_test() → 轮询并发布 CdnProgress / CdnComplete 事件到 EventBus
+  ↓
+Tauri / WebSocket 事件适配层将 EventBus 事件转发到前端
+  ↓
 用户选择 IP → cdn_apply()
-  ├─ resolver.rs 构建 DNS 重写客户端
-  │    └─ 使用 TrustDNS Resolver 将域名解析到选中的 CF IP
+  ├─ CdnService::apply_ip() → resolver.rs 构建 DNS 重写客户端
   └─ accelerated_client 存入 CdnAccelerator
   ↓
 DownloadManager 使用 accelerated_client 发起下载请求
-  ├─ set_cdn_accelerator() 注入
+  ├─ set_cdn_accelerator() 注入（内部仍然使用 CdnAccelerator）
   └─ 下载时: 若 accelerated_client 存在则使用，否则使用标准 client
 ```
+
+### 统一服务注入（bootstrap.rs）
+
+`CoreSystems` 包含 `cdn_service: Arc<CdnService>`，Tauri 和 NAS 各自通过 `core.cdn_service.clone()` 注入到自己的状态对象中：
+
+- **Tauri**: `AppState.cdn_service`
+- **NAS**: `RpcState.cdn_service`
+
+`DownloadManager` 内部仍然通过 `set_cdn_accelerator()` 持有 `Arc<CdnAccelerator>`（从 `CdnService::accelerator()` 获取），用于下载时的客户端选择。
+
+### NAS 端 CDN handler 变更（rpc.rs）
+
+| 命令 | 之前 (重构前) | 之后 (重构后) |
+|------|--------------|--------------|
+| `cdn.fetchRanges` | 直接读取静态列表 | **不变** |
+| `cdn.status` | 从 settings 读取 | **通过 CdnService 读取实时状态** |
+| `cdn.detail` | 从 settings 读取 | **通过 CdnService 读取实时状态** |
+| `cdn.test` | `-32001 not supported` | **实际调用 CdnService::start_test + 后台 monitor** |
+| `cdn.apply` | `-32001 not supported` | **实际调用 CdnService::apply_ip** |
+| `cdn.clear` | `-32001 not supported` | **实际调用 CdnService::clear** |
+| `cdn.cancel` | `-32001 not supported` | **实际调用 CdnService::cancel_test** |
+| `cdn.candidates` | `-32001 not supported` | **实际调用 CdnService::candidates** |
 
 **重要约定**：
 
@@ -107,7 +175,4 @@ DownloadManager 使用 accelerated_client 发起下载请求
 - 测试流程可被 `cancel_test()` 中断，会重置为 Idle
 - 启动时 `init_from_settings()` 从持久化设置恢复之前选择的 IP
 - 此模块当前**未设计多 CDN 抽象**，扩展需重构 `ip_ranges.rs` 和 `resolver.rs`
-
-## NAS（limedl-server / WebSocket）CDN 制限
-
-NAS mode (limedl-server WebSocket) does NOT implement CDN test/apply/clear/cancel/candidates operations. These commands exist only on the Tauri desktop path via `src-tauri/src/commands_cdn.rs`. The NAS dispatcher in `crates/limedl-server/src/rpc.rs` returns a `-32001` error for CDN methods.
+- **NAS 模式现在完整支持 CDN 操作**，不再有限制。CDN 速度测试（纯 async TCP/HTTP 探测）无 OS 依赖，可在 Linux/Windows NAS 上运行。

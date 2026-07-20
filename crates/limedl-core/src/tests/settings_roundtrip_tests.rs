@@ -23,7 +23,7 @@ async fn settings_survive_restart() {
         // Also set a non-default speed limit to test numeric persistence
         settings.global_speed_limit_bps = 42 * 1024 * 1024; // 42 MiB/s
 
-        let saved = dm.update_settings(settings).await.unwrap();
+        let saved = dm.apply_settings(settings).await.unwrap();
         let dir = saved.download.default_download_dir.clone();
 
         core.registry.shutdown_all().await;

@@ -43,7 +43,7 @@ async fn create_manager() -> (tempfile::TempDir, DownloadManager) {
 
 async fn apply_settings(manager: &DownloadManager, scheduler: SchedulerSettings) {
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             scheduler,
             ..AppSettings::default()
         })
@@ -226,8 +226,8 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Manually run the scheduler.
-    manager.update_adaptive_targets().await?;
-    manager.rebalance_allocations().await?;
+    manager.scheduler.update_adaptive_targets(&manager).await?;
+    manager.scheduler.rebalance_allocations(&manager).await?;
 
     let big = manager.status(&big_id.to_string()).await?;
     let small = manager.status(&small_id.to_string()).await?;
@@ -259,7 +259,7 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
 
     // Apply a rate limit so the download takes long enough to observe progress.
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: 1_000_000, // 1 MB/s
             scheduler: SchedulerSettings {
                 mode: SchedulerMode::Traditional,
@@ -311,7 +311,7 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
 
     // Remove the speed limit so completion doesn't take forever.
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: 0, // unlimited
             ..AppSettings::default()
         })
@@ -410,7 +410,7 @@ async fn scheduler_respects_global_speed_limit() -> TestResult {
 
     let limit_bps: u64 = 512_000; // 500 KB/s
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: limit_bps,
             scheduler: SchedulerSettings {
                 mode: SchedulerMode::Traditional,
@@ -501,7 +501,7 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
     assert_eq!(s1.state, DownloadState::Completed);
 
     // Trigger rebalance so scheduler allocates to queued download.
-    manager.rebalance_allocations().await?;
+    manager.scheduler.rebalance_allocations(&manager).await?;
 
     let s2 = manager.status(&id2.to_string()).await?;
     assert!(
@@ -569,8 +569,8 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
 
     // Wait for probes to finish, then rebalance so allocations are final.
     tokio::time::sleep(Duration::from_secs(2)).await;
-    manager.update_adaptive_targets().await?;
-    manager.rebalance_allocations().await?;
+    manager.scheduler.update_adaptive_targets(&manager).await?;
+    manager.scheduler.rebalance_allocations(&manager).await?;
 
     let s1 = manager.status(&id1.to_string()).await?;
     let s2 = manager.status(&id2.to_string()).await?;
@@ -637,7 +637,7 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     // Speed limit ensures downloads haven't finished when we check
     // allocations (10 MB @ 1 MB/s shared = ~10 s per download).
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: 1_000_000, // 1 MB/s
             scheduler: SchedulerSettings {
                 mode: SchedulerMode::Automatic,
@@ -684,8 +684,8 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     // Trigger a fresh rebalance to have authoritative allocations.
-    manager.update_adaptive_targets().await?;
-    manager.rebalance_allocations().await?;
+    manager.scheduler.update_adaptive_targets(&manager).await?;
+    manager.scheduler.rebalance_allocations(&manager).await?;
 
     let fixed_snap = manager.status(&fixed_id.to_string()).await?;
     let adaptive_snap = manager.status(&adaptive_id.to_string()).await?;
@@ -710,7 +710,7 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
 
     // Remove speed limit so completion is fast.
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: 0,
             ..AppSettings::default()
         })
@@ -764,7 +764,7 @@ async fn rate_limiter_shared_across_multiple_downloads() -> TestResult {
 
     let limit_bps: u64 = 512_000; // 500 KB/s
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: limit_bps,
             scheduler: SchedulerSettings {
                 mode: SchedulerMode::Traditional,
@@ -849,7 +849,7 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
 
     // Apply a modest speed limit so downloads overlap long enough.
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: 1_000_000, // 1 MB/s (shared)
             scheduler: SchedulerSettings {
                 mode: SchedulerMode::Traditional,
@@ -903,7 +903,7 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
 
     // Remove speed limit so completion is fast.
     manager
-        .update_settings(AppSettings {
+        .apply_settings(AppSettings {
             global_speed_limit_bps: 0,
             ..AppSettings::default()
         })

@@ -6,7 +6,7 @@
 
 **涉及文件**：
 
-- `crates/limedl-core/src/checksum/mod.rs` (104 行) — ChecksumHasher + calculate_checksum
+- `crates/limedl-core/src/checksum/mod.rs` — ChecksumHasher + calculate_checksum
 
 ## 关键结构体
 
