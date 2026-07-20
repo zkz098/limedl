@@ -20,6 +20,7 @@ defineEmits<{
       <img :src="logoUrl" class="step-welcome__logo" alt="Limedl" />
       <h1 class="step-welcome__title">{{ t("setupWizard.welcomeTitle") }}</h1>
       <p class="step-welcome__subtitle">{{ t("setupWizard.welcomeSubtitle") }}</p>
+      <p class="step-welcome__license">{{ t("setupWizard.welcomeLicense") }}</p>
     </div>
   </div>
 </template>
@@ -65,5 +66,11 @@ defineEmits<{
   font-size: var(--font-size-body);
   line-height: var(--line-height-tight);
   color: var(--color-text-muted);
+}
+
+.step-welcome__license {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-soft);
 }
 </style>

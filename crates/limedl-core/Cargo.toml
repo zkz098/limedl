@@ -1,7 +1,8 @@
 [package]
 name = "limedl-core"
-version = "0.1.0"
+version.workspace = true
 description = "Core download engine for limedl — HTTP downloads, scheduler, CDN accelerator, etc."
+license.workspace = true
 edition = "2024"
 
 [lib]

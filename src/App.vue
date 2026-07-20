@@ -623,7 +623,7 @@ watch(
     </ModalOverlay>
 
     <!-- Dialogs -->
-    <UiDialog v-model="showComposerDialog" width="min(46rem, calc(100vw - 1.5rem))">
+    <UiDialog v-model="showComposerDialog" width="min(46rem, calc(100vw - 1.5rem))" :close-on-overlay="false">
       <template #title>
         <div class="dialog-heading dialog-heading--inline">
           <span class="dialog-heading__icon i-ri-download-cloud-2-line" aria-hidden="true" />

@@ -1,4 +1,4 @@
-use axum::http::header::{HeaderName, HeaderValue};
+﻿use axum::http::header::{HeaderName, HeaderValue};
 use tower_http::set_header::SetResponseHeaderLayer;
 
 /// Returns the Content-Security-Policy header value for the NAS WebUI.

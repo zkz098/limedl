@@ -323,6 +323,8 @@ function mapEventType(type: string, _payload: unknown): string | null {
       return 'cdn-test-progress';
     case 'cdnComplete':
       return 'cdn-test-complete';
+    case 'warning':
+      return 'download-warning';
     default:
       return null;
   }

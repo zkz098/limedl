@@ -1,4 +1,4 @@
-//! Shared subsystem initialization used by both Tauri desktop and NAS server.
+﻿//! Shared subsystem initialization used by both Tauri desktop and NAS server.
 //! Single canonical initialization sequence — add new subsystems here once.
 
 use std::path::PathBuf;

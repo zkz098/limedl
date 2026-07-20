@@ -10,6 +10,7 @@
     "notification:default",
     "updater:default",
     "autostart:default",
-    "os:default"
+    "os:default",
+    "clipboard-manager:allow-read-text"
   ]
 }

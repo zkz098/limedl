@@ -1,0 +1,13 @@
+limedl
+Copyright (C) 2026  limedl contributors
+
+This product includes software developed by third parties:
+
+---
+
+irontide (https://codeberg.org/alan090/irontide)
+License: GNU General Public License v3.0 or later (GPL-3.0-or-later)
+A BitTorrent engine library used as the BT backend for limedl.
+
+The full text of the GPL-3.0 license can be found in the LICENSE file
+at the root of this repository.

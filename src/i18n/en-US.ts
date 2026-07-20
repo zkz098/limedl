@@ -88,6 +88,7 @@ const enUS = {
       unsavedTitle: "Unsaved Labs",
       unsavedMessage:
         "Leaving Labs will discard your unsaved changes. Save first, or confirm to discard.",
+      warning: "These features are experimental and may not work as expected.",
     },
     appearance: { label: "Appearance" },
     language: { label: "Language", zhCN: "\u7b80\u4f53\u4e2d\u6587", enUS: "English" },
@@ -652,6 +653,9 @@ const enUS = {
       aboutGitHubLink: "Visit GitHub Repository",
       aboutChannelDowngradeWarning:
         "Cannot downgrade automatically. Your current version is newer than the latest on this channel. Please install manually.",
+      aboutLicense:
+        "limedl is free software, licensed under the GNU General Public License v3.0 or later. You may redistribute and/or modify it under the terms of the license. There is NO WARRANTY, to the extent permitted by law.",
+      aboutLicenseRef: "See the LICENSE file included with this distribution.",
       ioBaseline: {
         kicker: "I/O Optimization",
         title: "Disk Write Optimization",
@@ -773,6 +777,7 @@ const enUS = {
       welcomeTitle: "Welcome to Limedl",
       welcomeSubtitle:
         "Let's take a minute to set up the basics. You can skip any step and change settings later.",
+      welcomeLicense: "limedl is free software — GPL v3.0 or later. No warranty.",
       startButton: "Start Setup",
       skipAllButton: "Skip, use defaults",
       stepIndicator: "Step {{current}} of {{total}}",

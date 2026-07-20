@@ -83,6 +83,11 @@ defineExpose({
       </div>
     </div>
 
+    <div class="labs-page__warning" role="alert">
+      <span class="labs-page__warning-icon i-ri-error-warning-line" aria-hidden="true" />
+      <span>{{ t("labs.warning") }}</span>
+    </div>
+
     <div class="settings-page__layout">
       <aside class="settings-page__sidebar" role="tablist" :aria-label="t('labs.title')">
         <nav class="settings-page__tabs">
@@ -135,5 +140,22 @@ defineExpose({
 
 .labs-page__header {
   align-items: flex-end;
+}
+
+.labs-page__warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.labs-page__warning-icon {
+  flex-shrink: 0;
+  font-size: var(--text-lg);
 }
 </style>

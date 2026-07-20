@@ -21,6 +21,19 @@ jobs:
       - run: pnpm exec vue-tsc --noEmit
       - run: pnpm run test
 
+  check-windows:
+    name: Check & Clippy (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: swatinem/rust-cache@v2
+      - run: cargo check --workspace
+      - run: cargo clippy --workspace -- -D warnings
+
   check-rust:
     name: Check, Clippy & Test (Rust)
     runs-on: ubuntu-latest

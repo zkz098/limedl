@@ -1,6 +1,8 @@
 [package]
 name = "limedl-server"
-version = "0.1.0"
+version.workspace = true
+description = "Headless download daemon and CLI for limedl — axum HTTP/WebSocket JSON-RPC server"
+license.workspace = true
 edition = "2024"
 
 [[bin]]

@@ -1,5 +1,6 @@
 ﻿use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 use dashmap::DashMap;
 use parking_lot::Mutex;
@@ -19,6 +20,8 @@ impl IrontideBtBackend {
         state_dir: PathBuf,
         default_output_dir: PathBuf,
         event_bus: Arc<EventBus>,
+        active_bt_count: Arc<AtomicUsize>,
+        max_concurrent_bt: usize,
     ) -> Result<Self> {
         let bt = &settings.bt;
 
@@ -105,6 +108,9 @@ impl IrontideBtBackend {
             global_speed_limit_bps: settings.global_speed_limit_bps,
             paused_by_limit: Arc::new(DashMap::new()),
             runtime_handle,
+            active_bt_count,
+            max_concurrent_bt: AtomicUsize::new(max_concurrent_bt),
+            bt_slot_guards: Arc::new(DashMap::new()),
         })
     }
 

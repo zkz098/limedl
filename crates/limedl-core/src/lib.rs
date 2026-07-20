@@ -23,6 +23,7 @@ pub mod bt_backend_own;
 pub mod checksum;
 pub mod rate_limiter;
 pub mod bootstrap;
+pub mod slot_guard;
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
@@ -57,6 +58,9 @@ pub use settings::{
 };
 pub use logging::init_logging;
 
+// The Aria2 JSON-RPC server is an experimental compatibility layer.
+// It is not yet considered stable for production use.
+// Enable with `--features aria2-rpc` when building.
 #[cfg(feature = "aria2-rpc")]
 pub mod aria2_rpc;
 #[cfg(feature = "aria2-rpc")]

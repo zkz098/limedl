@@ -1,4 +1,4 @@
-use ntest::timeout;
+﻿use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{ChecksumMode, DownloadState, StartDownloadRequest, TaskId};

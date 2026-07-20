@@ -1,4 +1,4 @@
-//! EventBus — unified publish/subscribe event bus for all download subsystems.
+﻿//! EventBus — unified publish/subscribe event bus for all download subsystems.
 //!
 //! Pure broadcast channel. Tauri frontend emission is handled by an independent
 //! subscriber task in the application layer.
@@ -39,6 +39,11 @@ pub enum DownloadEvent {
         state: String,
         active_ip: Option<String>,
         active_speed_mbps: Option<f64>,
+    },
+    /// A warning or informational message for a specific download.
+    Warning {
+        id: String,
+        message: String,
     },
 }
 

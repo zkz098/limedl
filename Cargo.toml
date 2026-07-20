@@ -6,6 +6,10 @@ members = [
     "src-tauri",
 ]
 
+[workspace.package]
+version = "0.1.0"
+license = "GPL-3.0-or-later"
+
 [profile.release]
 # Optimized for binary size while preserving good runtime performance.
 # Download manager is I/O-bound, not CPU-bound — size matters for distribution.

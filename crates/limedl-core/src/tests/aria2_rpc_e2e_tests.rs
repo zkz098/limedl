@@ -1,4 +1,4 @@
-//! E2E tests for Aria2 RPC HTTP endpoint.
+﻿//! E2E tests for Aria2 RPC HTTP endpoint.
 //!
 //! Starts a real Aria2RpcServer backed by live subsystems, then sends
 //! HTTP POST requests via reqwest to validate protocol compatibility.

@@ -1,4 +1,4 @@
-use ntest::timeout;
+﻿use ntest::timeout;
 use tempfile::TempDir;
 
 /// Integration test: download a file from the test HTTP server using the core

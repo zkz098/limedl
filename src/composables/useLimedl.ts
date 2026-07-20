@@ -61,7 +61,7 @@ function createLimedl(options?: UseLimedlOptions) {
   const isStarting = ref(false);
   const notificationsEnabled = ref(false);
 
-  const { notifyInfo, notifyError, notifySuccess, clearAll } = useNotification();
+  const { notifyInfo, notifyWarning, notifyError, notifySuccess, clearAll } = useNotification();
 
   function setMessage(message: string) {
     notifyInfo(message);
@@ -286,6 +286,7 @@ function createLimedl(options?: UseLimedlOptions) {
 
   let unlistenEvent: UnlistenFn | null = null;
   let unlistenProgress: UnlistenFn | null = null;
+  let unlistenWarning: UnlistenFn | null = null;
   let mounted = true;
   let btRuntimeTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -359,6 +360,16 @@ function createLimedl(options?: UseLimedlOptions) {
       unlistenEvent = unlisten;
     });
 
+    void listen<{ id: string; message: string }>("download-warning", (event) => {
+      notifyWarning(event.payload.message);
+    }).then((unlisten) => {
+      if (!mounted) {
+        unlisten();
+        return;
+      }
+      unlistenWarning = unlisten;
+    });
+
     // BT runtime status (global DHT state, upload stats) is not included in per-download
     // events, so a slow background poll is kept.
     btRuntimeTimer = setInterval(() => {
@@ -377,6 +388,11 @@ function createLimedl(options?: UseLimedlOptions) {
     if (unlistenEvent) {
       unlistenEvent();
       unlistenEvent = null;
+    }
+
+    if (unlistenWarning) {
+      unlistenWarning();
+      unlistenWarning = null;
     }
 
     if (btRuntimeTimer) {

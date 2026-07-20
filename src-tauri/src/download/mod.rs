@@ -1,4 +1,4 @@
-// Tauri-specific modules — everything else lives in limedl-core
+﻿// Tauri-specific modules — everything else lives in limedl-core
 pub(crate) mod commands;
 pub(crate) mod commands_cdn;
 

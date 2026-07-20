@@ -87,6 +87,7 @@ const zhCN = {
       tabs: { placeholder: "实验功能" },
       unsavedTitle: "实验室尚未保存",
       unsavedMessage: "离开实验室页会丢失当前未保存的修改。请先保存，或确认放弃修改。",
+      warning: "这些是实验性功能，可能无法按预期工作。",
     },
     appearance: { label: "外观" },
     language: { label: "语言", zhCN: "简体中文", enUS: "English" },
@@ -619,6 +620,9 @@ const zhCN = {
       aboutGitHubTitle: "GitHub",
       aboutGitHubLink: "访问 GitHub 仓库",
       aboutChannelDowngradeWarning: "无法自动降级。当前版本高于所选渠道的最新版本，请手动安装。",
+      aboutLicense:
+        "limedl 是自由软件，基于 GNU 通用公共许可证 v3.0 或更高版本授权。您可以在许可证条款下重新分发和/或修改它。在法律允许的范围内，本软件不提供任何担保。",
+      aboutLicenseRef: "详见本软件附带的 LICENSE 文件。",
       ioBaseline: {
         kicker: "I/O 优化",
         title: "硬盘写入优化",
@@ -736,6 +740,7 @@ const zhCN = {
     setupWizard: {
       welcomeTitle: "欢迎使用 Limedl",
       welcomeSubtitle: "首次使用，让我们花一分钟完成基础配置。每步都可跳过，稍后可在设置中修改。",
+      welcomeLicense: "limedl 是自由软件 — GPL v3.0 或更高版本。不提供担保。",
       startButton: "开始设置",
       skipAllButton: "跳过，使用默认设置",
       stepIndicator: "第 {{current}} 步，共 {{total}} 步",

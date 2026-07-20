@@ -1,4 +1,4 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use limedl_core::types::StartDownloadRequest;
@@ -147,6 +147,15 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
                                         "state": state,
                                         "activeIp": active_ip,
                                         "activeSpeedMbps": active_speed_mbps,
+                                    },
+                                })
+                            }
+                            DownloadEvent::Warning { id, message } => {
+                                serde_json::json!({
+                                    "type": "warning",
+                                    "payload": {
+                                        "id": id,
+                                        "message": message,
                                     },
                                 })
                             }

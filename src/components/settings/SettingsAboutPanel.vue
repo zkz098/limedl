@@ -348,6 +348,17 @@ const showVersionBadge = computed(() => {
         {{ isDownloading ? t("settings.aboutDownloading") : t("settings.aboutUpdateNow") }}
       </UiButton>
     </div>
+
+    <!-- License -->
+    <div class="about-license">
+      <span class="i-ri-scales-line about-license__icon" aria-hidden="true" />
+      <div class="about-license__content">
+        <p class="about-license__text">
+          {{ t("settings.aboutLicense") }}
+        </p>
+        <p class="about-license__ref">{{ t("settings.aboutLicenseRef") }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -368,5 +379,41 @@ const showVersionBadge = computed(() => {
 .about-changelog {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.about-license {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-muted);
+}
+
+.about-license__icon {
+  flex-shrink: 0;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-metric);
+  color: var(--color-text-muted);
+}
+
+.about-license__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.about-license__text {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-tight);
+  color: var(--color-text-muted);
+}
+
+.about-license__ref {
+  margin: 0;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-soft);
 }
 </style>

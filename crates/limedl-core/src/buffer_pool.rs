@@ -1,4 +1,4 @@
-//! Double-buffer cache for HDD download optimization.
+﻿//! Double-buffer cache for HDD download optimization.
 //!
 //! Replaces the old single-buffer design with a ping-pong (double-buffer)
 //! per-download architecture. Each HDD download gets a slot from a global

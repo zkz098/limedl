@@ -1,4 +1,4 @@
-mod download;
+﻿mod download;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub use download::aimd;
@@ -58,6 +58,7 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle().plugin(tauri_plugin_clipboard_manager::init())?;
 
             // Hide window when launched via autostart
             let is_autostart = std::env::args().any(|a| a == "--hidden");
@@ -112,6 +113,12 @@ pub fn run() {
                                                 "state": state,
                                                 "activeIp": active_ip,
                                                 "activeSpeedMbps": active_speed_mbps,
+                                            }));
+                                        }
+                                        DownloadEvent::Warning { id, message } => {
+                                            let _ = app_handle_tx.emit("download-warning", serde_json::json!({
+                                                "id": id,
+                                                "message": message,
                                             }));
                                         }
                                     }
@@ -186,8 +193,7 @@ pub fn run() {
             {
                 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 
-                let tray = TrayIconBuilder::new()
-                    .icon(app.default_window_icon().cloned().unwrap())
+                let mut tray_builder = TrayIconBuilder::new()
                     .tooltip("limedl")
                     .show_menu_on_left_click(false)
                     .on_tray_icon_event(|tray, event| {
@@ -203,8 +209,15 @@ pub fn run() {
                                 let _ = window.set_focus();
                             }
                         }
-                    })
-                    .build(app)?;
+                    });
+
+                if let Some(icon) = app.default_window_icon().cloned() {
+                    tray_builder = tray_builder.icon(icon);
+                } else {
+                    tracing::warn!("No default window icon available for system tray");
+                }
+
+                let tray = tray_builder.build(app)?;
 
                 let show_item = MenuItemBuilder::with_id("show", "Show Window").build(app)?;
                 let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;

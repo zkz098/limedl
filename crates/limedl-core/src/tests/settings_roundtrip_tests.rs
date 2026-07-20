@@ -1,4 +1,4 @@
-use ntest::timeout;
+﻿use ntest::timeout;
 use tempfile::TempDir;
 
 /// Verify settings persist to disk and survive restart.

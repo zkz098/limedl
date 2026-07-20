@@ -1,4 +1,4 @@
-// Integration tests for limedl-core
+﻿// Integration tests for limedl-core
 // Note: commands_tests lives in src-tauri (Tauri crate) since it tests Tauri-layer functions
 
 mod bootstrap_tests;

@@ -1,4 +1,4 @@
-//! Unit tests for aria2_rpc.rs — JSON-RPC gateway.
+﻿//! Unit tests for aria2_rpc.rs — JSON-RPC gateway.
 //!
 //! Coverage:
 //!   - JSON-RPC protocol types: JsonRpcResponse, JsonRpcError serialization

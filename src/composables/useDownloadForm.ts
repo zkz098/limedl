@@ -174,8 +174,9 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     form.checksum = settings.download.defaultChecksum;
     form.userAgent = settings.download.defaultUserAgent;
     applySchedulerDefaults(settings.scheduler.mode, settings.scheduler.automatic.maxThreadsPerTask);
-    // TODO: Pre-fill form.downloadLimitBps / form.uploadLimitBps from
-    // per-download defaults once those fields are exposed via settings.
+    // Per-download rate limits (downloadLimitBps / uploadLimitBps) are not yet
+    // exposed as defaults in AppSettings. The form starts with null (no limit)
+    // until settings-level per-download rate limit defaults are added.
   }
 
   function buildStartRequest(): StartDownloadRequest {
@@ -318,9 +319,16 @@ export function useDownloadForm(input: UseDownloadFormInput) {
    * Silently ignores non-URL content and clipboard errors (no permission, etc.).
    */
   async function autoFillFromClipboard(): Promise<void> {
+    // Use Tauri's native clipboard plugin when available (no permission
+    // prompt) — falls back silently in NAS/browser mode.
+    let text: string | null = null;
     try {
-      const text = await navigator.clipboard.readText();
-      if (!text) return;
+      const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
+      text = await readText();
+    } catch {
+      return;
+    }
+    if (!text) return;
 
       const trimmed = text.trim();
 
@@ -332,10 +340,6 @@ export function useDownloadForm(input: UseDownloadFormInput) {
         form.url = trimmed;
       }
       // Other content — not a recognized download URL, do nothing.
-    } catch {
-      // Clipboard read failed (e.g. permission denied, WebView not focused).
-      // This is non-critical — silently ignore.
-    }
   }
 
   return {
