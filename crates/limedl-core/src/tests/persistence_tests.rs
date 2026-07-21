@@ -86,16 +86,18 @@ fn make_test_manifest(id: &str, state: DownloadState) -> Manifest {
 /// HTTP test server.  Returns `(temp_dir, manager, server_address)`.
 async fn create_manager_with_server(
     file_size: u64,
-) -> (tempfile::TempDir, DownloadManager, TestServer) {
+) -> (tempfile::TempDir, Arc<DownloadManager>, TestServer) {
     let server = TestServer::new(file_size).await;
     let temp = tempdir().expect("tempdir");
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = DownloadManager::new(
-        temp.path().join("state"),
-        Arc::new(RateLimiter::default()),
-        Arc::new(EventBus::new(1024)),
-    )
-    .expect("DownloadManager::new");
+    let manager = Arc::new(
+        DownloadManager::new(
+            temp.path().join("state"),
+            Arc::new(RateLimiter::default()),
+            Arc::new(EventBus::new(1024)),
+        )
+        .expect("DownloadManager::new"),
+    );
     (temp, manager, server)
 }
 
@@ -161,11 +163,11 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
 
     // ── Simulate restart ──────────────────────────────────────────
     let state_dir = _tmp.path().join("state");
-    let manager2 = DownloadManager::new(
+    let manager2 = Arc::new(DownloadManager::new(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let list = manager2.list().await?;
     assert!(
@@ -241,11 +243,11 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
 
     // ── Simulate restart ──────────────────────────────────────────
     let state_dir = _tmp.path().join("state");
-    let manager2 = DownloadManager::new(
+    let manager2 = Arc::new(DownloadManager::new(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let after = manager2.list().await?;
     assert!(after.len() >= before.len(), "lost downloads after restart");
@@ -299,11 +301,11 @@ async fn verifying_promoted_to_completed_if_dest_exists() -> TestResult {
     drop(db); // close before manager opens
 
     // Create manager — load_downloads_from_db should promote Verifying → Completed
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let list = manager.list().await?;
     assert!(!list.is_empty(), "should have loaded the download");
@@ -361,11 +363,11 @@ async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
     drop(db);
 
     // Create manager — load_downloads_from_db should load chunks for Paused
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let status = manager.status("chunks-test").await?;
     assert!(

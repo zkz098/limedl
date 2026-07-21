@@ -352,10 +352,13 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         return Ok(Value::String(gid));
     }
 
-    let id = dm
-        .start(request)
-        .await
-        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+    let id = {
+        let dm_arc = Arc::new(dm.clone());
+        dm_arc
+            .start(request)
+            .await
+            .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?
+    };
 
     let start_paused = options
         .and_then(|o| o.get("pause"))

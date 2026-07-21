@@ -28,16 +28,18 @@ type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Syn
 // Manager helpers
 // ---------------------------------------------------------------------------
 
-async fn create_manager() -> (tempfile::TempDir, DownloadManager) {
+async fn create_manager() -> (tempfile::TempDir, Arc<DownloadManager>) {
     let tmp = tempdir().expect("tempdir");
     let state_dir = tmp.path().join("state");
     std::fs::create_dir_all(state_dir.join("logs")).ok();
-    let manager = DownloadManager::new(
-        state_dir,
-        Arc::new(RateLimiter::default()),
-        Arc::new(EventBus::new(1024)),
-    )
-    .expect("DownloadManager::new");
+    let manager = Arc::new(
+        DownloadManager::new(
+            state_dir,
+            Arc::new(RateLimiter::default()),
+            Arc::new(EventBus::new(1024)),
+        )
+        .expect("DownloadManager::new"),
+    );
     (tmp, manager)
 }
 

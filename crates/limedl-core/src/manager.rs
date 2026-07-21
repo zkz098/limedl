@@ -91,11 +91,11 @@ pub struct ConcurrencyLimits {
     /// Active BT download counter (for concurrent throttling)
     pub active_bt_count: Arc<AtomicUsize>,
     /// Maximum concurrent HTTP downloads
-    pub max_concurrent_http: AtomicUsize,
+    pub max_concurrent_http: Arc<AtomicUsize>,
     /// Maximum concurrent BT downloads
     pub max_concurrent_bt: Arc<AtomicUsize>,
     /// Overclock mode flag (allows scheduler to pin all adaptive tasks at max threads)
-    pub overclock_mode: AtomicBool,
+    pub overclock_mode: Arc<AtomicBool>,
 }
 
 /// Runtime control signals for shutdown and scheduler rebalance coordination.
@@ -148,17 +148,15 @@ pub struct DownloadManager {
     pub task_lifecycle: Arc<TaskLifecycle>,
 }
 
-// NOTE: This manual `Clone` snapshots `limits.max_concurrent_http` and
-// `limits.overclock_mode` into FRESH atomics (the other adjacent limit fields
-// are `Arc`-shared, but those two are not). Two latent consequences remain:
-//   1. `start()`/`resume()` construct `Arc::new(self.clone())` to pass into
-//      spawned download futures — those futures hold a snapshotted DM whose
-//      `max_concurrent_http` / `overclock_mode` updates do NOT propagate
-//      back to or from the live `DownloadManager`.
-//   2. The previous `BackendRegistry::register(.., (*dm).clone())` had the
-//      same problem on the registry's copy. That path is now fixed via
-//      `register_arc(.., dm.clone())` (Arc aliasing, no value clone).
-// Fix #1 by migrating `start`/`resume` to `self: &Arc<Self>` separately.
+// NOTE: `max_concurrent_http` and `overclock_mode` are now `Arc`-wrapped
+// so Clone shares them correctly with the live `DownloadManager`.
+// The `start()`/`resume()` methods use `self: &Arc<Self>` and pass
+// `self.clone()` (Arc::clone) to spawned download futures — those futures
+// hold an Arc aliasing the SAME atomics, so `apply_settings` /
+// `toggle_overclock_mode` / `set_overclock_mode` propagate correctly.
+// The trait impl (`DownloadBackend for DownloadManager`) still constructs
+// a temporary Arc via `Clone` for the UFCS call — safe because atomics
+// are now Arc-shared.
 impl Clone for DownloadManager {
     fn clone(&self) -> Self {
         Self {
@@ -185,9 +183,9 @@ impl Clone for DownloadManager {
             limits: ConcurrencyLimits {
                 active_http_count: self.limits.active_http_count.clone(),
                 active_bt_count: self.limits.active_bt_count.clone(),
-                max_concurrent_http: AtomicUsize::new(self.limits.max_concurrent_http.load(Ordering::Relaxed)),
+                max_concurrent_http: self.limits.max_concurrent_http.clone(),
                 max_concurrent_bt: self.limits.max_concurrent_bt.clone(),
-                overclock_mode: AtomicBool::new(self.limits.overclock_mode.load(Ordering::Relaxed)),
+                overclock_mode: self.limits.overclock_mode.clone(),
             },
             http_executor: self.http_executor.clone(),
             scheduler: self.scheduler.clone(),
@@ -354,9 +352,9 @@ impl DownloadManager {
             limits: ConcurrencyLimits {
                 active_http_count: Arc::new(AtomicUsize::new(0)),
                 active_bt_count: Arc::new(AtomicUsize::new(0)),
-                max_concurrent_http: AtomicUsize::new(5),
+                max_concurrent_http: Arc::new(AtomicUsize::new(5)),
                 max_concurrent_bt: Arc::new(AtomicUsize::new(3)),
-                overclock_mode: AtomicBool::new(false),
+                overclock_mode: Arc::new(AtomicBool::new(false)),
             },
             http_executor: Arc::new(HttpExecutor),
             scheduler: Arc::new(Scheduler),
@@ -529,7 +527,7 @@ impl DownloadManager {
         Ok(normalized)
     }
 
-    pub async fn start(&self, request: StartDownloadRequest) -> Result<Uuid> {
+    pub async fn start(self: &Arc<Self>, request: StartDownloadRequest) -> Result<Uuid> {
         let url = Url::parse(&request.url)
             .map_err(|error| DownloadError::InvalidResponse(error.to_string()))?;
         if !matches!(url.scheme(), "http" | "https") {
@@ -644,7 +642,7 @@ impl DownloadManager {
             .await
             .insert(download_id.to_string(), managed.clone());
 
-        let dm = Arc::new(self.clone());
+        let dm = self.clone();
         self.task_lifecycle.spawn_download(dm, managed, request.max_retries.unwrap_or(DEFAULT_RETRIES), slot)
             .await?;
         self.scheduler.rebalance_allocations(self).await?;
@@ -766,7 +764,7 @@ impl DownloadManager {
         )))
     }
 
-    pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
+    pub async fn resume(self: &Arc<Self>, download_id: &str) -> Result<DownloadSnapshot> {
         let managed = self.task_lifecycle.get(self, download_id).await?;
         // Phase 1: check state (read-only, drop lock before fallible ops)
         {
@@ -835,7 +833,7 @@ impl DownloadManager {
         // Acquire a concurrent download slot (HTTP throttle) for resume
         let slot = self.try_acquire_http()?;
 
-        let dm = Arc::new(self.clone());
+        let dm = self.clone();
         self.task_lifecycle.spawn_download(dm, managed.clone(), DEFAULT_RETRIES, slot)
             .await?;
         self.scheduler.rebalance_allocations(self).await?;
@@ -975,7 +973,8 @@ impl DownloadManager {
 #[async_trait]
 impl DownloadBackend for DownloadManager {
     async fn start(&self, request: StartDownloadRequest) -> Result<TaskId> {
-        let uuid = DownloadManager::start(self, request).await?;
+        let arc_self = Arc::new(self.clone());
+        let uuid = DownloadManager::start(&arc_self, request).await?;
         Ok(TaskId::Http(uuid))
     }
 
@@ -990,7 +989,8 @@ impl DownloadBackend for DownloadManager {
         let TaskId::Http(uuid) = task_id else {
             return Err(DownloadError::NotFound);
         };
-        DownloadManager::resume(self, &uuid.to_string()).await
+        let arc_self = Arc::new(self.clone());
+        DownloadManager::resume(&arc_self, &uuid.to_string()).await
     }
 
     async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {

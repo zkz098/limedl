@@ -47,11 +47,11 @@ async fn single_stream_download_completes_successfully() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let id = manager
         .start(StartDownloadRequest {
@@ -108,11 +108,11 @@ async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let id = manager
         .start(StartDownloadRequest {
@@ -152,11 +152,11 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let wrong_checksum =
         "0000000000000000000000000000000000000000000000000000000000000000".to_string();
@@ -213,11 +213,11 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let id = manager
         .start(StartDownloadRequest {
@@ -269,11 +269,11 @@ async fn multi_stream_blake3_checksum_match() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let id = manager
         .start(StartDownloadRequest {
@@ -312,11 +312,11 @@ async fn multi_stream_sha256_checksum_match() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let id = manager
         .start(StartDownloadRequest {
@@ -359,11 +359,11 @@ async fn cancel_download_while_in_progress() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     let slow_url = server.file_url_bandwidth(8 * 1024);
 

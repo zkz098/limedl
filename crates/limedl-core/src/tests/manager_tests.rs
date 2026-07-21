@@ -101,11 +101,11 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
     let id = tokio::time::timeout(
         Duration::from_millis(200),
         manager.start(StartDownloadRequest {
@@ -168,11 +168,11 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
     manager
         .apply_settings(AppSettings {
             appearance: Default::default(),
@@ -275,11 +275,11 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
     manager
         .apply_settings(AppSettings {
             appearance: Default::default(),
@@ -375,11 +375,11 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
     manager
         .apply_settings(AppSettings {
             appearance: Default::default(),
@@ -459,11 +459,11 @@ async fn checksum_match_succeeds() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     // Compute the expected good checksum for the payload
     let expected_good = crate::checksum::hash_slices(ChecksumMode::Blake3, &[&payload]);
@@ -519,11 +519,11 @@ async fn checksum_mismatch_detected() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     // Wrong expected checksum — should cause mismatch
     let expected_bad =
@@ -709,11 +709,11 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
-    )?;
+    )?);
 
     // Bypass the settings clamp ([10, 10000]) so we can use a small limit.
     manager.settings.write().await.max_in_memory_downloads = 2;
