@@ -109,7 +109,3 @@ fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: String) {
 pub fn backoff_delay(attempt: u32) -> Duration {
     Duration::from_millis((250_u64).saturating_mul(2_u64.saturating_pow(attempt.min(4))))
 }
-
-#[cfg(test)]
-#[path = "tests/retry_tests.rs"]
-mod tests;

@@ -225,6 +225,11 @@ export type ProxyMode = "disabled" | "system" | "manual";
 
 export type ProxySettings = { mode: ProxyMode, manualUrl: string, };
 
+/**
+ * Safety classification for JSON-RPC method rate limiting.
+ */
+export type SafetyClass = "safe" | "mutating";
+
 export type SchedulerMode = "traditional" | "automatic";
 
 export type SchedulerSettings = { mode: SchedulerMode, traditional: TraditionalSchedulerSettings, automatic: AutomaticSchedulerSettings, chunkSizeStrategy: ChunkSizeStrategy, };

@@ -1,141 +1,73 @@
 # Architecture Overview
 
-## Workspace structure
+## 模块职责
+
+limedl 的整体架构描述：工作空间布局、三目标平台（Tauri Desktop / NAS WebUI / CLI）、前端双模式（#invoke / #event import alias 切换 Tauri IPC ↔ WebSocket）、协议路由（BackendRegistry 按 TaskId 前缀分发）、事件系统（EventBus → 各 adapter 独立订阅发射）。
+
+## 涉及文件
+
+** workspace 层 **：
+- `Cargo.toml` — workspace root，members 包括 `crates/*` 和 `src-tauri`
+- `package.json` — pnpm workspace（frontend only），`packageManager` 字段指定 pnpm v11
+
+** 核心库 **：
+- `crates/limedl-core/src/` — 22+ 模块：event_bus、types、protocol、manager、http_executor、scheduler、task_lifecycle、bt_backend_own/、cdn/、database、buffer_pool、rate_limiter/、checksum/、file_ops/、settings、http_client_factory/、backend_registry、dispatcher、manifest、retry、aria2_rpc、ws_manifest
+- lib 名称：`limedl_core`
+
+** 服务端 / CLI **：
+- `crates/limedl-server/src/main.rs` — CLI 入口（clap 子命令：daemon | download）+ axum 服务器
+- `crates/limedl-server/src/rpc.rs` — WebSocket JSON-RPC 2.0 dispatch + event relay
+- `crates/limedl-server/src/auth.rs` — HTTP Basic Auth middleware
+- `crates/limedl-server/src/config.rs` — 服务器配置（JSON + CLI 覆写）
+
+** Tauri 桌面 **：
+- `src-tauri/src/lib.rs` — Tauri 入口、EventBus→Tauri bridge 后台任务
+- `src-tauri/src/download/commands.rs` — Tauri IPC 命令（薄壳，经 Dispatcher 委派）
+- `src-tauri/src/download/commands_cdn.rs` — CDN 命令
+- `src-tauri/src/download/aria2_rpc.rs` — Aria2 RPC 集成
+- lib 名称：`limedl_lib`
+
+** 前端 **：
+- `src/` — Vue 3 + TypeScript，跨 Tauri/NAS 共享
+- `src/lib/tauri/*-api.ts` — 类型安全 invoke 包装（导入 `#invoke`）
+- `src/lib/ws/ws-invoke.ts` — WebSocket invoke 实现（NAS 模式）
+- `src/lib/ws/ws-event.ts` — WebSocket event 实现（NAS 模式）
+- `src/lib/ws/generated/ws-commands.ts` — 由 ws_manifest.rs 自动生成
+- `src/lib/ws/generated/ws-events.ts` — 由 ws_manifest.rs 自动生成
+- `src/types/generated/types.ts` — 由 ts-rs 自动生成
+
+** 构建配置 **：
+- `vite.config.ts` — resolve.alias 中根据 `mode === "nas"` 切换 `#invoke` / `#event` 指向
+- `.cargo/config.toml` — x86_64 target 设置 `target-cpu=x86-64-v3`
+
+## 数据流向
 
 ```
-limedl/
-├── Cargo.toml                 # workspace root [members: crates/*, src-tauri]
-├── package.json               # pnpm workspace (frontend only)
-├── src/                       # Vue 3 frontend (shared)
-├── crates/
-│   ├── limedl-core/         # Pure download engine
-│   │   └── src/               # 22 modules: event_bus, types, protocol, manager, bt_backend_own, ...
-│   └── limedl-server/       # NAS/headless daemon + CLI
-│       └── src/
-│           ├── main.rs        # CLI entry (clap: daemon | download)
-│           ├── rpc.rs         # WebSocket JSON-RPC 2.0 dispatch
-│           ├── auth.rs        # HTTP Basic Auth middleware
-│           └── config.rs      # Server config (JSON + CLI override)
-└── src-tauri/                 # Tauri v2 desktop app
-    └── src/
-        ├── lib.rs             # Tauri app entry, EventBus→Tauri bridge
-        └── download/
-            ├── mod.rs         # Re-exports from limedl-core
-            ├── commands.rs    # Tauri IPC commands (thin dispatch)
-            ├── commands_cdn.rs
-            └── aria2_rpc.rs
+Tauri Desktop:
+  Vue UI → #invoke → @tauri-apps/api/core → Tauri IPC
+    → commands.rs → Dispatcher → BackendRegistry → DownloadManager / IrontideBtBackend
+    → EventBus::publish() → broadcast
+    → Tauri bridge (lib.rs 后台任务) → app_handle.emit() → Vue UI
+
+NAS WebUI:
+  Vue UI → #invoke → ws-invoke.ts → WebSocket JSON-RPC
+    → rpc.rs → Dispatcher → BackendRegistry → DownloadManager / IrontideBtBackend
+    → EventBus::publish() → broadcast
+    → rpc.rs event relay → WebSocket → ws-event.ts → Vue UI
+
+CLI daemon:
+  limedl daemon → main.rs → axum 服务器（同 NAS 后端）+ 静态文件服务 + WebSocket RPC
+
+CLI 单次下载:
+  limedl download <url> → main.rs → DownloadManager（临时 state dir）→ EventBus → stdout progress
 ```
 
-## Data flow
+## 设计决策与约定
 
-### Tauri Desktop
-
-```
-Vue UI → #invoke → @tauri-apps/api/core → Tauri IPC
-  → commands.rs → BackendRegistry → DownloadManager / IrontideBtBackend
-  → EventBus.publish() → broadcast::channel
-  → Tauri bridge (lib.rs) → app_handle.emit() → Vue UI
-```
-
-### NAS WebUI
-
-```
-Vue UI → #invoke → ws-invoke.ts → WebSocket JSON-RPC
-  → rpc.rs → BackendRegistry → DownloadManager / IrontideBtBackend
-  → EventBus.publish() → broadcast::channel
-  → rpc.rs event relay → WebSocket → ws-event.ts → Vue UI
-```
-
-### CLI daemon
-
-```
-limedl daemon → main.rs
-  → axum HTTP server (same as NAS WebUI backend)
-  → serves Vue dist/ as static files
-  → WebSocket RPC on /ws
-```
-
-### CLI single download
-
-```
-limedl download <url> → main.rs
-  → DownloadManager (temp state dir) → HTTP GET → file
-  → EventBus.subscribe() → stdout progress
-```
-
-## Key traits
-
-### DownloadBackend (crates/limedl-core/src/protocol.rs)
-
-```rust
-#[async_trait]
-pub trait DownloadBackend: Send + Sync {
-    async fn start(&self, request: StartDownloadRequest) -> Result<String>;
-    async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
-    async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
-    async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
-    async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
-    async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
-    async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()>;
-    async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
-    async fn list(&self) -> Result<Vec<DownloadSummary>>;
-    async fn update_settings(&self, settings: &AppSettings) -> Result<()>;
-    async fn shutdown(&self) -> Result<()>;
-}
-```
-
-Implemented by `DownloadManager` (HTTP) and `IrontideBtBackend` (BitTorrent).
-
-### BackendRegistry (crates/limedl-core/src/backend_registry.rs)
-
-Routes operations by TaskId prefix:
-- `dispatch(&TaskId)` → returns `&dyn DownloadBackend`
-- `by_kind(TaskKind)` → returns `&dyn DownloadBackend`
-- `get_typed::<T>()` → returns `Option<&T>` for protocol-specific methods
-- `list_all()` → merged + sorted list from all backends
-
-## RPC protocol
-
-NAS WebUI uses **WebSocket + JSON-RPC 2.0**:
-
-Request: `{"jsonrpc":"2.0","id":1,"method":"download.start","params":{...}}`
-Response: `{"jsonrpc":"2.0","id":1,"result":{...}}`
-Server push: `{"jsonrpc":"2.0","method":"event","params":{"type":"updated","payload":{...}}}`
-
-Method names use dot.case (`download.start`, `settings.get`). The `ws-invoke.ts` client maps Tauri snake_case commands to dot.case methods via `METHOD_MAP`.
-
-## Authentication (NAS only)
-
-HTTP Basic Auth on WebSocket upgrade path (`/ws`). Credentials configured via `config.json` or CLI flags (`--user`/`--pass`). No auth = all requests pass through.
-
-## Build targets
-
-| Command | Target | Output |
-|---------|--------|--------|
-| `pnpm run build` | Tauri desktop | `src-tauri/target/` |
-| `pnpm run build:nas` | NAS WebUI | `dist/` (copy to server) |
-| `pnpm run tauri dev` | Tauri dev | hot-reload |
-| `cargo build -p limedl-server` | CLI binary | `target/debug/limedl.exe` |
-
-## Module index
-
-| Module | Crate | Source |
-|--------|-------|--------|
-| event_bus | core | `crates/limedl-core/src/event_bus/mod.rs` |
-| types | core | `crates/limedl-core/src/types.rs` |
-| protocol (DownloadBackend) | core | `crates/limedl-core/src/protocol.rs` |
-| backend_registry | core | `crates/limedl-core/src/backend_registry.rs` |
-| manager (DownloadManager) | core | `crates/limedl-core/src/manager.rs` |
-| bt_backend_own (IrontideBtBackend) | core | `crates/limedl-core/src/bt_backend_own/` |
-| cdn (CdnAccelerator) | core | `crates/limedl-core/src/cdn/` |
-| database | core | `crates/limedl-core/src/database.rs` |
-| buffer_pool | core | `crates/limedl-core/src/buffer_pool.rs` |
-| scheduler + aimd | core | `crates/limedl-core/src/scheduler.rs` + `aimd.rs` |
-| rate_limiter | core | `crates/limedl-core/src/rate_limiter/` |
-| checksum | core | `crates/limedl-core/src/checksum/` |
-| file_ops | core | `crates/limedl-core/src/file_ops/` |
-| settings | core | `crates/limedl-core/src/settings.rs` |
-| Tauri commands | tauri | `src-tauri/src/download/commands.rs` |
-| Aria2 RPC | tauri | `src-tauri/src/download/aria2_rpc.rs` |
-| NAS server | server | `crates/limedl-server/src/main.rs` + `rpc.rs` |
-| WebSocket client | frontend | `src/lib/ws/ws-invoke.ts` + `ws-event.ts` |
+- 前端代码共享：同一套 Vue 3 组件/路由/composable 在 Tauri 和 NAS 上完全复用，仅通信层通过 import alias 切换。
+- 协议路由：BackendRegistry 按 TaskId 前缀（http:/bt:）将操作分派到对应的 DownloadBackend 实现。
+- 事件系统：EventBus 是纯 broadcast channel，不感知前端。Tauri 前端发射在 lib.rs 中由独立后台任务完成，WebSocket 推送在 rpc.rs 中完成。
+- 事件名映射由 ws_manifest.rs 声明，编译期一致性测试验证 rpc.rs 和 lib.rs 中 handler 分支完整性。
+- 序列化约定：Rust struct 用 `#[serde(rename_all = "camelCase")]`，enum 用 `#[serde(rename_all = "snake_case")]`。TypeScript 接口镜像相同命名。
+- 所有 crate 使用 Rust edition 2024。
+- 认证（NAS 模式）：HTTP Basic Auth on WebSocket upgrade path（/ws），配置通过 config.json 或 CLI flags。

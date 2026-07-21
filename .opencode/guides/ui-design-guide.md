@@ -1,235 +1,103 @@
 # UI Design Guide — limedl
 
-> Design tokens, patterns, and conventions for the limedl frontend (Vue 3 + TypeScript + UnoCSS).
+## 模块职责
 
-## Tech Stack
+设计令牌（Design Tokens）、图标系统、布局类、CSS 约定和可访问性标准的定义。所有视觉相关的决策在此文档中描述。
 
-- **Framework**: Vue 3 Composition API (`<script setup lang="ts">`)
-- **CSS engine**: UnoCSS (with `presetUno` + `presetIcons`)
-- **Icons**: Remix Icon via UnoCSS (`i-ri-*` classes)
-- **Styling**: Scoped CSS in `.vue` SFCs, CSS custom properties for theming
+## 涉及文件
+
+- `src/styles.css` — 所有 CSS 自定义属性定义（design tokens、全局布局类、过渡动画）
+- `src/` 下各 `.vue` SFC 的 `<style scoped>` — 组件级样式
+- `vite.config.ts` — UnoCSS 配置（presetUno + presetIcons）
 
 ## Design Tokens
 
-All tokens are defined as CSS custom properties in `src/styles.css`. Always reference tokens by variable name — never hardcode values.
+所有令牌以 CSS 自定义属性定义在 `src/styles.css` 中，组件中通过 `var(--token)` 引用，严禁硬编码值。
 
-### Colors
+### 颜色
 
-| Token                   | Light value        | Role                                          |
-| ----------------------- | ------------------ | --------------------------------------------- |
-| `--color-bg-base`       | `oklch(0.995 0 0)` | Page background                               |
-| `--color-panel`         | `oklch(1 0 0)`     | Card/panel background                         |
-| `--color-panel-muted`   | `oklch(0.985 0 0)` | Subdued panel (readonly inputs, empty states) |
-| `--color-surface-muted` | `oklch(0.97 0 0)`  | Table headers, hover backgrounds              |
-| `--color-surface-hover` | `oklch(0.96 0 0)`  | Stronger hover                                |
-| `--color-heading`       | `oklch(0.21 0 0)`  | Headings and labels                           |
-| `--color-text-main`     | `oklch(0.32 0 0)`  | Body text                                     |
-| `--color-text-muted`    | `oklch(0.55 0 0)`  | Secondary text, hints                         |
-| `--color-text-soft`     | `oklch(0.75 0 0)`  | Placeholder text                              |
-| `--color-input-bg`      | `oklch(1 0 0)`     | Input field background                        |
-| `--color-border`        | `oklch(0.92 0 0)`  | Default borders                               |
-| `--color-border-strong` | `oklch(0.82 0 0)`  | Hover/active borders                          |
-| `--border-width-thin`   | `1px`              | Standard border width                         |
+背景层：`--color-bg-base`（页面背景）、`--color-panel`（卡片/面板背景）、`--color-panel-muted`（次级面板）、`--color-surface-muted`（表头/悬停背景）、`--color-surface-hover`（强悬停）。
 
-**Accent colors** (green-lime default, amber/sky variants available via `data-theme`):
+文字层：`--color-heading`（标题）、`--color-text-main`（正文）、`--color-text-muted`（次要文字）、`--color-text-soft`（占位符）。
 
-| Token                        | Role                                   |
-| ---------------------------- | -------------------------------------- |
-| `--color-accent`             | Primary accent (buttons, progress bar) |
-| `--color-accent-strong`      | Accent hover / active / switch-on      |
-| `--color-accent-soft`        | Accent background (selected items)     |
-| `--color-accent-soft-border` | Subtle accent border                   |
-| `--color-accent-border`      | Medium accent border                   |
-| `--color-accent-alt`         | Alternative accent hue                 |
-| `--color-accent-contrast`    | Text on accent backgrounds             |
-| `--color-focus-ring`         | Focus ring color                       |
-| `--color-progress-track`     | Progress bar background                |
+控件：`--color-input-bg`、`--color-border`、`--color-border-strong`、`--border-width-thin`。
 
-**Semantic colors** (info/success/warning/danger — each has `-bg`, `-border`, `-text` variants):
+强调色系（--color-accent-*）：主色、悬停、背景、边框、替代色、对比色、聚焦环、进度条轨道。默认为 green-lime，可通过 `data-theme` 属性切换为 amber / sky。
 
-| Token family        | Use                                                 |
-| ------------------- | --------------------------------------------------- |
-| `--color-info-*`    | Informational banners, info badges                  |
-| `--color-success-*` | Completed state, success toasts                     |
-| `--color-warning-*` | Paused/queued state, CDN badge                      |
-| `--color-danger-*`  | Failed/canceled state, delete buttons, error toasts |
+语义色系（--color-info-* / --color-success-* / --color-warning-* / --color-danger-*）：各含 `-bg` 背景、`-border` 边框、`-text` 文字三个变体。
 
-**Dark mode**: All colors have dark variants under `:root[data-color-mode="dark"]`. Never define foreground colors without a corresponding background.
+暗色模式：所有颜色在 `:root[data-color-mode="dark"]` 下有对应变体。
 
-### Typography
+### 排版
 
-| Token                    | Value                                               | Use                        |
-| ------------------------ | --------------------------------------------------- | -------------------------- |
-| `--font-body`            | Inter, SF Pro Text, Segoe UI, system-ui, sans-serif | Default text               |
-| `--font-display`         | Inter, SF Pro Text, Segoe UI, system-ui, sans-serif | Headings                   |
-| `--font-mono`            | SF Mono, Cascadia Code, Consolas, monospace         | Numbers, speeds, sizes     |
-| `--font-weight-display`  | `600`                                               | Display heading weight     |
-| `--font-weight-semibold` | `600`                                               | Button labels, stat values |
-| `--font-size-micro`      | `0.75rem`                                           | Table header labels        |
-| `--font-size-label`      | `0.8rem`                                            | Badges, section kickers    |
-| `--font-size-small`      | `0.875rem`                                          | Form hints, secondary text |
-| `--font-size-body`       | `1rem`                                              | Body text (default)        |
-| `--font-size-metric`     | `1.25rem`                                           | Stat values                |
-| `--font-size-hero`       | `1.8rem`                                            | Large hero headings        |
-| `--line-height-display`  | `1.2`                                               | Headings                   |
-| `--line-height-tight`    | `1.4`                                               | Compact text               |
-| `--letter-spacing-tight` | `-0.02em`                                           | Headings                   |
-| `--letter-spacing-wide`  | `0.04em`                                            | Uppercase kickers          |
+字体：`--font-body` / `--font-display`（Inter Fallback 栈）、`--font-mono`（等宽字体）。字号从 `--font-size-micro`(0.75rem) 到 `--font-size-hero`(1.8rem)。字重 `--font-weight-display` 和 `--font-weight-semibold` 均为 600。
 
-### Spacing
+### 间距
 
-Use the spacing scale. Prefer `var(--space-N)` in CSS, `gap-2` / `p-3` etc. in UnoCSS.
+间距标尺：`--space-1`(0.25rem/4px) 到 `--space-7`(2.5rem/40px)。CSS 中使用 `var(--space-N)`，UnoCSS 中使用 `gap-2`、`p-3` 等。
 
-| Token       | rem  | px ~ |
-| ----------- | ---- | ---- |
-| `--space-1` | 0.25 | 4    |
-| `--space-2` | 0.5  | 8    |
-| `--space-3` | 0.75 | 12   |
-| `--space-4` | 1.0  | 16   |
-| `--space-5` | 1.5  | 24   |
-| `--space-6` | 2.0  | 32   |
-| `--space-7` | 2.5  | 40   |
+### 圆角
 
-### Radii
+`--radius-sm`(0.25rem, 徽标)、`--radius-md`(0.5rem, 输入框/按钮)、`--radius-lg`(0.75rem, 卡片)、`--radius-xl`(0.75rem, 模态面板)、`--radius-pill`(999px, 开关/进度条)。
 
-| Token                     | Use                                   |
-| ------------------------- | ------------------------------------- |
-| `--radius-sm` (`0.25rem`) | Small elements (badges)               |
-| `--radius-md` (`0.5rem`)  | Inputs, buttons, dialogs              |
-| `--radius-lg` (`0.75rem`) | Cards, panels                         |
-| `--radius-xl` (`0.75rem`) | Modal overlay panels                  |
-| `--radius-pill` (`999px`) | Switches, progress bars, pill buttons |
+### 阴影
 
-### Shadows
+`--shadow-soft` / `--shadow-card` / `--shadow-card-hover`。开关滑块用 soft，卡片用 card，弹窗用 card-hover。
 
-| Token                  | Use                                   |
-| ---------------------- | ------------------------------------- |
-| `--shadow-soft`        | Subtle elevation (switch thumb)       |
-| `--shadow-card`        | Default card/panel elevation          |
-| `--shadow-card-hover`  | Elevated card/panel on hover, dialogs |
-| `--shadow-accent`      | Alias for `--shadow-card`             |
-| `--shadow-accent-soft` | Alias for `--shadow-soft`             |
+### 过渡动画
 
-### Transitions
+默认时长 `--duration-fast`(150ms)。交互过渡使用 `0.2s ease`。
 
-Duration: `var(--duration-fast)` = `150ms`. Use `0.2s ease` for most interactive transitions.
+## 图标系统
 
-## Icon System
+所有图标来自 Remix Icon，通过 UnoCSS presetIcons 加载。使用 `i-ri-*` class 模式：`<span class="i-ri-download-line" aria-hidden="true" />`。装饰性图标必须加 `aria-hidden="true"`。
 
-All icons come from Remix Icon via UnoCSS `presetIcons`. Use the `i-ri-*` class pattern:
+## 全局布局类
 
-```html
-<span class="i-ri-download-line" aria-hidden="true" />
-```
+定义在 `src/styles.css`：`.section-kicker`（小号大写标签）、`.panel-title`（面板标题）、`.status-banner`（信息/错误横幅）、`.desk-panel__header`（flex space-between 布局）、`.theme-color-button`（强调色选择按钮）。
 
-**Convention**: Always add `aria-hidden="true"` to decorative icons. Use semantic elements (`<button>`, `<i>`) as appropriate.
+## CSS 约定
 
-**Common icons used in the project**:
+- 作用域样式：始终使用 `<style scoped>`，非作用域样式仅用于页面级组件的共享布局类。
+- CSS 变量：始终通过 `var(--token)` 引用，不硬编码颜色或间距。
+- 类命名：BEM-like 风格（`.component-name__element--modifier`）。
+- UnoCSS：模板中用于微调（flex、gap-2、text-sm），组件主样式使用 scoped CSS。
+- 过渡：使用 `<Transition>` + CSS，命名以组件为准（如 dialog-fade）。
+- 焦点：所有交互元素必须有 `:focus-visible` 样式，使用 `var(--color-focus-ring)`。
+- 禁用态：`opacity: 0.5; cursor: not-allowed` 一致使用。
 
-- Navigation: `i-ri-arrow-down-s-line`, `i-ri-arrow-up-line`, `i-ri-arrow-right-s-line`
-- Actions: `i-ri-add-line`, `i-ri-close-line`, `i-ri-refresh-line`, `i-ri-delete-bin-line`
-- Download states: `i-ri-download-line`, `i-ri-pause-line`, `i-ri-play-line`, `i-ri-stop-line`, `i-ri-close-circle-line`
-- Status: `i-ri-checkbox-circle-line`, `i-ri-error-warning-line`, `i-ri-information-line`, `i-ri-alert-line`
-- Features: `i-ri-flashlight-fill` (CDN), `i-ri-settings-3-line`, `i-ri-palette-line`
+## 可访问性
 
-Search Remix Icon: https://remixicon.com/
+所有交互元素必须键盘可达；图标必须 `aria-hidden="true"`；弹窗/覆盖层支持 Escape 关闭和覆盖层点击关闭；表单字段有可见标签；颜色不作为状态的唯一指示器。
 
-## Component Patterns
+## 响应式设计
 
-### Form Fields
+移动断点 680px。使用 `clamp()` / `min()` / `max()` 做流式尺寸。弹窗必须纳入 `calc(100vh - 1.5rem)` 和 `calc(100vw - 1.5rem)`。Tauri 窗口可任意调整大小，需在窄视口下测试。
 
-Each form field follows this structure:
+## 数据流向
 
 ```
-[Label] → [Input/Select/Switch] → [Hint text (optional)]
+src/styles.css（design tokens 定义）
+  ↓
+各 .vue SFC 的 <style scoped> → var(--token) 引用
+  ├─ 组件内部样式（scoped CSS）
+  ├─ UnoCSS 工具类（模板中微调，不覆盖主样式）
+  └─ 全局布局类（页面级组件的非 scoped 样式）
+  ↓
+浏览器渲染 → 设计令牌驱动所有可视属性（颜色、间距、圆角、阴影、字体）
 ```
 
-Use `SettingsField` component in settings panels. In other contexts, use the `settings-field` CSS class pattern directly:
+强调色切换：`data-theme` 属性（lime / amber / sky）→ `--color-accent-*` 变体 → 组件自动适配。
+暗色模式：`data-color-mode="dark"` → 各 color token 暗色变体 → 组件自动适配。
 
-```html
-<label class="settings-field">
-  <span class="settings-field__label">Label</span>
-  <UiTextField v-model="value" />
-  <p class="settings-field__hint">Optional hint text</p>
-</label>
-```
+## 设计决策与约定
 
-### Card Sections
+- 所有颜色、间距、圆角、阴影、字体以 CSS 自定义属性定义，严禁硬编码值。添加新组件时先在 `src/styles.css` 检查是否有对应 token，没有则新增。
+- 使用 oklch 色彩空间定义颜色值，确保跨亮度和饱和度的感知均匀性。
+- 强调色系（`--color-accent-*`）用于按钮、进度条、选中项、开关等交互元素。语义色系（`--color-{info|success|warning|danger}-*`）用于徽标、toast、横幅。
+- 图标强制使用 Remix Icon（UnoCSS 的 `i-ri-*`），添加 `aria-hidden="true"`。不使用内联 SVG 或其他图标集。
+- 组件样式始终用 `<style scoped>`，非作用域样式仅限页面级组件的共享布局类。类名使用 BEM-like 约定。
+- 所有交互元素必须有 `:focus-visible` 样式。禁用态统一 `opacity: 0.5; cursor: not-allowed`。
+- 创建新组件前必须检查：是否存在类似模式、是否在 2+ 处使用、能否从现有组件组合。
 
-Use `SettingsSection` for settings/labs panel sections, or `UiCard` for generic cards. Both provide border, background, shadow, hover effect.
-
-**When to use SettingsSection vs UiCard**:
-
-- `SettingsSection`: Settings/labs configuration panels (has title, icon, summary props)
-- `UiCard`: Generic content cards with optional header/footer slots
-
-### Dialogs and Overlays
-
-Use `UiDialog` for modal dialogs (confirmation, form prompts). Use `ModalOverlay` for fullscreen overlays (settings page, labs page).
-
-`ConfirmDialog` wraps `UiDialog` with standard confirm/cancel button layout.
-
-### Empty States
-
-Always use `UiEmptyState` for empty containers. Never create ad-hoc empty state markup.
-
-### Data Tables
-
-For simple read-only tables (like peer/tracker lists), use `DataTable`. For complex interactive tables (like the download queue), build a dedicated component.
-
-## Shared Layout Classes
-
-These are non-scoped global classes in `src/styles.css` available everywhere:
-
-| Class                   | Use                                         |
-| ----------------------- | ------------------------------------------- |
-| `.section-kicker`       | Small uppercase muted label above a heading |
-| `.panel-title`          | Standard panel/section heading style        |
-| `.status-banner`        | Info/error banner with border and padding   |
-| `.status-banner--info`  | Blue info variant                           |
-| `.status-banner--error` | Red error variant                           |
-| `.desk-panel__header`   | Flex header with space-between layout       |
-| `.theme-color-button`   | Accent color selector button                |
-
-## CSS Conventions
-
-1. **Scoped styles**: Always use `<style scoped>`. Never rely on non-scoped styles except for shared layout classes in page-level components.
-2. **CSS variables**: Always reference tokens via `var(--token)`. Never hardcode colors or spacing.
-3. **Class naming**: BEM-like: `.component-name__element--modifier` (e.g., `.detail-panel__header`, `.ui-badge--success`).
-4. **UnoCSS**: Use utility classes in templates for minor adjustments (`flex`, `gap-2`, `text-sm`). Do not use UnoCSS for primary component styling — keep that in scoped CSS.
-5. **Transitions**: Use `<Transition>` + CSS for enter/leave animations. Name transitions after the component (e.g., `overlay-fade`, `dialog-fade`, `toast`).
-6. **Focus**: Every interactive element must have `:focus-visible` styling using `var(--color-focus-ring)`.
-7. **Disabled**: Use `opacity: 0.5; cursor: not-allowed` consistently.
-
-## Accessibility Minimums
-
-- All interactive elements must be keyboard accessible
-- Icons must have `aria-hidden="true"`
-- Dialogs/overlays close on Escape and overlay click
-- Form fields have visible labels
-- Color is never the sole indicator of state (always pair with text or icon)
-
-## When to Create New UI Components
-
-Before creating a new UI component, check:
-
-1. Does a similar pattern already exist in `src/components/ui/`?
-2. Is this pattern used in 2+ places?
-3. Can it be composed from existing components?
-
-If yes to all three, extract a shared component. If only used once, keep it inline.
-
-## Responsive Design
-
-- Mobile breakpoint: `680px`
-- Use `clamp()` / `min()` / `max()` for fluid sizing
-- Dialogs and overlays must fit within `calc(100vh - 1.5rem)` and `calc(100vw - 1.5rem)`
-- Test at narrow viewports (Tauri window can be resized arbitrarily)
-
-## Dark Mode
-
-All components must work in both light and dark modes. Test by toggling `data-color-mode="dark"` on `<html>`. The token system handles most variables automatically — just avoid hardcoding colors.
-
-## Theme Accent Colors
-
-Three accent themes available: lime (default), amber, sky. Toggled via `data-theme` attribute. Components that use `--color-accent-*` tokens adapt automatically.
+以上三点都满足时才提取为共享组件。

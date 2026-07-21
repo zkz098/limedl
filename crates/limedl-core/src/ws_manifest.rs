@@ -21,6 +21,9 @@
 
 use serde::Serialize;
 
+#[cfg(feature = "ts")]
+use ts_rs::TS;
+
 /// Specifies how a command's `args` (the second argument to `invoke()`) should be
 /// transformed before sending as JSON-RPC `params`.
 #[derive(Debug, Clone, Serialize)]
@@ -40,6 +43,18 @@ pub enum ParamTransform {
     },
 }
 
+/// Safety classification for JSON-RPC method rate limiting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[serde(rename_all = "camelCase")]
+pub enum SafetyClass {
+    /// Read-only / query methods.
+    Safe,
+    /// Mutating / write methods.
+    Mutating,
+}
+
 /// Describes a single WebSocket JSON-RPC command.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +65,8 @@ pub struct WsCommandSpec {
     pub rpc_method: &'static str,
     /// How to transform `args` before sending as JSON-RPC params.
     pub param_transform: ParamTransform,
+    /// Safety classification for rate limiting.
+    pub safety: SafetyClass,
 }
 
 /// Complete list of all WebSocket JSON-RPC commands.
@@ -62,6 +79,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         tauri_name: "download_start",
         rpc_method: "download.start",
         param_transform: ParamTransform::UnwrapField { field: "request" },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "download_pause",
@@ -70,6 +88,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "download_resume",
@@ -78,6 +97,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "download_cancel",
@@ -86,6 +106,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "download_remove",
@@ -94,6 +115,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "download_purge",
@@ -102,6 +124,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "download_status",
@@ -110,11 +133,13 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "download_list",
         rpc_method: "download.list",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "download_open_in_explorer",
@@ -123,48 +148,57 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     // ── Settings ────────────────────────────────────────────────────────
     WsCommandSpec {
         tauri_name: "settings_get",
         rpc_method: "settings.get",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "settings_save",
         rpc_method: "settings.save",
         param_transform: ParamTransform::UnwrapField { field: "settings" },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "toggle_game_mode",
         rpc_method: "settings.toggleGameMode",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "get_io_status",
         rpc_method: "settings.getIoStatus",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "toggle_overclock_mode",
         rpc_method: "settings.toggleOverclockMode",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "get_overclock_mode",
         rpc_method: "settings.getOverclockMode",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "settings_fetch_tracker_list",
         rpc_method: "settings.fetchTrackerList",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     // ── BitTorrent ────────────────────────────────────────────────────────
     WsCommandSpec {
         tauri_name: "bt_runtime_status",
         rpc_method: "bt.runtimeStatus",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "bt_set_speed_limit",
@@ -173,11 +207,13 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "bt_preview_torrent",
         rpc_method: "bt.previewTorrent",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "bt_get_peers",
@@ -186,6 +222,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "bt_get_trackers",
@@ -194,6 +231,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "bt_get_pieces",
@@ -202,6 +240,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "get_bt_files",
@@ -210,6 +249,7 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "update_bt_files",
@@ -218,49 +258,68 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
             from: "downloadId",
             to: "taskId",
         },
+        safety: SafetyClass::Mutating,
     },
     // ── CDN accelerator ────────────────────────────────────────────────
     WsCommandSpec {
         tauri_name: "cdn_fetch_ranges",
         rpc_method: "cdn.fetchRanges",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "cdn_test",
         rpc_method: "cdn.test",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "cdn_apply",
         rpc_method: "cdn.apply",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "cdn_clear",
         rpc_method: "cdn.clear",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "cdn_status",
         rpc_method: "cdn.status",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "cdn_cancel",
         rpc_method: "cdn.cancel",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
         tauri_name: "cdn_detail",
         rpc_method: "cdn.detail",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
     WsCommandSpec {
         tauri_name: "cdn_candidates",
         rpc_method: "cdn.candidates",
         param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
     },
 ];
+
+/// Classify a JSON-RPC method as Safe or Mutating based on `WS_COMMANDS`.
+/// Unknown RPC methods (not in manifest) default to Mutating.
+pub fn classify_rpc_safety(rpc_method: &str) -> SafetyClass {
+    WS_COMMANDS
+        .iter()
+        .find(|c| c.rpc_method == rpc_method)
+        .map(|c| c.safety)
+        .unwrap_or(SafetyClass::Mutating)
+}
 
 // ── Event manifest ──────────────────────────────────────────────────────────
 
@@ -322,6 +381,41 @@ pub const WS_EVENTS: &[WsEventSpec] = &[
 mod tests {
     use super::*;
 
+    /// Whether `literal` (a quoted string like `"foo"`) appears in `text`
+    /// followed (after ASCII whitespace) by one of `|`, `=`, or `,`. These
+    /// characters form the syntactic neighbors of a JSON-RPC match arm pattern
+    /// (`"foo" | "bar" => ...`) and a positional emit/field reference
+    /// (`emit("foo", ...)` / json `{"type": "foo", ...}`), both of which are the
+    /// contexts where command/event literal strings are actually expected to
+    /// appear in `rpc.rs` and `lib.rs`. A bare string in a comment, a doc
+    /// example, or a freestanding format string would not be followed by any
+    /// of these chars and is therefore rejected, tightening the original
+    /// `text.contains(&quoted)` guard.
+    fn appears_in_structural_context(text: &str, literal: &str) -> bool {
+        let mut search_start = 0;
+        while let Some(pos) = text[search_start..].find(literal) {
+            let abs_pos = search_start + pos;
+            let after = abs_pos + literal.len();
+            if after < text.len() {
+                let tail = &text[after..];
+                for ch in tail.chars() {
+                    if ch.is_ascii_whitespace() {
+                        continue;
+                    }
+                    if matches!(ch, '|' | '=' | ',') {
+                        return true;
+                    }
+                    break;
+                }
+            }
+            search_start = abs_pos + 1;
+            if search_start >= text.len() {
+                break;
+            }
+        }
+        false
+    }
+
     /// Verify that every entry has a non-empty name and method.
     #[test]
     fn ws_commands_are_valid() {
@@ -372,7 +466,7 @@ mod tests {
         for cmd in WS_COMMANDS {
             let quoted = format!("\"{}\"", cmd.tauri_name);
             assert!(
-                rpc_source.contains(&quoted),
+                appears_in_structural_context(rpc_source, &quoted),
                 "rpc.rs is missing a match arm for tauri_name '{}' (rpc_method: '{}').\n\
                  Add a handler in crates/limedl-server/src/rpc.rs dispatch_method()\n\
                  (and a sub-handler such as handle_download_action / handle_bt_get_details\n\
@@ -419,7 +513,7 @@ mod tests {
         for ev in WS_EVENTS {
             let quoted = format!("\"{}\"", ev.ws_type);
             assert!(
-                rpc_source.contains(&quoted),
+                appears_in_structural_context(rpc_source, &quoted),
                 "rpc.rs is missing ws_type string '{}' (tauri_event_name: '{}').\n\
                  Add or fix the event relay arm in crates/limedl-server/src/rpc.rs.",
                 ev.ws_type, ev.tauri_event_name
@@ -444,7 +538,7 @@ mod tests {
             }
             let quoted = format!("\"{}\"", ev.tauri_event_name);
             assert!(
-                lib_source.contains(&quoted),
+                appears_in_structural_context(lib_source, &quoted),
                 "lib.rs is missing tauri_event_name string '{}' (ws_type: '{}').\n\
                  Add or fix the emit arm in src-tauri/src/lib.rs.",
                 ev.tauri_event_name, ev.ws_type

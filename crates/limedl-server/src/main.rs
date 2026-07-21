@@ -160,14 +160,19 @@ async fn run_daemon(
     };
 
     // Apply middleware stack (outermost = first in list, applied last)
+    let security_layers = security::security_headers_layers(
+        &cfg.host,
+        cfg.port,
+        cfg.tls.enabled,
+    );
     let app = app
         // 1. Default body limit (outermost layer)
         .layer(DefaultBodyLimit::max(256 * 1024))
         // 2. Security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
-        .layer(security::security_headers_layers().3)
-        .layer(security::security_headers_layers().2)
-        .layer(security::security_headers_layers().1)
-        .layer(security::security_headers_layers().0)
+        .layer(security_layers.3)
+        .layer(security_layers.2)
+        .layer(security_layers.1)
+        .layer(security_layers.0)
         // 3. Auth middleware (wraps everything including static files)
         .layer(middleware::from_fn(
             move |mut req: Request<Body>, next: Next| {

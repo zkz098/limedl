@@ -62,10 +62,11 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
         bt
     };
 
-    // Create registry
+    // Create registry — register_arc so the registry shares the SAME Arc
+    // instances as CoreSystems (no Clone-with-snapshot divergence).
     let mut registry = BackendRegistry::new();
-    registry.register(TaskKind::Http, (*download_manager).clone());
-    registry.register(TaskKind::Bt, (*bt_backend).clone());
+    registry.register_arc(TaskKind::Http, download_manager.clone());
+    registry.register_arc(TaskKind::Bt, bt_backend.clone());
     let registry = Arc::new(registry);
 
     // Initialize CDN service

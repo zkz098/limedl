@@ -24,8 +24,8 @@ anyhow = "1"
 time = ">=0.3.47, <0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
-axum = { version = "0.8", features = ["ws"] }
-tower-http = { version = "0.6", features = ["cors"] }
+axum = { version = "0.8", features = ["ws"], optional = true }
+tower-http = { version = "0.6", features = ["cors"], optional = true }
 base64 = "0.22"
 rusqlite = { version = "0.34", features = ["bundled"] }
 async-trait = "0.1"
@@ -42,8 +42,8 @@ irontide = { version = "1", default-features = false, features = ["crypto-aws-lc
 ts-rs = { version = "12", optional = true }
 
 [features]
-aria2-rpc = []
-test-utils = ["rand"]
+aria2-rpc = ["dep:axum", "dep:tower-http"]
+test-utils = ["rand", "dep:axum", "dep:tower-http"]
 ts = ["dep:ts-rs"]
 
 [dev-dependencies]
@@ -51,3 +51,5 @@ tempfile = "3"
 rand = "0.8"
 ntest = "0.9"
 tokio-tungstenite = "0.24"
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }

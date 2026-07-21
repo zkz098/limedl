@@ -288,3 +288,42 @@ resource.lib : warning LNK4078: found multiple ".rsrc" sections with different a
 ```
 
 **Harmless.** Caused by `build.rs` manually embedding a ComCtl32 v6 manifest for the binary target, while `tauri_build::build()` also embeds one via `tauri-winres`. The manual embedding is intentional — it ensures the manifest is present in test binaries (`cargo test --workspace`), not just the release binary. Do not remove the custom `build.rs` manifest code.
+
+### `cargo audit` reports quick-xml RUSTSEC-2026-0194 / RUSTSEC-2026-0195
+
+`cargo audit` will always report 2 high-severity advisories against `quick-xml 0.39.4`:
+
+- **RUSTSEC-2026-0194** — `BytesStart::attributes()` O(N²) duplicate-name check → CPU DoS
+- **RUSTSEC-2026-0195** — `NsReader` unbounded namespace-declaration allocation → OOM
+
+**Status: known, accepted, no remediation possible from limedl side.**
+
+- quick-xml enters as a **build-time** dependency of `wayland-scanner 0.31.10` (proc-macro parsing host-preinstalled Wayland protocol XML at compile time). `grep` confirms limedl source has zero `quick_xml` / `BytesStart::attributes` / `NsReader` imports — the runtime never invokes the affected API surface.
+- wayland-scanner 0.31.10 declares `quick-xml = "^0.39"` in its `Cargo.toml`, so `cargo update` cannot lift the version across the 0.39 → 0.41 major bump. crates.io has no newer `wayland-scanner` / `wl-clipboard-rs` / `arboard` / `tauri-plugin-clipboard-manager` release on this branch.
+- Attack path described by the advisories (attacker-controlled XML reaching `NsReader` / `attributes()`) does not apply — limedl's build parses only trusted platform Wayland protocol DTDs, no external XML input.
+- `deny.toml` explicitly `ignore`s both advisory IDs with rationale. `cargo deny check` therefore passes; `cargo audit` does not read `deny.toml`'s `ignore` list and will always surface these warnings — treat the audit-side noise as expected.
+- **Revisit when** the wayland-rs repo publishes a release that bumps its quick-xml dependency (likely `wayland-scanner 0.31.11` or `0.32.0`), or when `tauri-plugin-clipboard-manager` / `arboard` / `wl-clipboard-rs` publish a release that picks it up transitively. At that point remove both IDs from `deny.toml [advisories].ignore` and re-run `cargo update`.
+
+### `cargo deny` `multiple-versions` warning for `winreg`
+
+`bans ok` is reported with one `warning[duplicate]`: `winreg 0.10.1` (via `auto-launch` ← `tauri-plugin-autostart`) and `winreg 0.55.0` (via `embed-resource` ← `tauri-winres` ← `tauri-build`). Two `winreg` major versions are incompatible at API level but do not coexist in the same module path at runtime, so there is no functional conflict. Supplied upstream via Tauri's plugin / build stack — only an upstream release can collapse the split. Don't add `skip = ["winreg"]` to `deny.toml` to silence it; the warning is informative.
+
+## Local pre-push verification (required)
+
+CI runs `cargo clippy --workspace -- -D warnings` (without `--all-targets`), which only lints the default build targets. Several test-mode clippy warnings (`len_without_is_empty`, `identity_op`, `duplicate_mod`, `needless_borrows_for_generic_args`, `to_string_in_format_args`) only surface under `--all-targets`. Before pushing, run the **stricter local trio** and ensure RC=0 — CI cannot catch regressions here without `--all-targets`:
+
+```powershell
+& "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64 | Out-Null
+cargo clippy --manifest-path crates/limedl-core/Cargo.toml --all-targets --features test-utils,aria2-rpc -- -D warnings
+cargo clippy --manifest-path crates/limedl-server/Cargo.toml --all-targets -- -D warnings
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --features test-utils -- -D warnings
+```
+
+Supply-chain must also be clean locally (CI's `-- -W rejected` does not turn rejections into warnings for the local developer):
+
+```powershell
+cargo deny check                                                    # expects: advisories ok, bans ok, licenses ok, sources ok
+cargo audit                                                         # expected: 2 vulns + 18 unmaintained warnings — see "quick-xml" section above
+```
+
+`cargo audit` non-zero RC caused by the quick-xml advisories alone is **acceptable** — both IDs are reviewed and `cargo deny check` (the gate that CI uses) passes.

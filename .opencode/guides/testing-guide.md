@@ -1,278 +1,68 @@
 # Testing Guide — limedl
 
-> Core test patterns, mock setup, and commands. Focus on patterns, not exhaustive examples.
+## 模块职责
 
-## Quick Reference
+测试策略、mock 模式、运行命令和 CI 描述的汇总。
 
-| Layer            | Command                  | Framework      | Location                        |
-| ---------------- | ------------------------ | -------------- | ------------------------------- |
-| Frontend unit    | `pnpm run test`           | Vitest + jsdom | `src/__tests__/`                |
-| Rust unit        | `cargo test --workspace` | Rust `#[test]` | 内联 `#[cfg(test)]`             |
-| Rust integration | `cargo test --workspace` | Rust `#[test]` | `crates/limedl-core/src/tests/` |
-| E2E              | (pending setup)          | Playwright     | `e2e/`                          |
+## 涉及文件
 
-**Before any Rust test on Windows**, initialize MSVC:
+- `src/__tests__/` — 前端测试（Vitest + jsdom）
+- `src/__tests__/mocks/tauri-mock.ts` — Tauri IPC mock 系统
+- `src/__tests__/fixtures/downloads.ts` — Mock DownloadSummary 工厂
+- `crates/limedl-core/src/tests/` — Rust 集成测试（manager_tests 等）
+- `e2e/` — Playwright E2E 测试（CI 暂不执行）
+- `e2e/playwright.config.ts` — E2E 配置
+- `.github/workflows/ci.yml` — CI 配置文件
 
-```powershell
-& "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+## 数据流向
+
+```
+代码变更 → CI 触发（6 job 矩阵）:
+  ├─ lint-typescript (ubuntu): pnpm install → oxlint → vue-tsc → vitest
+  ├─ check-windows: cargo clippy -D warnings → 3× per-crate test
+  │   (core: test-utils,aria2-rpc / server: 无额外 feature / tauri: test-utils)
+  ├─ check-macos: 同 check-windows（macOS-14）
+  ├─ check-rust (ubuntu): clippy → ts-rs freshness check → 3× per-crate test
+  ├─ bench-rust: cargo bench (aimd + rate_limiter)
+  └─ supply-chain: cargo deny check + cargo audit
 ```
 
----
+## 设计决策与约定
 
-## Frontend Testing (Vitest)
+### 前端测试（Vitest）
 
-### Mock Pattern
+- Tauri IPC 调用通过 `src/__tests__/mocks/tauri-mock.ts` 模拟。核心模式：`vi.mock("@tauri-apps/api/core")` → `mockTauriCommandValue()` 注册返回值 / `mockTauriCommand()` 注册动态 handler。
+- i18n 通过 `vi.mock("path/to/i18n")` 模拟，返回原始 key 或带插值。
+- Composables 接受 refs 作为参数（非全局状态），通过 helper factory 创建。
+- 运行：`pnpm run test`，可选 `--watch` 或指定文件。
 
-All Tauri IPC calls go through a mock system in `src/__tests__/mocks/tauri-mock.ts`:
+### Rust 测试
 
-```ts
-import { vi } from "vitest";
+- 单元测试：内联在源码文件底部 `#[cfg(test)] mod tests`。
+- 集成测试：`crates/limedl-core/src/tests/`（manager_tests.rs 等，使用本地 axum HTTP mock 服务器 + tempfile 临时目录）。
+- 每 crate 独立测试命令（core 带 `test-utils,aria2-rpc`，server 无额外 feature，tauri 带 `test-utils`）。
+- Windows 上必须先初始化 MSVC 环境（vcvarsall.bat x64），否则 clippy/test 因链接器失败。
+- 依赖：axum（HTTP mock）、tempfile、ntest（超时注解）。
 
-// 1. Mock the Tauri invoke function
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+### E2E 测试（Playwright）
 
-import { invoke } from "@tauri-apps/api/core";
-import {
-  createMockInvoke,
-  mockTauriCommand,
-  mockTauriCommandValue,
-  resetTauriMocks,
-} from "../mocks/tauri-mock";
+- 框架已配置但 CI 暂不执行（需要桌面环境）。
+- 运行前提：`pnpm run tauri dev`（终端 1），然后 `pnpm run test:e2e`（终端 2）。
+- 配置：Chromium 固定、headless、60 秒超时、失败时截图。
+- 使用 `data-testid` 属性定位元素（当前 smoke 测试使用 CSS class fallback）。
+- 测试需要真实 URL 或本地文件服务器（Tauri webview 不支持 localhost mock）。
 
-const mockInvoke = vi.mocked(invoke);
+### CI 已知警告
 
-beforeEach(() => {
-  resetTauriMocks();
-  mockInvoke.mockImplementation(createMockInvoke());
-});
+- Windows release build 的 `LNK4078`（多 `.rsrc` 段）警告——`build.rs` 手工嵌入 ComCtl32 v6 manifest 与 tauri-winres 重复嵌入。**无害**，不要删除 build.rs 的 manifest 代码。
 
-afterEach(() => {
-  vi.clearAllMocks();
-});
-```
+### 测试编写优先级
 
-### Mocking Tauri Commands
+1. Rust 集成测试（manager_tests.rs 扩展）：完整下载流程（单流、多流、断点续传、checksum 验证、取消/暂停）
+2. E2E 测试（e2e/tests/）：核心用户流程
+3. Rust 单元测试：buffer_pool、scheduler、database 关键逻辑
+4. 前端 composable 测试：useLimedl、useDownloadActions、useDownloadForm
 
-```ts
-// 注册返回值（最简单）
-mockTauriCommandValue("download_list", [
-  { id: "1", fileName: "test.zip", state: "downloading", ... }
-]);
+### ts-rs 绑定新鲜度
 
-// 注册动态 handler（需要逻辑时）
-mockTauriCommand("download_start", (args) => {
-  if (!args?.url) throw new Error("URL required");
-  return { kind: "http", id: "generated-uuid" };
-});
-```
-
-### Mocking i18n
-
-```ts
-vi.mock("../../i18n", () => ({
-  t: vi.fn((key: string) => key), // 返回原始 key
-  // 或带插值:
-  t: vi.fn((key: string, options?: Record<string, unknown>) => {
-    if (options) return `${key} ${JSON.stringify(options)}`;
-    return key;
-  }),
-}));
-```
-
-### Test Fixtures
-
-`src/__tests__/fixtures/downloads.ts` provides `createMockDownloadTask()` for building mock `DownloadSummary` objects:
-
-```ts
-import { createMockDownloadTask } from "../fixtures/downloads";
-
-const task = createMockDownloadTask({
-  id: "task-1",
-  fileName: "test.zip",
-  state: "downloading",
-  downloadedBytes: 5000000,
-  totalBytes: 10000000,
-});
-```
-
-### Composables Testing Pattern
-
-Composables accept refs as parameters (not global state). Create a helper factory:
-
-```ts
-function createList() {
-  return useDownloadList({
-    downloads: ref([]),
-    selectedId: ref(null),
-    selectedSnapshot: ref(null),
-    allowAutoSelect: ref(true),
-    isAutoRefreshing: ref(false),
-    ensureSelection: vi.fn(),
-    setMessage: vi.fn(),
-    setError: vi.fn(),
-  });
-}
-```
-
-### Running
-
-```bash
-pnpm run test                # 运行所有测试
-pnpm run test -- --watch     # watch 模式
-pnpm run test path/to/test   # 运行单个测试文件
-```
-
----
-
-## Rust Testing
-
-### Organization
-
-- **单元测试**: 内联在源码文件底部 `#[cfg(test)] mod tests { ... }`
-- **集成测试**: `crates/limedl-core/src/tests/manager_tests.rs`（使用本地 HTTP mock 服务器）
-
-### Test Helpers (manager_tests.rs pattern)
-
-```rust
-use axum::{Router, extract::State, routing::get};
-use tempfile::tempdir;
-
-// 创建本地 HTTP 测试服务器
-fn single_file_state(path: &str, bytes: Arc<Vec<u8>>, etag: &str, delay_ms: u64) -> TestState {
-    // 返回可 clone 的 TestState，包含文件数据和模拟延迟
-}
-
-// 启动 axum 服务器 + 创建 DownloadManager
-// → 发送下载请求
-// → 验证文件内容、校验和、状态转换
-```
-
-### Running
-
-```bash
-cargo test --workspace                          # 所有测试
-cargo test --workspace -- --test-threads=1      # 单线程
-cargo test -p limedl_lib                    # 仅 Rust 库
-cargo test -p limedl_lib -- manager         # 按名称过滤
-cargo test -p limedl_lib -- --nocapture     # 显示 println 输出
-```
-
-### Key Test Dependencies
-
-```toml
-[dev-dependencies]
-axum        # HTTP mock 服务器
-tempfile    # 临时目录
-ntest       # #[timeout(ms)] 测试超时注解
-```
-
----
-
-## E2E Testing (Playwright)
-
-### Current State
-
-- 框架已配置：`e2e/` 目录存在，含 `playwright.config.ts`、`fixtures.ts`、`tests/smoke.spec.ts`
-- Playwright 依赖 `@playwright/test` 安装在根 `package.json` devDependencies 中
-- 运行前需先启动 Tauri 应用：`pnpm run tauri dev`（在另一个终端）
-
-### E2E 脚本
-
-定义在根 `package.json`：
-
-| 命令                  | 用途                            |
-| --------------------- | ------------------------------- |
-| `pnpm run test:e2e`    | 运行所有 E2E 测试（headless）   |
-| `pnpm run test:e2e:ui` | 打开 Playwright UI 模式运行测试 |
-
-### 运行前提
-
-```bash
-# 终端 1: 启动 Tauri 开发模式
-pnpm run tauri dev
-
-# 终端 2: 运行 E2E 测试
-pnpm run test:e2e
-```
-
-### 配置 (`e2e/playwright.config.ts`)
-
-- 测试目录：`./tests`
-- 超时：60 秒/测试
-- 重试：0（本地和 CI 均无重试）
-- Reporters：`html`（输出到 `playwright-report/`）+ `list`
-- 浏览器：Chromium 固定（Tauri Windows/Linux 使用 Chromium）
-- 截图：仅在失败时
-- `baseURL`：`http://localhost:1420`（Vite dev server 端口）
-- `headless: true`
-- CI：目前不运行，因为需要桌面环境。将来可使用 `xvfb-run`（Linux）或 Tauri 测试工具
-
-### Fixtures (`e2e/fixtures.ts`)
-
-```ts
-import { test as base } from "@playwright/test";
-
-export const test = base.extend({
-  // 未来：添加自定义 fixture（如自动启动 app、DB helpers）
-});
-
-export { expect } from "@playwright/test";
-```
-
-当前 fixture 只导出基础 `test` 和 `expect`。Tauri 应用需手动启动（通过 `pnpm run tauri dev`），测试通过 `page.goto("/")` 连接到 Vite dev server。
-
-### Writing E2E Tests
-
-```ts
-// e2e/tests/download.spec.ts — 示例结构
-import { test, expect } from "../fixtures";
-
-test("add and start HTTP download", async ({ page }) => {
-  // 1. 输入下载 URL
-  await page.fill('[data-testid="url-input"]', "https://example.com/file.zip");
-  // 2. 选择目标目录
-  await page.click('[data-testid="browse-dir"]');
-  // 3. 点击开始下载
-  await page.click('[data-testid="start-download"]');
-  // 4. 验证任务出现在队列中
-  await expect(page.locator('[data-testid="download-row"]')).toBeVisible();
-  // 5. 验证状态变为 downloading
-  await expect(page.locator('[data-testid="status-badge"]')).toContainText("downloading");
-});
-```
-
-### 现有 Smoke Tests (`e2e/tests/smoke.spec.ts`)
-
-- `page loads and renders the app root`：验证 `#app` 挂载点、`.app-root` 元素可见、页面标题为 "Limedl"
-- `main UI elements are present on the home view`：验证侧边栏和主内容区域存在
-
-### Tauri E2E 注意事项
-
-- Tauri webview 不支持 `localhost` 的本地 mock 服务器（安全限制），需要真实 URL 或本地文件服务器
-- 使用 `data-testid` 属性定位元素，不要依赖 CSS 类名（smoke 测试目前使用 CSS class fallback，因为尚未添加 `data-testid`）
-- 下载测试需要：一个可访问的测试文件服务器 + 足够的磁盘空间
-
----
-
-## CI
-
-CI（`.github/workflows/ci.yml`）在 Ubuntu 上运行，流水线如下：
-
-1. `pnpm install --frozen-lockfile`
-2. `pnpm run lint` (oxlint)
-3. `pnpm exec vue-tsc --noEmit`
-4. `pnpm run test` (Vitest)
-5. `cargo check --workspace`
-6. `cargo clippy --workspace -- -D warnings`
-7. `cargo test --workspace`
-
----
-
-## Test Writing Priorities
-
-当前测试覆盖不足。推荐优先级：
-
-1. **Rust 集成测试**（`manager_tests.rs` 扩展）：覆盖完整下载流程（单流、多流、断点续传、校验和验证、取消/暂停）
-2. **E2E 测试**（`e2e/tests/`）：覆盖核心用户流程（添加下载、暂停/恢复、删除、设置页面）
-3. **Rust 单元测试**：`buffer_pool.rs`、`scheduler.rs`、`database.rs` 的关键逻辑
-4. **前端 composable 测试**：`useLimedl.ts`、`useDownloadActions.ts`、`useDownloadForm.ts`
+CI 的 check-rust job 中：`cargo test --features ts export_typescript_bindings` 后执行 `git diff --exit-code src/types/generated/ src/lib/ws/generated/`，确保生成的 `.ts` 文件与 Rust 源同步。修改 Rust 序列化类型后必须运行此步骤并提交生成的文件。

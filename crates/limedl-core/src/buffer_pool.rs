@@ -926,6 +926,12 @@ impl DownloadBuffer {
         }
     }
 
+    /// Whether the buffer is empty.
+    #[allow(dead_code)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Whether any background flush has degraded (double mode only).
     /// Always `false` in local mode.
     #[allow(dead_code)]
@@ -1093,7 +1099,7 @@ mod tests {
         let normal = pool.half_size();
 
         pool.set_game_mode(true);
-        let expected_game = 128 * MB / 1 / 2;
+        let expected_game = 128 * MB / 2;
         assert_eq!(pool.half_size(), expected_game.max(64 * KB));
         assert!(
             pool.half_size() < normal,
@@ -1488,7 +1494,7 @@ mod tests {
         }
         // After 3 chunks, at least one flip should have occurred.
         // Some data is in the background flush, some in the active half.
-        assert!(buf.len() > 0);
+        assert!(!buf.is_empty());
 
         // flush_all should persist everything.
         buf.flush_all().await.unwrap();
@@ -1934,7 +1940,7 @@ mod tests {
 
         // Half-size should reflect game mode limits for future creates.
         let game_half = pool.half_size();
-        assert_eq!(game_half, (128 * MB / 1 / 2).max(64 * KB));
+        assert_eq!(game_half, (128 * MB / 2).max(64 * KB));
 
         // Transition back.
         pool.set_game_mode(false);
@@ -1967,7 +1973,7 @@ mod tests {
         // So let's use 100MB chunks... that's huge. Let's use smaller limits instead.
 
         // Actually let's just verify the pool-level half_size is correct.
-        assert_eq!(pool.half_size(), (128 * MB / 1 / 2).max(64 * KB));
+        assert_eq!(pool.half_size(), (128 * MB / 2).max(64 * KB));
         assert_eq!(pool.effective_max_parallel(), 1);
     }
 

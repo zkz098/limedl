@@ -323,7 +323,11 @@ impl StartDownloadRequest {
         }
 
         let path = Path::new(source);
-        if path.extension().and_then(|v| v.to_str()) == Some("torrent") {
+        if path
+            .extension()
+            .and_then(|v| v.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("torrent"))
+        {
             return Ok(TaskKind::Bt);
         }
 

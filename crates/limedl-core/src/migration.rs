@@ -230,7 +230,7 @@ mod tests {
         fs::create_dir(&sub)?;
         fs::write(
             sub.join("nested.json"),
-            &make_manifest_json("nested", "https://example.com/nested.zip", "nested.zip"),
+            make_manifest_json("nested", "https://example.com/nested.zip", "nested.zip"),
         )?;
 
         let count = migrate_json_manifests(&db, temp.path())?;
@@ -270,7 +270,7 @@ mod tests {
 
         fs::write(
             temp.path().join("good.json"),
-            &make_manifest_json("good", "https://example.com/good.zip", "good.zip"),
+            make_manifest_json("good", "https://example.com/good.zip", "good.zip"),
         )?;
         fs::write(temp.path().join("bad.json"), r#"{invalid}"#)?;
 

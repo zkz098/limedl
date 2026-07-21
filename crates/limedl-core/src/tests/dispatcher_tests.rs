@@ -145,7 +145,7 @@ fn make_dispatcher(dm: Arc<DownloadManager>) -> (Arc<EventBus>, Dispatcher) {
     use crate::backend_registry::BackendRegistry;
     let event_bus = Arc::new(EventBus::new(1024));
     let mut registry = BackendRegistry::new();
-    registry.register(crate::types::TaskKind::Http, (*dm).clone());
+    registry.register_arc(crate::types::TaskKind::Http, dm.clone());
     let dispatcher = Dispatcher::new(Arc::new(registry), event_bus.clone());
     (event_bus, dispatcher)
 }

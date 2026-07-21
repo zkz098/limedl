@@ -13,6 +13,7 @@
 fn export_typescript_bindings() {
     use crate::cdn::{CdnTestPhase, CdnTestProgress, DefaultNodeResult, SpeedTestResult};
     use crate::types::*;
+    use crate::ws_manifest::SafetyClass;
     use ts_rs::{Config, TS};
 
     // Use "number" instead of "bigint" for u64/i64 fields — the frontend
@@ -75,6 +76,11 @@ fn export_typescript_bindings() {
         panic!("Failed to export CdnTestProgress: {e}");
     });
 
+    // ===== SafetyClass (referenced by WsCommandSpec) =====
+    SafetyClass::export_all(&config).unwrap_or_else(|e| {
+        panic!("Failed to export SafetyClass: {e}");
+    });
+
     // ===== WebSocket command manifest =====
     export_ws_commands().unwrap_or_else(|e| {
         panic!("Failed to export ws-commands.ts: {e}");
@@ -96,7 +102,7 @@ fn export_ws_commands() -> std::io::Result<()> {
     use std::io::Write;
     use std::path::PathBuf;
 
-    use crate::ws_manifest::{ParamTransform, WS_COMMANDS};
+    use crate::ws_manifest::{ParamTransform, SafetyClass, WS_COMMANDS};
 
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     // CARGO_MANIFEST_DIR = crates/limedl-core/
@@ -141,6 +147,7 @@ fn export_ws_commands() -> std::io::Result<()> {
         out,
         "    | {{ kind: \"unwrapField\"; field: string }};"
     )?;
+    writeln!(out, "  safety: \"safe\" | \"mutating\";")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
 
@@ -156,10 +163,14 @@ fn export_ws_commands() -> std::io::Result<()> {
                 format!(r#"{{ kind: "unwrapField", field: "{}" }}"#, field)
             }
         };
+        let safety_str = match cmd.safety {
+            SafetyClass::Safe => "safe",
+            SafetyClass::Mutating => "mutating",
+        };
         writeln!(
             out,
-            r#"  {{ tauriName: "{}", rpcMethod: "{}", paramTransform: {} }},"#,
-            cmd.tauri_name, cmd.rpc_method, transform
+            r#"  {{ tauriName: "{}", rpcMethod: "{}", paramTransform: {}, safety: "{}" }},"#,
+            cmd.tauri_name, cmd.rpc_method, transform, safety_str
         )?;
     }
     writeln!(out, "];")?;

@@ -148,6 +148,17 @@ pub struct DownloadManager {
     pub task_lifecycle: Arc<TaskLifecycle>,
 }
 
+// NOTE: This manual `Clone` snapshots `limits.max_concurrent_http` and
+// `limits.overclock_mode` into FRESH atomics (the other adjacent limit fields
+// are `Arc`-shared, but those two are not). Two latent consequences remain:
+//   1. `start()`/`resume()` construct `Arc::new(self.clone())` to pass into
+//      spawned download futures — those futures hold a snapshotted DM whose
+//      `max_concurrent_http` / `overclock_mode` updates do NOT propagate
+//      back to or from the live `DownloadManager`.
+//   2. The previous `BackendRegistry::register(.., (*dm).clone())` had the
+//      same problem on the registry's copy. That path is now fixed via
+//      `register_arc(.., dm.clone())` (Arc aliasing, no value clone).
+// Fix #1 by migrating `start`/`resume` to `self: &Arc<Self>` separately.
 impl Clone for DownloadManager {
     fn clone(&self) -> Self {
         Self {
@@ -1215,7 +1226,3 @@ pub(crate) fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> Chun
         _ => ChunkWorkerOutcome::Paused,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/manager_tests.rs"]
-mod tests;

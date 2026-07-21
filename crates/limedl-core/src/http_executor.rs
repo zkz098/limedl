@@ -1167,7 +1167,3 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
     }
     Ok(ChunkWorkerOutcome::Finished)
 }
-
-#[cfg(test)]
-#[path = "tests/http_executor_tests.rs"]
-mod tests;

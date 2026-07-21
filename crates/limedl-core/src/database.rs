@@ -1705,7 +1705,7 @@ mod tests {
         assert!(
             err.to_string().contains("database initialization error"),
             "unexpected error message: {}",
-            err.to_string()
+            err
         );
     }
 }

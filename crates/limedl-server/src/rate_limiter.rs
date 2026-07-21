@@ -19,24 +19,9 @@ pub enum MethodClass {
 impl MethodClass {
     /// Classify a JSON-RPC method name into safe or mutating.
     pub fn classify(method: &str) -> Self {
-        match method {
-            // Safe (read-only) methods
-            "download.list"
-            | "download.status"
-            | "settings.get"
-            | "bt.runtimeStatus"
-            | "bt.getPeers"
-            | "bt.getTrackers"
-            | "bt.getPieces"
-            | "bt.getFiles"
-            | "cdn.status"
-            | "cdn.detail"
-            | "cdn.fetchRanges"
-            | "cdn.candidates"
-            | "settings.getIoStatus"
-            | "settings.getOverclockMode" => MethodClass::Safe,
-            // Everything else is mutating
-            _ => MethodClass::Mutating,
+        match limedl_core::ws_manifest::classify_rpc_safety(method) {
+            limedl_core::ws_manifest::SafetyClass::Safe => MethodClass::Safe,
+            limedl_core::ws_manifest::SafetyClass::Mutating => MethodClass::Mutating,
         }
     }
 }

@@ -2,225 +2,46 @@
 
 ## 模块职责
 
-使用 rusqlite (bundled SQLite) 持久化下载任务的状态、分块进度和元数据。取代了早期的 JSON 文件方案。数据库文件位于 state_dir 下，通过 `Database` 结构体提供 CRUD 操作。
+使用 rusqlite（bundled SQLite）持久化下载任务的状态、分块进度和元数据。数据库文件位于 state_dir 下。
 
-**涉及文件**：
+核心类型：Database（双连接：`write_conn` + `read_conn`，均 `Arc<Mutex<Connection>>`）、Manifest（下载任务完整元数据）、ChunkManifest（分块状态）。
 
-- `crates/limedl-core/src/database.rs` — 数据库层完整实现
-- `crates/limedl-core/src/migration.rs` — JSON → SQLite 迁移逻辑
-- `crates/limedl-core/src/persistence.rs` — 从 DB 加载下载任务到内存
+## 涉及文件
 
-## 关键结构体
-
-### Database (pub(crate))
-
-```rust
-pub(crate) struct Database {
-    write_conn: Arc<Mutex<Connection>>,  // 写连接，WAL 模式
-    read_conn: Arc<Mutex<Connection>>,   // 读连接，PRAGMA query_only=1
-}
-```
-
-双连接设计：`open()` 创建两个 `Connection` 到同一文件。write_conn 执行 PRAGMA + migration；read_conn 设 `PRAGMA query_only=1` + `PRAGMA busy_timeout=5000`，WAL 模式下 reader 不被 writer 阻塞。`open_in_memory()` 测试用共享同一 `Arc<Mutex<Connection>>`（in-memory SQLite 多 `:memory:` 会变成独立 DB），未设 query_only。
-
-### Manifest (pub(crate)) — 主要持久化单元
-
-```rust
-// 存储在 downloads 表中，对应下载任务的完整元数据
-pub(crate) struct Manifest {
-    pub id: String,
-    pub url: String,
-    pub final_url: String,
-    pub user_agent: String,
-    pub destination_dir: String,
-    pub file_name: String,
-    pub file_name_locked: bool,
-    pub destination_path: String,
-    pub temp_path: String,
-    pub total_bytes: Option<u64>,
-    pub downloaded_bytes: u64,
-    pub supports_ranges: bool,
-    pub connection_count: usize,
-    pub thread_mode: ThreadMode,
-    pub requested_thread_count: Option<usize>,
-    pub desired_thread_count: Option<usize>,
-    pub allocated_thread_count: Option<usize>,
-    pub adaptive_profile_snapshot: Option<AdaptiveProfile>,
-    pub thread_note: Option<String>,
-    pub etag: Option<String>,
-    pub last_modified: Option<String>,
-    pub state: DownloadState,
-    pub checksum_mode: ChecksumMode,
-    pub checksum: Option<String>,
-    pub error: Option<String>,
-    pub created_at_ms: u64,
-    pub updated_at_ms: u64,
-    pub chunk_size: u64,
-    pub cdn_accelerated: bool,
-    pub mirror_url: Option<String>,
-    pub mirror_urls: Vec<String>,
-    pub current_mirror_index: usize,
-    pub chunks: Vec<ChunkManifest>,
-}
-```
-
-## 关键方法
-
-### Database
-
-```rust
-pub(crate) fn open(path: &Path) -> Result<Self>     // 双连接：write_conn PRAGMA+迁移，read_conn query_only
-#[cfg(test)]
-pub(crate) fn open_in_memory() -> Result<Self>       // 测试用内存数据库，共享同一连接
-
-// 内部：写方法用 lock_write()，读方法用 lock_read()
-fn lock_write(&self) -> MutexGuard<'_, Connection>  // self.write_conn.lock()
-fn lock_read(&self) -> MutexGuard<'_, Connection>   // self.read_conn.lock()
-
-// 创建表结构（幂等，含 ALTER TABLE 迁移）
-pub(crate) fn create_tables(&self) -> Result<()>
-
-// 写入
-pub(crate) fn insert_download(&self, manifest: &Manifest) -> Result<()>
-pub(crate) fn update_download_progress(
-    &self, id: &str, downloaded_bytes: u64, dirty_chunks: &[ChunkManifest],
-    state: &str, updated_at_ms: u64,
-) -> Result<()>
-pub(crate) fn delete_download(&self, id: &str) -> Result<()>
-
-// 读取
-pub(crate) fn get_download(&self, id: &str) -> Result<Option<Manifest>>
-pub(crate) fn list_downloads(&self) -> Result<Vec<Manifest>>
-pub(crate) fn list_download_headers(&self) -> Result<Vec<Manifest>>  // 不含 chunks 的轻量查询
-pub(crate) fn load_chunks(&self, download_id: &str) -> Result<Vec<ChunkManifest>>
-
-// 统计
-pub(crate) fn count_downloads(&self) -> Result<usize>
-```
-
-> 旧版 `manifest_to_row()`（将 ~20 个 String 字段克隆进 `Vec<Value>`）已删除。新增私有辅助函数 `insert_manifest_row()` / `update_manifest_row()`，使用 `prepare_cached` + `named_params!` 直接传 `&str`/`Option<&str>` 引用，零 String 克隆。辅助函数 `opt_u64_to_value` / `opt_usize_to_value` 一并删除。`prepare_cached` 在两个连接独立缓存（per-connection resource，不能跨连接共享）。
-
-### ChunkManifest — 分块状态
-
-```rust
-// 存储在 chunks 表中
-pub(crate) struct ChunkManifest {
-    pub index: usize,              // SQL 列名: chunk_index
-    pub start: u64,                // SQL 列名: start_byte
-    pub end: u64,                  // SQL 列名: end_byte
-    pub downloaded: u64,
-    pub completed: bool,
-    pub claimed_by: Option<usize>, // worker ID
-    pub dirty: bool,               // 需增量持久化标志
-}
-// 注意：ChunkManifest 无 download_id 字段；download_id 是 SQL 复合主键的一部分，由外层的 Manifest/Database 方法维护
-```
-
-## SQLite 表结构
-
-### downloads 表
-
-```sql
-CREATE TABLE IF NOT EXISTS downloads (
-    id TEXT PRIMARY KEY,
-    url TEXT NOT NULL,
-    final_url TEXT NOT NULL DEFAULT '',
-    user_agent TEXT NOT NULL,
-    destination_dir TEXT NOT NULL,
-    file_name TEXT NOT NULL,
-    file_name_locked INTEGER NOT NULL DEFAULT 1,
-    destination_path TEXT NOT NULL,
-    temp_path TEXT NOT NULL,
-    total_bytes INTEGER,
-    downloaded_bytes INTEGER NOT NULL DEFAULT 0,
-    supports_ranges INTEGER NOT NULL DEFAULT 0,
-    connection_count INTEGER NOT NULL DEFAULT 0,
-    thread_mode TEXT NOT NULL DEFAULT 'adaptive',
-    requested_thread_count INTEGER,
-    desired_thread_count INTEGER,
-    allocated_thread_count INTEGER,
-    adaptive_profile_snapshot TEXT,
-    thread_note TEXT,
-    etag TEXT,
-    last_modified TEXT,
-    state TEXT NOT NULL DEFAULT 'queued',
-    checksum_mode TEXT NOT NULL DEFAULT 'blake3',
-    checksum TEXT,
-    error TEXT,
-    created_at_ms INTEGER NOT NULL,
-    updated_at_ms INTEGER NOT NULL,
-    -- 迁移列 (v2+)
-    chunk_size INTEGER NOT NULL DEFAULT 4194304,
-    -- 迁移列 (v3+)
-    mirror_url TEXT,
-    mirror_urls TEXT NOT NULL DEFAULT '[]',
-    current_mirror_index INTEGER NOT NULL DEFAULT 0
-);
-```
-
-### chunks 表
-
-```sql
-CREATE TABLE IF NOT EXISTS chunks (
-    download_id TEXT NOT NULL,
-    chunk_index INTEGER NOT NULL,
-    start_byte INTEGER NOT NULL,
-    end_byte INTEGER NOT NULL,
-    downloaded INTEGER NOT NULL DEFAULT 0,
-    completed INTEGER NOT NULL DEFAULT 0,
-    claimed_by INTEGER,
-    PRIMARY KEY (download_id, chunk_index),
-    FOREIGN KEY (download_id) REFERENCES downloads(id) ON DELETE CASCADE
-);
-```
-
-### 索引
-
-```sql
-CREATE INDEX IF NOT EXISTS idx_downloads_state ON downloads(state);
-CREATE INDEX IF NOT EXISTS idx_downloads_created ON downloads(created_at_ms);
-CREATE INDEX IF NOT EXISTS idx_chunks_claimed ON chunks(download_id, claimed_by);
-```
+- `crates/limedl-core/src/database.rs` — Database 结构体、CRUD 方法、建表/迁移、PRAGMA 配置
+- `crates/limedl-core/src/manifest.rs` — Manifest / ChunkManifest 类型定义
+- `crates/limedl-core/src/migration.rs` — 旧 JSON 文件 → SQLite 迁移逻辑（新安装不触发）
+- `crates/limedl-core/src/persistence.rs` — 从 SQLite 加载下载任务到内存（`load_downloads_from_db`）
 
 ## 数据流向
 
 ```
-应用启动
-  ↓
-DownloadManager::new() → Database::open(state_dir / "downloads.db")
-  └─ Database::create_tables() → 幂等建表 + ALTER TABLE 迁移
+应用启动 → Database::open(state_dir / "downloads.db")
+  ├─ write_conn：PRAGMA journal_mode=WAL, wal_autocheckpoint=4096,
+  │               foreign_keys=ON, busy_timeout=5000, synchronous=NORMAL,
+  │               cache_size=-8000
+  ├─ read_conn：PRAGMA query_only=1, busy_timeout=5000
+  └─ create_tables() → 幂等建表 + ALTER TABLE 迁移
 
-下载创建（Phase 2）
-  ↓
-Database::insert_download(manifest) → INSERT INTO downloads + INSERT INTO chunks
+下载创建（Phase 2） → Database::insert_download(manifest)
+  └─ INSERT INTO downloads + INSERT INTO chunks
 
-下载进行中（Phase 3）
-  ↓
-每个 worker 完成一块后 → Database::update_download_progress()
-  └─ UPDATE downloads SET downloaded_bytes=?, updated_at_ms=?, state=?
-  └─ UPDATE chunks SET downloaded=?, completed=? WHERE (download_id, chunk_index)
+下载进行中（Phase 3） → Database::update_download_progress()
+  └─ UPDATE downloads + UPDATE chunks
 
-退出/崩溃恢复
-  ↓
-DownloadManager::load_downloads_from_db()
-  ├─ Database::list_download_headers() → 获取所有未完成的 Manifest
-  ├─ Database::load_chunks() → 恢复分块进度
-  └─ 重新创建 ManagedDownload，恢复下载
+崩溃恢复 → Database::list_download_headers() + load_chunks()
+  └─ 重建 ManagedDownload，从最后持久化的 chunk 状态恢复
 
-任务删除
-  ↓
-Database::delete_download(id) → DELETE FROM downloads WHERE id=?
-  └─ ON DELETE CASCADE → 自动删除关联的 chunks
+删除任务 → Database::delete_download(id) → ON DELETE CASCADE 自动删除 chunks
 ```
 
-**重要约定**：
+## 设计决策与约定
 
-- `write_conn` / `read_conn` 分别被 `Mutex` 保护，所有 DB 操作是同步的（阻塞调用线程），由 tokio 的 `spawn_blocking` 包装
-- 写方法调用 `lock_write()` 获取 `write_conn`；读方法调用 `lock_read()` 获取 `read_conn`。WAL 模式下 reader 不被 writer 阻塞，实现读写并发
-- `read_conn` 设 `PRAGMA query_only=1`，保证只读操作不会意外修改数据库
-- `open_in_memory()` 让 `write_conn` 和 `read_conn` 共享同一 `Arc<Mutex<Connection>>`（in-memory SQLite 不允许两个 `:memory:` 连接）
-- `prepare_cached` 在两个连接上各自独立缓存 prepared statement，不能跨连接共享
-- 枚举值以 snake_case 字符串存储（`"downloading"`, `"blake3"` 等）
-- `Manifest` 的 `Serialize`/`Deserialize` 用于 JSON 序列化（aria2 RPC 响应），与 SQLite 列存储是两套映射
-- `migration.rs` 处理从旧 JSON 文件方案到 SQLite 的迁移，新安装不触发
-- 不要直接访问 `conn`，始终通过 Database 的 pub(crate) 方法操作
+- 双连接设计：WAL 模式下 reader 不被 writer 阻塞，实现读写并发。`read_conn` 设 `query_only=1` 防止意外修改。
+- `open_in_memory()`（测试用）让 write_conn 和 read_conn 共享同一 `Arc<Mutex<Connection>>`——in-memory SQLite 不允许多个 `:memory:` 连接。**不启 WAL**，否则导致 "database is locked"。
+- 写方法 `lock_write()`，读方法 `lock_read()`，所有 DB 操作同步阻塞，由 tokio 的 `spawn_blocking` 包装。
+- `prepare_cached` 在两个连接上各自独立缓存 prepared statement，不能跨连接共享。
+- 枚举值以 snake_case 字符串存储（`"downloading"`、`"blake3"` 等）。
+- Migration 机制：用 `PRAGMA table_info` 检测列是否存在，按需 `ALTER TABLE` 添加。版本号通过 `PRAGMA user_version` 维护。
+- Manifest 的 Serialize/Deserialize 用于 JSON 序列化（aria2 RPC 响应），与 SQLite 列存储是两套映射。
+- 辅助函数 `insert_manifest_row` / `update_manifest_row` 使用 `prepare_cached` + `named_params!` 直接传引用，零 String 克隆。
