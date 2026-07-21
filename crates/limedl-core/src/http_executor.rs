@@ -314,15 +314,17 @@ impl HttpExecutor {
         const SSD_WRITE_COMBINE_BYTES: u64 = 4 * 1024 * 1024; // 4 MiB
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
             let slot = dm.buffer_pool.acquire_slot().await;
-            Some(Arc::new(DownloadBuffer::new(
+            Some(Arc::new(DownloadBuffer::new_with_worker(
                 dm.buffer_pool.clone(),
                 slot,
                 file.clone(),
+                dm.io_worker.clone(),
             )))
         } else {
-            Some(Arc::new(DownloadBuffer::new_local(
+            Some(Arc::new(DownloadBuffer::new_local_with_worker(
                 SSD_WRITE_COMBINE_BYTES,
                 file.clone(),
+                dm.io_worker.clone(),
             )))
         }; // always Some — SSD uses small local buffer for write combining
 
@@ -576,16 +578,18 @@ impl HttpExecutor {
         };
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
             let slot = dm.buffer_pool.acquire_slot().await;
-            Some(Arc::new(DownloadBuffer::new(
+            Some(Arc::new(DownloadBuffer::new_with_worker(
                 dm.buffer_pool.clone(),
                 slot,
                 file.clone(),
+                dm.io_worker.clone(),
             )))
         } else {
             // SSD: 4 MiB local write-combining buffer
-            Some(Arc::new(DownloadBuffer::new_local(
+            Some(Arc::new(DownloadBuffer::new_local_with_worker(
                 4 * 1024 * 1024,
                 file.clone(),
+                dm.io_worker.clone(),
             )))
         };
 

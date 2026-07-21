@@ -25,7 +25,7 @@ use uuid::Uuid;
 
 use super::{
     aimd::{self, AimdState},
-    buffer_pool::BufferPool,
+    buffer_pool::{BufferPool, IoWorker},
     database::Database,
     error::{DownloadError, Result, io_error_with_path},
     event_bus::{DownloadEvent, EventBus},
@@ -135,6 +135,8 @@ pub struct DownloadManager {
     pub event_bus: Arc<EventBus>,
     pub(crate) rate_limiter: Arc<RateLimiter>,
     pub buffer_pool: Arc<BufferPool>,
+    /// Dedicated I/O worker thread for file flush operations.
+    pub io_worker: IoWorker,
     pub controls: RuntimeControls,
     pub limits: ConcurrencyLimits,
     /// HTTP download executor actor — handles probe, single/chunked download, finalize.
@@ -168,6 +170,7 @@ impl Clone for DownloadManager {
             event_bus: self.event_bus.clone(),
             rate_limiter: self.rate_limiter.clone(),
             buffer_pool: self.buffer_pool.clone(),
+            io_worker: self.io_worker.clone(),
             limits: ConcurrencyLimits {
                 active_http_count: self.limits.active_http_count.clone(),
                 active_bt_count: self.limits.active_bt_count.clone(),
@@ -314,6 +317,7 @@ impl DownloadManager {
             io.max_parallel_hdd,
             io.game_mode_max_parallel,
         ));
+        let io_worker = IoWorker::spawn();
 
         let manager = Self {
             http: HttpClientInfra {
@@ -331,6 +335,7 @@ impl DownloadManager {
             event_bus,
             rate_limiter,
             buffer_pool,
+            io_worker,
             controls: RuntimeControls {
                 shutdown_token: CancellationToken::new(),
                 rebalance_notify: Arc::new(Notify::new()),

@@ -16,11 +16,86 @@ use parking_lot::Mutex;
 use std::fs::File;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
-use tokio::sync::{Notify, OwnedSemaphorePermit, Semaphore};
+use std::thread;
+use tokio::sync::{mpsc, oneshot, Notify, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 
 use super::error::DownloadError;
 use super::file_ops::write_all_at;
+
+// ---------------------------------------------------------------------------
+// IoWorker — dedicated I/O worker thread for file writes
+// ---------------------------------------------------------------------------
+
+/// Command sent to the dedicated I/O worker thread.
+enum IoCommand {
+    /// Write a batch of (offset, chunk) pairs to a file.  The entries are
+    /// already in ascending-offset order (drained from a BTreeMap).
+    WriteBatch {
+        file: Arc<File>,
+        entries: Vec<(u64, Bytes)>,
+        done: oneshot::Sender<Result<(), DownloadError>>,
+    },
+}
+
+/// Handle to a dedicated I/O worker thread that serialises all flush calls.
+///
+/// Cloning produces another sender to the same worker thread — all clones
+/// share the same underlying OS thread.
+#[derive(Clone)]
+pub struct IoWorker {
+    tx: mpsc::UnboundedSender<IoCommand>,
+}
+
+impl IoWorker {
+    /// Spawn a dedicated I/O worker thread and return a handle to it.
+    pub fn spawn() -> Self {
+        let (tx, mut rx) = mpsc::unbounded_channel::<IoCommand>();
+        thread::Builder::new()
+            .name("limedl-io-worker".into())
+            .spawn(move || {
+                while let Some(cmd) = rx.blocking_recv() {
+                    match cmd {
+                        IoCommand::WriteBatch { file, entries, done } => {
+                            // entries are already sorted by offset (BTreeMap drain order).
+                            let result = (|| -> Result<(), DownloadError> {
+                                for (off, chunk) in &entries {
+                                    write_all_at(&file, chunk, *off)?;
+                                }
+                                Ok(())
+                            })();
+                            // Ignore send error — caller dropped the receiver.
+                            let _ = done.send(result);
+                        }
+                    }
+                }
+                // All senders dropped → channel closed → thread exits.
+            })
+            .expect("failed to spawn I/O worker thread");
+        Self { tx }
+    }
+
+    /// Submit a batch write to the worker thread and await completion.
+    pub async fn write_batch(
+        &self,
+        file: Arc<File>,
+        entries: Vec<(u64, Bytes)>,
+    ) -> Result<(), DownloadError> {
+        let (done_tx, done_rx) = oneshot::channel();
+        self.tx
+            .send(IoCommand::WriteBatch {
+                file,
+                entries,
+                done: done_tx,
+            })
+            .map_err(|_| {
+                DownloadError::Internal("I/O worker thread exited unexpectedly".into())
+            })?;
+        done_rx
+            .await
+            .map_err(|_| DownloadError::Internal("I/O worker dropped response".into()))?
+    }
+}
 
 // ---------------------------------------------------------------------------
 // FlipTokenGuard — RAII guard for the flip token
@@ -273,6 +348,7 @@ enum BufferMode {
 /// ping-pong (HDD mode).
 pub struct DownloadBuffer {
     mode: BufferMode,
+    io_worker: Option<IoWorker>,
 }
 
 impl DownloadBuffer {
@@ -281,6 +357,11 @@ impl DownloadBuffer {
     /// `pool` — the global buffer pool.
     /// `slot` — a pre-acquired slot permit from `pool.acquire_slot()`.
     /// `file` — the output file wrapped in `Arc` for background I/O.
+    ///
+    /// This constructor uses `spawn_blocking` for flush operations (compatible
+    /// with tests / no-IoWorker contexts).  Prefer `new_with_worker` in
+    /// production code.
+    #[allow(dead_code)]
     pub fn new(pool: Arc<BufferPool>, slot: SlotGuard, file: Arc<File>) -> Self {
         let half_size = pool.half_size();
         Self {
@@ -299,6 +380,35 @@ impl DownloadBuffer {
                 slot,
                 file,
             },
+            io_worker: None,
+        }
+    }
+
+    /// Create a pool-backed double-buffer with a dedicated I/O worker.
+    pub fn new_with_worker(
+        pool: Arc<BufferPool>,
+        slot: SlotGuard,
+        file: Arc<File>,
+        worker: IoWorker,
+    ) -> Self {
+        let half_size = pool.half_size();
+        Self {
+            mode: BufferMode::Double {
+                half_a: Arc::new(Mutex::new(BTreeMap::new())),
+                half_b: Arc::new(Mutex::new(BTreeMap::new())),
+                active_is_a: AtomicBool::new(true),
+                usage_a: AtomicU64::new(0),
+                usage_b: AtomicU64::new(0),
+                half_size,
+                flush_handle: Mutex::new(None),
+                notify: Arc::new(Notify::new()),
+                error_flag: Arc::new(AtomicBool::new(false)),
+                flip_token: AtomicBool::new(false),
+                pool,
+                slot,
+                file,
+            },
+            io_worker: Some(worker),
         }
     }
 
@@ -306,6 +416,11 @@ impl DownloadBuffer {
     ///
     /// `limit_bytes` — the maximum bytes to accumulate before flushing.
     /// `file` — the output file wrapped in `Arc`.
+    ///
+    /// This constructor uses `spawn_blocking` for flush operations (compatible
+    /// with tests / no-IoWorker contexts).  Prefer `new_local_with_worker` in
+    /// production code.
+    #[allow(dead_code)]
     pub fn new_local(limit_bytes: u64, file: Arc<File>) -> Self {
         Self {
             mode: BufferMode::Local {
@@ -314,6 +429,20 @@ impl DownloadBuffer {
                 local_limit: limit_bytes,
                 file,
             },
+            io_worker: None,
+        }
+    }
+
+    /// Create a local-limit buffer with a dedicated I/O worker.
+    pub fn new_local_with_worker(limit_bytes: u64, file: Arc<File>, worker: IoWorker) -> Self {
+        Self {
+            mode: BufferMode::Local {
+                chunks: Arc::new(Mutex::new(BTreeMap::new())),
+                buffered_bytes: AtomicU64::new(0),
+                local_limit: limit_bytes,
+                file,
+            },
+            io_worker: Some(worker),
         }
     }
 
@@ -481,38 +610,48 @@ impl DownloadBuffer {
             pool.sub_usage(old_bytes);
 
             // Spawn background flush for the old active half's data.
-            // Uses a single spawn_blocking with catch_unwind to handle both
-            // I/O errors and panics inside the blocking thread, storing the
-            // error flag and notifying waiters before the closure returns.
+            // Uses IoWorker when available, otherwise falls back to
+            // spawn_blocking (tests / no-IoWorker contexts).
             let bg_file = file.clone();
             let bg_error = Arc::clone(error_flag);
             let bg_notify = notify.clone();
-            let bg_handle: JoinHandle<()> = tokio::task::spawn_blocking(move || {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    // old_entries is already sorted by key from BTreeMap drain
-                    for (off, chunk) in &old_entries {
-                        write_all_at(&bg_file, chunk, *off)?;
-                    }
-                    Ok::<_, DownloadError>(())
-                }));
-                match result {
-                    Ok(Ok(())) => {}
-                    Ok(Err(e)) => {
+            let bg_handle: JoinHandle<()> = if let Some(ref worker) = self.io_worker {
+                let worker = worker.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = worker.write_batch(bg_file, old_entries).await {
                         bg_error.store(true, Ordering::Release);
-                        tracing::error!("background HDD buffer flush failed: {e}");
+                        tracing::error!("background HDD buffer flush failed (IoWorker): {e}");
                     }
-                    Err(payload) => {
-                        bg_error.store(true, Ordering::Release);
-                        let msg = payload
-                            .downcast_ref::<String>()
-                            .map(|s| s.as_str())
-                            .or_else(|| payload.downcast_ref::<&'static str>().copied())
-                            .unwrap_or("<non-string panic payload>");
-                        tracing::error!("background flush task panicked: {msg}");
+                    bg_notify.notify_waiters();
+                })
+            } else {
+                tokio::task::spawn_blocking(move || {
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        // old_entries is already sorted by key from BTreeMap drain
+                        for (off, chunk) in &old_entries {
+                            write_all_at(&bg_file, chunk, *off)?;
+                        }
+                        Ok::<_, DownloadError>(())
+                    }));
+                    match result {
+                        Ok(Ok(())) => {}
+                        Ok(Err(e)) => {
+                            bg_error.store(true, Ordering::Release);
+                            tracing::error!("background HDD buffer flush failed: {e}");
+                        }
+                        Err(payload) => {
+                            bg_error.store(true, Ordering::Release);
+                            let msg = payload
+                                .downcast_ref::<String>()
+                                .map(|s| s.as_str())
+                                .or_else(|| payload.downcast_ref::<&'static str>().copied())
+                                .unwrap_or("<non-string panic payload>");
+                            tracing::error!("background flush task panicked: {msg}");
+                        }
                     }
-                }
-                bg_notify.notify_waiters();
-            });
+                    bg_notify.notify_waiters();
+                })
+            };
 
             *flush_handle.lock() = Some(bg_handle);
 
@@ -561,7 +700,7 @@ impl DownloadBuffer {
         // Exceeded limit — undo the speculative add, then fall through to flush.
         buffered_bytes.fetch_sub(len, Ordering::Relaxed);
 
-        // Buffer is full — flush via spawn_blocking so we don't
+        // Buffer is full — flush via IoWorker or spawn_blocking so we don't
         // block the tokio async runtime.
         let file = file.clone();
         let entries: Vec<(u64, Bytes)> = {
@@ -569,15 +708,21 @@ impl DownloadBuffer {
             std::mem::take(&mut *map).into_iter().collect()
         };
         let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
-        tokio::task::spawn_blocking(move || {
-            for (off, chunk) in &entries {
-                if let Err(e) = write_all_at(&file, chunk, *off) {
-                    tracing::error!("SSD local buffer flush failed at offset {off}: {e}");
-                }
+        if let Some(ref worker) = self.io_worker {
+            if let Err(e) = worker.write_batch(file, entries).await {
+                tracing::error!("SSD local buffer flush failed (IoWorker): {e}");
             }
-        })
-        .await
-        .expect("spawn_blocking panicked during SSD flush");
+        } else {
+            tokio::task::spawn_blocking(move || {
+                for (off, chunk) in &entries {
+                    if let Err(e) = write_all_at(&file, chunk, *off) {
+                        tracing::error!("SSD local buffer flush failed at offset {off}: {e}");
+                    }
+                }
+            })
+            .await
+            .expect("spawn_blocking panicked during SSD flush");
+        }
         buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
 
         // Now insert the new chunk.
@@ -627,10 +772,10 @@ impl DownloadBuffer {
                 };
 
                 // 3. Flush active half.
-                Self::flush_one_half(active, active_usage, file, pool).await?;
+                Self::flush_one_half(active, active_usage, file, pool, self.io_worker.as_ref()).await?;
 
                 // 4. Flush inactive half (should be empty, but be safe).
-                Self::flush_one_half(inactive, inactive_usage, file, pool).await?;
+                Self::flush_one_half(inactive, inactive_usage, file, pool, self.io_worker.as_ref()).await?;
 
                 // 5. Check error flag one more time.
                 if error_flag.load(Ordering::Acquire) {
@@ -654,10 +799,14 @@ impl DownloadBuffer {
                     }
                     std::mem::take(&mut *map).into_iter().collect()
                 };
-                for (off, chunk) in &entries {
-                    write_all_at(file, chunk, *off)?;
-                }
                 let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
+                if let Some(ref worker) = self.io_worker {
+                    worker.write_batch(file.clone(), entries).await?;
+                } else {
+                    for (off, chunk) in &entries {
+                        write_all_at(file, chunk, *off)?;
+                    }
+                }
                 buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
                 Ok(())
             }
@@ -665,12 +814,13 @@ impl DownloadBuffer {
     }
 
     /// Helper: drain a single half's buffer and write everything to disk
-    /// via `spawn_blocking`.
+    /// via IoWorker or spawn_blocking.
     async fn flush_one_half(
         half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         usage: &AtomicU64,
         file: &Arc<File>,
         pool: &Arc<BufferPool>,
+        io_worker: Option<&IoWorker>,
     ) -> Result<(), DownloadError> {
         let entries: Vec<(u64, Bytes)> = {
             let mut map = half.lock();
@@ -683,15 +833,19 @@ impl DownloadBuffer {
         usage.store(0, Ordering::Release);
         pool.sub_usage(bytes);
 
-        let f = file.clone();
-        tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {
-            for (off, chunk) in &entries {
-                write_all_at(&f, chunk, *off)?;
-            }
-            Ok(())
-        })
-        .await
-        .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
+        if let Some(worker) = io_worker {
+            worker.write_batch(file.clone(), entries).await?;
+        } else {
+            let f = file.clone();
+            tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {
+                for (off, chunk) in &entries {
+                    write_all_at(&f, chunk, *off)?;
+                }
+                Ok(())
+            })
+            .await
+            .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
+        }
 
         Ok(())
     }
@@ -2189,5 +2343,60 @@ mod tests {
             !token.load(Ordering::Acquire),
             "flip_token should be false after guard drop on unwind"
         );
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_hdd_with_worker_buffer_chunk_and_flush() {
+        let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
+        let (_dir, file) = temp_file();
+        let slot = pool.acquire_slot().await;
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), worker);
+
+        let data = Bytes::from("hello io worker");
+        buf.buffer_chunk(0, data.clone()).await.unwrap();
+        assert_eq!(buf.len(), 15);
+
+        buf.flush_all().await.unwrap();
+        assert_eq!(buf.len(), 0);
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[..15], b"hello io worker");
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_with_worker_buffer_chunk_and_flush() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_with_worker(4 * MB, file.clone(), worker);
+
+        let data = Bytes::from("hello ssd io worker");
+        buf.buffer_chunk(0, data.clone()).await.unwrap();
+        assert_eq!(buf.len(), 19);
+
+        buf.flush_all().await.unwrap();
+        assert_eq!(buf.len(), 0);
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[..19], b"hello ssd io worker");
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_hdd_with_worker_multiple_chunks() {
+        let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
+        let (_dir, file) = temp_file();
+        let slot = pool.acquire_slot().await;
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), worker);
+
+        buf.buffer_chunk(0, Bytes::from("AAA")).await.unwrap();
+        buf.buffer_chunk(3, Bytes::from("BBB")).await.unwrap();
+        buf.buffer_chunk(6, Bytes::from("CCC")).await.unwrap();
+        assert_eq!(buf.len(), 9);
+
+        buf.flush_all().await.unwrap();
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[..9], b"AAABBBCCC");
     }
 }

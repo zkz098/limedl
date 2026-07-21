@@ -47,6 +47,10 @@ pub struct DownloadManager {
     pub event_bus: Arc<EventBus>,
     pub(crate) rate_limiter: Arc<RateLimiter>,
     pub buffer_pool: Arc<BufferPool>,
+    /// Dedicated I/O worker thread for file flush operations (mpsc + std::thread).
+    /// Spawned once in DownloadManager::new(), cloned into each DownloadBuffer
+    /// via http_executor.
+    pub io_worker: IoWorker,
     pub controls: RuntimeControls,       // shutdown_token, rebalance_notify
     pub limits: ConcurrencyLimits,       // active_http_count, active_bt_count, max_concurrent_*, overclock_mode
     pub http_executor: Arc<HttpExecutor>, // HTTP 下载执行 actor

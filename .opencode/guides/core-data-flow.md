@@ -60,7 +60,7 @@ DownloadManager::start()
     - Calls `claim_next_chunk(manifest, worker_id)` → marks chunk as claimed → gets `ChunkManifest`
     - Sends HTTP `Range: bytes=start-end` request → streams response body
     - Writes data to `DownloadBuffer::buffer_chunk(offset, data)`:
-      - **HDD**: pool-backed double-buffer → `BufferPool::acquire_slot()` → ping-pong between two `Mutex<BTreeMap>` halves → background flush via `spawn_blocking` when half-full or every 2s
+      - **HDD**: pool-backed double-buffer → `BufferPool::acquire_slot()` → ping-pong between two `Mutex<BTreeMap>` halves → background flush via dedicated `IoWorker` thread (or `spawn_blocking` fallback) when half-full or every 2s
       - **SSD**: local write-combining (`DownloadBuffer::new_local()`, 4 MiB limit) → synchronous flush
     - On chunk complete: `Database::save_chunk()`, mark chunk `completed = true`
     - On chunk failure: `mark_chunk_released()` for retry by another worker
