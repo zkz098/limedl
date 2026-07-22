@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn io_error_with_path_permission_denied() {
-        let err = std::io::Error::from_raw_os_error(5); // ERROR_ACCESS_DENIED on Windows
+        let err = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
         let download_err = io_error_with_path(err, "/test/path");
         assert_eq!(download_err.kind(), "permission_denied");
     }

@@ -135,9 +135,9 @@ jobs:
           git diff --exit-code src/types/generated/ src/lib/ws/generated/
       - name: Run tests with coverage
         run: |
-          cargo llvm-cov --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info --coverage-target-only
-          cargo llvm-cov --manifest-path crates/limedl-server/Cargo.toml --lcov --output-path lcov-server.info --coverage-target-only
-          cargo llvm-cov --manifest-path src-tauri/Cargo.toml --lcov --output-path lcov-tauri.info --coverage-target-only
+          cargo llvm-cov --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info
+          cargo llvm-cov --manifest-path crates/limedl-server/Cargo.toml --lcov --output-path lcov-server.info
+          cargo llvm-cov --manifest-path src-tauri/Cargo.toml --lcov --output-path lcov-tauri.info
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v4
