@@ -3345,6 +3345,7 @@ dependencies = [
  "rusqlite",
  "sanitize-filename",
  "serde",
+ "serde_bytes",
  "serde_json",
  "serde_with",
  "sha2",

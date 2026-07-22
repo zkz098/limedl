@@ -10,7 +10,7 @@ import type { AppSettings } from "../../types/settings";
 vi.mock("../../i18n", () => ({
   useI18n: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
-      if (options && options.count !== undefined) return `${key} count=${options.count}`;
+      if (options && options.count !== undefined) return `${key} count=${JSON.stringify(options.count)}`;
       return key;
     },
   }),
@@ -456,7 +456,7 @@ describe("DownloadComposer", () => {
     });
     // Find button with text "composer.chooseTorrent"
     const torrentBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "composer.chooseTorrent")!;
-    await torrentBtn!.trigger("click");
+    await torrentBtn.trigger("click");
     expect(wrapper.emitted("pickTorrent")).toBeTruthy();
   });
 

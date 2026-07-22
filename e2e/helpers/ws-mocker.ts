@@ -85,7 +85,7 @@ export class WsMocker {
 
             // Check for auto-response first
             if (this.autoResponses.has(method)) {
-              this.sendResponse(id, this.autoResponses.get(method)!);
+              this.sendResponse(id, this.autoResponses.get(method));
               // Still track the call for tests that need it
             }
 

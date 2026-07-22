@@ -187,7 +187,7 @@ describe("DetailPanel", () => {
     });
     const buttons = wrapper.findAll("button.ui-button-stub");
     const refreshBtn = buttons.find((b) => b.text() === "common.refresh")!;
-    await refreshBtn!.trigger("click");
+    await refreshBtn.trigger("click");
     // The stub button emits click which triggers the parent @click handler
     expect(wrapper.emitted("refresh")).toBeTruthy();
   });

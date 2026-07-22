@@ -18,7 +18,7 @@ import { expectTaskVisible, expectTaskState, expectProgressValue } from "../help
 import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 
 test.describe("queue scenarios", () => {
-  test.beforeEach(async ({ page, wsMocker }) => {
+  test.beforeEach(async ({ page, wsMocker: _wsMocker }) => {
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
   });

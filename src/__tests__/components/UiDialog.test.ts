@@ -120,8 +120,8 @@ describe("UiDialog", () => {
       props: { modelValue: true, width: "500px" },
       global: { stubs },
     });
-    const panelEl = wrapper.find(".ui-dialog__panel").element as HTMLElement;
-    expect(panelEl.style.width).toBe("500px");
+    const panelStyle = wrapper.find(".ui-dialog__panel").attributes("style");
+    expect(panelStyle).toBe("width: 500px");
   });
 
   it("uses default width when not provided", () => {

@@ -8,7 +8,7 @@ import type { SortKey } from "../../types/settings";
 vi.mock("../../i18n", () => ({
   t: (key: string, options?: Record<string, unknown>) => {
     if (options && options.count !== undefined) {
-      return `${key} count=${options.count}`;
+      return `${key} count=${JSON.stringify(options.count)}`;
     }
     return key;
   },
@@ -350,7 +350,7 @@ describe("TopToolbar", () => {
       global: { stubs },
     });
     const sortControl = wrapper.find(".sort-control");
-    const dirBtn = sortControl.find("button.ui-button-stub")!;
+    const dirBtn = sortControl.find("button.ui-button-stub");
     await dirBtn.trigger("click");
     expect(wrapper.emitted("update:sortDirection")![0]).toEqual(["desc"]);
   });
@@ -402,7 +402,7 @@ describe("TopToolbar", () => {
       global: { stubs },
     });
     const compactBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.attributes("data-icon") === "i-ri-list-check")!;
-    await compactBtn!.trigger("click");
+    await compactBtn.trigger("click");
     expect(wrapper.emitted("update:compactView")![0]).toEqual([true]);
   });
 

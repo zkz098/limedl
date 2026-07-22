@@ -36,7 +36,7 @@ function createProps(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createMockDownload(overrides: Record<string, unknown> = {}): DownloadSummary {
+function createMockDownload(overrides: Partial<DownloadSummary> = {}): DownloadSummary {
   return {
     id: "test-1",
     kind: "http",
@@ -64,7 +64,7 @@ function createMockDownload(overrides: Record<string, unknown> = {}): DownloadSu
     cdnAccelerated: false,
     createdAtMs: 1000,
     ...overrides,
-  } as unknown as DownloadSummary;
+  };
 }
 
 // ── Stubs ──

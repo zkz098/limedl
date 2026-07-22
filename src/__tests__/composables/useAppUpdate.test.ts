@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -28,8 +28,8 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
 
-const mockCheck = check as MockedFunction<typeof check>;
-const mockRelaunch = relaunch as MockedFunction<typeof relaunch>;
+const mockCheck = vi.mocked(check);
+const mockRelaunch = vi.mocked(relaunch);
 
 // ── Helpers ─────────────────────────────────────────────────────────
 

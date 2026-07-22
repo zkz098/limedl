@@ -4,6 +4,7 @@ vi.mock("#invoke", () => ({ invoke: vi.fn() }));
 
 import { invoke } from "#invoke";
 import { createMockInvoke, resetTauriMocks, mockTauriCommandValue } from "../mocks/tauri-mock";
+import type { StartDownloadRequest } from "../../types/download";
 import {
   startDownload,
   pauseDownload,
@@ -34,7 +35,7 @@ beforeEach(() => {
 
 describe("download-api", () => {
   it("startDownload calls download_start with request", async () => {
-    const request = { url: "https://example.com/file.zip", destinationDir: "/tmp" } as Parameters<typeof startDownload>[0];
+    const request: StartDownloadRequest = { url: "https://example.com/file.zip", destinationDir: "/tmp", kind: "http", userAgent: null, startPaused: false };
     const expectedId = { kind: "http", id: "new-id" };
     mockTauriCommandValue("download_start", expectedId);
 

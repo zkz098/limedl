@@ -664,10 +664,9 @@ describe("useDownloadActions", () => {
 
     beforeEach(() => {
       mockClipboardWriteText = vi.fn().mockResolvedValue(undefined);
-      vi.stubGlobal("navigator", {
-        ...navigator,
+      vi.stubGlobal("navigator", Object.assign({}, navigator, {
         clipboard: { writeText: mockClipboardWriteText },
-      });
+      }));
     });
 
     afterEach(() => {

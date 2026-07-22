@@ -48,10 +48,13 @@ export function applyTransform(spec: WsCommandSpec | undefined, args?: Record<st
       const { field } = spec.paramTransform;
       const value = args[field];
       if (isNonNullObject(value)) {
-        return value as Record<string, unknown>;
+        return value;
       }
       return args;
     }
+
+    default:
+      return args;
   }
 }
 
