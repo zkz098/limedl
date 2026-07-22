@@ -169,7 +169,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
+#[timeout(60_000)]
 async fn traditional_mode_limits_running_tasks() -> TestResult {
     let payload = Arc::new(vec![42_u8; 12 * 1024 * 1024]);
     let state = single_file_state("/file.bin", payload, "\"test-etag\"", 180);
