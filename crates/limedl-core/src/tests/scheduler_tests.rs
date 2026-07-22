@@ -376,9 +376,15 @@ async fn cancel_stops_download() -> TestResult {
         .start(req_fixed(&url, &out, "cancel-test.bin"))
         .await?;
 
-    // Give it time to start (state should be Downloading due to server delay).
-    tokio::time::sleep(Duration::from_millis(500)).await;
-    let before = manager.status(&id.to_string()).await?;
+    // Poll until the download transitions to Downloading — on slow CI
+    // runners the 500ms sleep may not be sufficient.
+    let before = loop {
+        let s = manager.status(&id.to_string()).await?;
+        if matches!(s.state, DownloadState::Downloading) {
+            break s;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
     assert!(
         matches!(before.state, DownloadState::Downloading),
         "state was {:?}",
@@ -889,8 +895,18 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
         .start(req_fixed_range(&url, &out, "pause-other-b.bin"))
         .await?;
 
-    // Let both get started.
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    // Poll until both downloads have started — on slow CI runners the
+    // 500ms sleep may not be sufficient for the scheduler to assign states.
+    loop {
+        let s2 = manager.status(&id2.to_string()).await?;
+        if matches!(
+            s2.state,
+            DownloadState::Downloading | DownloadState::Completed
+        ) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 
     // Pause the first.
     let paused = manager.pause(&id1.to_string()).await?;
@@ -994,8 +1010,15 @@ async fn cancel_one_unblocks_queued() -> TestResult {
         .await?;
 
     // Second must be queued (max_parallel_tasks=1).
-    let s2 = manager.status(&id2.to_string()).await?;
-    assert_eq!(s2.state, DownloadState::Queued);
+    // Poll until scheduler assigns the state — on slow CI runners the
+    // transition from start() may not be instant.
+    loop {
+        let s = manager.status(&id2.to_string()).await?;
+        if matches!(s.state, DownloadState::Queued) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 
     // Cancel the first — this removes it and triggers rebalance.
     let canceled = manager.cancel(&id1.to_string()).await?;

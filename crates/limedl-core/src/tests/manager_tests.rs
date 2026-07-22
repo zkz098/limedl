@@ -256,9 +256,19 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
         })
         .await?;
 
-    sleep(Duration::from_millis(400)).await;
-    let first_status = manager.status(&first.to_string()).await?;
-    let second_status = manager.status(&second.to_string()).await?;
+    // Poll until the scheduler has transitioned the first download out of
+    // Queued — on slow CI runners the 400ms sleep may not be enough.
+    let (first_status, second_status) = loop {
+        let first = manager.status(&first.to_string()).await?;
+        let second = manager.status(&second.to_string()).await?;
+        if matches!(
+            first.state,
+            DownloadState::Downloading | DownloadState::Retrying | DownloadState::Completed
+        ) {
+            break (first, second);
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
 
     assert!(matches!(
         first_status.state,
