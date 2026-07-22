@@ -1,139 +1,196 @@
 name: Release
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - "v*"
-
-permissions:
-  contents: write
+    tags: ['v*']
 
 jobs:
-  build:
-    name: Build (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
+  # ═══════════════════════════════════════════════════════════════════════
+  # Tauri Desktop — platform-specific bundles (MSI, DMG, deb, AppImage)
+  # ═══════════════════════════════════════════════════════════════════════
+  build-tauri:
+    name: Tauri ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: windows-latest
-            target: windows-x64
-            tauri-args: ""
+          - name: windows-x86_64
+            os: windows-latest
 
-          - runner: ubuntu-22.04
-            target: linux-x64
-            tauri-args: ""
+          - name: macos-aarch64
+            os: macos-latest
 
-          - runner: macos-latest
-            target: apple-universal
-            tauri-args: "--target universal-apple-darwin"
+          - name: macos-x86_64
+            os: macos-13
 
-          - runner: windows-latest
-            target: windows-aarch64
-            tauri-args: "--target aarch64-pc-windows-msvc"
+          - name: linux-x86_64
+            os: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # ── Platform dependencies ──────────────────────────────────
-      - name: Install Linux system dependencies
-        if: matrix.target == 'linux-x64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            librsvg2-dev \
-            patchelf \
-            xdg-utils \
-            mold
-          # libappindicator3-dev was dropped in Ubuntu 24.04; ayatana is the successor
-          sudo apt-get install -y libappindicator3-dev 2>/dev/null \
-            || sudo apt-get install -y libayatana-appindicator3-dev
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
-      # ── pnpm ──────────────────────────────────────────────────
-      - uses: pnpm/action-setup@v4
-
+      # ── Node.js & frontend deps ────────────────────────────────────────
       - uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
-
-      # ── Rust ───────────────────────────────────────────────────
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Cache pnpm store
+        uses: actions/cache@v4
         with:
-          targets: "aarch64-apple-darwin,x86_64-apple-darwin,aarch64-pc-windows-msvc"
+          path: ~/.local/share/pnpm/store
+          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-release-${{ runner.os }}-
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      # ── Rust toolchain ─────────────────────────────────────────────────
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          workspaces: "."
-          cache-on-failure: true
+          toolchain: stable
 
-      # ── Fast linker ──────────────────────────────────────────────
-      - name: Enable mold linker (Linux)
-        if: matrix.target == 'linux-x64'
-        run: echo "RUSTFLAGS=-C link-arg=-fuse-ld=mold" >> "$GITHUB_ENV"
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: release-tauri-${{ matrix.name }}
 
-      - name: Enable lld-link (Windows)
-        if: runner.os == 'Windows'
-        run: echo "RUSTFLAGS=-C linker=lld-link" >> "$GITHUB_ENV"
-
-      # ── macOS code signing ──────────────────────────────────────
-      # Only sets APPLE_* env vars when the certificate secret is actually present.
-      # When absent, defaults to ad-hoc signing. This prevents the Tauri bundler
-      # from importing an empty certificate (which would fail with SecKeychainItemImport).
-      - name: Configure macOS code signing
-        if: matrix.target == 'apple-universal'
-        shell: bash
+      # ── Linux system deps (Tauri requires WebKit) ──────────────────────
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
         run: |
-          if [ -n "$CERT" ]; then
-            echo "APPLE_CERTIFICATE=$CERT" >> "$GITHUB_ENV"
-            echo "APPLE_CERTIFICATE_PASSWORD=$CERT_PASS" >> "$GITHUB_ENV"
-            [ -n "$SIGN_ID" ] && echo "APPLE_SIGNING_IDENTITY=$SIGN_ID" >> "$GITHUB_ENV"
-            [ -n "$APPLE_ID_VAL" ] && echo "APPLE_ID=$APPLE_ID_VAL" >> "$GITHUB_ENV"
-            [ -n "$TEAM_ID" ] && echo "APPLE_TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
-            [ -n "$APPLE_PASS" ] && echo "APPLE_PASSWORD=$APPLE_PASS" >> "$GITHUB_ENV"
-          else
-            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
-          fi
-        env:
-          SIGN_ID: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          CERT: ${{ secrets.APPLE_CERTIFICATE }}
-          CERT_PASS: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID_VAL: ${{ secrets.APPLE_ID }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_PASS: ${{ secrets.APPLE_PASSWORD }}
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      # ── Build & Release ────────────────────────────────────────
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v1
+      # ── Build Tauri ────────────────────────────────────────────────────
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Create release only for tag pushes; manual dispatch builds without release
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: "Limedl ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}"
-          releaseBody: |
-            ## Limedl ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'snapshot' }}
+          tagName: ${{ github.ref_name }}
+          releaseName: 'v${{ steps.version.outputs.VERSION }}'
+          releaseBody: ''
+          releaseDraft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+          updaterJsonPreferNsis: true
 
-            ### Downloads
+  # ═══════════════════════════════════════════════════════════════════════
+  # NAS Server — single binary with embedded frontend
+  # ═══════════════════════════════════════════════════════════════════════
+  build-nas:
+    name: NAS ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64-musl
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            ext: tar.gz
+            binary: limedl
 
-            | Platform | File |
-            |---|---|
-            | Windows x64 | `.msi` / `.exe` installer |
-            | Windows ARM64 | `.msi` / `.exe` installer |
-            | Linux x64 | `.deb` / `.AppImage` package |
-            | macOS Universal | `.dmg` disk image |
+          - name: linux-aarch64-musl
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            ext: tar.gz
+            binary: limedl
 
-            ### Changes
-            See the [changelog](https://github.com/${{ github.repository }}/releases) for details.
-          releaseDraft: true
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
-          uploadUpdaterJson: true
-          args: ${{ matrix.tauri-args }}
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: zip
+            binary: limedl.exe
+
+          - name: macos-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            ext: tar.gz
+            binary: limedl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      # ── Frontend build (NAS mode, identical across platforms) ──────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-release-${{ runner.os }}-
+
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build frontend (NAS mode)
+        run: pnpm run build:nas
+
+      # ── Rust toolchain ─────────────────────────────────────────────────
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: release-nas-${{ matrix.target }}
+
+      # ── musl toolchain (Linux only) ────────────────────────────────────
+      - name: Install musl target
+        if: contains(matrix.target, 'musl')
+        run: |
+          rustup target add ${{ matrix.target }}
+          sudo apt-get update && sudo apt-get install -y musl-tools
+
+      # ── Build server binary (NAS: x86-64-v2 for broad HW compat) ──────
+      - name: Build binary
+        env:
+          # Desktop targets default to x86-64-v3 in config.toml; NAS overrides to v2
+          RUSTFLAGS: ${{ matrix.target == 'x86_64-pc-windows-msvc' && '-C target-cpu=x86-64-v2' || '' }}
+        run: cargo build --release --target ${{ matrix.target }} --features embed-frontend --manifest-path crates/limedl-server/Cargo.toml
+
+      # ── Package ────────────────────────────────────────────────────────
+      - name: Package (Linux / macOS)
+        if: matrix.ext == 'tar.gz'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          NAME="${{ matrix.name }}"
+          BINARY="target/${{ matrix.target }}/release/${{ matrix.binary }}"
+          ASSET="limedl-nas-v${VERSION}-${NAME}.tar.gz"
+          cp "$BINARY" limedl-nas
+          tar -czf "$ASSET" limedl-nas
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: matrix.ext == 'zip'
+        shell: pwsh
+        run: |
+          $VERSION = "${{ steps.version.outputs.VERSION }}"
+          $NAME = "${{ matrix.name }}"
+          $BINARY = "target/${{ matrix.target }}/release/${{ matrix.binary }}"
+          $ASSET = "limedl-nas-v${VERSION}-${NAME}.zip"
+          Compress-Archive -Path $BINARY -DestinationPath $ASSET
+          echo "ASSET=$ASSET" >> $env:GITHUB_ENV
+
+      # ── Upload to release ──────────────────────────────────────────────
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET }}
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

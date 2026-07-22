@@ -144,7 +144,46 @@ async fn run_daemon(
         }),
     );
 
-    // Add static file serving if web_dir exists
+    // Static file serving: embedded in release builds, filesystem in dev
+    #[cfg(feature = "embed-frontend")]
+    let app = {
+        use rust_embed::RustEmbed;
+        #[derive(RustEmbed)]
+        #[folder = "../../dist"]
+        struct Asset;
+
+        let service = tower::service_fn(move |req: axum::extract::Request| {
+            let uri = req.uri().clone();
+            let path = uri.path().trim_start_matches('/');
+            let path = if path.is_empty() { "index.html" } else { path };
+
+            let (status, body, content_type) = match Asset::get(path) {
+                Some(file) => {
+                    let mime = guess_mime(path);
+                    (axum::http::StatusCode::OK, file.data, mime)
+                }
+                None => match Asset::get("index.html") {
+                    Some(index) => {
+                        (axum::http::StatusCode::OK, index.data, "text/html")
+                    }
+                    None => {
+                        (axum::http::StatusCode::NOT_FOUND, std::borrow::Cow::Borrowed(b"Not Found" as &[u8]), "text/plain")
+                    }
+                },
+            };
+
+            let response = axum::response::Response::builder()
+                .status(status)
+                .header(axum::http::header::CONTENT_TYPE, content_type)
+                .body(axum::body::Body::from(body.into_owned()))
+                .unwrap();
+            std::future::ready(Ok::<_, std::convert::Infallible>(response))
+        });
+
+        api_routes.fallback_service(service)
+    };
+
+    #[cfg(not(feature = "embed-frontend"))]
     let app = if cfg.web_dir.exists() {
         api_routes.fallback_service(tower_http::services::ServeDir::new(&cfg.web_dir))
     } else {
@@ -396,6 +435,23 @@ async fn run_single_download(url: &str, output: Option<&PathBuf>) -> anyhow::Res
     let _ = std::fs::remove_dir_all(&temp_dir);
 
     Ok(())
+}
+
+#[cfg(feature = "embed-frontend")]
+fn guess_mime(path: &str) -> &'static str {
+    let ext = path.rsplit('.').next().unwrap_or("");
+    match ext {
+        "html" => "text/html",
+        "css" => "text/css",
+        "js" | "mjs" => "application/javascript",
+        "json" => "application/json",
+        "png" => "image/png",
+        "svg" => "image/svg+xml",
+        "ico" => "image/x-icon",
+        "woff2" => "font/woff2",
+        "woff" => "font/woff",
+        _ => "application/octet-stream",
+    }
 }
 
 #[cfg(test)]
