@@ -23,6 +23,7 @@ pub struct BenchHarness {
     /// Multi-threaded tokio runtime (4 worker threads, all features enabled).
     pub rt: tokio::runtime::Runtime,
     /// Local HTTP test server serving deterministic random content.
+    #[allow(dead_code)]
     pub server: Arc<TestServer>,
 }
 
