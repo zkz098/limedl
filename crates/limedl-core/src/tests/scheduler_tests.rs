@@ -499,13 +499,13 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
     // Second should be queued (max_parallel_tasks = 1).
     // Poll until the scheduler has assigned states — on slow CI runners the
     // transition may not be instant.
-    let s2 = loop {
+    loop {
         let s = manager.status(&id2.to_string()).await?;
         if matches!(s.state, DownloadState::Queued) {
-            break s;
+            break;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
-    };
+    }
 
     // Wait for first to complete.
     let s1 = tokio::time::timeout(
