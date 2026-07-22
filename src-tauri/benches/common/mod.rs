@@ -19,6 +19,7 @@ use std::sync::Arc;
 /// Benchmark harness owning a tokio runtime and a local test server.
 ///
 /// Dropping the harness shuts down the server and runtime.
+#[allow(dead_code)]
 pub struct BenchHarness {
     /// Multi-threaded tokio runtime (4 worker threads, all features enabled).
     pub rt: tokio::runtime::Runtime,
@@ -32,6 +33,7 @@ impl BenchHarness {
     ///
     /// The server is started asynchronously on the runtime and wrapped in
     /// an `Arc` so it can be shared across benchmark iterations.
+    #[allow(dead_code)]
     pub fn new(file_size: u64) -> Self {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(4)
