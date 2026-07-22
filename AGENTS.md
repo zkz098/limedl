@@ -301,7 +301,7 @@ resource.lib : warning LNK4078: found multiple ".rsrc" sections with different a
 - quick-xml enters as a **build-time** dependency of `wayland-scanner 0.31.10` (proc-macro parsing host-preinstalled Wayland protocol XML at compile time). `grep` confirms limedl source has zero `quick_xml` / `BytesStart::attributes` / `NsReader` imports — the runtime never invokes the affected API surface.
 - wayland-scanner 0.31.10 declares `quick-xml = "^0.39"` in its `Cargo.toml`, so `cargo update` cannot lift the version across the 0.39 → 0.41 major bump. crates.io has no newer `wayland-scanner` / `wl-clipboard-rs` / `arboard` / `tauri-plugin-clipboard-manager` release on this branch.
 - Attack path described by the advisories (attacker-controlled XML reaching `NsReader` / `attributes()`) does not apply — limedl's build parses only trusted platform Wayland protocol DTDs, no external XML input.
-- `deny.toml` explicitly `ignore`s both advisory IDs with rationale. `cargo deny check` therefore passes; `cargo audit` does not read `deny.toml`'s `ignore` list and will always surface these warnings — treat the audit-side noise as expected.
+- `deny.toml` explicitly `ignore`s both advisory IDs with rationale. `cargo deny check` therefore passes; `cargo audit` does not read `deny.toml`'s `ignore` list, so CI passes `--ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195` to suppress the known noise. New advisories will still fail the CI.
 - **Revisit when** the wayland-rs repo publishes a release that bumps its quick-xml dependency (likely `wayland-scanner 0.31.11` or `0.32.0`), or when `tauri-plugin-clipboard-manager` / `arboard` / `wl-clipboard-rs` publish a release that picks it up transitively. At that point remove both IDs from `deny.toml [advisories].ignore` and re-run `cargo update`.
 
 ### `cargo deny` `multiple-versions` warning for `winreg`
@@ -323,7 +323,7 @@ Supply-chain must also be clean locally (CI's `-- -W rejected` does not turn rej
 
 ```powershell
 cargo deny check                                                    # expects: advisories ok, bans ok, licenses ok, sources ok
-cargo audit                                                         # expected: 2 vulns + 18 unmaintained warnings — see "quick-xml" section above
+cargo audit --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195  # expected: 0 vulns + 18 unmaintained warnings — see "quick-xml" section above
 ```
 
-`cargo audit` non-zero RC caused by the quick-xml advisories alone is **acceptable** — both IDs are reviewed and `cargo deny check` (the gate that CI uses) passes.
+`cargo audit` with `--ignore` flags suppresses known, reviewed quick-xml advisories. New advisories will still produce a non-zero RC and fail the pre-push check.
