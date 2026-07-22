@@ -497,11 +497,12 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
     let id2 = manager.start(req_fixed(&url, &out, "second.bin")).await?;
 
     // Second should be queued (max_parallel_tasks = 1).
-    // Poll until the scheduler has assigned states — on slow CI runners the
-    // transition may not be instant.
+    // Poll until the scheduler has assigned a state — on slow CI runners
+    // the transition may not be instant; on fast machines the first download
+    // may complete before we check, promoting the second to Downloading.
     loop {
         let s = manager.status(&id2.to_string()).await?;
-        if matches!(s.state, DownloadState::Queued) {
+        if !matches!(s.state, DownloadState::Pending) {
             break;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
