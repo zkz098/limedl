@@ -121,7 +121,7 @@ describe("UiDialog", () => {
       global: { stubs },
     });
     const panelStyle = wrapper.find(".ui-dialog__panel").attributes("style");
-    expect(panelStyle).toBe("width: 500px");
+    expect(panelStyle).toBe("width: 500px;");
   });
 
   it("uses default width when not provided", () => {
