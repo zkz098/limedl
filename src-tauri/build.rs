@@ -12,6 +12,16 @@ fn main() {
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let out_path = Path::new(&out_dir);
 
+    // If tauri-winres already generated a resource.lib, skip our custom
+    // manifest to avoid "more than one resource obj file not allowed"
+    // linker errors with newer lld-link.  tauri-winres covers release
+    // builds; our custom manifest was only needed for test binaries.
+    let resource_lib = out_path.join("resource.lib");
+    if resource_lib.exists() {
+        println!("cargo:rustc-link-arg={}", resource_lib.display());
+        return;
+    }
+
     // Write a minimal .rc file containing only the ComCtl32 v6 manifest.
     // Each line between { and } must be a quoted string.  Double-quotes
     // inside must be doubled in .rc syntax (not backslash-escaped).
