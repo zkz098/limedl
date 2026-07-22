@@ -46,8 +46,16 @@ async fn start_rpc_server() -> (
         let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await;
     });
 
-    // Wait for server to be ready
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    // Poll until the server is ready to accept connections.
+    // On slow CI runners, a fixed 200ms sleep may not be sufficient.
+    let client = reqwest::Client::new();
+    let health_url = format!("http://127.0.0.1:{port}/jsonrpc");
+    loop {
+        if client.get(&health_url).send().await.is_ok() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
 
     let base_url = format!("http://127.0.0.1:{port}/jsonrpc");
     (base_url, shutdown_tx, tmp, core.event_bus)

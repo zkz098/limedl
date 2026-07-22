@@ -839,7 +839,14 @@ async fn cancel_download_while_in_progress() -> TestResult {
         })
         .await?;
 
-    sleep(Duration::from_millis(800)).await;
+    // Poll until the download is actually in progress before cancelling.
+    loop {
+        let s = manager.status(&id.to_string()).await?;
+        if matches!(s.state, DownloadState::Downloading) {
+            break;
+        }
+        sleep(Duration::from_millis(50)).await;
+    }
 
     // cancel() returns the final snapshot and removes the download from the manager
     let status = manager.cancel(&id.to_string()).await?;

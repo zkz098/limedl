@@ -726,9 +726,17 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         })
         .await?;
 
-    sleep(Duration::from_millis(500)).await;
-    let big_status = manager.status(&big.to_string()).await?;
-    let small_status = manager.status(&small.to_string()).await?;
+    // Poll until at least one download has threads allocated —
+    // on slow CI the 500ms sleep may not be sufficient and both
+    // connection_count values could be 0 (vacuously passing).
+    let (big_status, small_status) = loop {
+        let big = manager.status(&big.to_string()).await?;
+        let small = manager.status(&small.to_string()).await?;
+        if big.connection_count > 0 || small.connection_count > 0 {
+            break (big, small);
+        }
+        sleep(Duration::from_millis(100)).await;
+    };
 
     assert!(big_status.connection_count >= small_status.connection_count);
     let _ = manager.remove(&big.to_string()).await;
@@ -808,14 +816,25 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
         })
         .await?;
 
-    sleep(Duration::from_secs(2)).await;
-    manager.scheduler.update_adaptive_targets(&manager).await?;
-    manager.scheduler.rebalance_allocations(&manager).await?;
-    let snapshot = manager.status(&id.to_string()).await?;
-    assert!(matches!(
-        snapshot.desired_thread_count,
-        Some(thread_count) if thread_count >= 3
-    ));
+    // Poll until AIMD has ramped up to 3+ desired threads.
+    // On slow CI runners the fixed 2s sleep may not provide enough
+    // progress data for the controller to decide to increase.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        manager.scheduler.update_adaptive_targets(&manager).await?;
+        manager.scheduler.rebalance_allocations(&manager).await?;
+        let snapshot = manager.status(&id.to_string()).await?;
+        if snapshot.desired_thread_count.unwrap_or(0) >= 3 {
+            break;
+        }
+        if tokio::time::Instant::now() > deadline {
+            panic!(
+                "AIMD never reached 3+ threads (current: {:?})",
+                snapshot.desired_thread_count
+            );
+        }
+        sleep(Duration::from_millis(500)).await;
+    }
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }

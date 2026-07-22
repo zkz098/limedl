@@ -37,7 +37,14 @@ async fn start_ws_server() -> (String, tokio::sync::watch::Sender<bool>, TempDir
         let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await;
     });
 
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    // Poll until the server is ready to accept connections.
+    // On slow CI runners, a fixed 200ms sleep may not be sufficient.
+    loop {
+        if tokio::net::TcpStream::connect(format!("127.0.0.1:{port}")).await.is_ok() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
 
     let ws_url = format!("ws://127.0.0.1:{port}/jsonrpc");
     (ws_url, shutdown_tx, tmp)

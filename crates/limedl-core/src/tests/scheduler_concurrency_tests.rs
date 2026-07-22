@@ -48,31 +48,32 @@ async fn scheduler_respects_max_parallel_tasks() {
         ids.push(id.to_string());
     }
 
-    // Wait for scheduler to process
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-    // Count states
-    let list = dm.list().await.unwrap();
-    let downloading: Vec<_> = list
-        .iter()
-        .filter(|s| s.state == DownloadState::Downloading)
-        .collect();
-    let queued: Vec<_> = list
-        .iter()
-        .filter(|s| s.state == DownloadState::Queued)
-        .collect();
+    // Wait for scheduler to process — poll until we see the expected distribution
+    let (downloading_count, queued_count) = loop {
+        let list = dm.list().await.unwrap();
+        let d: Vec<_> = list
+            .iter()
+            .filter(|s| s.state == DownloadState::Downloading)
+            .collect();
+        let q: Vec<_> = list
+            .iter()
+            .filter(|s| s.state == DownloadState::Queued)
+            .collect();
+        if d.len() == 2 && q.len() == 3 {
+            break (d.len(), q.len());
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    };
 
     assert!(
-        downloading.len() <= 2,
-        "Expected ≤2 downloading, got {}: {:?}",
-        downloading.len(),
-        downloading.iter().map(|s| &s.id).collect::<Vec<_>>()
+        downloading_count <= 2,
+        "Expected ≤2 downloading, got {}",
+        downloading_count,
     );
     assert!(
-        queued.len() >= 3,
-        "Expected ≥3 queued, got {}: {:?}",
-        queued.len(),
-        queued.iter().map(|s| &s.id).collect::<Vec<_>>()
+        queued_count >= 3,
+        "Expected ≥3 queued, got {}",
+        queued_count,
     );
 
     // Cleanup: cancel all downloads

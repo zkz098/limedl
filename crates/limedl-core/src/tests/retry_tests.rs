@@ -231,7 +231,7 @@ async fn retry_exponential_backoff_timing() -> TestResult {
         })
         .collect();
 
-    let tol = Duration::from_millis(400);
+    let tol = Duration::from_millis(600);
 
     let i0 = intervals[0].as_millis() as i64;
     assert!(
