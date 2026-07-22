@@ -319,6 +319,16 @@ cargo clippy --manifest-path crates/limedl-server/Cargo.toml --all-targets -- -D
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --features test-utils -- -D warnings
 ```
 
+### Additional compilation checks
+
+Clippy alone does not catch compilation errors in test/bench targets that depend on `required-features`. Run these after any change to `src-tauri/` or `limedl-core` public API:
+
+```powershell
+# Compile-check src-tauri tests and benches (catches #[cfg] mismatches across crate boundaries)
+cargo test --manifest-path src-tauri/Cargo.toml --no-run --features test-utils
+cargo bench --manifest-path src-tauri/Cargo.toml --features test-utils --no-run --all-benches
+```
+
 Supply-chain must also be clean locally (CI's `-- -W rejected` does not turn rejections into warnings for the local developer):
 
 ```powershell
@@ -327,3 +337,34 @@ cargo audit --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195  # expected: 0
 ```
 
 `cargo audit` with `--ignore` flags suppresses known, reviewed quick-xml advisories. New advisories will still produce a non-zero RC and fail the pre-push check.
+
+## Dependency & packaging discipline
+
+### Always commit lockfiles after dependency changes
+
+After **any** `cargo update`, `cargo add`, `cargo remove`, or dependency version bump, verify and commit the changed lockfiles:
+
+```powershell
+git diff --stat Cargo.lock pnpm-lock.yaml
+# If either has changes, commit them together with the code change:
+git add Cargo.lock pnpm-lock.yaml
+```
+
+Uncommitted lockfile changes cause CI Rust cache misses (`swatinem/rust-cache` keys on `Cargo.lock` hash) and stale/incorrect dependency resolution on other platforms.
+
+### `#[cfg]` guards across crate boundaries
+
+When a crate re-exports items from a dependency under a `#[cfg(test)]` guard, remember that **`cfg(test)` is only true for the crate being compiled, not its dependencies**. If the dependency only exports the item under `#[cfg(feature = "X")]`, the re-export crate's guard must also require `feature = "X"`:
+
+```rust
+// WRONG — compiles when src-tauri is tested, but limedl_core doesn't export
+// aimd unless test-utils feature is active:
+#[cfg(any(test, feature = "test-utils"))]
+pub use download::aimd;
+
+// CORRECT — only active when limedl_core actually exports the module:
+#[cfg(feature = "test-utils")]
+pub use download::aimd;
+```
+
+Exception: if the dependency's module is unconditionally `pub` (no `#[cfg]` on its declaration), then `#[cfg(test)]` alone is sufficient for the re-export crate.
