@@ -157,11 +157,19 @@ async fn traditional_mode_limits_concurrent_tasks() -> TestResult {
     let id2 = manager.start(req_fixed(&url, &out, "two.bin")).await?;
     let id3 = manager.start(req_fixed(&url, &out, "three.bin")).await?;
 
-    // The scheduler assigned states during start() — no extra sleep needed.
-    // The 2 s server delay keeps tasks 1 & 2 in Downloading.
-    let s1 = manager.status(&id1.to_string()).await?;
-    let s2 = manager.status(&id2.to_string()).await?;
-    let s3 = manager.status(&id3.to_string()).await?;
+    // Wait for the scheduler to assign states — on slower CI runners the
+    // transitions may not be instant. Poll until tasks 1 & 2 are active.
+    let (s1, s2, s3) = loop {
+        let s1 = manager.status(&id1.to_string()).await?;
+        let s2 = manager.status(&id2.to_string()).await?;
+        let s3 = manager.status(&id3.to_string()).await?;
+        if matches!(s1.state, DownloadState::Downloading)
+            && matches!(s2.state, DownloadState::Downloading)
+        {
+            break (s1, s2, s3);
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
 
     assert_eq!(
         s1.state,
@@ -969,7 +977,7 @@ async fn cancel_one_unblocks_queued() -> TestResult {
     .await;
 
     let out = _tmp.path().join("out").to_string_lossy().to_string();
-    let url = server.file_url();
+    let url = server.file_url_slow(2000); // 2s startup delay prevents instant completion
 
     let id1 = manager
         .start(req_fixed(&url, &out, "cancel-first.bin"))
