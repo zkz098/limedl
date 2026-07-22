@@ -53,6 +53,16 @@ export default defineConfig({
       use: {
         browserName: defaultBrowserName,
         baseURL: "http://localhost:9090",
+        storageState: "e2e/storage-state.json",
+        // CI daemon starts with `--user e2e --pass e2epass` (Basic Auth wraps
+        // every route incl. static SPA host — see crates/limedl-server/src/main.rs).
+        // Without httpCredentials every page.goto("/") returns 401 and all
+        // specs fail. For local development without auth, set
+        // `E2E_AUTH_USER`/`E2E_AUTH_PASS` to empty strings.
+        httpCredentials: {
+          username: process.env.E2E_AUTH_USER ?? "e2e",
+          password: process.env.E2E_AUTH_PASS ?? "e2epass",
+        },
       },
     },
     {
@@ -61,6 +71,11 @@ export default defineConfig({
       use: {
         browserName: "firefox",
         baseURL: "http://localhost:9090",
+        storageState: "e2e/storage-state.json",
+        httpCredentials: {
+          username: process.env.E2E_AUTH_USER ?? "e2e",
+          password: process.env.E2E_AUTH_PASS ?? "e2epass",
+        },
       },
     },
     {
@@ -71,6 +86,11 @@ export default defineConfig({
         // On headless Linux, set PLAYWRIGHT_WEBKIT_HEADLESS=1 or use Xvfb.
         browserName: "webkit",
         baseURL: "http://localhost:9090",
+        storageState: "e2e/storage-state.json",
+        httpCredentials: {
+          username: process.env.E2E_AUTH_USER ?? "e2e",
+          password: process.env.E2E_AUTH_PASS ?? "e2epass",
+        },
       },
     },
     {

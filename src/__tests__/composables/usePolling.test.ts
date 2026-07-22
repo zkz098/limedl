@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { defineComponent } from "vue";
+import { mount } from "@vue/test-utils";
 import { usePolling } from "../../composables/usePolling";
 
 describe("usePolling", () => {
@@ -189,5 +191,56 @@ describe("usePolling", () => {
 
     stop();
     expect(isPolling.value).toBe(false);
+  });
+
+  it("calling start() twice does not create duplicate intervals", async () => {
+    vi.spyOn(globalThis, "setInterval");
+    const callback = vi.fn().mockResolvedValue(undefined);
+    const { start } = usePolling(callback, 500);
+
+    // First start should create one interval
+    start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(setInterval).toHaveBeenCalledTimes(1);
+
+    // Call start again — guard should prevent a second interval
+    start();
+    expect(setInterval).toHaveBeenCalledTimes(1);
+
+    // Advance time — should still only have one timer running
+    await vi.advanceTimersByTimeAsync(500);
+    expect(callback).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(callback).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not call the callback after component unmount", async () => {
+    const callback = vi.fn().mockResolvedValue(undefined);
+
+    const TestComponent = defineComponent({
+      setup() {
+        const { start } = usePolling(callback, 500);
+        start();
+        // No template needed — the polling is all we care about.
+        return () => null;
+      },
+    });
+
+    const wrapper = mount(TestComponent);
+
+    // Flush the initial poll microtask
+    await vi.advanceTimersByTimeAsync(0);
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    // Unmount the component — this triggers onUnmounted → stop()
+    wrapper.unmount();
+
+    // Advance time significantly past the interval
+    await vi.advanceTimersByTimeAsync(5000);
+
+    // Callback should not have been called again after unmount
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 });

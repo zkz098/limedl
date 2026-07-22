@@ -29,7 +29,7 @@ import {
   useDownloadActions,
   type UseDownloadActionsInput,
 } from "../../composables/useDownloadActions";
-import { createMockDownloadSnapshot, resetMockIds } from "../fixtures/downloads";
+import { createMockDownloadSnapshot, DownloadPresets, resetMockIds } from "../fixtures/downloads";
 import type { DownloadSnapshot, DownloadSummary } from "../../types/download";
 
 // Get the mocked API functions
@@ -386,6 +386,380 @@ describe("useDownloadActions", () => {
       await promise;
 
       expect(input.actionName.value).toBe("");
+    });
+  });
+
+  // ── runPauseAll ─────────────────────────────────────────────────────
+
+  describe("runPauseAll", () => {
+    it("pauses only downloading tasks", async () => {
+      const downloading1 = DownloadPresets.downloading({
+        id: "task-1",
+        fileName: "alpha.zip",
+      });
+      const paused1 = DownloadPresets.paused({ id: "task-2", fileName: "beta.zip" });
+      const completed1 = DownloadPresets.completed({
+        id: "task-3",
+        fileName: "gamma.zip",
+      });
+      const downloading2 = DownloadPresets.downloading({
+        id: "task-4",
+        fileName: "delta.zip",
+      });
+
+      const snap1 = createMockDownloadSnapshot({ id: "task-1", state: "paused" });
+      const snap2 = createMockDownloadSnapshot({ id: "task-4", state: "paused" });
+      mockPauseDownload.mockResolvedValueOnce(snap1).mockResolvedValueOnce(snap2);
+
+      input = createInput({
+        downloads: ref([downloading1, paused1, completed1, downloading2]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runPauseAll();
+
+      expect(mockPauseDownload).toHaveBeenCalledTimes(2);
+      expect(mockPauseDownload).toHaveBeenCalledWith("task-1");
+      expect(mockPauseDownload).toHaveBeenCalledWith("task-4");
+      expect(input.upsertSummary).toHaveBeenCalledTimes(2);
+      expect(input.upsertSummary).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "task-1", state: "paused" }),
+      );
+      expect(input.upsertSummary).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "task-4", state: "paused" }),
+      );
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining("messages.pausedAll"),
+      );
+      expect(input.actionName.value).toBe("");
+    });
+
+    it("does nothing when no tasks are downloading", async () => {
+      input = createInput({
+        downloads: ref([
+          DownloadPresets.paused({ id: "task-1" }),
+          DownloadPresets.completed({ id: "task-2" }),
+          DownloadPresets.failed({ id: "task-3" }),
+        ]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runPauseAll();
+
+      expect(mockPauseDownload).not.toHaveBeenCalled();
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining('"count":0'),
+      );
+      expect(input.upsertSummary).not.toHaveBeenCalled();
+      expect(input.actionName.value).toBe("");
+    });
+  });
+
+  // ── runResumeAll ────────────────────────────────────────────────────
+
+  describe("runResumeAll", () => {
+    it("resumes only paused tasks", async () => {
+      const paused1 = DownloadPresets.paused({
+        id: "task-1",
+        fileName: "alpha.zip",
+      });
+      const downloading1 = DownloadPresets.downloading({
+        id: "task-2",
+        fileName: "beta.zip",
+      });
+      const paused2 = DownloadPresets.paused({
+        id: "task-3",
+        fileName: "gamma.zip",
+      });
+      const completed1 = DownloadPresets.completed({
+        id: "task-4",
+        fileName: "delta.zip",
+      });
+
+      const snap1 = createMockDownloadSnapshot({
+        id: "task-1",
+        state: "downloading",
+      });
+      const snap2 = createMockDownloadSnapshot({
+        id: "task-3",
+        state: "downloading",
+      });
+      mockResumeDownload.mockResolvedValueOnce(snap1).mockResolvedValueOnce(snap2);
+
+      input = createInput({
+        downloads: ref([paused1, downloading1, paused2, completed1]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runResumeAll();
+
+      expect(mockResumeDownload).toHaveBeenCalledTimes(2);
+      expect(mockResumeDownload).toHaveBeenCalledWith("task-1");
+      expect(mockResumeDownload).toHaveBeenCalledWith("task-3");
+      expect(input.upsertSummary).toHaveBeenCalledTimes(2);
+      expect(input.upsertSummary).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "task-1", state: "downloading" }),
+      );
+      expect(input.upsertSummary).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "task-3", state: "downloading" }),
+      );
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining("messages.resumedAll"),
+      );
+      expect(input.actionName.value).toBe("");
+    });
+
+    it("does nothing when no tasks are paused", async () => {
+      input = createInput({
+        downloads: ref([
+          DownloadPresets.downloading({ id: "task-1" }),
+          DownloadPresets.completed({ id: "task-2" }),
+          DownloadPresets.queued({ id: "task-3" }),
+        ]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runResumeAll();
+
+      expect(mockResumeDownload).not.toHaveBeenCalled();
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining('"count":0'),
+      );
+      expect(input.upsertSummary).not.toHaveBeenCalled();
+      expect(input.actionName.value).toBe("");
+    });
+  });
+
+  // ── runClearCompleted ───────────────────────────────────────────────
+
+  describe("runClearCompleted", () => {
+    it("clears only completed tasks", async () => {
+      const completed1 = DownloadPresets.completed({
+        id: "task-1",
+        fileName: "alpha.zip",
+      });
+      const downloading1 = DownloadPresets.downloading({
+        id: "task-2",
+        fileName: "beta.zip",
+      });
+      const completed2 = DownloadPresets.completed({
+        id: "task-3",
+        fileName: "gamma.zip",
+      });
+      const paused1 = DownloadPresets.paused({
+        id: "task-4",
+        fileName: "delta.zip",
+      });
+
+      const snap1 = createMockDownloadSnapshot({ id: "task-1" });
+      const snap2 = createMockDownloadSnapshot({ id: "task-3" });
+      mockRemoveDownload.mockResolvedValueOnce(snap1).mockResolvedValueOnce(snap2);
+
+      input = createInput({
+        downloads: ref([completed1, downloading1, completed2, paused1]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runClearCompleted();
+
+      expect(mockRemoveDownload).toHaveBeenCalledTimes(2);
+      expect(mockRemoveDownload).toHaveBeenCalledWith("task-1");
+      expect(mockRemoveDownload).toHaveBeenCalledWith("task-3");
+      expect(input.removeSummary).toHaveBeenCalledTimes(2);
+      expect(input.removeSummary).toHaveBeenCalledWith("task-1");
+      expect(input.removeSummary).toHaveBeenCalledWith("task-3");
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining("messages.clearedCompleted"),
+      );
+      expect(input.actionName.value).toBe("");
+    });
+
+    it("does nothing when no tasks are completed", async () => {
+      input = createInput({
+        downloads: ref([
+          DownloadPresets.downloading({ id: "task-1" }),
+          DownloadPresets.paused({ id: "task-2" }),
+          DownloadPresets.failed({ id: "task-3" }),
+        ]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runClearCompleted();
+
+      expect(mockRemoveDownload).not.toHaveBeenCalled();
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining('"count":0'),
+      );
+      expect(input.removeSummary).not.toHaveBeenCalled();
+      expect(input.actionName.value).toBe("");
+    });
+  });
+
+  // ── runBatchDelete ──────────────────────────────────────────────────
+
+  describe("runBatchDelete", () => {
+    it("removes all specified tasks", async () => {
+      const snap1 = createMockDownloadSnapshot({ id: "task-1" });
+      const snap2 = createMockDownloadSnapshot({ id: "task-2" });
+      mockRemoveDownload.mockResolvedValueOnce(snap1).mockResolvedValueOnce(snap2);
+
+      input = createInput({
+        downloads: ref([
+          DownloadPresets.downloading({ id: "task-1", fileName: "alpha.zip" }),
+          DownloadPresets.paused({ id: "task-2", fileName: "beta.zip" }),
+          DownloadPresets.completed({ id: "task-3", fileName: "gamma.zip" }),
+        ]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runBatchDelete(["task-1", "task-2"]);
+
+      expect(mockRemoveDownload).toHaveBeenCalledTimes(2);
+      expect(mockRemoveDownload).toHaveBeenCalledWith("task-1");
+      expect(mockRemoveDownload).toHaveBeenCalledWith("task-2");
+      expect(input.removeSummary).toHaveBeenCalledTimes(2);
+      expect(input.removeSummary).toHaveBeenCalledWith("task-1");
+      expect(input.removeSummary).toHaveBeenCalledWith("task-2");
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining("messages.batchDeleted"),
+      );
+      expect(input.actionName.value).toBe("");
+    });
+
+    it("falls back to id as fileName when task not in list", async () => {
+      mockRemoveDownload.mockRejectedValue(new Error("Not found"));
+
+      input = createInput({
+        downloads: ref([DownloadPresets.downloading({ id: "task-1" })]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runBatchDelete(["unknown-id"]);
+
+      expect(mockRemoveDownload).toHaveBeenCalledWith("unknown-id");
+      expect(input.setError).toHaveBeenCalledWith(
+        expect.stringContaining("unknown-id: Not found"),
+      );
+      expect(input.actionName.value).toBe("");
+    });
+
+    it("returns early when given an empty array", async () => {
+      input = createInput();
+      const actions = useDownloadActions(input);
+
+      await actions.runBatchDelete([]);
+
+      expect(mockRemoveDownload).not.toHaveBeenCalled();
+      expect(input.removeSummary).not.toHaveBeenCalled();
+      expect(input.setMessage).not.toHaveBeenCalled();
+      expect(input.setError).not.toHaveBeenCalled();
+      expect(input.actionName.value).toBe("");
+    });
+  });
+
+  // ── runCopyLink ─────────────────────────────────────────────────────
+
+  describe("runCopyLink", () => {
+    let mockClipboardWriteText: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockClipboardWriteText = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal("navigator", {
+        ...navigator,
+        clipboard: { writeText: mockClipboardWriteText },
+      });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("copies link from selectedSnapshot when ids match", async () => {
+      const snapshot = createMockDownloadSnapshot({
+        id: "task-1",
+        url: "https://example.com/file.zip",
+      });
+
+      input = createInput({
+        selectedSnapshot: ref(snapshot),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runCopyLink("task-1");
+
+      expect(mockClipboardWriteText).toHaveBeenCalledWith(
+        "https://example.com/file.zip",
+      );
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining("messages.linkCopied"),
+      );
+    });
+
+    it("copies link from downloads list when selectedSnapshot ids do not match", async () => {
+      const snapshot = createMockDownloadSnapshot({
+        id: "task-999",
+        url: "https://example.com/other.zip",
+      });
+      const task = DownloadPresets.downloading({
+        id: "task-1",
+        url: "https://example.com/myfile.zip",
+      });
+
+      input = createInput({
+        selectedSnapshot: ref(snapshot),
+        downloads: ref([task]),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runCopyLink("task-1");
+
+      expect(mockClipboardWriteText).toHaveBeenCalledWith(
+        "https://example.com/myfile.zip",
+      );
+      expect(input.setMessage).toHaveBeenCalledWith(
+        expect.stringContaining("messages.linkCopied"),
+      );
+    });
+
+    it("sets error when target has no url", async () => {
+      const snapshot = createMockDownloadSnapshot({
+        id: "task-1",
+        url: "",
+      });
+
+      input = createInput({
+        selectedSnapshot: ref(snapshot),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runCopyLink("task-1");
+
+      expect(mockClipboardWriteText).not.toHaveBeenCalled();
+      expect(input.setError).toHaveBeenCalledWith(
+        expect.stringContaining("messages.copyLinkFailed"),
+      );
+    });
+
+    it("sets error when clipboard write fails", async () => {
+      const snapshot = createMockDownloadSnapshot({
+        id: "task-1",
+        url: "https://example.com/file.zip",
+      });
+      mockClipboardWriteText.mockRejectedValue(
+        new Error("Clipboard access denied"),
+      );
+
+      input = createInput({
+        selectedSnapshot: ref(snapshot),
+      });
+      const actions = useDownloadActions(input);
+
+      await actions.runCopyLink("task-1");
+
+      expect(mockClipboardWriteText).toHaveBeenCalledWith(
+        "https://example.com/file.zip",
+      );
+      expect(input.setError).toHaveBeenCalledWith("Clipboard access denied");
     });
   });
 

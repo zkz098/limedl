@@ -1,8 +1,16 @@
-use std::{collections::HashMap, fs, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    fs,
+    sync::{
+        Arc,
+        atomic::{Ordering},
+    },
+    time::Duration,
+};
 
+use crate::error::DownloadError;
 use crate::event_bus::EventBus;
-use crate::types::IoBaselineSettings;
-use axum::{
+use crate::types::IoBaselineSettings;use axum::{
     Router,
     extract::{OriginalUri, State},
     http::{self, HeaderMap, HeaderValue, StatusCode},
@@ -22,7 +30,19 @@ use crate::types::{
     ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, ThreadMode,
     TraditionalSchedulerSettings,
 };
+use crate::manager::{
+    resolve_thread_settings, supports_parallelism, thread_note, cancellation_outcome,
+    cancellation_chunk_outcome, record_progress_on_managed, ChunkWorkerOutcome, RunOutcome,
+    DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS,
+};
+use crate::manifest::CHUNK_SIZE;
+use crate::manifest::{ChunkManifest, Manifest};
+use crate::manager::{DownloadCore, ManagedDownload};
+use crate::aimd::AimdState;
+use crate::types::TaskKind;
 use crate::{DownloadManager, RateLimiter};
+use parking_lot::Mutex as ParkingMutex;
+use tokio::sync::Notify;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -248,6 +268,356 @@ async fn traditional_mode_limits_running_tasks() -> TestResult {
     let _ = manager.remove(&first.to_string()).await;
     let _ = manager.remove(&second.to_string()).await;
     Ok(())
+}
+
+// ── supports_parallelism unit tests ─────────────────────────────────
+
+#[test]
+fn supports_parallelism_small_file_no_ranges() {
+    assert!(!supports_parallelism(Some(CHUNK_SIZE), false, CHUNK_SIZE));
+}
+
+#[test]
+fn supports_parallelism_small_file_with_ranges() {
+    assert!(!supports_parallelism(Some(CHUNK_SIZE), true, CHUNK_SIZE));
+}
+
+#[test]
+fn supports_parallelism_large_file_with_ranges() {
+    assert!(supports_parallelism(Some(CHUNK_SIZE * 2), true, CHUNK_SIZE));
+}
+
+#[test]
+fn supports_parallelism_large_file_no_ranges() {
+    assert!(!supports_parallelism(Some(CHUNK_SIZE * 2), false, CHUNK_SIZE));
+}
+
+#[test]
+fn supports_parallelism_unknown_size() {
+    assert!(!supports_parallelism(None, false, CHUNK_SIZE));
+    assert!(!supports_parallelism(None, true, CHUNK_SIZE));
+}
+
+#[test]
+fn supports_parallelism_zero_bytes() {
+    assert!(!supports_parallelism(Some(0), false, CHUNK_SIZE));
+    assert!(!supports_parallelism(Some(0), true, CHUNK_SIZE));
+}
+
+// ── resolve_thread_settings unit tests ──────────────────────────────
+
+#[test]
+fn resolve_traditional_adaptive_mode_default_threads() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Traditional,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Adaptive),
+        thread_count: None,
+        ..Default::default()
+    };
+    let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Fixed);
+    assert_eq!(requested, Some(DEFAULT_FIXED_THREADS));
+    assert_eq!(desired, Some(DEFAULT_FIXED_THREADS));
+    assert_eq!(profile, None);
+}
+
+#[test]
+fn resolve_traditional_custom_thread_count() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Traditional,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_count: Some(16),
+        ..Default::default()
+    };
+    let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Fixed);
+    assert_eq!(requested, Some(16));
+    assert_eq!(desired, Some(16));
+    assert_eq!(profile, None);
+}
+
+#[test]
+fn resolve_traditional_clamped_to_max() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Traditional,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_count: Some(100),
+        ..Default::default()
+    };
+    let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Fixed);
+    assert_eq!(requested, Some(MAX_TRADITIONAL_THREADS));
+    assert_eq!(desired, Some(MAX_TRADITIONAL_THREADS));
+    assert_eq!(profile, None);
+}
+
+#[test]
+fn resolve_automatic_adaptive_balanced() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                adaptive_profile: AdaptiveProfile::Balanced,
+                max_threads_per_task: 8,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Adaptive),
+        thread_count: None,
+        ..Default::default()
+    };
+    let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Adaptive);
+    assert_eq!(requested, None);
+    // Balanced → initial_desired_threads=2, capped at max_threads_per_task=8
+    assert_eq!(desired, Some(2));
+    assert_eq!(profile, Some(AdaptiveProfile::Balanced));
+}
+
+#[test]
+fn resolve_automatic_adaptive_conservative() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                adaptive_profile: AdaptiveProfile::Conservative,
+                max_threads_per_task: 8,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Adaptive),
+        ..Default::default()
+    };
+    let (mode, _, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Adaptive);
+    // Conservative → initial_desired_threads=1
+    assert_eq!(desired, Some(1));
+    assert_eq!(profile, Some(AdaptiveProfile::Conservative));
+}
+
+#[test]
+fn resolve_automatic_adaptive_aggressive() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                adaptive_profile: AdaptiveProfile::Aggressive,
+                max_threads_per_task: 8,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Adaptive),
+        ..Default::default()
+    };
+    let (mode, _, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Adaptive);
+    // Aggressive → initial_desired_threads=4
+    assert_eq!(desired, Some(4));
+    assert_eq!(profile, Some(AdaptiveProfile::Aggressive));
+}
+
+#[test]
+fn resolve_automatic_adaptive_capped_by_max_threads() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                adaptive_profile: AdaptiveProfile::Aggressive,
+                max_threads_per_task: 2, // cap below initial_desired_threads=4
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Adaptive),
+        ..Default::default()
+    };
+    let (mode, _, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Adaptive);
+    // Aggressive→4, capped at 2, then max(1) = 2
+    assert_eq!(desired, Some(2));
+    assert_eq!(profile, Some(AdaptiveProfile::Aggressive));
+}
+
+#[test]
+fn resolve_automatic_adaptive_zero_max_threads_clamped() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                adaptive_profile: AdaptiveProfile::Balanced,
+                max_threads_per_task: 0, // .max(1) ensures at least 1
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Adaptive),
+        ..Default::default()
+    };
+    let (mode, _, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Adaptive);
+    // Balanced→2, capped at max(0,1)=1
+    assert_eq!(desired, Some(1));
+    assert_eq!(profile, Some(AdaptiveProfile::Balanced));
+}
+
+#[test]
+fn resolve_automatic_fixed_default_threads() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                max_threads_per_task: 6,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Fixed),
+        thread_count: None, // defaults to DEFAULT_FIXED_THREADS=8
+        ..Default::default()
+    };
+    let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Fixed);
+    // 8 clamped to max_threads_per_task=6
+    assert_eq!(requested, Some(6));
+    assert_eq!(desired, Some(6));
+    assert_eq!(profile, None);
+}
+
+#[test]
+fn resolve_automatic_fixed_explicit_thread_count() {
+    let settings = AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                max_threads_per_task: 10,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Fixed),
+        thread_count: Some(4),
+        ..Default::default()
+    };
+    let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, true);
+    assert_eq!(mode, ThreadMode::Fixed);
+    assert_eq!(requested, Some(4));
+    assert_eq!(desired, Some(4));
+    assert_eq!(profile, None);
+}
+
+#[test]
+fn resolve_no_parallelism_returns_fixed_single() {
+    let settings = AppSettings::default();
+    let request = StartDownloadRequest {
+        url: String::new(),
+        destination_dir: String::new(),
+        thread_mode: Some(ThreadMode::Adaptive),
+        thread_count: Some(16), // should be ignored
+        ..Default::default()
+    };
+    let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, false);
+    assert_eq!(mode, ThreadMode::Fixed);
+    assert_eq!(requested, Some(1));
+    assert_eq!(desired, Some(1));
+    assert_eq!(profile, None);
+}
+
+// ── thread_note unit tests ──────────────────────────────────────────
+
+#[test]
+fn thread_note_no_parallelism() {
+    let note = thread_note(false, ThreadMode::Fixed, None);
+    assert_eq!(note, Some(String::from("单线程（服务器不支持分段）")));
+}
+
+#[test]
+fn thread_note_fixed() {
+    let note = thread_note(true, ThreadMode::Fixed, None);
+    assert_eq!(note, Some(String::from("固定线程")));
+}
+
+#[test]
+fn thread_note_adaptive_conservative() {
+    let note = thread_note(true, ThreadMode::Adaptive, Some(AdaptiveProfile::Conservative));
+    assert_eq!(note, Some(String::from("自适应 / 保守")));
+}
+
+#[test]
+fn thread_note_adaptive_balanced() {
+    let note = thread_note(true, ThreadMode::Adaptive, Some(AdaptiveProfile::Balanced));
+    assert_eq!(note, Some(String::from("自适应 / 平衡")));
+}
+
+#[test]
+fn thread_note_adaptive_aggressive() {
+    let note = thread_note(true, ThreadMode::Adaptive, Some(AdaptiveProfile::Aggressive));
+    assert_eq!(note, Some(String::from("自适应 / 激进")));
+}
+
+#[test]
+fn thread_note_adaptive_no_profile() {
+    let note = thread_note(true, ThreadMode::Adaptive, None);
+    assert_eq!(note, None);
 }
 
 #[tokio::test]
@@ -700,12 +1070,6 @@ async fn file_get(
 #[tokio::test]
 #[timeout(10000)]
 async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
-    use crate::aimd::AimdState;
-    use crate::manager::{DownloadCore, ManagedDownload};
-    use crate::manifest::Manifest;
-    use crate::types::TaskKind;
-    use parking_lot::Mutex as ParkingMutex;
-    use tokio::sync::Notify;
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -856,4 +1220,714 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
     );
 
     Ok(())
+}
+
+// ── Helper to construct a ManagedDownload for state-guard tests ─────
+
+fn make_managed(id: &str, state: DownloadState, url: &str) -> Arc<ManagedDownload> {
+    Arc::new(ManagedDownload {
+        core: ParkingMutex::new(DownloadCore {
+            snapshot: DownloadSnapshot {
+                id: id.to_string(),
+                kind: TaskKind::Http,
+                state,
+                url: url.to_string(),
+                final_url: url.to_string(),
+                file_name: String::new(),
+                destination_path: String::new(),
+                temp_path: String::new(),
+                total_bytes: None,
+                downloaded_bytes: 0,
+                supports_ranges: false,
+                connection_count: 0,
+                thread_mode: ThreadMode::Adaptive,
+                requested_thread_count: None,
+                desired_thread_count: None,
+                allocated_thread_count: None,
+                adaptive_profile: None,
+                thread_note: None,
+                checksum: None,
+                checksum_mode: ChecksumMode::None,
+                etag: None,
+                last_modified: None,
+                error: None,
+                speed_bytes_per_second: None,
+                eta_seconds: None,
+                uploaded_bytes: None,
+                upload_speed_bytes_per_second: None,
+                peer_count: None,
+                upload_status: None,
+                info_hash: None,
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                cdn_accelerated: false,
+                chunks: vec![],
+                seed_count: None,
+                leech_count: None,
+                download_limit_bps: None,
+                upload_limit_bps: None,
+                mirror_url: None,
+                degraded: false,
+                disk_type: None,
+                flushing: false,
+            },
+            manifest: Manifest {
+                id: id.to_string(),
+                url: url.to_string(),
+                final_url: url.to_string(),
+                user_agent: "test".into(),
+                destination_dir: String::new(),
+                file_name: String::new(),
+                file_name_locked: false,
+                destination_path: String::new(),
+                temp_path: String::new(),
+                total_bytes: None,
+                downloaded_bytes: 0,
+                supports_ranges: false,
+                chunk_size: 4_194_304,
+                connection_count: 0,
+                thread_mode: ThreadMode::Adaptive,
+                requested_thread_count: None,
+                desired_thread_count: None,
+                allocated_thread_count: None,
+                adaptive_profile_snapshot: None,
+                thread_note: None,
+                etag: None,
+                last_modified: None,
+                state,
+                cdn_accelerated: false,
+                checksum_mode: ChecksumMode::None,
+                checksum: None,
+                expected_checksum: None,
+                error: None,
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                mirror_url: None,
+                mirror_urls: vec![],
+                current_mirror_index: 0,
+                chunks: vec![],
+            },
+        }),
+        runtime: ParkingMutex::new(None),
+        aimd: ParkingMutex::new(AimdState::default()),
+        stop_notify: Notify::new(),
+    })
+}
+
+// ── start() validation ────────────────────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn start_rejects_unsupported_scheme() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let result = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: "ftp://example.com/file.bin".into(),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: Some("test.bin".into()),
+            user_agent: None,
+            thread_mode: None,
+            thread_count: None,
+            max_retries: None,
+            checksum: None,
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            mirror_urls: None,
+        })
+        .await;
+
+    assert!(matches!(result, Err(DownloadError::UnsupportedScheme)));
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn start_rejects_empty_destination_dir() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let result = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: "http://example.com/file.bin".into(),
+            destination_dir: String::new(),
+            file_name: Some("test.bin".into()),
+            user_agent: None,
+            thread_mode: None,
+            thread_count: None,
+            max_retries: None,
+            checksum: None,
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            mirror_urls: None,
+        })
+        .await;
+
+    assert!(matches!(result, Err(DownloadError::InvalidResponse(ref msg)) if msg.contains("not set")));
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn start_rejects_relative_destination_dir() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let result = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: "http://example.com/file.bin".into(),
+            destination_dir: "relative/out".into(),
+            file_name: Some("test.bin".into()),
+            user_agent: None,
+            thread_mode: None,
+            thread_count: None,
+            max_retries: None,
+            checksum: None,
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            mirror_urls: None,
+        })
+        .await;
+
+    assert!(matches!(result, Err(DownloadError::InvalidResponse(ref msg)) if msg.contains("absolute path")));
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn start_rejects_checksum_mode_mismatch() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let result = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: "http://example.com/file.bin".into(),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: Some("test.bin".into()),
+            user_agent: None,
+            thread_mode: None,
+            thread_count: None,
+            max_retries: None,
+            checksum: Some(ChecksumMode::None),
+            expected_checksum: Some("abc123".into()),
+            selected_file_indices: None,
+            start_paused: false,
+            mirror_urls: None,
+        })
+        .await;
+
+    assert!(matches!(result, Err(DownloadError::InvalidRequest(ref msg)) if msg.contains("checksum_mode")));
+    Ok(())
+}
+
+// ── pause() state guards ─────────────────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn pause_on_paused_task_returns_snapshot_unchanged() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = "paused-task";
+    let dl = make_managed(id, DownloadState::Paused, "http://example.com/file.bin");
+    manager.downloads.write().await.insert(id.to_string(), dl.clone());
+
+    let snapshot_before = manager.status(id).await?;
+    let result = manager.pause(id).await?;
+    // pause() on paused state returns the clone atomically, without modifying state
+    assert_eq!(result.state, DownloadState::Paused);
+    let snapshot_after = manager.status(id).await?;
+    assert_eq!(snapshot_after.state, DownloadState::Paused);
+    // Task still in the list (pause does not remove it)
+    assert!(manager.downloads.read().await.contains_key(id));
+    // Snapshot returned by pause() should match the snapshot from status()
+    assert_eq!(result.state, snapshot_before.state);
+
+    let _ = manager.remove(id).await;
+    Ok(())
+}
+
+// ── cancel() state guards ────────────────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancel_on_completed_task_skips_file_cleanup_and_removes() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = "completed-task";
+    let dl = make_managed(id, DownloadState::Completed, "http://example.com/file.bin");
+    manager.downloads.write().await.insert(id.to_string(), dl.clone());
+
+    // cancel() on completed task skips the cancellation path, but still removes from list
+    let snapshot = manager.cancel(id).await?;
+    assert_eq!(snapshot.state, DownloadState::Completed);
+    // Task should be removed from active list
+    assert!(
+        !manager.downloads.read().await.contains_key(id),
+        "completed task should be removed from downloads after cancel"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancel_on_already_canceled_task_still_removes() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = "already-canceled";
+    let dl = make_managed(id, DownloadState::Canceled, "http://example.com/file.bin");
+    manager.downloads.write().await.insert(id.to_string(), dl.clone());
+
+    let result = manager.cancel(id).await;
+    assert!(result.is_ok(), "cancel on canceled task should return Ok: {:?}", result.err());
+    // Task should be removed from active list
+    assert!(
+        !manager.downloads.read().await.contains_key(id),
+        "canceled task should be removed from downloads after second cancel"
+    );
+
+    // Second cancel on already-removed task should return NotFound
+    let second = manager.cancel(id).await;
+    assert!(matches!(second, Err(DownloadError::NotFound)));
+
+    Ok(())
+}
+
+// ── resume() state validation ────────────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn resume_canceled_task_returns_canceled_error() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = "canceled-task";
+    let dl = make_managed(id, DownloadState::Canceled, "http://example.com/file.bin");
+    manager.downloads.write().await.insert(id.to_string(), dl.clone());
+
+    let result = manager.resume(id).await;
+    assert!(matches!(result, Err(DownloadError::Canceled)));
+
+    let _ = manager.remove(id).await;
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn resume_completed_task_returns_not_resumable_error() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = "completed-task";
+    let dl = make_managed(id, DownloadState::Completed, "http://example.com/file.bin");
+    manager.downloads.write().await.insert(id.to_string(), dl.clone());
+
+    let result = manager.resume(id).await;
+    assert!(matches!(result, Err(DownloadError::NotResumable)));
+
+    let _ = manager.remove(id).await;
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn resume_running_task_returns_already_running_error() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = "downloading-task";
+    let dl = make_managed(id, DownloadState::Downloading, "http://example.com/file.bin");
+    manager.downloads.write().await.insert(id.to_string(), dl.clone());
+
+    let result = manager.resume(id).await;
+    assert!(matches!(result, Err(DownloadError::AlreadyRunning)));
+
+    let _ = manager.remove(id).await;
+    Ok(())
+}
+
+// ── get_summary() / find_active_by_url() ──────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn get_summary_nonexistent_id_returns_none() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let summary = manager.get_summary("nonexistent").await;
+    assert!(summary.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn find_active_by_url_no_match_returns_none() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let result = manager.find_active_by_url("http://example.com/nonexistent").await;
+    assert!(result.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn find_active_by_url_match_returns_some() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = "active-dl";
+    let url = "http://example.com/active.bin";
+    let dl = make_managed(id, DownloadState::Downloading, url);
+    manager.downloads.write().await.insert(id.to_string(), dl.clone());
+
+    let found = manager.find_active_by_url(url).await;
+    assert_eq!(found, Some(id.to_string()));
+
+    let _ = manager.remove(id).await;
+    Ok(())
+}
+
+// ── try_acquire_http() / try_acquire_bt() at capacity ─────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn try_acquire_http_at_capacity_returns_error() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    // Set max to 0 to simulate at capacity
+    manager.limits.max_concurrent_http.store(0, Ordering::Release);
+
+    let result = manager.try_acquire_http();
+    assert!(matches!(result, Err(DownloadError::TooManyConcurrentDownloads)));
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn try_acquire_bt_at_capacity_returns_error() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    // Set max to 0 to simulate at capacity
+    manager.limits.max_concurrent_bt.store(0, Ordering::Release);
+
+    let result = manager.try_acquire_bt();
+    assert!(matches!(result, Err(DownloadError::TooManyConcurrentDownloads)));
+    Ok(())
+}
+
+// ── apply_settings() client rebuild path ────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn apply_settings_proxy_change_triggers_client_rebuild() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let mut settings = manager.settings().await?;
+    // Switch proxy from default (Disabled) to System — triggers client rebuild
+    settings.proxy.mode = ProxyMode::System;
+    let result = manager.apply_settings(settings).await;
+    assert!(result.is_ok(), "apply_settings with proxy change should succeed: {:?}", result.err());
+
+    // Verify the proxy mode stuck
+    let updated = manager.settings().await?;
+    assert_eq!(updated.proxy.mode, ProxyMode::System);
+    Ok(())
+}
+
+// ── game_mode() / overclock_mode() getters/setters ──────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn game_mode_setter_and_getter() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    assert!(!manager.game_mode(), "game_mode should default to false");
+
+    manager.set_game_mode(true);
+    assert!(manager.game_mode(), "game_mode should be true after set");
+
+    manager.set_game_mode(false);
+    assert!(!manager.game_mode(), "game_mode should be false after unset");
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn overclock_mode_setter_and_getter() -> TestResult {
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    assert!(!manager.overclock_mode(), "overclock_mode should default to false");
+
+    manager.set_overclock_mode(true);
+    assert!(manager.overclock_mode(), "overclock_mode should be true after set");
+
+    manager.set_overclock_mode(false);
+    assert!(!manager.overclock_mode(), "overclock_mode should be false after unset");
+    Ok(())
+}
+
+// ── Helper for record_progress tests ──────────────────────────────────
+
+/// Build a ManagedDownload with a single chunk at the given offset/size.
+fn make_managed_with_chunk(
+    id: &str,
+    downloaded_bytes: u64,
+    chunk_start: u64,
+    chunk_end: u64,
+    chunk_downloaded: u64,
+    total: Option<u64>,
+) -> Arc<ManagedDownload> {
+    let m = make_managed(id, DownloadState::Downloading, "https://example.com/file.bin");
+    let mut core = m.core.lock();
+    core.snapshot.downloaded_bytes = downloaded_bytes;
+    core.snapshot.total_bytes = total;
+    core.manifest.downloaded_bytes = downloaded_bytes;
+    core.manifest.total_bytes = total;
+    core.manifest.chunks = vec![ChunkManifest {
+        index: 0,
+        start: chunk_start,
+        end: chunk_end,
+        downloaded: chunk_downloaded,
+        completed: false,
+        claimed_by: None,
+        dirty: false,
+    }];
+    drop(core);
+    m
+}
+
+// ── record_progress_on_managed ───────────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn record_progress_normal_update() {
+    let managed = make_managed_with_chunk("dl1", 0, 0, 4_194_304, 0, Some(8_388_608));
+
+    record_progress_on_managed(&managed, Some(0), 1000);
+
+    let core = managed.core.lock();
+    assert_eq!(core.snapshot.downloaded_bytes, 1000);
+    assert_eq!(core.manifest.downloaded_bytes, 1000);
+    assert_eq!(core.manifest.chunks[0].downloaded, 1000);
+    assert!(!core.manifest.chunks[0].completed);
+    assert!(core.manifest.chunks[0].dirty);
+    assert!(core.snapshot.updated_at_ms > 0);
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn record_progress_chunk_index_beyond_range() {
+    let managed = make_managed_with_chunk("dl2", 500, 0, 4_194_304, 100, Some(8_388_608));
+
+    // Use a chunk index that doesn't exist
+    record_progress_on_managed(&managed, Some(999), 2000);
+
+    let core = managed.core.lock();
+    // Snapshot and manifest still update
+    assert_eq!(core.snapshot.downloaded_bytes, 2500);
+    assert_eq!(core.manifest.downloaded_bytes, 2500);
+    // Chunk remains unchanged
+    assert_eq!(core.manifest.chunks[0].downloaded, 100);
+    assert!(!core.manifest.chunks[0].completed);
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn record_progress_chunk_exceeds_bounds_marks_completed() {
+    // Chunk covers 0..1_000_000, currently at 999_500
+    let managed = make_managed_with_chunk("dl3", 999_500, 0, 1_000_000, 999_500, Some(10_000_000));
+
+    // Add 1000 bytes — pushes chunk downloaded (1_000_500) past its size (1_000_000)
+    record_progress_on_managed(&managed, Some(0), 1000);
+
+    let core = managed.core.lock();
+    assert_eq!(core.manifest.chunks[0].downloaded, 1_000_500);
+    assert!(core.manifest.chunks[0].completed, "chunk should be marked completed when downloaded > size");
+    assert!(core.manifest.chunks[0].claimed_by.is_none(), "claimed_by should be cleared");
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn record_progress_overflow_protection() {
+    let managed = make_managed_with_chunk("dl4", u64::MAX, 0, 4_194_304, 0, Some(8_388_608));
+
+    record_progress_on_managed(&managed, Some(0), 5000);
+
+    let core = managed.core.lock();
+    // saturating_add should keep value at u64::MAX
+    assert_eq!(core.snapshot.downloaded_bytes, u64::MAX);
+    assert_eq!(core.manifest.downloaded_bytes, u64::MAX);
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn record_progress_none_chunk_index_still_updates_snapshot() {
+    let managed = make_managed_with_chunk("dl5", 100, 0, 4_194_304, 50, Some(8_388_608));
+
+    record_progress_on_managed(&managed, None, 777);
+
+    let core = managed.core.lock();
+    assert_eq!(core.snapshot.downloaded_bytes, 877);
+    assert_eq!(core.manifest.downloaded_bytes, 877);
+    // Chunk should be untouched
+    assert_eq!(core.manifest.chunks[0].downloaded, 50);
+}
+
+// ── cancellation_outcome ─────────────────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancellation_outcome_when_canceled() {
+    let managed = make_managed("canceled", DownloadState::Canceled, "https://example.com/f");
+    let outcome = cancellation_outcome(&managed);
+    assert!(matches!(outcome, RunOutcome::Canceled));
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancellation_outcome_when_downloading() {
+    let managed = make_managed("dl", DownloadState::Downloading, "https://example.com/f");
+    let outcome = cancellation_outcome(&managed);
+    assert!(matches!(outcome, RunOutcome::Paused));
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancellation_outcome_when_paused() {
+    let managed = make_managed("paused", DownloadState::Paused, "https://example.com/f");
+    let outcome = cancellation_outcome(&managed);
+    assert!(matches!(outcome, RunOutcome::Paused));
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancellation_outcome_when_completed() {
+    let managed = make_managed("done", DownloadState::Completed, "https://example.com/f");
+    let outcome = cancellation_outcome(&managed);
+    assert!(matches!(outcome, RunOutcome::Paused));
+}
+
+// ── cancellation_chunk_outcome ───────────────────────────────────────
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancellation_chunk_outcome_when_canceled() {
+    let managed = make_managed("canceled", DownloadState::Canceled, "https://example.com/f");
+    let outcome = cancellation_chunk_outcome(&managed);
+    assert!(matches!(outcome, ChunkWorkerOutcome::Canceled));
+}
+
+#[tokio::test]
+#[timeout(10_000)]
+async fn cancellation_chunk_outcome_when_downloading() {
+    let managed = make_managed("dl", DownloadState::Downloading, "https://example.com/f");
+    let outcome = cancellation_chunk_outcome(&managed);
+    assert!(matches!(outcome, ChunkWorkerOutcome::Paused));
 }

@@ -70,7 +70,9 @@ function createMockDownload(overrides: Record<string, unknown> = {}): DownloadSu
 // ── Stubs ──
 
 const stubs = {
-  UiBadge: true,
+  UiBadge: {
+    template: '<span class="ui-badge-stub"><slot /></span>',
+  },
   UiButton: {
     template:
       '<button :disabled="disabled" :data-icon="icon || iconRight" class="ui-button-stub"><slot /></button>',
@@ -368,5 +370,561 @@ describe("DownloadQueueTable", () => {
 
     expect(wrapper.emitted("toggleSelect")).toBeTruthy();
     expect(wrapper.emitted("toggleSelect")![0]).toEqual(["ms-1"]);
+  });
+
+  // ── Context Menu Actions ────────────────────────────────────
+
+  describe("context menu actions", () => {
+    const inlineTeleportStubs = {
+      ...stubs,
+      Teleport: { template: "<div><slot /></div>" },
+    };
+
+    it("pause/resume button emits pauseOrResume for downloading task", async () => {
+      const downloads = [createMockDownload({ id: "pause-1", state: "downloading" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      // First .task-context-menu__item is the pause/resume button
+      const pauseBtn = wrapper.find(".task-context-menu__item");
+      expect(pauseBtn.exists()).toBe(true);
+      expect(pauseBtn.attributes("disabled")).toBeUndefined();
+      await pauseBtn.trigger("click");
+
+      expect(wrapper.emitted("pauseOrResume")).toBeTruthy();
+      expect(wrapper.emitted("pauseOrResume")![0]).toEqual(["pause-1"]);
+    });
+
+    it("pause/resume button is enabled for paused tasks and shows continue label", async () => {
+      const downloads = [createMockDownload({ id: "pause-2", state: "paused" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const pauseBtn = wrapper.find(".task-context-menu__item");
+      expect(pauseBtn.attributes("disabled")).toBeUndefined();
+      expect(pauseBtn.text()).toContain("queue.continue");
+    });
+
+    it("pause/resume button is disabled for completed tasks", async () => {
+      const downloads = [createMockDownload({ id: "pause-3", state: "completed" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const pauseBtn = wrapper.find(".task-context-menu__item");
+      expect(pauseBtn.attributes("disabled")).toBeDefined();
+    });
+
+    it("delete button emits deleteTask", async () => {
+      const downloads = [createMockDownload({ id: "del-1" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const allButtons = wrapper.findAll(".task-context-menu__item");
+      const deleteBtn = allButtons.find((b) => b.text().includes("queue.deleteTask"));
+      expect(deleteBtn).toBeDefined();
+      await deleteBtn!.trigger("click");
+
+      expect(wrapper.emitted("deleteTask")).toBeTruthy();
+      expect(wrapper.emitted("deleteTask")![0]).toEqual(["del-1"]);
+    });
+
+    it("copy link button emits copyLink", async () => {
+      const downloads = [createMockDownload({ id: "copy-1" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const allButtons = wrapper.findAll(".task-context-menu__item");
+      const copyBtn = allButtons.find((b) => b.text().includes("queue.copyLink"));
+      expect(copyBtn).toBeDefined();
+      await copyBtn!.trigger("click");
+
+      expect(wrapper.emitted("copyLink")).toBeTruthy();
+      expect(wrapper.emitted("copyLink")![0]).toEqual(["copy-1"]);
+    });
+
+    it("open in explorer button emits openInExplorer", async () => {
+      const downloads = [createMockDownload({ id: "open-1" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const allButtons = wrapper.findAll(".task-context-menu__item");
+      const openBtn = allButtons.find((b) => b.text().includes("queue.openInExplorer"));
+      expect(openBtn).toBeDefined();
+      await openBtn!.trigger("click");
+
+      expect(wrapper.emitted("openInExplorer")).toBeTruthy();
+      expect(wrapper.emitted("openInExplorer")![0]).toEqual(["open-1"]);
+    });
+
+    it("delete permanently button emits deleteTaskPermanently", async () => {
+      const downloads = [createMockDownload({ id: "delperm-1" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const allButtons = wrapper.findAll(".task-context-menu__item");
+      const permBtn = allButtons.find((b) => b.text().includes("queue.permanentDelete"));
+      expect(permBtn).toBeDefined();
+      await permBtn!.trigger("click");
+
+      expect(wrapper.emitted("deleteTaskPermanently")).toBeTruthy();
+      expect(wrapper.emitted("deleteTaskPermanently")![0]).toEqual(["delperm-1"]);
+    });
+
+    it("BT speed limit option renders for BT tasks", async () => {
+      const downloads = [createMockDownload({ id: "bt-1", kind: "bt" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const allButtons = wrapper.findAll(".task-context-menu__item");
+      const speedBtn = allButtons.find((b) => b.text().includes("queue.setSpeedLimit"));
+      expect(speedBtn).toBeDefined();
+    });
+
+    it("BT speed limit option does NOT render for HTTP tasks", async () => {
+      const downloads = [createMockDownload({ id: "http-1", kind: "http" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const allButtons = wrapper.findAll(".task-context-menu__item");
+      const speedBtn = allButtons.find((b) => b.text().includes("queue.setSpeedLimit"));
+      expect(speedBtn).toBeUndefined();
+    });
+
+    it("BT speed limit button emits setBtSpeedLimit", async () => {
+      const downloads = [createMockDownload({ id: "bt-speed", kind: "bt" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const speedBtn = wrapper
+        .findAll(".task-context-menu__item")
+        .find((b) => b.text().includes("queue.setSpeedLimit"));
+      await speedBtn!.trigger("click");
+
+      expect(wrapper.emitted("setBtSpeedLimit")).toBeTruthy();
+      expect(wrapper.emitted("setBtSpeedLimit")![0]).toEqual(["bt-speed"]);
+    });
+
+    it("context menu closes after clicking an action", async () => {
+      const downloads = [createMockDownload({ id: "close-1" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      expect(wrapper.find(".task-context-menu").exists()).toBe(true);
+
+      const deleteBtn = wrapper
+        .findAll(".task-context-menu__item")
+        .find((b) => b.text().includes("queue.deleteTask"));
+      await deleteBtn!.trigger("click");
+
+      // Menu should be closed after action
+      expect(wrapper.find(".task-context-menu").exists()).toBe(false);
+    });
+
+    it("context menu also closes after permanent delete", async () => {
+      const downloads = [createMockDownload({ id: "close-2" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      const row = wrapper.find("tbody tr");
+      await row.trigger("contextmenu", { clientX: 100, clientY: 100 });
+
+      const permBtn = wrapper
+        .findAll(".task-context-menu__item")
+        .find((b) => b.text().includes("queue.permanentDelete"));
+      await permBtn!.trigger("click");
+
+      expect(wrapper.find(".task-context-menu").exists()).toBe(false);
+    });
+  });
+
+  // ── Meta Formatting ─────────────────────────────────────────
+
+  describe("meta formatting", () => {
+    it("HTTP download meta shows thread mode and connection count", () => {
+      const downloads = [
+        createMockDownload({
+          id: "meta-http",
+          kind: "http",
+          threadMode: "adaptive",
+          connectionCount: 4,
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const meta = wrapper.find(".queue-file__meta");
+      expect(meta.text()).toContain("queue.adaptive");
+      expect(meta.text()).toContain("queue.currentThreads");
+    });
+
+    it("HTTP download meta shows fixed thread mode when not adaptive", () => {
+      const downloads = [
+        createMockDownload({
+          id: "meta-fixed",
+          kind: "http",
+          threadMode: "fixed",
+          connectionCount: 8,
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const meta = wrapper.find(".queue-file__meta");
+      expect(meta.text()).toContain("queue.fixedThread");
+      expect(meta.text()).toContain("queue.currentThreads");
+    });
+
+    it("HTTP download meta includes adaptive profile and thread note when present", () => {
+      const downloads = [
+        createMockDownload({
+          id: "meta-profile",
+          kind: "http",
+          threadMode: "adaptive",
+          connectionCount: 4,
+          adaptiveProfile: "aggressive",
+          threadNote: "rate-limited",
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const meta = wrapper.find(".queue-file__meta");
+      expect(meta.text()).toContain("tokens.aggressive");
+      expect(meta.text()).toContain("rate-limited");
+    });
+
+    it("BT download meta shows upload status, seeds/leeches, peers, and uploaded bytes", () => {
+      const downloads = [
+        createMockDownload({
+          id: "meta-bt",
+          kind: "bt",
+          uploadStatus: "uploading",
+          seedCount: 5,
+          leechCount: 3,
+          peerCount: 10,
+          uploadedBytes: 1024 * 50,
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const meta = wrapper.find(".queue-file__meta");
+      expect(meta.text()).toContain("uploadStatus.uploading");
+      expect(meta.text()).toContain("5 S / 3 L");
+      expect(meta.text()).toContain("queue.peerCount");
+      expect(meta.text()).toContain("queue.uploaded");
+    });
+
+    it("BT download meta handles null seed/leech counts gracefully", () => {
+      const downloads = [
+        createMockDownload({
+          id: "meta-bt-null",
+          kind: "bt",
+          uploadStatus: null,
+          seedCount: null,
+          leechCount: null,
+          peerCount: 0,
+          uploadedBytes: 0,
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const meta = wrapper.find(".queue-file__meta");
+      expect(meta.text()).not.toContain("S /");
+      expect(meta.text()).toContain("uploadStatus.idle");
+      expect(meta.text()).toContain("queue.uploaded");
+    });
+  });
+
+  // ── Flushing State ──────────────────────────────────────────
+
+  describe("flushing state", () => {
+    it("flushing download shows 100% progress bar and 'Flushing' label", () => {
+      const progressValueStubs = {
+        ...stubs,
+        UiProgress: {
+          template: '<div class="ui-progress-stub" :data-value="value" />',
+          props: ["value"],
+        },
+      };
+
+      const downloads = [
+        createMockDownload({
+          id: "flush-1",
+          state: "downloading",
+          flushing: true,
+          downloadedBytes: 500,
+          totalBytes: 1000,
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs: progressValueStubs },
+      });
+
+      expect(wrapper.text()).toContain("queue.flushing");
+
+      const progressBar = wrapper.find(".ui-progress-stub");
+      expect(progressBar.attributes("data-value")).toBe("100");
+    });
+
+    it("flushing download shows info-toned status badge with flushing short label", () => {
+      const downloads = [
+        createMockDownload({
+          id: "flush-2",
+          state: "downloading",
+          flushing: true,
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const statusCell = wrapper.find(".queue-cell--status");
+      expect(statusCell.exists()).toBe(true);
+      expect(statusCell.text()).toContain("queue.flushingShort");
+    });
+
+    it("non-flushing download uses normal progress label", () => {
+      const downloads = [
+        createMockDownload({
+          id: "normal-1",
+          state: "downloading",
+          flushing: false,
+          downloadedBytes: 256 * 1024,
+          totalBytes: 1024 * 1024,
+        }),
+      ];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      expect(wrapper.text()).toContain("25.0%");
+      expect(wrapper.text()).not.toContain("queue.flushing");
+    });
+  });
+
+  // ── Auto-Refresh Indicator ──────────────────────────────────
+
+  describe("auto-refresh indicator", () => {
+    it("shows idle state when isAutoRefreshing is false", () => {
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ isAutoRefreshing: false }),
+        global: { stubs },
+      });
+
+      const syncPill = wrapper.find(".sync-pill");
+      expect(syncPill.exists()).toBe(true);
+      expect(syncPill.attributes("data-active")).toBe("false");
+    });
+
+    it("shows syncing state when isAutoRefreshing becomes true after debounce", async () => {
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ isAutoRefreshing: false, downloads: [createMockDownload()] }),
+        global: { stubs },
+      });
+
+      const syncPill = wrapper.find(".sync-pill");
+      expect(syncPill.attributes("data-active")).toBe("false");
+
+      await wrapper.setProps({ isAutoRefreshing: true });
+
+      // Wait for the 240ms debounce show delay to elapse
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      expect(syncPill.attributes("data-active")).toBe("true");
+    });
+
+    it("shows idle state when isAutoRefreshing returns to false after debounce", async () => {
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ isAutoRefreshing: true, downloads: [createMockDownload()] }),
+        global: { stubs },
+      });
+
+      // Wait for the 240ms show debounce
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const syncPill = wrapper.find(".sync-pill");
+      expect(syncPill.attributes("data-active")).toBe("true");
+
+      await wrapper.setProps({ isAutoRefreshing: false });
+
+      // Wait for the 420ms hide debounce
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      expect(syncPill.attributes("data-active")).toBe("false");
+    });
+  });
+
+  // ── Badge Rendering ─────────────────────────────────────────
+
+  describe("badge rendering", () => {
+    it("renders CDN badge when download is cdnAccelerated", () => {
+      const downloads = [createMockDownload({ id: "cdn-1", cdnAccelerated: true })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const cdnBadge = wrapper.find(".queue-file__cdn");
+      expect(cdnBadge.exists()).toBe(true);
+    });
+
+    it("does not render CDN badge when download is not cdnAccelerated", () => {
+      const downloads = [createMockDownload({ id: "no-cdn-1", cdnAccelerated: false })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const cdnBadge = wrapper.find(".queue-file__cdn");
+      expect(cdnBadge.exists()).toBe(false);
+    });
+
+    it("renders degraded badge when download is degraded", () => {
+      const downloads = [createMockDownload({ id: "deg-1", degraded: true })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const degradedBadge = wrapper.find(".queue-file__degraded");
+      expect(degradedBadge.exists()).toBe(true);
+    });
+
+    it("does not render degraded badge when download is not degraded", () => {
+      const downloads = [createMockDownload({ id: "no-deg-1", degraded: false })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const degradedBadge = wrapper.find(".queue-file__degraded");
+      expect(degradedBadge.exists()).toBe(false);
+    });
+
+    it("renders HDD badge when diskType is hdd", () => {
+      const downloads = [createMockDownload({ id: "hdd-1", diskType: "hdd" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const hddBadge = wrapper.find(".queue-file__hdd");
+      expect(hddBadge.exists()).toBe(true);
+    });
+
+    it("does not render HDD badge when diskType is ssd", () => {
+      const downloads = [createMockDownload({ id: "ssd-1", diskType: "ssd" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      const hddBadge = wrapper.find(".queue-file__hdd");
+      expect(hddBadge.exists()).toBe(false);
+    });
+
+    it("renders BT kind badge for BT downloads", () => {
+      const downloads = [createMockDownload({ id: "bt-kind-1", kind: "bt" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      expect(wrapper.text()).toContain("tokens.bt");
+    });
+
+    it("renders HTTP kind badge for HTTP downloads", () => {
+      const downloads = [createMockDownload({ id: "http-kind-1", kind: "http" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        global: { stubs },
+      });
+
+      expect(wrapper.text()).toContain("tokens.http");
+    });
   });
 });

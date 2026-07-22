@@ -45,7 +45,7 @@ async function fireNotification(title: string, body: string) {
       sendNotification({ title, body });
     }
   } catch {
-    // Silently fail â€?notifications are non-critical
+    // Silently fail â€”notifications are non-critical
   }
 }
 
@@ -90,14 +90,14 @@ function createLimedl(options?: UseLimedlOptions) {
 
   /**
    * Apply a lightweight DownloadProgress patch to an existing download in the list.
-   * Mutates fields in-place on the existing reactive object â€?does NOT create a new array,
+   * Mutates fields in-place on the existing reactive object â€”does NOT create a new array,
    * avoiding full-list recomputation for every progress event.
    */
   function patchProgress(progress: DownloadProgress) {
     const existing = downloads.value.find((d) => d.id === progress.id);
     if (!existing) return;
 
-    // Mutate in-place â€?Vue 3 reactivity tracks per-field changes
+    // Mutate in-place â€”Vue 3 reactivity tracks per-field changes
     existing.state = progress.state;
     existing.downloadedBytes = progress.downloadedBytes;
     if (progress.totalBytes != null) existing.totalBytes = progress.totalBytes;
@@ -469,7 +469,7 @@ function createLimedl(options?: UseLimedlOptions) {
   };
 }
 
-// Singleton guard â€?ensures all callers share the same reactive instance.
+// Singleton guard â€”ensures all callers share the same reactive instance.
 // useLimedl manages Tauri event listeners and global download state;
 // accidental re-instantiation would create duplicate listeners and desync state.
 let limedlInstance: ReturnType<typeof createLimedl> | null = null;
@@ -477,7 +477,7 @@ let limedlInstance: ReturnType<typeof createLimedl> | null = null;
 export function useLimedl(options?: UseLimedlOptions) {
   if (limedlInstance) {
     if (import.meta.env.DEV && options) {
-      console.warn("[useLimedl] Already created â€?options from this caller ignored.");
+      console.warn("[useLimedl] Already created â€”options from this caller ignored.");
     }
     return limedlInstance;
   }

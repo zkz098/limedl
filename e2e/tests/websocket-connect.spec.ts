@@ -40,9 +40,11 @@ test.describe("WebSocket connection", () => {
     expect(startParams).toBeDefined();
     expect(startParams).toHaveProperty("url", "http://127.0.0.1:9876/10mb.bin");
 
-    // Respond with taskId using respondToMethod which auto-matches the request ID
+    // Respond with taskId using respondToMethod which auto-matches the request ID.
+    // TaskIdResult: { kind, id }
     const responded = wsMocker.respondToMethod("download.start", {
-      taskId: { kind: "http", id: "test-conn-001" },
+      kind: "http",
+      id: "test-conn-001",
     });
     expect(responded).toBe(true);
 

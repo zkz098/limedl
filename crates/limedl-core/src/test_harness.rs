@@ -88,6 +88,10 @@ impl TestServer {
             .route("/file/truncated/{bytes}", get(serve_file_truncated))
             .route("/file/slow/{ms}", get(serve_file_slow))
             .route("/file/bandwidth/{bps}", get(serve_file_bandwidth))
+            .route("/file/redirect/{code}", get(serve_file_redirect))
+            .route("/file/range-416", get(serve_file_range_416))
+            .route("/file/no-length", get(serve_file_no_length))
+            .route("/file/wrong-length", get(serve_file_wrong_length))
             .with_state(state);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -165,6 +169,43 @@ impl TestServer {
     #[allow(dead_code, unused_variables)]
     pub fn file_url_with_checksum(&self, _mode: &str) -> String {
         self.file_url()
+    }
+
+    /// URL for a redirect endpoint that redirects to `/file` with the given `status_code`
+    /// (e.g. 301, 302, 307, 308).
+    ///
+    /// reqwest follows the redirect automatically (up to 10 hops), so the download
+    /// should complete at the final destination.
+    pub fn file_url_redirect(&self, status_code: u16) -> String {
+        format!("{}/file/redirect/{status_code}", self.addr)
+    }
+
+    /// URL that returns `416 Range Not Satisfiable` for any request with a `Range` header.
+    ///
+    /// Non-range requests receive the full file with `Accept-Ranges: bytes`, which
+    /// tricks the executor into attempting parallel chunked downloads — each chunk
+    /// worker then gets 416 and fails.
+    pub fn file_url_range_416(&self) -> String {
+        format!("{}/file/range-416", self.addr)
+    }
+
+    /// URL that serves the full file body **without** a `Content-Length` header.
+    ///
+    /// The HTTP layer uses chunked transfer encoding. Because no Content-Length is
+    /// advertised, the executor falls back to single-stream mode and finishes when
+    /// the stream ends.
+    pub fn file_url_no_length(&self) -> String {
+        format!("{}/file/no-length", self.addr)
+    }
+
+    /// URL that serves the full file body but with a `Content-Length` header set to
+    /// `file_size - 1` (one byte less than the actual body).
+    ///
+    /// reqwest respects the declared Content-Length, so the downloader receives
+    /// one fewer byte than the true file content and marks the task as Completed
+    /// prematurely.  This tests how the executor handles a Content-Length mismatch.
+    pub fn file_url_wrong_length(&self) -> String {
+        format!("{}/file/wrong-length", self.addr)
     }
 }
 
@@ -414,6 +455,105 @@ async fn serve_file_bandwidth(
 
     let body = Body::from_stream(stream);
     (StatusCode::OK, headers, body).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/redirect/{code}
+// ---------------------------------------------------------------------------
+
+/// Redirect to `/file` with the given HTTP status code (301, 302, 307, 308).
+///
+/// reqwest follows the redirect automatically (up to 10 hops), so the
+/// downloader never sees the redirect status — it goes directly to `/file`.
+async fn serve_file_redirect(
+    State(_state): State<Arc<ServerState>>,
+    Path(code): Path<u16>,
+) -> impl IntoResponse {
+    let status = StatusCode::from_u16(code).unwrap_or(StatusCode::FOUND);
+    let mut headers = HeaderMap::new();
+    headers.insert(header::LOCATION, HeaderValue::from_static("/file"));
+    (status, headers, Vec::<u8>::new()).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/range-416
+// ---------------------------------------------------------------------------
+
+/// Return `200 OK` with full body and `Accept-Ranges: bytes` for non-range
+/// requests, but `416 Range Not Satisfiable` for any request with a `Range`
+/// header.
+///
+/// The `Accept-Ranges` header causes the executor to attempt parallel
+/// chunked downloads; each chunk worker gets 416 and fails.
+async fn serve_file_range_416(
+    State(state): State<Arc<ServerState>>,
+    req_headers: HeaderMap,
+) -> impl IntoResponse {
+    if req_headers.contains_key(header::RANGE) {
+        return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+    }
+    let mut headers = HeaderMap::new();
+    headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    headers.insert(header::CONTENT_LENGTH, usize_header_value(state.data.len()));
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
+    );
+    add_checksum_headers(&mut headers, &state);
+    (StatusCode::OK, headers, state.data.to_vec()).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/no-length
+// ---------------------------------------------------------------------------
+
+/// Serve the full file body **without** a `Content-Length` header.
+///
+/// The body is streamed so the HTTP layer uses chunked transfer encoding.
+/// Because no Content-Length is advertised, the executor falls back to
+/// single-stream mode and finishes when the TCP stream ends.
+async fn serve_file_no_length(
+    State(state): State<Arc<ServerState>>,
+) -> impl IntoResponse {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
+    );
+    add_checksum_headers(&mut headers, &state);
+
+    let data = state.data.clone();
+    let stream = stream::once(async move {
+        Ok::<Bytes, Infallible>(Bytes::copy_from_slice(&data))
+    });
+    let body = Body::from_stream(stream);
+    (StatusCode::OK, headers, body).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/wrong-length
+// ---------------------------------------------------------------------------
+
+/// Serve the full file body but with a `Content-Length` header set to
+/// `file_size - 1` (one byte less than the actual body).
+///
+/// The response body is truncated to match the declared Content-Length
+/// so the HTTP protocol layer accepts it.  This tests how the executor
+/// handles a server that advertises fewer bytes than the true content —
+/// hyper's protocol validation would reject a body longer than
+/// Content-Length.
+async fn serve_file_wrong_length(
+    State(state): State<Arc<ServerState>>,
+) -> impl IntoResponse {
+    let wrong_len = state.data.len().saturating_sub(1).max(1);
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_LENGTH, usize_header_value(wrong_len));
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
+    );
+    add_checksum_headers(&mut headers, &state);
+    (StatusCode::OK, headers, state.data[..wrong_len].to_vec()).into_response()
 }
 
 // ---------------------------------------------------------------------------

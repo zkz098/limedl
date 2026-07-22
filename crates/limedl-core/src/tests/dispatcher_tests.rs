@@ -16,6 +16,7 @@ use tempfile::tempdir;
 use tokio::sync::Notify;
 
 use crate::aimd::AimdState;
+use crate::backend_registry::BackendRegistry;
 use crate::dispatcher::Dispatcher;
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::manager::{DownloadCore, DownloadManager, ManagedDownload};
@@ -281,4 +282,90 @@ async fn dispatcher_pause_emits_updated() -> TestResult {
     }
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Tests: BT methods with non-BT TaskId return InvalidRequest
+// ---------------------------------------------------------------------------
+#[test]
+fn bt_set_speed_limit_with_http_taskid_returns_invalid_request() {
+    let event_bus = Arc::new(EventBus::new(16));
+    let registry = Arc::new(BackendRegistry::new());
+    let dispatcher = Dispatcher::new(registry, event_bus);
+
+    let task_id = TaskId::Http(uuid::Uuid::new_v4());
+    let result = dispatcher.bt_set_speed_limit(&task_id, Some(1024), Some(512));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("BT task"));
+}
+
+#[test]
+fn bt_get_peers_with_http_taskid_returns_invalid_request() {
+    let event_bus = Arc::new(EventBus::new(16));
+    let registry = Arc::new(BackendRegistry::new());
+    let dispatcher = Dispatcher::new(registry, event_bus);
+
+    let task_id = TaskId::Http(uuid::Uuid::new_v4());
+    let result = dispatcher.bt_get_peers(&task_id);
+    assert!(result.is_err());
+}
+
+#[test]
+fn bt_get_trackers_with_http_taskid_returns_invalid_request() {
+    let event_bus = Arc::new(EventBus::new(16));
+    let registry = Arc::new(BackendRegistry::new());
+    let dispatcher = Dispatcher::new(registry, event_bus);
+
+    let task_id = TaskId::Http(uuid::Uuid::new_v4());
+    let result = dispatcher.bt_get_trackers(&task_id);
+    assert!(result.is_err());
+}
+
+#[test]
+fn bt_get_pieces_with_http_taskid_returns_invalid_request() {
+    let event_bus = Arc::new(EventBus::new(16));
+    let registry = Arc::new(BackendRegistry::new());
+    let dispatcher = Dispatcher::new(registry, event_bus);
+
+    let task_id = TaskId::Http(uuid::Uuid::new_v4());
+    let result = dispatcher.bt_get_pieces(&task_id);
+    assert!(result.is_err());
+}
+
+#[test]
+fn bt_get_files_with_http_taskid_returns_invalid_request() {
+    let event_bus = Arc::new(EventBus::new(16));
+    let registry = Arc::new(BackendRegistry::new());
+    let dispatcher = Dispatcher::new(registry, event_bus);
+
+    let task_id = TaskId::Http(uuid::Uuid::new_v4());
+    let result = dispatcher.bt_get_files(&task_id);
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn bt_update_files_with_http_taskid_returns_invalid_request() {
+    let event_bus = Arc::new(EventBus::new(16));
+    let registry = Arc::new(BackendRegistry::new());
+    let dispatcher = Dispatcher::new(registry, event_bus);
+
+    let task_id = TaskId::Http(uuid::Uuid::new_v4());
+    let result = dispatcher.bt_update_files(&task_id, vec![]).await;
+    assert!(result.is_err());
+}
+
+// ---------------------------------------------------------------------------
+// Test: BT runtime status without BT backend returns Internal error
+// ---------------------------------------------------------------------------
+#[test]
+fn bt_runtime_status_without_bt_backend_returns_internal_error() {
+    let event_bus = Arc::new(EventBus::new(16));
+    let registry = Arc::new(BackendRegistry::new());
+    let dispatcher = Dispatcher::new(registry, event_bus);
+
+    let result = dispatcher.bt_runtime_status();
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("BT backend"));
 }

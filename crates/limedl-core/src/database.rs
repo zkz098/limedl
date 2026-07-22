@@ -1687,6 +1687,174 @@ mod tests {
         );
     }
 
+    // ── Migration compatibility (dirty-state) tests ───────────────
+    //
+    // These tests simulate databases created by old code that never set
+    // `user_version` but had columns backfilled by the "let _ = ..." pattern.
+    // `Database::open()` must detect these columns and run the correct
+    // remaining migrations.
+
+    /// Helper: create a raw v1 SQLite schema at `path` (downloads + chunks tables).
+    fn create_v1_schema(conn: &Connection) {
+        conn.execute_batch(super::CREATE_TABLES_SQL).unwrap();
+    }
+
+    /// Helper: read `user_version` PRAGMA from an open connection.
+    fn read_user_version(conn: &Connection) -> u32 {
+        conn.pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap()
+    }
+
+    /// Helper: apply migration v2 (add chunk_size column).
+    fn apply_v2(conn: &Connection) {
+        conn.execute("ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304", [])
+            .unwrap();
+    }
+
+    /// Helper: apply migration v3 (add mirror columns).
+    fn apply_v3(conn: &Connection) {
+        conn.execute("ALTER TABLE downloads ADD COLUMN mirror_url TEXT", []).unwrap();
+        conn.execute(
+            "ALTER TABLE downloads ADD COLUMN mirror_urls TEXT NOT NULL DEFAULT '[]'",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "ALTER TABLE downloads ADD COLUMN current_mirror_index INTEGER NOT NULL DEFAULT 0",
+            [],
+        )
+        .unwrap();
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn migration_compat_v0_with_chunk_size_backfilled() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+
+        // ── Simulate an old v0 database with chunk_size column backfilled ──
+        {
+            let conn = Connection::open(&path).unwrap();
+            create_v1_schema(&conn);
+            apply_v2(&conn);
+            // user_version is 0 (fresh database, never set)
+            assert_eq!(read_user_version(&conn), 0);
+        } // raw connection dropped — file is closed
+
+        // ── Open via Database::open() — compat should detect chunk_size ──
+        let db = Database::open(&path).unwrap();
+
+        // Verify all migrations ran: final version should be 5 (latest)
+        {
+            let conn = db.lock_write();
+            assert_eq!(
+                read_user_version(&conn),
+                5,
+                "expected user_version = 5 after migration"
+            );
+            let has_mirror_urls =
+                table_has_column(&conn, "downloads", "mirror_urls").unwrap();
+            assert!(has_mirror_urls, "mirror_urls column should exist after migration");
+        }
+
+        // Verify the database is fully functional
+        let mut m = new_test_manifest("compat-v0-a", "https://example.com/a", "a.bin");
+        m.chunk_size = 4194304; // v2 column
+        db.insert_download(&m).unwrap();
+        let loaded = db.get_download("compat-v0-a").unwrap().expect("should exist");
+        assert_eq!(loaded.id, "compat-v0-a");
+        assert_eq!(loaded.chunk_size, 4194304);
+        assert_eq!(db.count_downloads().unwrap(), 1);
+        assert!(loaded.mirror_urls.is_empty(), "mirror_urls should be empty");
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn migration_compat_v1_with_mirror_columns_backfilled() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+
+        // ── Simulate a v1 database with both chunk_size AND mirror columns
+        //    already backfilled by old code (user_version stuck at 1) ──
+        {
+            let conn = Connection::open(&path).unwrap();
+            create_v1_schema(&conn);
+            apply_v2(&conn);
+            apply_v3(&conn);
+            conn.pragma_update(None, "user_version", 1).unwrap();
+            assert_eq!(read_user_version(&conn), 1);
+        }
+
+        // ── Open — compat should bump version from 1 → 2 → 3 ──
+        let db = Database::open(&path).unwrap();
+
+        {
+            let conn = db.lock_write();
+            assert_eq!(
+                read_user_version(&conn),
+                5,
+                "expected user_version = 5 after migration"
+            );
+        }
+
+        // Functional check
+        let mut m = new_test_manifest("compat-v1-b", "https://example.com/b", "b.bin");
+        m.chunk_size = 4194304;
+        m.mirror_urls = vec!["https://mirror.example.com/b".into()];
+        m.current_mirror_index = 0;
+        db.insert_download(&m).unwrap();
+        let loaded = db.get_download("compat-v1-b").unwrap().expect("should exist");
+        assert_eq!(loaded.chunk_size, 4194304);
+        assert_eq!(loaded.mirror_urls.len(), 1);
+        assert_eq!(db.count_downloads().unwrap(), 1);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn migration_compat_v0_fully_backfilled() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+
+        // ── Simulate a fully backfilled pre-v4 schema with user_version = 0 ──
+        {
+            let conn = Connection::open(&path).unwrap();
+            create_v1_schema(&conn);
+            apply_v2(&conn);
+            apply_v3(&conn);
+            // Leave user_version at 0 (old code never set it)
+            assert_eq!(read_user_version(&conn), 0);
+        }
+
+        // ── Open — compat should lift 0 → 2 → 3, then run v4 + v5 ──
+        let db = Database::open(&path).unwrap();
+
+        {
+            let conn = db.lock_write();
+            assert_eq!(
+                read_user_version(&conn),
+                5,
+                "expected user_version = 5 after migration"
+            );
+        }
+
+        // Functional check: insert a download and verify all columns round-trip
+        let mut m = new_test_manifest("compat-v0-c", "https://example.com/c", "c.bin");
+        m.chunk_size = 2097152; // v2 column, non-default value
+        m.mirror_url = Some("https://mirror.example.com/c".into());
+        m.mirror_urls = vec![
+            "https://mirror1.example.com/c".into(),
+            "https://mirror2.example.com/c".into(),
+        ];
+        m.current_mirror_index = 1;
+        db.insert_download(&m).unwrap();
+        let loaded = db.get_download("compat-v0-c").unwrap().expect("should exist");
+        assert_eq!(loaded.chunk_size, 2097152);
+        assert_eq!(loaded.mirror_url.as_deref(), Some("https://mirror.example.com/c"));
+        assert_eq!(loaded.mirror_urls.len(), 2);
+        assert_eq!(loaded.current_mirror_index, 1);
+        assert_eq!(db.count_downloads().unwrap(), 1);
+    }
+
     #[test]
     fn empty_migrations_returns_err() {
         let empty: &[Migration] = &[];

@@ -60,6 +60,8 @@ export class WsMocker {
   private calls = new Map<string, unknown[]>();
   /** Tracks request IDs per method so respondToMethod can match the correct ID */
   private callIds = new Map<string, number[]>();
+  /** Auto-responses: method → result — automatically send when request arrives */
+  private autoResponses = new Map<string, unknown>();
   private connected = false;
 
   /**
@@ -80,6 +82,12 @@ export class WsMocker {
           if (parsed.method && parsed.id !== undefined && parsed.id !== null) {
             const method = parsed.method as string;
             const id = parsed.id as number;
+
+            // Check for auto-response first
+            if (this.autoResponses.has(method)) {
+              this.sendResponse(id, this.autoResponses.get(method)!);
+              // Still track the call for tests that need it
+            }
 
             // Store for getMethodCalls
             if (!this.calls.has(method)) {
@@ -151,11 +159,28 @@ export class WsMocker {
   }
 
   /**
-   * Send a JSON-RPC error response.
+   * Respond to the most recent JSON-RPC request with the given method name
+   * with a JSON-RPC error response.
    *
-   * Reserved for future use — currently all test responses are success cases.
+   * Looks up the request ID from the last captured call for `method` and
+   * sends an error response with that ID.
+   *
+   * Returns `true` if a matching request was found, `false` otherwise.
    */
-  private sendError(id: number, code: number, message: string): void {
+  respondWithError(method: string, code: number, message: string): boolean {
+    const ids = this.callIds.get(method);
+    if (!ids || ids.length === 0) {
+      return false;
+    }
+    const id = ids.shift()!;
+    this.sendError(id, code, message);
+    return true;
+  }
+
+  /**
+   * Send a JSON-RPC error response.
+   */
+  public sendError(id: number, code: number, message: string): void {
     this.sendRaw({
       jsonrpc: "2.0",
       id,
@@ -224,6 +249,17 @@ export class WsMocker {
   /** True after `install()` has intercepted a WebSocket connection. */
   get isConnected(): boolean {
     return this.connected;
+  }
+
+  /**
+   * Register an auto-response for a given RPC method.
+   * When a JSON-RPC request with this method arrives, the mocker will
+   * automatically respond with the provided result (using the correct
+   * request ID). This is useful for initialization RPCs that every test
+   * needs.
+   */
+  setAutoResponse(method: string, result: unknown): void {
+    this.autoResponses.set(method, result);
   }
 
   // -----------------------------------------------------------------------

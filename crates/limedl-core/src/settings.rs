@@ -1009,4 +1009,106 @@ mod tests {
         assert_eq!(loaded.proxy.manual_url, original.proxy.manual_url);
         assert!(path.exists());
     }
+
+    // -----------------------------------------------------------------------
+    // normalize_settings full-field clamping
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_normalize_settings_clamps_all_fields() {
+        let settings = AppSettings {
+            scheduler: SchedulerSettings {
+                traditional: TraditionalSchedulerSettings {
+                    max_parallel_tasks: 100,
+                },
+                automatic: AutomaticSchedulerSettings {
+                    max_parallel_threads: 128,
+                    max_threads_per_task: 200, // > 32 AND > max_parallel_threads (128)
+                    ..AutomaticSchedulerSettings::default()
+                },
+                ..SchedulerSettings::default()
+            },
+            io_baseline: IoBaselineSettings {
+                buffer_limit_mb: 16,        // below 64
+                game_mode_buffer_mb: 8192,  // above 4096
+                max_parallel_hdd: 32,       // above 16
+                game_mode_max_parallel: 10, // above 4
+                ..IoBaselineSettings::default()
+            },
+            download: DownloadDefaultsSettings {
+                default_max_retries: 100, // above 20
+                ..DownloadDefaultsSettings::default()
+            },
+            last_setup_step: Some(99), // above 9
+            max_in_memory_downloads: 5, // in the invalid 1–9 range
+            ..AppSettings::default()
+        };
+
+        let result = normalize_settings(settings).unwrap();
+
+        // Scheduler clamps
+        assert_eq!(result.scheduler.traditional.max_parallel_tasks, 32);
+        assert_eq!(result.scheduler.automatic.max_parallel_threads, 64);
+        // 200.clamp(1, 32) = 32, .min(64) = 32
+        assert_eq!(result.scheduler.automatic.max_threads_per_task, 32);
+
+        // IO baseline clamps
+        assert_eq!(result.io_baseline.buffer_limit_mb, 64);
+        assert_eq!(result.io_baseline.game_mode_buffer_mb, 4096);
+        assert_eq!(result.io_baseline.max_parallel_hdd, 16);
+        assert_eq!(result.io_baseline.game_mode_max_parallel, 4);
+
+        // Download defaults clamp
+        assert_eq!(result.download.default_max_retries, 20);
+
+        // last_setup_step clamp
+        assert_eq!(result.last_setup_step, Some(9));
+
+        // max_in_memory_downloads: 5 in 1–9 → clamped to 10
+        assert_eq!(result.max_in_memory_downloads, 10);
+    }
+
+    #[test]
+    fn test_normalize_settings_clamps_io_opposite_ends() {
+        // Test buffer_limit_mb above 32768 and game_mode_buffer_mb below 16
+        let settings = AppSettings {
+            io_baseline: IoBaselineSettings {
+                buffer_limit_mb: 65536,    // above 32768
+                game_mode_buffer_mb: 1,    // below 16
+                ..IoBaselineSettings::default()
+            },
+            ..AppSettings::default()
+        };
+        let result = normalize_settings(settings).unwrap();
+        assert_eq!(result.io_baseline.buffer_limit_mb, 32768);
+        assert_eq!(result.io_baseline.game_mode_buffer_mb, 16);
+    }
+
+    #[test]
+    fn test_normalize_settings_max_in_memory_edge_cases() {
+        // 0 → stays 0 (unlimited / no eviction)
+        let settings = AppSettings {
+            max_in_memory_downloads: 0,
+            ..AppSettings::default()
+        };
+        let result = normalize_settings(settings).unwrap();
+        assert_eq!(result.max_in_memory_downloads, 0);
+
+        // very high → clamped to 10000
+        let settings = AppSettings {
+            max_in_memory_downloads: 50000,
+            ..AppSettings::default()
+        };
+        let result = normalize_settings(settings).unwrap();
+        assert_eq!(result.max_in_memory_downloads, 10000);
+    }
+
+    #[test]
+    fn test_normalize_settings_last_setup_step_none_preserved() {
+        let settings = AppSettings {
+            last_setup_step: None,
+            ..AppSettings::default()
+        };
+        let result = normalize_settings(settings).unwrap();
+        assert_eq!(result.last_setup_step, None);
+    }
 }

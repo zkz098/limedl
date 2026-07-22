@@ -41,8 +41,9 @@ test.describe("pause and resume", () => {
     // Set up interception for download.pause
     const pausePromise = wsMocker.waitForMethod("download.pause");
 
-    // Click pause button in the DetailPanel actions area
-    await page.getByRole("button", { name: "Pause" }).click();
+    // Click pause button in the DetailPanel actions area.
+    // Use exact:true because sidebar "Paused" category button also matches "Pause".
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
 
     const pauseParams = await pausePromise;
     expect(pauseParams).toHaveProperty("taskId", TASK_ID);
@@ -67,7 +68,7 @@ test.describe("pause and resume", () => {
 
     // --- First pause ---
     const pausePromise = wsMocker.waitForMethod("download.pause");
-    await page.getByRole("button", { name: "Pause" }).click();
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
     await pausePromise;
 
     expect(wsMocker.respondToMethod("download.pause", makeMockSummary(TASK_ID, {

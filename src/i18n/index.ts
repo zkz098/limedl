@@ -9,7 +9,7 @@ function isSupportedLanguage(value: string): value is SupportedLanguage {
   return (supportedLanguages as readonly string[]).includes(value);
 }
 
-function normalizeLanguage(value?: string | null): SupportedLanguage {
+export function normalizeLanguage(value?: string | null): SupportedLanguage {
   if (value && isSupportedLanguage(value)) {
     return value;
   }
@@ -25,7 +25,7 @@ function normalizeLanguage(value?: string | null): SupportedLanguage {
   return "zh-CN";
 }
 
-function resolveInitialLanguage(): SupportedLanguage {
+export function resolveInitialLanguage(): SupportedLanguage {
   const stored = localStorage.getItem(storageKey);
   if (stored) {
     return normalizeLanguage(stored);

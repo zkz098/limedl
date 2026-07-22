@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:9090",
+      "localStorage": [
+        {
+          "name": "limedl.setupCompleted",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

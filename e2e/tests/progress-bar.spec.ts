@@ -18,7 +18,7 @@ test.describe("download progress bar", () => {
   const TASK_ID = "test-progress-001";
   const TOTAL_BYTES = 10_000_000;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, wsMocker }) => {
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
   });

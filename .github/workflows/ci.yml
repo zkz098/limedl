@@ -19,7 +19,61 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm exec vue-tsc --noEmit
-      - run: pnpm run test
+      - run: pnpm run test:coverage
+
+  e2e-nas-webui:
+    name: E2E (nas-webui Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: e2e-nas-webui
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf mold
+      - name: Build frontend (NAS mode)
+        run: pnpm run build:nas
+      - name: Build limedl-server
+        run: cargo build --release --manifest-path crates/limedl-server/Cargo.toml --bin limedl
+      - name: Start limedl-server daemon
+        # The daemon process is auto-reaped when the job ends (no explicit shutdown needed)
+        run: |
+          ./target/release/limedl daemon --user e2e --pass e2epass --port 9090 > server.log 2>&1 &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+          # Wait for the server to be ready
+          for i in {1..30}; do
+            if curl -sf -u e2e:e2epass http://localhost:9090/ > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf -u e2e:e2epass http://localhost:9090/ > /dev/null || { echo "Server failed to start"; cat server.log; exit 1; }
+      - name: Run E2E tests (nas-webui project)
+        run: pnpm run test:e2e:nas
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nas-webui
+          path: playwright-report/
+          if-no-files-found: warn
+      - name: Upload server logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: limedl-server-logs
+          path: server.log
+          if-no-files-found: warn
 
   check-windows:
     name: Check, Clippy & Test (Windows)
@@ -38,6 +92,8 @@ jobs:
       # src-tauri tests are also pure logic (no Tauri runtime needed).
       - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
       - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
+      # Verify the optional `tls` feature compiles — CI otherwise never exercises it.
+      - run: cargo check --manifest-path crates/limedl-server/Cargo.toml --features tls
       - run: cargo test --manifest-path src-tauri/Cargo.toml
 
   check-macos:
@@ -69,14 +125,26 @@ jobs:
           components: clippy
       - uses: swatinem/rust-cache@v2
       - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf mold
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check ts-rs bindings are up-to-date
         run: |
           cargo test --manifest-path crates/limedl-core/Cargo.toml --features ts export_typescript_bindings
           git diff --exit-code src/types/generated/ src/lib/ws/generated/
-      - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
-      - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Run tests with coverage
+        run: |
+          cargo llvm-cov --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info --coverage-target-only
+          cargo llvm-cov --manifest-path crates/limedl-server/Cargo.toml --lcov --output-path lcov-server.info --coverage-target-only
+          cargo llvm-cov --manifest-path src-tauri/Cargo.toml --lcov --output-path lcov-tauri.info --coverage-target-only
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage-lcov
+          path: lcov-*.info
+          if-no-files-found: warn
 
   bench-rust:
     name: Benchmark (Rust)

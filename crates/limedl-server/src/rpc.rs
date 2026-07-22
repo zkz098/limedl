@@ -993,6 +993,133 @@ mod tests {
             value.get("taskId").is_some() && value["taskId"]["id"].as_str().is_some(),
             "response missing taskId: {value:?}"
         );
+        assert_eq!(
+            value["taskId"]["kind"],
+            "http",
+            "expected HTTP task kind"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_start_url_too_long() {
+        let (state, tmp) = make_rpc_state().await;
+        let dest = tmp.path().join("output");
+
+        // URL exceeds 8192 byte limit (prefix ~20 chars + 8200 padding)
+        let long_url = format!("http://example.com/{}", "a".repeat(8200));
+        assert!(long_url.len() > 8192, "test URL must exceed 8192 bytes");
+
+        let params = serde_json::json!({
+            "url": long_url,
+            "destinationDir": dest.to_string_lossy(),
+            "fileName": "test.bin"
+        });
+
+        let result = dispatch_method("download.start", Some(&params), &state).await;
+        assert!(result.is_err(), "expected error for overly long URL");
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32602);
+        assert!(
+            err.message.contains("8192"),
+            "error message should mention 8192 byte limit: {err:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_start_magnet_too_long() {
+        let (state, tmp) = make_rpc_state().await;
+        let dest = tmp.path().join("output");
+
+        // Magnet link exceeding 4096 byte limit (magnet:?xt=urn:btih:... ~20 chars + 4100 padding)
+        let long_magnet = format!("magnet:?xt=urn:btih:{}", "a".repeat(4100));
+        assert!(long_magnet.len() > 4096, "test magnet must exceed 4096 bytes");
+
+        let params = serde_json::json!({
+            "url": long_magnet,
+            "destinationDir": dest.to_string_lossy(),
+        });
+
+        let result = dispatch_method("download.start", Some(&params), &state).await;
+        assert!(result.is_err(), "expected error for overly long magnet link");
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32602);
+        assert!(
+            err.message.contains("4096"),
+            "error message should mention 4096 byte limit: {err:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_start_unsupported_scheme_ftp() {
+        let (state, tmp) = make_rpc_state().await;
+        let dest = tmp.path().join("output");
+
+        let params = serde_json::json!({
+            "url": "ftp://example.com/file.zip",
+            "destinationDir": dest.to_string_lossy(),
+        });
+
+        let result = dispatch_method("download.start", Some(&params), &state).await;
+        assert!(result.is_err(), "expected error for ftp:// scheme");
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32602);
+        assert!(
+            err.message.contains("http") || err.message.contains("magnet"),
+            "error message should mention supported schemes: {err:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_start_unsupported_scheme_file() {
+        let (state, tmp) = make_rpc_state().await;
+        let dest = tmp.path().join("output");
+
+        let params = serde_json::json!({
+            "url": "file:///etc/passwd",
+            "destinationDir": dest.to_string_lossy(),
+        });
+
+        let result = dispatch_method("download.start", Some(&params), &state).await;
+        assert!(result.is_err(), "expected error for file:// scheme");
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_start_empty_url() {
+        let (state, tmp) = make_rpc_state().await;
+        let dest = tmp.path().join("output");
+
+        let params = serde_json::json!({
+            "url": "",
+            "destinationDir": dest.to_string_lossy(),
+        });
+
+        let result = dispatch_method("download.start", Some(&params), &state).await;
+        assert!(result.is_err(), "expected error for empty URL");
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_start_missing_destination_dir() {
+        let (state, _tmp) = make_rpc_state().await;
+
+        let params = serde_json::json!({
+            "url": "https://example.com/test.bin",
+            "fileName": "test.bin"
+        });
+
+        let result = dispatch_method("download.start", Some(&params), &state).await;
+        assert!(result.is_err(), "expected error for missing destinationDir");
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32602);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -1060,15 +1187,458 @@ mod tests {
         );
     }
 
+    // ── Helper: start a download with startPaused=true and return the
+    //    legacy taskId string ("http:<uuid>") for action method tests.
+
+    async fn start_download_get_legacy_id(state: &Arc<RpcState>, tmp: &TempDir) -> String {
+        let dest = tmp.path().join("output");
+        std::fs::create_dir_all(&dest).unwrap();
+
+        let params = serde_json::json!({
+            "url": "https://example.com/test.bin",
+            "destinationDir": dest.to_string_lossy(),
+            "fileName": "test.bin",
+            "startPaused": true,
+        });
+
+        let result = dispatch_method("download.start", Some(&params), state).await;
+        let value = result.expect("download.start should succeed");
+        let kind = value["taskId"]["kind"].as_str().expect("taskId.kind");
+        let id = value["taskId"]["id"].as_str().expect("taskId.id");
+        format!("{kind}:{id}")
+    }
+
+    // ── Download action focused tests ───────────────────────────────────
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_pause_succeeds() {
+        let (state, tmp) = make_rpc_state().await;
+        let task_id = start_download_get_legacy_id(&state, &tmp).await;
+        let params = serde_json::json!({ "taskId": task_id });
+        let result = dispatch_method("download.pause", Some(&params), &state).await;
+        assert!(result.is_ok(), "download.pause failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_resume_succeeds() {
+        let (state, tmp) = make_rpc_state().await;
+        let task_id = start_download_get_legacy_id(&state, &tmp).await;
+        // Pause first so resume has meaningful work
+        let params = serde_json::json!({ "taskId": task_id });
+        let _ = dispatch_method("download.pause", Some(&params), &state).await;
+        let result = dispatch_method("download.resume", Some(&params), &state).await;
+        assert!(result.is_ok(), "download.resume failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_cancel_succeeds() {
+        let (state, tmp) = make_rpc_state().await;
+        let task_id = start_download_get_legacy_id(&state, &tmp).await;
+        let params = serde_json::json!({ "taskId": task_id });
+        let result = dispatch_method("download.cancel", Some(&params), &state).await;
+        assert!(result.is_ok(), "download.cancel failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_status_returns_state() {
+        let (state, tmp) = make_rpc_state().await;
+        let task_id = start_download_get_legacy_id(&state, &tmp).await;
+        let params = serde_json::json!({ "taskId": task_id });
+        let result = dispatch_method("download.status", Some(&params), &state).await;
+        assert!(result.is_ok(), "download.status failed: {:?}", result.err());
+        let value = result.unwrap();
+        assert!(value.get("id").is_some(), "status missing 'id'");
+        assert!(value.get("state").is_some(), "status missing 'state'");
+        assert!(value.get("url").is_some(), "status missing 'url'");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_purge_succeeds() {
+        let (state, tmp) = make_rpc_state().await;
+        let task_id = start_download_get_legacy_id(&state, &tmp).await;
+        let params = serde_json::json!({ "taskId": task_id });
+
+        let result = dispatch_method("download.purge", Some(&params), &state).await;
+        assert!(result.is_ok(), "download.purge failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_remove_succeeds() {
+        let (state, tmp) = make_rpc_state().await;
+        let task_id = start_download_get_legacy_id(&state, &tmp).await;
+        let params = serde_json::json!({ "taskId": task_id });
+
+        let result = dispatch_method("download.remove", Some(&params), &state).await;
+        assert!(result.is_ok(), "download.remove failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_action_missing_params() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("download.pause", None, &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_action_missing_task_id() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("download.pause", Some(&serde_json::json!({})), &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_action_invalid_task_id() {
+        let (state, _tmp) = make_rpc_state().await;
+        let params = serde_json::json!({ "taskId": "not_a_valid_task_id" });
+        let result = dispatch_method("download.pause", Some(&params), &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    // ── BT method tests ────────────────────────────────────────────────
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_runtime_status_succeeds() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("bt.runtimeStatus", None, &state).await;
+        // Should succeed because BT backend is registered during bootstrap
+        assert!(result.is_ok(), "bt.runtimeStatus failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_get_peers_missing_params() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("bt.getPeers", None, &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_get_trackers_missing_task_id() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method(
+            "bt.getTrackers",
+            Some(&serde_json::json!({})),
+            &state,
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_get_pieces_invalid_task_id() {
+        let (state, _tmp) = make_rpc_state().await;
+        let params = serde_json::json!({ "taskId": "invalid" });
+        let result = dispatch_method("bt.getPieces", Some(&params), &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_get_files_invalid_task_id() {
+        let (state, _tmp) = make_rpc_state().await;
+        let params = serde_json::json!({ "taskId": "invalid" });
+        let result = dispatch_method("bt.getFiles", Some(&params), &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_set_speed_limit_missing_params() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("bt.setSpeedLimit", None, &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_preview_torrent_missing_source() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method(
+            "bt.previewTorrent",
+            Some(&serde_json::json!({})),
+            &state,
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_update_files_missing_params() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("bt.updateFiles", None, &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn bt_update_files_invalid_task_id() {
+        let (state, _tmp) = make_rpc_state().await;
+        let params = serde_json::json!({ "taskId": "bad!id!" });
+        let result = dispatch_method("bt.updateFiles", Some(&params), &state).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
+    // ── CDN method tests ──────────────────────────────────────────────
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_status_returns_idle() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("cdn.status", None, &state).await;
+        assert!(result.is_ok(), "cdn.status failed: {:?}", result.err());
+        let value = result.unwrap();
+        // Initially no test has been run, so CDN should be Idle
+        assert_eq!(value.as_str(), Some("Idle"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_detail_returns() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("cdn.detail", None, &state).await;
+        assert!(result.is_ok(), "cdn.detail failed: {:?}", result.err());
+        let value = result.unwrap();
+        assert!(value.get("state").is_some(), "cdn.detail missing 'state'");
+        assert!(value.get("candidates").is_some(), "cdn.detail missing 'candidates'");
+        assert_eq!(value["state"], "Idle");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_cancel_succeeds() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("cdn.cancel", None, &state).await;
+        assert!(result.is_ok(), "cdn.cancel failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_fetch_ranges_succeeds() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("cdn.fetchRanges", None, &state).await;
+        assert!(result.is_ok(), "cdn.fetchRanges failed: {:?}", result.err());
+        let value = result.unwrap();
+        assert!(
+            value.as_array().is_some(),
+            "cdn.fetchRanges should return an array"
+        );
+        // Cloudflare IPv4 ranges should be non-empty
+        assert!(
+            !value.as_array().unwrap().is_empty(),
+            "cdn.fetchRanges should return at least one range"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_clear_succeeds() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("cdn.clear", None, &state).await;
+        assert!(result.is_ok(), "cdn.clear failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_test_succeeds() {
+        let (state, _tmp) = make_rpc_state().await;
+        // cdn.test starts a speed test (spawns async task) — should return null
+        let result = dispatch_method("cdn.test", None, &state).await;
+        assert!(result.is_ok(), "cdn.test failed: {:?}", result.err());
+        assert_eq!(result.unwrap(), serde_json::json!(null));
+        // Clean up the test we just started
+        let _ = dispatch_method("cdn.cancel", None, &state).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_apply_valid_ip() {
+        let (state, _tmp) = make_rpc_state().await;
+        let params = serde_json::json!({
+            "ip": "1.1.1.1",
+            "speedMbps": 100.0
+        });
+        let result = dispatch_method("cdn.apply", Some(&params), &state).await;
+        assert!(result.is_ok(), "cdn.apply with valid IP failed: {:?}", result.err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_apply_invalid_ip() {
+        let (state, _tmp) = make_rpc_state().await;
+        let params = serde_json::json!({
+            "ip": "not-an-ip"
+        });
+        let result = dispatch_method("cdn.apply", Some(&params), &state).await;
+        assert!(result.is_err(), "cdn.apply should fail with invalid IP");
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32602);
+        assert!(
+            err.message.contains("Invalid IP address"),
+            "error should mention IP: {err:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn cdn_candidates_returns_array() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("cdn.candidates", None, &state).await;
+        assert!(result.is_ok(), "cdn.candidates failed: {:?}", result.err());
+        let value = result.unwrap();
+        assert!(value.is_array(), "cdn.candidates should return an array");
+        // Initially no test has been run, so candidates should be empty
+        assert_eq!(
+            value.as_array().unwrap().len(),
+            0,
+            "candidates should be empty before any test"
+        );
+    }
+
+    // ── extract_method_name ────────────────────────────────────────────
+
+    #[test]
+    fn extract_method_name_valid() {
+        let text = r#"{"jsonrpc":"2.0","id":1,"method":"cdn.status","params":[]}"#;
+        assert_eq!(extract_method_name(text), Some("cdn.status"));
+    }
+
+    #[test]
+    fn extract_method_name_with_whitespace() {
+        let text = r#"{"jsonrpc":"2.0","id":1,"method":  "cdn.status"  }"#;
+        assert_eq!(extract_method_name(text), Some("cdn.status"));
+    }
+
+    #[test]
+    fn extract_method_name_missing_field() {
+        let text = r#"{"jsonrpc":"2.0","id":1}"#;
+        assert_eq!(extract_method_name(text), None);
+    }
+
+    #[test]
+    fn extract_method_name_non_string_method() {
+        // method is a number (e.g. malformed JSON-RPC)
+        let text = r#"{"jsonrpc":"2.0","id":1,"method":42}"#;
+        assert_eq!(extract_method_name(text), None);
+    }
+
+    #[test]
+    fn extract_method_name_empty_string() {
+        let text = r#"{"jsonrpc":"2.0","id":1,"method":""}"#;
+        assert_eq!(extract_method_name(text), Some(""));
+    }
+
+    #[test]
+    fn extract_method_name_null_method() {
+        let text = r#"{"jsonrpc":"2.0","id":1,"method":null}"#;
+        assert_eq!(extract_method_name(text), None);
+    }
+
+    // ── Settings / UI method tests ────────────────────────────────────
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn settings_toggle_game_mode() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method(
+            "settings.toggleGameMode",
+            Some(&serde_json::json!({ "enabled": true })),
+            &state,
+        )
+        .await;
+        assert!(result.is_ok(), "settings.toggleGameMode failed: {:?}", result.err());
+        assert_eq!(result.unwrap(), serde_json::json!(true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn settings_get_io_status_returns() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("settings.getIoStatus", None, &state).await;
+        assert!(result.is_ok(), "settings.getIoStatus failed: {:?}", result.err());
+        let value = result.unwrap();
+        assert!(value.get("gameMode").is_some(), "missing gameMode");
+        assert!(value.get("bufferUsageBytes").is_some(), "missing bufferUsageBytes");
+        assert!(value.get("activeSlots").is_some(), "missing activeSlots");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn settings_toggle_overclock_mode() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method(
+            "settings.toggleOverclockMode",
+            Some(&serde_json::json!({ "enabled": true })),
+            &state,
+        )
+        .await;
+        assert!(result.is_ok(), "settings.toggleOverclockMode failed: {:?}", result.err());
+        assert_eq!(result.unwrap(), serde_json::json!(true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn settings_get_overclock_mode_returns() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("settings.getOverclockMode", None, &state).await;
+        assert!(result.is_ok(), "settings.getOverclockMode failed: {:?}", result.err());
+        assert!(result.unwrap().is_boolean());
+    }
+
+    // ── Other handler edge cases and unknown methods ─────────────────
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn download_open_in_explorer_missing_params() {
+        let (state, _tmp) = make_rpc_state().await;
+        let result = dispatch_method("download.openInExplorer", None, &state).await;
+        assert!(result.is_err(), "expected error for missing params");
+        assert_eq!(result.unwrap_err().code, -32602);
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     #[timeout(30_000)]
     async fn method_not_found_returns_error() {
         let (state, _tmp) = make_rpc_state().await;
         let result = dispatch_method("nonexistent.method", None, &state).await;
         assert!(result.is_err());
-        if let Err(err) = result {
-            assert_eq!(err.code, -32601);
-            assert!(err.message.contains("nonexistent.method"));
-        }
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32601);
+        assert!(err.message.contains("nonexistent.method"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[timeout(30_000)]
+    async fn unknown_download_method_returns_error() {
+        let (state, _tmp) = make_rpc_state().await;
+        // A plausible-looking but non-existent download sub-command
+        let result = dispatch_method("download.unknownMethod", None, &state).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.code, -32601);
+        assert!(err.message.contains("download.unknownMethod"));
     }
 }

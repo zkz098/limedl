@@ -84,15 +84,7 @@ async fn run_daemon(
     let mut cfg = ServerConfig::load(&cfg_path)?;
 
     // CLI overrides
-    if let Some(p) = port {
-        cfg.port = p;
-    }
-    if let (Some(u), Some(p)) = (user, pass) {
-        cfg.auth = Some(config::AuthConfig {
-            username: u,
-            password: p,
-        });
-    }
+    cfg.apply_cli_overrides(port, user, pass);
 
     // ── Startup security check ──────────────────────────────────────────
     check_listen_safety(&cfg.host, cfg.port, cfg.auth.is_some())?;
@@ -404,4 +396,119 @@ async fn run_single_download(url: &str, output: Option<&PathBuf>) -> anyhow::Res
     let _ = std::fs::remove_dir_all(&temp_dir);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Serializes env-var-mutating tests. `cargo test` runs tests in parallel
+    /// by default, and `LIMEDL_ALLOW_NO_AUTH` is process-global state — without
+    /// this lock, a sibling test could `set_var` between this test's
+    /// `remove_var` and its `check_listen_safety` call, flipping the result.
+    static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Guard that removes `LIMEDL_ALLOW_NO_AUTH` on drop, ensuring tests that
+    /// set this env var don't pollute sibling tests.
+    struct AllowNoAuthGuard;
+    impl Drop for AllowNoAuthGuard {
+        fn drop(&mut self) {
+            // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+            unsafe {
+                std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+            }
+        }
+    }
+
+    #[test]
+    fn localhost_ipv4_always_allowed_without_auth() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe {
+            std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+        }
+        assert!(check_listen_safety("127.0.0.1", 9090, false).is_ok());
+    }
+
+    #[test]
+    fn localhost_ipv6_always_allowed_without_auth() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe {
+            std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+        }
+        assert!(check_listen_safety("::1", 9090, false).is_ok());
+    }
+
+    #[test]
+    fn localhost_string_hostname_always_allowed_without_auth() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe {
+            std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+        }
+        assert!(check_listen_safety("localhost", 9090, false).is_ok());
+    }
+
+    #[test]
+    fn auth_enabled_allows_non_localhost_binding() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe {
+            std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+        }
+        assert!(check_listen_safety("8.8.8.8", 9090, true).is_ok());
+    }
+
+    #[test]
+    fn private_network_without_auth_rejects_without_opt_out_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe {
+            std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+        }
+        let err = check_listen_safety("10.0.0.1", 9090, false).unwrap_err();
+        assert!(
+            err.to_string().contains("LIMEDL_ALLOW_NO_AUTH"),
+            "expected error to mention LIMEDL_ALLOW_NO_AUTH, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn private_network_without_auth_allowed_with_opt_out_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe {
+            std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+        }
+        let _guard = AllowNoAuthGuard;
+        // SAFETY: test-only env var mutation, Dropped by AllowNoAuthGuard
+        unsafe {
+            std::env::set_var("LIMEDL_ALLOW_NO_AUTH", "1");
+        }
+        assert!(check_listen_safety("192.168.1.1", 9090, false).is_ok());
+    }
+
+    #[test]
+    fn public_ip_without_auth_always_rejects() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe {
+            std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
+        }
+        let err = check_listen_safety("8.8.8.8", 9090, false).unwrap_err();
+        assert!(
+            err.to_string().contains("public address"),
+            "expected error to mention 'public address', got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn public_ip_with_auth_allowed() {
+        // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
+        unsafe { std::env::remove_var("LIMEDL_ALLOW_NO_AUTH"); }
+        assert!(check_listen_safety("1.1.1.1", 9090, true).is_ok());
+    }
 }

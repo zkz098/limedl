@@ -523,11 +523,17 @@ pub use imp::detect_disk_type;
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::Path;
 
     use ntest::timeout;
     use tempfile::tempdir;
 
-    use super::{finalize_temp_file, open_download_file, reset_download_file, write_all_at};
+    use super::{
+        check_disk_space, cleanup_finalizing_paths, fallback_copy_staging_to_destination,
+        files_have_same_content, finalize_temp_file, open_download_file, preallocate_file,
+        reset_download_file, unique_finalizing_path, write_all_at,
+    };
+    use crate::error::DownloadError;
 
     type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -617,6 +623,324 @@ mod tests {
 
         assert!(!source.exists());
         assert_eq!(fs::read(&destination)?, b"complete");
+        Ok(())
+    }
+
+    // ── check_disk_space ──────────────────────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn check_disk_space_insufficient() -> TestResult {
+        let temp = tempdir()?;
+        let available = fs4::available_space(temp.path())?;
+
+        // Request more than available (incl. 10% buffer) → error
+        let required_bytes = available + 1;
+        let result = check_disk_space(temp.path(), required_bytes);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DownloadError::InsufficientDiskSpace { available: a, required: r } => {
+                // Disk free space may fluctuate between query and check;
+                // verify the invariant rather than exact values.
+                assert!(
+                    a < r,
+                    "available ({a}) must be less than required ({r})"
+                );
+                assert_eq!(
+                    r,
+                    required_bytes + required_bytes / 10,
+                    "required should include 10% buffer"
+                );
+            }
+            other => panic!("expected InsufficientDiskSpace, got {other:?}"),
+        }
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn check_disk_space_sufficient() -> TestResult {
+        let temp = tempdir()?;
+
+        // 1 byte required — way less than any real filesystem has available
+        let result = check_disk_space(temp.path(), 1);
+
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    // ── preallocate_file ──────────────────────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn preallocate_file_skips_on_none() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("none.dat");
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)?;
+
+        assert!(preallocate_file(&file, None).is_ok());
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn preallocate_file_fails_on_readonly_fd() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("readonly.dat");
+        // Create writable, close, reopen read-only
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)?;
+        drop(file);
+
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .open(&path)?;
+
+        let result = preallocate_file(&file, Some(4096));
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    // ── write_all_at ──────────────────────────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn write_all_at_empty_buffer_succeeds() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("empty.dat");
+        let file = open_download_file(&path, Some(1024))?;
+
+        write_all_at(&file, b"", 0)?;
+        // File should remain at the preallocated size
+        assert_eq!(file.metadata()?.len(), 1024);
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn write_all_at_fails_on_readonly_fd() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("write_ro.dat");
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)?;
+        drop(file);
+
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .open(&path)?;
+
+        let result = write_all_at(&file, b"data", 0);
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    // ── finalize_temp_file cross-device ───────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn finalize_temp_file_cross_device_copy() -> TestResult {
+        // Find a second writable volume to trigger CrossesDevices fallback
+        let drives: Vec<String> = (b'C'..=b'Z')
+            .map(|c| format!("{}:\\", c as char))
+            .filter(|p| Path::new(p).exists())
+            .collect();
+
+        if drives.len() < 2 {
+            // Single-drive system — can't test cross-device rename
+            return Ok(());
+        }
+
+        let dir_a = tempfile::tempdir_in(&drives[0])?;
+        let dir_b = tempfile::tempdir_in(&drives[1])?;
+
+        let source = dir_a.path().join("source.dat");
+        let destination = dir_b.path().join("dest.dat");
+        fs::write(&source, b"cross-device content")?;
+
+        finalize_temp_file(&source, &destination)?;
+
+        assert!(!source.exists(), "source should be removed");
+        assert_eq!(fs::read(&destination)?, b"cross-device content");
+        Ok(())
+    }
+
+    // ── files_have_same_content ───────────────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn files_have_same_content_different_sizes() -> TestResult {
+        let temp = tempdir()?;
+        let a = temp.path().join("a.txt");
+        let b = temp.path().join("b.txt");
+        fs::write(&a, b"short")?;
+        fs::write(&b, b"longer content")?;
+
+        assert!(!files_have_same_content(&a, &b)?);
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn files_have_same_content_same_size_different() -> TestResult {
+        let temp = tempdir()?;
+        let left = temp.path().join("left.bin");
+        let right = temp.path().join("right.bin");
+        fs::write(&left, b"AAAA")?;
+        fs::write(&right, b"BBBB")?;
+
+        assert!(!files_have_same_content(&left, &right)?);
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn files_have_same_content_identical() -> TestResult {
+        let temp = tempdir()?;
+        let a = temp.path().join("a.txt");
+        let b = temp.path().join("b.txt");
+        let content = b"The quick brown fox jumps over the lazy dog 1234567890";
+        fs::write(&a, content)?;
+        fs::write(&b, content)?;
+
+        assert!(files_have_same_content(&a, &b)?);
+        Ok(())
+    }
+
+    // ── unique_finalizing_path ────────────────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn unique_finalizing_path_no_existing_files() -> TestResult {
+        let temp = tempdir()?;
+        let dest = temp.path().join("myfile.bin");
+        let staging = unique_finalizing_path(&dest)?;
+
+        let display = staging.to_string_lossy();
+        assert!(display.contains("myfile.bin.finalizing."));
+        assert!(!staging.exists());
+        assert_eq!(staging.parent(), Some(temp.path()));
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn unique_finalizing_path_without_extension() -> TestResult {
+        let temp = tempdir()?;
+        let dest = temp.path().join("myfile");
+        let staging = unique_finalizing_path(&dest)?;
+
+        let display = staging.to_string_lossy();
+        assert!(display.contains("myfile.finalizing."));
+        assert!(!staging.exists());
+        Ok(())
+    }
+
+    // ── cleanup_finalizing_paths ────────────────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn cleanup_finalizing_paths_removes_matching() -> TestResult {
+        let temp = tempdir()?;
+        let dest = temp.path().join("myfile.bin");
+
+        // Create some finalizing files (matching and non-matching prefixes)
+        let f1 = temp.path().join("myfile.bin.finalizing.1234.0.tmp");
+        let f2 = temp.path().join("myfile.bin.finalizing.1234.1.tmp");
+        let f3 = temp.path().join("otherfile.finalizing.1234.0.tmp");
+        let f4 = temp.path().join("unrelated.txt");
+        fs::write(&f1, b"")?;
+        fs::write(&f2, b"")?;
+        fs::write(&f3, b"")?;
+        fs::write(&f4, b"")?;
+
+        cleanup_finalizing_paths(&dest)?;
+
+        assert!(!f1.exists(), "matching finalizing file 1 should be removed");
+        assert!(!f2.exists(), "matching finalizing file 2 should be removed");
+        assert!(f3.exists(), "non-matching finalizing file should remain");
+        assert!(f4.exists(), "unrelated file should remain");
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn cleanup_finalizing_paths_no_parent() -> TestResult {
+        // A path with no parent (empty) should hit the early-return and be a no-op
+        cleanup_finalizing_paths(Path::new(""))?;
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn cleanup_finalizing_paths_read_dir_fails() -> TestResult {
+        // Non-existent parent directory → read_dir fails → error returned
+        let nonexistent = Path::new(r"\__nonexistent_test_dir__\file.bin");
+        let result = cleanup_finalizing_paths(nonexistent);
+        assert!(result.is_err(), "expected error for non-existent parent");
+        Ok(())
+    }
+
+    // ── unique_finalizing_path exhaustion ──────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn unique_finalizing_path_exhaustion() -> TestResult {
+        let temp = tempdir()?;
+        let dest = temp.path().join("myfile.bin");
+        let pid = std::process::id();
+
+        // Create 1000 files matching all attempt slots (0..1000) to exhaust the loop
+        for i in 0..1000u16 {
+            let name = format!("myfile.bin.finalizing.{pid}.{i}.tmp");
+            let path = temp.path().join(&name);
+            fs::write(&path, b"")?;
+        }
+
+        let result = unique_finalizing_path(&dest);
+        assert!(result.is_err(), "expected exhaustion error");
+        match result.unwrap_err() {
+            DownloadError::Io(io_err) => {
+                assert_eq!(io_err.kind(), std::io::ErrorKind::AlreadyExists);
+            }
+            other => panic!("expected Io(AlreadyExists), got {other:?}"),
+        }
+        Ok(())
+    }
+
+    // ── fallback_copy_staging_to_destination ───────
+
+    #[timeout(30_000)]
+    #[test]
+    fn fallback_copy_staging_to_destination_already_exists() -> TestResult {
+        let temp = tempdir()?;
+        let staging = temp.path().join("staging.tmp");
+        let dest = temp.path().join("dest.bin");
+
+        fs::write(&staging, b"staging content")?;
+        fs::write(&dest, b"existing content")?;
+
+        let result = fallback_copy_staging_to_destination(&staging, &dest);
+        assert!(result.is_err(), "expected error when destination exists");
+        match result.unwrap_err() {
+            DownloadError::Io(io_err) => {
+                assert_eq!(io_err.kind(), std::io::ErrorKind::AlreadyExists);
+            }
+            other => panic!("expected Io(AlreadyExists), got {other:?}"),
+        }
         Ok(())
     }
 }

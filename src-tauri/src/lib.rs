@@ -35,6 +35,51 @@ use download::{
     toggle_overclock_mode, update_bt_files,
 };
 
+/// Maps a [`DownloadEvent`] to a Tauri event name and JSON payload.
+///
+/// Pure function — no side effects. This is the single source of truth for
+/// the shape of every event emitted to the Tauri frontend.
+fn map_event_to_emit(event: &DownloadEvent) -> (&str, serde_json::Value) {
+    match event {
+        DownloadEvent::Updated { summary_json, .. } => {
+            ("download-updated", summary_json.clone())
+        }
+        DownloadEvent::Progress { progress_json, .. } => {
+            ("download-progress", progress_json.clone())
+        }
+        DownloadEvent::Aria2Notification { event_name, gid } => {
+            (event_name.as_str(), serde_json::json!(gid))
+        }
+        DownloadEvent::CdnProgress {
+            phase,
+            current,
+            total,
+        } => (
+            "cdn-test-progress",
+            serde_json::json!({
+                "phase": phase,
+                "current": current,
+                "total": total,
+            }),
+        ),
+        DownloadEvent::CdnComplete {
+            state,
+            active_ip,
+            active_speed_mbps,
+        } => (
+            "cdn-test-complete",
+            serde_json::json!({
+                "state": state,
+                "activeIp": active_ip,
+                "activeSpeedMbps": active_speed_mbps,
+            }),
+        ),
+        DownloadEvent::Warning { id, message } => {
+            ("download-warning", serde_json::json!({ "id": id, "message": message }))
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -117,62 +162,10 @@ pub fn run() {
                     tauri::async_runtime::spawn(async move {
                         loop {
                             match rx.recv().await {
-                                Ok(event) => match &event {
-                                    DownloadEvent::Updated {
-                                        id: _,
-                                        summary_json,
-                                    } => {
-                                        let _ =
-                                            app_handle_tx.emit("download-updated", summary_json);
-                                    }
-                                    DownloadEvent::Progress {
-                                        id: _,
-                                        progress_json,
-                                    } => {
-                                        let _ =
-                                            app_handle_tx.emit("download-progress", progress_json);
-                                    }
-                                    DownloadEvent::Aria2Notification { event_name, gid } => {
-                                        let _ = app_handle_tx.emit(event_name, gid);
-                                    }
-                                    DownloadEvent::CdnProgress {
-                                        phase,
-                                        current,
-                                        total,
-                                    } => {
-                                        let _ = app_handle_tx.emit(
-                                            "cdn-test-progress",
-                                            serde_json::json!({
-                                                "phase": phase,
-                                                "current": current,
-                                                "total": total,
-                                            }),
-                                        );
-                                    }
-                                    DownloadEvent::CdnComplete {
-                                        state,
-                                        active_ip,
-                                        active_speed_mbps,
-                                    } => {
-                                        let _ = app_handle_tx.emit(
-                                            "cdn-test-complete",
-                                            serde_json::json!({
-                                                "state": state,
-                                                "activeIp": active_ip,
-                                                "activeSpeedMbps": active_speed_mbps,
-                                            }),
-                                        );
-                                    }
-                                    DownloadEvent::Warning { id, message } => {
-                                        let _ = app_handle_tx.emit(
-                                            "download-warning",
-                                            serde_json::json!({
-                                                "id": id,
-                                                "message": message,
-                                            }),
-                                        );
-                                    }
-                                },
+                                Ok(event) => {
+                                    let (event_name, payload) = map_event_to_emit(&event);
+                                    let _ = app_handle_tx.emit(event_name, payload);
+                                }
                                 Err(broadcast::error::RecvError::Lagged(n)) => {
                                     tracing::warn!("EventBus subscriber lagged by {n} messages");
                                     state.emit_all_downloads().await;
@@ -330,5 +323,186 @@ pub fn run() {
 
     if let Err(error) = run_result {
         eprintln!("[limedl] tauri runtime failed: {error}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use download::event_bus::DownloadEvent;
+
+    // ── Sample event helpers ──────────────────────────────────────────────
+
+    fn ev_updated() -> DownloadEvent {
+        DownloadEvent::Updated {
+            id: "t1".into(),
+            summary_json: serde_json::json!({
+                "id": "t1",
+                "status": "completed",
+                "progress": 1.0,
+            }),
+        }
+    }
+
+    fn ev_progress() -> DownloadEvent {
+        DownloadEvent::Progress {
+            id: "t1".into(),
+            progress_json: serde_json::json!({
+                "id": "t1",
+                "downloaded": 1024,
+                "speedBps": 512000,
+            }),
+        }
+    }
+
+    fn ev_aria2() -> DownloadEvent {
+        DownloadEvent::Aria2Notification {
+            event_name: "bt-on-download-complete".into(),
+            gid: "gid-abc123".into(),
+        }
+    }
+
+    fn ev_cdn_progress() -> DownloadEvent {
+        DownloadEvent::CdnProgress {
+            phase: "probing".into(),
+            current: 3,
+            total: 10,
+        }
+    }
+
+    fn ev_cdn_complete_some() -> DownloadEvent {
+        DownloadEvent::CdnComplete {
+            state: "completed".into(),
+            active_ip: Some("1.2.3.4".into()),
+            active_speed_mbps: Some(50.0),
+        }
+    }
+
+    fn ev_cdn_complete_none() -> DownloadEvent {
+        DownloadEvent::CdnComplete {
+            state: "failed".into(),
+            active_ip: None,
+            active_speed_mbps: None,
+        }
+    }
+
+    fn ev_warning() -> DownloadEvent {
+        DownloadEvent::Warning {
+            id: "t1".into(),
+            message: "Connection reset by peer".into(),
+        }
+    }
+
+    // ── map_event_to_emit tests ──────────────────────────────────────────
+
+    #[test]
+    fn map_updated_returns_correct_event_name_and_passthrough_payload() {
+        let event = ev_updated();
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "download-updated");
+        assert_eq!(payload["id"], "t1");
+        assert_eq!(payload["status"], "completed");
+        assert_eq!(payload["progress"], 1.0);
+    }
+
+    #[test]
+    fn map_progress_returns_correct_event_name_and_passthrough_payload() {
+        let event = ev_progress();
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "download-progress");
+        assert_eq!(payload["id"], "t1");
+        assert_eq!(payload["downloaded"], 1024);
+        assert_eq!(payload["speedBps"], 512000);
+    }
+
+    #[test]
+    fn map_aria2_notification_preserves_dynamic_event_name() {
+        let event = ev_aria2();
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "bt-on-download-complete");
+        // gid is emitted as a raw JSON string value
+        assert_eq!(payload, serde_json::json!("gid-abc123"));
+    }
+
+    #[test]
+    fn map_cdn_progress_returns_correct_event_name_and_fields() {
+        let event = ev_cdn_progress();
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "cdn-test-progress");
+        assert_eq!(payload["phase"], "probing");
+        assert_eq!(payload["current"], 3);
+        assert_eq!(payload["total"], 10);
+    }
+
+    #[test]
+    fn map_cdn_complete_with_values_uses_camel_case_fields() {
+        let event = ev_cdn_complete_some();
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "cdn-test-complete");
+        assert_eq!(payload["state"], "completed");
+        assert_eq!(payload["activeIp"], "1.2.3.4");
+        assert_eq!(payload["activeSpeedMbps"], 50.0);
+    }
+
+    #[test]
+    fn map_cdn_complete_with_nulls_emits_null_fields() {
+        let event = ev_cdn_complete_none();
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "cdn-test-complete");
+        assert_eq!(payload["state"], "failed");
+        assert!(payload["activeIp"].is_null());
+        assert!(payload["activeSpeedMbps"].is_null());
+    }
+
+    #[test]
+    fn map_warning_returns_correct_event_name_and_fields() {
+        let event = ev_warning();
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "download-warning");
+        assert_eq!(payload["id"], "t1");
+        assert_eq!(payload["message"], "Connection reset by peer");
+    }
+
+    #[test]
+    fn map_updated_null_payload_round_trips() {
+        let event = DownloadEvent::Updated {
+            id: "t1".into(),
+            summary_json: serde_json::Value::Null,
+        };
+        let (name, payload) = map_event_to_emit(&event);
+        assert_eq!(name, "download-updated");
+        assert!(payload.is_null());
+    }
+
+    #[test]
+    fn map_all_variants_have_unique_event_names() {
+        let events: [DownloadEvent; 8] = [
+            ev_updated(),
+            ev_progress(),
+            ev_aria2(),
+            ev_cdn_progress(),
+            ev_cdn_complete_some(),
+            ev_cdn_complete_none(),
+            ev_warning(),
+            // Another Aria2Notification with a different dynamic event name
+            DownloadEvent::Aria2Notification {
+                event_name: "bt-on-download-start".into(),
+                gid: "gid-xyz".into(),
+            },
+        ];
+        let names: Vec<&str> = events
+            .iter()
+            .map(|e| map_event_to_emit(e).0)
+            .collect();
+        // The first 6 should be unique (Aria2Notification is dynamic so duplicates possible)
+        assert_eq!(names[0], "download-updated");
+        assert_eq!(names[1], "download-progress");
+        assert_eq!(names[3], "cdn-test-progress");
+        assert_eq!(names[4], "cdn-test-complete");
+        assert_eq!(names[5], "cdn-test-complete");
+        assert_eq!(names[6], "download-warning");
+        // Dynamic event names preserved
+        assert_eq!(names[2], "bt-on-download-complete");
+        assert_eq!(names[7], "bt-on-download-start");
     }
 }

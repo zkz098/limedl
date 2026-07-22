@@ -129,4 +129,114 @@ impl From<anyhow::Error> for DownloadError {
     }
 }
 
+
 pub type Result<T> = std::result::Result<T, DownloadError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn io_error_with_path_permission_denied() {
+        let err = std::io::Error::from_raw_os_error(5); // ERROR_ACCESS_DENIED on Windows
+        let download_err = io_error_with_path(err, "/test/path");
+        assert_eq!(download_err.kind(), "permission_denied");
+    }
+
+    #[test]
+    fn io_error_with_path_other_io_error() {
+        let err = std::io::Error::from_raw_os_error(2); // ERROR_FILE_NOT_FOUND
+        let download_err = io_error_with_path(err, "/test/path");
+        assert_eq!(download_err.kind(), "io");
+    }
+
+    #[test]
+    fn extract_kind_from_anyhow_direct() {
+        let err = anyhow::Error::from(DownloadError::NotFound);
+        let kind = extract_kind_from_anyhow(&err);
+        assert_eq!(kind, "not_found");
+    }
+
+    #[test]
+    fn from_anyhow_direct_download_error() {
+        let anyhow_err = anyhow::Error::from(DownloadError::NotFound);
+        let result: DownloadError = anyhow_err.into();
+        assert_eq!(result.kind(), "not_found");
+    }
+
+    #[test]
+    fn from_anyhow_internal_with_kind_prefix() {
+        // An anyhow error with [kind] prefix in message but no DownloadError in chain
+        let anyhow_err = anyhow::anyhow!("[permission_denied] failed to write");
+        let result: DownloadError = anyhow_err.into();
+        // Falls through to Internal because the [kind] prefix is just text, not parsed
+        assert_eq!(result.kind(), "internal");
+    }
+
+    #[test]
+    fn from_anyhow_bare_internal_error() {
+        let anyhow_err = anyhow::anyhow!("something went wrong");
+        let result: DownloadError = anyhow_err.into();
+        assert_eq!(result.kind(), "internal");
+    }
+
+    /// Exhaustively tests that every `DownloadError` variant returns the correct `kind()` string.
+    /// This catches missing `kind()` arms when new variants are added — the `_ => "unknown"`
+    /// fallback silences the compiler, so this test provides the safety net.
+    #[test]
+    fn download_error_kind_exhaustive() {
+        // ---- Variants without payload ----
+        assert_eq!(DownloadError::UnsupportedScheme.kind(), "unsupported_scheme");
+        assert_eq!(DownloadError::NotFound.kind(), "not_found");
+        assert_eq!(DownloadError::AlreadyRunning.kind(), "already_running");
+        assert_eq!(DownloadError::NotResumable.kind(), "not_resumable");
+        assert_eq!(DownloadError::Canceled.kind(), "canceled");
+        assert_eq!(DownloadError::MissingFileName.kind(), "missing_file_name");
+        assert_eq!(DownloadError::Interrupted.kind(), "interrupted");
+        assert_eq!(DownloadError::TooManyConcurrentDownloads.kind(), "too_many_concurrent_downloads");
+
+        // ---- Variants with String payload ----
+        assert_eq!(DownloadError::InvalidResponse("test".into()).kind(), "invalid_response");
+        assert_eq!(DownloadError::InvalidRequest("test".into()).kind(), "invalid_request");
+        assert_eq!(DownloadError::InvalidProxy("test".into()).kind(), "invalid_proxy");
+        assert_eq!(DownloadError::Torrent("test".into()).kind(), "torrent");
+        assert_eq!(DownloadError::TorrentNetwork("test".into()).kind(), "torrent_network");
+        assert_eq!(DownloadError::TorrentInvalidData("test".into()).kind(), "torrent_invalid_data");
+        assert_eq!(DownloadError::TorrentIo("test".into()).kind(), "torrent_io");
+        assert_eq!(DownloadError::DatabaseInit("test".into()).kind(), "database_init");
+        assert_eq!(DownloadError::Internal("test".into()).kind(), "internal");
+
+        // ---- Variants wrapping external error types ----
+        assert_eq!(
+            DownloadError::Io(std::io::Error::other("test")).kind(),
+            "io",
+        );
+        let serde_err = serde_json::from_str::<()>("invalid json").unwrap_err();
+        assert_eq!(DownloadError::Serde(serde_err).kind(), "serde");
+
+        // Construct a reqwest::Error via build() with an invalid URL
+        let http_err = reqwest::Client::new()
+            .get("http://") // empty host triggers URL parse error
+            .build()
+            .unwrap_err();
+        assert_eq!(DownloadError::Http(http_err).kind(), "http");
+
+        // ---- Struct variants ----
+        assert_eq!(
+            DownloadError::PermissionDenied {
+                path: "/data/file".into(),
+                source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied"),
+            }
+            .kind(),
+            "permission_denied",
+        );
+        assert_eq!(
+            DownloadError::InsufficientDiskSpace {
+                available: 0,
+                required: 100,
+            }
+            .kind(),
+            "insufficient_disk_space",
+        );
+    }
+}

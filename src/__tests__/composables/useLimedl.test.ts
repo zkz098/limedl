@@ -45,6 +45,32 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
   sendNotification: vi.fn(),
 }));
 
+// ── Mock useNotification ────────────────────────────────────────────────────
+const {
+  mockNotifySuccess,
+  mockNotifyError,
+  mockNotifyInfo,
+  mockNotifyWarning,
+} = vi.hoisted(() => ({
+  mockNotifySuccess: vi.fn(),
+  mockNotifyError: vi.fn(),
+  mockNotifyInfo: vi.fn(),
+  mockNotifyWarning: vi.fn(),
+}));
+
+vi.mock("../../composables/useNotification", () => ({
+  useNotification: () => ({
+    notifySuccess: mockNotifySuccess,
+    notifyError: mockNotifyError,
+    notifyInfo: mockNotifyInfo,
+    notifyWarning: mockNotifyWarning,
+    clearAll: vi.fn(),
+    notify: vi.fn(),
+    dismiss: vi.fn(),
+    notifications: { value: [] },
+  }),
+}));
+
 // ── Mock i18n ───────────────────────────────────────────────────────────────
 vi.mock("../../i18n", () => ({
   t: vi.fn((key: string, options?: Record<string, unknown>) => {
@@ -77,11 +103,12 @@ import {
   createMockDownloadSnapshot,
   resetMockIds,
 } from "../fixtures/downloads";
-import type { DownloadSummary } from "../../types/download";
+import type { BtRuntimeStatus, DownloadSummary } from "../../types/download";
 import {
   startDownload,
   listDownloads,
   getDownloadStatus,
+  getBtRuntimeStatus,
   pauseDownload,
   resumeDownload,
 } from "../../lib/tauri/download-api";
@@ -91,6 +118,15 @@ const mockListDownloads = vi.mocked(listDownloads);
 const mockGetDownloadStatus = vi.mocked(getDownloadStatus);
 const mockPauseDownload = vi.mocked(pauseDownload);
 const mockResumeDownload = vi.mocked(resumeDownload);
+
+import {
+  isPermissionGranted,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
+import { removeDownload } from "../../lib/tauri/download-api";
+const mockRemoveDownload = vi.mocked(removeDownload);
+const mockIsPermissionGranted = vi.mocked(isPermissionGranted);
+const mockSendNotification = vi.mocked(sendNotification);
 
 // ── Suite ───────────────────────────────────────────────────────────────────
 
@@ -422,6 +458,302 @@ describe("useLimedl", () => {
 
       expect(onDownloadFailed).toHaveBeenCalledTimes(1);
       expect(onDownloadFailed).toHaveBeenCalledWith("test.zip", expect.any(String));
+    });
+  });
+
+  // ── removeSummary ──────────────────────────────────────────────────────
+
+  describe("removeSummary", () => {
+    beforeEach(async () => {
+      // Populate with 2 downloads
+      const snap1 = createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" });
+      const snap2 = createMockDownloadSnapshot({ id: "task-2", fileName: "b.zip" });
+      mockGetDownloadStatus.mockResolvedValueOnce(snap1);
+      mockGetDownloadStatus.mockResolvedValueOnce(snap2);
+      await limedlInstance.refreshStatus("task-1", { silent: true });
+      await limedlInstance.refreshStatus("task-2", { silent: true });
+    });
+
+    it("clears selection when removing currently-selected download", async () => {
+      await limedlInstance.selectDownload("task-1");
+      mockRemoveDownload.mockResolvedValue(
+        createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" }),
+      );
+
+      await limedlInstance.runDeleteTask("task-1");
+
+      expect(limedlInstance.downloads.value).toHaveLength(1);
+      expect(limedlInstance.downloads.value[0].id).toBe("task-2");
+      expect(limedlInstance.selectedId.value).toBeNull();
+      expect(limedlInstance.selectedSnapshot.value).toBeNull();
+    });
+
+    it("preserves selection when removing non-selected download", async () => {
+      await limedlInstance.selectDownload("task-1");
+      mockRemoveDownload.mockResolvedValue(
+        createMockDownloadSnapshot({ id: "task-2", fileName: "b.zip" }),
+      );
+
+      await limedlInstance.runDeleteTask("task-2");
+
+      expect(limedlInstance.downloads.value).toHaveLength(1);
+      expect(limedlInstance.selectedId.value).toBe("task-1");
+    });
+
+    it("calls onDownloadsRemoved callback when provided", async () => {
+      const onDownloadsRemoved = vi.fn();
+
+      vi.resetModules();
+      const mod = await import("../../composables/useLimedl");
+      const instance = mod.createLimedl({ onDownloadsRemoved });
+
+      const snap = createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" });
+      mockGetDownloadStatus.mockResolvedValueOnce(snap);
+      await instance.refreshStatus("task-1", { silent: true });
+
+      mockRemoveDownload.mockResolvedValue(
+        createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" }),
+      );
+
+      await instance.runDeleteTask("task-1");
+
+      expect(onDownloadsRemoved).toHaveBeenCalledTimes(1);
+      expect(onDownloadsRemoved).toHaveBeenCalledWith(["task-1"]);
+    });
+  });
+
+  // ── ensureSelection ─────────────────────────────────────────────────────
+
+  describe("ensureSelection", () => {
+    it("auto-selects first download when allowAutoSelect=true and no current selection", async () => {
+      const tasks = createMockDownloadList(2, { fileName: "test.zip" });
+      mockListDownloads.mockResolvedValue(tasks);
+
+      await limedlInstance.refreshList();
+
+      expect(limedlInstance.selectedId.value).toBe(tasks[0].id);
+    });
+
+    it("clears selection when allowAutoSelect=false", async () => {
+      const tasks = createMockDownloadList(2, { fileName: "test.zip" });
+      mockListDownloads.mockResolvedValue(tasks);
+      await limedlInstance.refreshList();
+      expect(limedlInstance.selectedId.value).toBe(tasks[0].id);
+
+      // Deselect sets allowAutoSelect=false
+      await limedlInstance.selectDownload(null);
+      expect(limedlInstance.selectedId.value).toBeNull();
+
+      // New list — ensureSelection should NOT auto-select
+      const newTasks = createMockDownloadList(1, { fileName: "b.zip" });
+      mockListDownloads.mockResolvedValue(newTasks);
+      await limedlInstance.refreshList();
+
+      expect(limedlInstance.selectedId.value).toBeNull();
+    });
+
+    it("no-op when selected ID is still in the list", async () => {
+      const tasks = createMockDownloadList(1, { fileName: "test.zip", id: "stay-id" });
+      mockListDownloads.mockResolvedValue(tasks);
+      await limedlInstance.refreshList();
+
+      // refreshList auto-selects the first download
+      expect(limedlInstance.selectedId.value).toBe("stay-id");
+
+      // Same list again — ensureSelection should no-op
+      mockListDownloads.mockResolvedValue(tasks);
+      await limedlInstance.refreshList();
+
+      expect(limedlInstance.selectedId.value).toBe("stay-id");
+    });
+  });
+
+  // ── refreshBtRuntimeStatus ──────────────────────────────────────────────
+
+  describe("refreshBtRuntimeStatus", () => {
+    it("success path updates btRuntimeStatus", async () => {
+      const status: BtRuntimeStatus = {
+        connected: true,
+        dhtEnabled: true,
+        dhtNodes: 42,
+        torrentCount: 5,
+        peerCount: 100,
+        uploadSpeedBytesPerSecond: 1_000_000,
+        uploadedBytes: 0,
+        updatedAtMs: Date.now(),
+        seedCount: null,
+        leechCount: null,
+      };
+      vi.mocked(getBtRuntimeStatus).mockResolvedValue(status);
+
+      await limedlInstance.refreshBtRuntimeStatus();
+
+      expect(limedlInstance.btRuntimeStatus.value).toEqual(status);
+      expect(mockNotifyError).not.toHaveBeenCalled();
+    });
+
+    it("silent error does NOT show error toast", async () => {
+      vi.mocked(getBtRuntimeStatus).mockRejectedValue(new Error("Network unavailable"));
+
+      await limedlInstance.refreshBtRuntimeStatus({ silent: true });
+
+      expect(mockNotifyError).not.toHaveBeenCalled();
+    });
+
+    it("non-silent error DOES show error toast", async () => {
+      vi.mocked(getBtRuntimeStatus).mockRejectedValue(new Error("Connection timeout"));
+
+      await limedlInstance.refreshBtRuntimeStatus();
+
+      expect(mockNotifyError).toHaveBeenCalledTimes(1);
+      // toFriendlyError converts "Connection timeout" → "errors.connectionTimeout"
+      expect(mockNotifyError).toHaveBeenCalledWith("errors.connectionTimeout");
+    });
+  });
+
+  // ── handleDownloadUpdated ───────────────────────────────────────────────
+
+  describe("handleDownloadUpdated", () => {
+    it("downloading → completed shows success toast", async () => {
+      const onDownloadFailed = vi.fn();
+
+      vi.resetModules();
+      const mod = await import("../../composables/useLimedl");
+      mod.createLimedl({ onDownloadFailed });
+
+      const task = createMockDownloadTask({
+        id: "task-1",
+        state: "downloading",
+        fileName: "test.zip",
+      });
+      mockListDownloads.mockResolvedValue([task]);
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
+
+      await capturedOnMounted!();
+      await vi.waitFor(() => {
+        expect(onUpdated).not.toBeNull();
+      });
+
+      const completed = createMockDownloadTask({
+        id: "task-1",
+        state: "completed",
+        fileName: "test.zip",
+      });
+      onUpdated!(JSON.parse(JSON.stringify(completed)));
+
+      expect(mockNotifySuccess).toHaveBeenCalledWith("notifications.downloadComplete");
+      expect(onDownloadFailed).not.toHaveBeenCalled();
+    });
+
+    it("downloading → failed calls onDownloadFailed callback with filename and error", async () => {
+      const onDownloadFailed = vi.fn();
+
+      vi.resetModules();
+      const mod = await import("../../composables/useLimedl");
+      mod.createLimedl({ onDownloadFailed });
+
+      const task = createMockDownloadTask({
+        id: "task-1",
+        state: "downloading",
+        fileName: "test.zip",
+      });
+      mockListDownloads.mockResolvedValue([task]);
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
+
+      await capturedOnMounted!();
+      await vi.waitFor(() => {
+        expect(onUpdated).not.toBeNull();
+      });
+
+      const failedSummary = createMockDownloadTask({
+        id: "task-1",
+        state: "failed",
+        fileName: "test.zip",
+        error: "HTTP status 404",
+      });
+      onUpdated!(JSON.parse(JSON.stringify(failedSummary)));
+
+      expect(onDownloadFailed).toHaveBeenCalledTimes(1);
+      expect(onDownloadFailed).toHaveBeenCalledWith("test.zip", expect.stringContaining("errors.http404"));
+      expect(mockNotifySuccess).not.toHaveBeenCalled();
+    });
+
+    it("same-state transition does not fire notifications", async () => {
+      const onDownloadFailed = vi.fn();
+
+      vi.resetModules();
+      const mod = await import("../../composables/useLimedl");
+      mod.createLimedl({ onDownloadFailed });
+
+      const task = createMockDownloadTask({
+        id: "task-1",
+        state: "downloading",
+        fileName: "test.zip",
+      });
+      mockListDownloads.mockResolvedValue([task]);
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
+
+      await capturedOnMounted!();
+      await vi.waitFor(() => {
+        expect(onUpdated).not.toBeNull();
+      });
+
+      // Trigger same-state update: downloading → downloading
+      const sameState = createMockDownloadTask({
+        id: "task-1",
+        state: "downloading",
+        fileName: "test.zip",
+        downloadedBytes: 500,
+      });
+      onUpdated!(JSON.parse(JSON.stringify(sameState)));
+
+      expect(onDownloadFailed).not.toHaveBeenCalled();
+      expect(mockNotifySuccess).not.toHaveBeenCalled();
+    });
+
+    it("sends OS notification when enabled and download completes", async () => {
+      mockIsPermissionGranted.mockResolvedValue(true);
+
+      // Use the limedlInstance from beforeEach, set up list and listeners
+      const task = createMockDownloadTask({
+        id: "task-1",
+        state: "downloading",
+        fileName: "test.zip",
+      });
+      mockListDownloads.mockResolvedValue([task]);
+      mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
+
+      await capturedOnMounted!();
+      await vi.waitFor(() => {
+        expect(onUpdated).not.toBeNull();
+      });
+
+      limedlInstance.setNotificationsEnabled(true);
+
+      const completed = createMockDownloadTask({
+        id: "task-1",
+        state: "completed",
+        fileName: "test.zip",
+      });
+      onUpdated!(JSON.parse(JSON.stringify(completed)));
+
+      await vi.waitFor(() => {
+        expect(mockSendNotification).toHaveBeenCalledWith({
+          title: "notifications.downloadComplete",
+          body: expect.stringContaining("test.zip"),
+        });
+      });
+    });
+  });
+
+  // ── setNotificationsEnabled ─────────────────────────────────────────────
+
+  describe("setNotificationsEnabled", () => {
+    it("toggles the notifications flag without error", () => {
+      expect(typeof limedlInstance.setNotificationsEnabled).toBe("function");
+
+      limedlInstance.setNotificationsEnabled(true);
+      limedlInstance.setNotificationsEnabled(false);
     });
   });
 });

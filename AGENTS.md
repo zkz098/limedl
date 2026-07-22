@@ -141,10 +141,10 @@ Six-job matrix across three platforms:
 
 | Job | OS | Key steps |
 |-----|----|-----------|
-| **lint-typescript** | ubuntu-latest | `pnpm install --frozen-lockfile` → `pnpm run lint` → `vue-tsc --noEmit` → `pnpm run test` |
-| **check-windows** | windows-latest | `cargo clippy --workspace -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
-| **check-macos** | macos-14 | `cargo clippy --workspace -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
-| **check-rust** | ubuntu-latest | `cargo clippy --workspace -- -D warnings` → ts-rs bindings freshness check (see below) → 3× per-crate `cargo test` |
+| **lint-typescript** | ubuntu-latest | `pnpm install --frozen-lockfile` → `pnpm run lint` → `vue-tsc --noEmit` → `pnpm run test:coverage` |
+| **check-windows** | windows-latest | `cargo clippy --workspace --all-targets -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
+| **check-macos** | macos-14 | `cargo clippy --workspace --all-targets -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
+| **check-rust** | ubuntu-latest | `cargo clippy --workspace --all-targets -- -D warnings` → ts-rs bindings freshness check (see below) → 3× per-crate `cargo test` → `cargo check --features tls` (server TLS feature compiles) |
 | **bench-rust** | ubuntu-latest | `cargo bench` for `aimd` + `rate_limiter` benchmarks, with baseline comparison on `push` |
 | **supply-chain** | ubuntu-latest | `cargo deny check` (bans + licenses + sources) + `cargo audit` |
 
@@ -310,7 +310,7 @@ resource.lib : warning LNK4078: found multiple ".rsrc" sections with different a
 
 ## Local pre-push verification (required)
 
-CI runs `cargo clippy --workspace -- -D warnings` (without `--all-targets`), which only lints the default build targets. Several test-mode clippy warnings (`len_without_is_empty`, `identity_op`, `duplicate_mod`, `needless_borrows_for_generic_args`, `to_string_in_format_args`) only surface under `--all-targets`. Before pushing, run the **stricter local trio** and ensure RC=0 — CI cannot catch regressions here without `--all-targets`:
+CI runs `cargo clippy --workspace --all-targets -- -D warnings` on all three platforms (windows/macos/ubuntu), which already lints test targets and surfaces test-mode clippy regressions (`len_without_is_empty`, `identity_op`, `duplicate_mod`, `needless_borrows_for_generic_args`, `to_string_in_format_args`). The local per-crate trio below mirrors CI per-crate with the same `--all-targets` flag — running it reproduces CI's lint pass with the right feature scope (`test-utils`, `aria2-rpc`) so feature-gated test helpers are linted under the same configuration CI uses. Run before pushing and ensure RC=0:
 
 ```powershell
 & "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64 | Out-Null

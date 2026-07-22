@@ -21,8 +21,17 @@ export async function seedDownloadTask(
   page: Page,
   wsMocker: WsMocker,
   taskId: string,
-  options: { url?: string; fileName?: string; totalBytes?: number; kind?: string } = {},
-): Promise<void> {
+  options: {
+    url?: string;
+    fileName?: string;
+    totalBytes?: number;
+    kind?: string;
+    /** Previous task summaries to include in the download.list response,
+     *  so the auto-response (which would otherwise clear the list) doesn't
+     *  wipe out already-seeded tasks. */
+    previousSummaries?: Record<string, unknown>[];
+  } = {},
+): Promise<Record<string, unknown>> {
   const url = options.url ?? "http://127.0.0.1:9876/10mb.bin";
   const fileName = options.fileName ?? "10mb.bin";
   const totalBytes = options.totalBytes ?? 10_000_000;
@@ -33,21 +42,33 @@ export async function seedDownloadTask(
   const dialog = page.getByRole("dialog");
   await dialog.getByPlaceholder("Paste a link or choose a torrent file").fill(url);
 
+  // Override the download.list auto-response with the accumulated summaries
+  // BEFORE the app's refreshList sends its download.list call. Without this,
+  // the auto-response returns [] and clears previously-seeded tasks.
+  const allSummaries = [
+    ...(options.previousSummaries ?? []),
+    makeMockSummary(taskId, { url, fileName, totalBytes, kind }),
+  ];
+  wsMocker.setAutoResponse("download.list", allSummaries);
+
   // Wait for download.start
   const startPromise = wsMocker.waitForMethod("download.start");
   await dialog.getByRole("button", { name: "Start download" }).click();
   await startPromise;
 
-  // Respond to download.start
-  wsMocker.respondToMethod("download.start", { taskId: { kind, id: taskId } });
+  // Respond to download.start (returns TaskIdResult: { kind, id })
+  wsMocker.respondToMethod("download.start", { kind, id: taskId });
 
-  // Respond to download.list
+  // The download.list response is handled by the auto-response override above.
+  // Still wait for it so the app's refreshList completes before we continue.
   await wsMocker.waitForMethod("download.list");
-  wsMocker.respondToMethod("download.list", []);
 
   // Respond to download.status
+  const currentSummary = makeMockSummary(taskId, { url, fileName, totalBytes, kind });
   await wsMocker.waitForMethod("download.status");
-  wsMocker.respondToMethod("download.status", makeMockSummary(taskId, { url, fileName, totalBytes, kind }));
+  wsMocker.respondToMethod("download.status", currentSummary);
+
+  return currentSummary;
 }
 
 /** Create a realistic mock DownloadSummary for test responses */

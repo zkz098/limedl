@@ -2405,4 +2405,164 @@ mod tests {
         let content = fs::read(_dir.path().join("test.bin")).unwrap();
         assert_eq!(&content[..9], b"AAABBBCCC");
     }
+
+    // -----------------------------------------------------------------------
+    // Background flush failure recovery (read-only file)
+    // -----------------------------------------------------------------------
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_background_flush_failure_using_readonly_file() {
+        // Simulate a background flush I/O failure by making the target file
+        // read-only.  The buffer is created without an IoWorker, so the
+        // background flush uses spawn_blocking → write_all_at fails → error_flag
+        // is set → subsequent operations return an error.
+        let pool = Arc::new(BufferPool::new(1, 1, 4, 1));
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("test.bin");
+
+        // Create the file, then make it read-only on the filesystem.
+        fs::File::create(&path).expect("create file");
+        {
+            let mut perms = fs::metadata(&path).expect("metadata").permissions();
+            perms.set_readonly(true);
+            fs::set_permissions(&path, perms).expect("set read-only");
+        }
+
+        // Open the file without write access — any seek_write / pwrite call
+        // will fail immediately.
+        let file = Arc::new(
+            fs::OpenOptions::new()
+                .read(true)
+                .open(&path)
+                .expect("open read-only file"),
+        );
+
+        let slot = pool.acquire_slot().await;
+        let buf = DownloadBuffer::new(pool.clone(), slot, file);
+
+        assert!(!buf.has_degraded());
+        assert_eq!(buf.len(), 0);
+
+        let half = pool.half_size();
+        // Two chunks whose combined size exceeds half_size — this triggers
+        // a flip and a background flush.
+        let chunk_size = half / 2 + 1;
+        let chunk1 = Bytes::from(vec![0xABu8; chunk_size as usize]);
+        let chunk2 = Bytes::from(vec![0xBCu8; chunk_size as usize]);
+
+        buf.buffer_chunk(0, chunk1).await.unwrap();
+        // Second chunk fills active half → flip → background flush → write fails
+        // → error_flag is set by the background task.
+        buf.buffer_chunk(half, chunk2).await.unwrap();
+
+        // Wait for the background task to complete and set the error flag.
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(5);
+        while !buf.has_degraded() {
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            if tokio::time::Instant::now() >= deadline {
+                panic!("background flush did not set error flag within 5 s");
+            }
+        }
+
+        // 1) error_flag is set after a failed flush
+        assert!(buf.has_degraded());
+
+        // 2) Subsequent buffer_chunk returns Err(DownloadError::Internal)
+        let result = buf.buffer_chunk(half * 2, Bytes::from("fail")).await;
+        match result {
+            Err(DownloadError::Internal(msg)) => {
+                assert!(
+                    msg.contains("background buffer flush failed"),
+                    "unexpected message: {msg}"
+                );
+            }
+            other => panic!("expected Err(Internal), got {other:?}"),
+        }
+
+        // 3) has_degraded remains true after the error
+        assert!(buf.has_degraded());
+
+        // 4) flush_all also returns an error (checks error_flag internally)
+        let result = buf.flush_all().await;
+        match result {
+            Err(DownloadError::Internal(msg)) => {
+                assert!(
+                    msg.contains("background buffer flush failed"),
+                    "unexpected message: {msg}"
+                );
+            }
+            other => panic!("expected Err(Internal), got {other:?}"),
+        }
+
+        // 5) Buffer drops cleanly and releases its slot
+        drop(buf);
+        assert_eq!(pool.active_slots(), 0);
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_background_flush_failure_using_readonly_file_with_worker() {
+        // Same scenario as above but the buffer uses IoWorker — the background
+        // flush goes through the dedicated I/O worker thread instead of
+        // spawn_blocking.
+        let pool = Arc::new(BufferPool::new(1, 1, 4, 1));
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("test.bin");
+
+        fs::File::create(&path).expect("create file");
+        {
+            let mut perms = fs::metadata(&path).expect("metadata").permissions();
+            perms.set_readonly(true);
+            fs::set_permissions(&path, perms).expect("set read-only");
+        }
+
+        let file = Arc::new(
+            fs::OpenOptions::new()
+                .read(true)
+                .open(&path)
+                .expect("open read-only file"),
+        );
+
+        let slot = pool.acquire_slot().await;
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file, worker);
+
+        assert!(!buf.has_degraded());
+        assert_eq!(buf.len(), 0);
+
+        let half = pool.half_size();
+        let chunk_size = half / 2 + 1;
+        let chunk1 = Bytes::from(vec![0xABu8; chunk_size as usize]);
+        let chunk2 = Bytes::from(vec![0xBCu8; chunk_size as usize]);
+
+        buf.buffer_chunk(0, chunk1).await.unwrap();
+        buf.buffer_chunk(half, chunk2).await.unwrap();
+
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(5);
+        while !buf.has_degraded() {
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            if tokio::time::Instant::now() >= deadline {
+                panic!("background flush did not set error flag within 5 s");
+            }
+        }
+
+        assert!(buf.has_degraded());
+
+        // buffer_chunk returns Err after background flush failure
+        let result = buf.buffer_chunk(half * 2, Bytes::from("fail")).await;
+        match result {
+            Err(DownloadError::Internal(msg)) => {
+                assert!(
+                    msg.contains("background buffer flush failed"),
+                    "unexpected message: {msg}"
+                );
+            }
+            other => panic!("expected Err(Internal), got {other:?}"),
+        }
+
+        // Buffer drops cleanly and releases slot
+        drop(buf);
+        assert_eq!(pool.active_slots(), 0);
+    }
 }

@@ -12,7 +12,7 @@ import { METHOD_MAP, WS_COMMANDS } from "./generated/ws-commands";
 import type { WsCommandSpec } from "./generated/ws-commands";
 import { EVENT_TYPE_MAP } from "./generated/ws-events";
 
-function isNonNullObject(value: unknown): value is Record<string, unknown> {
+export function isNonNullObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
@@ -22,7 +22,7 @@ function isNonNullObject(value: unknown): value is Record<string, unknown> {
  * Replaces the previous hardcoded 12-rule switch statement with a generic
  * handler driven by the transform kind declared in `WS_COMMANDS`.
  */
-function applyTransform(spec: WsCommandSpec | undefined, args?: Record<string, unknown>): Record<string, unknown> {
+export function applyTransform(spec: WsCommandSpec | undefined, args?: Record<string, unknown>): Record<string, unknown> {
   if (!args) return {};
   if (!spec) return args;
 
@@ -259,7 +259,7 @@ function getWs(): Promise<WebSocket> {
   return connectPromise;
 }
 
-function mapEventType(type: string, _payload: unknown): string | null {
+export function mapEventType(type: string, _payload: unknown): string | null {
   return EVENT_TYPE_MAP[type] ?? null;
 }
 

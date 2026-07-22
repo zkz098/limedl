@@ -3,7 +3,7 @@
  *
  * These tests verify the complete user flow through the Tauri limedl UI:
  * navigation between views, opening the download composer, URL input,
- * and form validation.
+ * form validation, and error handling.
  *
  * IMPORTANT: Full download E2E (start → progress → complete → verify)
  * requires a running test file server. See `src-tauri/src/download/test_harness.rs`
@@ -17,6 +17,95 @@
  */
 
 import { test, expect } from "../fixtures";
+
+/**
+ * Default mock AppSettings returned by settings.get.
+ */
+function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    globalSpeedLimitBps: 0,
+    appearance: {
+      themeColor: "amber",
+      backgroundOpacity: "default",
+      colorMode: "dark",
+      showDetailInfo: true,
+      showHeatmap: true,
+      sortKey: "added_at",
+      sortDirection: "desc",
+      compactView: false,
+      visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
+    },
+    proxy: { mode: "disabled", manualUrl: "" },
+    scheduler: {
+      mode: "automatic",
+      traditional: { maxParallelTasks: 3 },
+      automatic: {
+        maxParallelThreads: 8,
+        maxThreadsPerTask: 4,
+        minThreadsPerTask: 1,
+        adaptiveProfile: "balanced",
+      },
+      chunkSizeStrategy: "adaptive",
+    },
+    download: {
+      defaultDownloadDir: "/downloads",
+      defaultMaxRetries: 3,
+      defaultChecksum: "none",
+      defaultUserAgent: "",
+    },
+    bt: {
+      pauseUploadWhenLimitReached: false,
+      uploadLimitBytes: 0,
+      uploadRatioLimit: 0,
+      dhtEnabled: true,
+      trackerList: "",
+      trackerListUrl: "",
+      listenPort: null,
+      listenPortRange: null,
+      upnpEnabled: true,
+      enableNatpmp: true,
+      enableIpv6: false,
+      enablePex: true,
+      enableLsd: true,
+      enableUtp: true,
+      enableFastExtension: true,
+      enableHolepunch: true,
+      enableWebSeed: true,
+      enableSuperSeeding: false,
+      globalDownloadRateLimit: 0,
+      globalUploadRateLimit: 0,
+      preallocateMode: "none",
+      encryptionMode: "enabled",
+      maxDownloads: 5,
+      maxSeeds: 3,
+      maxTorrents: 20,
+      activeLimit: 10,
+    },
+    logging: { enabled: false, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    aria2Rpc: { enabled: false, port: 6800, secret: null },
+    cdnAcceleration: {
+      enabled: false,
+      activeIp: null,
+      activeSpeedMbps: null,
+      lastTestAtMs: null,
+      lastError: null,
+    },
+    githubMirror: { enabled: false, mirrors: [] },
+    notifications: { enabled: true },
+    ioBaseline: {
+      bufferLimitMb: 256,
+      gameModeBufferMb: 64,
+      gameMode: false,
+      diskTypeOverrides: {},
+      maxParallelHdd: 2,
+      gameModeMaxParallel: 1,
+    },
+    autostart: false,
+    setupCompleted: true,
+    lastSetupStep: null,
+    ...overrides,
+  };
+}
 
 test.describe("download flow", () => {
   test.describe.configure({ mode: "serial" });
@@ -51,13 +140,14 @@ test.describe("download flow", () => {
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: /^Settings$/ })).toBeVisible();
 
-    // Navigate back to home via the "Home" sidebar button
+    // Close the Settings modal overlay first, then navigate via sidebar
+    await page.locator("button.overlay-close").click();
+    await expect(page.getByRole("heading", { name: /^Settings$/ })).not.toBeVisible();
+
+    // Navigate to home via the "Home" sidebar button
     await page.getByRole("button", { name: "Home" }).click();
 
     // Verify the download queue appears on the home view.
-    // The queue heading uses t("queue.title") → "Task List".
-    // The sidebar's Settings/Labs buttons use ModalOverlay, so after navigating
-    // back, the overlay should close and the home view content should render.
     await expect(page.getByRole("heading", { name: "Task List" })).toBeVisible();
   });
 
@@ -108,6 +198,42 @@ test.describe("download flow", () => {
     // t("messages.startRequired") → "URL and destination directory are required."
     await expect(
       page.getByRole("alert").getByText("URL and destination directory are required."),
+    ).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe("download flow — error handling", () => {
+  test("shows error toast when download.start returns JSON-RPC error", async ({ page, wsMocker }) => {
+    // Navigate fresh so wsMocker's routeWebSocket intercepts the WebSocket
+    await page.goto("/");
+    await expect(page.locator(".app-root")).toBeVisible();
+
+    // Wait for auto-response to settings.get to complete (registered in fixtures.ts)
+    // then override with test-specific settings for proper app initialization
+    await wsMocker.waitForMethod("settings.get");
+    wsMocker.respondToMethod("settings.get", makeMockSettings());
+
+    // Open composer dialog
+    await page.getByRole("button", { name: "Add Task" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: "New Download Task" })).toBeVisible();
+
+    // Fill a valid-looking URL (passes client-side validation)
+    const urlInput = dialog.getByPlaceholder("Paste a link or choose a torrent file");
+    await urlInput.fill("https://example.com/file.zip");
+
+    // Submit the form — this will trigger download_start RPC
+    await dialog.getByRole("button", { name: "Start download" }).click();
+
+    // Wait for the download.start RPC call (use rpcMethod, not tauriName)
+    await wsMocker.waitForMethod("download.start");
+
+    // Respond with a JSON-RPC error
+    wsMocker.respondWithError("download.start", -32603, "Invalid URL: not a valid download source");
+
+    // Verify an error toast appears with the error message
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Invalid URL: not a valid download source" }),
     ).toBeVisible({ timeout: 5000 });
   });
 });

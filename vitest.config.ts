@@ -20,6 +20,14 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       exclude: ["node_modules/", "src/__tests__/", "**/*.d.ts"],
+      // Conservative gate: catch catastrophic coverage drop, not fine-grained
+      // regression. Bump per-file/subpackage only after coverage grows. This
+      // is a safety net for catastrophic regression — not a quality target.
+      thresholds: {
+        lines: 30,
+        statements: 30,
+        functions: 25,
+      },
     },
   },
 });
