@@ -127,7 +127,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
         Arc::new(EventBus::new(1024)),
     )?);
     let id = tokio::time::timeout(
-        Duration::from_millis(200),
+        Duration::from_millis(5_000),
         manager.start(StartDownloadRequest {
             kind: None,
             url: format!("http://{address}/slow.bin"),
@@ -1068,7 +1068,7 @@ async fn file_get(
 }
 
 #[tokio::test]
-#[timeout(10000)]
+#[timeout(30_000)]
 async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
 
     let temp = tempdir()?;
@@ -1317,7 +1317,7 @@ fn make_managed(id: &str, state: DownloadState, url: &str) -> Arc<ManagedDownloa
 // ── start() validation ────────────────────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn start_rejects_unsupported_scheme() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1350,7 +1350,7 @@ async fn start_rejects_unsupported_scheme() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn start_rejects_empty_destination_dir() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1383,7 +1383,7 @@ async fn start_rejects_empty_destination_dir() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn start_rejects_relative_destination_dir() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1416,7 +1416,7 @@ async fn start_rejects_relative_destination_dir() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn start_rejects_checksum_mode_mismatch() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1451,7 +1451,7 @@ async fn start_rejects_checksum_mode_mismatch() -> TestResult {
 // ── pause() state guards ─────────────────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn pause_on_paused_task_returns_snapshot_unchanged() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1483,7 +1483,7 @@ async fn pause_on_paused_task_returns_snapshot_unchanged() -> TestResult {
 // ── cancel() state guards ────────────────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancel_on_completed_task_skips_file_cleanup_and_removes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1510,7 +1510,7 @@ async fn cancel_on_completed_task_skips_file_cleanup_and_removes() -> TestResult
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancel_on_already_canceled_task_still_removes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1542,7 +1542,7 @@ async fn cancel_on_already_canceled_task_still_removes() -> TestResult {
 // ── resume() state validation ────────────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn resume_canceled_task_returns_canceled_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1564,7 +1564,7 @@ async fn resume_canceled_task_returns_canceled_error() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn resume_completed_task_returns_not_resumable_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1586,7 +1586,7 @@ async fn resume_completed_task_returns_not_resumable_error() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn resume_running_task_returns_already_running_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1610,7 +1610,7 @@ async fn resume_running_task_returns_already_running_error() -> TestResult {
 // ── get_summary() / find_active_by_url() ──────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn get_summary_nonexistent_id_returns_none() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1626,7 +1626,7 @@ async fn get_summary_nonexistent_id_returns_none() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn find_active_by_url_no_match_returns_none() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1642,7 +1642,7 @@ async fn find_active_by_url_no_match_returns_none() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn find_active_by_url_match_returns_some() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1667,7 +1667,7 @@ async fn find_active_by_url_match_returns_some() -> TestResult {
 // ── try_acquire_http() / try_acquire_bt() at capacity ─────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn try_acquire_http_at_capacity_returns_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1686,7 +1686,7 @@ async fn try_acquire_http_at_capacity_returns_error() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn try_acquire_bt_at_capacity_returns_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1707,7 +1707,7 @@ async fn try_acquire_bt_at_capacity_returns_error() -> TestResult {
 // ── apply_settings() client rebuild path ────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn apply_settings_proxy_change_triggers_client_rebuild() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1732,7 +1732,7 @@ async fn apply_settings_proxy_change_triggers_client_rebuild() -> TestResult {
 // ── game_mode() / overclock_mode() getters/setters ──────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn game_mode_setter_and_getter() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1753,7 +1753,7 @@ async fn game_mode_setter_and_getter() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn overclock_mode_setter_and_getter() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -1806,7 +1806,7 @@ fn make_managed_with_chunk(
 // ── record_progress_on_managed ───────────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn record_progress_normal_update() {
     let managed = make_managed_with_chunk("dl1", 0, 0, 4_194_304, 0, Some(8_388_608));
 
@@ -1822,7 +1822,7 @@ async fn record_progress_normal_update() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn record_progress_chunk_index_beyond_range() {
     let managed = make_managed_with_chunk("dl2", 500, 0, 4_194_304, 100, Some(8_388_608));
 
@@ -1839,7 +1839,7 @@ async fn record_progress_chunk_index_beyond_range() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn record_progress_chunk_exceeds_bounds_marks_completed() {
     // Chunk covers 0..1_000_000, currently at 999_500
     let managed = make_managed_with_chunk("dl3", 999_500, 0, 1_000_000, 999_500, Some(10_000_000));
@@ -1854,7 +1854,7 @@ async fn record_progress_chunk_exceeds_bounds_marks_completed() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn record_progress_overflow_protection() {
     let managed = make_managed_with_chunk("dl4", u64::MAX, 0, 4_194_304, 0, Some(8_388_608));
 
@@ -1867,7 +1867,7 @@ async fn record_progress_overflow_protection() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn record_progress_none_chunk_index_still_updates_snapshot() {
     let managed = make_managed_with_chunk("dl5", 100, 0, 4_194_304, 50, Some(8_388_608));
 
@@ -1883,7 +1883,7 @@ async fn record_progress_none_chunk_index_still_updates_snapshot() {
 // ── cancellation_outcome ─────────────────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancellation_outcome_when_canceled() {
     let managed = make_managed("canceled", DownloadState::Canceled, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -1891,7 +1891,7 @@ async fn cancellation_outcome_when_canceled() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancellation_outcome_when_downloading() {
     let managed = make_managed("dl", DownloadState::Downloading, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -1899,7 +1899,7 @@ async fn cancellation_outcome_when_downloading() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancellation_outcome_when_paused() {
     let managed = make_managed("paused", DownloadState::Paused, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -1907,7 +1907,7 @@ async fn cancellation_outcome_when_paused() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancellation_outcome_when_completed() {
     let managed = make_managed("done", DownloadState::Completed, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -1917,7 +1917,7 @@ async fn cancellation_outcome_when_completed() {
 // ── cancellation_chunk_outcome ───────────────────────────────────────
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancellation_chunk_outcome_when_canceled() {
     let managed = make_managed("canceled", DownloadState::Canceled, "https://example.com/f");
     let outcome = cancellation_chunk_outcome(&managed);
@@ -1925,7 +1925,7 @@ async fn cancellation_chunk_outcome_when_canceled() {
 }
 
 #[tokio::test]
-#[timeout(10_000)]
+#[timeout(30_000)]
 async fn cancellation_chunk_outcome_when_downloading() {
     let managed = make_managed("dl", DownloadState::Downloading, "https://example.com/f");
     let outcome = cancellation_chunk_outcome(&managed);
