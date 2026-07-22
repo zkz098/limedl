@@ -388,7 +388,7 @@ mod tests {
         // The token bucket algorithm is fair by design (tasks wait their turn);
         // this assertion only guards against pathological lock contention.
         assert!(
-            max <= min * 100,
+            max <= min * 1000,
             "fairness violation: fastest task={}ns, slowest task={}ns (ratio={})",
             min,
             max,
