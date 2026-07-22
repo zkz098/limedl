@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "../../../i18n";
 import type { AppSettings } from "../../../types/settings";
-import logoUrl from "../../../assets/limedl-logo.svg";
+import logoUrl from "../../../assets/logo.png";
 
 const { t } = useI18n();
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "../../i18n";
+import logoUrl from "../../assets/logo.png";
 import { useAppUpdate } from "../../composables/useAppUpdate";
 import { platform, arch, version as osVersion } from "@tauri-apps/plugin-os";
 import { getVersion, getName, getTauriVersion } from "@tauri-apps/api/app";
@@ -138,7 +139,7 @@ const showVersionBadge = computed(() => {
     <!-- Logo + App Name -->
     <div class="flex flex-col items-center gap-4 py-4">
       <img
-        src="../../../src-tauri/icons/limedl-logo.svg"
+        :src="logoUrl"
         alt="Limedl"
         class="about-logo w-20 h-20 rounded-xl object-contain"
       />

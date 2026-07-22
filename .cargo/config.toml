@@ -3,7 +3,8 @@
 
 [target.x86_64-pc-windows-msvc]
 # Target modern desktops: Haswell 2013+ / Excavator 2015+
-rustflags = ["-C", "target-cpu=x86-64-v3"]
+# Use rust-lld linker (faster than MSVC link.exe)
+rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "linker=rust-lld"]
 
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "target-cpu=x86-64-v3"]

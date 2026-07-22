@@ -16,9 +16,10 @@ fn main() {
     // manifest to avoid "more than one resource obj file not allowed"
     // linker errors with newer lld-link.  tauri-winres covers release
     // builds; our custom manifest was only needed for test binaries.
+    // Note: tauri_build::build() already emits the link directive for
+    // the resource — we must NOT add another one here.
     let resource_lib = out_path.join("resource.lib");
     if resource_lib.exists() {
-        println!("cargo:rustc-link-arg={}", resource_lib.display());
         return;
     }
 
@@ -90,19 +91,15 @@ fn main() {
         }
     }
 
-    // Fallback: link resource.lib.  `cargo test --lib` will work, but
-    // `cargo test` / `cargo test --workspace` may fail with duplicate
-    // VERSION errors for the binary test target.
+    // Fallback: if tauri_build generated resource.lib but our custom
+    // manifest build failed, tauri_build already linked it — don't add
+    // another link-arg (would cause duplicate VERSION resource error).
     eprintln!(
         "warning: could not build manifest-only obj (rc={}, cvtres={}); \
-         using resource.lib fallback",
+         tauri_build resource.lib already handles the manifest",
         rc.is_some(),
         cvtres.is_some(),
     );
-    let resource_lib = out_path.join("resource.lib");
-    if resource_lib.exists() {
-        println!("cargo:rustc-link-arg={}", resource_lib.display());
-    }
 }
 
 /// Find a tool in the latest Windows SDK version directory.

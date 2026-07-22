@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, type Component } from "vue";
 import { onKeyStroke } from "@vueuse/core";
-import logoUrl from "../../assets/limedl-logo.svg";
+import logoUrl from "../../assets/logo.png";
 
 import { useI18n } from "../../i18n";
 import { useSetupWizard } from "../../composables/useSetupWizard";
