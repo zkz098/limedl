@@ -413,7 +413,6 @@ onUnmounted(() => {
     >
       <div
         class="cdn-panel__result-grid grid gap-3"
-        style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))"
       >
         <div class="cdn-panel__result-item flex flex-col gap-1">
           <span class="cdn-panel__result-key text-xs">{{
@@ -660,6 +659,10 @@ onUnmounted(() => {
 /* ── Layout containers with CSS variable borders ── */
 .cdn-panel__hint {
   color: var(--color-text-muted);
+}
+
+.cdn-panel__result-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .cdn-panel__result {

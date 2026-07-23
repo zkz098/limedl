@@ -505,7 +505,275 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+mod imp {
+    use std::fs;
+    use std::path::Path;
+
+    use super::DiskType;
+
+    pub fn detect_disk_type(path: &Path) -> DiskType {
+        let Ok(meta) = fs::metadata(path) else {
+            return DiskType::Ssd;
+        };
+        use std::os::linux::fs::MetadataExt;
+        let dev = meta.st_dev();
+        let major = unsafe { libc::major(dev) };
+        let minor = unsafe { libc::minor(dev) };
+
+        let dev_symlink = format!("/sys/dev/block/{major}:{minor}");
+        let Ok(link) = fs::read_link(&dev_symlink) else {
+            return DiskType::Ssd;
+        };
+
+        // Use file_name() directly — handles both partition (sda1) and
+        // whole-disk (sda) cases, since modern Linux creates sysfs entries
+        // for partition devices under /sys/block/ as well.
+        let Some(device_name) = link
+            .file_name()
+            .and_then(|n| n.to_str())
+        else {
+            return DiskType::Ssd;
+        };
+
+        let rotational_path = format!("/sys/block/{device_name}/queue/rotational");
+        match fs::read_to_string(&rotational_path) {
+            Ok(val) if val.trim() == "1" => DiskType::Hdd,
+            _ => DiskType::Ssd,
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod imp {
+    use std::ffi::{c_void, CStr};
+    use std::path::Path;
+
+    use super::DiskType;
+
+    type io_object_t = u32;
+    type io_iterator_t = io_object_t;
+    type io_registry_entry_t = io_object_t;
+    type kern_return_t = i32;
+    type CFStringRef = *const c_void;
+    type CFBooleanRef = *const c_void;
+    type CFMutableDictionaryRef = *const c_void;
+    type CFTypeRef = *const c_void;
+    type CFAllocatorRef = *const c_void;
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    #[link(name = "IOKit", kind = "framework")]
+    extern "C" {
+        fn IOServiceMatching(name: *const i8) -> CFMutableDictionaryRef;
+        fn IOServiceGetMatchingServices(
+            mainPort: u32,
+            matching: CFMutableDictionaryRef,
+            existing: *mut io_iterator_t,
+        ) -> kern_return_t;
+        fn IOIteratorNext(iterator: io_iterator_t) -> io_object_t;
+        fn IOObjectRelease(object: io_object_t) -> kern_return_t;
+        fn IORegistryEntryCreateCFProperty(
+            entry: io_registry_entry_t,
+            key: CFStringRef,
+            allocator: CFAllocatorRef,
+            options: u32,
+        ) -> CFTypeRef;
+        fn IORegistryEntryGetParentEntry(
+            entry: io_registry_entry_t,
+            plane: *const i8,
+            parent: *mut io_registry_entry_t,
+        ) -> kern_return_t;
+        fn CFStringCreateWithCString(
+            alloc: CFAllocatorRef,
+            cStr: *const i8,
+            encoding: u32,
+        ) -> CFStringRef;
+        fn CFStringGetCString(
+            theString: CFStringRef,
+            buffer: *mut i8,
+            bufferSize: i64,
+            encoding: u32,
+        ) -> u8;
+        fn CFRelease(cf: CFTypeRef);
+        fn CFBooleanGetValue(boolean: CFBooleanRef) -> u8;
+        fn CFGetTypeID(cf: CFTypeRef) -> usize;
+        fn CFBooleanGetTypeID() -> usize;
+    }
+
+    fn make_cfstr(s: &str) -> CFStringRef {
+        let c = std::ffi::CString::new(s).unwrap();
+        unsafe { CFStringCreateWithCString(std::ptr::null(), c.as_ptr(), 0x0800_0100) }
+    }
+
+    unsafe fn cfbool_value(cf: CFTypeRef) -> Option<bool> {
+        if cf.is_null() {
+            return None;
+        }
+        if CFGetTypeID(cf) != CFBooleanGetTypeID() {
+            CFRelease(cf);
+            return None;
+        }
+        let v = CFBooleanGetValue(cf as CFBooleanRef) != 0;
+        CFRelease(cf);
+        Some(v)
+    }
+
+    /// Read a CFString into a Rust String.
+    unsafe fn cfstring_to_string(cf: CFStringRef) -> Option<String> {
+        if cf.is_null() {
+            return None;
+        }
+        let mut buf = vec![0i8; 256];
+        if CFStringGetCString(cf, buf.as_mut_ptr(), buf.len() as i64, 0x0800_0100) != 0 {
+            let cstr = CStr::from_ptr(buf.as_ptr());
+            Some(cstr.to_string_lossy().to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Extract the base disk name from a BSD device name.
+    /// "disk1s2" → "disk1", "disk0" → "disk0"
+    fn base_disk_name(bsd: &str) -> &str {
+        if let Some(s_idx) = bsd.find('s') {
+            &bsd[..s_idx]
+        } else {
+            bsd
+        }
+    }
+
+    pub fn detect_disk_type(path: &Path) -> DiskType {
+        // 1. Get the BSD device name via statfs
+        let abs_path = match std::fs::canonicalize(path) {
+            Ok(p) => p,
+            Err(_) => return DiskType::Ssd,
+        };
+
+        let path_c = match std::ffi::CString::new(abs_path.to_string_lossy().as_bytes()) {
+            Ok(c) => c,
+            Err(_) => return DiskType::Ssd,
+        };
+
+        let mut fsbuf: libc::statfs = unsafe { std::mem::zeroed() };
+        if unsafe { libc::statfs(path_c.as_ptr(), &mut fsbuf) } != 0 {
+            return DiskType::Ssd;
+        }
+
+        let mntfrom = unsafe { CStr::from_ptr(fsbuf.f_mntfromname.as_ptr()) };
+        let dev_path_str = mntfrom.to_string_lossy();
+
+        let bsd_full = match std::path::Path::new(dev_path_str.as_ref()).file_name() {
+            Some(n) => n.to_string_lossy().to_string(),
+            None => return DiskType::Ssd,
+        };
+
+        let target_disk = base_disk_name(&bsd_full);
+
+        // 2. Query IOKit IOMedia for this specific disk
+        let matching =
+            unsafe { IOServiceMatching(b"IOMedia\0".as_ptr() as *const i8) };
+        if matching.is_null() {
+            return DiskType::Ssd;
+        }
+
+        let mut iter: io_iterator_t = 0;
+        let kr = unsafe { IOServiceGetMatchingServices(0, matching, &mut iter) };
+        if kr != 0 {
+            return DiskType::Ssd;
+        }
+
+        let mut result = DiskType::Ssd;
+        let bsd_name_key = make_cfstr("BSD Name");
+
+        loop {
+            let entry = unsafe { IOIteratorNext(iter) };
+            if entry == 0 {
+                break;
+            }
+
+            // Check if this IOMedia entry matches our target disk
+            let bsd_prop = unsafe {
+                IORegistryEntryCreateCFProperty(
+                    entry,
+                    bsd_name_key as CFStringRef,
+                    std::ptr::null(),
+                    0,
+                )
+            };
+            if bsd_prop.is_null() {
+                unsafe { IOObjectRelease(entry) };
+                continue;
+            }
+
+            let matches = unsafe {
+                cfstring_to_string(bsd_prop as CFStringRef)
+                    .is_some_and(|name| name == target_disk || name.starts_with(&format!("{target_disk}s")))
+            };
+            unsafe { CFRelease(bsd_prop) };
+
+            if !matches {
+                unsafe { IOObjectRelease(entry) };
+                continue;
+            }
+
+            // Walk up to IOBlockStorageDriver and check Rotational
+            let mut current = entry;
+            let plane = b"IOService\0".as_ptr() as *const i8;
+            let rot_key = make_cfstr("Rotational");
+
+            for depth in 0..8 {
+                let prop = unsafe {
+                    IORegistryEntryCreateCFProperty(
+                        current,
+                        rot_key as CFStringRef,
+                        std::ptr::null(),
+                        0,
+                    )
+                };
+
+                if !prop.is_null() {
+                    if let Some(is_rotational) = unsafe { cfbool_value(prop) } {
+                        result = if is_rotational {
+                            DiskType::Hdd
+                        } else {
+                            DiskType::Ssd
+                        };
+                        if depth > 0 {
+                            unsafe { IOObjectRelease(current) };
+                        }
+                        break;
+                    }
+                }
+
+                let mut parent: io_registry_entry_t = 0;
+                let kr =
+                    unsafe { IORegistryEntryGetParentEntry(current, plane, &mut parent) };
+                if depth > 0 {
+                    unsafe { IOObjectRelease(current) };
+                }
+                if kr != 0 || parent == 0 {
+                    break;
+                }
+                current = parent;
+            }
+
+            unsafe { CFRelease(rot_key as CFTypeRef) };
+            unsafe { IOObjectRelease(entry) };
+
+            if result != DiskType::Ssd {
+                break;
+            }
+        }
+
+        unsafe {
+            CFRelease(bsd_name_key as CFTypeRef);
+            IOObjectRelease(iter);
+        }
+        result
+    }
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 mod imp {
     use std::path::Path;
 
