@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { SupportedLanguage } from "../../i18n/resources";
 import type {
   AppSettings,
   BackgroundOpacityPreset,
+  CloseBehavior,
   ColorMode,
   ThemeColor,
 } from "../../types/settings";
@@ -15,7 +17,7 @@ import {
   disable as disableAutostart,
 } from "@tauri-apps/plugin-autostart";
 
-defineProps<{
+const props = defineProps<{
   draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   language: SupportedLanguage;
@@ -36,6 +38,12 @@ async function onAutostartChange(value: boolean) {
     // ignore errors (e.g. permission denied)
   }
 }
+
+// Close behavior options
+const closeBehaviorOptions = computed<Array<{ label: string; value: CloseBehavior }>>(() => [
+  { label: props.t("settings.closeBehaviorMinimizeToTray"), value: "minimizeToTray" },
+  { label: props.t("settings.closeBehaviorExit"), value: "exit" },
+]);
 
 const emit = defineEmits<{
   changeLanguage: [language: SupportedLanguage];
@@ -120,6 +128,15 @@ const emit = defineEmits<{
       <div class="settings-grid">
         <SettingsField :label="t('settings.autoStart')" :info-tooltip="t('settings.autoStartHint')">
           <UiSwitch :model-value="draft.autostart" @update:model-value="onAutostartChange" />
+        </SettingsField>
+      </div>
+    </SettingsSection>
+
+    <!-- Close Behavior -->
+    <SettingsSection :title="t('settings.closeBehaviorTitle')" icon="i-ri-close-line">
+      <div class="settings-grid">
+        <SettingsField :label="t('settings.closeBehaviorTitle')">
+          <UiSelect v-model="draft.appearance.closeBehavior" :options="closeBehaviorOptions" />
         </SettingsField>
       </div>
     </SettingsSection>

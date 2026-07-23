@@ -69,6 +69,7 @@ function createSettings(): AppSettings {
       sortDirection: "desc",
       compactView: false,
       visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
+      closeBehavior: "minimizeToTray",
     },
     proxy: { mode: "disabled", manualUrl: "" },
     scheduler: {

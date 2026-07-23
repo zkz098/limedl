@@ -65,6 +65,7 @@ pub struct AppState {
     pub event_bus: Arc<EventBus>,
     pub cdn_service: Arc<super::cdn::CdnService>,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
+    pub settings: Arc<ParkingRwLock<AppSettings>>,
 }
 
 impl AppState {

@@ -31,6 +31,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       sortDirection: "desc",
       compactView: false,
       visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
+      closeBehavior: "minimizeToTray",
     },
     proxy: {
       mode: "disabled",
@@ -141,6 +142,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         sortDirection: form.appearance.sortDirection,
         compactView: form.appearance.compactView,
         visibleColumns: form.appearance.visibleColumns,
+        closeBehavior: form.appearance.closeBehavior,
       },
       proxy: {
         mode: form.proxy.mode,

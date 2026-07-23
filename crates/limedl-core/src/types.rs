@@ -1016,6 +1016,19 @@ pub enum ColorMode {
     System,
 }
 
+/// Behavior when the user closes the main window.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum CloseBehavior {
+    /// Exit the application completely.
+    Exit,
+    /// Minimize to system tray (keep running in background).
+    #[default]
+    MinimizeToTray,
+}
+
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1039,6 +1052,9 @@ pub struct AppearanceSettings {
     pub compact_view: bool,
     #[serde(default = "default_visible_columns")]
     pub visible_columns: Vec<String>,
+    /// Behavior when closing the main window: exit or minimize to tray.
+    #[serde(default)]
+    pub close_behavior: CloseBehavior,
 }
 
 impl Default for AppearanceSettings {
@@ -1053,6 +1069,7 @@ impl Default for AppearanceSettings {
             sort_direction: Default::default(),
             compact_view: false,
             visible_columns: default_visible_columns(),
+            close_behavior: Default::default(),
         }
     }
 }

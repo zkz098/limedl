@@ -423,6 +423,7 @@ async fn bootstrap_env(tmp: &tempfile::TempDir) -> (CoreSystems, AppState) {
         event_bus: core.event_bus.clone(),
         cdn_service: core.cdn_service.clone(),
         rpc_shutdown: Arc::new(parking_lot::Mutex::new(None)),
+        settings: Arc::new(parking_lot::RwLock::new(core.settings.clone())),
     };
     (core, state)
 }

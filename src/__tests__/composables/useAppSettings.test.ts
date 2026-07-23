@@ -46,6 +46,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       sortDirection: "desc",
       compactView: false,
       visibleColumns: [...DEFAULT_VISIBLE_COLUMNS],
+      closeBehavior: "minimizeToTray",
     },
     proxy: { mode: "disabled", manualUrl: "" },
     scheduler: {

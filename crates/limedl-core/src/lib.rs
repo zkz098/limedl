@@ -58,6 +58,7 @@ pub use logging::init_logging;
 pub use manager::{AppState, DownloadManager};
 pub use protocol::DownloadBackend;
 pub use rate_limiter::RateLimiter;
+pub use types::CloseBehavior;
 pub use settings::{normalize_tracker_list_lossy, normalize_tracker_list_url};
 
 // Aria2 JSON-RPC compatibility layer (enabled by default in the desktop app,

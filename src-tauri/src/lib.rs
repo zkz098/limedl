@@ -14,6 +14,7 @@ pub use download::RateLimiter;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
+use parking_lot::RwLock as ParkingRwLock;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -32,7 +33,7 @@ use download::{
     download_pause, download_purge, download_remove, download_resume, download_start,
     download_status, get_bt_files, get_io_status, get_overclock_mode, init_logging,
     settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode,
-    toggle_overclock_mode, update_bt_files,
+    toggle_overclock_mode, update_bt_files, CloseBehavior,
 };
 
 /// Maps a [`DownloadEvent`] to a Tauri event name and JSON payload.
@@ -147,6 +148,7 @@ pub fn run() {
                     event_bus: core.event_bus.clone(),
                     cdn_service: core.cdn_service.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
+                    settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
                 });
 
                 // Subscribe to EventBus and forward events to Tauri frontend
@@ -158,6 +160,7 @@ pub fn run() {
                         event_bus: core.event_bus.clone(),
                         cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
+                        settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
                     };
                     tauri::async_runtime::spawn(async move {
                         loop {
@@ -183,6 +186,7 @@ pub fn run() {
                         event_bus: core.event_bus.clone(),
                         cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
+                        settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
                     };
                     tauri::async_runtime::spawn(async move {
                         loop {
@@ -278,11 +282,20 @@ pub fn run() {
                 let handle = window.app_handle().clone();
                 let state = window.state::<AppState>();
                 let registry = state.registry.clone();
-                tauri::async_runtime::spawn(async move {
-                    // Shutdown all backends (cancels scheduler + worker tokens, drains buffer pool)
-                    registry.shutdown_all().await;
-                    handle.exit(0);
-                });
+                let settings = state.settings.read().clone();
+
+                if settings.appearance.close_behavior == CloseBehavior::MinimizeToTray {
+                    // Minimize to tray instead of exiting
+                    if let Some(win) = handle.get_webview_window("main") {
+                        let _ = win.hide();
+                    }
+                } else {
+                    // Exit completely
+                    tauri::async_runtime::spawn(async move {
+                        registry.shutdown_all().await;
+                        handle.exit(0);
+                    });
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![

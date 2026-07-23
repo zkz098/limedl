@@ -622,6 +622,9 @@ const enUS = {
       autoStart: "Launch at system startup",
       autoStartHint:
         "Start Limedl automatically when you log in. The app will start minimized to the system tray.",
+      closeBehaviorTitle: "Close Behavior",
+      closeBehaviorExit: "Exit application",
+      closeBehaviorMinimizeToTray: "Minimize to tray",
       aboutRestartSetupTitle: "Setup Wizard",
       aboutRestartSetupButton: "Re-run Setup Wizard",
       aboutSystemInfo: "System Information",

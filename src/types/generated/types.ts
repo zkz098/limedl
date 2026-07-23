@@ -9,7 +9,11 @@ export type AppSettings = { appearance: AppearanceSettings, proxy: ProxySettings
  */
 maxInMemoryDownloads: number, };
 
-export type AppearanceSettings = { themeColor: ThemeColor, backgroundOpacity: BackgroundOpacityPreset, colorMode: ColorMode, showDetailInfo: boolean, showHeatmap: boolean, sortKey: SortKey, sortDirection: SortDirection, compactView: boolean, visibleColumns: Array<string>, };
+export type AppearanceSettings = { themeColor: ThemeColor, backgroundOpacity: BackgroundOpacityPreset, colorMode: ColorMode, showDetailInfo: boolean, showHeatmap: boolean, sortKey: SortKey, sortDirection: SortDirection, compactView: boolean, visibleColumns: Array<string>, 
+/**
+ * Behavior when closing the main window: exit or minimize to tray.
+ */
+closeBehavior: CloseBehavior, };
 
 export type Aria2RpcSettings = { enabled: boolean, port: number, secret: string | null, 
 /**
@@ -130,6 +134,11 @@ export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
 export type ChunkInfo = { index: number, start: number, end: number, downloaded: number, completed: boolean, claimedBy?: number | null, };
 
 export type ChunkSizeStrategy = "adaptive" | "fixed";
+
+/**
+ * Behavior when the user closes the main window.
+ */
+export type CloseBehavior = "exit" | "minimizeToTray";
 
 export type ColorMode = "light" | "dark" | "system";
 

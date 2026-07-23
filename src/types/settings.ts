@@ -11,6 +11,7 @@ export type {
   CdnAccelerationSettings,
   ChecksumMode,
   ChunkSizeStrategy,
+  CloseBehavior,
   ColorMode,
   DiskType,
   DownloadDefaultsSettings,
