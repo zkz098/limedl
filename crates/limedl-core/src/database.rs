@@ -2282,11 +2282,7 @@ mod tests {
                         index: 1,
                         start: 500,
                         end: 1000,
-                        downloaded: if progress > 500 {
-                            progress - 500
-                        } else {
-                            0
-                        },
+                        downloaded: progress.saturating_sub(500),
                         completed: progress >= 1000,
                         claimed_by: None,
                         dirty: false,

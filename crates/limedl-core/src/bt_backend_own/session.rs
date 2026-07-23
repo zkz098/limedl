@@ -29,8 +29,10 @@ impl IrontideBtBackend {
 
         let resume_dir = state_dir.join("resume");
         std::fs::create_dir_all(&resume_dir).ok();
-        let mut irontide_settings = irontide::session::Settings::default();
-        irontide_settings.resume_data_dir = Some(resume_dir);
+        let irontide_settings = irontide::session::Settings {
+            resume_data_dir: Some(resume_dir),
+            ..Default::default()
+        };
         let mut builder = irontide::ClientBuilder::from_settings(irontide_settings)
             .download_dir(&default_output_dir)
             .enable_dht(bt.dht_enabled)

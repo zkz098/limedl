@@ -1094,8 +1094,10 @@ async fn make_test_session() -> (tempfile::TempDir, irontide::session::SessionHa
     let resume_dir = tmp.path().join("resume");
     std::fs::create_dir_all(&resume_dir).expect("create resume_dir");
 
-    let mut irontide_settings = irontide::session::Settings::default();
-    irontide_settings.resume_data_dir = Some(resume_dir);
+    let irontide_settings = irontide::session::Settings {
+        resume_data_dir: Some(resume_dir),
+        ..Default::default()
+    };
     let session = irontide::ClientBuilder::from_settings(irontide_settings)
         .listen_port(0)
         .enable_dht(false)

@@ -59,6 +59,9 @@ test.describe("batch operations", () => {
     await expect(multiSelectBtn).toBeVisible();
     await multiSelectBtn.click();
 
+    // Wait for Vue reactivity to render the batch action buttons
+    await page.waitForTimeout(500);
+
     // Now batch action buttons should appear
     await expect(page.getByRole("button", { name: "Select all" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Pause all" })).toBeVisible();
@@ -77,6 +80,9 @@ test.describe("batch operations", () => {
   test("pauses all downloading tasks", async ({ page, wsMocker }) => {
     // Enable multi-select mode
     await page.getByRole("button", { name: "Multi-select" }).click();
+
+    // Wait for Vue reactivity to render the batch action buttons
+    await page.waitForTimeout(500);
 
     // Select all tasks
     await page.getByRole("button", { name: "Select all" }).click();
@@ -99,6 +105,9 @@ test.describe("batch operations", () => {
       }));
     }
 
+    // Wait for Vue reactivity to process the state updates from pause responses
+    await page.waitForTimeout(500);
+
     // Verify each task shows paused state
     for (const taskId of TASK_IDS) {
       await expectTaskState(page, taskId, "paused");
@@ -108,6 +117,10 @@ test.describe("batch operations", () => {
   test("resumes all paused tasks", async ({ page, wsMocker }) => {
     // First pause all tasks
     await page.getByRole("button", { name: "Multi-select" }).click();
+
+    // Wait for Vue reactivity to render the batch action buttons
+    await page.waitForTimeout(500);
+
     await page.getByRole("button", { name: "Select all" }).click();
 
     // Pause them
@@ -126,6 +139,9 @@ test.describe("batch operations", () => {
     for (const taskId of TASK_IDS) {
       await expectTaskState(page, taskId, "paused");
     }
+
+    // Wait for Vue reactivity to settle before clicking "Resume all"
+    await page.waitForTimeout(500);
 
     // Now resume all — but first deselect and reselect (resume all works on
     // paused tasks regardless of selection in the implementation)
@@ -152,6 +168,9 @@ test.describe("batch operations", () => {
         speedBytesPerSecond: 2_000_000,
       }));
     }
+
+    // Wait for Vue reactivity to process the resumed state updates
+    await page.waitForTimeout(500);
 
     // Verify each task shows downloading state
     for (const taskId of TASK_IDS) {

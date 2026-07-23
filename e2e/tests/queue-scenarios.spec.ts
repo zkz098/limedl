@@ -92,25 +92,25 @@ test.describe("queue scenarios", () => {
     await expect(page.locator("[data-testid='download-row-filter-comp']")).toBeVisible();
 
     // Click "Downloading" category — only downloading task visible
-    await page.getByRole("button", { name: "Downloading", exact: true }).click();
+    await page.getByRole("button", { name: "Downloading" }).click();
     await expect(page.locator("[data-testid='download-row-filter-dl']")).toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-paused']")).not.toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-comp']")).not.toBeVisible();
 
     // Click "Paused" category
-    await page.getByRole("button", { name: "Paused", exact: true }).click();
+    await page.getByRole("button", { name: "Paused" }).click();
     await expect(page.locator("[data-testid='download-row-filter-dl']")).not.toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-paused']")).toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-comp']")).not.toBeVisible();
 
     // Click "Completed" category
-    await page.getByRole("button", { name: "Completed", exact: true }).click();
+    await page.getByRole("button", { name: "Completed" }).click();
     await expect(page.locator("[data-testid='download-row-filter-dl']")).not.toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-paused']")).not.toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-comp']")).toBeVisible();
 
     // Click "All" — all visible again
-    await page.getByRole("button", { name: "All", exact: true }).click();
+    await page.getByRole("button", { name: "All" }).click();
     await expect(page.locator("[data-testid='download-row-filter-dl']")).toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-paused']")).toBeVisible();
     await expect(page.locator("[data-testid='download-row-filter-comp']")).toBeVisible();

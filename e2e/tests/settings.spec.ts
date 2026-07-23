@@ -205,12 +205,20 @@ test.describe("Settings page", () => {
     const modeField = page.locator('.settings-page__content .settings-field').filter({ hasText: 'Allocation mode' });
     const modeTrigger = modeField.locator('.ui-select__trigger');
     await expect(modeTrigger).toBeVisible();
+    await expect(modeTrigger).toContainText("Smart Dynamic");
 
     // Open the dropdown
     await modeTrigger.click();
 
+    // Wait for the Transition animation to complete and the panel to be visible
+    const fixedThreadsOption = page.getByRole("option", { name: "Fixed Threads" });
+    await expect(fixedThreadsOption).toBeVisible();
+
     // Select "Fixed Threads" (traditional) from the dropdown
-    await page.getByRole("option", { name: "Fixed Threads" }).click();
+    await fixedThreadsOption.click();
+
+    // Wait for Vue reactivity to update the template (v-if for traditional mode fields)
+    await page.waitForTimeout(300);
 
     // Now the "Max parallel tasks" field should appear (traditional mode only)
     const maxTasksField = page.locator(".settings-page__content").getByText("Max parallel tasks");
