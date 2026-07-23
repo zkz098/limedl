@@ -79,7 +79,18 @@ async fn contract_pause_resume(backend: &dyn DownloadBackend, request: StartDown
     let task_id = backend.start(request).await.expect("start should succeed");
 
     // Allow a brief window for the download to begin transferring data
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        if let Ok(s) = backend.status(&task_id).await
+            && (s.state == DownloadState::Downloading || s.downloaded_bytes > 0)
+        {
+            break;
+        }
+        if tokio::time::Instant::now() > deadline {
+            panic!("timed out waiting for download to begin");
+        }
+    }
 
     // Pause
     let snapshot = backend.pause(&task_id).await.expect("pause should succeed");

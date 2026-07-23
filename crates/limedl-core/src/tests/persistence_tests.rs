@@ -20,8 +20,6 @@ use std::time::Duration;
 use ntest::timeout;
 use tempfile::tempdir;
 
-use tokio::time::sleep;
-
 use crate::{
     database::Database,
     event_bus::EventBus,
@@ -145,7 +143,17 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
         .await?;
 
     // Let enough data flow so downloaded_bytes > 0
-    sleep(Duration::from_millis(800)).await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let s = manager.status(&id.to_string()).await?;
+        if s.downloaded_bytes > 0 {
+            break;
+        }
+        if tokio::time::Instant::now() > deadline {
+            panic!("timed out waiting for download progress");
+        }
+    }
 
     // Pause — this persists Paused state to the DB
     manager.pause(&id.to_string()).await?;

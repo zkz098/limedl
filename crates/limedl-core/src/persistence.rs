@@ -41,17 +41,24 @@ impl DownloadManager {
                 manifest.updated_at_ms = now_ms();
             }
 
-            if matches!(
-                manifest.state,
-                DownloadState::Downloading
-                    | DownloadState::Retrying
-                    | DownloadState::Verifying
-                    | DownloadState::Queued
-            ) {
-                manifest.state = DownloadState::Paused;
-                manifest.connection_count = 0;
-                manifest.allocated_thread_count = Some(0);
-                manifest.updated_at_ms = now_ms();
+            // Downloads that were actively downloading before crash: keep as Downloading.
+            // They will be picked up by the scheduler on the next rebalance cycle.
+            // Downloads in other non-terminal states become Paused.
+            match manifest.state {
+                DownloadState::Downloading => {
+                    // Was actively downloading; reset connection state but keep Downloading
+                    // so the scheduler will re-allocate threads on next rebalance.
+                    manifest.connection_count = 0;
+                    manifest.allocated_thread_count = Some(0);
+                    manifest.updated_at_ms = now_ms();
+                }
+                DownloadState::Retrying | DownloadState::Verifying | DownloadState::Queued => {
+                    manifest.state = DownloadState::Paused;
+                    manifest.connection_count = 0;
+                    manifest.allocated_thread_count = Some(0);
+                    manifest.updated_at_ms = now_ms();
+                }
+                _ => {} // Completed, Failed, Canceled, Paused — no change needed
             }
 
             // Lazy chunk loading: only load chunks for non-terminal downloads.

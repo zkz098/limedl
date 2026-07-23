@@ -1,6 +1,7 @@
 use ntest::timeout;
 use tempfile::TempDir;
 
+use crate::database::Database;
 use crate::types::{DownloadState, StartDownloadRequest, TaskId};
 
 /// Verify that a download started before "crash" reappears after restart.
@@ -48,11 +49,50 @@ async fn download_survives_restart() {
         };
 
         // Wait briefly for some progress, then pause to get a stable snapshot
-        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            if let Ok(s) = dm.status(&inner.to_string()).await
+                && s.downloaded_bytes > 0
+            {
+                break;
+            }
+            if tokio::time::Instant::now() > deadline {
+                panic!("timed out waiting for download progress");
+            }
+        }
         let _snapshot = dm.pause(&inner.to_string()).await.unwrap();
 
-        // Drop core without calling shutdown_all() — simulates crash
+        // Drop core without calling shutdown_all() — simulates crash.
+        // IMPORTANT: This test relies on CoreSystems::Drop NOT calling
+        // shutdown_all(). If a Drop impl is added to CoreSystems that calls
+        // shutdown, this test must be updated to drop the internals individually
+        // instead. The test verifies crash recovery, not graceful shutdown.
+        //
+        // Verification: after drop, the database should still contain the
+        // in-progress download in a non-terminal state (the persisted manifest
+        // should show progress).
         drop(core);
+
+        // Verify data was persisted before the "crash" — open a fresh DB
+        // connection and assert the download exists with non-terminal progress.
+        let db_path = state_dir.join("downloads.db");
+        let db = Database::open(&db_path).unwrap();
+        let persisted = db
+            .get_download(&inner.to_string())
+            .unwrap()
+            .expect("Download must be persisted in DB after crash simulation");
+        assert!(
+            persisted.downloaded_bytes > 0
+                || !matches!(
+                    persisted.state,
+                    DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+                ),
+            "Download in DB should show non-terminal progress after crash \
+             (downloaded_bytes={}, state={:?})",
+            persisted.downloaded_bytes,
+            persisted.state,
+        );
         inner.to_string()
     };
 

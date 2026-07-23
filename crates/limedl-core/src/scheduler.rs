@@ -46,6 +46,7 @@ impl Scheduler {
     /// `dm: Arc<DownloadManager>` for the spawned task.
     pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<DownloadManager>) {
         tokio::spawn(async move {
+            let mut consecutive_rebalance_failures: u32 = 0;
             loop {
                 tokio::select! {
                     _ = tokio::time::sleep(SCHEDULER_TICK) => {}
@@ -59,8 +60,20 @@ impl Scheduler {
                 if let Err(error) = self.update_adaptive_targets(&dm).await {
                     log_background_error("update adaptive targets", &error);
                 }
-                if let Err(error) = self.rebalance_allocations(&dm).await {
-                    log_background_error("rebalance allocations", &error);
+                match self.rebalance_allocations(&dm).await {
+                    Ok(()) => {
+                        consecutive_rebalance_failures = 0;
+                    }
+                    Err(error) => {
+                        consecutive_rebalance_failures += 1;
+                        if consecutive_rebalance_failures >= 3 {
+                            tracing::error!(
+                                "rebalance_allocations failed {consecutive_rebalance_failures} consecutive times: {error:#}"
+                            );
+                        } else {
+                            log_background_error("rebalance allocations", &error);
+                        }
+                    }
                 }
             }
         });
@@ -411,17 +424,32 @@ impl Scheduler {
             }
         }
 
-        let mut first_error = None;
+        let mut errors: Vec<anyhow::Error> = Vec::new();
+        let mut _success_count = 0usize;
+        let total = all_downloads.len();
         for managed in &all_downloads {
-            if let Err(error) = persist_manifest_snapshot(&dm.db, managed).await {
-                log_background_error("persist rebalanced manifest", &error);
-                if first_error.is_none() {
-                    first_error = Some(error);
+            match persist_manifest_snapshot(&dm.db, managed).await {
+                Ok(()) => _success_count += 1,
+                Err(error) => {
+                    log_background_error("persist rebalanced manifest", &error);
+                    errors.push(error);
                 }
             }
         }
-        if let Some(error) = first_error {
-            return Err(error.into());
+        if !errors.is_empty() {
+            let error_count = errors.len();
+            if error_count == total {
+                return Err(anyhow::anyhow!(
+                    "all {total} manifest persist operations failed; first error: {}",
+                    errors[0]
+                )
+                .into());
+            }
+            return Err(anyhow::anyhow!(
+                "{error_count}/{total} manifest persist operations failed (one example: {})",
+                errors[0]
+            )
+            .into());
         }
         Ok(())
     }

@@ -530,13 +530,13 @@ impl Database {
         // ── PRAGMA configuration ─────────────────────────────────
         write_conn.execute_batch("PRAGMA journal_mode = WAL;")
             .context("failed to enable WAL mode")?;
-        write_conn.execute_batch("PRAGMA wal_autocheckpoint = 4096;")
+        write_conn.execute_batch("PRAGMA wal_autocheckpoint = 1000;")
             .context("failed to set WAL auto-checkpoint")?;
         write_conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
         write_conn.execute_batch("PRAGMA busy_timeout = 5000;")
             .context("failed to set busy timeout")?;
-        write_conn.execute_batch("PRAGMA synchronous = NORMAL;")
+        write_conn.execute_batch("PRAGMA synchronous = FULL;")
             .context("failed to set synchronous mode")?;
         write_conn.execute_batch("PRAGMA cache_size = -8000;")
             .context("failed to set cache size")?;

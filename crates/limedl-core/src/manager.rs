@@ -138,6 +138,8 @@ pub struct DownloadManager {
     /// Dedicated I/O worker thread for file flush operations.
     pub io_worker: IoWorker,
     pub controls: RuntimeControls,
+    /// Cache disk type detections keyed by device ID to avoid redundant OS queries.
+    pub(crate) disk_type_cache: Arc<parking_lot::Mutex<foldhash::HashMap<u64, DiskType>>>,
     pub limits: ConcurrencyLimits,
     /// HTTP download executor actor — handles probe, single/chunked download, finalize.
     pub http_executor: Arc<HttpExecutor>,
@@ -180,6 +182,7 @@ impl Clone for DownloadManager {
             rate_limiter: self.rate_limiter.clone(),
             buffer_pool: self.buffer_pool.clone(),
             io_worker: self.io_worker.clone(),
+            disk_type_cache: self.disk_type_cache.clone(),
             limits: ConcurrencyLimits {
                 active_http_count: self.limits.active_http_count.clone(),
                 active_bt_count: self.limits.active_bt_count.clone(),
@@ -349,6 +352,7 @@ impl DownloadManager {
                 shutdown_token: CancellationToken::new(),
                 rebalance_notify: Arc::new(Notify::new()),
             },
+            disk_type_cache: Arc::new(parking_lot::Mutex::new(foldhash::HashMap::default())),
             limits: ConcurrencyLimits {
                 active_http_count: Arc::new(AtomicUsize::new(0)),
                 active_bt_count: Arc::new(AtomicUsize::new(0)),
@@ -553,6 +557,38 @@ impl DownloadManager {
             return Err(DownloadError::InvalidResponse(String::from(
                 "download destination directory must be an absolute path",
             )));
+        }
+        // Validate path: reject paths with '..' traversal components
+        // to prevent writes outside the intended download directory.
+        {
+            let mut normalized = std::path::PathBuf::new();
+            for component in destination_dir.components() {
+                match component {
+                    std::path::Component::ParentDir => {
+                        if !normalized.pop() {
+                            // Can't go above root — already at root, which is suspicious
+                            return Err(DownloadError::InvalidResponse(String::from(
+                                "download destination directory must not escape its parent via '..'",
+                            )));
+                        }
+                    }
+                    std::path::Component::Normal(c) => {
+                        normalized.push(c);
+                    }
+                    std::path::Component::CurDir => {
+                        // '.' — stay in current directory, nothing to push
+                    }
+                    std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                        normalized.push(component);
+                    }
+                }
+            }
+            // Re-check that the normalized path is still absolute
+            if !normalized.is_absolute() {
+                return Err(DownloadError::InvalidResponse(String::from(
+                    "download destination directory resolves to a non-absolute path",
+                )));
+            }
         }
         fs::create_dir_all(&destination_dir)
             .map_err(|e| io_error_with_path(e, destination_dir.to_string_lossy()))?;
@@ -912,15 +948,31 @@ impl DownloadManager {
     }
 
     /// Resolve the disk type for a given directory path.
-    /// Checks user overrides first, then falls back to OS detection.
+    /// Checks user overrides first, then a per-device cache, then OS detection.
     pub async fn resolve_disk_type(&self, dir: &Path) -> DiskType {
         let settings = self.settings.read().await;
-        // Check user overrides
         let dir_str = dir.to_string_lossy().to_string();
         if let Some(disk_type) = settings.io_baseline.disk_type_overrides.get(&dir_str) {
             return *disk_type;
         }
         drop(settings);
+
+        // Check per-device cache on Unix to avoid repeated OS queries.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if let Ok(meta) = std::fs::metadata(dir) {
+                let dev = meta.dev();
+                let mut cache = self.disk_type_cache.lock();
+                if let Some(cached) = cache.get(&dev) {
+                    return *cached;
+                }
+                let detected = detect_disk_type(dir);
+                cache.insert(dev, detected);
+                return detected;
+            }
+        }
+
         detect_disk_type(dir)
     }
 
@@ -1038,17 +1090,20 @@ impl DownloadBackend for DownloadManager {
     }
 
     async fn shutdown(&self) {
+        tracing::info!("Shutting down download manager...");
         self.task_lifecycle.shutdown(self).await;
-        // Wait for buffer pool to drain (max 5 seconds)
+        // Wait for buffer pool to drain (max 15 seconds to allow large buffers to flush)
         let start = std::time::Instant::now();
         while self.buffer_pool.active_slots() > 0
-            && start.elapsed() < std::time::Duration::from_secs(5)
+            && start.elapsed() < std::time::Duration::from_secs(15)
         {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
         let remaining = self.buffer_pool.active_slots();
         if remaining > 0 {
-            tracing::warn!("Buffer pool drain timed out after 5s, {remaining} slots still active");
+            tracing::warn!("Buffer pool drain timed out after 15s, {remaining} slots still active; data may be lost");
+        } else {
+            tracing::info!("Buffer pool drained successfully");
         }
     }
 }

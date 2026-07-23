@@ -450,6 +450,16 @@ impl HttpExecutor {
                     bytes_since_consume = 0;
                     chunks_since_consume = 0;
                 }
+                // Guard against server sending more data than Content-Length
+                if let Some(total) = total_bytes {
+                    let len = chunk.len() as u64;
+                    if absolute_offset + len > total {
+                        return Err(DownloadError::InvalidResponse(format!(
+                            "server sent more data than Content-Length ({} bytes received, expected {total})",
+                            absolute_offset + len
+                        )));
+                    }
+                }
                 if let Some(ref buf) = write_buffer {
                     if buf
                         .buffer_chunk(absolute_offset, chunk.clone())

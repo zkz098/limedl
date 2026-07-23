@@ -62,6 +62,11 @@ impl IoWorker {
                                 for (off, chunk) in &entries {
                                     write_all_at(&file, chunk, *off)?;
                                 }
+                                // fsync after successful batch write — ensures data survives
+                                // a crash instead of sitting in the OS page cache.
+                                file.sync_data().map_err(|e| {
+                                    DownloadError::Internal(format!("fsync failed: {e}"))
+                                })?;
                                 Ok(())
                             })();
                             // Ignore send error — caller dropped the receiver.
@@ -530,8 +535,10 @@ impl DownloadBuffer {
         }
 
         loop {
-            // If a background flush has failed, bail out so the caller can
-            // fall back to direct I/O.
+            // Early-fail guard: if a background flush has failed on a previous
+            // flip, bail out immediately so the caller can fall back to direct
+            // I/O. Without this check, the chunk worker would keep downloading
+            // data that will ultimately fail checksum — wasted bandwidth.
             if error_flag.load(Ordering::Acquire) {
                 return Err(DownloadError::Internal(
                     "background buffer flush failed".into(),
@@ -634,7 +641,15 @@ impl DownloadBuffer {
                         Ok::<_, DownloadError>(())
                     }));
                     match result {
-                        Ok(Ok(())) => {}
+                        Ok(Ok(())) => {
+                            // fsync after successful batch write.
+                            if let Err(e) = bg_file.sync_data() {
+                                bg_error.store(true, Ordering::Release);
+                                tracing::error!(
+                                    "background HDD buffer flush fsync failed: {e}"
+                                );
+                            }
+                        }
                         Ok(Err(e)) => {
                             bg_error.store(true, Ordering::Release);
                             tracing::error!("background HDD buffer flush failed: {e}");
@@ -1409,6 +1424,74 @@ mod tests {
         assert_eq!(pool.active_slots(), 2);
 
         // Clean up (as DownloadBuffer would).
+        pool.release_slot();
+        pool.release_slot();
+        assert_eq!(pool.active_slots(), 0);
+    }
+
+    #[tokio::test]
+    #[timeout(10000)]
+    async fn slot_guard_drop_releases_permit() {
+        let pool = Arc::new(BufferPool::new(1, 64, 1, 64));
+
+        // Acquire a slot → semaphore permit consumed, active_slots incremented.
+        let guard = pool.acquire_slot().await;
+        assert_eq!(pool.active_slots(), 1);
+        assert_eq!(pool.slot_semaphore.available_permits(), 0);
+
+        // Drop guard → OwnedSemaphorePermit::drop returns the permit to the
+        // semaphore, allowing another acquire to proceed.
+        drop(guard);
+        assert_eq!(pool.slot_semaphore.available_permits(), 1);
+        // active_slots is NOT decremented here — SlotGuard manages only the
+        // semaphore permit.  The slot count is managed by
+        // DownloadBuffer::drop → pool.release_slot().
+        assert_eq!(pool.active_slots(), 1);
+
+        // Clean up slot accounting (as DownloadBuffer would).
+        pool.release_slot();
+        assert_eq!(pool.active_slots(), 0);
+    }
+
+    #[tokio::test]
+    #[timeout(10000)]
+    async fn slot_guard_semaphore_limits_concurrency() {
+        let pool = Arc::new(BufferPool::new(1, 64, 1, 64));
+
+        // Acquire the only slot → semaphore exhausted.
+        let guard1 = pool.acquire_slot().await;
+        assert_eq!(pool.slot_semaphore.available_permits(), 0);
+
+        // Spawn a task that tries to acquire another slot — it should block.
+        let pool2 = pool.clone();
+        let acquired = Arc::new(AtomicBool::new(false));
+        let acquired2 = acquired.clone();
+
+        let handle = tokio::spawn(async move {
+            let _g2 = pool2.acquire_slot().await;
+            acquired2.store(true, Ordering::Relaxed);
+        });
+
+        // Give the spawned task time to try acquiring and block.
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        assert!(
+            !acquired.load(Ordering::Relaxed),
+            "second acquire should block when semaphore is exhausted"
+        );
+
+        // Drop the first guard → permit returned → second acquire can proceed.
+        drop(guard1);
+
+        // Wait for the spawned task to acquire the now-available permit.
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        assert!(
+            acquired.load(Ordering::Relaxed),
+            "second acquire should succeed after first guard is dropped"
+        );
+
+        handle.await.unwrap();
+
+        // Clean up active_slots (not managed by SlotGuard).
         pool.release_slot();
         pool.release_slot();
         assert_eq!(pool.active_slots(), 0);

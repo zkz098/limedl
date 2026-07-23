@@ -220,13 +220,18 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
         .start(req_fixed(&server.file_url_range(), &out, "pause-test.bin"))
         .await?;
 
-    // Wait for some progress (at ~1 MB/s we should have >0 after 1200 ms).
-    tokio::time::sleep(Duration::from_millis(1200)).await;
-    let before = manager.status(&id.to_string()).await?;
-    assert!(
-        before.downloaded_bytes > 0,
-        "expected progress before pause, got 0"
-    );
+    // Wait for some progress, polling up to 10 seconds.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    let before = loop {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let s = manager.status(&id.to_string()).await?;
+        if s.downloaded_bytes > 0 {
+            break s;
+        }
+        if tokio::time::Instant::now() > deadline {
+            panic!("timed out waiting for download progress before pause");
+        }
+    };
     let bytes_before = before.downloaded_bytes;
 
     // Pause.
@@ -447,18 +452,24 @@ async fn scheduler_handles_completion_and_starts_next() -> TestResult {
     .map_err(|_| "timeout waiting for first")?;
     assert_eq!(s1.state, DownloadState::Completed);
 
-    // Trigger rebalance so scheduler allocates to queued download.
+    // Trigger rebalance so scheduler allocates to queued download,
+    // then poll until it transitions past Verifying.
     manager.scheduler.rebalance_allocations(&manager).await?;
 
-    let s2 = manager.status(&id2.to_string()).await?;
-    assert!(
-        matches!(
-            s2.state,
-            DownloadState::Downloading | DownloadState::Completed
-        ),
-        "second should be running after first finished, got {:?}",
-        s2.state
-    );
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        let s = manager.status(&id2.to_string()).await?;
+        if matches!(s.state, DownloadState::Downloading | DownloadState::Completed) {
+            break;
+        }
+        if tokio::time::Instant::now() > deadline {
+            panic!(
+                "second should be running after first finished, got {:?}",
+                s.state
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
 
     // Wait for second to finish as well.
     let _s2_done = tokio::time::timeout(
@@ -627,13 +638,17 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
         .await?;
 
     // Trigger rebalances until the Fixed-mode download gets its 2 threads.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     let fixed_snap = loop {
         manager.scheduler.rebalance_allocations(&manager).await?;
         let s = manager.status(&fixed_id.to_string()).await?;
         if s.connection_count == 2 {
             break s;
         }
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        if tokio::time::Instant::now() > deadline {
+            panic!("timed out waiting for fixed-mode download to get 2 threads");
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
     };
     let adaptive_snap = manager.status(&adaptive_id.to_string()).await?;
 

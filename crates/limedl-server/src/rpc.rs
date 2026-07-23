@@ -17,6 +17,12 @@ use crate::rate_limiter::{MethodClass, WsRateLimiter};
 /// Maximum WebSocket message size: 4 MB
 const MAX_MESSAGE_SIZE: usize = 4 * 1024 * 1024;
 
+/// Maximum number of concurrent WebSocket connections
+const MAX_WS_CONNECTIONS: usize = 50;
+
+/// Bounded channel capacity for WebSocket event forwarding (per client)
+const WS_EVENT_CHANNEL_CAPACITY: usize = 256;
+
 /// JSON-RPC 2.0 request
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)] // fields read by serde Deserialize but not accessed directly
@@ -79,7 +85,7 @@ pub struct RpcState {
     pub registry: Arc<BackendRegistry>,
     pub event_bus: Arc<EventBus>,
     /// Connected WebSocket senders for event broadcasting
-    pub clients: Arc<Mutex<Vec<tokio::sync::mpsc::UnboundedSender<Message>>>>,
+    pub clients: Arc<Mutex<Vec<tokio::sync::mpsc::Sender<Message>>>>,
     /// WebSocket JSON-RPC rate limiter (per-connection + global)
     pub rate_limiter: Arc<WsRateLimiter>,
     /// CDN acceleration service
@@ -98,8 +104,22 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
     let connection_id = uuid::Uuid::new_v4().to_string();
     state.rate_limiter.register(&connection_id);
 
+    // Check connection limit BEFORE registering
+    let limit_reached = {
+        let clients = state.clients.lock();
+        clients.len() >= MAX_WS_CONNECTIONS
+    };
+    if limit_reached {
+        tracing::warn!(
+            "WebSocket connection rejected: max connections ({MAX_WS_CONNECTIONS}) reached"
+        );
+        // Close the connection gracefully
+        let _ = sender.close().await;
+        return;
+    }
+
     // Register this client for event broadcasting
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Message>(WS_EVENT_CHANNEL_CAPACITY);
     let cleanup_tx = tx.clone();
     state.clients.lock().push(tx.clone());
 
@@ -184,7 +204,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
                             "params": params,
                         }));
                         if let Ok(msg) = msg {
-                            let _ = tx_event.send(Message::Text(msg.into()));
+                            let _ = tx_event.send(Message::Text(msg.into())).await;
                         }
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
@@ -199,7 +219,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
                             },
                         }));
                         if let Ok(msg) = msg {
-                            let _ = tx_event.send(Message::Text(msg.into()));
+                            let _ = tx_event.send(Message::Text(msg.into())).await;
                         }
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
@@ -233,7 +253,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
                         }),
                     };
                     if let Ok(response_text) = serde_json::to_string(&err_response) {
-                        let _ = tx.send(Message::Text(response_text.into()));
+                        let _ = tx.send(Message::Text(response_text.into())).await;
                     }
                     continue;
                 }
@@ -255,7 +275,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
                             }),
                         };
                         if let Ok(response_text) = serde_json::to_string(&err_response) {
-                            let _ = tx.send(Message::Text(response_text.into()));
+                            let _ = tx.send(Message::Text(response_text.into())).await;
                         }
                         continue;
                     }
@@ -263,7 +283,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
 
                 let response = handle_rpc(&text, &state).await;
                 if let Ok(response_text) = serde_json::to_string(&response) {
-                    let _ = tx.send(Message::Text(response_text.into()));
+                    let _ = tx.send(Message::Text(response_text.into())).await;
                 }
             }
             Message::Binary(data) => {
@@ -278,7 +298,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
                     }),
                 };
                 if let Ok(response_text) = serde_json::to_string(&err_response) {
-                    let _ = tx.send(Message::Text(response_text.into()));
+                    let _ = tx.send(Message::Text(response_text.into())).await;
                 }
                 let _ = data;
             }

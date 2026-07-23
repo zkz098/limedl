@@ -66,7 +66,9 @@ impl EventBus {
     /// Publish an event to all subscribers.
     /// This is the primary API — callers don't need to know about subscribers.
     pub fn publish(&self, event: DownloadEvent) {
-        let _ = self.tx.send(event);
+        if let Err(tokio::sync::broadcast::error::SendError(_)) = self.tx.send(event) {
+            tracing::warn!("EventBus publish dropped: no active subscribers");
+        }
     }
 
     /// Subscribe to all events. Returns a receiver for async iteration.

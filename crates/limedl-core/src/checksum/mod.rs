@@ -99,5 +99,5 @@ pub async fn calculate_checksum(path: PathBuf, mode: ChecksumMode) -> Result<Str
         Ok(hasher.finalize())
     })
     .await
-    .map_err(|error| DownloadError::InvalidResponse(error.to_string()))?
+    .map_err(|error| DownloadError::Internal(format!("checksum computation failed: {error}")))?
 }
