@@ -676,7 +676,7 @@ mod imp {
 
         // 2. Query IOKit IOMedia for this specific disk
         let matching =
-            unsafe { IOServiceMatching(c"IOMedia".as_ptr() as *const i8) };
+            unsafe { IOServiceMatching(c"IOMedia".as_ptr()) };
         if matching.is_null() {
             return DiskType::Ssd;
         }
@@ -723,7 +723,7 @@ mod imp {
 
             // Walk up to IOBlockStorageDriver and check Rotational
             let mut current = entry;
-            let plane = c"IOService".as_ptr() as *const i8;
+            let plane = c"IOService".as_ptr();
             let rot_key = make_cfstr("Rotational");
 
             for depth in 0..8 {
