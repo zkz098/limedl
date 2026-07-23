@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from "../fixtures";
-import { makeMockSummary, makeMockProgress, seedDownloadTask } from "../helpers/task-helpers";
+import { makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 import { expectTaskVisible, expectTaskState } from "../helpers/download-asserts";
 
 test.describe("batch operations", () => {
@@ -25,30 +25,35 @@ test.describe("batch operations", () => {
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
 
-    // Seed three download tasks, passing accumulated summaries so the
-    // download.list mock response includes all previously-created tasks.
-    const summaries: Record<string, unknown>[] = [];
+    // Inject three download tasks directly — no composer dialog needed.
+    // The frontend's handleDownloadUpdated adds tasks via upsertSummary.
     for (const taskId of TASK_IDS) {
-      const summary = await seedDownloadTask(page, wsMocker, taskId, {
-        previousSummaries: [...summaries],
-      });
-      summaries.push(summary);
-      await expectTaskVisible(page, taskId);
-
-      // Allow the composer dialog transition to complete between iterations.
-      // The dialog uses a CSS fade-out animation triggered by submitStart
-      // setting the modelValue to false.
-      await page.waitForTimeout(800);
-
-      // Send progress for each to show "downloading" state
+      wsMocker.sendEvent("updated", makeMockSummary(taskId, {
+        downloadedBytes: 500_000,
+        speedBytesPerSecond: 2_000_000,
+      }));
+      // Send progress to show "downloading" state
       wsMocker.sendEvent("progress", makeMockProgress(taskId, {
         downloadedBytes: 500_000,
         speedBytesPerSecond: 2_000_000,
       }));
     }
+
+    // Pre-seed download.list auto-response so page reloads preserve data
+    wsMocker.setAutoResponse("download.list", TASK_IDS.map((id) =>
+      makeMockSummary(id, { downloadedBytes: 500_000, speedBytesPerSecond: 2_000_000 }),
+    ));
+
+    // Wait for Vue reactivity to render all tasks
+    await page.waitForTimeout(500);
+
+    // Verify all tasks are visible
+    for (const taskId of TASK_IDS) {
+      await expectTaskVisible(page, taskId);
+    }
   });
 
-  test.skip("enables multi-select mode and selects all tasks", async ({ page }) => {
+  test("enables multi-select mode and selects all tasks", async ({ page }) => {
     // The "Multi-select" button is in the toolbar
     const multiSelectBtn = page.getByRole("button", { name: "Multi-select" });
     await expect(multiSelectBtn).toBeVisible();
@@ -69,7 +74,7 @@ test.describe("batch operations", () => {
     await expect(page.getByRole("button", { name: "Select all" })).toBeVisible();
   });
 
-  test.skip("pauses all downloading tasks", async ({ page, wsMocker }) => {
+  test("pauses all downloading tasks", async ({ page, wsMocker }) => {
     // Enable multi-select mode
     await page.getByRole("button", { name: "Multi-select" }).click();
 
@@ -100,7 +105,7 @@ test.describe("batch operations", () => {
     }
   });
 
-  test.skip("resumes all paused tasks", async ({ page, wsMocker }) => {
+  test("resumes all paused tasks", async ({ page, wsMocker }) => {
     // First pause all tasks
     await page.getByRole("button", { name: "Multi-select" }).click();
     await page.getByRole("button", { name: "Select all" }).click();
@@ -154,7 +159,7 @@ test.describe("batch operations", () => {
     }
   });
 
-  test.skip("clears completed tasks", async ({ page, wsMocker }) => {
+  test("clears completed tasks", async ({ page, wsMocker }) => {
     // Send updated events to set all tasks to "completed" state
     for (const taskId of TASK_IDS) {
       wsMocker.sendEvent("updated", makeMockSummary(taskId, {

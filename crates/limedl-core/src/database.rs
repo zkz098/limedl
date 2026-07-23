@@ -1876,4 +1876,483 @@ mod tests {
             err
         );
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // File persistence tests — verify data survives close/reopen
+    // using production `Database::open(path)` with temp directories.
+    // ═══════════════════════════════════════════════════════════════
+
+    #[timeout(30_000)]
+    #[test]
+    fn open_creates_new_database_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        assert!(!path.exists(), "database file should not exist before open");
+
+        let db = Database::open(&path).unwrap();
+        drop(db); // close the database
+
+        assert!(
+            path.exists(),
+            "database file should exist after Database::open"
+        );
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn insert_and_reopen_preserves_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+
+        // First session: insert a download
+        {
+            let db = Database::open(&path).unwrap();
+            let manifest =
+                new_test_manifest("persist-1", "https://example.com/file", "file.bin");
+            db.insert_download(&manifest).unwrap();
+            assert_eq!(db.count_downloads().unwrap(), 1);
+        } // db dropped, connections closed
+
+        // Second session: reopen and verify data survived
+        {
+            let db = Database::open(&path).unwrap();
+            assert_eq!(db.count_downloads().unwrap(), 1);
+            let loaded = db
+                .get_download("persist-1")
+                .unwrap()
+                .expect("should exist after reopen");
+            assert_eq!(loaded.id, "persist-1");
+            assert_eq!(loaded.url, "https://example.com/file");
+            assert_eq!(loaded.file_name, "file.bin");
+            assert_eq!(loaded.state, DownloadState::Queued);
+        }
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn update_persists_across_reopens() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+
+        // First session: insert then update
+        {
+            let db = Database::open(&path).unwrap();
+            let mut manifest =
+                new_test_manifest("upd-reopen", "https://example.com/old", "old.txt");
+            manifest.state = DownloadState::Queued;
+            manifest.chunks = vec![ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 499,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            }];
+            db.insert_download(&manifest).unwrap();
+
+            let mut updated =
+                new_test_manifest("upd-reopen", "https://example.com/new", "new.txt");
+            updated.state = DownloadState::Completed;
+            updated.downloaded_bytes = 500;
+            updated.updated_at_ms = 9999;
+            updated.chunks = vec![ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 499,
+                downloaded: 500,
+                completed: true,
+                claimed_by: None,
+                dirty: false,
+            }];
+            db.update_download(&updated).unwrap();
+        } // db dropped
+
+        // Second session: verify the update persisted
+        {
+            let db = Database::open(&path).unwrap();
+            let loaded = db
+                .get_download("upd-reopen")
+                .unwrap()
+                .expect("should exist after reopen");
+            assert_eq!(loaded.url, "https://example.com/new");
+            assert_eq!(loaded.file_name, "new.txt");
+            assert_eq!(loaded.state, DownloadState::Completed);
+            assert_eq!(loaded.downloaded_bytes, 500);
+            assert_eq!(loaded.updated_at_ms, 9999);
+            assert_eq!(loaded.chunks.len(), 1);
+            assert!(loaded.chunks[0].completed);
+            assert_eq!(loaded.chunks[0].downloaded, 500);
+        }
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn delete_persists_across_reopens() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+
+        // First session: insert then delete
+        {
+            let db = Database::open(&path).unwrap();
+            let manifest =
+                new_test_manifest("del-reopen", "https://example.com/del", "del.bin");
+            db.insert_download(&manifest).unwrap();
+            assert_eq!(db.count_downloads().unwrap(), 1);
+
+            db.delete_download("del-reopen").unwrap();
+            assert_eq!(db.count_downloads().unwrap(), 0);
+        } // db dropped
+
+        // Second session: verify deletion persisted
+        {
+            let db = Database::open(&path).unwrap();
+            assert_eq!(db.count_downloads().unwrap(), 0);
+            let loaded = db.get_download("del-reopen").unwrap();
+            assert!(
+                loaded.is_none(),
+                "deleted download should not exist after reopening"
+            );
+        }
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn chunks_survive_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+
+        // First session: insert a download with multiple chunks
+        {
+            let db = Database::open(&path).unwrap();
+            let mut manifest =
+                new_test_manifest("chunks-reopen", "https://example.com/chunks", "chunks.bin");
+            manifest.chunks = vec![
+                ChunkManifest {
+                    index: 0,
+                    start: 0,
+                    end: 511,
+                    downloaded: 256,
+                    completed: false,
+                    claimed_by: Some(1),
+                    dirty: false,
+                },
+                ChunkManifest {
+                    index: 1,
+                    start: 512,
+                    end: 1023,
+                    downloaded: 512,
+                    completed: true,
+                    claimed_by: None,
+                    dirty: false,
+                },
+            ];
+            db.insert_download(&manifest).unwrap();
+            assert_eq!(count_chunks(&db, "chunks-reopen"), 2);
+        } // db dropped
+
+        // Second session: verify that chunks survived
+        {
+            let db = Database::open(&path).unwrap();
+            let loaded = db
+                .get_download("chunks-reopen")
+                .unwrap()
+                .expect("should exist after reopen");
+            assert_eq!(loaded.chunks.len(), 2);
+            // Chunk 0
+            assert_eq!(loaded.chunks[0].index, 0);
+            assert_eq!(loaded.chunks[0].start, 0);
+            assert_eq!(loaded.chunks[0].end, 511);
+            assert_eq!(loaded.chunks[0].downloaded, 256);
+            assert!(!loaded.chunks[0].completed);
+            assert_eq!(loaded.chunks[0].claimed_by, Some(1));
+            // Chunk 1
+            assert_eq!(loaded.chunks[1].index, 1);
+            assert_eq!(loaded.chunks[1].start, 512);
+            assert_eq!(loaded.chunks[1].end, 1023);
+            assert_eq!(loaded.chunks[1].downloaded, 512);
+            assert!(loaded.chunks[1].completed);
+            assert!(loaded.chunks[1].claimed_by.is_none());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Concurrent access tests — verify the Database can handle
+    // simultaneous reads/writes from multiple threads.
+    // Uses the production `Database::open(path)` with temp dirs.
+    // ═══════════════════════════════════════════════════════════════
+
+    #[timeout(30_000)]
+    #[test]
+    fn concurrent_insert_and_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        let db = Arc::new(Database::open(&path).unwrap());
+
+        let db_reader = db.clone();
+        let reader = std::thread::spawn(move || {
+            // Reader queries while the writer hasn't inserted yet
+            for i in 0..100 {
+                let _ = db_reader.get_download("concurrent-1");
+                let _ = db_reader.count_downloads();
+                if i % 10 == 0 {
+                    std::thread::yield_now();
+                }
+            }
+            // Exercise the read path one more time before the thread exits.
+            // Existence is verified post-join below.
+            let _ = db_reader.get_download("concurrent-1");
+        });
+
+        let db_writer = db.clone();
+        let writer = std::thread::spawn(move || {
+            let manifest =
+                new_test_manifest("concurrent-1", "https://example.com/con", "con.bin");
+            db_writer.insert_download(&manifest).unwrap();
+        });
+
+        reader.join().expect("reader thread panicked");
+        writer.join().expect("writer thread panicked");
+
+        let loaded = db
+            .get_download("concurrent-1")
+            .unwrap()
+            .expect("should exist after concurrent access");
+        assert_eq!(loaded.url, "https://example.com/con");
+        assert_eq!(db.count_downloads().unwrap(), 1);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn concurrent_multiple_writes_different_ids() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        let db = Arc::new(Database::open(&path).unwrap());
+
+        let mut handles = Vec::new();
+        for i in 0..5 {
+            let db_clone = db.clone();
+            let id = format!("con-write-{i}");
+            handles.push(std::thread::spawn(move || {
+                let manifest = new_test_manifest(
+                    &id,
+                    &format!("https://example.com/file{i}"),
+                    &format!("file{i}.bin"),
+                );
+                db_clone.insert_download(&manifest).unwrap();
+            }));
+        }
+
+        for handle in handles {
+            handle.join().expect("writer thread panicked");
+        }
+
+        assert_eq!(db.count_downloads().unwrap(), 5);
+        for i in 0..5 {
+            let id = format!("con-write-{i}");
+            let loaded = db
+                .get_download(&id)
+                .unwrap()
+                .unwrap_or_else(|| panic!("download {id} should exist"));
+            assert_eq!(loaded.id, id);
+            assert_eq!(loaded.file_name, format!("file{i}.bin"));
+            assert_eq!(loaded.url, format!("https://example.com/file{i}"));
+        }
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn concurrent_read_write_same_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        let db = Arc::new(Database::open(&path).unwrap());
+
+        // Pre-insert the download so both reader and writer operate on existing data
+        {
+            let initial =
+                new_test_manifest("same-id", "https://example.com/initial", "initial.bin");
+            db.insert_download(&initial).unwrap();
+        }
+
+        let db_writer = db.clone();
+        let writer = std::thread::spawn(move || {
+            for i in 0..15 {
+                let mut manifest =
+                    new_test_manifest("same-id", "https://example.com/updated", "updated.bin");
+                manifest.downloaded_bytes = (i as u64 + 1) * 100;
+                manifest.updated_at_ms = i as u64;
+                manifest.state = DownloadState::Downloading;
+                db_writer.update_download(&manifest).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(3));
+            }
+        });
+
+        let db_reader = db.clone();
+        let reader = std::thread::spawn(move || {
+            for _ in 0..30 {
+                let result = db_reader.get_download("same-id");
+                assert!(
+                    result.is_ok(),
+                    "reader should not encounter DB errors during concurrent access"
+                );
+                if let Ok(Some(manifest)) = result {
+                    assert_eq!(manifest.id, "same-id");
+                    // downloaded_bytes should be a valid (non-corrupted) state
+                    assert!(
+                        manifest.downloaded_bytes <= 1500,
+                        "downloaded_bytes should be bounded: got {}",
+                        manifest.downloaded_bytes
+                    );
+                }
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        });
+
+        writer.join().expect("writer thread panicked");
+        reader.join().expect("reader thread panicked");
+
+        // Verify final state
+        let loaded = db
+            .get_download("same-id")
+            .unwrap()
+            .expect("should exist after concurrent rw");
+        assert_eq!(loaded.downloaded_bytes, 1500);
+        assert_eq!(loaded.updated_at_ms, 14);
+        assert_eq!(loaded.state, DownloadState::Downloading);
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn concurrent_load_chunks_while_saving() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        let db = Arc::new(Database::open(&path).unwrap());
+
+        // Pre-insert with initial chunks
+        {
+            let mut manifest = new_test_manifest(
+                "chunks-con",
+                "https://example.com/cc",
+                "cc.bin",
+            );
+            manifest.chunks = vec![
+                ChunkManifest {
+                    index: 0,
+                    start: 0,
+                    end: 500,
+                    downloaded: 0,
+                    completed: false,
+                    claimed_by: None,
+                    dirty: false,
+                },
+                ChunkManifest {
+                    index: 1,
+                    start: 500,
+                    end: 1000,
+                    downloaded: 0,
+                    completed: false,
+                    claimed_by: None,
+                    dirty: false,
+                },
+            ];
+            db.insert_download(&manifest).unwrap();
+        }
+
+        let db_writer = db.clone();
+        let writer = std::thread::spawn(move || {
+            for i in 0..20 {
+                let progress = (i as u64 + 1) * 50;
+                let mut manifest = new_test_manifest(
+                    "chunks-con",
+                    "https://example.com/cc",
+                    "cc.bin",
+                );
+                manifest.downloaded_bytes = progress * 2;
+                manifest.chunks = vec![
+                    ChunkManifest {
+                        index: 0,
+                        start: 0,
+                        end: 500,
+                        downloaded: progress.min(500),
+                        completed: progress >= 500,
+                        claimed_by: None,
+                        dirty: false,
+                    },
+                    ChunkManifest {
+                        index: 1,
+                        start: 500,
+                        end: 1000,
+                        downloaded: if progress > 500 {
+                            progress - 500
+                        } else {
+                            0
+                        },
+                        completed: progress >= 1000,
+                        claimed_by: None,
+                        dirty: false,
+                    },
+                ];
+                db_writer.update_download(&manifest).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        });
+
+        let db_reader = db.clone();
+        let reader = std::thread::spawn(move || {
+            for _ in 0..20 {
+                // Read full download (manifest + chunks)
+                let result = db_reader.get_download("chunks-con");
+                assert!(
+                    result.is_ok(),
+                    "get_download should not error during concurrent chunk writes"
+                );
+                if let Ok(Some(manifest)) = &result {
+                    for chunk in &manifest.chunks {
+                        assert!(
+                            chunk.downloaded <= chunk.end - chunk.start,
+                            "chunk {} download {} exceeds range {}-{}",
+                            chunk.index,
+                            chunk.downloaded,
+                            chunk.start,
+                            chunk.end
+                        );
+                    }
+                }
+                // Load chunks directly
+                let chunks = db_reader.load_chunks("chunks-con");
+                assert!(
+                    chunks.is_ok(),
+                    "load_chunks should not error during concurrent chunk writes"
+                );
+                if let Ok(chunks) = &chunks {
+                    for chunk in chunks {
+                        assert!(
+                            chunk.downloaded <= chunk.end - chunk.start,
+                            "chunk {} download {} exceeds range {}-{}",
+                            chunk.index,
+                            chunk.downloaded,
+                            chunk.start,
+                            chunk.end
+                        );
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        });
+
+        writer.join().expect("writer thread panicked");
+        reader.join().expect("reader thread panicked");
+
+        // Verify final state
+        let loaded = db
+            .get_download("chunks-con")
+            .unwrap()
+            .expect("should exist after concurrent chunk access");
+        assert_eq!(loaded.downloaded_bytes, 2000);
+        assert_eq!(loaded.chunks.len(), 2);
+        assert!(loaded.chunks[0].completed);
+        assert_eq!(loaded.chunks[0].downloaded, 500);
+        assert!(loaded.chunks[1].completed);
+        assert_eq!(loaded.chunks[1].downloaded, 500);
+    }
 }

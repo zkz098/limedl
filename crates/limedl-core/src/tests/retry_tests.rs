@@ -4,7 +4,7 @@
 //!
 //! - [`backoff_delay`] unit tests (synchronous) — verify the pure delay function.
 //! - [`request_with_retry`] integration tests (async) — verify retry flow using
-//!   in-memory `reqwest::Response` objects (no real network I/O).
+//!   in-memory `reqwest::Response` objects and real `TestServer` HTTP endpoints.
 //!
 //! # CDN fallback note
 //!
@@ -30,6 +30,7 @@ use crate::error::DownloadError;
 use crate::manager::DownloadCore;
 use crate::manifest::Manifest;
 use crate::retry::{backoff_delay, request_with_retry};
+use crate::test_harness::TestServer;
 use crate::types::{ChecksumMode, DownloadSnapshot, DownloadState, TaskKind, ThreadMode};
 
 // ---------------------------------------------------------------------------
@@ -389,3 +390,289 @@ async fn retry_respects_transient_vs_permanent_errors() -> TestResult {
 // Existing unit tests in `accelerator.rs` already cover the lifecycle (new,
 // apply_ip, clear, cancel, candidate storage) which is the most we can test
 // without mocking infrastructure.
+
+// ---------------------------------------------------------------------------
+// request_with_retry  —  real HTTP integration tests (TestServer)
+// ---------------------------------------------------------------------------
+
+/// Succeeds on first attempt with a real HTTP request to TestServer `/file`.
+///
+/// No retries needed — verifies the happy path through [`request_with_retry`].
+#[tokio::test]
+#[timeout(30_000)]
+async fn success_on_first_attempt_real_http() -> TestResult {
+    let server = TestServer::new(64 * 1024).await;
+    let client = reqwest::Client::new();
+    let url = server.file_url();
+
+    let factory = move || {
+        let client = client.clone();
+        let url = url.clone();
+        async move { client.get(&url).send().await }
+    };
+
+    let managed = make_managed();
+    let token = CancellationToken::new();
+
+    let result = request_with_retry(factory, token, 3, managed).await;
+    assert!(result.is_ok(), "expected success on first attempt");
+
+    let response = result?;
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+
+    // Consume body to verify full content arrived
+    let body = response.bytes().await?;
+    assert_eq!(body.len() as u64, server.file_size);
+    Ok(())
+}
+
+/// First request returns 503 (retryable), second succeeds.
+///
+/// Both requests hit real TestServer HTTP endpoints. Verifies that
+/// [`request_with_retry`] retries on a transient server error and
+/// propagates the final successful response.
+#[tokio::test]
+#[timeout(30_000)]
+async fn real_http_503_retries_then_success() -> TestResult {
+    let server = TestServer::new(4096).await;
+    let client = reqwest::Client::new();
+    let status_url = server.file_url_status(503);
+    let success_url = server.file_url();
+    let call_count = Arc::new(Mutex::new(0u32));
+    let cc = call_count.clone();
+
+    let factory = move || {
+        let client = client.clone();
+        let status_url = status_url.clone();
+        let success_url = success_url.clone();
+        let cc = cc.clone();
+        async move {
+            let is_first = {
+                let mut count = cc.lock().unwrap();
+                *count += 1;
+                *count == 1
+            };
+            if is_first {
+                client.get(&status_url).send().await
+            } else {
+                client.get(&success_url).send().await
+            }
+        }
+    };
+
+    let managed = make_managed();
+    let token = CancellationToken::new();
+
+    let result = request_with_retry(factory, token, 3, managed).await;
+    assert!(result.is_ok(), "expected success after retry");
+
+    let response = result?;
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+
+    // Verify exactly 2 requests were made (initial 503 + retry success)
+    assert_eq!(*call_count.lock().unwrap(), 2);
+    Ok(())
+}
+
+/// All requests return 503 via TestServer's `/file/status/503` endpoint.
+/// With `max_retries = 2`, the function should exhaust retries and return
+/// [`DownloadError::InvalidResponse`].
+#[tokio::test]
+#[timeout(30_000)]
+async fn real_http_503_exhausts_max_retries() -> TestResult {
+    let server = TestServer::new(4096).await;
+    let client = reqwest::Client::new();
+    let status_url = server.file_url_status(503);
+    let call_count = Arc::new(Mutex::new(0u32));
+    let cc = call_count.clone();
+
+    let factory = move || {
+        let client = client.clone();
+        let status_url = status_url.clone();
+        let cc = cc.clone();
+        async move {
+            *cc.lock().unwrap() += 1;
+            client.get(&status_url).send().await
+        }
+    };
+
+    let managed = make_managed();
+    let token = CancellationToken::new();
+
+    let result = request_with_retry(factory, token, 2, managed).await;
+    assert!(result.is_err(), "expected error after exhausting retries");
+
+    match result.unwrap_err() {
+        DownloadError::InvalidResponse(msg) => {
+            assert!(
+                msg.contains("503"),
+                "error should mention status code 503, got: {msg}"
+            );
+        }
+        other => panic!("expected InvalidResponse, got: {other}"),
+    }
+
+    // 1 initial attempt + 2 retries = 3 total calls
+    assert_eq!(*call_count.lock().unwrap(), 3);
+    Ok(())
+}
+
+/// A 404 response (non-existent path on TestServer) must NOT be retried —
+/// [`classify_download_response`] treats 4xx as [`ResponseDisposition::Invalid`].
+#[tokio::test]
+#[timeout(30_000)]
+async fn real_http_404_does_not_retry() -> TestResult {
+    let server = TestServer::new(4096).await;
+    let client = reqwest::Client::new();
+    let not_found_url = format!("{}/file/nonexistent-route", server.addr);
+    let call_count = Arc::new(Mutex::new(0u32));
+    let cc = call_count.clone();
+
+    let factory = move || {
+        let client = client.clone();
+        let not_found_url = not_found_url.clone();
+        let cc = cc.clone();
+        async move {
+            *cc.lock().unwrap() += 1;
+            client.get(&not_found_url).send().await
+        }
+    };
+
+    let managed = make_managed();
+    let token = CancellationToken::new();
+
+    let result = request_with_retry(factory, token, 5, managed).await;
+    assert!(result.is_err(), "expected error for 404");
+
+    match result.unwrap_err() {
+        DownloadError::InvalidResponse(msg) => {
+            assert!(msg.contains("404"), "error should mention 404, got: {msg}");
+        }
+        other => panic!("expected InvalidResponse, got: {other}"),
+    }
+
+    // Factory called only once — no retries for client errors
+    assert_eq!(*call_count.lock().unwrap(), 1);
+    Ok(())
+}
+
+/// Verifies that transport errors (connection refused) trigger retries and
+/// eventual exhaustion. This exercises the `Err(error)` branch in
+/// [`request_with_retry`], which is a separate code path from HTTP status
+/// retries.
+#[tokio::test]
+#[timeout(30_000)]
+async fn transport_error_retries_and_exhausts() -> TestResult {
+    // Build a client with a short timeout so connection-refused
+    // errors surface quickly rather than waiting for the OS timeout.
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+
+    // Port 1 is almost certainly not listening on any CI/dev machine.
+    let bad_url = "http://127.0.0.1:1/";
+    let call_count = Arc::new(Mutex::new(0u32));
+    let cc = call_count.clone();
+
+    let factory = move || {
+        let client = client.clone();
+        let cc = cc.clone();
+        async move {
+            *cc.lock().unwrap() += 1;
+            client.get(bad_url).send().await
+        }
+    };
+
+    let managed = make_managed();
+    let token = CancellationToken::new();
+
+    let result = request_with_retry(factory, token, 2, managed).await;
+
+    assert!(result.is_err(), "expected error after exhausting transport retries");
+
+    // 1 initial attempt + 2 retries = 3 total calls
+    assert_eq!(*call_count.lock().unwrap(), 3);
+    Ok(())
+}
+
+/// Verifies that after a retryable failure, the [`ManagedDownload`] state is
+/// updated:
+/// - `snapshot.state` → `DownloadState::Retrying`
+/// - `snapshot.error` contains the error description
+/// - `aimd.recent_penalty` is set
+/// - `aimd.penalty_count` is incremented
+#[tokio::test]
+#[timeout(30_000)]
+async fn retry_state_is_updated_on_managed_download() -> TestResult {
+    let factory = || async { Ok(make_response(503)) };
+
+    let managed = make_managed();
+    let token = CancellationToken::new();
+
+    let result = request_with_retry(factory, token, 1, managed.clone()).await;
+    assert!(result.is_err(), "expected error after exhausting retries");
+
+    // Check core state
+    let core = managed.lock_core();
+    assert_eq!(
+        core.snapshot.state,
+        DownloadState::Retrying,
+        "snapshot should be in Retrying state"
+    );
+    assert!(
+        core.snapshot.error.is_some(),
+        "error should be set after retry"
+    );
+    let err_msg = core.snapshot.error.as_ref().unwrap();
+    assert!(
+        err_msg.contains("503"),
+        "error should mention 503: {err_msg}"
+    );
+    assert!(
+        core.manifest.error.is_some(),
+        "manifest error should be set after retry"
+    );
+    assert_eq!(
+        core.manifest.state,
+        DownloadState::Retrying,
+        "manifest should be in Retrying state"
+    );
+
+    // Check AIMD state
+    let aimd = managed.lock_aimd();
+    assert!(
+        aimd.recent_penalty,
+        "AIMD recent_penalty should be set after retry"
+    );
+    assert_eq!(
+        aimd.penalty_count, 1,
+        "AIMD penalty_count should be 1 after one retry"
+    );
+
+    Ok(())
+}
+
+/// Verifies that AIMD penalty count increments across multiple retries.
+#[tokio::test]
+#[timeout(30_000)]
+async fn retry_penalty_count_accumulates() -> TestResult {
+    let factory = || async { Ok(make_response(503)) };
+
+    let managed = make_managed();
+    let token = CancellationToken::new();
+
+    let result = request_with_retry(factory, token, 3, managed.clone()).await;
+    assert!(result.is_err(), "expected error after exhausting retries");
+
+    // With max_retries = 3 we get 3 retry penalties recorded.
+    // (The initial attempt fails → retry #1 penalty, retry #1 fails → retry #2 penalty,
+    //  retry #2 fails → retry #3 penalty, retry #3 fails → final error, no more retries)
+    let aimd = managed.lock_aimd();
+    assert_eq!(
+        aimd.penalty_count, 3,
+        "AIMD penalty_count should equal number of retries = 3"
+    );
+    assert!(aimd.recent_penalty);
+
+    Ok(())
+}

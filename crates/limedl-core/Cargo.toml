@@ -39,6 +39,7 @@ serde_with = ">=3.21.0"
 fs4 = { version = "0.13", features = ["sync"] }
 rand = { version = "0.8", optional = true }
 irontide = { version = "1", default-features = false, features = ["crypto-aws-lc"] }
+libc = "0.2"
 ts-rs = { version = "12", optional = true }
 
 [features]

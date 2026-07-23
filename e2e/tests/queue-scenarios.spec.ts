@@ -23,25 +23,13 @@ test.describe("queue scenarios", () => {
     await expect(page.locator(".app-root")).toBeVisible();
   });
 
-  test.skip("multiple downloads show in correct order", async ({ page, wsMocker }) => {
+  test("multiple downloads show in correct order", async ({ page, wsMocker }) => {
     const TASK_IDS = ["order-001", "order-002", "order-003"];
-    const summaries: Record<string, unknown>[] = [];
-
-    // Seed 3 downloads sequentially through the composer dialog.
-    // Passing previousSummaries preserves earlier tasks across seed calls.
-    for (const taskId of TASK_IDS) {
-      const summary = await seedDownloadTask(page, wsMocker, taskId, {
-        previousSummaries: [...summaries],
-      });
-      summaries.push(summary);
-      // Allow composer dialog transition to complete between iterations
-      await page.waitForTimeout(800);
-    }
-
-    // Override created_at timestamps via updated events to ensure deterministic
-    // ordering. The app sorts by createdAtMs descending by default.
-    // order-003 (newest): 3000ms ago, order-002: 6000ms ago, order-001 (oldest): 9000ms ago.
     const now = Date.now();
+
+    // Inject tasks directly instead of going through the composer dialog.
+    // The frontend's handleDownloadUpdated calls upsertSummary which adds
+    // tasks to the reactive downloads array even if download.list is empty.
     for (const t of [
       { id: "order-001", createdAtMs: now - 9000 },
       { id: "order-002", createdAtMs: now - 6000 },
@@ -50,7 +38,14 @@ test.describe("queue scenarios", () => {
       wsMocker.sendEvent("updated", makeMockSummary(t.id, { createdAtMs: t.createdAtMs }));
     }
 
-    // Wait for Vue reactivity to re-sort the list
+    // Also pre-seed download.list so page reload / refresh would preserve data
+    wsMocker.setAutoResponse("download.list", [
+      makeMockSummary("order-003", { createdAtMs: now - 3000 }),
+      makeMockSummary("order-002", { createdAtMs: now - 6000 }),
+      makeMockSummary("order-001", { createdAtMs: now - 9000 }),
+    ]);
+
+    // Wait for Vue reactivity to render the tasks
     await page.waitForTimeout(500);
 
     // Get all visible download rows in DOM order
@@ -63,20 +58,10 @@ test.describe("queue scenarios", () => {
     await expect(rows.nth(2)).toHaveAttribute("data-testid", "download-row-order-001");
   });
 
-  test.skip("filter by category shows correct tasks", async ({ page, wsMocker }) => {
-    const SUMMARIES: Record<string, unknown>[] = [];
+  test("filter by category shows correct tasks", async ({ page, wsMocker }) => {
     const TASK_IDS = ["filter-dl", "filter-paused", "filter-comp"];
 
-    // Seed three tasks
-    for (const taskId of TASK_IDS) {
-      const summary = await seedDownloadTask(page, wsMocker, taskId, {
-        previousSummaries: [...SUMMARIES],
-      });
-      SUMMARIES.push(summary);
-      await page.waitForTimeout(800);
-    }
-
-    // Set distinct states via updated events
+    // Inject tasks directly — no composer dialog needed
     wsMocker.sendEvent("updated", makeMockSummary("filter-dl", {
       state: "downloading",
       downloadedBytes: 2_000_000,
@@ -91,6 +76,13 @@ test.describe("queue scenarios", () => {
       downloadedBytes: 10_000_000,
       connectionCount: 0,
     }));
+
+    // Also pre-seed download.list for consistency
+    wsMocker.setAutoResponse("download.list", [
+      makeMockSummary("filter-dl", { state: "downloading", downloadedBytes: 2_000_000 }),
+      makeMockSummary("filter-paused", { state: "paused", downloadedBytes: 5_000_000, connectionCount: 0 }),
+      makeMockSummary("filter-comp", { state: "completed", downloadedBytes: 10_000_000, connectionCount: 0 }),
+    ]);
 
     await page.waitForTimeout(500);
 
@@ -124,29 +116,20 @@ test.describe("queue scenarios", () => {
     await expect(page.locator("[data-testid='download-row-filter-comp']")).toBeVisible();
   });
 
-  test.skip("search filters downloads by name", async ({ page, wsMocker }) => {
-    const SUMMARIES: Record<string, unknown>[] = [];
+  test("search filters downloads by name", async ({ page, wsMocker }) => {
+    // Inject three downloads with distinct file names via direct events
+    wsMocker.sendEvent("updated", makeMockSummary("search-alpha", { fileName: "AlphaProject.zip" }));
+    wsMocker.sendEvent("updated", makeMockSummary("search-beta", { fileName: "BetaRelease.iso" }));
+    wsMocker.sendEvent("updated", makeMockSummary("search-gamma", { fileName: "GammaDocument.pdf" }));
 
-    // Seed three downloads with distinct file names
-    await seedDownloadTask(page, wsMocker, "search-alpha", {
-      fileName: "AlphaProject.zip",
-      previousSummaries: [...SUMMARIES],
-    });
-    SUMMARIES.push(makeMockSummary("search-alpha", { fileName: "AlphaProject.zip" }));
-    await page.waitForTimeout(800);
+    // Pre-seed download.list auto-response for consistency
+    wsMocker.setAutoResponse("download.list", [
+      makeMockSummary("search-alpha", { fileName: "AlphaProject.zip" }),
+      makeMockSummary("search-beta", { fileName: "BetaRelease.iso" }),
+      makeMockSummary("search-gamma", { fileName: "GammaDocument.pdf" }),
+    ]);
 
-    await seedDownloadTask(page, wsMocker, "search-beta", {
-      fileName: "BetaRelease.iso",
-      previousSummaries: [...SUMMARIES],
-    });
-    SUMMARIES.push(makeMockSummary("search-beta", { fileName: "BetaRelease.iso" }));
-    await page.waitForTimeout(800);
-
-    await seedDownloadTask(page, wsMocker, "search-gamma", {
-      fileName: "GammaDocument.pdf",
-      previousSummaries: [...SUMMARIES],
-    });
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(500);
 
     // All visible initially
     await expect(page.locator("[data-testid='download-row-search-alpha']")).toBeVisible();
@@ -177,29 +160,20 @@ test.describe("queue scenarios", () => {
     await expect(page.locator("[data-testid='download-row-search-gamma']")).toBeVisible();
   });
 
-  test.skip("sort by name toggles order", async ({ page, wsMocker }) => {
-    const SUMMARIES: Record<string, unknown>[] = [];
+  test("sort by name toggles order", async ({ page, wsMocker }) => {
+    // Inject three tasks with names that sort alphabetically
+    wsMocker.sendEvent("updated", makeMockSummary("sort-apple", { fileName: "apple.iso" }));
+    wsMocker.sendEvent("updated", makeMockSummary("sort-banana", { fileName: "banana.zip" }));
+    wsMocker.sendEvent("updated", makeMockSummary("sort-cherry", { fileName: "cherry.tar.gz" }));
 
-    // Seed three tasks with names that sort alphabetically
-    await seedDownloadTask(page, wsMocker, "sort-apple", {
-      fileName: "apple.iso",
-      previousSummaries: [...SUMMARIES],
-    });
-    SUMMARIES.push(makeMockSummary("sort-apple", { fileName: "apple.iso" }));
-    await page.waitForTimeout(800);
+    // Pre-seed download.list for consistency
+    wsMocker.setAutoResponse("download.list", [
+      makeMockSummary("sort-apple", { fileName: "apple.iso" }),
+      makeMockSummary("sort-banana", { fileName: "banana.zip" }),
+      makeMockSummary("sort-cherry", { fileName: "cherry.tar.gz" }),
+    ]);
 
-    await seedDownloadTask(page, wsMocker, "sort-banana", {
-      fileName: "banana.zip",
-      previousSummaries: [...SUMMARIES],
-    });
-    SUMMARIES.push(makeMockSummary("sort-banana", { fileName: "banana.zip" }));
-    await page.waitForTimeout(800);
-
-    await seedDownloadTask(page, wsMocker, "sort-cherry", {
-      fileName: "cherry.tar.gz",
-      previousSummaries: [...SUMMARIES],
-    });
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(500);
 
     // Default sort is "added_at desc", so newest first.
     // Change sort key to "name" via the sort dropdown.

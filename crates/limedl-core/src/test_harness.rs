@@ -92,6 +92,7 @@ impl TestServer {
             .route("/file/range-416", get(serve_file_range_416))
             .route("/file/no-length", get(serve_file_no_length))
             .route("/file/wrong-length", get(serve_file_wrong_length))
+            .route("/file/status/{code}", get(serve_file_status))
             .with_state(state);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -206,6 +207,13 @@ impl TestServer {
     /// prematurely.  This tests how the executor handles a Content-Length mismatch.
     pub fn file_url_wrong_length(&self) -> String {
         format!("{}/file/wrong-length", self.addr)
+    }
+
+    /// URL that returns the given HTTP status code with an empty body.
+    ///
+    /// Useful for testing retry logic with arbitrary server error status codes.
+    pub fn file_url_status(&self, code: u16) -> String {
+        format!("{}/file/status/{code}", self.addr)
     }
 }
 
@@ -554,6 +562,20 @@ async fn serve_file_wrong_length(
     );
     add_checksum_headers(&mut headers, &state);
     (StatusCode::OK, headers, state.data[..wrong_len].to_vec()).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/status/{code}
+// ---------------------------------------------------------------------------
+
+/// Serve the given HTTP status code with an empty body.
+///
+/// Useful for testing retry logic with arbitrary status codes.
+async fn serve_file_status(
+    Path(code): Path<u16>,
+) -> impl IntoResponse {
+    let status = StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    (status, Vec::<u8>::new()).into_response()
 }
 
 // ---------------------------------------------------------------------------

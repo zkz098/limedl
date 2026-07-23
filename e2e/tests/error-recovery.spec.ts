@@ -45,32 +45,31 @@ test.describe("error recovery", () => {
     await expectTaskVisible(page, TASK_ID);
   });
 
-  test.skip("paused download can be resumed after page reload", async ({ page, wsMocker }) => {
+  test("paused download can be resumed after page reload", async ({ page, wsMocker }) => {
     const TASK_ID = "err-recovery-002";
 
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
 
-    // Seed a task and immediately set it to paused (simulating a partial
-    // download that was paused before the crash)
-    await seedDownloadTask(page, wsMocker, TASK_ID);
+    // Inject paused task directly — no composer dialog needed
     wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
       state: "paused",
       downloadedBytes: 5_000_000,
     }));
+
+    // Pre-seed download.list auto-response so the task persists across reload
+    wsMocker.setAutoResponse("download.list", [makeMockSummary(TASK_ID, {
+      state: "paused",
+      downloadedBytes: 5_000_000,
+    })]);
+
     await expectTaskState(page, TASK_ID, "paused");
 
     // Reload the page
     await page.reload();
     await expect(page.locator(".app-root")).toBeVisible();
 
-    // Respond to the initial list call with the paused task
-    await wsMocker.waitForMethod("download.list");
-    wsMocker.respondToMethod("download.list", [makeMockSummary(TASK_ID, {
-      state: "paused",
-      downloadedBytes: 5_000_000,
-    })]);
-
+    // After reload, the auto-response handles download.list returning the paused task
     await expectTaskVisible(page, TASK_ID);
     await expectTaskState(page, TASK_ID, "paused");
 

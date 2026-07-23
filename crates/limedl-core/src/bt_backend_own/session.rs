@@ -27,7 +27,11 @@ impl IrontideBtBackend {
     ) -> Result<Self> {
         let bt = &settings.bt;
 
-        let mut builder = irontide::ClientBuilder::new()
+        let resume_dir = state_dir.join("resume");
+        std::fs::create_dir_all(&resume_dir).ok();
+        let mut irontide_settings = irontide::session::Settings::default();
+        irontide_settings.resume_data_dir = Some(resume_dir);
+        let mut builder = irontide::ClientBuilder::from_settings(irontide_settings)
             .download_dir(&default_output_dir)
             .enable_dht(bt.dht_enabled)
             .enable_upnp(bt.upnp_enabled)

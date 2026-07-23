@@ -194,18 +194,23 @@ test.describe("Settings page", () => {
     await expect(page.locator(".app-root")).toBeVisible();
   });
 
-  test.skip("switches scheduler mode between automatic and traditional", async ({ page, wsMocker }) => {
+  test("switches scheduler mode between automatic and traditional", async ({ page, wsMocker }) => {
     // The default scheduler mode is "automatic" (Smart Dynamic)
     // Switch to the Scheduler tab
     await page.locator('.settings-page__tabs').getByRole("tab", { name: "Scheduler" }).click();
     await expect(page.locator(".settings-page__content")).toBeVisible();
 
-    // The allocation mode select should show "Smart Dynamic" (automatic)
-    const modeSelect = page.getByRole("combobox");
-    await expect(modeSelect).toBeVisible();
+    // The allocation mode select should show "Smart Dynamic" (automatic).
+    // Find the UiSelect trigger inside the "Allocation mode" settings field
+    const modeField = page.locator('.settings-page__content .settings-field').filter({ hasText: 'Allocation mode' });
+    const modeTrigger = modeField.locator('.ui-select__trigger');
+    await expect(modeTrigger).toBeVisible();
 
-    // Change the scheduler mode to traditional by selecting "Fixed Threads"
-    await modeSelect.selectOption("traditional");
+    // Open the dropdown
+    await modeTrigger.click();
+
+    // Select "Fixed Threads" (traditional) from the dropdown
+    await page.getByRole("option", { name: "Fixed Threads" }).click();
 
     // Now the "Max parallel tasks" field should appear (traditional mode only)
     const maxTasksField = page.locator(".settings-page__content").getByText("Max parallel tasks");
@@ -227,18 +232,21 @@ test.describe("Settings page", () => {
     }));
   });
 
-  test.skip("configures proxy settings", async ({ page, wsMocker }) => {
+  test("configures proxy settings", async ({ page, wsMocker }) => {
     // Switch to the Proxy tab
     await page.locator('.settings-page__tabs').getByRole("tab", { name: "Proxy" }).click();
     await expect(page.locator(".settings-page__content")).toBeVisible();
 
-    // The proxy mode select should show "No proxy" (disabled) by default
-    const proxySelect = page.getByRole("combobox");
-    await expect(proxySelect).toBeVisible();
-    await expect(proxySelect).toContainText("No proxy");
+    // The proxy mode select should show "No proxy" (disabled) by default.
+    // Find the UiSelect trigger inside the "Proxy mode" settings field
+    const proxyField = page.locator('.settings-page__content .settings-field').filter({ hasText: 'Proxy mode' });
+    const proxyTrigger = proxyField.locator('.ui-select__trigger');
+    await expect(proxyTrigger).toBeVisible();
+    await expect(proxyTrigger).toContainText("No proxy");
 
-    // Change to "System proxy"
-    await proxySelect.selectOption("system");
+    // Open the dropdown and select "System proxy"
+    await proxyTrigger.click();
+    await page.getByRole("option", { name: "System proxy" }).click();
 
     // Save settings
     await page.getByRole("button", { name: "Save settings" }).click();
@@ -255,17 +263,19 @@ test.describe("Settings page", () => {
     }));
   });
 
-  test.skip("shows error toast when settings.save returns JSON-RPC error", async ({ page, wsMocker }) => {
+  test("shows error toast when settings.save returns JSON-RPC error", async ({ page, wsMocker }) => {
     // Switch to the Proxy tab
     await page.locator('.settings-page__tabs').getByRole("tab", { name: "Proxy" }).click();
     await expect(page.locator(".settings-page__content")).toBeVisible();
 
     // Change proxy mode to "Manual" so the URL field appears
-    const proxySelect = page.getByRole("combobox");
-    await proxySelect.selectOption("manual");
+    const proxyField = page.locator('.settings-page__content .settings-field').filter({ hasText: 'Proxy mode' });
+    const proxyTrigger = proxyField.locator('.ui-select__trigger');
+    await proxyTrigger.click();
+    await page.getByRole("option", { name: "Manual proxy" }).click();
 
-    // Type an invalid proxy URL
-    const urlInput = page.locator('input[type="text"]').first();
+    // Type an invalid proxy URL — scope to the proxy panel placeholder
+    const urlInput = page.getByPlaceholder("http://127.0.0.1:7890");
     await urlInput.fill("not-a-valid-proxy");
 
     // Click Save

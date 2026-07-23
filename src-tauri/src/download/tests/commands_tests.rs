@@ -4,11 +4,15 @@ use anyhow::anyhow;
 use ntest::timeout;
 use tempfile::tempdir;
 
+use limedl_core::AppState;
+use limedl_core::Dispatcher;
 use limedl_core::DownloadManager;
 use limedl_core::RateLimiter;
+use limedl_core::bootstrap::{CoreSystems, bootstrap};
 use limedl_core::error::DownloadError;
 use limedl_core::event_bus::EventBus;
-use limedl_core::types::{StartDownloadRequest, TaskKind};
+use limedl_core::test_harness::TestServer;
+use limedl_core::types::{DownloadState, StartDownloadRequest, TaskId, TaskKind};
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -381,5 +385,403 @@ async fn get_io_status_has_required_fields() -> TestResult {
     assert_eq!(pool.max_slots(), 1); // game_mode_max_parallel
     assert_eq!(pool.degradation_count(), 0);
 
+    Ok(())
+}
+
+// =============================================================================
+// Tier 3 — integration tests with bootstrap (full subsystem lifecycle)
+//
+// These tests construct a fully bootstrapped CoreSystems via bootstrap() and
+// test download lifecycle operations through the Dispatcher — the same code
+// path the Tauri command handlers use. State<'_, AppState> cannot be
+// constructed outside a running Tauri application, so the Dispatcher is the
+// closest integration point available in unit tests.
+// =============================================================================
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+/// Bootstrap a full CoreSystems and construct an AppState from it.
+async fn bootstrap_env(tmp: &tempfile::TempDir) -> (CoreSystems, AppState) {
+    let state_dir = tmp.path().join("state");
+    let core = bootstrap(state_dir).await.unwrap();
+    let state = AppState {
+        registry: core.registry.clone(),
+        event_bus: core.event_bus.clone(),
+        cdn_service: core.cdn_service.clone(),
+        rpc_shutdown: Arc::new(parking_lot::Mutex::new(None)),
+    };
+    (core, state)
+}
+
+/// Create a StartDownloadRequest for a TestServer URL.
+fn make_server_req(
+    server: &TestServer,
+    dest_dir: &std::path::Path,
+    file_name: &str,
+    bps: Option<u64>,
+) -> StartDownloadRequest {
+    let url = match bps {
+        Some(bps) => server.file_url_bandwidth(bps),
+        None => server.file_url(),
+    };
+    StartDownloadRequest {
+        kind: None,
+        url,
+        destination_dir: dest_dir.to_string_lossy().to_string(),
+        file_name: Some(file_name.into()),
+        user_agent: None,
+        thread_mode: None,
+        thread_count: None,
+        max_retries: Some(1),
+        checksum: None,
+        expected_checksum: None,
+        selected_file_indices: None,
+        start_paused: false,
+        mirror_urls: None,
+    }
+}
+
+// ── download_start ──────────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_start_http_valid_url() -> TestResult {
+    let tmp = tempdir()?;
+    let server = TestServer::new(64 * 1024).await; // 64 KB file
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    let request = make_server_req(&server, &dest, "test.bin", None);
+    let task_id = dispatcher.start(request).await?;
+
+    assert!(
+        matches!(task_id, TaskId::Http(_)),
+        "expected TaskId::Http, got {task_id:?}",
+    );
+
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_cancel ─────────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_cancel_transitions_to_canceled() -> TestResult {
+    let tmp = tempdir()?;
+    // Large file + bandwidth limit ensures the download hasn't finished yet
+    let server = TestServer::new(1024 * 1024).await; // 1 MB
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    let request = make_server_req(&server, &dest, "cancel-test.bin", Some(10240)); // 10 KB/s
+    let task_id = dispatcher.start(request).await?;
+
+    // Let the background task begin
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    let snapshot = dispatcher.cancel(&task_id).await?;
+    assert_eq!(
+        snapshot.state,
+        DownloadState::Canceled,
+        "expected Canceled, got {:?}",
+        snapshot.state,
+    );
+
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_pause / download_resume ────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_pause_resume_cycle() -> TestResult {
+    let tmp = tempdir()?;
+    let server = TestServer::new(1024 * 1024).await; // 1 MB
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    // Bandwidth-limited so the download stays active during the test
+    let request = make_server_req(&server, &dest, "pause-resume.bin", Some(10240));
+    let task_id = dispatcher.start(request).await?;
+
+    // Allow scheduler + background task to begin
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // Pause ➔ expect Paused
+    let snapshot = dispatcher.pause(&task_id).await?;
+    assert_eq!(
+        snapshot.state,
+        DownloadState::Paused,
+        "expected Paused after pause, got {:?}",
+        snapshot.state,
+    );
+
+    // Resume ➔ expect Queued (background download will re-start),
+    // but it may already be Downloading by the time we read the snapshot.
+    let snapshot = dispatcher.resume(&task_id).await?;
+    assert!(
+        matches!(snapshot.state, DownloadState::Queued | DownloadState::Downloading),
+        "expected Queued or Downloading after resume, got {:?}",
+        snapshot.state,
+    );
+
+    // Cancel the re-started download
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let snapshot = dispatcher.cancel(&task_id).await?;
+    assert_eq!(
+        snapshot.state,
+        DownloadState::Canceled,
+        "expected Canceled after final cancel, got {:?}",
+        snapshot.state,
+    );
+
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_status ─────────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_status_returns_snapshot() -> TestResult {
+    let tmp = tempdir()?;
+    let server = TestServer::new(64 * 1024).await;
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    let request = make_server_req(&server, &dest, "status-test.bin", Some(10240));
+    let task_id = dispatcher.start(request).await?;
+
+    let snapshot = dispatcher.status(&task_id).await?;
+
+    // Snapshot fields should match the request
+    assert_eq!(snapshot.url, server.file_url_bandwidth(10240));
+    assert_eq!(snapshot.file_name, "status-test.bin");
+    assert!(matches!(snapshot.kind, TaskKind::Http));
+    assert!(
+        matches!(
+            snapshot.state,
+            DownloadState::Queued | DownloadState::Downloading
+        ),
+        "expected Queued or Downloading, got {:?}",
+        snapshot.state,
+    );
+
+    // Clean up
+    dispatcher.cancel(&task_id).await?;
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_list ───────────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_list_returns_active_downloads() -> TestResult {
+    let tmp = tempdir()?;
+    let server1 = TestServer::new(1024 * 1024).await;
+    let server2 = TestServer::new(1024 * 1024).await;
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+
+    // Start two downloads with bandwidth-limited URLs so they stay active
+    let req1 = make_server_req(&server1, &dest, "list-test-1.bin", Some(10240));
+    let req2 = make_server_req(&server2, &dest, "list-test-2.bin", Some(10240));
+    let _id1 = dispatcher.start(req1).await?;
+    let _id2 = dispatcher.start(req2).await?;
+
+    // List should contain both
+    let summaries = dispatcher.list().await?;
+    assert_eq!(
+        summaries.len(),
+        2,
+        "expected 2 active downloads, got {}",
+        summaries.len(),
+    );
+
+    let names: Vec<&str> = summaries.iter().map(|s| s.file_name.as_str()).collect();
+    assert!(
+        names.contains(&"list-test-1.bin"),
+        "missing list-test-1.bin in {names:?}",
+    );
+    assert!(
+        names.contains(&"list-test-2.bin"),
+        "missing list-test-2.bin in {names:?}",
+    );
+
+    // Clean up — cancel each via the summary IDs
+    for summary in &summaries {
+        let tid = TaskId::from_legacy_string(&summary.id)?;
+        let _ = dispatcher.cancel(&tid).await;
+    }
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_remove (without prior cancel) ──────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_remove_active_download() -> TestResult {
+    let tmp = tempdir()?;
+    let server = TestServer::new(64 * 1024).await;
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    let request = make_server_req(&server, &dest, "remove-test.bin", Some(10240));
+    let task_id = dispatcher.start(request).await?;
+
+    // Remove directly (no cancel first) — remove handles state transition internally
+    let snapshot = dispatcher.remove(&task_id).await?;
+    assert_eq!(
+        snapshot.state,
+        DownloadState::Canceled,
+        "expected Canceled after remove, got {:?}",
+        snapshot.state,
+    );
+
+    // List should be empty now
+    let summaries = dispatcher.list().await?;
+    assert_eq!(
+        summaries.len(),
+        0,
+        "expected empty list after remove, got {} items",
+        summaries.len(),
+    );
+
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_purge (without prior cancel) ───────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_purge_active_download() -> TestResult {
+    let tmp = tempdir()?;
+    let server = TestServer::new(64 * 1024).await;
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    let request = make_server_req(&server, &dest, "purge-test.bin", Some(10240));
+    let task_id = dispatcher.start(request).await?;
+
+    // Purge directly — internally cancels and deletes destination files
+    let snapshot = dispatcher.purge(&task_id).await?;
+    assert_eq!(
+        snapshot.state,
+        DownloadState::Canceled,
+        "expected Canceled after purge, got {:?}",
+        snapshot.state,
+    );
+
+    // List should be empty
+    let summaries = dispatcher.list().await?;
+    assert_eq!(
+        summaries.len(),
+        0,
+        "expected empty list after purge, got {} items",
+        summaries.len(),
+    );
+
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_list empty after cancel ────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn download_list_empty_after_cancel() -> TestResult {
+    let tmp = tempdir()?;
+    let server = TestServer::new(64 * 1024).await;
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    let request = make_server_req(&server, &dest, "list-cancel-test.bin", Some(10240));
+    let task_id = dispatcher.start(request).await?;
+
+    // Cancel the download
+    dispatcher.cancel(&task_id).await?;
+
+    // List should be empty — cancel removes from the active list
+    let summaries = dispatcher.list().await?;
+    assert_eq!(
+        summaries.len(),
+        0,
+        "expected empty list after cancel, got {} items",
+        summaries.len(),
+    );
+
+    core.registry.shutdown_all().await;
+    Ok(())
+}
+
+// ── download_start_bt_magnet (ignored — requires network) ──────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "requires network (DHT/tracker) — run manually with cargo test -- --ignored"]
+#[timeout(120_000)]
+async fn download_start_bt_magnet() -> TestResult {
+    let tmp = tempdir()?;
+    let dest = tmp.path().join("out");
+    std::fs::create_dir_all(&dest)?;
+    let (core, state) = bootstrap_env(&tmp).await;
+
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+
+    // Use start_paused: true to avoid actual peer/tracker IO
+    let request = StartDownloadRequest {
+        kind: None,
+        url: "magnet:?xt=urn:btih:9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f".into(),
+        destination_dir: dest.to_string_lossy().to_string(),
+        file_name: None,
+        user_agent: None,
+        thread_mode: None,
+        thread_count: None,
+        max_retries: Some(1),
+        checksum: None,
+        expected_checksum: None,
+        selected_file_indices: None,
+        start_paused: true,
+        mirror_urls: None,
+    };
+
+    let task_id = dispatcher.start(request).await?;
+    assert!(
+        matches!(task_id, TaskId::Bt(_)),
+        "expected TaskId::Bt, got {task_id:?}",
+    );
+
+    // Verify it appears in runtime status
+    let bt_status = dispatcher.bt_runtime_status()?;
+    assert!(
+        bt_status.torrent_count >= 1,
+        "expected at least 1 torrent in runtime status",
+    );
+
+    // Cancel to clean up
+    dispatcher.cancel(&task_id).await?;
+
+    core.registry.shutdown_all().await;
     Ok(())
 }

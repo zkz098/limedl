@@ -11,6 +11,7 @@ mod manager_tests;
 mod mirror_e2e_tests;
 mod persistence_e2e_tests;
 mod persistence_tests;
+mod protocol_tests;
 mod retry_tests;
 mod scheduler_concurrency_tests;
 mod scheduler_tests;
