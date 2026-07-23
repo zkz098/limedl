@@ -9,6 +9,7 @@ import DownloadQueueTable from "./components/limedl/DownloadQueueTable.vue";
 import DetailPanel from "./components/limedl/DetailPanel.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
 import UiButton from "./components/ui/UiButton.vue";
+import BtSpeedLimitModal from "./components/limedl/BtSpeedLimitModal.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
 import ErrorBoundary from "./components/ui/ErrorBoundary.vue";
@@ -52,12 +53,19 @@ import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings, SortDirection, SortKey } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
 import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
+import { setBtSpeedLimit } from "./lib/tauri/download-api";
 
 // Multi-select refs (declared before limedlOptions closure)
 let multiSelectMode = ref(false);
 let selectedIds = ref<Set<string>>(new Set());
 let showBatchDeleteDialog = ref(false);
 let removedDownloadIds = ref<string[]>([]);
+
+// BT speed limit modal state
+const showBtSpeedLimitModal = ref(false);
+const btSpeedLimitTaskId = ref("");
+const btSpeedLimitDownloadLimit = ref(0);
+const btSpeedLimitUploadLimit = ref(0);
 
 const limedlOptions: UseLimedlOptions = {
   onDownloadFailed: (fileName, reason) => {
@@ -288,7 +296,7 @@ onErrorCaptured((err, _instance, info) => {
   return false;
 });
 
-const { notifications, notifyError, dismiss } = useNotification();
+const { notifications, notifyError, notifySuccess, dismiss } = useNotification();
 
 const { updateAvailable, runStartupCheck } = useAppUpdate();
 
@@ -461,6 +469,29 @@ function handleLabsDirtyChange(isDirty: boolean) {
   labsHasUnsavedChanges.value = isDirty;
 }
 
+// ── BT speed limit modal ──
+
+function handleSetBtSpeedLimit(downloadId: string) {
+  const download = downloads.value.find((d) => d.id === downloadId);
+  if (!download) return;
+
+  btSpeedLimitTaskId.value = downloadId;
+  btSpeedLimitDownloadLimit.value = download.downloadLimitBps ?? 0;
+  btSpeedLimitUploadLimit.value = download.uploadLimitBps ?? 0;
+  showBtSpeedLimitModal.value = true;
+}
+
+async function handleBtSpeedLimitConfirm(payload: { taskId: string; downloadLimit: number; uploadLimit: number }) {
+  try {
+    await setBtSpeedLimit(payload.taskId, payload.downloadLimit, payload.uploadLimit);
+    showBtSpeedLimitModal.value = false;
+    notifySuccess(t("messages.speedLimitUpdated"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    notifyError(t("messages.speedLimitError", { error: message }));
+  }
+}
+
 watch(
   () => showComposerDialog.value,
   (isOpen) => {
@@ -565,6 +596,7 @@ watch(
                 @pause-or-resume="handleTaskPauseOrResume"
                 @select="selectDownload"
                 @toggle-select="handleToggleSelect"
+                @set-bt-speed-limit="handleSetBtSpeedLimit"
               />
             </ErrorBoundary>
           </div>
@@ -642,6 +674,14 @@ watch(
         @submit="handleSubmitStart"
       />
     </UiDialog>
+
+    <BtSpeedLimitModal
+      v-model="showBtSpeedLimitModal"
+      :task-id="btSpeedLimitTaskId"
+      :current-download-limit="btSpeedLimitDownloadLimit"
+      :current-upload-limit="btSpeedLimitUploadLimit"
+      @confirm="handleBtSpeedLimitConfirm"
+    />
 
     <ConfirmDialog
       :model-value="Boolean(pendingPermanentDeleteId)"

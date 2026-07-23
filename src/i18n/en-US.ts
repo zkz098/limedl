@@ -726,6 +726,8 @@ const enUS = {
       batchDeleted: "Deleted {{count}} tasks",
       connectionLost: "Connection to server lost. Reconnecting...",
       connectionRestored: "Connection to server restored.",
+      speedLimitUpdated: "Speed limit updated.",
+      speedLimitError: "Failed to update speed limit: {{error}}",
     },
     actions: {
       Cancel: "Cancel",

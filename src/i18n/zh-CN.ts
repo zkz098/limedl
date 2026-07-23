@@ -690,6 +690,8 @@ const zhCN = {
       batchDeleted: "已删除 {{count}} 个任务",
       connectionLost: "与服务器的连接已断开，正在重连...",
       connectionRestored: "与服务器的连接已恢复。",
+      speedLimitUpdated: "速度限制已更新。",
+      speedLimitError: "更新速度限制失败：{{error}}",
     },
     actions: {
       Cancel: "取消",

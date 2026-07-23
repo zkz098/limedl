@@ -119,12 +119,7 @@ test.describe("BitTorrent download", () => {
     expect(errors).toHaveLength(0);
   });
 
-  // SKIPPED: DownloadQueueTable emits "setBtSpeedLimit" event, but App.vue does not have
-  // an @set-bt-speed-limit handler. No speed limit dialog is wired up yet. This test
-  // covers the context menu and RPC wiring, which emits bt.setSpeedLimit — but without
-  // a matching template handler, clicking the menu item dispatches to nothing.
-  // Re-enable when App.vue adds the @set-bt-speed-limit integration.
-  test.skip("sets BT speed limit via context menu", async ({ page, wsMocker }) => {
+  test("sets BT speed limit via context menu", async ({ page, wsMocker }) => {
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
 
@@ -165,16 +160,30 @@ test.describe("BitTorrent download", () => {
     const speedLimitBtn = page.getByRole("button", { name: "Set Speed Limit..." });
     await expect(speedLimitBtn).toBeVisible({ timeout: 3000 });
 
-    // Set up interception for bt.setSpeedLimit
-    const speedLimitPromise = wsMocker.waitForMethod("bt.setSpeedLimit");
-
-    // Click the speed limit button
+    // Click the speed limit button to open the dialog
     await speedLimitBtn.click();
 
+    // The speed limit modal dialog should appear
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 3000 });
+
+    // Fill in speed limit values (KB/s)
+    const downloadInput = page.getByTestId("bt-speed-limit-download").locator("input");
+    const uploadInput = page.getByTestId("bt-speed-limit-upload").locator("input");
+    await downloadInput.fill("1024");
+    await uploadInput.fill("512");
+
+    // Set up interception for bt.setSpeedLimit *before* clicking save
+    const speedLimitPromise = wsMocker.waitForMethod("bt.setSpeedLimit");
+
+    // Click Save button in the dialog
+    await page.getByRole("button", { name: "Save settings" }).click();
+
+    // Verify the RPC was called with correct params
     const speedLimitParams = await speedLimitPromise;
     expect(speedLimitParams).toHaveProperty("taskId", TASK_ID);
-    expect(speedLimitParams).toHaveProperty("downloadLimitBps");
-    expect(speedLimitParams).toHaveProperty("uploadLimitBps");
+    expect(speedLimitParams).toHaveProperty("downloadLimitBps", 1024 * 1024); // 1024 KB/s → bytes
+    expect(speedLimitParams).toHaveProperty("uploadLimitBps", 512 * 1024);    // 512 KB/s → bytes
 
     // Respond with success
     wsMocker.respondToMethod("bt.setSpeedLimit", null);
