@@ -551,9 +551,13 @@ mod imp {
 
     use super::DiskType;
 
+    #[allow(non_camel_case_types)]
     type io_object_t = u32;
+    #[allow(non_camel_case_types)]
     type io_iterator_t = io_object_t;
+    #[allow(non_camel_case_types)]
     type io_registry_entry_t = io_object_t;
+    #[allow(non_camel_case_types)]
     type kern_return_t = i32;
     type CFStringRef = *const c_void;
     type CFBooleanRef = *const c_void;
@@ -561,9 +565,10 @@ mod imp {
     type CFTypeRef = *const c_void;
     type CFAllocatorRef = *const c_void;
 
+    #[allow(clippy::duplicated_attributes)]
     #[link(name = "CoreFoundation", kind = "framework")]
     #[link(name = "IOKit", kind = "framework")]
-    extern "C" {
+    unsafe extern "C" {
         fn IOServiceMatching(name: *const i8) -> CFMutableDictionaryRef;
         fn IOServiceGetMatchingServices(
             mainPort: u32,
@@ -609,12 +614,12 @@ mod imp {
         if cf.is_null() {
             return None;
         }
-        if CFGetTypeID(cf) != CFBooleanGetTypeID() {
-            CFRelease(cf);
+        if unsafe { CFGetTypeID(cf) != CFBooleanGetTypeID() } {
+            unsafe { CFRelease(cf) };
             return None;
         }
-        let v = CFBooleanGetValue(cf as CFBooleanRef) != 0;
-        CFRelease(cf);
+        let v = unsafe { CFBooleanGetValue(cf as CFBooleanRef) } != 0;
+        unsafe { CFRelease(cf) };
         Some(v)
     }
 
@@ -624,8 +629,8 @@ mod imp {
             return None;
         }
         let mut buf = vec![0i8; 256];
-        if CFStringGetCString(cf, buf.as_mut_ptr(), buf.len() as i64, 0x0800_0100) != 0 {
-            let cstr = CStr::from_ptr(buf.as_ptr());
+        if unsafe { CFStringGetCString(cf, buf.as_mut_ptr(), buf.len() as i64, 0x0800_0100) } != 0 {
+            let cstr = unsafe { CStr::from_ptr(buf.as_ptr()) };
             Some(cstr.to_string_lossy().to_string())
         } else {
             None
