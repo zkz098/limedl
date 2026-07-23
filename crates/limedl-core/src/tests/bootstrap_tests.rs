@@ -139,7 +139,7 @@ async fn find_active_by_url_different_urls() {
     let dm = make_manager(&state_dir);
 
     let request1 = StartDownloadRequest {
-        url: "https://example.com/file1.bin".into(),
+        url: "https://localhost:1/file1.bin".into(),
         destination_dir: dest_dir.to_string_lossy().to_string(),
         file_name: Some("file1.bin".into()),
         kind: None,
@@ -156,7 +156,7 @@ async fn find_active_by_url_different_urls() {
     let id1 = dm.start(request1).await.unwrap();
 
     let request2 = StartDownloadRequest {
-        url: "https://example.com/file2.bin".into(),
+        url: "https://localhost:1/file2.bin".into(),
         destination_dir: dest_dir.to_string_lossy().to_string(),
         file_name: Some("file2.bin".into()),
         kind: None,
@@ -174,11 +174,11 @@ async fn find_active_by_url_different_urls() {
 
     // Each URL should find its own download
     let found1 = dm
-        .find_active_by_url("https://example.com/file1.bin")
+        .find_active_by_url("https://localhost:1/file1.bin")
         .await
         .unwrap();
     let found2 = dm
-        .find_active_by_url("https://example.com/file2.bin")
+        .find_active_by_url("https://localhost:1/file2.bin")
         .await
         .unwrap();
     assert_ne!(found1, found2);
