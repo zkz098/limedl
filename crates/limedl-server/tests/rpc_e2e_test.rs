@@ -104,7 +104,7 @@ async fn start_server() -> RpcE2eServer {
     }
 }
 
-/// ── Helpers for sending JSON-RPC messages over WebSocket ────────────────
+// ── Helpers for sending JSON-RPC messages over WebSocket ────────────────
 
 /// Open a WebSocket connection.
 type WsStream = tokio_tungstenite::WebSocketStream<
@@ -134,7 +134,7 @@ async fn rpc_call(
 
     let msg = serde_json::to_string(&request).expect("serialize request");
     stream
-        .send(tokio_tungstenite::tungstenite::Message::Text(msg.into()))
+        .send(tokio_tungstenite::tungstenite::Message::Text(msg))
         .await
         .expect("send message");
 
@@ -467,7 +467,7 @@ async fn missing_id_returns_parse_error() {
 
     stream
         .send(tokio_tungstenite::tungstenite::Message::Text(
-            serde_json::to_string(&request).unwrap().into(),
+            serde_json::to_string(&request).unwrap(),
         ))
         .await
         .expect("send notification");
@@ -502,7 +502,7 @@ async fn multiple_requests_over_single_connection() {
         });
         stream
             .send(tokio_tungstenite::tungstenite::Message::Text(
-                serde_json::to_string(&request).unwrap().into(),
+                serde_json::to_string(&request).unwrap(),
             ))
             .await
             .expect("send request");
