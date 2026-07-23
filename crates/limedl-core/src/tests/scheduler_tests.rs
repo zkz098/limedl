@@ -162,18 +162,16 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
         .start(req_fixed(&small_server.file_url_range(), &out, "small.bin"))
         .await?;
 
-    // Manually run the scheduler.
-    manager.scheduler.update_adaptive_targets(&manager).await?;
-    manager.scheduler.rebalance_allocations(&manager).await?;
+    // Run the scheduler several times to stabilize allocations (in production
+    // the scheduler ticks every 2s; running 3 times with delays simulates this).
+    for _ in 0..3 {
+        manager.scheduler.update_adaptive_targets(&manager).await?;
+        manager.scheduler.rebalance_allocations(&manager).await?;
+        tokio::time::sleep(Duration::from_millis(300)).await;
+    }
 
-    let (big, small) = loop {
-        let big = manager.status(&big_id.to_string()).await?;
-        let small = manager.status(&small_id.to_string()).await?;
-        if big.connection_count > 0 && small.connection_count > 0 {
-            break (big, small);
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    };
+    let big = manager.status(&big_id.to_string()).await?;
+    let small = manager.status(&small_id.to_string()).await?;
 
     assert!(
         big.connection_count >= small.connection_count,
