@@ -4,15 +4,12 @@ use anyhow::anyhow;
 use ntest::timeout;
 use tempfile::tempdir;
 
-use limedl_core::AppState;
-use limedl_core::Dispatcher;
 use limedl_core::DownloadManager;
 use limedl_core::RateLimiter;
-use limedl_core::bootstrap::{CoreSystems, bootstrap};
 use limedl_core::error::DownloadError;
 use limedl_core::event_bus::EventBus;
-use limedl_core::test_harness::TestServer;
-use limedl_core::types::{DownloadState, StartDownloadRequest, TaskId, TaskKind};
+use limedl_core::types::StartDownloadRequest;
+use limedl_core::types::TaskKind;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -396,7 +393,24 @@ async fn get_io_status_has_required_fields() -> TestResult {
 // path the Tauri command handlers use. State<'_, AppState> cannot be
 // constructed outside a running Tauri application, so the Dispatcher is the
 // closest integration point available in unit tests.
+//
+// Requires `--features test-utils` because limedl_core::test_harness is
+// gated behind `#[cfg(feature = "test-utils")]`.
 // =============================================================================
+#[cfg(feature = "test-utils")]
+mod tier3 {
+    use std::sync::Arc;
+
+    use ntest::timeout;
+    use tempfile::tempdir;
+
+    use limedl_core::AppState;
+    use limedl_core::Dispatcher;
+    use limedl_core::bootstrap::{CoreSystems, bootstrap};
+    use limedl_core::test_harness::TestServer;
+    use limedl_core::types::{DownloadState, StartDownloadRequest, TaskId, TaskKind};
+
+    type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -784,4 +798,5 @@ async fn download_start_bt_magnet() -> TestResult {
 
     core.registry.shutdown_all().await;
     Ok(())
-}
+  }
+} // mod tier3

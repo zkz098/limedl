@@ -3337,6 +3337,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bytes",
  "criterion",
  "dashmap",
  "foldhash 0.2.0",

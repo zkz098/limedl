@@ -78,7 +78,7 @@ fn bench_convergence_burst(c: &mut Criterion) {
                 let base = Instant::now();
                 for i in 0..200 {
                     // Ramp from 0 to ~200 MB over 200 samples (2 s @ 10 ms each).
-                    let bytes = black_box((i as u64) * 1024 * 1024);
+                    let bytes = black_box(i * 1024 * 1024);
                     let now = black_box(base + Duration::from_millis(i * 10));
                     if let Some(tp) = state.sample_throughput(bytes, now) {
                         state.record_sample(black_box(tp));

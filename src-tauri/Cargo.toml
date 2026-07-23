@@ -54,6 +54,7 @@ test-utils = ["limedl-core/test-utils", "limedl-core/aria2-rpc", "rand"]
 tempfile = "3"
 ntest = "0.9"
 rand = "0.8"
+bytes = "1"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
