@@ -169,7 +169,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     let (big, small) = loop {
         let big = manager.status(&big_id.to_string()).await?;
         let small = manager.status(&small_id.to_string()).await?;
-        if big.connection_count > 0 || small.connection_count > 0 {
+        if big.connection_count > 0 && small.connection_count > 0 {
             break (big, small);
         }
         tokio::time::sleep(Duration::from_millis(100)).await;

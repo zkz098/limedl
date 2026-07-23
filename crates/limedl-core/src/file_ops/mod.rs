@@ -676,7 +676,7 @@ mod imp {
 
         // 2. Query IOKit IOMedia for this specific disk
         let matching =
-            unsafe { IOServiceMatching(b"IOMedia\0".as_ptr() as *const i8) };
+            unsafe { IOServiceMatching(c"IOMedia".as_ptr() as *const i8) };
         if matching.is_null() {
             return DiskType::Ssd;
         }
@@ -723,7 +723,7 @@ mod imp {
 
             // Walk up to IOBlockStorageDriver and check Rotational
             let mut current = entry;
-            let plane = b"IOService\0".as_ptr() as *const i8;
+            let plane = c"IOService".as_ptr() as *const i8;
             let rot_key = make_cfstr("Rotational");
 
             for depth in 0..8 {
@@ -736,18 +736,18 @@ mod imp {
                     )
                 };
 
-                if !prop.is_null() {
-                    if let Some(is_rotational) = unsafe { cfbool_value(prop) } {
-                        result = if is_rotational {
-                            DiskType::Hdd
-                        } else {
-                            DiskType::Ssd
-                        };
-                        if depth > 0 {
-                            unsafe { IOObjectRelease(current) };
-                        }
-                        break;
+                if !prop.is_null()
+                    && let Some(is_rotational) = unsafe { cfbool_value(prop) }
+                {
+                    result = if is_rotational {
+                        DiskType::Hdd
+                    } else {
+                        DiskType::Ssd
+                    };
+                    if depth > 0 {
+                        unsafe { IOObjectRelease(current) };
                     }
+                    break;
                 }
 
                 let mut parent: io_registry_entry_t = 0;
