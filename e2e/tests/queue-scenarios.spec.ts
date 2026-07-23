@@ -28,22 +28,15 @@ test.describe("queue scenarios", () => {
     const now = Date.now();
 
     // Inject tasks directly instead of going through the composer dialog.
-    // The frontend's handleDownloadUpdated calls upsertSummary which adds
-    // tasks to the reactive downloads array even if download.list is empty.
-    for (const t of [
-      { id: "order-001", createdAtMs: now - 9000 },
-      { id: "order-002", createdAtMs: now - 6000 },
-      { id: "order-003", createdAtMs: now - 3000 },
-    ]) {
-      wsMocker.sendEvent("updated", makeMockSummary(t.id, { createdAtMs: t.createdAtMs }));
+    const offsets = [9000, 6000, 3000];
+    for (let i = 0; i < TASK_IDS.length; i++) {
+      wsMocker.sendEvent("updated", makeMockSummary(TASK_IDS[i], { createdAtMs: now - offsets[i] }));
     }
 
     // Also pre-seed download.list so page reload / refresh would preserve data
-    wsMocker.setAutoResponse("download.list", [
-      makeMockSummary("order-003", { createdAtMs: now - 3000 }),
-      makeMockSummary("order-002", { createdAtMs: now - 6000 }),
-      makeMockSummary("order-001", { createdAtMs: now - 9000 }),
-    ]);
+    wsMocker.setAutoResponse("download.list", TASK_IDS.toReversed().map((id, i) =>
+      makeMockSummary(id, { createdAtMs: now - offsets[2 - i] }),
+    ));
 
     // Wait for Vue reactivity to render the tasks
     await page.waitForTimeout(500);
@@ -62,27 +55,20 @@ test.describe("queue scenarios", () => {
     const TASK_IDS = ["filter-dl", "filter-paused", "filter-comp"];
 
     // Inject tasks directly — no composer dialog needed
-    wsMocker.sendEvent("updated", makeMockSummary("filter-dl", {
-      state: "downloading",
-      downloadedBytes: 2_000_000,
-    }));
-    wsMocker.sendEvent("updated", makeMockSummary("filter-paused", {
-      state: "paused",
-      downloadedBytes: 5_000_000,
-      connectionCount: 0,
-    }));
-    wsMocker.sendEvent("updated", makeMockSummary("filter-comp", {
-      state: "completed",
-      downloadedBytes: 10_000_000,
-      connectionCount: 0,
-    }));
+    const taskConfigs: Record<string, Record<string, unknown>> = {
+      "filter-dl": { state: "downloading", downloadedBytes: 2_000_000 },
+      "filter-paused": { state: "paused", downloadedBytes: 5_000_000, connectionCount: 0 },
+      "filter-comp": { state: "completed", downloadedBytes: 10_000_000, connectionCount: 0 },
+    };
+
+    for (const id of TASK_IDS) {
+      wsMocker.sendEvent("updated", makeMockSummary(id, taskConfigs[id]));
+    }
 
     // Also pre-seed download.list for consistency
-    wsMocker.setAutoResponse("download.list", [
-      makeMockSummary("filter-dl", { state: "downloading", downloadedBytes: 2_000_000 }),
-      makeMockSummary("filter-paused", { state: "paused", downloadedBytes: 5_000_000, connectionCount: 0 }),
-      makeMockSummary("filter-comp", { state: "completed", downloadedBytes: 10_000_000, connectionCount: 0 }),
-    ]);
+    wsMocker.setAutoResponse("download.list", TASK_IDS.map((id) =>
+      makeMockSummary(id, taskConfigs[id]),
+    ));
 
     await page.waitForTimeout(500);
 
