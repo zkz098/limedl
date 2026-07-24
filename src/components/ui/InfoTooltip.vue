@@ -1,3 +1,10 @@
+<script lang="ts">
+// Module-level singleton: only one InfoTooltip may be open at a time.
+// Declared outside <script setup> so it's shared across all component instances.
+import { ref } from "vue";
+const activeTrigger = ref<HTMLElement | null>(null);
+</script>
+
 <script setup lang="ts">
 import { arrow, autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
 import { computed, nextTick, onUnmounted, ref, useId, watch } from "vue";
@@ -15,7 +22,7 @@ const popupRef = ref<HTMLDivElement | null>(null);
 const arrowRef = ref<HTMLDivElement | null>(null);
 
 // Module-level singleton: only one InfoTooltip may be open at a time.
-const activeTrigger = ref<HTMLElement | null>(null);
+// activeTrigger is declared above at module scope, outside setup.
 
 const isOpen = computed(() => {
   const trigger = triggerRef.value;
