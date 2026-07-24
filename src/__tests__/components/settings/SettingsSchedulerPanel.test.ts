@@ -137,6 +137,7 @@ function createSettings(): AppSettings {
       diskTypeOverrides: {},
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: true,
@@ -175,32 +176,39 @@ function mountPanel(props: Record<string, unknown> = {}) {
 // ── Tests ──────────────────────────────────────────────────────────
 
 describe("SettingsSchedulerPanel", () => {
-  // ── Test 1: Default rendering (automatic mode) ──────────────
-  it("renders with automatic mode fields visible by default", () => {
+  // ── Test 1: Simple view by default ───────────────────────────
+  it("renders in simple view with performance presets by default", () => {
     const { wrapper } = mountPanel();
 
-    // Mode select is visible
-    expect(wrapper.find(".ui-select-stub").exists()).toBe(true);
+    // Section header renders
+    expect(wrapper.text()).toContain("settings.schedulerTitle");
 
-    // Allocation mode label is rendered
-    expect(wrapper.text()).toContain("settings.allocationMode");
+    // Performance preset cards are visible
+    expect(wrapper.text()).toContain("settings.performancePresetEnergySaver");
+    expect(wrapper.text()).toContain("settings.performancePresetBalanced");
+    expect(wrapper.text()).toContain("settings.performancePresetMaxSpeed");
 
-    // Automatic mode fields are visible
-    expect(wrapper.text()).toContain("settings.maxParallelThreads");
-    expect(wrapper.text()).toContain("settings.maxThreadsPerTask");
-    expect(wrapper.text()).toContain("settings.minThreadsPerTask");
-    expect(wrapper.text()).toContain("settings.adaptiveProfile");
+    // Simple view shows speed limit and intelligent chunking
+    expect(wrapper.text()).toContain("settings.globalSpeedLimit");
+    expect(wrapper.text()).toContain("settings.intelligentChunking");
 
-    // Traditional mode field is NOT visible
-    expect(wrapper.text()).not.toContain("settings.maxParallelTasks");
-    expect(wrapper.text()).not.toContain("settings.traditionalHint");
+    // Custom view fields are hidden by default
+    expect(wrapper.text()).not.toContain("settings.maxParallelThreads");
+    expect(wrapper.text()).not.toContain("settings.allocationMode");
   });
 
-  // ── Test 2: Switch to traditional mode ──────────────────────
-  it("switches to traditional mode and shows traditional fields", async () => {
+  // ── Test 2: Switch to custom view and traditional mode ───────
+  it("switches to custom view and shows traditional fields", async () => {
     const { draft, wrapper } = mountPanel();
 
-    // Switch draft to traditional mode
+    // Click custom view toggle
+    const viewToggles = wrapper.findAll('[role="tab"]');
+    const customBtn = viewToggles.find((btn) => btn.text().includes("settings.customView"));
+    expect(customBtn).toBeTruthy();
+    await customBtn!.trigger("click");
+    await nextTick();
+
+    // Now switch draft to traditional mode
     draft.scheduler.mode = "traditional";
     await nextTick();
 
@@ -245,12 +253,31 @@ describe("SettingsSchedulerPanel", () => {
     expect(emitted![0][0]).toBe(50);
   });
 
-  // ── Test 4: Chunk allocation switch ─────────────────────────
-  it("chunk allocation switch toggles between adaptive and fixed", async () => {
+  // ── Test 4: Performance presets ──────────────────────────────
+  it("applies energy saver preset when clicked", async () => {
+    const { draft, wrapper } = mountPanel();
+
+    // Find the energy saver preset card
+    const presetBtns = wrapper.findAll('[role="radio"]');
+    const energyBtn = presetBtns.find((btn) =>
+      btn.text().includes("settings.performancePresetEnergySaver"),
+    );
+    expect(energyBtn).toBeTruthy();
+    await energyBtn!.trigger("click");
+    await nextTick();
+
+    // Draft should be updated to energy saver values
+    expect(draft.scheduler.automatic.maxParallelThreads).toBe(8);
+    expect(draft.scheduler.automatic.maxThreadsPerTask).toBe(4);
+    expect(draft.scheduler.automatic.minThreadsPerTask).toBe(2);
+    expect(draft.scheduler.automatic.adaptiveProfile).toBe("conservative");
+  });
+
+  it("chunk switch uses intelligentChunking in simple view", async () => {
     const { draft, wrapper } = mountPanel();
 
     // Label is rendered
-    expect(wrapper.text()).toContain("settings.intelligentChunkAllocation");
+    expect(wrapper.text()).toContain("settings.intelligentChunking");
 
     // Initially adaptive
     expect(draft.scheduler.chunkSizeStrategy).toBe("adaptive");

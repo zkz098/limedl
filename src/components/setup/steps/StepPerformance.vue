@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "../../../i18n";
-import type { AppSettings, SchedulerSettings } from "../../../types/settings";
+import type { AppSettings, AdaptiveProfile, SchedulerMode, SchedulerSettings } from "../../../types/settings";
+import StepShell from "../StepShell.vue";
+import SettingsSection from "../../settings/SettingsSection.vue";
+import SettingsField from "../../settings/SettingsField.vue";
 import UiSwitch from "../../ui/UiSwitch.vue";
 
 const props = defineProps<{
@@ -13,6 +17,86 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
+type PresetKey = "energySaver" | "balanced" | "maxSpeed";
+type PerformancePreset = PresetKey | "custom";
+
+interface PresetConfig {
+  mode: SchedulerMode;
+  maxParallelThreads: number;
+  maxThreadsPerTask: number;
+  minThreadsPerTask: number;
+  adaptiveProfile: AdaptiveProfile;
+}
+
+// PRESETS are ordered by priority for ambiguous matching.
+// If multiple presets share the same config values, the first match wins.
+// Keep keys in priority order: energySaver → balanced → maxSpeed.
+const PRESETS: Record<PresetKey, PresetConfig> = {
+  energySaver: {
+    mode: "automatic",
+    maxParallelThreads: 8,
+    maxThreadsPerTask: 4,
+    minThreadsPerTask: 2,
+    adaptiveProfile: "conservative",
+  },
+  balanced: {
+    mode: "automatic",
+    maxParallelThreads: 16,
+    maxThreadsPerTask: 8,
+    minThreadsPerTask: 2,
+    adaptiveProfile: "balanced",
+  },
+  maxSpeed: {
+    mode: "automatic",
+    maxParallelThreads: 32,
+    maxThreadsPerTask: 16,
+    minThreadsPerTask: 4,
+    adaptiveProfile: "aggressive",
+  },
+};
+
+const performancePreset = computed<PerformancePreset>(() => {
+  const { mode, automatic } = props.settings.scheduler;
+  if (mode === "traditional") return "custom";
+
+  // Iteration order matches PRESETS declaration order (ES2015+ stable insertion order).
+  // First matching preset wins — see PRESETS comment above.
+  for (const [key, config] of Object.entries(PRESETS) as Array<[PresetKey, PresetConfig]>) {
+    if (
+      automatic.maxParallelThreads === config.maxParallelThreads &&
+      automatic.maxThreadsPerTask === config.maxThreadsPerTask &&
+      automatic.minThreadsPerTask === config.minThreadsPerTask &&
+      automatic.adaptiveProfile === config.adaptiveProfile
+    ) {
+      return key;
+    }
+  }
+  return "custom";
+});
+
+const presetCards = computed<
+  Array<{ value: PresetKey; icon: string; title: string; description: string }>
+>(() => [
+  {
+    value: "energySaver",
+    icon: "i-ri-leaf-line",
+    title: t("settings.performancePresetEnergySaver"),
+    description: t("settings.performancePresetEnergySaverHint"),
+  },
+  {
+    value: "balanced",
+    icon: "i-ri-scales-3-line",
+    title: t("settings.performancePresetBalanced"),
+    description: t("settings.performancePresetBalancedHint"),
+  },
+  {
+    value: "maxSpeed",
+    icon: "i-ri-rocket-line",
+    title: t("settings.performancePresetMaxSpeed"),
+    description: t("settings.performancePresetMaxSpeedHint"),
+  },
+]);
+
 function updateScheduler(patch: Partial<SchedulerSettings>) {
   emit("update:settings", {
     ...props.settings,
@@ -20,8 +104,18 @@ function updateScheduler(patch: Partial<SchedulerSettings>) {
   });
 }
 
-function onModeChange(mode: "traditional" | "automatic") {
-  updateScheduler({ mode });
+function applyPreset(preset: PresetKey) {
+  const config = PRESETS[preset];
+  updateScheduler({
+    mode: config.mode,
+    automatic: {
+      ...props.settings.scheduler.automatic,
+      maxParallelThreads: config.maxParallelThreads,
+      maxThreadsPerTask: config.maxThreadsPerTask,
+      minThreadsPerTask: config.minThreadsPerTask,
+      adaptiveProfile: config.adaptiveProfile,
+    },
+  });
 }
 
 function onChunkStrategyChange(enabled: boolean) {
@@ -30,230 +124,120 @@ function onChunkStrategyChange(enabled: boolean) {
 </script>
 
 <template>
-  <div class="setup-step">
-    <div class="setup-step__header">
-      <span class="setup-step__icon i-ri-speed-up-line" aria-hidden="true" />
-      <h2 class="setup-step__title">{{ t("setupWizard.performanceTitle") }}</h2>
-    </div>
-    <p class="setup-step__description">{{ t("setupWizard.performanceDescription") }}</p>
-    <div class="setup-step__body">
-      <div class="section">
-        <span class="section__label">{{ t("settings.allocationMode") }}</span>
-        <div class="mode-options" role="radiogroup" :aria-label="t('settings.allocationMode')">
-          <button
-            type="button"
-            class="mode-card"
-            :class="{ 'is-selected': settings.scheduler.mode === 'traditional' }"
-            role="radio"
-            :aria-checked="settings.scheduler.mode === 'traditional'"
-            @click="onModeChange('traditional')"
-          >
-            <span class="mode-card__check i-ri-check-line" aria-hidden="true" />
-            <span class="mode-card__label">{{ t("tokens.traditional") }}</span>
-            <span class="mode-card__hint">{{ t("settings.traditionalHint") }}</span>
-          </button>
-          <button
-            type="button"
-            class="mode-card"
-            :class="{ 'is-selected': settings.scheduler.mode === 'automatic' }"
-            role="radio"
-            :aria-checked="settings.scheduler.mode === 'automatic'"
-            @click="onModeChange('automatic')"
-          >
-            <span class="mode-card__check i-ri-check-line" aria-hidden="true" />
-            <span class="mode-card__label">{{ t("tokens.automatic") }}</span>
-            <span class="mode-card__hint">{{ t("settings.adaptiveProfileHint") }}</span>
-          </button>
-        </div>
+  <StepShell
+    icon="i-ri-speed-up-line"
+    title-key="setupWizard.performanceTitle"
+    description-key="setupWizard.performanceDescription"
+  >
+    <SettingsSection
+      :title="t('settings.performancePreference')"
+      icon="i-ri-dashboard-line"
+      :summary="t('settings.performancePreferenceHint')"
+    >
+      <div
+        class="performance-presets"
+        role="radiogroup"
+        :aria-label="t('settings.performancePreference')"
+      >
+        <button
+          v-for="card in presetCards"
+          :key="card.value"
+          type="button"
+          class="performance-preset-card"
+          :class="{ 'is-active': performancePreset === card.value }"
+          role="radio"
+          :aria-checked="performancePreset === card.value"
+          @click="applyPreset(card.value)"
+        >
+          <span :class="card.icon" class="performance-preset-card__icon" aria-hidden="true" />
+          <span class="performance-preset-card__title">{{ card.title }}</span>
+          <span class="performance-preset-card__desc">{{ card.description }}</span>
+        </button>
       </div>
+    </SettingsSection>
 
-      <div class="section">
+    <SettingsSection
+      :title="t('settings.intelligentChunking')"
+      icon="i-ri-grid-line"
+      :summary="t('settings.intelligentChunkingHint')"
+    >
+      <SettingsField>
         <UiSwitch
           :model-value="settings.scheduler.chunkSizeStrategy === 'adaptive'"
-          :label="t('settings.intelligentChunkAllocation')"
+          :label="t('settings.intelligentChunking')"
           @update:model-value="onChunkStrategyChange"
         />
-        <p class="section__hint">{{ t("settings.intelligentChunkAllocationHint") }}</p>
-      </div>
-    </div>
-  </div>
+      </SettingsField>
+    </SettingsSection>
+  </StepShell>
 </template>
 
 <style scoped>
-.setup-step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  text-align: center;
-}
-
-.setup-step__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.setup-step__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--font-size-hero);
-  font-weight: var(--font-weight-display);
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--color-heading);
-}
-
-.setup-step__description {
-  margin: 0;
-  font-size: var(--font-size-body);
-  line-height: var(--line-height-tight);
-  color: var(--color-text-muted);
-  max-width: 480px;
-}
-
-.setup-step__body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: var(--space-6);
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  max-width: 560px;
-}
-
-.setup-step__icon {
-  font-size: 2.5rem;
-  color: var(--color-accent);
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  text-align: left;
-}
-
-.section__label {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-heading);
-  text-align: center;
-}
-
-.section__hint {
-  margin: 0;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-  line-height: var(--line-height-tight);
-}
-
-.mode-options {
+.performance-presets {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
-  width: 100%;
 }
 
-.mode-card {
-  position: relative;
+.performance-preset-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-2);
   padding: var(--space-4);
-  border: var(--border-width-thin) solid var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-panel);
+  background: var(--color-panel-muted);
   color: var(--color-text-main);
+  text-align: left;
   cursor: pointer;
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease,
-    transform 0.2s ease,
     box-shadow 0.2s ease;
 }
 
-.mode-card:hover {
+.performance-preset-card:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-surface-muted);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover);
+  background: var(--color-surface-hover);
 }
 
-.mode-card:active {
-  transform: scale(0.98) translateY(0);
+.performance-preset-card.is-active {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  box-shadow: var(--shadow-accent);
 }
 
-.mode-card:focus-visible {
+.performance-preset-card:focus-visible {
   outline: none;
-  border-color: var(--color-accent);
+  border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
-.mode-card.is-selected {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+.performance-preset-card__icon {
+  font-size: var(--font-size-metric);
+  color: var(--color-accent);
 }
 
-.mode-card__check {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-micro);
-  opacity: 0;
-  transform: scale(0.5);
-  transition:
-    opacity 0.25s ease-out,
-    transform 0.25s ease-out;
+.performance-preset-card.is-active .performance-preset-card__icon {
+  color: var(--color-accent-strong);
 }
 
-.mode-card.is-selected .mode-card__check {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.mode-card__label {
-  font-size: var(--font-size-body);
+.performance-preset-card__title {
   font-weight: var(--font-weight-semibold);
+  color: var(--color-heading);
+  line-height: 1.2;
 }
 
-.mode-card__hint {
+.performance-preset-card__desc {
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
-  text-align: center;
-  line-height: var(--line-height-tight);
+  line-height: 1.5;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .mode-card {
-    transition: border-color 0.2s ease, background-color 0.2s ease;
-  }
-
-  .mode-card:hover {
-    transform: none;
-    box-shadow: none;
-  }
-
-  .mode-card:active {
-    transform: none;
-  }
-
-  .mode-card__check {
-    transition: none;
+@media (max-width: 840px) {
+  .performance-presets {
+    grid-template-columns: 1fr;
   }
 }
 </style>

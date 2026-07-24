@@ -327,7 +327,10 @@ function createLimedl(options?: UseLimedlOptions) {
     // Fire OS notifications on genuine state transitions (not initial load)
     if (notificationsEnabled.value && oldState && oldState !== summary.state) {
       if (summary.state === "completed") {
-        void fireNotification(t("notifications.downloadComplete"), t("notifications.downloadCompleteBody", { fileName: summary.fileName }));
+        void fireNotification(
+          t("notifications.downloadComplete"),
+          t("notifications.downloadCompleteBody", { fileName: summary.fileName }),
+        );
       } else if (summary.state === "failed") {
         void fireNotification(
           t("notifications.downloadFailed"),

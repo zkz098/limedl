@@ -62,10 +62,7 @@ export interface GitHubMirrorSettings {
  * AppSettings with frontend-extended sub-types.
  * Generated counterpart is in generated/types.ts.
  */
-export type AppSettings = Omit<
-  GeneratedAppSettings,
-  "ioBaseline" | "githubMirror" | "aria2Rpc"
-> & {
+export type AppSettings = Omit<GeneratedAppSettings, "ioBaseline" | "githubMirror" | "aria2Rpc"> & {
   ioBaseline: IoBaselineSettings;
   githubMirror: GitHubMirrorSettings;
   aria2Rpc: Aria2RpcSettings;

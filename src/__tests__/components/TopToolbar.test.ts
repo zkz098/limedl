@@ -63,7 +63,9 @@ describe("TopToolbar", () => {
       props: createProps(),
       global: { stubs },
     });
-    const addBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.addTask");
+    const addBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.addTask");
     expect(addBtn).toBeDefined();
   });
 
@@ -102,7 +104,10 @@ describe("TopToolbar", () => {
       props: createProps(),
       global: { stubs },
     });
-    await wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.addTask")!.trigger("click");
+    await wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.addTask")!
+      .trigger("click");
     expect(wrapper.emitted("add-task")).toBeTruthy();
   });
 
@@ -111,7 +116,9 @@ describe("TopToolbar", () => {
       props: createProps({ hasSelection: true }),
       global: { stubs },
     });
-    const deleteBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.delete")!;
+    const deleteBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.delete")!;
     await deleteBtn.trigger("click");
     expect(wrapper.emitted("delete")).toBeTruthy();
   });
@@ -121,7 +128,9 @@ describe("TopToolbar", () => {
       props: createProps(),
       global: { stubs },
     });
-    const refreshBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.refresh")!;
+    const refreshBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.refresh")!;
     await refreshBtn.trigger("click");
     expect(wrapper.emitted("refresh")).toBeTruthy();
   });
@@ -132,7 +141,9 @@ describe("TopToolbar", () => {
       props: createProps(),
       global: { stubs },
     });
-    const msBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.multiSelectMode")!;
+    const msBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.multiSelectMode")!;
     expect(msBtn).toBeDefined();
   });
 
@@ -141,7 +152,9 @@ describe("TopToolbar", () => {
       props: createProps({ multiSelectMode: false }),
       global: { stubs },
     });
-    const msBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.multiSelectMode")!;
+    const msBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.multiSelectMode")!;
     await msBtn.trigger("click");
     expect(wrapper.emitted("update:multiSelectMode")).toBeTruthy();
     expect(wrapper.emitted("update:multiSelectMode")![0]).toEqual([true]);
@@ -195,7 +208,9 @@ describe("TopToolbar", () => {
       props: createProps({ multiSelectMode: true, selectedCount: 2 }),
       global: { stubs },
     });
-    const batchDeleteBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.batchDelete")!;
+    const batchDeleteBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.batchDelete")!;
     await batchDeleteBtn.trigger("click");
     expect(wrapper.emitted("batchDelete")).toBeTruthy();
   });
@@ -205,7 +220,9 @@ describe("TopToolbar", () => {
       props: createProps({ multiSelectMode: true, selectedCount: 1 }),
       global: { stubs },
     });
-    const pauseAllBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.pauseAll")!;
+    const pauseAllBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.pauseAll")!;
     await pauseAllBtn.trigger("click");
     expect(wrapper.emitted("pauseAll")).toBeTruthy();
   });
@@ -215,7 +232,9 @@ describe("TopToolbar", () => {
       props: createProps({ multiSelectMode: true, selectedCount: 1 }),
       global: { stubs },
     });
-    const resumeAllBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.resumeAll")!;
+    const resumeAllBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.resumeAll")!;
     await resumeAllBtn.trigger("click");
     expect(wrapper.emitted("resumeAll")).toBeTruthy();
   });
@@ -225,7 +244,9 @@ describe("TopToolbar", () => {
       props: createProps({ multiSelectMode: true, selectedCount: 1 }),
       global: { stubs },
     });
-    const clearBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.clearCompleted")!;
+    const clearBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.clearCompleted")!;
     await clearBtn.trigger("click");
     expect(wrapper.emitted("clearCompleted")).toBeTruthy();
   });
@@ -254,7 +275,9 @@ describe("TopToolbar", () => {
       props: createProps({ multiSelectMode: true, selectedCount: 10, filteredCount: 10 }),
       global: { stubs },
     });
-    const toggleBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.deselectAll")!;
+    const toggleBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.deselectAll")!;
     await toggleBtn.trigger("click");
     expect(wrapper.emitted("deselectAll")).toBeTruthy();
   });
@@ -264,7 +287,9 @@ describe("TopToolbar", () => {
       props: createProps({ multiSelectMode: true, selectedCount: 0, filteredCount: 10 }),
       global: { stubs },
     });
-    const toggleBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.selectAll")!;
+    const toggleBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.selectAll")!;
     await toggleBtn.trigger("click");
     expect(wrapper.emitted("selectAll")).toBeTruthy();
   });
@@ -361,7 +386,9 @@ describe("TopToolbar", () => {
       props: createProps(),
       global: { stubs },
     });
-    const colBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.columns")!;
+    const colBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.columns")!;
     expect(wrapper.find(".column-menu__panel").exists()).toBe(false);
 
     await colBtn.trigger("click");
@@ -373,7 +400,9 @@ describe("TopToolbar", () => {
       props: createProps(),
       global: { stubs },
     });
-    const colBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.columns")!;
+    const colBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.columns")!;
     await colBtn.trigger("click");
 
     const items = wrapper.findAll(".column-menu__item");
@@ -382,10 +411,14 @@ describe("TopToolbar", () => {
 
   it("emits update:visibleColumns when column checkbox is toggled", async () => {
     const wrapper = mount(TopToolbar, {
-      props: createProps({ visibleColumns: ["file", "size", "status", "progress", "speed", "eta"] }),
+      props: createProps({
+        visibleColumns: ["file", "size", "status", "progress", "speed", "eta"],
+      }),
       global: { stubs },
     });
-    const colBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "toolbar.columns")!;
+    const colBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "toolbar.columns")!;
     await colBtn.trigger("click");
 
     // Toggle a visible column (uncheck "size")
@@ -401,7 +434,9 @@ describe("TopToolbar", () => {
       props: createProps({ compactView: false }),
       global: { stubs },
     });
-    const compactBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.attributes("data-icon") === "i-ri-list-check")!;
+    const compactBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.attributes("data-icon") === "i-ri-list-check")!;
     await compactBtn.trigger("click");
     expect(wrapper.emitted("update:compactView")![0]).toEqual([true]);
   });

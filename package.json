@@ -1,10 +1,10 @@
 {
   "name": "limedl",
   "version": "0.1.0",
-  "description": "Fast multi-protocol download manager — HTTP, BitTorrent, CDN acceleration",
-  "author": "limedl contributors",
-  "license": "GPL-3.0-or-later",
   "private": true,
+  "description": "Fast multi-protocol download manager — HTTP, BitTorrent, CDN acceleration",
+  "license": "GPL-3.0-or-later",
+  "author": "limedl contributors",
   "type": "module",
   "scripts": {
     "dev": "vite",

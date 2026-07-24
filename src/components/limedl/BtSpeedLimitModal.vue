@@ -33,8 +33,10 @@ watch(
   (visible) => {
     if (visible) {
       // Reset to current values when opening (bytes → KB/s, rounded)
-      downloadLimitKb.value = props.currentDownloadLimit > 0 ? Math.round(props.currentDownloadLimit / 1024) : 0;
-      uploadLimitKb.value = props.currentUploadLimit > 0 ? Math.round(props.currentUploadLimit / 1024) : 0;
+      downloadLimitKb.value =
+        props.currentDownloadLimit > 0 ? Math.round(props.currentDownloadLimit / 1024) : 0;
+      uploadLimitKb.value =
+        props.currentUploadLimit > 0 ? Math.round(props.currentUploadLimit / 1024) : 0;
     }
   },
 );

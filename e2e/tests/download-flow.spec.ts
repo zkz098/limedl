@@ -81,7 +81,13 @@ function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
       maxTorrents: 20,
       activeLimit: 10,
     },
-    logging: { enabled: false, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    logging: {
+      enabled: false,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: false, port: 6800, secret: null },
     cdnAcceleration: {
       enabled: false,
@@ -99,6 +105,7 @@ function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
       diskTypeOverrides: {},
       maxParallelHdd: 2,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: true,
@@ -203,7 +210,10 @@ test.describe("download flow", () => {
 });
 
 test.describe("download flow — error handling", () => {
-  test("shows error toast when download.start returns JSON-RPC error", async ({ page, wsMocker }) => {
+  test("shows error toast when download.start returns JSON-RPC error", async ({
+    page,
+    wsMocker,
+  }) => {
     // Navigate fresh so wsMocker's routeWebSocket intercepts the WebSocket
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();

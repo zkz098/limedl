@@ -46,17 +46,14 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
 }));
 
 // ── Mock useNotification ────────────────────────────────────────────────────
-const {
-  mockNotifySuccess,
-  mockNotifyError,
-  mockNotifyInfo,
-  mockNotifyWarning,
-} = vi.hoisted(() => ({
-  mockNotifySuccess: vi.fn(),
-  mockNotifyError: vi.fn(),
-  mockNotifyInfo: vi.fn(),
-  mockNotifyWarning: vi.fn(),
-}));
+const { mockNotifySuccess, mockNotifyError, mockNotifyInfo, mockNotifyWarning } = vi.hoisted(
+  () => ({
+    mockNotifySuccess: vi.fn(),
+    mockNotifyError: vi.fn(),
+    mockNotifyInfo: vi.fn(),
+    mockNotifyWarning: vi.fn(),
+  }),
+);
 
 vi.mock("../../composables/useNotification", () => ({
   useNotification: () => ({
@@ -119,10 +116,7 @@ const mockGetDownloadStatus = vi.mocked(getDownloadStatus);
 const mockPauseDownload = vi.mocked(pauseDownload);
 const mockResumeDownload = vi.mocked(resumeDownload);
 
-import {
-  isPermissionGranted,
-  sendNotification,
-} from "@tauri-apps/plugin-notification";
+import { isPermissionGranted, sendNotification } from "@tauri-apps/plugin-notification";
 import { removeDownload } from "../../lib/tauri/download-api";
 const mockRemoveDownload = vi.mocked(removeDownload);
 const mockIsPermissionGranted = vi.mocked(isPermissionGranted);
@@ -674,7 +668,10 @@ describe("useLimedl", () => {
       onUpdated!(JSON.parse(JSON.stringify(failedSummary)));
 
       expect(onDownloadFailed).toHaveBeenCalledTimes(1);
-      expect(onDownloadFailed).toHaveBeenCalledWith("test.zip", expect.stringContaining("errors.http404"));
+      expect(onDownloadFailed).toHaveBeenCalledWith(
+        "test.zip",
+        expect.stringContaining("errors.http404"),
+      );
       expect(mockNotifySuccess).not.toHaveBeenCalled();
     });
 

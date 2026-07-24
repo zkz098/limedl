@@ -17,7 +17,10 @@ const arrowRef = ref<HTMLDivElement | null>(null);
 // Module-level singleton: only one InfoTooltip may be open at a time.
 const activeTrigger = ref<HTMLElement | null>(null);
 
-const isOpen = computed(() => triggerRef.value !== null && activeTrigger.value === triggerRef.value);
+const isOpen = computed(() => {
+  const trigger = triggerRef.value;
+  return trigger != null && activeTrigger.value === trigger;
+});
 const isPinned = ref(false);
 
 let hoverShowTimer: number | null = null;

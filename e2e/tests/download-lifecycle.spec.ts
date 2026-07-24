@@ -13,7 +13,12 @@
  */
 
 import { test, expect } from "../fixtures";
-import { expectTaskVisible, expectTaskState, expectProgressValue, expectSpeedDisplay } from "../helpers/download-asserts";
+import {
+  expectTaskVisible,
+  expectTaskState,
+  expectProgressValue,
+  expectSpeedDisplay,
+} from "../helpers/download-asserts";
 import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 
 test.describe("download lifecycle", () => {
@@ -27,11 +32,14 @@ test.describe("download lifecycle", () => {
     await expectTaskVisible(page, TASK_ID);
 
     // Send initial progress so the task shows "downloading" state
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 1_000_000,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 2,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 1_000_000,
+        speedBytesPerSecond: 5_000_000,
+        etaSeconds: 2,
+      }),
+    );
 
     await expectTaskState(page, TASK_ID, "downloading");
   });
@@ -49,7 +57,9 @@ test.describe("download lifecycle", () => {
     await expect(detailPanel.locator(".detail-panel__filename")).toContainText("10mb.bin");
 
     // Status badge should show "Downloading"
-    await expect(detailPanel.locator(".detail-panel__title .ui-badge")).toContainText("Downloading");
+    await expect(detailPanel.locator(".detail-panel__title .ui-badge")).toContainText(
+      "Downloading",
+    );
 
     // Switch to the Files tab to verify the URL is displayed
     await page.getByRole("button", { name: "Files" }).click();
@@ -70,11 +80,16 @@ test.describe("download lifecycle", () => {
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await pausePromise;
 
-    expect(wsMocker.respondToMethod("download.pause", makeMockSummary(TASK_ID, {
-      state: "paused",
-      downloadedBytes: 1_000_000,
-      connectionCount: 0,
-    }))).toBe(true);
+    expect(
+      wsMocker.respondToMethod(
+        "download.pause",
+        makeMockSummary(TASK_ID, {
+          state: "paused",
+          downloadedBytes: 1_000_000,
+          connectionCount: 0,
+        }),
+      ),
+    ).toBe(true);
 
     await expectTaskState(page, TASK_ID, "paused");
 
@@ -83,20 +98,28 @@ test.describe("download lifecycle", () => {
     await page.getByRole("button", { name: "Resume" }).click();
     await resumePromise;
 
-    expect(wsMocker.respondToMethod("download.resume", makeMockSummary(TASK_ID, {
-      state: "downloading",
-      downloadedBytes: 1_000_000,
-      connectionCount: 4,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 2,
-    }))).toBe(true);
+    expect(
+      wsMocker.respondToMethod(
+        "download.resume",
+        makeMockSummary(TASK_ID, {
+          state: "downloading",
+          downloadedBytes: 1_000_000,
+          connectionCount: 4,
+          speedBytesPerSecond: 5_000_000,
+          etaSeconds: 2,
+        }),
+      ),
+    ).toBe(true);
 
     // Send a progress event to show the task is actively downloading
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 2_000_000,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 2,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 2_000_000,
+        speedBytesPerSecond: 5_000_000,
+        etaSeconds: 2,
+      }),
+    );
 
     await expectTaskState(page, TASK_ID, "downloading");
   });
@@ -115,11 +138,16 @@ test.describe("download lifecycle", () => {
     expect(cancelParams).toHaveProperty("taskId", TASK_ID);
 
     // Respond to the RPC so the frontend resolves and removes the task
-    expect(wsMocker.respondToMethod("download.cancel", makeMockSummary(TASK_ID, {
-      state: "canceled",
-      downloadedBytes: 0,
-      connectionCount: 0,
-    }))).toBe(true);
+    expect(
+      wsMocker.respondToMethod(
+        "download.cancel",
+        makeMockSummary(TASK_ID, {
+          state: "canceled",
+          downloadedBytes: 0,
+          connectionCount: 0,
+        }),
+      ),
+    ).toBe(true);
 
     // Update the auto-response so any list refreshes don't re-add the task
     wsMocker.setAutoResponse("download.list", []);
@@ -133,37 +161,49 @@ test.describe("download lifecycle", () => {
     // a progress event at 1 MB (10%). Successive events advance the bar.
 
     // --- 25% progress ---
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 2_500_000,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 2,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 2_500_000,
+        speedBytesPerSecond: 5_000_000,
+        etaSeconds: 2,
+      }),
+    );
     await expectProgressValue(page, TASK_ID, 20);
 
     // --- 50% progress ---
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 5_000_000,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 1,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 5_000_000,
+        speedBytesPerSecond: 5_000_000,
+        etaSeconds: 1,
+      }),
+    );
     await expectProgressValue(page, TASK_ID, 45);
 
     // --- 75% progress ---
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 7_500_000,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 1,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 7_500_000,
+        speedBytesPerSecond: 5_000_000,
+        etaSeconds: 1,
+      }),
+    );
     await expectProgressValue(page, TASK_ID, 70);
   });
 
   test("download completes with success state", async ({ page, wsMocker }) => {
     // Send an updated event with completed state and full download size
-    wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
-      state: "completed",
-      downloadedBytes: 10_000_000,
-      connectionCount: 0,
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary(TASK_ID, {
+        state: "completed",
+        downloadedBytes: 10_000_000,
+        connectionCount: 0,
+      }),
+    );
 
     // The status badge in the table row should reflect the completed state
     await expectTaskState(page, TASK_ID, "completed");
@@ -177,12 +217,15 @@ test.describe("download lifecycle", () => {
     const errorMessage = "Connection reset by peer";
 
     // Send an updated event with failed state and error message
-    wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
-      state: "failed",
-      error: errorMessage,
-      downloadedBytes: 1_000_000,
-      connectionCount: 0,
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary(TASK_ID, {
+        state: "failed",
+        error: errorMessage,
+        downloadedBytes: 1_000_000,
+        connectionCount: 0,
+      }),
+    );
 
     // The status badge in the table row should reflect the failed state
     await expectTaskState(page, TASK_ID, "failed");
@@ -199,11 +242,14 @@ test.describe("download lifecycle", () => {
     // beforeEach already has the task at "downloading" state with
     // speedBytesPerSecond: 5_000_000 and etaSeconds: 2.
     // Send a new progress event with a longer ETA to verify speed display.
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 2_000_000,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 120,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 2_000_000,
+        speedBytesPerSecond: 5_000_000,
+        etaSeconds: 120,
+      }),
+    );
 
     // The speed display should show a non-zero value with a unit suffix
     // (e.g. "4.77 MB/s") using the expectSpeedDisplay helper.
@@ -229,10 +275,13 @@ test.describe("download lifecycle", () => {
     // The frontend then calls download.status to get the latest state.
     // Respond with a mock summary confirming the task is still downloading.
     await wsMocker.waitForMethod("download.status");
-    wsMocker.respondToMethod("download.status", makeMockSummary(TASK_ID, {
-      state: "downloading",
-      downloadedBytes: 1_000_000,
-    }));
+    wsMocker.respondToMethod(
+      "download.status",
+      makeMockSummary(TASK_ID, {
+        state: "downloading",
+        downloadedBytes: 1_000_000,
+      }),
+    );
 
     // Verify the task row persists after the refresh cycle
     await expectTaskVisible(page, TASK_ID);

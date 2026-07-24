@@ -27,7 +27,6 @@ vi.mock("../../composables/useNotification", () => ({
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
-
 const mockCheck = vi.mocked(check);
 const mockRelaunch = vi.mocked(relaunch);
 
@@ -245,16 +244,23 @@ describe("useAppUpdate", () => {
   });
 
   it("downloadAndInstall reports progress during download", async () => {
-    const downloadAndInstall = vi.fn().mockImplementation(
-      (onEvent: (event: { event: string; data: { contentLength?: number; chunkLength?: number } }) => void) => {
-        // Simulate progress events
-        onEvent({ event: "Started", data: { contentLength: 1000 } });
-        onEvent({ event: "Progress", data: { chunkLength: 300 } });
-        onEvent({ event: "Progress", data: { chunkLength: 200 } });
-        onEvent({ event: "Finished", data: {} });
-        return Promise.resolve();
-      },
-    );
+    const downloadAndInstall = vi
+      .fn()
+      .mockImplementation(
+        (
+          onEvent: (event: {
+            event: string;
+            data: { contentLength?: number; chunkLength?: number };
+          }) => void,
+        ) => {
+          // Simulate progress events
+          onEvent({ event: "Started", data: { contentLength: 1000 } });
+          onEvent({ event: "Progress", data: { chunkLength: 300 } });
+          onEvent({ event: "Progress", data: { chunkLength: 200 } });
+          onEvent({ event: "Finished", data: {} });
+          return Promise.resolve();
+        },
+      );
     const update = mockUpdateResult({
       downloadAndInstall,
       version: "2.0.0",
@@ -304,7 +310,9 @@ describe("useAppUpdate", () => {
   });
 
   it("downloadAndInstall sets signature error message", async () => {
-    const downloadAndInstall = vi.fn().mockRejectedValue(new Error("signature verification failed"));
+    const downloadAndInstall = vi
+      .fn()
+      .mockRejectedValue(new Error("signature verification failed"));
     const update = mockUpdateResult({ downloadAndInstall });
     mockCheck.mockResolvedValueOnce(update);
 

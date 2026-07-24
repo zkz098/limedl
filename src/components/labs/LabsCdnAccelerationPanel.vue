@@ -411,9 +411,7 @@ onUnmounted(() => {
       v-if="statusType === 'ready' && hasResult"
       class="cdn-panel__result mt-4 px-4 py-3 rounded-md"
     >
-      <div
-        class="cdn-panel__result-grid grid gap-3"
-      >
+      <div class="cdn-panel__result-grid grid gap-3">
         <div class="cdn-panel__result-item flex flex-col gap-1">
           <span class="cdn-panel__result-key text-xs">{{
             t("settings.cdnAcceleration.bestIp")

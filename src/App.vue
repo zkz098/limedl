@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onUnmounted, ref, watch, type Ref } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  onErrorCaptured,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+  type Ref,
+} from "vue";
 import { getVersion } from "@tauri-apps/api/app";
 import { filterDownloads } from "./lib/download-filter";
 
@@ -305,7 +314,11 @@ onMounted(() => {
   checkSetupState();
 
   // Fetch real app version from Tauri metadata
-  getVersion().then((v) => { appVersion.value = v; }).catch(() => {});
+  getVersion()
+    .then((v) => {
+      appVersion.value = v;
+    })
+    .catch(() => {});
 
   // Safety: if settings never load (backend crash, IPC failure),
   // bail out to the main app after 5 seconds instead of showing an infinite spinner
@@ -324,14 +337,14 @@ onMounted(() => {
 
   // WebSocket reconnection monitoring (NAS mode only)
   // Shows toast when the WS link drops / reconnects
-  if (import.meta.env.MODE === 'nas') {
-    import('./lib/ws/ws-invoke').then(({ connectionStatus }) => {
+  if (import.meta.env.MODE === "nas") {
+    import("./lib/ws/ws-invoke").then(({ connectionStatus }) => {
       // eslint-disable-next-line vue/no-setup-props-destructure
       watch(connectionStatus, (status, prev) => {
-        if (status === 'reconnecting' && prev !== 'reconnecting') {
-          useNotification().notifyWarning(t('messages.connectionLost'), 10000);
-        } else if (status === 'connected' && prev === 'reconnecting') {
-          useNotification().notifySuccess(t('messages.connectionRestored'));
+        if (status === "reconnecting" && prev !== "reconnecting") {
+          useNotification().notifyWarning(t("messages.connectionLost"), 10000);
+        } else if (status === "connected" && prev === "reconnecting") {
+          useNotification().notifySuccess(t("messages.connectionRestored"));
         }
       });
     });
@@ -481,7 +494,11 @@ function handleSetBtSpeedLimit(downloadId: string) {
   showBtSpeedLimitModal.value = true;
 }
 
-async function handleBtSpeedLimitConfirm(payload: { taskId: string; downloadLimit: number; uploadLimit: number }) {
+async function handleBtSpeedLimitConfirm(payload: {
+  taskId: string;
+  downloadLimit: number;
+  uploadLimit: number;
+}) {
   try {
     await setBtSpeedLimit(payload.taskId, payload.downloadLimit, payload.uploadLimit);
     showBtSpeedLimitModal.value = false;
@@ -605,7 +622,9 @@ watch(
           <ErrorBoundary>
             <DetailPanel
               v-if="selectedId"
-              :selected-overview="selectedOverview as import('./types/download').DownloadSummary | null"
+              :selected-overview="
+                selectedOverview as import('./types/download').DownloadSummary | null
+              "
               :selected-snapshot="selectedSnapshot"
               :selected-id="selectedId"
               :can-pause="canPause"
@@ -655,7 +674,11 @@ watch(
     </ModalOverlay>
 
     <!-- Dialogs -->
-    <UiDialog v-model="showComposerDialog" width="min(46rem, calc(100vw - 1.5rem))" :close-on-overlay="false">
+    <UiDialog
+      v-model="showComposerDialog"
+      width="min(46rem, calc(100vw - 1.5rem))"
+      :close-on-overlay="false"
+    >
       <template #title>
         <div class="dialog-heading dialog-heading--inline">
           <span class="dialog-heading__icon i-ri-download-cloud-2-line" aria-hidden="true" />
@@ -849,7 +872,9 @@ watch(
 
 /* ── Wizard exit transition (entrance handled internally by SetupWizard) ── */
 .wizard-leave-active {
-  transition: opacity 250ms ease, transform 250ms ease;
+  transition:
+    opacity 250ms ease,
+    transform 250ms ease;
 }
 
 .wizard-leave-to {

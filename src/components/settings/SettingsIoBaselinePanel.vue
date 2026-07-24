@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 
 import { formatBytes } from "../../lib/download-format";
 import type { AppSettings } from "../../types/settings";
+import { detectDiskType } from "../../lib/tauri/settings-api";
+import UiSwitch from "../ui/UiSwitch.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
@@ -17,6 +19,46 @@ const props = defineProps<{
   maxSlots: number;
   queuedCount: number;
 }>();
+
+const hasHdd = ref<boolean | null>(null);
+
+async function detectDisk(dir: string) {
+  try {
+    const diskType = await detectDiskType(dir);
+    hasHdd.value = diskType === "hdd";
+    if (!hasHdd.value && props.draft.ioBaseline.hddBufferEnabled) {
+      props.draft.ioBaseline.hddBufferEnabled = false;
+    }
+  } catch {
+    hasHdd.value = true;
+  }
+}
+
+onMounted(() => {
+  const defaultDir = props.draft.download.defaultDownloadDir;
+  if (defaultDir) {
+    void detectDisk(defaultDir);
+  }
+});
+
+watch(
+  () => props.draft.download.defaultDownloadDir,
+  (newDir) => {
+    if (!newDir) return;
+    void detectDisk(newDir);
+  },
+);
+
+function onHddBufferToggle(value: boolean) {
+  props.draft.ioBaseline.hddBufferEnabled = value;
+}
+
+const showHddWarning = computed(
+  () => hasHdd.value === false && (props.draft.ioBaseline.hddBufferEnabled ?? true),
+);
+const showHddInfo = computed(
+  () => hasHdd.value === false && !(props.draft.ioBaseline.hddBufferEnabled ?? true),
+);
 
 const bufferLimit = computed({
   get: () => props.draft.ioBaseline.bufferLimitMb,
@@ -63,6 +105,27 @@ const slotUsageText = computed(() => {
 <template>
   <SettingsSection :title="t('settings.ioBaseline.title')" icon="i-ri-hard-drive-2-line">
     <div class="settings-grid">
+      <SettingsField
+        wide
+        :label="t('settings.ioBaseline.hddBufferToggle')"
+        :info-tooltip="t('settings.ioBaseline.hddBufferToggleHint')"
+      >
+        <UiSwitch
+          :model-value="draft.ioBaseline.hddBufferEnabled ?? true"
+          @update:model-value="onHddBufferToggle"
+        />
+      </SettingsField>
+
+      <div v-if="showHddWarning" class="io-warning-banner" role="alert">
+        <span class="i-ri-alert-line io-warning-banner__icon" aria-hidden="true" />
+        <span>{{ t("settings.ioBaseline.hddBufferNoHddWarning") }}</span>
+      </div>
+
+      <div v-if="showHddInfo" class="io-info-banner">
+        <span class="i-ri-information-line io-info-banner__icon" aria-hidden="true" />
+        <span>{{ t("settings.ioBaseline.noHddDetectedInfo") }}</span>
+      </div>
+
       <SettingsField
         wide
         :label="t('settings.ioBaseline.bufferLimit')"
@@ -152,5 +215,35 @@ const slotUsageText = computed(() => {
 .io-status-bar__value {
   font-family: var(--font-mono);
   color: var(--color-heading);
+}
+
+.io-warning-banner,
+.io-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-tight);
+}
+
+.io-warning-banner {
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.io-info-banner {
+  background: var(--color-info-soft);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info-text);
+}
+
+.io-warning-banner__icon,
+.io-info-banner__icon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  margin-top: 0.05rem;
 }
 </style>

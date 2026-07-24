@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from "../../../i18n";
 import type { AppSettings, CdnAccelerationSettings } from "../../../types/settings";
+import StepShell from "../StepShell.vue";
+import SettingsSection from "../../settings/SettingsSection.vue";
+import SettingsField from "../../settings/SettingsField.vue";
 import UiSwitch from "../../ui/UiSwitch.vue";
 
 const props = defineProps<{
@@ -22,26 +25,29 @@ function updateCdn(patch: Partial<CdnAccelerationSettings>) {
   });
 }
 
-function onEnabledChange(enabled: boolean) {
+function onCdnEnabledChange(enabled: boolean) {
   updateCdn({ enabled });
 }
 </script>
 
 <template>
-  <div class="setup-step">
-    <div class="setup-step__header">
-      <span class="setup-step__icon i-ri-flashlight-fill" aria-hidden="true" />
-      <h2 class="setup-step__title">{{ t("setupWizard.cdnTitle") }}</h2>
-    </div>
-    <p class="setup-step__description">{{ t("setupWizard.cdnDescription") }}</p>
-    <div class="setup-step__body">
-      <div class="cdn-control">
+  <StepShell
+    icon="i-ri-flashlight-fill"
+    title-key="setupWizard.cdnTitle"
+    description-key="setupWizard.cdnDescription"
+  >
+    <SettingsSection
+      :title="t('setupWizard.cdnTitle')"
+      icon="i-ri-speed-line"
+      :summary="t('setupWizard.cdnDescription')"
+    >
+      <SettingsField>
         <UiSwitch
           :model-value="settings.cdnAcceleration.enabled"
           :label="t('setupWizard.cdnEnableLabel')"
-          @update:model-value="onEnabledChange"
+          @update:model-value="onCdnEnabledChange"
         />
-      </div>
+      </SettingsField>
 
       <div class="recommendation-card">
         <span class="recommendation-card__icon i-ri-lightbulb-line" aria-hidden="true" />
@@ -57,80 +63,18 @@ function onEnabledChange(enabled: boolean) {
           <span class="status-card__value">{{ settings.cdnAcceleration.activeIp }}</span>
         </div>
       </div>
-    </div>
-  </div>
+    </SettingsSection>
+  </StepShell>
 </template>
 
 <style scoped>
-.setup-step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  text-align: center;
-}
-
-.setup-step__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.setup-step__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--font-size-hero);
-  font-weight: var(--font-weight-display);
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--color-heading);
-}
-
-.setup-step__description {
-  margin: 0;
-  font-size: var(--font-size-body);
-  line-height: var(--line-height-tight);
-  color: var(--color-text-muted);
-  max-width: 480px;
-}
-
-.setup-step__body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: var(--space-4);
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  max-width: 560px;
-}
-
-.setup-step__icon {
-  font-size: 2.5rem;
-  color: var(--color-accent);
-}
-
-.cdn-control {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-  border: var(--border-width-thin) solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-panel);
-}
-
 .recommendation-card {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-4);
   border: var(--border-width-thin) solid var(--color-info-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-info-bg);
   color: var(--color-info-text);
   text-align: left;
@@ -154,7 +98,7 @@ function onEnabledChange(enabled: boolean) {
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: var(--border-width-thin) solid var(--color-success-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-success-bg);
   color: var(--color-success-text);
   text-align: left;

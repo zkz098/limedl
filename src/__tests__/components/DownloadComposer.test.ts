@@ -10,7 +10,8 @@ import type { AppSettings } from "../../types/settings";
 vi.mock("../../i18n", () => ({
   useI18n: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
-      if (options && options.count !== undefined) return `${key} count=${JSON.stringify(options.count)}`;
+      if (options && options.count !== undefined)
+        return `${key} count=${JSON.stringify(options.count)}`;
       return key;
     },
   }),
@@ -36,7 +37,7 @@ const stubs = {
     props: ["modelValue", "options", "disabled", "placeholder"],
   },
   // Stub Transition so v-show behavior works correctly in tests
-  Transition: { template: '<div><slot /></div>' },
+  Transition: { template: "<div><slot /></div>" },
 };
 
 // ── Fixtures ───────────────────────────────────────────────────────
@@ -77,27 +78,74 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
     scheduler: {
       mode: "automatic",
       traditional: { maxParallelTasks: 3 },
-      automatic: { maxParallelThreads: 16, maxThreadsPerTask: 8, minThreadsPerTask: 0, adaptiveProfile: "balanced" },
+      automatic: {
+        maxParallelThreads: 16,
+        maxThreadsPerTask: 8,
+        minThreadsPerTask: 0,
+        adaptiveProfile: "balanced",
+      },
       chunkSizeStrategy: "adaptive",
     },
-    download: { defaultDownloadDir: "", defaultMaxRetries: 5, defaultChecksum: "blake3", defaultUserAgent: "Mozilla/5.0" },
-    bt: {
-      pauseUploadWhenLimitReached: false, uploadLimitBytes: 0, uploadRatioLimit: 0,
-      dhtEnabled: true, trackerList: "", trackerListUrl: "",
-      listenPort: null, listenPortRange: null, upnpEnabled: false,
-      enableNatpmp: true, enableIpv6: true, enablePex: true, enableLsd: true,
-      enableUtp: true, enableFastExtension: true, enableHolepunch: true,
-      enableWebSeed: true, enableSuperSeeding: false,
-      globalDownloadRateLimit: 0, globalUploadRateLimit: 0,
-      preallocateMode: "none", encryptionMode: "enabled",
-      maxDownloads: 3, maxSeeds: 5, maxTorrents: 100, activeLimit: 500,
+    download: {
+      defaultDownloadDir: "",
+      defaultMaxRetries: 5,
+      defaultChecksum: "blake3",
+      defaultUserAgent: "Mozilla/5.0",
     },
-    logging: { enabled: true, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    bt: {
+      pauseUploadWhenLimitReached: false,
+      uploadLimitBytes: 0,
+      uploadRatioLimit: 0,
+      dhtEnabled: true,
+      trackerList: "",
+      trackerListUrl: "",
+      listenPort: null,
+      listenPortRange: null,
+      upnpEnabled: false,
+      enableNatpmp: true,
+      enableIpv6: true,
+      enablePex: true,
+      enableLsd: true,
+      enableUtp: true,
+      enableFastExtension: true,
+      enableHolepunch: true,
+      enableWebSeed: true,
+      enableSuperSeeding: false,
+      globalDownloadRateLimit: 0,
+      globalUploadRateLimit: 0,
+      preallocateMode: "none",
+      encryptionMode: "enabled",
+      maxDownloads: 3,
+      maxSeeds: 5,
+      maxTorrents: 100,
+      activeLimit: 500,
+    },
+    logging: {
+      enabled: true,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: true, port: 6800, secret: null, corsAllowedOrigins: [] },
-    cdnAcceleration: { enabled: false, activeIp: null, activeSpeedMbps: null, lastTestAtMs: null, lastError: null },
+    cdnAcceleration: {
+      enabled: false,
+      activeIp: null,
+      activeSpeedMbps: null,
+      lastTestAtMs: null,
+      lastError: null,
+    },
     githubMirror: { enabled: false, mirrors: [] },
     notifications: { enabled: true },
-    ioBaseline: { bufferLimitMb: 1024, gameModeBufferMb: 128, gameMode: false, diskTypeOverrides: {}, maxParallelHdd: 4, gameModeMaxParallel: 1 },
+    ioBaseline: {
+      bufferLimitMb: 1024,
+      gameModeBufferMb: 128,
+      gameMode: false,
+      diskTypeOverrides: {},
+      maxParallelHdd: 4,
+      gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
+    },
     autostart: false,
     setupCompleted: true,
     lastSetupStep: null,
@@ -152,7 +200,9 @@ describe("DownloadComposer", () => {
       props: createProps({ isStarting: true }),
       global: { stubs },
     });
-    const submitBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "composer.starting")!;
+    const submitBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "composer.starting")!;
     expect(submitBtn).toBeDefined();
   });
 
@@ -456,7 +506,9 @@ describe("DownloadComposer", () => {
       global: { stubs },
     });
     // Find button with text "composer.chooseTorrent"
-    const torrentBtn = wrapper.findAll("button.ui-button-stub").find((b) => b.text() === "composer.chooseTorrent")!;
+    const torrentBtn = wrapper
+      .findAll("button.ui-button-stub")
+      .find((b) => b.text() === "composer.chooseTorrent")!;
     await torrentBtn.trigger("click");
     expect(wrapper.emitted("pickTorrent")).toBeTruthy();
   });
@@ -476,7 +528,9 @@ describe("DownloadComposer", () => {
 
   // ── Traditional scheduler mode ──────────────────────────────
   it("shows traditional hint when scheduler mode is traditional", async () => {
-    const settings = createSettings({ scheduler: { ...createSettings().scheduler, mode: "traditional" } });
+    const settings = createSettings({
+      scheduler: { ...createSettings().scheduler, mode: "traditional" },
+    });
     const wrapper = mount(DownloadComposer, {
       props: createProps({ settings }),
       global: { stubs },

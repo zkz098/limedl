@@ -28,11 +28,14 @@ test.describe("download progress bar", () => {
     await expectTaskVisible(page, TASK_ID);
 
     // Send progress at 50%
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 5_000_000,
-      speedBytesPerSecond: 2_500_000,
-      etaSeconds: 2,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 5_000_000,
+        speedBytesPerSecond: 2_500_000,
+        etaSeconds: 2,
+      }),
+    );
 
     // Assert progress bar shows ~50%
     await expectProgressValue(page, TASK_ID, 45);
@@ -50,14 +53,17 @@ test.describe("download progress bar", () => {
     await expectTaskVisible(page, TASK_ID);
 
     // Send completion via updated event
-    wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
-      state: "completed",
-      url: "http://127.0.0.1:9876/1mb.bin",
-      fileName: "1mb.bin",
-      destinationPath: "/tmp/limedl-test/1mb.bin",
-      totalBytes: 1_048_576,
-      downloadedBytes: 1_048_576,
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary(TASK_ID, {
+        state: "completed",
+        url: "http://127.0.0.1:9876/1mb.bin",
+        fileName: "1mb.bin",
+        destinationPath: "/tmp/limedl-test/1mb.bin",
+        totalBytes: 1_048_576,
+        downloadedBytes: 1_048_576,
+      }),
+    );
 
     // Assert completed state
     await expectTaskState(page, TASK_ID, "completed");
@@ -69,11 +75,14 @@ test.describe("download progress bar", () => {
 
     // Rapid-fire 10 progress updates
     for (let i = 1; i <= 10; i++) {
-      wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-        downloadedBytes: Math.round((TOTAL_BYTES / 10) * i),
-        speedBytesPerSecond: 1_000_000 * i,
-        etaSeconds: 10 - i,
-      }));
+      wsMocker.sendEvent(
+        "progress",
+        makeMockProgress(TASK_ID, {
+          downloadedBytes: Math.round((TOTAL_BYTES / 10) * i),
+          speedBytesPerSecond: 1_000_000 * i,
+          etaSeconds: 10 - i,
+        }),
+      );
     }
 
     // Final state should be visible and not errored

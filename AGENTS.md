@@ -44,11 +44,11 @@ limedl/
 
 ### Multi-platform support
 
-| Target | Frontend | Backend | Build |
-|--------|----------|---------|-------|
-| Tauri Desktop | Vue 3 via Tauri IPC (`#invoke` → `@tauri-apps/api/core`) | `src-tauri/` | `pnpm run tauri dev` / `pnpm run tauri build` |
-| NAS WebUI | Same Vue 3 via WebSocket (`#invoke` → `ws-invoke.ts`) | `limedl-server` | `pnpm run build:nas` |
-| CLI | N/A | `limedl-server` | `limedl daemon` / `limedl download <url>` |
+| Target        | Frontend                                                 | Backend         | Build                                         |
+| ------------- | -------------------------------------------------------- | --------------- | --------------------------------------------- |
+| Tauri Desktop | Vue 3 via Tauri IPC (`#invoke` → `@tauri-apps/api/core`) | `src-tauri/`    | `pnpm run tauri dev` / `pnpm run tauri build` |
+| NAS WebUI     | Same Vue 3 via WebSocket (`#invoke` → `ws-invoke.ts`)    | `limedl-server` | `pnpm run build:nas`                          |
+| CLI           | N/A                                                      | `limedl-server` | `limedl daemon` / `limedl download <url>`     |
 
 ### Frontend dual-mode (`#invoke` / `#event`)
 
@@ -100,15 +100,15 @@ config load → state dirs → RateLimiter → EventBus → DownloadManager → 
 
 Detailed four-section docs (module responsibility, key structs, key methods, data flow) live in `.opencode/guides/`. **Before modifying any subsystem, read its guide first.**
 
-| Guide | Source (Rust) | Role |
-|-------|---------------|------|
-| `subsystem-download-manager.md` | `manager.rs` + `http_executor.rs` + `scheduler.rs` + `aimd.rs` | HTTP download lifecycle |
-| `subsystem-bt-backend.md` | `bt_backend_own/` | BitTorrent via irontide engine |
-| `subsystem-cdn-accelerator.md` | `cdn/` | Cloudflare IP probing & DNS rewriting |
-| `subsystem-aria2-rpc.md` | `aria2_rpc.rs` (Tauri crate: `src-tauri/src/download/`) | Axum WebSocket + HTTP JSON-RPC |
-| `subsystem-database.md` | `database.rs` | rusqlite with `bundled` feature |
-| `subsystem-buffer-pool.md` | `buffer_pool.rs` | HDD double-buffer / SSD write-combining |
-| `subsystem-settings.md` | `settings.rs` + `types.rs` | JSON-based settings load/save |
+| Guide                           | Source (Rust)                                                  | Role                                    |
+| ------------------------------- | -------------------------------------------------------------- | --------------------------------------- |
+| `subsystem-download-manager.md` | `manager.rs` + `http_executor.rs` + `scheduler.rs` + `aimd.rs` | HTTP download lifecycle                 |
+| `subsystem-bt-backend.md`       | `bt_backend_own/`                                              | BitTorrent via irontide engine          |
+| `subsystem-cdn-accelerator.md`  | `cdn/`                                                         | Cloudflare IP probing & DNS rewriting   |
+| `subsystem-aria2-rpc.md`        | `aria2_rpc.rs` (Tauri crate: `src-tauri/src/download/`)        | Axum WebSocket + HTTP JSON-RPC          |
+| `subsystem-database.md`         | `database.rs`                                                  | rusqlite with `bundled` feature         |
+| `subsystem-buffer-pool.md`      | `buffer_pool.rs`                                               | HDD double-buffer / SSD write-combining |
+| `subsystem-settings.md`         | `settings.rs` + `types.rs`                                     | JSON-based settings load/save           |
 
 ## Tauri dev workflow
 
@@ -139,14 +139,14 @@ Moved to standalone guides — read them before touching download pipeline or I/
 
 Six-job matrix across three platforms:
 
-| Job | OS | Key steps |
-|-----|----|-----------|
-| **lint-typescript** | ubuntu-latest | `pnpm install --frozen-lockfile` → `pnpm run lint` → `vue-tsc --noEmit` → `pnpm run test:coverage` |
-| **check-windows** | windows-latest | `cargo clippy --workspace --all-targets -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
-| **check-macos** | macos-14 | `cargo clippy --workspace --all-targets -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri) |
-| **check-rust** | ubuntu-latest | `cargo clippy --workspace --all-targets -- -D warnings` → ts-rs bindings freshness check (see below) → 3× per-crate `cargo test` → `cargo check --features tls` (server TLS feature compiles) |
-| **bench-rust** | ubuntu-latest | `cargo bench` for `aimd` + `rate_limiter` benchmarks, with baseline comparison on `push` |
-| **supply-chain** | ubuntu-latest | `cargo deny check` (bans + licenses + sources) + `cargo audit` |
+| Job                 | OS             | Key steps                                                                                                                                                                                     |
+| ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **lint-typescript** | ubuntu-latest  | `pnpm install --frozen-lockfile` → `pnpm run lint` → `vue-tsc --noEmit` → `pnpm run test:coverage`                                                                                            |
+| **check-windows**   | windows-latest | `cargo clippy --workspace --all-targets -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri)                                                                               |
+| **check-macos**     | macos-14       | `cargo clippy --workspace --all-targets -- -D warnings` → 3× per-crate `cargo test` (core + server + src-tauri)                                                                               |
+| **check-rust**      | ubuntu-latest  | `cargo clippy --workspace --all-targets -- -D warnings` → ts-rs bindings freshness check (see below) → 3× per-crate `cargo test` → `cargo check --features tls` (server TLS feature compiles) |
+| **bench-rust**      | ubuntu-latest  | `cargo bench` for `aimd` + `rate_limiter` benchmarks, with baseline comparison on `push`                                                                                                      |
+| **supply-chain**    | ubuntu-latest  | `cargo deny check` (bans + licenses + sources) + `cargo audit`                                                                                                                                |
 
 Key constraints:
 
@@ -187,12 +187,14 @@ cargo test --manifest-path crates/limedl-core/Cargo.toml --features ts -- export
 This writes type definitions to `src/types/generated/types.ts`. The generated file must be committed alongside Rust changes.
 
 **Architecture:**
+
 - `crates/limedl-core/` has `ts-rs` as an **optional** dependency behind the `ts` feature (`ts-rs = { version = "12", optional = true }`; ts-rs v12 内置 serde-compat，Cargo.toml 中只需指定 version + optional = true，无需额外 feature 声明).
 - Types annotated with `#[cfg_attr(feature = "ts", derive(TS))]` and `#[cfg_attr(feature = "ts", ts(export, export_to = "..."))]` auto-export when compiled with `--features ts`.
 - The export test in `crates/limedl-core/src/tests/ts_export.rs` triggers export via `export_all()` calls.
 - The frontend files `src/types/settings.ts`, `src/types/download.ts`, and `src/types/cdn.ts` re-export generated types and add only pure-frontend types not present in Rust.
 
 **Rules:**
+
 - Never manually edit TypeScript types that match Rust serialized structs — edit the Rust source and regenerate.
 - After regenerating, run `git diff --stat src/types/generated/types.ts` to verify.
 - The CI's `check-rust` job (`.github/workflows/ci.yml`) should run the following step after `cargo clippy`:
@@ -218,6 +220,7 @@ This writes type definitions to `src/types/generated/types.ts`. The generated fi
 **生成时机**：`cargo test --features ts export_typescript_bindings`
 
 输出文件：`src/lib/ws/generated/ws-commands.ts`
+
 - `WsCommandSpec` TypeScript interface
 - `WS_COMMANDS` 常量数组
 - `METHOD_MAP` 便利查询表
@@ -233,6 +236,7 @@ This writes type definitions to `src/types/generated/types.ts`. The generated fi
 > ⚠️ **rpc.rs 一致性警告**：`crates/limedl-core/src/ws_manifest.rs` 中的一致性测试 `all_rpc_methods_have_dispatch_arms` 会在编译期读取 rpc.rs 源码并验证每个 `tauri_name` 字符串都出现在 dispatch handler 中。如果忘记更新 rpc.rs，该测试会 fail。
 
 **不需要做的**：
+
 - 不再手工编辑 `METHOD_MAP`（已从 ws-invoke.ts 删除）
 - 不再手工添加 `transformParams` case 分支（已替换为通用 `applyTransform`）
 
@@ -257,6 +261,7 @@ This writes type definitions to `src/types/generated/types.ts`. The generated fi
 **生成时机**：`cargo test --features ts export_typescript_bindings`
 
 输出文件：`src/lib/ws/generated/ws-events.ts`
+
 - `WsEventSpec` TypeScript interface
 - `WS_EVENTS` 常量数组
 - `EVENT_TYPE_MAP` 便利查询表（`ws_type` → `tauri_event_name`）
@@ -275,6 +280,7 @@ This writes type definitions to `src/types/generated/types.ts`. The generated fi
 > 例外：`aria2Notification` 的 Tauri adapter 使用动态 event_name（直接透传 BT 后端的原始事件名），不在 lib.rs 中检查固定字符串。
 
 **不需要做的**：
+
 - 不再手工编辑 `mapEventType` 的 switch case（已替换为通用 `EVENT_TYPE_MAP` 查表）
 
 **CI 校验**：`git diff --exit-code src/types/generated/ src/lib/ws/generated/` 已覆盖 ws-events.ts，无需额外配置。

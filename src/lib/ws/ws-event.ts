@@ -1,7 +1,7 @@
 // WebSocket-based event listener, mirroring @tauri-apps/api/event's listen<T>()
 // Uses the shared WebSocket connection from ws-invoke.ts
 
-import { setEventDispatcher } from './ws-invoke';
+import { setEventDispatcher } from "./ws-invoke";
 
 export type UnlistenFn = () => void;
 

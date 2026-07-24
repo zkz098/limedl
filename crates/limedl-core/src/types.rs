@@ -1125,6 +1125,11 @@ pub struct IoBaselineSettings {
     #[cfg_attr(feature = "ts", ts(type = "Record<string, DiskType>"))]
     #[serde(default)]
     pub disk_type_overrides: foldhash::HashMap<String, DiskType>,
+    /// Whether HDD double-buffer optimization is enabled.
+    /// When disabled on HDD, uses a small 4 MiB write-combining buffer instead of the pool.
+    /// Default: true.
+    #[serde(default = "default_hdd_buffer_enabled")]
+    pub hdd_buffer_enabled: bool,
 }
 
 fn default_buffer_limit_mb() -> u64 {
@@ -1143,6 +1148,10 @@ fn default_game_mode_max_parallel() -> u32 {
     1
 }
 
+fn default_hdd_buffer_enabled() -> bool {
+    true
+}
+
 impl Default for IoBaselineSettings {
     fn default() -> Self {
         Self {
@@ -1152,6 +1161,7 @@ impl Default for IoBaselineSettings {
             max_parallel_hdd: default_max_parallel_hdd(),
             game_mode_max_parallel: default_game_mode_max_parallel(),
             disk_type_overrides: foldhash::HashMap::default(),
+            hdd_buffer_enabled: default_hdd_buffer_enabled(),
         }
     }
 }

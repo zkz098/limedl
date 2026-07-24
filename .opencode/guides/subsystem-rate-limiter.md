@@ -4,7 +4,7 @@
 
 全局令牌桶速率限制器，控制所有下载任务的总带宽消耗。提供异步（tokio）和同步（spawn_blocking）两种消费接口。
 
-核心类型：RateLimiter（线程安全的令牌桶，包装 `Arc<Mutex<Inner>>`）。Inner 包含 rate（字节/秒，0=无限制）、capacity（令牌桶容量 = 2*rate，至少 1）、tokens、last_refill。Clone 通过 Arc 实现，整个应用共享单个实例。
+核心类型：RateLimiter（线程安全的令牌桶，包装 `Arc<Mutex<Inner>>`）。Inner 包含 rate（字节/秒，0=无限制）、capacity（令牌桶容量 = 2\*rate，至少 1）、tokens、last_refill。Clone 通过 Arc 实现，整个应用共享单个实例。
 
 ## 涉及文件
 
@@ -30,7 +30,7 @@ BT 下载（Phase 8 规划）→ alert bridge 检测到流量 → rate_limiter.c
 
 - 速率 0 表示无限速，consume() 和 consume_blocking() 立即返回。
 - set_rate() 在切换速率时保留已积累的令牌（按新容量封顶）。
-- 令牌桶容量 = max(2 * rate, 1)，提供初始突发能力。
+- 令牌桶容量 = max(2 \* rate, 1)，提供初始突发能力。
 - consume() 内部使用 tokio::time::sleep（异步），consume_blocking() 使用 std::thread::sleep。
 - 锁仅用于简短算术操作，不会跨 await 点持有。
 - http_executor 不再每 ~16KB chunk 调一次 consume，改为累积到 ~256KB 或 8 chunk（取先到）才调一次。AIMD 收敛不受影响（采样窗口 2s 远大于批量时间窗口）。

@@ -15,11 +15,7 @@ import { makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 import { expectTaskVisible, expectTaskState } from "../helpers/download-asserts";
 
 test.describe("batch operations", () => {
-  const TASK_IDS = [
-    "batch-001",
-    "batch-002",
-    "batch-003",
-  ];
+  const TASK_IDS = ["batch-001", "batch-002", "batch-003"];
 
   test.beforeEach(async ({ page, wsMocker }) => {
     await page.goto("/");
@@ -28,21 +24,30 @@ test.describe("batch operations", () => {
     // Inject three download tasks directly — no composer dialog needed.
     // The frontend's handleDownloadUpdated adds tasks via upsertSummary.
     for (const taskId of TASK_IDS) {
-      wsMocker.sendEvent("updated", makeMockSummary(taskId, {
-        downloadedBytes: 500_000,
-        speedBytesPerSecond: 2_000_000,
-      }));
+      wsMocker.sendEvent(
+        "updated",
+        makeMockSummary(taskId, {
+          downloadedBytes: 500_000,
+          speedBytesPerSecond: 2_000_000,
+        }),
+      );
       // Send progress to show "downloading" state
-      wsMocker.sendEvent("progress", makeMockProgress(taskId, {
-        downloadedBytes: 500_000,
-        speedBytesPerSecond: 2_000_000,
-      }));
+      wsMocker.sendEvent(
+        "progress",
+        makeMockProgress(taskId, {
+          downloadedBytes: 500_000,
+          speedBytesPerSecond: 2_000_000,
+        }),
+      );
     }
 
     // Pre-seed download.list auto-response so page reloads preserve data
-    wsMocker.setAutoResponse("download.list", TASK_IDS.map((id) =>
-      makeMockSummary(id, { downloadedBytes: 500_000, speedBytesPerSecond: 2_000_000 }),
-    ));
+    wsMocker.setAutoResponse(
+      "download.list",
+      TASK_IDS.map((id) =>
+        makeMockSummary(id, { downloadedBytes: 500_000, speedBytesPerSecond: 2_000_000 }),
+      ),
+    );
 
     // Wait for Vue reactivity to render all tasks
     await page.waitForTimeout(500);
@@ -102,11 +107,14 @@ test.describe("batch operations", () => {
     for (const taskId of TASK_IDS) {
       const params = await pausePromises[TASK_IDS.indexOf(taskId)];
       expect(params).toHaveProperty("taskId", taskId);
-      wsMocker.respondToMethod("download.pause", makeMockSummary(taskId, {
-        state: "paused",
-        connectionCount: 0,
-        downloadedBytes: 500_000,
-      }));
+      wsMocker.respondToMethod(
+        "download.pause",
+        makeMockSummary(taskId, {
+          state: "paused",
+          connectionCount: 0,
+          downloadedBytes: 500_000,
+        }),
+      );
     }
 
     // Wait for Vue reactivity to process the state updates from pause responses
@@ -134,11 +142,14 @@ test.describe("batch operations", () => {
 
     for (const taskId of TASK_IDS) {
       await pausePromises[TASK_IDS.indexOf(taskId)];
-      wsMocker.respondToMethod("download.pause", makeMockSummary(taskId, {
-        state: "paused",
-        connectionCount: 0,
-        downloadedBytes: 500_000,
-      }));
+      wsMocker.respondToMethod(
+        "download.pause",
+        makeMockSummary(taskId, {
+          state: "paused",
+          connectionCount: 0,
+          downloadedBytes: 500_000,
+        }),
+      );
     }
 
     for (const taskId of TASK_IDS) {
@@ -160,18 +171,24 @@ test.describe("batch operations", () => {
     for (const taskId of TASK_IDS) {
       const params = await resumePromises[TASK_IDS.indexOf(taskId)];
       expect(params).toHaveProperty("taskId", taskId);
-      wsMocker.respondToMethod("download.resume", makeMockSummary(taskId, {
-        state: "downloading",
-        connectionCount: 4,
-        downloadedBytes: 500_000,
-        speedBytesPerSecond: 2_000_000,
-      }));
+      wsMocker.respondToMethod(
+        "download.resume",
+        makeMockSummary(taskId, {
+          state: "downloading",
+          connectionCount: 4,
+          downloadedBytes: 500_000,
+          speedBytesPerSecond: 2_000_000,
+        }),
+      );
 
       // Send progress to update the UI
-      wsMocker.sendEvent("progress", makeMockProgress(taskId, {
-        downloadedBytes: 750_000,
-        speedBytesPerSecond: 2_000_000,
-      }));
+      wsMocker.sendEvent(
+        "progress",
+        makeMockProgress(taskId, {
+          downloadedBytes: 750_000,
+          speedBytesPerSecond: 2_000_000,
+        }),
+      );
     }
 
     // Wait for Vue reactivity to process the resumed state updates
@@ -186,12 +203,15 @@ test.describe("batch operations", () => {
   test("clears completed tasks", async ({ page, wsMocker }) => {
     // Send updated events to set all tasks to "completed" state
     for (const taskId of TASK_IDS) {
-      wsMocker.sendEvent("updated", makeMockSummary(taskId, {
-        state: "completed",
-        downloadedBytes: 10_000_000,
-        connectionCount: 0,
-        speedBytesPerSecond: 0,
-      }));
+      wsMocker.sendEvent(
+        "updated",
+        makeMockSummary(taskId, {
+          state: "completed",
+          downloadedBytes: 10_000_000,
+          connectionCount: 0,
+          speedBytesPerSecond: 0,
+        }),
+      );
     }
 
     // Verify all tasks show completed
@@ -211,9 +231,12 @@ test.describe("batch operations", () => {
     // Respond to each remove call
     for (const taskId of TASK_IDS) {
       await removePromises[TASK_IDS.indexOf(taskId)];
-      wsMocker.respondToMethod("download.remove", makeMockSummary(taskId, {
-        state: "completed",
-      }));
+      wsMocker.respondToMethod(
+        "download.remove",
+        makeMockSummary(taskId, {
+          state: "completed",
+        }),
+      );
     }
 
     // All tasks should be removed from the view

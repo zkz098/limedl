@@ -11,7 +11,7 @@ use limedl_core::{
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     types::{
         AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
-        DownloadSnapshot, DownloadSummary, SerializableError, StartDownloadRequest, TaskId,
+        DiskType, DownloadSnapshot, DownloadSummary, SerializableError, StartDownloadRequest, TaskId,
         TorrentFileEntry,
     },
     Dispatcher,
@@ -451,6 +451,25 @@ pub async fn get_overclock_mode(state: State<'_, AppState>) -> CommandResult<boo
             message: String::from("HTTP backend not found"),
         })?;
     Ok(dm.overclock_mode())
+}
+
+#[tauri::command]
+pub async fn detect_disk_type(
+    state: State<'_, AppState>,
+    dir: String,
+) -> CommandResult<String> {
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
+        .ok_or_else(|| SerializableError {
+            kind: String::from("internal"),
+            message: String::from("HTTP backend not found"),
+        })?;
+    let disk_type = dm.resolve_disk_type(std::path::Path::new(&dir)).await;
+    Ok(match disk_type {
+        DiskType::Hdd => "hdd".to_string(),
+        DiskType::Ssd => "ssd".to_string(),
+    })
 }
 
 #[cfg(test)]

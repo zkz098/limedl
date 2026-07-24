@@ -132,6 +132,7 @@ function createSettings(): AppSettings {
       diskTypeOverrides: {},
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: true,

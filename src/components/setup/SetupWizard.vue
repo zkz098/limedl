@@ -11,12 +11,12 @@ import UiButton from "../ui/UiButton.vue";
 import SetupStepIndicator from "./SetupStepIndicator.vue";
 import StepWelcome from "./steps/StepWelcome.vue";
 import StepLanguage from "./steps/StepLanguage.vue";
+import StepAppearance from "./steps/StepAppearance.vue";
 import StepCdn from "./steps/StepCdn.vue";
 import StepRpc from "./steps/StepRpc.vue";
 import StepDirectory from "./steps/StepDirectory.vue";
 import StepPerformance from "./steps/StepPerformance.vue";
-import StepAppearance from "./steps/StepAppearance.vue";
-import StepAutostart from "./steps/StepAutostart.vue";
+import StepSystem from "./steps/StepSystem.vue";
 import StepSummary from "./steps/StepSummary.vue";
 
 const props = withDefaults(
@@ -45,12 +45,12 @@ const wizard = useSetupWizard(props.initialSettings);
 const stepComponents: Record<string, Component> = {
   welcome: StepWelcome,
   language: StepLanguage,
+  appearance: StepAppearance,
   cdn: StepCdn,
   rpc: StepRpc,
   directory: StepDirectory,
   performance: StepPerformance,
-  appearance: StepAppearance,
-  autostart: StepAutostart,
+  system: StepSystem,
   summary: StepSummary,
 };
 
@@ -122,7 +122,12 @@ onKeyStroke("Escape", () => {
 </script>
 
 <template>
-  <div class="setup-wizard" role="dialog" aria-modal="true" :aria-label="t('setupWizard.ariaLabel')">
+  <div
+    class="setup-wizard"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="t('setupWizard.ariaLabel')"
+  >
     <div class="setup-wizard__overlay" />
     <div class="setup-wizard__panel">
       <SetupStepIndicator
@@ -260,6 +265,7 @@ onKeyStroke("Escape", () => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  padding: var(--space-4) 0;
 }
 
 .setup-wizard__footer {
@@ -276,6 +282,18 @@ onKeyStroke("Escape", () => {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+/* ── Lightweight SettingsSection for wizard steps ── */
+.setup-wizard .settings-section {
+  padding: var(--space-4);
+  box-shadow: none;
+  border-color: var(--color-border);
+}
+
+.setup-wizard .settings-section:hover {
+  border-color: var(--color-border);
+  box-shadow: none;
 }
 
 /* ── Step transitions ── */

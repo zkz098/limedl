@@ -278,10 +278,7 @@ function handleRowKeydown(event: KeyboardEvent, downloadId: string) {
     emit("select", downloadId);
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    const { x, y } = clampMenuPosition(
-      rect.left + rect.width / 2,
-      rect.top + rect.height / 2,
-    );
+    const { x, y } = clampMenuPosition(rect.left + rect.width / 2, rect.top + rect.height / 2);
     contextMenu.value = { downloadId, x, y };
   }
 }
@@ -463,9 +460,7 @@ function metaForDownload(download: DownloadSummary) {
     </div>
 
     <div v-if="sortedDownloads.length" class="queue-panel__table grid gap-[0.625rem]">
-      <div
-          class="queue-table-shell min-h-[30rem] border rounded-md overflow-hidden"
-        >
+      <div class="queue-table-shell min-h-[30rem] border rounded-md overflow-hidden">
         <table
           class="queue-table w-full border-collapse table-fixed"
           :class="{ 'queue-table--compact': viewOptions.compactView }"
@@ -614,9 +609,8 @@ function metaForDownload(download: DownloadSummary) {
                       aria-live="polite"
                       aria-atomic="false"
                       :class="{ 'queue-progress__flushing': isFlushing(download) }"
-                    >{{
-                      progressPrimaryText(download)
-                    }}</span>
+                      >{{ progressPrimaryText(download) }}</span
+                    >
                     <span>
                       {{ formatBytes(download.downloadedBytes) }} /
                       {{ formatBytes(download.totalBytes) }}
@@ -690,29 +684,29 @@ function metaForDownload(download: DownloadSummary) {
             @update:model-value="pageSize = $event"
           />
           <div class="queue-pagination__actions inline-flex items-center gap-[0.35rem] flex-wrap">
-          <UiButton
-            type="button"
-            size="sm"
-            variant="ghost"
-            icon="i-ri-arrow-left-s-line"
-            :disabled="currentPage === 1"
-            @click="goToPreviousPage"
-          >
-            {{ t("queue.previous") }}
-          </UiButton>
-          <span class="queue-pagination__page m-0 text-sm">{{
-            t("queue.page", { current: currentPage, total: totalPages })
-          }}</span>
-          <UiButton
-            type="button"
-            size="sm"
-            variant="ghost"
-            icon-right="i-ri-arrow-right-s-line"
-            :disabled="currentPage === totalPages"
-            @click="goToNextPage"
-          >
-            {{ t("queue.next") }}
-          </UiButton>
+            <UiButton
+              type="button"
+              size="sm"
+              variant="ghost"
+              icon="i-ri-arrow-left-s-line"
+              :disabled="currentPage === 1"
+              @click="goToPreviousPage"
+            >
+              {{ t("queue.previous") }}
+            </UiButton>
+            <span class="queue-pagination__page m-0 text-sm">{{
+              t("queue.page", { current: currentPage, total: totalPages })
+            }}</span>
+            <UiButton
+              type="button"
+              size="sm"
+              variant="ghost"
+              icon-right="i-ri-arrow-right-s-line"
+              :disabled="currentPage === totalPages"
+              @click="goToNextPage"
+            >
+              {{ t("queue.next") }}
+            </UiButton>
           </div>
         </div>
       </div>

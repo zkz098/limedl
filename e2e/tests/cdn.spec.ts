@@ -94,7 +94,13 @@ function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
       maxTorrents: 20,
       activeLimit: 10,
     },
-    logging: { enabled: false, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    logging: {
+      enabled: false,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: false, port: 6800, secret: null },
     cdnAcceleration: {
       enabled: true,
@@ -112,6 +118,7 @@ function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
       diskTypeOverrides: {},
       maxParallelHdd: 2,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: true,
@@ -155,13 +162,16 @@ test.describe("CDN acceleration", () => {
     // Respond to the first poll with an in-progress state.
     const detailPromise = wsMocker.waitForMethod("cdn.detail");
     await detailPromise;
-    wsMocker.respondToMethod("cdn.detail", makeMockCdnDetail({
-      state: "Testing",
-      phase: "screening",
-      phaseProgress: { current: 3, total: 10 },
-      activeIp: null,
-      activeSpeedMbps: null,
-    }));
+    wsMocker.respondToMethod(
+      "cdn.detail",
+      makeMockCdnDetail({
+        state: "Testing",
+        phase: "screening",
+        phaseProgress: { current: 3, total: 10 },
+        activeIp: null,
+        activeSpeedMbps: null,
+      }),
+    );
 
     // Send a cdnProgress event to update the UI
     wsMocker.sendEvent("cdnProgress", { phase: "screening", current: 3, total: 10 });

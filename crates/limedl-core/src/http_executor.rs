@@ -310,9 +310,12 @@ impl HttpExecutor {
         let file = Arc::new(open_download_file(&file_path, total_bytes)?);
 
         // HDD/SSD optimization: set up buffered writing
+        let settings = dm.settings().await?;
+        let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
+        drop(settings);
         let disk_type = dm.resolve_disk_type(Path::new(&destination_dir)).await;
         const SSD_WRITE_COMBINE_BYTES: u64 = 4 * 1024 * 1024; // 4 MiB
-        let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
+        let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd && hdd_buffering {
             let slot = dm.buffer_pool.acquire_slot().await;
             Some(Arc::new(DownloadBuffer::new_with_worker(
                 dm.buffer_pool.clone(),
@@ -582,11 +585,14 @@ impl HttpExecutor {
         let file = Arc::new(open_download_file(&file_path, total_size)?);
 
         // HDD/SSD optimization: set up buffered writing
+        let settings = dm.settings().await?;
+        let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
+        drop(settings);
         let disk_type = {
             let destination_dir = managed.lock_core().manifest.destination_dir.clone();
             dm.resolve_disk_type(Path::new(&destination_dir)).await
         };
-        let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd {
+        let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd && hdd_buffering {
             let slot = dm.buffer_pool.acquire_slot().await;
             Some(Arc::new(DownloadBuffer::new_with_worker(
                 dm.buffer_pool.clone(),

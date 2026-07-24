@@ -29,7 +29,7 @@ use download::{
     AppState, Aria2RpcServer, bootstrap, bt_get_peers, bt_get_pieces,
     bt_get_trackers, bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply,
     cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
-    cleanup_old_aria2_temp_files, download_cancel, download_list, download_open_in_explorer,
+    cleanup_old_aria2_temp_files, detect_disk_type, download_cancel, download_list, download_open_in_explorer,
     download_pause, download_purge, download_remove, download_resume, download_start,
     download_status, get_bt_files, get_io_status, get_overclock_mode, init_logging,
     settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode,
@@ -331,6 +331,7 @@ pub fn run() {
             get_io_status,
             toggle_overclock_mode,
             get_overclock_mode,
+            detect_disk_type,
         ])
         .run(tauri::generate_context!());
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
-import { reactive } from "vue";
+import { reactive, nextTick } from "vue";
 import SettingsBtPanel from "../../../components/settings/SettingsBtPanel.vue";
 import type { AppSettings } from "../../../types/settings";
 
@@ -141,6 +141,7 @@ function createSettings(): AppSettings {
       diskTypeOverrides: {},
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: true,
@@ -152,7 +153,7 @@ function createSettings(): AppSettings {
 // ── Tests ──────────────────────────────────────────────────────────
 
 describe("SettingsBtPanel", () => {
-  it("renders the section header with btTitle", () => {
+  it("renders the section header with btTitle in recommended mode", () => {
     const draft = reactive(createSettings());
     const wrapper = mount(SettingsBtPanel, {
       props: {
@@ -169,10 +170,40 @@ describe("SettingsBtPanel", () => {
     // Section header renders with title key
     expect(wrapper.text()).toContain("settings.btTitle");
 
-    // At least one subgroup header renders (e.g. tracker group)
-    expect(wrapper.text()).toContain("settings.btGroupTracker");
+    // Mode toggle is visible
+    expect(wrapper.text()).toContain("settings.btModeRecommended");
+    expect(wrapper.text()).toContain("settings.btModeCustom");
 
-    // Network subgroup header renders
+    // Recommended fields are visible
+    expect(wrapper.text()).toContain("settings.btDht");
+    expect(wrapper.text()).toContain("settings.btUpnp");
+    expect(wrapper.text()).toContain("settings.btEncryptionMode");
+    expect(wrapper.text()).toContain("settings.btListenPort");
+  });
+
+  it("switches to custom mode and shows subgroup headers", async () => {
+    const draft = reactive(createSettings());
+    const wrapper = mount(SettingsBtPanel, {
+      props: {
+        draft,
+        t: (key: string) => key,
+        btSummary: "3 downloads active",
+        btUploadLimitMiB: 0,
+        isFetchingTrackerList: false,
+        defaultTrackerListUrl: "https://example.com/trackers",
+      },
+      global: { stubs },
+    });
+
+    // Click custom mode button
+    const modeButtons = wrapper.findAll('[role="tab"]');
+    const customBtn = modeButtons.find((btn) => btn.text().includes("settings.btModeCustom"));
+    expect(customBtn).toBeTruthy();
+    await customBtn!.trigger("click");
+    await nextTick();
+
+    // Subgroup headers are now visible
+    expect(wrapper.text()).toContain("settings.btGroupTracker");
     expect(wrapper.text()).toContain("settings.btGroupNetwork");
   });
 });

@@ -8,6 +8,9 @@ import type {
   ColorMode,
   ThemeColor,
 } from "../../../types/settings";
+import StepShell from "../StepShell.vue";
+import SettingsSection from "../../settings/SettingsSection.vue";
+import SettingsField from "../../settings/SettingsField.vue";
 import UiSelect from "../../ui/UiSelect.vue";
 
 const props = defineProps<{
@@ -37,7 +40,6 @@ const backgroundOpacityOptions: { label: string; value: BackgroundOpacityPreset 
 const originalTheme = document.documentElement.dataset.theme;
 
 onBeforeUnmount(() => {
-  // Restore original theme when leaving the appearance step
   if (originalTheme) {
     document.documentElement.dataset.theme = originalTheme;
   } else {
@@ -53,32 +55,28 @@ function updateAppearance(patch: Partial<AppearanceSettings>) {
 }
 
 function selectThemeColor(themeColor: ThemeColor) {
-  // Live-preview by setting the theme on document root so :root[data-theme] CSS rules apply
   document.documentElement.dataset.theme = themeColor;
   updateAppearance({ themeColor });
 }
 </script>
 
 <template>
-  <div class="setup-step">
-    <div class="setup-step__header">
-      <span class="setup-step__icon i-ri-palette-line" aria-hidden="true" />
-      <h2 class="setup-step__title">{{ t("setupWizard.appearanceTitle") }}</h2>
-    </div>
-    <p class="setup-step__description">{{ t("setupWizard.appearanceDescription") }}</p>
-    <div class="setup-step__body">
+  <StepShell
+    icon="i-ri-palette-line"
+    title-key="setupWizard.appearanceTitle"
+    description-key="setupWizard.appearanceDescription"
+  >
+    <SettingsSection :title="t('setupWizard.appearanceTitle')" icon="i-ri-brush-line">
       <div class="appearance-grid">
-        <div class="field-group">
-          <label class="field-label">{{ t("setupWizard.colorModeLabel") }}</label>
+        <SettingsField :label="t('setupWizard.colorModeLabel')">
           <UiSelect
             :model-value="settings.appearance.colorMode"
             :options="colorModeOptions"
             @update:model-value="updateAppearance({ colorMode: $event })"
           />
-        </div>
+        </SettingsField>
 
-        <div class="field-group">
-          <label class="field-label">{{ t("setupWizard.themeColorLabel") }}</label>
+        <SettingsField :label="t('setupWizard.themeColorLabel')">
           <div class="theme-color-options">
             <button
               v-for="color in themeColorOrder"
@@ -100,22 +98,18 @@ function selectThemeColor(themeColor: ThemeColor) {
               />
             </button>
           </div>
-        </div>
+        </SettingsField>
 
-        <div class="field-group">
-          <label class="field-label">{{ t("setupWizard.backgroundOpacityLabel") }}</label>
+        <SettingsField :label="t('setupWizard.backgroundOpacityLabel')">
           <UiSelect
             :model-value="settings.appearance.backgroundOpacity"
             :options="backgroundOpacityOptions"
             @update:model-value="updateAppearance({ backgroundOpacity: $event })"
           />
-        </div>
+        </SettingsField>
       </div>
 
-      <div
-        class="theme-preview"
-        :data-theme="settings.appearance.themeColor"
-      >
+      <div class="theme-preview" :data-theme="settings.appearance.themeColor">
         <div class="theme-preview__panel">
           <span class="theme-preview__dot" aria-hidden="true" />
           <div class="theme-preview__lines">
@@ -124,87 +118,16 @@ function selectThemeColor(themeColor: ThemeColor) {
           </div>
         </div>
       </div>
-    </div>
-  </div>
+    </SettingsSection>
+  </StepShell>
 </template>
 
 <style scoped>
-.setup-step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  text-align: center;
-}
-
-.setup-step__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.setup-step__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--font-size-hero);
-  font-weight: var(--font-weight-display);
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--color-heading);
-}
-
-.setup-step__description {
-  margin: 0;
-  font-size: var(--font-size-body);
-  line-height: var(--line-height-tight);
-  color: var(--color-text-muted);
-  max-width: 480px;
-}
-
-.setup-step__body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: var(--space-5);
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  max-width: 560px;
-}
-
-.setup-step__icon {
-  font-size: 2.5rem;
-  color: var(--color-accent);
-}
-
 .appearance-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-4);
   text-align: left;
-}
-
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.field-label {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-heading);
-}
-
-.theme-color-options {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  margin-top: var(--space-2);
 }
 
 .theme-preview {
@@ -222,7 +145,7 @@ function selectThemeColor(themeColor: ThemeColor) {
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  max-width: 240px;
+  max-width: 15rem;
   padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-panel-muted);
@@ -296,10 +219,6 @@ function selectThemeColor(themeColor: ThemeColor) {
   .theme-preview__dot,
   .theme-preview__line {
     transition: none;
-  }
-
-  .theme-color-button {
-    transition: box-shadow var(--duration-fast);
   }
 
   .theme-color-button .i-ri-check-line {

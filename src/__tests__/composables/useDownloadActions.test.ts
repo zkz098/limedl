@@ -428,9 +428,7 @@ describe("useDownloadActions", () => {
       expect(input.upsertSummary).toHaveBeenCalledWith(
         expect.objectContaining({ id: "task-4", state: "paused" }),
       );
-      expect(input.setMessage).toHaveBeenCalledWith(
-        expect.stringContaining("messages.pausedAll"),
-      );
+      expect(input.setMessage).toHaveBeenCalledWith(expect.stringContaining("messages.pausedAll"));
       expect(input.actionName.value).toBe("");
     });
 
@@ -447,9 +445,7 @@ describe("useDownloadActions", () => {
       await actions.runPauseAll();
 
       expect(mockPauseDownload).not.toHaveBeenCalled();
-      expect(input.setMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"count":0'),
-      );
+      expect(input.setMessage).toHaveBeenCalledWith(expect.stringContaining('"count":0'));
       expect(input.upsertSummary).not.toHaveBeenCalled();
       expect(input.actionName.value).toBe("");
     });
@@ -503,9 +499,7 @@ describe("useDownloadActions", () => {
       expect(input.upsertSummary).toHaveBeenCalledWith(
         expect.objectContaining({ id: "task-3", state: "downloading" }),
       );
-      expect(input.setMessage).toHaveBeenCalledWith(
-        expect.stringContaining("messages.resumedAll"),
-      );
+      expect(input.setMessage).toHaveBeenCalledWith(expect.stringContaining("messages.resumedAll"));
       expect(input.actionName.value).toBe("");
     });
 
@@ -522,9 +516,7 @@ describe("useDownloadActions", () => {
       await actions.runResumeAll();
 
       expect(mockResumeDownload).not.toHaveBeenCalled();
-      expect(input.setMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"count":0'),
-      );
+      expect(input.setMessage).toHaveBeenCalledWith(expect.stringContaining('"count":0'));
       expect(input.upsertSummary).not.toHaveBeenCalled();
       expect(input.actionName.value).toBe("");
     });
@@ -587,9 +579,7 @@ describe("useDownloadActions", () => {
       await actions.runClearCompleted();
 
       expect(mockRemoveDownload).not.toHaveBeenCalled();
-      expect(input.setMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"count":0'),
-      );
+      expect(input.setMessage).toHaveBeenCalledWith(expect.stringContaining('"count":0'));
       expect(input.removeSummary).not.toHaveBeenCalled();
       expect(input.actionName.value).toBe("");
     });
@@ -637,9 +627,7 @@ describe("useDownloadActions", () => {
       await actions.runBatchDelete(["unknown-id"]);
 
       expect(mockRemoveDownload).toHaveBeenCalledWith("unknown-id");
-      expect(input.setError).toHaveBeenCalledWith(
-        expect.stringContaining("unknown-id: Not found"),
-      );
+      expect(input.setError).toHaveBeenCalledWith(expect.stringContaining("unknown-id: Not found"));
       expect(input.actionName.value).toBe("");
     });
 
@@ -664,9 +652,12 @@ describe("useDownloadActions", () => {
 
     beforeEach(() => {
       mockClipboardWriteText = vi.fn().mockResolvedValue(undefined);
-      vi.stubGlobal("navigator", Object.assign({}, navigator, {
-        clipboard: { writeText: mockClipboardWriteText },
-      }));
+      vi.stubGlobal(
+        "navigator",
+        Object.assign({}, navigator, {
+          clipboard: { writeText: mockClipboardWriteText },
+        }),
+      );
     });
 
     afterEach(() => {
@@ -686,12 +677,8 @@ describe("useDownloadActions", () => {
 
       await actions.runCopyLink("task-1");
 
-      expect(mockClipboardWriteText).toHaveBeenCalledWith(
-        "https://example.com/file.zip",
-      );
-      expect(input.setMessage).toHaveBeenCalledWith(
-        expect.stringContaining("messages.linkCopied"),
-      );
+      expect(mockClipboardWriteText).toHaveBeenCalledWith("https://example.com/file.zip");
+      expect(input.setMessage).toHaveBeenCalledWith(expect.stringContaining("messages.linkCopied"));
     });
 
     it("copies link from downloads list when selectedSnapshot ids do not match", async () => {
@@ -712,12 +699,8 @@ describe("useDownloadActions", () => {
 
       await actions.runCopyLink("task-1");
 
-      expect(mockClipboardWriteText).toHaveBeenCalledWith(
-        "https://example.com/myfile.zip",
-      );
-      expect(input.setMessage).toHaveBeenCalledWith(
-        expect.stringContaining("messages.linkCopied"),
-      );
+      expect(mockClipboardWriteText).toHaveBeenCalledWith("https://example.com/myfile.zip");
+      expect(input.setMessage).toHaveBeenCalledWith(expect.stringContaining("messages.linkCopied"));
     });
 
     it("sets error when target has no url", async () => {
@@ -744,9 +727,7 @@ describe("useDownloadActions", () => {
         id: "task-1",
         url: "https://example.com/file.zip",
       });
-      mockClipboardWriteText.mockRejectedValue(
-        new Error("Clipboard access denied"),
-      );
+      mockClipboardWriteText.mockRejectedValue(new Error("Clipboard access denied"));
 
       input = createInput({
         selectedSnapshot: ref(snapshot),
@@ -755,9 +736,7 @@ describe("useDownloadActions", () => {
 
       await actions.runCopyLink("task-1");
 
-      expect(mockClipboardWriteText).toHaveBeenCalledWith(
-        "https://example.com/file.zip",
-      );
+      expect(mockClipboardWriteText).toHaveBeenCalledWith("https://example.com/file.zip");
       expect(input.setError).toHaveBeenCalledWith("Clipboard access denied");
     });
   });

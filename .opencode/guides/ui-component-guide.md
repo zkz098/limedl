@@ -7,6 +7,7 @@
 ## 涉及文件
 
 ** 基础组件 `src/components/ui/` **：
+
 - `UiBadge.vue` — 状态/类别标签。Props: size(sm|md), tone(neutral|info|success|warning|danger)。使用 `toneForState()` helper 映射下载状态到 badge 色调。
 - `UiButton.vue` — 操作按钮。Props: type, variant(primary|secondary|ghost|danger), size(sm|md), loading, disabled, icon, iconRight, block。Emits: click。
 - `UiCard.vue` — 通用卡片容器。Slots: header, default, footer。
@@ -22,16 +23,19 @@
 - `DataTable.vue` — 只读数据表。Props: columns(DataTableColumn[]), rows, emptyTitle, emptyIcon, rowKey。用于 BT 对等节点/tracker 等简单表格。
 
 ** 组合组件 **：
+
 - `SettingsSection.vue` — 设置/实验室面板的卡片式段落。Props: title, icon, summary。自包含视觉样式。
 - `SettingsField.vue` — 设置面板的表单项包装。Props: label, hint, wide。依赖 `.settings-field` 父类样式。
 - `ModalOverlay.vue` — 全屏覆盖层。Props: modelValue。Emits: close。含背景模糊、关闭按钮、缩放淡入过渡。
 - `StatRow.vue` — 键值统计行。Props: label, value, mono。用于侧边栏面板。
 
 ** 领域组件 **：
+
 - `DetailPanel.vue` — 选中下载任务的详情面板。Props: selectedOverview, selectedSnapshot, selectedId, canPause, canResume, canCancel 等。Emits: close, refresh, pause, resume, cancel。
 - `DownloadInspector.vue` — 下载详情内容体。
 
 ** 布局组件 `src/components/layout/` **：
+
 - `TopToolbar.vue` — 顶栏（搜索、排序、视图选项、批量操作、游戏/超频切换）。
 - `CategorySidebar.vue` — 左侧分类侧边栏（下载过滤器 + BT 状态）。使用 StatRow。
 

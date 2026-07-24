@@ -7,20 +7,24 @@ limedl 的整体架构描述：工作空间布局、三目标平台（Tauri Desk
 ## 涉及文件
 
 ** workspace 层 **：
+
 - `Cargo.toml` — workspace root，members 包括 `crates/*` 和 `src-tauri`
 - `package.json` — pnpm workspace（frontend only），`packageManager` 字段指定 pnpm v11
 
 ** 核心库 **：
+
 - `crates/limedl-core/src/` — 22+ 模块：event_bus、types、protocol、manager、http_executor、scheduler、task_lifecycle、bt_backend_own/、cdn/、database、buffer_pool、rate_limiter/、checksum/、file_ops/、settings、http_client_factory/、backend_registry、dispatcher、manifest、retry、aria2_rpc、ws_manifest
 - lib 名称：`limedl_core`
 
 ** 服务端 / CLI **：
+
 - `crates/limedl-server/src/main.rs` — CLI 入口（clap 子命令：daemon | download）+ axum 服务器
 - `crates/limedl-server/src/rpc.rs` — WebSocket JSON-RPC 2.0 dispatch + event relay
 - `crates/limedl-server/src/auth.rs` — HTTP Basic Auth middleware
 - `crates/limedl-server/src/config.rs` — 服务器配置（JSON + CLI 覆写）
 
 ** Tauri 桌面 **：
+
 - `src-tauri/src/lib.rs` — Tauri 入口、EventBus→Tauri bridge 后台任务
 - `src-tauri/src/download/commands.rs` — Tauri IPC 命令（薄壳，经 Dispatcher 委派）
 - `src-tauri/src/download/commands_cdn.rs` — CDN 命令
@@ -28,6 +32,7 @@ limedl 的整体架构描述：工作空间布局、三目标平台（Tauri Desk
 - lib 名称：`limedl_lib`
 
 ** 前端 **：
+
 - `src/` — Vue 3 + TypeScript，跨 Tauri/NAS 共享
 - `src/lib/tauri/*-api.ts` — 类型安全 invoke 包装（导入 `#invoke`）
 - `src/lib/ws/ws-invoke.ts` — WebSocket invoke 实现（NAS 模式）
@@ -37,6 +42,7 @@ limedl 的整体架构描述：工作空间布局、三目标平台（Tauri Desk
 - `src/types/generated/types.ts` — 由 ts-rs 自动生成
 
 ** 构建配置 **：
+
 - `vite.config.ts` — resolve.alias 中根据 `mode === "nas"` 切换 `#invoke` / `#event` 指向
 - `.cargo/config.toml` — x86_64 target 设置 `target-cpu=x86-64-v3`
 

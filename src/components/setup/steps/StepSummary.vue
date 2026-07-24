@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from "../../../i18n";
 import type { AppSettings } from "../../../types/settings";
+import StepShell from "../StepShell.vue";
+import SettingsSection from "../../settings/SettingsSection.vue";
 import UiBadge from "../../ui/UiBadge.vue";
 import UiButton from "../../ui/UiButton.vue";
 
@@ -17,12 +19,12 @@ const { t, language } = useI18n();
 
 const editStepIndex = {
   language: 1,
-  cdn: 2,
-  rpc: 3,
-  performance: 4,
+  appearance: 2,
+  cdn: 3,
+  rpc: 4,
   directory: 5,
-  appearance: 6,
-  autostart: 7,
+  performance: 6,
+  system: 7,
 } as const;
 
 const summaryRows = [
@@ -31,6 +33,12 @@ const summaryRows = [
     icon: "i-ri-translate-2",
     label: "summaryLanguage",
     value: getLanguageLabel,
+  },
+  {
+    key: "appearance",
+    icon: "i-ri-palette-line",
+    label: "summaryAppearance",
+    value: getAppearanceLabel,
   },
   {
     key: "cdn",
@@ -56,21 +64,15 @@ const summaryRows = [
     isPath: true,
   },
   {
-    key: "appearance",
-    icon: "i-ri-palette-line",
-    label: "summaryAppearance",
-    value: getAppearanceLabel,
-  },
-  {
     key: "performance",
     icon: "i-ri-speed-up-line",
-    label: "stepPerformance",
+    label: "summaryPerformance",
     value: getPerformanceLabel,
   },
   {
-    key: "autostart",
+    key: "system",
     icon: "i-ri-settings-3-line",
-    label: "stepAutostart",
+    label: "summarySystem",
     value: getSystemLabel,
   },
 ];
@@ -82,6 +84,12 @@ function goToStep(index: number) {
 function getLanguageLabel() {
   const lang = language.value ?? "zh-CN";
   return t(`language.${lang === "zh-CN" ? "zhCN" : "enUS"}`);
+}
+
+function getAppearanceLabel() {
+  const mode = t(`settings.colorModeNames.${props.settings.appearance.colorMode}`);
+  const theme = t(`settings.themeColorNames.${props.settings.appearance.themeColor}`);
+  return `${mode} · ${theme}`;
 }
 
 function getRpcLabel() {
@@ -96,23 +104,14 @@ function getDirectoryLabel() {
   return path ? path : t("setupWizard.summaryDirectoryEmpty");
 }
 
-function getAppearanceLabel() {
-  const mode = t(`settings.colorModeNames.${props.settings.appearance.colorMode}`);
-  const theme = t(`settings.themeColorNames.${props.settings.appearance.themeColor}`);
-  const background = t(
-    `settings.backgroundOpacityNames.${props.settings.appearance.backgroundOpacity}`,
-  );
-  return `${mode} · ${theme} · ${background}`;
-}
-
 function getPerformanceLabel() {
-  const mode = props.settings.scheduler.mode === "automatic"
-    ? t("tokens.automatic")
-    : t("tokens.traditional");
-  const chunk = props.settings.scheduler.chunkSizeStrategy === "adaptive"
-    ? t("common.enabled")
-    : t("common.disabled");
-  return `${mode} · Chunk: ${chunk}`;
+  const mode =
+    props.settings.scheduler.mode === "automatic" ? t("tokens.automatic") : t("tokens.traditional");
+  const chunk =
+    props.settings.scheduler.chunkSizeStrategy === "adaptive"
+      ? t("common.enabled")
+      : t("common.disabled");
+  return `${mode} · ${t("settings.intelligentChunkAllocation")}: ${chunk}`;
 }
 
 function getSystemLabel() {
@@ -124,19 +123,14 @@ function getSystemLabel() {
 </script>
 
 <template>
-  <div class="setup-step">
-    <div class="setup-step__header">
-      <span class="setup-step__icon i-ri-file-list-3-line" aria-hidden="true" />
-      <h2 class="setup-step__title">{{ t("setupWizard.summaryTitle") }}</h2>
-    </div>
-    <p class="setup-step__description">{{ t("setupWizard.summaryDescription") }}</p>
-    <div class="setup-step__body">
+  <StepShell
+    icon="i-ri-file-list-3-line"
+    title-key="setupWizard.summaryTitle"
+    description-key="setupWizard.summaryDescription"
+  >
+    <SettingsSection :title="t('setupWizard.summaryTitle')" icon="i-ri-file-list-3-line">
       <div class="summary-card">
-        <div
-          v-for="row in summaryRows"
-          :key="row.key"
-          class="summary-row"
-        >
+        <div v-for="(row, i) in summaryRows" :key="`${row.key}-${i}`" class="summary-row">
           <span class="summary-row__icon" :class="row.icon" aria-hidden="true" />
           <div class="summary-row__info">
             <span class="summary-row__label">{{ t(`setupWizard.${row.label}`) }}</span>
@@ -161,62 +155,11 @@ function getSystemLabel() {
           </UiButton>
         </div>
       </div>
-    </div>
-  </div>
+    </SettingsSection>
+  </StepShell>
 </template>
 
 <style scoped>
-.setup-step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  text-align: center;
-}
-
-.setup-step__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.setup-step__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--font-size-hero);
-  font-weight: var(--font-weight-display);
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--color-heading);
-}
-
-.setup-step__description {
-  margin: 0;
-  font-size: var(--font-size-body);
-  line-height: var(--line-height-tight);
-  color: var(--color-text-muted);
-  max-width: 480px;
-}
-
-.setup-step__body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  max-width: 560px;
-}
-
-.setup-step__icon {
-  font-size: 2.5rem;
-  color: var(--color-accent);
-}
-
 .summary-card {
   display: flex;
   flex-direction: column;

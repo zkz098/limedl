@@ -317,7 +317,11 @@ function closeColumnMenu() {
       </button>
     </div>
 
-    <div v-if="btStatus" class="toolbar-bt flex items-center gap-2 flex-shrink-0" data-testid="toolbar-bt-status">
+    <div
+      v-if="btStatus"
+      class="toolbar-bt flex items-center gap-2 flex-shrink-0"
+      data-testid="toolbar-bt-status"
+    >
       <span
         class="toolbar-bt__pill inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs leading-none whitespace-nowrap"
         data-testid="toolbar-bt-dht-count"

@@ -40,7 +40,9 @@ export class TestFileServer {
    */
   getUrl(filename: string): string {
     if (!this.files[filename]) {
-      throw new Error(`Unknown test file: "${filename}". Known files: ${Object.keys(this.files).join(", ")}`);
+      throw new Error(
+        `Unknown test file: "${filename}". Known files: ${Object.keys(this.files).join(", ")}`,
+      );
     }
     return `${this.url}/${filename}`;
   }

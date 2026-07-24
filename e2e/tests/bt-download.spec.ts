@@ -20,19 +20,25 @@ import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/
 test.describe("BitTorrent download", () => {
   const TASK_ID = "test-bt-001";
 
-  test("creates a BT download via magnet link and shows file picker", async ({ page, wsMocker }) => {
+  test("creates a BT download via magnet link and shows file picker", async ({
+    page,
+    wsMocker,
+  }) => {
     await page.goto("/");
     await expect(page.locator(".app-root")).toBeVisible();
 
     // Inject a BT task directly — the BtFilePickerModal is a standalone component
     // that hasn't been wired into the app's download flow yet. We test the BT
     // task creation and queue display directly.
-    wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
-      kind: "bt",
-      infoHash: "08ada5a312ca1c2950cbb27f4f5b1e0e8d5a7c9b",
-      url: "magnet:?xt=urn:btih:08ada5a312ca1c2950cbb27f4f5b1e0e8d5a7c9b&dn=test-torrent",
-      fileName: "test-torrent",
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary(TASK_ID, {
+        kind: "bt",
+        infoHash: "08ada5a312ca1c2950cbb27f4f5b1e0e8d5a7c9b",
+        url: "magnet:?xt=urn:btih:08ada5a312ca1c2950cbb27f4f5b1e0e8d5a7c9b&dn=test-torrent",
+        fileName: "test-torrent",
+      }),
+    );
 
     wsMocker.setAutoResponse("download.list", [
       makeMockSummary(TASK_ID, {
@@ -56,11 +62,14 @@ test.describe("BitTorrent download", () => {
     await expectTaskVisible(page, TASK_ID);
 
     // Send progress to set downloading state
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 5_000_000,
-      speedBytesPerSecond: 2_000_000,
-      peerCount: 3,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 5_000_000,
+        speedBytesPerSecond: 2_000_000,
+        peerCount: 3,
+      }),
+    );
 
     await expectTaskState(page, TASK_ID, "downloading");
 
@@ -92,7 +101,7 @@ test.describe("BitTorrent download", () => {
         flags: "d",
         downloadSpeed: 120000,
         uploadSpeed: 5000,
-        progress: 0.30,
+        progress: 0.3,
       },
       {
         address: "192.0.2.15:6889",
@@ -124,13 +133,16 @@ test.describe("BitTorrent download", () => {
     await expect(page.locator(".app-root")).toBeVisible();
 
     // Inject BT task directly — no composer dialog needed
-    wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
-      kind: "bt",
-      state: "downloading",
-      downloadedBytes: 2_000_000,
-      speedBytesPerSecond: 1_000_000,
-      peerCount: 5,
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary(TASK_ID, {
+        kind: "bt",
+        state: "downloading",
+        downloadedBytes: 2_000_000,
+        speedBytesPerSecond: 1_000_000,
+        peerCount: 5,
+      }),
+    );
 
     wsMocker.setAutoResponse("download.list", [
       makeMockSummary(TASK_ID, {
@@ -142,11 +154,14 @@ test.describe("BitTorrent download", () => {
     ]);
 
     // Send progress to show the task as downloading
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 2_000_000,
-      speedBytesPerSecond: 1_000_000,
-      peerCount: 5,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 2_000_000,
+        speedBytesPerSecond: 1_000_000,
+        peerCount: 5,
+      }),
+    );
 
     await expectTaskVisible(page, TASK_ID);
     await expectTaskState(page, TASK_ID, "downloading");
@@ -183,7 +198,7 @@ test.describe("BitTorrent download", () => {
     const speedLimitParams = await speedLimitPromise;
     expect(speedLimitParams).toHaveProperty("taskId", TASK_ID);
     expect(speedLimitParams).toHaveProperty("downloadLimitBps", 1024 * 1024); // 1024 KB/s → bytes
-    expect(speedLimitParams).toHaveProperty("uploadLimitBps", 512 * 1024);    // 512 KB/s → bytes
+    expect(speedLimitParams).toHaveProperty("uploadLimitBps", 512 * 1024); // 512 KB/s → bytes
 
     // Respond with success
     wsMocker.respondToMethod("bt.setSpeedLimit", null);

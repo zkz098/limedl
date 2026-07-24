@@ -39,6 +39,40 @@ defineProps<{
   box-shadow: var(--shadow-card-hover);
 }
 
+.settings-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.settings-section__head h3 {
+  margin: 0.2rem 0 0;
+  color: var(--color-heading);
+  font-size: 1rem;
+}
+
+.settings-section__head > span[aria-hidden] {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  background: var(--color-panel-muted);
+  border: 1px solid var(--color-border);
+}
+
+.settings-section__summary {
+  margin: 0;
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
 .settings-section__body {
   display: contents;
 }

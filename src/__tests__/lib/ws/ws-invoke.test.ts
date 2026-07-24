@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  isNonNullObject,
-  applyTransform,
-  mapEventType,
-} from "../../../lib/ws/ws-invoke";
+import { isNonNullObject, applyTransform, mapEventType } from "../../../lib/ws/ws-invoke";
 import { WS_COMMANDS } from "../../../lib/ws/generated/ws-commands";
 import { WS_EVENTS } from "../../../lib/ws/generated/ws-events";
 
@@ -121,9 +117,7 @@ describe("applyTransform", () => {
   });
 
   it("rename transform works for all rename-type commands", () => {
-    const renameCommands = WS_COMMANDS.filter(
-      (c) => c.paramTransform.kind === "rename",
-    );
+    const renameCommands = WS_COMMANDS.filter((c) => c.paramTransform.kind === "rename");
     expect(renameCommands.length).toBeGreaterThan(0);
 
     for (const spec of renameCommands) {

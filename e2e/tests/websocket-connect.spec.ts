@@ -54,10 +54,7 @@ test.describe("WebSocket connection", () => {
     wsMocker.respondToMethod("download.list", []);
 
     await wsMocker.waitForMethod("download.status");
-    wsMocker.respondToMethod(
-      "download.status",
-      makeMockSummary("test-conn-001"),
-    );
+    wsMocker.respondToMethod("download.status", makeMockSummary("test-conn-001"));
   });
 
   test("receives server-pushed events after connection", async ({ page, wsMocker }) => {

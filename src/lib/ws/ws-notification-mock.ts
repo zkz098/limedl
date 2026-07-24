@@ -4,7 +4,7 @@
 
 export const isPermissionGranted = async (): Promise<boolean> => false;
 
-export const requestPermission = async (): Promise<'granted' | 'denied'> => 'denied';
+export const requestPermission = async (): Promise<"granted" | "denied"> => "denied";
 
 export const sendNotification = async (_options: unknown): Promise<void> => {
   // No-op: browser environment has no Tauri notification API

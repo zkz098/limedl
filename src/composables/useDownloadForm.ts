@@ -332,16 +332,16 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     }
     if (!text) return;
 
-      const trimmed = text.trim();
+    const trimmed = text.trim();
 
-      if (trimmed.startsWith("magnet:?")) {
-        form.kind = "bt";
-        form.url = trimmed;
-      } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        form.kind = "http";
-        form.url = trimmed;
-      }
-      // Other content — not a recognized download URL, do nothing.
+    if (trimmed.startsWith("magnet:?")) {
+      form.kind = "bt";
+      form.url = trimmed;
+    } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      form.kind = "http";
+      form.url = trimmed;
+    }
+    // Other content — not a recognized download URL, do nothing.
   }
 
   return {

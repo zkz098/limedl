@@ -415,6 +415,7 @@ async fn dispatch_method(
         "download_open_in_explorer" => handle_open_in_explorer(params, state).await,
         "toggle_game_mode" => handle_toggle_game_mode(params, state).await,
         "get_io_status" => handle_get_io_status(state).await,
+        "detect_disk_type" => handle_detect_disk_type(params, state).await,
         "toggle_overclock_mode" => handle_toggle_overclock_mode(params, state).await,
         "get_overclock_mode" => handle_get_overclock_mode(state).await,
         "settings_fetch_tracker_list" => handle_fetch_tracker_list(params, state).await,
@@ -623,6 +624,28 @@ async fn handle_get_io_status(state: &RpcState) -> Result<serde_json::Value, Jso
         "maxSlots": pool.max_slots(),
         "queuedCount": pool.queued_count(),
         "degradationCount": pool.degradation_count(),
+    }))
+}
+
+// ── Handler: settings.detectDiskType ────────────────────────────────
+
+async fn handle_detect_disk_type(
+    params: Option<&serde_json::Value>,
+    state: &RpcState,
+) -> Result<serde_json::Value, JsonRpcError> {
+    let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
+    let dir = params
+        .get("dir")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| JsonRpcError::invalid_params("Missing dir"))?;
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
+        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
+    let disk_type = dm.resolve_disk_type(std::path::Path::new(dir)).await;
+    Ok(serde_json::json!(match disk_type {
+        limedl_core::types::DiskType::Hdd => "hdd",
+        limedl_core::types::DiskType::Ssd => "ssd",
     }))
 }
 

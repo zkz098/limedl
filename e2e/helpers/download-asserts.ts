@@ -52,9 +52,7 @@ export async function expectProgressValue(
  * (e.g. "1.2 MB/s", "500 KB/s").
  */
 export async function expectSpeedDisplay(page: Page, taskId: string): Promise<void> {
-  const locator = page.locator(
-    `[data-testid="download-row-${taskId}"] [data-testid="task-speed"]`,
-  );
+  const locator = page.locator(`[data-testid="download-row-${taskId}"] [data-testid="task-speed"]`);
   await expect(locator).toBeVisible();
 
   const text = await locator.textContent();

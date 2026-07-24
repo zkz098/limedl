@@ -14,7 +14,11 @@
  */
 
 import { test, expect } from "../fixtures";
-import { expectTaskVisible, expectTaskState, expectProgressValue } from "../helpers/download-asserts";
+import {
+  expectTaskVisible,
+  expectTaskState,
+  expectProgressValue,
+} from "../helpers/download-asserts";
 import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 
 test.describe("queue scenarios", () => {
@@ -30,13 +34,19 @@ test.describe("queue scenarios", () => {
     // Inject tasks directly instead of going through the composer dialog.
     const offsets = [9000, 6000, 3000];
     for (let i = 0; i < TASK_IDS.length; i++) {
-      wsMocker.sendEvent("updated", makeMockSummary(TASK_IDS[i], { createdAtMs: now - offsets[i] }));
+      wsMocker.sendEvent(
+        "updated",
+        makeMockSummary(TASK_IDS[i], { createdAtMs: now - offsets[i] }),
+      );
     }
 
     // Also pre-seed download.list so page reload / refresh would preserve data
-    wsMocker.setAutoResponse("download.list", TASK_IDS.toReversed().map((id, i) =>
-      makeMockSummary(id, { createdAtMs: now - offsets[2 - i] }),
-    ));
+    wsMocker.setAutoResponse(
+      "download.list",
+      TASK_IDS.toReversed().map((id, i) =>
+        makeMockSummary(id, { createdAtMs: now - offsets[2 - i] }),
+      ),
+    );
 
     // Wait for Vue reactivity to render the tasks
     await page.waitForTimeout(500);
@@ -66,9 +76,10 @@ test.describe("queue scenarios", () => {
     }
 
     // Also pre-seed download.list for consistency
-    wsMocker.setAutoResponse("download.list", TASK_IDS.map((id) =>
-      makeMockSummary(id, taskConfigs[id]),
-    ));
+    wsMocker.setAutoResponse(
+      "download.list",
+      TASK_IDS.map((id) => makeMockSummary(id, taskConfigs[id])),
+    );
 
     await page.waitForTimeout(500);
 
@@ -104,9 +115,15 @@ test.describe("queue scenarios", () => {
 
   test("search filters downloads by name", async ({ page, wsMocker }) => {
     // Inject three downloads with distinct file names via direct events
-    wsMocker.sendEvent("updated", makeMockSummary("search-alpha", { fileName: "AlphaProject.zip" }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary("search-alpha", { fileName: "AlphaProject.zip" }),
+    );
     wsMocker.sendEvent("updated", makeMockSummary("search-beta", { fileName: "BetaRelease.iso" }));
-    wsMocker.sendEvent("updated", makeMockSummary("search-gamma", { fileName: "GammaDocument.pdf" }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary("search-gamma", { fileName: "GammaDocument.pdf" }),
+    );
 
     // Pre-seed download.list auto-response for consistency
     wsMocker.setAutoResponse("download.list", [
@@ -232,11 +249,14 @@ test.describe("queue scenarios", () => {
     // Fire 20 rapid progress events in sequence (no delays between them).
     // This stresses the Vue reactivity system and the ws-mocker event pipeline.
     for (let i = 1; i <= 20; i++) {
-      wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-        downloadedBytes: Math.round((TOTAL_BYTES / 20) * i),
-        speedBytesPerSecond: 1_000_000 + i * 100_000,
-        etaSeconds: 20 - i,
-      }));
+      wsMocker.sendEvent(
+        "progress",
+        makeMockProgress(TASK_ID, {
+          downloadedBytes: Math.round((TOTAL_BYTES / 20) * i),
+          speedBytesPerSecond: 1_000_000 + i * 100_000,
+          etaSeconds: 20 - i,
+        }),
+      );
     }
 
     // Give Vue a brief moment to flush all pending reactivity updates
@@ -263,11 +283,14 @@ test.describe("queue scenarios", () => {
     await expectTaskVisible(page, TASK_ID);
 
     // Send a progress event to show the task actively downloading
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 2_500_000,
-      speedBytesPerSecond: 3_000_000,
-      etaSeconds: 3,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 2_500_000,
+        speedBytesPerSecond: 3_000_000,
+        etaSeconds: 3,
+      }),
+    );
 
     await expectTaskState(page, TASK_ID, "downloading");
 
@@ -285,7 +308,9 @@ test.describe("queue scenarios", () => {
     await expect(detailPanel.locator(".detail-panel__body")).toBeVisible();
 
     // The status badge should show "Downloading"
-    await expect(detailPanel.locator(".detail-panel__title .ui-badge")).toContainText("Downloading");
+    await expect(detailPanel.locator(".detail-panel__title .ui-badge")).toContainText(
+      "Downloading",
+    );
   });
 
   test("empty state shows message when all downloads cleared", async ({ page, wsMocker }) => {

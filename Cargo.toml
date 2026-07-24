@@ -1,10 +1,6 @@
 [workspace]
 resolver = "3"
-members = [
-    "crates/limedl-core",
-    "crates/limedl-server",
-    "src-tauri",
-]
+members = ["crates/limedl-core", "crates/limedl-server", "src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -21,11 +17,11 @@ strip = true # Strip debug symbols
 
 # ── CI-optimized dev profile ────────────────────────────────────
 [profile.dev]
-debug = "line-tables-only"  # Keep backtraces, skip full debug info
+debug = "line-tables-only" # Keep backtraces, skip full debug info
 
 [profile.dev.package."*"]
-opt-level = 1   # Light optimization for dependencies (faster test binaries)
-debug = false    # Skip debug info for dependencies
+opt-level = 1 # Light optimization for dependencies (faster test binaries)
+debug = false # Skip debug info for dependencies
 
 [profile.test]
-inherits = "dev"  # Use dev profile settings
+inherits = "dev" # Use dev profile settings

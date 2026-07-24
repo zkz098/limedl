@@ -138,13 +138,19 @@ const {
   btSummary,
 } = useSettingsSummaries(form, t, optionArrays);
 
-// ── Constraint: maxThreadsPerTask ≤ maxParallelThreads ────────────
+// ── Constraints: maxThreadsPerTask ≤ maxParallelThreads, minThreadsPerTask ≤ maxThreadsPerTask ──
 
 watch(
-  () => form.scheduler.automatic.maxParallelThreads,
-  (value) => {
-    if (form.scheduler.automatic.maxThreadsPerTask > value) {
-      form.scheduler.automatic.maxThreadsPerTask = value;
+  [
+    () => form.scheduler.automatic.maxParallelThreads,
+    () => form.scheduler.automatic.maxThreadsPerTask,
+  ],
+  ([maxParallel, maxPerTask]) => {
+    if (form.scheduler.automatic.maxThreadsPerTask > maxParallel) {
+      form.scheduler.automatic.maxThreadsPerTask = maxParallel;
+    }
+    if (form.scheduler.automatic.minThreadsPerTask > maxPerTask) {
+      form.scheduler.automatic.minThreadsPerTask = maxPerTask;
     }
   },
 );
@@ -226,16 +232,28 @@ async function persistSettings() {
 }
 
 const activeTab = ref("appearance");
+const isAdvancedExpanded = ref(false);
 
-const tabs = [
+// Auto-expand advanced section when an advanced tab is selected
+watch(activeTab, (tab) => {
+  if (advancedTabs.some((at) => at.id === tab)) {
+    isAdvancedExpanded.value = true;
+  }
+});
+
+const commonTabs = [
   { id: "appearance", icon: "i-ri-palette-line", labelKey: "settings.appearanceKicker" },
-  { id: "scheduler", icon: "i-ri-dashboard-line", labelKey: "settings.scheduler" },
   { id: "downloads", icon: "i-ri-download-line", labelKey: "settings.downloads" },
-  { id: "bt", icon: "i-ri-seedling-line", labelKey: "settings.bt" },
-  { id: "aria2Rpc", icon: "i-ri-terminal-box-line", labelKey: "settings.aria2Rpc" },
-  { id: "logging", icon: "i-ri-file-list-3-line", labelKey: "settings.logging" },
   { id: "proxy", icon: "i-ri-global-line", labelKey: "settings.proxyTitle" },
   { id: "about", icon: "i-ri-information-line", labelKey: "settings.aboutKicker" },
+] as const;
+
+const advancedTabs = [
+  { id: "scheduler", icon: "i-ri-dashboard-line", labelKey: "settings.scheduler" },
+  { id: "bt", icon: "i-ri-seedling-line", labelKey: "settings.bt" },
+  { id: "io", icon: "i-ri-hard-drive-2-line", labelKey: "settings.io" },
+  { id: "aria2Rpc", icon: "i-ri-terminal-box-line", labelKey: "settings.aria2Rpc" },
+  { id: "logging", icon: "i-ri-file-list-3-line", labelKey: "settings.logging" },
 ] as const;
 
 defineExpose({
@@ -259,16 +277,15 @@ defineExpose({
         :aria-label="t('settings.title')"
       >
         <nav class="settings-page__tabs flex flex-col gap-1">
+          <!-- Common tabs: always visible -->
           <button
-            v-for="tab in tabs"
+            v-for="tab in commonTabs"
             :key="tab.id"
             type="button"
             role="tab"
             :class="[
-              'relative min-h-[2.75rem] flex items-center gap-[0.6rem] px-[0.9rem] border border-transparent rounded-md text-sm text-left cursor-pointer select-none transition-colors duration-150',
-              activeTab === tab.id
-                ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)] font-semibold before:absolute before:left-0 before:top-[0.55rem] before:bottom-[0.55rem] before:w-[3px] before:rounded-r-[2px] before:bg-[var(--color-accent-strong)]'
-                : 'text-[var(--color-text-muted)] bg-transparent hover:text-[var(--color-heading)] hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:border-[var(--color-accent-strong)] focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]',
+              'settings-page__tab',
+              activeTab === tab.id ? 'settings-page__tab--active' : '',
             ]"
             :aria-selected="activeTab === tab.id"
             @click="activeTab = tab.id"
@@ -276,6 +293,44 @@ defineExpose({
             <span :class="tab.icon" aria-hidden="true" />
             <span>{{ t(tab.labelKey) }}</span>
           </button>
+
+          <!-- Advanced divider + toggle -->
+          <div class="settings-page__advanced-divider" />
+          <button
+            type="button"
+            class="settings-page__advanced-toggle"
+            :aria-expanded="isAdvancedExpanded"
+            @click="isAdvancedExpanded = !isAdvancedExpanded"
+          >
+            <span
+              class="settings-page__advanced-toggle-icon"
+              :class="{ 'settings-page__advanced-toggle-icon--collapsed': !isAdvancedExpanded }"
+            >
+              <span class="i-ri-arrow-down-s-line" aria-hidden="true" />
+            </span>
+            <span>{{ t("settings.advancedSettings") }}</span>
+          </button>
+
+          <!-- Advanced tabs: collapsible -->
+          <Transition name="advanced-tabs">
+            <div v-show="isAdvancedExpanded" class="settings-page__advanced-tabs">
+              <button
+                v-for="tab in advancedTabs"
+                :key="tab.id"
+                type="button"
+                role="tab"
+                :class="[
+                  'settings-page__tab',
+                  activeTab === tab.id ? 'settings-page__tab--active' : '',
+                ]"
+                :aria-selected="activeTab === tab.id"
+                @click="activeTab = tab.id"
+              >
+                <span :class="tab.icon" aria-hidden="true" />
+                <span>{{ t(tab.labelKey) }}</span>
+              </button>
+            </div>
+          </Transition>
         </nav>
 
         <div class="settings-page__save flex-none flex flex-col gap-2 mt-auto pt-3">
@@ -327,18 +382,6 @@ defineExpose({
           @pick-directory="pickDefaultDownloadDirectory"
         />
 
-        <SettingsIoBaselinePanel
-          v-show="activeTab === 'downloads'"
-          :draft="form"
-          :t="t"
-          :game-mode="gameMode ?? false"
-          :buffer-usage-bytes="bufferUsageBytes ?? 0"
-          :buffer-limit-bytes="bufferLimitBytes ?? 0"
-          :active-slots="activeSlots ?? 0"
-          :max-slots="maxSlots ?? 0"
-          :queued-count="queuedCount ?? 0"
-        />
-
         <SettingsBtPanel
           v-show="activeTab === 'bt'"
           :draft="form"
@@ -349,6 +392,18 @@ defineExpose({
           :default-tracker-list-url="DEFAULT_TRACKER_LIST_URL"
           @update:btUploadLimitMiB="setBtUploadLimitMiB"
           @fetch-tracker-list="updateTrackerListFromUrl"
+        />
+
+        <SettingsIoBaselinePanel
+          v-show="activeTab === 'io'"
+          :draft="form"
+          :t="t"
+          :game-mode="gameMode ?? false"
+          :buffer-usage-bytes="bufferUsageBytes ?? 0"
+          :buffer-limit-bytes="bufferLimitBytes ?? 0"
+          :active-slots="activeSlots ?? 0"
+          :max-slots="maxSlots ?? 0"
+          :queued-count="queuedCount ?? 0"
         />
 
         <SettingsAria2RpcPanel v-show="activeTab === 'aria2Rpc'" :draft="form" :t="t" />
@@ -463,6 +518,80 @@ defineExpose({
   font-size: 1.05rem;
 }
 
+/* Advanced settings section */
+.settings-page__advanced-divider {
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-2) 0;
+}
+
+.settings-page__advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.settings-page__advanced-toggle:hover {
+  color: var(--color-heading);
+  background: var(--color-surface-muted);
+}
+
+.settings-page__advanced-toggle:focus-visible {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+.settings-page__advanced-toggle-icon {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.settings-page__advanced-toggle-icon--collapsed {
+  transform: rotate(-90deg);
+}
+
+.settings-page__advanced-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.advanced-tabs-enter-active,
+.advanced-tabs-leave-active {
+  transition:
+    max-height 0.25s ease,
+    opacity 0.2s ease;
+  overflow: hidden;
+}
+
+.advanced-tabs-enter-from,
+.advanced-tabs-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.advanced-tabs-enter-to,
+.advanced-tabs-leave-from {
+  max-height: 500px;
+  opacity: 1;
+}
+
 .settings-page__save,
 .labs-page__save {
   flex: 0 0 auto;
@@ -517,6 +646,7 @@ defineExpose({
   .labs-page__tabs {
     flex-direction: row;
     flex: 1 1 auto;
+    flex-wrap: wrap;
   }
 
   .settings-page__tab,
@@ -541,6 +671,44 @@ defineExpose({
   .labs-page__save-hint {
     display: none;
   }
+
+  .settings-page__advanced-divider {
+    border-top: none;
+    border-left: 1px solid var(--color-border);
+    margin: 0 0.5rem;
+    height: 1.5rem;
+  }
+
+  .settings-page__advanced-toggle {
+    min-height: 2.25rem;
+    padding: 0 0.75rem;
+    white-space: nowrap;
+  }
+
+  .settings-page__advanced-tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .advanced-tabs-enter-active,
+  .advanced-tabs-leave-active {
+    transition:
+      max-width 0.25s ease,
+      opacity 0.2s ease;
+    overflow: hidden;
+  }
+
+  .advanced-tabs-enter-from,
+  .advanced-tabs-leave-to {
+    max-width: 0;
+    opacity: 0;
+  }
+
+  .advanced-tabs-enter-to,
+  .advanced-tabs-leave-from {
+    max-width: 500px;
+    opacity: 1;
+  }
 }
 
 /* ── Shared structural classes for settings & labs panels ────────── */
@@ -552,38 +720,6 @@ defineExpose({
 .settings-page .settings-section {
   display: grid;
   gap: 1rem;
-}
-
-.settings-page .settings-section__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.settings-page .settings-section__head h3 {
-  margin: 0.2rem 0 0;
-  color: var(--color-heading);
-  font-size: 1rem;
-}
-
-.settings-page .settings-section__icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  background: var(--color-panel-muted);
-  border: 1px solid var(--color-border);
-}
-
-.settings-page .settings-section__summary {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.88rem;
-  line-height: 1.55;
 }
 
 .settings-page .settings-grid,

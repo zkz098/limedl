@@ -24,7 +24,10 @@ const TEST_FILE_SERVER_URL = process.env.TEST_FILE_SERVER_URL || "http://127.0.0
 
 test.describe("real server integration", () => {
   // Conditional skip: tests run only when LIMEDL_E2E_REAL_SERVER=1
-  test.skip(!process.env.LIMEDL_E2E_REAL_SERVER, "Set LIMEDL_E2E_REAL_SERVER=1 to run real-server tests");
+  test.skip(
+    !process.env.LIMEDL_E2E_REAL_SERVER,
+    "Set LIMEDL_E2E_REAL_SERVER=1 to run real-server tests",
+  );
 
   test("page loads from server and shows app", async ({ page }) => {
     await page.goto("/");
@@ -56,7 +59,9 @@ test.describe("real server integration", () => {
     // Wait for the task to appear in the download table
     // The task row will show up once the server processes download.start
     // and the frontend refreshes via download.list
-    await expect(page.locator('[data-testid^="download-row-"]').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid^="download-row-"]').first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Verify the task is in downloading or queued state
     const taskRow = page.locator('[data-testid^="download-row-"]').first();
@@ -74,7 +79,9 @@ test.describe("real server integration", () => {
     // Create a download of the small file (1MB)
     await page.getByRole("button", { name: "Add Task" }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByPlaceholder("Paste a link or choose a torrent file").fill(`${TEST_FILE_SERVER_URL}/1mb.bin`);
+    await dialog
+      .getByPlaceholder("Paste a link or choose a torrent file")
+      .fill(`${TEST_FILE_SERVER_URL}/1mb.bin`);
     await dialog.getByRole("button", { name: "Start download" }).click();
 
     // Wait for task row
@@ -101,7 +108,9 @@ test.describe("real server integration", () => {
     // Create a download of 10mb.bin
     await page.getByRole("button", { name: "Add Task" }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByPlaceholder("Paste a link or choose a torrent file").fill(`${TEST_FILE_SERVER_URL}/10mb.bin`);
+    await dialog
+      .getByPlaceholder("Paste a link or choose a torrent file")
+      .fill(`${TEST_FILE_SERVER_URL}/10mb.bin`);
     await dialog.getByRole("button", { name: "Start download" }).click();
 
     // Wait for task row
@@ -128,14 +137,20 @@ test.describe("real server integration", () => {
     // Start first download
     await page.getByRole("button", { name: "Add Task" }).click();
     let dialog = page.getByRole("dialog");
-    await dialog.getByPlaceholder("Paste a link or choose a torrent file").fill(`${TEST_FILE_SERVER_URL}/small.txt`);
+    await dialog
+      .getByPlaceholder("Paste a link or choose a torrent file")
+      .fill(`${TEST_FILE_SERVER_URL}/small.txt`);
     await dialog.getByRole("button", { name: "Start download" }).click();
-    await expect(page.locator('[data-testid^="download-row-"]').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid^="download-row-"]').first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Start second download
     await page.getByRole("button", { name: "Add Task" }).click();
     dialog = page.getByRole("dialog");
-    await dialog.getByPlaceholder("Paste a link or choose a torrent file").fill(`${TEST_FILE_SERVER_URL}/1mb.bin`);
+    await dialog
+      .getByPlaceholder("Paste a link or choose a torrent file")
+      .fill(`${TEST_FILE_SERVER_URL}/1mb.bin`);
     await dialog.getByRole("button", { name: "Start download" }).click();
 
     // Wait for at least 2 download rows

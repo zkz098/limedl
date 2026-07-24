@@ -101,7 +101,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       retentionCount: null,
       retentionDays: null,
     },
-    aria2Rpc: { enabled: false, port: 6800, secret: null, corsAllowedOrigins: [], },
+    aria2Rpc: { enabled: false, port: 6800, secret: null, corsAllowedOrigins: [] },
     cdnAcceleration: {
       enabled: false,
       activeIp: null,
@@ -118,6 +118,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       diskTypeOverrides: {},
       maxParallelHdd: 2,
       gameModeMaxParallel: 4,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: false,

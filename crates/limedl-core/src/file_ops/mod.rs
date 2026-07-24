@@ -784,6 +784,11 @@ mod imp {
 
     use super::DiskType;
 
+    // NOTE: Non-Windows platforms currently lack a cross-platform equivalent of
+    // IOCTL_STORAGE_QUERY_PROPERTY. This means HDD detection always returns Ssd
+    // on macOS/Linux, causing the UI to auto-disable HDD buffering. Users with
+    // external HDDs should use disk_type_overrides to force HDD treatment.
+    // TODO: add sysfs (Linux) / IOKit (macOS) disk type probes.
     pub fn detect_disk_type(_path: &Path) -> DiskType {
         DiskType::Ssd
     }

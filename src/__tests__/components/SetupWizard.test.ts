@@ -56,12 +56,12 @@ const STEP_COUNT = 9;
 const STEP_TITLES = [
   "setupWizard.welcomeTitle",
   "setupWizard.languageTitle",
+  "setupWizard.appearanceTitle",
   "setupWizard.cdnTitle",
   "setupWizard.rpcTitle",
-  "setupWizard.performanceTitle",
   "setupWizard.directoryTitle",
-  "setupWizard.appearanceTitle",
-  "setupWizard.autostartTitle",
+  "setupWizard.performanceTitle",
+  "setupWizard.systemTitle",
   "setupWizard.summaryTitle",
 ];
 
@@ -158,6 +158,7 @@ function createDefaultSettings(): AppSettings {
       diskTypeOverrides: {},
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: false,
@@ -306,7 +307,7 @@ describe("SetupWizard", () => {
       await clickPrimary(wrapper);
       expect(getCurrentStepTitle(wrapper)).toBe(STEP_TITLES[1]);
 
-      // Advance to cdn.
+      // Advance to appearance.
       await clickPrimary(wrapper);
       expect(getCurrentStepTitle(wrapper)).toBe(STEP_TITLES[2]);
 
@@ -349,7 +350,8 @@ describe("SetupWizard", () => {
         await nextTick();
 
         const isSummary = index === STEP_COUNT - 1;
-        if (isSummary) {
+        const isDirectory = index === 5; // directory is required (non-skippable)
+        if (isSummary || isDirectory) {
           expect(getSkipButton(wrapper)).toBeUndefined();
         } else {
           expect(getSkipButton(wrapper)).toBeDefined();
@@ -372,7 +374,7 @@ describe("SetupWizard", () => {
   describe("validation", () => {
     // Design decision: The wizard currently does not disable the primary
     // Next/Complete button based on per-step validation. StepDirectory and
-    // StepLanguage collect values but never emit an invalid state, and
+    // StepPerformance collect values but never emit an invalid state, and
     // SetupWizard.vue never binds :disabled to the primary action button.
     // Adding field-level validation gating is deferred to a future UX pass.
     // When that pass lands, add a test here that verifies the button is
@@ -406,8 +408,13 @@ describe("SetupWizard", () => {
           lastSetupStep: STEP_COUNT - 1,
         }),
       );
-      expect((savedSettings as { appearance: { themeColor: unknown } }).appearance.themeColor).toBeDefined();
-      expect((savedSettings as { download: { defaultDownloadDir: unknown } }).download.defaultDownloadDir).toBeDefined();
+      expect(
+        (savedSettings as { appearance: { themeColor: unknown } }).appearance.themeColor,
+      ).toBeDefined();
+      expect(
+        (savedSettings as { download: { defaultDownloadDir: unknown } }).download
+          .defaultDownloadDir,
+      ).toBeDefined();
     });
 
     it("emits completed event with final settings after Finish", async () => {
@@ -418,9 +425,7 @@ describe("SetupWizard", () => {
 
       expect(wrapper.emitted("completed")).toBeTruthy();
       const emittedSettings = wrapper.emitted("completed")?.[0]?.[0];
-      expect(emittedSettings).toEqual(
-        expect.objectContaining({ setupCompleted: true }),
-      );
+      expect(emittedSettings).toEqual(expect.objectContaining({ setupCompleted: true }));
     });
   });
 
@@ -437,7 +442,7 @@ describe("SetupWizard", () => {
       await input.setValue("/tmp/test-dir");
       await nextTick();
 
-      // Advance to appearance then back to directory.
+      // Advance to performance then back to directory.
       await clickPrimary(wrapper);
       expect(getCurrentStepTitle(wrapper)).toBe(STEP_TITLES[6]);
       await clickBack(wrapper);

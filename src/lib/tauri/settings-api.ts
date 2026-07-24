@@ -32,6 +32,10 @@ export function getIoStatus() {
   return invoke<IoStatus>("get_io_status");
 }
 
+export function detectDiskType(dir: string) {
+  return invoke<"ssd" | "hdd">("detect_disk_type", { dir });
+}
+
 export function toggleOverclockMode(enabled: boolean) {
   return invoke<boolean>("toggle_overclock_mode", { enabled });
 }

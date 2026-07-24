@@ -65,27 +65,74 @@ vi.mock("../../components/settings/settingsComposables", () => {
     scheduler: {
       mode: "automatic",
       traditional: { maxParallelTasks: 3 },
-      automatic: { maxParallelThreads: 16, maxThreadsPerTask: 8, minThreadsPerTask: 0, adaptiveProfile: "balanced" },
+      automatic: {
+        maxParallelThreads: 16,
+        maxThreadsPerTask: 8,
+        minThreadsPerTask: 0,
+        adaptiveProfile: "balanced",
+      },
       chunkSizeStrategy: "adaptive",
     },
-    download: { defaultDownloadDir: "", defaultMaxRetries: 5, defaultChecksum: "blake3", defaultUserAgent: "Mozilla/5.0" },
-    bt: {
-      pauseUploadWhenLimitReached: false, uploadLimitBytes: 0, uploadRatioLimit: 0,
-      dhtEnabled: true, trackerList: "", trackerListUrl: "https://cf.trackerslist.com/best.txt",
-      listenPort: null, listenPortRange: null, upnpEnabled: false,
-      enableNatpmp: true, enableIpv6: true, enablePex: true, enableLsd: true,
-      enableUtp: true, enableFastExtension: true, enableHolepunch: true,
-      enableWebSeed: true, enableSuperSeeding: false,
-      globalDownloadRateLimit: 0, globalUploadRateLimit: 0,
-      preallocateMode: "none", encryptionMode: "enabled",
-      maxDownloads: 3, maxSeeds: 5, maxTorrents: 100, activeLimit: 500,
+    download: {
+      defaultDownloadDir: "",
+      defaultMaxRetries: 5,
+      defaultChecksum: "blake3",
+      defaultUserAgent: "Mozilla/5.0",
     },
-    logging: { enabled: true, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    bt: {
+      pauseUploadWhenLimitReached: false,
+      uploadLimitBytes: 0,
+      uploadRatioLimit: 0,
+      dhtEnabled: true,
+      trackerList: "",
+      trackerListUrl: "https://cf.trackerslist.com/best.txt",
+      listenPort: null,
+      listenPortRange: null,
+      upnpEnabled: false,
+      enableNatpmp: true,
+      enableIpv6: true,
+      enablePex: true,
+      enableLsd: true,
+      enableUtp: true,
+      enableFastExtension: true,
+      enableHolepunch: true,
+      enableWebSeed: true,
+      enableSuperSeeding: false,
+      globalDownloadRateLimit: 0,
+      globalUploadRateLimit: 0,
+      preallocateMode: "none",
+      encryptionMode: "enabled",
+      maxDownloads: 3,
+      maxSeeds: 5,
+      maxTorrents: 100,
+      activeLimit: 500,
+    },
+    logging: {
+      enabled: true,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: true, port: 6800, secret: null, corsAllowedOrigins: [] },
-    cdnAcceleration: { enabled: false, activeIp: null, activeSpeedMbps: null, lastTestAtMs: null, lastError: null },
+    cdnAcceleration: {
+      enabled: false,
+      activeIp: null,
+      activeSpeedMbps: null,
+      lastTestAtMs: null,
+      lastError: null,
+    },
     githubMirror: { enabled: false, mirrors: [] },
     notifications: { enabled: true },
-    ioBaseline: { bufferLimitMb: 1024, gameModeBufferMb: 128, gameMode: false, diskTypeOverrides: {}, maxParallelHdd: 4, gameModeMaxParallel: 1 },
+    ioBaseline: {
+      bufferLimitMb: 1024,
+      gameModeBufferMb: 128,
+      gameMode: false,
+      diskTypeOverrides: {},
+      maxParallelHdd: 4,
+      gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
+    },
     autostart: false,
     setupCompleted: true,
     lastSetupStep: null,
@@ -126,23 +173,59 @@ const stubs = {
   },
   SettingsAppearancePanel: {
     template: '<div class="settings-panel-stub" data-panel="appearance">Appearance Panel</div>',
-    props: ["draft", "t", "language", "languageOptions", "colorModeOptions", "backgroundOpacityOptions"],
+    props: [
+      "draft",
+      "t",
+      "language",
+      "languageOptions",
+      "colorModeOptions",
+      "backgroundOpacityOptions",
+    ],
   },
   SettingsSchedulerPanel: {
     template: '<div class="settings-panel-stub" data-panel="scheduler">Scheduler Panel</div>',
-    props: ["draft", "t", "schedulerModeOptions", "adaptiveProfileOptions", "globalSpeedLimitMiBps"],
+    props: [
+      "draft",
+      "t",
+      "schedulerModeOptions",
+      "adaptiveProfileOptions",
+      "globalSpeedLimitMiBps",
+    ],
   },
   SettingsDownloadDefaultsPanel: {
     template: '<div class="settings-panel-stub" data-panel="downloads">Downloads Panel</div>',
-    props: ["draft", "t", "checksumOptions", "downloadSummary", "isPickingDirectory", "defaultUserAgentPlaceholder"],
+    props: [
+      "draft",
+      "t",
+      "checksumOptions",
+      "downloadSummary",
+      "isPickingDirectory",
+      "defaultUserAgentPlaceholder",
+    ],
   },
   SettingsIoBaselinePanel: {
     template: '<div class="settings-panel-stub" data-panel="io-baseline">IO Baseline Panel</div>',
-    props: ["draft", "t", "gameMode", "bufferUsageBytes", "bufferLimitBytes", "activeSlots", "maxSlots", "queuedCount"],
+    props: [
+      "draft",
+      "t",
+      "gameMode",
+      "bufferUsageBytes",
+      "bufferLimitBytes",
+      "activeSlots",
+      "maxSlots",
+      "queuedCount",
+    ],
   },
   SettingsBtPanel: {
     template: '<div class="settings-panel-stub" data-panel="bt">BT Panel</div>',
-    props: ["draft", "t", "btSummary", "btUploadLimitMiB", "isFetchingTrackerList", "defaultTrackerListUrl"],
+    props: [
+      "draft",
+      "t",
+      "btSummary",
+      "btUploadLimitMiB",
+      "isFetchingTrackerList",
+      "defaultTrackerListUrl",
+    ],
   },
   SettingsAria2RpcPanel: {
     template: '<div class="settings-panel-stub" data-panel="aria2Rpc">Aria2 RPC Panel</div>',
@@ -182,27 +265,74 @@ function createSettings(): AppSettings {
     scheduler: {
       mode: "automatic",
       traditional: { maxParallelTasks: 3 },
-      automatic: { maxParallelThreads: 16, maxThreadsPerTask: 8, minThreadsPerTask: 0, adaptiveProfile: "balanced" },
+      automatic: {
+        maxParallelThreads: 16,
+        maxThreadsPerTask: 8,
+        minThreadsPerTask: 0,
+        adaptiveProfile: "balanced",
+      },
       chunkSizeStrategy: "adaptive",
     },
-    download: { defaultDownloadDir: "", defaultMaxRetries: 5, defaultChecksum: "blake3", defaultUserAgent: "Mozilla/5.0" },
-    bt: {
-      pauseUploadWhenLimitReached: false, uploadLimitBytes: 0, uploadRatioLimit: 0,
-      dhtEnabled: true, trackerList: "", trackerListUrl: "",
-      listenPort: null, listenPortRange: null, upnpEnabled: false,
-      enableNatpmp: true, enableIpv6: true, enablePex: true, enableLsd: true,
-      enableUtp: true, enableFastExtension: true, enableHolepunch: true,
-      enableWebSeed: true, enableSuperSeeding: false,
-      globalDownloadRateLimit: 0, globalUploadRateLimit: 0,
-      preallocateMode: "none", encryptionMode: "enabled",
-      maxDownloads: 3, maxSeeds: 5, maxTorrents: 100, activeLimit: 500,
+    download: {
+      defaultDownloadDir: "",
+      defaultMaxRetries: 5,
+      defaultChecksum: "blake3",
+      defaultUserAgent: "Mozilla/5.0",
     },
-    logging: { enabled: true, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    bt: {
+      pauseUploadWhenLimitReached: false,
+      uploadLimitBytes: 0,
+      uploadRatioLimit: 0,
+      dhtEnabled: true,
+      trackerList: "",
+      trackerListUrl: "",
+      listenPort: null,
+      listenPortRange: null,
+      upnpEnabled: false,
+      enableNatpmp: true,
+      enableIpv6: true,
+      enablePex: true,
+      enableLsd: true,
+      enableUtp: true,
+      enableFastExtension: true,
+      enableHolepunch: true,
+      enableWebSeed: true,
+      enableSuperSeeding: false,
+      globalDownloadRateLimit: 0,
+      globalUploadRateLimit: 0,
+      preallocateMode: "none",
+      encryptionMode: "enabled",
+      maxDownloads: 3,
+      maxSeeds: 5,
+      maxTorrents: 100,
+      activeLimit: 500,
+    },
+    logging: {
+      enabled: true,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: true, port: 6800, secret: null, corsAllowedOrigins: [] },
-    cdnAcceleration: { enabled: false, activeIp: null, activeSpeedMbps: null, lastTestAtMs: null, lastError: null },
+    cdnAcceleration: {
+      enabled: false,
+      activeIp: null,
+      activeSpeedMbps: null,
+      lastTestAtMs: null,
+      lastError: null,
+    },
     githubMirror: { enabled: false, mirrors: [] },
     notifications: { enabled: true },
-    ioBaseline: { bufferLimitMb: 1024, gameModeBufferMb: 128, gameMode: false, diskTypeOverrides: {}, maxParallelHdd: 4, gameModeMaxParallel: 1 },
+    ioBaseline: {
+      bufferLimitMb: 1024,
+      gameModeBufferMb: 128,
+      gameMode: false,
+      diskTypeOverrides: {},
+      maxParallelHdd: 4,
+      gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
+    },
     autostart: false,
     setupCompleted: true,
     lastSetupStep: null,
@@ -230,15 +360,20 @@ describe("SettingsPage", () => {
     expect(wrapper.text()).toContain("settings.title");
   });
 
-  it("renders sidebar with all tab buttons", () => {
+  it("renders sidebar with all tab buttons (common + advanced)", () => {
     const wrapper = mountPage();
     const tabs = wrapper.findAll('[role="tab"]');
-    expect(tabs).toHaveLength(8); // 8 tabs in the tabs array
+    // 4 common + 5 advanced = 9 total (advanced are present but hidden)
+    expect(tabs).toHaveLength(9);
     expect(tabs[0].text()).toContain("settings.appearanceKicker");
-    expect(tabs[1].text()).toContain("settings.scheduler");
-    expect(tabs[2].text()).toContain("settings.downloads");
-    expect(tabs[3].text()).toContain("settings.bt");
-    expect(tabs[4].text()).toContain("settings.aria2Rpc");
+    expect(tabs[1].text()).toContain("settings.downloads");
+    expect(tabs[2].text()).toContain("settings.proxyTitle");
+    expect(tabs[3].text()).toContain("settings.aboutKicker");
+    expect(tabs[4].text()).toContain("settings.scheduler");
+    expect(tabs[5].text()).toContain("settings.bt");
+    expect(tabs[6].text()).toContain("settings.io");
+    expect(tabs[7].text()).toContain("settings.aria2Rpc");
+    expect(tabs[8].text()).toContain("settings.logging");
   });
 
   it("renders save button with save icon", () => {
@@ -260,20 +395,27 @@ describe("SettingsPage", () => {
     expect(visiblePanels.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("switches to scheduler tab when clicked", async () => {
+  it("switches to scheduler tab when clicked (via advanced expand)", async () => {
     const wrapper = mountPage();
+
+    // First expand advanced section
+    const advancedToggle = wrapper.find(".settings-page__advanced-toggle");
+    await advancedToggle.trigger("click");
+    await nextTick();
+
     const tabs = wrapper.findAll('[role="tab"]');
 
-    // Click scheduler tab (index 1)
-    await tabs[1].trigger("click");
+    // Click scheduler tab (index 4: 4 common + scheduler)
+    expect(tabs[4].text()).toContain("settings.scheduler");
+    await tabs[4].trigger("click");
     await nextTick();
 
     // Check that the tab has aria-selected
-    expect(tabs[1].attributes("aria-selected")).toBe("true");
+    expect(tabs[4].attributes("aria-selected")).toBe("true");
     expect(tabs[0].attributes("aria-selected")).toBe("false");
   });
 
-  it("switches to each tab and shows the correct panel", async () => {
+  it("switches to each common tab and shows the correct panel", async () => {
     const wrapper = mountPage();
     const tabs = wrapper.findAll('[role="tab"]');
 
@@ -287,6 +429,31 @@ describe("SettingsPage", () => {
       expect(tabs[i].attributes("aria-selected")).toBe("true");
 
       // All other tabs should not be selected
+      for (let j = 0; j < tabs.length; j++) {
+        if (j !== i) {
+          expect(tabs[j].attributes("aria-selected")).toBe("false");
+        }
+      }
+    }
+  });
+
+  it("switches to all advanced tabs when expanded", async () => {
+    const wrapper = mountPage();
+    const advancedToggle = wrapper.find(".settings-page__advanced-toggle");
+    await advancedToggle.trigger("click");
+    await nextTick();
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs.length).toBeGreaterThanOrEqual(9); // 4 common + 5 advanced = 9 total
+
+    for (let i = 0; i < tabs.length; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      await tabs[i].trigger("click");
+      // eslint-disable-next-line no-await-in-loop
+      await nextTick();
+
+      expect(tabs[i].attributes("aria-selected")).toBe("true");
+
       for (let j = 0; j < tabs.length; j++) {
         if (j !== i) {
           expect(tabs[j].attributes("aria-selected")).toBe("false");
@@ -317,8 +484,8 @@ describe("SettingsPage", () => {
     const wrapper = mountPage();
     const tabs = wrapper.findAll('[role="tab"]');
 
-    // Go to about tab
-    await tabs[7].trigger("click");
+    // Go to about tab (index 3 = last common tab)
+    await tabs[3].trigger("click");
     await nextTick();
 
     expect(wrapper.find('[data-panel="about"]').exists()).toBe(true);

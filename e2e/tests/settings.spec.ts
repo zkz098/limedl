@@ -75,7 +75,13 @@ function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
       maxTorrents: 20,
       activeLimit: 10,
     },
-    logging: { enabled: false, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    logging: {
+      enabled: false,
+      level: "info",
+      filePath: "",
+      retentionCount: null,
+      retentionDays: null,
+    },
     aria2Rpc: { enabled: false, port: 6800, secret: null },
     cdnAcceleration: {
       enabled: false,
@@ -93,6 +99,7 @@ function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
       diskTypeOverrides: {},
       maxParallelHdd: 2,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: true,
@@ -120,11 +127,20 @@ test.describe("Settings page", () => {
 
   test("opens settings page with all tabs visible", async ({ page }) => {
     // Verify the settings sidebar tabs are present
-    const tabList = page.locator('.settings-page__tabs');
+    const tabList = page.locator(".settings-page__tabs");
     await expect(tabList).toBeVisible();
 
     // All tab labels should be present
-    const tabNames = ["Appearance", "Scheduler", "Downloads", "BT", "Aria2 RPC", "Logging", "Proxy", "About"];
+    const tabNames = [
+      "Appearance",
+      "Scheduler",
+      "Downloads",
+      "BT",
+      "Aria2 RPC",
+      "Logging",
+      "Proxy",
+      "About",
+    ];
     for (const name of tabNames) {
       await expect(tabList.getByRole("tab", { name })).toBeVisible();
     }
@@ -159,14 +175,17 @@ test.describe("Settings page", () => {
     expect(payload).toBeDefined();
 
     // Respond with the saved settings
-    wsMocker.respondToMethod("settings.save", makeMockSettings({
-      appearance: { ...makeMockSettings().appearance, themeColor: "sky" },
-    }));
+    wsMocker.respondToMethod(
+      "settings.save",
+      makeMockSettings({
+        appearance: { ...makeMockSettings().appearance, themeColor: "sky" },
+      }),
+    );
   });
 
   test("modifies default download directory", async ({ page, wsMocker }) => {
     // Switch to the Downloads tab
-    await page.locator('.settings-page__tabs').getByRole("tab", { name: "Downloads" }).click();
+    await page.locator(".settings-page__tabs").getByRole("tab", { name: "Downloads" }).click();
     await expect(page.locator(".settings-page__content")).toBeVisible();
 
     // The default download location field should be visible
@@ -196,16 +215,21 @@ test.describe("Settings page", () => {
 
   // SKIPPED: UiSelect dropdown interaction (click trigger → click option)
   // does not reliably render the option menu in headless CI. Needs tracing.
-  test.skip("switches scheduler mode between automatic and traditional", async ({ page, wsMocker }) => {
+  test.skip("switches scheduler mode between automatic and traditional", async ({
+    page,
+    wsMocker,
+  }) => {
     // The default scheduler mode is "automatic" (Smart Dynamic)
     // Switch to the Scheduler tab
-    await page.locator('.settings-page__tabs').getByRole("tab", { name: "Scheduler" }).click();
+    await page.locator(".settings-page__tabs").getByRole("tab", { name: "Scheduler" }).click();
     await expect(page.locator(".settings-page__content")).toBeVisible();
 
     // The allocation mode select should show "Smart Dynamic" (automatic).
     // Find the UiSelect trigger inside the "Allocation mode" settings field
-    const modeField = page.locator('.settings-page__content .settings-field').filter({ hasText: 'Allocation mode' });
-    const modeTrigger = modeField.locator('.ui-select__trigger');
+    const modeField = page
+      .locator(".settings-page__content .settings-field")
+      .filter({ hasText: "Allocation mode" });
+    const modeTrigger = modeField.locator(".ui-select__trigger");
     await expect(modeTrigger).toBeVisible();
     await expect(modeTrigger).toContainText("Smart Dynamic");
 
@@ -234,23 +258,28 @@ test.describe("Settings page", () => {
     expect(saveParams).toBeDefined();
 
     // Respond with saved settings
-    wsMocker.respondToMethod("settings.save", makeMockSettings({
-      scheduler: {
-        ...makeMockSettings().scheduler,
-        mode: "traditional",
-      },
-    }));
+    wsMocker.respondToMethod(
+      "settings.save",
+      makeMockSettings({
+        scheduler: {
+          ...makeMockSettings().scheduler,
+          mode: "traditional",
+        },
+      }),
+    );
   });
 
   test("configures proxy settings", async ({ page, wsMocker }) => {
     // Switch to the Proxy tab
-    await page.locator('.settings-page__tabs').getByRole("tab", { name: "Proxy" }).click();
+    await page.locator(".settings-page__tabs").getByRole("tab", { name: "Proxy" }).click();
     await expect(page.locator(".settings-page__content")).toBeVisible();
 
     // The proxy mode select should show "No proxy" (disabled) by default.
     // Find the UiSelect trigger inside the "Proxy mode" settings field
-    const proxyField = page.locator('.settings-page__content .settings-field').filter({ hasText: 'Proxy mode' });
-    const proxyTrigger = proxyField.locator('.ui-select__trigger');
+    const proxyField = page
+      .locator(".settings-page__content .settings-field")
+      .filter({ hasText: "Proxy mode" });
+    const proxyTrigger = proxyField.locator(".ui-select__trigger");
     await expect(proxyTrigger).toBeVisible();
     await expect(proxyTrigger).toContainText("No proxy");
 
@@ -268,19 +297,27 @@ test.describe("Settings page", () => {
     expect(payload).toBeDefined();
 
     // Respond with saved settings
-    wsMocker.respondToMethod("settings.save", makeMockSettings({
-      proxy: { mode: "system", manualUrl: "" },
-    }));
+    wsMocker.respondToMethod(
+      "settings.save",
+      makeMockSettings({
+        proxy: { mode: "system", manualUrl: "" },
+      }),
+    );
   });
 
-  test("shows error toast when settings.save returns JSON-RPC error", async ({ page, wsMocker }) => {
+  test("shows error toast when settings.save returns JSON-RPC error", async ({
+    page,
+    wsMocker,
+  }) => {
     // Switch to the Proxy tab
-    await page.locator('.settings-page__tabs').getByRole("tab", { name: "Proxy" }).click();
+    await page.locator(".settings-page__tabs").getByRole("tab", { name: "Proxy" }).click();
     await expect(page.locator(".settings-page__content")).toBeVisible();
 
     // Change proxy mode to "Manual" so the URL field appears
-    const proxyField = page.locator('.settings-page__content .settings-field').filter({ hasText: 'Proxy mode' });
-    const proxyTrigger = proxyField.locator('.ui-select__trigger');
+    const proxyField = page
+      .locator(".settings-page__content .settings-field")
+      .filter({ hasText: "Proxy mode" });
+    const proxyTrigger = proxyField.locator(".ui-select__trigger");
     await proxyTrigger.click();
     await page.getByRole("option", { name: "Manual proxy" }).click();
 

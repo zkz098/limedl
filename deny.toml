@@ -16,35 +16,32 @@ unmaintained = "workspace"
 # `cargo update` to 0.41 — only an upstream release can fix the path.
 # Revisit when wayland-rs publishes a version that bumps its quick-xml dep
 # (likely 0.31.11 or 0.32.0).
-ignore = [
-    "RUSTSEC-2026-0194",
-    "RUSTSEC-2026-0195",
-]
+ignore = ["RUSTSEC-2026-0194", "RUSTSEC-2026-0195"]
 
 [licenses]
 allow = [
-    "MIT",
-    "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "ISC",
-    "Unicode-3.0",
-    "Zlib",
-    "BSL-1.0",
-    "CC0-1.0",
-    "MPL-2.0",
-    # webpki-roots (transitive via reqwest/hyper-rustls) — Mozilla root CA
-    # bundle shipped under CDLA-Permissive-2.0 (Community Data License
-    # Agreement Permissive 2.0). It's a permissive data/license grant, not
-    # copyleft, and is OSI-recognized. Required for TLS validation in
-    # HTTP/HTTPS download paths.
-    "CDLA-Permissive-2.0",
-    # limedl itself is GPL-3.0-or-later (Cargo.toml workspace license +
-    # LICENSE file). irontide / irontide-bencode / irontide-core are
-    # GPL-3.0-or-later, integrated as the core BT engine, and their virality
-    # is acknowledged — limedl as a whole is conveyed under GPL-3.0-or-later.
-    "GPL-3.0-or-later",
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  "BSL-1.0",
+  "CC0-1.0",
+  "MPL-2.0",
+  # webpki-roots (transitive via reqwest/hyper-rustls) — Mozilla root CA
+  # bundle shipped under CDLA-Permissive-2.0 (Community Data License
+  # Agreement Permissive 2.0). It's a permissive data/license grant, not
+  # copyleft, and is OSI-recognized. Required for TLS validation in
+  # HTTP/HTTPS download paths.
+  "CDLA-Permissive-2.0",
+  # limedl itself is GPL-3.0-or-later (Cargo.toml workspace license +
+  # LICENSE file). irontide / irontide-bencode / irontide-core are
+  # GPL-3.0-or-later, integrated as the core BT engine, and their virality
+  # is acknowledged — limedl as a whole is conveyed under GPL-3.0-or-later.
+  "GPL-3.0-or-later",
 ]
 confidence-threshold = 0.8
 

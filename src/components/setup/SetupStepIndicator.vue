@@ -75,12 +75,12 @@ function handleClick(index: number) {
 .setup-step-indicator {
   display: flex;
   flex-direction: column;
-  width: 13.75rem;
+  width: 12rem;
   height: 100%;
   background: var(--color-panel);
   border-right: var(--border-width-thin) solid var(--color-border);
   padding: var(--space-5) var(--space-4);
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 
 .setup-step-indicator__header {
@@ -172,8 +172,8 @@ function handleClick(index: number) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.625rem;
+  height: 1.625rem;
   border-radius: var(--radius-md);
   background: var(--color-panel-muted);
   border: var(--border-width-thin) solid var(--color-border);
@@ -189,7 +189,7 @@ function handleClick(index: number) {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-accent-contrast);
-  animation: current-pulse 2.4s ease-in-out infinite;
+  animation: current-pulse 2.8s ease-in-out infinite;
 }
 
 .setup-step-indicator__item.is-completed .setup-step-indicator__badge {
@@ -222,7 +222,48 @@ function handleClick(index: number) {
     box-shadow: 0 0 0 0 var(--color-accent-soft-border);
   }
   50% {
-    box-shadow: 0 0 0 0.3rem var(--color-accent-soft-border);
+    box-shadow: 0 0 0 0.2rem var(--color-accent-soft-border);
+  }
+}
+
+.setup-step-indicator__label {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 680px) {
+  .setup-step-indicator {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: auto;
+    min-height: 3.5rem;
+    padding: var(--space-3) var(--space-4);
+    border-right: none;
+    border-bottom: var(--border-width-thin) solid var(--color-border);
+    gap: var(--space-3);
+  }
+
+  .setup-step-indicator__header {
+    display: none;
+  }
+
+  .setup-step-indicator__list {
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+  }
+
+  .setup-step-indicator__button {
+    justify-content: center;
+    padding: var(--space-2);
+  }
+
+  .setup-step-indicator__label {
+    display: none;
   }
 }
 
@@ -234,11 +275,5 @@ function handleClick(index: number) {
   .setup-step-indicator__item.is-completed .setup-step-indicator__badge .i-ri-check-line {
     animation: none;
   }
-}
-
-.setup-step-indicator__label {
-  flex: 1;
-  min-width: 0;
-  font-weight: var(--font-weight-semibold);
 }
 </style>

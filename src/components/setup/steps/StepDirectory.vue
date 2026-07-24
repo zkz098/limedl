@@ -2,6 +2,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useI18n } from "../../../i18n";
 import type { AppSettings } from "../../../types/settings";
+import StepShell from "../StepShell.vue";
+import SettingsSection from "../../settings/SettingsSection.vue";
 import UiButton from "../../ui/UiButton.vue";
 import UiTextField from "../../ui/UiTextField.vue";
 
@@ -46,13 +48,16 @@ async function browseDirectory() {
 </script>
 
 <template>
-  <div class="setup-step">
-    <div class="setup-step__header">
-      <span class="setup-step__icon i-ri-folder-download-line" aria-hidden="true" />
-      <h2 class="setup-step__title">{{ t("setupWizard.directoryTitle") }}</h2>
-    </div>
-    <p class="setup-step__description">{{ t("setupWizard.directoryDescription") }}</p>
-    <div class="setup-step__body">
+  <StepShell
+    icon="i-ri-folder-download-line"
+    title-key="setupWizard.directoryTitle"
+    description-key="setupWizard.directoryDescription"
+  >
+    <SettingsSection
+      :title="t('setupWizard.directoryTitle')"
+      icon="i-ri-folder-3-line"
+      :summary="t('setupWizard.directoryDescription')"
+    >
       <div class="directory-field">
         <UiTextField
           class="directory-field__input"
@@ -65,63 +70,11 @@ async function browseDirectory() {
           {{ t("setupWizard.directoryBrowse") }}
         </UiButton>
       </div>
-    </div>
-  </div>
+    </SettingsSection>
+  </StepShell>
 </template>
 
 <style scoped>
-.setup-step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  text-align: center;
-}
-
-.setup-step__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.setup-step__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--font-size-hero);
-  font-weight: var(--font-weight-display);
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--color-heading);
-}
-
-.setup-step__description {
-  margin: 0;
-  font-size: var(--font-size-body);
-  line-height: var(--line-height-tight);
-  color: var(--color-text-muted);
-  max-width: 480px;
-}
-
-.setup-step__body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: var(--space-4);
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  max-width: 560px;
-}
-
-.setup-step__icon {
-  font-size: 2.5rem;
-  color: var(--color-accent);
-}
-
 .directory-field {
   display: flex;
   align-items: center;
@@ -131,5 +84,12 @@ async function browseDirectory() {
 .directory-field__input {
   flex: 1;
   min-width: 0;
+}
+
+@media (max-width: 680px) {
+  .directory-field {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 </style>

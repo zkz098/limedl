@@ -1,31 +1,27 @@
 <script setup lang="ts">
 import { useI18n } from "../../../i18n";
-import type { SupportedLanguage } from "../../../i18n/resources";
 import type { AppSettings } from "../../../types/settings";
-
-const { t, language, setLanguage } = useI18n();
+import StepShell from "../StepShell.vue";
+import SettingsSection from "../../settings/SettingsSection.vue";
 
 defineProps<{
   settings: AppSettings;
 }>();
 
-defineEmits<{
-  "update:settings": [settings: AppSettings];
-}>();
+const { t, language, setLanguage } = useI18n();
 
-function selectLanguage(value: SupportedLanguage) {
+function selectLanguage(value: "zh-CN" | "en-US") {
   void setLanguage(value);
 }
 </script>
 
 <template>
-  <div class="setup-step">
-    <div class="setup-step__header">
-      <span class="setup-step__icon i-ri-translate-2" aria-hidden="true" />
-      <h2 class="setup-step__title">{{ t("setupWizard.languageTitle") }}</h2>
-    </div>
-    <p class="setup-step__description">{{ t("setupWizard.languageDescription") }}</p>
-    <div class="setup-step__body">
+  <StepShell
+    icon="i-ri-translate-2"
+    title-key="setupWizard.languageTitle"
+    description-key="setupWizard.languageDescription"
+  >
+    <SettingsSection :title="t('setupWizard.languageTitle')" icon="i-ri-translate-2">
       <div class="language-options" role="radiogroup" :aria-label="t('setupWizard.languageTitle')">
         <button
           type="button"
@@ -52,69 +48,16 @@ function selectLanguage(value: SupportedLanguage) {
           <span class="language-card__translated">{{ t("language.enUS") }}</span>
         </button>
       </div>
-    </div>
-  </div>
+    </SettingsSection>
+  </StepShell>
 </template>
 
 <style scoped>
-.setup-step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  text-align: center;
-}
-
-.setup-step__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.setup-step__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--font-size-hero);
-  font-weight: var(--font-weight-display);
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--color-heading);
-}
-
-.setup-step__description {
-  margin: 0;
-  font-size: var(--font-size-body);
-  line-height: var(--line-height-tight);
-  color: var(--color-text-muted);
-  max-width: 480px;
-}
-
-.setup-step__body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  max-width: 560px;
-}
-
-.setup-step__icon {
-  font-size: 2.5rem;
-  color: var(--color-accent);
-}
-
 .language-options {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3);
   width: 100%;
-  max-width: 480px;
 }
 
 .language-card {
@@ -193,9 +136,17 @@ function selectLanguage(value: SupportedLanguage) {
   color: var(--color-text-muted);
 }
 
+@media (max-width: 680px) {
+  .language-options {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .language-card {
-    transition: border-color 0.2s ease, background-color 0.2s ease;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
   }
 
   .language-card:hover {

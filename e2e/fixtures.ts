@@ -89,7 +89,13 @@ export const test = base.extend<MyFixtures>({
         maxTorrents: 20,
         activeLimit: 10,
       },
-      logging: { enabled: false, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+      logging: {
+        enabled: false,
+        level: "info",
+        filePath: "",
+        retentionCount: null,
+        retentionDays: null,
+      },
       aria2Rpc: { enabled: false, port: 6800, secret: null },
       cdnAcceleration: {
         enabled: false,
@@ -106,6 +112,7 @@ export const test = base.extend<MyFixtures>({
         diskTypeOverrides: {},
         maxParallelHdd: 2,
         gameModeMaxParallel: 1,
+        hddBufferEnabled: true,
       },
       network: {},
       cdn: {},

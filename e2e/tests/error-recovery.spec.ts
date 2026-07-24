@@ -14,11 +14,7 @@
 
 import { test, expect } from "../fixtures";
 import { expectTaskVisible, expectTaskState } from "../helpers/download-asserts";
-import {
-  seedDownloadTask,
-  makeMockSummary,
-  makeMockProgress,
-} from "../helpers/task-helpers";
+import { seedDownloadTask, makeMockSummary, makeMockProgress } from "../helpers/task-helpers";
 
 test.describe("error recovery", () => {
   test("download persists across page reload", async ({ page, wsMocker }) => {
@@ -52,16 +48,21 @@ test.describe("error recovery", () => {
     await expect(page.locator(".app-root")).toBeVisible();
 
     // Inject paused task directly — no composer dialog needed
-    wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
-      state: "paused",
-      downloadedBytes: 5_000_000,
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary(TASK_ID, {
+        state: "paused",
+        downloadedBytes: 5_000_000,
+      }),
+    );
 
     // Pre-seed download.list auto-response so the task persists across reload
-    wsMocker.setAutoResponse("download.list", [makeMockSummary(TASK_ID, {
-      state: "paused",
-      downloadedBytes: 5_000_000,
-    })]);
+    wsMocker.setAutoResponse("download.list", [
+      makeMockSummary(TASK_ID, {
+        state: "paused",
+        downloadedBytes: 5_000_000,
+      }),
+    ]);
 
     await expectTaskState(page, TASK_ID, "paused");
 
@@ -78,10 +79,13 @@ test.describe("error recovery", () => {
 
     // Selecting a task triggers download.status
     await wsMocker.waitForMethod("download.status");
-    wsMocker.respondToMethod("download.status", makeMockSummary(TASK_ID, {
-      state: "paused",
-      downloadedBytes: 5_000_000,
-    }));
+    wsMocker.respondToMethod(
+      "download.status",
+      makeMockSummary(TASK_ID, {
+        state: "paused",
+        downloadedBytes: 5_000_000,
+      }),
+    );
 
     // Set up interception for download.resume
     const resumePromise = wsMocker.waitForMethod("download.resume");
@@ -93,11 +97,16 @@ test.describe("error recovery", () => {
     expect(resumeParams).toHaveProperty("taskId", TASK_ID);
 
     // Respond with a snapshot confirming downloading state
-    expect(wsMocker.respondToMethod("download.resume", makeMockSummary(TASK_ID, {
-      state: "downloading",
-      downloadedBytes: 5_000_000,
-      speedBytesPerSecond: 5_000_000,
-    }))).toBe(true);
+    expect(
+      wsMocker.respondToMethod(
+        "download.resume",
+        makeMockSummary(TASK_ID, {
+          state: "downloading",
+          downloadedBytes: 5_000_000,
+          speedBytesPerSecond: 5_000_000,
+        }),
+      ),
+    ).toBe(true);
 
     await expectTaskState(page, TASK_ID, "downloading");
   });
@@ -112,12 +121,15 @@ test.describe("error recovery", () => {
     await seedDownloadTask(page, wsMocker, TASK_ID);
 
     // Send an updated event to simulate a server-reported failure
-    wsMocker.sendEvent("updated", makeMockSummary(TASK_ID, {
-      state: "failed",
-      error: "Connection reset by peer",
-      downloadedBytes: 5_000_000,
-      connectionCount: 0,
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary(TASK_ID, {
+        state: "failed",
+        error: "Connection reset by peer",
+        downloadedBytes: 5_000_000,
+        connectionCount: 0,
+      }),
+    );
 
     // Verify the failed state is shown in the task row badge
     await expectTaskState(page, TASK_ID, "failed");
@@ -127,18 +139,19 @@ test.describe("error recovery", () => {
 
     // Selecting a failed task triggers download.status
     await wsMocker.waitForMethod("download.status");
-    wsMocker.respondToMethod("download.status", makeMockSummary(TASK_ID, {
-      state: "failed",
-      error: "Connection reset by peer",
-      downloadedBytes: 5_000_000,
-    }));
+    wsMocker.respondToMethod(
+      "download.status",
+      makeMockSummary(TASK_ID, {
+        state: "failed",
+        error: "Connection reset by peer",
+        downloadedBytes: 5_000_000,
+      }),
+    );
 
     // Verify the error message is displayed in the detail panel body
     // The raw error "Connection reset by peer" does not match any
     // predefined error pattern, so toFriendlyError returns it verbatim.
-    await expect(page.locator(".detail-panel__body")).toContainText(
-      "Connection reset by peer",
-    );
+    await expect(page.locator(".detail-panel__body")).toContainText("Connection reset by peer");
 
     // Failed tasks can be resumed (canResumeState returns true for "failed").
     // Set up interception for the resume RPC.
@@ -151,15 +164,23 @@ test.describe("error recovery", () => {
     expect(resumeParams).toHaveProperty("taskId", TASK_ID);
 
     // Respond with downloading state to confirm the retry was accepted
-    expect(wsMocker.respondToMethod("download.resume", makeMockSummary(TASK_ID, {
-      state: "downloading",
-      downloadedBytes: 5_000_000,
-    }))).toBe(true);
+    expect(
+      wsMocker.respondToMethod(
+        "download.resume",
+        makeMockSummary(TASK_ID, {
+          state: "downloading",
+          downloadedBytes: 5_000_000,
+        }),
+      ),
+    ).toBe(true);
 
     await expectTaskState(page, TASK_ID, "downloading");
   });
 
-  test("network error recovery — task survives WebSocket disconnect", async ({ page, wsMocker }) => {
+  test("network error recovery — task survives WebSocket disconnect", async ({
+    page,
+    wsMocker,
+  }) => {
     const TASK_ID = "err-recovery-004";
 
     await page.goto("/");
@@ -167,11 +188,14 @@ test.describe("error recovery", () => {
 
     // Seed a task and show it actively downloading
     await seedDownloadTask(page, wsMocker, TASK_ID);
-    wsMocker.sendEvent("progress", makeMockProgress(TASK_ID, {
-      downloadedBytes: 2_000_000,
-      speedBytesPerSecond: 5_000_000,
-      etaSeconds: 2,
-    }));
+    wsMocker.sendEvent(
+      "progress",
+      makeMockProgress(TASK_ID, {
+        downloadedBytes: 2_000_000,
+        speedBytesPerSecond: 5_000_000,
+        etaSeconds: 2,
+      }),
+    );
 
     await expectTaskState(page, TASK_ID, "downloading");
 
@@ -182,9 +206,11 @@ test.describe("error recovery", () => {
     // Wait for the frontend to detect the disconnect and reconnect.
     // After reconnecting, the frontend calls download.list to refresh state.
     await wsMocker.waitForMethod("download.list");
-    wsMocker.respondToMethod("download.list", [makeMockSummary(TASK_ID, {
-      downloadedBytes: 2_000_000,
-    })]);
+    wsMocker.respondToMethod("download.list", [
+      makeMockSummary(TASK_ID, {
+        downloadedBytes: 2_000_000,
+      }),
+    ]);
 
     // The download should still appear and be in a recoverable state
     await expectTaskVisible(page, TASK_ID);
@@ -205,20 +231,21 @@ test.describe("error recovery", () => {
 
     // Send an updated event with a nonexistent task ID.
     // The frontend should ignore it gracefully without crashing.
-    wsMocker.sendEvent("updated", makeMockSummary("nonexistent-999", {
-      state: "failed",
-      error: "Some error",
-    }));
+    wsMocker.sendEvent(
+      "updated",
+      makeMockSummary("nonexistent-999", {
+        state: "failed",
+        error: "Some error",
+      }),
+    );
 
     // Verify the nonexistent task does not appear in the queue.
     // This assertion also acts as a synchronization point — by the time
     // it resolves, enough time has passed for any error handlers to fire.
-    await expect(
-      page.locator('[data-testid="download-row-nonexistent-999"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="download-row-nonexistent-999"]')).toBeVisible();
 
     // Verify no console errors related to the invalid task were triggered.
-    const relevantErrors = errors.filter(e => e.includes("nonexistent-999"));
+    const relevantErrors = errors.filter((e) => e.includes("nonexistent-999"));
     expect(relevantErrors).toHaveLength(0);
   });
 });

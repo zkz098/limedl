@@ -118,6 +118,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       diskTypeOverrides: {},
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
     },
     autostart: false,
     setupCompleted: false,
@@ -224,6 +225,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         diskTypeOverrides: { ...form.ioBaseline.diskTypeOverrides },
         maxParallelHdd: Math.max(1, Math.min(16, form.ioBaseline.maxParallelHdd ?? 4)),
         gameModeMaxParallel: Math.max(1, Math.min(8, form.ioBaseline.gameModeMaxParallel ?? 1)),
+        hddBufferEnabled: form.ioBaseline.hddBufferEnabled ?? true,
       } as IoBaselineSettings,
       autostart: form.autostart ?? false,
       setupCompleted: form.setupCompleted ?? false,
@@ -330,6 +332,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         diskTypeOverrides: { ...nextSettings.ioBaseline?.diskTypeOverrides },
         maxParallelHdd: nextSettings.ioBaseline?.maxParallelHdd ?? 4,
         gameModeMaxParallel: nextSettings.ioBaseline?.gameModeMaxParallel ?? 1,
+        hddBufferEnabled: nextSettings.ioBaseline?.hddBufferEnabled ?? true,
       };
       form.autostart = nextSettings.autostart ?? false;
       form.setupCompleted = nextSettings.setupCompleted ?? false;

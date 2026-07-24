@@ -22,9 +22,9 @@
 
 控件：`--color-input-bg`、`--color-border`、`--color-border-strong`、`--border-width-thin`。
 
-强调色系（--color-accent-*）：主色、悬停、背景、边框、替代色、对比色、聚焦环、进度条轨道。默认为 green-lime，可通过 `data-theme` 属性切换为 amber / sky。
+强调色系（--color-accent-\*）：主色、悬停、背景、边框、替代色、对比色、聚焦环、进度条轨道。默认为 green-lime，可通过 `data-theme` 属性切换为 amber / sky。
 
-语义色系（--color-info-* / --color-success-* / --color-warning-* / --color-danger-*）：各含 `-bg` 背景、`-border` 边框、`-text` 文字三个变体。
+语义色系（--color-info-_ / --color-success-_ / --color-warning-_ / --color-danger-_）：各含 `-bg` 背景、`-border` 边框、`-text` 文字三个变体。
 
 暗色模式：所有颜色在 `:root[data-color-mode="dark"]` 下有对应变体。
 

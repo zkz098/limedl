@@ -13,7 +13,7 @@ import type { WsCommandSpec } from "./generated/ws-commands";
 import { EVENT_TYPE_MAP } from "./generated/ws-events";
 
 export function isNonNullObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }
 
 /**
@@ -22,15 +22,18 @@ export function isNonNullObject(value: unknown): value is Record<string, unknown
  * Replaces the previous hardcoded 12-rule switch statement with a generic
  * handler driven by the transform kind declared in `WS_COMMANDS`.
  */
-export function applyTransform(spec: WsCommandSpec | undefined, args?: Record<string, unknown>): Record<string, unknown> {
+export function applyTransform(
+  spec: WsCommandSpec | undefined,
+  args?: Record<string, unknown>,
+): Record<string, unknown> {
   if (!args) return {};
   if (!spec) return args;
 
   switch (spec.paramTransform.kind) {
-    case 'identity':
+    case "identity":
       return args;
 
-    case 'rename': {
+    case "rename": {
       // Rename preserves all fields from `args` (not just `to`), unlike the
       // old per-command whitelist that only kept known keys. Safe because
       // typed wrappers don't pass extra fields and serde ignores unknowns.
@@ -44,7 +47,7 @@ export function applyTransform(spec: WsCommandSpec | undefined, args?: Record<st
       return args;
     }
 
-    case 'unwrapField': {
+    case "unwrapField": {
       const { field } = spec.paramTransform;
       const value = args[field];
       if (isNonNullObject(value)) {
@@ -65,8 +68,8 @@ export function applyTransform(spec: WsCommandSpec | undefined, args?: Record<st
  * - 'connected':     open and ready
  * - 'reconnecting':  waiting for backoff timer before next attempt
  */
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
-export const connectionStatus = ref<ConnectionStatus>('disconnected');
+export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
+export const connectionStatus = ref<ConnectionStatus>("disconnected");
 
 type PendingRequest = {
   resolve: (value: unknown) => void;
@@ -82,8 +85,7 @@ const pending = new Map<number, PendingRequest>();
 let connectPromise: Promise<WebSocket> | null = null;
 
 const WS_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_URL) ||
-  'ws://localhost:9090/ws';
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_WS_URL) || "ws://localhost:9090/ws";
 
 // ── Reconnect state ──
 const INITIAL_RECONNECT_DELAY = 1000;
@@ -123,7 +125,7 @@ function scheduleReconnect() {
     MAX_RECONNECT_DELAY,
   );
   reconnectAttempt++;
-  connectionStatus.value = 'reconnecting';
+  connectionStatus.value = "reconnecting";
 
   // During backoff, prevent callers from creating conflicting connections.
   // This never-resolving promise acts as a gate — invoke() throws in
@@ -134,7 +136,7 @@ function scheduleReconnect() {
 
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
-    connectionStatus.value = 'connecting';
+    connectionStatus.value = "connecting";
 
     // Release the gate so getWs() creates a fresh connection
     connectPromise = null;
@@ -155,7 +157,7 @@ function retryPendingRequests(socket: WebSocket) {
       // Socket is not actually usable — reject this request immediately
       clearTimeout(req.timer);
       pending.delete(id);
-      req.reject(new Error('Failed to re-send request after reconnect'));
+      req.reject(new Error("Failed to re-send request after reconnect"));
     }
   }
 }
@@ -180,9 +182,9 @@ export function disconnect() {
   for (const [id, req] of pending) {
     clearTimeout(req.timer);
     pending.delete(id);
-    req.reject(new Error('Disconnected'));
+    req.reject(new Error("Disconnected"));
   }
-  connectionStatus.value = 'disconnected';
+  connectionStatus.value = "disconnected";
 }
 
 function getWs(): Promise<WebSocket> {
@@ -194,23 +196,23 @@ function getWs(): Promise<WebSocket> {
   }
   connectPromise = new Promise<WebSocket>((resolve, reject) => {
     try {
-      connectionStatus.value = 'connecting';
+      connectionStatus.value = "connecting";
       const socket = new WebSocket(WS_URL);
-      socket.addEventListener('open', () => {
+      socket.addEventListener("open", () => {
         ws = socket;
         connectPromise = null;
         // Reset reconnect state on success
         resetReconnectState();
-        connectionStatus.value = 'connected';
+        connectionStatus.value = "connected";
         // Retry any requests that were pending while disconnected
         retryPendingRequests(socket);
         resolve(socket);
       });
-      socket.addEventListener('error', () => {
+      socket.addEventListener("error", () => {
         connectPromise = null;
         reject(new Error(`WebSocket connection to ${WS_URL} failed`));
       });
-      socket.addEventListener('close', () => {
+      socket.addEventListener("close", () => {
         ws = null;
         connectPromise = null;
         // Automatically reconnect unless manually disconnected
@@ -218,28 +220,28 @@ function getWs(): Promise<WebSocket> {
           scheduleReconnect();
         }
       });
-      socket.addEventListener('message', (event) => {
+      socket.addEventListener("message", (event) => {
         try {
           const rawData = event.data;
-          if (typeof rawData !== 'string') return;
+          if (typeof rawData !== "string") return;
           const data = JSON.parse(rawData);
           // Check if it's a JSON-RPC response (has id)
-          if (data.jsonrpc === '2.0' && typeof data.id === 'number') {
+          if (data.jsonrpc === "2.0" && typeof data.id === "number") {
             const id = data.id;
             const req = pending.get(id);
             if (req) {
               clearTimeout(req.timer);
               pending.delete(id);
               if (data.error) {
-                req.reject(new Error(data.error.message || 'RPC error'));
+                req.reject(new Error(data.error.message || "RPC error"));
               } else {
                 req.resolve(data.result);
               }
             }
           }
           // Check if it's a server-pushed event (has method but no id)
-          else if (data.jsonrpc === '2.0' && data.method && data.id === undefined) {
-            if (data.method === 'event' && data.params && eventDispatcher) {
+          else if (data.jsonrpc === "2.0" && data.method && data.id === undefined) {
+            if (data.method === "event" && data.params && eventDispatcher) {
               const params = data.params;
               const eventType = params.type;
               const payload = params.payload;
@@ -268,7 +270,7 @@ export function mapEventType(type: string, _payload: unknown): string | null {
 
 export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   // Fail fast when we know we're in a reconnection backoff cycle
-  if (connectionStatus.value === 'reconnecting') {
+  if (connectionStatus.value === "reconnecting") {
     throw new Error(`Server connection lost. Cannot send "${cmd}". Retrying automatically...`);
   }
 
@@ -282,11 +284,11 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
     }, 30000);
 
     const method = METHOD_MAP[cmd] || cmd;
-    const spec = WS_COMMANDS.find(c => c.tauriName === cmd);
+    const spec = WS_COMMANDS.find((c) => c.tauriName === cmd);
     const params = applyTransform(spec, args);
 
     const message: Record<string, unknown> = {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id,
       method,
       params,

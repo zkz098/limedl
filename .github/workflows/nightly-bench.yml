@@ -2,8 +2,8 @@ name: Nightly Benchmarks
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 02:00 UTC
-  workflow_dispatch:       # Manual trigger
+    - cron: "0 2 * * *" # Daily at 02:00 UTC
+  workflow_dispatch: # Manual trigger
 
 jobs:
   e2e-bench:

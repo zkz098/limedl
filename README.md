@@ -14,11 +14,11 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 
 ## Platforms
 
-| Target | Frontend | Backend | Build |
-|--------|----------|---------|-------|
-| Desktop | Vue 3 via Tauri IPC | `src-tauri/` | `pnpm tauri dev` / `pnpm tauri build` |
-| NAS / Server | Vue 3 via WebSocket | `limedl-server` | `cargo build -p limedl-server` |
-| CLI | N/A | `limedl-server` | `limedl download <url>` / `limedl daemon` |
+| Target       | Frontend            | Backend         | Build                                     |
+| ------------ | ------------------- | --------------- | ----------------------------------------- |
+| Desktop      | Vue 3 via Tauri IPC | `src-tauri/`    | `pnpm tauri dev` / `pnpm tauri build`     |
+| NAS / Server | Vue 3 via WebSocket | `limedl-server` | `cargo build -p limedl-server`            |
+| CLI          | N/A                 | `limedl-server` | `limedl download <url>` / `limedl daemon` |
 
 The frontend is shared across desktop and NAS targets. The download engine (`limedl-core`) is pure Rust with zero UI dependencies.
 
@@ -76,11 +76,11 @@ limedl download --output ./downloads "https://example.com/file.iso"
 
 limedl stores settings as JSON. The default location depends on the platform:
 
-| Platform | Path |
-|----------|------|
-| Windows | `%APPDATA%\limedl\settings.json` |
-| macOS | `~/Library/Application Support/limedl/settings.json` |
-| Linux | `~/.local/share/limedl/settings.json` |
+| Platform | Path                                                 |
+| -------- | ---------------------------------------------------- |
+| Windows  | `%APPDATA%\limedl\settings.json`                     |
+| macOS    | `~/Library/Application Support/limedl/settings.json` |
+| Linux    | `~/.local/share/limedl/settings.json`                |
 
 Override with `LIMEDL_DATA_DIR` environment variable.
 
