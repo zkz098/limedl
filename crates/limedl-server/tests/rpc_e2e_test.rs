@@ -134,7 +134,7 @@ async fn rpc_call(
 
     let msg = serde_json::to_string(&request).expect("serialize request");
     stream
-        .send(tokio_tungstenite::tungstenite::Message::Text(msg))
+        .send(tokio_tungstenite::tungstenite::Message::Text(msg.into()))
         .await
         .expect("send message");
 
@@ -467,7 +467,7 @@ async fn missing_id_returns_parse_error() {
 
     stream
         .send(tokio_tungstenite::tungstenite::Message::Text(
-            serde_json::to_string(&request).unwrap(),
+            serde_json::to_string(&request).unwrap().into(),
         ))
         .await
         .expect("send notification");
@@ -502,7 +502,7 @@ async fn multiple_requests_over_single_connection() {
         });
         stream
             .send(tokio_tungstenite::tungstenite::Message::Text(
-                serde_json::to_string(&request).unwrap(),
+                serde_json::to_string(&request).unwrap().into(),
             ))
             .await
             .expect("send request");

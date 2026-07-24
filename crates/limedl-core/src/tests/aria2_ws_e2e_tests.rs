@@ -70,7 +70,7 @@ async fn websocket_add_uri_and_receive_event() {
         "method": "aria2.addUri",
         "params": [[file_url], {"dir": dest_dir.to_string_lossy(), "out": "test.bin"}]
     });
-    ws.send(Message::Text(add_req.to_string())).await.unwrap();
+    ws.send(Message::Text(add_req.to_string().into())).await.unwrap();
 
     // Read the JSON-RPC response
     let resp_text = match tokio::time::timeout(Duration::from_secs(5), ws.next()).await {
