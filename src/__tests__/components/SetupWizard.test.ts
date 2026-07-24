@@ -174,7 +174,7 @@ function mountWizard(props: Record<string, unknown> = {}) {
   return mount(SetupWizard, {
     props: {
       appName: "Limedl",
-      appVersion: "0.1.0",
+      appVersion: "0.1.2",
       ...props,
     },
     global: {
