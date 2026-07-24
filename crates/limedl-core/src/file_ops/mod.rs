@@ -330,6 +330,8 @@ mod imp {
     // IOCTL code for STORAGE_QUERY_PROPERTY
     const IOCTL_STORAGE_QUERY_PROPERTY: u32 = 0x002D1400;
     const STORAGE_DEVICE_SEEK_PENALTY_PROPERTY: u32 = 7;
+    const STORAGE_DEVICE_NOMINAL_MEDIA_ROTATION_RATE_PROPERTY: u32 = 9;
+    const FILE_READ_ATTRIBUTES: u32 = 0x0080;
     const PROPERTY_STANDARD_QUERY: u32 = 0;
 
     #[repr(C)]
@@ -395,16 +397,30 @@ mod imp {
     }
 
     /// Open the volume handle for a drive letter (e.g., "C:" → `\\.\C:`).
-    /// Uses dwDesiredAccess=0 to avoid requiring administrator privileges —
-    /// IOCTL_STORAGE_QUERY_PROPERTY only needs a query handle.
+    /// Tries dwDesiredAccess=0 first (avoids admin requirement), then retries
+    /// with FILE_READ_ATTRIBUTES if zero-access is rejected by the driver stack.
     fn open_volume(drive_letter: &str) -> Option<isize> {
         let volume_path = format!("\\\\.\\{drive_letter}");
         let wide_path = to_wide_null(&volume_path);
 
+        // Try zero-access first (avoids admin requirement)
+        if let Some(handle) = try_open_volume_inner(wide_path.as_ptr(), 0, &volume_path) {
+            return Some(handle);
+        }
+        // Retry with FILE_READ_ATTRIBUTES — some USB bridge drivers reject zero-access
+        try_open_volume_inner(wide_path.as_ptr(), FILE_READ_ATTRIBUTES, &volume_path)
+    }
+
+    /// Inner helper that opens a volume handle with a specific access mask.
+    fn try_open_volume_inner(
+        wide_path: *const u16,
+        access: u32,
+        volume_path: &str,
+    ) -> Option<isize> {
         let handle = unsafe {
             CreateFileW(
-                wide_path.as_ptr(),
-                0, // no access needed; avoids admin requirement
+                wide_path,
+                access,
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                 std::ptr::null(),
                 OPEN_EXISTING,
@@ -415,12 +431,12 @@ mod imp {
 
         if handle == INVALID_HANDLE_VALUE {
             let err = unsafe { GetLastError() };
-            tracing::warn!(
-                "disk_detect: CreateFileW({volume_path}) failed, error={err}, \
-                 falling back to SSD default (try running as admin)"
+            tracing::debug!(
+                "disk_detect: CreateFileW({volume_path}) with access={access} failed, error={err}"
             );
             None
         } else {
+            tracing::trace!("disk_detect: opened {volume_path} with access={access}");
             Some(handle)
         }
     }
@@ -433,7 +449,10 @@ mod imp {
                     std::path::Prefix::Disk(byte) | std::path::Prefix::VerbatimDisk(byte) => {
                         format!("{}:", byte as char)
                     }
-                    _ => return DiskType::Ssd, // UNC paths, device namespace — fallback
+                    _ => {
+                        tracing::warn!("disk_detect: unsupported path prefix, defaulting to SSD");
+                        return DiskType::Ssd; // UNC paths, device namespace — fallback
+                    }
                 }
             }
             Some(std::path::Component::RootDir) => {
@@ -457,16 +476,45 @@ mod imp {
 
         let handle = match open_volume(&drive_letter) {
             Some(h) => h,
-            None => return DiskType::Ssd,
+            None => {
+                tracing::warn!(
+                    "disk_detect: could not open volume for {drive_letter}, defaulting to SSD"
+                );
+                return DiskType::Ssd;
+            }
         };
 
-        let result = query_seek_penalty(handle);
-
-        // Always close the handle
-        unsafe {
-            CloseHandle(handle);
+        // Primary: nominal media rotation rate (more definitive than seek penalty)
+        if let Some(rpm) = query_nominal_media_rotation_rate(handle) {
+            if rpm >= 5400 {
+                // Definitely a rotating HDD
+                tracing::debug!("disk_detect: {drive_letter} is HDD (rotation rate: {rpm} rpm)");
+                unsafe { CloseHandle(handle); }
+                return DiskType::Hdd;
+            }
+            if rpm == 1 {
+                // Non-rotating media — SSD. But double-check with seek penalty
+                // as some SSHD/hybrid drives may misreport.
+                let seek = query_seek_penalty(handle);
+                unsafe { CloseHandle(handle); }
+                if seek == DiskType::Hdd {
+                    tracing::debug!("disk_detect: {drive_letter} is HDD (seek penalty override despite non-rotating report)");
+                    return DiskType::Hdd;
+                }
+                tracing::debug!("disk_detect: {drive_letter} is SSD (non-rotating media)");
+                return DiskType::Ssd;
+            }
+            // rpm == 0: unknown — fall through to seek penalty
         }
 
+        // Fallback: seek penalty
+        let result = query_seek_penalty(handle);
+        unsafe { CloseHandle(handle); }
+
+        match result {
+            DiskType::Hdd => tracing::debug!("disk_detect: {drive_letter} is HDD (seek penalty)"),
+            DiskType::Ssd => tracing::debug!("disk_detect: {drive_letter} is SSD (no rotating evidence)"),
+        }
         result
     }
 
@@ -502,6 +550,44 @@ mod imp {
         } else {
             DiskType::Hdd
         }
+    }
+
+    /// Query the nominal media rotation rate via IOCTL.
+    /// Returns:
+    /// - Some(rpm) where rpm >= 5400 → rotating HDD
+    /// - Some(1) → non-rotating media (SSD)
+    /// - Some(0) → unknown
+    /// - None → IOCTL failed
+    fn query_nominal_media_rotation_rate(handle: isize) -> Option<u32> {
+        let query = StoragePropertyQuery {
+            property_id: STORAGE_DEVICE_NOMINAL_MEDIA_ROTATION_RATE_PROPERTY,
+            query_type: PROPERTY_STANDARD_QUERY,
+            additional_parameters: [0; 1],
+        };
+
+        let mut rotation_rate: u32 = 0;
+        let mut bytes_returned: u32 = 0;
+
+        let success = unsafe {
+            DeviceIoControl(
+                handle,
+                IOCTL_STORAGE_QUERY_PROPERTY,
+                &query as *const _ as *const std::ffi::c_void,
+                mem::size_of::<StoragePropertyQuery>() as u32,
+                &mut rotation_rate as *mut _ as *mut std::ffi::c_void,
+                mem::size_of::<u32>() as u32,
+                &mut bytes_returned,
+                std::ptr::null_mut(),
+            )
+        };
+
+        if success == 0 || bytes_returned == 0 {
+            tracing::debug!("disk_detect: nominal media rotation rate IOCTL failed");
+            return None;
+        }
+
+        tracing::trace!("disk_detect: nominal media rotation rate = {rotation_rate} rpm");
+        Some(rotation_rate)
     }
 }
 
