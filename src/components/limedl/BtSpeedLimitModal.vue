@@ -9,8 +9,8 @@ const props = withDefaults(
   defineProps<{
     modelValue: boolean;
     taskId: string;
-    currentDownloadLimit: number;
-    currentUploadLimit: number;
+    currentDownloadLimit?: number;
+    currentUploadLimit?: number;
   }>(),
   {
     currentDownloadLimit: 0,

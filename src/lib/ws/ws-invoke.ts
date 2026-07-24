@@ -85,7 +85,7 @@ const pending = new Map<number, PendingRequest>();
 let connectPromise: Promise<WebSocket> | null = null;
 
 const WS_URL =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_WS_URL) || "ws://localhost:9090/ws";
+  (import.meta !== undefined && import.meta.env?.VITE_WS_URL) || "ws://localhost:9090/ws";
 
 // ── Reconnect state ──
 const INITIAL_RECONNECT_DELAY = 1000;
@@ -188,7 +188,7 @@ export function disconnect() {
 }
 
 function getWs(): Promise<WebSocket> {
-  if (ws && ws.readyState === WebSocket.OPEN) {
+  if (ws?.readyState === WebSocket.OPEN) {
     return Promise.resolve(ws);
   }
   if (connectPromise) {

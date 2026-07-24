@@ -13,7 +13,7 @@ const CHUNK_SIZE = 64 * 1024; // 64 KB write chunks
  */
 export class TestFileServer {
   private server: http.Server | null = null;
-  private baseDir: string;
+  private readonly baseDir: string;
   private _port = 0;
 
   /** Map of filename → absolute path */
@@ -21,7 +21,7 @@ export class TestFileServer {
 
   constructor(
     baseDir?: string,
-    private speedLimitBps = 0, // 0 = unlimited
+    private readonly speedLimitBps = 0, // 0 = unlimited
   ) {
     this.baseDir = baseDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "limedl-e2e-"));
   }
@@ -66,7 +66,7 @@ export class TestFileServer {
         // Add a logging handler for subsequent errors
         this.server!.on("error", (err) => console.error("[TestFileServer] runtime error:", err));
 
-        this._port = (this.server!.address() as import("net").AddressInfo).port;
+        this._port = (this.server!.address() as import("node:net").AddressInfo).port;
         // Store on globalThis for teardown access
         (globalThis as any).__TEST_FILE_SERVER__ = this;
         resolve();
@@ -253,14 +253,14 @@ export class TestFileServer {
   }
 
   private parseRange(rangeHeader: string, fileSize: number): { start: number; end: number } | null {
-    const match = rangeHeader.match(/^bytes=(\d+)-(\d*)$/);
+    const match = /^bytes=(\d+)-(\d*)$/.exec(rangeHeader);
     if (!match) return null;
 
-    const start = parseInt(match[1], 10);
-    let end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+    const start = Number.parseInt(match[1], 10);
+    let end = match[2] ? Number.parseInt(match[2], 10) : fileSize - 1;
 
-    if (isNaN(start) || start >= fileSize) return null;
-    if (isNaN(end) || end >= fileSize) end = fileSize - 1;
+    if (Number.isNaN(start) || start >= fileSize) return null;
+    if (Number.isNaN(end) || end >= fileSize) end = fileSize - 1;
     if (start > end) return null;
 
     return { start, end };
@@ -317,7 +317,7 @@ class SpeedLimiter {
   private bytesWritten = 0;
   private lastCheck = Date.now();
 
-  constructor(private bps: number) {}
+    constructor(private readonly bps: number) {}
 
   async write(res: http.ServerResponse, chunk: Buffer): Promise<void> {
     const now = Date.now();

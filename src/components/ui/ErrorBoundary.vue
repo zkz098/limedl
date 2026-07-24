@@ -37,7 +37,7 @@ function handleRetry() {
       <summary>{{ t("errorBoundary.details") }}</summary>
       <pre class="error-boundary__message">{{ lastError }}</pre>
     </details>
-    <button class="error-boundary__retry" @click="handleRetry">
+    <button type="button" class="error-boundary__retry" @click="handleRetry">
       <span class="error-boundary__retry-icon i-ri-refresh-line" aria-hidden="true" />
       {{ t("errorBoundary.retry") }}
     </button>

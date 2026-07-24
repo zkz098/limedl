@@ -65,15 +65,15 @@ onMounted(async () => {
     appName.value = await getName();
     appVersion.value = await getVersion();
     tauriVer.value = await getTauriVersion();
-  } catch {
-    /* ignored */
+  } catch (err) {
+    console.error("Failed to get app info:", err);
   }
   try {
     osPlatform.value = platform();
     osArch.value = arch();
     osVer.value = osVersion();
-  } catch {
-    /* ignored */
+  } catch (err) {
+    console.error("Failed to get OS info:", err);
   }
 });
 
@@ -186,6 +186,7 @@ async function handleResetSettings() {
     notifySuccess(t("settings.aboutResetSuccess"));
     emit("restart-setup");
   } catch (err) {
+    console.error("Failed to reset settings:", err);
     notifyError(t("settings.aboutResetFailed"));
   } finally {
     isResetting.value = false;
@@ -747,7 +748,7 @@ const versionBadgeClass = computed(() => {
 
 .about-changelog {
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
   font-size: var(--font-size-small);
   line-height: var(--line-height-tight);
   color: var(--color-text-main);

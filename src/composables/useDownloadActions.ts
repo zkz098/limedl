@@ -17,8 +17,7 @@ import {
   toMessage,
   toSummary,
 } from "./downloadHelpers";
-import type { DownloadSnapshot, DownloadSummary } from "../types/download";
-import type { Priority } from "../types/download";
+import type { DownloadSnapshot, DownloadSummary, Priority } from "../types/download";
 
 export interface UseDownloadActionsInput {
   downloads: Ref<DownloadSummary[]>;

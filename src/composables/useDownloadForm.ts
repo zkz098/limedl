@@ -31,8 +31,8 @@ function expandUrlRanges(url: string): string[] {
   const rangeRegex = /\[(\d+)-(\d+)\]/;
   const match = rangeRegex.exec(url);
   if (!match) return [url];
-  const start = parseInt(match[1], 10);
-  const end = parseInt(match[2], 10);
+  const start = Number.parseInt(match[1], 10);
+  const end = Number.parseInt(match[2], 10);
   if (start > end) return [url]; // treat as literal text, not a range
   const padding = match[1].length;
   const results: string[] = [];

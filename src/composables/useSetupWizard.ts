@@ -11,9 +11,10 @@ export interface SetupStep {
 }
 
 function cloneSettings<T>(settings: T): T {
-  // JSON round-trip strips Vue reactive proxies at all nesting levels,
-  // which structuredClone(toRaw(...)) cannot do recursively.
-  return JSON.parse(JSON.stringify(settings));
+  // structuredClone handles deep cloning of plain objects and primitives,
+  // which includes Vue reactive proxies (the clone algorithm accesses
+  // [[Get]] on each level, yielding unwrapped values).
+  return structuredClone(settings);
 }
 
 /**

@@ -78,7 +78,13 @@ export async function setLanguage(language: SupportedLanguage) {
 document.documentElement.lang = currentLanguage.value;
 
 // Update system tray menu on initial load (setLanguage only fires on change)
-void invoke("update_tray_language", { language: currentLanguage.value }).catch(() => {});
+void (async () => {
+  try {
+    await invoke("update_tray_language", { language: currentLanguage.value });
+  } catch {
+    // Tray update is non-critical — silently ignore
+  }
+})();
 
 export function useI18n() {
   return {

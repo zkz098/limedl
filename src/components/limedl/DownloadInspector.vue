@@ -172,6 +172,7 @@ onBeforeUnmount(() => {
         class="flex gap-[var(--space-1)] px-[var(--space-3)] pt-[var(--space-2)] border-b border-[var(--color-border)] shrink-0"
       >
         <button
+          type="button"
           class="px-[var(--space-3)] py-[var(--space-1)] border-none bg-transparent text-[0.8125rem] font-medium text-[var(--color-text-muted)] cursor-pointer border-b-2 border-transparent -mb-px rounded-t-[var(--radius-sm)] transition-colors duration-150 hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-muted)]"
           :class="
             activeTab === 'overview'
@@ -183,6 +184,7 @@ onBeforeUnmount(() => {
           {{ t("inspector.tabs.overview") }}
         </button>
         <button
+          type="button"
           class="px-[var(--space-3)] py-[var(--space-1)] border-none bg-transparent text-[0.8125rem] font-medium text-[var(--color-text-muted)] cursor-pointer border-b-2 border-transparent -mb-px rounded-t-[var(--radius-sm)] transition-colors duration-150 hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-muted)]"
           :class="
             activeTab === 'files'
@@ -195,6 +197,7 @@ onBeforeUnmount(() => {
         </button>
         <button
           v-if="isBtTask"
+          type="button"
           class="px-[var(--space-3)] py-[var(--space-1)] border-none bg-transparent text-[0.8125rem] font-medium text-[var(--color-text-muted)] cursor-pointer border-b-2 border-transparent -mb-px rounded-t-[var(--radius-sm)] transition-colors duration-150 hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-muted)]"
           :class="
             activeTab === 'peersTrackers'

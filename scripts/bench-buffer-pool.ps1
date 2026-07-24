@@ -24,12 +24,14 @@ $ErrorActionPreference = "Stop"
 
 # ── 1. Detect disk type ───────────────────────────────────────────────────────
 $diskRoot = (Get-Item -LiteralPath $DiskPath -Force).PSDrive.Root
-$diskInfo = Get-PhysicalDisk | Where-Object {
-    $_.FriendlyName -like "*$($diskRoot.TrimEnd('\'))*" -or
-    (Get-Disk -Number $_.DeviceId | Get-Partition | Get-Volume | Where-Object {
-        $_.DriveLetter -eq $diskRoot.TrimEnd(':').TrimEnd('\')
-    })
-} | Select-Object -First 1
+$diskInfo = Get-PhysicalDisk |
+    Where-Object {
+        $_.FriendlyName -like "*$($diskRoot.TrimEnd('\'))*" -or
+        (Get-Disk -Number $_.DeviceId | Get-Partition | Get-Volume | Where-Object {
+            $_.DriveLetter -eq $diskRoot.TrimEnd(':').TrimEnd('\')
+        })
+    } |
+    Select-Object -First 1
 
 if ($diskInfo) {
     $mediaType = $diskInfo.MediaType

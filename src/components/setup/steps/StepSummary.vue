@@ -101,7 +101,7 @@ function getRpcLabel() {
 
 function getDirectoryLabel() {
   const path = props.settings.download.defaultDownloadDir;
-  return path ? path : t("setupWizard.summaryDirectoryEmpty");
+  return path || t("setupWizard.summaryDirectoryEmpty");
 }
 
 function getPerformanceLabel() {

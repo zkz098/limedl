@@ -243,7 +243,7 @@ describe("SettingsAppearancePanel", () => {
   it("renders three theme color buttons (amber, sky, lime)", () => {
     const { wrapper } = mountPanel();
     const buttons = wrapper.findAll("button.theme-color-button");
-    expect(buttons.length).toBe(3);
+    expect(buttons).toHaveLength(3);
 
     const labels = buttons.map((b) => b.attributes("aria-label"));
     expect(labels).toContain("settings.themeColorNames.amber");
@@ -463,7 +463,7 @@ describe("SettingsAppearancePanel", () => {
 
     // Options should be rendered
     const options = closeSelect.findAll("option");
-    expect(options.length).toBe(2);
+    expect(options).toHaveLength(2);
 
     // Initial value from v-model
     expect(closeSelect.element.value).toBe(

@@ -55,13 +55,13 @@ type MessageHandler = (params: unknown) => void;
 
 export class WsMocker {
   private route: MockWebSocketRoute | null = null;
-  private callbacks = new Map<string, Set<MessageHandler>>();
+  private readonly callbacks = new Map<string, Set<MessageHandler>>();
   /** Stored params per method (for getMethodCalls / waitForMethod backward compat) */
-  private calls = new Map<string, unknown[]>();
+  private readonly calls = new Map<string, unknown[]>();
   /** Tracks request IDs per method so respondToMethod can match the correct ID */
-  private callIds = new Map<string, number[]>();
+  private readonly callIds = new Map<string, number[]>();
   /** Auto-responses: method → result — automatically send when request arrives */
-  private autoResponses = new Map<string, unknown>();
+  private readonly autoResponses = new Map<string, unknown>();
   private connected = false;
 
   /**

@@ -13,9 +13,7 @@ import {
 import { useI18n } from "../../i18n";
 import type { ColumnKey } from "../../lib/column-defs";
 import { VALID_COLUMN_KEYS } from "../../lib/column-defs";
-import type { DownloadSummary } from "../../types/download";
-import type { ViewOptions, MultiSelectState } from "../../types/download";
-import type { Priority } from "../../types/download";
+import type { DownloadSummary, ViewOptions, MultiSelectState, Priority } from "../../types/download";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
@@ -274,7 +272,7 @@ function handlePriorityMenuKeydown(event: KeyboardEvent) {
         priorityMenuRef.value?.querySelectorAll<HTMLButtonElement>(".priority-menu__item") ?? [],
       );
       if (items.length === 0) return;
-      const currentIndex = items.findIndex((el) => el === document.activeElement);
+      const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
       const direction = event.key === "ArrowDown" ? 1 : -1;
       const nextIndex = (currentIndex + direction + items.length) % items.length;
       items[nextIndex]?.focus();
@@ -376,7 +374,7 @@ function handleContextMenuKeydown(event: KeyboardEvent) {
         ) ?? [],
       );
       if (items.length === 0) return;
-      const currentIndex = items.findIndex((el) => el === document.activeElement);
+      const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
       const direction = event.key === "ArrowDown" ? 1 : -1;
       const nextIndex = (currentIndex + direction + items.length) % items.length;
       items[nextIndex]?.focus();

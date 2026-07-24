@@ -33,6 +33,7 @@ const emit = defineEmits<{
   pickTorrent: [];
   submit: [];
   "update:batchUrls": [value: string];
+  "update:form": [value: DownloadFormState];
   parseBatch: [];
   toggleBatchMode: [];
 }>();
@@ -94,6 +95,7 @@ const threadHint = computed(() => {
 });
 
 function toggleKind() {
+  // eslint-disable-next-line vue/no-mutating-props
   props.form.kind = props.form.kind === "http" ? "bt" : "http";
 }
 
