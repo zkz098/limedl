@@ -113,6 +113,7 @@ export function makeMockSummary(taskId: string, overrides: Partial<Record<string
     chunks: [],
     createdAtMs: Date.now(),
     updatedAtMs: Date.now(),
+    priority: "normal",
     ...overrides,
   };
 }
