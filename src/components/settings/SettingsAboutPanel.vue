@@ -294,7 +294,7 @@ const versionBadgeClass = computed(() => {
         <img :src="logoUrl" alt="Limedl" class="about-identity__logo" />
         <div class="about-identity__meta">
           <span class="about-identity__name">{{ appName || "Limedl" }}</span>
-          <span class="about-identity__version">v{{ appVersion || "0.1.0" }}</span>
+          <span class="about-identity__version">v{{ appVersion || "--" }}</span>
           <div class="about-identity__system about-system">
             <span class="about-system__item">
               <span class="about-system__label">{{ t("settings.aboutOs") }}</span>
@@ -336,7 +336,7 @@ const versionBadgeClass = computed(() => {
         <div class="update-card__header">
           <div class="about-version-badge" :class="versionBadgeClass">
             <span class="about-version-badge__text">{{
-              showVersionBadge ? currentVersion || "0.1.0" : "?"
+              showVersionBadge ? currentVersion || appVersion : "?"
             }}</span>
           </div>
           <div class="update-card__status">
