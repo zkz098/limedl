@@ -103,13 +103,13 @@ async function checkForUpdates(silent = false) {
       timeout: STARTUP_CHECK_TIMEOUT_MS,
     });
 
-    currentVersion.value = normalizeVersion(update?.currentVersion ?? "0.0.0");
-
     if (!update) {
       status.value = "up-to-date";
       updateAvailable.value = false;
       return null;
     }
+
+    currentVersion.value = normalizeVersion(update.currentVersion);
 
     const latest = normalizeVersion(update.version);
     latestVersion.value = latest;
