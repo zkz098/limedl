@@ -74,7 +74,7 @@ function createSettings(): AppSettings {
   return {
     globalSpeedLimitBps: 0,
     appearance: {
-      themeColor: "lime",
+      themeColor: "amber",
       backgroundOpacity: "default",
       colorMode: "system",
       showDetailInfo: true,
