@@ -170,11 +170,11 @@ describe("SettingsLoggingPanel", () => {
     expect(switchInput.element.checked).toBe(true);
 
     // Toggle off
-    switchInput.setValue(false);
+    void switchInput.setValue(false);
     expect(draft.logging.enabled).toBe(false);
 
     // Toggle back on
-    switchInput.setValue(true);
+    void switchInput.setValue(true);
     expect(draft.logging.enabled).toBe(true);
   });
 
@@ -205,7 +205,7 @@ describe("SettingsLoggingPanel", () => {
     expect(options[2].attributes("value")).toBe("info");
 
     // Change selection
-    select.setValue("warn");
+    void select.setValue("warn");
     expect(draft.logging.level).toBe("warn");
   });
 
@@ -231,7 +231,7 @@ describe("SettingsLoggingPanel", () => {
     expect(textField.attributes("placeholder")).toBe("settings.loggingPathPlaceholder");
 
     // Change value
-    textField.setValue("/new/path/log.txt");
+    void textField.setValue("/new/path/log.txt");
     expect(draft.logging.filePath).toBe("/new/path/log.txt");
   });
 

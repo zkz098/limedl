@@ -66,12 +66,12 @@ function createTooltip(props: Record<string, unknown> = {}) {
 
 /** Helper to query the tooltip popup from a mounted wrapper. */
 function popup(wrapper: ReturnType<typeof mount>) {
-  return wrapper.find('[role="tooltip"]');
+  return wrapper.find<HTMLElement>('[role="tooltip"]');
 }
 
 /** Helper to check popup visibility via v-show (inline style display). */
 function isPopupVisible(wrapper: ReturnType<typeof mount>): boolean {
-  const el = popup(wrapper).element as HTMLElement;
+  const el = popup(wrapper).element;
   return el.style.display !== "none";
 }
 

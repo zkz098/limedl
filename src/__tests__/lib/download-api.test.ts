@@ -41,7 +41,10 @@ describe("download-api", () => {
         url: "https://example.com/file.zip",
         destinationDir: "/downloads",
         fileName: "file.zip",
-      };
+        kind: "http",
+        userAgent: null,
+        startPaused: false,
+      } as const;
       mockInvoke.mockResolvedValue({ kind: "http", id: "task-abc" });
 
       const result = await startDownload(request);

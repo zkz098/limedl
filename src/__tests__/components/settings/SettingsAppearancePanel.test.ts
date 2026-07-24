@@ -117,12 +117,12 @@ describe("SettingsAppearancePanel", () => {
     const draft = createDraft();
     // Set language to zh-CN via prop — draft doesn't have a language field
     const { wrapper } = mountPanel({ language: "zh-CN", draft });
-    const selects = wrapper.findAll("select.ui-select-stub");
+    const selects = wrapper.findAll<HTMLSelectElement>("select.ui-select-stub");
     expect(selects.length).toBeGreaterThanOrEqual(1);
 
     // The first select is the language selector
     const langSelect = selects[0];
-    expect((langSelect.element as HTMLSelectElement).value).toBe("zh-CN");
+    expect(langSelect.element.value).toBe("zh-CN");
 
     // Changing the prop re-renders — draft.language doesn't exist
     expect((draft as Record<string, unknown>).language).toBeUndefined();
@@ -144,11 +144,11 @@ describe("SettingsAppearancePanel", () => {
 
   it("renders color mode select with v-model bound to draft.appearance.colorMode", async () => {
     const { draft, wrapper } = mountPanel();
-    const selects = wrapper.findAll("select.ui-select-stub");
+    const selects = wrapper.findAll<HTMLSelectElement>("select.ui-select-stub");
     const colorSelect = selects[1];
 
     // Initial value is bound from draft
-    expect((colorSelect.element as HTMLSelectElement).value).toBe("system");
+    expect(colorSelect.element.value).toBe("system");
 
     // Changing select updates draft directly (v-model)
     await colorSelect.setValue("dark");
@@ -250,11 +250,11 @@ describe("SettingsAppearancePanel", () => {
 
   it("renders background opacity select with v-model", async () => {
     const { draft, wrapper } = mountPanel();
-    const selects = wrapper.findAll("select.ui-select-stub");
+    const selects = wrapper.findAll<HTMLSelectElement>("select.ui-select-stub");
     const bgSelect = selects[2];
 
     // Initial value
-    expect((bgSelect.element as HTMLSelectElement).value).toBe("100");
+    expect(bgSelect.element.value).toBe("100");
 
     // Change via v-model
     await bgSelect.setValue("acrylic");
@@ -266,11 +266,11 @@ describe("SettingsAppearancePanel", () => {
 
   it("renders detail info switch with v-model on draft.appearance.showDetailInfo", async () => {
     const { draft, wrapper } = mountPanel();
-    const switches = wrapper.findAll("input.ui-switch-stub[type='checkbox']");
+    const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
 
     // Detail info is the first switch
     const detailSwitch = switches[0];
-    expect((detailSwitch.element as HTMLInputElement).checked).toBe(
+    expect(detailSwitch.element.checked).toBe(
       draft.appearance.showDetailInfo,
     );
 
@@ -292,9 +292,9 @@ describe("SettingsAppearancePanel", () => {
     // Ensure notifications section is rendered
     expect(wrapper.text()).toContain("settings.notificationSettings.toggleLabel");
 
-    const switches = wrapper.findAll("input.ui-switch-stub[type='checkbox']");
+    const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const notifSwitch = switches[1];
-    expect((notifSwitch.element as HTMLInputElement).checked).toBe(
+    expect(notifSwitch.element.checked).toBe(
       draft.notifications.enabled,
     );
 
@@ -313,11 +313,11 @@ describe("SettingsAppearancePanel", () => {
 
   it("renders autostart switch (not v-model, uses onAutostartChange)", async () => {
     const { draft, wrapper } = mountPanel();
-    const switches = wrapper.findAll("input.ui-switch-stub[type='checkbox']");
+    const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const autoSwitch = switches[2];
 
     // The switch uses :model-value — it shows current draft value
-    expect((autoSwitch.element as HTMLInputElement).checked).toBe(
+    expect(autoSwitch.element.checked).toBe(
       draft.autostart,
     );
 
@@ -332,7 +332,7 @@ describe("SettingsAppearancePanel", () => {
 
   it("toggling autostart ON calls enable() from plugin-autostart", async () => {
     const { wrapper } = mountPanel();
-    const switches = wrapper.findAll("input.ui-switch-stub[type='checkbox']");
+    const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const autoSwitch = switches[2];
 
     await autoSwitch.setValue(true);
@@ -344,7 +344,7 @@ describe("SettingsAppearancePanel", () => {
 
   it("toggling autostart OFF calls disable() from plugin-autostart", async () => {
     const { wrapper } = mountPanel();
-    const switches = wrapper.findAll("input.ui-switch-stub[type='checkbox']");
+    const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const autoSwitch = switches[2];
 
     // First turn on, then turn off
@@ -362,7 +362,7 @@ describe("SettingsAppearancePanel", () => {
   it("autostart error is silently caught (plugin throws, no crash)", async () => {
     mockEnable.mockRejectedValueOnce(new Error("Permission denied"));
     const { wrapper } = mountPanel();
-    const switches = wrapper.findAll("input.ui-switch-stub[type='checkbox']");
+    const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const autoSwitch = switches[2];
 
     // Should not throw despite the rejected promise
@@ -376,7 +376,7 @@ describe("SettingsAppearancePanel", () => {
 
   it("renders close behavior select with computed options", () => {
     const { wrapper } = mountPanel();
-    const selects = wrapper.findAll("select.ui-select-stub");
+    const selects = wrapper.findAll<HTMLSelectElement>("select.ui-select-stub");
     const closeSelect = selects[3];
 
     // Options should be rendered
@@ -384,7 +384,7 @@ describe("SettingsAppearancePanel", () => {
     expect(options.length).toBe(2);
 
     // Initial value from v-model
-    expect((closeSelect.element as HTMLSelectElement).value).toBe(
+    expect(closeSelect.element.value).toBe(
       "minimizeToTray",
     );
   });

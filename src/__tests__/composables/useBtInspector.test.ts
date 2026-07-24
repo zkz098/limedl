@@ -446,7 +446,7 @@ describe("useBtInspector", () => {
       mockGetBtTrackers.mockResolvedValue(mockTrackers);
       mockGetBtPieces.mockResolvedValue(mockPieces);
 
-      const taskId = ref("task-1");
+      const taskId = ref<string | null>("task-1");
       const inspector = useBtInspector(taskId);
       await flushPromises();
 
@@ -639,7 +639,7 @@ describe("useBtInspector", () => {
       // isUpdatingFiles should be true during the call
       expect(inspector.isUpdatingFiles.value).toBe(true);
 
-      resolveUpdate!();
+      resolveUpdate();
       await togglePromise;
 
       expect(inspector.isUpdatingFiles.value).toBe(false);

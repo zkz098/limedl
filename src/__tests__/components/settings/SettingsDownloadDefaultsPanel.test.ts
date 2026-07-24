@@ -180,7 +180,7 @@ describe("SettingsDownloadDefaultsPanel", () => {
     expect(browseBtn.text()).toBe("common.browse");
 
     // Change directory value
-    dirField.setValue("/new/path");
+    void dirField.setValue("/new/path");
     expect(draft.download.defaultDownloadDir).toBe("/new/path");
   });
 
@@ -201,7 +201,7 @@ describe("SettingsDownloadDefaultsPanel", () => {
 
     const buttons = wrapper.findAll(".ui-button-stub");
     const browseBtn = buttons[0];
-    browseBtn.trigger("click");
+    void browseBtn.trigger("click");
 
     expect(wrapper.emitted("pickDirectory")).toBeTruthy();
   });
@@ -287,7 +287,7 @@ describe("SettingsDownloadDefaultsPanel", () => {
     const retriesField = textFields[1];
     expect(retriesField.element.value).toBe("3");
 
-    retriesField.setValue("10");
+    void retriesField.setValue("10");
     expect(draft.download.defaultMaxRetries).toBe("10");
   });
 
@@ -320,7 +320,7 @@ describe("SettingsDownloadDefaultsPanel", () => {
     expect(options[1].attributes("value")).toBe("blake3");
 
     // Change selection
-    select.setValue("none");
+    void select.setValue("none");
     expect(draft.download.defaultChecksum).toBe("none");
   });
 

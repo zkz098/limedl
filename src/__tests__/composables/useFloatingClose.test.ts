@@ -25,7 +25,7 @@ function mountComposable(
 describe("useFloatingClose", () => {
   let panelRef: Ref<HTMLElement | null>;
   let isOpen: Ref<boolean>;
-  let onClose: ReturnType<typeof vi.fn>;
+  let onClose: () => void;
   let panelEl: HTMLElement;
   let outsideEl: HTMLElement;
   let insideEl: HTMLElement;
