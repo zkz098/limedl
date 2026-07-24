@@ -5,11 +5,12 @@
 //! This replaces direct `state.cdn_accelerator` access with a single
 //! service abstraction.
 
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::cdn::accelerator::{AccelState, CdnAccelerator};
+use crate::cdn::ip_ranges::CdnIpCache;
 use crate::cdn::speed_test::{CdnTestPhase, DefaultNodeResult, SpeedTestResult};
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::types::AppSettings;
@@ -18,7 +19,7 @@ use crate::types::AppSettings;
 #[derive(Debug, Clone)]
 pub struct CdnTestOutcome {
     pub state: AccelState,
-    pub active_ip: Option<Ipv4Addr>,
+    pub active_ip: Option<IpAddr>,
     pub active_speed_mbps: Option<f64>,
     pub candidates: Vec<SpeedTestResult>,
     pub default_node: Option<DefaultNodeResult>,
@@ -76,7 +77,7 @@ impl CdnService {
     /// Build an accelerated client for the given IP and store it.
     pub async fn apply_ip(
         &self,
-        ip: Ipv4Addr,
+        ip: IpAddr,
         speed_mbps: f64,
         settings: &AppSettings,
     ) -> anyhow::Result<()> {
@@ -99,7 +100,7 @@ impl CdnService {
         self.accelerator.status().await
     }
 
-    pub async fn active_ip(&self) -> Option<Ipv4Addr> {
+    pub async fn active_ip(&self) -> Option<IpAddr> {
         self.accelerator.active_ip().await
     }
 
@@ -126,6 +127,11 @@ impl CdnService {
     /// Return the accelerated reqwest client (if state is Ready).
     pub async fn get_client(&self) -> Option<reqwest::Client> {
         self.accelerator.get_client().await
+    }
+
+    /// Return a clone of the IP range cache, or None if no test has run yet.
+    pub async fn ip_cache(&self) -> Option<CdnIpCache> {
+        self.accelerator.ip_cache().await
     }
 
     // ── Test monitoring ───────────────────────────────────────────────
@@ -209,6 +215,7 @@ impl CdnService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::Ipv4Addr;
 
     /// Smoke: basic construction and default state.
     #[tokio::test]
@@ -224,7 +231,7 @@ mod tests {
         let svc = CdnService::from_accelerator(acc.clone());
 
         // Mutate via service...
-        let ip = Ipv4Addr::new(127, 0, 0, 1);
+        let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let settings = AppSettings::default();
         svc.apply_ip(ip, 50.0, &settings).await.unwrap();
 

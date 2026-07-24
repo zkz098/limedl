@@ -15,6 +15,7 @@
 //! has already returned with the Ready outcome before that happens, so the
 //! test is deterministic and fast.
 
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -61,7 +62,7 @@ async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
     let mut signal_rx = event_bus.subscribe();
     let deadline = tokio::time::sleep(Duration::from_secs(15));
     tokio::pin!(deadline);
-    let ip = std::net::Ipv4Addr::new(127, 0, 0, 1);
+    let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     let settings = AppSettings::default();
     let mut applied_ip = false;
     let mut early_complete: Option<(String, Option<String>, Option<f64>)> = None;

@@ -1020,7 +1020,7 @@ async fn handle_cdn_routes(
                 .and_then(|p| p.get("speedMbps"))
                 .and_then(|v| v.as_f64())
                 .unwrap_or(0.0);
-            let ip: std::net::Ipv4Addr = ip_str.parse().map_err(|e| {
+            let ip: std::net::IpAddr = ip_str.parse().map_err(|e| {
                 JsonRpcError::invalid_params(format!("Invalid IP address: {e}"))
             })?;
             let dm = state.registry.get_typed::<DownloadManager>().ok_or_else(|| {

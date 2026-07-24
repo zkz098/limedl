@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 
 use serde::Serialize;
 use tauri::State;
@@ -7,7 +7,7 @@ use limedl_core::{
     AppState, CdnTestOutcome, DownloadManager,
     cdn::{
         accelerator::AccelState,
-        ip_ranges::CLOUDFLARE_IPV4_RANGES,
+        ip_ranges::{CLOUDFLARE_IPV4_RANGES, CLOUDFLARE_IPV6_RANGES},
         speed_test::{DefaultNodeResult, SpeedTestResult},
     },
 };
@@ -33,13 +33,20 @@ async fn persist_cdn_outcome(outcome: &CdnTestOutcome, mgr: &DownloadManager) {
     }
 }
 
-/// Return the 15 static Cloudflare IPv4 CIDR range strings from the bundled fallback list.
+/// Return both static Cloudflare IPv4 and IPv6 CIDR range strings from the bundled fallback list.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CdnIpRanges {
+    pub ipv4: Vec<String>,
+    pub ipv6: Vec<String>,
+}
+
 #[tauri::command]
-pub async fn cdn_fetch_ranges(_state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    Ok(CLOUDFLARE_IPV4_RANGES
-        .iter()
-        .map(|s| s.to_string())
-        .collect())
+pub async fn cdn_fetch_ranges(_state: State<'_, AppState>) -> Result<CdnIpRanges, String> {
+    Ok(CdnIpRanges {
+        ipv4: CLOUDFLARE_IPV4_RANGES.iter().map(|s| s.to_string()).collect(),
+        ipv6: CLOUDFLARE_IPV6_RANGES.iter().map(|s| s.to_string()).collect(),
+    })
 }
 
 /// Kick off a CDN speed test in a background task.
@@ -79,13 +86,14 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 /// Build an accelerated reqwest client for the given IP and speed estimate.
+/// Accepts both IPv4 and IPv6 addresses.
 #[tauri::command]
 pub async fn cdn_apply(
     state: State<'_, AppState>,
     ip: String,
     speed_mbps: f64,
 ) -> Result<(), String> {
-    let ip: Ipv4Addr = ip.parse().map_err(|e| format!("Invalid IP address: {e}"))?;
+    let ip: IpAddr = ip.parse().map_err(|e| format!("Invalid IP address: {e}"))?;
 
     let dm = state
         .registry
@@ -211,25 +219,34 @@ pub async fn cdn_candidates(state: State<'_, AppState>) -> Result<Vec<SpeedTestR
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-    /// `cdn_fetch_ranges` must return exactly 15 CIDR strings.
+    /// `cdn_fetch_ranges` must return static fallback CIDRs (15 IPv4 + 6 IPv6).
     #[test]
-    fn fetch_ranges_returns_15_cidrs() {
-        let cidrs = CLOUDFLARE_IPV4_RANGES.to_vec();
-        assert_eq!(cidrs.len(), 15);
-        assert!(cidrs.contains(&"104.16.0.0/13"));
+    fn fetch_ranges_returns_correct_counts() {
+        let ipv4 = CLOUDFLARE_IPV4_RANGES.to_vec();
+        assert_eq!(ipv4.len(), 15);
+        assert!(ipv4.contains(&"104.16.0.0/13"));
+
+        let ipv6 = CLOUDFLARE_IPV6_RANGES.to_vec();
+        assert_eq!(ipv6.len(), 6);
+        assert!(ipv6.contains(&"2606:4700::/32"));
     }
 
     /// `cdn_apply` must reject invalid IP strings before calling the accelerator.
     #[tokio::test]
     async fn apply_rejects_invalid_ip() {
-        let bad: Result<Ipv4Addr, _> = "not-an-ip".parse();
+        let bad: Result<IpAddr, _> = "not-an-ip".parse();
         assert!(bad.is_err());
 
-        let bad2: Result<Ipv4Addr, _> = "999.999.999.999".parse();
+        let bad2: Result<IpAddr, _> = "999.999.999.999".parse();
         assert!(bad2.is_err());
 
-        let good: Ipv4Addr = "1.2.3.4".parse().unwrap();
-        assert_eq!(good, Ipv4Addr::new(1, 2, 3, 4));
+        let good: IpAddr = "1.2.3.4".parse().unwrap();
+        assert_eq!(good, IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)));
+
+        // IPv6 should also parse
+        let good2: IpAddr = "::1".parse().unwrap();
+        assert_eq!(good2, IpAddr::V6(Ipv6Addr::LOCALHOST));
     }
 }

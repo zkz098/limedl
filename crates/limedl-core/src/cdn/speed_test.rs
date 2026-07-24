@@ -86,7 +86,7 @@ impl Default for SpeedTestConfig {
 #[serde(rename_all = "camelCase")]
 pub struct SpeedTestResult {
     #[cfg_attr(feature = "ts", ts(type = "string"))]
-    pub ip: Ipv4Addr,
+    pub ip: IpAddr,
     /// TCP connect latency in milliseconds.
     pub tcp_latency_ms: f64,
     /// Throughput in MB/s (bytes / seconds / 1_000_000), or None if Phase 2 failed.
@@ -98,7 +98,7 @@ pub struct SpeedTestResult {
 impl Default for SpeedTestResult {
     fn default() -> Self {
         Self {
-            ip: Ipv4Addr::UNSPECIFIED,
+            ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             tcp_latency_ms: 0.0,
             throughput_mbps: None,
             error: None,
@@ -121,18 +121,15 @@ pub struct DefaultNodeResult {
 /// Measure the default DNS-resolved node for `speed.cloudflare.com`.
 ///
 /// Resolves the hostname via standard DNS (no IP override), measures TCP latency
-/// to the first resolved IPv4, then measures download throughput with a normal
-/// client. This provides the "unoptimized" baseline for comparison.
+/// to the first resolved IP (IPv4 or IPv6), then measures download throughput with
+/// a normal client. This provides the "unoptimized" baseline for comparison.
 pub async fn measure_default_node(settings: &AppSettings) -> DefaultNodeResult {
     const HOSTNAME: &str = "speed.cloudflare.com";
 
     tracing::info!("default node: measuring baseline for {HOSTNAME}");
 
-    let resolved_ip = match tokio::net::lookup_host(format!("{HOSTNAME}:443")).await {
-        Ok(addrs) => addrs.into_iter().find_map(|a| match a.ip() {
-            std::net::IpAddr::V4(v4) => Some(v4),
-            _ => None,
-        }),
+    let resolved_addr = match tokio::net::lookup_host(format!("{HOSTNAME}:443")).await {
+        Ok(addrs) => addrs.into_iter().next(),
         Err(e) => {
             tracing::warn!("default node: DNS resolution failed: {e}");
             return DefaultNodeResult {
@@ -144,23 +141,23 @@ pub async fn measure_default_node(settings: &AppSettings) -> DefaultNodeResult {
         }
     };
 
-    let ip = match resolved_ip {
-        Some(ip) => ip,
+    let addr = match resolved_addr {
+        Some(a) => a,
         None => {
-            tracing::warn!("default node: no IPv4 address resolved");
+            tracing::warn!("default node: no address resolved");
             return DefaultNodeResult {
                 ip: None,
                 tcp_latency_ms: 0.0,
                 throughput_mbps: None,
-                error: Some("no IPv4 address resolved".into()),
+                error: Some("no address resolved".into()),
             };
         }
     };
 
+    let ip = addr.ip();
     tracing::info!("default node: DNS resolved to {ip}");
 
-    let latency =
-        measure_tcp_latency(SocketAddr::new(IpAddr::V4(ip), 443), Duration::from_secs(5)).await;
+    let latency = measure_tcp_latency(addr, Duration::from_secs(5)).await;
 
     let tcp_latency_ms = latency.map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0);
 
@@ -235,8 +232,9 @@ fn build_throughput_client(
 /// then streams `url` for up to `SPEED_TEST_DURATION`. Returns
 /// `(bytes_downloaded, elapsed_ms)`. On timeout the partial bytes
 /// accumulated so far are returned instead of an error.
+/// Accepts both IPv4 and IPv6 addresses.
 pub async fn measure_throughput(
-    ip: Ipv4Addr,
+    ip: IpAddr,
     hostname: &str,
     url: &str,
     settings: &AppSettings,
@@ -249,7 +247,7 @@ pub async fn measure_throughput(
         .port()
         .unwrap_or_else(|| if parsed.scheme() == "https" { 443 } else { 80 });
 
-    let addr = SocketAddr::new(IpAddr::V4(ip), port);
+    let addr = SocketAddr::new(ip, port);
     let client = build_throughput_client(hostname, addr, settings)?;
 
     let start = Instant::now();
@@ -340,15 +338,15 @@ pub async fn measure_tcp_latency(addr: SocketAddr, connect_timeout: Duration) ->
     }
 }
 
-/// Screen a list of candidate IPv4 addresses by TCP connect latency.
+/// Screen a list of candidate IP addresses (IPv4 or IPv6) by TCP connect latency.
 ///
 /// Tests up to `concurrency` IPs simultaneously on port 443 (HTTPS).
 /// Returns reachable IPs sorted by latency ascending (fastest first).
 pub async fn screen_candidates(
-    ips: &[Ipv4Addr],
+    ips: &[IpAddr],
     concurrency: usize,
     connect_timeout: Duration,
-) -> Vec<(Ipv4Addr, Duration)> {
+) -> Vec<(IpAddr, Duration)> {
     tracing::info!(
         "screening start: {} IPs, concurrency={concurrency}",
         ips.len()
@@ -362,7 +360,7 @@ pub async fn screen_candidates(
             break;
         };
         join_set.spawn(async move {
-            let addr = SocketAddr::new(IpAddr::V4(ip), 443);
+            let addr = SocketAddr::new(ip, 443);
             (ip, measure_tcp_latency(addr, connect_timeout).await)
         });
     }
@@ -373,7 +371,7 @@ pub async fn screen_candidates(
         }
         if let Some(ip) = ip_iter.next() {
             join_set.spawn(async move {
-                let addr = SocketAddr::new(IpAddr::V4(ip), 443);
+                let addr = SocketAddr::new(ip, 443);
                 (ip, measure_tcp_latency(addr, connect_timeout).await)
             });
         }
@@ -393,7 +391,7 @@ pub async fn screen_candidates(
 
 /// Run the two-phase speed test orchestrator.
 ///
-/// Phase 1 — TCP connect-latency screening of all `ips`.
+/// Phase 1 — TCP connect-latency screening of all `ips` (both IPv4 and IPv6).
 /// Phase 2 — HTTPS throughput measurement for the top N candidates
 /// (concurrent via `JoinSet`). Results are sorted by throughput
 /// descending (None sorts last), tie-broken by TCP latency ascending.
@@ -401,7 +399,7 @@ pub async fn screen_candidates(
 /// If `progress` is provided, it is called at phase transitions
 /// and as each candidate completes Phase 2 throughput testing.
 pub async fn run_speed_test(
-    ips: &[Ipv4Addr],
+    ips: &[IpAddr],
     config: &SpeedTestConfig,
     settings: &AppSettings,
     progress: Option<ProgressFn>,
@@ -421,7 +419,7 @@ pub async fn run_speed_test(
         p(CdnTestPhase::Screening, total_ips, total_ips);
     }
 
-    let top_n: Vec<(Ipv4Addr, Duration)> = candidates
+    let top_n: Vec<(IpAddr, Duration)> = candidates
         .into_iter()
         .take(config.top_n_candidates)
         .collect();
@@ -566,7 +564,9 @@ mod tests {
     #[tokio::test]
     async fn test_screen_candidates_concurrent() {
         // Class-E reserved (240.0.0.0/4) — unroutable on any normal network.
-        let ips: Vec<Ipv4Addr> = (0..10).map(|i| Ipv4Addr::new(240, 0, 0, i + 1)).collect();
+        let ips: Vec<IpAddr> = (0..10)
+            .map(|i| IpAddr::V4(Ipv4Addr::new(240, 0, 0, i + 1)))
+            .collect();
 
         let results = screen_candidates(&ips, 5, Duration::from_secs(2)).await;
         assert!(
@@ -603,7 +603,7 @@ mod tests {
         let url = format!("http://127.0.0.1:{}/test", port);
         let settings = AppSettings::default();
 
-        let result = measure_throughput(Ipv4Addr::LOCALHOST, "127.0.0.1", &url, &settings).await;
+        let result = measure_throughput(IpAddr::V4(Ipv4Addr::LOCALHOST), "127.0.0.1", &url, &settings).await;
 
         assert!(
             result.is_ok(),
@@ -617,7 +617,7 @@ mod tests {
     #[ignore = "network-dependent: TEST-NET-1 (192.0.2.0/24) may be intercepted by proxies/VPNs in some environments"]
     async fn test_throughput_unreachable() {
         // 192.0.2.0/24 is TEST-NET-1 — RFC 5737 reserved, never routable
-        let unreachable = Ipv4Addr::new(192, 0, 2, 1);
+        let unreachable = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1));
         let settings = AppSettings::default();
 
         let result = measure_throughput(
@@ -644,7 +644,9 @@ mod tests {
     #[tokio::test]
     async fn test_orchestrator_all_unreachable() {
         // Class-E reserved (240.0.0.0/4) — unroutable on any normal network.
-        let ips: Vec<Ipv4Addr> = (1..=5).map(|i| Ipv4Addr::new(240, 0, 0, i)).collect();
+        let ips: Vec<IpAddr> = (1..=5)
+            .map(|i| IpAddr::V4(Ipv4Addr::new(240, 0, 0, i)))
+            .collect();
         let config = SpeedTestConfig::default();
         let settings = AppSettings::default();
 
@@ -678,9 +680,6 @@ mod tests {
                 tokio::spawn(async move {
                     let mut buf = [0u8; 4];
                     let n = stream.read(&mut buf).await.unwrap_or(0);
-                    // Serve plain HTTP if it's an HTTP request (Phase 2
-                    // will fail TLS anyway, but we keep the handler for
-                    // completeness).
                     if n > 0 && &buf[..n] == b"GET " {
                         let body = vec![b'X'; 512 * 1024];
                         let headers = format!(
@@ -699,9 +698,9 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let ips = vec![
-            Ipv4Addr::LOCALHOST,
-            Ipv4Addr::LOCALHOST,
-            Ipv4Addr::LOCALHOST,
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
         ];
         let config = SpeedTestConfig {
             top_n_candidates: 3,
@@ -717,7 +716,7 @@ mod tests {
         );
 
         for r in &results {
-            assert_eq!(r.ip, Ipv4Addr::LOCALHOST);
+            assert_eq!(r.ip, IpAddr::V4(Ipv4Addr::LOCALHOST));
             assert!(r.tcp_latency_ms >= 0.0);
             // Phase 2 fails because our server is plain TCP, not TLS.
             assert!(
@@ -739,11 +738,11 @@ mod tests {
     #[tokio::test]
     async fn test_orchestrator_partial_failures() {
         // Mix class-E (unreachable) + localhost (reachable if :443 open).
-        let ips: Vec<Ipv4Addr> = [
-            Ipv4Addr::new(240, 0, 0, 1),
-            Ipv4Addr::new(240, 0, 0, 2),
-            Ipv4Addr::LOCALHOST,
-            Ipv4Addr::new(240, 0, 0, 3),
+        let ips: Vec<IpAddr> = [
+            IpAddr::V4(Ipv4Addr::new(240, 0, 0, 1)),
+            IpAddr::V4(Ipv4Addr::new(240, 0, 0, 2)),
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            IpAddr::V4(Ipv4Addr::new(240, 0, 0, 3)),
         ]
         .to_vec();
 
@@ -754,12 +753,13 @@ mod tests {
 
         // Class-E IPs must never appear — they fail Phase 1.
         for r in &results {
-            let octets = r.ip.octets();
-            assert!(
-                octets[0] != 240,
-                "class-E IP {:?} must not appear in results",
-                r.ip
-            );
+            if let IpAddr::V4(v4) = r.ip {
+                assert!(
+                    v4.octets()[0] != 240,
+                    "class-E IP {:?} must not appear in results",
+                    r.ip
+                );
+            }
         }
 
         // If localhost was reachable (port 443 open), results are non-empty.

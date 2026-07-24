@@ -1,4 +1,4 @@
-﻿use std::net::Ipv4Addr;
+﻿use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use crate::cdn::accelerator::{AccelState, CdnAccelerator};
@@ -20,7 +20,7 @@ async fn smoke_accelerator_lifecycle() {
     assert!(acc.candidates().await.is_empty());
 
     // ── Apply an IP → Ready ──────────────────────────────────────
-    let ip = Ipv4Addr::new(192, 168, 1, 1);
+    let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1));
     let settings = AppSettings::default();
     acc.apply_ip(ip, 250.0, &settings).await.unwrap();
 

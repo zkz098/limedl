@@ -20,6 +20,7 @@ mod common;
 use std::env;
 use std::fs::{self, File};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use bytes::Bytes;
@@ -43,6 +44,15 @@ fn zero_chunk() -> Bytes {
     Bytes::from(vec![0u8; CHUNK_SIZE])
 }
 
+/// Monotonically increasing counter for unique temp file names.
+static FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_name(prefix: &str) -> String {
+    let id = FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path = disk_path();
+    format!("{path}/limedl_bench_{prefix}_{id}.tmp")
+}
+
 // ── HDD double-buffer benchmark ─────────────────────────────────────────────
 //
 // Creates a new `BufferPool`, acquires a slot, writes 100 MB via the
@@ -51,7 +61,6 @@ fn zero_chunk() -> Bytes {
 
 fn bench_double_hdd(c: &mut Criterion) {
     let harness = BenchHarness::new(1024); // file size irrelevant — just needs runtime
-    let path = disk_path();
     let chunk = zero_chunk();
 
     let mut group = c.benchmark_group("buffer_pool");
@@ -64,7 +73,7 @@ fn bench_double_hdd(c: &mut Criterion) {
                 for _ in 0..iters {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
-                    let file_path = format!("{path}/limedl_bench_hdd_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = unique_temp_name("hdd");
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = DownloadBuffer::new(pool.clone(), slot, file.clone());
 
@@ -97,7 +106,6 @@ fn bench_double_hdd(c: &mut Criterion) {
 
 fn bench_local_ssd(c: &mut Criterion) {
     let harness = BenchHarness::new(1024);
-    let path = disk_path();
     let chunk = zero_chunk();
 
     let mut group = c.benchmark_group("buffer_pool");
@@ -108,7 +116,7 @@ fn bench_local_ssd(c: &mut Criterion) {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
-                    let file_path = format!("{path}/limedl_bench_ssd_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = unique_temp_name("ssd");
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = DownloadBuffer::new_local(8 * 1024 * 1024, file.clone());
 
@@ -139,7 +147,6 @@ fn bench_local_ssd(c: &mut Criterion) {
 
 fn bench_direct_write(c: &mut Criterion) {
     let harness = BenchHarness::new(1024);
-    let path = disk_path();
     let chunk = zero_chunk();
 
     let mut group = c.benchmark_group("buffer_pool");
@@ -150,8 +157,7 @@ fn bench_direct_write(c: &mut Criterion) {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
-                    let file_path =
-                        format!("{path}/limedl_bench_direct_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = unique_temp_name("direct");
                     let mut file = File::create(&file_path).unwrap();
 
                     for i in 0..CHUNK_COUNT {
@@ -194,7 +200,6 @@ fn bench_direct_write(c: &mut Criterion) {
 
 fn bench_multi_stream_random(c: &mut Criterion) {
     let harness = BenchHarness::new(1024);
-    let path = disk_path();
     let chunk = zero_chunk();
 
     // Pre‑compute interleaved offsets: reverse order to maximise seeks.
@@ -214,8 +219,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                 for _ in 0..iters {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
-                    let file_path =
-                        format!("{path}/limedl_bench_mshdd_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = unique_temp_name("mshdd");
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = Arc::new(DownloadBuffer::new(pool.clone(), slot, file.clone()));
 
@@ -252,8 +256,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
-                    let file_path =
-                        format!("{path}/limedl_bench_msssd_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = unique_temp_name("msssd");
                     let file = Arc::new(File::create(&file_path).unwrap());
                     let buffer = Arc::new(DownloadBuffer::new_local(8 * 1024 * 1024, file.clone()));
 
@@ -290,8 +293,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
-                    let file_path =
-                        format!("{path}/limedl_bench_msdirect_{}.tmp", uuid::Uuid::new_v4());
+                    let file_path = unique_temp_name("msdirect");
                     let file = Arc::new(File::create(&file_path).unwrap());
 
                     const STREAMS: usize = 4;

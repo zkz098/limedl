@@ -425,6 +425,8 @@ async fn bootstrap_env(tmp: &tempfile::TempDir) -> (CoreSystems, AppState) {
         cdn_service: core.cdn_service.clone(),
         rpc_shutdown: Arc::new(parking_lot::Mutex::new(None)),
         settings: Arc::new(parking_lot::RwLock::new(core.settings.clone())),
+        emit_cancel: tokio_util::sync::CancellationToken::new(),
+        http_client: reqwest::Client::new(),
     };
     (core, state)
 }

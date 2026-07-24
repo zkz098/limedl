@@ -1,6 +1,6 @@
 ﻿#![allow(dead_code)]
 
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -8,7 +8,7 @@ use std::time::Instant;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use crate::cdn::ip_ranges::{IpRangesCache, get_ip_ranges};
+use crate::cdn::ip_ranges::{CdnIpCache, get_ip_ranges};
 use crate::cdn::resolver::build_accelerated_client;
 use crate::cdn::speed_test::{
     CdnTestPhase, DefaultNodeResult, SpeedTestConfig, SpeedTestResult, measure_default_node,
@@ -38,7 +38,7 @@ const PHASE_NONE: u8 = 0xFF;
 /// spawn background tasks.
 pub struct CdnAccelerator {
     state: RwLock<AccelState>,
-    active_ip: RwLock<Option<Ipv4Addr>>,
+    active_ip: RwLock<Option<IpAddr>>,
     active_speed_mbps: RwLock<Option<f64>>,
     cancel_token: RwLock<Option<CancellationToken>>,
     accelerated_client: RwLock<Option<reqwest::Client>>,
@@ -50,6 +50,9 @@ pub struct CdnAccelerator {
     phase_progress_total: AtomicU64,
     all_candidates: RwLock<Vec<SpeedTestResult>>,
     default_node: RwLock<Option<DefaultNodeResult>>,
+    /// Shared IP range cache — populated by `start_test()` and available
+    /// for `is_cloudflare_domain()` from `resolve_client()`.
+    ip_cache: RwLock<Option<CdnIpCache>>,
 }
 
 impl Default for CdnAccelerator {
@@ -72,6 +75,7 @@ impl CdnAccelerator {
             phase_progress_total: AtomicU64::new(0),
             all_candidates: RwLock::new(Vec::new()),
             default_node: RwLock::new(None),
+            ip_cache: RwLock::new(None),
         }
     }
 
@@ -110,8 +114,11 @@ impl CdnAccelerator {
             this.phase_progress_current.store(0, Ordering::Release);
             this.phase_progress_total.store(0, Ordering::Release);
 
-            let ip_cache = Arc::new(tokio::sync::Mutex::new(IpRangesCache {
-                ips: Vec::new(),
+            let ip_cache = Arc::new(tokio::sync::Mutex::new(CdnIpCache {
+                ipv4_addrs: Vec::new(),
+                ipv6_addrs: Vec::new(),
+                ipv4_cidrs: Vec::new(),
+                ipv6_cidrs: Vec::new(),
                 fetched_at: Instant::now(),
                 from_fallback: true,
             }));
@@ -123,14 +130,19 @@ impl CdnAccelerator {
                 *this.state.write().await = AccelState::Idle;
                 this.phase_atomic.store(PHASE_NONE, Ordering::Release);
                 this.phase_progress_current.store(0, Ordering::Release);
-            this.phase_progress_total.store(0, Ordering::Release);
+                this.phase_progress_total.store(0, Ordering::Release);
                 return;
             }
 
-            let ips = range_data.ips;
+            // Store the fetched cache for use by is_cloudflare_domain().
+            *this.ip_cache.write().await = Some(range_data.clone());
+
+            let ips = range_data.all_addrs();
             tracing::info!(
-                "cdn test: got {} IPs (fallback={})",
+                "cdn test: got {} IPs (v4={} v6={} fallback={})",
                 ips.len(),
+                range_data.ipv4_addrs.len(),
+                range_data.ipv6_addrs.len(),
                 range_data.from_fallback,
             );
 
@@ -139,7 +151,7 @@ impl CdnAccelerator {
                 *this.state.write().await = AccelState::Error("no Cloudflare IPs available".into());
                 this.phase_atomic.store(PHASE_NONE, Ordering::Release);
                 this.phase_progress_current.store(0, Ordering::Release);
-            this.phase_progress_total.store(0, Ordering::Release);
+                this.phase_progress_total.store(0, Ordering::Release);
                 return;
             }
 
@@ -187,7 +199,7 @@ impl CdnAccelerator {
                 *this.state.write().await = AccelState::Idle;
                 this.phase_atomic.store(PHASE_NONE, Ordering::Release);
                 this.phase_progress_current.store(0, Ordering::Release);
-            this.phase_progress_total.store(0, Ordering::Release);
+                this.phase_progress_total.store(0, Ordering::Release);
                 return;
             }
 
@@ -289,7 +301,7 @@ impl CdnAccelerator {
     /// move the state to [`AccelState::Ready`].
     pub async fn apply_ip(
         &self,
-        ip: Ipv4Addr,
+        ip: IpAddr,
         speed_mbps: f64,
         settings: &AppSettings,
     ) -> anyhow::Result<()> {
@@ -316,7 +328,7 @@ impl CdnAccelerator {
         let Some(ip_str) = cdn.active_ip.as_deref() else {
             return;
         };
-        let Ok(ip) = ip_str.parse::<Ipv4Addr>() else {
+        let Ok(ip) = ip_str.parse::<IpAddr>() else {
             tracing::warn!("cdn init: invalid persisted IP '{ip_str}', clearing");
             return;
         };
@@ -355,7 +367,7 @@ impl CdnAccelerator {
     }
 
     /// Return the active accelerated IP, or None if not set.
-    pub async fn active_ip(&self) -> Option<Ipv4Addr> {
+    pub async fn active_ip(&self) -> Option<IpAddr> {
         *self.active_ip.read().await
     }
 
@@ -390,11 +402,20 @@ impl CdnAccelerator {
     pub async fn default_node(&self) -> Option<DefaultNodeResult> {
         self.default_node.read().await.clone()
     }
+
+    /// Return a clone of the IP range cache, or None if no test has run yet.
+    ///
+    /// Used by [`crate::cdn::resolver::is_cloudflare_domain`] to check
+    /// Cloudflare CIDR membership with live (rather than static) data.
+    pub async fn ip_cache(&self) -> Option<CdnIpCache> {
+        self.ip_cache.read().await.clone()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::Ipv4Addr;
 
     /// Smoke: verify initial state and basic lifecycle via `apply_ip` / `clear`.
     #[tokio::test]
@@ -407,9 +428,10 @@ mod tests {
         assert!(acc.phase().await.is_none());
         assert_eq!(acc.phase_progress().await, (0, 0));
         assert!(acc.candidates().await.is_empty());
+        assert!(acc.ip_cache().await.is_none());
 
         // ── Apply IP → Ready ─────────────────────────────────────
-        let ip = Ipv4Addr::new(127, 0, 0, 1);
+        let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let settings = AppSettings::default();
         acc.apply_ip(ip, 100.0, &settings).await.unwrap();
 
@@ -451,7 +473,7 @@ mod tests {
     #[tokio::test]
     async fn test_clear_drops_client() {
         let acc = Arc::new(CdnAccelerator::new());
-        let ip = Ipv4Addr::new(127, 0, 0, 1);
+        let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let settings = AppSettings::default();
 
         acc.apply_ip(ip, 50.0, &settings).await.unwrap();
@@ -482,7 +504,7 @@ mod tests {
 
         // Simulate storing a result by writing directly.
         let result = SpeedTestResult {
-            ip: Ipv4Addr::new(1, 2, 3, 4),
+            ip: IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)),
             tcp_latency_ms: 5.0,
             throughput_mbps: Some(100.0),
             error: None,
@@ -491,7 +513,7 @@ mod tests {
 
         let stored = acc.candidates().await;
         assert_eq!(stored.len(), 1);
-        assert_eq!(stored[0].ip, Ipv4Addr::new(1, 2, 3, 4));
+        assert_eq!(stored[0].ip, IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)));
         assert_eq!(stored[0].tcp_latency_ms, 5.0);
         assert_eq!(stored[0].throughput_mbps, Some(100.0));
 

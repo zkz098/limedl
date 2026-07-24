@@ -1,7 +1,7 @@
 use std::process::Command;
 use std::{
     fs, io,
-    net::Ipv4Addr,
+    net::IpAddr,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -117,7 +117,7 @@ pub struct HttpClientInfra {
     /// Base HTTP client (reqwest), rebuilt when proxy/user-agent changes.
     client: Arc<RwLock<Client>>,
     /// CDN client cache keyed by (hostname, IP) for accelerated domain connections.
-    pub cdn_client_cache: Arc<ParkingRwLock<HashMap<(String, Ipv4Addr), Client>>>,
+    pub cdn_client_cache: Arc<ParkingRwLock<HashMap<(String, IpAddr), Client>>>,
     /// Optional CDN accelerator for Cloudflare IP probing and DNS rewriting.
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
 }
@@ -436,7 +436,17 @@ impl DownloadManager {
             return (self.http.client.read().await.clone(), false);
         }
 
-        if !super::cdn::is_cloudflare_domain(url).await {
+        // Get IP range cache from the accelerator (or None if no test has run yet).
+        // `is_cloudflare_domain` will fall back to static ranges when cache is None.
+        let ip_range_cache = {
+            let guard = self.http.cdn_accelerator.read().await;
+            match guard.as_ref() {
+                Some(acc) => acc.ip_cache().await,
+                None => None,
+            }
+        };
+
+        if !super::cdn::is_cloudflare_domain(url, ip_range_cache.as_ref()).await {
             tracing::debug!("resolve_client: domain is not Cloudflare, using standard client");
             return (self.http.client.read().await.clone(), false);
         }
@@ -459,11 +469,11 @@ impl DownloadManager {
                 }
                 None => cdn_active_ip
                     .as_deref()
-                    .and_then(|s| s.parse::<std::net::Ipv4Addr>().ok()),
+                    .and_then(|s| s.parse::<std::net::IpAddr>().ok()),
             },
             None => cdn_active_ip
                 .as_deref()
-                .and_then(|s| s.parse::<std::net::Ipv4Addr>().ok()),
+                .and_then(|s| s.parse::<std::net::IpAddr>().ok()),
         };
 
         if let Some(ip) = ip {

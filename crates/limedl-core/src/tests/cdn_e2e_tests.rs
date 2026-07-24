@@ -169,7 +169,7 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
     // Verify the test domain IS a Cloudflare domain
     let test_url = "https://www.cloudflare.com/";
     assert!(
-        crate::cdn::is_cloudflare_domain(test_url).await,
+        crate::cdn::is_cloudflare_domain(test_url, None).await,
         "www.cloudflare.com should be detected as a Cloudflare domain — is DNS working?"
     );
 
