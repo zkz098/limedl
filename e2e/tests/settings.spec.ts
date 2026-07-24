@@ -130,18 +130,20 @@ test.describe("Settings page", () => {
     const tabList = page.locator(".settings-page__tabs");
     await expect(tabList).toBeVisible();
 
-    // All tab labels should be present
-    const tabNames = [
-      "Appearance",
-      "Scheduler",
-      "Downloads",
-      "BT",
-      "Aria2 RPC",
-      "Logging",
-      "Proxy",
-      "About",
-    ];
-    for (const name of tabNames) {
+    // Common tabs should be visible immediately
+    const commonTabs = ["Appearance", "Downloads", "Proxy", "About"];
+    for (const name of commonTabs) {
+      await expect(tabList.getByRole("tab", { name })).toBeVisible();
+    }
+
+    // Advanced tabs are collapsed by default — expand them
+    const advancedToggle = page.locator(".settings-page__advanced-toggle");
+    await expect(advancedToggle).toBeVisible();
+    await advancedToggle.click();
+
+    // Now advanced tabs should be visible
+    const advancedTabs = ["Scheduler", "BT", "I/O", "Aria2 RPC", "Logging"];
+    for (const name of advancedTabs) {
       await expect(tabList.getByRole("tab", { name })).toBeVisible();
     }
 
