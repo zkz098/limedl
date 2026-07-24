@@ -15,6 +15,7 @@
         "title": "limedl",
         "width": 1440,
         "height": 920,
+        "maximized": true,
         "minWidth": 1180,
         "minHeight": 760
       }
