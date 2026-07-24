@@ -1,6 +1,8 @@
 import i18next from "i18next";
 import { computed, readonly, ref } from "vue";
 
+import { invoke } from "#invoke";
+
 import { resources, supportedLanguages, type SupportedLanguage } from "./resources";
 
 const storageKey = "limedl.language";
@@ -64,6 +66,13 @@ export async function setLanguage(language: SupportedLanguage) {
   currentLanguage.value = language;
   localStorage.setItem(storageKey, language);
   document.documentElement.lang = language;
+
+  // Update system tray menu language (desktop only — no-op in NAS/web mode)
+  try {
+    await invoke("update_tray_language", { language });
+  } catch {
+    // Tray update is non-critical — silently ignore
+  }
 }
 
 document.documentElement.lang = currentLanguage.value;

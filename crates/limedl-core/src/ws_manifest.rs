@@ -315,6 +315,13 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         param_transform: ParamTransform::Identity,
         safety: SafetyClass::Safe,
     },
+    // ── System tray ──────────────────────────────────────────────────────
+    WsCommandSpec {
+        tauri_name: "update_tray_language",
+        rpc_method: "tray.updateLanguage",
+        param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
+    },
 ];
 
 /// Classify a JSON-RPC method as Safe or Mutating based on `WS_COMMANDS`.

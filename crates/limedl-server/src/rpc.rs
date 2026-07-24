@@ -430,8 +430,24 @@ async fn dispatch_method(
         | "cdn_clear" | "cdn_cancel" | "cdn_candidates" => {
             handle_cdn_routes(method, params, state).await
         }
+        "update_tray_language" => handle_update_tray_language(params, state).await,
         _ => Err(JsonRpcError::method_not_found(method)),
     }
+}
+
+// ── Handler: tray.updateLanguage ────────────────────────────────────
+
+async fn handle_update_tray_language(
+    params: Option<&serde_json::Value>,
+    _state: &RpcState,
+) -> Result<serde_json::Value, JsonRpcError> {
+    let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
+    let _language = params
+        .get("language")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| JsonRpcError::invalid_params("Missing language"))?;
+    // NAS/web mode has no system tray — no-op
+    Ok(serde_json::json!(true))
 }
 
 // ── Handler: download.start ────────────────────────────────────────

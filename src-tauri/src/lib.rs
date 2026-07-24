@@ -81,6 +81,103 @@ fn map_event_to_emit(event: &DownloadEvent) -> (&str, serde_json::Value) {
     }
 }
 
+#[tauri::command]
+async fn update_tray_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
+    use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+    use download::manager::DownloadManager;
+    use download::types::DownloadState;
+
+    let state = app.state::<AppState>();
+
+    // Check download state for Pause/Resume All
+    let has_active = if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
+        if let Ok(list) = dm.list().await {
+            list.iter().any(|s| matches!(s.state, DownloadState::Downloading))
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    // Read current settings
+    let settings = state.settings.read();
+    let speed_limit_active = settings.global_speed_limit_bps > 0;
+    let game_mode = if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
+        dm.game_mode()
+    } else {
+        false
+    };
+    drop(settings);
+
+    let is_zh = language.as_str() == "zh-CN";
+
+    // Build menu items
+    let show_text = if is_zh { "显示窗口" } else { "Show Window" };
+    let show = MenuItemBuilder::with_id("show", show_text)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let sep1 = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+
+    let (pause_text, pause_id) = if has_active {
+        (
+            if is_zh { "暂停全部下载" } else { "Pause All" },
+            "pause_all",
+        )
+    } else {
+        (
+            if is_zh { "恢复全部下载" } else { "Resume All" },
+            "resume_all",
+        )
+    };
+    let pause = MenuItemBuilder::with_id(pause_id, pause_text)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let speed_text = if is_zh { "限速模式" } else { "Speed Limit" };
+    let speed = CheckMenuItemBuilder::with_id("speed_limit", speed_text)
+        .checked(speed_limit_active)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let open_text = if is_zh { "打开下载目录" } else { "Open Download Dir" };
+    let open = MenuItemBuilder::with_id("open_dir", open_text)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let game_text = if is_zh { "游戏模式" } else { "Game Mode" };
+    let game = CheckMenuItemBuilder::with_id("game_mode", game_text)
+        .checked(game_mode)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let sep2 = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+
+    let quit_text = if is_zh { "退出" } else { "Quit" };
+    let quit = MenuItemBuilder::with_id("quit", quit_text)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let menu = MenuBuilder::new(&app)
+        .item(&show)
+        .item(&sep1)
+        .item(&pause)
+        .item(&speed)
+        .item(&open)
+        .item(&game)
+        .item(&sep2)
+        .item(&quit)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        tray.set_menu(Some(menu))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -224,7 +321,7 @@ pub fn run() {
             {
                 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 
-                let mut tray_builder = TrayIconBuilder::new()
+                let mut tray_builder = TrayIconBuilder::with_id("main-tray")
                     .tooltip("limedl")
                     .show_menu_on_left_click(false)
                     .on_tray_icon_event(|tray, event| {
@@ -250,8 +347,10 @@ pub fn run() {
 
                 let tray = tray_builder.build(app)?;
 
-                let show_item = MenuItemBuilder::with_id("show", "Show Window").build(app)?;
-                let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+                let show_text = "Show Window";
+                let quit_text = "Quit";
+                let show_item = MenuItemBuilder::with_id("show", show_text).build(app)?;
+                let quit_item = MenuItemBuilder::with_id("quit", quit_text).build(app)?;
                 let menu = MenuBuilder::new(app)
                     .item(&show_item)
                     .item(&quit_item)
@@ -259,17 +358,96 @@ pub fn run() {
                 tray.set_menu(Some(menu))?;
 
                 let app_handle_menu = app.handle().clone();
-                tray.on_menu_event(move |_tray, event| match event.id().as_ref() {
-                    "show" => {
-                        if let Some(window) = app_handle_menu.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                tray.on_menu_event(move |_tray, event| {
+                    let app = app_handle_menu.clone();
+                    match event.id().as_ref() {
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
                         }
+                        "pause_all" | "resume_all" => {
+                            tauri::async_runtime::spawn(async move {
+                                use download::{Dispatcher, types::TaskId, types::DownloadState};
+
+                                let state = app.state::<AppState>();
+                                let dispatcher = Dispatcher::new(
+                                    state.registry.clone(),
+                                    state.event_bus.clone(),
+                                );
+                                if let Ok(list) = dispatcher.list().await {
+                                    let has_active = list
+                                        .iter()
+                                        .any(|s| matches!(s.state, DownloadState::Downloading));
+                                    for s in &list {
+                                        if let Ok(task_id) =
+                                            TaskId::from_legacy_string(&s.id)
+                                        {
+                                            if has_active
+                                                && matches!(s.state, DownloadState::Downloading)
+                                            {
+                                                let _ = dispatcher.pause(&task_id).await;
+                                            } else if !has_active
+                                                && matches!(s.state, DownloadState::Paused)
+                                            {
+                                                let _ = dispatcher.resume(&task_id).await;
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        "speed_limit" => {
+                            tauri::async_runtime::spawn(async move {
+                                use download::manager::DownloadManager;
+
+                                let state = app.state::<AppState>();
+                                let new_limit = {
+                                    let mut settings = state.settings.write();
+                                    if settings.global_speed_limit_bps > 0 {
+                                        settings.global_speed_limit_bps = 0;
+                                        0
+                                    } else {
+                                        settings.global_speed_limit_bps = 1_048_576;
+                                        1_048_576
+                                    }
+                                };
+                                if new_limit > 0
+                                    && let Some(dm) =
+                                        state.registry.get_typed::<DownloadManager>()
+                                {
+                                    let s = state.settings.read().clone();
+                                    let _ = dm.apply_settings(s).await;
+                                }
+                            });
+                        }
+                        "open_dir" => {
+                            let state = app.state::<AppState>();
+                            let dir = state
+                                .settings
+                                .read()
+                                .download
+                                .default_download_dir
+                                .clone();
+                            if !dir.is_empty() {
+                                let _ = tauri_plugin_opener::open_path(dir, None::<&str>);
+                            }
+                        }
+                        "game_mode" => {
+                            tauri::async_runtime::spawn(async move {
+                                use download::manager::DownloadManager;
+
+                                let state = app.state::<AppState>();
+                                if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
+                                    let current = dm.game_mode();
+                                    dm.set_game_mode(!current);
+                                }
+                            });
+                        }
+                        "quit" => app.exit(0),
+                        _ => {}
                     }
-                    "quit" => {
-                        app_handle_menu.exit(0);
-                    }
-                    _ => {}
                 });
             }
 
@@ -332,6 +510,7 @@ pub fn run() {
             toggle_overclock_mode,
             get_overclock_mode,
             detect_disk_type,
+            update_tray_language,
         ])
         .run(tauri::generate_context!());
 
