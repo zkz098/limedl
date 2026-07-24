@@ -7,7 +7,7 @@ const activeTrigger = ref<HTMLElement | null>(null);
 
 <script setup lang="ts">
 import { arrow, autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
-import { computed, nextTick, onUnmounted, ref, useId, watch } from "vue";
+import { computed, nextTick, onUnmounted, useId, watch } from "vue";
 import { useFloatingClose } from "../../composables/useFloatingClose";
 import { t } from "../../i18n";
 

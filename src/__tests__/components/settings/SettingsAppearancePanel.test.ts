@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive, nextTick } from "vue";
 import SettingsAppearancePanel from "../../../components/settings/SettingsAppearancePanel.vue";
+import type { ColorMode, BackgroundOpacityPreset } from "../../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -55,14 +56,14 @@ const languageOptions = [
   { label: "中文", value: "zh-CN" },
 ];
 
-const colorModeOptions = [
+const colorModeOptions: { label: string; value: ColorMode }[] = [
   { label: "System", value: "system" },
   { label: "Light", value: "light" },
   { label: "Dark", value: "dark" },
 ];
 
-const backgroundOpacityOptions = [
-  { label: "100%", value: "100" },
+const backgroundOpacityOptions: { label: string; value: BackgroundOpacityPreset }[] = [
+  { label: "100%", value: "default" },
   { label: "Acrylic", value: "acrylic" },
   { label: "Frosted", value: "frosted" },
 ];
@@ -72,11 +73,11 @@ const backgroundOpacityOptions = [
 function createDraft() {
   return reactive({
     appearance: {
-      colorMode: "system",
-      themeColor: "amber",
-      backgroundOpacity: "100",
+      colorMode: "system" as const,
+      themeColor: "amber" as const,
+      backgroundOpacity: "default" as const,
       showDetailInfo: true,
-      closeBehavior: "minimizeToTray",
+      closeBehavior: "minimizeToTray" as const,
     },
     notifications: { enabled: true },
     autostart: false,
