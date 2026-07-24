@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive, nextTick } from "vue";
 import SettingsAppearancePanel from "../../../components/settings/SettingsAppearancePanel.vue";
-import type { ColorMode, BackgroundOpacityPreset } from "../../../types/settings";
+import type { AppSettings, ColorMode, BackgroundOpacityPreset } from "../../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -70,24 +70,105 @@ const backgroundOpacityOptions: { label: string; value: BackgroundOpacityPreset 
 
 // ── Fixture ────────────────────────────────────────────────────────
 
-function createDraft() {
-  return reactive({
+function createSettings(): AppSettings {
+  return {
+    globalSpeedLimitBps: 0,
     appearance: {
-      colorMode: "system" as const,
-      themeColor: "amber" as const,
-      backgroundOpacity: "default" as const,
+      themeColor: "lime",
+      backgroundOpacity: "default",
+      colorMode: "system",
       showDetailInfo: true,
-      closeBehavior: "minimizeToTray" as const,
+      showHeatmap: true,
+      sortKey: "added_at",
+      sortDirection: "desc",
+      compactView: false,
+      visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
+      closeBehavior: "minimizeToTray",
     },
+    proxy: { mode: "disabled", manualUrl: "" },
+    scheduler: {
+      mode: "automatic",
+      traditional: { maxParallelTasks: 3 },
+      automatic: {
+        maxParallelThreads: 16,
+        maxThreadsPerTask: 8,
+        minThreadsPerTask: 0,
+        adaptiveProfile: "balanced",
+      },
+      chunkSizeStrategy: "adaptive",
+    },
+    download: {
+      defaultDownloadDir: "",
+      defaultMaxRetries: 5,
+      defaultChecksum: "blake3",
+      defaultUserAgent: "Mozilla/5.0",
+    },
+    bt: {
+      pauseUploadWhenLimitReached: false,
+      uploadLimitBytes: 0,
+      uploadRatioLimit: 0,
+      dhtEnabled: true,
+      trackerList: "",
+      trackerListUrl: "",
+      listenPort: null,
+      listenPortRange: null,
+      upnpEnabled: false,
+      enableNatpmp: true,
+      enableIpv6: true,
+      enablePex: true,
+      enableLsd: true,
+      enableUtp: true,
+      enableFastExtension: true,
+      enableHolepunch: true,
+      enableWebSeed: true,
+      enableSuperSeeding: false,
+      globalDownloadRateLimit: 0,
+      globalUploadRateLimit: 0,
+      preallocateMode: "none",
+      encryptionMode: "enabled",
+      maxDownloads: 3,
+      maxSeeds: 5,
+      maxTorrents: 100,
+      activeLimit: 500,
+    },
+    logging: {
+      enabled: true,
+      level: "info",
+      filePath: "/var/log/limedl.log",
+      retentionCount: null,
+      retentionDays: null,
+    },
+    aria2Rpc: { enabled: true, port: 6800, secret: null, corsAllowedOrigins: [] },
+    cdnAcceleration: {
+      enabled: false,
+      activeIp: null,
+      activeSpeedMbps: null,
+      lastTestAtMs: null,
+      lastError: null,
+    },
+    githubMirror: { enabled: false, mirrors: [] },
     notifications: { enabled: true },
+    ioBaseline: {
+      bufferLimitMb: 1024,
+      gameModeBufferMb: 128,
+      gameMode: false,
+      diskTypeOverrides: {},
+      maxParallelHdd: 4,
+      gameModeMaxParallel: 1,
+      hddBufferEnabled: true,
+    },
     autostart: false,
-  });
+    setupCompleted: true,
+    lastSetupStep: null,
+    maxInMemoryDownloads: 200,
+    speedLimitSchedule: [],
+  };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function mountPanel(props: Record<string, unknown> = {}) {
-  const draft = createDraft();
+function mountPanel(overrides: Record<string, unknown> = {}) {
+  const draft = reactive(createSettings());
   return {
     draft,
     wrapper: mount(SettingsAppearancePanel, {
@@ -98,7 +179,7 @@ function mountPanel(props: Record<string, unknown> = {}) {
         languageOptions,
         colorModeOptions,
         backgroundOpacityOptions,
-        ...props,
+        ...overrides,
       },
       global: { stubs },
     }),
@@ -115,7 +196,7 @@ describe("SettingsAppearancePanel", () => {
   // ── 1. Language ──────────────────────────────────────────────────
 
   it("renders language select with model-value bound to language prop (not draft)", () => {
-    const draft = createDraft();
+    const draft = reactive(createSettings());
     // Set language to zh-CN via prop — draft doesn't have a language field
     const { wrapper } = mountPanel({ language: "zh-CN", draft });
     const selects = wrapper.findAll<HTMLSelectElement>("select.ui-select-stub");
@@ -255,7 +336,7 @@ describe("SettingsAppearancePanel", () => {
     const bgSelect = selects[2];
 
     // Initial value
-    expect(bgSelect.element.value).toBe("100");
+    expect(bgSelect.element.value).toBe("default");
 
     // Change via v-model
     await bgSelect.setValue("acrylic");
