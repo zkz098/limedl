@@ -5,10 +5,7 @@
 
 import type {
   DownloadSnapshot,
-  DownloadState,
   DownloadSummary,
-  TaskKind,
-  ThreadMode,
 } from "../../types/download";
 
 let nextIdCounter = 1;
@@ -169,10 +166,10 @@ export function createMockDownloadSnapshot(
 ): DownloadSnapshot {
   const id = overrides?.id ?? nextId();
 
-  return {
+  const snapshot: DownloadSnapshot = {
     id,
-    kind: "http" as TaskKind,
-    state: "downloading" as DownloadState,
+    kind: "http",
+    state: "downloading",
     url: "https://example.com/file.zip",
     finalUrl: "https://example.com/file.zip",
     fileName: "file.zip",
@@ -182,7 +179,7 @@ export function createMockDownloadSnapshot(
     totalBytes: 10 * 1024 * 1024,
     supportsRanges: true,
     connectionCount: 4,
-    threadMode: "fixed" as ThreadMode,
+    threadMode: "fixed",
     checksumMode: "blake3",
     cdnAccelerated: false,
     degraded: false,
@@ -193,7 +190,8 @@ export function createMockDownloadSnapshot(
     updatedAtMs: Date.now(),
     priority: "normal",
     ...overrides,
-  } as DownloadSnapshot;
+  };
+  return snapshot;
 }
 
 /**

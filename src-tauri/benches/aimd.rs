@@ -8,7 +8,7 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use criterion::{BatchSize, BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use limedl_lib::aimd::{AdaptiveProfile, AimdState, initial_desired_threads, reduce_threads};
 
 // ── sample_throughput ───────────────────────────────────────────────────────
@@ -29,8 +29,8 @@ fn bench_sample_throughput(c: &mut Criterion) {
                 let mut now = t0;
                 for i in 0..100 {
                     now += Duration::from_millis(10);
-                    let bytes = black_box((i as u64 + 1) * 1024 * 1024);
-                    let _ = black_box(state.sample_throughput(bytes, black_box(now)));
+                    let bytes = std::hint::black_box((i as u64 + 1) * 1024 * 1024);
+                    let _ = std::hint::black_box(state.sample_throughput(bytes, std::hint::black_box(now)));
                 }
             },
             BatchSize::SmallInput,
@@ -56,8 +56,8 @@ fn bench_reduce_threads(c: &mut Criterion) {
             profile,
             |b, profile| {
                 b.iter(|| {
-                    let result = reduce_threads(black_box(16), *profile, black_box(1));
-                    black_box(result);
+                    let result = reduce_threads(std::hint::black_box(16), *profile, std::hint::black_box(1));
+                    std::hint::black_box(result);
                 });
             },
         );
@@ -78,10 +78,10 @@ fn bench_convergence_burst(c: &mut Criterion) {
                 let base = Instant::now();
                 for i in 0..200 {
                     // Ramp from 0 to ~200 MB over 200 samples (2 s @ 10 ms each).
-                    let bytes = black_box(i * 1024 * 1024);
-                    let now = black_box(base + Duration::from_millis(i * 10));
+                    let bytes = std::hint::black_box(i * 1024 * 1024);
+                    let now = std::hint::black_box(base + Duration::from_millis(i * 10));
                     if let Some(tp) = state.sample_throughput(bytes, now) {
-                        state.record_sample(black_box(tp));
+                        state.record_sample(std::hint::black_box(tp));
                     }
                 }
             },
@@ -109,7 +109,7 @@ fn bench_initial_desired(c: &mut Criterion) {
             |b, profile| {
                 b.iter(|| {
                     let result = initial_desired_threads(*profile);
-                    black_box(result);
+                    std::hint::black_box(result);
                 });
             },
         );

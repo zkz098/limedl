@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import DownloadComposer from "../../components/limedl/DownloadComposer.vue";
-import type { BatchUrlEntry, BatchSubmitProgress, DownloadFormState } from "../../types/download";
+import type { BatchUrlEntry, DownloadFormState } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ function createProps(overrides: Record<string, unknown> = {}) {
     batchMode: false,
     batchUrls: "",
     batchEntries: [] as BatchUrlEntry[],
-    batchSubmitProgress: { done: 0, total: 0 } as BatchSubmitProgress,
+    batchSubmitProgress: { done: 0, total: 0 },
     ...overrides,
   };
 }

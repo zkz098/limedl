@@ -10,7 +10,7 @@ jobs:
     name: E2E Download Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
@@ -18,7 +18,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Restore main baseline
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: criterion-baseline
           key: criterion-${{ runner.os }}-main-e2e
@@ -45,14 +45,14 @@ jobs:
           fi
 
       - name: Cache baseline
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: criterion-baseline
           key: criterion-${{ runner.os }}-main-e2e
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nightly-bench-report
           path: criterion-baseline/report/

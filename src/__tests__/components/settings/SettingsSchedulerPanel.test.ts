@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive, nextTick } from "vue";
 import SettingsSchedulerPanel from "../../../components/settings/SettingsSchedulerPanel.vue";
-import type { AppSettings, SchedulerMode, AdaptiveProfile } from "../../../types/settings";
+import type { AppSettings } from "../../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -158,13 +158,13 @@ function mountPanel(props: Record<string, unknown> = {}) {
         draft,
         t: (key: string) => key,
         schedulerModeOptions: [
-          { label: "Automatic", value: "automatic" as SchedulerMode },
-          { label: "Traditional", value: "traditional" as SchedulerMode },
+          { label: "Automatic", value: "automatic" },
+          { label: "Traditional", value: "traditional" },
         ],
         adaptiveProfileOptions: [
-          { label: "Conservative", value: "conservative" as AdaptiveProfile },
-          { label: "Balanced", value: "balanced" as AdaptiveProfile },
-          { label: "Aggressive", value: "aggressive" as AdaptiveProfile },
+          { label: "Conservative", value: "conservative" },
+          { label: "Balanced", value: "balanced" },
+          { label: "Aggressive", value: "aggressive" },
         ],
         globalSpeedLimitMiBps: 0,
         ...props,

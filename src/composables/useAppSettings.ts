@@ -1,5 +1,5 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
-import { debounce } from "es-toolkit";
+import { debounce } from "../lib/debounce";
 import { getAppSettings, saveAppSettings } from "../lib/tauri/settings-api";
 import { VALID_COLUMN_KEY_SET, DEFAULT_VISIBLE_COLUMNS } from "../lib/column-defs";
 import type { AppSettings, ColorMode, SortDirection, SortKey } from "../types/settings";

@@ -27,7 +27,7 @@ async fn wait_for_terminal(manager: &DownloadManager, id: &str) -> crate::types:
 }
 
 fn generate_test_content(size: u64) -> Vec<u8> {
-    use rand::RngCore;
+    use rand::Rng;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
     let mut rng = StdRng::seed_from_u64(42);

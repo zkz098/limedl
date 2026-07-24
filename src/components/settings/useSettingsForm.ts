@@ -1,6 +1,6 @@
 import { computed, reactive, ref, watch, type Ref } from "vue";
 
-import type { AppSettings, IoBaselineSettings } from "../../types/settings";
+import type { AppSettings } from "../../types/settings";
 import { serializeSettings, settingsDraftSnapshot } from "./settingsUtils";
 import { DEFAULT_HTTP_USER_AGENT, DEFAULT_TRACKER_LIST_URL } from "./useSettingsSummaries";
 
@@ -227,7 +227,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         maxParallelHdd: Math.max(1, Math.min(16, form.ioBaseline.maxParallelHdd ?? 4)),
         gameModeMaxParallel: Math.max(1, Math.min(8, form.ioBaseline.gameModeMaxParallel ?? 1)),
         hddBufferEnabled: form.ioBaseline.hddBufferEnabled ?? true,
-      } as IoBaselineSettings,
+      },
       autostart: form.autostart ?? false,
       setupCompleted: form.setupCompleted ?? false,
       lastSetupStep: form.lastSetupStep ?? null,

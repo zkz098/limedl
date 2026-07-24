@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 
-use fs4::fs_std::FileExt;
+use fs4::FileExt;
 
 use tracing;
 

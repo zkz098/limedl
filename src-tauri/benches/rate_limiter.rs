@@ -10,7 +10,7 @@ mod common;
 use std::sync::Arc;
 
 use common::BenchHarness;
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use limedl_lib::RateLimiter;
 
 // ── helpers ──────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ fn bench_consume_unlimited(c: &mut Criterion) {
 
     c.bench_function("rate_limiter/consume_unlimited", |b| {
         b.iter(|| {
-            harness.rt.block_on(limiter.consume(black_box(4096)));
+            harness.rt.block_on(limiter.consume(std::hint::black_box(4096)));
         });
     });
 }
@@ -40,7 +40,7 @@ fn bench_consume_limited(c: &mut Criterion) {
 
     c.bench_function("rate_limiter/consume_limited", |b| {
         b.iter(|| {
-            harness.rt.block_on(limiter.consume(black_box(8192)));
+            harness.rt.block_on(limiter.consume(std::hint::black_box(8192)));
         });
     });
 }
@@ -56,7 +56,7 @@ fn bench_set_rate(c: &mut Criterion) {
     for rate in &rates {
         group.bench_with_input(BenchmarkId::from_parameter(rate), rate, |b, &rate| {
             b.iter(|| {
-                limiter.set_rate(black_box(rate));
+                limiter.set_rate(std::hint::black_box(rate));
             });
         });
     }
@@ -73,7 +73,7 @@ fn bench_consume_blocking(c: &mut Criterion) {
         let limiter = RateLimiter::default();
         c.bench_function("rate_limiter/consume_blocking/unlimited", |b| {
             b.iter(|| {
-                limiter.consume_blocking(black_box(4096));
+                limiter.consume_blocking(std::hint::black_box(4096));
             });
         });
     }
@@ -85,7 +85,7 @@ fn bench_consume_blocking(c: &mut Criterion) {
         limiter.set_tokens(limiter.capacity() as f64);
         c.bench_function("rate_limiter/consume_blocking/limited", |b| {
             b.iter(|| {
-                limiter.consume_blocking(black_box(4096));
+                limiter.consume_blocking(std::hint::black_box(4096));
             });
         });
     }
@@ -114,7 +114,7 @@ fn bench_multi_consume(c: &mut Criterion) {
                     let limiter = limiter.clone();
                     handles.push(tokio::spawn(async move {
                         for _ in 0..ITERATIONS {
-                            limiter.consume(black_box(4096)).await;
+                            limiter.consume(std::hint::black_box(4096)).await;
                         }
                     }));
                 }

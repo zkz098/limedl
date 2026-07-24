@@ -44,7 +44,8 @@ impl ChecksumHasher {
             Self::Blake3(hasher) => hasher.finalize().to_hex().to_string(),
             Self::Sha256(hasher) => {
                 use sha2::Digest;
-                format!("{:x}", hasher.finalize())
+                let result = hasher.finalize();
+                result.iter().map(|b| format!("{:02x}", b)).collect::<String>()
             }
             Self::Xxh3_128(hasher) => format!("{:032x}", hasher.digest128()),
         }
@@ -70,7 +71,8 @@ pub fn hash_slices(mode: ChecksumMode, slices: &[&[u8]]) -> String {
             for slice in slices {
                 hasher.update(slice);
             }
-            format!("{:x}", hasher.finalize())
+            let result = hasher.finalize();
+            result.iter().map(|b| format!("{:02x}", b)).collect::<String>()
         }
         ChecksumMode::Xxh3128 => {
             let mut hasher = xxhash_rust::xxh3::Xxh3::new();

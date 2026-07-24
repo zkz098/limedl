@@ -30,7 +30,7 @@ use axum::{
 use bytes::Bytes;
 use futures_util::stream;
 use rand::rngs::StdRng;
-use rand::{RngCore, SeedableRng};
+use rand::{Rng, SeedableRng};
 use tokio::time::sleep;
 
 use super::checksum::hash_slices;

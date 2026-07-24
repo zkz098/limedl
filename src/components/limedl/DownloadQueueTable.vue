@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { debounce } from "es-toolkit";
+import { debounce } from "../../lib/debounce";
 
 import {
   formatBytes,

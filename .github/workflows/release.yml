@@ -29,7 +29,7 @@ jobs:
             os: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Extract version from tag
         id: version
@@ -37,12 +37,12 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
       # ── Node.js & frontend deps ────────────────────────────────────────
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -74,7 +74,7 @@ jobs:
 
       # ── Build Tauri ────────────────────────────────────────────────────
       - name: Build Tauri
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -123,7 +123,7 @@ jobs:
             binary: limedl
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Extract version from tag
         id: version
@@ -131,12 +131,12 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
       # ── Frontend build (NAS mode, identical across platforms) ──────────
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -197,7 +197,7 @@ jobs:
 
       # ── Upload to release ──────────────────────────────────────────────
       - name: Upload to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ env.ASSET }}
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}

@@ -13,7 +13,7 @@
 mod common;
 
 use common::BenchHarness;
-use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 
 /// File size served by the test server for every scenario.
 ///
@@ -42,7 +42,7 @@ fn bench_download_e2e(c: &mut Criterion) {
                 harness.rt.block_on(async {
                     let resp = client.get(&url).send().await.unwrap();
                     let bytes = resp.bytes().await.unwrap();
-                    black_box(bytes.len());
+                    std::hint::black_box(bytes.len());
                 });
             });
         });
@@ -56,7 +56,7 @@ fn bench_download_e2e(c: &mut Criterion) {
                 harness.rt.block_on(async {
                     let resp = client.get(&url).send().await.unwrap();
                     let bytes = resp.bytes().await.unwrap();
-                    black_box(bytes.len());
+                    std::hint::black_box(bytes.len());
                 });
             });
         });
@@ -70,7 +70,7 @@ fn bench_download_e2e(c: &mut Criterion) {
                 harness.rt.block_on(async {
                     let resp = client.get(&url).send().await.unwrap();
                     let bytes = resp.bytes().await.unwrap();
-                    black_box(bytes.len());
+                    std::hint::black_box(bytes.len());
                 });
             });
         });
@@ -84,7 +84,7 @@ fn bench_download_e2e(c: &mut Criterion) {
                 harness.rt.block_on(async {
                     let resp = client.get(&url).send().await.unwrap();
                     let bytes = resp.bytes().await.unwrap();
-                    black_box(bytes.len());
+                    std::hint::black_box(bytes.len());
                 });
             });
         });
@@ -98,7 +98,7 @@ fn bench_download_e2e(c: &mut Criterion) {
                 harness.rt.block_on(async {
                     let resp = client.get(&url).send().await.unwrap();
                     let bytes = resp.bytes().await.unwrap();
-                    black_box(bytes.len());
+                    std::hint::black_box(bytes.len());
                 });
             });
         });

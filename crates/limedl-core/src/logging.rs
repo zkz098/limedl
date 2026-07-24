@@ -9,7 +9,6 @@ use std::{
 use parking_lot::RwLock;
 
 use anyhow::Context;
-use fs4::fs_std::FileExt;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt::{self, MakeWriter},
@@ -385,18 +384,11 @@ fn perform_startup_rotation(
         }
     };
 
-    match lock_file.try_lock_exclusive() {
-        Ok(true) => { /* lock acquired */ }
-        Ok(false) => {
+    match lock_file.try_lock() {
+        Ok(()) => { /* lock acquired */ }
+        Err(_) => {
             eprintln!(
-                "[limedl] another process holds the log lock ({}), skipping rotation",
-                lock_path.display()
-            );
-            return;
-        }
-        Err(e) => {
-            eprintln!(
-                "[limedl] failed to acquire log lock on {}: {e}",
+                "[limedl] failed to acquire log lock on {} (lock held by another process)",
                 lock_path.display()
             );
             return;

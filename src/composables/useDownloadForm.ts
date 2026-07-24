@@ -8,7 +8,6 @@ import { toMessage } from "./downloadHelpers";
 import type {
   BatchUrlEntry,
   BatchSubmitProgress,
-  ChecksumMode,
   DownloadFormState,
   DownloadSummary,
   StartDownloadRequest,
@@ -64,7 +63,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     threadMode: "adaptive",
     threadCount: 8,
     maxRetries: 5,
-    checksum: "blake3" as ChecksumMode,
+    checksum: "blake3",
     downloadLimitBps: null,
     uploadLimitBps: null,
   });
@@ -122,7 +121,7 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     form.threadMode = "adaptive";
     form.threadCount = DEFAULT_THREAD_COUNT;
     form.maxRetries = 5;
-    form.checksum = "blake3" as ChecksumMode;
+    form.checksum = "blake3";
     form.downloadLimitBps = null;
     form.uploadLimitBps = null;
     isFileNameLocked.value = false;

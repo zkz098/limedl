@@ -27,9 +27,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
 reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls", "http2"] }
-futures-util = "0.3"
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
-uuid = { version = "1", features = ["v4", "serde"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-updater = "2"
@@ -38,14 +35,10 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-os = "2"
 mimalloc = "0.1.48"
-irontide = { version = "1", default-features = false, features = ["crypto-ring"] }
 anyhow = "1"
 tracing = "0.1"
-async-trait = "0.1"
-dashmap = "6"
-foldhash = "0.2"
 parking_lot = "0.12"
-rand = { version = "0.8", optional = true }
+rand = { version = "0.10", optional = true }
 
 [features]
 test-utils = ["limedl-core/test-utils", "limedl-core/aria2-rpc", "rand"]
@@ -53,9 +46,8 @@ test-utils = ["limedl-core/test-utils", "limedl-core/aria2-rpc", "rand"]
 [dev-dependencies]
 tempfile = "3"
 ntest = "0.9"
-rand = "0.8"
 bytes = "1"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
 name = "aimd"
