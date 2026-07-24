@@ -731,6 +731,13 @@ const enUS = {
         "Are you sure you want to restore all settings to defaults? This cannot be undone.",
       aboutResetSuccess: "Default settings restored",
       aboutResetFailed: "Failed to restore default settings",
+      aboutFactoryResetButton: "Clear All Data",
+      aboutFactoryResetTitle: "Delete All Data?",
+      aboutFactoryResetMessage:
+        "This will permanently delete all downloads, settings, and cached data. The application will restart in a fresh state. This action cannot be undone.",
+      aboutFactoryResetConfirm: "Delete Everything",
+      aboutFactoryResetSuccess: "All data cleared. Restarting with factory defaults.",
+      aboutFactoryResetFailed: "Failed to clear all data",
       ioBaseline: {
         kicker: "I/O Optimization",
         title: "Disk Write Optimization",

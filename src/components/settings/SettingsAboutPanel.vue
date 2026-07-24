@@ -4,8 +4,9 @@ import { useI18n } from "../../i18n";
 import logoUrl from "../../assets/logo.png";
 import { useAppUpdate } from "../../composables/useAppUpdate";
 import { useNotification } from "../../composables/useNotification";
-import { saveAppSettings } from "../../lib/tauri/settings-api";
+import { saveAppSettings, factoryReset } from "../../lib/tauri/settings-api";
 import type { AppSettings } from "../../types/settings";
+import { relaunch, exit } from "@tauri-apps/plugin-process";
 import { platform, arch, version as osVersion } from "@tauri-apps/plugin-os";
 import { getVersion, getName, getTauriVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -13,6 +14,7 @@ import SettingsSection from "./SettingsSection.vue";
 import SettingsField from "./SettingsField.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
+import ConfirmDialog from "../ui/ConfirmDialog.vue";
 
 const GITHUB_REPO_URL = "https://github.com/zkz098/limedl";
 
@@ -201,6 +203,26 @@ function confirmReset() {
 
 function cancelReset() {
   showResetConfirm.value = false;
+}
+
+const showFactoryResetConfirm = ref(false);
+const isFactoryResetting = ref(false);
+
+async function handleFactoryReset() {
+  if (isFactoryResetting.value) return;
+  isFactoryResetting.value = true;
+  try {
+    await factoryReset();
+    notifySuccess(t("settings.aboutFactoryResetSuccess"));
+    await relaunch();
+    await exit(0);
+  } catch (err) {
+    console.error("Factory reset failed:", err);
+    notifyError(t("settings.aboutFactoryResetFailed"));
+  } finally {
+    isFactoryResetting.value = false;
+    showFactoryResetConfirm.value = false;
+  }
 }
 
 const channelOptions = computed(() => [
@@ -459,6 +481,14 @@ const versionBadgeClass = computed(() => {
         </UiButton>
 
         <UiButton
+          variant="danger"
+          icon="i-ri-delete-bin-line"
+          @click="showFactoryResetConfirm = true"
+        >
+          {{ t("settings.aboutFactoryResetButton") }}
+        </UiButton>
+
+        <UiButton
           variant="secondary"
           icon="i-ri-github-fill"
           icon-right="i-ri-external-link-line"
@@ -469,6 +499,21 @@ const versionBadgeClass = computed(() => {
       </div>
     </SettingsSection>
   </div>
+
+  <ConfirmDialog
+    :model-value="showFactoryResetConfirm"
+    :kicker="t('settings.aboutFactoryResetTitle')"
+    :title="t('settings.aboutFactoryResetTitle')"
+    :message="t('settings.aboutFactoryResetMessage')"
+    :confirm-text="t('settings.aboutFactoryResetConfirm')"
+    :cancel-text="t('common.cancel')"
+    icon="i-ri-delete-bin-line"
+    :icon-danger="true"
+    confirm-icon="i-ri-delete-bin-line"
+    :confirm-loading="isFactoryResetting"
+    @cancel="showFactoryResetConfirm = false"
+    @confirm="handleFactoryReset"
+  />
 </template>
 
 <style scoped>

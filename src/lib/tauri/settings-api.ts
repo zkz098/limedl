@@ -43,3 +43,7 @@ export function toggleOverclockMode(enabled: boolean) {
 export function getOverclockMode() {
   return invoke<boolean>("get_overclock_mode");
 }
+
+export function factoryReset() {
+  return invoke<void>("factory_reset");
+}

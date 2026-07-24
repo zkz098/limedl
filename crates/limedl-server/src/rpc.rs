@@ -412,6 +412,7 @@ async fn dispatch_method(
         }
         "settings_get" => handle_settings_get(state).await,
         "settings_save" => handle_settings_save(params, state).await,
+        "factory_reset" => handle_factory_reset(state).await,
         "download_open_in_explorer" => handle_open_in_explorer(params, state).await,
         "download_set_priority" => handle_set_priority(params, state).await,
         "toggle_game_mode" => handle_toggle_game_mode(params, state).await,
@@ -580,6 +581,26 @@ async fn handle_settings_save(
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     serde_json::to_value(saved).map_err(|e| JsonRpcError::server_error(e.to_string()))
+}
+
+async fn handle_factory_reset(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
+    state.registry.shutdown_all().await;
+    let dm = state
+        .registry
+        .get_typed::<limedl_core::manager::DownloadManager>()
+        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
+    // Delete the parent directory containing downloads/ and settings.json
+    let parent_dir = dm
+        .dirs
+        .state_dir()
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| dm.dirs.state_dir().clone());
+    if parent_dir.exists() {
+        std::fs::remove_dir_all(&parent_dir)
+            .map_err(|e| JsonRpcError::server_error(format!("Failed to delete data: {e}")))?;
+    }
+    Ok(serde_json::Value::Null)
 }
 
 // ── Handler: download.openInExplorer ───────────────────────────────

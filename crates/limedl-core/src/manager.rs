@@ -125,6 +125,13 @@ pub struct StateDirs {
     pub(crate) settings_path: PathBuf,
 }
 
+impl StateDirs {
+    /// Returns the state directory path (e.g. `<data>/downloads`).
+    pub fn state_dir(&self) -> &PathBuf {
+        &self.state_dir
+    }
+}
+
 pub struct DownloadManager {
     /// HTTP client infrastructure (client, CDN cache, CDN accelerator).
     pub http: HttpClientInfra,

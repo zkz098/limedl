@@ -695,6 +695,13 @@ const zhCN = {
       aboutResetConfirm: "确定要恢复所有设置为默认值吗？此操作不可撤销。",
       aboutResetSuccess: "已恢复默认设置",
       aboutResetFailed: "恢复默认设置失败",
+      aboutFactoryResetButton: "清除全部数据",
+      aboutFactoryResetTitle: "删除所有数据？",
+      aboutFactoryResetMessage:
+        "此操作将永久删除所有下载记录、设置和缓存数据。应用将重新启动至全新状态。此操作不可撤销。",
+      aboutFactoryResetConfirm: "全部删除",
+      aboutFactoryResetSuccess: "已清除全部数据，正在恢复出厂设置。",
+      aboutFactoryResetFailed: "清除数据失败",
       ioBaseline: {
         kicker: "I/O 优化",
         title: "硬盘写入优化",

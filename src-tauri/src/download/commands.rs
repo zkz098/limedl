@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::{Context, anyhow};
-use tauri::State;
+use tauri::{Manager, State};
 
 use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::{
@@ -483,6 +483,54 @@ pub async fn detect_disk_type(
         DiskType::Hdd => "hdd".to_string(),
         DiskType::Ssd => "ssd".to_string(),
     })
+}
+
+/// Factory reset: deletes all application data and restores factory defaults.
+/// After this returns, the frontend must restart the app (backends are shut down).
+#[tauri::command]
+pub async fn factory_reset(app: tauri::AppHandle, state: State<'_, AppState>) -> CommandResult<()> {
+    into_command_result(
+        async {
+            // 1. Shut down all backends (stops active downloads, releases file handles)
+            state.registry.shutdown_all().await;
+
+            // 2. Compute the parent directory (contains downloads/ and settings.json)
+            let parent_dir = state_dir_parent(&app);
+
+            // 3. Delete the entire parent directory with retry for Windows file-locking
+            if parent_dir.exists() {
+                for attempt in 0..3 {
+                    match std::fs::remove_dir_all(&parent_dir) {
+                        Ok(_) => break,
+                        Err(_e) if attempt < 2 => {
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                            continue;
+                        }
+                        Err(e) => return Err(e).context("failed to delete data directory"),
+                    }
+                }
+            }
+
+            Ok(())
+        }
+        .await,
+    )
+}
+
+/// Returns the parent directory of the application's state storage.
+/// Contains both the `downloads/` subdirectory and `settings.json`.
+fn state_dir_parent(app: &tauri::AppHandle) -> std::path::PathBuf {
+    let downloads_dir = app
+        .path()
+        .app_local_data_dir()
+        .or_else(|_| app.path().app_data_dir())
+        .unwrap_or_else(|_| std::env::temp_dir().join("limedl"))
+        .join("downloads");
+    // Parent directory holds both downloads/ and settings.json
+    downloads_dir
+        .parent()
+        .unwrap_or(&downloads_dir)
+        .to_path_buf()
 }
 
 #[cfg(test)]

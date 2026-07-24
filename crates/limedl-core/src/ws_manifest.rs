@@ -173,6 +173,12 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         safety: SafetyClass::Mutating,
     },
     WsCommandSpec {
+        tauri_name: "factory_reset",
+        rpc_method: "settings.factoryReset",
+        param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
+    },
+    WsCommandSpec {
         tauri_name: "toggle_game_mode",
         rpc_method: "settings.toggleGameMode",
         param_transform: ParamTransform::Identity,
