@@ -27,6 +27,22 @@ export interface UseDownloadFormInput {
   clearMessage: () => void;
 }
 
+/** Expand URL range patterns like file[01-20].zip or file[1-20].zip */
+function expandUrlRanges(url: string): string[] {
+  const rangeRegex = /\[(\d+)-(\d+)\]/;
+  const match = rangeRegex.exec(url);
+  if (!match) return [url];
+  const start = parseInt(match[1], 10);
+  const end = parseInt(match[2], 10);
+  if (start > end) return [url]; // treat as literal text, not a range
+  const padding = match[1].length;
+  const results: string[] = [];
+  for (let i = start; i <= end; i++) {
+    results.push(url.replace(rangeRegex, String(i).padStart(padding, "0")));
+  }
+  return results;
+}
+
 export function useDownloadForm(input: UseDownloadFormInput) {
   const {
     selectedId,
@@ -353,22 +369,6 @@ export function useDownloadForm(input: UseDownloadFormInput) {
   const batchEntries = ref<BatchUrlEntry[]>([]);
   const batchSubmitProgress = ref<BatchSubmitProgress>({ done: 0, total: 0 });
 
-  /** Expand URL range patterns like file[01-20].zip or file[1-20].zip */
-  function expandUrlRanges(url: string): string[] {
-    const rangeRegex = /\[(\d+)-(\d+)\]/;
-    const match = rangeRegex.exec(url);
-    if (!match) return [url];
-    const start = parseInt(match[1], 10);
-    const end = parseInt(match[2], 10);
-    if (start > end) return [url]; // treat as literal text, not a range
-    const padding = match[1].length;
-    const results: string[] = [];
-    for (let i = start; i <= end; i++) {
-      results.push(url.replace(rangeRegex, String(i).padStart(padding, "0")));
-    }
-    return results;
-  }
-
   /** Parse batch textarea content into BatchUrlEntry array. */
   function parseBatchUrls(): void {
     const lines = batchUrls.value.split(/\r?\n/);
@@ -431,21 +431,27 @@ export function useDownloadForm(input: UseDownloadFormInput) {
     try {
       let successCount = 0;
       const errors: string[] = [];
+      let completedCount = 0;
 
-      for (let i = 0; i < batchEntries.value.length; i++) {
-        const entry = batchEntries.value[i];
-        try {
-          entry.status = "queued";
-          await startDownload(buildBatchRequest(entry));
-          entry.status = "success";
-          successCount++;
-        } catch (error) {
-          entry.status = "error";
-          entry.error = toMessage(error);
-          errors.push(`${entry.fileName || entry.url}: ${toMessage(error)}`);
-        }
-        batchSubmitProgress.value = { done: i + 1, total: batchEntries.value.length };
-      }
+      const results = await Promise.all(
+        batchEntries.value.map(async (entry) => {
+          try {
+            entry.status = "queued";
+            await startDownload(buildBatchRequest(entry));
+            entry.status = "success";
+            return true;
+          } catch (error) {
+            entry.status = "error";
+            entry.error = toMessage(error);
+            errors.push(`${entry.fileName || entry.url}: ${toMessage(error)}`);
+            return false;
+          } finally {
+            completedCount++;
+            batchSubmitProgress.value = { done: completedCount, total: batchEntries.value.length };
+          }
+        }),
+      );
+      successCount = results.filter(Boolean).length;
 
       await refreshList();
       if (errors.length > 0) {
