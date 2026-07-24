@@ -2,7 +2,7 @@
 
 use super::types::{
     AdaptiveProfile, ChecksumMode, ChunkInfo, ChunkSizeStrategy, DownloadSnapshot, DownloadState,
-    TaskKind, ThreadMode, default_http_user_agent,
+    Priority, TaskKind, ThreadMode, default_http_user_agent,
 };
 
 pub const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
@@ -42,6 +42,8 @@ pub struct Manifest {
     #[serde(default)]
     pub expected_checksum: Option<String>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub priority: Priority,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
     #[serde(default)]
@@ -178,6 +180,7 @@ pub fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         info_hash: None,
         created_at_ms: manifest.created_at_ms,
         updated_at_ms: manifest.updated_at_ms,
+        priority: manifest.priority,
         cdn_accelerated: manifest.cdn_accelerated,
         mirror_url: manifest.mirror_url.clone(),
         chunks: manifest

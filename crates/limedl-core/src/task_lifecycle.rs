@@ -33,6 +33,10 @@ use crate::{
     slot_guard::DownloadSlotGuard,
 };
 
+#[cfg(any(test, feature = "test-utils"))]
+#[allow(unused_imports)]
+use crate::types::Priority;
+
 /// Zero-sized actor type for download lifecycle operations.
 ///
 /// All methods receive `&DownloadManager` or `Arc<DownloadManager>` to access
@@ -668,6 +672,7 @@ mod tests {
                     download_limit_bps: None,
                     upload_limit_bps: None,
                     mirror_url: None,
+                    priority: Priority::Normal,
                     degraded: false,
                     disk_type: None,
                     flushing: false,
@@ -697,6 +702,7 @@ mod tests {
                     last_modified: None,
                     state,
                     cdn_accelerated: false,
+                    priority: Priority::Normal,
                     checksum_mode: ChecksumMode::None,
                     checksum: None,
                     expected_checksum: None,

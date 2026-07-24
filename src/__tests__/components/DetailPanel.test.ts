@@ -57,6 +57,7 @@ function createOverview(overrides: Record<string, unknown> = {}): DownloadSummar
     error: null,
     cdnAccelerated: false,
     createdAtMs: 1000,
+    priority: "normal",
     ...overrides,
   } satisfies DownloadSummary;
 }

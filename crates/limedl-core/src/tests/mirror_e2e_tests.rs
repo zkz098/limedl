@@ -45,7 +45,8 @@ async fn mirror_fallback_on_primary_failure() {
         start_paused: false,
         mirror_urls: Some(vec![broken_url.to_string(), mirror_url.clone()]),
         user_agent: None,
-    };
+    priority: None,
+};
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
     let inner = match task_id {

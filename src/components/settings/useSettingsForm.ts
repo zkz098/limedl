@@ -124,6 +124,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     setupCompleted: false,
     lastSetupStep: null,
     maxInMemoryDownloads: 200,
+    speedLimitSchedule: [],
   });
 
   const savedSettingsSnapshot = ref("");
@@ -231,6 +232,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       setupCompleted: form.setupCompleted ?? false,
       lastSetupStep: form.lastSetupStep ?? null,
       maxInMemoryDownloads: form.maxInMemoryDownloads ?? 200,
+      speedLimitSchedule: form.speedLimitSchedule?.slice() ?? [],
     };
   }
 
@@ -337,6 +339,8 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.autostart = nextSettings.autostart ?? false;
       form.setupCompleted = nextSettings.setupCompleted ?? false;
       form.lastSetupStep = nextSettings.lastSetupStep ?? null;
+      form.maxInMemoryDownloads = nextSettings.maxInMemoryDownloads ?? 200;
+      form.speedLimitSchedule = nextSettings.speedLimitSchedule?.slice() ?? [];
       savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
       onDirtyChange?.(false);
     },

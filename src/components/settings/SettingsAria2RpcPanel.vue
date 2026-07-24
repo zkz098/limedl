@@ -57,22 +57,44 @@ function openStore(url: string) {
 
       <SettingsField wide :label="t('settings.aria2RpcRecommendTitle')">
         <div class="aria2-recommend-card">
-          <p class="aria2-recommend-card__desc">{{ t('settings.aria2RpcRecommendDesc') }}</p>
+          <p class="aria2-recommend-card__desc">{{ t("settings.aria2RpcRecommendDesc") }}</p>
           <div class="aria2-recommend-card__stores">
-            <button type="button" class="aria2-store-btn" @click="openStore('https://chromewebstore.google.com/detail/aria2-explorer/mpkodccbngfoacfalldjimigbofkhgjn')">
+            <button
+              type="button"
+              class="aria2-store-btn"
+              @click="
+                openStore(
+                  'https://chromewebstore.google.com/detail/aria2-explorer/mpkodccbngfoacfalldjimigbofkhgjn',
+                )
+              "
+            >
               <span class="i-ri-chrome-line" aria-hidden="true" />
               <span>Chrome</span>
             </button>
-      <button type="button" class="aria2-store-btn" @click="openStore('https://chromewebstore.google.com/detail/aria2-explorer/mpkodccbngfoacfalldjimigbofkhgjn')">
-        <span class="i-ri-edge-line" aria-hidden="true" />
-        <span>Edge</span>
-      </button>
-            <button type="button" class="aria2-store-btn" @click="openStore('https://addons.mozilla.org/en-US/firefox/addon/ybbapp-aria2-explorer/')">
+            <button
+              type="button"
+              class="aria2-store-btn"
+              @click="
+                openStore(
+                  'https://chromewebstore.google.com/detail/aria2-explorer/mpkodccbngfoacfalldjimigbofkhgjn',
+                )
+              "
+            >
+              <span class="i-ri-edge-line" aria-hidden="true" />
+              <span>Edge</span>
+            </button>
+            <button
+              type="button"
+              class="aria2-store-btn"
+              @click="
+                openStore('https://addons.mozilla.org/en-US/firefox/addon/ybbapp-aria2-explorer/')
+              "
+            >
               <span class="i-ri-firefox-line" aria-hidden="true" />
               <span>Firefox</span>
             </button>
           </div>
-          <p class="aria2-recommend-card__note">{{ t('settings.aria2RpcRecommendNote') }}</p>
+          <p class="aria2-recommend-card__note">{{ t("settings.aria2RpcRecommendNote") }}</p>
         </div>
       </SettingsField>
     </div>
@@ -115,7 +137,9 @@ function openStore(url: string) {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.15s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.15s ease;
 }
 
 .aria2-store-btn:hover {

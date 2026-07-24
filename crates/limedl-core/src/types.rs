@@ -68,6 +68,30 @@ pub enum TaskKind {
     Bt,
 }
 
+/// Download priority — affects scheduler ordering.
+/// Stored as INTEGER in SQLite (0=Low, 1=Normal, 2=High).
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum Priority {
+    Low = 0,
+    #[default]
+    Normal = 1,
+    High = 2,
+}
+
+impl From<u8> for Priority {
+    fn from(v: u8) -> Self {
+        match v {
+            0 => Priority::Low,
+            2 => Priority::High,
+            _ => Priority::Normal,
+        }
+    }
+}
+
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -301,6 +325,8 @@ pub struct StartDownloadRequest {
     pub start_paused: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_urls: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priority: Option<Priority>,
 }
 
 impl StartDownloadRequest {
@@ -405,6 +431,8 @@ pub struct DownloadSnapshot {
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
     #[serde(default)]
+    pub priority: Priority,
+    #[serde(default)]
     pub cdn_accelerated: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chunks: Vec<ChunkInfo>,
@@ -475,6 +503,8 @@ pub struct DownloadSummary {
     #[serde(default)]
     pub cdn_accelerated: bool,
     pub created_at_ms: u64,
+    #[serde(default)]
+    pub priority: Priority,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -650,6 +680,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             error: value.error.clone(),
             cdn_accelerated: value.cdn_accelerated,
             created_at_ms: value.created_at_ms,
+            priority: value.priority,
             seed_count: value.seed_count,
             leech_count: value.leech_count,
             download_limit_bps: value.download_limit_bps,
@@ -1170,6 +1201,20 @@ fn default_max_in_memory_downloads() -> usize {
     200
 }
 
+/// A time-of-day speed limit slot.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpeedLimitSlot {
+    /// Start hour (0-23, inclusive)
+    pub start_hour: u8,
+    /// End hour (0-23, exclusive — e.g. 18 means "until 18:00")
+    pub end_hour: u8,
+    /// Speed limit in bytes per second (0 = unlimited)
+    pub limit_bps: u64,
+}
+
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -1195,6 +1240,8 @@ pub struct AppSettings {
     pub github_mirror: GitHubMirrorSettings,
     #[serde(default)]
     pub global_speed_limit_bps: u64,
+    #[serde(default)]
+    pub speed_limit_schedule: Vec<SpeedLimitSlot>,
     #[serde(default)]
     pub notifications: NotificationSettings,
     #[serde(default)]

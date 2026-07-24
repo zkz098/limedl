@@ -149,6 +149,7 @@ impl HttpExecutor {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+            priority: None,
         };
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             manager::resolve_thread_settings(&settings, &request, supports_parallel);

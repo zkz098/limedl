@@ -44,6 +44,7 @@ const defaultSummary: DownloadSummary = {
   error: null,
   cdnAccelerated: false,
   createdAtMs: Date.now(),
+  priority: "normal",
 };
 
 /**
@@ -190,6 +191,7 @@ export function createMockDownloadSnapshot(
     etaSeconds: 18,
     createdAtMs: Date.now() - 60_000,
     updatedAtMs: Date.now(),
+    priority: "normal",
     ...overrides,
   } as DownloadSnapshot;
 }

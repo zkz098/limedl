@@ -11,7 +11,7 @@ use limedl_core::{
     settings::{normalize_tracker_list_lossy, normalize_tracker_list_url},
     types::{
         AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo,
-        DiskType, DownloadSnapshot, DownloadSummary, SerializableError, StartDownloadRequest, TaskId,
+        DiskType, DownloadSnapshot, DownloadSummary, Priority, SerializableError, StartDownloadRequest, TaskId,
         TorrentFileEntry,
     },
     Dispatcher,
@@ -189,6 +189,19 @@ pub async fn download_status(
 #[tauri::command]
 pub async fn download_list(state: State<'_, AppState>) -> CommandResult<Vec<DownloadSummary>> {
     map_dl_err(make_dispatcher(&state).list().await)
+}
+
+#[tauri::command]
+pub async fn download_set_priority(
+    state: State<'_, AppState>,
+    download_id: String,
+    priority: Priority,
+) -> CommandResult<()> {
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    map_dl_err(make_dispatcher(&state).set_priority(&task_id, priority).await)
 }
 
 #[tauri::command]

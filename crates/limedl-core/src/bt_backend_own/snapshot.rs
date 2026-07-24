@@ -2,7 +2,7 @@ use irontide::core::Id20;
 
 use crate::now_ms;
 use crate::types::{
-    BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState, TaskKind, ThreadMode,
+    BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskKind, ThreadMode,
     TorrentFileEntry,
 };
 
@@ -91,6 +91,7 @@ impl super::IrontideBtBackend {
             download_limit_bps: None,
             upload_limit_bps: None,
             mirror_url: None,
+            priority: Priority::Normal,
             degraded: false,
             disk_type: None,
             flushing: false,

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import DownloadComposer from "../../components/limedl/DownloadComposer.vue";
-import type { DownloadFormState } from "../../types/download";
+import type { BatchUrlEntry, BatchSubmitProgress, DownloadFormState } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
@@ -150,6 +150,7 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
     setupCompleted: true,
     lastSetupStep: null,
     maxInMemoryDownloads: 200,
+    speedLimitSchedule: [],
     ...overrides,
   };
 }
@@ -161,6 +162,10 @@ function createProps(overrides: Record<string, unknown> = {}) {
     isPickingDirectory: false,
     isPickingTorrent: false,
     settings: createSettings(),
+    batchMode: false,
+    batchUrls: "",
+    batchEntries: [] as BatchUrlEntry[],
+    batchSubmitProgress: { done: 0, total: 0 } as BatchSubmitProgress,
     ...overrides,
   };
 }

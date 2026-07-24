@@ -3,7 +3,9 @@ import { computed, ref } from "vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
+import UiButton from "../ui/UiButton.vue";
 import type { AdaptiveProfile, AppSettings, SchedulerMode } from "../../types/settings";
+import type { SpeedLimitSlot } from "../../types/generated/types";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
 
@@ -116,6 +118,43 @@ const maxThreadsPerTaskMax = computed(() =>
 );
 
 const isTraditional = computed(() => props.draft.scheduler.mode === "traditional");
+
+const hourOptions = computed(() =>
+  Array.from({ length: 24 }, (_, i) => ({ label: String(i), value: i })),
+);
+
+const scheduleEnabled = computed({
+  get: () => props.draft.speedLimitSchedule.length > 0,
+  set: (enabled: boolean) => {
+    if (enabled) {
+      props.draft.speedLimitSchedule = props.draft.speedLimitSchedule.length
+        ? props.draft.speedLimitSchedule
+        : [{ startHour: 0, endHour: 6, limitBps: 0 }];
+    } else {
+      props.draft.speedLimitSchedule = [];
+    }
+  },
+});
+
+function slotLimitMiBps(slot: SpeedLimitSlot): number {
+  return Math.round(slot.limitBps / 1024 / 1024);
+}
+
+function setSlotLimit(slot: SpeedLimitSlot, value: number | null) {
+  slot.limitBps = Math.max(0, Math.trunc(value ?? 0)) * 1024 * 1024;
+}
+
+function removeSlot(index: number) {
+  props.draft.speedLimitSchedule.splice(index, 1);
+}
+
+function addSlot() {
+  props.draft.speedLimitSchedule.push({ startHour: 0, endHour: 6, limitBps: 0 });
+}
+
+function slotWrapsMidnight(slot: SpeedLimitSlot) {
+  return slot.startHour >= slot.endHour;
+}
 </script>
 
 <template>
@@ -295,6 +334,81 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
         </SettingsField>
       </div>
     </Transition>
+
+    <div class="settings-grid">
+      <SettingsField
+        wide
+        :label="t('settings.speedLimitSchedule')"
+        :info-tooltip="t('settings.speedLimitScheduleHint')"
+      >
+        <UiSwitch v-model="scheduleEnabled" :label="t('settings.speedLimitScheduleEnable')" />
+
+        <Transition name="schedule-fade">
+          <div v-if="scheduleEnabled" class="speed-limit-schedule">
+            <ul v-if="draft.speedLimitSchedule.length" class="speed-limit-schedule__list">
+              <li
+                v-for="(slot, index) in draft.speedLimitSchedule"
+                :key="index"
+                class="speed-limit-schedule__slot"
+              >
+                <div class="speed-limit-schedule__field">
+                  <label class="speed-limit-schedule__field-label">
+                    {{ t("settings.speedLimitScheduleStartHour") }}
+                  </label>
+                  <UiSelect v-model="slot.startHour" :options="hourOptions" />
+                </div>
+                <div class="speed-limit-schedule__field">
+                  <label class="speed-limit-schedule__field-label">
+                    {{ t("settings.speedLimitScheduleEndHour") }}
+                  </label>
+                  <UiSelect v-model="slot.endHour" :options="hourOptions" />
+                </div>
+                <div class="speed-limit-schedule__field speed-limit-schedule__field--limit">
+                  <label class="speed-limit-schedule__field-label">
+                    {{ t("settings.speedLimitScheduleLimit") }}
+                  </label>
+                  <UiTextField
+                    type="number"
+                    :model-value="slotLimitMiBps(slot)"
+                    :min="0"
+                    :max="1048576"
+                    unit="MiB/s"
+                    @update:model-value="setSlotLimit(slot, $event as number | null)"
+                  />
+                </div>
+                <span v-if="slotWrapsMidnight(slot)" class="speed-limit-schedule__wraps text-xs">
+                  {{ t("settings.speedLimitScheduleWrapsMidnight") }}
+                </span>
+                <UiButton
+                  size="sm"
+                  variant="ghost"
+                  icon="i-ri-delete-bin-line"
+                  class="speed-limit-schedule__remove"
+                  :title="t('settings.speedLimitScheduleRemove')"
+                  @click="removeSlot(index)"
+                />
+              </li>
+            </ul>
+            <p v-else class="speed-limit-schedule__empty">
+              {{ t("settings.speedLimitScheduleEmpty") }}
+            </p>
+            <UiButton
+              variant="secondary"
+              size="sm"
+              icon="i-ri-add-line"
+              block
+              class="speed-limit-schedule__add"
+              @click="addSlot"
+            >
+              {{ t("settings.speedLimitScheduleAdd") }}
+            </UiButton>
+            <p class="speed-limit-schedule__hint">
+              {{ t("settings.speedLimitScheduleSpeedHint") }}
+            </p>
+          </div>
+        </Transition>
+      </SettingsField>
+    </div>
   </SettingsSection>
 </template>
 
@@ -420,6 +534,98 @@ const isTraditional = computed(() => props.draft.scheduler.mode === "traditional
 .scheduler-fade-leave-to {
   opacity: 0;
   transform: translateY(4px);
+}
+
+.schedule-fade-enter-active,
+.schedule-fade-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.schedule-fade-enter-from,
+.schedule-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.speed-limit-schedule {
+  margin-top: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.speed-limit-schedule__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.speed-limit-schedule__slot {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-muted);
+  flex-wrap: wrap;
+}
+
+.speed-limit-schedule__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 4rem;
+  flex: 1 1 auto;
+}
+
+.speed-limit-schedule__field--limit {
+  flex: 2 1 auto;
+  min-width: 7rem;
+}
+
+.speed-limit-schedule__field-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.speed-limit-schedule__wraps {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.speed-limit-schedule__remove {
+  color: var(--color-text-muted);
+  flex: none;
+}
+
+.speed-limit-schedule__remove:hover:not(:disabled) {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+}
+
+.speed-limit-schedule__empty {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-muted);
+}
+
+.speed-limit-schedule__add {
+  margin-top: var(--space-1);
+}
+
+.speed-limit-schedule__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
 }
 
 @media (max-width: 840px) {

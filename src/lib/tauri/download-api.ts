@@ -8,6 +8,7 @@ import type {
   BtTrackerInfo,
   DownloadSnapshot,
   DownloadSummary,
+  Priority,
   StartDownloadRequest,
   TorrentFileEntry,
 } from "../../types/download";
@@ -75,6 +76,10 @@ export function setBtSpeedLimit(
   uploadLimitBps?: number,
 ) {
   return invoke<void>("bt_set_speed_limit", { downloadId, downloadLimitBps, uploadLimitBps });
+}
+
+export function setPriority(downloadId: string, priority: Priority) {
+  return invoke<void>("download_set_priority", { downloadId, priority });
 }
 
 export function previewTorrent(source: string) {

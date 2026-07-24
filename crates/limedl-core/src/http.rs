@@ -720,6 +720,7 @@ mod tests {
             mirror_url: None,
             mirror_urls: Vec::new(),
             current_mirror_index: 0,
+            priority: crate::types::Priority::Normal,
         }
     }
 }

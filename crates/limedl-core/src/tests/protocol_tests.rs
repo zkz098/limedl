@@ -53,6 +53,7 @@ fn http_request(url: String, dest_dir: &std::path::Path) -> StartDownloadRequest
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     }
 }
 
@@ -434,6 +435,7 @@ async fn bt_contract_start_magnet_and_cancel() -> TestResult {
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     };
 
     contract_cancel(backend, request).await;
@@ -470,6 +472,7 @@ async fn bt_contract_start_magnet_and_remove() -> TestResult {
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     };
 
     let task_id = backend.start(request).await.expect("start should succeed");

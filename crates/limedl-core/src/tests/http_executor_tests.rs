@@ -68,6 +68,7 @@ async fn single_stream_download_completes_successfully() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -129,6 +130,7 @@ async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -176,6 +178,7 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -234,6 +237,7 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -290,6 +294,7 @@ async fn multi_stream_blake3_checksum_match() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -333,6 +338,7 @@ async fn multi_stream_sha256_checksum_match() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -385,6 +391,7 @@ async fn http_301_redirect_follows_and_completes() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -437,6 +444,7 @@ async fn http_302_redirect_follows_and_completes() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -501,6 +509,7 @@ async fn http_416_range_not_satisfiable_fails() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -562,6 +571,7 @@ async fn connection_refused_fails_gracefully() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -628,6 +638,7 @@ async fn unreachable_host_fails_gracefully() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -680,6 +691,7 @@ async fn no_content_length_chunked_download_completes() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -745,6 +757,7 @@ async fn wrong_content_length_truncates_completed_download() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -836,6 +849,7 @@ async fn cancel_download_while_in_progress() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 

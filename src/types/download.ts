@@ -11,6 +11,7 @@ export type {
   BtUploadStatus,
   ChecksumMode,
   DownloadState,
+  Priority,
   TaskKind,
   ThreadMode,
   TorrentFileEntry,
@@ -81,4 +82,18 @@ export interface MultiSelectState {
   multiSelectMode: boolean;
   selectedIds: Set<string>;
   removedDownloadIds: string[];
+}
+
+export interface BatchUrlEntry {
+  id: string;
+  url: string;
+  kind: _TaskKind;
+  fileName: string;
+  status: "ready" | "queued" | "success" | "error";
+  error?: string;
+}
+
+export interface BatchSubmitProgress {
+  done: number;
+  total: number;
 }

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "../../../i18n";
-import type { AppSettings, AdaptiveProfile, SchedulerMode, SchedulerSettings } from "../../../types/settings";
+import type {
+  AppSettings,
+  AdaptiveProfile,
+  SchedulerMode,
+  SchedulerSettings,
+} from "../../../types/settings";
 import StepShell from "../StepShell.vue";
 import SettingsSection from "../../settings/SettingsSection.vue";
 import SettingsField from "../../settings/SettingsField.vue";

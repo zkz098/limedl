@@ -68,6 +68,7 @@ fn req_fixed(url: &str, dir: &str, name: &str) -> StartDownloadRequest {
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     }
 }
 
@@ -87,6 +88,7 @@ fn req_fixed_range(url: &str, out: &str, name: &str) -> StartDownloadRequest {
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     }
 }
 
@@ -106,6 +108,7 @@ fn req_adaptive(url: &str, out: &str, name: &str) -> StartDownloadRequest {
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     }
 }
 
@@ -628,6 +631,7 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+            priority: None,
         })
         .await?;
     // Adaptive-mode download — scheduler decides allocation.

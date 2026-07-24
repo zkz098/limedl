@@ -57,6 +57,8 @@ impl Scheduler {
                     }
                 }
 
+                self.apply_speed_limit_schedule(&dm).await;
+
                 if let Err(error) = self.update_adaptive_targets(&dm).await {
                     log_background_error("update adaptive targets", &error);
                 }
@@ -233,7 +235,15 @@ impl Scheduler {
 
         match settings.scheduler.mode {
             SchedulerMode::Traditional => {
-                entries.sort_by_key(|managed| managed.lock_core().manifest.created_at_ms);
+                entries.sort_by(|a, b| {
+                    let priority_a = a.lock_core().manifest.priority as u8;
+                    let priority_b = b.lock_core().manifest.priority as u8;
+                    // Sort by priority descending (higher priority first), then by created_at_ms ascending
+                    priority_b.cmp(&priority_a).then_with(|| {
+                        a.lock_core().manifest.created_at_ms
+                            .cmp(&b.lock_core().manifest.created_at_ms)
+                    })
+                });
 
                 let mut running = 0usize;
                 let mut host_threads: HashMap<String, usize> = HashMap::default();
@@ -305,27 +315,26 @@ impl Scheduler {
                     })
                     .collect::<Vec<_>>();
 
-                // Pre-snapshot remaining bytes to avoid repeated lock
-                // acquisitions during sort (each sort_by callback would
-                // lock both candidates otherwise). Snapshot inside a
-                // block so the MutexGuard is dropped before `m` moves.
-                let mut with_remaining: Vec<(u64, _)> = candidates
+                // Pre-snapshot remaining bytes and priority to avoid repeated lock
+                // acquisitions during sort. Snapshot inside a block so the MutexGuard
+                // is dropped before `m` moves.
+                let mut with_priority_and_remaining: Vec<(u8, u64, _)> = candidates
                     .into_iter()
                     .map(|m| {
-                        let remaining = {
+                        let (remaining, priority) = {
                             let core = m.lock_core();
-                            remaining_bytes(&core.manifest)
+                            (remaining_bytes(&core.manifest), core.manifest.priority as u8)
                         };
-                        (remaining, m)
+                        (priority, remaining, m)
                     })
                     .collect();
-                with_remaining.sort_by_key(|(r, _)| *r);
-                // Reverse to get descending order (largest remaining first),
-                // matching the original right.cmp(left) ordering.
-                let candidates = with_remaining
+                // Sort by priority descending first, then by remaining bytes descending
+                with_priority_and_remaining.sort_by(|(pa, ra, _), (pb, rb, _)| {
+                    pb.cmp(pa).then_with(|| rb.cmp(ra))
+                });
+                let candidates = with_priority_and_remaining
                     .into_iter()
-                    .rev()
-                    .map(|(_, m)| m)
+                    .map(|(_, _, m)| m)
                     .collect::<Vec<_>>();
 
                 let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
@@ -453,6 +462,55 @@ impl Scheduler {
         }
         Ok(())
     }
+
+    /// Check the speed limit schedule and apply the matching limit (or revert to global default).
+    async fn apply_speed_limit_schedule(&self, dm: &DownloadManager) {
+        let settings = dm.settings.read().await;
+        let schedule = &settings.speed_limit_schedule;
+        if schedule.is_empty() {
+            return;
+        }
+
+        // Get current local hour using the `time` crate
+        let current_hour = match time::OffsetDateTime::now_local() {
+            Ok(now) => now.hour(),
+            Err(e) => {
+                tracing::warn!("Failed to determine local time, falling back to global speed limit: {e}");
+                dm.rate_limiter.set_rate(settings.global_speed_limit_bps);
+                return;
+            }
+        };
+
+        // Find matching slot
+        let limit = schedule.iter().find_map(|slot| {
+            if slot.start_hour <= slot.end_hour {
+                // Normal range: e.g. 8-18
+                if current_hour >= slot.start_hour && current_hour < slot.end_hour {
+                    Some(slot.limit_bps)
+                } else {
+                    None
+                }
+            } else {
+                // Wraps midnight: e.g. 22-6
+                if current_hour >= slot.start_hour || current_hour < slot.end_hour {
+                    Some(slot.limit_bps)
+                } else {
+                    None
+                }
+            }
+        });
+
+        drop(settings); // release the read lock before calling set_rate
+
+        match limit {
+            Some(bps) => dm.rate_limiter.set_rate(bps),
+            None => {
+                // Re-read settings to get global_speed_limit_bps (schedule may have changed)
+                let settings = dm.settings.read().await;
+                dm.rate_limiter.set_rate(settings.global_speed_limit_bps);
+            }
+        }
+    }
 }
 
 // ── Scheduler helper functions ───────────────────────────────────────────────
@@ -503,7 +561,7 @@ mod tests {
     use crate::manifest::Manifest;
     use crate::manager::{DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS};
     use crate::types::{
-        AppSettings, AutomaticSchedulerSettings, DownloadState, SchedulerMode,
+        AppSettings, AutomaticSchedulerSettings, DownloadState, Priority, SchedulerMode,
         SchedulerSettings, ThreadMode, TraditionalSchedulerSettings,
     };
 
@@ -545,6 +603,7 @@ mod tests {
             mirror_url: None,
             mirror_urls: Vec::new(),
             current_mirror_index: 0,
+            priority: Priority::Normal,
         }
     }
 

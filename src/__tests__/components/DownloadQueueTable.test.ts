@@ -63,6 +63,7 @@ function createMockDownload(overrides: Partial<DownloadSummary> = {}): DownloadS
     error: null,
     cdnAccelerated: false,
     createdAtMs: 1000,
+    priority: "normal",
     ...overrides,
   };
 }

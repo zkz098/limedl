@@ -32,7 +32,8 @@ async fn checksum_correct_completes() {
         start_paused: false,
         mirror_urls: None,
         user_agent: None,
-    };
+    priority: None,
+};
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
     let inner = match task_id {
@@ -90,7 +91,8 @@ async fn checksum_wrong_fails() {
         start_paused: false,
         mirror_urls: None,
         user_agent: None,
-    };
+    priority: None,
+};
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
     let inner = match task_id {

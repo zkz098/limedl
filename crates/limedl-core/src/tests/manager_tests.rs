@@ -26,7 +26,7 @@ use crate::settings::load_settings;
 use crate::types::{
     AdaptiveProfile, AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
     CdnAccelerationSettings, ChecksumMode, DownloadDefaultsSettings, DownloadSnapshot,
-    DownloadState, GitHubMirrorSettings, LogSettings, NotificationSettings, ProxyMode,
+    DownloadState, GitHubMirrorSettings, LogSettings, NotificationSettings, Priority, ProxyMode,
     ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, ThreadMode,
     TraditionalSchedulerSettings,
 };
@@ -142,6 +142,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         }),
     )
     .await??;
@@ -592,6 +593,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -610,6 +612,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -700,6 +703,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -769,6 +773,7 @@ async fn checksum_match_succeeds() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -830,6 +835,7 @@ async fn checksum_mismatch_detected() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await?;
 
@@ -1041,6 +1047,7 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
                     download_limit_bps: None,
                     upload_limit_bps: None,
                     mirror_url: None,
+                    priority: Priority::Normal,
                     degraded: false,
                     disk_type: None,
                     flushing: false,
@@ -1070,6 +1077,7 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
                     last_modified: None,
                     state,
                     cdn_accelerated: false,
+                    priority: Priority::Normal,
                     checksum_mode: ChecksumMode::None,
                     checksum: None,
                     expected_checksum: None,
@@ -1183,6 +1191,7 @@ fn make_managed(id: &str, state: DownloadState, url: &str) -> Arc<ManagedDownloa
                 download_limit_bps: None,
                 upload_limit_bps: None,
                 mirror_url: None,
+                priority: Priority::Normal,
                 degraded: false,
                 disk_type: None,
                 flushing: false,
@@ -1212,6 +1221,7 @@ fn make_managed(id: &str, state: DownloadState, url: &str) -> Arc<ManagedDownloa
                 last_modified: None,
                 state,
                 cdn_accelerated: false,
+                priority: Priority::Normal,
                 checksum_mode: ChecksumMode::None,
                 checksum: None,
                 expected_checksum: None,
@@ -1258,6 +1268,7 @@ async fn start_rejects_unsupported_scheme() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await;
 
@@ -1291,6 +1302,7 @@ async fn start_rejects_empty_destination_dir() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await;
 
@@ -1324,6 +1336,7 @@ async fn start_rejects_relative_destination_dir() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await;
 
@@ -1357,6 +1370,7 @@ async fn start_rejects_checksum_mode_mismatch() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+                    priority: None,
         })
         .await;
 

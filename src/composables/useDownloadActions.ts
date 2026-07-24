@@ -7,10 +7,18 @@ import {
   purgeDownload,
   removeDownload,
   resumeDownload,
+  setPriority,
 } from "../lib/tauri/download-api";
 import { t } from "../i18n";
-import { canPauseState, canResumeState, toMessage, toSummary } from "./downloadHelpers";
+import {
+  canPauseState,
+  canResumeState,
+  terminalStates,
+  toMessage,
+  toSummary,
+} from "./downloadHelpers";
 import type { DownloadSnapshot, DownloadSummary } from "../types/download";
+import type { Priority } from "../types/download";
 
 export interface UseDownloadActionsInput {
   downloads: Ref<DownloadSummary[]>;
@@ -259,6 +267,85 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
     });
   }
 
+  async function runBatchPause(downloadIds: string[]) {
+    if (downloadIds.length === 0) return;
+    const items = downloadIds.reduce<Array<{ id: string; fileName: string }>>((acc, id) => {
+      const d = downloads.value.find((x) => x.id === id);
+      if (d && canPauseState(d.state)) {
+        acc.push({ id: d.id, fileName: d.fileName });
+      }
+      return acc;
+    }, []);
+    await runBatchAction({
+      actionNameValue: "BatchPause",
+      items,
+      apiCall: pauseDownload,
+      successMessageKey: "messages.batchPaused",
+      onSuccess: (_id, snapshot) => {
+        upsertSummary(toSummary(snapshot));
+      },
+    });
+  }
+
+  async function runBatchResume(downloadIds: string[]) {
+    if (downloadIds.length === 0) return;
+    const items = downloadIds.reduce<Array<{ id: string; fileName: string }>>((acc, id) => {
+      const d = downloads.value.find((x) => x.id === id);
+      if (d && canResumeState(d.state)) {
+        acc.push({ id: d.id, fileName: d.fileName });
+      }
+      return acc;
+    }, []);
+    await runBatchAction({
+      actionNameValue: "BatchResume",
+      items,
+      apiCall: resumeDownload,
+      successMessageKey: "messages.batchResumed",
+      onSuccess: (_id, snapshot) => {
+        upsertSummary(toSummary(snapshot));
+      },
+    });
+  }
+
+  async function runBatchCancel(downloadIds: string[]) {
+    if (downloadIds.length === 0) return;
+    const items = downloadIds.reduce<Array<{ id: string; fileName: string }>>((acc, id) => {
+      const d = downloads.value.find((x) => x.id === id);
+      if (d && !terminalStates.includes(d.state)) {
+        acc.push({ id: d.id, fileName: d.fileName });
+      }
+      return acc;
+    }, []);
+    await runBatchAction({
+      actionNameValue: "BatchCancel",
+      items,
+      apiCall: cancelDownload,
+      successMessageKey: "messages.batchCanceled",
+      onSuccess: (id) => {
+        removeSummary(id);
+      },
+    });
+  }
+
+  async function runSetPriority(downloadId: string, priority: Priority) {
+    try {
+      clearMessage();
+      await setPriority(downloadId, priority);
+      const summary = downloads.value.find((d) => d.id === downloadId);
+      if (summary) {
+        upsertSummary({ ...summary, priority });
+      }
+      setMessage(
+        t("messages.actionComplete", {
+          action: t("actions.SetPriority"),
+          fileName: summary?.fileName ?? downloadId,
+        }),
+      );
+    } catch (error) {
+      setError(toMessage(error));
+    }
+  }
+
   return {
     actionName,
     allowAutoSelect,
@@ -286,5 +373,9 @@ export function useDownloadActions(input: UseDownloadActionsInput) {
     runResumeAll,
     runClearCompleted,
     runBatchDelete,
+    runBatchPause,
+    runBatchResume,
+    runBatchCancel,
+    runSetPriority,
   };
 }

@@ -332,6 +332,7 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     };
 
     let dm = ctx
@@ -466,6 +467,7 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     };
 
     let bt = ctx

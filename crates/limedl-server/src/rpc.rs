@@ -413,6 +413,7 @@ async fn dispatch_method(
         "settings_get" => handle_settings_get(state).await,
         "settings_save" => handle_settings_save(params, state).await,
         "download_open_in_explorer" => handle_open_in_explorer(params, state).await,
+        "download_set_priority" => handle_set_priority(params, state).await,
         "toggle_game_mode" => handle_toggle_game_mode(params, state).await,
         "get_io_status" => handle_get_io_status(state).await,
         "detect_disk_type" => handle_detect_disk_type(params, state).await,
@@ -600,6 +601,31 @@ async fn handle_open_in_explorer(
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     backend
         .open_in_explorer(&task_id)
+        .await
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    Ok(serde_json::json!({}))
+}
+
+// ── Handler: download.setPriority ─────────────────────────────
+
+async fn handle_set_priority(
+    params: Option<&serde_json::Value>,
+    state: &RpcState,
+) -> Result<serde_json::Value, JsonRpcError> {
+    let p = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
+    let task_id_str = p
+        .get("taskId")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
+    let task_id = TaskId::from_legacy_string(task_id_str)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
+    let priority: limedl_core::types::Priority = serde_json::from_value(
+        p.get("priority").cloned().unwrap_or(serde_json::Value::Null),
+    )
+    .map_err(|e| JsonRpcError::invalid_params(format!("invalid priority: {e}")))?;
+    let dispatcher = make_dispatcher(state);
+    dispatcher
+        .set_priority(&task_id, priority)
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     Ok(serde_json::json!({}))

@@ -71,6 +71,7 @@ const columnLabelMap: Record<ColumnKey, () => string> = {
   status: () => t("queue.status"),
   progress: () => t("queue.progress"),
   speed: () => t("queue.speed"),
+  priority: () => t("queue.priorityColumn"),
   uploadSpeed: () => t("queue.upSpeed"),
   seeds: () => t("queue.seeds"),
   eta: () => t("queue.eta"),

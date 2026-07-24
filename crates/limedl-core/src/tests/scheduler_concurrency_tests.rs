@@ -43,6 +43,7 @@ async fn scheduler_respects_max_parallel_tasks() {
             start_paused: false,
             mirror_urls: None,
             user_agent: None,
+            priority: None,
         };
         let id = dm.start(request).await.unwrap();
         ids.push(id.to_string());

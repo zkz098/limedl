@@ -15,6 +15,7 @@ import type { ColumnKey } from "../../lib/column-defs";
 import { VALID_COLUMN_KEYS } from "../../lib/column-defs";
 import type { DownloadSummary } from "../../types/download";
 import type { ViewOptions, MultiSelectState } from "../../types/download";
+import type { Priority } from "../../types/download";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
@@ -40,6 +41,7 @@ const emit = defineEmits<{
   pauseOrResume: [downloadId: string];
   select: [downloadId: string];
   setBtSpeedLimit: [downloadId: string];
+  setPriority: [downloadId: string, priority: Priority];
   toggleSelect: [downloadId: string];
 }>();
 
@@ -50,7 +52,48 @@ const { t } = useI18n();
 const currentPage = ref(1);
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
 const contextMenuPanelRef = ref<HTMLElement | null>(null);
+const priorityMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
+const priorityMenuRef = ref<HTMLElement | null>(null);
 const isSyncIndicatorVisible = ref(false);
+
+const priorityOptions = computed<Array<{ value: Priority; label: string }>>(() => [
+  { value: "high", label: t("composer.priorityHigh") },
+  { value: "normal", label: t("composer.priorityNormal") },
+  { value: "low", label: t("composer.priorityLow") },
+]);
+
+function priorityTone(priority: Priority): "danger" | "neutral" | "info" {
+  if (priority === "high") return "danger";
+  if (priority === "low") return "info";
+  return "neutral";
+}
+
+function priorityLabel(priority: Priority) {
+  return t(`composer.priority${priority.charAt(0).toUpperCase() + priority.slice(1)}`);
+}
+
+function openPriorityMenu(event: MouseEvent, downloadId: string) {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  const menuWidth = 120;
+  const menuHeight = 110;
+  const gutter = 12;
+  const x = Math.max(gutter, Math.min(rect.left, window.innerWidth - menuWidth - gutter));
+  const y = Math.max(gutter, Math.min(rect.bottom + 4, window.innerHeight - menuHeight - gutter));
+  priorityMenu.value = { downloadId, x, y };
+}
+
+function closePriorityMenu() {
+  priorityMenu.value = null;
+}
+
+function handleSetPriority(downloadId: string, priority: Priority) {
+  emit("setPriority", downloadId, priority);
+  priorityMenu.value = null;
+}
+
+const showPriorityMenu = computed(() => priorityMenu.value !== null);
+useFloatingClose(priorityMenuRef, showPriorityMenu, closePriorityMenu);
 
 const columnLabelMap: Record<ColumnKey, () => string> = {
   file: () => t("queue.file"),
@@ -59,6 +102,7 @@ const columnLabelMap: Record<ColumnKey, () => string> = {
   status: () => t("queue.status"),
   progress: () => t("queue.progress"),
   speed: () => t("queue.speed"),
+  priority: () => t("queue.priorityColumn"),
   uploadSpeed: () => t("queue.upSpeed"),
   seeds: () => t("queue.seeds"),
   eta: () => t("queue.eta"),
@@ -195,6 +239,7 @@ watch(
   (value) => {
     if (value) {
       contextMenu.value = null;
+      priorityMenu.value = null;
     }
   },
 );
@@ -213,6 +258,30 @@ watch(contextMenu, (menu) => {
     });
   }
 });
+
+function handlePriorityMenuKeydown(event: KeyboardEvent) {
+  if (!priorityMenu.value) return;
+
+  switch (event.key) {
+    case "Escape":
+      event.preventDefault();
+      closePriorityMenu();
+      break;
+    case "ArrowDown":
+    case "ArrowUp": {
+      event.preventDefault();
+      const items = Array.from(
+        priorityMenuRef.value?.querySelectorAll<HTMLButtonElement>(".priority-menu__item") ?? [],
+      );
+      if (items.length === 0) return;
+      const currentIndex = items.findIndex((el) => el === document.activeElement);
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex = (currentIndex + direction + items.length) % items.length;
+      items[nextIndex]?.focus();
+      break;
+    }
+  }
+}
 
 const showAutoRefreshIndicator = debounce(() => {
   isSyncIndicatorVisible.value = true;
@@ -318,7 +387,7 @@ function handleContextMenuKeydown(event: KeyboardEvent) {
 
 function clampMenuPosition(clientX: number, clientY: number) {
   const menuWidth = 220;
-  const menuHeight = 280;
+  const menuHeight = 360;
   const gutter = 12;
 
   return {
@@ -636,6 +705,23 @@ function metaForDownload(download: DownloadSummary) {
               </td>
 
               <td
+                v-if="isColumnVisible('priority')"
+                class="queue-cell queue-cell--priority w-[8%] px-2 py-1 align-middle text-[0.8125rem]"
+              >
+                <button
+                  type="button"
+                  class="queue-cell__priority inline-flex items-center gap-[0.2rem] cursor-pointer"
+                  :title="t('composer.priority')"
+                  @click.stop="openPriorityMenu($event, download.id)"
+                >
+                  <UiBadge size="sm" :tone="priorityTone(download.priority)">
+                    {{ priorityLabel(download.priority) }}
+                  </UiBadge>
+                  <span class="i-ri-arrow-down-s-line text-[0.65rem]" aria-hidden="true" />
+                </button>
+              </td>
+
+              <td
                 v-if="isColumnVisible('uploadSpeed')"
                 class="queue-cell queue-cell--up-speed w-[8%] px-2 py-1 align-middle text-[0.8125rem]"
               >
@@ -739,6 +825,37 @@ function metaForDownload(download: DownloadSummary) {
               <span>{{ t("queue.setSpeedLimit") }}</span>
             </button>
           </template>
+          <div class="task-context-menu__divider" role="separator" />
+          <div class="task-context-menu__group">
+            <span
+              class="task-context-menu__group-label px-[0.6rem] text-[0.68rem] uppercase tracking-wider"
+            >
+              {{ t("composer.priority") }}
+            </span>
+            <button
+              v-for="option in priorityOptions"
+              :key="option.value"
+              type="button"
+              class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
+              :class="{
+                'task-context-menu__item--active': contextMenuDownload?.priority === option.value,
+              }"
+              @click="handleSetPriority(contextMenuDownload!.id, option.value)"
+            >
+              <span
+                class="w-2 h-2 rounded-full priority-menu__dot"
+                :class="`priority-menu__dot--${option.value}`"
+                aria-hidden="true"
+              />
+              <span>{{ option.label }}</span>
+              <span
+                v-if="contextMenuDownload?.priority === option.value"
+                class="i-ri-check-line ml-auto"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+          <div class="task-context-menu__divider" role="separator" />
           <button
             type="button"
             class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
@@ -770,6 +887,47 @@ function metaForDownload(download: DownloadSummary) {
           >
             <span class="i-ri-folder-open-line" aria-hidden="true" />
             <span>{{ t("queue.openInExplorer") }}</span>
+          </button>
+        </div>
+      </Teleport>
+
+      <Teleport to="body">
+        <div
+          v-if="priorityMenu && priorityMenuRef"
+          ref="priorityMenuRef"
+          class="priority-menu fixed z-30 min-w-[7.5rem] grid gap-[0.15rem] p-[0.35rem] border rounded-md"
+          :style="{ left: `${priorityMenu.x}px`, top: `${priorityMenu.y}px` }"
+          @pointerdown.stop
+          @keydown="handlePriorityMenuKeydown"
+        >
+          <button
+            v-for="option in priorityOptions"
+            :key="option.value"
+            type="button"
+            class="priority-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
+            :class="{
+              'priority-menu__item--active':
+                priorityMenu?.downloadId &&
+                downloads.find((d) => d.id === priorityMenu?.downloadId)?.priority === option.value,
+            }"
+            @click="
+              priorityMenu?.downloadId && handleSetPriority(priorityMenu.downloadId, option.value)
+            "
+          >
+            <span
+              class="priority-menu__dot w-2 h-2 rounded-full"
+              :class="`priority-menu__dot--${option.value}`"
+              aria-hidden="true"
+            />
+            <span>{{ option.label }}</span>
+            <span
+              v-if="
+                priorityMenu?.downloadId &&
+                downloads.find((d) => d.id === priorityMenu?.downloadId)?.priority === option.value
+              "
+              class="i-ri-check-line ml-auto"
+              aria-hidden="true"
+            />
           </button>
         </div>
       </Teleport>
@@ -893,6 +1051,24 @@ function metaForDownload(download: DownloadSummary) {
   color: var(--color-text-muted);
 }
 
+.queue-cell--priority {
+  color: var(--color-text-main);
+}
+
+.queue-cell__priority {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.queue-cell__priority:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
 .queue-cell--eta {
   color: var(--color-text-muted);
 }
@@ -988,6 +1164,71 @@ function metaForDownload(download: DownloadSummary) {
 
 .task-context-menu__item--danger:hover:not(:disabled) {
   background: var(--color-danger-bg);
+}
+
+.task-context-menu__item--active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+.task-context-menu__item--active:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+}
+
+.task-context-menu__divider {
+  height: 1px;
+  margin: 0.15rem 0.35rem;
+  background: var(--color-border);
+}
+
+.task-context-menu__group-label {
+  display: block;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  letter-spacing: var(--letter-spacing-wide);
+  padding: 0.25rem 0.6rem;
+}
+
+.priority-menu {
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.priority-menu__item {
+  color: var(--color-text-main);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.priority-menu__item:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.priority-menu__item--active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+.priority-menu__item--active:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+}
+
+.priority-menu__dot {
+  flex: none;
+}
+
+.priority-menu__dot--high {
+  background: var(--color-danger-text);
+}
+
+.priority-menu__dot--normal {
+  background: var(--color-text-muted);
+}
+
+.priority-menu__dot--low {
+  background: var(--color-info-text);
 }
 
 @media (max-width: 1160px) {

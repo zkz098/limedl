@@ -21,7 +21,7 @@ thiserror = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 urlencoding = "2"
 anyhow = "1"
-time = ">=0.3.47, <0.4"
+time = { version = ">=0.3.47, <0.4", features = ["local-offset"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
 axum = { version = "0.8", features = ["ws"], optional = true }

@@ -5,8 +5,15 @@ import UiButton from "../ui/UiButton.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import { useI18n } from "../../i18n";
+import { detectKindFromUrl, extractFileNameFromUrl } from "../../lib/url-utils";
 
-import type { ChecksumMode, DownloadFormState, TaskKind, ThreadMode } from "../../types/download";
+import type {
+  BatchUrlEntry,
+  BatchSubmitProgress,
+  ChecksumMode,
+  DownloadFormState,
+  ThreadMode,
+} from "../../types/download";
 import type { AppSettings } from "../../types/settings";
 
 const props = defineProps<{
@@ -15,12 +22,19 @@ const props = defineProps<{
   isPickingDirectory: boolean;
   isPickingTorrent: boolean;
   settings: AppSettings | null;
+  batchMode: boolean;
+  batchUrls: string;
+  batchEntries: BatchUrlEntry[];
+  batchSubmitProgress: BatchSubmitProgress;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   pickDirectory: [];
   pickTorrent: [];
   submit: [];
+  "update:batchUrls": [value: string];
+  parseBatch: [];
+  toggleBatchMode: [];
 }>();
 
 const { t } = useI18n();
@@ -78,46 +92,6 @@ const threadHint = computed(() => {
 
   return t("composer.fixedHint", { count: maxThreadsPerTask.value });
 });
-
-function detectKindFromUrl(url: string): TaskKind {
-  const trimmed = url.trim().toLowerCase();
-
-  if (trimmed.startsWith("magnet:")) {
-    return "bt";
-  }
-
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed.endsWith(".torrent") ? "bt" : "http";
-  }
-
-  if (/^[0-9a-f]{40}$/i.test(trimmed) || trimmed.startsWith("xt=urn:btih:")) {
-    return "bt";
-  }
-
-  return "http";
-}
-
-function extractFileNameFromUrl(url: string): string {
-  const trimmed = url.trim();
-  if (!trimmed) {
-    return "";
-  }
-
-  if (trimmed.toLowerCase().startsWith("magnet:")) {
-    const queryIndex = trimmed.indexOf("?");
-    const query = queryIndex >= 0 ? trimmed.slice(queryIndex + 1) : "";
-    const dn = new URLSearchParams(query).get("dn");
-    return dn ? decodeURIComponent(dn) : "";
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    const segment = parsed.pathname.split("/").pop();
-    return segment ? decodeURIComponent(segment) : "";
-  } catch {
-    return "";
-  }
-}
 
 function toggleKind() {
   props.form.kind = props.form.kind === "http" ? "bt" : "http";
@@ -197,9 +171,35 @@ onMounted(() => {
 
 <template>
   <form class="composer-form" @submit.prevent="$emit('submit')">
+    <!-- Mode tabs -->
+    <div class="composer-tabs" role="tablist" :aria-label="t('composer.modeLabel')">
+      <button
+        type="button"
+        role="tab"
+        class="composer-tab"
+        :class="{ 'is-active': !batchMode }"
+        :aria-selected="!batchMode"
+        @click="batchMode ? $emit('toggleBatchMode') : undefined"
+      >
+        <span class="i-ri-link" aria-hidden="true" />
+        <span>{{ t("composer.singleMode") }}</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="composer-tab"
+        :class="{ 'is-active': batchMode }"
+        :aria-selected="batchMode"
+        @click="!batchMode ? $emit('toggleBatchMode') : undefined"
+      >
+        <span class="i-ri-list-check-3" aria-hidden="true" />
+        <span>{{ t("composer.batchMode") }}</span>
+      </button>
+    </div>
+
     <div class="composer-scroll">
-      <div class="composer-fields">
-        <!-- Source URL -->
+      <!-- SINGLE MODE (existing content, unchanged) -->
+      <div v-if="!batchMode" class="composer-fields">
         <div class="composer-field">
           <span class="composer-field__label">{{ t("composer.sourceUrl") }}</span>
           <div
@@ -238,7 +238,6 @@ onMounted(() => {
           </UiButton>
         </div>
 
-        <!-- File name -->
         <label class="composer-field">
           <span class="composer-field__label">{{ t("composer.fileName") }}</span>
           <UiTextField
@@ -248,7 +247,6 @@ onMounted(() => {
           />
         </label>
 
-        <!-- Save path -->
         <label class="composer-field">
           <span class="composer-field__label">{{ t("composer.savePath") }}</span>
           <div class="composer-destination">
@@ -270,7 +268,6 @@ onMounted(() => {
           </div>
         </label>
 
-        <!-- Advanced options -->
         <div class="composer-advanced">
           <button
             type="button"
@@ -285,7 +282,6 @@ onMounted(() => {
               aria-hidden="true"
             />
           </button>
-
           <Transition name="collapse">
             <div v-show="isAdvancedOpen" class="composer-advanced__panel">
               <div class="composer-advanced__content">
@@ -294,7 +290,6 @@ onMounted(() => {
                     <span class="composer-field__label">{{ t("composer.threadStrategy") }}</span>
                     <UiSelect v-model="form.threadMode" :options="threadModeOptions" />
                   </label>
-
                   <label class="composer-field composer-field--compact">
                     <span class="composer-field__label">{{ t("composer.threadCount") }}</span>
                     <UiSelect
@@ -303,12 +298,10 @@ onMounted(() => {
                       :disabled="form.threadMode === 'adaptive'"
                     />
                   </label>
-
                   <label class="composer-field composer-field--compact">
                     <span class="composer-field__label">{{ t("composer.retries") }}</span>
                     <UiTextField type="number" v-model="form.maxRetries" :min="0" />
                   </label>
-
                   <label class="composer-field composer-field--compact">
                     <span class="composer-field__label">{{ t("composer.userAgent") }}</span>
                     <UiTextField
@@ -317,25 +310,181 @@ onMounted(() => {
                       :placeholder="t('composer.userAgentPlaceholder')"
                     />
                   </label>
-
                   <label class="composer-field composer-field--compact">
                     <span class="composer-field__label">{{ t("composer.checksum") }}</span>
                     <UiSelect v-model="form.checksum" :options="checksumOptions" />
                   </label>
-
                   <template v-if="form.kind === 'bt'">
                     <label class="composer-field composer-field--compact">
                       <span class="composer-field__label">{{ t("composer.btDownloadLimit") }}</span>
                       <UiTextField type="number" v-model="form.downloadLimitBps" :min="0" />
                     </label>
-
                     <label class="composer-field composer-field--compact">
                       <span class="composer-field__label">{{ t("composer.btUploadLimit") }}</span>
                       <UiTextField type="number" v-model="form.uploadLimitBps" :min="0" />
                     </label>
                   </template>
                 </div>
+                <p class="composer-hint">{{ threadHint }}</p>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </div>
 
+      <!-- BATCH MODE -->
+      <div v-else class="composer-fields">
+        <label class="composer-field">
+          <span class="composer-field__label">{{ t("composer.batchUrls") }}</span>
+          <textarea
+            class="composer-batch-textarea"
+            :value="batchUrls"
+            :placeholder="t('composer.batchPlaceholder')"
+            rows="6"
+            @input="$emit('update:batchUrls', ($event.target as HTMLTextAreaElement).value)"
+            @blur="$emit('parseBatch')"
+          ></textarea>
+          <span class="composer-field__helper">{{ t("composer.batchHint") }}</span>
+        </label>
+
+        <div class="composer-batch-actions">
+          <UiButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon="i-ri-refresh-line"
+            @click="$emit('parseBatch')"
+          >
+            {{ t("composer.batchParse") }}
+          </UiButton>
+          <span v-if="batchEntries.length > 0" class="composer-batch-count">
+            {{ t("composer.batchParsed", { count: batchEntries.length }) }}
+          </span>
+        </div>
+
+        <div v-if="batchEntries.length > 0" class="composer-batch-preview">
+          <div class="composer-batch-table-wrap">
+            <table class="composer-batch-table">
+              <thead>
+                <tr>
+                  <th class="col-index">#</th>
+                  <th class="col-url">{{ t("composer.sourceUrl") }}</th>
+                  <th class="col-type">{{ t("composer.batchType") }}</th>
+                  <th class="col-name">{{ t("composer.fileName") }}</th>
+                  <th class="col-status">{{ t("composer.batchStatus") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(entry, i) in batchEntries"
+                  :key="entry.id"
+                  :class="`row-${entry.status}`"
+                >
+                  <td class="col-index">{{ i + 1 }}</td>
+                  <td class="col-url" :title="entry.url">{{ entry.url }}</td>
+                  <td class="col-type">
+                    <span class="batch-kind-badge" :class="`batch-kind--${entry.kind}`">
+                      {{ entry.kind === "bt" ? "BT" : "HTTP" }}
+                    </span>
+                  </td>
+                  <td class="col-name" :title="entry.fileName">{{ entry.fileName || "\u2014" }}</td>
+                  <td class="col-status">
+                    <span v-if="entry.status === 'ready'" class="batch-status batch-status--ready"
+                      >&#10003;</span
+                    >
+                    <span
+                      v-else-if="entry.status === 'queued'"
+                      class="batch-status batch-status--queued"
+                      >{{ t("composer.batchQueued") }}</span
+                    >
+                    <span
+                      v-else-if="entry.status === 'success'"
+                      class="batch-status batch-status--success"
+                      >&#10003; {{ t("composer.batchDone") }}</span
+                    >
+                    <span
+                      v-else-if="entry.status === 'error'"
+                      class="batch-status batch-status--error"
+                      :title="entry.error"
+                      >{{ t("composer.batchFailed") }}</span
+                    >
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Save path (shared for batch) -->
+        <label class="composer-field">
+          <span class="composer-field__label">{{ t("composer.savePath") }}</span>
+          <div class="composer-destination">
+            <UiTextField
+              :model-value="form.destinationDir || t('composer.chooseFolder')"
+              readonly
+              @click="$emit('pickDirectory')"
+            />
+            <UiButton
+              type="button"
+              class="composer-destination__btn"
+              variant="ghost"
+              size="sm"
+              :loading="isPickingDirectory"
+              icon="i-ri-folder-open-line"
+              :aria-label="t('common.browse')"
+              @click="$emit('pickDirectory')"
+            />
+          </div>
+        </label>
+
+        <!-- Advanced options (shared for batch) — HTTP only, no BT fields -->
+        <div class="composer-advanced">
+          <button
+            type="button"
+            class="composer-advanced__trigger"
+            :aria-expanded="isAdvancedOpen"
+            @click="isAdvancedOpen = !isAdvancedOpen"
+          >
+            <span>{{ t("composer.advancedOptions") }}</span>
+            <span
+              class="composer-advanced__chevron i-ri-arrow-down-s-line"
+              :class="{ 'is-open': isAdvancedOpen }"
+              aria-hidden="true"
+            />
+          </button>
+          <Transition name="collapse">
+            <div v-show="isAdvancedOpen" class="composer-advanced__panel">
+              <div class="composer-advanced__content">
+                <div class="composer-grid">
+                  <label class="composer-field composer-field--compact">
+                    <span class="composer-field__label">{{ t("composer.threadStrategy") }}</span>
+                    <UiSelect v-model="form.threadMode" :options="threadModeOptions" />
+                  </label>
+                  <label class="composer-field composer-field--compact">
+                    <span class="composer-field__label">{{ t("composer.threadCount") }}</span>
+                    <UiSelect
+                      v-model="form.threadCount"
+                      :options="fixedThreadOptions"
+                      :disabled="form.threadMode === 'adaptive'"
+                    />
+                  </label>
+                  <label class="composer-field composer-field--compact">
+                    <span class="composer-field__label">{{ t("composer.retries") }}</span>
+                    <UiTextField type="number" v-model="form.maxRetries" :min="0" />
+                  </label>
+                  <label class="composer-field composer-field--compact">
+                    <span class="composer-field__label">{{ t("composer.userAgent") }}</span>
+                    <UiTextField
+                      v-model="form.userAgent"
+                      type="text"
+                      :placeholder="t('composer.userAgentPlaceholder')"
+                    />
+                  </label>
+                  <label class="composer-field composer-field--compact">
+                    <span class="composer-field__label">{{ t("composer.checksum") }}</span>
+                    <UiSelect v-model="form.checksum" :options="checksumOptions" />
+                  </label>
+                </div>
                 <p class="composer-hint">{{ threadHint }}</p>
               </div>
             </div>
@@ -344,8 +493,44 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Footer -->
     <div class="composer-footer">
-      <UiButton type="submit" block :loading="isStarting" icon="i-ri-download-2-line">
+      <div v-if="batchMode && batchSubmitProgress.total > 0" class="composer-batch-progress">
+        <span class="composer-batch-progress__text">
+          {{
+            t("composer.batchProgress", {
+              done: batchSubmitProgress.done,
+              total: batchSubmitProgress.total,
+            })
+          }}
+        </span>
+        <div class="composer-batch-progress__bar">
+          <div
+            class="composer-batch-progress__fill"
+            :style="{
+              width:
+                batchSubmitProgress.total > 0
+                  ? `${(batchSubmitProgress.done / batchSubmitProgress.total) * 100}%`
+                  : '0%',
+            }"
+          />
+        </div>
+      </div>
+      <UiButton
+        v-if="batchMode"
+        type="submit"
+        block
+        :loading="isStarting"
+        :disabled="batchEntries.length === 0"
+        icon="i-ri-download-2-line"
+      >
+        {{
+          isStarting
+            ? t("composer.batchStarting")
+            : t("composer.batchStart", { count: batchEntries.length })
+        }}
+      </UiButton>
+      <UiButton v-else type="submit" block :loading="isStarting" icon="i-ri-download-2-line">
         {{ isStarting ? t("composer.starting") : t("composer.start") }}
       </UiButton>
     </div>
@@ -576,5 +761,245 @@ onMounted(() => {
   .composer-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ── Mode tabs ──────────────────────────────────────────────────── */
+.composer-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-4);
+  flex-shrink: 0;
+}
+
+.composer-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.composer-tab:hover {
+  color: var(--color-text-main);
+}
+
+.composer-tab.is-active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.composer-tab:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Batch textarea ─────────────────────────────────────────────── */
+.composer-batch-textarea {
+  width: 100%;
+  min-height: 8rem;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-input-bg);
+  color: var(--color-text-main);
+  font-size: var(--font-size-small);
+  font-family: var(--font-mono, "Cascadia Code", "Fira Code", "Consolas", monospace);
+  line-height: 1.6;
+  resize: vertical;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.composer-batch-textarea::placeholder {
+  color: var(--color-text-soft);
+}
+
+.composer-batch-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent) 16%, transparent);
+}
+
+.composer-field__helper {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* ── Batch actions row ──────────────────────────────────────────── */
+.composer-batch-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.composer-batch-count {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+/* ── Batch preview table ────────────────────────────────────────── */
+.composer-batch-preview {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.composer-batch-table-wrap {
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.composer-batch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+}
+
+.composer-batch-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-panel-muted);
+}
+
+.composer-batch-table th {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.composer-batch-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-main);
+  vertical-align: middle;
+}
+
+.composer-batch-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.composer-batch-table .col-index {
+  width: 2.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.composer-batch-table .col-type {
+  width: 4rem;
+}
+
+.composer-batch-table .col-status {
+  width: 5rem;
+  white-space: nowrap;
+}
+
+.composer-batch-table .col-url {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-batch-table .col-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-batch-table .row-queued {
+  background: color-mix(in oklch, var(--color-accent-bg) 40%, transparent);
+}
+
+.composer-batch-table .row-error {
+  background: color-mix(in oklch, var(--color-danger-bg) 40%, transparent);
+}
+
+/* ── Kind badge ─────────────────────────────────────────────────── */
+.batch-kind-badge {
+  display: inline-block;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-micro);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.batch-kind--http {
+  background: color-mix(in oklch, var(--color-accent) 12%, transparent);
+  color: var(--color-accent-strong);
+}
+
+.batch-kind--bt {
+  background: color-mix(in oklch, var(--color-info-text) 12%, transparent);
+  color: var(--color-info-text);
+}
+
+/* ── Status indicators ──────────────────────────────────────────── */
+.batch-status {
+  font-size: var(--font-size-micro);
+}
+
+.batch-status--ready {
+  color: var(--color-text-muted);
+}
+
+.batch-status--queued {
+  color: var(--color-info-text);
+}
+
+.batch-status--success {
+  color: var(--color-success-text);
+}
+
+.batch-status--error {
+  color: var(--color-danger-text);
+}
+
+/* ── Batch progress bar ─────────────────────────────────────────── */
+.composer-batch-progress {
+  margin-bottom: var(--space-3);
+}
+
+.composer-batch-progress__text {
+  display: block;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.composer-batch-progress__bar {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.composer-batch-progress__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  transition: width 0.3s ease;
 }
 </style>

@@ -86,6 +86,7 @@ export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     leechCount,
     downloadLimitBps,
     uploadLimitBps,
+    priority,
   } = snapshot;
   return {
     id,
@@ -120,6 +121,7 @@ export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {
     leechCount,
     downloadLimitBps,
     uploadLimitBps,
+    priority,
   };
 }
 

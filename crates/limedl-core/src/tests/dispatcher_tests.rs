@@ -23,7 +23,7 @@ use crate::manager::{DownloadCore, DownloadManager, ManagedDownload};
 use crate::manifest::{Manifest, CHUNK_SIZE};
 use crate::rate_limiter::RateLimiter;
 use crate::types::{
-    ChecksumMode, DownloadSnapshot, DownloadState, TaskId, ThreadMode,
+    ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskId, ThreadMode,
 };
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -94,6 +94,7 @@ fn make_download(id: &str, state: DownloadState) -> Arc<ManagedDownload> {
                 download_limit_bps: None,
                 upload_limit_bps: None,
                 mirror_url: None,
+                priority: Priority::Normal,
                 degraded: false,
                 disk_type: None,
                 flushing: false,
@@ -123,6 +124,7 @@ fn make_download(id: &str, state: DownloadState) -> Arc<ManagedDownload> {
                 last_modified: None,
                 state,
                 cdn_accelerated: false,
+                priority: Priority::Normal,
                 checksum_mode: ChecksumMode::None,
                 checksum: None,
                 expected_checksum: None,

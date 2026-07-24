@@ -162,7 +162,7 @@ fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
                 requested_thread_count, desired_thread_count, allocated_thread_count,
                 adaptive_profile_snapshot, thread_note, etag, last_modified,
                 state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
-                chunk_size, mirror_url, mirror_urls, current_mirror_index
+                chunk_size, mirror_url, mirror_urls, current_mirror_index, priority
             ) VALUES (
                 :id, :url, :final_url, :user_agent, :destination_dir, :file_name,
                 :file_name_locked, :destination_path, :temp_path, :total_bytes,
@@ -170,7 +170,7 @@ fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
                 :requested_thread_count, :desired_thread_count, :allocated_thread_count,
                 :adaptive_profile_snapshot, :thread_note, :etag, :last_modified,
                 :state, :checksum_mode, :checksum, :error, :created_at_ms, :updated_at_ms,
-                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index
+                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index, :priority
             )",
         )
         .context("failed to prepare insert manifest")?;
@@ -207,6 +207,7 @@ fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
         ":mirror_url": manifest.mirror_url.as_deref(),
         ":mirror_urls": mirror_urls_json.as_str(),
         ":current_mirror_index": manifest.current_mirror_index as i64,
+        ":priority": manifest.priority as u8,
     })
     .with_context(|| format!("failed to insert download {}", manifest.id))?;
 
@@ -240,7 +241,8 @@ fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
                 created_at_ms = :created_at_ms,
                 updated_at_ms = :updated_at_ms, chunk_size = :chunk_size,
                 mirror_url = :mirror_url, mirror_urls = :mirror_urls,
-                current_mirror_index = :current_mirror_index
+                current_mirror_index = :current_mirror_index,
+                priority = :priority
              WHERE id = :id",
         )
         .context("failed to prepare update manifest")?;
@@ -277,6 +279,7 @@ fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
         ":mirror_url": manifest.mirror_url.as_deref(),
         ":mirror_urls": mirror_urls_json.as_str(),
         ":current_mirror_index": manifest.current_mirror_index as i64,
+        ":priority": manifest.priority as u8,
     })
     .with_context(|| format!("failed to update download {}", manifest.id))?;
 
@@ -333,6 +336,7 @@ fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default(),
         current_mirror_index: row.get::<_, i64>(30).unwrap_or(0) as usize,
+        priority: row.get::<_, u8>(31).unwrap_or(1).into(),
     })
 }
 
@@ -511,6 +515,18 @@ const MIGRATIONS: &[Migration] = &[
                 "CREATE INDEX IF NOT EXISTS idx_chunks_claimed ON chunks(claimed_by) WHERE claimed_by IS NOT NULL",
                 [],
             ).context("failed to create idx_chunks_claimed")?;
+            Ok(())
+        },
+    },
+    Migration {
+        version: 6,
+        name: "add_priority",
+        up: |conn| {
+            conn.execute(
+                "ALTER TABLE downloads ADD COLUMN priority INTEGER NOT NULL DEFAULT 1",
+                [],
+            )
+            .context("failed to add priority column")?;
             Ok(())
         },
     },
@@ -897,6 +913,17 @@ impl Database {
         Ok(count as usize)
     }
 
+    /// Update the priority of a download in the database.
+    pub fn set_priority(&self, download_id: &str, priority: u8) -> Result<()> {
+        let conn = self.lock_write();
+        conn.execute(
+            "UPDATE downloads SET priority = ?1 WHERE id = ?2",
+            params![priority, download_id],
+        )
+        .with_context(|| format!("failed to set priority for download {download_id}"))?;
+        Ok(())
+    }
+
     // ── internal helpers ──────────────────────────────────────
 
     /// Replace all chunks for `download_id` (caller must hold the lock).
@@ -980,6 +1007,7 @@ mod tests {
 
     use super::super::manifest::CHUNK_SIZE;
     use super::super::types::default_http_user_agent;
+    use super::super::types::Priority;
     use super::*;
 
     /// Helper: create a `Manifest` with sensible defaults for testing.
@@ -1019,6 +1047,7 @@ mod tests {
             mirror_url: None,
             mirror_urls: Vec::new(),
             current_mirror_index: 0,
+            priority: Priority::Normal,
         }
     }
 
@@ -1749,8 +1778,8 @@ mod tests {
             let conn = db.lock_write();
             assert_eq!(
                 read_user_version(&conn),
-                5,
-                "expected user_version = 5 after migration"
+                6,
+                "expected user_version = 6 after migration"
             );
             let has_mirror_urls =
                 table_has_column(&conn, "downloads", "mirror_urls").unwrap();
@@ -1792,8 +1821,8 @@ mod tests {
             let conn = db.lock_write();
             assert_eq!(
                 read_user_version(&conn),
-                5,
-                "expected user_version = 5 after migration"
+                6,
+                "expected user_version = 6 after migration"
             );
         }
 
@@ -1832,8 +1861,8 @@ mod tests {
             let conn = db.lock_write();
             assert_eq!(
                 read_user_version(&conn),
-                5,
-                "expected user_version = 5 after migration"
+                6,
+                "expected user_version = 6 after migration"
             );
         }
 

@@ -5,6 +5,7 @@ export type ColumnKey =
   | "status"
   | "progress"
   | "speed"
+  | "priority"
   | "uploadSpeed"
   | "seeds"
   | "eta";
@@ -16,6 +17,7 @@ export const VALID_COLUMN_KEYS: ColumnKey[] = [
   "status",
   "progress",
   "speed",
+  "priority",
   "uploadSpeed",
   "seeds",
   "eta",
@@ -28,6 +30,7 @@ export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "status",
   "progress",
   "speed",
+  "priority",
   "eta",
 ];
 

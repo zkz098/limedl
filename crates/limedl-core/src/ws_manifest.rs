@@ -142,6 +142,15 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         safety: SafetyClass::Safe,
     },
     WsCommandSpec {
+        tauri_name: "download_set_priority",
+        rpc_method: "download.setPriority",
+        param_transform: ParamTransform::Rename {
+            from: "downloadId",
+            to: "taskId",
+        },
+        safety: SafetyClass::Mutating,
+    },
+    WsCommandSpec {
         tauri_name: "download_open_in_explorer",
         rpc_method: "download.openInExplorer",
         param_transform: ParamTransform::Rename {

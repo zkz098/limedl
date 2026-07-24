@@ -40,7 +40,8 @@ async fn download_survives_restart() {
             start_paused: false,
             mirror_urls: None,
             user_agent: None,
-        };
+        priority: None,
+    };
         let id = dm.start(request).await.unwrap();
         let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
         let inner = match task_id {

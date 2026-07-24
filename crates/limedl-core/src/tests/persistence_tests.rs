@@ -28,7 +28,7 @@ use crate::{
     rate_limiter::RateLimiter,
     test_harness::TestServer,
     types::{
-        ChecksumMode, DownloadSnapshot, DownloadState, StartDownloadRequest, ThreadMode,
+        ChecksumMode, DownloadSnapshot, DownloadState, Priority, StartDownloadRequest, ThreadMode,
         default_http_user_agent,
     },
 };
@@ -77,6 +77,7 @@ fn make_test_manifest(id: &str, state: DownloadState) -> Manifest {
         mirror_url: None,
         mirror_urls: Vec::new(),
         current_mirror_index: 0,
+        priority: Priority::Normal,
     }
 }
 
@@ -139,6 +140,7 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+            priority: None,
         })
         .await?;
 
@@ -223,6 +225,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
             selected_file_indices: None,
             start_paused: false,
             mirror_urls: None,
+            priority: None,
         })
         .await?;
 

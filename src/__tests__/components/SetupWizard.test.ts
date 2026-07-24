@@ -164,6 +164,7 @@ function createDefaultSettings(): AppSettings {
     setupCompleted: false,
     lastSetupStep: null,
     maxInMemoryDownloads: 200,
+    speedLimitSchedule: [],
   };
 }
 

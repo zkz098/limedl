@@ -103,6 +103,7 @@ async fn find_active_by_url_dedup() {
         start_paused: true,
         mirror_urls: None,
         user_agent: None,
+        priority: None,
     };
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
@@ -149,9 +150,10 @@ async fn find_active_by_url_different_urls() {
         checksum: None,
         expected_checksum: None,
         selected_file_indices: None,
-        start_paused: true,
+        start_paused: false,
         mirror_urls: None,
         user_agent: None,
+        priority: None,
     };
     let id1 = dm.start(request1).await.unwrap();
 
@@ -166,9 +168,10 @@ async fn find_active_by_url_different_urls() {
         checksum: None,
         expected_checksum: None,
         selected_file_indices: None,
-        start_paused: true,
+        start_paused: false,
         mirror_urls: None,
         user_agent: None,
+        priority: None,
     };
     let id2 = dm.start(request2).await.unwrap();
 

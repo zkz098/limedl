@@ -33,6 +33,7 @@ async fn cli_download_from_test_server() {
         start_paused: false,
         mirror_urls: None,
         user_agent: None,
+        priority: None,
     };
     let id = dm.start(request).await.unwrap();
 

@@ -9,7 +9,7 @@ use crate::error::{DownloadError, Result};
 use crate::event_bus::DownloadEvent;
 use crate::types::{
     BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo, BtUploadStatus,
-    DownloadState, DownloadSummary, TaskKind, ThreadMode, TorrentFileEntry,
+    DownloadState, DownloadSummary, Priority, TaskKind, ThreadMode, TorrentFileEntry,
 };
 use crate::{lock, now_ms};
 
@@ -298,6 +298,7 @@ fn fallback_pending_summary(
         error: None,
         cdn_accelerated: false,
         created_at_ms: now_ms(),
+        priority: Priority::Normal,
         seed_count: None,
         leech_count: None,
         download_limit_bps: None,

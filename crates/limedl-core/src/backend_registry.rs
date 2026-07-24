@@ -295,6 +295,7 @@ mod tests {
             error: None,
             cdn_accelerated: false,
             created_at_ms,
+            priority: crate::types::Priority::Normal,
             seed_count: None,
             leech_count: None,
             download_limit_bps: None,

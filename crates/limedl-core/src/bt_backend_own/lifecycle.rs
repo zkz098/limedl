@@ -10,7 +10,7 @@ use crate::error::{DownloadError, Result, io_error_with_path};
 use crate::event_bus::DownloadEvent;
 use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
-    ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, StartDownloadRequest, TaskKind,
+    ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, Priority, StartDownloadRequest, TaskKind,
     ThreadMode,
 };
 use crate::{lock, now_ms};
@@ -244,6 +244,7 @@ impl IrontideBtBackend {
             download_limit_bps: None,
             upload_limit_bps: None,
             mirror_url: None,
+            priority: Priority::Normal,
             degraded: false,
             disk_type: None,
             flushing: false,

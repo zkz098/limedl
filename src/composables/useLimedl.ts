@@ -462,6 +462,10 @@ function createLimedl(options?: UseLimedlOptions) {
     runResumeAll: actions.runResumeAll,
     runClearCompleted: actions.runClearCompleted,
     runBatchDelete: actions.runBatchDelete,
+    runBatchPause: actions.runBatchPause,
+    runBatchResume: actions.runBatchResume,
+    runBatchCancel: actions.runBatchCancel,
+    runSetPriority: actions.runSetPriority,
     selectDownload: actions.selectDownload,
     selectedDownload,
     selectedId: actions.selectedId,
@@ -469,6 +473,13 @@ function createLimedl(options?: UseLimedlOptions) {
     selectedSummary: actions.selectedSummary,
     submitStart: form.submitStart,
     autoFillFromClipboard: form.autoFillFromClipboard,
+    batchMode: form.batchMode,
+    batchUrls: form.batchUrls,
+    batchEntries: form.batchEntries,
+    batchSubmitProgress: form.batchSubmitProgress,
+    parseBatchUrls: form.parseBatchUrls,
+    submitBatch: form.submitBatch,
+    toggleBatchMode: form.toggleBatchMode,
   };
 }
 

@@ -44,7 +44,7 @@ use super::{
     task_lifecycle::TaskLifecycle,
     types::{
         AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType,
-        DownloadSnapshot, DownloadState, DownloadSummary, SchedulerMode, StartDownloadRequest,
+        DownloadSnapshot, DownloadState, DownloadSummary, Priority, SchedulerMode, StartDownloadRequest,
         TaskId, ThreadMode,
     },
 };
@@ -650,6 +650,7 @@ impl DownloadManager {
             updated_at_ms: now,
             chunks: Vec::new(),
             cdn_accelerated: false,
+            priority: request.priority.unwrap_or_default(),
             mirror_url: None,
             mirror_urls: Vec::new(),
             current_mirror_index: 0,
@@ -1087,6 +1088,21 @@ impl DownloadBackend for DownloadManager {
 
     async fn update_settings(&self, settings: &AppSettings) -> Result<()> {
         self.apply_settings(settings.clone()).await?;
+        Ok(())
+    }
+
+    async fn set_priority(&self, task_id: &TaskId, priority: Priority) -> Result<()> {
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        let download_id = uuid.to_string();
+        let managed = self.task_lifecycle.get(self, &download_id).await?;
+        {
+            let mut core = managed.lock_core();
+            core.manifest.priority = priority;
+        }
+        // Persist to DB
+        self.db.set_priority(&download_id, priority as u8)?;
         Ok(())
     }
 

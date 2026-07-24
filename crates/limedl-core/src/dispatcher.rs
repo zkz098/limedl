@@ -106,6 +106,21 @@ impl Dispatcher {
         Ok(snapshot)
     }
 
+    /// Set the priority of a download. Emits `DownloadEvent::Updated` on success.
+    pub async fn set_priority(
+        &self,
+        task_id: &TaskId,
+        priority: crate::types::Priority,
+    ) -> Result<()> {
+        let backend = self.registry.dispatch(task_id)?;
+        backend.set_priority(task_id, priority).await?;
+        // After the backend sets priority, fetch updated status and emit
+        if let Ok(snapshot) = backend.status(task_id).await {
+            self.emit_updated(&snapshot);
+        }
+        Ok(())
+    }
+
     /// Get the current status (read-only, no emit).
     pub async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let backend = self.registry.dispatch(task_id)?;

@@ -124,6 +124,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
     setupCompleted: false,
     lastSetupStep: null,
     maxInMemoryDownloads: 200,
+    speedLimitSchedule: [],
     ...overrides,
   };
 }

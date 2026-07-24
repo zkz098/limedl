@@ -31,7 +31,7 @@ use crate::manager::DownloadCore;
 use crate::manifest::Manifest;
 use crate::retry::{backoff_delay, request_with_retry};
 use crate::test_harness::TestServer;
-use crate::types::{ChecksumMode, DownloadSnapshot, DownloadState, TaskKind, ThreadMode};
+use crate::types::{ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskKind, ThreadMode};
 
 // ---------------------------------------------------------------------------
 // Type alias
@@ -103,6 +103,7 @@ fn make_managed() -> Arc<crate::manager::ManagedDownload> {
                 download_limit_bps: None,
                 upload_limit_bps: None,
                 mirror_url: None,
+                priority: Priority::Normal,
                 degraded: false,
                 disk_type: None,
                 flushing: false,
@@ -132,6 +133,7 @@ fn make_managed() -> Arc<crate::manager::ManagedDownload> {
                 last_modified: None,
                 state: DownloadState::Downloading,
                 cdn_accelerated: false,
+                priority: Priority::Normal,
                 checksum_mode: ChecksumMode::None,
                 checksum: None,
                 expected_checksum: None,

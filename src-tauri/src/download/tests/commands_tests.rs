@@ -32,6 +32,7 @@ fn make_request(url: &str, kind: Option<TaskKind>) -> StartDownloadRequest {
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     }
 }
 
@@ -453,6 +454,7 @@ fn make_server_req(
         selected_file_indices: None,
         start_paused: false,
         mirror_urls: None,
+        priority: None,
     }
 }
 
@@ -779,6 +781,7 @@ async fn download_start_bt_magnet() -> TestResult {
         selected_file_indices: None,
         start_paused: true,
         mirror_urls: None,
+        priority: None,
     };
 
     let task_id = dispatcher.start(request).await?;

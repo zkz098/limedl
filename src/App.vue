@@ -19,6 +19,7 @@ import DetailPanel from "./components/limedl/DetailPanel.vue";
 import TopToolbar from "./components/layout/TopToolbar.vue";
 import UiButton from "./components/ui/UiButton.vue";
 import BtSpeedLimitModal from "./components/limedl/BtSpeedLimitModal.vue";
+import BatchActionBar from "./components/limedl/BatchActionBar.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import UiDialog from "./components/ui/UiDialog.vue";
 import ErrorBoundary from "./components/ui/ErrorBoundary.vue";
@@ -136,6 +137,10 @@ const {
   runResumeAll,
   runClearCompleted,
   runBatchDelete,
+  runBatchPause,
+  runBatchResume,
+  runBatchCancel,
+  runSetPriority,
   selectDownload,
   selectedId,
   selectedSnapshot,
@@ -143,6 +148,13 @@ const {
   submitStart,
   autoFillFromClipboard,
   setNotificationsEnabled,
+  batchMode,
+  batchUrls,
+  batchEntries,
+  batchSubmitProgress,
+  parseBatchUrls,
+  submitBatch,
+  toggleBatchMode,
 } = useLimedl(limedlOptions);
 
 const { categoryCounts, sidebarStats } = useCategoryCounts(downloads);
@@ -368,6 +380,20 @@ const multiSelectState = computed<MultiSelectState>(() => ({
   removedDownloadIds: removedDownloadIds.value,
 }));
 
+const selectedDownloadItems = computed(() =>
+  downloads.value.filter((d) => selectedIds.value.has(d.id)),
+);
+
+const batchBarStats = computed(() => {
+  const items = selectedDownloadItems.value;
+  return {
+    canPauseCount: items.filter((d) => canPauseDownload(d)).length,
+    canResumeCount: items.filter((d) => canResumeDownload(d)).length,
+    canCancelCount: items.filter((d) => !["completed", "failed", "canceled"].includes(d.state))
+      .length,
+  };
+});
+
 const pendingPermanentDeleteTask = computed(
   () => downloads.value.find((download) => download.id === pendingPermanentDeleteId.value) ?? null,
 );
@@ -383,9 +409,17 @@ const btStatusData = computed(() => {
 });
 
 const handleSubmitStart = async () => {
-  await submitStart();
+  if (batchMode.value) {
+    await submitBatch();
+  } else {
+    await submitStart();
+  }
   showComposerDialog.value = false;
 };
+
+function handleBatchUrlsInput(value: string) {
+  batchUrls.value = value;
+}
 
 const handleRefreshSelected = async () => {
   if (!selectedId.value) {
@@ -440,6 +474,26 @@ async function confirmBatchDelete() {
   if (ids.length === 0) return;
   await runBatchDelete(ids);
   selectedIds.value = new Set();
+}
+
+async function handleBatchPause() {
+  const ids = [...selectedIds.value];
+  if (ids.length === 0) return;
+  await runBatchPause(ids);
+}
+
+async function handleBatchResume() {
+  const ids = [...selectedIds.value];
+  if (ids.length === 0) return;
+  await runBatchResume(ids);
+}
+
+async function handleBatchCancel() {
+  const ids = [...selectedIds.value];
+  if (ids.length === 0) return;
+  await runBatchCancel(ids);
+  selectedIds.value = new Set();
+  multiSelectMode.value = false;
 }
 
 function cancelPermanentDelete() {
@@ -597,6 +651,17 @@ watch(
       <main class="content-area">
         <!-- Home view: table + detail panel -->
         <template v-if="currentView === 'home'">
+          <BatchActionBar
+            :selected-count="selectedIds.size"
+            :multi-select-mode="multiSelectMode"
+            :can-pause-count="batchBarStats.canPauseCount"
+            :can-resume-count="batchBarStats.canResumeCount"
+            :can-cancel-count="batchBarStats.canCancelCount"
+            @pause="handleBatchPause"
+            @resume="handleBatchResume"
+            @cancel="handleBatchCancel"
+            @clear-selection="handleDeselectAll"
+          />
           <div class="table-wrapper">
             <ErrorBoundary>
               <DownloadQueueTable
@@ -614,6 +679,7 @@ watch(
                 @select="selectDownload"
                 @toggle-select="handleToggleSelect"
                 @set-bt-speed-limit="handleSetBtSpeedLimit"
+                @set-priority="runSetPriority"
               />
             </ErrorBoundary>
           </div>
@@ -692,9 +758,16 @@ watch(
         :is-picking-torrent="isPickingTorrent"
         :is-starting="isStarting"
         :settings="appSettings"
+        :batch-mode="batchMode"
+        :batch-urls="batchUrls"
+        :batch-entries="batchEntries"
+        :batch-submit-progress="batchSubmitProgress"
         @pick-directory="pickDestinationDirectory"
         @pick-torrent="pickTorrentSourceFile"
         @submit="handleSubmitStart"
+        @update:batch-urls="handleBatchUrlsInput"
+        @parse-batch="parseBatchUrls"
+        @toggle-batch-mode="toggleBatchMode"
       />
     </UiDialog>
 
