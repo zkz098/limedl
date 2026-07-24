@@ -309,6 +309,7 @@ const versionBadgeClass = computed(() => {
 </script>
 
 <template>
+  <div class="about-panel-wrapper">
   <div class="about-panel flex flex-col gap-5">
     <!-- Card 1: About Limedl -->
     <SettingsSection :title="t('settings.aboutTitle')" icon="i-ri-information-line">
@@ -514,6 +515,7 @@ const versionBadgeClass = computed(() => {
     @cancel="showFactoryResetConfirm = false"
     @confirm="handleFactoryReset"
   />
+  </div>
 </template>
 
 <style scoped>

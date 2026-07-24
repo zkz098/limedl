@@ -404,19 +404,16 @@ pub fn run() {
                                 use download::manager::DownloadManager;
 
                                 let state = app.state::<AppState>();
-                                let new_limit = {
+                                {
                                     let mut settings = state.settings.write();
                                     if settings.global_speed_limit_bps > 0 {
                                         settings.global_speed_limit_bps = 0;
-                                        0
                                     } else {
                                         settings.global_speed_limit_bps = 1_048_576;
-                                        1_048_576
                                     }
-                                };
-                                if new_limit > 0
-                                    && let Some(dm) =
-                                        state.registry.get_typed::<DownloadManager>()
+                                }
+                                if let Some(dm) =
+                                    state.registry.get_typed::<DownloadManager>()
                                 {
                                     let s = state.settings.read().clone();
                                     let _ = dm.apply_settings(s).await;
