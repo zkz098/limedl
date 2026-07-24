@@ -28,6 +28,7 @@ const props = defineProps<{
 
 // Autostart toggle — syncs with the plugin directly
 async function onAutostartChange(value: boolean) {
+  props.draft.autostart = value;
   try {
     if (value) {
       await enableAutostart();

@@ -403,12 +403,14 @@ describe("SettingsAppearancePanel", () => {
       draft.autostart,
     );
 
-    // Since it's NOT v-model, toggling the switch via the emitted event
-    // does NOT update draft.autostart directly. The handler (onAutostartChange)
-    // only calls the plugin API, it does not modify draft.
+    // The handler (onAutostartChange) updates draft.autostart
+    // and calls the plugin API to sync OS registry.
     await autoSwitch.setValue(true);
     await nextTick();
-    // draft.autostart remains false because the handler doesn't touch it
+    expect(draft.autostart).toBe(true);
+
+    await autoSwitch.setValue(false);
+    await nextTick();
     expect(draft.autostart).toBe(false);
   });
 
