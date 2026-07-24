@@ -1,4 +1,3 @@
-#[cfg(windows)]
 use std::process::Command;
 use std::{
     fs, io,
