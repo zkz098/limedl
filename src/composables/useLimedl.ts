@@ -287,6 +287,7 @@ function createLimedl(options?: UseLimedlOptions) {
   let unlistenEvent: UnlistenFn | null = null;
   let unlistenProgress: UnlistenFn | null = null;
   let unlistenWarning: UnlistenFn | null = null;
+  let unlistenFullState: UnlistenFn | null = null;
   let mounted = true;
   let btRuntimeTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -373,6 +374,19 @@ function createLimedl(options?: UseLimedlOptions) {
       unlistenWarning = unlisten;
     });
 
+    // WebSocket-only recovery: when the NAS event relay lags, the server
+    // sends a full state dump to replace the entire download list.
+    void listen<DownloadSummary[]>("download-full-state", (event) => {
+      downloads.value = event.payload;
+      ensureSelection();
+    }).then((unlisten) => {
+      if (!mounted) {
+        unlisten();
+        return;
+      }
+      unlistenFullState = unlisten;
+    });
+
     // BT runtime status (global DHT state, upload stats) is not included in per-download
     // events, so a slow background poll is kept.
     btRuntimeTimer = setInterval(() => {
@@ -396,6 +410,11 @@ function createLimedl(options?: UseLimedlOptions) {
     if (unlistenWarning) {
       unlistenWarning();
       unlistenWarning = null;
+    }
+
+    if (unlistenFullState) {
+      unlistenFullState();
+      unlistenFullState = null;
     }
 
     if (btRuntimeTimer) {

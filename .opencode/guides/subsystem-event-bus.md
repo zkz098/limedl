@@ -31,7 +31,7 @@ EventBus::publish(event) → broadcast::Sender::send()
 ## 设计决策与约定
 
 - `publish()` 只做 `tx.send(event)`，**不做**任何前端转发。前端发射由各 adapter 的独立订阅任务负责。
-- 生产环境容量 8192（`src-tauri/src/lib.rs` 的 bootstrap），测试环境 1024。
+- 生产环境容量 8192（`bootstrap.rs` 中创建），单元测试内部单独使用 1024。
 - broadcast 的 lagged-receiver 检测：当订阅者消费速度落后于发布速度时，`recv()` 返回 `RecvError::Lagged(n)`。lib.rs 中处理此情况时会调用 `emit_all_downloads()` 做兜底全量推送。
 - DownloadEvent 使用 `#[serde(tag = "type", content = "payload", rename_all = "camelCase")]`，序列化为 `{"type":"updated","payload":{...}}` 格式。
 - 新增事件 variant：在 DownloadEvent 中加新变体，然后分别在 lib.rs 和 rpc.rs 的 match 分支中添加对应 emit/推送逻辑。一致性由 ws_manifest.rs 中的编译期测试保证。

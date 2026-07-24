@@ -377,10 +377,19 @@ fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest> {
 // ── Compatibility helpers ────────────────────────────────────────
 
 /// Check whether a table has a given column by querying PRAGMA table_info.
+///
+/// # Safety
+///
+/// `table` must be a known-safe schema identifier (currently only `"downloads"`
+/// is valid). This function is private and all callers pass compile-time
+/// constants, preventing injection.
 fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
-    // SAFETY: `table` is always a hardcoded literal ("downloads"), never user input.
-    // If this function is ever made generic over table names, the format! must be
-    // replaced with a parameterized query or a whitelist check.
+    // Guard: only known table names are permitted — prevents SQL injection
+    // if a future refactor accidentally passes user-controlled input.
+    debug_assert!(
+        table == "downloads",
+        "table_has_column: unknown table '{table}' — add it to the whitelist"
+    );
     let mut stmt = conn
         .prepare(&format!("PRAGMA table_info({table})"))
         .context("failed to query table info")?;
@@ -546,13 +555,16 @@ impl Database {
         // ── PRAGMA configuration ─────────────────────────────────
         write_conn.execute_batch("PRAGMA journal_mode = WAL;")
             .context("failed to enable WAL mode")?;
-        write_conn.execute_batch("PRAGMA wal_autocheckpoint = 1000;")
+        write_conn.execute_batch("PRAGMA wal_autocheckpoint = 4096;")
             .context("failed to set WAL auto-checkpoint")?;
         write_conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
         write_conn.execute_batch("PRAGMA busy_timeout = 5000;")
             .context("failed to set busy timeout")?;
-        write_conn.execute_batch("PRAGMA synchronous = FULL;")
+        // NORMAL is safe with WAL mode — the WAL itself provides crash safety.
+        // FULL would force an fsync on every checkpoint, doubling I/O overhead
+        // when combined with the buffer pool's per-batch sync_data.
+        write_conn.execute_batch("PRAGMA synchronous = NORMAL;")
             .context("failed to set synchronous mode")?;
         write_conn.execute_batch("PRAGMA cache_size = -8000;")
             .context("failed to set cache size")?;

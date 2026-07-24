@@ -403,6 +403,10 @@ pub const WS_EVENTS: &[WsEventSpec] = &[
         ws_type: "warning",
         tauri_event_name: "download-warning",
     },
+    WsEventSpec {
+        ws_type: "fullState",
+        tauri_event_name: "download-full-state",
+    },
 ];
 
 #[cfg(test)]
@@ -556,12 +560,18 @@ mod tests {
     /// Exception: `aria2Notification` uses a dynamic `event_name` in the Tauri
     /// adapter (passed through directly from the BT backend), not a fixed
     /// event name string, so it is excluded from this check.
+    /// `fullState` is a WebSocket-only recovery mechanism emitted when the
+    /// NAS event relay detects lag; the Tauri IPC path has no equivalent.
     #[test]
     fn ws_event_tauri_names_appear_in_lib_rs() {
         let lib_source = include_str!("../../../src-tauri/src/lib.rs");
         for ev in WS_EVENTS {
             // Aria2Notification uses a dynamic event_name in the Tauri adapter
             if ev.ws_type == "aria2Notification" {
+                continue;
+            }
+            // fullState is WebSocket-only (NAS event relay recovery mechanism)
+            if ev.ws_type == "fullState" {
                 continue;
             }
             let quoted = format!("\"{}\"", ev.tauri_event_name);

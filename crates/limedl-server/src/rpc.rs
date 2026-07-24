@@ -90,6 +90,9 @@ pub struct RpcState {
     pub rate_limiter: Arc<WsRateLimiter>,
     /// CDN acceleration service
     pub cdn_service: Arc<CdnService>,
+    /// Shared HTTP client for one-off requests (e.g. tracker list fetch).
+    /// reqwest::Client is cheap to clone — it uses Arc internally.
+    pub http_client: reqwest::Client,
 }
 
 /// Handle WebSocket upgrade and run JSON-RPC loop
@@ -440,14 +443,9 @@ async fn dispatch_method(
 // ── Handler: tray.updateLanguage ────────────────────────────────────
 
 async fn handle_update_tray_language(
-    params: Option<&serde_json::Value>,
+    _params: Option<&serde_json::Value>,
     _state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
-    let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
-    let _language = params
-        .get("language")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| JsonRpcError::invalid_params("Missing language"))?;
     // NAS/web mode has no system tray — no-op
     Ok(serde_json::json!(true))
 }
@@ -570,8 +568,15 @@ async fn handle_settings_save(
     let settings: limedl_core::types::AppSettings =
         serde_json::from_value(params.cloned().unwrap_or_default())
             .map_err(|e| JsonRpcError::invalid_params(format!("Invalid params: {e}")))?;
-    // Broadcast to all backends
-    state.registry.update_all_settings(&settings).await;
+    // Normalize before broadcasting so validation errors surface to the caller
+    let settings = limedl_core::settings::normalize_settings(settings)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid settings: {e}")))?;
+    // Broadcast to all backends (propagates first error instead of silently swallowing)
+    state
+        .registry
+        .update_all_settings(&settings)
+        .await
+        .map_err(|e| JsonRpcError::server_error(format!("Failed to save settings: {e}")))?;
     let dm = state
         .registry
         .get_typed::<DownloadManager>()
@@ -589,16 +594,23 @@ async fn handle_factory_reset(state: &RpcState) -> Result<serde_json::Value, Jso
         .registry
         .get_typed::<limedl_core::manager::DownloadManager>()
         .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    // Delete the parent directory containing downloads/ and settings.json
+    // Delete the parent directory containing downloads/ and settings.json.
+    // Attempt removal directly instead of checking existence first,
+    // eliminating the TOCTOU window between check and removal.
     let parent_dir = dm
         .dirs
         .state_dir()
         .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| dm.dirs.state_dir().clone());
-    if parent_dir.exists() {
-        std::fs::remove_dir_all(&parent_dir)
-            .map_err(|e| JsonRpcError::server_error(format!("Failed to delete data: {e}")))?;
+    match std::fs::remove_dir_all(&parent_dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => {
+            return Err(JsonRpcError::server_error(format!(
+                "Failed to delete data: {e}"
+            )));
+        }
     }
     Ok(serde_json::Value::Null)
 }
@@ -745,7 +757,7 @@ async fn handle_get_overclock_mode(state: &RpcState) -> Result<serde_json::Value
 
 async fn handle_fetch_tracker_list(
     params: Option<&serde_json::Value>,
-    _state: &RpcState,
+    state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
     let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
     let tracker_list_url = params
@@ -754,12 +766,8 @@ async fn handle_fetch_tracker_list(
         .ok_or_else(|| JsonRpcError::invalid_params("Missing trackerListUrl"))?;
     let normalized = limedl_core::normalize_tracker_list_url(tracker_list_url)
         .map_err(|e| JsonRpcError::invalid_params(e.to_string()))?;
-    let response = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::limited(5))
-        .timeout(std::time::Duration::from_secs(15))
-        .user_agent("limedl/0.1")
-        .build()
-        .map_err(|e| JsonRpcError::server_error(e.to_string()))?
+    let response = state
+        .http_client
         .get(normalized)
         .send()
         .await
@@ -1074,6 +1082,7 @@ mod tests {
             clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
             rate_limiter: Arc::new(crate::rate_limiter::WsRateLimiter::new()),
             cdn_service: core.cdn_service,
+            http_client: reqwest::Client::new(),
         });
 
         (rpc_state, tmp)

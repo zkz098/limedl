@@ -34,6 +34,10 @@ enum IoCommand {
     WriteBatch {
         file: Arc<File>,
         entries: Vec<(u64, Bytes)>,
+        /// Whether to fsync after this batch. HDD double-buffer writes should
+        /// sync for crash safety; SSD write-combining batches are large enough
+        /// that per-batch fsync provides diminishing returns.
+        sync: bool,
         done: oneshot::Sender<Result<(), DownloadError>>,
     },
 }
@@ -56,17 +60,17 @@ impl IoWorker {
             .spawn(move || {
                 while let Some(cmd) = rx.blocking_recv() {
                     match cmd {
-                        IoCommand::WriteBatch { file, entries, done } => {
+                        IoCommand::WriteBatch { file, entries, done, sync } => {
                             // entries are already sorted by offset (BTreeMap drain order).
                             let result = (|| -> Result<(), DownloadError> {
                                 for (off, chunk) in &entries {
                                     write_all_at(&file, chunk, *off)?;
                                 }
-                                // fsync after successful batch write — ensures data survives
-                                // a crash instead of sitting in the OS page cache.
-                                file.sync_data().map_err(|e| {
-                                    DownloadError::Internal(format!("fsync failed: {e}"))
-                                })?;
+                                if sync {
+                                    file.sync_data().map_err(|e| {
+                                        DownloadError::Internal(format!("fsync failed: {e}"))
+                                    })?;
+                                }
                                 Ok(())
                             })();
                             // Ignore send error — caller dropped the receiver.
@@ -85,12 +89,14 @@ impl IoWorker {
         &self,
         file: Arc<File>,
         entries: Vec<(u64, Bytes)>,
+        sync: bool,
     ) -> Result<(), DownloadError> {
         let (done_tx, done_rx) = oneshot::channel();
         self.tx
             .send(IoCommand::WriteBatch {
                 file,
                 entries,
+                sync,
                 done: done_tx,
             })
             .map_err(|_| {
@@ -205,7 +211,10 @@ impl BufferPool {
     /// FIFO, but Tokio's `Semaphore` is fair under contention.
     pub async fn acquire_slot(&self) -> SlotGuard {
         let sem = self.slot_semaphore.clone();
-        let permit = sem.acquire_owned().await.expect("semaphore closed");
+        let permit = sem
+            .acquire_owned()
+            .await
+            .expect("buffer pool semaphore unexpectedly closed — this is a bug");
         self.active_count.fetch_add(1, Ordering::Relaxed);
         SlotGuard::new(permit)
     }
@@ -625,7 +634,7 @@ impl DownloadBuffer {
             let bg_handle: JoinHandle<()> = if let Some(ref worker) = self.io_worker {
                 let worker = worker.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = worker.write_batch(bg_file, old_entries).await {
+                    if let Err(e) = worker.write_batch(bg_file, old_entries, true).await {
                         bg_error.store(true, Ordering::Release);
                         tracing::error!("background HDD buffer flush failed (IoWorker): {e}");
                     }
@@ -724,7 +733,7 @@ impl DownloadBuffer {
         };
         let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
         if let Some(ref worker) = self.io_worker {
-            if let Err(e) = worker.write_batch(file, entries).await {
+            if let Err(e) = worker.write_batch(file, entries, false).await {
                 tracing::error!("SSD local buffer flush failed (IoWorker): {e}");
             }
         } else {
@@ -816,7 +825,7 @@ impl DownloadBuffer {
                 };
                 let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
                 if let Some(ref worker) = self.io_worker {
-                    worker.write_batch(file.clone(), entries).await?;
+                    worker.write_batch(file.clone(), entries, false).await?;
                 } else {
                     for (off, chunk) in &entries {
                         write_all_at(file, chunk, *off)?;
@@ -849,7 +858,7 @@ impl DownloadBuffer {
         pool.sub_usage(bytes);
 
         if let Some(worker) = io_worker {
-            worker.write_batch(file.clone(), entries).await?;
+            worker.write_batch(file.clone(), entries, true).await?;
         } else {
             let f = file.clone();
             tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {

@@ -75,6 +75,7 @@ async fn start_server() -> RpcE2eServer {
         clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
         rate_limiter: Arc::new(limedl_server::rate_limiter::WsRateLimiter::new()),
         cdn_service: core.cdn_service,
+        http_client: reqwest::Client::new(),
     });
 
     // Build minimal router with just the WS endpoint (no auth, no static files)

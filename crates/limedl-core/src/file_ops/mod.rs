@@ -605,9 +605,10 @@ mod imp {
         fn CFBooleanGetTypeID() -> usize;
     }
 
-    fn make_cfstr(s: &str) -> CFStringRef {
-        let c = std::ffi::CString::new(s).unwrap();
-        unsafe { CFStringCreateWithCString(std::ptr::null(), c.as_ptr(), 0x0800_0100) }
+    fn make_cfstr(s: &str) -> Option<CFStringRef> {
+        let c = std::ffi::CString::new(s).ok()?;
+        let cf = unsafe { CFStringCreateWithCString(std::ptr::null(), c.as_ptr(), 0x0800_0100) };
+        if cf.is_null() { None } else { Some(cf) }
     }
 
     unsafe fn cfbool_value(cf: CFTypeRef) -> Option<bool> {
@@ -688,7 +689,9 @@ mod imp {
         }
 
         let mut result = DiskType::Ssd;
-        let bsd_name_key = make_cfstr("BSD Name");
+        let Some(bsd_name_key) = make_cfstr("BSD Name") else {
+            return DiskType::Ssd;
+        };
 
         loop {
             let entry = unsafe { IOIteratorNext(iter) };
@@ -698,12 +701,7 @@ mod imp {
 
             // Check if this IOMedia entry matches our target disk
             let bsd_prop = unsafe {
-                IORegistryEntryCreateCFProperty(
-                    entry,
-                    bsd_name_key as CFStringRef,
-                    std::ptr::null(),
-                    0,
-                )
+                IORegistryEntryCreateCFProperty(entry, bsd_name_key, std::ptr::null(), 0)
             };
             if bsd_prop.is_null() {
                 unsafe { IOObjectRelease(entry) };
@@ -724,16 +722,13 @@ mod imp {
             // Walk up to IOBlockStorageDriver and check Rotational
             let mut current = entry;
             let plane = c"IOService".as_ptr();
-            let rot_key = make_cfstr("Rotational");
+            let Some(rot_key) = make_cfstr("Rotational") else {
+                break;
+            };
 
             for depth in 0..8 {
                 let prop = unsafe {
-                    IORegistryEntryCreateCFProperty(
-                        current,
-                        rot_key as CFStringRef,
-                        std::ptr::null(),
-                        0,
-                    )
+                    IORegistryEntryCreateCFProperty(current, rot_key, std::ptr::null(), 0)
                 };
 
                 if !prop.is_null()

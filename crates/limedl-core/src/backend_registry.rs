@@ -97,11 +97,23 @@ impl BackendRegistry {
     }
 
     /// Broadcast settings to all registered backends.
-    pub async fn update_all_settings(&self, settings: &AppSettings) {
+    ///
+    /// Returns the first error encountered (settings are applied to all backends
+    /// even if one errors, but the caller receives the first failure).
+    pub async fn update_all_settings(&self, settings: &AppSettings) -> Result<(), DownloadError> {
+        let mut first_err: Option<DownloadError> = None;
         for backend in self.iter() {
             if let Err(e) = backend.update_settings(settings).await {
                 tracing::warn!("failed to update settings for a backend: {e}");
+                if first_err.is_none() {
+                    first_err = Some(e);
+                }
             }
+        }
+        if let Some(e) = first_err {
+            Err(e)
+        } else {
+            Ok(())
         }
     }
 
@@ -443,7 +455,7 @@ mod tests {
         reg.register(TaskKind::Bt, mock_b);
 
         let settings = AppSettings::default();
-        reg.update_all_settings(&settings).await;
+        reg.update_all_settings(&settings).await.unwrap();
 
         assert_eq!(calls_a.load(Ordering::Relaxed), 1);
         assert_eq!(calls_b.load(Ordering::Relaxed), 1);

@@ -239,7 +239,14 @@ pub fn run() {
                     core.cdn_service.init_from_settings(&core.settings),
                 );
 
+                let emit_cancel = tokio_util::sync::CancellationToken::new();
                 let rpc_shutdown = Arc::new(Mutex::new(None::<tokio::sync::watch::Sender<bool>>));
+                let http_client = reqwest::Client::builder()
+                    .redirect(reqwest::redirect::Policy::limited(5))
+                    .timeout(Duration::from_secs(15))
+                    .user_agent(concat!("limedl/", env!("CARGO_PKG_VERSION")))
+                    .build()
+                    .expect("building shared HTTP client should never fail");
 
                 app.manage(AppState {
                     registry: core.registry.clone(),
@@ -247,6 +254,8 @@ pub fn run() {
                     cdn_service: core.cdn_service.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
                     settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
+                    emit_cancel: emit_cancel.clone(),
+                    http_client: http_client.clone(),
                 });
 
                 // Subscribe to EventBus and forward events to Tauri frontend
@@ -259,6 +268,8 @@ pub fn run() {
                         cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                         settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
+                        emit_cancel: emit_cancel.clone(),
+                        http_client: http_client.clone(),
                     };
                     tauri::async_runtime::spawn(async move {
                         loop {
@@ -285,10 +296,16 @@ pub fn run() {
                         cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                         settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
+                        emit_cancel: emit_cancel.clone(),
+                        http_client: http_client.clone(),
                     };
+                    let cancel = emit_cancel.clone();
                     tauri::async_runtime::spawn(async move {
                         loop {
-                            sleep(Duration::from_secs(30)).await;
+                            tokio::select! {
+                                _ = cancel.cancelled() => break,
+                                _ = sleep(Duration::from_secs(30)) => {},
+                            }
                             state.emit_all_downloads().await;
                         }
                     });
@@ -467,7 +484,9 @@ pub fn run() {
                     }
                 } else {
                     // Exit completely
+                    let cancel = state.emit_cancel.clone();
                     tauri::async_runtime::spawn(async move {
+                        cancel.cancel();
                         registry.shutdown_all().await;
                         handle.exit(0);
                     });

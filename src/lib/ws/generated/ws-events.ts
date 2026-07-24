@@ -13,6 +13,7 @@ export const WS_EVENTS: readonly WsEventSpec[] = [
   { wsType: "cdnProgress", tauriEventName: "cdn-test-progress" },
   { wsType: "cdnComplete", tauriEventName: "cdn-test-complete" },
   { wsType: "warning", tauriEventName: "download-warning" },
+  { wsType: "fullState", tauriEventName: "download-full-state" },
 ];
 
 export const EVENT_TYPE_MAP: Record<string, string> = Object.fromEntries(

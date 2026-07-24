@@ -66,6 +66,12 @@ pub struct AppState {
     pub cdn_service: Arc<super::cdn::CdnService>,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
     pub settings: Arc<ParkingRwLock<AppSettings>>,
+    /// Cancelled during shutdown to stop the periodic emit task gracefully
+    /// before backends are torn down.
+    pub emit_cancel: CancellationToken,
+    /// Shared HTTP client for one-off requests (tracker list fetch, etc.).
+    /// reqwest::Client is cheap to clone — it uses Arc internally.
+    pub http_client: reqwest::Client,
 }
 
 impl AppState {
@@ -319,7 +325,12 @@ impl DownloadManager {
 
         let settings_path = state_dir
             .parent()
-            .unwrap_or(state_dir.as_path())
+            .ok_or_else(|| {
+                DownloadError::Internal(format!(
+                    "state directory '{}' has no parent — cannot determine settings path",
+                    state_dir.display()
+                ))
+            })?
             .join("settings.json");
         let settings = load_settings(&settings_path)?;
         let client = build_http_client(&settings)?;
@@ -792,6 +803,14 @@ impl DownloadManager {
                     .arg(format!("/select,{}", destination_path.display()))
                     .spawn()?;
             }
+            #[cfg(target_os = "macos")]
+            {
+                Command::new("open").arg("-R").arg(&destination_path).spawn()?;
+            }
+            #[cfg(target_os = "linux")]
+            {
+                Command::new("xdg-open").arg(&directory_path).spawn()?;
+            }
             return Ok(());
         }
 
@@ -799,6 +818,14 @@ impl DownloadManager {
             #[cfg(windows)]
             {
                 Command::new("explorer").arg(&directory_path).spawn()?;
+            }
+            #[cfg(target_os = "macos")]
+            {
+                Command::new("open").arg(&directory_path).spawn()?;
+            }
+            #[cfg(target_os = "linux")]
+            {
+                Command::new("xdg-open").arg(&directory_path).spawn()?;
             }
             return Ok(());
         }

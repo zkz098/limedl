@@ -238,7 +238,11 @@ pub async fn settings_save(
             let old_rpc = dm.settings().await.context("读取当前设置失败")?.aria2_rpc;
 
             // Broadcast settings to all backends (each backend extracts its subset)
-            state.registry.update_all_settings(&settings).await;
+            state
+                .registry
+                .update_all_settings(&settings)
+                .await
+                .context("保存设置失败")?;
 
             // Re-read normalized/saved settings for the return value
             let saved = dm.settings().await.context("读取设置失败")?;
@@ -281,19 +285,18 @@ pub async fn settings_save(
 }
 
 #[tauri::command]
-pub async fn settings_fetch_tracker_list(tracker_list_url: String) -> CommandResult<String> {
+pub async fn settings_fetch_tracker_list(
+    state: State<'_, AppState>,
+    tracker_list_url: String,
+) -> CommandResult<String> {
     const MAX_TRACKER_LIST_BYTES: usize = 1024 * 1024;
 
     into_command_result(
         async {
             let tracker_list_url =
                 normalize_tracker_list_url(&tracker_list_url).context("Tracker 列表 URL 无效")?;
-            let response = reqwest::Client::builder()
-                .redirect(reqwest::redirect::Policy::limited(5))
-                .timeout(Duration::from_secs(15))
-                .user_agent("limedl/0.1")
-                .build()
-                .context("创建 HTTP 客户端失败")?
+            let response = state
+                .http_client
                 .get(tracker_list_url)
                 .send()
                 .await
@@ -497,17 +500,18 @@ pub async fn factory_reset(app: tauri::AppHandle, state: State<'_, AppState>) ->
             // 2. Compute the parent directory (contains downloads/ and settings.json)
             let parent_dir = state_dir_parent(&app);
 
-            // 3. Delete the entire parent directory with retry for Windows file-locking
-            if parent_dir.exists() {
-                for attempt in 0..3 {
-                    match std::fs::remove_dir_all(&parent_dir) {
-                        Ok(_) => break,
-                        Err(_e) if attempt < 2 => {
-                            tokio::time::sleep(Duration::from_millis(500)).await;
-                            continue;
-                        }
-                        Err(e) => return Err(e).context("failed to delete data directory"),
+            // 3. Delete the entire parent directory with retry for Windows file-locking.
+            // Attempt removal directly (no existence check) to eliminate the TOCTOU
+            // window between check and removal.
+            for attempt in 0..3 {
+                match std::fs::remove_dir_all(&parent_dir) {
+                    Ok(_) => break,
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => break,
+                    Err(_e) if attempt < 2 => {
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        continue;
                     }
+                    Err(e) => return Err(e).context("failed to delete data directory"),
                 }
             }
 

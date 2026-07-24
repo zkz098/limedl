@@ -13,6 +13,8 @@ mod security;
 use config::ServerConfig;
 use rpc::RpcState;
 
+use anyhow::Context;
+
 #[derive(Parser)]
 #[command(name = "limedl", about = "Fast multi-protocol download manager")]
 struct Cli {
@@ -123,6 +125,14 @@ async fn run_daemon(
     core.download_manager.set_cdn_accelerator(cdn_accelerator);
     core.cdn_service.init_from_settings(&core.settings).await;
 
+    // Build a shared HTTP client for one-off requests (tracker list fetch, etc.)
+    let http_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent(concat!("limedl/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .context("创建 HTTP 客户端失败")?;
+
     // Build RPC state
     let rpc_state = Arc::new(RpcState {
         registry: core.registry.clone(),
@@ -130,6 +140,7 @@ async fn run_daemon(
         clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
         rate_limiter: Arc::new(crate::rate_limiter::WsRateLimiter::new()),
         cdn_service: core.cdn_service.clone(),
+        http_client,
     });
 
     // Build router with auth wrapping ALL routes (including static files)
@@ -242,12 +253,12 @@ async fn run_daemon(
                 .tls
                 .cert_path
                 .as_ref()
-                .expect("TLS cert_path should be validated");
+                .ok_or_else(|| anyhow::anyhow!("TLS cert_path is required when TLS is enabled"))?;
             let key = cfg
                 .tls
                 .key_path
                 .as_ref()
-                .expect("TLS key_path should be validated");
+                .ok_or_else(|| anyhow::anyhow!("TLS key_path is required when TLS is enabled"))?;
             let tls_config =
                 axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key).await?;
             let std_listener = listener.into_std()?;
