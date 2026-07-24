@@ -21,11 +21,9 @@ jobs:
           - name: windows-x86_64
             os: windows-latest
 
-          - name: macos-aarch64
+          - name: macos-universal
             os: macos-latest
-
-          - name: macos-x86_64
-            os: macos-13
+            tauri-args: --target universal-apple-darwin
 
           - name: linux-x86_64
             os: ubuntu-latest
@@ -69,6 +67,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      # ── macOS universal: add x86_64 target for cross-compilation ──────
+      - name: Add macOS x86_64 target
+        if: runner.os == 'macOS'
+        run: rustup target add x86_64-apple-darwin
+
       # ── Build Tauri ────────────────────────────────────────────────────
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
@@ -83,6 +86,7 @@ jobs:
           releaseDraft: false
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
           updaterJsonPreferNsis: true
+          args: ${{ matrix.tauri-args || '' }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # NAS Server — single binary with embedded frontend
