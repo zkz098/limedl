@@ -1,7 +1,7 @@
 :root {
   --font-display: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-body: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "SF Mono", "Cascadia Code", "Consolas", "Liberation Mono", monospace;
+  --font-mono: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-weight-display: 600;
   --font-weight-semibold: 600;
 

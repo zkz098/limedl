@@ -474,16 +474,6 @@ describe("TopToolbar", () => {
     expect(wrapper.find(".game-mode-btn").exists()).toBe(true);
   });
 
-  it("shows game mode buffer label when active", () => {
-    const wrapper = mount(TopToolbar, {
-      props: createProps({ gameMode: true, gameModeBufferMb: 128 }),
-      global: { stubs },
-    });
-    expect(wrapper.find(".game-mode-btn__label").exists()).toBe(true);
-    // t mock returns key as-is for non-count interpolations
-    expect(wrapper.text()).toContain("toolbar.gameModeBuffer");
-  });
-
   it("emits toggleGameMode when game mode button clicked", async () => {
     const wrapper = mount(TopToolbar, {
       props: createProps(),

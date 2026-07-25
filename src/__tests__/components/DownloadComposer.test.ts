@@ -85,6 +85,7 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
         adaptiveProfile: "balanced",
       },
       chunkSizeStrategy: "adaptive",
+      tailSprintEnabled: false,
     },
     download: {
       defaultDownloadDir: "",

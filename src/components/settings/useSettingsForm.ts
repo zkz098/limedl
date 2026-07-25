@@ -49,6 +49,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         adaptiveProfile: "balanced",
       },
       chunkSizeStrategy: "adaptive",
+      tailSprintEnabled: false,
     },
     download: {
       defaultDownloadDir: "",
@@ -162,6 +163,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
           adaptiveProfile: form.scheduler.automatic.adaptiveProfile,
         },
         chunkSizeStrategy: form.scheduler.chunkSizeStrategy,
+        tailSprintEnabled: form.scheduler.tailSprintEnabled,
       },
       download: {
         defaultDownloadDir: form.download.defaultDownloadDir,

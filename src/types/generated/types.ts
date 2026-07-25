@@ -253,7 +253,7 @@ export type SafetyClass = "safe" | "mutating";
 
 export type SchedulerMode = "traditional" | "automatic";
 
-export type SchedulerSettings = { mode: SchedulerMode, traditional: TraditionalSchedulerSettings, automatic: AutomaticSchedulerSettings, chunkSizeStrategy: ChunkSizeStrategy, };
+export type SchedulerSettings = { mode: SchedulerMode, traditional: TraditionalSchedulerSettings, automatic: AutomaticSchedulerSettings, chunkSizeStrategy: ChunkSizeStrategy, tailSprintEnabled: boolean, };
 
 export type SerializableError = { kind: string, message: string, };
 

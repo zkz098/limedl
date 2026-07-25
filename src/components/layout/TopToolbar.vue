@@ -27,7 +27,6 @@ const props = defineProps<{
   selectedCount: number;
   filteredCount: number;
   gameMode?: boolean;
-  gameModeBufferMb?: number;
   overclockMode?: boolean;
 }>();
 
@@ -350,7 +349,7 @@ function closeColumnMenu() {
 
     <button
       type="button"
-      class="game-mode-btn inline-flex items-center gap-[0.35rem] min-h-[1.875rem] px-2 border rounded-md cursor-pointer text-xs whitespace-nowrap"
+      class="game-mode-btn inline-flex items-center justify-center min-w-[1.875rem] min-h-[1.875rem] px-[0.45rem] border rounded-md cursor-pointer"
       :class="{ 'game-mode-btn--active': gameMode }"
       :title="gameMode ? t('toolbar.gameModeActive') : t('toolbar.gameModeInactive')"
       @click="$emit('toggleGameMode')"
@@ -360,9 +359,6 @@ function closeColumnMenu() {
         :class="gameMode ? 'i-ri-gamepad-fill' : 'i-ri-gamepad-line'"
         aria-hidden="true"
       />
-      <span v-if="gameMode && gameModeBufferMb != null" class="game-mode-btn__label font-medium">
-        {{ t("toolbar.gameModeBuffer", { mb: gameModeBufferMb }) }}
-      </span>
     </button>
 
     <button
@@ -519,6 +515,6 @@ function closeColumnMenu() {
 .game-mode-btn--active {
   border-color: var(--color-accent-soft-border);
   background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
+  color: var(--color-accent);
 }
 </style>

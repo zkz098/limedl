@@ -35,7 +35,7 @@ withDefaults(
 }
 
 .stat-row__value--mono {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-body);
   font-size: 0.75rem;
 }
 </style>

@@ -72,6 +72,7 @@ vi.mock("../../components/settings/settingsComposables", () => {
         adaptiveProfile: "balanced",
       },
       chunkSizeStrategy: "adaptive",
+      tailSprintEnabled: false,
     },
     download: {
       defaultDownloadDir: "",
@@ -272,6 +273,7 @@ function createSettings(): AppSettings {
         adaptiveProfile: "balanced",
       },
       chunkSizeStrategy: "adaptive",
+      tailSprintEnabled: false,
     },
     download: {
       defaultDownloadDir: "",

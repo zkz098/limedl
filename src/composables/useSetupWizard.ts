@@ -49,6 +49,7 @@ function createDefaultSettings(): AppSettings {
         adaptiveProfile: "balanced",
       },
       chunkSizeStrategy: "adaptive",
+      tailSprintEnabled: false,
     },
     download: {
       defaultDownloadDir: "",

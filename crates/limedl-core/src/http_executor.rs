@@ -60,6 +60,11 @@ use crate::{
 /// shared state.  `DownloadManager` holds `Arc<HttpExecutor>` for delegation.
 pub struct HttpExecutor;
 
+/// Tail Sprint: stall window for detecting a slow last-chunk connection.
+const TAIL_SPRINT_STALL_WINDOW_SECS: u64 = 8;
+/// Tail Sprint: minimum remaining bytes to qualify for chunk splitting (1 MiB).
+const TAIL_SPRINT_MIN_SPLIT_SIZE: u64 = 1024 * 1024;
+
 impl HttpExecutor {
     /// Probe a remote URL to obtain file metadata (final URL, file name,
     /// content length, ETag, Last-Modified, range support).
@@ -587,6 +592,7 @@ impl HttpExecutor {
 
         // HDD/SSD optimization: set up buffered writing
         let settings = dm.settings().await?;
+        let tail_sprint_enabled = settings.scheduler.tail_sprint_enabled;
         let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
         drop(settings);
         let disk_type = {
@@ -618,9 +624,12 @@ impl HttpExecutor {
 
         let mut workers = JoinSet::new();
         let mut next_worker_id = 0usize;
+        let mut chunk_claim_times: std::collections::HashMap<usize, std::time::Instant> =
+            std::collections::HashMap::new();
         let mut last_disk_check = Instant::now();
 
         loop {
+            chunk_claim_times.clear();
             if token.is_cancelled() {
                 if let Some(ref buf) = write_buffer {
                     buf.drain_background().await;
@@ -715,6 +724,101 @@ impl HttpExecutor {
             if chunk_count > 0 {
                 target_workers = target_workers.min((chunk_count / 2).max(1));
             }
+
+            // ── Tail Sprint ──────────────────────────────────────
+            // Stage 1: Fresh-connection retry for stalled tail chunks.
+            // Stage 2: Split the last unclaimed chunk into two sub-chunks.
+            if tail_sprint_enabled {
+                let tail_state = {
+                    let core = managed.lock_core();
+                    let uncompleted: Vec<&crate::manifest::ChunkManifest> = core
+                        .manifest
+                        .chunks
+                        .iter()
+                        .filter(|c| !c.completed)
+                        .collect();
+                    let count = uncompleted.len();
+                    let all_claimed =
+                        !uncompleted.is_empty() && uncompleted.iter().all(|c| c.claimed_by.is_some());
+                    // For Stage 2: find the unclaimed chunk (if exactly one)
+                    let unclaimed_idx = if count == 1 && !all_claimed {
+                        uncompleted.first().map(|c| c.index)
+                    } else {
+                        None
+                    };
+                    (count, all_claimed, unclaimed_idx)
+                };
+
+                // Stage 1: stalled chunk detection — release slow claimed tail chunks
+                if tail_state.0 <= 2 && tail_state.1 && !chunk_claim_times.is_empty() {
+                    let now = std::time::Instant::now();
+                    let stall_limit = std::time::Duration::from_secs(TAIL_SPRINT_STALL_WINDOW_SECS);
+                    let stalled: Vec<usize> = chunk_claim_times
+                        .iter()
+                        .filter(|(_, t)| now.duration_since(**t) > stall_limit)
+                        .map(|(idx, _)| *idx)
+                        .collect();
+
+                    if !stalled.is_empty() {
+                        // Release stalled chunks for fresh re-claim next iteration
+                        {
+                            let mut core = managed.lock_core();
+                            for idx in &stalled {
+                                if let Some(chunk) = core
+                                    .manifest
+                                    .chunks
+                                    .iter_mut()
+                                    .find(|c| c.index == *idx)
+                                {
+                                    chunk.claimed_by = None;
+                                    chunk.dirty = true;
+                                }
+                            }
+                        }
+                        // Abort all workers so released chunks get fresh connections
+                        workers.abort_all();
+                        while workers.join_next().await.is_some() {}
+                        continue;
+                    }
+                }
+
+                // Stage 2: split the last unclaimed chunk into two sub-chunks
+                if let Some(last_idx) = tail_state.2 {
+                    let new_chunk_idx = {
+                        let core = managed.lock_core();
+                        core.manifest.chunks.len()
+                    };
+                    let mut core = managed.lock_core();
+                    if let Some(chunk) = core
+                        .manifest
+                        .chunks
+                        .iter_mut()
+                        .find(|c| c.index == last_idx && !c.completed && c.claimed_by.is_none())
+                    {
+                        let remaining = chunk
+                            .end
+                            .saturating_sub(chunk.start)
+                            .saturating_add(1)
+                            .saturating_sub(chunk.downloaded);
+                        if remaining > TAIL_SPRINT_MIN_SPLIT_SIZE {
+                            let mid = chunk.start + chunk.downloaded + remaining / 2;
+                            let old_end = chunk.end;
+                            chunk.end = mid.saturating_sub(1);
+                            chunk.dirty = true;
+                            core.manifest.chunks.push(crate::manifest::ChunkManifest {
+                                index: new_chunk_idx,
+                                start: mid,
+                                end: old_end,
+                                downloaded: 0,
+                                completed: false,
+                                claimed_by: None,
+                                dirty: true,
+                            });
+                        }
+                    }
+                }
+            }
+
             while workers.len() < target_workers {
                 let worker_id = next_worker_id;
                 let chunk = {
@@ -724,6 +828,7 @@ impl HttpExecutor {
                 let Some(chunk) = chunk else {
                     break;
                 };
+                chunk_claim_times.insert(chunk.index, std::time::Instant::now());
 
                 {
                     let mut core = managed.lock_core();

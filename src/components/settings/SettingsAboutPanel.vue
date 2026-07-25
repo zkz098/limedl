@@ -108,6 +108,7 @@ function buildDefaultSettings() {
         adaptiveProfile: "balanced" as const,
       },
       chunkSizeStrategy: "adaptive" as const,
+      tailSprintEnabled: false,
     },
     download: {
       defaultDownloadDir: "",

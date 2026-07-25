@@ -461,7 +461,20 @@ function handleRefresh() {
 }
 
 async function handleToggleGameMode() {
-  await setGameMode(!gameMode.value);
+  const newMode = !gameMode.value;
+  await setGameMode(newMode);
+  if (newMode && appSettings.value) {
+    const updated = { ...appSettings.value };
+    updated.scheduler = {
+      ...updated.scheduler,
+      mode: "automatic",
+      automatic: {
+        ...updated.scheduler.automatic,
+        adaptiveProfile: "conservative",
+      },
+    };
+    await saveAppSettings(updated);
+  }
 }
 
 async function handleToggleOverclockMode() {
@@ -615,7 +628,6 @@ watch(
       :selected-count="selectedIds.size"
       :filtered-count="filteredDownloads.length"
       :game-mode="gameMode"
-      :game-mode-buffer-mb="appSettings?.ioBaseline?.gameModeBufferMb"
       :overclock-mode="overclockMode"
       @update:search-query="searchQuery = $event"
       @update:sort-key="sortKey = $event"

@@ -763,6 +763,8 @@ pub struct SchedulerSettings {
     pub automatic: AutomaticSchedulerSettings,
     #[serde(default)]
     pub chunk_size_strategy: ChunkSizeStrategy,
+    #[serde(default)]
+    pub tail_sprint_enabled: bool,
 }
 
 #[cfg_attr(feature = "ts", derive(TS))]

@@ -243,6 +243,17 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
             @update:model-value="draft.scheduler.chunkSizeStrategy = $event ? 'adaptive' : 'fixed'"
           />
         </SettingsField>
+
+        <SettingsField
+          wide
+          :label="t('settings.tailSprint')"
+          :info-tooltip="t('settings.tailSprintHint')"
+        >
+          <UiSwitch
+            v-model="draft.scheduler.tailSprintEnabled"
+            :label="t('settings.tailSprint')"
+          />
+        </SettingsField>
       </div>
 
       <div v-else key="custom" class="settings-grid">
@@ -330,6 +341,17 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
             :model-value="draft.scheduler.chunkSizeStrategy === 'adaptive'"
             :label="t('settings.intelligentChunkAllocation')"
             @update:model-value="draft.scheduler.chunkSizeStrategy = $event ? 'adaptive' : 'fixed'"
+          />
+        </SettingsField>
+
+        <SettingsField
+          wide
+          :label="t('settings.tailSprint')"
+          :info-tooltip="t('settings.tailSprintHint')"
+        >
+          <UiSwitch
+            v-model="draft.scheduler.tailSprintEnabled"
+            :label="t('settings.tailSprint')"
           />
         </SettingsField>
       </div>

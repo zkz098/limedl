@@ -91,6 +91,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
                 adaptive_profile: settings.scheduler.automatic.adaptive_profile,
             },
             chunk_size_strategy: settings.scheduler.chunk_size_strategy,
+            tail_sprint_enabled: settings.scheduler.tail_sprint_enabled,
         },
         download: DownloadDefaultsSettings {
             default_download_dir,

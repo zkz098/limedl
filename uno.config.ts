@@ -37,6 +37,7 @@ export default defineConfig({
     fontFamily: {
       display: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
       body: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+      mono: "var(--font-body)",
     },
   },
 });
