@@ -50,6 +50,7 @@ function createDefaultSettings(): AppSettings {
       },
       chunkSizeStrategy: "adaptive",
       tailSprintEnabled: false,
+      connectionWarmupEnabled: true,
     },
     download: {
       defaultDownloadDir: "",

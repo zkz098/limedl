@@ -73,6 +73,7 @@ vi.mock("../../components/settings/settingsComposables", () => {
       },
       chunkSizeStrategy: "adaptive",
       tailSprintEnabled: false,
+      connectionWarmupEnabled: false,
     },
     download: {
       defaultDownloadDir: "",
@@ -274,6 +275,7 @@ function createSettings(): AppSettings {
       },
       chunkSizeStrategy: "adaptive",
       tailSprintEnabled: false,
+      connectionWarmupEnabled: false,
     },
     download: {
       defaultDownloadDir: "",

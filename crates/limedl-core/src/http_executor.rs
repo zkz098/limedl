@@ -593,8 +593,29 @@ impl HttpExecutor {
         // HDD/SSD optimization: set up buffered writing
         let settings = dm.settings().await?;
         let tail_sprint_enabled = settings.scheduler.tail_sprint_enabled;
+        let warmup_enabled = settings.scheduler.connection_warmup_enabled;
         let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
         drop(settings);
+        let checksum_mode = {
+            let core = managed.lock_core();
+            core.manifest.checksum_mode
+        };
+        // Incremental Blake3 hasher — avoids file re-read during finalize
+        let incremental_hasher: Option<Arc<parking_lot::Mutex<blake3::Hasher>>> =
+            if checksum_mode == ChecksumMode::Blake3 {
+                Some(Arc::new(parking_lot::Mutex::new(blake3::Hasher::new())))
+            } else {
+                None
+            };
+        // ── Connection warmup: pre-establish TCP+TLS before workers start ──
+        if warmup_enabled {
+            let final_url = managed.lock_core().manifest.final_url.clone();
+            let _ = client
+                .get(&final_url)
+                .header(reqwest::header::RANGE, "bytes=0-0")
+                .send()
+                .await;
+        }
         let disk_type = {
             let destination_dir = managed.lock_core().manifest.destination_dir.clone();
             dm.resolve_disk_type(Path::new(&destination_dir)).await
@@ -697,6 +718,15 @@ impl HttpExecutor {
                     dm.task_lifecycle.emit_progress(&dm, &managed);
                     flush_result?;
                 }
+                // Store incremental checksum if computed
+                if let Some(ref hasher) = incremental_hasher {
+                    let guard = hasher.lock();
+                    let hash = guard.finalize();
+                    let mut core = managed.lock_core();
+                    let hex = hash.to_hex().to_string();
+                    core.manifest.checksum = Some(hex);
+                    core.snapshot.checksum = core.manifest.checksum.clone();
+                }
                 return Ok(RunOutcome::Finished);
             }
 
@@ -710,6 +740,8 @@ impl HttpExecutor {
                         {
                             tracing::warn!("flush on pause failed: {e}");
                         }
+                        // Clear incremental checksum — fresh hasher on resume misses pre-pause bytes
+                        managed.lock_core().manifest.checksum = None;
                         return Ok(RunOutcome::Paused);
                     }
                     manager::WaitState::Canceled => return Ok(RunOutcome::Canceled),
@@ -823,7 +855,7 @@ impl HttpExecutor {
                 let worker_id = next_worker_id;
                 let chunk = {
                     let mut core = managed.lock_core();
-                    claim_next_chunk(&mut core.manifest, worker_id)
+                    claim_next_chunk(&mut core.manifest, worker_id, target_workers)
                 };
                 let Some(chunk) = chunk else {
                     break;
@@ -849,6 +881,7 @@ impl HttpExecutor {
                 let file = file.clone();
                 let wbuf = write_buffer.clone();
                 let dtyp = disk_type;
+                let inc_hasher = incremental_hasher.clone();
                 workers.spawn(async move {
                     download_chunk(ChunkWorkerCtx {
                         managed,
@@ -862,6 +895,7 @@ impl HttpExecutor {
                         manager: manager_for_worker,
                         write_buffer: wbuf,
                         disk_type: dtyp,
+                        incremental_hasher: inc_hasher,
                     })
                     .await
                 });
@@ -921,6 +955,8 @@ impl HttpExecutor {
                     {
                         tracing::warn!("flush on pause failed: {e}");
                     }
+                    // Clear incremental checksum — fresh hasher on resume misses pre-pause bytes
+                    managed.lock_core().manifest.checksum = None;
                     return Ok(RunOutcome::Paused);
                 }
                 ChunkWorkerOutcome::Canceled => {
@@ -960,18 +996,20 @@ impl HttpExecutor {
             return Ok(RunOutcome::Canceled);
         }
 
-        let (temp_path, destination_path, checksum_mode, expected_checksum) = {
+        let (temp_path, destination_path, checksum_mode, expected_checksum, precomputed) = {
             let core = managed.lock_core();
             (
                 PathBuf::from(core.manifest.temp_path.clone()),
                 PathBuf::from(core.manifest.destination_path.clone()),
                 core.manifest.checksum_mode,
                 core.manifest.expected_checksum.clone(),
+                core.manifest.checksum.clone(),
             )
         };
 
         let checksum = match checksum_mode {
             ChecksumMode::None => None,
+            _ if precomputed.is_some() => precomputed,
             mode => Some(calculate_checksum(temp_path.clone(), mode).await?),
         };
 
@@ -1088,10 +1126,19 @@ fn all_chunks_completed(managed: &Arc<ManagedDownload>) -> bool {
         .all(|chunk| chunk.completed)
 }
 
-fn claim_next_chunk(manifest: &mut crate::manifest::Manifest, worker_id: usize) -> Option<ChunkManifest> {
-    let chunk = manifest
-        .chunks
-        .iter_mut()
+fn claim_next_chunk(manifest: &mut crate::manifest::Manifest, worker_id: usize, total_workers: usize) -> Option<ChunkManifest> {
+    let stripe_count = total_workers.max(1);
+    let stripe = worker_id % stripe_count;
+    // Try interleaved: chunks whose index matches the worker's stripe
+    if let Some(chunk) = manifest.chunks.iter_mut()
+        .find(|c| !c.completed && c.claimed_by.is_none() && c.index % stripe_count == stripe)
+    {
+        chunk.claimed_by = Some(worker_id);
+        chunk.dirty = true;
+        return Some(chunk.clone());
+    }
+    // Fallback: any unclaimed chunk (handles cases where stripe is exhausted)
+    let chunk = manifest.chunks.iter_mut()
         .find(|chunk| !chunk.completed && chunk.claimed_by.is_none())?;
     chunk.claimed_by = Some(worker_id);
     chunk.dirty = true;
@@ -1150,6 +1197,7 @@ struct ChunkWorkerCtx {
     manager: Arc<DownloadManager>,
     write_buffer: Option<Arc<DownloadBuffer>>,
     disk_type: DiskType,
+    incremental_hasher: Option<Arc<parking_lot::Mutex<blake3::Hasher>>>,
 }
 
 async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
@@ -1250,6 +1298,11 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
                 }
             } else {
                 write_all_at(&ctx.file, &bytes, current)?;
+            }
+            // Feed downloaded bytes through incremental hasher (Blake3 only)
+            if let Some(ref hasher) = ctx.incremental_hasher {
+                let mut guard = hasher.lock();
+                guard.update(&bytes);
             }
             current += bytes.len() as u64;
             {

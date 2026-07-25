@@ -431,6 +431,8 @@ const enUS = {
       intelligentChunkingHint: "Auto-adjust chunk strategy based on network conditions",
       tailSprint: "Tail Sprint",
       tailSprintHint: "Reduces the chance of downloads getting stuck at 99% by accelerating remaining chunks near completion: detects slow connections and retries them, and splits the last chunk for parallel racing.",
+      connectionWarmup: "Connection Warmup",
+      connectionWarmupHint: "Pre-establish HTTP connections before downloading to reduce first-request latency.",
       downloads: "Downloads",
       downloadsTitle: "Download Defaults",
       bt: "BT",

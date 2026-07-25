@@ -97,6 +97,7 @@ function createSettings(): AppSettings {
       },
       chunkSizeStrategy: "adaptive",
       tailSprintEnabled: false,
+      connectionWarmupEnabled: false,
     },
     download: {
       defaultDownloadDir: "",

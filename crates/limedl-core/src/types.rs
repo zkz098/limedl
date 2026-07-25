@@ -765,7 +765,11 @@ pub struct SchedulerSettings {
     pub chunk_size_strategy: ChunkSizeStrategy,
     #[serde(default)]
     pub tail_sprint_enabled: bool,
+    #[serde(default = "default_warmup")]
+    pub connection_warmup_enabled: bool,
 }
+
+fn default_warmup() -> bool { true }
 
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]

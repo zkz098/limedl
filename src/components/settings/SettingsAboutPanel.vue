@@ -109,6 +109,7 @@ function buildDefaultSettings() {
       },
       chunkSizeStrategy: "adaptive" as const,
       tailSprintEnabled: false,
+      connectionWarmupEnabled: true,
     },
     download: {
       defaultDownloadDir: "",

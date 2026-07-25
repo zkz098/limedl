@@ -99,6 +99,7 @@ function createDefaultSettings(): AppSettings {
       },
       chunkSizeStrategy: "adaptive",
       tailSprintEnabled: false,
+      connectionWarmupEnabled: false,
     },
     download: {
       defaultDownloadDir: "",

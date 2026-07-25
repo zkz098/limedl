@@ -254,6 +254,17 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
             :label="t('settings.tailSprint')"
           />
         </SettingsField>
+
+        <SettingsField
+          wide
+          :label="t('settings.connectionWarmup')"
+          :info-tooltip="t('settings.connectionWarmupHint')"
+        >
+          <UiSwitch
+            v-model="draft.scheduler.connectionWarmupEnabled"
+            :label="t('settings.connectionWarmup')"
+          />
+        </SettingsField>
       </div>
 
       <div v-else key="custom" class="settings-grid">
@@ -352,6 +363,17 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
           <UiSwitch
             v-model="draft.scheduler.tailSprintEnabled"
             :label="t('settings.tailSprint')"
+          />
+        </SettingsField>
+
+        <SettingsField
+          wide
+          :label="t('settings.connectionWarmup')"
+          :info-tooltip="t('settings.connectionWarmupHint')"
+        >
+          <UiSwitch
+            v-model="draft.scheduler.connectionWarmupEnabled"
+            :label="t('settings.connectionWarmup')"
           />
         </SettingsField>
       </div>

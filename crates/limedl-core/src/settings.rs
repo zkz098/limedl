@@ -92,6 +92,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             },
             chunk_size_strategy: settings.scheduler.chunk_size_strategy,
             tail_sprint_enabled: settings.scheduler.tail_sprint_enabled,
+            connection_warmup_enabled: settings.scheduler.connection_warmup_enabled,
         },
         download: DownloadDefaultsSettings {
             default_download_dir,

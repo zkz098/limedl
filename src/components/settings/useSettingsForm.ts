@@ -50,6 +50,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       },
       chunkSizeStrategy: "adaptive",
       tailSprintEnabled: false,
+      connectionWarmupEnabled: true,
     },
     download: {
       defaultDownloadDir: "",
@@ -164,6 +165,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         },
         chunkSizeStrategy: form.scheduler.chunkSizeStrategy,
         tailSprintEnabled: form.scheduler.tailSprintEnabled,
+        connectionWarmupEnabled: form.scheduler.connectionWarmupEnabled,
       },
       download: {
         defaultDownloadDir: form.download.defaultDownloadDir,

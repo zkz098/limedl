@@ -416,6 +416,8 @@ const zhCN = {
       intelligentChunkingHint: "根据网络状况自动调整分块策略",
       tailSprint: "下载尾部冲刺",
       tailSprintHint: "启用后可降低下载卡在 99% 的几率。在接近完成时自动加速剩余分块：检测慢速连接并重试，并拆分末尾分块进行并行竞速。",
+      connectionWarmup: "连接预热",
+      connectionWarmupHint: "下载开始前预先建立 HTTP 连接，减少首次请求的延迟。",
       downloads: "下载",
       downloadsTitle: "下载默认值",
       bt: "BT",
