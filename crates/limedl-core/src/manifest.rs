@@ -134,8 +134,12 @@ pub fn adaptive_chunk_size(total: u64) -> u64 {
         4 * MIB
     } else if total < 4 * GIB {
         8 * MIB
+    } else if total < 16 * GIB {
+        32 * MIB
+    } else if total < 64 * GIB {
+        64 * MIB
     } else {
-        16 * MIB
+        128 * MIB
     }
 }
 
@@ -307,7 +311,7 @@ mod tests {
     fn adaptive_chunk_size_4gib() {
         assert_eq!(
             adaptive_chunk_size(4 * 1024 * 1024 * 1024),
-            16 * 1024 * 1024
+            32 * 1024 * 1024
         );
     }
 
@@ -316,7 +320,45 @@ mod tests {
     fn adaptive_chunk_size_10_gib() {
         assert_eq!(
             adaptive_chunk_size(10 * 1024 * 1024 * 1024),
-            16 * 1024 * 1024
+            32 * 1024 * 1024
+        );
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_16_gib() {
+        assert_eq!(
+            adaptive_chunk_size(16 * 1024 * 1024 * 1024),
+            64 * 1024 * 1024
+        );
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_64_gib() {
+        assert_eq!(
+            adaptive_chunk_size(64 * 1024 * 1024 * 1024),
+            128 * 1024 * 1024
+        );
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_15gib_boundary() {
+        // Just below the 16 GiB boundary → still 32 MiB
+        assert_eq!(
+            adaptive_chunk_size(16 * 1024 * 1024 * 1024 - 1),
+            32 * 1024 * 1024
+        );
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn adaptive_chunk_size_63gib_boundary() {
+        // Just below the 64 GiB boundary → still 64 MiB
+        assert_eq!(
+            adaptive_chunk_size(64 * 1024 * 1024 * 1024 - 1),
+            64 * 1024 * 1024
         );
     }
 }
