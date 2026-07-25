@@ -295,8 +295,8 @@ fn resolve_automatic_adaptive_balanced() {
     let (mode, requested, desired, profile) = resolve_thread_settings(&settings, &request, true);
     assert_eq!(mode, ThreadMode::Adaptive);
     assert_eq!(requested, None);
-    // Balanced → initial_desired_threads=2, capped at max_threads_per_task=8
-    assert_eq!(desired, Some(2));
+    // Balanced → initial_desired_threads(Balanced, 8) = 6
+    assert_eq!(desired, Some(6));
     assert_eq!(profile, Some(AdaptiveProfile::Balanced));
 }
 
@@ -322,8 +322,8 @@ fn resolve_automatic_adaptive_conservative() {
     };
     let (mode, _, desired, profile) = resolve_thread_settings(&settings, &request, true);
     assert_eq!(mode, ThreadMode::Adaptive);
-    // Conservative → initial_desired_threads=1
-    assert_eq!(desired, Some(1));
+    // Conservative → initial_desired_threads(Conservative, 8) = 4
+    assert_eq!(desired, Some(4));
     assert_eq!(profile, Some(AdaptiveProfile::Conservative));
 }
 
@@ -349,8 +349,8 @@ fn resolve_automatic_adaptive_aggressive() {
     };
     let (mode, _, desired, profile) = resolve_thread_settings(&settings, &request, true);
     assert_eq!(mode, ThreadMode::Adaptive);
-    // Aggressive → initial_desired_threads=4
-    assert_eq!(desired, Some(4));
+    // Aggressive → initial_desired_threads(Aggressive, 8) = 8
+    assert_eq!(desired, Some(8));
     assert_eq!(profile, Some(AdaptiveProfile::Aggressive));
 }
 
@@ -361,7 +361,7 @@ fn resolve_automatic_adaptive_capped_by_max_threads() {
             mode: SchedulerMode::Automatic,
             automatic: AutomaticSchedulerSettings {
                 adaptive_profile: AdaptiveProfile::Aggressive,
-                max_threads_per_task: 2, // cap below initial_desired_threads=4
+                max_threads_per_task: 2, // cap=2, Aggressive→2 (cap replaces min())
                 ..Default::default()
             },
             ..Default::default()
@@ -403,7 +403,7 @@ fn resolve_automatic_adaptive_zero_max_threads_clamped() {
     };
     let (mode, _, desired, profile) = resolve_thread_settings(&settings, &request, true);
     assert_eq!(mode, ThreadMode::Adaptive);
-    // Balanced→2, capped at max(0,1)=1
+    // Balanced→(1*0.75).ceil()=1, cap=max(0,1)=1
     assert_eq!(desired, Some(1));
     assert_eq!(profile, Some(AdaptiveProfile::Balanced));
 }

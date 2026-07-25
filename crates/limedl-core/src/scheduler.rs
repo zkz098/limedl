@@ -17,7 +17,7 @@ use foldhash::HashMap;
 use reqwest::Url;
 
 use crate::{
-    aimd,
+    aimd::{self, AimdState, Direction},
     error::Result,
     manager::{
         DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS, log_background_error,
@@ -151,7 +151,18 @@ impl Scheduler {
                 continue;
             }
 
-            let mut degrade_threshold: f64 = match profile {
+            // ── Hysteresis lock: suspend AIMD decisions during oscillation recovery ──
+            if let Some(lock_until) = aimd.hysteresis_lock_until {
+                if now < lock_until {
+                    aimd.last_throughput = Some(throughput);
+                    aimd.record_sample(throughput);
+                    continue;
+                }
+                aimd.hysteresis_lock_until = None;
+                aimd.oscillation_count = 0;
+            }
+
+            let degrade_threshold: f64 = match profile {
                 AdaptiveProfile::Conservative => 0.18,
                 AdaptiveProfile::Balanced => 0.16,
                 AdaptiveProfile::Aggressive => 0.20,
@@ -167,12 +178,6 @@ impl Scheduler {
                 AdaptiveProfile::Aggressive => 1,
             };
             let cooldown = aimd::cooldown_for_profile(profile);
-
-            degrade_threshold = match profile {
-                AdaptiveProfile::Conservative => degrade_threshold,
-                AdaptiveProfile::Balanced => degrade_threshold.max(0.16),
-                AdaptiveProfile::Aggressive => degrade_threshold.max(0.20),
-            };
 
             let throughput_drop = aimd
                 .last_throughput
@@ -192,9 +197,13 @@ impl Scheduler {
                 aimd.consecutive_bad_samples = aimd.consecutive_bad_samples.saturating_add(1);
                 aimd.recent_penalty = false;
                 aimd.record_sample(throughput);
+                // ── Oscillation tracking (MD = Down) ──
+                track_direction(&mut aimd, Direction::Down);
+                check_oscillation(&mut aimd, manifest, current, min_threads, now, &cooldown);
                 continue;
             }
 
+            let mut changed_up = false;
             if allocated == current {
                 let improved = match aimd.last_throughput {
                     Some(last) if last > 0.0 => throughput >= last * (1.0 + increase_threshold),
@@ -205,9 +214,17 @@ impl Scheduler {
                     aimd.consecutive_good_samples = aimd.consecutive_good_samples.saturating_add(1);
                     aimd.consecutive_bad_samples = 0;
                     if aimd.consecutive_good_samples >= samples_needed {
-                        let next = (current + 1).min(adaptive_cap.max(1));
-                        manifest.desired_thread_count = Some(next);
-                        manifest.updated_at_ms = now_ms();
+                        let step = match profile {
+                            AdaptiveProfile::Conservative => 2usize,
+                            AdaptiveProfile::Balanced => (current / 4).max(1),
+                            AdaptiveProfile::Aggressive => (current / 3).max(2),
+                        };
+                        let next = (current + step).min(adaptive_cap.max(1));
+                        if next > current {
+                            manifest.desired_thread_count = Some(next);
+                            manifest.updated_at_ms = now_ms();
+                            changed_up = true;
+                        }
                         aimd.consecutive_good_samples = 0;
                     }
                 }
@@ -216,6 +233,12 @@ impl Scheduler {
             aimd.last_throughput = Some(throughput);
             aimd.recent_penalty = false;
             aimd.record_sample(throughput);
+
+            // ── Oscillation tracking (AI = Up) ──
+            if changed_up {
+                track_direction(&mut aimd, Direction::Up);
+                check_oscillation(&mut aimd, manifest, current, min_threads, now, &cooldown);
+            }
         }
 
         Ok(())
@@ -554,6 +577,44 @@ fn effective_allocation_cap(manifest: &Manifest, settings: &AppSettings) -> usiz
 
 fn effective_automatic_task_cap(settings: &AppSettings) -> usize {
     settings.scheduler.automatic.max_threads_per_task.max(1)
+}
+
+/// Track thread-count direction changes for oscillation detection.
+/// An oscillation is detected when the direction flips ≥3 consecutive times.
+fn track_direction(aimd: &mut AimdState, dir: Direction) {
+    match aimd.last_direction {
+        Some(prev) if prev != dir => {
+            aimd.oscillation_count = aimd.oscillation_count.saturating_add(1);
+        }
+        Some(_) => {
+            aimd.oscillation_count = 0;
+        }
+        None => {
+            // First direction — not a flip, just record it
+        }
+    }
+    aimd.last_direction = Some(dir);
+}
+
+/// Check for oscillation (≥3 consecutive direction flips) and apply hysteresis lock.
+fn check_oscillation(
+    aimd: &mut AimdState,
+    manifest: &mut crate::manifest::Manifest,
+    current: usize,
+    min_threads: usize,
+    now: Instant,
+    cooldown: &Duration,
+) {
+    const OSCILLATION_THRESHOLD: u32 = 3;
+    if aimd.oscillation_count >= OSCILLATION_THRESHOLD {
+        let lock_target = ((current as f64) * 0.7).ceil() as usize;
+        manifest.desired_thread_count = Some(lock_target.max(min_threads));
+        manifest.updated_at_ms = now_ms();
+        aimd.hysteresis_lock_until = Some(now + *cooldown * 4);
+        aimd.consecutive_good_samples = 0;
+        aimd.consecutive_bad_samples = 0;
+        aimd.oscillation_count = 0;
+    }
 }
 
 #[cfg(test)]

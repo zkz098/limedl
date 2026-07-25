@@ -2,6 +2,12 @@ use std::time::{Duration, Instant};
 
 pub use super::types::AdaptiveProfile;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    Up,
+    Down,
+}
+
 #[derive(Debug, Default)]
 pub struct AimdState {
     pub last_sample_bytes: u64,
@@ -15,6 +21,9 @@ pub struct AimdState {
     pub throughput_sum: f64,
     pub peak_throughput: f64,
     pub penalty_count: u32,
+    pub last_direction: Option<Direction>,
+    pub oscillation_count: u32,
+    pub hysteresis_lock_until: Option<Instant>,
 }
 
 impl AimdState {
@@ -51,11 +60,12 @@ impl AimdState {
     }
 }
 
-pub fn initial_desired_threads(profile: AdaptiveProfile) -> usize {
+pub fn initial_desired_threads(profile: AdaptiveProfile, cap: usize) -> usize {
+    let cap = cap.max(1);
     match profile {
-        AdaptiveProfile::Conservative => 1,
-        AdaptiveProfile::Balanced => 2,
-        AdaptiveProfile::Aggressive => 4,
+        AdaptiveProfile::Conservative => (cap as f64 * 0.5).ceil() as usize,
+        AdaptiveProfile::Balanced => (cap as f64 * 0.75).ceil() as usize,
+        AdaptiveProfile::Aggressive => cap,
     }
 }
 
@@ -71,9 +81,9 @@ pub fn reduce_threads(current: usize, profile: AdaptiveProfile, min_threads: usi
 
 pub fn cooldown_for_profile(profile: AdaptiveProfile) -> Duration {
     match profile {
-        AdaptiveProfile::Conservative => Duration::from_secs(8),
-        AdaptiveProfile::Balanced => Duration::from_secs(6),
-        AdaptiveProfile::Aggressive => Duration::from_secs(4),
+        AdaptiveProfile::Conservative => Duration::from_secs(4),
+        AdaptiveProfile::Balanced => Duration::from_secs(3),
+        AdaptiveProfile::Aggressive => Duration::from_secs(2),
     }
 }
 
@@ -86,17 +96,17 @@ mod tests {
 
     #[test]
     fn initial_desired_threads_conservative() {
-        assert_eq!(initial_desired_threads(AdaptiveProfile::Conservative), 1);
+        assert_eq!(initial_desired_threads(AdaptiveProfile::Conservative, 8), 4);
     }
 
     #[test]
     fn initial_desired_threads_balanced() {
-        assert_eq!(initial_desired_threads(AdaptiveProfile::Balanced), 2);
+        assert_eq!(initial_desired_threads(AdaptiveProfile::Balanced, 8), 6);
     }
 
     #[test]
     fn initial_desired_threads_aggressive() {
-        assert_eq!(initial_desired_threads(AdaptiveProfile::Aggressive), 4);
+        assert_eq!(initial_desired_threads(AdaptiveProfile::Aggressive, 8), 8);
     }
 
     // ── reduce_threads ──────────────────────────────────────
@@ -143,15 +153,15 @@ mod tests {
     fn cooldown_duration_by_profile() {
         assert_eq!(
             cooldown_for_profile(AdaptiveProfile::Conservative),
-            Duration::from_secs(8)
+            Duration::from_secs(4)
         );
         assert_eq!(
             cooldown_for_profile(AdaptiveProfile::Balanced),
-            Duration::from_secs(6)
+            Duration::from_secs(3)
         );
         assert_eq!(
             cooldown_for_profile(AdaptiveProfile::Aggressive),
-            Duration::from_secs(4)
+            Duration::from_secs(2)
         );
     }
 
@@ -171,6 +181,9 @@ mod tests {
         assert_eq!(state.throughput_sum, 0.0);
         assert_eq!(state.peak_throughput, 0.0);
         assert_eq!(state.penalty_count, 0);
+        assert!(state.last_direction.is_none());
+        assert_eq!(state.oscillation_count, 0);
+        assert!(state.hysteresis_lock_until.is_none());
     }
 
     #[test]

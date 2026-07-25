@@ -108,7 +108,7 @@ fn bench_initial_desired(c: &mut Criterion) {
             profile,
             |b, profile| {
                 b.iter(|| {
-                    let result = initial_desired_threads(*profile);
+                    let result = initial_desired_threads(*profile, 16);
                     std::hint::black_box(result);
                 });
             },

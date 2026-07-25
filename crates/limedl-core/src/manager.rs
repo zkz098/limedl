@@ -1206,7 +1206,7 @@ pub(crate) fn resolve_thread_settings(
             ThreadMode::Adaptive => {
                 let profile = settings.scheduler.automatic.adaptive_profile;
                 let max_threads = settings.scheduler.automatic.max_threads_per_task.max(1);
-                let desired = aimd::initial_desired_threads(profile).min(max_threads);
+                let desired = aimd::initial_desired_threads(profile, max_threads);
                 (
                     ThreadMode::Adaptive,
                     None,
