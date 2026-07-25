@@ -24,10 +24,10 @@ use super::error::DownloadError;
 use super::file_ops::write_all_at;
 
 // ---------------------------------------------------------------------------
-// IoWorker — dedicated I/O worker thread for file writes
+// IoWorker — pool of dedicated I/O worker threads for file writes
 // ---------------------------------------------------------------------------
 
-/// Command sent to the dedicated I/O worker thread.
+/// Command sent to the dedicated I/O worker threads.
 enum IoCommand {
     /// Write a batch of (offset, chunk) pairs to a file.  The entries are
     /// already in ascending-offset order (drained from a BTreeMap).
@@ -42,66 +42,103 @@ enum IoCommand {
     },
 }
 
-/// Handle to a dedicated I/O worker thread that serialises all flush calls.
+/// Handle to a pool of dedicated I/O worker threads that serialise flush calls.
 ///
-/// Cloning produces another sender to the same worker thread — all clones
-/// share the same underlying OS thread.
+/// Writes are hash-routed to a specific worker based on file identity,
+/// ensuring same-file writes are always serialised (correct for data
+/// integrity) while writes to different files can proceed in parallel.
+///
+/// Cloning produces another set of senders to the same worker threads —
+/// all clones share the same underlying OS threads.
 #[derive(Clone)]
 pub struct IoWorker {
-    tx: mpsc::UnboundedSender<IoCommand>,
+    txs: Vec<mpsc::UnboundedSender<IoCommand>>,
 }
 
 impl IoWorker {
-    /// Spawn a dedicated I/O worker thread and return a handle to it.
-    pub fn spawn() -> Self {
-        let (tx, mut rx) = mpsc::unbounded_channel::<IoCommand>();
-        thread::Builder::new()
-            .name("limedl-io-worker".into())
-            .spawn(move || {
-                while let Some(cmd) = rx.blocking_recv() {
-                    match cmd {
-                        IoCommand::WriteBatch { file, entries, done, sync } => {
-                            // entries are already sorted by offset (BTreeMap drain order).
-                            let result = (|| -> Result<(), DownloadError> {
-                                for (off, chunk) in &entries {
-                                    write_all_at(&file, chunk, *off)?;
-                                }
-                                if sync {
-                                    file.sync_data().map_err(|e| {
-                                        DownloadError::Internal(format!("fsync failed: {e}"))
-                                    })?;
-                                }
-                                Ok(())
-                            })();
-                            // Ignore send error — caller dropped the receiver.
-                            let _ = done.send(result);
-                        }
+    /// Spawn a pool of dedicated I/O worker threads and return a handle to them.
+    ///
+    /// `n` must be at least 1. Each thread has its own channel for independent
+    /// command processing.
+    pub fn spawn_pool(n: usize) -> Self {
+        let n = n.max(1);
+        let mut txs = Vec::with_capacity(n);
+        for i in 0..n {
+            let (tx, mut rx) = mpsc::unbounded_channel::<IoCommand>();
+            thread::Builder::new()
+                .name(format!("limedl-io-worker-{i}"))
+                .spawn(move || {
+                    // Normal processing loop
+                    while let Some(cmd) = rx.blocking_recv() {
+                        Self::process_command(cmd);
                     }
-                }
-                // All senders dropped → channel closed → thread exits.
-            })
-            .expect("failed to spawn I/O worker thread");
-        Self { tx }
+                    // All senders dropped — drain any commands that were queued
+                    // before the final sender dropped.
+                    while let Ok(cmd) = rx.try_recv() {
+                        Self::process_command(cmd);
+                    }
+                })
+                .expect("failed to spawn I/O worker thread");
+            txs.push(tx);
+        }
+        Self { txs }
     }
 
-    /// Submit a batch write to the worker thread and await completion.
+    /// Convenience: spawn a single-threaded I/O worker (backward-compatible).
+    pub fn spawn() -> Self {
+        Self::spawn_pool(1)
+    }
+
+    /// Process a single I/O command (extracted for reuse in normal loop and drain phase).
+    fn process_command(cmd: IoCommand) {
+        match cmd {
+            IoCommand::WriteBatch {
+                file,
+                entries,
+                done,
+                sync,
+            } => {
+                // entries are already sorted by offset (BTreeMap drain order).
+                let result = (|| -> Result<(), DownloadError> {
+                    for (off, chunk) in &entries {
+                        write_all_at(&file, chunk, *off)?;
+                    }
+                    if sync {
+                        file.sync_data().map_err(|e| {
+                            DownloadError::Internal(format!("fsync failed: {e}"))
+                        })?;
+                    }
+                    Ok(())
+                })();
+                // Ignore send error — caller dropped the receiver.
+                let _ = done.send(result);
+            }
+        }
+    }
+
+    /// Submit a batch write to a worker thread and await completion.
+    ///
+    /// Writes are hash-routed to a specific worker based on file identity,
+    /// so writes to the same file are always processed by the same thread.
     pub async fn write_batch(
         &self,
         file: Arc<File>,
         entries: Vec<(u64, Bytes)>,
         sync: bool,
     ) -> Result<(), DownloadError> {
+        let idx = (Arc::as_ptr(&file) as usize) % self.txs.len();
+        let tx = &self.txs[idx];
+
         let (done_tx, done_rx) = oneshot::channel();
-        self.tx
-            .send(IoCommand::WriteBatch {
-                file,
-                entries,
-                sync,
-                done: done_tx,
-            })
-            .map_err(|_| {
-                DownloadError::Internal("I/O worker thread exited unexpectedly".into())
-            })?;
+        tx.send(IoCommand::WriteBatch {
+            file,
+            entries,
+            sync,
+            done: done_tx,
+        })
+        .map_err(|_| {
+            DownloadError::Internal("I/O worker thread exited unexpectedly".into())
+        })?;
         done_rx
             .await
             .map_err(|_| DownloadError::Internal("I/O worker dropped response".into()))?

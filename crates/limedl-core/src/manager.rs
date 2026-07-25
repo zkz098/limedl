@@ -347,7 +347,8 @@ impl DownloadManager {
             io.max_parallel_hdd,
             io.game_mode_max_parallel,
         ));
-        let io_worker = IoWorker::spawn();
+        let io_worker =
+            IoWorker::spawn_pool(std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(4));
 
         let manager = Self {
             http: HttpClientInfra {

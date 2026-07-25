@@ -156,18 +156,42 @@ pub async fn persist_manifest_snapshot(
         )
     };
 
+    // Clone before the first move so retry closure can reuse them.
+    let id2 = id.clone();
+    let dirty_chunks2 = dirty_chunks.clone();
+
     let db = db.clone();
-    tokio::task::spawn_blocking(move || {
+    let db2 = db.clone();
+    let result = tokio::task::spawn_blocking(move || {
         db.update_download_progress(
-            &id,
+            &id2,
             downloaded_bytes,
-            &dirty_chunks,
+            &dirty_chunks2,
             state_text,
             updated_at_ms,
         )
     })
     .await
-    .context("persist snapshot task panicked")?
-    .context("failed to persist download snapshot")?;
+    .context("persist snapshot task panicked")?;
+
+    if result.is_err() {
+        // Retry once on transient failure (e.g. SQLITE_BUSY, I/O hiccup).
+        // The dirty flags were already cleared when we collected dirty_chunks;
+        // a successful retry ensures progress isn't silently dropped.
+        tokio::task::spawn_blocking(move || {
+            db2.update_download_progress(
+                &id,
+                downloaded_bytes,
+                &dirty_chunks,
+                state_text,
+                updated_at_ms,
+            )
+        })
+        .await
+        .context("persist snapshot retry task panicked")?
+        .context("failed to persist download snapshot after retry")?;
+    } else {
+        result.context("failed to persist download snapshot")?;
+    }
     Ok(())
 }

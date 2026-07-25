@@ -685,7 +685,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             leech_count: value.leech_count,
             download_limit_bps: value.download_limit_bps,
             upload_limit_bps: value.upload_limit_bps,
-            chunks: value.chunks.clone(),
+            chunks: Vec::new(), // omitting chunks to avoid cloning large Vec<ChunkInfo> on every event emission
             mirror_url: value.mirror_url.clone(),
         }
     }
