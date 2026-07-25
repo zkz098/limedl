@@ -73,6 +73,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         game_mode_max_parallel: settings.io_baseline.game_mode_max_parallel.clamp(1, 4),
         disk_type_overrides: settings.io_baseline.disk_type_overrides,
         hdd_buffer_enabled: settings.io_baseline.hdd_buffer_enabled,
+        ssd_write_combine_mb: settings.io_baseline.ssd_write_combine_mb.clamp(0, 4096),
     };
 
     Ok(AppSettings {

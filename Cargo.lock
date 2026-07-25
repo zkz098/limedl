@@ -3360,7 +3360,7 @@ dependencies = [
 
 [[package]]
 name = "limedl"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3391,7 +3391,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-core"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3432,7 +3432,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-server"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "axum",

@@ -1167,6 +1167,11 @@ pub struct IoBaselineSettings {
     /// Default: true.
     #[serde(default = "default_hdd_buffer_enabled")]
     pub hdd_buffer_enabled: bool,
+    /// SSD write-combining buffer size per download in MiB.
+    /// 0 = auto (use chunk size). Max 4096 MiB (4 GiB).
+    /// Default: 0.
+    #[serde(default)]
+    pub ssd_write_combine_mb: u64,
 }
 
 fn default_buffer_limit_mb() -> u64 {
@@ -1199,6 +1204,7 @@ impl Default for IoBaselineSettings {
             game_mode_max_parallel: default_game_mode_max_parallel(),
             disk_type_overrides: foldhash::HashMap::default(),
             hdd_buffer_enabled: default_hdd_buffer_enabled(),
+            ssd_write_combine_mb: 0,
         }
     }
 }

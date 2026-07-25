@@ -318,9 +318,9 @@ impl HttpExecutor {
         // HDD/SSD optimization: set up buffered writing
         let settings = dm.settings().await?;
         let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
+        let ssd_write_combine_mb = settings.io_baseline.ssd_write_combine_mb;
         drop(settings);
         let disk_type = dm.resolve_disk_type(Path::new(&destination_dir)).await;
-        const SSD_WRITE_COMBINE_BYTES: u64 = 4 * 1024 * 1024; // 4 MiB
         let write_buffer: Option<Arc<DownloadBuffer>> = if disk_type == DiskType::Hdd && hdd_buffering {
             let slot = dm.buffer_pool.acquire_slot().await;
             Some(Arc::new(DownloadBuffer::new_with_worker(
@@ -330,12 +330,28 @@ impl HttpExecutor {
                 dm.io_worker.clone(),
             )))
         } else {
-            Some(Arc::new(DownloadBuffer::new_local_with_worker(
-                SSD_WRITE_COMBINE_BYTES,
+            let chunk_size = {
+                let core = managed.lock_core();
+                core.manifest.chunk_size
+            };
+            let ssd_limit_bytes = if ssd_write_combine_mb == 0 {
+                chunk_size  // auto: use the download's chunk size
+            } else {
+                ssd_write_combine_mb * 1024 * 1024
+            };
+            // half_size = ssd_limit_bytes / 2, minimum 64 KiB.
+            // Note: for large auto-sized buffers (chunk_size up to 128 MiB),
+            // this means up to 64 MiB per download. With N parallel SSD
+            // downloads, peak untracked memory = N × 2 × half_size.
+            // This is intentional — SSD write throughput benefits from
+            // larger batches, and the ping-pong prevents synchronous stalls.
+            let ssd_half_size = (ssd_limit_bytes / 2).max(64 * 1024);
+            Some(Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
+                ssd_half_size,
                 file.clone(),
                 dm.io_worker.clone(),
             )))
-        }; // always Some — SSD uses small local buffer for write combining
+        }; // always Some — SSD uses ping-pong buffer for write combining
 
         // Set disk_type on snapshot for frontend badge display
         {
@@ -595,6 +611,7 @@ impl HttpExecutor {
         let tail_sprint_enabled = settings.scheduler.tail_sprint_enabled;
         let warmup_enabled = settings.scheduler.connection_warmup_enabled;
         let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
+        let ssd_write_combine_mb = settings.io_baseline.ssd_write_combine_mb;
         drop(settings);
         let checksum_mode = {
             let core = managed.lock_core();
@@ -629,9 +646,21 @@ impl HttpExecutor {
                 dm.io_worker.clone(),
             )))
         } else {
-            // SSD: 4 MiB local write-combining buffer
-            Some(Arc::new(DownloadBuffer::new_local_with_worker(
-                4 * 1024 * 1024,
+            let chunk_size = managed.lock_core().manifest.chunk_size;
+            let ssd_limit_bytes = if ssd_write_combine_mb == 0 {
+                chunk_size  // auto: use the download's chunk size
+            } else {
+                ssd_write_combine_mb * 1024 * 1024
+            };
+            // half_size = ssd_limit_bytes / 2, minimum 64 KiB.
+            // Note: for large auto-sized buffers (chunk_size up to 128 MiB),
+            // this means up to 64 MiB per download. With N parallel SSD
+            // downloads, peak untracked memory = N × 2 × half_size.
+            // This is intentional — SSD write throughput benefits from
+            // larger batches, and the ping-pong prevents synchronous stalls.
+            let ssd_half_size = (ssd_limit_bytes / 2).max(64 * 1024);
+            Some(Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
+                ssd_half_size,
                 file.clone(),
                 dm.io_worker.clone(),
             )))

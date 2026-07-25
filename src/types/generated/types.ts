@@ -216,7 +216,13 @@ diskTypeOverrides: Record<string, DiskType>,
  * When disabled on HDD, uses a small 4 MiB write-combining buffer instead of the pool.
  * Default: true.
  */
-hddBufferEnabled: boolean, };
+hddBufferEnabled: boolean, 
+/**
+ * SSD write-combining buffer size per download in MiB.
+ * 0 = auto (use chunk size). Max 4096 MiB (4 GiB).
+ * Default: 0.
+ */
+ssdWriteCombineMb: number, };
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 

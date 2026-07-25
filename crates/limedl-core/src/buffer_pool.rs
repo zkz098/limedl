@@ -100,8 +100,37 @@ impl IoWorker {
             } => {
                 // entries are already sorted by offset (BTreeMap drain order).
                 let result = (|| -> Result<(), DownloadError> {
-                    for (off, chunk) in &entries {
-                        write_all_at(&file, chunk, *off)?;
+                    if entries.is_empty() {
+                        if sync {
+                            file.sync_data().map_err(|e| {
+                                DownloadError::Internal(format!("fsync failed: {e}"))
+                            })?;
+                        }
+                        return Ok(());
+                    }
+                    // Merge adjacent contiguous entries to reduce syscall count.
+                    let mut i = 0;
+                    while i < entries.len() {
+                        let (start_off, ref first_data) = entries[i];
+                        let mut end_off = start_off + first_data.len() as u64;
+                        let mut j = i + 1;
+                        while j < entries.len() && entries[j].0 == end_off {
+                            end_off += entries[j].1.len() as u64;
+                            j += 1;
+                        }
+                        if j == i + 1 {
+                            // Single entry, write directly (no allocation).
+                            write_all_at(&file, &entries[i].1, entries[i].0)?;
+                        } else {
+                            // Merge entries i..j into one contiguous buffer.
+                            let total_len = (end_off - start_off) as usize;
+                            let mut merged = Vec::with_capacity(total_len);
+                            for (_, chunk) in &entries[i..j] {
+                                merged.extend_from_slice(chunk);
+                            }
+                            write_all_at(&file, &merged, start_off)?;
+                        }
+                        i = j;
                     }
                     if sync {
                         file.sync_data().map_err(|e| {
@@ -161,6 +190,18 @@ impl<'a> Drop for FlipTokenGuard<'a> {
         self.token.store(false, Ordering::Release);
         self.notify.notify_waiters();
     }
+}
+
+/// Configuration for the shared ping-pong flip logic.
+struct PingPongCfg<'a> {
+    /// Global buffer pool for HDD memory tracking. `None` for SSD local mode.
+    pool: Option<&'a Arc<BufferPool>>,
+    /// Whether to fsync in the IoWorker background flush path.
+    bg_sync: bool,
+    /// Whether to fsync in the spawn_blocking fallback background flush path.
+    bg_fsync: bool,
+    /// Label for tracing/error messages (e.g., "HDD" or "SSD ping-pong").
+    label: &'static str,
 }
 
 // ---------------------------------------------------------------------------
@@ -392,6 +433,21 @@ enum BufferMode {
         local_limit: u64,
         file: Arc<File>,
     },
+    /// Local ping-pong mode for SSD write combining.
+    /// Same double-buffer logic as HDD but without global pool/slot management.
+    LocalPingPong {
+        half_a: Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        half_b: Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        active_is_a: AtomicBool,
+        usage_a: AtomicU64,
+        usage_b: AtomicU64,
+        half_size: u64,
+        flush_handle: Mutex<Option<JoinHandle<()>>>,
+        notify: Arc<Notify>,
+        error_flag: Arc<AtomicBool>,
+        flip_token: AtomicBool,
+        file: Arc<File>,
+    },
 }
 
 /// A per-download buffer that accumulates chunks in memory and flushes them
@@ -485,12 +541,36 @@ impl DownloadBuffer {
     }
 
     /// Create a local-limit buffer with a dedicated I/O worker.
+    #[allow(dead_code)]
     pub fn new_local_with_worker(limit_bytes: u64, file: Arc<File>, worker: IoWorker) -> Self {
         Self {
             mode: BufferMode::Local {
                 chunks: Arc::new(Mutex::new(BTreeMap::new())),
                 buffered_bytes: AtomicU64::new(0),
                 local_limit: limit_bytes,
+                file,
+            },
+            io_worker: Some(worker),
+        }
+    }
+
+    /// Create a local ping-pong buffer for SSD write combining.
+    ///
+    /// Uses the same double-buffer flip logic as HDD but without global
+    /// pool/slot management. `half_size` is the size of each ping-pong half.
+    pub fn new_local_pingpong_with_worker(half_size: u64, file: Arc<File>, worker: IoWorker) -> Self {
+        Self {
+            mode: BufferMode::LocalPingPong {
+                half_a: Arc::new(Mutex::new(BTreeMap::new())),
+                half_b: Arc::new(Mutex::new(BTreeMap::new())),
+                active_is_a: AtomicBool::new(true),
+                usage_a: AtomicU64::new(0),
+                usage_b: AtomicU64::new(0),
+                half_size,
+                flush_handle: Mutex::new(None),
+                notify: Arc::new(Notify::new()),
+                error_flag: Arc::new(AtomicBool::new(false)),
+                flip_token: AtomicBool::new(false),
                 file,
             },
             io_worker: Some(worker),
@@ -547,13 +627,46 @@ impl DownloadBuffer {
                     .await;
                 Ok(())
             }
+            BufferMode::LocalPingPong {
+                half_a,
+                half_b,
+                active_is_a,
+                usage_a,
+                usage_b,
+                half_size,
+                flush_handle,
+                notify,
+                error_flag,
+                flip_token,
+                file,
+                ..
+            } => {
+                self.buffer_chunk_local_pingpong(
+                    half_a,
+                    half_b,
+                    active_is_a,
+                    usage_a,
+                    usage_b,
+                    *half_size,
+                    flush_handle,
+                    notify,
+                    error_flag,
+                    flip_token,
+                    file,
+                    offset,
+                    data,
+                )
+                .await
+            }
         }
     }
 
-    /// Double-buffer mode implementation.
+    /// Unified ping-pong flip logic shared by HDD double-buffer and SSD local
+    /// ping-pong modes. Parameterised via [`PingPongCfg`].
     #[allow(clippy::too_many_arguments)]
-    async fn buffer_chunk_double(
+    async fn buffer_chunk_pingpong_impl(
         &self,
+        cfg: PingPongCfg<'_>,
         half_a: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         half_b: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         active_is_a: &AtomicBool,
@@ -564,7 +677,6 @@ impl DownloadBuffer {
         notify: &Arc<Notify>,
         error_flag: &Arc<AtomicBool>,
         flip_token: &AtomicBool,
-        pool: &Arc<BufferPool>,
         file: &Arc<File>,
         offset: u64,
         data: Bytes,
@@ -603,7 +715,9 @@ impl DownloadBuffer {
             if current + len <= half_size {
                 active_map.lock().insert(offset, data);
                 active_usage.fetch_add(len, Ordering::Release);
-                pool.add_usage(len);
+                if let Some(p) = cfg.pool {
+                    p.add_usage(len);
+                }
                 return Ok(());
             }
 
@@ -645,10 +759,13 @@ impl DownloadBuffer {
                     sum
                 };
                 inactive_usage.store(0, Ordering::Release);
-                pool.sub_usage(cleared);
+                if let Some(p) = cfg.pool {
+                    p.sub_usage(cleared);
+                }
                 tracing::warn!(
-                    "buffer_chunk: inactive half had {} bytes without flush handle",
+                    "buffer_chunk: inactive half had {} bytes without flush handle ({} mode)",
                     cleared,
+                    cfg.label,
                 );
             }
 
@@ -660,7 +777,9 @@ impl DownloadBuffer {
             };
             let old_bytes: u64 = old_entries.iter().map(|(_, d)| d.len() as u64).sum();
             active_usage.store(0, Ordering::Release);
-            pool.sub_usage(old_bytes);
+            if let Some(p) = cfg.pool {
+                p.sub_usage(old_bytes);
+            }
 
             // Spawn background flush for the old active half's data.
             // Uses IoWorker when available, otherwise falls back to
@@ -671,9 +790,9 @@ impl DownloadBuffer {
             let bg_handle: JoinHandle<()> = if let Some(ref worker) = self.io_worker {
                 let worker = worker.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = worker.write_batch(bg_file, old_entries, true).await {
+                    if let Err(e) = worker.write_batch(bg_file, old_entries, cfg.bg_sync).await {
                         bg_error.store(true, Ordering::Release);
-                        tracing::error!("background HDD buffer flush failed (IoWorker): {e}");
+                        tracing::error!("background {} buffer flush failed (IoWorker): {e}", cfg.label);
                     }
                     bg_notify.notify_waiters();
                 })
@@ -688,17 +807,19 @@ impl DownloadBuffer {
                     }));
                     match result {
                         Ok(Ok(())) => {
-                            // fsync after successful batch write.
-                            if let Err(e) = bg_file.sync_data() {
+                            if cfg.bg_fsync
+                                && let Err(e) = bg_file.sync_data()
+                            {
                                 bg_error.store(true, Ordering::Release);
                                 tracing::error!(
-                                    "background HDD buffer flush fsync failed: {e}"
+                                    "background {} buffer flush fsync failed: {e}",
+                                    cfg.label,
                                 );
                             }
                         }
                         Ok(Err(e)) => {
                             bg_error.store(true, Ordering::Release);
-                            tracing::error!("background HDD buffer flush failed: {e}");
+                            tracing::error!("background {} buffer flush failed: {e}", cfg.label);
                         }
                         Err(payload) => {
                             bg_error.store(true, Ordering::Release);
@@ -707,7 +828,7 @@ impl DownloadBuffer {
                                 .map(|s| s.as_str())
                                 .or_else(|| payload.downcast_ref::<&'static str>().copied())
                                 .unwrap_or("<non-string panic payload>");
-                            tracing::error!("background flush task panicked: {msg}");
+                            tracing::error!("background {} flush task panicked: {msg}", cfg.label);
                         }
                     }
                     bg_notify.notify_waiters();
@@ -728,10 +849,44 @@ impl DownloadBuffer {
             };
             new_map.lock().insert(offset, data);
             new_usage.fetch_add(len, Ordering::Release);
-            pool.add_usage(len);
+            if let Some(p) = cfg.pool {
+                p.add_usage(len);
+            }
 
             return Ok(());
         }
+    }
+
+    /// Double-buffer mode implementation.
+    #[allow(clippy::too_many_arguments)]
+    async fn buffer_chunk_double(
+        &self,
+        half_a: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        half_b: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        active_is_a: &AtomicBool,
+        usage_a: &AtomicU64,
+        usage_b: &AtomicU64,
+        half_size: u64,
+        flush_handle: &Mutex<Option<JoinHandle<()>>>,
+        notify: &Arc<Notify>,
+        error_flag: &Arc<AtomicBool>,
+        flip_token: &AtomicBool,
+        pool: &Arc<BufferPool>,
+        file: &Arc<File>,
+        offset: u64,
+        data: Bytes,
+    ) -> Result<(), DownloadError> {
+        self.buffer_chunk_pingpong_impl(
+            PingPongCfg {
+                pool: Some(pool),
+                bg_sync: true,
+                bg_fsync: true,
+                label: "HDD",
+            },
+            half_a, half_b, active_is_a, usage_a, usage_b,
+            half_size, flush_handle, notify, error_flag, flip_token,
+            file, offset, data,
+        ).await
     }
 
     /// Local (SSD) mode: insert if under the local limit; otherwise flush the
@@ -789,6 +944,74 @@ impl DownloadBuffer {
         // Now insert the new chunk.
         chunks.lock().insert(offset, data);
         buffered_bytes.fetch_add(len, Ordering::Relaxed);
+    }
+
+    /// Local ping-pong mode: same double-buffer flip logic as HDD but without
+    /// global pool/slot management.
+    #[allow(clippy::too_many_arguments)]
+    async fn buffer_chunk_local_pingpong(
+        &self,
+        half_a: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        half_b: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        active_is_a: &AtomicBool,
+        usage_a: &AtomicU64,
+        usage_b: &AtomicU64,
+        half_size: u64,
+        flush_handle: &Mutex<Option<JoinHandle<()>>>,
+        notify: &Arc<Notify>,
+        error_flag: &Arc<AtomicBool>,
+        flip_token: &AtomicBool,
+        file: &Arc<File>,
+        offset: u64,
+        data: Bytes,
+    ) -> Result<(), DownloadError> {
+        self.buffer_chunk_pingpong_impl(
+            PingPongCfg {
+                pool: None,
+                bg_sync: false,
+                bg_fsync: false,
+                label: "SSD ping-pong",
+            },
+            half_a, half_b, active_is_a, usage_a, usage_b,
+            half_size, flush_handle, notify, error_flag, flip_token,
+            file, offset, data,
+        ).await
+    }
+
+    /// Flush a single half's buffer to disk without pool tracking.
+    /// Used by `flush_all` for LocalPingPong mode.
+    #[allow(dead_code)]
+    async fn flush_one_half_local(
+        half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+        usage: &AtomicU64,
+        file: &Arc<File>,
+        io_worker: Option<&IoWorker>,
+    ) -> Result<(), DownloadError> {
+        let entries: Vec<(u64, Bytes)> = {
+            let mut map = half.lock();
+            if map.is_empty() {
+                return Ok(());
+            }
+            std::mem::take(&mut *map).into_iter().collect()
+        };
+        usage.store(0, Ordering::Release);
+        if let Some(worker) = io_worker {
+            worker.write_batch(file.clone(), entries, true).await?;
+        } else {
+            let f = file.clone();
+            tokio::task::spawn_blocking(move || -> Result<(), DownloadError> {
+                for (off, chunk) in &entries {
+                    write_all_at(&f, chunk, *off)?;
+                }
+                f.sync_data().map_err(|e| {
+                    DownloadError::Internal(format!("fsync failed: {e}"))
+                })?;
+                Ok(())
+            })
+            .await
+            .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
+        }
+        Ok(())
     }
 
     /// Flush all buffered data to disk.
@@ -871,6 +1094,51 @@ impl DownloadBuffer {
                 buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
                 Ok(())
             }
+            BufferMode::LocalPingPong {
+                half_a,
+                half_b,
+                active_is_a,
+                usage_a,
+                usage_b,
+                flush_handle,
+                error_flag,
+                file,
+                ..
+            } => {
+                // 1. Wait for any in-progress background flush.
+                let handle = flush_handle.lock().take();
+                if let Some(h) = handle {
+                    let _ = h.await;
+                    if error_flag.load(Ordering::Acquire) {
+                        return Err(DownloadError::Internal(
+                            "background buffer flush failed".into(),
+                        ));
+                    }
+                }
+
+                // 2. Determine which half is active and which is inactive.
+                let is_a = active_is_a.load(Ordering::Acquire);
+                let (active, active_usage, inactive, inactive_usage) = if is_a {
+                    (half_a, usage_a, half_b, usage_b)
+                } else {
+                    (half_b, usage_b, half_a, usage_a)
+                };
+
+                // 3. Flush active half.
+                Self::flush_one_half_local(active, active_usage, file, self.io_worker.as_ref()).await?;
+
+                // 4. Flush inactive half (should be empty, but be safe).
+                Self::flush_one_half_local(inactive, inactive_usage, file, self.io_worker.as_ref()).await?;
+
+                // 5. Check error flag one more time.
+                if error_flag.load(Ordering::Acquire) {
+                    return Err(DownloadError::Internal(
+                        "background buffer flush failed".into(),
+                    ));
+                }
+
+                Ok(())
+            }
         }
     }
 
@@ -926,6 +1194,12 @@ impl DownloadBuffer {
                     let _ = h.await; // discard result — data is being thrown away
                 }
             }
+            BufferMode::LocalPingPong { flush_handle, .. } => {
+                let handle = flush_handle.lock().take();
+                if let Some(h) = handle {
+                    let _ = h.await;
+                }
+            }
             BufferMode::Local { .. } => {}
         }
     }
@@ -973,6 +1247,22 @@ impl DownloadBuffer {
                 };
                 buffered_bytes.fetch_sub(bytes, Ordering::Relaxed);
             }
+            BufferMode::LocalPingPong {
+                half_a,
+                half_b,
+                usage_a,
+                usage_b,
+                error_flag,
+                ..
+            } => {
+                let mut a = half_a.lock();
+                let mut b = half_b.lock();
+                a.clear();
+                b.clear();
+                usage_a.store(0, Ordering::Release);
+                usage_b.store(0, Ordering::Release);
+                error_flag.store(false, Ordering::Release);
+            }
         }
     }
 
@@ -984,6 +1274,7 @@ impl DownloadBuffer {
                 usage_a, usage_b, ..
             } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
             BufferMode::Local { buffered_bytes, .. } => buffered_bytes.load(Ordering::Relaxed),
+            BufferMode::LocalPingPong { usage_a, usage_b, .. } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
         }
     }
 
@@ -999,6 +1290,7 @@ impl DownloadBuffer {
     pub fn has_degraded(&self) -> bool {
         match &self.mode {
             BufferMode::Double { error_flag, .. } => error_flag.load(Ordering::Relaxed),
+            BufferMode::LocalPingPong { error_flag, .. } => error_flag.load(Ordering::Relaxed),
             BufferMode::Local { .. } => false,
         }
     }
@@ -1048,6 +1340,22 @@ impl Drop for DownloadBuffer {
                     sum
                 };
                 buffered_bytes.fetch_sub(bytes, Ordering::Relaxed);
+            }
+            BufferMode::LocalPingPong {
+                half_a,
+                half_b,
+                usage_a,
+                usage_b,
+                error_flag,
+                ..
+            } => {
+                let mut a = half_a.lock();
+                let mut b = half_b.lock();
+                a.clear();
+                b.clear();
+                usage_a.store(0, Ordering::Release);
+                usage_b.store(0, Ordering::Release);
+                error_flag.store(false, Ordering::Release);
             }
         }
     }
@@ -1831,6 +2139,205 @@ mod tests {
         buf.flush_all().await.unwrap();
         let content = fs::read(_dir.path().join("test.bin")).unwrap();
         assert_eq!(&content[..5], b"fresh");
+    }
+
+    // -----------------------------------------------------------------------
+    // DownloadBuffer — SSD (LocalPingPong) mode
+    // -----------------------------------------------------------------------
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_buffer_creation() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(64 * 1024, file.clone(), worker);
+        assert_eq!(buf.len(), 0);
+        assert!(!buf.has_degraded());
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_buffer_chunk_and_flush() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), worker);
+
+        let data = Bytes::from("hello pingpong ssd");
+        buf.buffer_chunk(0, data.clone()).await.unwrap();
+        assert_eq!(buf.len(), 18);
+
+        buf.flush_all().await.unwrap();
+        assert_eq!(buf.len(), 0);
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[..18], b"hello pingpong ssd");
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_multiple_offsets() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), worker);
+
+        buf.buffer_chunk(0, Bytes::from("aaaa")).await.unwrap();
+        buf.buffer_chunk(10, Bytes::from("bbbb")).await.unwrap();
+        buf.buffer_chunk(20, Bytes::from("cccc")).await.unwrap();
+        assert_eq!(buf.len(), 12);
+
+        buf.flush_all().await.unwrap();
+        assert_eq!(buf.len(), 0);
+
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[0..4], b"aaaa");
+        assert_eq!(&content[10..14], b"bbbb");
+        assert_eq!(&content[20..24], b"cccc");
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_flip_trigger() {
+        let half = 1024u64; // tiny half_size to trigger flip easily
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(half, file.clone(), worker);
+
+        // Fill active half with chunks totalling > half_size to trigger a flip.
+        let chunk_size = half / 2;
+        let mut total_written = 0u64;
+        for i in 0..3u64 {
+            let payload = vec![i as u8; chunk_size as usize];
+            buf.buffer_chunk(i * chunk_size, Bytes::from(payload))
+                .await
+                .unwrap();
+            total_written += chunk_size;
+        }
+        assert!(!buf.is_empty());
+
+        buf.flush_all().await.unwrap();
+        assert_eq!(buf.len(), 0);
+
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert!(content.len() >= total_written as usize);
+        for i in 0..3u64 {
+            let off = (i * chunk_size) as usize;
+            assert_eq!(content[off], i as u8);
+        }
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_drain_and_clear() {
+        let half = 1024u64;
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(half, file.clone(), worker);
+
+        let small = half / 4;
+        for i in 0..5u64 {
+            let payload = vec![i as u8; small as usize];
+            buf.buffer_chunk(i * small, Bytes::from(payload))
+                .await
+                .unwrap();
+        }
+        buf.drain_background().await;
+        buf.flush_all().await.unwrap();
+
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert!(content.len() >= (5 * small) as usize);
+
+        // clear should reset state
+        buf.clear();
+        assert_eq!(buf.len(), 0);
+        assert!(!buf.has_degraded());
+    }
+
+    #[tokio::test]
+    #[timeout(10000)]
+    async fn test_ssd_pingpong_error_flag() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), worker);
+
+        assert!(!buf.has_degraded());
+
+        // Directly set the error flag
+        if let BufferMode::LocalPingPong { error_flag, .. } = &buf.mode {
+            error_flag.store(true, std::sync::atomic::Ordering::Release);
+        }
+
+        assert!(buf.has_degraded());
+
+        // buffer_chunk should return error
+        let result = buf.buffer_chunk(100, Bytes::from("fail")).await;
+        assert!(result.is_err());
+
+        // clear should reset
+        buf.clear();
+        assert!(!buf.has_degraded());
+    }
+
+    #[tokio::test]
+    #[timeout(10000)]
+    async fn test_ssd_pingpong_flush_all_empty() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), worker);
+        buf.flush_all().await.unwrap();
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_overlapping_writes() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), worker);
+
+        buf.buffer_chunk(0, Bytes::from("XXX")).await.unwrap();
+        buf.buffer_chunk(0, Bytes::from("YYY")).await.unwrap();
+
+        buf.flush_all().await.unwrap();
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[..3], b"YYY");
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_flush_all_multiple_times() {
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), worker);
+
+        buf.buffer_chunk(0, Bytes::from("first")).await.unwrap();
+        buf.flush_all().await.unwrap();
+        assert_eq!(buf.len(), 0);
+
+        buf.buffer_chunk(10, Bytes::from("second")).await.unwrap();
+        buf.flush_all().await.unwrap();
+        assert_eq!(buf.len(), 0);
+
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[0..5], b"first");
+        assert_eq!(&content[10..16], b"second");
+    }
+
+    #[tokio::test]
+    #[timeout(30000)]
+    async fn test_ssd_pingpong_large_chunk_direct_write() {
+        let half = 64 * 1024u64;
+        let (_dir, file) = temp_file();
+        let worker = IoWorker::spawn();
+        let buf = DownloadBuffer::new_local_pingpong_with_worker(half, file.clone(), worker);
+
+        // Create a chunk larger than half_size — triggers direct spawn_blocking write.
+        let big_data = vec![0xABu8; (half + 1) as usize];
+        let big = Bytes::from(big_data);
+        buf.buffer_chunk(0, big.clone()).await.unwrap();
+
+        // Large chunk is written directly, buffer should be empty.
+        assert_eq!(buf.len(), 0);
+
+        let content = fs::read(_dir.path().join("test.bin")).unwrap();
+        assert_eq!(&content[..(half + 1) as usize], &big[..]);
     }
 
     // -----------------------------------------------------------------------
