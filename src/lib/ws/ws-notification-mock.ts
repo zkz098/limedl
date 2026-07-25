@@ -9,3 +9,9 @@ export const requestPermission = async (): Promise<"granted" | "denied"> => "den
 export const sendNotification = async (_options: unknown): Promise<void> => {
   // No-op: browser environment has no Tauri notification API
 };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const onAction = async (_cb: (notification: any) => void): Promise<{ unregister: () => void }> => {
+  // No-op: browser environment has no Tauri notification API
+  return { unregister: () => {} };
+};

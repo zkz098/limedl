@@ -2,11 +2,12 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { listen, type UnlistenFn } from "#event";
 import {
   isPermissionGranted,
+  onAction,
   requestPermission,
   sendNotification,
 } from "@tauri-apps/plugin-notification";
 
-import { getBtRuntimeStatus, getDownloadStatus } from "../lib/tauri/download-api";
+import { getBtRuntimeStatus, getDownloadStatus, openDownloadInExplorer } from "../lib/tauri/download-api";
 import { t } from "../i18n";
 import { useNotification } from "./useNotification";
 import {
@@ -34,7 +35,7 @@ export interface UseLimedlOptions {
   onDownloadsRemoved?: (removedIds: string[]) => void;
 }
 
-async function fireNotification(title: string, body: string) {
+async function fireNotification(title: string, body: string, downloadId?: string) {
   try {
     let granted = await isPermissionGranted();
     if (!granted) {
@@ -42,7 +43,11 @@ async function fireNotification(title: string, body: string) {
       granted = permission === "granted";
     }
     if (granted) {
-      sendNotification({ title, body });
+      sendNotification({
+        title,
+        body,
+        ...(downloadId ? { extra: { downloadId } } : {}),
+      });
     }
   } catch {
     // Silently fail —notifications are non-critical
@@ -288,6 +293,7 @@ function createLimedl(options?: UseLimedlOptions) {
   let unlistenProgress: UnlistenFn | null = null;
   let unlistenWarning: UnlistenFn | null = null;
   let unlistenFullState: UnlistenFn | null = null;
+  let unlistenNotificationAction: (() => void) | null = null;
   let mounted = true;
   let btRuntimeTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -331,6 +337,7 @@ function createLimedl(options?: UseLimedlOptions) {
         void fireNotification(
           t("notifications.downloadComplete"),
           t("notifications.downloadCompleteBody", { fileName: summary.fileName }),
+          summary.id,
         );
       } else if (summary.state === "failed") {
         void fireNotification(
@@ -387,6 +394,20 @@ function createLimedl(options?: UseLimedlOptions) {
       unlistenFullState = unlisten;
     });
 
+    // OS notification click handler: open downloaded file in system file explorer
+    void onAction((notification) => {
+      const downloadId = notification.extra?.downloadId;
+      if (typeof downloadId === "string") {
+        void openDownloadInExplorer(downloadId);
+      }
+    }).then((listener) => {
+      if (!mounted) {
+        void listener.unregister();
+        return;
+      }
+      unlistenNotificationAction = () => { void listener.unregister(); };
+    }).catch(() => {});
+
     // BT runtime status (global DHT state, upload stats) is not included in per-download
     // events, so a slow background poll is kept.
     btRuntimeTimer = setInterval(() => {
@@ -415,6 +436,11 @@ function createLimedl(options?: UseLimedlOptions) {
     if (unlistenFullState) {
       unlistenFullState();
       unlistenFullState = null;
+    }
+
+    if (unlistenNotificationAction) {
+      unlistenNotificationAction();
+      unlistenNotificationAction = null;
     }
 
     if (btRuntimeTimer) {
