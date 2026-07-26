@@ -168,6 +168,7 @@ function buildDefaultSettings() {
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
       hddBufferEnabled: true,
+      ssdWriteCombineMb: 0,
       diskTypeOverrides: {},
     },
     downloadLimits: null,
