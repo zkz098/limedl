@@ -3406,6 +3406,7 @@ dependencies = [
  "irontide",
  "libc",
  "ntest",
+ "open",
  "parking_lot",
  "rand 0.10.2",
  "reqwest 0.13.4",

@@ -855,6 +855,31 @@ impl DownloadManager {
         )))
     }
 
+    pub async fn open_file(&self, download_id: &str) -> Result<()> {
+        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let manifest = managed.lock_core().manifest.clone();
+        let destination_path = PathBuf::from(&manifest.destination_path);
+
+        if !destination_path.exists() {
+            return Err(DownloadError::Io(io::Error::new(
+                io::ErrorKind::NotFound,
+                "download file does not exist",
+            )));
+        }
+
+        open::that(&destination_path)
+            .map_err(|e| DownloadError::Io(io::Error::other(e.to_string())))?;
+        Ok(())
+    }
+
+    pub async fn open_dir(&self, download_id: &str) -> Result<()> {
+        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let manifest = managed.lock_core().manifest.clone();
+        let directory_path = PathBuf::from(&manifest.destination_dir);
+        crate::platform::open_in_file_manager(&directory_path)
+            .map_err(DownloadError::Io)?;        Ok(())
+    }
+
     pub async fn resume(self: &Arc<Self>, download_id: &str) -> Result<DownloadSnapshot> {
         let managed = self.task_lifecycle.get(self, download_id).await?;
         // Phase 1: check state (read-only, drop lock before fallible ops)
@@ -1126,6 +1151,20 @@ impl DownloadBackend for DownloadManager {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::open_in_explorer(self, &uuid.to_string()).await
+    }
+
+    async fn open_file(&self, task_id: &TaskId) -> Result<()> {
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::open_file(self, &uuid.to_string()).await
+    }
+
+    async fn open_dir(&self, task_id: &TaskId) -> Result<()> {
+        let TaskId::Http(uuid) = task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        DownloadManager::open_dir(self, &uuid.to_string()).await
     }
 
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {

@@ -63,7 +63,8 @@ import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings, SortDirection, SortKey } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
 import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
-import { setBtSpeedLimit } from "./lib/tauri/download-api";
+import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/tauri/download-api";
+import { toMessage } from "./composables/downloadHelpers";
 
 // Multi-select refs (declared before limedlOptions closure)
 let multiSelectMode = ref(false);
@@ -148,6 +149,8 @@ const {
   submitStart,
   autoFillFromClipboard,
   setNotificationsEnabled,
+  setMessage,
+  setError,
   batchMode,
   batchUrls,
   batchEntries,
@@ -446,6 +449,48 @@ const handleTaskPauseOrResume = async (downloadId: string) => {
   }
 };
 
+const handleDoubleClick = async (downloadId: string) => {
+  const target = downloads.value.find((d) => d.id === downloadId);
+  if (!target || !appSettings.value?.doubleClick) return;
+
+  const isCompleted = target.state === "completed";
+  const dc = appSettings.value.doubleClick;
+
+  if (isCompleted) {
+    switch (dc.onCompleted) {
+      case "none":
+        break;
+      case "open_file":
+        try {
+          await openDownloadFile(downloadId);
+          setMessage(t("messages.openedFile"));
+        } catch (error) {
+          setError(toMessage(error));
+        }
+        break;
+      case "open_in_explorer":
+        await runOpenInExplorer(downloadId);
+        break;
+      case "open_download_dir":
+        try {
+          await openDownloadDir(downloadId);
+          setMessage(t("messages.openedDownloadDir"));
+        } catch (error) {
+          setError(toMessage(error));
+        }
+        break;
+    }
+  } else {
+    switch (dc.onUncompleted) {
+      case "toggle_pause_resume":
+        await handleTaskPauseOrResume(downloadId);
+        break;
+      case "none":
+        break;
+    }
+  }
+};
+
 function requestPermanentDelete(downloadId: string) {
   pendingPermanentDeleteId.value = downloadId;
 }
@@ -686,6 +731,7 @@ watch(
                 @copy-link="runCopyLink"
                 @delete-task="runDeleteTask"
                 @delete-task-permanently="requestPermanentDelete"
+                @double-click="handleDoubleClick"
                 @open-in-explorer="runOpenInExplorer"
                 @pause-or-resume="handleTaskPauseOrResume"
                 @select="selectDownload"

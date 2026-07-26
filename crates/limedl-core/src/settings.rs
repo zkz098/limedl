@@ -10,9 +10,10 @@ use super::{
     http_client_factory::normalize_user_agent,
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        CdnAccelerationSettings, DownloadDefaultsSettings, GitHubMirrorSettings,
-        IoBaselineSettings, LogSettings, MirrorEntry, NotificationSettings, ProxyMode,
-        ProxySettings, SchedulerSettings, TraditionalSchedulerSettings, default_tracker_list_url,
+        CdnAccelerationSettings, DoubleClickSettings, DownloadDefaultsSettings,
+        GitHubMirrorSettings, IoBaselineSettings, LogSettings, MirrorEntry,
+        NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
+        TraditionalSchedulerSettings, default_tracker_list_url,
     },
 };
 
@@ -114,6 +115,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         setup_completed: settings.setup_completed,
         last_setup_step: settings.last_setup_step.map(|s| s.clamp(0, 9)),
         download_limits: settings.download_limits.clone(),
+        double_click: settings.double_click,
         max_in_memory_downloads: clamp_max_in_memory(settings.max_in_memory_downloads),
     })
 }
@@ -364,6 +366,7 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         setup_completed: false,
         last_setup_step: None,
         download_limits: None,
+        double_click: DoubleClickSettings::default(),
         max_in_memory_downloads: 200,
     })
 }

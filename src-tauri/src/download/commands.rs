@@ -175,6 +175,54 @@ pub async fn download_open_in_explorer(
 }
 
 #[tauri::command]
+pub async fn download_open_file(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> CommandResult<()> {
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    into_command_result(
+        async {
+            let backend = state
+                .registry
+                .dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend
+                .open_file(&task_id)
+                .await
+                .context("打开下载文件失败")
+        }
+        .await,
+    )
+}
+
+#[tauri::command]
+pub async fn download_open_dir(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> CommandResult<()> {
+    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+        kind: "parse".into(),
+        message: format!("Invalid task ID: {e}"),
+    })?;
+    into_command_result(
+        async {
+            let backend = state
+                .registry
+                .dispatch(&task_id)
+                .map_err(|e| internal_error(&e.to_string()))?;
+            backend
+                .open_dir(&task_id)
+                .await
+                .context("打开下载目录失败")
+        }
+        .await,
+    )
+}
+
+#[tauri::command]
 pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,

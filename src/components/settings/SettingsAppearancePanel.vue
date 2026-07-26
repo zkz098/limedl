@@ -46,6 +46,18 @@ const closeBehaviorOptions = computed<Array<{ label: string; value: CloseBehavio
   { label: props.t("settings.closeBehaviorExit"), value: "exit" },
 ]);
 
+const doubleClickCompletedOptions = computed<Array<{ label: string; value: string }>>(() => [
+  { label: props.t("settings.doubleClickNone"), value: "none" },
+  { label: props.t("settings.doubleClickOpenFile"), value: "open_file" },
+  { label: props.t("settings.doubleClickOpenInExplorer"), value: "open_in_explorer" },
+  { label: props.t("settings.doubleClickOpenDownloadDir"), value: "open_download_dir" },
+]);
+
+const doubleClickUncompletedOptions = computed<Array<{ label: string; value: string }>>(() => [
+  { label: props.t("settings.doubleClickNone"), value: "none" },
+  { label: props.t("settings.doubleClickTogglePauseResume"), value: "toggle_pause_resume" },
+]);
+
 const emit = defineEmits<{
   changeLanguage: [language: SupportedLanguage];
 }>();
@@ -138,6 +150,30 @@ const emit = defineEmits<{
       <div class="settings-grid">
         <SettingsField :label="t('settings.closeBehaviorTitle')">
           <UiSelect v-model="draft.appearance.closeBehavior" :options="closeBehaviorOptions" />
+        </SettingsField>
+      </div>
+    </SettingsSection>
+
+    <!-- Double-Click Behavior -->
+    <SettingsSection :title="t('settings.doubleClickTitle')" icon="i-ri-cursor-line">
+      <div class="settings-grid">
+        <SettingsField
+          :label="t('settings.doubleClickOnCompleted')"
+          :info-tooltip="t('settings.doubleClickOnCompletedHint')"
+        >
+          <UiSelect
+            v-model="draft.doubleClick.onCompleted"
+            :options="doubleClickCompletedOptions"
+          />
+        </SettingsField>
+        <SettingsField
+          :label="t('settings.doubleClickOnUncompleted')"
+          :info-tooltip="t('settings.doubleClickOnUncompletedHint')"
+        >
+          <UiSelect
+            v-model="draft.doubleClick.onUncompleted"
+            :options="doubleClickUncompletedOptions"
+          />
         </SettingsField>
       </div>
     </SettingsSection>

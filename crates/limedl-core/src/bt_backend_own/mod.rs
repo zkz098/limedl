@@ -152,6 +152,20 @@ impl DownloadBackend for IrontideBtBackend {
         self.open_in_explorer(info_hash).await
     }
 
+    async fn open_file(&self, task_id: &TaskId) -> Result<()> {
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.open_file(info_hash).await
+    }
+
+    async fn open_dir(&self, task_id: &TaskId) -> Result<()> {
+        let TaskId::Bt(info_hash) = *task_id else {
+            return Err(DownloadError::NotFound);
+        };
+        self.open_dir(info_hash).await
+    }
+
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);

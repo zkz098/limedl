@@ -19,6 +19,7 @@ pub mod manifest;
 pub mod migration;
 pub mod mirror;
 pub mod persistence;
+pub mod platform;
 pub mod protocol;
 pub mod rate_limiter;
 pub mod retry;

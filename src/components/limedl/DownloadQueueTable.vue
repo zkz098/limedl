@@ -35,6 +35,7 @@ const emit = defineEmits<{
   copyLink: [downloadId: string];
   deleteTask: [downloadId: string];
   deleteTaskPermanently: [downloadId: string];
+  doubleClick: [downloadId: string];
   openInExplorer: [downloadId: string];
   pauseOrResume: [downloadId: string];
   select: [downloadId: string];
@@ -570,6 +571,7 @@ function metaForDownload(download: DownloadSummary) {
                   ? $emit('toggleSelect', download.id)
                   : $emit('select', download.id)
               "
+              @dblclick="$emit('doubleClick', download.id)"
               @contextmenu.prevent.stop="openTaskContextMenu($event, download.id)"
               @keydown="handleRowKeydown($event, download.id)"
               tabindex="0"

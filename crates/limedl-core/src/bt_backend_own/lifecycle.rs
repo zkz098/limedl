@@ -302,6 +302,38 @@ impl IrontideBtBackend {
         )))
     }
 
+    pub async fn open_file(&self, info_hash: Id20) -> Result<()> {
+        let snapshot = self.status(info_hash).await?;
+        let path = PathBuf::from(&snapshot.destination_path);
+        if path.is_dir() {
+            return Err(DownloadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Cannot open a multi-file torrent as a single file. Use Open Folder instead.",
+            )));
+        }
+        if !path.exists() {
+            return Err(DownloadError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "download file does not exist",
+            )));
+        }
+        open::that(&path)
+            .map_err(|e| DownloadError::Io(std::io::Error::other(e.to_string())))?;
+        Ok(())
+    }
+
+    pub async fn open_dir(&self, info_hash: Id20) -> Result<()> {
+        let snapshot = self.status(info_hash).await?;
+        let path = PathBuf::from(&snapshot.destination_path);
+        let dir = if path.is_file() {
+            path.parent().map(PathBuf::from).unwrap_or(path)
+        } else {
+            path
+        };
+        crate::platform::open_in_file_manager(&dir)
+            .map_err(DownloadError::Io)?;        Ok(())
+    }
+
     pub async fn status(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         let stats = self
             .session

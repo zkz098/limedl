@@ -159,6 +159,24 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         },
         safety: SafetyClass::Mutating,
     },
+    WsCommandSpec {
+        tauri_name: "download_open_file",
+        rpc_method: "download.openFile",
+        param_transform: ParamTransform::Rename {
+            from: "downloadId",
+            to: "taskId",
+        },
+        safety: SafetyClass::Mutating,
+    },
+    WsCommandSpec {
+        tauri_name: "download_open_dir",
+        rpc_method: "download.openDir",
+        param_transform: ParamTransform::Rename {
+            from: "downloadId",
+            to: "taskId",
+        },
+        safety: SafetyClass::Mutating,
+    },
     // ── Settings ────────────────────────────────────────────────────────
     WsCommandSpec {
         tauri_name: "settings_get",

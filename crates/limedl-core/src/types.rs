@@ -1209,6 +1209,59 @@ impl Default for IoBaselineSettings {
     }
 }
 
+/// Action to perform when double-clicking a completed download task.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DoubleClickOnCompleted {
+    /// Do nothing.
+    #[default]
+    None,
+    /// Open the downloaded file directly (OS default handler).
+    OpenFile,
+    /// Open file explorer and select the downloaded file.
+    OpenInExplorer,
+    /// Open the download directory in file explorer.
+    OpenDownloadDir,
+}
+
+/// Action to perform when double-clicking an uncompleted download task.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DoubleClickOnUncompleted {
+    /// Do nothing.
+    #[default]
+    None,
+    /// Toggle between pause and resume.
+    TogglePauseResume,
+}
+
+/// Settings for double-click behavior on download tasks.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DoubleClickSettings {
+    /// Action when double-clicking a completed task.
+    #[serde(default)]
+    pub on_completed: DoubleClickOnCompleted,
+    /// Action when double-clicking an uncompleted task.
+    #[serde(default)]
+    pub on_uncompleted: DoubleClickOnUncompleted,
+}
+
+impl Default for DoubleClickSettings {
+    fn default() -> Self {
+        Self {
+            on_completed: DoubleClickOnCompleted::None,
+            on_uncompleted: DoubleClickOnUncompleted::None,
+        }
+    }
+}
+
 fn default_max_in_memory_downloads() -> usize {
     200
 }
@@ -1266,6 +1319,9 @@ pub struct AppSettings {
     pub last_setup_step: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub download_limits: Option<DownloadLimits>,
+    /// Double-click action configuration for download tasks.
+    #[serde(default)]
+    pub double_click: DoubleClickSettings,
     /// Maximum number of completed/failed/canceled downloads kept in memory.
     /// Older terminal-state entries are evicted when this limit is exceeded.
     #[serde(default = "default_max_in_memory_downloads")]

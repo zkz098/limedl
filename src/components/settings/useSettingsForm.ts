@@ -127,6 +127,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     setupCompleted: false,
     lastSetupStep: null,
     maxInMemoryDownloads: 200,
+    doubleClick: {
+      onCompleted: "none",
+      onUncompleted: "none",
+    },
     speedLimitSchedule: [],
   });
 
@@ -238,6 +242,10 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       setupCompleted: form.setupCompleted ?? false,
       lastSetupStep: form.lastSetupStep ?? null,
       maxInMemoryDownloads: form.maxInMemoryDownloads ?? 200,
+      doubleClick: {
+        onCompleted: form.doubleClick?.onCompleted ?? "none",
+        onUncompleted: form.doubleClick?.onUncompleted ?? "none",
+      },
       speedLimitSchedule: form.speedLimitSchedule?.slice() ?? [],
     };
   }
@@ -347,6 +355,11 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       form.setupCompleted = nextSettings.setupCompleted ?? false;
       form.lastSetupStep = nextSettings.lastSetupStep ?? null;
       form.maxInMemoryDownloads = nextSettings.maxInMemoryDownloads ?? 200;
+      if (!form.doubleClick) {
+        form.doubleClick = { onCompleted: "none", onUncompleted: "none" };
+      }
+      form.doubleClick.onCompleted = nextSettings.doubleClick?.onCompleted ?? "none";
+      form.doubleClick.onUncompleted = nextSettings.doubleClick?.onUncompleted ?? "none";
       form.speedLimitSchedule = nextSettings.speedLimitSchedule?.slice() ?? [];
       savedSettingsSnapshot.value = serializeSettings(buildSettingsPayload());
       onDirtyChange?.(false);

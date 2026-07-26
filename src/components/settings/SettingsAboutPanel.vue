@@ -176,6 +176,7 @@ function buildDefaultSettings() {
     setupCompleted: true,
     lastSetupStep: null,
     maxInMemoryDownloads: 200,
+    doubleClick: { onCompleted: "none", onUncompleted: "none" },
     speedLimitSchedule: [],
   } as AppSettings;
 }

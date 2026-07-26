@@ -4,6 +4,10 @@ export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 
 export type AppSettings = { appearance: AppearanceSettings, proxy: ProxySettings, scheduler: SchedulerSettings, download: DownloadDefaultsSettings, bt: BtSettings, logging: LogSettings, aria2Rpc: Aria2RpcSettings, cdnAcceleration: CdnAccelerationSettings, githubMirror: GitHubMirrorSettings, globalSpeedLimitBps: number, speedLimitSchedule: Array<SpeedLimitSlot>, notifications: NotificationSettings, ioBaseline: IoBaselineSettings, autostart: boolean, setupCompleted: boolean, lastSetupStep: number | null, downloadLimits?: DownloadLimits | null, 
 /**
+ * Double-click action configuration for download tasks.
+ */
+doubleClick: DoubleClickSettings, 
+/**
  * Maximum number of completed/failed/canceled downloads kept in memory.
  * Older terminal-state entries are evicted when this limit is exceeded.
  */
@@ -151,6 +155,29 @@ export type DefaultNodeResult = { ip: string | null, tcpLatencyMs: number, throu
  * Disk type for I/O optimization decisions.
  */
 export type DiskType = "ssd" | "hdd";
+
+/**
+ * Action to perform when double-clicking a completed download task.
+ */
+export type DoubleClickOnCompleted = "none" | "open_file" | "open_in_explorer" | "open_download_dir";
+
+/**
+ * Action to perform when double-clicking an uncompleted download task.
+ */
+export type DoubleClickOnUncompleted = "none" | "toggle_pause_resume";
+
+/**
+ * Settings for double-click behavior on download tasks.
+ */
+export type DoubleClickSettings = { 
+/**
+ * Action when double-clicking a completed task.
+ */
+onCompleted: DoubleClickOnCompleted, 
+/**
+ * Action when double-clicking an uncompleted task.
+ */
+onUncompleted: DoubleClickOnUncompleted, };
 
 export type DownloadDefaultsSettings = { defaultDownloadDir: string, defaultMaxRetries: number, defaultChecksum: ChecksumMode, defaultUserAgent: string, };
 

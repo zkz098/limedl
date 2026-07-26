@@ -46,6 +46,14 @@ export function openDownloadInExplorer(downloadId: string) {
   return invoke<void>("download_open_in_explorer", { downloadId });
 }
 
+export function openDownloadFile(downloadId: string) {
+  return invoke<void>("download_open_file", { downloadId });
+}
+
+export function openDownloadDir(downloadId: string) {
+  return invoke<void>("download_open_dir", { downloadId });
+}
+
 export function getDownloadStatus(downloadId: string) {
   return invoke<DownloadSnapshot>("download_status", { downloadId });
 }

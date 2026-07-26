@@ -16,6 +16,19 @@ pub trait DownloadBackend: Send + Sync + 'static {
     async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
     async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
     async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()>;
+
+    /// Open the downloaded file using the OS default handler.
+    /// Default implementation falls back to open_in_explorer.
+    async fn open_file(&self, task_id: &TaskId) -> Result<()> {
+        self.open_in_explorer(task_id).await
+    }
+
+    /// Open the download directory in file explorer.
+    /// Default implementation falls back to open_in_explorer.
+    async fn open_dir(&self, task_id: &TaskId) -> Result<()> {
+        self.open_in_explorer(task_id).await
+    }
+
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot>;
     async fn list(&self) -> Result<Vec<DownloadSummary>>;
 

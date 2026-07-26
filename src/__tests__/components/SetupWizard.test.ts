@@ -167,6 +167,7 @@ function createDefaultSettings(): AppSettings {
     setupCompleted: false,
     lastSetupStep: null,
     maxInMemoryDownloads: 200,
+    doubleClick: { onCompleted: "none", onUncompleted: "none" },
     speedLimitSchedule: [],
   };
 }

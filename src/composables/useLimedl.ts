@@ -473,6 +473,8 @@ function createLimedl(options?: UseLimedlOptions) {
   return {
     actionName: actions.actionName,
     setNotificationsEnabled,
+    setMessage,
+    setError,
     canCancel,
     canPause,
     canResume,

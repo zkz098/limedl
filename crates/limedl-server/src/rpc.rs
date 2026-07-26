@@ -417,6 +417,8 @@ async fn dispatch_method(
         "settings_save" => handle_settings_save(params, state).await,
         "factory_reset" => handle_factory_reset(state).await,
         "download_open_in_explorer" => handle_open_in_explorer(params, state).await,
+        "download_open_file" => handle_open_file(params, state).await,
+        "download_open_dir" => handle_open_dir(params, state).await,
         "download_set_priority" => handle_set_priority(params, state).await,
         "toggle_game_mode" => handle_toggle_game_mode(params, state).await,
         "get_io_status" => handle_get_io_status(state).await,
@@ -634,6 +636,54 @@ async fn handle_open_in_explorer(
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     backend
         .open_in_explorer(&task_id)
+        .await
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    Ok(serde_json::json!({}))
+}
+
+// ── Handler: download.openFile ───────────────────────────────
+
+async fn handle_open_file(
+    params: Option<&serde_json::Value>,
+    state: &RpcState,
+) -> Result<serde_json::Value, JsonRpcError> {
+    let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
+    let task_id_str = params
+        .get("taskId")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
+    let task_id = TaskId::from_legacy_string(task_id_str)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
+    let backend = state
+        .registry
+        .dispatch(&task_id)
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    backend
+        .open_file(&task_id)
+        .await
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    Ok(serde_json::json!({}))
+}
+
+// ── Handler: download.openDir ───────────────────────────────
+
+async fn handle_open_dir(
+    params: Option<&serde_json::Value>,
+    state: &RpcState,
+) -> Result<serde_json::Value, JsonRpcError> {
+    let params = params.ok_or_else(|| JsonRpcError::invalid_params("Missing params"))?;
+    let task_id_str = params
+        .get("taskId")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
+    let task_id = TaskId::from_legacy_string(task_id_str)
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
+    let backend = state
+        .registry
+        .dispatch(&task_id)
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    backend
+        .open_dir(&task_id)
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     Ok(serde_json::json!({}))
