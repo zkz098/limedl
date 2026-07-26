@@ -6,6 +6,7 @@ mod bt_backend_tests;
 mod cdn_e2e_tests;
 mod checksum_e2e_tests;
 mod dispatcher_tests;
+mod disk_detect_test;
 mod http_executor_tests;
 mod manager_tests;
 mod mirror_e2e_tests;

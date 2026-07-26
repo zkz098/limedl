@@ -330,7 +330,6 @@ mod imp {
     // IOCTL code for STORAGE_QUERY_PROPERTY
     const IOCTL_STORAGE_QUERY_PROPERTY: u32 = 0x002D1400;
     const STORAGE_DEVICE_SEEK_PENALTY_PROPERTY: u32 = 7;
-    const STORAGE_DEVICE_NOMINAL_MEDIA_ROTATION_RATE_PROPERTY: u32 = 9;
     const FILE_READ_ATTRIBUTES: u32 = 0x0080;
     const PROPERTY_STANDARD_QUERY: u32 = 0;
 
@@ -484,36 +483,14 @@ mod imp {
             }
         };
 
-        // Primary: nominal media rotation rate (more definitive than seek penalty)
-        if let Some(rpm) = query_nominal_media_rotation_rate(handle) {
-            if rpm >= 5400 {
-                // Definitely a rotating HDD
-                tracing::debug!("disk_detect: {drive_letter} is HDD (rotation rate: {rpm} rpm)");
-                unsafe { CloseHandle(handle); }
-                return DiskType::Hdd;
-            }
-            if rpm == 1 {
-                // Non-rotating media — SSD. But double-check with seek penalty
-                // as some SSHD/hybrid drives may misreport.
-                let seek = query_seek_penalty(handle);
-                unsafe { CloseHandle(handle); }
-                if seek == DiskType::Hdd {
-                    tracing::debug!("disk_detect: {drive_letter} is HDD (seek penalty override despite non-rotating report)");
-                    return DiskType::Hdd;
-                }
-                tracing::debug!("disk_detect: {drive_letter} is SSD (non-rotating media)");
-                return DiskType::Ssd;
-            }
-            // rpm == 0: unknown — fall through to seek penalty
-        }
-
-        // Fallback: seek penalty
+        // Query the seek penalty property (documented, reliable — available since Windows 7).
+        // IncursSeekPenalty=1 → rotating HDD, 0 → non-rotating SSD.
         let result = query_seek_penalty(handle);
         unsafe { CloseHandle(handle); }
 
         match result {
             DiskType::Hdd => tracing::debug!("disk_detect: {drive_letter} is HDD (seek penalty)"),
-            DiskType::Ssd => tracing::debug!("disk_detect: {drive_letter} is SSD (no rotating evidence)"),
+            DiskType::Ssd => tracing::debug!("disk_detect: {drive_letter} is SSD (no seek penalty)"),
         }
         result
     }
@@ -552,43 +529,6 @@ mod imp {
         }
     }
 
-    /// Query the nominal media rotation rate via IOCTL.
-    /// Returns:
-    /// - Some(rpm) where rpm >= 5400 → rotating HDD
-    /// - Some(1) → non-rotating media (SSD)
-    /// - Some(0) → unknown
-    /// - None → IOCTL failed
-    fn query_nominal_media_rotation_rate(handle: isize) -> Option<u32> {
-        let query = StoragePropertyQuery {
-            property_id: STORAGE_DEVICE_NOMINAL_MEDIA_ROTATION_RATE_PROPERTY,
-            query_type: PROPERTY_STANDARD_QUERY,
-            additional_parameters: [0; 1],
-        };
-
-        let mut rotation_rate: u32 = 0;
-        let mut bytes_returned: u32 = 0;
-
-        let success = unsafe {
-            DeviceIoControl(
-                handle,
-                IOCTL_STORAGE_QUERY_PROPERTY,
-                &query as *const _ as *const std::ffi::c_void,
-                mem::size_of::<StoragePropertyQuery>() as u32,
-                &mut rotation_rate as *mut _ as *mut std::ffi::c_void,
-                mem::size_of::<u32>() as u32,
-                &mut bytes_returned,
-                std::ptr::null_mut(),
-            )
-        };
-
-        if success == 0 || bytes_returned == 0 {
-            tracing::debug!("disk_detect: nominal media rotation rate IOCTL failed");
-            return None;
-        }
-
-        tracing::trace!("disk_detect: nominal media rotation rate = {rotation_rate} rpm");
-        Some(rotation_rate)
-    }
 }
 
 #[cfg(target_os = "linux")]
