@@ -43,6 +43,7 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
   isPermissionGranted: vi.fn().mockResolvedValue(false),
   requestPermission: vi.fn().mockResolvedValue("denied"),
   sendNotification: vi.fn(),
+  onAction: vi.fn().mockResolvedValue({ unregister: vi.fn() }),
 }));
 
 // ── Mock useNotification ────────────────────────────────────────────────────
@@ -738,6 +739,7 @@ describe("useLimedl", () => {
         expect(mockSendNotification).toHaveBeenCalledWith({
           title: "notifications.downloadComplete",
           body: expect.stringContaining("test.zip"),
+          extra: { downloadId: "task-1" },
         });
       });
     });
