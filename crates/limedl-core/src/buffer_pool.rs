@@ -1317,12 +1317,16 @@ impl Drop for DownloadBuffer {
                     b.clear();
                     (a_sum, b_sum)
                 };
+                let total = a_bytes + b_bytes;
+                if total > 0 {
+                    tracing::warn!(
+                        "HDD DownloadBuffer dropped with {total} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
+                    );
+                    pool.sub_usage(total);
+                }
                 usage_a.store(0, Ordering::Release);
                 usage_b.store(0, Ordering::Release);
                 error_flag.store(false, Ordering::Release);
-                if a_bytes + b_bytes > 0 {
-                    pool.sub_usage(a_bytes + b_bytes);
-                }
                 pool.release_slot();
                 // `slot` (SlotGuard) and `flush_handle` (JoinHandle) are
                 // dropped after this, returning the semaphore permit and
@@ -1339,6 +1343,11 @@ impl Drop for DownloadBuffer {
                     map.clear();
                     sum
                 };
+                if bytes > 0 {
+                    tracing::warn!(
+                        "SSD Local DownloadBuffer dropped with {bytes} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
+                    );
+                }
                 buffered_bytes.fetch_sub(bytes, Ordering::Relaxed);
             }
             BufferMode::LocalPingPong {
@@ -1349,10 +1358,21 @@ impl Drop for DownloadBuffer {
                 error_flag,
                 ..
             } => {
-                let mut a = half_a.lock();
-                let mut b = half_b.lock();
-                a.clear();
-                b.clear();
+                let (a_bytes, b_bytes) = {
+                    let mut a = half_a.lock();
+                    let mut b = half_b.lock();
+                    let a_sum = a.values().map(|d| d.len() as u64).sum::<u64>();
+                    let b_sum = b.values().map(|d| d.len() as u64).sum::<u64>();
+                    a.clear();
+                    b.clear();
+                    (a_sum, b_sum)
+                };
+                let total = a_bytes + b_bytes;
+                if total > 0 {
+                    tracing::warn!(
+                        "SSD PingPong DownloadBuffer dropped with {total} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
+                    );
+                }
                 usage_a.store(0, Ordering::Release);
                 usage_b.store(0, Ordering::Release);
                 error_flag.store(false, Ordering::Release);

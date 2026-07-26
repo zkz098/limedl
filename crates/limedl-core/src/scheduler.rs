@@ -29,7 +29,7 @@ use crate::{
     types::{AdaptiveProfile, AppSettings, DownloadState, ProxyMode, SchedulerMode, ThreadMode},
 };
 
-const SCHEDULER_TICK: Duration = Duration::from_secs(2);
+const SCHEDULER_TICK: Duration = Duration::from_millis(750);
 
 /// Maximum concurrent connections (threads) allowed to a single hostname.
 const MAX_CONNECTIONS_PER_HOST: usize = 6;
@@ -41,7 +41,7 @@ const MAX_CONNECTIONS_PER_HOST: usize = 6;
 pub struct Scheduler;
 
 impl Scheduler {
-    /// Start the background scheduler loop (2s tick or rebalance_notify).
+    /// Start the background scheduler loop (750ms tick or rebalance_notify).
     /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
     /// `dm: Arc<DownloadManager>` for the spawned task.
     pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<DownloadManager>) {
@@ -458,8 +458,18 @@ impl Scheduler {
 
         let mut errors: Vec<anyhow::Error> = Vec::new();
         let mut _success_count = 0usize;
+        let mut skipped_count = 0usize;
         let total = all_downloads.len();
         for managed in &all_downloads {
+            // Skip persist for terminal-state downloads (nothing will change)
+            let state = managed.lock_core().manifest.state;
+            if state == DownloadState::Completed
+                || state == DownloadState::Failed
+                || state == DownloadState::Canceled
+            {
+                skipped_count += 1;
+                continue;
+            }
             match persist_manifest_snapshot(&dm.db, managed).await {
                 Ok(()) => _success_count += 1,
                 Err(error) => {
@@ -468,17 +478,18 @@ impl Scheduler {
                 }
             }
         }
+        let persisted = total - skipped_count;
         if !errors.is_empty() {
             let error_count = errors.len();
-            if error_count == total {
+            if error_count == persisted && persisted > 0 {
                 return Err(anyhow::anyhow!(
-                    "all {total} manifest persist operations failed; first error: {}",
+                    "all {persisted} manifest persist operations failed; first error: {}",
                     errors[0]
                 )
                 .into());
             }
             return Err(anyhow::anyhow!(
-                "{error_count}/{total} manifest persist operations failed (one example: {})",
+                "{error_count}/{persisted} manifest persist operations failed (one example: {})",
                 errors[0]
             )
             .into());

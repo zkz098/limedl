@@ -559,11 +559,7 @@ impl TaskLifecycle {
         core.manifest.error = None;
         core.manifest.updated_at_ms = now;
         if let Some(index) = chunk_index
-            && let Some(chunk) = core
-                .manifest
-                .chunks
-                .iter_mut()
-                .find(|candidate| candidate.index == index)
+            && let Some(chunk) = core.manifest.chunks.get_mut(index)
         {
             chunk.downloaded = chunk.downloaded.saturating_add(bytes);
             chunk.dirty = true;

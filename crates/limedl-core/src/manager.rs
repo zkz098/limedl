@@ -58,6 +58,9 @@ pub(crate) const DEFAULT_RETRIES: u32 = 4;
 pub(crate) const PERSIST_INTERVAL: Duration = Duration::from_millis(300);
 pub const MAX_TRADITIONAL_THREADS: usize = 32;
 
+/// Maximum number of cached CDN clients before eviction.
+const MAX_CDN_CLIENT_CACHE_SIZE: usize = 50;
+
 #[derive(Clone)]
 pub struct AppState {
     pub registry: Arc<super::backend_registry::BackendRegistry>,
@@ -492,9 +495,15 @@ impl DownloadManager {
             match super::cdn::build_accelerated_client(host, ip, &settings) {
                 Ok(accelerated) => {
                     tracing::info!("resolve_client: CDN acceleration active for {host} via {ip}");
-                    self.http.cdn_client_cache
-                        .write()
-                        .insert(cache_key, accelerated.clone());
+                    {
+                        let mut cache = self.http.cdn_client_cache.write();
+                        if cache.len() >= MAX_CDN_CLIENT_CACHE_SIZE {
+                            let count = cache.len();
+                            tracing::info!("Cleared {count} CDN client cache entries (exceeded limit of {MAX_CDN_CLIENT_CACHE_SIZE})");
+                            cache.clear();
+                        }
+                        cache.insert(cache_key, accelerated.clone());
+                    }
                     return (accelerated, true);
                 }
                 Err(e) => {
@@ -1275,8 +1284,7 @@ pub(crate) fn record_progress_on_managed(
         && let Some(chunk) = core
             .manifest
             .chunks
-            .iter_mut()
-            .find(|candidate| candidate.index == index)
+            .get_mut(index)
     {
         chunk.downloaded = chunk.downloaded.saturating_add(bytes);
         chunk.dirty = true;
