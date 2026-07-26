@@ -25,11 +25,11 @@ use crate::{
     },
     manifest::Manifest,
     now_ms,
-    persistence::persist_manifest_snapshot,
+    persistence::persist_manifest_snapshots_batch,
     types::{AdaptiveProfile, AppSettings, DownloadState, ProxyMode, SchedulerMode, ThreadMode},
 };
 
-const SCHEDULER_TICK: Duration = Duration::from_millis(750);
+const SCHEDULER_TICK: Duration = Duration::from_secs(2);
 
 /// Maximum concurrent connections (threads) allowed to a single hostname.
 const MAX_CONNECTIONS_PER_HOST: usize = 6;
@@ -456,43 +456,27 @@ impl Scheduler {
             }
         }
 
-        let mut errors: Vec<anyhow::Error> = Vec::new();
-        let mut _success_count = 0usize;
-        let mut skipped_count = 0usize;
-        let total = all_downloads.len();
-        for managed in &all_downloads {
-            // Skip persist for terminal-state downloads (nothing will change)
-            let state = managed.lock_core().manifest.state;
-            if state == DownloadState::Completed
-                || state == DownloadState::Failed
-                || state == DownloadState::Canceled
-            {
-                skipped_count += 1;
-                continue;
-            }
-            match persist_manifest_snapshot(&dm.db, managed).await {
-                Ok(()) => _success_count += 1,
-                Err(error) => {
-                    log_background_error("persist rebalanced manifest", &error);
-                    errors.push(error);
-                }
-            }
-        }
-        let persisted = total - skipped_count;
-        if !errors.is_empty() {
-            let error_count = errors.len();
-            if error_count == persisted && persisted > 0 {
-                return Err(anyhow::anyhow!(
-                    "all {persisted} manifest persist operations failed; first error: {}",
-                    errors[0]
-                )
-                .into());
-            }
-            return Err(anyhow::anyhow!(
-                "{error_count}/{persisted} manifest persist operations failed (one example: {})",
-                errors[0]
-            )
-            .into());
+        // ── Batch persist all active (non-terminal) downloads ────
+        let active_list: Vec<_> = all_downloads
+            .iter()
+            .filter(|managed| {
+                let state = managed.lock_core().manifest.state;
+                state != DownloadState::Completed
+                    && state != DownloadState::Failed
+                    && state != DownloadState::Canceled
+            })
+            .cloned()
+            .collect();
+
+        if !active_list.is_empty()
+            && let Err(error) = persist_manifest_snapshots_batch(&dm.db, &active_list).await
+        {
+            log_background_error("persist rebalanced manifest batch", &error);
+            tracing::warn!(
+                "batch persist failed for {} active download(s): {}",
+                active_list.len(),
+                error
+            );
         }
         Ok(())
     }

@@ -1175,6 +1175,11 @@ impl DownloadBackend for DownloadManager {
         } else {
             tracing::info!("Buffer pool drained successfully");
         }
+
+        // ── WAL checkpoint: truncate WAL file on clean shutdown ──────
+        if let Err(e) = self.db.shutdown() {
+            tracing::warn!("Failed to checkpoint database WAL on shutdown: {:#}", e);
+        }
     }
 }
 

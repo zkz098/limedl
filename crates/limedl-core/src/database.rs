@@ -541,6 +541,16 @@ const MIGRATIONS: &[Migration] = &[
     },
 ];
 
+/// Single progress update entry for batch persist of multiple downloads.
+#[derive(Clone)]
+pub struct ProgressBatchEntry {
+    pub id: String,
+    pub downloaded_bytes: u64,
+    pub dirty_chunks: Vec<ChunkManifest>,
+    pub state: String,
+    pub updated_at_ms: u64,
+}
+
 // ── Database impl ────────────────────────────────────────────────
 
 impl Database {
@@ -566,7 +576,10 @@ impl Database {
         // when combined with the buffer pool's per-batch sync_data.
         write_conn.execute_batch("PRAGMA synchronous = NORMAL;")
             .context("failed to set synchronous mode")?;
-        write_conn.execute_batch("PRAGMA cache_size = -8000;")
+        // 32 MB page cache (negative = kibibytes).  This reduces disk I/O during
+        // migration and steady-state download progress persistence by keeping
+        // more of the working dataset in memory.
+        write_conn.execute_batch("PRAGMA cache_size = -32000;")
             .context("failed to set cache size")?;
 
         // ── Schema migrations ────────────────────────────────────
@@ -587,6 +600,7 @@ impl Database {
             }
         }
 
+        let mut migrations_ran = false;
         for migration in MIGRATIONS.iter().filter(|m| m.version > current_version) {
             tracing::info!(
                 "Running migration v{}: {}",
@@ -603,6 +617,13 @@ impl Database {
                 .with_context(|| {
                     format!("failed to update schema version to {}", migration.version)
                 })?;
+            migrations_ran = true;
+        }
+
+        // ── Update query planner statistics after schema changes ─────
+        if migrations_ran {
+            write_conn.execute_batch("ANALYZE;")
+                .context("failed to run ANALYZE")?;
         }
 
         // ── Read connection (WAL-enabled, read-only) ────────────
@@ -655,6 +676,15 @@ impl Database {
 
     fn lock_read(&self) -> parking_lot::MutexGuard<'_, Connection> {
         self.read_conn.lock()
+    }
+
+    /// Perform a WAL checkpoint to truncate the WAL file on clean shutdown.
+    /// Should be called after all downloads have stopped and before the process exits.
+    pub fn shutdown(&self) -> Result<()> {
+        let conn = self.lock_write();
+        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+            .context("failed to checkpoint WAL on shutdown")?;
+        Ok(())
     }
 
     // ── download CRUD ────────────────────────────────────────
@@ -812,11 +842,89 @@ impl Database {
         }
     }
 
+    /// Incremental update for multiple downloads in a single transaction.
+    ///
+    /// Uses one `BEGIN IMMEDIATE` / `COMMIT` pair for all updates, reducing
+    /// transaction overhead and Mutex contention when persisting multiple
+    /// downloads at once (e.g. during scheduler rebalance).
+    pub fn update_downloads_progress_batch(&self, entries: &[ProgressBatchEntry]) -> Result<()> {
+        if entries.is_empty() {
+            return Ok(());
+        }
+        let conn = self.lock_write();
+
+        conn.execute_batch("BEGIN IMMEDIATE")
+            .context("failed to begin batch transaction")?;
+
+        let result = (|| -> Result<()> {
+            for entry in entries {
+                conn.execute(
+                    "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 WHERE id = ?4",
+                    params![entry.downloaded_bytes as i64, entry.state.as_str(), entry.updated_at_ms as i64, entry.id.as_str()],
+                )
+                .with_context(|| format!("failed to update progress row for {}", entry.id))?;
+
+                if !entry.dirty_chunks.is_empty() {
+                    let mut stmt = conn
+                        .prepare(
+                            "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
+                                     downloaded, completed, claimed_by)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                        )
+                        .context("failed to prepare chunk upsert in batch")?;
+
+                    for chunk in &entry.dirty_chunks {
+                        stmt.execute(rusqlite::params_from_iter(chunk_to_params(&entry.id, chunk)))
+                            .context("failed to upsert chunk in batch")?;
+                    }
+                }
+            }
+            Ok(())
+        })();
+
+        match result {
+            Ok(()) => {
+                conn.execute_batch("COMMIT")
+                    .context("failed to commit batch transaction")?;
+                Ok(())
+            }
+            Err(e) => {
+                let _ = conn.execute_batch("ROLLBACK");
+                Err(e)
+            }
+        }
+    }
+
     /// Delete a download and all its chunks (cascaded via FK).
+    /// Also triggers incremental vacuum if the freelist exceeds the threshold.
     pub fn delete_download(&self, id: &str) -> Result<()> {
         let conn = self.lock_write();
         conn.execute("DELETE FROM downloads WHERE id = ?1", params![id])
             .with_context(|| format!("failed to delete download {id}"))?;
+
+        // Check freelist and vacuum incrementally if above threshold.
+        // Threshold: 100 free pages (~400 KB). Below this, the overhead
+        // of vacuum isn't worth it.
+        self.vacuum_if_needed(&conn, 100)?;
+
+        Ok(())
+    }
+
+    /// Run incremental vacuum if the freelist page count exceeds `threshold`.
+    fn vacuum_if_needed(&self, conn: &Connection, threshold: u32) -> Result<()> {
+        let freelist: u32 = conn
+            .pragma_query_value(None, "freelist_count", |row| row.get(0))
+            .context("failed to query freelist_count")?;
+
+        if freelist > threshold {
+            tracing::debug!(
+                "Freelist has {freelist} pages (> {threshold}), running incremental vacuum"
+            );
+            conn.execute_batch(&format!(
+                "PRAGMA incremental_vacuum({freelist});"
+            ))
+            .context("failed to run incremental vacuum")?;
+        }
         Ok(())
     }
 
