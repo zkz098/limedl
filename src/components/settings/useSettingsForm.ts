@@ -121,6 +121,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
       hddBufferEnabled: true,
+      ssdWriteCombineMb: 0,
     },
     autostart: false,
     setupCompleted: false,
@@ -231,6 +232,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         maxParallelHdd: Math.max(1, Math.min(16, form.ioBaseline.maxParallelHdd ?? 4)),
         gameModeMaxParallel: Math.max(1, Math.min(8, form.ioBaseline.gameModeMaxParallel ?? 1)),
         hddBufferEnabled: form.ioBaseline.hddBufferEnabled ?? true,
+        ssdWriteCombineMb: form.ioBaseline.ssdWriteCombineMb ?? 0,
       },
       autostart: form.autostart ?? false,
       setupCompleted: form.setupCompleted ?? false,
@@ -339,6 +341,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         maxParallelHdd: nextSettings.ioBaseline?.maxParallelHdd ?? 4,
         gameModeMaxParallel: nextSettings.ioBaseline?.gameModeMaxParallel ?? 1,
         hddBufferEnabled: nextSettings.ioBaseline?.hddBufferEnabled ?? true,
+        ssdWriteCombineMb: nextSettings.ioBaseline?.ssdWriteCombineMb ?? 0,
       };
       form.autostart = nextSettings.autostart ?? false;
       form.setupCompleted = nextSettings.setupCompleted ?? false;

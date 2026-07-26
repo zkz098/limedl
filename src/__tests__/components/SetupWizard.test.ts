@@ -161,6 +161,7 @@ function createDefaultSettings(): AppSettings {
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
       hddBufferEnabled: true,
+      ssdWriteCombineMb: 0,
     },
     autostart: false,
     setupCompleted: false,

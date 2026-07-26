@@ -147,6 +147,7 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
       maxParallelHdd: 4,
       gameModeMaxParallel: 1,
       hddBufferEnabled: true,
+      ssdWriteCombineMb: 0,
     },
     autostart: false,
     setupCompleted: true,

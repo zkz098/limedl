@@ -121,6 +121,7 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       maxParallelHdd: 2,
       gameModeMaxParallel: 4,
       hddBufferEnabled: true,
+      ssdWriteCombineMb: 0,
     },
     autostart: false,
     setupCompleted: false,
