@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "../../../i18n";
 import type { AppSettings } from "../../../types/settings";
-import logoUrl from "../../../assets/logo.png";
+import logoUrl from "../../../assets/logo.webp";
 import SettingsSection from "../../settings/SettingsSection.vue";
 
 const { t } = useI18n();

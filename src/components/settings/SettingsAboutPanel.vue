@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "../../i18n";
-import logoUrl from "../../assets/logo.png";
+import logoUrl from "../../assets/logo.webp";
 import { useAppUpdate } from "../../composables/useAppUpdate";
 import { useNotification } from "../../composables/useNotification";
 import { saveAppSettings, factoryReset } from "../../lib/tauri/settings-api";
