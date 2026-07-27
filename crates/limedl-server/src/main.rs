@@ -79,6 +79,7 @@ async fn run_daemon(
         middleware::{self, Next},
         routing::get,
     };
+    use tower_http::compression::CompressionLayer;
 
     // Load config
     let data_dir = config::default_data_dir();
@@ -207,9 +208,14 @@ async fn run_daemon(
         cfg.port,
         cfg.tls.enabled,
     );
+    let compression = CompressionLayer::new()
+        .gzip(true)
+        .br(true)
+        .zstd(true);
     let app = app
-        // 1. Default body limit (outermost layer)
+        // 1. Default body limit + compression (innermost, closest to router)
         .layer(DefaultBodyLimit::max(256 * 1024))
+        .layer(compression)
         // 2. Security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
         .layer(security_layers.3)
         .layer(security_layers.2)
