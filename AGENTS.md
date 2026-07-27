@@ -24,6 +24,23 @@ Skipping this will cause linker errors (`LINK : fatal error LNK1181`).
 - **Test (Rust - Tauri)**: `cargo test --manifest-path src-tauri/Cargo.toml --features test-utils`
 - **Build order**: `vue-tsc --noEmit` then `vite build` (enforced by `pnpm run build`)
 
+## Version bumping
+
+Use `scripts/bump-version.ps1` to bump the project version across all three source-of-truth files (`Cargo.toml`, `package.json`, `src-tauri/tauri.conf.json`):
+
+```powershell
+# Dry-run: preview without writing
+.\scripts\bump-version.ps1 patch -DryRun
+
+# Update files only (no git)
+.\scripts\bump-version.ps1 minor -NoPush
+
+# Full: update files + commit + tag + push
+.\scripts\bump-version.ps1 patch
+```
+
+Semver rules: `major` resets minor & patch to 0, `minor` resets patch to 0, `patch` only increments patch.
+
 ## Architecture
 
 ### Workspace layout (3 crates)
