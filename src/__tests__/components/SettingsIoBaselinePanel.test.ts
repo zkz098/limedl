@@ -45,7 +45,37 @@ const stubs = {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function createDraft(overrides?: Partial<IoBaselineSettings>): AppSettings {
-  return {
+  const base: AppSettings = {
+    // Provide minimal required AppSettings fields beyond ioBaseline
+    globalSpeedLimitBps: 0,
+    appearance: {
+      themeColor: "lime", backgroundOpacity: "default", colorMode: "system",
+      showDetailInfo: false, showHeatmap: false,
+      sortKey: "added_at", sortDirection: "desc", compactView: false,
+      visibleColumns: [], closeBehavior: "minimizeToTray",
+    },
+    proxy: { mode: "disabled", manualUrl: "" },
+    scheduler: {
+      mode: "traditional",
+      traditional: { maxParallelTasks: 3 },
+      automatic: { maxParallelThreads: 4, maxThreadsPerTask: 2, minThreadsPerTask: 1, adaptiveProfile: "balanced" },
+      chunkSizeStrategy: "adaptive", tailSprintEnabled: false, connectionWarmupEnabled: false,
+    },
+    download: { defaultDownloadDir: "", defaultMaxRetries: 3, defaultChecksum: "blake3", defaultUserAgent: "" },
+    bt: {
+      pauseUploadWhenLimitReached: false, uploadLimitBytes: 0, uploadRatioLimit: 0,
+      dhtEnabled: true, trackerList: "", trackerListUrl: "", listenPort: null, listenPortRange: null,
+      upnpEnabled: false, enableNatpmp: false, enableIpv6: false, enablePex: true, enableLsd: true,
+      enableUtp: true, enableFastExtension: true, enableHolepunch: true, enableWebSeed: true,
+      enableSuperSeeding: false, preallocateMode: "none", encryptionMode: "enabled",
+      maxDownloads: 5, maxSeeds: 2, maxTorrents: 10, activeLimit: 15,
+      globalDownloadRateLimit: 0, globalUploadRateLimit: 0,
+    },
+    logging: { enabled: false, level: "info", filePath: "", retentionCount: null, retentionDays: null },
+    aria2Rpc: { enabled: false, port: 6800, secret: null, corsAllowedOrigins: [] },
+    cdnAcceleration: { enabled: false, activeIp: null, activeSpeedMbps: null, lastTestAtMs: null, lastError: null },
+    githubMirror: { enabled: false, mirrors: [] },
+    notifications: { enabled: false },
     ioBaseline: {
       bufferLimitMb: 1024,
       gameModeBufferMb: 128,
@@ -56,18 +86,23 @@ function createDraft(overrides?: Partial<IoBaselineSettings>): AppSettings {
       ssdWriteCombineMb: 0,
       ...overrides,
     },
-  } as AppSettings;
+    autostart: false, setupCompleted: false, lastSetupStep: null, maxInMemoryDownloads: 200,
+    doubleClick: { onCompleted: "none", onUncompleted: "none" },
+    speedLimitSchedule: [],
+  };
+  return base;
 }
 
 function mountPanel(props: Record<string, unknown> = {}) {
-  const ioBaselineOverrides =
-    (props as Record<string, unknown>).ioBaseline != null
-      ? ((props as Record<string, unknown>).ioBaseline as Partial<IoBaselineSettings>)
+  const ioBaselineValue = props.ioBaseline;
+  const ioBaselineOverrides: Partial<IoBaselineSettings> =
+    ioBaselineValue != null && typeof ioBaselineValue === "object"
+      ? ioBaselineValue
       : {};
   const draft = reactive(createDraft(ioBaselineOverrides));
 
-  // Separate ioBaseline from other props so we don't pass it down
-  const { ioBaseline: _ioBaseline, ...otherProps } = props as Record<string, unknown>;
+  // See ioBaseline from other props so we don't pass it down
+  const { ioBaseline: _ioBaseline, ...otherProps } = props;
 
   return mount(SettingsIoBaselinePanel, {
     props: {
@@ -97,6 +132,13 @@ function getSwitch(wrapper: ReturnType<typeof mountPanel>) {
   return wrapper.find(".ui-switch-stub");
 }
 
+/** Extract the draft object from wrapper props with proper typing */
+function getDraft(wrapper: ReturnType<typeof mountPanel>): AppSettings {
+  const props = wrapper.props();
+  // props.draft is strongly typed via the mount call
+  return props.draft;
+}
+
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe("SettingsIoBaselinePanel", () => {
@@ -124,8 +166,7 @@ describe("SettingsIoBaselinePanel", () => {
 
       // After scan with no HDDs, auto-disable set hddBufferEnabled to false.
       // Now re-enable it to trigger the warning banner:
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
-      draft.ioBaseline.hddBufferEnabled = true;
+      getDraft(wrapper).ioBaseline.hddBufferEnabled = true;
       await nextTick();
 
       expect(wrapper.find(".io-warning-banner").exists()).toBe(true);
@@ -192,7 +233,9 @@ describe("SettingsIoBaselinePanel", () => {
       await nextTick();
 
       const inputs = getTextFields(wrapper);
-      expect((inputs[0].element as HTMLInputElement).value).toBe("2048");
+      const inputEl = inputs[0].element;
+      const value = inputEl instanceof HTMLInputElement ? inputEl.value : "";
+      expect(value).toBe("2048");
     });
 
     it("clamps value to minimum 64 when set lower", async () => {
@@ -204,7 +247,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[0].setValue("10");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.bufferLimitMb).toBe(64);
     });
 
@@ -217,7 +260,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[0].setValue("50000");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.bufferLimitMb).toBe(32768);
     });
 
@@ -230,7 +273,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[0].setValue("123.89");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.bufferLimitMb).toBe(123);
     });
 
@@ -255,7 +298,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[0].setValue("");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       // null → fallback 1024 → clamped (within range) → 1024
       expect(draft.ioBaseline.bufferLimitMb).toBe(1024);
     });
@@ -292,7 +335,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[1].setValue("1");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.gameModeBufferMb).toBe(16);
     });
 
@@ -305,7 +348,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[1].setValue("5000");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.gameModeBufferMb).toBe(4096);
     });
 
@@ -318,7 +361,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[1].setValue("99.99");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.gameModeBufferMb).toBe(99);
     });
 
@@ -345,7 +388,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[2].setValue("0");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.maxParallelHdd).toBe(1);
     });
 
@@ -358,7 +401,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[2].setValue("20");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.maxParallelHdd).toBe(16);
     });
 
@@ -371,7 +414,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[2].setValue("7.8");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.maxParallelHdd).toBe(7);
     });
 
@@ -417,7 +460,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[3].setValue("0");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.gameModeMaxParallel).toBe(1);
     });
 
@@ -430,7 +473,7 @@ describe("SettingsIoBaselinePanel", () => {
       await inputs[3].setValue("10");
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.gameModeMaxParallel).toBe(8);
     });
 
@@ -501,7 +544,7 @@ describe("SettingsIoBaselinePanel", () => {
 
       const wrapper = mountPanel({
         bufferUsageBytes: NaN,
-        bufferLimitBytes: null as unknown as number,
+        bufferLimitBytes: Number(null),
       });
       await flushPromises();
       await nextTick();
@@ -532,7 +575,7 @@ describe("SettingsIoBaselinePanel", () => {
       await sw.setValue(false);
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.hddBufferEnabled).toBe(false);
     });
 
@@ -545,7 +588,7 @@ describe("SettingsIoBaselinePanel", () => {
       await sw.setValue(true);
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.hddBufferEnabled).toBe(true);
     });
 
@@ -555,7 +598,7 @@ describe("SettingsIoBaselinePanel", () => {
       await flushPromises();
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.hddBufferEnabled).toBe(false);
     });
 
@@ -565,7 +608,7 @@ describe("SettingsIoBaselinePanel", () => {
       await flushPromises();
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.hddBufferEnabled).toBe(true);
     });
 
@@ -575,7 +618,7 @@ describe("SettingsIoBaselinePanel", () => {
       await flushPromises();
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.hddBufferEnabled).toBe(false);
     });
   });
@@ -668,7 +711,7 @@ describe("SettingsIoBaselinePanel", () => {
       await nextTick();
 
       // HDD present, buffer stays enabled
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.hddBufferEnabled).toBe(true);
       expect(wrapper.find(".io-warning-banner").exists()).toBe(false);
     });
@@ -682,7 +725,7 @@ describe("SettingsIoBaselinePanel", () => {
       await flushPromises();
       await nextTick();
 
-      const draft = (wrapper.props() as Record<string, unknown>).draft as AppSettings;
+      const draft = getDraft(wrapper);
       expect(draft.ioBaseline.hddBufferEnabled).toBe(false);
     });
 
@@ -713,11 +756,13 @@ describe("SettingsIoBaselinePanel", () => {
       // When hddBufferEnabled is undefined, the switch still shows as checked
       // (hasHdd is null, so no banner either)
       const wrapper = mountPanel({
-        ioBaseline: { hddBufferEnabled: undefined } as unknown as IoBaselineSettings,
+        ioBaseline: { hddBufferEnabled: undefined },
       });
 
       const sw = getSwitch(wrapper);
-      expect((sw.element as HTMLInputElement).checked).toBe(true);
+      const swEl = sw.element;
+      const checked = swEl instanceof HTMLInputElement ? swEl.checked : false;
+      expect(checked).toBe(true);
     });
   });
 });
