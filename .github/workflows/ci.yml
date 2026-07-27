@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   lint-typescript:
     name: Lint & Type-check (Frontend)
@@ -161,6 +164,9 @@ jobs:
   bench-rust:
     name: Benchmark (Rust)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions-rust-lang/setup-rust-toolchain@v1

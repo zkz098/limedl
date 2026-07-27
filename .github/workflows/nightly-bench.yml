@@ -5,10 +5,16 @@ on:
     - cron: "0 2 * * *" # Daily at 02:00 UTC
   workflow_dispatch: # Manual trigger
 
+permissions:
+  contents: read
+
 jobs:
   e2e-bench:
     name: E2E Download Benchmarks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions-rust-lang/setup-rust-toolchain@v1
