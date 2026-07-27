@@ -2,7 +2,7 @@ import { ref, computed, readonly } from "vue";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useI18n } from "../i18n";
-import { useNotification } from "./useNotification";
+import { useNotificationStore } from "../stores/notification";
 
 export type UpdateStatus =
   | "idle"
@@ -90,7 +90,7 @@ function setChannel(ch: UpdateChannel) {
 
 async function checkForUpdates(silent = false) {
   const { t } = useI18n();
-  const { notifyInfo, notifyError } = useNotification();
+  const { notifyInfo, notifyError } = useNotificationStore();
 
   if (isBusy()) return null;
 
@@ -145,7 +145,7 @@ async function checkForUpdates(silent = false) {
 
 async function downloadAndInstall() {
   const { t } = useI18n();
-  const { notifySuccess, notifyError } = useNotification();
+  const { notifySuccess, notifyError } = useNotificationStore();
 
   if (isBusy()) return;
 

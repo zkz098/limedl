@@ -9,6 +9,7 @@ import {
   watch,
   type Ref,
 } from "vue";
+import { storeToRefs } from "pinia";
 import { getVersion } from "@tauri-apps/api/app";
 import { filterDownloads } from "./lib/download-filter";
 
@@ -44,29 +45,27 @@ const SetupWizard = defineAsyncComponent({
     template: '<div class="async-loader"><div class="async-loader__spinner"></div></div>',
   },
 });
-import { useLimedl } from "./composables/useLimedl";
-import type { UseLimedlOptions } from "./composables/useLimedl";
+import { useDownloadStore } from "./stores/download";
+import { useNotificationStore } from "./stores/notification";
+import { useAppSettingsStore } from "./stores/appSettings";
 import { useIoBaseline } from "./composables/useIoBaseline";
 import { useOverclock } from "./composables/useOverclock";
 import { useCategoryCounts } from "./composables/useCategoryCounts";
-import { useNotification } from "./composables/useNotification";
 import { useI18n } from "./i18n";
-import { useAppSettings } from "./composables/useAppSettings";
 import { useViewNavigation } from "./composables/useViewNavigation";
 import type { PersistablePage } from "./composables/useViewNavigation";
 import { useMultiSelect } from "./composables/useMultiSelect";
-import { useAppUpdate } from "./composables/useAppUpdate";
 import { useNetworkStatus } from "./composables/useNetworkStatus";
-import { DEFAULT_VISIBLE_COLUMNS } from "./lib/column-defs";
+import { useAppUpdate } from "./composables/useAppUpdate";
 import NotificationToast from "./components/ui/NotificationToast.vue";
 import ModalOverlay from "./components/layout/ModalOverlay.vue";
-import type { AppSettings, SortDirection, SortKey } from "./types/settings";
+import type { AppSettings } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
 import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
 import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/tauri/download-api";
 import { toMessage } from "./composables/downloadHelpers";
 
-// Multi-select refs (declared before limedlOptions closure)
+// Multi-select refs (declared before configure closure)
 let multiSelectMode = ref(false);
 let selectedIds = ref<Set<string>>(new Set());
 let showBatchDeleteDialog = ref(false);
@@ -78,9 +77,12 @@ const btSpeedLimitTaskId = ref("");
 const btSpeedLimitDownloadLimit = ref(0);
 const btSpeedLimitUploadLimit = ref(0);
 
-const limedlOptions: UseLimedlOptions = {
+// ── Pinia stores ───────────────────────────────────────────────────
+const notify = useNotificationStore();
+const downloadStore = useDownloadStore();
+downloadStore.configure({
   onDownloadFailed: (fileName, reason) => {
-    notifyError(
+    notify.notifyError(
       t("messages.downloadFailed", {
         fileName,
         reason,
@@ -102,15 +104,14 @@ const limedlOptions: UseLimedlOptions = {
       selectedIds.value = next;
     }
   },
-};
+});
 
+// Use storeToRefs to preserve ref reactivity (Pinia auto-unwraps otherwise)
 const {
   actionName,
   canCancel,
   canPause,
   canResume,
-  canPauseDownload,
-  canResumeDownload,
   btRuntimeStatus,
   downloads,
   form,
@@ -120,7 +121,19 @@ const {
   isRefreshingList: _isRefreshingList,
   isRefreshingStatus,
   isStarting,
+  selectedId,
+  selectedSnapshot,
+  selectedSummary,
+  batchMode,
+  batchUrls,
+  batchEntries,
+  batchSubmitProgress,
+} = storeToRefs(downloadStore);
+
+const {
   applyAppSettingsDefaults,
+  canPauseDownload,
+  canResumeDownload,
   pickDestinationDirectory,
   pickTorrentSourceFile,
   refreshList,
@@ -143,22 +156,15 @@ const {
   runBatchCancel,
   runSetPriority,
   selectDownload,
-  selectedId,
-  selectedSnapshot,
-  selectedSummary,
   submitStart,
   autoFillFromClipboard,
   setNotificationsEnabled,
   setMessage,
   setError,
-  batchMode,
-  batchUrls,
-  batchEntries,
-  batchSubmitProgress,
   parseBatchUrls,
   submitBatch,
   toggleBatchMode,
-} = useLimedl(limedlOptions);
+} = downloadStore;
 
 const { categoryCounts, sidebarStats } = useCategoryCounts(downloads);
 
@@ -190,22 +196,13 @@ const { overclockMode, setOverclockMode } = useOverclock();
 const showComposerDialog = ref(false);
 const activeCategory = ref("");
 const searchQuery = ref("");
-const sortKey = ref<SortKey>("added_at");
-const sortDirection = ref<SortDirection>("desc");
-const compactView = ref(false);
-const visibleColumns = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 const pendingPermanentDeleteId = ref<string | null>(null);
 const settingsPageRef = ref<PersistablePage | null>(null);
 const labsPageRef = ref<PersistablePage | null>(null);
 
-const { appSettings, applyAppearanceSettings } = useAppSettings({
-  sortKey,
-  sortDirection,
-  compactView,
-  visibleColumns,
-  applyAppSettingsDefaults,
-  setNotificationsEnabled,
-});
+const appSettingsStore = useAppSettingsStore();
+const { appSettings, sortKey, sortDirection, compactView, visibleColumns } = storeToRefs(appSettingsStore);
+const { applyAppearanceSettings } = appSettingsStore;
 
 // ── Setup wizard integration ──
 const showSetupWizard = ref<boolean | null>(null);
@@ -315,18 +312,20 @@ const filteredDownloads = computed(() =>
 onErrorCaptured((err, _instance, info) => {
   const message = err instanceof Error ? err.message : String(err);
   console.error("[Component Error]", err, info);
-  useNotification().notify(`Error: ${message}`, "error");
+  notify.notify(`Error: ${message}`, "error");
   // Return false to prevent error from propagating further
   return false;
 });
-
-const { notifications, notifyError, notifySuccess, dismiss } = useNotification();
 
 const { updateAvailable, runStartupCheck } = useAppUpdate();
 
 onMounted(() => {
   runStartupCheck();
   checkSetupState();
+
+  // Initialize Pinia stores (replaces onMounted from composables)
+  downloadStore.initStore();
+  appSettingsStore.initStore();
 
   // Fetch real app version from Tauri metadata
   getVersion()
@@ -348,7 +347,6 @@ onMounted(() => {
   // Browser online/offline detection (works in all modes)
   const networkStatus = useNetworkStatus();
   networkStatus.start();
-  onUnmounted(() => networkStatus.stop());
 
   // WebSocket reconnection monitoring (NAS mode only)
   // Shows toast when the WS link drops / reconnects
@@ -357,13 +355,18 @@ onMounted(() => {
       // eslint-disable-next-line vue/no-setup-props-destructure
       watch(connectionStatus, (status, prev) => {
         if (status === "reconnecting" && prev !== "reconnecting") {
-          useNotification().notifyWarning(t("messages.connectionLost"), 10000);
+          notify.notifyWarning(t("messages.connectionLost"), 10000);
         } else if (status === "connected" && prev === "reconnecting") {
-          useNotification().notifySuccess(t("messages.connectionRestored"));
+          notify.notifySuccess(t("messages.connectionRestored"));
         }
       });
     });
   }
+});
+
+onUnmounted(() => {
+  downloadStore.destroyStore();
+  appSettingsStore.destroyStore();
 });
 
 const selectedOverview = computed(() => selectedSnapshot.value ?? selectedSummary.value);
@@ -614,10 +617,10 @@ async function handleBtSpeedLimitConfirm(payload: {
   try {
     await setBtSpeedLimit(payload.taskId, payload.downloadLimit, payload.uploadLimit);
     showBtSpeedLimitModal.value = false;
-    notifySuccess(t("messages.speedLimitUpdated"));
+    notify.notifySuccess(t("messages.speedLimitUpdated"));
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    notifyError(t("messages.speedLimitError", { error: message }));
+    notify.notifyError(t("messages.speedLimitError", { error: message }));
   }
 }
 
@@ -657,7 +660,7 @@ watch(
 
   <!-- Normal app layout -->
   <div v-else class="app-root">
-    <NotificationToast :notifications="notifications" @dismiss="dismiss" />
+    <NotificationToast :notifications="notify.notifications" @dismiss="notify.dismiss" />
 
     <!-- Top toolbar (only show on home view) -->
     <TopToolbar

@@ -3,7 +3,7 @@ import { computed, ref, toRef, watch } from "vue";
 
 import { useI18n } from "../../i18n";
 import { useAsyncGuard } from "../../composables/useAsyncGuard";
-import { useNotification } from "../../composables/useNotification";
+import { useNotificationStore } from "../../stores/notification";
 import { pickDirectory } from "../../lib/tauri/dialog-api";
 import { fetchTrackerList, saveAppSettings } from "../../lib/tauri/settings-api";
 import type { ChecksumMode } from "../../types/download";
@@ -55,7 +55,7 @@ const emit = defineEmits<{
 }>();
 
 const { language, languageOptions, setLanguage, t } = useI18n();
-const { notifySuccess, notifyError, notifyInfo } = useNotification();
+const { notifySuccess, notifyError, notifyInfo } = useNotificationStore();
 
 // ── Option arrays ────────────────────────────────────────────────
 

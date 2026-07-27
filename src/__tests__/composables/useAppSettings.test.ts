@@ -1,21 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ref, nextTick, type Ref } from "vue";
+import { nextTick } from "vue";
+import { setActivePinia, createPinia } from "pinia";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 vi.mock("../../i18n", () => ({
   t: vi.fn((key: string) => key),
 }));
-
-// Mock Vue lifecycle hooks so onMounted runs immediately
-vi.mock("vue", async () => {
-  const actual = await vi.importActual("vue");
-  return {
-    ...actual,
-    onMounted: vi.fn((cb: () => void) => cb()),
-    onBeforeUnmount: vi.fn(),
-  };
-});
 
 vi.mock("../../lib/tauri/settings-api", () => ({
   getAppSettings: vi.fn(),
@@ -25,13 +16,28 @@ vi.mock("../../lib/tauri/settings-api", () => ({
 import { invoke } from "@tauri-apps/api/core";
 import { createMockInvoke, resetTauriMocks } from "../mocks/tauri-mock";
 import { getAppSettings, saveAppSettings } from "../../lib/tauri/settings-api";
-import { useAppSettings, type UseAppSettingsParams } from "../../composables/useAppSettings";
+import { useAppSettingsStore } from "../../stores/appSettings";
+import { useDownloadStore } from "../../stores/download";
 import { DEFAULT_VISIBLE_COLUMNS } from "../../lib/column-defs";
-import type { AppSettings, SortKey, SortDirection } from "../../types/settings";
+import type { AppSettings, SortKey } from "../../types/settings";
 
 const mockInvoke = vi.mocked(invoke);
 const mockGetAppSettings = vi.mocked(getAppSettings);
 const mockSaveAppSettings = vi.mocked(saveAppSettings);
+
+// Mock the notification store inside download store
+vi.mock("../../stores/notification", () => ({
+  useNotificationStore: () => ({
+    notifySuccess: vi.fn(),
+    notifyError: vi.fn(),
+    notifyInfo: vi.fn(),
+    notifyWarning: vi.fn(),
+    clearAll: vi.fn(),
+    notify: vi.fn(),
+    dismiss: vi.fn(),
+    notifications: { value: [] },
+  }),
+}));
 
 function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   return {
@@ -133,51 +139,28 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
   };
 }
 
-/**
- * Convenience helper: returns a full AppSettings with only the `appearance`
- * fields overridden from defaults.
- */
 function settingsWithAppearance(overrides: Partial<AppSettings["appearance"]> = {}): AppSettings {
   const base = createDefaultSettings();
   base.appearance = { ...base.appearance, ...overrides };
   return base;
 }
 
-describe("useAppSettings", () => {
-  let sortKey: Ref<SortKey>;
-  let sortDirection: Ref<SortDirection>;
-  let compactView: Ref<boolean>;
-  let visibleColumns: Ref<string[]>;
-  let applyAppSettingsDefaults: (settings: AppSettings) => void;
-  let setNotificationsEnabled: (enabled: boolean) => void;
+describe("useAppSettingsStore", () => {
+  let store: ReturnType<typeof useAppSettingsStore>;
+  let downloadStore: ReturnType<typeof useDownloadStore>;
   let matchMediaMock: ReturnType<typeof vi.fn>;
-
-  function createParams(overrides: Partial<UseAppSettingsParams> = {}): UseAppSettingsParams {
-    return {
-      sortKey,
-      sortDirection,
-      compactView,
-      visibleColumns,
-      applyAppSettingsDefaults,
-      setNotificationsEnabled,
-      ...overrides,
-    };
-  }
 
   beforeEach(() => {
     resetTauriMocks();
     mockInvoke.mockImplementation(createMockInvoke());
 
-    // Suppress expected console.error from loadSettings failures in DOM-focused tests
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    // Reset DOM dataset
     delete document.documentElement.dataset.colorMode;
     delete document.documentElement.dataset.colorModePreference;
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.surface;
 
-    // Mock matchMedia �?default: no dark mode preference
     matchMediaMock = vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,
@@ -189,32 +172,28 @@ describe("useAppSettings", () => {
       value: matchMediaMock,
     });
 
-    sortKey = ref<SortKey>("added_at");
-    sortDirection = ref<SortDirection>("desc");
-    compactView = ref(false);
-    visibleColumns = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
-    applyAppSettingsDefaults = vi.fn();
-    setNotificationsEnabled = vi.fn();
+    setActivePinia(createPinia());
+    store = useAppSettingsStore();
+    downloadStore = useDownloadStore();
   });
 
   afterEach(() => {
     vi.resetAllMocks();
+    store.destroyStore();
   });
 
   // ── applyColorMode (via applyAppearanceSettings) ─────────────────
 
   describe("applyColorMode", () => {
     it('sets data-color-mode="dark" for dark mode', () => {
-      const { applyAppearanceSettings } = useAppSettings(createParams());
-      applyAppearanceSettings(settingsWithAppearance({ colorMode: "dark" }));
+      store.applyAppearanceSettings(settingsWithAppearance({ colorMode: "dark" }));
 
       expect(document.documentElement.dataset.colorModePreference).toBe("dark");
       expect(document.documentElement.dataset.colorMode).toBe("dark");
     });
 
     it('sets data-color-mode="light" for light mode', () => {
-      const { applyAppearanceSettings } = useAppSettings(createParams());
-      applyAppearanceSettings(settingsWithAppearance({ colorMode: "light" }));
+      store.applyAppearanceSettings(settingsWithAppearance({ colorMode: "light" }));
 
       expect(document.documentElement.dataset.colorModePreference).toBe("light");
       expect(document.documentElement.dataset.colorMode).toBe("light");
@@ -228,8 +207,7 @@ describe("useAppSettings", () => {
         removeEventListener: vi.fn(),
       }));
 
-      const { applyAppearanceSettings } = useAppSettings(createParams());
-      applyAppearanceSettings(settingsWithAppearance({ colorMode: "system" }));
+      store.applyAppearanceSettings(settingsWithAppearance({ colorMode: "system" }));
 
       expect(document.documentElement.dataset.colorModePreference).toBe("system");
       expect(document.documentElement.dataset.colorMode).toBe("dark");
@@ -240,8 +218,7 @@ describe("useAppSettings", () => {
 
   describe("applyAppearanceSettings", () => {
     it("sets data-theme and data-surface attributes", () => {
-      const { applyAppearanceSettings } = useAppSettings(createParams());
-      applyAppearanceSettings(
+      store.applyAppearanceSettings(
         settingsWithAppearance({
           themeColor: "sky",
           backgroundOpacity: "frosted",
@@ -253,16 +230,13 @@ describe("useAppSettings", () => {
     });
 
     it("falls back to defaults when appearance fields are missing", () => {
-      const { applyAppearanceSettings } = useAppSettings(createParams());
-      // Provide an AppSettings with undefined appearance fields by mutating
-      // a properly constructed object via Object.assign (avoids type assertions).
       const settings = createDefaultSettings();
       Object.assign(settings.appearance, {
         themeColor: undefined,
         backgroundOpacity: undefined,
         colorMode: undefined,
       });
-      applyAppearanceSettings(settings);
+      store.applyAppearanceSettings(settings);
 
       expect(document.documentElement.dataset.theme).toBe("lime");
       expect(document.documentElement.dataset.surface).toBe("default");
@@ -271,48 +245,49 @@ describe("useAppSettings", () => {
     });
   });
 
-  // ── loadSettings ────────────────────────────────────────────────
+  // ── loadSettings (via initStore) ────────────────────────────────
 
   describe("loadSettings", () => {
     it("loads settings via getAppSettings and stores in appSettings ref", async () => {
       const settings = createDefaultSettings();
       mockGetAppSettings.mockResolvedValue(settings);
 
-      const composable = useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
       expect(mockGetAppSettings).toHaveBeenCalledTimes(1);
-      expect(composable.appSettings.value).toEqual(settings);
+      expect(store.appSettings).toEqual(settings);
     });
 
     it("handles API error gracefully", async () => {
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       mockGetAppSettings.mockRejectedValue(new Error("Network error"));
 
-      const composable = useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
-      expect(composable.appSettings.value).toBeNull();
+      expect(store.appSettings).toBeNull();
       expect(consoleSpy).toHaveBeenCalledWith("Failed to load app settings", expect.any(Error));
       consoleSpy.mockRestore();
     });
 
-    it("calls applyAppSettingsDefaults with loaded settings", async () => {
+    it("calls downloadStore.applyAppSettingsDefaults with loaded settings", async () => {
+      vi.spyOn(downloadStore, "applyAppSettingsDefaults");
       const settings = createDefaultSettings();
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
-      expect(applyAppSettingsDefaults).toHaveBeenCalledTimes(1);
-      expect(applyAppSettingsDefaults).toHaveBeenCalledWith(settings);
+      expect(downloadStore.applyAppSettingsDefaults).toHaveBeenCalledTimes(1);
+      expect(downloadStore.applyAppSettingsDefaults).toHaveBeenCalledWith(settings);
     });
 
     it("applies color mode from loaded settings", async () => {
       const settings = settingsWithAppearance({ colorMode: "dark" });
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
       expect(document.documentElement.dataset.colorModePreference).toBe("dark");
@@ -331,23 +306,20 @@ describe("useAppSettings", () => {
       vi.useRealTimers();
     });
 
-    /** Shared helper: creates composable with appSettings loaded by directly
-     *  setting the ref, bypassing the async loadSettings (which doesn't play
-     *  well with fake timers and debounce). */
+    /** Create store with appSettings loaded directly */
     function createLoaded() {
       mockGetAppSettings.mockReturnValue(new Promise<AppSettings>(() => {}));
-      const cmp = useAppSettings(createParams());
-      cmp.appSettings.value = createDefaultSettings();
-      return cmp;
+      store.initStore();
+      store.appSettings = createDefaultSettings();
     }
 
     it("triggers debounced saveAppSettings when sortKey changes", async () => {
       createLoaded();
-      // Flush Vue queue so the {immediate: true} watcher fires and settles
+      // Flush Vue queue so watchers fire
       await nextTick();
       await nextTick();
 
-      sortKey.value = "name";
+      store.sortKey = "name" as SortKey;
       await nextTick();
 
       // Should not be saved immediately (debounced)
@@ -369,11 +341,11 @@ describe("useAppSettings", () => {
       await nextTick();
       await nextTick();
 
-      sortKey.value = "name";
+      store.sortKey = "name" as SortKey;
       await nextTick();
-      sortKey.value = "size";
+      store.sortKey = "size" as SortKey;
       await nextTick();
-      sortKey.value = "added_at";
+      store.sortKey = "added_at" as SortKey;
       await nextTick();
 
       await vi.advanceTimersByTimeAsync(300);
@@ -387,13 +359,11 @@ describe("useAppSettings", () => {
     });
 
     it("does not save when appSettings is null (not yet loaded)", async () => {
-      // Promise that never resolves so appSettings stays null
       mockGetAppSettings.mockReturnValue(new Promise<AppSettings>(() => {}));
-
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
-      sortKey.value = "name";
+      store.sortKey = "name" as SortKey;
       await nextTick();
       await vi.advanceTimersByTimeAsync(300);
 
@@ -405,7 +375,7 @@ describe("useAppSettings", () => {
       await nextTick();
       await nextTick();
 
-      compactView.value = true;
+      store.compactView = true;
       await nextTick();
       await vi.advanceTimersByTimeAsync(300);
 
@@ -425,11 +395,11 @@ describe("useAppSettings", () => {
       const settings = settingsWithAppearance({ visibleColumns: cols });
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
       await nextTick();
 
-      expect(visibleColumns.value).toEqual(cols);
+      expect(store.visibleColumns).toEqual(cols);
     });
 
     it("filters out invalid column keys", async () => {
@@ -438,12 +408,11 @@ describe("useAppSettings", () => {
       });
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
       await nextTick();
 
-      // "invalid_key" should be removed
-      expect(visibleColumns.value).toEqual(["file", "size", "status"]);
+      expect(store.visibleColumns).toEqual(["file", "size", "status"]);
     });
 
     it("ensures 'file' column is always first", async () => {
@@ -452,13 +421,12 @@ describe("useAppSettings", () => {
       });
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
-      expect(visibleColumns.value[0]).toBe("file");
-      // file was first, then size and status follow
-      expect(visibleColumns.value).toContain("size");
-      expect(visibleColumns.value).toContain("status");
+      expect(store.visibleColumns[0]).toBe("file");
+      expect(store.visibleColumns).toContain("size");
+      expect(store.visibleColumns).toContain("status");
     });
   });
 
@@ -472,12 +440,12 @@ describe("useAppSettings", () => {
       });
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
       await nextTick();
 
-      expect(sortKey.value).toBe("name");
-      expect(sortDirection.value).toBe("asc");
+      expect(store.sortKey).toBe("name");
+      expect(store.sortDirection).toBe("asc");
     });
 
     it("uses default sort key 'added_at' when settings value is null", async () => {
@@ -485,10 +453,10 @@ describe("useAppSettings", () => {
       const settings = settingsWithAppearance({ sortKey: nullOverride });
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
-      expect(sortKey.value).toBe("added_at");
+      expect(store.sortKey).toBe("added_at");
     });
 
     it("uses default sort direction 'desc' when settings value is null", async () => {
@@ -498,37 +466,40 @@ describe("useAppSettings", () => {
       });
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
 
-      expect(sortDirection.value).toBe("desc");
+      expect(store.sortDirection).toBe("desc");
     });
   });
 
   // ── Notifications sync ─────────────────────────────────────────
 
   describe("notifications sync", () => {
-    it("calls setNotificationsEnabled with loaded settings value", async () => {
+    it("calls downloadStore.setNotificationsEnabled with loaded settings value", async () => {
+      vi.spyOn(downloadStore, "setNotificationsEnabled");
       const settings = createDefaultSettings();
       settings.notifications.enabled = true;
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
       await nextTick();
       await nextTick();
 
-      expect(setNotificationsEnabled).toHaveBeenCalledWith(true);
+      expect(downloadStore.setNotificationsEnabled).toHaveBeenCalledWith(true);
     });
 
     it("calls setNotificationsEnabled with false when settings has disabled notifications", async () => {
+      vi.spyOn(downloadStore, "setNotificationsEnabled");
       const settings = createDefaultSettings();
       settings.notifications.enabled = false;
       mockGetAppSettings.mockResolvedValue(settings);
 
-      useAppSettings(createParams());
+      store.initStore();
+      await nextTick();
       await nextTick();
 
-      expect(setNotificationsEnabled).toHaveBeenCalledWith(false);
+      expect(downloadStore.setNotificationsEnabled).toHaveBeenCalledWith(false);
     });
   });
 });

@@ -1,41 +1,30 @@
-import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
+import { nextTick, ref, watch } from "vue";
+import { defineStore } from "pinia";
 import { debounce } from "../lib/debounce";
 import { getAppSettings, saveAppSettings } from "../lib/tauri/settings-api";
 import { VALID_COLUMN_KEY_SET, DEFAULT_VISIBLE_COLUMNS } from "../lib/column-defs";
 import type { AppSettings, ColorMode, SortDirection, SortKey } from "../types/settings";
-
-export interface UseAppSettingsParams {
-  sortKey: Ref<SortKey>;
-  sortDirection: Ref<SortDirection>;
-  compactView: Ref<boolean>;
-  visibleColumns: Ref<string[]>;
-  applyAppSettingsDefaults: (settings: AppSettings) => void;
-  setNotificationsEnabled: (enabled: boolean) => void;
-}
+import { useDownloadStore } from "./download";
 
 function resolveColorMode(mode: ColorMode): "light" | "dark" {
   if (mode !== "system") {
     return mode;
   }
-
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-export function useAppSettings(params: UseAppSettingsParams) {
-  const {
-    sortKey,
-    sortDirection,
-    compactView,
-    visibleColumns,
-    applyAppSettingsDefaults,
-    setNotificationsEnabled,
-  } = params;
-
+export const useAppSettingsStore = defineStore("appSettings", () => {
+  // ── Owned state ──────────────────────────────────────────────────
+  const sortKey = ref<SortKey>("added_at");
+  const sortDirection = ref<SortDirection>("desc");
+  const compactView = ref(false);
+  const visibleColumns = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
   const appSettings = ref<AppSettings | null>(null);
   const isSyncingFromSettings = ref(false);
 
   let colorSchemeQuery: MediaQueryList | null = null;
 
+  // ── Color mode logic ─────────────────────────────────────────────
   function applyColorMode(mode: ColorMode) {
     document.documentElement.dataset.colorModePreference = mode;
     document.documentElement.dataset.colorMode = resolveColorMode(mode);
@@ -51,32 +40,33 @@ export function useAppSettings(params: UseAppSettingsParams) {
     applyColorMode(appSettings.value?.appearance?.colorMode ?? "system");
   }
 
+  // ── Load / save ──────────────────────────────────────────────────
   async function loadSettings() {
+    const downloadStore = useDownloadStore();
     try {
       appSettings.value = await getAppSettings();
       applyAppearanceSettings(appSettings.value);
-      applyAppSettingsDefaults(appSettings.value);
+      downloadStore.applyAppSettingsDefaults(appSettings.value);
     } catch (error) {
       console.error("Failed to load app settings", error);
     }
   }
 
-  // Watcher: sync appSettings → notifications
+  // ── Watcher: sync appSettings → notifications ────────────────────
   watch(
     appSettings,
     (settings) => {
-      setNotificationsEnabled(settings?.notifications?.enabled ?? false);
+      const downloadStore = useDownloadStore();
+      downloadStore.setNotificationsEnabled(settings?.notifications?.enabled ?? false);
     },
     { immediate: true },
   );
 
-  // Watcher: sync appSettings → sortKey, sortDirection, compactView, visibleColumns
+  // ── Watcher: sync appSettings → sortKey, sortDirection, compactView, visibleColumns ──
   watch(
     appSettings,
     (settings) => {
-      if (!settings) {
-        return;
-      }
+      if (!settings) return;
 
       isSyncingFromSettings.value = true;
       sortKey.value = settings.appearance?.sortKey ?? "added_at";
@@ -96,7 +86,7 @@ export function useAppSettings(params: UseAppSettingsParams) {
     { immediate: true },
   );
 
-  // Debounced save for view preferences
+  // ── Debounced save ───────────────────────────────────────────────
   const debouncedSaveAppearance = debounce(async () => {
     if (!appSettings.value) return;
     try {
@@ -106,11 +96,8 @@ export function useAppSettings(params: UseAppSettingsParams) {
     }
   }, 300);
 
-  // Watcher: sync sortKey, sortDirection, compactView, visibleColumns → appSettings (debounced save)
   watch([sortKey, sortDirection, compactView, visibleColumns], () => {
-    if (isSyncingFromSettings.value || !appSettings.value) {
-      return;
-    }
+    if (isSyncingFromSettings.value || !appSettings.value) return;
 
     appSettings.value.appearance.sortKey = sortKey.value;
     appSettings.value.appearance.sortDirection = sortDirection.value;
@@ -120,20 +107,27 @@ export function useAppSettings(params: UseAppSettingsParams) {
     debouncedSaveAppearance();
   });
 
-  onMounted(() => {
+  // ── Lifecycle ────────────────────────────────────────────────────
+  function initStore() {
     colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
     colorSchemeQuery.addEventListener("change", handleSystemColorSchemeChange);
     applyColorMode("system");
     void loadSettings();
-  });
+  }
 
-  onBeforeUnmount(() => {
+  function destroyStore() {
     debouncedSaveAppearance.cancel();
     colorSchemeQuery?.removeEventListener("change", handleSystemColorSchemeChange);
-  });
+  }
 
   return {
     appSettings,
+    sortKey,
+    sortDirection,
+    compactView,
+    visibleColumns,
     applyAppearanceSettings,
+    initStore,
+    destroyStore,
   };
-}
+});

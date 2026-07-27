@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { createGlobalState } from "@vueuse/core";
-import { useNotification } from "./useNotification";
+import { useNotificationStore } from "../stores/notification";
 import { t } from "../i18n";
 
 /**
@@ -20,14 +20,14 @@ export const useNetworkStatus = createGlobalState(() => {
     isOnline.value = true;
     if (wasOffline) {
       wasOffline = false;
-      useNotification().notifySuccess(t("notifications.networkOnline"), 4000);
+      useNotificationStore().notifySuccess(t("notifications.networkOnline"), 4000);
     }
   }
 
   function handleOffline() {
     isOnline.value = false;
     wasOffline = true;
-    useNotification().notifyWarning(t("notifications.networkOffline"), 10000);
+    useNotificationStore().notifyWarning(t("notifications.networkOffline"), 10000);
   }
 
   function start() {

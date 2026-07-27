@@ -1,25 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 
 // ── Mock Tauri core ─────────────────────────────────────────────────────────
 vi.mock("#invoke", () => ({ invoke: vi.fn() }));
-
-// ── Mock Vue lifecycle hooks ────────────────────────────────────────────────
-// Capture onMounted/onUnmounted callbacks so tests can trigger them manually.
-let capturedOnMounted: (() => Promise<void>) | null = null;
-let capturedOnUnmounted: (() => void) | null = null;
-
-vi.mock("vue", async () => {
-  const actual = await vi.importActual<typeof import("vue")>("vue");
-  return {
-    ...actual,
-    onMounted: vi.fn((cb: () => Promise<void>) => {
-      capturedOnMounted = cb;
-    }),
-    onUnmounted: vi.fn((cb: () => void) => {
-      capturedOnUnmounted = cb;
-    }),
-  };
-});
 
 // ── Mock Tauri events ───────────────────────────────────────────────────────
 // Capture the handler so tests can simulate download-progress/download-updated.
@@ -46,7 +29,7 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
   onAction: vi.fn().mockResolvedValue({ unregister: vi.fn() }),
 }));
 
-// ── Mock useNotification ────────────────────────────────────────────────────
+// ── Mock useNotificationStore ───────────────────────────────────────────────
 const { mockNotifySuccess, mockNotifyError, mockNotifyInfo, mockNotifyWarning } = vi.hoisted(
   () => ({
     mockNotifySuccess: vi.fn(),
@@ -56,8 +39,8 @@ const { mockNotifySuccess, mockNotifyError, mockNotifyInfo, mockNotifyWarning } 
   }),
 );
 
-vi.mock("../../composables/useNotification", () => ({
-  useNotification: () => ({
+vi.mock("../../stores/notification", () => ({
+  useNotificationStore: () => ({
     notifySuccess: mockNotifySuccess,
     notifyError: mockNotifyError,
     notifyInfo: mockNotifyInfo,
@@ -123,28 +106,29 @@ const mockRemoveDownload = vi.mocked(removeDownload);
 const mockIsPermissionGranted = vi.mocked(isPermissionGranted);
 const mockSendNotification = vi.mocked(sendNotification);
 
+// Pinia store under test
+import { useDownloadStore } from "../../stores/download";
+
 // ── Suite ───────────────────────────────────────────────────────────────────
 
-describe("useLimedl", () => {
+describe("useDownloadStore", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let limedlInstance: any;
+  let store: ReturnType<typeof useDownloadStore>;
 
   beforeEach(async () => {
     vi.resetModules();
     resetTauriMocks();
     resetMockIds();
-    capturedOnMounted = null;
-    capturedOnUnmounted = null;
     onProgress = null;
     onUpdated = null;
 
-    // Dynamically import to get a fresh module (clears the singleton guard)
-    const mod = await import("../../composables/useLimedl");
-    limedlInstance = mod.createLimedl();
+    // Fresh Pinia instance for each test
+    setActivePinia(createPinia());
+    store = useDownloadStore();
   });
 
   afterEach(() => {
-    capturedOnUnmounted?.();
+    store.destroyStore();
     vi.clearAllMocks();
   });
 
@@ -152,11 +136,11 @@ describe("useLimedl", () => {
 
   describe("initialization", () => {
     it("creates with empty downloads", () => {
-      expect(limedlInstance.downloads.value).toEqual([]);
+      expect(store.downloads).toEqual([]);
     });
 
     it("creates with null selectedId", () => {
-      expect(limedlInstance.selectedId.value).toBeNull();
+      expect(store.selectedId).toBeNull();
     });
   });
 
@@ -170,11 +154,11 @@ describe("useLimedl", () => {
       });
       mockGetDownloadStatus.mockResolvedValue(snapshot);
 
-      await limedlInstance.refreshStatus("task-1", { silent: true });
+      await store.refreshStatus("task-1", { silent: true });
 
-      expect(limedlInstance.downloads.value).toHaveLength(1);
-      expect(limedlInstance.downloads.value[0].id).toBe("task-1");
-      expect(limedlInstance.downloads.value[0].fileName).toBe("test.zip");
+      expect(store.downloads).toHaveLength(1);
+      expect(store.downloads[0].id).toBe("task-1");
+      expect(store.downloads[0].fileName).toBe("test.zip");
     });
 
     it("adds new download to front of non-empty list", async () => {
@@ -184,8 +168,8 @@ describe("useLimedl", () => {
         fileName: "old.zip",
       });
       mockGetDownloadStatus.mockResolvedValueOnce(existingSnap);
-      await limedlInstance.refreshStatus("existing-1", { silent: true });
-      expect(limedlInstance.downloads.value).toHaveLength(1);
+      await store.refreshStatus("existing-1", { silent: true });
+      expect(store.downloads).toHaveLength(1);
 
       // New download should land at index 0 (unshift)
       const newSnap = createMockDownloadSnapshot({
@@ -193,11 +177,11 @@ describe("useLimedl", () => {
         fileName: "new.zip",
       });
       mockGetDownloadStatus.mockResolvedValueOnce(newSnap);
-      await limedlInstance.refreshStatus("new-1", { silent: true });
+      await store.refreshStatus("new-1", { silent: true });
 
-      expect(limedlInstance.downloads.value).toHaveLength(2);
-      expect(limedlInstance.downloads.value[0].id).toBe("new-1");
-      expect(limedlInstance.downloads.value[1].id).toBe("existing-1");
+      expect(store.downloads).toHaveLength(2);
+      expect(store.downloads[0].id).toBe("new-1");
+      expect(store.downloads[1].id).toBe("existing-1");
     });
 
     it("updates existing download in-place", async () => {
@@ -207,8 +191,8 @@ describe("useLimedl", () => {
         downloadedBytes: 100,
       });
       mockGetDownloadStatus.mockResolvedValueOnce(snap1);
-      await limedlInstance.refreshStatus("task-1", { silent: true });
-      expect(limedlInstance.downloads.value[0].downloadedBytes).toBe(100);
+      await store.refreshStatus("task-1", { silent: true });
+      expect(store.downloads[0].downloadedBytes).toBe(100);
 
       // Same id — in-place update
       const snap2 = createMockDownloadSnapshot({
@@ -218,11 +202,11 @@ describe("useLimedl", () => {
         totalBytes: 500,
       });
       mockGetDownloadStatus.mockResolvedValueOnce(snap2);
-      await limedlInstance.refreshStatus("task-1", { silent: true });
+      await store.refreshStatus("task-1", { silent: true });
 
-      expect(limedlInstance.downloads.value).toHaveLength(1);
-      expect(limedlInstance.downloads.value[0].state).toBe("completed");
-      expect(limedlInstance.downloads.value[0].downloadedBytes).toBe(500);
+      expect(store.downloads).toHaveLength(1);
+      expect(store.downloads[0].state).toBe("completed");
+      expect(store.downloads[0].downloadedBytes).toBe(500);
     });
   });
 
@@ -230,7 +214,7 @@ describe("useLimedl", () => {
 
   describe("patchProgress", () => {
     beforeEach(async () => {
-      // Set up a download in the list via the onMounted path
+      // Set up a download in the list via initStore path
       const task = createMockDownloadTask({
         id: "task-1",
         state: "queued",
@@ -239,8 +223,8 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([task]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
-      // Fire onMounted to start listeners + refresh list
-      await capturedOnMounted!();
+      // Fire initStore to start listeners + refresh list
+      await store.initStore();
 
       // Wait for listen promises to resolve and handlers to be captured
       await vi.waitFor(() => {
@@ -257,16 +241,16 @@ describe("useLimedl", () => {
         connectionCount: 4,
       });
 
-      const entry = limedlInstance.downloads.value.find((d: DownloadSummary) => d.id === "task-1");
-      expect(entry.state).toBe("downloading");
-      expect(entry.downloadedBytes).toBe(2048);
-      expect(entry.speedBytesPerSecond).toBe(1_048_576);
-      expect(entry.connectionCount).toBe(4);
+      const entry = store.downloads.find((d: DownloadSummary) => d.id === "task-1");
+      expect(entry!.state).toBe("downloading");
+      expect(entry!.downloadedBytes).toBe(2048);
+      expect(entry!.speedBytesPerSecond).toBe(1_048_576);
+      expect(entry!.connectionCount).toBe(4);
     });
 
     it("does nothing for non-existent download id", () => {
-      expect(limedlInstance.downloads.value).toHaveLength(1);
-      const originalBytes = limedlInstance.downloads.value[0].downloadedBytes;
+      expect(store.downloads).toHaveLength(1);
+      const originalBytes = store.downloads[0].downloadedBytes;
 
       onProgress!({
         id: "non-existent",
@@ -275,15 +259,15 @@ describe("useLimedl", () => {
         connectionCount: 2,
       });
 
-      expect(limedlInstance.downloads.value).toHaveLength(1);
-      expect(limedlInstance.downloads.value[0].downloadedBytes).toBe(originalBytes);
+      expect(store.downloads).toHaveLength(1);
+      expect(store.downloads[0].downloadedBytes).toBe(originalBytes);
     });
 
     it("patches selectedSnapshot when id matches", async () => {
       // selectDownload sets selectedId and refreshStatus sets selectedSnapshot
-      await limedlInstance.selectDownload("task-1");
+      await store.selectDownload("task-1");
       await vi.waitFor(() => {
-        expect(limedlInstance.selectedSnapshot.value).not.toBeNull();
+        expect(store.selectedSnapshot).not.toBeNull();
       });
 
       onProgress!({
@@ -294,8 +278,8 @@ describe("useLimedl", () => {
         connectionCount: 6,
       });
 
-      expect(limedlInstance.selectedSnapshot.value!.downloadedBytes).toBe(5000);
-      expect(limedlInstance.selectedSnapshot.value!.state).toBe("downloading");
+      expect(store.selectedSnapshot!.downloadedBytes).toBe(5000);
+      expect(store.selectedSnapshot!.state).toBe("downloading");
     });
   });
 
@@ -307,11 +291,11 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "download-1" }));
 
-      limedlInstance.form.url = "https://example.com/file.zip";
-      limedlInstance.form.destinationDir = "C:\\Downloads";
-      limedlInstance.form.fileName = "test.zip";
+      store.form.url = "https://example.com/file.zip";
+      store.form.destinationDir = "C:\\Downloads";
+      store.form.fileName = "test.zip";
 
-      await limedlInstance.submitStart();
+      await store.submitStart();
 
       expect(mockStartDownload).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -327,22 +311,21 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "download-2" }));
 
-      limedlInstance.form.url = "https://example.com/another.zip";
-      limedlInstance.form.destinationDir = "C:\\Downloads";
-      limedlInstance.form.fileName = "custom.zip";
-      limedlInstance.form.userAgent = "TestAgent/1.0";
-      limedlInstance.form.threadMode = "fixed";
-      limedlInstance.form.threadCount = 4;
+      store.form.url = "https://example.com/another.zip";
+      store.form.destinationDir = "C:\\Downloads";
+      store.form.fileName = "custom.zip";
+      store.form.userAgent = "TestAgent/1.0";
+      store.form.threadMode = "fixed";
+      store.form.threadCount = 4;
 
-      await limedlInstance.submitStart();
+      await store.submitStart();
 
-      // After resetForm:
-      expect(limedlInstance.form.url).toBe("");
-      expect(limedlInstance.form.destinationDir).toBe("");
-      expect(limedlInstance.form.fileName).toBe("");
-      expect(limedlInstance.form.userAgent).toBe("");
-      expect(limedlInstance.form.threadMode).toBe("adaptive");
-      expect(limedlInstance.form.threadCount).toBe(8);
+      expect(store.form.url).toBe("");
+      expect(store.form.destinationDir).toBe("");
+      expect(store.form.fileName).toBe("");
+      expect(store.form.userAgent).toBe("");
+      expect(store.form.threadMode).toBe("adaptive");
+      expect(store.form.threadCount).toBe(8);
     });
   });
 
@@ -350,15 +333,14 @@ describe("useLimedl", () => {
 
   describe("action composition", () => {
     beforeEach(async () => {
-      // Add a download to the list and select it
       const snap = createMockDownloadSnapshot({
         id: "task-1",
         state: "downloading",
         fileName: "test.zip",
       });
       mockGetDownloadStatus.mockResolvedValue(snap);
-      await limedlInstance.refreshStatus("task-1", { silent: true });
-      await limedlInstance.selectDownload("task-1");
+      await store.refreshStatus("task-1", { silent: true });
+      await store.selectDownload("task-1");
     });
 
     it("pause pauses the selected download", async () => {
@@ -369,7 +351,7 @@ describe("useLimedl", () => {
       });
       mockPauseDownload.mockResolvedValue(pausedSnap);
 
-      await limedlInstance.runPause();
+      await store.runPause();
 
       expect(mockPauseDownload).toHaveBeenCalledWith("task-1");
     });
@@ -382,7 +364,7 @@ describe("useLimedl", () => {
       });
       mockResumeDownload.mockResolvedValue(resumedSnap);
 
-      await limedlInstance.runResume();
+      await store.runResume();
 
       expect(mockResumeDownload).toHaveBeenCalledWith("task-1");
     });
@@ -395,11 +377,11 @@ describe("useLimedl", () => {
       const tasks = createMockDownloadList(2, { fileName: "test.zip" });
       mockListDownloads.mockResolvedValue(tasks);
 
-      await limedlInstance.refreshList();
+      await store.refreshList();
 
       expect(mockListDownloads).toHaveBeenCalled();
-      expect(limedlInstance.downloads.value).toHaveLength(2);
-      expect(limedlInstance.downloads.value[0].fileName).toBe("test.zip");
+      expect(store.downloads).toHaveLength(2);
+      expect(store.downloads[0].fileName).toBe("test.zip");
     });
 
     it("refreshStatus fetches single download status", async () => {
@@ -409,11 +391,11 @@ describe("useLimedl", () => {
       });
       mockGetDownloadStatus.mockResolvedValue(snapshot);
 
-      await limedlInstance.refreshStatus("status-1", { silent: true });
+      await store.refreshStatus("status-1", { silent: true });
 
       expect(mockGetDownloadStatus).toHaveBeenCalledWith("status-1");
-      expect(limedlInstance.downloads.value).toHaveLength(1);
-      expect(limedlInstance.downloads.value[0].fileName).toBe("status.zip");
+      expect(store.downloads).toHaveLength(1);
+      expect(store.downloads[0].fileName).toBe("status.zip");
     });
   });
 
@@ -423,12 +405,8 @@ describe("useLimedl", () => {
     it("download failed triggers onDownloadFailed callback", async () => {
       const onDownloadFailed = vi.fn();
 
-      // Create a fresh limedl with the callback
-      vi.resetModules();
-      const mod = await import("../../composables/useLimedl");
-      mod.createLimedl({ onDownloadFailed });
+      store.configure({ onDownloadFailed });
 
-      // Populate the list and start listeners
       const task = createMockDownloadTask({
         id: "task-1",
         state: "downloading",
@@ -437,12 +415,11 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([task]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
-      await capturedOnMounted!();
+      await store.initStore();
       await vi.waitFor(() => {
         expect(onUpdated).not.toBeNull();
       });
 
-      // Send a failure update event
       const failedSummary = createMockDownloadTask({
         id: "task-1",
         state: "failed",
@@ -460,57 +437,53 @@ describe("useLimedl", () => {
 
   describe("removeSummary", () => {
     beforeEach(async () => {
-      // Populate with 2 downloads
       const snap1 = createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" });
       const snap2 = createMockDownloadSnapshot({ id: "task-2", fileName: "b.zip" });
       mockGetDownloadStatus.mockResolvedValueOnce(snap1);
       mockGetDownloadStatus.mockResolvedValueOnce(snap2);
-      await limedlInstance.refreshStatus("task-1", { silent: true });
-      await limedlInstance.refreshStatus("task-2", { silent: true });
+      await store.refreshStatus("task-1", { silent: true });
+      await store.refreshStatus("task-2", { silent: true });
     });
 
     it("clears selection when removing currently-selected download", async () => {
-      await limedlInstance.selectDownload("task-1");
+      await store.selectDownload("task-1");
       mockRemoveDownload.mockResolvedValue(
         createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" }),
       );
 
-      await limedlInstance.runDeleteTask("task-1");
+      await store.runDeleteTask("task-1");
 
-      expect(limedlInstance.downloads.value).toHaveLength(1);
-      expect(limedlInstance.downloads.value[0].id).toBe("task-2");
-      expect(limedlInstance.selectedId.value).toBeNull();
-      expect(limedlInstance.selectedSnapshot.value).toBeNull();
+      expect(store.downloads).toHaveLength(1);
+      expect(store.downloads[0].id).toBe("task-2");
+      expect(store.selectedId).toBeNull();
+      expect(store.selectedSnapshot).toBeNull();
     });
 
     it("preserves selection when removing non-selected download", async () => {
-      await limedlInstance.selectDownload("task-1");
+      await store.selectDownload("task-1");
       mockRemoveDownload.mockResolvedValue(
         createMockDownloadSnapshot({ id: "task-2", fileName: "b.zip" }),
       );
 
-      await limedlInstance.runDeleteTask("task-2");
+      await store.runDeleteTask("task-2");
 
-      expect(limedlInstance.downloads.value).toHaveLength(1);
-      expect(limedlInstance.selectedId.value).toBe("task-1");
+      expect(store.downloads).toHaveLength(1);
+      expect(store.selectedId).toBe("task-1");
     });
 
     it("calls onDownloadsRemoved callback when provided", async () => {
       const onDownloadsRemoved = vi.fn();
-
-      vi.resetModules();
-      const mod = await import("../../composables/useLimedl");
-      const instance = mod.createLimedl({ onDownloadsRemoved });
+      store.configure({ onDownloadsRemoved });
 
       const snap = createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" });
       mockGetDownloadStatus.mockResolvedValueOnce(snap);
-      await instance.refreshStatus("task-1", { silent: true });
+      await store.refreshStatus("task-1", { silent: true });
 
       mockRemoveDownload.mockResolvedValue(
         createMockDownloadSnapshot({ id: "task-1", fileName: "a.zip" }),
       );
 
-      await instance.runDeleteTask("task-1");
+      await store.runDeleteTask("task-1");
 
       expect(onDownloadsRemoved).toHaveBeenCalledTimes(1);
       expect(onDownloadsRemoved).toHaveBeenCalledWith(["task-1"]);
@@ -524,42 +497,38 @@ describe("useLimedl", () => {
       const tasks = createMockDownloadList(2, { fileName: "test.zip" });
       mockListDownloads.mockResolvedValue(tasks);
 
-      await limedlInstance.refreshList();
+      await store.refreshList();
 
-      expect(limedlInstance.selectedId.value).toBe(tasks[0].id);
+      expect(store.selectedId).toBe(tasks[0].id);
     });
 
     it("clears selection when allowAutoSelect=false", async () => {
       const tasks = createMockDownloadList(2, { fileName: "test.zip" });
       mockListDownloads.mockResolvedValue(tasks);
-      await limedlInstance.refreshList();
-      expect(limedlInstance.selectedId.value).toBe(tasks[0].id);
+      await store.refreshList();
+      expect(store.selectedId).toBe(tasks[0].id);
 
-      // Deselect sets allowAutoSelect=false
-      await limedlInstance.selectDownload(null);
-      expect(limedlInstance.selectedId.value).toBeNull();
+      await store.selectDownload(null);
+      expect(store.selectedId).toBeNull();
 
-      // New list — ensureSelection should NOT auto-select
       const newTasks = createMockDownloadList(1, { fileName: "b.zip" });
       mockListDownloads.mockResolvedValue(newTasks);
-      await limedlInstance.refreshList();
+      await store.refreshList();
 
-      expect(limedlInstance.selectedId.value).toBeNull();
+      expect(store.selectedId).toBeNull();
     });
 
     it("no-op when selected ID is still in the list", async () => {
       const tasks = createMockDownloadList(1, { fileName: "test.zip", id: "stay-id" });
       mockListDownloads.mockResolvedValue(tasks);
-      await limedlInstance.refreshList();
+      await store.refreshList();
 
-      // refreshList auto-selects the first download
-      expect(limedlInstance.selectedId.value).toBe("stay-id");
+      expect(store.selectedId).toBe("stay-id");
 
-      // Same list again — ensureSelection should no-op
       mockListDownloads.mockResolvedValue(tasks);
-      await limedlInstance.refreshList();
+      await store.refreshList();
 
-      expect(limedlInstance.selectedId.value).toBe("stay-id");
+      expect(store.selectedId).toBe("stay-id");
     });
   });
 
@@ -581,16 +550,16 @@ describe("useLimedl", () => {
       };
       vi.mocked(getBtRuntimeStatus).mockResolvedValue(status);
 
-      await limedlInstance.refreshBtRuntimeStatus();
+      await store.refreshBtRuntimeStatus();
 
-      expect(limedlInstance.btRuntimeStatus.value).toEqual(status);
+      expect(store.btRuntimeStatus).toEqual(status);
       expect(mockNotifyError).not.toHaveBeenCalled();
     });
 
     it("silent error does NOT show error toast", async () => {
       vi.mocked(getBtRuntimeStatus).mockRejectedValue(new Error("Network unavailable"));
 
-      await limedlInstance.refreshBtRuntimeStatus({ silent: true });
+      await store.refreshBtRuntimeStatus({ silent: true });
 
       expect(mockNotifyError).not.toHaveBeenCalled();
     });
@@ -598,10 +567,9 @@ describe("useLimedl", () => {
     it("non-silent error DOES show error toast", async () => {
       vi.mocked(getBtRuntimeStatus).mockRejectedValue(new Error("Connection timeout"));
 
-      await limedlInstance.refreshBtRuntimeStatus();
+      await store.refreshBtRuntimeStatus();
 
       expect(mockNotifyError).toHaveBeenCalledTimes(1);
-      // toFriendlyError converts "Connection timeout" → "errors.connectionTimeout"
       expect(mockNotifyError).toHaveBeenCalledWith("errors.connectionTimeout");
     });
   });
@@ -611,10 +579,7 @@ describe("useLimedl", () => {
   describe("handleDownloadUpdated", () => {
     it("downloading → completed shows success toast", async () => {
       const onDownloadFailed = vi.fn();
-
-      vi.resetModules();
-      const mod = await import("../../composables/useLimedl");
-      mod.createLimedl({ onDownloadFailed });
+      store.configure({ onDownloadFailed });
 
       const task = createMockDownloadTask({
         id: "task-1",
@@ -624,7 +589,7 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([task]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
-      await capturedOnMounted!();
+      await store.initStore();
       await vi.waitFor(() => {
         expect(onUpdated).not.toBeNull();
       });
@@ -642,10 +607,7 @@ describe("useLimedl", () => {
 
     it("downloading → failed calls onDownloadFailed callback with filename and error", async () => {
       const onDownloadFailed = vi.fn();
-
-      vi.resetModules();
-      const mod = await import("../../composables/useLimedl");
-      mod.createLimedl({ onDownloadFailed });
+      store.configure({ onDownloadFailed });
 
       const task = createMockDownloadTask({
         id: "task-1",
@@ -655,7 +617,7 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([task]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
-      await capturedOnMounted!();
+      await store.initStore();
       await vi.waitFor(() => {
         expect(onUpdated).not.toBeNull();
       });
@@ -678,10 +640,7 @@ describe("useLimedl", () => {
 
     it("same-state transition does not fire notifications", async () => {
       const onDownloadFailed = vi.fn();
-
-      vi.resetModules();
-      const mod = await import("../../composables/useLimedl");
-      mod.createLimedl({ onDownloadFailed });
+      store.configure({ onDownloadFailed });
 
       const task = createMockDownloadTask({
         id: "task-1",
@@ -691,12 +650,11 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([task]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
-      await capturedOnMounted!();
+      await store.initStore();
       await vi.waitFor(() => {
         expect(onUpdated).not.toBeNull();
       });
 
-      // Trigger same-state update: downloading → downloading
       const sameState = createMockDownloadTask({
         id: "task-1",
         state: "downloading",
@@ -712,7 +670,6 @@ describe("useLimedl", () => {
     it("sends OS notification when enabled and download completes", async () => {
       mockIsPermissionGranted.mockResolvedValue(true);
 
-      // Use the limedlInstance from beforeEach, set up list and listeners
       const task = createMockDownloadTask({
         id: "task-1",
         state: "downloading",
@@ -721,12 +678,12 @@ describe("useLimedl", () => {
       mockListDownloads.mockResolvedValue([task]);
       mockGetDownloadStatus.mockResolvedValue(createMockDownloadSnapshot({ id: "task-1" }));
 
-      await capturedOnMounted!();
+      await store.initStore();
       await vi.waitFor(() => {
         expect(onUpdated).not.toBeNull();
       });
 
-      limedlInstance.setNotificationsEnabled(true);
+      store.setNotificationsEnabled(true);
 
       const completed = createMockDownloadTask({
         id: "task-1",
@@ -749,10 +706,10 @@ describe("useLimedl", () => {
 
   describe("setNotificationsEnabled", () => {
     it("toggles the notifications flag without error", () => {
-      expect(typeof limedlInstance.setNotificationsEnabled).toBe("function");
+      expect(typeof store.setNotificationsEnabled).toBe("function");
 
-      limedlInstance.setNotificationsEnabled(true);
-      limedlInstance.setNotificationsEnabled(false);
+      store.setNotificationsEnabled(true);
+      store.setNotificationsEnabled(false);
     });
   });
 });

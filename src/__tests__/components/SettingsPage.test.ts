@@ -26,8 +26,8 @@ vi.mock("../../composables/useAsyncGuard", () => ({
   }),
 }));
 
-vi.mock("../../composables/useNotification", () => ({
-  useNotification: () => ({
+vi.mock("../../stores/notification", () => ({
+  useNotificationStore: () => ({
     notifySuccess: vi.fn(),
     notifyError: vi.fn(),
     notifyInfo: vi.fn(),

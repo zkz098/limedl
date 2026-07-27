@@ -2,7 +2,7 @@
 import { ref, toRef } from "vue";
 
 import { useI18n } from "../../i18n";
-import { useNotification } from "../../composables/useNotification";
+import { useNotificationStore } from "../../stores/notification";
 import { saveAppSettings } from "../../lib/tauri/settings-api";
 import type { AppSettings } from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
@@ -22,7 +22,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const { notifySuccess, notifyError } = useNotification();
+const { notifySuccess, notifyError } = useNotificationStore();
 
 // ── Reactive form (shared composable) ─────────────────────────────
 

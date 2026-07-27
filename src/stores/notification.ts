@@ -1,16 +1,16 @@
 import { ref } from "vue";
-import { createGlobalState } from "@vueuse/core";
+import { defineStore } from "pinia";
 import type { Notification } from "../types/notification";
 
-export const useNotification = createGlobalState(() => {
+export const useNotificationStore = defineStore("notification", () => {
   let nextId = 0;
   const notifications = ref<Notification[]>([]);
   const timers = new Map<number, ReturnType<typeof setTimeout>>();
+
   function notify(message: string, type: Notification["type"] = "info", durationMs = 3600) {
     const id = nextId++;
     const notification: Notification = { id, message, type };
     notifications.value = [...notifications.value, notification];
-
     const timer = setTimeout(() => {
       dismiss(id);
     }, durationMs);

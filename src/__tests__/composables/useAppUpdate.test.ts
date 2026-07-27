@@ -14,8 +14,8 @@ vi.mock("../../i18n", () => ({
   useI18n: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock("../../composables/useNotification", () => ({
-  useNotification: () => ({
+vi.mock("../../stores/notification", () => ({
+  useNotificationStore: () => ({
     notifyInfo: vi.fn(),
     notifyError: vi.fn(),
     notifySuccess: vi.fn(),

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useI18n } from "../../i18n";
 import logoUrl from "../../assets/logo.webp";
 import { useAppUpdate } from "../../composables/useAppUpdate";
-import { useNotification } from "../../composables/useNotification";
+import { useNotificationStore } from "../../stores/notification";
 import { saveAppSettings, factoryReset } from "../../lib/tauri/settings-api";
 import type { AppSettings } from "../../types/settings";
 import { relaunch, exit } from "@tauri-apps/plugin-process";
@@ -78,7 +78,7 @@ onMounted(async () => {
 });
 
 // Reset to default settings
-const { notifySuccess, notifyError } = useNotification();
+const { notifySuccess, notifyError } = useNotificationStore();
 const isResetting = ref(false);
 const showResetConfirm = ref(false);
 
