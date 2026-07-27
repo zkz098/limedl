@@ -95,6 +95,14 @@ function expandUrlRanges(url: string): string[] {
   return results;
 }
 
+function canPauseDownload(download: DownloadSummary) {
+  return canPauseState(download.state);
+}
+
+function canResumeDownload(download: DownloadSummary) {
+  return canResumeState(download.state);
+}
+
 // ── Store ──────────────────────────────────────────────────────────
 
 export const useDownloadStore = defineStore("download", () => {
@@ -276,14 +284,6 @@ export const useDownloadStore = defineStore("download", () => {
 
     return !terminalStates.includes(state);
   });
-
-  function canPauseDownload(download: DownloadSummary) {
-    return canPauseState(download.state);
-  }
-
-  function canResumeDownload(download: DownloadSummary) {
-    return canResumeState(download.state);
-  }
 
   // ── API helpers ─────────────────────────────────────────────────
   async function refreshBtRuntimeStatus(opts?: { silent?: boolean }) {

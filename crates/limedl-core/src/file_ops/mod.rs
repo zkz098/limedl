@@ -630,6 +630,7 @@ mod imp {
 #[cfg(target_os = "macos")]
 mod imp {
     use std::ffi::{c_void, CStr};
+    use std::path::Path;
 
     use super::DiskType;
 

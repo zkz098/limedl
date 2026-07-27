@@ -91,7 +91,7 @@ describe("useDownloadStore (actions)", () => {
     });
 
     it("clears selection when given null", async () => {
-      store.selectedId = "task-1" as any;
+      store.selectedId = "task-1";
       await store.selectDownload(null);
 
       expect(store.selectedId).toBeNull();
@@ -109,7 +109,7 @@ describe("useDownloadStore (actions)", () => {
         fileName: "test.zip",
       });
       mockPauseDownload.mockResolvedValue(snapshot);
-      store.selectedId = "task-1" as any;
+      store.selectedId = "task-1";
 
       await store.runPause();
 
@@ -127,7 +127,7 @@ describe("useDownloadStore (actions)", () => {
         fileName: "test.zip",
       });
       mockResumeDownload.mockResolvedValue(snapshot);
-      store.selectedId = "task-1" as any;
+      store.selectedId = "task-1";
 
       await store.runResume();
 
@@ -144,7 +144,7 @@ describe("useDownloadStore (actions)", () => {
         fileName: "test.zip",
       });
       mockCancelDownload.mockResolvedValue(snapshot);
-      store.selectedId = "task-1" as any;
+      store.selectedId = "task-1";
 
       await store.runCancel();
 
@@ -201,7 +201,7 @@ describe("useDownloadStore (actions)", () => {
   describe("error handling", () => {
     it("handles pauseDownload error", async () => {
       mockPauseDownload.mockRejectedValue(new Error("Backend unavailable"));
-      store.selectedId = "task-1" as any;
+      store.selectedId = "task-1";
 
       await store.runPause();
 
@@ -215,7 +215,7 @@ describe("useDownloadStore (actions)", () => {
         fileName: "test.zip",
       });
       mockPauseDownload.mockResolvedValue(snapshot);
-      store.selectedId = "task-1" as any;
+      store.selectedId = "task-1";
 
       await store.runPause();
 
@@ -232,7 +232,7 @@ describe("useDownloadStore (actions)", () => {
         resolvePromise = resolve;
       });
       mockPauseDownload.mockReturnValue(pendingPromise);
-      store.selectedId = "task-1" as any;
+      store.selectedId = "task-1";
 
       const promise = store.runPause();
 
@@ -381,8 +381,8 @@ describe("useDownloadStore (actions)", () => {
         id: "task-1",
         url: "https://example.com/file.zip",
       });
-      store.selectedSnapshot = snapshot as any;
-      store.selectedId = "task-1" as any;
+      store.selectedSnapshot = snapshot;
+      store.selectedId = "task-1";
 
       await store.runCopyLink("task-1");
 
@@ -399,7 +399,7 @@ describe("useDownloadStore (actions)", () => {
         url: "https://example.com/myfile.zip",
       });
 
-      store.selectedSnapshot = snapshot as any;
+      store.selectedSnapshot = snapshot;
       store.downloads.push(task);
 
       await store.runCopyLink("task-1");
@@ -412,7 +412,7 @@ describe("useDownloadStore (actions)", () => {
         id: "task-1",
         url: "",
       });
-      store.selectedSnapshot = snapshot as any;
+      store.selectedSnapshot = snapshot;
 
       await store.runCopyLink("task-1");
 

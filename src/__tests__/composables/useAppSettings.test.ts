@@ -19,7 +19,7 @@ import { getAppSettings, saveAppSettings } from "../../lib/tauri/settings-api";
 import { useAppSettingsStore } from "../../stores/appSettings";
 import { useDownloadStore } from "../../stores/download";
 import { DEFAULT_VISIBLE_COLUMNS } from "../../lib/column-defs";
-import type { AppSettings, SortKey } from "../../types/settings";
+import type { AppSettings } from "../../types/settings";
 
 const mockInvoke = vi.mocked(invoke);
 const mockGetAppSettings = vi.mocked(getAppSettings);
@@ -319,7 +319,7 @@ describe("useAppSettingsStore", () => {
       await nextTick();
       await nextTick();
 
-      store.sortKey = "name" as SortKey;
+      store.sortKey = "name";
       await nextTick();
 
       // Should not be saved immediately (debounced)
@@ -341,11 +341,11 @@ describe("useAppSettingsStore", () => {
       await nextTick();
       await nextTick();
 
-      store.sortKey = "name" as SortKey;
+      store.sortKey = "name";
       await nextTick();
-      store.sortKey = "size" as SortKey;
+      store.sortKey = "size";
       await nextTick();
-      store.sortKey = "added_at" as SortKey;
+      store.sortKey = "added_at";
       await nextTick();
 
       await vi.advanceTimersByTimeAsync(300);
@@ -363,7 +363,7 @@ describe("useAppSettingsStore", () => {
       store.initStore();
       await nextTick();
 
-      store.sortKey = "name" as SortKey;
+      store.sortKey = "name";
       await nextTick();
       await vi.advanceTimersByTimeAsync(300);
 
