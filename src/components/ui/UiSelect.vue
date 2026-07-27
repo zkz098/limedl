@@ -58,11 +58,46 @@ function setOptionRef(el: unknown, index: number) {
 function updatePosition() {
   if (!isOpen.value || !triggerRef.value) return;
 
-  const rect = triggerRef.value.getBoundingClientRect();
+  const triggerRect = triggerRef.value.getBoundingClientRect();
+  const panelEl = panelRef.value;
+  const gap = 4;
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+
+  let top = triggerRect.bottom + gap;
+  let left = triggerRect.left;
+  const width = triggerRect.width;
+
+  if (panelEl) {
+    const panelHeight = panelEl.clientHeight || panelEl.scrollHeight;
+
+    if (panelHeight > 0) {
+      const spaceBelow = viewportH - triggerRect.bottom - gap;
+      const spaceAbove = triggerRect.top - gap;
+
+      // Flip above if panel overflows bottom and there's more room above
+      if (panelHeight > spaceBelow && spaceAbove >= spaceBelow) {
+        top = triggerRect.top - panelHeight - gap;
+      }
+
+      // Clamp vertical position within viewport
+      if (top < gap) top = gap;
+      if (top + panelHeight > viewportH) {
+        top = viewportH - panelHeight - gap;
+      }
+
+      // Clamp horizontal position within viewport
+      if (left + width > viewportW) {
+        left = viewportW - width - gap;
+      }
+      if (left < gap) left = gap;
+    }
+  }
+
   panelStyle.value = {
-    top: `${rect.bottom + 4}px`,
-    left: `${rect.left}px`,
-    width: `${rect.width}px`,
+    top: `${top}px`,
+    left: `${left}px`,
+    width: `${width}px`,
   };
 }
 
