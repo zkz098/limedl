@@ -649,6 +649,7 @@ mod tests {
             last_modified: None,
             state: DownloadState::Queued,
             cdn_accelerated: false,
+            cdn_node_ip: None,
             checksum_mode: crate::types::ChecksumMode::None,
             checksum: None,
             expected_checksum: None,

@@ -67,6 +67,7 @@ fn make_test_manifest(id: &str, state: DownloadState) -> Manifest {
         last_modified: None,
         state,
         cdn_accelerated: false,
+        cdn_node_ip: None,
         checksum_mode: ChecksumMode::Blake3,
         checksum: None,
         expected_checksum: None,

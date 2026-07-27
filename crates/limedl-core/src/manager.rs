@@ -424,7 +424,7 @@ impl DownloadManager {
     /// If CDN acceleration is enabled and an accelerated IP is available, this builds
     /// a domain-specific client that resolves the URL's hostname to the best Cloudflare IP.
     /// Otherwise falls back to the standard client.
-    pub(crate) async fn resolve_client(&self, url: &str) -> (Client, bool) {
+    pub(crate) async fn resolve_client(&self, url: &str) -> (Client, bool, Option<String>) {
         // Clone CDN settings under the read lock, then drop it immediately.
         // This prevents blocking update_settings() during the DNS lookup below.
         let (cdn_enabled, cdn_active_ip) = {
@@ -437,7 +437,7 @@ impl DownloadManager {
 
         if !cdn_enabled {
             tracing::debug!("resolve_client: CDN acceleration disabled");
-            return (self.http.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false, None);
         }
 
         // Get IP range cache from the accelerator (or None if no test has run yet).
@@ -452,16 +452,16 @@ impl DownloadManager {
 
         if !super::cdn::is_cloudflare_domain(url, ip_range_cache.as_ref()).await {
             tracing::debug!("resolve_client: domain is not Cloudflare, using standard client");
-            return (self.http.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false, None);
         }
 
         let Ok(parsed) = reqwest::Url::parse(url) else {
             tracing::debug!("resolve_client: failed to parse URL: {url}");
-            return (self.http.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false, None);
         };
         let Some(host) = parsed.host_str() else {
             tracing::debug!("resolve_client: no host in URL: {url}");
-            return (self.http.client.read().await.clone(), false);
+            return (self.http.client.read().await.clone(), false, None);
         };
 
         // IP resolution: in-memory accelerator → persisted settings fallback
@@ -487,7 +487,7 @@ impl DownloadManager {
                 let cache = self.http.cdn_client_cache.read();
                 if let Some(cached_client) = cache.get(&cache_key) {
                     tracing::debug!("resolve_client: using cached CDN client for {host} via {ip}");
-                    return (cached_client.clone(), true);
+                    return (cached_client.clone(), true, Some(ip.to_string()));
                 }
             }
             // Cache miss — build new accelerated client
@@ -504,7 +504,7 @@ impl DownloadManager {
                         }
                         cache.insert(cache_key, accelerated.clone());
                     }
-                    return (accelerated, true);
+                    return (accelerated, true, Some(ip.to_string()));
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -516,7 +516,7 @@ impl DownloadManager {
             tracing::debug!("resolve_client: no active IP available for {host}");
         }
 
-        (self.http.client.read().await.clone(), false)
+        (self.http.client.read().await.clone(), false, None)
     }
 
     pub async fn apply_settings(&self, settings: AppSettings) -> Result<AppSettings> {
@@ -687,6 +687,7 @@ impl DownloadManager {
             updated_at_ms: now,
             chunks: Vec::new(),
             cdn_accelerated: false,
+            cdn_node_ip: None,
             priority: request.priority.unwrap_or_default(),
             mirror_url: None,
             mirror_urls: Vec::new(),

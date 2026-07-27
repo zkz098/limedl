@@ -37,6 +37,8 @@ pub struct Manifest {
     pub state: DownloadState,
     #[serde(default)]
     pub cdn_accelerated: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cdn_node_ip: Option<String>,
     pub checksum_mode: ChecksumMode,
     pub checksum: Option<String>,
     #[serde(default)]
@@ -186,6 +188,7 @@ pub fn snapshot_from_manifest(manifest: &Manifest) -> DownloadSnapshot {
         updated_at_ms: manifest.updated_at_ms,
         priority: manifest.priority,
         cdn_accelerated: manifest.cdn_accelerated,
+        cdn_node_ip: manifest.cdn_node_ip.clone(),
         mirror_url: manifest.mirror_url.clone(),
         chunks: manifest
             .chunks

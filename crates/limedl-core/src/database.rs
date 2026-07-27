@@ -162,7 +162,7 @@ fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
                 requested_thread_count, desired_thread_count, allocated_thread_count,
                 adaptive_profile_snapshot, thread_note, etag, last_modified,
                 state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
-                chunk_size, mirror_url, mirror_urls, current_mirror_index, priority, cdn_accelerated
+                chunk_size, mirror_url, mirror_urls, current_mirror_index, priority, cdn_accelerated, cdn_node_ip
             ) VALUES (
                 :id, :url, :final_url, :user_agent, :destination_dir, :file_name,
                 :file_name_locked, :destination_path, :temp_path, :total_bytes,
@@ -170,7 +170,7 @@ fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
                 :requested_thread_count, :desired_thread_count, :allocated_thread_count,
                 :adaptive_profile_snapshot, :thread_note, :etag, :last_modified,
                 :state, :checksum_mode, :checksum, :error, :created_at_ms, :updated_at_ms,
-                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index, :priority, :cdn_accelerated
+                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index, :priority, :cdn_accelerated, :cdn_node_ip
             )",
         )
         .context("failed to prepare insert manifest")?;
@@ -209,6 +209,7 @@ fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
         ":current_mirror_index": manifest.current_mirror_index as i64,
         ":priority": manifest.priority as u8,
         ":cdn_accelerated": manifest.cdn_accelerated,
+        ":cdn_node_ip": manifest.cdn_node_ip.as_deref(),
     })
     .with_context(|| format!("failed to insert download {}", manifest.id))?;
 
@@ -244,7 +245,8 @@ fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
                 mirror_url = :mirror_url, mirror_urls = :mirror_urls,
                 current_mirror_index = :current_mirror_index,
                 priority = :priority,
-                cdn_accelerated = :cdn_accelerated
+                cdn_accelerated = :cdn_accelerated,
+                cdn_node_ip = :cdn_node_ip
              WHERE id = :id",
         )
         .context("failed to prepare update manifest")?;
@@ -283,6 +285,7 @@ fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
         ":current_mirror_index": manifest.current_mirror_index as i64,
         ":priority": manifest.priority as u8,
         ":cdn_accelerated": manifest.cdn_accelerated,
+        ":cdn_node_ip": manifest.cdn_node_ip.as_deref(),
     })
     .with_context(|| format!("failed to update download {}", manifest.id))?;
 
@@ -331,6 +334,7 @@ fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
         updated_at_ms: row.get::<_, i64>(26)? as u64,
         chunks: Vec::new(),
         cdn_accelerated: i64_to_bool(row.get::<_, i64>(32)?),
+        cdn_node_ip: row.get::<_, Option<String>>(33)?,
         chunk_size: row.get::<_, i64>(27)? as u64,
         mirror_url: row.get(28)?,
         mirror_urls: row
@@ -551,6 +555,18 @@ const MIGRATIONS: &[Migration] = &[
                 [],
             )
             .context("failed to add cdn_accelerated column")?;
+            Ok(())
+        },
+    },
+    Migration {
+        version: 8,
+        name: "add_cdn_node_ip",
+        up: |conn| {
+            conn.execute(
+                "ALTER TABLE downloads ADD COLUMN cdn_node_ip TEXT",
+                [],
+            )
+            .context("failed to add cdn_node_ip column")?;
             Ok(())
         },
     },
@@ -1172,6 +1188,7 @@ mod tests {
             last_modified: None,
             state: DownloadState::Queued,
             cdn_accelerated: false,
+            cdn_node_ip: None,
             checksum_mode: ChecksumMode::Blake3,
             checksum: None,
             expected_checksum: None,
@@ -1336,6 +1353,7 @@ mod tests {
         }];
 
         manifest.cdn_accelerated = true;
+        manifest.cdn_node_ip = Some("1.2.3.4".to_string());
 
         db.insert_download(&manifest).unwrap();
         let loaded = db
@@ -1387,6 +1405,11 @@ mod tests {
         assert!(!loaded.chunks[0].dirty);
         assert_eq!(loaded.chunk_size, 8192);
         assert!(loaded.cdn_accelerated);
+        assert_eq!(
+            loaded.cdn_node_ip.as_deref(),
+            Some("1.2.3.4"),
+            "cdn_node_ip should be preserved through DB round-trip"
+        );
     }
 
     #[timeout(30_000)]
@@ -1909,13 +1932,13 @@ mod tests {
         // ── Open via Database::open() — compat should detect chunk_size ──
         let db = Database::open(&path).unwrap();
 
-        // Verify all migrations ran: final version should be 7 (latest)
+        // Verify all migrations ran: final version should be 8 (latest)
         {
             let conn = db.lock_write();
             assert_eq!(
                 read_user_version(&conn),
-                7,
-                "expected user_version = 7 after migration"
+                8,
+                "expected user_version = 8 after migration"
             );
             let has_mirror_urls =
                 table_has_column(&conn, "downloads", "mirror_urls").unwrap();
@@ -1950,15 +1973,15 @@ mod tests {
             assert_eq!(read_user_version(&conn), 1);
         }
 
-        // ── Open — compat should bump version from 1 → 2 → 3 → 4 → 5 → 6 → 7 ──
+        // ── Open — compat should bump version from 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 ──
         let db = Database::open(&path).unwrap();
 
         {
             let conn = db.lock_write();
             assert_eq!(
                 read_user_version(&conn),
-                7,
-                "expected user_version = 7 after migration"
+                8,
+                "expected user_version = 8 after migration"
             );
         }
 
@@ -1990,15 +2013,15 @@ mod tests {
             assert_eq!(read_user_version(&conn), 0);
         }
 
-        // ── Open — compat should lift 0 → 2 → 3, then run v4 + v5 + v6 + v7 ──
+        // ── Open — compat should lift 0 → 2 → 3, then run v4 + v5 + v6 + v7 + v8 ──
         let db = Database::open(&path).unwrap();
 
         {
             let conn = db.lock_write();
             assert_eq!(
                 read_user_version(&conn),
-                7,
-                "expected user_version = 7 after migration"
+                8,
+                "expected user_version = 8 after migration"
             );
         }
 

@@ -238,6 +238,7 @@ impl IrontideBtBackend {
             created_at_ms: now_ms(),
             updated_at_ms: now_ms(),
             cdn_accelerated: false,
+            cdn_node_ip: None,
             chunks: vec![],
             seed_count: None,
             leech_count: None,

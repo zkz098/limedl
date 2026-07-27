@@ -85,6 +85,7 @@ impl super::IrontideBtBackend {
             created_at_ms: now,
             updated_at_ms: now,
             cdn_accelerated: false,
+            cdn_node_ip: None,
             chunks: vec![],
             seed_count: Some(stats.num_seeds as u64),
             leech_count: Some(stats.num_peers.saturating_sub(stats.num_seeds) as u64),

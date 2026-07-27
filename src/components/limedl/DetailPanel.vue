@@ -65,7 +65,7 @@ function toggleCollapse() {
             class="detail-panel__cdn"
           >
             <span class="i-ri-flashlight-fill" aria-hidden="true" />
-            {{ t("inspector.cdnAccelerated") }}
+            {{ selectedOverview.cdnNodeIp || t("inspector.cdnAccelerated") }}
           </UiBadge>
         </template>
       </div>

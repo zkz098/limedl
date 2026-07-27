@@ -434,6 +434,8 @@ pub struct DownloadSnapshot {
     pub priority: Priority,
     #[serde(default)]
     pub cdn_accelerated: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cdn_node_ip: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chunks: Vec<ChunkInfo>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -502,6 +504,8 @@ pub struct DownloadSummary {
     pub error: Option<String>,
     #[serde(default)]
     pub cdn_accelerated: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cdn_node_ip: Option<String>,
     pub created_at_ms: u64,
     #[serde(default)]
     pub priority: Priority,
@@ -679,6 +683,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             info_hash: value.info_hash.clone(),
             error: value.error.clone(),
             cdn_accelerated: value.cdn_accelerated,
+            cdn_node_ip: value.cdn_node_ip.clone(),
             created_at_ms: value.created_at_ms,
             priority: value.priority,
             seed_count: value.seed_count,

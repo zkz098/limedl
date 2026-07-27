@@ -136,11 +136,13 @@ impl TaskLifecycle {
                     core.snapshot.final_url = core.manifest.final_url.clone();
                 }
 
-                let (client, cdn_accelerated) = manager.resolve_client(url_to_try).await;
+                let (client, cdn_accelerated, cdn_node_ip) = manager.resolve_client(url_to_try).await;
                 {
                     let mut core = managed.lock_core();
                     core.snapshot.cdn_accelerated = cdn_accelerated;
                     core.manifest.cdn_accelerated = cdn_accelerated;
+                    core.snapshot.cdn_node_ip = cdn_node_ip.clone();
+                    core.manifest.cdn_node_ip = cdn_node_ip;
                 }
 
                 let result = manager
@@ -662,6 +664,7 @@ mod tests {
                     created_at_ms,
                     updated_at_ms: 0,
                     cdn_accelerated: false,
+                    cdn_node_ip: None,
                     chunks: vec![],
                     seed_count: None,
                     leech_count: None,
@@ -698,6 +701,7 @@ mod tests {
                     last_modified: None,
                     state,
                     cdn_accelerated: false,
+                    cdn_node_ip: None,
                     priority: Priority::Normal,
                     checksum_mode: ChecksumMode::None,
                     checksum: None,

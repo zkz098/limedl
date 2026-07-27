@@ -297,6 +297,7 @@ fn fallback_pending_summary(
         info_hash: None,
         error: None,
         cdn_accelerated: false,
+        cdn_node_ip: None,
         created_at_ms: now_ms(),
         priority: Priority::Normal,
         seed_count: None,

@@ -306,6 +306,7 @@ mod tests {
             info_hash: None,
             error: None,
             cdn_accelerated: false,
+            cdn_node_ip: None,
             created_at_ms,
             priority: crate::types::Priority::Normal,
             seed_count: None,

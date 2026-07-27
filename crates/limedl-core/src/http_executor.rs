@@ -74,7 +74,7 @@ impl HttpExecutor {
         url: &str,
         user_agent: &str,
     ) -> Result<RemoteMetadata> {
-        let (client, _) = dm.resolve_client(url).await;
+        let (client, _, _) = dm.resolve_client(url).await;
         let head = client
             .head(url)
             .header(header::USER_AGENT, user_agent)

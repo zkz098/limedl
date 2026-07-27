@@ -14,7 +14,12 @@ import {
 import { useI18n } from "../../i18n";
 import type { ColumnKey } from "../../lib/column-defs";
 import { VALID_COLUMN_KEYS } from "../../lib/column-defs";
-import type { DownloadSummary, ViewOptions, MultiSelectState, Priority } from "../../types/download";
+import type {
+  DownloadSummary,
+  ViewOptions,
+  MultiSelectState,
+  Priority,
+} from "../../types/download";
 import UiBadge from "../ui/UiBadge.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiProgress from "../ui/UiProgress.vue";
@@ -578,7 +583,7 @@ function metaForDownload(download: DownloadSummary) {
                       class="queue-file__cdn flex-none inline-flex items-center gap-[0.15rem] text-[0.6rem] font-semibold"
                     >
                       <span class="i-ri-flashlight-fill" aria-hidden="true" />
-                      CDN
+                      {{ download.cdnNodeIp || "CDN" }}
                     </UiBadge>
                     <UiBadge
                       v-if="download.degraded"

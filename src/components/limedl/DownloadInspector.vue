@@ -318,7 +318,7 @@ onBeforeUnmount(() => {
                   class="text-[var(--color-text-main)] text-[var(--font-size-metric)] font-[var(--font-weight-semibold)] leading-[1.35] break-all"
                 >
                   <span class="i-ri-flashlight-fill" aria-hidden="true" />
-                  {{ t("inspector.cdnAccelerated") }}
+                  {{ selectedOverview.cdnNodeIp || t("inspector.cdnAccelerated") }}
                 </span>
               </div>
             </div>
