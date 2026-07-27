@@ -5,40 +5,37 @@ import UiButton from "../ui/UiButton.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import { useI18n } from "../../i18n";
+import { useDownloadComposer } from "../../composables/useDownloadComposer";
 import { detectKindFromUrl, extractFileNameFromUrl } from "../../lib/url-utils";
 
-import type {
-  BatchUrlEntry,
-  BatchSubmitProgress,
-  ChecksumMode,
-  DownloadFormState,
-  ThreadMode,
-} from "../../types/download";
+import type { ChecksumMode, ThreadMode } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
 
 const props = defineProps<{
-  form: DownloadFormState;
-  isStarting: boolean;
-  isPickingDirectory: boolean;
-  isPickingTorrent: boolean;
   settings: AppSettings | null;
-  batchMode: boolean;
-  batchUrls: string;
-  batchEntries: BatchUrlEntry[];
-  batchSubmitProgress: BatchSubmitProgress;
 }>();
 
 const emit = defineEmits<{
-  pickDirectory: [];
-  pickTorrent: [];
   submit: [];
-  "update:batchUrls": [value: string];
-  "update:form": [value: DownloadFormState];
-  parseBatch: [];
-  toggleBatchMode: [];
 }>();
 
 const { t } = useI18n();
+const composer = useDownloadComposer();
+
+const {
+  form,
+  isStarting,
+  isPickingDirectory,
+  isPickingTorrent,
+  batchMode,
+  batchUrls,
+  batchEntries,
+  batchSubmitProgress,
+  pickDestinationDirectory,
+  pickTorrentSourceFile,
+  parseBatchUrls,
+  toggleBatchMode,
+} = composer;
 
 const urlInputRef = ref<InstanceType<typeof UiTextField> | null>(null);
 const isAdvancedOpen = ref(false);
@@ -48,7 +45,7 @@ const schedulerMode = computed(() => props.settings?.scheduler.mode ?? "automati
 const maxThreadsPerTask = computed(
   () => props.settings?.scheduler.automatic.maxThreadsPerTask ?? 8,
 );
-const isBtTask = computed(() => props.form.kind === "bt");
+const isBtTask = computed(() => form.value.kind === "bt");
 
 const protocolLabel = computed(() => (isBtTask.value ? t("tokens.bt") : t("tokens.http")));
 const protocolIcon = computed(() => (isBtTask.value ? "i-ri-magnet-line" : "i-ri-links-line"));
@@ -87,7 +84,7 @@ const threadHint = computed(() => {
     return t("composer.traditionalHint");
   }
 
-  if (props.form.threadMode === "adaptive") {
+  if (form.value.threadMode === "adaptive") {
     return t("composer.adaptiveHint");
   }
 
@@ -96,7 +93,7 @@ const threadHint = computed(() => {
 
 function toggleKind() {
   // eslint-disable-next-line vue/no-mutating-props
-  props.form.kind = props.form.kind === "http" ? "bt" : "http";
+  form.value.kind = form.value.kind === "http" ? "bt" : "http";
 }
 
 function isValidUrl(url: string): boolean {
@@ -108,7 +105,7 @@ function isValidUrl(url: string): boolean {
 }
 
 function validateUrl() {
-  const url = props.form.url.trim();
+  const url = form.value.url.trim();
   urlError.value = "";
 
   if (!url) {
@@ -117,7 +114,7 @@ function validateUrl() {
 
   const lower = url.toLowerCase();
 
-  if (props.form.kind === "bt") {
+  if (form.value.kind === "bt") {
     if (lower.startsWith("magnet:")) {
       return;
     }
@@ -144,15 +141,15 @@ function validateUrl() {
 }
 
 watch(
-  () => props.form.url,
+  () => form.value.url,
   (url) => {
     const detected = detectKindFromUrl(url);
-    if (props.form.kind !== detected) {
-      props.form.kind = detected;
+    if (form.value.kind !== detected) {
+      form.value.kind = detected;
     }
 
-    if (!props.form.fileName.trim()) {
-      props.form.fileName = extractFileNameFromUrl(url);
+    if (!form.value.fileName.trim()) {
+      form.value.fileName = extractFileNameFromUrl(url);
     }
 
     if (urlError.value) {
@@ -161,7 +158,7 @@ watch(
   },
 );
 
-watch(() => props.form.kind, validateUrl);
+watch(() => form.value.kind, validateUrl);
 
 onMounted(() => {
   void nextTick(() => {
@@ -169,10 +166,19 @@ onMounted(() => {
     input?.focus();
   });
 });
+
+async function handleFormSubmit() {
+  if (batchMode.value) {
+    await composer.submitBatch();
+  } else {
+    await composer.submitStart();
+  }
+  emit("submit");
+}
 </script>
 
 <template>
-  <form class="composer-form" @submit.prevent="$emit('submit')">
+  <form class="composer-form" @submit.prevent="handleFormSubmit">
     <!-- Mode tabs -->
     <div class="composer-tabs" role="tablist" :aria-label="t('composer.modeLabel')">
       <button
@@ -181,7 +187,7 @@ onMounted(() => {
         class="composer-tab"
         :class="{ 'is-active': !batchMode }"
         :aria-selected="!batchMode"
-        @click="batchMode ? $emit('toggleBatchMode') : undefined"
+        @click="batchMode ? toggleBatchMode() : undefined"
       >
         <span class="i-ri-link" aria-hidden="true" />
         <span>{{ t("composer.singleMode") }}</span>
@@ -192,7 +198,7 @@ onMounted(() => {
         class="composer-tab"
         :class="{ 'is-active': batchMode }"
         :aria-selected="batchMode"
-        @click="!batchMode ? $emit('toggleBatchMode') : undefined"
+        @click="!batchMode ? toggleBatchMode() : undefined"
       >
         <span class="i-ri-list-check-3" aria-hidden="true" />
         <span>{{ t("composer.batchMode") }}</span>
@@ -234,7 +240,7 @@ onMounted(() => {
             size="sm"
             :loading="isPickingTorrent"
             icon="i-ri-file-add-line"
-            @click="$emit('pickTorrent')"
+            @click="pickTorrentSourceFile()"
           >
             {{ isPickingTorrent ? t("common.browsing") : t("composer.chooseTorrent") }}
           </UiButton>
@@ -255,7 +261,7 @@ onMounted(() => {
             <UiTextField
               :model-value="form.destinationDir || t('composer.chooseFolder')"
               readonly
-              @click="$emit('pickDirectory')"
+              @click="pickDestinationDirectory()"
             />
             <UiButton
               type="button"
@@ -265,7 +271,7 @@ onMounted(() => {
               :loading="isPickingDirectory"
               icon="i-ri-folder-open-line"
               :aria-label="t('common.browse')"
-              @click="$emit('pickDirectory')"
+              @click="pickDestinationDirectory()"
             />
           </div>
         </label>
@@ -343,8 +349,8 @@ onMounted(() => {
             :value="batchUrls"
             :placeholder="t('composer.batchPlaceholder')"
             rows="6"
-            @input="$emit('update:batchUrls', ($event.target as HTMLTextAreaElement).value)"
-            @blur="$emit('parseBatch')"
+            @input="batchUrls = ($event.target as HTMLTextAreaElement).value"
+            @blur="parseBatchUrls()"
           ></textarea>
           <span class="composer-field__helper">{{ t("composer.batchHint") }}</span>
         </label>
@@ -355,7 +361,7 @@ onMounted(() => {
             variant="ghost"
             size="sm"
             icon="i-ri-refresh-line"
-            @click="$emit('parseBatch')"
+            @click="parseBatchUrls()"
           >
             {{ t("composer.batchParse") }}
           </UiButton>
@@ -424,7 +430,7 @@ onMounted(() => {
             <UiTextField
               :model-value="form.destinationDir || t('composer.chooseFolder')"
               readonly
-              @click="$emit('pickDirectory')"
+              @click="pickDestinationDirectory()"
             />
             <UiButton
               type="button"
@@ -434,7 +440,7 @@ onMounted(() => {
               :loading="isPickingDirectory"
               icon="i-ri-folder-open-line"
               :aria-label="t('common.browse')"
-              @click="$emit('pickDirectory')"
+              @click="pickDestinationDirectory()"
             />
           </div>
         </label>

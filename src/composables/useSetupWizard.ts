@@ -1,5 +1,6 @@
 import { ref, computed, type Ref } from "vue";
 import { saveAppSettings } from "../lib/tauri/settings-api";
+import { DEFAULT_APP_SETTINGS } from "../lib/app-settings-defaults";
 import type { AppSettings } from "../types/settings";
 
 export interface SetupStep {
@@ -17,112 +18,6 @@ function cloneSettings<T>(settings: T): T {
   return structuredClone(settings);
 }
 
-/**
- * Fallback defaults matching Rust's `AppSettings::default()`.
- * When the Tauri backend is available, prefer passing the result of
- * `getAppSettings()` as `initialSettings` — Rust is the single source of truth.
- * Keep this function in sync with `src-tauri/src/download/types.rs` defaults.
- */
-function createDefaultSettings(): AppSettings {
-  return {
-    globalSpeedLimitBps: 0,
-    appearance: {
-      themeColor: "lime",
-      backgroundOpacity: "default",
-      colorMode: "system",
-      showDetailInfo: true,
-      showHeatmap: true,
-      sortKey: "added_at",
-      sortDirection: "desc",
-      compactView: false,
-      visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
-      closeBehavior: "minimizeToTray",
-    },
-    proxy: { mode: "disabled", manualUrl: "" },
-    scheduler: {
-      mode: "traditional",
-      traditional: { maxParallelTasks: 3 },
-      automatic: {
-        maxParallelThreads: 16,
-        maxThreadsPerTask: 8,
-        minThreadsPerTask: 0,
-        adaptiveProfile: "balanced",
-      },
-      chunkSizeStrategy: "adaptive",
-      tailSprintEnabled: false,
-      connectionWarmupEnabled: true,
-    },
-    download: {
-      defaultDownloadDir: "",
-      defaultMaxRetries: 5,
-      defaultChecksum: "blake3",
-      defaultUserAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    },
-    bt: {
-      pauseUploadWhenLimitReached: false,
-      uploadLimitBytes: 0,
-      uploadRatioLimit: 0,
-      dhtEnabled: true,
-      trackerList: "",
-      trackerListUrl: "https://cf.trackerslist.com/best.txt",
-      listenPort: null,
-      listenPortRange: null,
-      upnpEnabled: false,
-      enableNatpmp: true,
-      enableIpv6: true,
-      enablePex: true,
-      enableLsd: true,
-      enableUtp: true,
-      enableFastExtension: true,
-      enableHolepunch: true,
-      enableWebSeed: true,
-      enableSuperSeeding: false,
-      globalDownloadRateLimit: 0,
-      globalUploadRateLimit: 0,
-      preallocateMode: "none",
-      encryptionMode: "enabled",
-      maxDownloads: 3,
-      maxSeeds: 5,
-      maxTorrents: 100,
-      activeLimit: 500,
-    },
-    logging: {
-      enabled: true,
-      level: "info",
-      filePath: "",
-      retentionCount: null,
-      retentionDays: null,
-    },
-    aria2Rpc: { enabled: true, port: 6800, secret: null, corsAllowedOrigins: [] },
-    cdnAcceleration: {
-      enabled: false,
-      activeIp: null,
-      activeSpeedMbps: null,
-      lastTestAtMs: null,
-      lastError: null,
-    },
-    githubMirror: { enabled: false, mirrors: [] },
-    notifications: { enabled: true },
-    ioBaseline: {
-      bufferLimitMb: 1024,
-      gameModeBufferMb: 128,
-      gameMode: false,
-      diskTypeOverrides: {},
-      maxParallelHdd: 4,
-      gameModeMaxParallel: 1,
-      hddBufferEnabled: true,
-      ssdWriteCombineMb: 0,
-    },
-    autostart: false,
-    setupCompleted: false,
-    lastSetupStep: null,
-    maxInMemoryDownloads: 200,
-    doubleClick: { onCompleted: "none", onUncompleted: "none" },
-    speedLimitSchedule: [],
-  };
-}
-
 export function useSetupWizard(initialSettings?: AppSettings) {
   const currentStepIndex = ref(0);
   const isCompleted = ref(false);
@@ -130,7 +25,7 @@ export function useSetupWizard(initialSettings?: AppSettings) {
   const completedStepIndices = ref(new Set<number>());
 
   const settings = ref<AppSettings>(
-    initialSettings ? cloneSettings(initialSettings) : createDefaultSettings(),
+    initialSettings ? cloneSettings(initialSettings) : cloneSettings(DEFAULT_APP_SETTINGS),
   );
 
   const steps: SetupStep[] = [

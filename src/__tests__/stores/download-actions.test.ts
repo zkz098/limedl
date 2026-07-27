@@ -1,44 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-
-vi.mock("../../i18n", () => ({
-  t: vi.fn((key: string, options?: Record<string, unknown>) => {
-    if (options) {
-      const serialized = JSON.stringify(options);
-      return `${key} ${serialized}`;
-    }
-    return key;
-  }),
-}));
-
-vi.mock("../../lib/tauri/download-api", () => ({
-  cancelDownload: vi.fn(),
-  getDownloadStatus: vi.fn(),
-  openDownloadInExplorer: vi.fn(),
-  pauseDownload: vi.fn(),
-  purgeDownload: vi.fn(),
-  removeDownload: vi.fn(),
-  resumeDownload: vi.fn(),
-}));
-
-vi.mock("../../stores/notification", () => ({
-  useNotificationStore: () => ({
-    notifySuccess: vi.fn(),
-    notifyError: vi.fn(),
-    notifyInfo: vi.fn(),
-    notifyWarning: vi.fn(),
-    clearAll: vi.fn(),
-    notify: vi.fn(),
-    dismiss: vi.fn(),
-    notifications: { value: [] },
-  }),
-}));
-
-vi.mock("#event", () => ({
-  listen: vi.fn().mockResolvedValue(() => {}),
-}));
+import { setupDownloadStoreMocks } from "../fixtures/download-store-mocks";
+setupDownloadStoreMocks();
 
 import { resetTauriMocks } from "../mocks/tauri-mock";
 import { useDownloadStore } from "../../stores/download";

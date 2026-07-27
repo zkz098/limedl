@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch, type Ref } from "vue";
 import type { AppSettings } from "../../types/settings";
 import { serializeSettings, settingsDraftSnapshot } from "./settingsUtils";
 import { DEFAULT_HTTP_USER_AGENT, DEFAULT_TRACKER_LIST_URL } from "./useSettingsSummaries";
+import { DEFAULT_APP_SETTINGS } from "../../lib/app-settings-defaults";
 
 interface UseSettingsFormOptions {
   settings: Ref<AppSettings | null>;
@@ -19,120 +20,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
 
   // ── Reactive form ─────────────────────────────────────────────────
 
-  const form = reactive<AppSettings>({
-    globalSpeedLimitBps: 0,
-    appearance: {
-      themeColor: "lime",
-      backgroundOpacity: "default",
-      colorMode: "system",
-      showDetailInfo: true,
-      showHeatmap: true,
-      sortKey: "added_at",
-      sortDirection: "desc",
-      compactView: false,
-      visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
-      closeBehavior: "minimizeToTray",
-    },
-    proxy: {
-      mode: "disabled",
-      manualUrl: "",
-    },
-    scheduler: {
-      mode: "automatic",
-      traditional: {
-        maxParallelTasks: 3,
-      },
-      automatic: {
-        maxParallelThreads: 16,
-        maxThreadsPerTask: 8,
-        minThreadsPerTask: 0,
-        adaptiveProfile: "balanced",
-      },
-      chunkSizeStrategy: "adaptive",
-      tailSprintEnabled: false,
-      connectionWarmupEnabled: true,
-    },
-    download: {
-      defaultDownloadDir: "",
-      defaultMaxRetries: 5,
-      defaultChecksum: "blake3",
-      defaultUserAgent: DEFAULT_HTTP_USER_AGENT,
-    },
-    bt: {
-      pauseUploadWhenLimitReached: false,
-      uploadLimitBytes: 0,
-      uploadRatioLimit: 0,
-      dhtEnabled: true,
-      trackerList: "",
-      trackerListUrl: DEFAULT_TRACKER_LIST_URL,
-      listenPort: null,
-      listenPortRange: null,
-      upnpEnabled: false,
-      enableNatpmp: true,
-      enableIpv6: true,
-      enablePex: true,
-      enableLsd: true,
-      enableUtp: true,
-      enableFastExtension: true,
-      enableHolepunch: true,
-      enableWebSeed: true,
-      enableSuperSeeding: false,
-      preallocateMode: "none",
-      encryptionMode: "enabled",
-      maxDownloads: 3,
-      maxSeeds: 5,
-      maxTorrents: 100,
-      activeLimit: 500,
-      globalDownloadRateLimit: 0,
-      globalUploadRateLimit: 0,
-    },
-    logging: {
-      enabled: true,
-      level: "info",
-      filePath: "",
-      retentionCount: null,
-      retentionDays: null,
-    },
-    aria2Rpc: {
-      enabled: true,
-      port: 6800,
-      secret: null,
-      corsAllowedOrigins: [],
-    },
-    cdnAcceleration: {
-      enabled: false,
-      activeIp: null,
-      activeSpeedMbps: null,
-      lastTestAtMs: null,
-      lastError: null,
-    },
-    githubMirror: {
-      enabled: false,
-      mirrors: [],
-    },
-    notifications: {
-      enabled: false,
-    },
-    ioBaseline: {
-      bufferLimitMb: 1024,
-      gameModeBufferMb: 128,
-      gameMode: false,
-      diskTypeOverrides: {},
-      maxParallelHdd: 4,
-      gameModeMaxParallel: 1,
-      hddBufferEnabled: true,
-      ssdWriteCombineMb: 0,
-    },
-    autostart: false,
-    setupCompleted: false,
-    lastSetupStep: null,
-    maxInMemoryDownloads: 200,
-    doubleClick: {
-      onCompleted: "none",
-      onUncompleted: "none",
-    },
-    speedLimitSchedule: [],
-  });
+  const form = reactive<AppSettings>({ ...DEFAULT_APP_SETTINGS, scheduler: { ...DEFAULT_APP_SETTINGS.scheduler, mode: "automatic" }, notifications: { enabled: false } });
 
   const savedSettingsSnapshot = ref("");
 

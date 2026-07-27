@@ -1,9 +1,15 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
+import { setActivePinia, createPinia } from "pinia";
 import DownloadComposer from "../../components/limedl/DownloadComposer.vue";
-import type { BatchUrlEntry, DownloadFormState } from "../../types/download";
+import type { DownloadFormState } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
+
+import { setupDownloadStoreMocks } from "../fixtures/download-store-mocks";
+setupDownloadStoreMocks();
+
+import { useDownloadComposer } from "../../composables/useDownloadComposer";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -36,28 +42,10 @@ const stubs = {
       '<select class="ui-select-stub" :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="opt in options" :key="opt.value" :value="opt.value">{{ opt.label }}</option></select>',
     props: ["modelValue", "options", "disabled", "placeholder"],
   },
-  // Stub Transition so v-show behavior works correctly in tests
   Transition: { template: "<div><slot /></div>" },
 };
 
 // ── Fixtures ───────────────────────────────────────────────────────
-
-function createForm(overrides: Partial<DownloadFormState> = {}): DownloadFormState {
-  return {
-    kind: "http",
-    url: "",
-    destinationDir: "",
-    fileName: "",
-    userAgent: "",
-    threadMode: "adaptive",
-    threadCount: null,
-    maxRetries: null,
-    checksum: "none",
-    downloadLimitBps: null,
-    uploadLimitBps: null,
-    ...overrides,
-  };
-}
 
 function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   return {
@@ -78,386 +66,242 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
     scheduler: {
       mode: "automatic",
       traditional: { maxParallelTasks: 3 },
-      automatic: {
-        maxParallelThreads: 16,
-        maxThreadsPerTask: 8,
-        minThreadsPerTask: 0,
-        adaptiveProfile: "balanced",
-      },
+      automatic: { maxParallelThreads: 16, maxThreadsPerTask: 8, minThreadsPerTask: 0, adaptiveProfile: "balanced" },
       chunkSizeStrategy: "adaptive",
       tailSprintEnabled: false,
       connectionWarmupEnabled: false,
     },
-    download: {
-      defaultDownloadDir: "",
-      defaultMaxRetries: 5,
-      defaultChecksum: "blake3",
-      defaultUserAgent: "Mozilla/5.0",
-    },
+    download: { defaultDownloadDir: "", defaultMaxRetries: 5, defaultChecksum: "blake3", defaultUserAgent: "Mozilla/5.0" },
     bt: {
-      pauseUploadWhenLimitReached: false,
-      uploadLimitBytes: 0,
-      uploadRatioLimit: 0,
-      dhtEnabled: true,
-      trackerList: "",
-      trackerListUrl: "",
-      listenPort: null,
-      listenPortRange: null,
-      upnpEnabled: false,
-      enableNatpmp: true,
-      enableIpv6: true,
-      enablePex: true,
-      enableLsd: true,
-      enableUtp: true,
-      enableFastExtension: true,
-      enableHolepunch: true,
-      enableWebSeed: true,
-      enableSuperSeeding: false,
-      globalDownloadRateLimit: 0,
-      globalUploadRateLimit: 0,
-      preallocateMode: "none",
-      encryptionMode: "enabled",
-      maxDownloads: 3,
-      maxSeeds: 5,
-      maxTorrents: 100,
-      activeLimit: 500,
+      pauseUploadWhenLimitReached: false, uploadLimitBytes: 0, uploadRatioLimit: 0, dhtEnabled: true,
+      trackerList: "", trackerListUrl: "", listenPort: null, listenPortRange: null, upnpEnabled: false,
+      enableNatpmp: true, enableIpv6: true, enablePex: true, enableLsd: true, enableUtp: true,
+      enableFastExtension: true, enableHolepunch: true, enableWebSeed: true, enableSuperSeeding: false,
+      globalDownloadRateLimit: 0, globalUploadRateLimit: 0, preallocateMode: "none", encryptionMode: "enabled",
+      maxDownloads: 3, maxSeeds: 5, maxTorrents: 100, activeLimit: 500,
     },
-    logging: {
-      enabled: true,
-      level: "info",
-      filePath: "",
-      retentionCount: null,
-      retentionDays: null,
-    },
+    logging: { enabled: true, level: "info", filePath: "", retentionCount: null, retentionDays: null },
     aria2Rpc: { enabled: true, port: 6800, secret: null, corsAllowedOrigins: [] },
-    cdnAcceleration: {
-      enabled: false,
-      activeIp: null,
-      activeSpeedMbps: null,
-      lastTestAtMs: null,
-      lastError: null,
-    },
+    cdnAcceleration: { enabled: false, activeIp: null, activeSpeedMbps: null, lastTestAtMs: null, lastError: null },
     githubMirror: { enabled: false, mirrors: [] },
     notifications: { enabled: true },
-    ioBaseline: {
-      bufferLimitMb: 1024,
-      gameModeBufferMb: 128,
-      gameMode: false,
-      diskTypeOverrides: {},
-      maxParallelHdd: 4,
-      gameModeMaxParallel: 1,
-      hddBufferEnabled: true,
-      ssdWriteCombineMb: 0,
-    },
-    autostart: false,
-    setupCompleted: true,
-    lastSetupStep: null,
-    maxInMemoryDownloads: 200,
+    ioBaseline: { bufferLimitMb: 1024, gameModeBufferMb: 128, gameMode: false, diskTypeOverrides: {}, maxParallelHdd: 4, gameModeMaxParallel: 1, hddBufferEnabled: true, ssdWriteCombineMb: 0 },
+    autostart: false, setupCompleted: true, lastSetupStep: null, maxInMemoryDownloads: 200,
     doubleClick: { onCompleted: "none", onUncompleted: "none" },
     speedLimitSchedule: [],
     ...overrides,
   };
 }
 
-function createProps(overrides: Record<string, unknown> = {}) {
-  return {
-    form: createForm(),
-    isStarting: false,
-    isPickingDirectory: false,
-    isPickingTorrent: false,
-    settings: createSettings(),
-    batchMode: false,
-    batchUrls: "",
-    batchEntries: [] as BatchUrlEntry[],
-    batchSubmitProgress: { done: 0, total: 0 },
-    ...overrides,
-  };
-}
-
 describe("DownloadComposer", () => {
-  // ── Rendering ──────────────────────────────────────────────
-  it("renders source URL field", () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  function mountWithForm(formOverrides?: Partial<DownloadFormState>) {
+    const c = useDownloadComposer();
+    if (formOverrides) {
+      Object.assign(c.form.value, formOverrides);
+    }
+    return mount(DownloadComposer, {
+      props: { settings: createSettings() },
       global: { stubs },
     });
+  }
+
+  // ── Rendering ──────────────────────────────────────────────
+  it("renders source URL field", () => {
+    const wrapper = mountWithForm();
     expect(wrapper.find(".composer-field__label").exists()).toBe(true);
     expect(wrapper.text()).toContain("composer.sourceUrl");
   });
 
   it("renders protocol toggle button", () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ kind: "http" });
     expect(wrapper.find(".composer-protocol").exists()).toBe(true);
     expect(wrapper.find(".composer-protocol__text").text()).toBe("tokens.http");
   });
 
   it("renders file name, save path, and submit button", () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
     expect(wrapper.text()).toContain("composer.fileName");
     expect(wrapper.text()).toContain("composer.savePath");
     expect(wrapper.text()).toContain("composer.start");
   });
 
   it("shows starting label when isStarting is true", () => {
+    const c = useDownloadComposer();
+    c.isStarting.value = true;
     const wrapper = mount(DownloadComposer, {
-      props: createProps({ isStarting: true }),
+      props: { settings: createSettings() },
       global: { stubs },
     });
     const submitBtn = wrapper
       .findAll("button.ui-button-stub")
-      .find((b) => b.text() === "composer.starting")!;
+      .find((b: { text: () => string }) => b.text() === "composer.starting")!;
     expect(submitBtn).toBeDefined();
   });
 
   it("renders torrent selection button", () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
     expect(wrapper.text()).toContain("composer.chooseTorrent");
   });
 
   // ── Protocol detection ──────────────────────────────────────
   it("detects HTTP protocol from URL", async () => {
-    const form = createForm();
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
+    const c = useDownloadComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("https://example.com/file.zip");
     await nextTick();
-    expect(form.kind).toBe("http");
+    expect(c.form.value.kind).toBe("http");
   });
 
   it("detects magnet link as BT protocol", async () => {
-    const form = createForm();
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
+    const c = useDownloadComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("magnet:?xt=urn:btih:ABC123&dn=test.torrent");
+    await urlInput.setValue("magnet:?xt=urn:btih:ABC123");
     await nextTick();
-    expect(form.kind).toBe("bt");
+    expect(c.form.value.kind).toBe("bt");
   });
 
   it("detects .torrent URL as BT protocol", async () => {
-    const form = createForm();
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
+    const c = useDownloadComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("https://example.com/file.torrent");
     await nextTick();
-    expect(form.kind).toBe("bt");
+    expect(c.form.value.kind).toBe("bt");
   });
 
   it("detects info hash as BT protocol", async () => {
-    const form = createForm();
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
+    const c = useDownloadComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("ABC123DEF456ABC123DEF456ABC123DEF456ABC1");
+    await urlInput.setValue("deadbeefcafebabedeadbeefcafebabedeadbeef");
     await nextTick();
-    expect(form.kind).toBe("bt");
+    expect(c.form.value.kind).toBe("bt");
   });
 
-  it("shows BT protocol label when kind is bt", async () => {
-    const form = createForm({ kind: "bt", url: "magnet:?xt=urn:btih:ABC" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+  it("shows BT protocol label when kind is bt", () => {
+    const wrapper = mountWithForm({ kind: "bt" });
     expect(wrapper.find(".composer-protocol__text").text()).toBe("tokens.bt");
   });
 
-  // ── Protocol toggle ─────────────────────────────────────────
   it("toggles protocol kind when protocol button is clicked", async () => {
-    const form = createForm({ kind: "http" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ kind: "http" });
+    const c = useDownloadComposer();
     await wrapper.find(".composer-protocol").trigger("click");
-    expect(form.kind).toBe("bt");
+    expect(c.form.value.kind).toBe("bt");
   });
 
-  // ── File name auto-extraction ───────────────────────────────
   it("auto-extracts file name from HTTP URL", async () => {
-    const form = createForm({ fileName: "" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ fileName: "" });
+    const c = useDownloadComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("https://example.com/my-document.pdf");
+    await urlInput.setValue("https://example.com/myfile.zip");
     await nextTick();
-    expect(form.fileName).toBe("my-document.pdf");
+    expect(c.form.value.fileName).toBe("myfile.zip");
   });
 
   it("auto-extracts file name from magnet dn parameter", async () => {
-    const form = createForm({ fileName: "" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ fileName: "" });
+    const c = useDownloadComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("magnet:?xt=urn:btih:ABC&dn=ubuntu-24.04.iso");
+    await urlInput.setValue("magnet:?xt=urn:btih:ABC&dn=ubuntu.iso");
     await nextTick();
-    expect(form.fileName).toBe("ubuntu-24.04.iso");
+    expect(c.form.value.fileName).toBe("ubuntu.iso");
   });
 
   it("does not overwrite existing file name when URL changes", async () => {
-    const form = createForm({ fileName: "custom-name.zip" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ fileName: "existing.zip" });
+    const c = useDownloadComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("https://example.com/actual-name.zip");
+    await urlInput.setValue("https://example.com/newfile.zip");
     await nextTick();
-    // fileName already set, so it should stay as "custom-name.zip"
-    expect(form.fileName).toBe("custom-name.zip");
+    expect(c.form.value.fileName).toBe("existing.zip");
   });
 
   // ── URL validation ──────────────────────────────────────────
   it("shows error when URL is not valid for HTTP kind", async () => {
-    const form = createForm({ kind: "http", url: "not-a-url" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
-    // Trigger blur validation
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.trigger("blur");
+    const wrapper = mountWithForm({ kind: "http", url: "invalid-url" });
+    await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
-    expect(wrapper.find(".composer-field__error").exists()).toBe(true);
+    await wrapper.find(".composer-protocol").trigger("click");
+    await nextTick();
     expect(wrapper.text()).toContain("composer.urlInvalid");
   });
 
   it("does not show error for valid HTTP URL", async () => {
-    const form = createForm({ kind: "http", url: "https://example.com/file.zip" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.trigger("blur");
+    const wrapper = mountWithForm({ kind: "http", url: "https://example.com/file.zip" });
+    await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
-    expect(wrapper.find(".composer-field__error").exists()).toBe(false);
+    await wrapper.find(".composer-protocol").trigger("click");
+    await nextTick();
+    expect(wrapper.text()).not.toContain("composer.urlInvalid");
   });
 
   it("shows error for HTTP URL without protocol", async () => {
-    const form = createForm({ kind: "http", url: "ftp://example.com/file.zip" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.trigger("blur");
+    const wrapper = mountWithForm({ kind: "http", url: "example.com/file.zip" });
+    await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
-    expect(wrapper.find(".composer-field__error").exists()).toBe(true);
+    await wrapper.find(".composer-protocol").trigger("click");
+    await nextTick();
+    expect(wrapper.text()).toContain("composer.urlInvalid");
   });
 
   it("does not show error for magnet URL with BT kind", async () => {
-    const form = createForm({ kind: "bt", url: "magnet:?xt=urn:btih:ABC" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.trigger("blur");
+    const wrapper = mountWithForm({ kind: "bt", url: "magnet:?xt=urn:btih:ABC" });
+    await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
-    expect(wrapper.find(".composer-field__error").exists()).toBe(false);
+    await wrapper.find(".composer-protocol").trigger("click");
+    await nextTick();
+    expect(wrapper.text()).not.toContain("composer.urlInvalid");
   });
 
   it("shows error for invalid HTTP URL in BT kind", async () => {
-    const form = createForm({ kind: "bt", url: "http://not valid" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.trigger("blur");
+    const wrapper = mountWithForm({ kind: "bt", url: "not-a-url" });
+    await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
-    expect(wrapper.find(".composer-field__error").exists()).toBe(true);
+    await wrapper.find(".composer-protocol").trigger("click");
+    await nextTick();
+    expect(wrapper.text()).toContain("composer.urlInvalid");
   });
 
-  // ── Advanced options ────────────────────────────────────────
+  // ── Advanced options panel ──────────────────────────────────
   it("advanced options panel is hidden by default", () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
-    // v-show renders the element but hides it
+    const wrapper = mountWithForm();
     const panel = wrapper.find(".composer-advanced__panel");
     expect(panel.exists()).toBe(true);
-    expect(panel.isVisible()).toBe(false);
+    expect(panel.attributes("style")).toContain("display: none");
   });
 
   it("toggles advanced options visibility", async () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
-
-    // Initially hidden (v-show="false")
-    let panel = wrapper.find(".composer-advanced__panel");
-    expect(panel.exists()).toBe(true);
-    // v-show applies display:none when false
+    const wrapper = mountWithForm();
+    const panel = wrapper.find(".composer-advanced__panel");
     expect(panel.attributes("style")).toContain("display: none");
-
-    // Click to expand
     await wrapper.find(".composer-advanced__trigger").trigger("click");
-    panel = wrapper.find(".composer-advanced__panel");
-    // When v-show is true, the style should NOT contain display: none
-    const style = panel.attributes("style");
-    if (style) {
-      expect(style).not.toContain("display: none");
-    }
-
-    // Click to collapse
+    expect(panel.attributes("style")).toBe("");
     await wrapper.find(".composer-advanced__trigger").trigger("click");
-    panel = wrapper.find(".composer-advanced__panel");
     expect(panel.attributes("style")).toContain("display: none");
   });
 
   it("shows thread strategy and thread count selects in advanced", async () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
     await wrapper.find(".composer-advanced__trigger").trigger("click");
     expect(wrapper.text()).toContain("composer.threadStrategy");
     expect(wrapper.text()).toContain("composer.threadCount");
   });
 
   it("shows adaptive hint when threadMode is adaptive", async () => {
-    const form = createForm({ kind: "http", threadMode: "adaptive" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ kind: "http", threadMode: "adaptive" });
     await wrapper.find(".composer-advanced__trigger").trigger("click");
     expect(wrapper.text()).toContain("composer.adaptiveHint");
   });
 
   it("shows BT-specific fields in advanced when kind is bt", async () => {
-    const form = createForm({ kind: "bt", url: "magnet:?xt=urn:btih:ABC" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ kind: "bt", url: "magnet:?xt=urn:btih:ABC" });
     await wrapper.find(".composer-advanced__trigger").trigger("click");
     expect(wrapper.text()).toContain("composer.btDownloadLimit");
     expect(wrapper.text()).toContain("composer.btUploadLimit");
@@ -465,83 +309,46 @@ describe("DownloadComposer", () => {
   });
 
   it("does not show BT fields in advanced when kind is http", async () => {
-    const form = createForm({ kind: "http" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ kind: "http" });
     await wrapper.find(".composer-advanced__trigger").trigger("click");
     expect(wrapper.text()).not.toContain("composer.btDownloadLimit");
     expect(wrapper.text()).not.toContain("composer.btUploadLimit");
   });
 
   it("shows fixedHint when threadMode is fixed", async () => {
-    const form = createForm({ kind: "http", threadMode: "fixed" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm({ kind: "http", threadMode: "fixed" });
     await wrapper.find(".composer-advanced__trigger").trigger("click");
     expect(wrapper.text()).toContain("composer.fixedHint");
   });
 
-  // ── Events ──────────────────────────────────────────────────
   it("emits submit when form is submitted", async () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
+    const wrapper = mountWithForm();
     await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("submit")).toBeTruthy();
+    expect(wrapper.emitted("submit")).toBeDefined();
+    expect(wrapper.emitted("submit")).toHaveLength(1);
   });
 
-  it("emits pickDirectory when directory button is clicked", async () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
-    const dirBtn = wrapper.findAll("button.ui-button-stub").find((b) => {
-      return b.attributes("data-icon") === "i-ri-folder-open-line";
-    });
-    if (dirBtn) {
-      await dirBtn.trigger("click");
-      expect(wrapper.emitted("pickDirectory")).toBeTruthy();
-    }
-  });
-
-  it("emits pickTorrent when torrent button is clicked", async () => {
-    const wrapper = mount(DownloadComposer, {
-      props: createProps(),
-      global: { stubs },
-    });
-    // Find button with text "composer.chooseTorrent"
-    const torrentBtn = wrapper
-      .findAll("button.ui-button-stub")
-      .find((b) => b.text() === "composer.chooseTorrent")!;
-    await torrentBtn.trigger("click");
-    expect(wrapper.emitted("pickTorrent")).toBeTruthy();
-  });
-
-  // ── URL error styling ───────────────────────────────────────
   it("applies is-invalid class to source container when urlError is set", async () => {
-    const form = createForm({ kind: "http", url: "bad-url" });
-    const wrapper = mount(DownloadComposer, {
-      props: createProps({ form }),
-      global: { stubs },
-    });
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.trigger("blur");
+    const wrapper = mountWithForm({ kind: "http", url: "not-a-url" });
+    await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
-    expect(wrapper.find(".composer-source.is-invalid").exists()).toBe(true);
+    await wrapper.find(".composer-protocol").trigger("click");
+    await nextTick();
+    const sourceContainer = wrapper.find(".composer-source");
+    expect(sourceContainer.classes()).toContain("is-invalid");
   });
 
-  // ── Traditional scheduler mode ──────────────────────────────
   it("shows traditional hint when scheduler mode is traditional", async () => {
     const settings = createSettings({
-      scheduler: { ...createSettings().scheduler, mode: "traditional" },
+      scheduler: {
+        ...createSettings().scheduler,
+        mode: "traditional",
+        traditional: { maxParallelTasks: 3 },
+        automatic: { maxParallelThreads: 4, maxThreadsPerTask: 2, minThreadsPerTask: 1, adaptiveProfile: "balanced" },
+      },
     });
     const wrapper = mount(DownloadComposer, {
-      props: createProps({ settings }),
+      props: { settings },
       global: { stubs },
     });
     await wrapper.find(".composer-advanced__trigger").trigger("click");

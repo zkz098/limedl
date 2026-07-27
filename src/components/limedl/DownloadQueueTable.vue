@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { debounce } from "../../lib/debounce";
+import { usePagination } from "../../composables/usePagination";
 
 import {
   formatBytes,
@@ -44,11 +45,9 @@ const emit = defineEmits<{
   toggleSelect: [downloadId: string];
 }>();
 
-const pageSize = ref<number | null>(20);
 const syncShowDelayMs = 240;
 const syncHideDelayMs = 420;
 const { t } = useI18n();
-const currentPage = ref(1);
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
 const contextMenuPanelRef = ref<HTMLElement | null>(null);
 const priorityMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
@@ -164,25 +163,17 @@ const sortedDownloads = computed(() => {
   return list;
 });
 
-const totalPages = computed(() => {
-  if (pageSize.value === null) return 1;
-  return Math.max(1, Math.ceil(sortedDownloads.value.length / pageSize.value));
-});
-const pagedDownloads = computed(() => {
-  if (pageSize.value === null) return sortedDownloads.value;
-  const start = (currentPage.value - 1) * pageSize.value;
-  return sortedDownloads.value.slice(start, start + pageSize.value);
-});
-const pageStart = computed(() => {
-  if (pageSize.value === null) return sortedDownloads.value.length ? 1 : 0;
-  return sortedDownloads.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0;
-});
-const pageEnd = computed(() => {
-  if (pageSize.value === null) return sortedDownloads.value.length;
-  return sortedDownloads.value.length
-    ? Math.min(currentPage.value * pageSize.value, sortedDownloads.value.length)
-    : 0;
-});
+const {
+  currentPage,
+  pageSize,
+  totalPages,
+  paginatedItems: pagedDownloads,
+  pageStart,
+  pageEnd,
+  goToPreviousPage,
+  goToNextPage,
+} = usePagination(sortedDownloads, 20);
+
 const contextMenuDownload = computed(
   () => props.downloads.find((download) => download.id === contextMenu.value?.downloadId) ?? null,
 );
@@ -212,15 +203,6 @@ const contextActionIcon = computed(() =>
 );
 
 watch(
-  () => sortedDownloads.value.length,
-  () => {
-    if (currentPage.value > totalPages.value) {
-      currentPage.value = totalPages.value;
-    }
-  },
-);
-
-watch(
   () => props.multiSelect.removedDownloadIds,
   (ids) => {
     if (!contextMenu.value || ids.length === 0) {
@@ -242,10 +224,6 @@ watch(
     }
   },
 );
-
-watch(pageSize, () => {
-  currentPage.value = 1;
-});
 
 watch(contextMenu, (menu) => {
   if (menu) {
@@ -330,14 +308,6 @@ function toggleSelectAllOnPage() {
 
 function isColumnVisible(key: ColumnKey) {
   return visibleColumnKeys.value.has(key);
-}
-
-function goToPreviousPage() {
-  currentPage.value = Math.max(1, currentPage.value - 1);
-}
-
-function goToNextPage() {
-  currentPage.value = Math.min(totalPages.value, currentPage.value + 1);
 }
 
 function handleRowKeydown(event: KeyboardEvent, downloadId: string) {

@@ -10,7 +10,6 @@ import {
   type Ref,
 } from "vue";
 import { storeToRefs } from "pinia";
-import { getVersion } from "@tauri-apps/api/app";
 import { filterDownloads } from "./lib/download-filter";
 
 import CategorySidebar from "./components/layout/CategorySidebar.vue";
@@ -49,6 +48,7 @@ import { useDownloadStore } from "./stores/download";
 import { useNotificationStore } from "./stores/notification";
 import { useAppSettingsStore } from "./stores/appSettings";
 import { useIoBaseline } from "./composables/useIoBaseline";
+import { useSetupWizardLifecycle } from "./composables/useSetupWizardLifecycle";
 import { useOverclock } from "./composables/useOverclock";
 import { useCategoryCounts } from "./composables/useCategoryCounts";
 import { useI18n } from "./i18n";
@@ -61,7 +61,7 @@ import NotificationToast from "./components/ui/NotificationToast.vue";
 import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
-import { getAppSettings, saveAppSettings } from "./lib/tauri/settings-api";
+import { saveAppSettings } from "./lib/tauri/settings-api";
 import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/tauri/download-api";
 import { toMessage } from "./composables/downloadHelpers";
 
@@ -114,28 +114,18 @@ const {
   canResume,
   btRuntimeStatus,
   downloads,
-  form,
   isAutoRefreshing,
-  isPickingDirectory,
-  isPickingTorrent,
   isRefreshingList: _isRefreshingList,
   isRefreshingStatus,
-  isStarting,
   selectedId,
   selectedSnapshot,
   selectedSummary,
-  batchMode,
-  batchUrls,
-  batchEntries,
-  batchSubmitProgress,
 } = storeToRefs(downloadStore);
 
 const {
   applyAppSettingsDefaults,
   canPauseDownload,
   canResumeDownload,
-  pickDestinationDirectory,
-  pickTorrentSourceFile,
   refreshList,
   refreshStatus,
   runCancel,
@@ -156,14 +146,10 @@ const {
   runBatchCancel,
   runSetPriority,
   selectDownload,
-  submitStart,
   autoFillFromClipboard,
   setNotificationsEnabled,
   setMessage,
   setError,
-  parseBatchUrls,
-  submitBatch,
-  toggleBatchMode,
 } = downloadStore;
 
 const { categoryCounts, sidebarStats } = useCategoryCounts(downloads);
@@ -204,88 +190,21 @@ const appSettingsStore = useAppSettingsStore();
 const { appSettings, sortKey, sortDirection, compactView, visibleColumns } = storeToRefs(appSettingsStore);
 const { applyAppearanceSettings } = appSettingsStore;
 
-// ── Setup wizard integration ──
-const showSetupWizard = ref<boolean | null>(null);
-const setupInitialSettings = ref<AppSettings | null>(null);
-const appVersion = ref("");
-
-const setupStartStep = computed(() => {
-  const lastStep = setupInitialSettings.value?.lastSetupStep;
-  if (lastStep != null && !setupInitialSettings.value?.setupCompleted) {
-    return lastStep;
-  }
-  return 0;
+const {
+  showSetupWizard,
+  setupInitialSettings,
+  appVersion,
+  setupStartStep,
+  handleSetupCompleted,
+  handleSetupClosed,
+  handleRestartSetup,
+  mountSetupWizard,
+} = useSetupWizardLifecycle({
+  appSettings,
+  applyAppearanceSettings,
+  applyAppSettingsDefaults,
+  setNotificationsEnabled,
 });
-
-// Check localStorage cache first for instant decision
-const cachedSetupDone = localStorage.getItem("limedl.setupCompleted");
-if (cachedSetupDone === "true") {
-  showSetupWizard.value = false;
-}
-
-function checkSetupState() {
-  if (appSettings.value) {
-    if (appSettings.value.setupCompleted) {
-      localStorage.setItem("limedl.setupCompleted", "true");
-      showSetupWizard.value = false;
-    } else if (showSetupWizard.value === null) {
-      setupInitialSettings.value = appSettings.value;
-      showSetupWizard.value = true;
-    }
-  }
-}
-
-watch(appSettings, checkSetupState);
-
-async function handleSetupCompleted(settings: AppSettings) {
-  // Cache in localStorage for fast boot
-  localStorage.setItem("limedl.setupCompleted", "true");
-  // Update the global appSettings
-  appSettings.value = settings;
-  // Apply appearance settings (theme, color mode) to document
-  applyAppearanceSettings(settings);
-  // Apply download defaults (auto-fill composer)
-  applyAppSettingsDefaults(settings);
-  // Notifications
-  setNotificationsEnabled(settings.notifications?.enabled ?? true);
-  // Hide wizard, show main app
-  showSetupWizard.value = false;
-}
-
-async function handleSetupClosed() {
-  // User closed wizard without completing (Escape key).
-  // Reload settings from disk since wizard may have written partial changes.
-  try {
-    const updated = await getAppSettings();
-    appSettings.value = updated;
-    applyAppearanceSettings(updated);
-  } catch {
-    // If reload fails, keep the stale value — better than crashing
-  }
-  showSetupWizard.value = false;
-}
-
-async function handleRestartSetup() {
-  const currentSettings = appSettings.value;
-  if (!currentSettings) return;
-
-  // Restart uses the last-persisted settings as the wizard's starting point.
-  // Unsaved draft changes in the settings panel are intentionally discarded —
-  // the user is explicitly choosing to re-run the setup wizard.
-  localStorage.removeItem("limedl.setupCompleted");
-  currentSettings.setupCompleted = false;
-  currentSettings.lastSetupStep = null;
-
-  try {
-    await saveAppSettings(currentSettings);
-  } catch (e) {
-    console.error("Failed to reset setup state:", e);
-  }
-
-  setupInitialSettings.value = { ...currentSettings };
-  showSetupWizard.value = true;
-}
-// ── End setup wizard integration ──
 
 const {
   currentView,
@@ -321,27 +240,11 @@ const { updateAvailable, runStartupCheck } = useAppUpdate();
 
 onMounted(() => {
   runStartupCheck();
-  checkSetupState();
+  mountSetupWizard();
 
   // Initialize Pinia stores (replaces onMounted from composables)
   downloadStore.initStore();
   appSettingsStore.initStore();
-
-  // Fetch real app version from Tauri metadata
-  getVersion()
-    .then((v) => {
-      appVersion.value = v;
-    })
-    .catch(() => {});
-
-  // Safety: if settings never load (backend crash, IPC failure),
-  // bail out to the main app after 5 seconds instead of showing an infinite spinner
-  setTimeout(() => {
-    if (showSetupWizard.value === null) {
-      console.warn("Settings never loaded, showing main app as fallback");
-      showSetupWizard.value = false;
-    }
-  }, 5000);
 
   // ── Network & connection monitoring ──
   // Browser online/offline detection (works in all modes)
@@ -414,18 +317,6 @@ const btStatusData = computed(() => {
   };
 });
 
-const handleSubmitStart = async () => {
-  if (batchMode.value) {
-    await submitBatch();
-  } else {
-    await submitStart();
-  }
-  showComposerDialog.value = false;
-};
-
-function handleBatchUrlsInput(value: string) {
-  batchUrls.value = value;
-}
 
 const handleRefreshSelected = async () => {
   if (!selectedId.value) {
@@ -814,21 +705,8 @@ watch(
       </template>
 
       <DownloadComposer
-        :form="form"
-        :is-picking-directory="isPickingDirectory"
-        :is-picking-torrent="isPickingTorrent"
-        :is-starting="isStarting"
         :settings="appSettings"
-        :batch-mode="batchMode"
-        :batch-urls="batchUrls"
-        :batch-entries="batchEntries"
-        :batch-submit-progress="batchSubmitProgress"
-        @pick-directory="pickDestinationDirectory"
-        @pick-torrent="pickTorrentSourceFile"
-        @submit="handleSubmitStart"
-        @update:batch-urls="handleBatchUrlsInput"
-        @parse-batch="parseBatchUrls"
-        @toggle-batch-mode="toggleBatchMode"
+        @submit="showComposerDialog = false"
       />
     </UiDialog>
 
