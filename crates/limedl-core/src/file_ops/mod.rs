@@ -382,6 +382,15 @@ mod imp {
         fn GetLastError() -> u32;
     }
 
+    // Drive enumeration
+    unsafe extern "system" {
+        fn GetLogicalDrives() -> u32;
+        fn GetDriveTypeW(lp_root_path_name: *const u16) -> u32;
+    }
+
+    const DRIVE_FIXED: u32 = 3;
+    const DRIVE_REMOVABLE: u32 = 2;
+
     const INVALID_HANDLE_VALUE: isize = -1;
     const FILE_SHARE_READ: u32 = 1;
     const FILE_SHARE_WRITE: u32 = 2;
@@ -518,7 +527,17 @@ mod imp {
             )
         };
 
-        if success == 0 || bytes_returned == 0 {
+        if success == 0 {
+            let err = unsafe { GetLastError() };
+            tracing::warn!(
+                "disk_detect: DeviceIoControl(STORAGE_SEEK_PENALTY) failed, error={err}, defaulting to SSD"
+            );
+            return DiskType::Ssd;
+        }
+        if bytes_returned == 0 {
+            tracing::warn!(
+                "disk_detect: DeviceIoControl(STORAGE_SEEK_PENALTY) returned 0 bytes, defaulting to SSD"
+            );
             return DiskType::Ssd;
         }
 
@@ -529,6 +548,26 @@ mod imp {
         }
     }
 
+    use std::collections::HashMap;
+
+    /// Enumerate all fixed/removable drives and detect disk type for each.
+    pub fn detect_all_disk_types() -> HashMap<String, DiskType> {
+        let drives_mask = unsafe { GetLogicalDrives() };
+        let mut result = HashMap::new();
+        for i in 0..26u32 {
+            if drives_mask & (1 << i) != 0 {
+                let letter = (b'A' + i as u8) as char;
+                let drive_root = format!("{letter}:\\");
+                let root_wide = to_wide_null(&drive_root);
+                let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
+                if drive_type == DRIVE_FIXED || drive_type == DRIVE_REMOVABLE {
+                    let disk_type = detect_disk_type(Path::new(&drive_root));
+                    result.insert(format!("{letter}:"), disk_type);
+                }
+            }
+        }
+        result
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -568,12 +607,29 @@ mod imp {
             _ => DiskType::Ssd,
         }
     }
+
+    use std::collections::HashMap;
+
+    pub fn detect_all_disk_types() -> HashMap<String, DiskType> {
+        let mut result = HashMap::new();
+        let Ok(entries) = fs::read_dir("/sys/block") else {
+            return result;
+        };
+        for entry in entries.flatten() {
+            let rotational_path = entry.path().join("queue/rotational");
+            if let Ok(val) = fs::read_to_string(&rotational_path) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                let disk_type = if val.trim() == "1" { DiskType::Hdd } else { DiskType::Ssd };
+                result.insert(name, disk_type);
+            }
+        }
+        result
+    }
 }
 
 #[cfg(target_os = "macos")]
 mod imp {
     use std::ffi::{c_void, CStr};
-    use std::path::Path;
 
     use super::DiskType;
 
@@ -797,6 +853,19 @@ mod imp {
         }
         result
     }
+
+    use std::collections::HashMap;
+
+    pub fn detect_all_disk_types() -> HashMap<String, DiskType> {
+        // Scan the root volume at minimum — avoids regression from the old
+        // single-path detect_disk_type which worked correctly for macOS.
+        // Full IOKit enumeration of all IOMedia entries is TODO.
+        let mut result = HashMap::new();
+        let root = Path::new("/");
+        let disk_type = detect_disk_type(root);
+        result.insert("root".to_string(), disk_type);
+        result
+    }
 }
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
@@ -805,17 +874,22 @@ mod imp {
 
     use super::DiskType;
 
-    // NOTE: Non-Windows platforms currently lack a cross-platform equivalent of
-    // IOCTL_STORAGE_QUERY_PROPERTY. This means HDD detection always returns Ssd
-    // on macOS/Linux, causing the UI to auto-disable HDD buffering. Users with
-    // external HDDs should use disk_type_overrides to force HDD treatment.
-    // TODO: add sysfs (Linux) / IOKit (macOS) disk type probes.
+    // NOTE: This fallback is for platforms without a native disk detection
+    // backend (not Windows/Linux/macOS). Linux and macOS have their own
+    // implementions above; this module only covers unknown targets.
     pub fn detect_disk_type(_path: &Path) -> DiskType {
         DiskType::Ssd
+    }
+
+    use std::collections::HashMap;
+
+    pub fn detect_all_disk_types() -> HashMap<String, DiskType> {
+        HashMap::new()
     }
 }
 
 pub use imp::detect_disk_type;
+pub use imp::detect_all_disk_types;
 
 // ── Tests ─────────────────────────────────────────────
 

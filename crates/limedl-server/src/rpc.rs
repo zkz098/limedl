@@ -423,6 +423,7 @@ async fn dispatch_method(
         "toggle_game_mode" => handle_toggle_game_mode(params, state).await,
         "get_io_status" => handle_get_io_status(state).await,
         "detect_disk_type" => handle_detect_disk_type(params, state).await,
+        "detect_all_disk_types" => handle_detect_all_disk_types(state).await,
         "toggle_overclock_mode" => handle_toggle_overclock_mode(params, state).await,
         "get_overclock_mode" => handle_get_overclock_mode(state).await,
         "settings_fetch_tracker_list" => handle_fetch_tracker_list(params, state).await,
@@ -772,6 +773,27 @@ async fn handle_detect_disk_type(
         limedl_core::types::DiskType::Hdd => "hdd",
         limedl_core::types::DiskType::Ssd => "ssd",
     }))
+}
+
+async fn handle_detect_all_disk_types(
+    _state: &RpcState,
+) -> Result<serde_json::Value, JsonRpcError> {
+    let disk_types = limedl_core::file_ops::detect_all_disk_types();
+    let result: std::collections::HashMap<String, String> = disk_types
+        .into_iter()
+        .map(|(drive, dt)| {
+            (
+                drive,
+                match dt {
+                    limedl_core::types::DiskType::Hdd => "hdd".to_string(),
+                    limedl_core::types::DiskType::Ssd => "ssd".to_string(),
+                },
+            )
+        })
+        .collect();
+    serde_json::to_value(result).map_err(|e| {
+        JsonRpcError::server_error(format!("serialize error: {e}"))
+    })
 }
 
 // ── Handler: settings.toggleOverclockMode ──────────────────────────

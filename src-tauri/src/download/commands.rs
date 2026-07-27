@@ -536,6 +536,23 @@ pub async fn detect_disk_type(
     })
 }
 
+#[tauri::command]
+pub async fn detect_all_disk_types() -> CommandResult<std::collections::HashMap<String, String>> {
+    let disk_types = limedl_core::file_ops::detect_all_disk_types();
+    Ok(disk_types
+        .into_iter()
+        .map(|(drive, dt)| {
+            (
+                drive,
+                match dt {
+                    DiskType::Hdd => "hdd".to_string(),
+                    DiskType::Ssd => "ssd".to_string(),
+                },
+            )
+        })
+        .collect())
+}
+
 /// Factory reset: deletes all application data and restores factory defaults.
 /// After this returns, the frontend must restart the app (backends are shut down).
 #[tauri::command]

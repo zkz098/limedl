@@ -30,6 +30,7 @@ export const WS_COMMANDS: readonly WsCommandSpec[] = [
   { tauriName: "toggle_game_mode", rpcMethod: "settings.toggleGameMode", paramTransform: { kind: "identity" }, safety: "mutating" },
   { tauriName: "get_io_status", rpcMethod: "settings.getIoStatus", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "detect_disk_type", rpcMethod: "settings.detectDiskType", paramTransform: { kind: "identity" }, safety: "safe" },
+  { tauriName: "detect_all_disk_types", rpcMethod: "settings.detectAllDiskTypes", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "toggle_overclock_mode", rpcMethod: "settings.toggleOverclockMode", paramTransform: { kind: "identity" }, safety: "mutating" },
   { tauriName: "get_overclock_mode", rpcMethod: "settings.getOverclockMode", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "settings_fetch_tracker_list", rpcMethod: "settings.fetchTrackerList", paramTransform: { kind: "identity" }, safety: "mutating" },

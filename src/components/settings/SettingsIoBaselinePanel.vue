@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
 
 import { formatBytes } from "../../lib/download-format";
 import type { AppSettings } from "../../types/settings";
-import { detectDiskType } from "../../lib/tauri/settings-api";
+import { detectAllDiskTypes } from "../../lib/tauri/settings-api";
 import UiSwitch from "../ui/UiSwitch.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import SettingsField from "./SettingsField.vue";
@@ -22,32 +22,22 @@ const props = defineProps<{
 
 const hasHdd = ref<boolean | null>(null);
 
-async function detectDisk(dir: string) {
+async function scanAllDrives() {
   try {
-    const diskType = await detectDiskType(dir);
-    hasHdd.value = diskType === "hdd";
+    const diskTypes = await detectAllDiskTypes();
+    // True if ANY detected drive is an HDD
+    hasHdd.value = Object.values(diskTypes).some((type) => type === "hdd");
     if (!hasHdd.value && props.draft.ioBaseline.hddBufferEnabled) {
       props.draft.ioBaseline.hddBufferEnabled = false;
     }
   } catch {
-    hasHdd.value = true;
+    hasHdd.value = true; // safe fallback: assume HDD on error
   }
 }
 
 onMounted(() => {
-  const defaultDir = props.draft.download.defaultDownloadDir;
-  if (defaultDir) {
-    void detectDisk(defaultDir);
-  }
+  void scanAllDrives();
 });
-
-watch(
-  () => props.draft.download.defaultDownloadDir,
-  (newDir) => {
-    if (!newDir) return;
-    void detectDisk(newDir);
-  },
-);
 
 function onHddBufferToggle(value: boolean) {
   props.draft.ioBaseline.hddBufferEnabled = value;

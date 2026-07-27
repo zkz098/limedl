@@ -36,6 +36,10 @@ export function detectDiskType(dir: string) {
   return invoke<"ssd" | "hdd">("detect_disk_type", { dir });
 }
 
+export function detectAllDiskTypes() {
+  return invoke<Record<string, "ssd" | "hdd">>("detect_all_disk_types");
+}
+
 export function toggleOverclockMode(enabled: boolean) {
   return invoke<boolean>("toggle_overclock_mode", { enabled });
 }

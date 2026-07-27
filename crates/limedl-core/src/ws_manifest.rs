@@ -215,6 +215,12 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         safety: SafetyClass::Safe,
     },
     WsCommandSpec {
+        tauri_name: "detect_all_disk_types",
+        rpc_method: "settings.detectAllDiskTypes",
+        param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
+    },
+    WsCommandSpec {
         tauri_name: "toggle_overclock_mode",
         rpc_method: "settings.toggleOverclockMode",
         param_transform: ParamTransform::Identity,
