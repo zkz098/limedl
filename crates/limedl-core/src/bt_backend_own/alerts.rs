@@ -15,6 +15,14 @@ impl IrontideBtBackend {
     /// Spawn the alert bridge that listens for irontide alerts and forwards
     /// relevant events to the frontend / Aria2 RPC channel.
     pub async fn setup_alert_bridge(self: &Arc<Self>) {
+        // Cancel any existing alert bridge
+        {
+            let mut slot = lock(&self.alert_task);
+            if let Some(h) = slot.take() {
+                h.abort();
+            }
+        }
+
         let session = self.session.clone();
         let event_bus = self.event_bus.clone();
         let task_map = self.task_map.clone();
@@ -76,6 +84,33 @@ pub(crate) fn extract_info_hash(kind: &irontide::session::AlertKind) -> Option<&
     }
 }
 
+/// # Event Emission Policy
+///
+/// This bridge is the **single source of truth** for Aria2-compatible events
+/// emitted from the BT backend. Lifecycle methods (`pause`/`resume`/`start`)
+/// do NOT emit Aria2 events directly — they rely on irontide alerts flowing
+/// through this bridge. This avoids duplicate emissions.
+///
+/// ## Alert → Event mapping:
+///
+/// | Irontide Alert       | Frontend Events                                      |
+/// |----------------------|------------------------------------------------------|
+/// | `TorrentAdded`       | `Aria2Notification(aria2.onDownloadStart)`           |
+/// | `TorrentPaused`      | `Aria2Notification(aria2.onDownloadPause)`           |
+/// | `TorrentResumed`     | `Aria2Notification(aria2.onDownloadStart)`           |
+/// | `TorrentFinished`    | `Aria2Notification(onDownloadComplete)` +            |
+/// |                      | `Aria2Notification(onBtDownloadComplete)` +          |
+/// |                      | `Progress` + `Updated`                               |
+/// | `TorrentError`       | `Aria2Notification(onDownloadError)` + `Updated`     |
+/// | `TrackerReply`       | `Updated` (only when peers > 0)                      |
+///
+/// Additionally, a periodic 2-second timer emits `Progress` events for all
+/// active torrents. The `Updated` events from lifecycle operations (start,
+/// cancel, remove, purge) are emitted by the Dispatcher layer, not this bridge.
+///
+/// The `MetadataReceived` alert only logs; the frontend learns metadata via
+/// the next periodic `Progress` tick.
+///
 /// Background loop that subscribes to irontide alerts and emits events,
 /// with periodic progress emission every 2 seconds for all active torrents.
 async fn alert_bridge_loop(

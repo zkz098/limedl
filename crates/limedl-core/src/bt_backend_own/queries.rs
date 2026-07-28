@@ -91,21 +91,41 @@ impl IrontideBtBackend {
     }
 
     pub fn get_pieces(&self, info_hash: Id20) -> Result<Vec<BtPieceInfo>> {
-        // Use torrent_stats to get pieces_have/pieces_total and derive piece info
-        let stats = tokio::task::block_in_place(|| {
+        // Prefer per-piece states from the engine (supports out-of-order download).
+        // Returns Vec<u8> where 0=not downloaded, 1=downloading, 2=downloaded+verified.
+        let piece_states = tokio::task::block_in_place(|| {
             self.runtime_handle
-                .block_on(self.session.torrent_stats(info_hash))
-        })
-        .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+                .block_on(self.session.get_piece_states(info_hash))
+        });
 
-        let total = stats.pieces_total as u64;
-        let have = stats.pieces_have as u64;
-        Ok((0..total)
-            .map(|i| BtPieceInfo {
-                index: i,
-                completed: i < have,
-            })
-            .collect())
+        match piece_states {
+            Ok(states) if !states.is_empty() => Ok(states
+                .iter()
+                .enumerate()
+                .map(|(i, &state)| BtPieceInfo {
+                    index: i as u64,
+                    completed: state >= 2,
+                })
+                .collect()),
+            // Fallback: use torrent_stats (sequential assumption, correct only for
+            // contiguous download order — used when piece states are unavailable).
+            _ => {
+                let stats = tokio::task::block_in_place(|| {
+                    self.runtime_handle
+                        .block_on(self.session.torrent_stats(info_hash))
+                })
+                .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+
+                let total = stats.pieces_total as u64;
+                let have = stats.pieces_have as u64;
+                Ok((0..total)
+                    .map(|i| BtPieceInfo {
+                        index: i,
+                        completed: i < have,
+                    })
+                    .collect())
+            }
+        }
     }
 
     pub fn get_torrent_files(&self, info_hash: Id20) -> Result<Vec<BtFileStatus>> {

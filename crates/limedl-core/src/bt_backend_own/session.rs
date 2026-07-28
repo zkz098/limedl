@@ -121,6 +121,7 @@ impl IrontideBtBackend {
             active_bt_count,
             max_concurrent_bt,
             bt_slot_guards: Arc::new(DashMap::new()),
+            torrent_created_at: Arc::new(DashMap::new()),
         })
     }
 
@@ -160,9 +161,12 @@ impl IrontideBtBackend {
             }
         }
 
-        // Phase 4: graceful shutdown — allow a brief grace period for pending
-        // disk writes to finish before the session is torn down
-        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        // Phase 4: proportional grace period — allow time for pending disk
+        // writes to complete before tearing down the session. Duration scales
+        // with active torrent count (500ms each, clamped 1-5s).
+        let grace_ms = (active_count as u64 * 500).clamp(1_000, 5_000);
+        tracing::info!("BT backend: waiting {grace_ms}ms for pending disk writes...");
+        tokio::time::sleep(std::time::Duration::from_millis(grace_ms)).await;
         let _ = self.session.shutdown().await;
 
         tracing::info!("irontide backend shut down.");

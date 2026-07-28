@@ -7,7 +7,6 @@ use irontide::prelude::*;
 
 use super::IrontideBtBackend;
 use crate::error::{DownloadError, Result, io_error_with_path};
-use crate::event_bus::DownloadEvent;
 use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
     ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, Priority, StartDownloadRequest, TaskKind,
@@ -48,16 +47,6 @@ impl IrontideBtBackend {
                 .map(|b| b.to_vec())
         }
     }
-
-    /// Emit an event via the EventBus Aria2 notification.
-    fn emit_aria2_event(&self, method: &str, info_hash: &Id20) {
-        let gid = super::internal_id_to_gid(info_hash);
-        self.event_bus.publish(DownloadEvent::Aria2Notification {
-            event_name: method.to_string(),
-            gid,
-        });
-    }
-
     /// Try to acquire a BT download slot.
     /// Fails with `TooManyConcurrentDownloads` if at capacity.
     fn try_acquire_bt_slot(&self) -> Result<DownloadSlotGuard> {
@@ -148,6 +137,7 @@ impl IrontideBtBackend {
         }
 
         self.task_map.insert(info_hash, info_hash);
+        self.torrent_created_at.insert(info_hash, now_ms());
         // Store the guard so it lives for the torrent's lifetime
         self.bt_slot_guards.insert(info_hash, _guard);
 
@@ -188,7 +178,6 @@ impl IrontideBtBackend {
             .await
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
 
-        self.emit_aria2_event("aria2.onDownloadPause", &info_hash);
         self.status(info_hash).await
     }
 
@@ -198,65 +187,19 @@ impl IrontideBtBackend {
             .await
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
 
-        self.emit_aria2_event("aria2.onDownloadStart", &info_hash);
         self.status(info_hash).await
     }
 
     pub async fn cancel(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         // Try to get status, but proceed even if it fails (torrent might already be gone).
-        let fallback_snapshot = || DownloadSnapshot {
-            id: info_hash.to_hex(),
-            kind: TaskKind::Bt,
-            state: DownloadState::Canceled,
-            url: String::new(),
-            final_url: String::new(),
-            file_name: String::new(),
-            destination_path: String::new(),
-            temp_path: String::new(),
-            total_bytes: None,
-            downloaded_bytes: 0,
-            supports_ranges: false,
-            connection_count: 0,
-            thread_mode: ThreadMode::Fixed,
-            requested_thread_count: None,
-            desired_thread_count: None,
-            allocated_thread_count: None,
-            adaptive_profile: None,
-            thread_note: None,
-            checksum: None,
-            checksum_mode: ChecksumMode::None,
-            etag: None,
-            last_modified: None,
-            error: None,
-            speed_bytes_per_second: None,
-            eta_seconds: None,
-            uploaded_bytes: Some(0),
-            upload_speed_bytes_per_second: None,
-            peer_count: None,
-            upload_status: None,
-            info_hash: None,
-            created_at_ms: now_ms(),
-            updated_at_ms: now_ms(),
-            cdn_accelerated: false,
-            cdn_node_ip: None,
-            chunks: vec![],
-            seed_count: None,
-            leech_count: None,
-            download_limit_bps: None,
-            upload_limit_bps: None,
-            mirror_url: None,
-            priority: Priority::Normal,
-            degraded: false,
-            disk_type: None,
-            flushing: false,
-        };
         let snapshot = self
             .status(info_hash)
             .await
-            .unwrap_or_else(|_| fallback_snapshot());
+            .unwrap_or_else(|_| build_canceled_snapshot(&info_hash));
         let _ = self.session.remove_torrent(info_hash).await;
         self.bt_slot_guards.remove(&info_hash);
         self.task_map.remove(&info_hash);
+        self.torrent_created_at.remove(&info_hash);
 
         Ok(DownloadSnapshot {
             state: DownloadState::Canceled,
@@ -273,6 +216,7 @@ impl IrontideBtBackend {
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
         self.bt_slot_guards.remove(&info_hash);
         self.task_map.remove(&info_hash);
+        self.torrent_created_at.remove(&info_hash);
         Ok(snapshot)
     }
 
@@ -284,6 +228,7 @@ impl IrontideBtBackend {
             .map_err(|e| DownloadError::Torrent(e.to_string()))?;
         self.bt_slot_guards.remove(&info_hash);
         self.task_map.remove(&info_hash);
+        self.torrent_created_at.remove(&info_hash);
         Ok(snapshot)
     }
 
@@ -366,5 +311,57 @@ impl IrontideBtBackend {
 
         summaries.sort_by_key(|s| std::cmp::Reverse(s.created_at_ms));
         Ok(summaries)
+    }
+}
+
+// NOTE: When adding fields to DownloadSnapshot, update this function.
+fn build_canceled_snapshot(info_hash: &Id20) -> DownloadSnapshot {
+    let id = info_hash.to_hex();
+    let now = now_ms();
+    DownloadSnapshot {
+        id,
+        kind: TaskKind::Bt,
+        state: DownloadState::Canceled,
+        created_at_ms: now,
+        updated_at_ms: now,
+        url: String::new(),
+        final_url: String::new(),
+        file_name: String::new(),
+        destination_path: String::new(),
+        temp_path: String::new(),
+        total_bytes: None,
+        downloaded_bytes: 0,
+        supports_ranges: false,
+        connection_count: 0,
+        thread_mode: ThreadMode::Fixed,
+        requested_thread_count: None,
+        desired_thread_count: None,
+        allocated_thread_count: None,
+        adaptive_profile: None,
+        thread_note: None,
+        checksum: None,
+        checksum_mode: ChecksumMode::None,
+        etag: None,
+        last_modified: None,
+        error: None,
+        speed_bytes_per_second: None,
+        eta_seconds: None,
+        uploaded_bytes: Some(0),
+        upload_speed_bytes_per_second: None,
+        peer_count: None,
+        upload_status: None,
+        info_hash: Some(info_hash.to_hex()),
+        priority: Priority::Normal,
+        cdn_accelerated: false,
+        cdn_node_ip: None,
+        chunks: vec![],
+        seed_count: None,
+        leech_count: None,
+        download_limit_bps: None,
+        upload_limit_bps: None,
+        mirror_url: None,
+        degraded: false,
+        disk_type: None,
+        flushing: false,
     }
 }

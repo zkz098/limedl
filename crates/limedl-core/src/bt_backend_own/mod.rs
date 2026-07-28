@@ -75,6 +75,8 @@ pub struct IrontideBtBackend {
     pub(crate) max_concurrent_bt: Arc<AtomicUsize>,
     /// Guards holding BT download slots for active torrents.
     pub(crate) bt_slot_guards: Arc<DashMap<Id20, DownloadSlotGuard>>,
+    /// Creation timestamps for active torrents (populated on start).
+    pub(crate) torrent_created_at: Arc<DashMap<Id20, u64>>,
 }
 
 impl Clone for IrontideBtBackend {
@@ -95,6 +97,7 @@ impl Clone for IrontideBtBackend {
             active_bt_count: self.active_bt_count.clone(),
             max_concurrent_bt: self.max_concurrent_bt.clone(),
             bt_slot_guards: self.bt_slot_guards.clone(),
+            torrent_created_at: self.torrent_created_at.clone(),
         }
     }
 }
