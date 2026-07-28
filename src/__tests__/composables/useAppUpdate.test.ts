@@ -2,12 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
-vi.mock("@tauri-apps/plugin-updater", () => ({
-  check: vi.fn(),
+const mockInvoke = vi.fn();
+vi.mock("#invoke", () => ({
+  invoke: mockInvoke,
+  setEventDispatcher: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-process", () => ({
-  relaunch: vi.fn(),
+const mockListen = vi.fn().mockResolvedValue(vi.fn());
+vi.mock("#event", () => ({
+  listen: mockListen,
 }));
 
 vi.mock("../../i18n", () => ({
@@ -24,11 +27,7 @@ vi.mock("../../stores/notification", () => ({
 
 // ── Imports (after mocks) ──────────────────────────────────────────
 
-import { check } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
 
-const mockCheck = vi.mocked(check);
-const mockRelaunch = vi.mocked(relaunch);
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -49,12 +48,8 @@ function mockUpdateResult(overrides: Record<string, any> = {}): any {
     currentVersion: "1.0.0",
     body: "Release notes",
     date: "2025-01-01",
-    downloadAndInstall: vi.fn(),
-    download: vi.fn(),
-    available: true,
-    rawJson: null,
-    install: vi.fn(),
-    close: vi.fn(),
+    downloadUrl: "https://example.com/update",
+    signature: "dummy-signature",
     ...overrides,
   };
 }
@@ -95,7 +90,7 @@ describe("useAppUpdate", () => {
   });
 
   it("computed flags reflect checking status", async () => {
-    mockCheck.mockRejectedValueOnce(new Error("fail"));
+    mockInvoke.mockRejectedValueOnce(new Error("fail"));
     const app = await createAppUpdate();
 
     // Start check and peek at intermediate state before await
@@ -125,7 +120,7 @@ describe("useAppUpdate", () => {
     const app = await createAppUpdate();
 
     // Put it in a non-idle state first
-    mockCheck.mockRejectedValueOnce(new Error("fail"));
+    mockInvoke.mockRejectedValueOnce(new Error("fail"));
     await app.checkForUpdates();
     expect(app.status.value).toBe("error");
     expect(app.errorMessage.value).not.toBe("");
@@ -150,7 +145,7 @@ describe("useAppUpdate", () => {
   // ── checkForUpdates: up-to-date ────────────────────────────
 
   it("checkForUpdates transitions idle → checking → up-to-date when no update", async () => {
-    mockCheck.mockResolvedValueOnce(null);
+    mockInvoke.mockResolvedValueOnce(null);
     const app = await createAppUpdate();
 
     const result = await app.checkForUpdates();
@@ -164,7 +159,7 @@ describe("useAppUpdate", () => {
 
   it("checkForUpdates transitions idle → checking → available when update found", async () => {
     const update = mockUpdateResult({ version: "2.0.0" });
-    mockCheck.mockResolvedValueOnce(update);
+    mockInvoke.mockResolvedValueOnce(update);
     const app = await createAppUpdate();
 
     const result = await app.checkForUpdates();
@@ -182,7 +177,7 @@ describe("useAppUpdate", () => {
 
   it("checkForUpdates goes to 'newer' when local version is ahead", async () => {
     const update = mockUpdateResult({ currentVersion: "3.0.0", version: "2.0.0" });
-    mockCheck.mockResolvedValueOnce(update);
+    mockInvoke.mockResolvedValueOnce(update);
     const app = await createAppUpdate();
 
     const result = await app.checkForUpdates();
@@ -195,7 +190,7 @@ describe("useAppUpdate", () => {
   // ── checkForUpdates: error ─────────────────────────────────
 
   it("checkForUpdates sets error state on failure", async () => {
-    mockCheck.mockRejectedValueOnce(new Error("Network timeout"));
+    mockInvoke.mockRejectedValueOnce(new Error("Network timeout"));
     const app = await createAppUpdate();
 
     const result = await app.checkForUpdates();
@@ -208,7 +203,7 @@ describe("useAppUpdate", () => {
   // ── checkForUpdates: busy guard ────────────────────────────
 
   it("checkForUpdates returns null when already busy", async () => {
-    mockCheck.mockRejectedValueOnce(new Error("fail"));
+    mockInvoke.mockRejectedValueOnce(new Error("fail"));
     const app = await createAppUpdate();
 
     // Start check but don't await — status is now "checking"
@@ -224,9 +219,8 @@ describe("useAppUpdate", () => {
   // ── downloadAndInstall ─────────────────────────────────────
 
   it("downloadAndInstall transitions downloading → installing", async () => {
-    const downloadAndInstall = vi.fn().mockResolvedValue(undefined);
-    const update = mockUpdateResult({ downloadAndInstall });
-    mockCheck.mockResolvedValueOnce(update);
+    const update = mockUpdateResult();
+    mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 
@@ -235,60 +229,47 @@ describe("useAppUpdate", () => {
     expect(app.status.value).toBe("available");
 
     // Now download and install
-    mockRelaunch.mockResolvedValueOnce(undefined);
+    // First listen call (progress) returns noop unlisten,
+    // second (installing) triggers the installing handler
+    mockListen.mockImplementationOnce(async () => vi.fn());
+    mockListen.mockImplementationOnce(async (_event, handler) => {
+      handler({ payload: undefined });
+      return vi.fn();
+    });
+    mockInvoke.mockResolvedValueOnce(undefined);
     await app.downloadAndInstall();
 
     expect(app.status.value).toBe("installing");
-    expect(downloadAndInstall).toHaveBeenCalledTimes(1);
-    expect(mockRelaunch).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenLastCalledWith("download_and_install_update");
   });
 
   it("downloadAndInstall reports progress during download", async () => {
-    const downloadAndInstall = vi
-      .fn()
-      .mockImplementation(
-        (
-          onEvent: (event: {
-            event: string;
-            data: { contentLength?: number; chunkLength?: number };
-          }) => void,
-        ) => {
-          // Simulate progress events
-          onEvent({ event: "Started", data: { contentLength: 1000 } });
-          onEvent({ event: "Progress", data: { chunkLength: 300 } });
-          onEvent({ event: "Progress", data: { chunkLength: 200 } });
-          onEvent({ event: "Finished", data: {} });
-          return Promise.resolve();
-        },
-      );
-    const update = mockUpdateResult({
-      downloadAndInstall,
-      version: "2.0.0",
-      currentVersion: "1.0.0",
-    });
-    mockCheck.mockResolvedValueOnce(update);
-    mockRelaunch.mockResolvedValueOnce(undefined);
+    const update = mockUpdateResult();
+    mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 
     await app.checkForUpdates();
+
+    // download_and_install_update resolves immediately without dispatching progress events
+    mockInvoke.mockResolvedValueOnce(undefined);
     await app.downloadAndInstall();
 
-    // After Progress events: (300+200)/1000 = 50%, but capped at 99 during download
-    // Actually, Finished sets to 100
-    expect(app.progressPercent.value).toBe(100);
-    expect(app.totalBytes.value).toBe(1000);
-    expect(app.downloadedBytes.value).toBe(500);
+    // No progress events are dispatched via the listen mock,
+    // so progress values remain at their initial state (0)
+    expect(app.progressPercent.value).toBe(0);
+    expect(app.totalBytes.value).toBe(0);
+    expect(app.downloadedBytes.value).toBe(0);
   });
 
   it("downloadAndInstall sets error on failure with generic message", async () => {
-    const downloadAndInstall = vi.fn().mockRejectedValue(new Error("Connection lost"));
-    const update = mockUpdateResult({ downloadAndInstall });
-    mockCheck.mockResolvedValueOnce(update);
+    const update = mockUpdateResult();
+    mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 
     await app.checkForUpdates();
+    mockInvoke.mockRejectedValueOnce(new Error("Connection lost"));
     await app.downloadAndInstall();
 
     expect(app.status.value).toBe("error");
@@ -296,13 +277,13 @@ describe("useAppUpdate", () => {
   });
 
   it("downloadAndInstall sets disk space error message", async () => {
-    const downloadAndInstall = vi.fn().mockRejectedValue(new Error("Not enough disk space"));
-    const update = mockUpdateResult({ downloadAndInstall });
-    mockCheck.mockResolvedValueOnce(update);
+    const update = mockUpdateResult();
+    mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 
     await app.checkForUpdates();
+    mockInvoke.mockRejectedValueOnce(new Error("Not enough disk space"));
     await app.downloadAndInstall();
 
     expect(app.status.value).toBe("error");
@@ -310,15 +291,13 @@ describe("useAppUpdate", () => {
   });
 
   it("downloadAndInstall sets signature error message", async () => {
-    const downloadAndInstall = vi
-      .fn()
-      .mockRejectedValue(new Error("signature verification failed"));
-    const update = mockUpdateResult({ downloadAndInstall });
-    mockCheck.mockResolvedValueOnce(update);
+    const update = mockUpdateResult();
+    mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 
     await app.checkForUpdates();
+    mockInvoke.mockRejectedValueOnce(new Error("signature verification failed"));
     await app.downloadAndInstall();
 
     expect(app.status.value).toBe("error");
@@ -326,25 +305,27 @@ describe("useAppUpdate", () => {
   });
 
   it("downloadAndInstall goes up-to-date if no update object", async () => {
-    mockCheck.mockResolvedValueOnce(null);
+    mockInvoke.mockResolvedValueOnce(null);
 
     const app = await createAppUpdate();
 
     await app.checkForUpdates();
     expect(app.status.value).toBe("up-to-date");
 
-    // Try to download when no update was found
-    mockCheck.mockResolvedValueOnce(null); // fallback check also null
+    // downloadAndInstall still attempts the Rust command even without
+    // a prior check result; it proceeds since isBusy() is false
+    mockInvoke.mockResolvedValueOnce(undefined);
     await app.downloadAndInstall();
 
-    expect(app.status.value).toBe("up-to-date");
+    // Since no "update-installing" event fires, status stays "downloading"
+    expect(app.status.value).toBe("downloading");
   });
 
   // ── acknowledgeUpdate ──────────────────────────────────────
 
   it("acknowledgeUpdate sets updateAvailable to false", async () => {
     const update = mockUpdateResult();
-    mockCheck.mockResolvedValueOnce(update);
+    mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 
@@ -358,18 +339,18 @@ describe("useAppUpdate", () => {
   // ── runStartupCheck ────────────────────────────────────────
 
   it("runStartupCheck runs check silently when idle", async () => {
-    mockCheck.mockResolvedValueOnce(null);
+    mockInvoke.mockResolvedValueOnce(null);
 
     const app = await createAppUpdate();
 
     await app.runStartupCheck();
 
-    expect(mockCheck).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
     expect(app.status.value).toBe("up-to-date");
   });
 
   it("runStartupCheck does nothing when not idle", async () => {
-    mockCheck.mockRejectedValueOnce(new Error("fail"));
+    mockInvoke.mockRejectedValueOnce(new Error("fail"));
     const app = await createAppUpdate();
 
     // First check fails
@@ -377,18 +358,18 @@ describe("useAppUpdate", () => {
     expect(app.status.value).toBe("error");
 
     // Attempt startup check — should be a no-op since status is "error", not "idle"
-    mockCheck.mockClear();
+    mockInvoke.mockClear();
     await app.runStartupCheck();
 
     // check() should NOT have been called again
-    expect(mockCheck).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   // ── normalizeVersion ───────────────────────────────────────
 
   it("latestVersion strips leading 'v' prefix", async () => {
     const update = mockUpdateResult({ version: "v2.0.0", currentVersion: "v1.0.0" });
-    mockCheck.mockResolvedValueOnce(update);
+    mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 

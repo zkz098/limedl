@@ -6,7 +6,7 @@ import type { AppSettings } from "../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
-vi.mock("#invoke", () => ({ invoke: vi.fn() }));
+vi.mock("#invoke", () => ({ invoke: vi.fn(), setEventDispatcher: vi.fn() }));
 
 vi.mock("../../i18n", () => ({
   useI18n: () => ({

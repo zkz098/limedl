@@ -252,7 +252,7 @@ fn handle_list_methods_returns_array() {
     assert!(methods.contains(&json!("system.listNotifications")));
 
     // Verify the exact count
-    assert_eq!(methods.len(), 24);
+    assert_eq!(methods.len(), 30);
 }
 
 #[test]
