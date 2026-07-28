@@ -58,9 +58,44 @@ export function useSettingsSummaries(
       draft.logging.level;
     const path = draft.logging.filePath.trim() || t("settings.loggingAutoPath");
 
-    return draft.logging.enabled
+    const base = draft.logging.enabled
       ? t("settings.summaries.loggingEnabled", { level: levelLabel, path })
       : t("settings.summaries.loggingDisabled");
+
+    if (!draft.logging.enabled) {
+      return base;
+    }
+
+    const hasCount = draft.logging.retentionCount != null;
+    const hasDays = draft.logging.retentionDays != null;
+
+    if (hasCount && hasDays) {
+      return (
+        base +
+        t("settings.loggingRetentionSummary", {
+          count: draft.logging.retentionCount,
+          days: draft.logging.retentionDays,
+        })
+      );
+    }
+    if (hasCount) {
+      return (
+        base +
+        t("settings.loggingRetentionCountSummary", {
+          count: draft.logging.retentionCount,
+        })
+      );
+    }
+    if (hasDays) {
+      return (
+        base +
+        t("settings.loggingRetentionDaysSummary", {
+          days: draft.logging.retentionDays,
+        })
+      );
+    }
+
+    return base;
   });
 
   const downloadSummary = computed(() => {

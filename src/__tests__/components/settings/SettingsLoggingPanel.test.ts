@@ -153,6 +153,20 @@ const logLevelOptions: Array<{ label: string; value: LogLevel }> = [
   { label: "Error", value: "error" },
 ];
 
+function findStrategySelect(wrapper: ReturnType<typeof mount>) {
+  return wrapper
+    .findAll(".ui-select-stub")
+    .find((select) => select.find('option[value="none"]').exists());
+}
+
+function findCountInput(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll(".ui-text-field-stub").find((input) => input.attributes("max") === "1000");
+}
+
+function findDaysInput(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll(".ui-text-field-stub").find((input) => input.attributes("max") === "3650");
+}
+
 // ── Tests ──────────────────────────────────────────────────────────
 
 describe("SettingsLoggingPanel", () => {
@@ -238,7 +252,7 @@ describe("SettingsLoggingPanel", () => {
     expect(draft.logging.filePath).toBe("/new/path/log.txt");
   });
 
-  it("renders all three fields within SettingsSection", () => {
+  it("renders logging panel fields within SettingsSection", () => {
     const wrapper = mount(SettingsLoggingPanel, {
       props: {
         draft: reactive(createSettings()),
@@ -252,7 +266,7 @@ describe("SettingsLoggingPanel", () => {
     // SettingsSection is rendered with title
     expect(wrapper.find(".settings-section-stub").exists()).toBe(true);
 
-    // All three field stubs are rendered
+    // All field stubs are rendered
     expect(wrapper.find(".ui-switch-stub").exists()).toBe(true);
     expect(wrapper.find(".ui-select-stub").exists()).toBe(true);
     expect(wrapper.find(".ui-text-field-stub").exists()).toBe(true);
@@ -271,5 +285,158 @@ describe("SettingsLoggingPanel", () => {
 
     const section = wrapper.find(".settings-section-stub");
     expect(section.text()).toContain("3 logs retained");
+  });
+
+  it("renders retention strategy select and changing strategy updates model", async () => {
+    const draft = reactive(createSettings());
+    const wrapper = mount(SettingsLoggingPanel, {
+      props: {
+        draft,
+        t: (key: string) => key,
+        logLevelOptions,
+        loggingSummary: "Logging enabled",
+      },
+      global: { stubs },
+    });
+
+    const strategySelect = findStrategySelect(wrapper);
+    expect(strategySelect).toBeDefined();
+    expect(strategySelect!.exists()).toBe(true);
+
+    const options = strategySelect!.findAll("option");
+    expect(options).toHaveLength(4);
+    expect(options.map((option) => option.attributes("value"))).toEqual([
+      "none",
+      "count",
+      "days",
+      "both",
+    ]);
+
+    await strategySelect!.setValue("count");
+    expect(draft.logging.retentionDays).toBeNull();
+    expect(draft.logging.retentionCount).not.toBeNull();
+  });
+
+  it("shows count input when strategy is count and hides it for days", async () => {
+    const draft = reactive(createSettings());
+    draft.logging.retentionCount = 10;
+    draft.logging.retentionDays = null;
+
+    const wrapper = mount(SettingsLoggingPanel, {
+      props: {
+        draft,
+        t: (key: string) => key,
+        logLevelOptions,
+        loggingSummary: "Logging enabled",
+      },
+      global: { stubs },
+    });
+
+    expect(findCountInput(wrapper)).toBeDefined();
+    expect(findDaysInput(wrapper)).toBeUndefined();
+
+    const strategySelect = findStrategySelect(wrapper);
+    await strategySelect!.setValue("days");
+
+    expect(findCountInput(wrapper)).toBeUndefined();
+    expect(findDaysInput(wrapper)).toBeDefined();
+  });
+
+  it("shows days input when strategy is days and hides it for count", async () => {
+    const draft = reactive(createSettings());
+    draft.logging.retentionCount = null;
+    draft.logging.retentionDays = 30;
+
+    const wrapper = mount(SettingsLoggingPanel, {
+      props: {
+        draft,
+        t: (key: string) => key,
+        logLevelOptions,
+        loggingSummary: "Logging enabled",
+      },
+      global: { stubs },
+    });
+
+    expect(findDaysInput(wrapper)).toBeDefined();
+    expect(findCountInput(wrapper)).toBeUndefined();
+
+    const strategySelect = findStrategySelect(wrapper);
+    await strategySelect!.setValue("count");
+
+    expect(findDaysInput(wrapper)).toBeUndefined();
+    expect(findCountInput(wrapper)).toBeDefined();
+  });
+
+  it("setting strategy to count clears days and vice versa", async () => {
+    const draft = reactive(createSettings());
+    draft.logging.retentionCount = null;
+    draft.logging.retentionDays = 30;
+
+    const wrapper = mount(SettingsLoggingPanel, {
+      props: {
+        draft,
+        t: (key: string) => key,
+        logLevelOptions,
+        loggingSummary: "Logging enabled",
+      },
+      global: { stubs },
+    });
+
+    const strategySelect = findStrategySelect(wrapper);
+
+    await strategySelect!.setValue("count");
+    expect(draft.logging.retentionDays).toBeNull();
+    expect(draft.logging.retentionCount).toBe(10);
+
+    await strategySelect!.setValue("days");
+    expect(draft.logging.retentionCount).toBeNull();
+    expect(draft.logging.retentionDays).toBe(30);
+  });
+
+  it("setting strategy to none clears both retention fields", async () => {
+    const draft = reactive(createSettings());
+    draft.logging.retentionCount = 10;
+    draft.logging.retentionDays = 30;
+
+    const wrapper = mount(SettingsLoggingPanel, {
+      props: {
+        draft,
+        t: (key: string) => key,
+        logLevelOptions,
+        loggingSummary: "Logging enabled",
+      },
+      global: { stubs },
+    });
+
+    const strategySelect = findStrategySelect(wrapper);
+    await strategySelect!.setValue("none");
+
+    expect(draft.logging.retentionCount).toBeNull();
+    expect(draft.logging.retentionDays).toBeNull();
+  });
+
+  it("shows both retention inputs when strategy is both", async () => {
+    const draft = reactive(createSettings());
+    draft.logging.retentionCount = 10;
+    draft.logging.retentionDays = 30;
+
+    const wrapper = mount(SettingsLoggingPanel, {
+      props: {
+        draft,
+        t: (key: string) => key,
+        logLevelOptions,
+        loggingSummary: "Logging enabled",
+      },
+      global: { stubs },
+    });
+
+    expect(findCountInput(wrapper)).toBeDefined();
+    expect(findDaysInput(wrapper)).toBeDefined();
+
+    const strategySelect = findStrategySelect(wrapper);
+    await strategySelect!.setValue("none");
+
+    expect(findCountInput(wrapper)).toBeUndefined();
+    expect(findDaysInput(wrapper)).toBeUndefined();
   });
 });
