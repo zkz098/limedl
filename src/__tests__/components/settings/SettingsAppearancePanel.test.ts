@@ -38,8 +38,7 @@ const stubs = {
     props: ["modelValue"],
   },
   UiButton: {
-    template:
-      '<button class="ui-button-stub" @click="$emit(\'click\')"><slot /></button>',
+    template: '<button class="ui-button-stub" @click="$emit(\'click\')"><slot /></button>',
     props: ["loading"],
   },
   InfoTooltip: {
@@ -259,9 +258,7 @@ describe("SettingsAppearancePanel", () => {
     const { draft, wrapper } = mountPanel();
     expect(draft.appearance.themeColor).toBe("amber");
 
-    const skyBtn = wrapper.find(
-      'button[aria-label="settings.themeColorNames.sky"]',
-    );
+    const skyBtn = wrapper.find('button[aria-label="settings.themeColorNames.sky"]');
     await skyBtn.trigger("click");
     await nextTick();
 
@@ -272,15 +269,9 @@ describe("SettingsAppearancePanel", () => {
     const { draft, wrapper } = mountPanel();
     expect(draft.appearance.themeColor).toBe("amber");
 
-    const amberBtn = wrapper.find(
-      'button[aria-label="settings.themeColorNames.amber"]',
-    );
-    const skyBtn = wrapper.find(
-      'button[aria-label="settings.themeColorNames.sky"]',
-    );
-    const limeBtn = wrapper.find(
-      'button[aria-label="settings.themeColorNames.lime"]',
-    );
+    const amberBtn = wrapper.find('button[aria-label="settings.themeColorNames.amber"]');
+    const skyBtn = wrapper.find('button[aria-label="settings.themeColorNames.sky"]');
+    const limeBtn = wrapper.find('button[aria-label="settings.themeColorNames.lime"]');
 
     // Amber is active initially
     expect(amberBtn.classes()).toContain("is-active");
@@ -308,15 +299,9 @@ describe("SettingsAppearancePanel", () => {
     const { draft, wrapper } = mountPanel();
     expect(draft.appearance.themeColor).toBe("amber");
 
-    const amberBtn = wrapper.find(
-      'button[aria-label="settings.themeColorNames.amber"]',
-    );
-    const skyBtn = wrapper.find(
-      'button[aria-label="settings.themeColorNames.sky"]',
-    );
-    const limeBtn = wrapper.find(
-      'button[aria-label="settings.themeColorNames.lime"]',
-    );
+    const amberBtn = wrapper.find('button[aria-label="settings.themeColorNames.amber"]');
+    const skyBtn = wrapper.find('button[aria-label="settings.themeColorNames.sky"]');
+    const limeBtn = wrapper.find('button[aria-label="settings.themeColorNames.lime"]');
 
     // Only amber has check
     expect(amberBtn.find(".i-ri-check-line").exists()).toBe(true);
@@ -356,9 +341,7 @@ describe("SettingsAppearancePanel", () => {
 
     // Detail info is the first switch
     const detailSwitch = switches[0];
-    expect(detailSwitch.element.checked).toBe(
-      draft.appearance.showDetailInfo,
-    );
+    expect(detailSwitch.element.checked).toBe(draft.appearance.showDetailInfo);
 
     // Toggle off
     await detailSwitch.setValue(false);
@@ -380,9 +363,7 @@ describe("SettingsAppearancePanel", () => {
 
     const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const notifSwitch = switches[1];
-    expect(notifSwitch.element.checked).toBe(
-      draft.notifications.enabled,
-    );
+    expect(notifSwitch.element.checked).toBe(draft.notifications.enabled);
 
     // Toggle off
     await notifSwitch.setValue(false);
@@ -403,9 +384,7 @@ describe("SettingsAppearancePanel", () => {
     const autoSwitch = switches[2];
 
     // The switch uses :model-value — it shows current draft value
-    expect(autoSwitch.element.checked).toBe(
-      draft.autostart,
-    );
+    expect(autoSwitch.element.checked).toBe(draft.autostart);
 
     // The handler (onAutostartChange) updates draft.autostart
     // and calls the plugin API to sync OS registry.
@@ -472,9 +451,7 @@ describe("SettingsAppearancePanel", () => {
     expect(options).toHaveLength(2);
 
     // Initial value from v-model
-    expect(closeSelect.element.value).toBe(
-      "minimizeToTray",
-    );
+    expect(closeSelect.element.value).toBe("minimizeToTray");
   });
 
   it("closeBehaviorOptions includes minimizeToTray and exit with translated labels", () => {

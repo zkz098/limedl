@@ -212,7 +212,10 @@ describe("useBtInspector", () => {
     it("sets isLoading to true during fetch and false after", async () => {
       let resolvePeers!: (data: BtPeerInfo[]) => void;
       mockGetBtPeers.mockImplementationOnce(
-        () => new Promise<BtPeerInfo[]>((r) => { resolvePeers = r; }),
+        () =>
+          new Promise<BtPeerInfo[]>((r) => {
+            resolvePeers = r;
+          }),
       );
       mockGetBtTrackers.mockResolvedValue([]);
       mockGetBtPieces.mockResolvedValue([]);
@@ -233,7 +236,10 @@ describe("useBtInspector", () => {
     it("tracks per-tab loading state independently", async () => {
       let resolvePeers!: (data: BtPeerInfo[]) => void;
       mockGetBtPeers.mockImplementationOnce(
-        () => new Promise<BtPeerInfo[]>((r) => { resolvePeers = r; }),
+        () =>
+          new Promise<BtPeerInfo[]>((r) => {
+            resolvePeers = r;
+          }),
       );
       // Let trackers/pieces resolve immediately
       mockGetBtTrackers.mockResolvedValue([]);
@@ -332,22 +338,24 @@ describe("useBtInspector", () => {
       // Now clear stats and set up deferred mocks
       mockGetBtPeers.mockClear();
 
-      const freshData: BtPeerInfo[] = [
-        { ...mockPeer, address: "9.9.9.9:6881" },
-      ];
-      const staleData: BtPeerInfo[] = [
-        { ...mockPeer, address: "1.1.1.1:6881" },
-      ];
+      const freshData: BtPeerInfo[] = [{ ...mockPeer, address: "9.9.9.9:6881" }];
+      const staleData: BtPeerInfo[] = [{ ...mockPeer, address: "1.1.1.1:6881" }];
 
       let resolveStale!: (v: BtPeerInfo[]) => void;
       let resolveFresh!: (v: BtPeerInfo[]) => void;
 
       mockGetBtPeers
         .mockImplementationOnce(
-          () => new Promise<BtPeerInfo[]>((r) => { resolveStale = r; }),
+          () =>
+            new Promise<BtPeerInfo[]>((r) => {
+              resolveStale = r;
+            }),
         )
         .mockImplementationOnce(
-          () => new Promise<BtPeerInfo[]>((r) => { resolveFresh = r; }),
+          () =>
+            new Promise<BtPeerInfo[]>((r) => {
+              resolveFresh = r;
+            }),
         );
 
       // Start two overlapping fetches
@@ -389,10 +397,16 @@ describe("useBtInspector", () => {
 
       mockGetBtPeers
         .mockImplementationOnce(
-          () => new Promise<BtPeerInfo[]>((r) => { resolveA = r; }),
+          () =>
+            new Promise<BtPeerInfo[]>((r) => {
+              resolveA = r;
+            }),
         )
         .mockImplementationOnce(
-          () => new Promise<BtPeerInfo[]>((r) => { resolveB = r; }),
+          () =>
+            new Promise<BtPeerInfo[]>((r) => {
+              resolveB = r;
+            }),
         );
 
       const pA = fetchPeers(); // version += 1
@@ -625,7 +639,10 @@ describe("useBtInspector", () => {
 
       let resolveUpdate!: () => void;
       mockUpdateBtFiles.mockImplementationOnce(
-        () => new Promise<void>((r) => { resolveUpdate = r; }),
+        () =>
+          new Promise<void>((r) => {
+            resolveUpdate = r;
+          }),
       );
 
       const taskId = ref("task-1");

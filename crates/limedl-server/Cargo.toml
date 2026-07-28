@@ -22,7 +22,14 @@ embed-frontend = ["dep:rust-embed"]
 limedl-core = { path = "../limedl-core" }
 axum = { version = "0.8", features = ["ws"] }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
-tower-http = { version = "0.7", features = ["fs", "set-header", "limit", "compression-gzip", "compression-br", "compression-zstd"] }
+tower-http = { version = "0.7", features = [
+  "fs",
+  "set-header",
+  "limit",
+  "compression-gzip",
+  "compression-br",
+  "compression-zstd",
+] }
 governor = "0.10"
 nonzero_ext = "0.3"
 dashmap = "6"

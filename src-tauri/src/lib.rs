@@ -1,4 +1,5 @@
 mod download;
+mod update;
 
 #[cfg(feature = "test-utils")]
 pub use download::aimd;
@@ -36,6 +37,7 @@ use download::{
     settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode,
     toggle_overclock_mode, update_bt_files, CloseBehavior,
 };
+pub use update::{check_update_full, download_and_install_update};
 
 /// Maps a [`DownloadEvent`] to a Tauri event name and JSON payload.
 ///
@@ -533,6 +535,8 @@ pub fn run() {
             detect_all_disk_types,
             factory_reset,
             update_tray_language,
+            check_update_full,
+            download_and_install_update,
         ])
         .run(tauri::generate_context!());
 

@@ -315,211 +315,211 @@ const versionBadgeClass = computed(() => {
 
 <template>
   <div class="about-panel-wrapper">
-  <div class="about-panel flex flex-col gap-5">
-    <!-- Card 1: About Limedl -->
-    <SettingsSection :title="t('settings.aboutTitle')" icon="i-ri-information-line">
-      <div class="about-identity">
-        <img :src="logoUrl" alt="Limedl" class="about-identity__logo" />
-        <div class="about-identity__meta">
-          <span class="about-identity__name">{{ appName || "Limedl" }}</span>
-          <span class="about-identity__version">v{{ appVersion || "--" }}</span>
-          <div class="about-identity__system about-system">
-            <span class="about-system__item">
-              <span class="about-system__label">{{ t("settings.aboutOs") }}</span>
-              <span class="about-system__value">{{ osPlatform || "\u2014" }}</span>
-            </span>
-            <span class="about-system__sep" aria-hidden="true">·</span>
-            <span class="about-system__item">
-              <span class="about-system__label">{{ t("settings.aboutArchitecture") }}</span>
-              <span class="about-system__value">{{ osArch || "\u2014" }}</span>
-            </span>
-            <span class="about-system__sep" aria-hidden="true">·</span>
-            <span class="about-system__item">
-              <span class="about-system__label">{{ t("settings.aboutOsVersion") }}</span>
-              <span class="about-system__value">{{ osVer || "\u2014" }}</span>
-            </span>
-            <span class="about-system__sep" aria-hidden="true">·</span>
-            <span class="about-system__item">
-              <span class="about-system__label">{{ t("settings.aboutTauriVersion") }}</span>
-              <span class="about-system__value">{{ tauriVer || "\u2014" }}</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div class="about-license">
-        <span class="i-ri-scales-line about-license__icon" aria-hidden="true" />
-        <div class="about-license__content">
-          <p class="about-license__text">
-            {{ t("settings.aboutLicense") }}
-          </p>
-          <p class="about-license__ref">{{ t("settings.aboutLicenseRef") }}</p>
-        </div>
-      </div>
-    </SettingsSection>
-
-    <!-- Card 2: Software Update -->
-    <SettingsSection :title="t('settings.aboutUpdateTitle')" icon="i-ri-download-cloud-line">
-      <div class="update-card">
-        <div class="update-card__header">
-          <div class="about-version-badge" :class="versionBadgeClass">
-            <span class="about-version-badge__text">{{
-              showVersionBadge ? currentVersion || appVersion : "?"
-            }}</span>
-          </div>
-          <div class="update-card__status">
-            <span class="update-card__label">{{ t("settings.aboutVersion") }}</span>
-            <span class="update-card__state">{{ statusLabel }}</span>
-          </div>
-
-          <div v-if="latestVersion && status === 'available'" class="update-card__target">
-            <span class="i-ri-arrow-right-line update-card__target-icon" aria-hidden="true" />
-            <span class="update-card__target-version">v{{ latestVersion }}</span>
+    <div class="about-panel flex flex-col gap-5">
+      <!-- Card 1: About Limedl -->
+      <SettingsSection :title="t('settings.aboutTitle')" icon="i-ri-information-line">
+        <div class="about-identity">
+          <img :src="logoUrl" alt="Limedl" class="about-identity__logo" />
+          <div class="about-identity__meta">
+            <span class="about-identity__name">{{ appName || "Limedl" }}</span>
+            <span class="about-identity__version">v{{ appVersion || "--" }}</span>
+            <div class="about-identity__system about-system">
+              <span class="about-system__item">
+                <span class="about-system__label">{{ t("settings.aboutOs") }}</span>
+                <span class="about-system__value">{{ osPlatform || "\u2014" }}</span>
+              </span>
+              <span class="about-system__sep" aria-hidden="true">·</span>
+              <span class="about-system__item">
+                <span class="about-system__label">{{ t("settings.aboutArchitecture") }}</span>
+                <span class="about-system__value">{{ osArch || "\u2014" }}</span>
+              </span>
+              <span class="about-system__sep" aria-hidden="true">·</span>
+              <span class="about-system__item">
+                <span class="about-system__label">{{ t("settings.aboutOsVersion") }}</span>
+                <span class="about-system__value">{{ osVer || "\u2014" }}</span>
+              </span>
+              <span class="about-system__sep" aria-hidden="true">·</span>
+              <span class="about-system__item">
+                <span class="about-system__label">{{ t("settings.aboutTauriVersion") }}</span>
+                <span class="about-system__value">{{ tauriVer || "\u2014" }}</span>
+              </span>
+            </div>
           </div>
         </div>
 
-        <div class="settings-grid">
-          <SettingsField
-            :wide="true"
-            :label="t('settings.aboutChannel')"
-            :hint="channel === 'beta' ? t('settings.aboutChannelDowngradeWarning') : undefined"
+        <div class="about-license">
+          <span class="i-ri-scales-line about-license__icon" aria-hidden="true" />
+          <div class="about-license__content">
+            <p class="about-license__text">
+              {{ t("settings.aboutLicense") }}
+            </p>
+            <p class="about-license__ref">{{ t("settings.aboutLicenseRef") }}</p>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <!-- Card 2: Software Update -->
+      <SettingsSection :title="t('settings.aboutUpdateTitle')" icon="i-ri-download-cloud-line">
+        <div class="update-card">
+          <div class="update-card__header">
+            <div class="about-version-badge" :class="versionBadgeClass">
+              <span class="about-version-badge__text">{{
+                showVersionBadge ? currentVersion || appVersion : "?"
+              }}</span>
+            </div>
+            <div class="update-card__status">
+              <span class="update-card__label">{{ t("settings.aboutVersion") }}</span>
+              <span class="update-card__state">{{ statusLabel }}</span>
+            </div>
+
+            <div v-if="latestVersion && status === 'available'" class="update-card__target">
+              <span class="i-ri-arrow-right-line update-card__target-icon" aria-hidden="true" />
+              <span class="update-card__target-version">v{{ latestVersion }}</span>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <SettingsField
+              :wide="true"
+              :label="t('settings.aboutChannel')"
+              :hint="channel === 'beta' ? t('settings.aboutChannelDowngradeWarning') : undefined"
+            >
+              <div class="update-card__channel">
+                <UiButton
+                  v-for="opt in channelOptions"
+                  :key="opt.value"
+                  size="sm"
+                  :variant="channel === opt.value ? 'primary' : 'secondary'"
+                  @click="handleChannelChange(opt.value)"
+                >
+                  {{ opt.label }}
+                </UiButton>
+              </div>
+            </SettingsField>
+          </div>
+
+          <div class="update-card__actions">
+            <UiButton
+              v-if="status !== 'downloading' && status !== 'installing' && status !== 'available'"
+              icon="i-ri-refresh-line"
+              :loading="isChecking"
+              @click="handleCheck"
+            >
+              {{ isChecking ? t("settings.aboutChecking") : t("settings.aboutCheckUpdate") }}
+            </UiButton>
+
+            <UiButton
+              v-if="status === 'available'"
+              variant="primary"
+              icon="i-ri-download-2-line"
+              :loading="isDownloading || isInstalling"
+              @click="downloadAndInstall"
+            >
+              {{ isDownloading ? t("settings.aboutDownloading") : t("settings.aboutUpdateNow") }}
+            </UiButton>
+          </div>
+
+          <div
+            v-if="status === 'downloading' || status === 'installing'"
+            class="update-card__progress"
           >
-            <div class="update-card__channel">
-              <UiButton
-                v-for="opt in channelOptions"
-                :key="opt.value"
-                size="sm"
-                :variant="channel === opt.value ? 'primary' : 'secondary'"
-                @click="handleChannelChange(opt.value)"
-              >
-                {{ opt.label }}
+            <UiProgress :value="progressPercent" :show-label="true" :label="progressLabel" />
+            <span v-if="status === 'installing'" class="update-card__hint">
+              {{ t("settings.aboutRelaunchHint") }}
+            </span>
+          </div>
+
+          <div v-if="status === 'error' && errorMessage" class="status-banner status-banner--error">
+            <span class="i-ri-error-warning-line" aria-hidden="true" />
+            <span>{{ errorMessage }}</span>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <!-- Card 3: Changelog -->
+      <SettingsSection
+        v-if="latestBody && changelogLines.length > 0"
+        :title="t('settings.aboutChangelog')"
+        icon="i-ri-file-list-line"
+      >
+        <div class="update-card__changelog">
+          <span v-if="latestDate" class="update-card__changelog-date">
+            {{ t("settings.aboutReleaseDate") }}: {{ latestDate }}
+          </span>
+          <div class="about-changelog">
+            <p
+              v-for="(line, i) in changelogLines"
+              :key="i"
+              :class="{ 'about-changelog__heading': line.startsWith('##') }"
+            >
+              {{ line }}
+            </p>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <!-- Card 4: Links & Actions -->
+      <SettingsSection :title="t('settings.aboutLinksTitle')" icon="i-ri-links-line">
+        <div class="about-links">
+          <UiButton
+            v-if="!showResetConfirm"
+            variant="secondary"
+            icon="i-ri-refresh-line"
+            @click="handleResetClick"
+          >
+            {{ t("settings.aboutResetSettings") }}
+          </UiButton>
+
+          <div v-if="showResetConfirm" class="about-reset-confirm">
+            <span class="about-reset-confirm__text">{{ t("settings.aboutResetConfirm") }}</span>
+            <div class="about-reset-confirm__actions">
+              <UiButton variant="danger" size="sm" :loading="isResetting" @click="confirmReset">
+                {{ t("common.confirm") }}
+              </UiButton>
+              <UiButton variant="ghost" size="sm" :disabled="isResetting" @click="cancelReset">
+                {{ t("common.cancel") }}
               </UiButton>
             </div>
-          </SettingsField>
-        </div>
-
-        <div class="update-card__actions">
-          <UiButton
-            v-if="status !== 'downloading' && status !== 'installing' && status !== 'available'"
-            icon="i-ri-refresh-line"
-            :loading="isChecking"
-            @click="handleCheck"
-          >
-            {{ isChecking ? t("settings.aboutChecking") : t("settings.aboutCheckUpdate") }}
-          </UiButton>
-
-          <UiButton
-            v-if="status === 'available'"
-            variant="primary"
-            icon="i-ri-download-2-line"
-            :loading="isDownloading || isInstalling"
-            @click="downloadAndInstall"
-          >
-            {{ isDownloading ? t("settings.aboutDownloading") : t("settings.aboutUpdateNow") }}
-          </UiButton>
-        </div>
-
-        <div
-          v-if="status === 'downloading' || status === 'installing'"
-          class="update-card__progress"
-        >
-          <UiProgress :value="progressPercent" :show-label="true" :label="progressLabel" />
-          <span v-if="status === 'installing'" class="update-card__hint">
-            {{ t("settings.aboutRelaunchHint") }}
-          </span>
-        </div>
-
-        <div v-if="status === 'error' && errorMessage" class="status-banner status-banner--error">
-          <span class="i-ri-error-warning-line" aria-hidden="true" />
-          <span>{{ errorMessage }}</span>
-        </div>
-      </div>
-    </SettingsSection>
-
-    <!-- Card 3: Changelog -->
-    <SettingsSection
-      v-if="latestBody && changelogLines.length > 0"
-      :title="t('settings.aboutChangelog')"
-      icon="i-ri-file-list-line"
-    >
-      <div class="update-card__changelog">
-        <span v-if="latestDate" class="update-card__changelog-date">
-          {{ t("settings.aboutReleaseDate") }}: {{ latestDate }}
-        </span>
-        <div class="about-changelog">
-          <p
-            v-for="(line, i) in changelogLines"
-            :key="i"
-            :class="{ 'about-changelog__heading': line.startsWith('##') }"
-          >
-            {{ line }}
-          </p>
-        </div>
-      </div>
-    </SettingsSection>
-
-    <!-- Card 4: Links & Actions -->
-    <SettingsSection :title="t('settings.aboutLinksTitle')" icon="i-ri-links-line">
-      <div class="about-links">
-        <UiButton
-          v-if="!showResetConfirm"
-          variant="secondary"
-          icon="i-ri-refresh-line"
-          @click="handleResetClick"
-        >
-          {{ t("settings.aboutResetSettings") }}
-        </UiButton>
-
-        <div v-if="showResetConfirm" class="about-reset-confirm">
-          <span class="about-reset-confirm__text">{{ t("settings.aboutResetConfirm") }}</span>
-          <div class="about-reset-confirm__actions">
-            <UiButton variant="danger" size="sm" :loading="isResetting" @click="confirmReset">
-              {{ t("common.confirm") }}
-            </UiButton>
-            <UiButton variant="ghost" size="sm" :disabled="isResetting" @click="cancelReset">
-              {{ t("common.cancel") }}
-            </UiButton>
           </div>
+
+          <UiButton variant="secondary" icon="i-ri-restart-line" @click="emit('restart-setup')">
+            {{ t("settings.aboutRestartSetupButton") }}
+          </UiButton>
+
+          <UiButton
+            variant="danger"
+            icon="i-ri-delete-bin-line"
+            @click="showFactoryResetConfirm = true"
+          >
+            {{ t("settings.aboutFactoryResetButton") }}
+          </UiButton>
+
+          <UiButton
+            variant="secondary"
+            icon="i-ri-github-fill"
+            icon-right="i-ri-external-link-line"
+            @click="openGitHub"
+          >
+            {{ t("settings.aboutGitHubLink") }}
+          </UiButton>
         </div>
+      </SettingsSection>
+    </div>
 
-        <UiButton variant="secondary" icon="i-ri-restart-line" @click="emit('restart-setup')">
-          {{ t("settings.aboutRestartSetupButton") }}
-        </UiButton>
-
-        <UiButton
-          variant="danger"
-          icon="i-ri-delete-bin-line"
-          @click="showFactoryResetConfirm = true"
-        >
-          {{ t("settings.aboutFactoryResetButton") }}
-        </UiButton>
-
-        <UiButton
-          variant="secondary"
-          icon="i-ri-github-fill"
-          icon-right="i-ri-external-link-line"
-          @click="openGitHub"
-        >
-          {{ t("settings.aboutGitHubLink") }}
-        </UiButton>
-      </div>
-    </SettingsSection>
-  </div>
-
-  <ConfirmDialog
-    :model-value="showFactoryResetConfirm"
-    :kicker="t('settings.aboutFactoryResetTitle')"
-    :title="t('settings.aboutFactoryResetTitle')"
-    :message="t('settings.aboutFactoryResetMessage')"
-    :confirm-text="t('settings.aboutFactoryResetConfirm')"
-    :cancel-text="t('common.cancel')"
-    icon="i-ri-delete-bin-line"
-    :icon-danger="true"
-    confirm-icon="i-ri-delete-bin-line"
-    :confirm-loading="isFactoryResetting"
-    @cancel="showFactoryResetConfirm = false"
-    @confirm="handleFactoryReset"
-  />
+    <ConfirmDialog
+      :model-value="showFactoryResetConfirm"
+      :kicker="t('settings.aboutFactoryResetTitle')"
+      :title="t('settings.aboutFactoryResetTitle')"
+      :message="t('settings.aboutFactoryResetMessage')"
+      :confirm-text="t('settings.aboutFactoryResetConfirm')"
+      :cancel-text="t('common.cancel')"
+      icon="i-ri-delete-bin-line"
+      :icon-danger="true"
+      confirm-icon="i-ri-delete-bin-line"
+      :confirm-loading="isFactoryResetting"
+      @cancel="showFactoryResetConfirm = false"
+      @confirm="handleFactoryReset"
+    />
   </div>
 </template>
 

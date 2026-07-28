@@ -11,8 +11,12 @@ interface UseSetupWizardLifecycleOptions {
 }
 
 export function useSetupWizardLifecycle(options: UseSetupWizardLifecycleOptions) {
-  const { appSettings, applyAppearanceSettings, applyAppSettingsDefaults, setNotificationsEnabled } =
-    options;
+  const {
+    appSettings,
+    applyAppearanceSettings,
+    applyAppSettingsDefaults,
+    setNotificationsEnabled,
+  } = options;
 
   const showSetupWizard = ref<boolean | null>(null);
   const setupInitialSettings = ref<AppSettings | null>(null);

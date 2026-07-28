@@ -432,9 +432,11 @@ const enUS = {
       intelligentChunking: "Intelligent Chunking",
       intelligentChunkingHint: "Auto-adjust chunk strategy based on network conditions",
       tailSprint: "Tail Sprint",
-      tailSprintHint: "Reduces the chance of downloads getting stuck at 99% by accelerating remaining chunks near completion: detects slow connections and retries them, and splits the last chunk for parallel racing.",
+      tailSprintHint:
+        "Reduces the chance of downloads getting stuck at 99% by accelerating remaining chunks near completion: detects slow connections and retries them, and splits the last chunk for parallel racing.",
       connectionWarmup: "Connection Warmup",
-      connectionWarmupHint: "Pre-establish HTTP connections before downloading to reduce first-request latency.",
+      connectionWarmupHint:
+        "Pre-establish HTTP connections before downloading to reduce first-request latency.",
       downloads: "Downloads",
       downloadsTitle: "Download Defaults",
       bt: "BT",
@@ -698,9 +700,11 @@ const enUS = {
       closeBehaviorMinimizeToTray: "Minimize to tray",
       doubleClickTitle: "Double-Click Behavior",
       doubleClickOnCompleted: "Double-click completed task",
-      doubleClickOnCompletedHint: "Action to perform when double-clicking a completed download task.",
+      doubleClickOnCompletedHint:
+        "Action to perform when double-clicking a completed download task.",
       doubleClickOnUncompleted: "Double-click uncompleted task",
-      doubleClickOnUncompletedHint: "Action to perform when double-clicking an uncompleted download task.",
+      doubleClickOnUncompletedHint:
+        "Action to perform when double-clicking an uncompleted download task.",
       doubleClickNone: "No action",
       doubleClickOpenFile: "Open downloaded file",
       doubleClickOpenInExplorer: "Show file in Explorer",

@@ -20,7 +20,11 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
 
   // ── Reactive form ─────────────────────────────────────────────────
 
-  const form = reactive<AppSettings>({ ...DEFAULT_APP_SETTINGS, scheduler: { ...DEFAULT_APP_SETTINGS.scheduler, mode: "automatic" }, notifications: { enabled: false } });
+  const form = reactive<AppSettings>({
+    ...DEFAULT_APP_SETTINGS,
+    scheduler: { ...DEFAULT_APP_SETTINGS.scheduler, mode: "automatic" },
+    notifications: { enabled: false },
+  });
 
   const savedSettingsSnapshot = ref("");
 

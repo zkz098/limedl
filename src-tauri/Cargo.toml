@@ -39,6 +39,8 @@ mimalloc = "0.1.48"
 anyhow = "1"
 tracing = "0.1"
 parking_lot = "0.12"
+base64 = "0.22"
+minisign-verify = "0.2"
 rand = { version = "0.10", optional = true }
 
 [features]

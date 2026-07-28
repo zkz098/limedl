@@ -35,7 +35,14 @@ vi.mock("../../composables/useBtInspector", () => ({
 }));
 
 import DownloadInspector from "../../components/limedl/DownloadInspector.vue";
-import type { BtFileStatus, BtPeerInfo, BtPieceInfo, BtTrackerInfo, DownloadSnapshot, DownloadSummary } from "../../types/download";
+import type {
+  BtFileStatus,
+  BtPeerInfo,
+  BtPieceInfo,
+  BtTrackerInfo,
+  DownloadSnapshot,
+  DownloadSummary,
+} from "../../types/download";
 
 // ── Stubs ──────────────────────────────────────────────────────────
 
@@ -134,7 +141,11 @@ describe("DownloadInspector", () => {
     snapshot?: DownloadSnapshot | null;
     showDetailInfo?: boolean;
   }) {
-    const { overview = createOverview(), snapshot = createSnapshot(), showDetailInfo = false } = options;
+    const {
+      overview = createOverview(),
+      snapshot = createSnapshot(),
+      showDetailInfo = false,
+    } = options;
     return mount(DownloadInspector, {
       props: {
         selectedOverview: overview,
@@ -365,8 +376,22 @@ describe("DownloadInspector", () => {
   describe("BT peer and tracker list", () => {
     beforeEach(() => {
       mockInspector.peers.value = [
-        { address: "1.2.3.4:6881", client: "qBittorrent", flags: "", downloadSpeed: 1024, uploadSpeed: 512, progress: 0.5 },
-        { address: "5.6.7.8:6881", client: "Transmission", flags: "D", downloadSpeed: 2048, uploadSpeed: 256, progress: 0.75 },
+        {
+          address: "1.2.3.4:6881",
+          client: "qBittorrent",
+          flags: "",
+          downloadSpeed: 1024,
+          uploadSpeed: 512,
+          progress: 0.5,
+        },
+        {
+          address: "5.6.7.8:6881",
+          client: "Transmission",
+          flags: "D",
+          downloadSpeed: 2048,
+          uploadSpeed: 256,
+          progress: 0.75,
+        },
       ];
       mockInspector.trackers.value = [
         { url: "udp://tracker.example.com:6969" },

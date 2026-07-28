@@ -1,6 +1,7 @@
 import { ref, computed, readonly } from "vue";
-import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
+import { invoke } from "#invoke";
+import { listen } from "#event";
+import type { UnlistenFn } from "#event";
 import { useI18n } from "../i18n";
 import { useNotificationStore } from "../stores/notification";
 
@@ -17,8 +18,22 @@ export type UpdateStatus =
 
 export type UpdateChannel = "stable" | "beta";
 
+interface CheckUpdateFullResult {
+  version: string;
+  body?: string;
+  date?: string;
+  downloadUrl: string;
+  signature: string;
+  currentVersion: string;
+}
+
+interface UpdateDownloadProgress {
+  downloadedBytes: number;
+  totalBytes: number;
+  percent: number;
+}
+
 const CHANNEL_STORAGE_KEY = "limedl.updateChannel";
-const STARTUP_CHECK_TIMEOUT_MS = 5_000;
 
 // ── Module-level singleton state ──────────────────────────────────
 
@@ -42,10 +57,6 @@ const channel = ref<UpdateChannel>(
     return "stable";
   })(),
 );
-
-// Holds the Update object from the last check so downloadAndInstall
-// can reuse it without an extra network request.
-let pendingUpdate: Update | null = null;
 
 // ── Computed ──────────────────────────────────────────────────────
 
@@ -82,10 +93,8 @@ function isBusy(): boolean {
 function setChannel(ch: UpdateChannel) {
   channel.value = ch;
   localStorage.setItem(CHANNEL_STORAGE_KEY, ch);
-  // Reset state so user can re-check on the new channel
   status.value = "idle";
   errorMessage.value = "";
-  pendingUpdate = null;
 }
 
 async function checkForUpdates(silent = false) {
@@ -96,43 +105,38 @@ async function checkForUpdates(silent = false) {
 
   status.value = "checking";
   errorMessage.value = "";
-  pendingUpdate = null;
 
   try {
-    const update = await check({
-      timeout: STARTUP_CHECK_TIMEOUT_MS,
-    });
+    const result = await invoke<CheckUpdateFullResult | null>("check_update_full");
 
-    if (!update) {
+    if (!result) {
       status.value = "up-to-date";
       updateAvailable.value = false;
       return null;
     }
 
-    currentVersion.value = normalizeVersion(update.currentVersion);
+    currentVersion.value = normalizeVersion(result.currentVersion);
 
-    const latest = normalizeVersion(update.version);
+    const latest = normalizeVersion(result.version);
     latestVersion.value = latest;
 
-    // Prevent downgrade
     if (compareVersions(currentVersion.value, latest) >= 0) {
       status.value = silent ? "up-to-date" : "newer";
       updateAvailable.value = false;
       return null;
     }
 
-    latestBody.value = update.body ?? "";
-    latestDate.value = update.date ?? "";
+    latestBody.value = result.body ?? "";
+    latestDate.value = result.date ?? "";
 
     status.value = "available";
     updateAvailable.value = true;
-    pendingUpdate = update;
 
     if (!silent) {
       notifyInfo(t("settings.aboutUpdateAvailable") + `: v${latest}`);
     }
 
-    return update;
+    return result;
   } catch (err) {
     status.value = "error";
     errorMessage.value = err instanceof Error ? err.message : String(err);
@@ -143,9 +147,22 @@ async function checkForUpdates(silent = false) {
   }
 }
 
+/**
+ * Download the update via limedl's own download engine, verify the
+ * signature, and launch the platform-native installer.
+ *
+ * The Rust command (`download_and_install_update`) is self-contained:
+ * it checks for updates, downloads via limedl-core, verifies the
+ * minisign signature, and triggers the installer — all in one call.
+ *
+ * On Windows the installer calls `process::exit(0)`, so the invoke
+ * promise never resolves. The last signal to the frontend is the
+ * `update-installing` Tauri event, which transitions the UI to the
+ * "installing" state.
+ */
 async function downloadAndInstall() {
   const { t } = useI18n();
-  const { notifySuccess, notifyError } = useNotificationStore();
+  const { notifyError } = useNotificationStore();
 
   if (isBusy()) return;
 
@@ -155,39 +172,30 @@ async function downloadAndInstall() {
   downloadedBytes.value = 0;
   errorMessage.value = "";
 
-  try {
-    // Reuse the update from checkForUpdates if available, otherwise fetch fresh
-    const update = pendingUpdate ?? (await check({ timeout: 30_000 }));
-    if (!update) {
-      status.value = "up-to-date";
-      return;
-    }
+  let unlistenProgress: UnlistenFn | null = null;
+  let unlistenInstalling: UnlistenFn | null = null;
 
-    await update.downloadAndInstall((event: DownloadEvent) => {
-      switch (event.event) {
-        case "Started":
-          totalBytes.value = event.data.contentLength ?? 0;
-          break;
-        case "Progress":
-          downloadedBytes.value += event.data.chunkLength;
-          if (totalBytes.value > 0) {
-            progressPercent.value = Math.min(
-              Math.round((downloadedBytes.value / totalBytes.value) * 100),
-              99,
-            );
-          }
-          break;
-        case "Finished":
-          progressPercent.value = 100;
-          break;
-      }
+  try {
+    // Set up progress listener before calling the command
+    unlistenProgress = await listen<UpdateDownloadProgress>(
+      "update-download-progress",
+      (event) => {
+        totalBytes.value = event.payload.totalBytes;
+        downloadedBytes.value = event.payload.downloadedBytes;
+        progressPercent.value = event.payload.percent;
+      },
+    );
+
+    // Set up installing listener (fire-and-forget signal before the
+    // installer process takes over)
+    unlistenInstalling = await listen("update-installing", () => {
+      status.value = "installing";
+      updateAvailable.value = false;
     });
 
-    status.value = "installing";
-    pendingUpdate = null;
-
-    notifySuccess(t("settings.aboutRelaunchHint"));
-    await relaunch();
+    // This call is self-contained: check → download → verify → install.
+    // On Windows, the process exits during install and this never resolves.
+    await invoke("download_and_install_update");
   } catch (err) {
     status.value = "error";
     const msg = err instanceof Error ? err.message : String(err);
@@ -199,8 +207,10 @@ async function downloadAndInstall() {
     } else {
       errorMessage.value = msg;
     }
-    pendingUpdate = null;
     notifyError(t("settings.aboutDownloadFailed"));
+  } finally {
+    if (unlistenProgress) unlistenProgress();
+    if (unlistenInstalling) unlistenInstalling();
   }
 }
 

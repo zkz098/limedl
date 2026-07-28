@@ -165,9 +165,7 @@ describe("DataTable", () => {
   });
 
   it("falls back to rowIndex for :key when rowKey is missing", () => {
-    const rows = [
-      { name: "only.txt", size: "1 KB", status: "Done" },
-    ];
+    const rows = [{ name: "only.txt", size: "1 KB", status: "Done" }];
     const wrapper = mount(DataTable, {
       props: { columns: createColumns(), rows },
       global: { stubs },

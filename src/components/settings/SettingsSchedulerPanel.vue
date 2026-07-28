@@ -249,10 +249,7 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
           :label="t('settings.tailSprint')"
           :info-tooltip="t('settings.tailSprintHint')"
         >
-          <UiSwitch
-            v-model="draft.scheduler.tailSprintEnabled"
-            :label="t('settings.tailSprint')"
-          />
+          <UiSwitch v-model="draft.scheduler.tailSprintEnabled" :label="t('settings.tailSprint')" />
         </SettingsField>
 
         <SettingsField
@@ -360,10 +357,7 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
           :label="t('settings.tailSprint')"
           :info-tooltip="t('settings.tailSprintHint')"
         >
-          <UiSwitch
-            v-model="draft.scheduler.tailSprintEnabled"
-            :label="t('settings.tailSprint')"
-          />
+          <UiSwitch v-model="draft.scheduler.tailSprintEnabled" :label="t('settings.tailSprint')" />
         </SettingsField>
 
         <SettingsField

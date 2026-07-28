@@ -187,7 +187,8 @@ const settingsPageRef = ref<PersistablePage | null>(null);
 const labsPageRef = ref<PersistablePage | null>(null);
 
 const appSettingsStore = useAppSettingsStore();
-const { appSettings, sortKey, sortDirection, compactView, visibleColumns } = storeToRefs(appSettingsStore);
+const { appSettings, sortKey, sortDirection, compactView, visibleColumns } =
+  storeToRefs(appSettingsStore);
 const { applyAppearanceSettings } = appSettingsStore;
 
 const {
@@ -316,7 +317,6 @@ const btStatusData = computed(() => {
     torrents: btRuntimeStatus.value.torrentCount ?? 0,
   };
 });
-
 
 const handleRefreshSelected = async () => {
   if (!selectedId.value) {
@@ -704,10 +704,7 @@ watch(
         </div>
       </template>
 
-      <DownloadComposer
-        :settings="appSettings"
-        @submit="showComposerDialog = false"
-      />
+      <DownloadComposer :settings="appSettings" @submit="showComposerDialog = false" />
     </UiDialog>
 
     <BtSpeedLimitModal

@@ -20,8 +20,7 @@ const stubs = {
     props: ["title", "icon", "summary"],
   },
   SettingsField: {
-    template:
-      '<div class="settings-field-stub"><slot /></div>',
+    template: '<div class="settings-field-stub"><slot /></div>',
     props: ["title", "icon", "wide", "infoTooltip", "labelFor"],
   },
   UiTextField: {

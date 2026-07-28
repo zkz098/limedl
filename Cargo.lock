@@ -3392,13 +3392,15 @@ dependencies = [
 
 [[package]]
 name = "limedl"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "bytes",
  "criterion",
  "limedl-core",
  "mimalloc",
+ "minisign-verify",
  "ntest",
  "parking_lot",
  "rand 0.10.2",
@@ -3423,7 +3425,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-core"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3465,7 +3467,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-server"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "axum",

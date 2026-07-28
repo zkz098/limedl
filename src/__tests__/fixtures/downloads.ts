@@ -3,10 +3,7 @@
  * the DownloadSummary / DownloadSnapshot types from src/types/download.ts.
  */
 
-import type {
-  DownloadSnapshot,
-  DownloadSummary,
-} from "../../types/download";
+import type { DownloadSnapshot, DownloadSummary } from "../../types/download";
 
 let nextIdCounter = 1;
 

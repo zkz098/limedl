@@ -302,7 +302,11 @@ describe("useDownloadStore (extended)", () => {
     it("runPauseFor pauses a specific download and updates summary", async () => {
       const task = DownloadPresets.downloading({ id: "t-1", fileName: "alpha.zip" });
       store.downloads = [task];
-      const snapshot = createMockDownloadSnapshot({ id: "t-1", state: "paused", fileName: "alpha.zip" });
+      const snapshot = createMockDownloadSnapshot({
+        id: "t-1",
+        state: "paused",
+        fileName: "alpha.zip",
+      });
       mockPauseDownload.mockResolvedValue(snapshot);
 
       await store.runPauseFor("t-1");
@@ -315,7 +319,9 @@ describe("useDownloadStore (extended)", () => {
       const task = DownloadPresets.downloading({ id: "t-1" });
       store.downloads = [task];
       let resolveSnapshot!: (s: ReturnType<typeof createMockDownloadSnapshot>) => void;
-      const pending = new Promise<ReturnType<typeof createMockDownloadSnapshot>>((resolve) => { resolveSnapshot = resolve; });
+      const pending = new Promise<ReturnType<typeof createMockDownloadSnapshot>>((resolve) => {
+        resolveSnapshot = resolve;
+      });
       mockPauseDownload.mockReturnValue(pending);
 
       const promise = store.runPauseFor("t-1");
@@ -339,7 +345,11 @@ describe("useDownloadStore (extended)", () => {
     it("runResumeFor resumes a specific download and updates summary", async () => {
       const task = DownloadPresets.paused({ id: "t-1", fileName: "beta.zip" });
       store.downloads = [task];
-      const snapshot = createMockDownloadSnapshot({ id: "t-1", state: "downloading", fileName: "beta.zip" });
+      const snapshot = createMockDownloadSnapshot({
+        id: "t-1",
+        state: "downloading",
+        fileName: "beta.zip",
+      });
       mockResumeDownload.mockResolvedValue(snapshot);
 
       await store.runResumeFor("t-1");
@@ -347,7 +357,6 @@ describe("useDownloadStore (extended)", () => {
       expect(mockResumeDownload).toHaveBeenCalledWith("t-1");
       expect(store.downloads[0].state).toBe("downloading");
     });
-
   });
 
   // ── D. Batch actions ───────────────────────────────────────────
@@ -435,7 +444,11 @@ describe("useDownloadStore (extended)", () => {
     });
 
     it("runSetPriority calls setPriority and updates local summary", async () => {
-      const task = DownloadPresets.downloading({ id: "t-1", fileName: "a.zip", priority: "normal" });
+      const task = DownloadPresets.downloading({
+        id: "t-1",
+        fileName: "a.zip",
+        priority: "normal",
+      });
       store.downloads = [task];
 
       mockSetPriority.mockResolvedValue(undefined);
@@ -586,7 +599,9 @@ describe("useDownloadStore (extended)", () => {
 
     it("refreshList sets isRefreshingList guard", async () => {
       let resolvePromise!: (v: DownloadSummary[]) => void;
-      const pending = new Promise<DownloadSummary[]>((resolve) => { resolvePromise = resolve; });
+      const pending = new Promise<DownloadSummary[]>((resolve) => {
+        resolvePromise = resolve;
+      });
       mockListDownloads.mockReturnValue(pending);
 
       const promise = store.refreshList();
@@ -599,7 +614,9 @@ describe("useDownloadStore (extended)", () => {
 
     it("refreshList guards against concurrent calls", async () => {
       let resolvePromise!: (v: DownloadSummary[]) => void;
-      const pending = new Promise<DownloadSummary[]>((resolve) => { resolvePromise = resolve; });
+      const pending = new Promise<DownloadSummary[]>((resolve) => {
+        resolvePromise = resolve;
+      });
       mockListDownloads.mockReturnValue(pending);
 
       const r1 = store.refreshList();
@@ -659,7 +676,9 @@ describe("useDownloadStore (extended)", () => {
 
     it("refreshStatus guards against concurrent calls", async () => {
       let resolvePromise!: (v: DownloadSnapshot) => void;
-      const pending = new Promise<DownloadSnapshot>((resolve) => { resolvePromise = resolve; });
+      const pending = new Promise<DownloadSnapshot>((resolve) => {
+        resolvePromise = resolve;
+      });
       mockGetDownloadStatus.mockReturnValue(pending);
 
       const r1 = store.refreshStatus("t-1");
@@ -685,7 +704,15 @@ describe("useDownloadStore (extended)", () => {
     it("toggleBatchMode disables batch mode and clears batch form", () => {
       store.batchMode = true;
       store.batchUrls = "https://example.com/file1.zip\nhttps://example.com/file2.zip";
-      store.batchEntries = [{ id: "e-1", url: "https://example.com/file1.zip", kind: "http", fileName: "file1.zip", status: "ready" }];
+      store.batchEntries = [
+        {
+          id: "e-1",
+          url: "https://example.com/file1.zip",
+          kind: "http",
+          fileName: "file1.zip",
+          status: "ready",
+        },
+      ];
       store.batchSubmitProgress = { done: 1, total: 2 };
 
       store.toggleBatchMode();
@@ -708,7 +735,8 @@ describe("useDownloadStore (extended)", () => {
     });
 
     it("parseBatchUrls skips empty lines and comments", () => {
-      store.batchUrls = "https://example.com/a.zip\n  \n# this is a comment\nhttps://example.com/b.zip";
+      store.batchUrls =
+        "https://example.com/a.zip\n  \n# this is a comment\nhttps://example.com/b.zip";
       store.parseBatchUrls();
 
       expect(store.batchEntries).toHaveLength(2);

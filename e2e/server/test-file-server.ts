@@ -317,7 +317,7 @@ class SpeedLimiter {
   private bytesWritten = 0;
   private lastCheck = Date.now();
 
-    constructor(private readonly bps: number) {}
+  constructor(private readonly bps: number) {}
 
   async write(res: http.ServerResponse, chunk: Buffer): Promise<void> {
     const now = Date.now();

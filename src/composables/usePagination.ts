@@ -17,9 +17,7 @@ export function usePagination<T>(items: Ref<T[]>, defaultPageSize = 50) {
 
   const pageStart = computed(() => {
     if (pageSize.value === null) return items.value.length ? 1 : 0;
-    return items.value.length
-      ? (currentPage.value - 1) * pageSize.value + 1
-      : 0;
+    return items.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0;
   });
 
   const pageEnd = computed(() => {

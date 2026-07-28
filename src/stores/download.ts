@@ -1081,15 +1081,17 @@ export const useDownloadStore = defineStore("download", () => {
       if (typeof downloadId === "string") {
         void openDownloadInExplorer(downloadId);
       }
-    }).then((listener) => {
-      if (!mounted) {
-        void listener.unregister();
-        return;
-      }
-      unlistenNotificationAction = () => {
-        void listener.unregister();
-      };
-    }).catch(() => {});
+    })
+      .then((listener) => {
+        if (!mounted) {
+          void listener.unregister();
+          return;
+        }
+        unlistenNotificationAction = () => {
+          void listener.unregister();
+        };
+      })
+      .catch(() => {});
 
     btRuntimeTimer = setInterval(() => {
       void refreshBtRuntimeStatus({ silent: true });
