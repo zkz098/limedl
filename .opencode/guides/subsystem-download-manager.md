@@ -106,3 +106,21 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - 瞬态故障指数退避重试（max_retries 限制）；checksum 不匹配仅重下受影响 chunk。
 - 磁盘空间检查在 Phase 2 进行，预留 10% buffer。
 - Progress 事件在周期性 persist 路径有 500ms 节流（终态立即发送）。
+
+### GitHub 镜像重写 (`mirror.rs`)
+
+在受限网络环境中，将 GitHub 下载 URL 重写为配置的镜像地址（如 ghproxy、mirror.gh）。
+
+**公开 API**：
+
+| 函数 | 作用 |
+|------|------|
+| `is_github_url(url)` | 判定 URL 是否为 GitHub（`github.com` 或子域名） |
+| `active_mirrors(settings)` | 返回已启用、非空的镜像列表（按 `order` 排序） |
+| `rewrite(url, settings)` | 生成尝试 URL 列表：`{mirror_base}/{url_encoded_original}` + 原始 URL 作为最后回退 |
+
+- 镜像未启用或 URL 非 GitHub → 返回单元素向量（仅原始 URL）。
+- 镜像为空 → 同上。
+- URL 使用 `url_encode()` 编码后拼接到镜像 base URL 后（base 末尾斜杠自动去重）。
+- 原始 URL 始终附加在列表末尾，作为最终回退。
+- `GitHubMirrorSettings` 和 `MirrorEntry` 类型定义在 `types.rs`，settings 由 `settings.rs` 管理。
