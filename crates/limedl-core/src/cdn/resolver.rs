@@ -10,6 +10,31 @@ use super::ip_ranges::{self, CdnIpCache, FALLBACK_CACHE};
 use crate::http_client_factory::configure_client_builder;
 use crate::types::AppSettings;
 
+/// Check whether an IP address is in a private/loopback range.
+///
+/// Returns `true` for:
+/// - 10.0.0.0/8
+/// - 172.16.0.0/12
+/// - 192.168.0.0/16
+/// - 127.0.0.0/8 (loopback)
+/// - IPv6 loopback (::1)
+///
+/// When DNS resolution returns one of these addresses on a machine that
+/// shouldn't be on a local network, it typically indicates a TUN proxy
+/// (Clash, V2Ray, Surge, etc.) intercepting DNS queries.
+pub fn is_private_ip(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            let octets = v4.octets();
+            octets[0] == 10
+                || octets[0] == 127
+                || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31)
+                || (octets[0] == 192 && octets[1] == 168)
+        }
+        IpAddr::V6(v6) => v6.is_loopback(),
+    }
+}
+
 /// TTL for cached `is_cloudflare_domain()` DNS results.
 const DNS_CACHE_TTL: Duration = Duration::from_secs(300);
 
@@ -131,10 +156,23 @@ pub async fn is_cloudflare_domain(url: &str, cache: Option<&CdnIpCache>) -> bool
     let ip_cache = cache.unwrap_or(&FALLBACK_CACHE);
 
     // Check if any resolved address is in Cloudflare CIDR ranges (both IPv4 and IPv6).
-    let is_cf = addrs.into_iter().any(|addr| match addr.ip() {
-        IpAddr::V4(v4) => ip_in_cloudflare_ranges(v4, &ip_cache.ipv4_cidrs),
-        IpAddr::V6(v6) => ip_in_cloudflare_ipv6_ranges(v6, &ip_cache.ipv6_cidrs),
+    let mut saw_private = false;
+    let is_cf = addrs.into_iter().any(|addr| {
+        if is_private_ip(&addr.ip()) {
+            saw_private = true;
+        }
+        match addr.ip() {
+            IpAddr::V4(v4) => ip_in_cloudflare_ranges(v4, &ip_cache.ipv4_cidrs),
+            IpAddr::V6(v6) => ip_in_cloudflare_ipv6_ranges(v6, &ip_cache.ipv6_cidrs),
+        }
     });
+
+    if saw_private {
+        tracing::warn!(
+            "CDN: DNS resolved {hostname} to a private/local IP address. \
+             CDN acceleration may be interfered with by a TUN proxy, VPN, or similar tool."
+        );
+    }
 
     // Cache the result (both true and false from a successful DNS lookup).
     {

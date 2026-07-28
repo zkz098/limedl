@@ -11,6 +11,7 @@ use tokio::net::TcpStream;
 use tokio::task::JoinSet;
 use tokio::time::timeout;
 
+use crate::cdn::resolver::is_private_ip;
 use crate::error::{DownloadError, Result};
 use crate::http_client_factory::configure_client_builder;
 use crate::types::{AppSettings, default_http_user_agent};
@@ -156,6 +157,24 @@ pub async fn measure_default_node(settings: &AppSettings) -> DefaultNodeResult {
 
     let ip = addr.ip();
     tracing::info!("default node: DNS resolved to {ip}");
+
+    // Detect private IP — indicates TUN proxy / VPN intercepting DNS.
+    if is_private_ip(&ip) {
+        tracing::warn!(
+            "default node: DNS resolved {HOSTNAME} to private IP {ip}. \
+             CDN acceleration may be disrupted by a TUN proxy, VPN, or similar tool."
+        );
+        let warning = format!(
+            "DNS resolved {HOSTNAME} to private IP {ip}. \
+             CDN acceleration may be interfered with by a TUN proxy or similar tool."
+        );
+        return DefaultNodeResult {
+            ip: Some(ip.to_string()),
+            tcp_latency_ms: 0.0,
+            throughput_mbps: None,
+            error: Some(warning),
+        };
+    }
 
     let latency = measure_tcp_latency(addr, Duration::from_secs(5)).await;
 

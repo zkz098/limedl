@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::cdn::ip_ranges::{CdnIpCache, get_ip_ranges};
-use crate::cdn::resolver::build_accelerated_client;
+use crate::cdn::resolver::{build_accelerated_client, is_private_ip};
 use crate::cdn::speed_test::{
     CdnTestPhase, DefaultNodeResult, SpeedTestConfig, SpeedTestResult, measure_default_node,
     run_speed_test,
@@ -205,6 +205,24 @@ impl CdnAccelerator {
 
             *this.all_candidates.write().await = results.clone();
             *this.default_node.write().await = Some(default_node.clone());
+
+            // Check if default node DNS resolved to a private IP — indicates
+            // TUN proxy / VPN intercepting DNS. Abort the test with a clear warning.
+            if let Some(ref dn_ip_str) = default_node.ip {
+                if let Ok(dn_ip) = dn_ip_str.parse::<std::net::IpAddr>() {
+                    if is_private_ip(&dn_ip) {
+                        let msg = format!(
+                            "DNS resolved to private IP {dn_ip}. CDN acceleration may be interfered with by a TUN proxy or similar tool."
+                        );
+                        tracing::warn!("cdn test: {msg}");
+                        *this.state.write().await = AccelState::Error(msg);
+                        this.phase_atomic.store(PHASE_NONE, Ordering::Release);
+                        this.phase_progress_current.store(0, Ordering::Release);
+                        this.phase_progress_total.store(0, Ordering::Release);
+                        return;
+                    }
+                }
+            }
 
             let best = results.into_iter().next();
 
