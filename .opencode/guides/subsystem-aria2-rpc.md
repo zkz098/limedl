@@ -32,7 +32,7 @@ Axum Router → dispatch_method(method, params)
 
 ## 设计决策与约定
 
-- 内部 download_id 与 aria2 GID 的映射通过 XXH3 hash 取前 16 hex 字符实现。未持久化 GID 映射，重启后 GID 可能变化。
+- GID 由 XXH3(TaskId) 计算得出。HTTP 下载的 TaskId 为 UUID（持久化在 SQLite 中），BT 下载的 TaskId 为 info hash（从种子/磁力链接提取，确定性）。两者重启后均保持稳定，因此 GID 在重启后不变。`gid_cache` 仅作为反向查找缓存优化性能，重启后通过扫描所有任务重建。
 - secret 令牌若配置，客户端请求必须包含 `token:` 前缀的参数。
 - WebSocket 和 HTTP POST 共用同一套 handler 逻辑。
 - 此实现经过 AriaNg / Motrix 实际测试验证兼容性。

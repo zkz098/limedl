@@ -25,6 +25,7 @@ use uuid::Uuid;
 use crate::{
     backend_registry::BackendRegistry,
     bt_backend_own::IrontideBtBackend,
+    dispatcher::Dispatcher,
     event_bus::{DownloadEvent, EventBus},
     manager::DownloadManager,
     types::{
@@ -209,9 +210,11 @@ fn build_file_list(summary: &DownloadSummary) -> Value {
 
 struct RpcContext {
     registry: Arc<BackendRegistry>,
+    dispatcher: Dispatcher,
     secret: Option<String>,
     event_bus: Arc<EventBus>,
     gid_cache: Mutex<HashMap<String, TaskId>>,
+    session_id: String,
 }
 
 impl RpcContext {
@@ -258,9 +261,11 @@ async fn dispatch_method(
     match method {
         "aria2.addUri" => handle_add_uri(ctx, params).await,
         "aria2.addTorrent" => handle_add_torrent(ctx, params).await,
+        "aria2.multicall" | "system.multicall" => handle_multicall(ctx, params).await,
         "aria2.pause" | "aria2.forcePause" => handle_pause(ctx, params).await,
         "aria2.unpause" => handle_unpause(ctx, params).await,
         "aria2.pauseAll" | "aria2.forcePauseAll" => handle_pause_all(ctx).await,
+        "aria2.purgeDownloadResult" => handle_purge_download_result(ctx).await,
         "aria2.unpauseAll" => handle_unpause_all(ctx).await,
         "aria2.remove" | "aria2.forceRemove" => handle_remove(ctx, params).await,
         "aria2.tellStatus" => handle_tell_status(ctx, params).await,
@@ -272,8 +277,11 @@ async fn dispatch_method(
         "aria2.changeGlobalOption" => handle_change_global_option(ctx, params).await,
         "aria2.getVersion" => Ok(handle_version()),
         "aria2.getFiles" => handle_get_files(ctx, params).await,
+        "aria2.getOption" => handle_get_option(ctx, params).await,
         "aria2.getUris" => handle_get_uris(ctx, params).await,
         "aria2.getPeers" => handle_get_peers(ctx, params).await,
+        "aria2.getSessionInfo" => Ok(handle_get_session_info(ctx)),
+        "aria2.saveSession" => Ok(handle_save_session()),
         "aria2.shutdown" => handle_shutdown(ctx).await,
         "system.listMethods" => Ok(handle_list_methods()),
         "system.listNotifications" => Ok(handle_list_notifications()),
@@ -335,12 +343,11 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         priority: None,
     };
 
+    // Dedup: if a non-terminal download for this URL already exists, return its GID
     let dm = ctx
         .registry
         .get_typed::<DownloadManager>()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
-
-    // Dedup: if a non-terminal download for this URL already exists, return its GID
     if let Some(existing_id) = dm.find_active_by_url(&request.url).await {
         let gid = internal_id_to_gid(&existing_id);
         // Cache the GID so resolve_gid can find it without scanning.
@@ -352,39 +359,33 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         }
         return Ok(Value::String(gid));
     }
+    // dm dropped — dispatcher.start will handle backend routing
 
-    let id = {
-        let dm_arc = Arc::new(dm.clone());
-        dm_arc
-            .start(request)
-            .await
-            .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?
-    };
+    let task_id = ctx
+        .dispatcher
+        .start(request)
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
     let start_paused = options
         .and_then(|o| o.get("pause"))
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     if start_paused {
-        // Pass raw UUID — DownloadManager's downloads map is keyed by raw UUID, not "http:uuid"
-        let _ = dm.pause(&id.to_string()).await;
+        let _ = ctx.dispatcher.pause(&task_id).await;
     }
 
-    // Emit Tauri `download-updated` event so the frontend displays the task
-    // immediately.
-    {
-        let downloads = dm.downloads.read().await;
-        if let Some(managed) = downloads.get(&id.to_string()) {
-            dm.task_lifecycle.emit_single_summary(dm, managed);
-        }
+    // Emit initial Updated event so the frontend displays the task immediately.
+    if let Ok(snapshot) = ctx.dispatcher.status(&task_id).await {
+        ctx.dispatcher.emit_updated(&snapshot);
     }
 
-    let gid = internal_id_to_gid(&id.to_string());
+    let gid = internal_id_to_gid(&task_id.raw_id());
     // Cache the GID so resolve_gid can find it without scanning.
     ctx.gid_cache
         .lock()
         .await
-        .insert(gid.clone(), TaskId::Http(id));
+        .insert(gid.clone(), task_id);
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
     Ok(Value::String(gid))
 }
@@ -470,21 +471,21 @@ async fn handle_add_torrent(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
         priority: None,
     };
 
-    let bt = ctx
-        .registry
-        .get_typed::<IrontideBtBackend>()
-        .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?;
-
-    let id = bt
+    let task_id = ctx
+        .dispatcher
         .start(request)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
-    // Emit Tauri `download-updated` event so the frontend displays the task
-    // immediately.
-    bt.emit_pending_summary(id);
+    // The BT backend's emit_pending_summary already emits Updated via the
+    // event bus during start(), so no manual emit needed here.
 
-    let gid = internal_id_to_gid(&id.to_hex());
+    let gid = internal_id_to_gid(&task_id.raw_id());
+    // Cache the GID so resolve_gid can find it without scanning.
+    ctx.gid_cache
+        .lock()
+        .await
+        .insert(gid.clone(), task_id);
     broadcast_event(ctx, "aria2.onDownloadStart", &gid);
     Ok(Value::String(gid))
 }
@@ -529,7 +530,10 @@ async fn handle_pause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, Jso
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    rpc_dispatch_action(ctx, &task_id, "pause").await?;
+    ctx.dispatcher
+        .pause(&task_id)
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
     broadcast_event(ctx, "aria2.onDownloadPause", &gid);
     Ok(Value::String(gid))
 }
@@ -542,7 +546,10 @@ async fn handle_unpause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    rpc_dispatch_action(ctx, &task_id, "resume").await?;
+    ctx.dispatcher
+        .resume(&task_id)
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
     Ok(Value::String(gid))
 }
 
@@ -559,7 +566,7 @@ async fn handle_pause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
                 Err(_) => continue,
             },
         };
-        let _ = rpc_dispatch_action(ctx, &task_id, "pause").await;
+        let _ = ctx.dispatcher.pause(&task_id).await;
     }
     Ok(Value::String("OK".to_string()))
 }
@@ -577,7 +584,7 @@ async fn handle_unpause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
                 Err(_) => continue,
             },
         };
-        let _ = rpc_dispatch_action(ctx, &task_id, "resume").await;
+        let _ = ctx.dispatcher.resume(&task_id).await;
     }
     Ok(Value::String("OK".to_string()))
 }
@@ -590,7 +597,10 @@ async fn handle_remove(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, Js
         .await
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
-    rpc_dispatch_action(ctx, &task_id, "remove").await?;
+    ctx.dispatcher
+        .remove(&task_id)
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
     broadcast_event(ctx, "aria2.onDownloadStop", &gid);
     Ok(Value::String(gid))
 }
@@ -893,9 +903,337 @@ async fn handle_change_global_option(
     Ok(Value::String("OK".to_string()))
 }
 
-async fn handle_shutdown(_ctx: &RpcContext) -> Result<Value, JsonRpcError> {
-    tracing::info!("Aria2 RPC shutdown requested");
+async fn handle_shutdown(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+    tracing::info!("aria2.shutdown requested from aria2 client — limedl runs as a managed subsystem; use the application UI to exit");
+    ctx.event_bus.publish(DownloadEvent::Warning {
+        id: "system".into(),
+        message: "Aria2 client 请求关闭程序。请使用应用界面退出。".into(),
+    });
+    Ok(Value::String("Shutdown acknowledged. Use the application UI to exit.".to_string()))
+}
+
+async fn handle_multicall(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
+    let params = strip_token(params);
+    check_token(ctx, &params)?;
+
+    let calls = params
+        .first()
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing methods array"))?;
+
+    let mut results = Vec::with_capacity(calls.len());
+    for call in calls {
+        let method = call
+            .get("methodName")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let call_params = call
+            .get("params")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        match Box::pin(dispatch_method(ctx, method, call_params)).await {
+            Ok(result) => results.push(Value::Array(vec![Value::Null, result])),
+            Err(e) => results.push(Value::Array(vec![
+                serde_json::json!({ "code": e.code, "message": e.message }),
+                Value::Null,
+            ])),
+        }
+    }
+    Ok(Value::Array(results))
+}
+
+async fn handle_get_option(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
+    let params = strip_token(params);
+    check_token(ctx, &params)?;
+    let gid = extract_gid(&params)?;
+    let task_id = resolve_gid(ctx, &gid)
+        .await
+        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+
+    let raw_id = task_id.raw_id();
+    let summary = get_all_summaries(ctx)
+        .await?
+        .into_iter()
+        .find(|s| s.id == raw_id)
+        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+
+    // Extract parent directory from destination_path
+    let dir = std::path::Path::new(&summary.destination_path)
+        .parent()
+        .and_then(|p| p.to_str())
+        .unwrap_or(&summary.destination_path)
+        .to_string();
+
+    // Convert priority to aria2 position string if available
+    let position = (summary.priority as u8).to_string();
+
+    let mut map = serde_json::Map::new();
+    map.insert("dir".to_string(), Value::String(dir));
+    map.insert("out".to_string(), Value::String(summary.file_name));
+    map.insert(
+        "split".to_string(),
+        Value::String(
+            summary
+                .requested_thread_count
+                .map_or_else(|| "5".to_string(), |n| n.to_string()),
+        ),
+    );
+    map.insert(
+        "max-connection-per-server".to_string(),
+        Value::String(summary.connection_count.to_string()),
+    );
+    map.insert("piece-length".to_string(), Value::String("1048576".to_string()));
+    map.insert("allow-overwrite".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "allow-piece-length-change".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert("always-resume".to_string(), Value::String("true".to_string()));
+    map.insert("async-dns".to_string(), Value::String("true".to_string()));
+    map.insert(
+        "auto-file-renaming".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert(
+        "auto-save-interval".to_string(),
+        Value::String("60".to_string()),
+    );
+    map.insert(
+        "conditional-get".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert(
+        "connect-timeout".to_string(),
+        Value::String("60".to_string()),
+    );
+    map.insert(
+        "content-disposition-default-utf8".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert("continue".to_string(), Value::String("true".to_string()));
+    map.insert("dry-run".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "enable-http-keep-alive".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert(
+        "enable-http-pipelining".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert("enable-mmap".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "enable-peer-exchange".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert(
+        "file-allocation".to_string(),
+        Value::String("none".to_string()),
+    );
+    map.insert(
+        "follow-metalink".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert(
+        "follow-torrent".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert("force-save".to_string(), Value::String("false".to_string()));
+    map.insert("ftp-passwd".to_string(), Value::String("".to_string()));
+    map.insert("ftp-user".to_string(), Value::String("".to_string()));
+    map.insert("gid".to_string(), Value::String(gid));
+    map.insert(
+        "hash-check-only".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert(
+        "http-accept-gzip".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert(
+        "http-auth-challenge".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert("http-no-cache".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "lowest-speed-limit".to_string(),
+        Value::String("0".to_string()),
+    );
+    map.insert(
+        "max-file-not-found".to_string(),
+        Value::String("0".to_string()),
+    );
+    map.insert(
+        "max-resume-failure-tries".to_string(),
+        Value::String("0".to_string()),
+    );
+    map.insert(
+        "max-tries".to_string(),
+        Value::String("5".to_string()),
+    );
+    map.insert(
+        "max-upload-limit".to_string(),
+        Value::String("0".to_string()),
+    );
+    map.insert(
+        "metalink-base-uri".to_string(),
+        Value::String("".to_string()),
+    );
+    map.insert(
+        "metalink-enable-unique-protocol".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert(
+        "metalink-language".to_string(),
+        Value::String("".to_string()),
+    );
+    map.insert(
+        "metalink-location".to_string(),
+        Value::String("".to_string()),
+    );
+    map.insert("metalink-os".to_string(), Value::String("".to_string()));
+    map.insert(
+        "metalink-preferred-protocol".to_string(),
+        Value::String("http".to_string()),
+    );
+    map.insert(
+        "metalink-version".to_string(),
+        Value::String("".to_string()),
+    );
+    map.insert("min-split-size".to_string(), Value::String("20M".to_string()));
+    map.insert(
+        "no-file-allocation-limit".to_string(),
+        Value::String("5M".to_string()),
+    );
+    map.insert("no-netrc".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "parameterized-uri".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert("pause".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "pause-metadata".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert(
+        "proxy-method".to_string(),
+        Value::String("get".to_string()),
+    );
+    map.insert(
+        "realtime-chunk-checksum".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert("referer".to_string(), Value::String("".to_string()));
+    map.insert("remote-time".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "remove-control-file".to_string(),
+        Value::String("false".to_string()),
+    );
+    map.insert("retry-wait".to_string(), Value::String("0".to_string()));
+    map.insert("reuse-uri".to_string(), Value::String("true".to_string()));
+    map.insert(
+        "rpc-save-upload-metadata".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert("save-cookies".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "save-not-found".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert(
+        "save-session-interval".to_string(),
+        Value::String("0".to_string()),
+    );
+    map.insert("seed-ratio".to_string(), Value::String("1.0".to_string()));
+    map.insert("seed-time".to_string(), Value::String("0".to_string()));
+    map.insert("server-stat-of".to_string(), Value::String("".to_string()));
+    map.insert(
+        "server-stat-timeout".to_string(),
+        Value::String("86400".to_string()),
+    );
+    map.insert(
+        "show-console-readout".to_string(),
+        Value::String("true".to_string()),
+    );
+    map.insert(
+        "socket-recv-buffer-size".to_string(),
+        Value::String("0".to_string()),
+    );
+    map.insert("stderr".to_string(), Value::String("false".to_string()));
+    map.insert("stop".to_string(), Value::String("0".to_string()));
+    map.insert(
+        "stop-with-process".to_string(),
+        Value::String("0".to_string()),
+    );
+    map.insert(
+        "stream-piece-selector".to_string(),
+        Value::String("default".to_string()),
+    );
+    map.insert(
+        "summary-interval".to_string(),
+        Value::String("60".to_string()),
+    );
+    map.insert("timeout".to_string(), Value::String("60".to_string()));
+    map.insert(
+        "uri-selector".to_string(),
+        Value::String("feedback".to_string()),
+    );
+    map.insert("use-head".to_string(), Value::String("false".to_string()));
+    map.insert("user-agent".to_string(), Value::String("".to_string()));
+    map.insert("position".to_string(), Value::String(position));
+
+    Ok(Value::Object(map))
+}
+
+async fn handle_purge_download_result(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+    let all = get_all_summaries(ctx).await?;
+
+    // Collect TaskIds for terminal downloads
+    let terminal: Vec<(TaskId, String)> = all
+        .iter()
+        .filter(|s| {
+            matches!(
+                s.state,
+                DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+            )
+        })
+        .filter_map(|s| {
+            let task_id = match s.kind {
+                TaskKind::Http => Uuid::parse_str(&s.id).ok().map(TaskId::Http),
+                TaskKind::Bt => Id20::from_hex(&s.id).ok().map(TaskId::Bt),
+            };
+            task_id.map(|tid| (tid, s.id.clone()))
+        })
+        .collect();
+
+    let purged_count = terminal.len();
+
+    // Remove each terminal download (keep files on disk)
+    for (task_id, _id) in &terminal {
+        let _ = ctx.dispatcher.remove(task_id).await;
+    }
+
+    // Clean up gid_cache entries for purged downloads
+    {
+        let mut cache = ctx.gid_cache.lock().await;
+        for (_task_id, raw_id) in &terminal {
+            let gid = internal_id_to_gid(raw_id);
+            cache.remove(&gid);
+        }
+    }
+
+    tracing::info!("Purged {purged_count} completed/error/removed downloads");
     Ok(Value::String("OK".to_string()))
+}
+
+fn handle_get_session_info(ctx: &RpcContext) -> Value {
+    serde_json::json!({ "sessionId": ctx.session_id })
+}
+
+fn handle_save_session() -> Value {
+    // limedl auto-persists to SQLite on every state change; no explicit save needed
+    Value::String("OK".to_string())
 }
 
 fn handle_list_notifications() -> Value {
@@ -917,30 +1255,36 @@ fn handle_list_notifications() -> Value {
 fn handle_list_methods() -> Value {
     Value::Array(
         [
-            "aria2.addUri",
             "aria2.addTorrent",
+            "aria2.addUri",
+            "aria2.changeGlobalOption",
+            "aria2.getFiles",
+            "aria2.getGlobalOption",
+            "aria2.getGlobalStat",
+            "aria2.getOption",
+            "aria2.getPeers",
+            "aria2.getSessionInfo",
+            "aria2.getUris",
+            "aria2.getVersion",
+            "aria2.multicall",
             "aria2.pause",
             "aria2.forcePause",
-            "aria2.unpause",
             "aria2.pauseAll",
             "aria2.forcePauseAll",
-            "aria2.unpauseAll",
+            "aria2.purgeDownloadResult",
             "aria2.remove",
             "aria2.forceRemove",
-            "aria2.tellStatus",
-            "aria2.tellActive",
-            "aria2.tellWaiting",
-            "aria2.tellStopped",
-            "aria2.getGlobalStat",
-            "aria2.getGlobalOption",
-            "aria2.changeGlobalOption",
-            "aria2.getVersion",
-            "aria2.getFiles",
-            "aria2.getUris",
-            "aria2.getPeers",
+            "aria2.saveSession",
             "aria2.shutdown",
+            "aria2.tellActive",
+            "aria2.tellStatus",
+            "aria2.tellStopped",
+            "aria2.tellWaiting",
+            "aria2.unpause",
+            "aria2.unpauseAll",
             "system.listMethods",
             "system.listNotifications",
+            "system.multicall",
         ]
         .iter()
         .map(|&s| Value::String(s.to_string()))
@@ -973,37 +1317,6 @@ async fn get_all_summaries(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, Jso
         }
     }
     Ok(all)
-}
-
-async fn rpc_dispatch_action(
-    ctx: &RpcContext,
-    task_id: &TaskId,
-    action: &str,
-) -> Result<(), JsonRpcError> {
-    let backend = ctx
-        .registry
-        .dispatch(task_id)
-        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
-    let result: anyhow::Result<()> = match action {
-        "pause" => backend
-            .pause(task_id)
-            .await
-            .map(|_| ())
-            .map_err(|e| anyhow::anyhow!("{e}")),
-        "resume" => backend
-            .resume(task_id)
-            .await
-            .map(|_| ())
-            .map_err(|e| anyhow::anyhow!("{e}")),
-        "remove" => backend
-            .remove(task_id)
-            .await
-            .map(|_| ())
-            .map_err(|e| anyhow::anyhow!("{e}")),
-        _ => Err(anyhow::anyhow!("unsupported action: {action}")),
-    };
-
-    result.map_err(|e| make_error(ERR_INTERNAL, e.to_string()))
 }
 
 async fn handle_jsonrpc_http(
@@ -1180,11 +1493,14 @@ impl Aria2RpcServer {
     ) -> Self {
         let secret = settings.secret.clone().filter(|s| !s.is_empty());
 
+        let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
         let ctx = Arc::new(RpcContext {
             registry,
             secret,
             event_bus,
+            dispatcher,
             gid_cache: Mutex::new(HashMap::default()),
+            session_id: uuid::Uuid::new_v4().to_string(),
         });
 
         Aria2RpcServer {

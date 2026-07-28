@@ -39,6 +39,11 @@ pub enum DownloadEvent {
     },
     /// A warning or informational message for a specific download.
     Warning { id: String, message: String },
+    /// Full state recovery — sent when a subscriber recovers from lag.
+    /// Contains all current download summaries for atomic frontend state replacement.
+    FullState {
+        downloads: Vec<crate::types::DownloadSummary>,
+    },
 }
 
 // ── EventBus ──────────────────────────────────────────────────────────────

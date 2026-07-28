@@ -81,6 +81,10 @@ fn map_event_to_emit(event: &DownloadEvent) -> (&str, serde_json::Value) {
         DownloadEvent::Warning { id, message } => {
             ("download-warning", serde_json::json!({ "id": id, "message": message }))
         }
+        DownloadEvent::FullState { downloads } => (
+            "download-full-state",
+            serde_json::to_value(downloads).unwrap_or_default(),
+        ),
     }
 }
 
@@ -282,7 +286,10 @@ pub fn run() {
                                 }
                                 Err(broadcast::error::RecvError::Lagged(n)) => {
                                     tracing::warn!("EventBus subscriber lagged by {n} messages");
-                                    state.emit_all_downloads().await;
+                                    let all = state.registry.list_all().await;
+                                    state.event_bus.publish(DownloadEvent::FullState {
+                                        downloads: all,
+                                    });
                                 }
                                 Err(broadcast::error::RecvError::Closed) => break,
                             }

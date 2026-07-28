@@ -200,6 +200,12 @@ async fn handle_socket(socket: WebSocket, state: Arc<RpcState>) {
                                     },
                                 })
                             }
+                            DownloadEvent::FullState { downloads } => {
+                                serde_json::json!({
+                                    "type": "fullState",
+                                    "payload": downloads,
+                                })
+                            }
                         };
                         let msg = serde_json::to_string(&serde_json::json!({
                             "jsonrpc": "2.0",
