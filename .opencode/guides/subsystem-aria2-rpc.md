@@ -4,7 +4,7 @@
 
 提供 aria2 JSON-RPC 2.0 兼容的 HTTP + WebSocket 服务器（默认端口 6800），使本下载器能被 AriaNg、Motrix 等 aria2 客户端连接和控制。内部下载任务被映射为 aria2 GID。
 
-核心类型：Aria2RpcServer（Axum WebSocket + HTTP JSON-RPC 服务器）、RpcContext（内部上下文，含 manager、bt_backend、secret、gid_cache）。
+核心类型：Aria2RpcServer（Axum WebSocket + HTTP JSON-RPC 服务器）、RpcContext（内部上下文，含 registry、dispatcher、secret、event_bus、gid_cache、session_id）。
 
 位于 `aria2-rpc` feature 下，可选编译。
 

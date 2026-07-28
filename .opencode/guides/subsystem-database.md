@@ -19,7 +19,7 @@
 应用启动 → Database::open(state_dir / "downloads.db")
   ├─ write_conn：PRAGMA journal_mode=WAL, wal_autocheckpoint=4096,
   │               foreign_keys=ON, busy_timeout=5000, synchronous=NORMAL,
-  │               cache_size=-8000
+  │               cache_size=-32000
   ├─ read_conn：PRAGMA query_only=1, busy_timeout=5000
   └─ create_tables() → 幂等建表 + ALTER TABLE 迁移
 

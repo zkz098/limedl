@@ -4,7 +4,7 @@
 
 统一的事件发布/订阅总线。纯 `tokio::sync::broadcast` 封装，所有下载子系统通过它发布状态变更。EventBus 自身不持有 Tauri AppHandle，不负责前端发射——Tauri 前端的 `app_handle.emit()` 调用由 `src-tauri/src/lib.rs` 中一个独立的后台订阅任务完成。WebSocket 推送则由 `crates/limedl-server/src/rpc.rs` 中另一个独立订阅任务完成。
 
-核心类型：EventBus（仅含 `broadcast::Sender<DownloadEvent>` 一个字段）、DownloadEvent（6 个 variant：Updated / Progress / Aria2Notification / CdnProgress / CdnComplete / Warning）。EventBus 可 Clone（Arc 内部的 Sender 句柄）。
+核心类型：EventBus（仅含 `broadcast::Sender<DownloadEvent>` 一个字段）、DownloadEvent（7 个 variant：Updated / Progress / Aria2Notification / CdnProgress / CdnComplete / Warning / FullState）。EventBus 可 Clone（Arc 内部的 Sender 句柄）。
 
 ## 涉及文件
 
