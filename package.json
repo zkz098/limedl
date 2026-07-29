@@ -2,7 +2,7 @@
   "name": "limedl",
   "version": "0.1.8",
   "private": true,
-  "description": "Fast multi-protocol download manager â€?HTTP, BitTorrent, CDN acceleration",
+  "description": "Fast multi-protocol download manager â€” HTTP, BitTorrent, CDN acceleration",
   "license": "GPL-3.0-or-later",
   "author": "limedl contributors",
   "type": "module",
