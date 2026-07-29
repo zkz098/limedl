@@ -63,10 +63,10 @@ if ($DryRun) {
 # --- Update files ---
 foreach ($f in $files) {
   $path = Join-Path $root $f
-  $content = Get-Content -Path $path -Raw
+  $content = Get-Content -Path $path -Raw -Encoding UTF8
   # Cargo.toml uses `version = "x.y.z"`, others use `"version": "x.y.z"`
   $updated = $content -replace $currentVersion, $newVersion
-  Set-Content -Path $path -Value $updated -NoNewline
+  Set-Content -Path $path -Value $updated -NoNewline -Encoding UTF8
   Write-Host "  Updated: $f" -ForegroundColor Green
 }
 
