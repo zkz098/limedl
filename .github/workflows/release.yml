@@ -25,9 +25,6 @@ jobs:
             os: macos-latest
             tauri-args: --target universal-apple-darwin
 
-          - name: linux-x86_64
-            os: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v7
 
@@ -87,6 +84,101 @@ jobs:
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
           updaterJsonPreferNsis: true
           args: ${{ matrix.tauri-args || '' }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Tauri Desktop — Linux AppImage (with Wayland library pruning)
+  # ═══════════════════════════════════════════════════════════════════════
+  build-tauri-linux:
+    name: Tauri linux-x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      # ── Node.js & frontend deps ────────────────────────────────────────
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Cache pnpm store
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-release-${{ runner.os }}-
+
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      # ── Rust toolchain ─────────────────────────────────────────────────
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: release-tauri-linux-x86_64
+
+      # ── Linux system deps ──────────────────────────────────────────────
+      - name: Install Linux system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # ── Build Tauri AppImage ───────────────────────────────────────────
+      - name: Build Tauri AppImage
+        run: pnpm tauri build --bundles appimage
+
+      # ── Download appimagetool ──────────────────────────────────────────
+      - name: Download appimagetool
+        run: |
+          mkdir -p .tools
+          curl --fail --show-error --location \
+            -o .tools/appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x .tools/appimagetool
+
+      # ── Prune bundled Wayland libraries ────────────────────────────────
+      - name: Prune bundled Wayland libraries from AppImage
+        run: |
+          APPIMAGE=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
+          if [ -z "$APPIMAGE" ]; then
+            echo "No AppImage artifact found" >&2
+            exit 1
+          fi
+          node scripts/prune-appimage-wayland-libs.mjs \
+            --appimage "$APPIMAGE" \
+            --appimagetool "$PWD/.tools/appimagetool" \
+            --arch x86_64
+          rm -f "${APPIMAGE}.sig"
+
+      # ── Sign pruned AppImage ───────────────────────────────────────────
+      - name: Sign pruned AppImage
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          APPIMAGE=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
+          if [ -z "$APPIMAGE" ]; then
+            echo "No AppImage artifact found" >&2
+            exit 1
+          fi
+          pnpm tauri signer sign "$APPIMAGE"
+
+      # ── Upload to release ──────────────────────────────────────────────
+      - name: Upload to release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # NAS Server — single binary with embedded frontend
