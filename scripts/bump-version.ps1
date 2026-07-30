@@ -66,7 +66,9 @@ foreach ($f in $files) {
   $content = Get-Content -Path $path -Raw -Encoding UTF8
   # Cargo.toml uses `version = "x.y.z"`, others use `"version": "x.y.z"`
   $updated = $content -replace $currentVersion, $newVersion
-  Set-Content -Path $path -Value $updated -NoNewline -Encoding UTF8
+  # Write UTF-8 without BOM (Set-Content -Encoding UTF8 adds BOM, which breaks JSON)
+  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+  [System.IO.File]::WriteAllText($path, $updated, $utf8NoBom)
   Write-Host "  Updated: $f" -ForegroundColor Green
 }
 
