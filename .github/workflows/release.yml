@@ -148,7 +148,7 @@ jobs:
       # ── Prune bundled Wayland libraries ────────────────────────────────
       - name: Prune bundled Wayland libraries from AppImage
         run: |
-          APPIMAGE=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
+          APPIMAGE=$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
           if [ -z "$APPIMAGE" ]; then
             echo "No AppImage artifact found" >&2
             exit 1
@@ -165,7 +165,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          APPIMAGE=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
+          APPIMAGE=$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
           if [ -z "$APPIMAGE" ]; then
             echo "No AppImage artifact found" >&2
             exit 1
@@ -177,8 +177,8 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            target/release/bundle/appimage/*.AppImage
+            target/release/bundle/appimage/*.AppImage.sig
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
