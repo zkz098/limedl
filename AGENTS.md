@@ -22,7 +22,7 @@
 | Test (frontend) | `pnpm run test` |
 | Test (Rust) | `cargo test --workspace` |
 | Build | `pnpm run build` (vue-tsc → vite build) |
-| Version bump | `.\scripts\bump-version.ps1 patch` |
+| Version bump | `node scripts/bump-version.mjs patch` |
 
 ## Architecture
 
