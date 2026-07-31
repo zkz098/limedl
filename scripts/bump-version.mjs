@@ -56,6 +56,24 @@ function bumpVersion(current, level) {
   return parts.join(".");
 }
 
+// ── Update files ────────────────────────────────────────────────────────
+
+/**
+ * Cargo.lock mirrors workspace member versions. Replace them by name so
+ * third-party crates that happen to share the same version string are
+ * never touched (they exist in the lockfile today).
+ */
+function updateLockVersions(lockContent, newVersion) {
+  const updated = lockContent.replace(
+    /^(name = "limedl(?:-core|-server)?"\n)version = "[^"]+"/gm,
+    (match, prefix) => `${prefix}version = "${newVersion}"`,
+  );
+  if (updated === lockContent) {
+    throw new Error("Cargo.lock: workspace member versions not found");
+  }
+  return updated;
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
 
 function main() {
@@ -63,7 +81,7 @@ function main() {
   const currentVersion = readCurrentVersion();
   const newVersion = bumpVersion(currentVersion, args.level);
 
-  const files = ["Cargo.toml", "package.json", "src-tauri/tauri.conf.json"];
+  const files = ["Cargo.toml", "package.json", "src-tauri/tauri.conf.json", "Cargo.lock"];
 
   console.log(`\x1b[36m${currentVersion} → ${newVersion} (${args.level})\x1b[0m`);
 
@@ -79,7 +97,11 @@ function main() {
   for (const f of files) {
     const filePath = path.join(root, f);
     const content = readFileSync(filePath, "utf8");
-    const updated = content.replaceAll(currentVersion, newVersion);
+    // Cargo.lock holds workspace member versions; a plain replaceAll would
+    // also rewrite third-party crates that share the version string.
+    const updated = f === "Cargo.lock"
+      ? updateLockVersions(content, newVersion)
+      : content.replaceAll(currentVersion, newVersion);
     writeFileSync(filePath, updated, "utf8");
     console.log(`\x1b[32m  Updated: ${f}\x1b[0m`);
   }
@@ -96,7 +118,7 @@ function main() {
   exec(`git add ${files.join(" ")}`);
   exec(`git commit -m "chore: bump version to ${newVersion}"`);
   exec("git push origin main");
-  exec(`git tag "v${newVersion}"`);
+  exec(`git tag "v${newVersion}" -m "v${newVersion}"`);
   exec(`git push origin "v${newVersion}"`);
 
   console.log(`\x1b[32mPushed commit + tag v${newVersion}\x1b[0m`);
