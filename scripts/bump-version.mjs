@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 
 // ── Parse args ──────────────────────────────────────────────────────────
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, "..");
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(scriptDir, "..");
 
 function parseArgs(argv) {
   const level = argv[0];

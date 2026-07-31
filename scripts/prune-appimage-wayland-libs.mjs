@@ -79,14 +79,14 @@ async function listWaylandLibraries(appDir) {
   return entries
     .filter(isWaylandLibraryName)
     .map((entry) => path.join(libDir, entry))
-    .sort();
+    .toSorted();
 }
 
 async function removeWaylandLibraries(appDir) {
   const libraries = await listWaylandLibraries(appDir);
-  for (const libraryPath of libraries) {
-    await rm(libraryPath, { recursive: true, force: true });
-  }
+  await Promise.all(
+    libraries.map((libraryPath) => rm(libraryPath, { recursive: true, force: true })),
+  );
   return libraries;
 }
 
