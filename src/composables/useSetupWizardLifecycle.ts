@@ -42,7 +42,11 @@ export function useSetupWizardLifecycle(options: UseSetupWizardLifecycleOptions)
         localStorage.setItem("limedl.setupCompleted", "true");
         showSetupWizard.value = false;
       } else if (showSetupWizard.value === null) {
-        setupInitialSettings.value = appSettings.value;
+        // Deep copy into a plain object: appSettings is a reactive proxy from
+        // the pinia store, and passing it into the wizard would make
+        // structuredClone throw DataCloneError (cloning proxies is forbidden).
+        // AppSettings is plain JSON data, so a JSON round-trip is safe.
+        setupInitialSettings.value = JSON.parse(JSON.stringify(appSettings.value));
         showSetupWizard.value = true;
       }
     }

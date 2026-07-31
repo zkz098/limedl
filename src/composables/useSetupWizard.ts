@@ -12,10 +12,12 @@ export interface SetupStep {
 }
 
 function cloneSettings<T>(settings: T): T {
-  // structuredClone handles deep cloning of plain objects and primitives,
-  // which includes Vue reactive proxies (the clone algorithm accesses
-  // [[Get]] on each level, yielding unwrapped values).
-  return structuredClone(settings);
+  // Deep-clone via JSON round-trip instead of structuredClone: the latter
+  // throws DataCloneError on Proxy objects — including Vue reactive proxies
+  // (appSettings flows from a pinia store) and readonly component props.
+  // AppSettings is plain JSON data, so the round-trip yields an equivalent
+  // plain object.
+  return JSON.parse(JSON.stringify(settings));
 }
 
 export function useSetupWizard(initialSettings?: AppSettings) {

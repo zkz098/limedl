@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { nextTick, reactive } from "vue";
 
 import SetupWizard from "../../components/setup/SetupWizard.vue";
 import { saveAppSettings, getAppSettings } from "../../lib/tauri/settings-api";
@@ -297,6 +297,16 @@ describe("SetupWizard", () => {
 
     it("renders without crashing when no initial settings provided", () => {
       const wrapper = mountWizard({ initialSettings: undefined });
+      expect(wrapper.find(".setup-wizard").exists()).toBe(true);
+      expect(getCurrentStepTitle(wrapper)).toBe(STEP_TITLES[0]);
+    });
+
+    it("renders without crashing when initial settings is a reactive proxy", () => {
+      // Regression: appSettings flows from a pinia store (reactive proxy).
+      // structuredClone throws DataCloneError on proxies, which used to abort
+      // the setup function and blank the whole UI (missing $setup.t).
+      const proxySettings = reactive(createDefaultSettings());
+      const wrapper = mountWizard({ initialSettings: proxySettings });
       expect(wrapper.find(".setup-wizard").exists()).toBe(true);
       expect(getCurrentStepTitle(wrapper)).toBe(STEP_TITLES[0]);
     });
