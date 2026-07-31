@@ -9,6 +9,7 @@ import {
   detectArch,
   isWaylandLibraryName,
   parseArgs,
+  patchGdkBackendHook,
   pruneAppImageWaylandLibraries,
   removeWaylandLibraries,
 } from "./prune-appimage-wayland-libs.mjs";
@@ -53,6 +54,78 @@ test("removeWaylandLibraries prunes only usr/lib/libwayland-*", async () => {
     await assert.rejects(() => fs.stat(path.join(libDir, "libwayland-client.so.0")));
     assert.equal(await fs.readFile(path.join(libDir, "libEGL_mesa.so.0"), "utf8"), "keep");
     assert.equal(await fs.readFile(path.join(appDir, "usr", "share", "libwayland-note.txt"), "utf8"), "keep");
+  });
+});
+
+test("patchGdkBackendHook removes the GDK_BACKEND=x11 export from the AppRun hook", async () => {
+  await withTempDir(async (appDir) => {
+    const hookPath = path.join(appDir, "apprun-hooks", "linuxdeploy-plugin-gtk.sh");
+    await writeFile(
+      hookPath,
+      [
+        "#!/bin/sh",
+        "",
+        "export GDK_BACKEND=x11 # Crash with Wayland backend on Wayland - We tested it without it",
+        "export GTK_PATH=\"${APPDIR}/usr/lib/gtk-3.0\"",
+        "export GSETTINGS_SCHEMA_DIR=\"${APPDIR}/usr/share/glib-2.0/schemas\"",
+      ].join("\n"),
+    );
+
+    const patched = await patchGdkBackendHook(appDir);
+
+    assert.equal(patched, true);
+    const content = await fs.readFile(hookPath, "utf8");
+    assert.doesNotMatch(content, /GDK_BACKEND/);
+    // Unrelated exports must survive untouched.
+    assert.match(content, /export GTK_PATH=/);
+    assert.match(content, /export GSETTINGS_SCHEMA_DIR=/);
+  });
+});
+
+test("patchGdkBackendHook is a no-op when the hook is absent or has no GDK_BACKEND line", async () => {
+  await withTempDir(async (appDir) => {
+    assert.equal(await patchGdkBackendHook(appDir), false);
+
+    await writeFile(
+      path.join(appDir, "apprun-hooks", "linuxdeploy-plugin-gtk.sh"),
+      "export GTK_PATH=\"${APPDIR}/usr/lib/gtk-3.0\"\n",
+    );
+    assert.equal(await patchGdkBackendHook(appDir), false);
+  });
+});
+
+test("pruneAppImageWaylandLibraries reports patchedGdkBackend on success", async () => {
+  await withTempDir(async (root) => {
+    const appImagePath = path.join(root, "limedl_0.1.8_amd64.AppImage");
+    const workingRoot = path.join(root, "work");
+    await fs.mkdir(workingRoot);
+    await writeFile(appImagePath, "original-appimage");
+
+    const commandRunner = async (command, args, options) => {
+      if (command === appImagePath && args[0] === "--appimage-extract") {
+        const appDir = path.join(options.cwd, "squashfs-root");
+        await writeFile(path.join(appDir, "usr", "lib", "libwayland-client.so.0"), "remove");
+        await writeFile(
+          path.join(appDir, "apprun-hooks", "linuxdeploy-plugin-gtk.sh"),
+          "export GDK_BACKEND=x11\n",
+        );
+        return;
+      }
+      if (command === "appimagetool") {
+        return;
+      }
+      throw new Error(`unexpected command: ${command}`);
+    };
+
+    const result = await pruneAppImageWaylandLibraries({
+      appImagePath,
+      appImageToolPath: "appimagetool",
+      commandRunner,
+      workingRoot,
+    });
+
+    assert.equal(result.patchedGdkBackend, true);
+    assert.deepEqual(result.removedLibraries, ["usr/lib/libwayland-client.so.0"]);
   });
 });
 
