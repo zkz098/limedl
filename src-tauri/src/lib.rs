@@ -88,8 +88,16 @@ fn map_event_to_emit(event: &DownloadEvent) -> (&str, serde_json::Value) {
     }
 }
 
-#[tauri::command]
-async fn update_tray_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
+/// Builds the full system tray menu for the given language.
+///
+/// The menu reflects current download state and settings (pause/resume all,
+/// speed limit, game mode). It is shared between startup and the
+/// `update_tray_language` command so the tray is fully functional even if the
+/// frontend never loads (e.g. blank webview on Linux autostart).
+async fn build_tray_menu(
+    app: &tauri::AppHandle,
+    language: &str,
+) -> Result<tauri::menu::Menu<tauri::Wry>, String> {
     use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
     use download::manager::DownloadManager;
     use download::types::DownloadState;
@@ -117,15 +125,15 @@ async fn update_tray_language(app: tauri::AppHandle, language: String) -> Result
     };
     drop(settings);
 
-    let is_zh = language.as_str() == "zh-CN";
+    let is_zh = language == "zh-CN";
 
     // Build menu items
     let show_text = if is_zh { "显示窗口" } else { "Show Window" };
     let show = MenuItemBuilder::with_id("show", show_text)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
-    let sep1 = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+    let sep1 = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
 
     let (pause_text, pause_id) = if has_active {
         (
@@ -139,34 +147,34 @@ async fn update_tray_language(app: tauri::AppHandle, language: String) -> Result
         )
     };
     let pause = MenuItemBuilder::with_id(pause_id, pause_text)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
     let speed_text = if is_zh { "限速模式" } else { "Speed Limit" };
     let speed = CheckMenuItemBuilder::with_id("speed_limit", speed_text)
         .checked(speed_limit_active)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
     let open_text = if is_zh { "打开下载目录" } else { "Open Download Dir" };
     let open = MenuItemBuilder::with_id("open_dir", open_text)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
     let game_text = if is_zh { "游戏模式" } else { "Game Mode" };
     let game = CheckMenuItemBuilder::with_id("game_mode", game_text)
         .checked(game_mode)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
-    let sep2 = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+    let sep2 = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
 
     let quit_text = if is_zh { "退出" } else { "Quit" };
     let quit = MenuItemBuilder::with_id("quit", quit_text)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
-    let menu = MenuBuilder::new(&app)
+    let menu = MenuBuilder::new(app)
         .item(&show)
         .item(&sep1)
         .item(&pause)
@@ -178,16 +186,104 @@ async fn update_tray_language(app: tauri::AppHandle, language: String) -> Result
         .build()
         .map_err(|e| e.to_string())?;
 
+    Ok(menu)
+}
+
+#[tauri::command]
+async fn update_tray_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
     if let Some(tray) = app.tray_by_id("main-tray") {
-        tray.set_menu(Some(menu))
-            .map_err(|e| e.to_string())?;
+        let menu = build_tray_menu(&app, &language).await?;
+        tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
+/// Reconciles the OS autostart registration against the running binary.
+///
+/// - Debug builds: autostart registered from `tauri dev` points at the debug
+///   binary, which cannot run standalone after reboot (no dev server) and
+///   shows a blank window. Debug builds therefore remove any registration.
+/// - Release builds: if the autostart `.desktop` file still points at a stale
+///   path (dev binary, old install, moved AppImage), re-register it with the
+///   current binary (AppImage path when running from an AppImage).
+fn reconcile_autostart(app: &tauri::AppHandle) {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let autolaunch = app.autolaunch();
+    if !autolaunch.is_enabled().unwrap_or(false) {
+        return;
+    }
+
+    #[cfg(debug_assertions)]
+    {
+        tracing::warn!("removing autostart registration registered by a debug build");
+        let _ = autolaunch.disable();
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        let expected = std::env::var("APPIMAGE").ok().or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .map(|path| path.to_string_lossy().into_owned())
+        });
+        let desktop_path = std::env::var("HOME")
+            .ok()
+            .map(|home| std::path::PathBuf::from(home).join(".config/autostart/limedl.desktop"));
+
+        let (Some(expected), Some(desktop_path)) = (expected, desktop_path) else {
+            return;
+        };
+        let Some(exec_path) = std::fs::read_to_string(&desktop_path)
+            .ok()
+            .and_then(|content| {
+                content
+                    .lines()
+                    .find_map(|line| line.strip_prefix("Exec=").map(str::trim))
+                    .and_then(|exec| exec.split_whitespace().next().map(str::to_string))
+            })
+        else {
+            return;
+        };
+
+        if exec_path != expected {
+            tracing::warn!(
+                "autostart Exec points at `{exec_path}`, expected `{expected}`; re-registering"
+            );
+            let _ = autolaunch.disable();
+            let _ = autolaunch.enable();
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default();
+    let is_autostart = std::env::args().any(|a| a == "--hidden");
+    // Hide the window only after the initial page has finished loading.
+    // Hiding a WebKitGTK window before its first frame can leave it blank
+    // (white screen) when it is shown later from the tray.
+    let autostart_hidden = Arc::new(std::sync::atomic::AtomicBool::new(is_autostart));
+
+    let mut builder = tauri::Builder::default().on_page_load(move |webview, payload| {
+        use std::sync::atomic::Ordering;
+        use tauri::webview::PageLoadEvent;
+
+        if !autostart_hidden.load(Ordering::Acquire) {
+            return;
+        }
+        if webview.label() != "main" || payload.event() != PageLoadEvent::Finished {
+            return;
+        }
+        // Only the first load counts; ignore later reloads/navigations.
+        if autostart_hidden.swap(false, Ordering::AcqRel) {
+            let webview = webview.clone();
+            tauri::async_runtime::spawn(async move {
+                // Small grace period so the renderer can paint its first frame.
+                sleep(Duration::from_millis(300)).await;
+                let _ = webview.hide();
+            });
+        }
+    });
 
     #[cfg(desktop)]
     {
@@ -204,17 +300,26 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
-        .setup(|app| {
+        .setup(move |app| {
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle()
                 .plugin(tauri_plugin_clipboard_manager::init())?;
 
-            // Hide window when launched via autostart
-            let is_autostart = std::env::args().any(|a| a == "--hidden");
-            if is_autostart && let Some(window) = app.get_webview_window("main") {
-                let _ = window.hide();
+            // Autostart (`--hidden`): the window is hidden via
+            // `Builder::on_page_load` once the initial page has loaded (see
+            // `run()`). Fallback: if the page never finishes loading (e.g.
+            // renderer failure), hide the window after a timeout anyway so
+            // autostart stays unobtrusive.
+            if is_autostart {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    sleep(Duration::from_secs(10)).await;
+                    if let Some(window) = handle.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
+                });
             }
 
             app.handle().plugin(
@@ -235,6 +340,7 @@ pub fn run() {
                     .with_context(|| "初始化核心子系统失败")?;
 
                 init_logging(&core.settings.logging, &state_dir).context("初始化日志系统失败")?;
+                reconcile_autostart(app.handle());
                 cleanup_old_aria2_temp_files();
 
                 // CDN accelerator setup
@@ -346,8 +452,6 @@ pub fn run() {
             // Build system tray (desktop only)
             #[cfg(desktop)]
             {
-                use tauri::menu::{MenuBuilder, MenuItemBuilder};
-
                 let mut tray_builder = TrayIconBuilder::with_id("main-tray")
                     .tooltip("limedl")
                     .show_menu_on_left_click(false)
@@ -374,14 +478,16 @@ pub fn run() {
 
                 let tray = tray_builder.build(app)?;
 
-                let show_text = "Show Window";
-                let quit_text = "Quit";
-                let show_item = MenuItemBuilder::with_id("show", show_text).build(app)?;
-                let quit_item = MenuItemBuilder::with_id("quit", quit_text).build(app)?;
-                let menu = MenuBuilder::new(app)
-                    .item(&show_item)
-                    .item(&quit_item)
-                    .build()?;
+                // Set the full menu at startup (not a Show/Quit stub): the
+                // tray must be fully functional even if the frontend never
+                // loads (e.g. blank webview on Linux autostart). The frontend
+                // may later re-build the menu with the user's language via
+                // `update_tray_language`.
+                let menu =
+                    tauri::async_runtime::block_on(build_tray_menu(app.handle(), "zh-CN"))
+                        .map_err(|e| -> Box<dyn std::error::Error> {
+                            Box::new(std::io::Error::other(e))
+                        })?;
                 tray.set_menu(Some(menu))?;
 
                 let app_handle_menu = app.handle().clone();

@@ -28,6 +28,14 @@ const props = defineProps<{
 
 // Autostart toggle — syncs with the plugin directly
 async function onAutostartChange(value: boolean) {
+  // Dev builds must not register autostart: the .desktop file would point at
+  // the debug binary, which cannot run standalone after reboot (no dev
+  // server) and shows a blank window.
+  if (value && import.meta.env.DEV) {
+    props.draft.autostart = false;
+    console.warn("[autostart] registration is disabled in dev mode");
+    return;
+  }
   props.draft.autostart = value;
   try {
     if (value) {
