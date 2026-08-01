@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive, nextTick } from "vue";
 import SettingsAppearancePanel from "../../../components/settings/SettingsAppearancePanel.vue";
@@ -194,6 +194,14 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
 describe("SettingsAppearancePanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Autostart registration is disabled when import.meta.env.DEV is set
+    // (the component guards against dev builds registering a debug binary).
+    // Stub DEV=false so the autostart plugin flow is exercised like production.
+    vi.stubEnv("DEV", false);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   // ── 1. Language ──────────────────────────────────────────────────
