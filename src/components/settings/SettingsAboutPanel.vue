@@ -7,9 +7,10 @@ import { useNotificationStore } from "../../stores/notification";
 import { saveAppSettings, factoryReset } from "../../lib/tauri/settings-api";
 import type { AppSettings } from "../../types/settings";
 import { relaunch, exit } from "@tauri-apps/plugin-process";
-import { platform, arch, version as osVersion } from "@tauri-apps/plugin-os";
-import { getVersion, getName, getTauriVersion } from "@tauri-apps/api/app";
+import { version as osVersion } from "@tauri-apps/plugin-os";
+import { getTauriVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { getAppInfo } from "../../lib/tauri/app-api";
 import SettingsSection from "./SettingsSection.vue";
 import SettingsField from "./SettingsField.vue";
 import UiButton from "../ui/UiButton.vue";
@@ -61,19 +62,24 @@ const osArch = ref("");
 const osVer = ref("");
 
 onMounted(async () => {
+  // App name / version / platform / arch come from the backend via app.info —
+  // works on both Tauri desktop and NAS WebSocket mode.
   try {
-    appName.value = await getName();
-    appVersion.value = await getVersion();
-    tauriVer.value = await getTauriVersion();
+    const info = await getAppInfo();
+    appName.value = info.name;
+    appVersion.value = info.version;
+    osPlatform.value = info.platform;
+    osArch.value = info.arch;
   } catch (err) {
     console.error("Failed to get app info:", err);
   }
+  // Tauri-only metadata (Tauri runtime version, OS version): gracefully
+  // degrade on NAS where the Tauri plugins aren't available.
   try {
-    osPlatform.value = platform();
-    osArch.value = arch();
+    tauriVer.value = await getTauriVersion();
     osVer.value = osVersion();
   } catch (err) {
-    console.error("Failed to get OS info:", err);
+    console.error("Failed to get Tauri/OS info:", err);
   }
 });
 

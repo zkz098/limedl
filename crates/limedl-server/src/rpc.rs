@@ -445,8 +445,20 @@ async fn dispatch_method(
             handle_cdn_routes(method, params, state).await
         }
         "update_tray_language" => handle_update_tray_language(params, state).await,
+        "app_get_info" => handle_app_get_info(state).await,
         _ => Err(JsonRpcError::method_not_found(method)),
     }
+}
+
+// ── Handler: app.info ──────────────────────────────────────────────
+
+async fn handle_app_get_info(_state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
+    Ok(serde_json::json!({
+        "name": "limedl",
+        "version": env!("CARGO_PKG_VERSION"),
+        "platform": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+    }))
 }
 
 // ── Handler: tray.updateLanguage ────────────────────────────────────

@@ -32,9 +32,12 @@ CLI 入口（main.rs）
   │         ├─ POST /api/* → REST API（下载操作）
   │         └─ GET  /*    → 静态文件服务（NAS WebUI dist 目录）
   │
-  └─ limedl download <url> [-o <path>]
-        → bootstrap(temp_dir) → CoreSystems（临时会话）
-        → DownloadManager::start() → progress 打印到 stdout → 完成退出
+  ├─ limedl download <url> [-o <path>]
+  │     → bootstrap(temp_dir) → CoreSystems（临时会话）
+  │     → DownloadManager::start() → progress 打印到 stdout → 完成退出
+  │
+  ├─ limedl install-autostart    → 安装 systemd user unit（仅 Linux，systemd 环境）
+  └─ limedl uninstall-autostart  → 移除 systemd user unit（仅 Linux，systemd 环境）
 
 WebSocket 连接 → rpc.rs
   ├─ 接收 JSON-RPC 请求 → dispatch_method(method, params) → handler → JSON 响应
@@ -73,7 +76,7 @@ WebSocket 连接 → rpc.rs
 | `nas_csp_header()` | 动态生成 CSP：`connect-src` 允许当前 WebSocket 源 |
 | `security_headers_layers()` | 返回 4 个 `SetResponseHeaderLayer` |
 
-> 注意：Tauri desktop 的 CSP 设为 `null`（`tauri.conf.json`），但 NAS WebUI 使用严格的 CSP。两者通过不同的适配路径处理，不相交。
+> 注意：Tauri desktop 在 `tauri.conf.json` 中定义了显式 CSP（含 `connect-src: ipc:` 等），NAS WebUI 则通过服务端 `nas_csp_header()` 使用严格 CSP。两者通过不同的适配路径处理，不相交。
 
 四个安全头：
 - `Content-Security-Policy`（动态，含 WS 源）
@@ -84,7 +87,8 @@ WebSocket 连接 → rpc.rs
 ### RPC (`rpc.rs`)
 
 - `RpcState` 持有 `Dispatcher`、`AppSettings`、`EventBus`、`BackendRegistry`、`CdnService` 等。
-- WebSocket JSON-RPC 2.0：支持 ~32 个命令（下载 CRUD + BT 查询 + CDN + 设置 + Aria2 兼容）。
+- WebSocket JSON-RPC 2.0：支持 ~33 个命令（下载 CRUD + BT 查询 + CDN + 设置 + 应用信息 `app.info` + Aria2 兼容）。
+- `app.info`（`tauri_name: app_get_info`）：返回 `{ name, version, platform, arch }`，双端（Tauri IPC / NAS WS）共用，桌面侧同时注册同名 Tauri command。
 - HTTP POST `/jsonrpc` 共用同一套 dispatch 逻辑。
 - 事件转发：每个 WebSocket 连接有一个独立的后台任务订阅 `EventBus`，匹配 `WS_EVENTS` manifest 后作为 JSON-RPC notification 推送到客户端。
 - 编译期一致性测试：`ws_manifest.rs` 验证所有声明的命令都在 rpc.rs 中有 handler 分支。

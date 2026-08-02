@@ -11,7 +11,8 @@
 ## 涉及文件
 
 - `crates/limedl-core/src/aria2_rpc.rs` — Aria2RpcServer 完整实现（构造 + serve + dispatch_method + 各个 handler）
-- `src-tauri/src/download/aria2_rpc.rs` — Tauri 集成层的 Aria2 RPC（后续计划合并到 core）
+- `src-tauri/src/lib.rs` — 桌面接线（约 430-444 行）：`settings.aria2_rpc.enabled` → `Aria2RpcServer::new(core.registry, &settings.aria2_rpc, event_bus)` → `serve(rx, vec![])`，`tx` 存入 `AppState.rpc_shutdown`；启动失败仅 log 不阻塞。
+- `crates/limedl-server/src/main.rs` — NAS/守护进程接线（`run_daemon`，bootstrap 之后）：与桌面相同的模式，CORS 传 `settings.aria2_rpc.cors_allowed_origins`（NAS 需要真实 CORS 源），watch Sender 接入 shutdown_signal 实现优雅停机。limedl-server 通过 `limedl-core` 的 `aria2-rpc` feature 编译。
 
 ## 数据流向
 

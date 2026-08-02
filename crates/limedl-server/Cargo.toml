@@ -19,7 +19,7 @@ tls = ["axum-server"]
 embed-frontend = ["dep:rust-embed"]
 
 [dependencies]
-limedl-core = { path = "../limedl-core" }
+limedl-core = { path = "../limedl-core", features = ["aria2-rpc"] }
 axum = { version = "0.8", features = ["ws"] }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 tower-http = { version = "0.7", features = [

@@ -6,15 +6,20 @@ import type { AppSettings } from "../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
-// The lifecycle touches settings-api and @tauri-apps/api/app; these tests only
+// The lifecycle touches settings-api and app-api; these tests only
 // exercise the setup-state path, so plain mocks suffice.
 vi.mock("../../lib/tauri/settings-api", () => ({
   getAppSettings: vi.fn(),
   saveAppSettings: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/api/app", () => ({
-  getVersion: vi.fn().mockResolvedValue("0.1.8"),
+vi.mock("../../lib/tauri/app-api", () => ({
+  getAppInfo: vi.fn().mockResolvedValue({
+    name: "limedl",
+    version: "0.1.8",
+    platform: "linux",
+    arch: "x86_64",
+  }),
 }));
 
 // ── Fixtures ───────────────────────────────────────────────────────

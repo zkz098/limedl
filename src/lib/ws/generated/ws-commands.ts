@@ -51,6 +51,7 @@ export const WS_COMMANDS: readonly WsCommandSpec[] = [
   { tauriName: "cdn_detail", rpcMethod: "cdn.detail", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "cdn_candidates", rpcMethod: "cdn.candidates", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "update_tray_language", rpcMethod: "tray.updateLanguage", paramTransform: { kind: "identity" }, safety: "mutating" },
+  { tauriName: "app_get_info", rpcMethod: "app.info", paramTransform: { kind: "identity" }, safety: "safe" },
 ];
 
 export const METHOD_MAP: Record<string, string> = Object.fromEntries(

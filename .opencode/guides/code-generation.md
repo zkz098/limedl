@@ -46,7 +46,7 @@ Source of truth: `crates/limedl-core/src/ws_manifest.rs`
 
 - `WsCommandSpec { tauri_name, rpc_method, param_transform }`
 - `ParamTransform` enum: `Identity`, `Rename`, `UnwrapField`
-- `WS_COMMANDS` array lists all commands (currently 32)
+- `WS_COMMANDS` array lists all commands (currently 33)
 
 ### Adding a new WS command
 

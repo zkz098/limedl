@@ -361,6 +361,13 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         param_transform: ParamTransform::Identity,
         safety: SafetyClass::Mutating,
     },
+    // ── App info ───────────────────────────────────────────────────────
+    WsCommandSpec {
+        tauri_name: "app_get_info",
+        rpc_method: "app.info",
+        param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
+    },
 ];
 
 /// Classify a JSON-RPC method as Safe or Mutating based on `WS_COMMANDS`.

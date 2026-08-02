@@ -27,7 +27,7 @@ use tokio::time::sleep;
 
 use download::event_bus::DownloadEvent;
 use download::{
-    AppState, Aria2RpcServer, bootstrap, bt_get_peers, bt_get_pieces,
+    AppState, Aria2RpcServer, app_get_info, bootstrap, bt_get_peers, bt_get_pieces,
     bt_get_trackers, bt_preview_torrent, bt_runtime_status, bt_set_speed_limit, cdn_apply,
     cdn_cancel, cdn_candidates, cdn_clear, cdn_detail, cdn_fetch_ranges, cdn_status, cdn_test,
     cleanup_old_aria2_temp_files, detect_all_disk_types, detect_disk_type, download_cancel, download_list,
@@ -648,6 +648,7 @@ pub fn run() {
             detect_all_disk_types,
             factory_reset,
             update_tray_language,
+            app_get_info,
             check_update_full,
             download_and_install_update,
         ])

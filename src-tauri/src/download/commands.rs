@@ -56,6 +56,19 @@ fn make_dispatcher(state: &AppState) -> Dispatcher {
     Dispatcher::new(state.registry.clone(), state.event_bus.clone())
 }
 
+/// App identity/version/platform info. Stateless — no `State` required.
+/// Mirrors the `app.info` WS RPC handler so both desktop and NAS share the
+/// same shape (name/version/platform/arch).
+#[tauri::command]
+pub fn app_get_info() -> serde_json::Value {
+    serde_json::json!({
+        "name": "limedl",
+        "version": env!("CARGO_PKG_VERSION"),
+        "platform": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+    })
+}
+
 #[tauri::command]
 pub async fn download_start(
     state: State<'_, AppState>,
