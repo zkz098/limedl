@@ -6,8 +6,8 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 
 - **HTTP downloads** — chunked parallel downloading with adaptive concurrency (AIMD), automatic retry, mirror failover, and resumable transfers
 - **BitTorrent** — full-featured BT client via irontide engine (DHT, UPnP, PEX, LSD, magnet links, .torrent files)
-- **CDN acceleration** — Cloudflare IP probing and DNS rewriting for faster downloads (desktop only)
-- **Aria2 RPC** — Aria2-compatible JSON-RPC 2.0 API enables integration with AriaNg, Motrix, and other frontends (desktop only)
+- **CDN acceleration** — Cloudflare IP probing and DNS rewriting for faster downloads
+- **Aria2 RPC** — Aria2-compatible JSON-RPC 2.0 API enables integration with AriaNg, Motrix, and other frontends
 - **Buffer pool** — HDD double-buffer / SSD write-combining tuned to your disk type
 - **Rate limiting** — configurable global speed limits
 - **Multi-platform** — same engine powers all targets

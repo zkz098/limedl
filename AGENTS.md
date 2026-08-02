@@ -75,7 +75,7 @@ Tauri commands and WebSocket RPC both dispatch through the same `Dispatcher` →
 - Rust structs: `#[serde(rename_all = "camelCase")]`. Enums: `#[serde(rename_all = "snake_case")]`.
 - Frontend UI: use `var(--token)` for colors/spacing, `i-ri-*` icons, `<style scoped>` only, `:focus-visible` on all interactive elements. Read `.opencode/guides/ui-design-guide.md` and `ui-component-guide.md` before writing UI code.
 - Build: `.cargo/config.toml` sets `target-cpu=x86-64-v3`.
-- CSP is disabled (`"csp": null` in `tauri.conf.json`).
+- CSP: explicit CSP is defined in `tauri.conf.json` (Tauri); NAS WebUI applies a strict CSP via server headers.
 
 ## Code generation
 
