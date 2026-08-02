@@ -581,6 +581,24 @@ pub fn run() {
                 });
             }
 
+            // Create the main window only after all core subsystems are
+            // initialized.
+            //
+            // Windows declared in tauri.conf.json are created (and shown)
+            // before the setup hook runs. That made the window appear while
+            // the main thread was still busy bootstrapping the core (database,
+            // BT session, tray menu), leaving the GTK event loop unable to
+            // process input — the titlebar close button was dead for the whole
+            // initialization. Creating the window here means the first frame
+            // is fully responsive, and the window icon is registered properly
+            // from the start.
+            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+                .title("limedl")
+                .inner_size(1440.0, 920.0)
+                .maximized(true)
+                .min_inner_size(1180.0, 760.0)
+                .build()?;
+
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
