@@ -1,4 +1,3 @@
-use std::process::Command;
 use std::{
     fs, io,
     net::IpAddr,
@@ -817,36 +816,12 @@ impl DownloadManager {
         let directory_path = PathBuf::from(&manifest.destination_dir);
 
         if destination_path.exists() {
-            #[cfg(windows)]
-            {
-                Command::new("explorer")
-                    .arg(format!("/select,{}", destination_path.display()))
-                    .spawn()?;
-            }
-            #[cfg(target_os = "macos")]
-            {
-                Command::new("open").arg("-R").arg(&destination_path).spawn()?;
-            }
-            #[cfg(target_os = "linux")]
-            {
-                Command::new("xdg-open").arg(&directory_path).spawn()?;
-            }
+            crate::platform::reveal_in_file_manager(&destination_path)?;
             return Ok(());
         }
 
         if directory_path.exists() {
-            #[cfg(windows)]
-            {
-                Command::new("explorer").arg(&directory_path).spawn()?;
-            }
-            #[cfg(target_os = "macos")]
-            {
-                Command::new("open").arg(&directory_path).spawn()?;
-            }
-            #[cfg(target_os = "linux")]
-            {
-                Command::new("xdg-open").arg(&directory_path).spawn()?;
-            }
+            crate::platform::open_in_file_manager(&directory_path)?;
             return Ok(());
         }
 

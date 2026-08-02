@@ -236,10 +236,7 @@ impl IrontideBtBackend {
         let snapshot = self.status(info_hash).await?;
         let path = PathBuf::from(&snapshot.destination_path);
         if path.exists() {
-            #[cfg(windows)]
-            {
-                std::process::Command::new("explorer").arg(&path).spawn()?;
-            }
+            crate::platform::reveal_in_file_manager(&path)?;
             return Ok(());
         }
         Err(DownloadError::Io(std::io::Error::new(
