@@ -4,6 +4,7 @@ import { listen } from "#event";
 import type { UnlistenFn } from "#event";
 import { useI18n } from "../i18n";
 import { useNotificationStore } from "../stores/notification";
+import { toErrorMessage } from "./downloadHelpers";
 
 export type UpdateStatus =
   | "idle"
@@ -139,7 +140,7 @@ async function checkForUpdates(silent = false) {
     return result;
   } catch (err) {
     status.value = "error";
-    errorMessage.value = err instanceof Error ? err.message : String(err);
+    errorMessage.value = toErrorMessage(err);
     if (!silent) {
       notifyError(t("settings.aboutCheckingFailed"));
     }
@@ -198,7 +199,7 @@ async function downloadAndInstall() {
     await invoke("download_and_install_update");
   } catch (err) {
     status.value = "error";
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = toErrorMessage(err);
     const lower = msg.toLowerCase();
     if (lower.includes("disk") || lower.includes("space")) {
       errorMessage.value = t("settings.aboutDiskSpaceInsufficient");

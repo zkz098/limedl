@@ -36,16 +36,22 @@ export function toFriendlyError(raw: string): string {
   return raw;
 }
 
-export function toMessage(error: unknown) {
-  let message: string;
-
-  if (error instanceof Error) {
-    message = error.message;
-  } else {
-    message = String(error);
+/**
+ * Extract a human-readable message from any error value.
+ * Handles `Error` instances as well as plain objects rejected by
+ * Tauri's IPC layer (e.g. `SerializableError` shaped `{ kind, message }`).
+ */
+export function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const maybe = (error as { message?: unknown }).message;
+    if (typeof maybe === "string" && maybe.length > 0) return maybe;
   }
+  return String(error);
+}
 
-  return toFriendlyError(message);
+export function toMessage(error: unknown) {
+  return toFriendlyError(toErrorMessage(error));
 }
 
 export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {

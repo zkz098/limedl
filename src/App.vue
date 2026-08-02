@@ -63,7 +63,7 @@ import type { AppSettings } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
 import { saveAppSettings } from "./lib/tauri/settings-api";
 import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/tauri/download-api";
-import { toMessage } from "./composables/downloadHelpers";
+import { toMessage, toErrorMessage } from "./composables/downloadHelpers";
 
 // Multi-select refs (declared before configure closure)
 let multiSelectMode = ref(false);
@@ -230,7 +230,7 @@ const filteredDownloads = computed(() =>
 );
 
 onErrorCaptured((err, _instance, info) => {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = toErrorMessage(err);
   console.error("[Component Error]", err, info);
   notify.notify(`Error: ${message}`, "error");
   // Return false to prevent error from propagating further
