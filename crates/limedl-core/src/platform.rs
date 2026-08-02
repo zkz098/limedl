@@ -30,8 +30,7 @@ pub fn open_in_file_manager(path: &Path) -> io::Result<()> {
             })?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
+            return Err(io::Error::other(
                 format!(
                     "xdg-open exited with {} for {}: {}",
                     output.status,

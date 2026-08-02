@@ -247,13 +247,11 @@ async fn alert_bridge_loop(
                     AlertKind::FileCompleted { file_index, .. } => {
                         tracing::debug!("irontide: file #{file_index} complete for {info_hash}");
                     }
-                    AlertKind::TrackerReply { num_peers, url, .. } => {
-                        if *num_peers > 0 {
-                            event_bus.publish(DownloadEvent::Updated {
-                                id: task_id.clone(),
-                                summary_json: serde_json::json!({"id": task_id, "tracker": url, "peers": num_peers}),
-                            });
-                        }
+                    AlertKind::TrackerReply { num_peers, url, .. } if *num_peers > 0 => {
+                        event_bus.publish(DownloadEvent::Updated {
+                            id: task_id.clone(),
+                            summary_json: serde_json::json!({"id": task_id, "tracker": url, "peers": num_peers}),
+                        });
                     }
                     AlertKind::TrackerError { message, url, .. } => {
                         tracing::warn!("irontide: tracker error for {url}: {message}");
