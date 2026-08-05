@@ -18,12 +18,14 @@
 use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
+#[cfg(feature = "bt")]
 use crate::bt_backend_own::IrontideBtBackend;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
+use crate::types::{DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};
+#[cfg(feature = "bt")]
 use crate::types::{
-    BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo, DownloadSnapshot,
-    DownloadSummary, StartDownloadRequest, TaskId, TorrentFileEntry,
+    BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtTrackerInfo, TorrentFileEntry,
 };
 
 /// Unified dispatch layer held by the Tauri [`AppState`] or constructed
@@ -134,6 +136,7 @@ impl Dispatcher {
 
     // ── BT-specific operations ───────────────────────────────────────
 
+    #[cfg(feature = "bt")]
     fn bt_backend(&self) -> std::result::Result<&IrontideBtBackend, DownloadError> {
         self.registry
             .get_typed::<IrontideBtBackend>()
@@ -141,11 +144,13 @@ impl Dispatcher {
     }
 
     /// Get BT engine runtime status (DHT, peer counts, etc.).
+    #[cfg(feature = "bt")]
     pub fn bt_runtime_status(&self) -> Result<BtRuntimeStatus> {
         Ok(self.bt_backend()?.runtime_status())
     }
 
     /// Set per-torrent speed limits (download / upload, bytes/sec).
+    #[cfg(feature = "bt")]
     pub fn bt_set_speed_limit(
         &self,
         task_id: &TaskId,
@@ -163,11 +168,13 @@ impl Dispatcher {
     }
 
     /// Preview a torrent file from URL or local path without starting a download.
+    #[cfg(feature = "bt")]
     pub async fn bt_preview_torrent(&self, source: &str) -> Result<Vec<TorrentFileEntry>> {
         self.bt_backend()?.preview_torrent(source).await
     }
 
     /// Get peer info for a BT task.
+    #[cfg(feature = "bt")]
     pub fn bt_get_peers(&self, task_id: &TaskId) -> Result<Vec<BtPeerInfo>> {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
@@ -176,6 +183,7 @@ impl Dispatcher {
     }
 
     /// Get tracker list for a BT task.
+    #[cfg(feature = "bt")]
     pub fn bt_get_trackers(&self, task_id: &TaskId) -> Result<Vec<BtTrackerInfo>> {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
@@ -184,6 +192,7 @@ impl Dispatcher {
     }
 
     /// Get piece info for a BT task.
+    #[cfg(feature = "bt")]
     pub fn bt_get_pieces(&self, task_id: &TaskId) -> Result<Vec<BtPieceInfo>> {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
@@ -192,6 +201,7 @@ impl Dispatcher {
     }
 
     /// Get file status for a BT task.
+    #[cfg(feature = "bt")]
     pub fn bt_get_files(&self, task_id: &TaskId) -> Result<Vec<BtFileStatus>> {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
@@ -200,6 +210,7 @@ impl Dispatcher {
     }
 
     /// Update which files are included in a BT download.
+    #[cfg(feature = "bt")]
     pub async fn bt_update_files(
         &self,
         task_id: &TaskId,

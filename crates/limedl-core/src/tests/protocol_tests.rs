@@ -16,9 +16,11 @@ use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::{
-    DownloadBackend, DownloadManager, EventBus, IrontideBtBackend, RateLimiter,
+    DownloadBackend, DownloadManager, EventBus, RateLimiter,
     types::{AppSettings, ChecksumMode, DownloadState, StartDownloadRequest, ThreadMode},
 };
+#[cfg(feature = "bt")]
+use crate::IrontideBtBackend;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -323,6 +325,7 @@ async fn http_contract_purge() -> TestResult {
 // ===========================================================================
 
 /// Create a minimal [`IrontideBtBackend`] with all network features disabled.
+#[cfg(feature = "bt")]
 async fn make_bt_backend(tmp: &TempDir) -> (IrontideBtBackend, Arc<EventBus>) {
     let state_dir = tmp.path().join("bt_state");
     let out_dir = tmp.path().join("bt_out");
@@ -358,6 +361,7 @@ async fn make_bt_backend(tmp: &TempDir) -> (IrontideBtBackend, Arc<EventBus>) {
     (backend, event_bus)
 }
 
+#[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn bt_contract_list_empty() -> TestResult {
@@ -375,6 +379,7 @@ async fn bt_contract_list_empty() -> TestResult {
     Ok(())
 }
 
+#[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn bt_contract_update_settings() -> TestResult {
@@ -392,6 +397,7 @@ async fn bt_contract_update_settings() -> TestResult {
     Ok(())
 }
 
+#[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn bt_contract_shutdown() -> TestResult {
@@ -409,6 +415,7 @@ async fn bt_contract_shutdown() -> TestResult {
 /// The magnet does **not** need metadata resolution for cancel to work —
 /// irontide accepts `remove_torrent` on pending magnets.  However the
 /// test still takes ~3 s for the irontide alert bridge to settle.
+#[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(60_000)]
 async fn bt_contract_start_magnet_and_cancel() -> TestResult {
@@ -448,6 +455,7 @@ async fn bt_contract_start_magnet_and_cancel() -> TestResult {
 ///
 /// `remove()` is expected to internally cancel + clean up, so this tests
 /// the combined cancel-and-remove path for the BT backend.
+#[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(60_000)]
 async fn bt_contract_start_magnet_and_remove() -> TestResult {

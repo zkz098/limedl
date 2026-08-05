@@ -273,6 +273,7 @@ mod tests {
         TaskId::Http(Uuid::from_u128(1))
     }
 
+    #[cfg(feature = "bt")]
     fn make_bt_task_id() -> TaskId {
         TaskId::Bt(
             irontide::core::Id20::from_hex("0000000000000000000000000000000000000000")
@@ -336,6 +337,7 @@ mod tests {
         assert!(reg.by_kind(TaskKind::Http).is_ok());
     }
 
+    #[cfg(feature = "bt")]
     #[test]
     fn register_two_backends_dispatch_routes_by_kind() {
         let mut reg = BackendRegistry::new();
@@ -407,6 +409,7 @@ mod tests {
         assert!(reg.get_typed::<MockBackend>().is_none());
     }
 
+    #[cfg(feature = "bt")]
     #[tokio::test]
     async fn iter_preserves_registration_order() {
         let mut reg = BackendRegistry::new();
@@ -425,6 +428,7 @@ mod tests {
         assert_eq!(r1[0].created_at_ms, 200);
     }
 
+    #[cfg(feature = "bt")]
     #[tokio::test]
     async fn list_all_merges_and_sorts_by_created_at_descending() {
         let mut reg = BackendRegistry::new();
@@ -443,6 +447,7 @@ mod tests {
         assert_eq!(all[2].created_at_ms, 100);
     }
 
+    #[cfg(feature = "bt")]
     #[tokio::test]
     async fn update_all_settings_broadcasts_to_every_backend() {
         let mut reg = BackendRegistry::new();
@@ -462,6 +467,7 @@ mod tests {
         assert_eq!(calls_b.load(Ordering::Relaxed), 1);
     }
 
+    #[cfg(feature = "bt")]
     #[tokio::test]
     async fn shutdown_all_invokes_shutdown_on_every_backend() {
         let mut reg = BackendRegistry::new();
@@ -480,6 +486,7 @@ mod tests {
         assert_eq!(calls_b.load(Ordering::Relaxed), 1);
     }
 
+    #[cfg(feature = "bt")]
     #[tokio::test]
     async fn list_all_skips_backends_that_error_and_continues() {
         let mut reg = BackendRegistry::new();

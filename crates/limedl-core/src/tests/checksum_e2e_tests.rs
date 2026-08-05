@@ -38,6 +38,7 @@ async fn checksum_correct_completes() {
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
     let inner = match task_id {
         TaskId::Http(u) => u,
+        #[cfg(feature = "bt")]
         TaskId::Bt(_) => unreachable!(),
     };
 
@@ -97,6 +98,7 @@ async fn checksum_wrong_fails() {
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
     let inner = match task_id {
         TaskId::Http(u) => u,
+        #[cfg(feature = "bt")]
         TaskId::Bt(_) => unreachable!(),
     };
 

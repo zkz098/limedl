@@ -55,6 +55,8 @@ pub struct TestServer {
     pub sha256_hash: String,
     /// Pre-computed XXH3-128 hex checksum of the full content.
     pub xxh3_hash: String,
+    /// Pre-computed SHA-1 hex checksum of the full content.
+    pub sha1_hash: String,
     /// Dropping this triggers graceful server shutdown.
     _shutdown: tokio::sync::oneshot::Sender<()>,
 }
@@ -68,17 +70,19 @@ impl TestServer {
     pub async fn new(size: u64) -> Self {
         let data = generate_content(size);
 
-        // Pre‑compute all three checksums from the in‑memory buffer.
+        // Pre‑compute all four checksums from the in‑memory buffer.
         let data_ref: &[&[u8]] = &[&data];
         let blake3_hash = hash_slices(ChecksumMode::Blake3, data_ref);
         let sha256_hash = hash_slices(ChecksumMode::Sha256, data_ref);
         let xxh3_hash = hash_slices(ChecksumMode::Xxh3128, data_ref);
+        let sha1_hash = hash_slices(ChecksumMode::Sha1, data_ref);
 
         let state = Arc::new(ServerState {
             data: Arc::new(data),
             blake3_hash: blake3_hash.clone(),
             sha256_hash: sha256_hash.clone(),
             xxh3_hash: xxh3_hash.clone(),
+            sha1_hash: sha1_hash.clone(),
         });
 
         let app = Router::new()
@@ -121,6 +125,7 @@ impl TestServer {
             blake3_hash,
             sha256_hash,
             xxh3_hash,
+            sha1_hash,
             _shutdown: tx,
         }
     }
@@ -163,8 +168,9 @@ impl TestServer {
 
     /// URL for the file download.
     ///
-    /// The server includes all three checksum values as response headers
-    /// (`x-checksum-blake3`, `x-checksum-sha256`, `x-checksum-xxh3`).
+    /// The server includes all four checksum values as response headers
+    /// (`x-checksum-blake3`, `x-checksum-sha256`, `x-checksum-xxh3`,
+    /// `x-checksum-sha1`).
     /// The `_mode` parameter indicates which checksum the caller intends
     /// to validate and is provided for documentation / future use.
     #[allow(dead_code, unused_variables)]
@@ -227,13 +233,14 @@ struct ServerState {
     blake3_hash: String,
     sha256_hash: String,
     xxh3_hash: String,
+    sha1_hash: String,
 }
 
 // ---------------------------------------------------------------------------
 // Helper: attach checksum headers
 // ---------------------------------------------------------------------------
 
-/// Add all three pre‑computed checksum headers to `headers`.
+/// Add all four pre‑computed checksum headers to `headers`.
 fn add_checksum_headers(headers: &mut HeaderMap, state: &ServerState) {
     if let Ok(val) = HeaderValue::from_str(&state.blake3_hash) {
         headers.insert("x-checksum-blake3", val);
@@ -243,6 +250,9 @@ fn add_checksum_headers(headers: &mut HeaderMap, state: &ServerState) {
     }
     if let Ok(val) = HeaderValue::from_str(&state.xxh3_hash) {
         headers.insert("x-checksum-xxh3", val);
+    }
+    if let Ok(val) = HeaderValue::from_str(&state.sha1_hash) {
+        headers.insert("x-checksum-sha1", val);
     }
 }
 
@@ -634,6 +644,11 @@ mod tests {
             hash_slices(ChecksumMode::Xxh3128, slices),
             server.xxh3_hash,
             "XXH3-128 checksum mismatch",
+        );
+        assert_eq!(
+            hash_slices(ChecksumMode::Sha1, slices),
+            server.sha1_hash,
+            "SHA-1 checksum mismatch",
         );
         Ok(())
     }

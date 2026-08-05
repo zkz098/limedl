@@ -1,5 +1,7 @@
+#[cfg(feature = "bt")]
 use std::path::Path;
 
+#[cfg(feature = "bt")]
 use irontide::core::Id20;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -27,6 +29,8 @@ pub enum ChecksumMode {
     #[default]
     Blake3,
     Sha256,
+    #[serde(rename = "sha1")]
+    Sha1,
     #[serde(rename = "xxh3_128")]
     Xxh3128,
 }
@@ -65,6 +69,7 @@ pub enum BtUploadStatus {
 pub enum TaskKind {
     #[default]
     Http,
+    #[cfg(feature = "bt")]
     Bt,
 }
 
@@ -125,6 +130,7 @@ pub enum SortDirection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskId {
     Http(Uuid),
+    #[cfg(feature = "bt")]
     Bt(Id20),
 }
 
@@ -132,6 +138,7 @@ impl TaskId {
     pub fn kind(&self) -> TaskKind {
         match self {
             TaskId::Http(_) => TaskKind::Http,
+            #[cfg(feature = "bt")]
             TaskId::Bt(_) => TaskKind::Bt,
         }
     }
@@ -140,6 +147,7 @@ impl TaskId {
     pub fn raw_id(&self) -> String {
         match self {
             TaskId::Http(uuid) => uuid.to_string(),
+            #[cfg(feature = "bt")]
             TaskId::Bt(info_hash) => info_hash.to_hex(),
         }
     }
@@ -147,18 +155,24 @@ impl TaskId {
     /// Parse from legacy prefixed string: "http:uuid" or "bt:hex".
     /// Returns error if the inner part is invalid.
     pub fn from_legacy_string(s: &str) -> Result<Self, DownloadError> {
-        if let Some(hex) = s.strip_prefix("bt:") {
-            return Id20::from_hex(hex)
-                .map(TaskId::Bt)
-                .map_err(|e| DownloadError::InvalidRequest(format!("invalid bt id: {e}")));
+        #[cfg(feature = "bt")]
+        {
+            if let Some(hex) = s.strip_prefix("bt:") {
+                return Id20::from_hex(hex)
+                    .map(TaskId::Bt)
+                    .map_err(|e| DownloadError::InvalidRequest(format!("invalid bt id: {e}")));
+            }
         }
         let raw = s.strip_prefix("http:").unwrap_or(s);
         // Try UUID first (HTTP), then Id20 (BT for bare hex strings)
         if let Ok(uuid) = Uuid::parse_str(raw) {
             return Ok(TaskId::Http(uuid));
         }
-        if let Ok(info_hash) = Id20::from_hex(raw) {
-            return Ok(TaskId::Bt(info_hash));
+        #[cfg(feature = "bt")]
+        {
+            if let Ok(info_hash) = Id20::from_hex(raw) {
+                return Ok(TaskId::Bt(info_hash));
+            }
         }
         Err(DownloadError::InvalidRequest(format!(
             "invalid task id: cannot parse {s:?}"
@@ -172,6 +186,7 @@ impl From<Uuid> for TaskId {
     }
 }
 
+#[cfg(feature = "bt")]
 impl From<Id20> for TaskId {
     fn from(i: Id20) -> Self {
         TaskId::Bt(i)
@@ -219,6 +234,7 @@ impl<'de> Visitor<'de> for TaskIdVisitor {
             (Some(TaskKind::Http), Some(id)) => Uuid::parse_str(&id)
                 .map(TaskId::Http)
                 .map_err(|e| de::Error::custom(format!("invalid UUID: {e}"))),
+            #[cfg(feature = "bt")]
             (Some(TaskKind::Bt), Some(id)) => Id20::from_hex(&id)
                 .map(TaskId::Bt)
                 .map_err(|e| de::Error::custom(format!("invalid info hash: {e}"))),
@@ -340,21 +356,27 @@ impl StartDownloadRequest {
         let source = self.url.trim();
         let lower = source.to_ascii_lowercase();
 
-        if lower.starts_with("magnet:") || lower.ends_with(".torrent") {
-            return Ok(TaskKind::Bt);
+        #[cfg(feature = "bt")]
+        {
+            if lower.starts_with("magnet:") || lower.ends_with(".torrent") {
+                return Ok(TaskKind::Bt);
+            }
         }
 
         if lower.starts_with("http://") || lower.starts_with("https://") {
             return Ok(TaskKind::Http);
         }
 
-        let path = Path::new(source);
-        if path
-            .extension()
-            .and_then(|v| v.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("torrent"))
+        #[cfg(feature = "bt")]
         {
-            return Ok(TaskKind::Bt);
+            let path = Path::new(source);
+            if path
+                .extension()
+                .and_then(|v| v.to_str())
+                .is_some_and(|e| e.eq_ignore_ascii_case("torrent"))
+            {
+                return Ok(TaskKind::Bt);
+            }
         }
 
         Err(DownloadError::UnsupportedScheme)
@@ -1512,6 +1534,7 @@ mod tests {
         assert_eq!(parsed["id"], uuid.to_string());
     }
 
+    #[cfg(feature = "bt")]
     #[test]
     fn task_id_bt_round_trip() {
         let hash = irontide::core::Id20::from([0xab; 20]);
@@ -1525,6 +1548,7 @@ mod tests {
         assert_eq!(parsed["id"], "abababababababababababababababababababab");
     }
 
+    #[cfg(feature = "bt")]
     #[test]
     fn task_id_legacy_bt_string() {
         let json = "\"bt:abcdef0123456789abcdef0123456789abcdef01\"";
@@ -1572,6 +1596,7 @@ mod tests {
 
     // ── classify_kind ──────────────────────────────────────────────────
 
+    #[cfg(feature = "bt")]
     #[test]
     fn classify_kind_explicit_kind_wins() {
         let req = StartDownloadRequest {
@@ -1582,6 +1607,7 @@ mod tests {
         assert_eq!(req.classify_kind().unwrap(), TaskKind::Bt);
     }
 
+    #[cfg(feature = "bt")]
     #[test]
     fn classify_kind_magnet_link() {
         let req = StartDownloadRequest {
@@ -1592,6 +1618,7 @@ mod tests {
         assert_eq!(req.classify_kind().unwrap(), TaskKind::Bt);
     }
 
+    #[cfg(feature = "bt")]
     #[test]
     fn classify_kind_torrent_url_suffix() {
         let req = StartDownloadRequest {
@@ -1602,6 +1629,7 @@ mod tests {
         assert_eq!(req.classify_kind().unwrap(), TaskKind::Bt);
     }
 
+    #[cfg(feature = "bt")]
     #[test]
     fn classify_kind_torrent_extension_checks_path() {
         let req = StartDownloadRequest {

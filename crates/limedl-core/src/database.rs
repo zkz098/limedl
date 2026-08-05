@@ -79,6 +79,7 @@ fn checksum_mode_to_text(mode: ChecksumMode) -> &'static str {
         ChecksumMode::None => "none",
         ChecksumMode::Blake3 => "blake3",
         ChecksumMode::Sha256 => "sha256",
+        ChecksumMode::Sha1 => "sha1",
         ChecksumMode::Xxh3128 => "xxh3_128",
     }
 }
@@ -88,6 +89,7 @@ fn text_to_checksum_mode(s: &str) -> RusqliteResult<ChecksumMode> {
         "none" => Ok(ChecksumMode::None),
         "blake3" => Ok(ChecksumMode::Blake3),
         "sha256" => Ok(ChecksumMode::Sha256),
+        "sha1" => Ok(ChecksumMode::Sha1),
         "xxh3_128" => Ok(ChecksumMode::Xxh3128),
         other => Err(rusqlite::Error::InvalidParameterName(format!(
             "unknown checksum mode: {other}"

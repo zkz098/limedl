@@ -23,8 +23,11 @@ async fn bootstrap_smoke() {
     // All fields must be populated
     assert!(core.download_manager.downloads.read().await.is_empty());
     // BT backend should report a valid runtime status (even with 0 torrents)
-    let bt_status = core.bt_backend.runtime_status();
-    assert_eq!(bt_status.torrent_count, 0);
+    #[cfg(feature = "bt")]
+    {
+        let bt_status = core.bt_backend.runtime_status();
+        assert_eq!(bt_status.torrent_count, 0);
+    }
     // EventBus should accept subscribers
     let _rx = core.event_bus.subscribe();
     // RateLimiter defaults to capacity 0
@@ -50,8 +53,11 @@ async fn bootstrap_creates_state_dir() {
 
     let core = bootstrap(state_dir.clone()).await.unwrap();
     assert!(state_dir.exists());
-    assert!(state_dir.join("torrents").exists());
-    assert!(state_dir.join("bt_files").exists());
+    #[cfg(feature = "bt")]
+    {
+        assert!(state_dir.join("torrents").exists());
+        assert!(state_dir.join("bt_files").exists());
+    }
 
     core.registry.shutdown_all().await;
 }
@@ -109,6 +115,7 @@ async fn find_active_by_url_dedup() {
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
     let uuid = match task_id {
         TaskId::Http(u) => u,
+        #[cfg(feature = "bt")]
         TaskId::Bt(_) => unreachable!(),
     };
 

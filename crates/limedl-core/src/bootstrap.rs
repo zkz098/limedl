@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
+#[cfg(feature = "bt")]
 use crate::bt_backend_own::IrontideBtBackend;
 use crate::cdn::CdnService;
 use crate::error::Result;
@@ -16,6 +17,7 @@ use crate::types::{AppSettings, TaskKind};
 /// All initialized core subsystems. Each field is an Arc so it can be shared freely.
 pub struct CoreSystems {
     pub download_manager: Arc<DownloadManager>,
+    #[cfg(feature = "bt")]
     pub bt_backend: Arc<IrontideBtBackend>,
     pub registry: Arc<BackendRegistry>,
     pub event_bus: Arc<EventBus>,
@@ -41,6 +43,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     let settings = download_manager.initial_settings();
 
     // Initialize BT backend
+    #[cfg(feature = "bt")]
     let bt_backend = {
         let bt_state_dir = state_dir.join("torrents");
         let bt_output_dir = state_dir.join("bt_files");
@@ -66,6 +69,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     // instances as CoreSystems (no Clone-with-snapshot divergence).
     let mut registry = BackendRegistry::new();
     registry.register_arc(TaskKind::Http, download_manager.clone());
+    #[cfg(feature = "bt")]
     registry.register_arc(TaskKind::Bt, bt_backend.clone());
     let registry = Arc::new(registry);
 
@@ -74,6 +78,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
 
     Ok(CoreSystems {
         download_manager,
+        #[cfg(feature = "bt")]
         bt_backend,
         registry,
         event_bus,

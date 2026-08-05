@@ -291,6 +291,7 @@ async fn dispatcher_pause_emits_updated() -> TestResult {
 // ---------------------------------------------------------------------------
 // Tests: BT methods with non-BT TaskId return InvalidRequest
 // ---------------------------------------------------------------------------
+#[cfg(feature = "bt")]
 #[test]
 fn bt_set_speed_limit_with_http_taskid_returns_invalid_request() {
     let event_bus = Arc::new(EventBus::new(16));
@@ -304,6 +305,7 @@ fn bt_set_speed_limit_with_http_taskid_returns_invalid_request() {
     assert!(err.to_string().contains("BT task"));
 }
 
+#[cfg(feature = "bt")]
 #[test]
 fn bt_get_peers_with_http_taskid_returns_invalid_request() {
     let event_bus = Arc::new(EventBus::new(16));
@@ -315,6 +317,7 @@ fn bt_get_peers_with_http_taskid_returns_invalid_request() {
     assert!(result.is_err());
 }
 
+#[cfg(feature = "bt")]
 #[test]
 fn bt_get_trackers_with_http_taskid_returns_invalid_request() {
     let event_bus = Arc::new(EventBus::new(16));
@@ -326,6 +329,7 @@ fn bt_get_trackers_with_http_taskid_returns_invalid_request() {
     assert!(result.is_err());
 }
 
+#[cfg(feature = "bt")]
 #[test]
 fn bt_get_pieces_with_http_taskid_returns_invalid_request() {
     let event_bus = Arc::new(EventBus::new(16));
@@ -337,6 +341,7 @@ fn bt_get_pieces_with_http_taskid_returns_invalid_request() {
     assert!(result.is_err());
 }
 
+#[cfg(feature = "bt")]
 #[test]
 fn bt_get_files_with_http_taskid_returns_invalid_request() {
     let event_bus = Arc::new(EventBus::new(16));
@@ -348,6 +353,7 @@ fn bt_get_files_with_http_taskid_returns_invalid_request() {
     assert!(result.is_err());
 }
 
+#[cfg(feature = "bt")]
 #[tokio::test]
 async fn bt_update_files_with_http_taskid_returns_invalid_request() {
     let event_bus = Arc::new(EventBus::new(16));
@@ -362,6 +368,7 @@ async fn bt_update_files_with_http_taskid_returns_invalid_request() {
 // ---------------------------------------------------------------------------
 // Test: BT runtime status without BT backend returns Internal error
 // ---------------------------------------------------------------------------
+#[cfg(feature = "bt")]
 #[test]
 fn bt_runtime_status_without_bt_backend_returns_internal_error() {
     let event_bus = Arc::new(EventBus::new(16));

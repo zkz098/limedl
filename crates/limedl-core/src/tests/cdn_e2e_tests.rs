@@ -224,6 +224,7 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
     let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
     let inner = match task_id {
         TaskId::Http(u) => u,
+        #[cfg(feature = "bt")]
         TaskId::Bt(_) => unreachable!(),
     };
 

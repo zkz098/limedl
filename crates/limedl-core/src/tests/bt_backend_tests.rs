@@ -6,6 +6,8 @@
 //! The test creates both subsystems via `bootstrap()` (matching the real initialization
 //! sequence in bootstrap.rs:48-57) so they share the exact same `Arc<AtomicUsize>`.
 
+#![cfg(feature = "bt")]
+
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 

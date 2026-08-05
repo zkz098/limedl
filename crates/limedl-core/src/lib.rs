@@ -2,6 +2,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub mod backend_registry;
 pub mod bootstrap;
+#[cfg(feature = "bt")]
 pub mod bt_backend_own;
 pub mod cdn;
 pub mod checksum;
@@ -49,6 +50,7 @@ mod buffer_pool;
 pub mod test_harness;
 
 pub use backend_registry::BackendRegistry;
+#[cfg(feature = "bt")]
 pub use bt_backend_own::IrontideBtBackend;
 pub use cdn::{CdnAccelerator, CdnService, CdnTestOutcome};
 pub use checksum::calculate_checksum;

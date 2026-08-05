@@ -6,6 +6,7 @@ use super::types::ChecksumMode;
 pub enum ChecksumHasher {
     Blake3(Box<blake3::Hasher>),
     Sha256(sha2::Sha256),
+    Sha1(sha1::Sha1),
     Xxh3_128(Box<xxhash_rust::xxh3::Xxh3>),
 }
 
@@ -20,6 +21,10 @@ impl ChecksumHasher {
                 use sha2::Digest;
                 Ok(Self::Sha256(sha2::Sha256::new()))
             }
+            ChecksumMode::Sha1 => {
+                use sha1::Digest;
+                Ok(Self::Sha1(sha1::Sha1::new()))
+            }
             ChecksumMode::Xxh3128 => Ok(Self::Xxh3_128(Box::new(xxhash_rust::xxh3::Xxh3::new()))),
         }
     }
@@ -31,6 +36,10 @@ impl ChecksumHasher {
             }
             Self::Sha256(hasher) => {
                 use sha2::Digest;
+                hasher.update(bytes);
+            }
+            Self::Sha1(hasher) => {
+                use sha1::Digest;
                 hasher.update(bytes);
             }
             Self::Xxh3_128(hasher) => {
@@ -47,6 +56,11 @@ impl ChecksumHasher {
                 let result = hasher.finalize();
                 result.iter().map(|b| format!("{:02x}", b)).collect::<String>()
             }
+            Self::Sha1(hasher) => {
+                use sha1::Digest;
+                let result = hasher.finalize();
+                result.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+            }
             Self::Xxh3_128(hasher) => format!("{:032x}", hasher.digest128()),
         }
     }
@@ -55,7 +69,6 @@ impl ChecksumHasher {
 /// Compute checksum from ordered byte slices (for in-memory buffer use).
 pub fn hash_slices(mode: ChecksumMode, slices: &[&[u8]]) -> String {
     use blake3::Hasher;
-    use sha2::{Digest, Sha256};
 
     match mode {
         ChecksumMode::None => String::new(),
@@ -67,7 +80,17 @@ pub fn hash_slices(mode: ChecksumMode, slices: &[&[u8]]) -> String {
             hasher.finalize().to_hex().to_string()
         }
         ChecksumMode::Sha256 => {
+            use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
+            for slice in slices {
+                hasher.update(slice);
+            }
+            let result = hasher.finalize();
+            result.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+        }
+        ChecksumMode::Sha1 => {
+            use sha1::{Digest, Sha1};
+            let mut hasher = Sha1::new();
             for slice in slices {
                 hasher.update(slice);
             }
