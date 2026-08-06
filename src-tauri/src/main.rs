@@ -30,4 +30,18 @@ fn apply_graphics_workarounds() {
         // SAFETY: single-threaded, runs before any other thread or GTK init.
         unsafe { std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1") };
     }
+
+    // WebKitGTK's DMABUF renderer fails to construct a complete framebuffer
+    // under login-time GPU/compositor contention (blank or frozen windows;
+    // tauri#9394/#10702/#13204). This is what leaves the autostart window
+    // blank AND unresponsive (dead close button) on NVIDIA. Must run before
+    // GTK/WebKit initialization. User-set values always win. The app UI is a
+    // static Vue SPA, so the software-rendering cost is imperceptible.
+    if cfg!(target_os = "linux")
+        && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+        && std::path::Path::new("/proc/driver/nvidia/version").exists()
+    {
+        // SAFETY: single-threaded, runs before any other thread or GTK init.
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
 }

@@ -263,6 +263,8 @@ pub fn run() {
     // Hiding a WebKitGTK window before its first frame can leave it blank
     // (white screen) when it is shown later from the tray.
     let autostart_hidden = Arc::new(std::sync::atomic::AtomicBool::new(is_autostart));
+    // Shared with the setup hook (fallback hide, anchored to window creation).
+    let autostart_hidden_setup = autostart_hidden.clone();
 
     let mut builder = tauri::Builder::default().on_page_load(move |webview, payload| {
         use std::sync::atomic::Ordering;
@@ -309,18 +311,8 @@ pub fn run() {
 
             // Autostart (`--hidden`): the window is hidden via
             // `Builder::on_page_load` once the initial page has loaded (see
-            // `run()`). Fallback: if the page never finishes loading (e.g.
-            // renderer failure), hide the window after a timeout anyway so
-            // autostart stays unobtrusive.
-            if is_autostart {
-                let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    sleep(Duration::from_secs(10)).await;
-                    if let Some(window) = handle.get_webview_window("main") {
-                        let _ = window.hide();
-                    }
-                });
-            }
+            // `run()`), with a fallback hide anchored to the window creation
+            // (see the end of this setup hook).
 
             app.handle().plugin(
                 tauri_plugin_autostart::Builder::new()
@@ -592,12 +584,45 @@ pub fn run() {
             // initialization. Creating the window here means the first frame
             // is fully responsive, and the window icon is registered properly
             // from the start.
-            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+            let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("limedl")
                 .inner_size(1440.0, 920.0)
                 .maximized(true)
                 .min_inner_size(1180.0, 760.0)
                 .build()?;
+
+            // Autostart (`--hidden`) fallback hide, anchored to window
+            // CREATION — not to the start of setup. Bootstrap (DB, BT
+            // session, CDN init) can exceed 10s at cold login, and a timer
+            // started earlier would wake before the window exists and
+            // silently do nothing, leaving the window visible (blank)
+            // forever.
+            //
+            // The primary hide happens in `run()` via `on_page_load` once the
+            // initial page finishes loading; this fallback covers the case
+            // where the page never finishes loading (e.g. renderer failure).
+            // Both share `autostart_hidden`, so only the first one to fire
+            // hides the window; the other becomes a no-op.
+            if is_autostart {
+                let window = window.clone();
+                let flag = autostart_hidden_setup.clone();
+                tauri::async_runtime::spawn(async move {
+                    use std::sync::atomic::Ordering;
+                    sleep(Duration::from_secs(10)).await;
+                    if flag.swap(false, Ordering::AcqRel) {
+                        let _ = window.hide();
+                        // A stalled compositor can drop the hide; verify it
+                        // took effect and retry once.
+                        sleep(Duration::from_secs(1)).await;
+                        if window.is_visible().unwrap_or(false) {
+                            tracing::warn!(
+                                "autostart hide did not take effect; window still visible"
+                            );
+                            let _ = window.hide();
+                        }
+                    }
+                });
+            }
 
             Ok(())
         })
