@@ -2,10 +2,14 @@
 
 #[cfg(windows)]
 mod imp {
+    use std::collections::HashMap;
     use std::ffi::OsStr;
     use std::mem;
     use std::os::windows::ffi::OsStrExt;
     use std::path::Path;
+    use std::sync::OnceLock;
+
+    use parking_lot::Mutex;
 
     use crate::types::DiskType;
 
@@ -131,6 +135,20 @@ mod imp {
         }
     }
 
+    /// Process-lifetime cache of drive-letter → disk type.
+    ///
+    /// The seek-penalty property of a mounted volume is stable for the lifetime
+    /// of the process, so re-querying via `DeviceIoControl` on every download
+    /// start (`resolve_disk_type`) or settings-panel scan is wasted syscalls and
+    /// log spam — some volume stacks (virtual disks, certain USB bridges) don't
+    /// support the property and emit a warning on every call. Only successfully
+    /// opened volumes are cached: an unopenable drive is NOT cached so a later
+    /// mount is re-detected.
+    fn disk_type_cache() -> &'static Mutex<HashMap<String, DiskType>> {
+        static CACHE: OnceLock<Mutex<HashMap<String, DiskType>>> = OnceLock::new();
+        CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+
     pub fn detect_disk_type(path: &Path) -> DiskType {
         // Get the drive letter or mount point root
         let drive_letter = match path.components().next() {
@@ -164,6 +182,11 @@ mod imp {
             _ => return DiskType::Ssd,
         };
 
+        // Fast path: this volume was already detected this session.
+        if let Some(&cached) = disk_type_cache().lock().get(&drive_letter) {
+            return cached;
+        }
+
         let handle = match open_volume(&drive_letter) {
             Some(h) => h,
             None => {
@@ -178,6 +201,10 @@ mod imp {
         // IncursSeekPenalty=1 → rotating HDD, 0 → non-rotating SSD.
         let result = query_seek_penalty(handle);
         unsafe { CloseHandle(handle); }
+
+        // Cache the result (including the SSD fallback) — stable for a mounted
+        // volume within this process.
+        disk_type_cache().lock().insert(drive_letter.clone(), result);
 
         match result {
             DiskType::Hdd => tracing::debug!("disk_detect: {drive_letter} is HDD (seek penalty)"),
@@ -229,8 +256,6 @@ mod imp {
             DiskType::Hdd
         }
     }
-
-    use std::collections::HashMap;
 
     /// Enumerate all fixed/removable drives and detect disk type for each.
     pub fn detect_all_disk_types() -> HashMap<String, DiskType> {
