@@ -284,6 +284,24 @@ pub async fn settings_get(state: State<'_, AppState>) -> CommandResult<AppSettin
     )
 }
 
+/// Open the directory containing the current log file in the system file manager.
+#[tauri::command]
+pub async fn logging_open_dir(state: State<'_, AppState>) -> CommandResult<()> {
+    into_command_result(
+        async {
+            let dm = state
+                .registry
+                .get_typed::<DownloadManager>()
+                .ok_or_else(|| internal_error("HTTP backend not found"))?;
+            let settings = dm.settings().await.context("读取设置失败")?;
+            let dir = limedl_core::logging::log_dir_for(&settings.logging, dm.dirs.state_dir())
+                .context("解析日志目录失败")?;
+            limedl_core::platform::open_in_file_manager(&dir).context("打开日志目录失败")
+        }
+        .await,
+    )
+}
+
 #[tauri::command]
 pub async fn settings_save(
     state: State<'_, AppState>,

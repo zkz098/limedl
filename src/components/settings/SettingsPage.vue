@@ -5,7 +5,7 @@ import { useI18n } from "../../i18n";
 import { useAsyncGuard } from "../../composables/useAsyncGuard";
 import { useNotificationStore } from "../../stores/notification";
 import { pickDirectory } from "../../lib/tauri/dialog-api";
-import { fetchTrackerList, saveAppSettings } from "../../lib/tauri/settings-api";
+import { fetchTrackerList, openLogDir, saveAppSettings } from "../../lib/tauri/settings-api";
 import type { ChecksumMode } from "../../types/download";
 import type { SupportedLanguage } from "../../i18n/resources";
 import type {
@@ -116,6 +116,8 @@ const { form, buildSettingsPayload, savedSettingsSnapshot } = useSettingsForm({
 
 const { isBusy: isSaving, run: runSave } = useAsyncGuard();
 const { isBusy: isPickingDirectory, run: runPickDirectory } = useAsyncGuard();
+const { isBusy: isPickingLogDirectory, run: runPickLogDirectory } = useAsyncGuard();
+const { isBusy: isOpeningLogDir, run: runOpenLogDir } = useAsyncGuard();
 const { isBusy: isFetchingTrackerList, run: runFetchTrackerList } = useAsyncGuard();
 
 // ── Summaries (from composable)────────────────────────────────────
@@ -173,6 +175,38 @@ async function pickDefaultDownloadDirectory() {
     } catch (error) {
       notifyError(
         error instanceof Error ? error.message : t("settings.notifications.chooseDirectoryFailed"),
+      );
+    }
+  });
+}
+
+async function pickLogDirectory() {
+  await runPickLogDirectory(async () => {
+    try {
+      const selectedPath = await pickDirectory();
+      if (selectedPath) {
+        const cur = form.logging.filePath.trim();
+        const sepIdx = Math.max(cur.lastIndexOf("/"), cur.lastIndexOf("\\"));
+        const basename = sepIdx >= 0 ? cur.slice(sepIdx + 1) : cur;
+        const filename = basename.includes(".") ? basename : "limedl.log";
+        const sep = navigator.userAgent.includes("Windows") ? "\\" : "/";
+        form.logging.filePath = selectedPath.replace(/[\\/]+$/, "") + sep + filename;
+      }
+    } catch (error) {
+      notifyError(
+        error instanceof Error ? error.message : t("settings.notifications.chooseDirectoryFailed"),
+      );
+    }
+  });
+}
+
+async function openLogDirectory() {
+  await runOpenLogDir(async () => {
+    try {
+      await openLogDir();
+    } catch (error) {
+      notifyError(
+        error instanceof Error ? error.message : t("settings.notifications.openLogDirFailed"),
       );
     }
   });
@@ -414,6 +448,10 @@ defineExpose({
           :t="t"
           :log-level-options="logLevelOptions"
           :logging-summary="loggingSummary"
+          :is-picking-log-directory="isPickingLogDirectory"
+          :is-opening-log-dir="isOpeningLogDir"
+          @pick-log-directory="pickLogDirectory"
+          @open-log-dir="openLogDirectory"
         />
 
         <SettingsProxyPanel

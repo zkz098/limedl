@@ -34,6 +34,7 @@ export const WS_COMMANDS: readonly WsCommandSpec[] = [
   { tauriName: "toggle_overclock_mode", rpcMethod: "settings.toggleOverclockMode", paramTransform: { kind: "identity" }, safety: "mutating" },
   { tauriName: "get_overclock_mode", rpcMethod: "settings.getOverclockMode", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "settings_fetch_tracker_list", rpcMethod: "settings.fetchTrackerList", paramTransform: { kind: "identity" }, safety: "mutating" },
+  { tauriName: "logging_open_dir", rpcMethod: "logging.openDir", paramTransform: { kind: "identity" }, safety: "mutating" },
   { tauriName: "bt_runtime_status", rpcMethod: "bt.runtimeStatus", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "bt_set_speed_limit", rpcMethod: "bt.setSpeedLimit", paramTransform: { kind: "rename", from: "downloadId", to: "taskId" }, safety: "mutating" },
   { tauriName: "bt_preview_torrent", rpcMethod: "bt.previewTorrent", paramTransform: { kind: "identity" }, safety: "mutating" },

@@ -238,6 +238,12 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         param_transform: ParamTransform::Identity,
         safety: SafetyClass::Mutating,
     },
+    WsCommandSpec {
+        tauri_name: "logging_open_dir",
+        rpc_method: "logging.openDir",
+        param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Mutating,
+    },
     // ── BitTorrent ────────────────────────────────────────────────────────
     WsCommandSpec {
         tauri_name: "bt_runtime_status",

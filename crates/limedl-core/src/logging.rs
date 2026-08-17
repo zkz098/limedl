@@ -183,6 +183,18 @@ fn resolve_log_file_path(settings: &LogSettings, state_dir: &Path) -> PathBuf {
     PathBuf::from(configured)
 }
 
+/// Resolve the directory that contains the log file, creating it if missing.
+/// Used by the "open current log directory" action in settings.
+pub fn log_dir_for(settings: &LogSettings, state_dir: &Path) -> io::Result<PathBuf> {
+    let file_path = resolve_log_file_path(settings, state_dir);
+    let dir = file_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(state_dir);
+    fs::create_dir_all(dir)?;
+    Ok(dir.to_path_buf())
+}
+
 fn to_level_filter(level: LogLevel) -> LevelFilter {
     match level {
         LogLevel::Trace => LevelFilter::TRACE,

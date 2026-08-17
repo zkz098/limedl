@@ -579,6 +579,8 @@ const enUS = {
       loggingPathHint:
         "Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data.",
       loggingAutoPath: "Auto path",
+      loggingChooseDir: "Choose folder",
+      loggingOpenDir: "Open current directory",
       loggingRetentionStrategy: "Retention strategy",
       loggingRetentionNone: "No limit",
       loggingRetentionCount: "Keep recent files",
@@ -676,6 +678,7 @@ const enUS = {
       },
       notifications: {
         chooseDirectoryFailed: "Failed to choose directory",
+        openLogDirFailed: "Failed to open log directory",
         trackerListUpdated: "Tracker List updated with {{count}} tracker(s)",
         trackerListUpdateFailed: "Failed to update Tracker List",
         saved: "Settings saved",

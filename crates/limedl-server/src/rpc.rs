@@ -433,6 +433,7 @@ async fn dispatch_method(
         "toggle_overclock_mode" => handle_toggle_overclock_mode(params, state).await,
         "get_overclock_mode" => handle_get_overclock_mode(state).await,
         "settings_fetch_tracker_list" => handle_fetch_tracker_list(params, state).await,
+        "logging_open_dir" => handle_open_log_dir(state).await,
         "bt_runtime_status" => handle_bt_runtime_status(state).await,
         "bt_set_speed_limit" => handle_bt_set_speed_limit(params, state).await,
         "bt_preview_torrent" => handle_bt_preview_torrent(params, state).await,
@@ -578,6 +579,24 @@ async fn handle_settings_get(state: &RpcState) -> Result<serde_json::Value, Json
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     serde_json::to_value(settings).map_err(|e| JsonRpcError::server_error(e.to_string()))
+}
+
+// ── Handler: logging.openDir ────────────────────────────────
+
+async fn handle_open_log_dir(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
+    let dm = state
+        .registry
+        .get_typed::<DownloadManager>()
+        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
+    let settings = dm
+        .settings()
+        .await
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    let dir = limedl_core::logging::log_dir_for(&settings.logging, dm.dirs.state_dir())
+        .map_err(|e| JsonRpcError::server_error(format!("Failed to resolve log directory: {e}")))?;
+    limedl_core::platform::open_in_file_manager(&dir)
+        .map_err(|e| JsonRpcError::server_error(format!("Failed to open log directory: {e}")))?;
+    Ok(serde_json::json!({}))
 }
 
 // ── Handler: settings.save ─────────────────────────────────────────

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import UiButton from "../ui/UiButton.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
@@ -12,6 +13,13 @@ const props = defineProps<{
   t: (key: string, options?: Record<string, unknown>) => string;
   logLevelOptions: Array<{ label: string; value: LogLevel }>;
   loggingSummary: string;
+  isPickingLogDirectory: boolean;
+  isOpeningLogDir: boolean;
+}>();
+
+const emit = defineEmits<{
+  pickLogDirectory: [];
+  openLogDir: [];
 }>();
 
 type RetentionStrategy = "none" | "count" | "days" | "both";
@@ -78,11 +86,34 @@ const retentionStrategyOptions = computed(() => [
         :label="t('settings.loggingPath')"
         :info-tooltip="t('settings.loggingPathHint')"
       >
-        <UiTextField
-          v-model="draft.logging.filePath"
-          type="text"
-          :placeholder="t('settings.loggingPathPlaceholder')"
-        />
+        <div class="settings-directory-field">
+          <UiTextField
+            v-model="draft.logging.filePath"
+            type="text"
+            :placeholder="t('settings.loggingPathPlaceholder')"
+          />
+          <UiButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            :loading="isPickingLogDirectory"
+            @click="emit('pickLogDirectory')"
+          >
+            {{ t("settings.loggingChooseDir") }}
+          </UiButton>
+        </div>
+        <div class="logging-open-dir">
+          <UiButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon="i-ri-folder-open-line"
+            :loading="isOpeningLogDir"
+            @click="emit('openLogDir')"
+          >
+            {{ t("settings.loggingOpenDir") }}
+          </UiButton>
+        </div>
       </SettingsField>
 
       <SettingsField :label="t('settings.loggingRetentionStrategy')">
@@ -113,6 +144,10 @@ const retentionStrategyOptions = computed(() => [
 </template>
 
 <style scoped>
+.logging-open-dir {
+  margin-top: var(--space-2);
+}
+
 .field-with-unit {
   display: flex;
   align-items: center;

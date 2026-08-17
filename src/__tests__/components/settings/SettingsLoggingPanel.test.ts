@@ -178,6 +178,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -205,6 +207,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -236,6 +240,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -259,6 +265,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -279,6 +287,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "3 logs retained",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -295,6 +305,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -328,6 +340,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -353,6 +367,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -378,6 +394,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -404,6 +422,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });
@@ -426,6 +446,8 @@ describe("SettingsLoggingPanel", () => {
         t: (key: string) => key,
         logLevelOptions,
         loggingSummary: "Logging enabled",
+        isPickingLogDirectory: false,
+        isOpeningLogDir: false,
       },
       global: { stubs },
     });

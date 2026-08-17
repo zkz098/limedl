@@ -51,3 +51,7 @@ export function getOverclockMode() {
 export function factoryReset() {
   return invoke<void>("factory_reset");
 }
+
+export function openLogDir() {
+  return invoke<void>("logging_open_dir");
+}

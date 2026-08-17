@@ -551,6 +551,8 @@ const zhCN = {
       loggingPathPlaceholder: "留空使用默认路径（应用数据目录/logs/limedl.log）",
       loggingPathHint: "支持绝对路径或相对路径；留空时自动写入应用数据目录下的 logs/limedl.log。",
       loggingAutoPath: "自动路径",
+      loggingChooseDir: "选择目录",
+      loggingOpenDir: "打开当前目录",
       loggingRetentionStrategy: "保留策略",
       loggingRetentionNone: "不限制",
       loggingRetentionCount: "按文件数量",
@@ -643,6 +645,7 @@ const zhCN = {
       },
       notifications: {
         chooseDirectoryFailed: "选择目录失败",
+        openLogDirFailed: "打开日志目录失败",
         trackerListUpdated: "已更新 Tracker List，共 {{count}} 条",
         trackerListUpdateFailed: "更新 Tracker List 失败",
         saved: "设置已保存",
