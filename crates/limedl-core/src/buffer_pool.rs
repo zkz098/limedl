@@ -711,9 +711,24 @@ impl DownloadBuffer {
             };
 
             // Fast path — room available in the active half.
+            //
+            // The check and the insert must be atomic with respect to a
+            // concurrent flip: `is_a` can change while we wait for the map
+            // lock, and inserting into a half that just became inactive would
+            // strand the chunk with no flush handle (it would never be written,
+            // usage accounting would drift, and disk progress would stall while
+            // downloads keep fetching). Re-validate under the lock and retry if
+            // a flip happened in between.
             let current = active_usage.load(Ordering::Acquire);
             if current + len <= half_size {
-                active_map.lock().insert(offset, data);
+                let mut active_guard = active_map.lock();
+                if active_is_a.load(Ordering::Acquire) != is_a {
+                    // The active half switched while we awaited the lock — this
+                    // half is now inactive. Drop the lock and retry with fresh
+                    // state.
+                    continue;
+                }
+                active_guard.insert(offset, data);
                 active_usage.fetch_add(len, Ordering::Release);
                 if let Some(p) = cfg.pool {
                     p.add_usage(len);
@@ -749,22 +764,28 @@ impl DownloadBuffer {
                 continue;
             }
 
-            // Sanity: the inactive half should be empty (no flush running).
-            let inactive_usage_val = inactive_usage.load(Ordering::Acquire);
-            if inactive_usage_val > 0 {
-                let cleared: u64 = {
-                    let mut map = inactive_map.lock();
-                    let sum = map.values().map(|d| d.len() as u64).sum();
-                    map.clear();
-                    sum
-                };
+            // Sanity: if the inactive half still holds bytes (a writer raced
+            // the previous flip's drain), do NOT discard them. This data is
+            // real and was never written to disk — clearing it would corrupt
+            // the download (holes → stuck progress / checksum failure). Fold it
+            // into the flush we are about to spawn instead.
+            let folded: Vec<(u64, Bytes)> = {
+                let mut map = inactive_map.lock();
+                if map.is_empty() {
+                    Vec::new()
+                } else {
+                    std::mem::take(&mut *map).into_iter().collect()
+                }
+            };
+            let folded_bytes: u64 = folded.iter().map(|(_, d)| d.len() as u64).sum();
+            if folded_bytes > 0 {
                 inactive_usage.store(0, Ordering::Release);
                 if let Some(p) = cfg.pool {
-                    p.sub_usage(cleared);
+                    p.sub_usage(folded_bytes);
                 }
                 tracing::warn!(
-                    "buffer_chunk: inactive half had {} bytes without flush handle ({} mode)",
-                    cleared,
+                    "buffer_chunk: inactive half had {} bytes without flush handle — folded into flush ({} mode)",
+                    folded_bytes,
                     cfg.label,
                 );
             }
@@ -773,7 +794,11 @@ impl DownloadBuffer {
             // Drain the active half, reset usage, subtract from pool.
             let old_entries: Vec<(u64, Bytes)> = {
                 let mut map = active_map.lock();
-                std::mem::take(&mut *map).into_iter().collect()
+                let mut merged = std::mem::take(&mut *map);
+                // Fold the leftovers of the previous inactive half (if any)
+                // into this flush so no buffered byte is silently dropped.
+                merged.extend(folded);
+                merged.into_iter().collect()
             };
             let old_bytes: u64 = old_entries.iter().map(|(_, d)| d.len() as u64).sum();
             active_usage.store(0, Ordering::Release);

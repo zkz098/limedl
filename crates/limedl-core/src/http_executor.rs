@@ -376,7 +376,14 @@ impl HttpExecutor {
                     }
                     return Ok(RunOutcome::Paused);
                 }
-                manager::WaitState::Canceled => return Ok(RunOutcome::Canceled),
+                manager::WaitState::Canceled => {
+                        if let Some(ref buf) = write_buffer
+                            && let Err(e) = buf.flush_all().await
+                        {
+                            tracing::warn!("flush on cancel failed: {e}");
+                        }
+                        return Ok(RunOutcome::Canceled);
+                    }
             }
 
             let (url, user_agent, validator, state) = {
@@ -389,6 +396,11 @@ impl HttpExecutor {
                 )
             };
             if state == DownloadState::Canceled {
+                if let Some(ref buf) = write_buffer
+                    && let Err(e) = buf.flush_all().await
+                {
+                    tracing::warn!("flush on cancel failed: {e}");
+                }
                 return Ok(RunOutcome::Canceled);
             }
             if token.is_cancelled() {
@@ -455,8 +467,13 @@ impl HttpExecutor {
                     if bytes_since_consume > 0 {
                         dm.rate_limiter.consume(bytes_since_consume).await;
                     }
-                    if let Some(ref buf) = write_buffer {
-                        buf.drain_background().await;
+                    // Persist buffered data before exit: `downloaded_bytes` was
+                    // already credited for these chunks, so discarding them here
+                    // would leave a hole on resume and misfire the Drop canary.
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_all().await
+                    {
+                        tracing::warn!("flush on cancel failed: {e}");
                     }
                     return Ok(cancellation_outcome(&managed));
                 }
@@ -677,10 +694,14 @@ impl HttpExecutor {
         loop {
             chunk_claim_times.clear();
             if token.is_cancelled() {
-                if let Some(ref buf) = write_buffer {
-                    buf.drain_background().await;
-                }
                 shutdown_chunk_workers(&managed, &mut workers).await;
+                // Persist buffered chunks before exit so resume continues from a
+                // consistent point and the buffer is never dropped with data.
+                if let Some(ref buf) = write_buffer
+                    && let Err(e) = buf.flush_all().await
+                {
+                    tracing::warn!("flush on cancel failed: {e}");
+                }
                 return Ok(cancellation_outcome(&managed));
             }
 
@@ -769,7 +790,14 @@ impl HttpExecutor {
                         managed.lock_core().manifest.checksum = None;
                         return Ok(RunOutcome::Paused);
                     }
-                    manager::WaitState::Canceled => return Ok(RunOutcome::Canceled),
+manager::WaitState::Canceled => {
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_all().await
+                    {
+                        tracing::warn!("flush on cancel failed: {e}");
+                    }
+                    return Ok(RunOutcome::Canceled);
+                }
                 }
             }
 
@@ -931,10 +959,12 @@ impl HttpExecutor {
 
             let join_result = tokio::select! {
                 _ = token.cancelled() => {
-                    if let Some(ref buf) = write_buffer {
-                        buf.drain_background().await;
-                    }
                     shutdown_chunk_workers(&managed, &mut workers).await;
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_all().await
+                    {
+                        tracing::warn!("flush on cancel failed: {e}");
+                    }
                     return Ok(cancellation_outcome(&managed));
                 }
                 joined = workers.join_next() => joined,
@@ -959,6 +989,12 @@ impl HttpExecutor {
                 ChunkWorkerOutcome::Finished => {}
                 ChunkWorkerOutcome::RestartSingle => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
+                    // Data is deliberately discarded (fresh temp file) — clear
+                    // the buffer so the Drop canary doesn't misfire a false
+                    // "data lost" warning.
+                    if let Some(ref buf) = write_buffer {
+                        buf.clear();
+                    }
                     drop(file);
                     dm.task_lifecycle.prepare_fresh_temp_file(&dm, &managed)?;
                     dm.task_lifecycle.reset_progress(&dm, &managed, true);
@@ -979,6 +1015,11 @@ impl HttpExecutor {
                 }
                 ChunkWorkerOutcome::Canceled => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_all().await
+                    {
+                        tracing::warn!("flush on cancel failed: {e}");
+                    }
                     return Ok(RunOutcome::Canceled);
                 }
             }
