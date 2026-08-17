@@ -29,6 +29,9 @@ coverage/
 playwright-report/
 test-results/
 
+# Playwright storage state (regenerated at test setup)
+e2e/storage-state.json
+
 # Large binary archives (OS images, datasets, etc.)
 *.tar.gz
 *.tar

@@ -32,22 +32,22 @@ jobs:
       - name: Link baseline
         run: |
           if [ -d "criterion-baseline" ] && [ "$(ls -A criterion-baseline 2>/dev/null)" ]; then
-            mkdir -p src-tauri/target/criterion
-            cp -r criterion-baseline/* src-tauri/target/criterion/
+            mkdir -p target/criterion
+            cp -r criterion-baseline/* target/criterion/
           fi
 
       - name: Run E2E benchmarks
-        run: cargo bench --manifest-path src-tauri/Cargo.toml --features test-utils --bench download_e2e
+        run: cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils --bench download_e2e
 
       - name: Copy results to baseline
         run: |
           rm -rf criterion-baseline
           mkdir -p criterion-baseline
-          if [ -d "src-tauri/target/criterion/download_e2e" ]; then
-            cp -r src-tauri/target/criterion/download_e2e criterion-baseline/
+          if [ -d "target/criterion/download_e2e" ]; then
+            cp -r target/criterion/download_e2e criterion-baseline/
           fi
-          if [ -d "src-tauri/target/criterion/report" ]; then
-            cp -r src-tauri/target/criterion/report criterion-baseline/
+          if [ -d "target/criterion/report" ]; then
+            cp -r target/criterion/report criterion-baseline/
           fi
 
       - name: Cache baseline

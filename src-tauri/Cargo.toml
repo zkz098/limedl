@@ -50,24 +50,3 @@ test-utils = ["limedl-core/test-utils", "limedl-core/aria2-rpc", "rand"]
 tempfile = "3"
 ntest = "0.9"
 bytes = "1"
-criterion = { version = "0.8", features = ["html_reports"] }
-
-[[bench]]
-name = "aimd"
-harness = false
-required-features = ["test-utils"]
-
-[[bench]]
-name = "rate_limiter"
-harness = false
-required-features = ["test-utils"]
-
-[[bench]]
-name = "download_e2e"
-harness = false
-required-features = ["test-utils"]
-
-[[bench]]
-name = "buffer_pool"
-harness = false
-required-features = ["test-utils"]

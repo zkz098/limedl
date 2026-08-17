@@ -60,7 +60,7 @@ $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Push-Location -LiteralPath $projectRoot
 
 try {
-    cargo bench --manifest-path src-tauri/Cargo.toml --features test-utils -- buffer_pool
+    cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils -- buffer_pool
 } finally {
     Pop-Location
 }

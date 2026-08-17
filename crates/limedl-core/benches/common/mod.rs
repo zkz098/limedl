@@ -1,4 +1,4 @@
-//! Shared benchmark harness for limedl benchmarks.
+﻿//! Shared benchmark harness for limedl benchmarks.
 //!
 //! Provides a [`BenchHarness`] struct that owns a multi-threaded tokio runtime
 //! and a local HTTP [`TestServer`] serving deterministic random content.
@@ -6,14 +6,14 @@
 //! # Usage
 //!
 //! ```ignore
-//! use limedl_lib::test_harness::TestServer;
+//! use limedl_core::test_harness::TestServer;
 //! use common::BenchHarness;
 //!
 //! let harness = BenchHarness::new(1024 * 1024);
 //! let url = harness.server.file_url();
 //! ```
 
-use limedl_lib::test_harness::TestServer;
+use limedl_core::test_harness::TestServer;
 use std::sync::Arc;
 
 /// Benchmark harness owning a tokio runtime and a local test server.

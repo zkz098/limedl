@@ -15,6 +15,13 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { TestFileServer } from "./server/test-file-server";
 
+/**
+ * Playwright storage state marking the setup wizard as completed.
+ * Generated here (not committed) so fresh CI clones can run NAS WebUI tests.
+ * The `origin` must match the NAS WebUI baseURL used in playwright.config.ts.
+ */
+const STORAGE_STATE_PATH = path.join(__dirname, "storage-state.json");
+
 export default async function globalSetup(): Promise<void> {
   const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "limedl-e2e-"));
 
@@ -26,6 +33,24 @@ export default async function globalSetup(): Promise<void> {
   // Create and start the test file server
   const server = new TestFileServer(testDir);
   await server.start(9876);
+
+  // Seed storage state so NAS WebUI projects skip the setup wizard
+  fs.writeFileSync(
+    STORAGE_STATE_PATH,
+    JSON.stringify(
+      {
+        cookies: [],
+        origins: [
+          {
+            origin: "http://localhost:9090",
+            localStorage: [{ name: "limedl.setupCompleted", value: "true" }],
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
 
   console.log(`[global-setup] TestFileServer listening on ${server.url}`);
   console.log(`[global-setup] Test files: ${Object.keys(server.files).join(", ")}`);

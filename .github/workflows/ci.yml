@@ -184,12 +184,12 @@ jobs:
       - name: Link baseline
         run: |
           if [ -d "criterion-baseline" ] && [ "$(ls -A criterion-baseline 2>/dev/null)" ]; then
-            mkdir -p src-tauri/target/criterion
-            cp -r criterion-baseline/* src-tauri/target/criterion/
+            mkdir -p target/criterion
+            cp -r criterion-baseline/* target/criterion/
           fi
 
       - name: Run benchmarks
-        run: cargo bench --manifest-path src-tauri/Cargo.toml --features test-utils --bench aimd --bench rate_limiter
+        run: cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils --bench aimd --bench rate_limiter
 
       - name: Copy results to baseline
         if: github.event_name == 'push'
@@ -197,12 +197,12 @@ jobs:
           rm -rf criterion-baseline
           mkdir -p criterion-baseline
           for bench in aimd rate_limiter; do
-            if [ -d "src-tauri/target/criterion/$bench" ]; then
-              cp -r "src-tauri/target/criterion/$bench" criterion-baseline/
+            if [ -d "target/criterion/$bench" ]; then
+              cp -r "target/criterion/$bench" criterion-baseline/
             fi
           done
-          if [ -d "src-tauri/target/criterion/report" ]; then
-            cp -r src-tauri/target/criterion/report criterion-baseline/
+          if [ -d "target/criterion/report" ]; then
+            cp -r target/criterion/report criterion-baseline/
           fi
 
       - name: Cache baseline

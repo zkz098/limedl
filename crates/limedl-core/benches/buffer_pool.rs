@@ -1,7 +1,7 @@
-//! Benchmarks for the buffer pool subsystem.
+﻿//! Benchmarks for the buffer pool subsystem.
 //!
 //! Compares HDD double-buffer vs SSD local buffer write throughput.
-//! These are **I/O benchmarks** — data is written to a real disk.
+//! These are **I/O benchmarks** 鈥?data is written to a real disk.
 //!
 //! ## Usage
 //!
@@ -9,7 +9,7 @@
 //!
 //! ```powershell
 //! $env:BENCH_DISK = "D:\bench"
-//! cargo bench --manifest-path src-tauri/Cargo.toml --features test-utils -- buffer_pool
+//! cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils -- buffer_pool
 //! ```
 //!
 //! If `BENCH_DISK` is not set, the system temp directory is used (may not
@@ -26,9 +26,9 @@ use std::time::Instant;
 use bytes::Bytes;
 use common::BenchHarness;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use limedl_lib::buffer_pool::{BufferPool, DownloadBuffer};
+use limedl_core::buffer_pool::{BufferPool, DownloadBuffer};
 
-// ── Configuration ────────────────────────────────────────────────────────────
+// 鈹€鈹€ Configuration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 // 100 MB total data, written in 1 MB chunks.
 const TOTAL_DATA: u64 = 100 * 1024 * 1024;
 const CHUNK_SIZE: usize = 1024 * 1024; // 1 MB
@@ -53,14 +53,14 @@ fn unique_temp_name(prefix: &str) -> String {
     format!("{path}/limedl_bench_{prefix}_{id}.tmp")
 }
 
-// ── HDD double-buffer benchmark ─────────────────────────────────────────────
+// 鈹€鈹€ HDD double-buffer benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 //
 // Creates a new `BufferPool`, acquires a slot, writes 100 MB via the
 // double-buffer path, then flushes everything to disk. Measures end-to-end
 // latency including the final `flush_all()`.
 
 fn bench_double_hdd(c: &mut Criterion) {
-    let harness = BenchHarness::new(1024); // file size irrelevant — just needs runtime
+    let harness = BenchHarness::new(1024); // file size irrelevant 鈥?just needs runtime
     let chunk = zero_chunk();
 
     let mut group = c.benchmark_group("buffer_pool");
@@ -98,7 +98,7 @@ fn bench_double_hdd(c: &mut Criterion) {
     group.finish();
 }
 
-// ── SSD local-buffer benchmark ──────────────────────────────────────────────
+// 鈹€鈹€ SSD local-buffer benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 //
 // Uses a simple local-buffer (write-combining, 8 MB limit) to write the same
 // 100 MB payload. The buffer auto-flushes when the local limit is exceeded;
@@ -139,10 +139,10 @@ fn bench_local_ssd(c: &mut Criterion) {
     group.finish();
 }
 
-// ── Direct write baseline (no buffer) ──────────────────────────────────────
+// 鈹€鈹€ Direct write baseline (no buffer) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 //
 // Writes each 1 MB chunk directly to disk via `spawn_blocking` without any
-// in-memory buffering. This is the baseline — comparing `double_hdd` against
+// in-memory buffering. This is the baseline 鈥?comparing `double_hdd` against
 // this shows the benefit of the double-buffer optimization on HDD.
 
 fn bench_direct_write(c: &mut Criterion) {
@@ -187,14 +187,14 @@ fn bench_direct_write(c: &mut Criterion) {
     group.finish();
 }
 
-// ── Multi-stream random-write benchmark ─────────────────────────────────
+// 鈹€鈹€ Multi-stream random-write benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 //
 // Simulates 4 concurrent download streams writing 1 MB chunks at
 // interleaved offsets (worst-case seek pattern for HDD).  This is the
 // scenario where the double-buffer's pipelining matters: while one half
 // flushes to disk, the other half receives writes from multiple tasks.
 //
-// Offsets are generated in reverse (99MB → 0MB) and distributed round‑robin
+// Offsets are generated in reverse (99MB 鈫?0MB) and distributed round鈥憆obin
 // across streams so no two successive writes target nearby offsets.
 // Direct-write pays the full seek penalty; double-buffer absorbs it.
 
@@ -202,7 +202,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
     let harness = BenchHarness::new(1024);
     let chunk = zero_chunk();
 
-    // Pre‑compute interleaved offsets: reverse order to maximise seeks.
+    // Pre鈥慶ompute interleaved offsets: reverse order to maximise seeks.
     let offsets: Vec<u64> = (0..CHUNK_COUNT)
         .rev()
         .map(|i| i * CHUNK_SIZE as u64)
@@ -211,7 +211,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
     let mut group = c.benchmark_group("buffer_pool/multi_stream");
     group.throughput(Throughput::Bytes(TOTAL_DATA));
 
-    // ── Multi-stream through double-buffer (HDD) ─────────────────────────
+    // 鈹€鈹€ Multi-stream through double-buffer (HDD) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     group.bench_function("double_hdd", |b| {
         b.iter_custom(|iters| {
             harness.rt.block_on(async {
@@ -250,7 +250,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
         });
     });
 
-    // ── Multi-stream through local buffer (SSD) ──────────────────────────
+    // 鈹€鈹€ Multi-stream through local buffer (SSD) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     group.bench_function("local_ssd", |b| {
         b.iter_custom(|iters| {
             harness.rt.block_on(async {
@@ -287,7 +287,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
         });
     });
 
-    // ── Multi-stream direct write (baseline) ─────────────────────────────
+    // 鈹€鈹€ Multi-stream direct write (baseline) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     group.bench_function("direct_write", |b| {
         b.iter_custom(|iters| {
             harness.rt.block_on(async {
@@ -328,7 +328,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
     group.finish();
 }
 
-// ── Criterion plumbing ──────────────────────────────────────────────────────
+// 鈹€鈹€ Criterion plumbing 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 criterion_group!(
     benches,

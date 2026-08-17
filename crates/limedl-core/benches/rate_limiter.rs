@@ -1,9 +1,9 @@
-//! Benchmarks for the token-bucket rate limiter.
+﻿//! Benchmarks for the token-bucket rate limiter.
 //!
 //! Measures overhead of the async and blocking consume paths, rate
 //! switching cost, and concurrent fairness under contention.
 //!
-//! Run: `cargo bench --manifest-path src-tauri/Cargo.toml --features test-utils`
+//! Run: `cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils`
 
 mod common;
 
@@ -11,11 +11,11 @@ use std::sync::Arc;
 
 use common::BenchHarness;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use limedl_lib::RateLimiter;
+use limedl_core::RateLimiter;
 
-// ── helpers ──────────────────────────────────────────────────────────────
+// 鈹€鈹€ helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-// ── 1. Unlimited consume (baseline overhead) ─────────────────────────────
+// 鈹€鈹€ 1. Unlimited consume (baseline overhead) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 fn bench_consume_unlimited(c: &mut Criterion) {
     let harness = BenchHarness::new(1024);
@@ -28,7 +28,7 @@ fn bench_consume_unlimited(c: &mut Criterion) {
     });
 }
 
-// ── 2. Limited consume (100 MB/s, plentiful budget) ──────────────────────
+// 鈹€鈹€ 2. Limited consume (100 MB/s, plentiful budget) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 fn bench_consume_limited(c: &mut Criterion) {
     const RATE: u64 = 100_000_000; // 100 MB/s
@@ -45,7 +45,7 @@ fn bench_consume_limited(c: &mut Criterion) {
     });
 }
 
-// ── 3. Rate switching (set_rate) ─────────────────────────────────────────
+// 鈹€鈹€ 3. Rate switching (set_rate) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 fn bench_set_rate(c: &mut Criterion) {
     let limiter = RateLimiter::default();
@@ -63,7 +63,7 @@ fn bench_set_rate(c: &mut Criterion) {
     group.finish();
 }
 
-// ── 4. Blocking consume (unlimited + limited) ────────────────────────────
+// 鈹€鈹€ 4. Blocking consume (unlimited + limited) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 fn bench_consume_blocking(c: &mut Criterion) {
     const RATE: u64 = 100_000_000;
@@ -91,7 +91,7 @@ fn bench_consume_blocking(c: &mut Criterion) {
     }
 }
 
-// ── 5. Multi-consumer concurrent throughput ──────────────────────────────
+// 鈹€鈹€ 5. Multi-consumer concurrent throughput 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 fn bench_multi_consume(c: &mut Criterion) {
     const RATE: u64 = 50_000_000; // 50 MB/s
@@ -126,7 +126,7 @@ fn bench_multi_consume(c: &mut Criterion) {
     });
 }
 
-// ── criterion registration ───────────────────────────────────────────────
+// 鈹€鈹€ criterion registration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 criterion_group!(
     benches,

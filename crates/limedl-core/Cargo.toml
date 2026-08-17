@@ -58,3 +58,24 @@ serde_bytes = "0.11"
 tokio-tungstenite = "0.30"
 axum = { version = "0.8", features = ["ws"] }
 tower-http = { version = "0.7", features = ["cors"] }
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "aimd"
+harness = false
+required-features = ["test-utils"]
+
+[[bench]]
+name = "rate_limiter"
+harness = false
+required-features = ["test-utils"]
+
+[[bench]]
+name = "download_e2e"
+harness = false
+required-features = ["test-utils"]
+
+[[bench]]
+name = "buffer_pool"
+harness = false
+required-features = ["test-utils"]

@@ -1,11 +1,11 @@
-//! End-to-end download benchmarks.
+﻿//! End-to-end download benchmarks.
 //!
 //! Measures download throughput under different network conditions using
 //! the local `TestServer` and a shared `reqwest` client.  Five scenarios
 //! exercise baseline (unlimited), latency-simulated, and bandwidth-limited
 //! endpoints.
 //!
-//! Run: `cargo bench --manifest-path src-tauri/Cargo.toml --features test-utils --bench download_e2e`
+//! Run: `cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils --bench download_e2e`
 //!
 //! For a quick smoke test:
 //! `cargo bench ... -- --quick --noplot`
@@ -17,7 +17,7 @@ use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 
 /// File size served by the test server for every scenario.
 ///
-/// Kept at 1 MB so even the slowest scenario (5 MB/s) completes in ~200 ms,
+/// Kept at 1鈥疢B so even the slowest scenario (5鈥疢B/s) completes in ~200鈥痬s,
 /// keeping iteration times reasonable for criterion.
 const FILE_SIZE: u64 = 1_000_000;
 
@@ -34,7 +34,7 @@ fn bench_download_e2e(c: &mut Criterion) {
     // keeping measurements focused on throughput rather than connect time.
     let client = reqwest::Client::new();
 
-    // ── 1. Baseline: localhost, no delay, unlimited bandwidth ────────────
+    // 鈹€鈹€ 1. Baseline: localhost, no delay, unlimited bandwidth 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     {
         let url = harness.server.file_url();
         group.bench_function("baseline", |b| {
@@ -48,7 +48,7 @@ fn bench_download_e2e(c: &mut Criterion) {
         });
     }
 
-    // ── 2. Low latency: 10 ms initial delay (good network) ──────────────
+    // 鈹€鈹€ 2. Low latency: 10鈥痬s initial delay (good network) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     {
         let url = harness.server.file_url_slow(10);
         group.bench_function("low_latency", |b| {
@@ -62,7 +62,7 @@ fn bench_download_e2e(c: &mut Criterion) {
         });
     }
 
-    // ── 3. Medium latency: 50 ms initial delay (typical network) ────────
+    // 鈹€鈹€ 3. Medium latency: 50鈥痬s initial delay (typical network) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     {
         let url = harness.server.file_url_slow(50);
         group.bench_function("medium_latency", |b| {
@@ -76,7 +76,7 @@ fn bench_download_e2e(c: &mut Criterion) {
         });
     }
 
-    // ── 4. Low bandwidth: 10 MB/s cap ────────────────────────────────────
+    // 鈹€鈹€ 4. Low bandwidth: 10鈥疢B/s cap 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     {
         let url = harness.server.file_url_bandwidth(10_000_000);
         group.bench_function("low_bandwidth", |b| {
@@ -90,7 +90,7 @@ fn bench_download_e2e(c: &mut Criterion) {
         });
     }
 
-    // ── 5. Very low bandwidth: 5 MB/s cap ────────────────────────────────
+    // 鈹€鈹€ 5. Very low bandwidth: 5鈥疢B/s cap 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     {
         let url = harness.server.file_url_bandwidth(5_000_000);
         group.bench_function("very_low_bandwidth", |b| {
