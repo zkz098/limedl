@@ -2,7 +2,7 @@
 
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 
-export type AppSettings = { appearance: AppearanceSettings, proxy: ProxySettings, scheduler: SchedulerSettings, download: DownloadDefaultsSettings, bt: BtSettings, logging: LogSettings, aria2Rpc: Aria2RpcSettings, cdnAcceleration: CdnAccelerationSettings, githubMirror: GitHubMirrorSettings, globalSpeedLimitBps: number, speedLimitSchedule: Array<SpeedLimitSlot>, notifications: NotificationSettings, ioBaseline: IoBaselineSettings, autostart: boolean, setupCompleted: boolean, lastSetupStep: number | null, downloadLimits?: DownloadLimits | null, 
+export type AppSettings = { appearance: AppearanceSettings, proxy: ProxySettings, scheduler: SchedulerSettings, download: DownloadDefaultsSettings, bt: BtSettings, logging: LogSettings, aria2Rpc: Aria2RpcSettings, cdnAcceleration: CdnAccelerationSettings, githubMirror: GitHubMirrorSettings, globalSpeedLimitBps: number, speedLimitSchedule: Array<SpeedLimitSlot>, notifications: NotificationSettings, ioBaseline: IoBaselineSettings, autostart: boolean, setupCompleted: boolean, lastSetupStep: number | null, 
 /**
  * Double-click action configuration for download tasks.
  */
@@ -133,7 +133,7 @@ export type CdnTestPhase = "fetchingRanges" | "screening" | "measuringThroughput
  */
 export type CdnTestProgress = { phase: CdnTestPhase, current: number, total: number, };
 
-export type ChecksumMode = "none" | "blake3" | "sha256" | "xxh3_128";
+export type ChecksumMode = "none" | "blake3" | "sha256" | "sha1" | "xxh3_128";
 
 export type ChunkInfo = { index: number, start: number, end: number, downloaded: number, completed: boolean, claimedBy?: number | null, };
 
@@ -180,11 +180,6 @@ onCompleted: DoubleClickOnCompleted,
 onUncompleted: DoubleClickOnUncompleted, };
 
 export type DownloadDefaultsSettings = { defaultDownloadDir: string, defaultMaxRetries: number, defaultChecksum: ChecksumMode, defaultUserAgent: string, };
-
-/**
- * Limits on concurrent active downloads.
- */
-export type DownloadLimits = { maxConcurrentHttp: number, maxConcurrentBt: number, };
 
 /**
  * Lightweight incremental progress update sent every ~300ms during active downloads.

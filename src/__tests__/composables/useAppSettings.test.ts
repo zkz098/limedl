@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { nextTick } from "vue";
 import { setActivePinia, createPinia } from "pinia";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("#invoke", () => ({ invoke: vi.fn(), setEventDispatcher: vi.fn() }));
 
 vi.mock("../../i18n", () => ({
   t: vi.fn((key: string) => key),
@@ -13,7 +13,7 @@ vi.mock("../../lib/tauri/settings-api", () => ({
   saveAppSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "#invoke";
 import { createMockInvoke, resetTauriMocks } from "../mocks/tauri-mock";
 import { getAppSettings, saveAppSettings } from "../../lib/tauri/settings-api";
 import { useAppSettingsStore } from "../../stores/appSettings";

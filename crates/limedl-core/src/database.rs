@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+#[cfg(test)]
 use foldhash::HashMap;
 use parking_lot::Mutex;
 
@@ -806,7 +807,7 @@ impl Database {
     /// existing downloads), this method unconditionally deletes and re-inserts
     /// every chunk.  Use sparingly — only when a complete chunk replacement is
     /// required (e.g. the test helper).
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn update_download(&self, manifest: &Manifest) -> Result<()> {
         let conn = self.lock_write();
 
@@ -962,7 +963,7 @@ impl Database {
     }
 
     /// Fetch a single download with its chunks.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn get_download(&self, id: &str) -> Result<Option<Manifest>> {
         let conn = self.lock_read();
 
@@ -985,7 +986,7 @@ impl Database {
     }
 
     /// Return every download in the database, each with its chunks populated.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn list_downloads(&self) -> Result<Vec<Manifest>> {
         let conn = self.lock_read();
 
@@ -1057,7 +1058,7 @@ impl Database {
     }
 
     /// Total number of downloads.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn count_downloads(&self) -> Result<usize> {
         let conn = self.lock_read();
         let count: i64 = conn
@@ -1137,11 +1138,12 @@ impl Database {
 
 // ── Extension trait for rusqlite optional rows ───────────────────
 
-#[allow(dead_code)]
+#[cfg(test)]
 trait OptionalExt<T> {
     fn optional(self) -> Result<Option<T>, rusqlite::Error>;
 }
 
+#[cfg(test)]
 impl<T> OptionalExt<T> for Result<T, rusqlite::Error> {
     fn optional(self) -> Result<Option<T>, rusqlite::Error> {
         match self {

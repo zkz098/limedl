@@ -15,7 +15,6 @@ export type {
   ColorMode,
   DiskType,
   DownloadDefaultsSettings,
-  DownloadLimits,
   DoubleClickOnCompleted,
   DoubleClickOnUncompleted,
   DoubleClickSettings,

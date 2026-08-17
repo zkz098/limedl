@@ -114,7 +114,6 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         autostart: settings.autostart,
         setup_completed: settings.setup_completed,
         last_setup_step: settings.last_setup_step.map(|s| s.clamp(0, 9)),
-        download_limits: settings.download_limits.clone(),
         double_click: settings.double_click,
         max_in_memory_downloads: clamp_max_in_memory(settings.max_in_memory_downloads),
     })
@@ -365,7 +364,6 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         autostart: false,
         setup_completed: false,
         last_setup_step: None,
-        download_limits: None,
         double_click: DoubleClickSettings::default(),
         max_in_memory_downloads: 200,
     })

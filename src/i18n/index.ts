@@ -1,7 +1,7 @@
 import i18next from "i18next";
 import { computed, readonly, ref } from "vue";
 
-import { invoke } from "#invoke";
+import { updateTrayLanguage } from "../lib/tauri/app-api";
 
 import { resources, supportedLanguages, type SupportedLanguage } from "./resources";
 
@@ -69,7 +69,7 @@ export async function setLanguage(language: SupportedLanguage) {
 
   // Update system tray menu language (desktop only — no-op in NAS/web mode)
   try {
-    await invoke("update_tray_language", { language });
+    await updateTrayLanguage(language);
   } catch {
     // Tray update is non-critical — silently ignore
   }
@@ -80,7 +80,7 @@ document.documentElement.lang = currentLanguage.value;
 // Update system tray menu on initial load (setLanguage only fires on change)
 void (async () => {
   try {
-    await invoke("update_tray_language", { language: currentLanguage.value });
+    await updateTrayLanguage(currentLanguage.value);
   } catch {
     // Tray update is non-critical — silently ignore
   }

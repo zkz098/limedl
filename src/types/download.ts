@@ -37,10 +37,6 @@ export interface DownloadSummary extends RustDownloadSummary {
   diskType?: "ssd" | "hdd";
   flushing?: boolean;
 }
-// Re-add fields that are number|null in Rust but the frontend treats as optional
-// (this makes `undefined` a valid value alongside `null`)
-export type { RustDownloadSummary as _DownloadSummary };
-
 /** DownloadSnapshot with same variant. */
 export interface DownloadSnapshot extends RustDownloadSnapshot {}
 

@@ -1344,8 +1344,6 @@ pub struct AppSettings {
     pub setup_completed: bool,
     #[serde(default)]
     pub last_setup_step: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub download_limits: Option<DownloadLimits>,
     /// Double-click action configuration for download tasks.
     #[serde(default)]
     pub double_click: DoubleClickSettings,
@@ -1430,25 +1428,6 @@ pub struct GitHubMirrorSettings {
     pub enabled: bool,
     #[serde(default)]
     pub mirrors: Vec<MirrorEntry>,
-}
-
-/// Limits on concurrent active downloads.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadLimits {
-    pub max_concurrent_http: usize,
-    pub max_concurrent_bt: usize,
-}
-
-impl Default for DownloadLimits {
-    fn default() -> Self {
-        Self {
-            max_concurrent_http: 5,
-            max_concurrent_bt: 3,
-        }
-    }
 }
 
 #[cfg(test)]

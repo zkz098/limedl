@@ -544,14 +544,6 @@ impl DownloadManager {
         persist_settings(&self.dirs.settings_path, &normalized).await?;
         *self.settings.write().await = normalized.clone();
 
-        // Update concurrent download limits from settings
-        if let Some(ref limits) = normalized.download_limits {
-            self.limits.max_concurrent_http
-                .store(limits.max_concurrent_http, Ordering::Release);
-            self.limits.max_concurrent_bt
-                .store(limits.max_concurrent_bt, Ordering::Release);
-        }
-
         if client_changed {
             let next_client = build_http_client(&normalized)?;
             *self.http.client.write().await = next_client;
@@ -985,7 +977,6 @@ impl DownloadManager {
         mirror_rewrite(url, &settings.github_mirror)
     }
 
-    #[allow(dead_code)]
     pub fn game_mode(&self) -> bool {
         self.buffer_pool.game_mode()
     }

@@ -82,7 +82,7 @@ impl RateLimiter {
     ///
     /// Safe to call from `spawn_blocking` because the lock is never held
     /// across the sleep.
-    #[allow(dead_code)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn consume_blocking(&self, n: usize) {
         if n == 0 {
             return;

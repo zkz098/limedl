@@ -1,9 +1,9 @@
 import { ref, computed, readonly } from "vue";
-import { invoke } from "#invoke";
 import { listen } from "#event";
 import type { UnlistenFn } from "#event";
 import { useI18n } from "../i18n";
 import { useNotificationStore } from "../stores/notification";
+import { checkUpdateFull, installUpdate } from "../lib/tauri/app-api";
 import { toErrorMessage } from "./downloadHelpers";
 
 export type UpdateStatus =
@@ -18,15 +18,6 @@ export type UpdateStatus =
   | "error";
 
 export type UpdateChannel = "stable" | "beta";
-
-interface CheckUpdateFullResult {
-  version: string;
-  body?: string;
-  date?: string;
-  downloadUrl: string;
-  signature: string;
-  currentVersion: string;
-}
 
 interface UpdateDownloadProgress {
   downloadedBytes: number;
@@ -108,7 +99,7 @@ async function checkForUpdates(silent = false) {
   errorMessage.value = "";
 
   try {
-    const result = await invoke<CheckUpdateFullResult | null>("check_update_full");
+    const result = await checkUpdateFull();
 
     if (!result) {
       status.value = "up-to-date";
@@ -196,7 +187,7 @@ async function downloadAndInstall() {
 
     // This call is self-contained: check → download → verify → install.
     // On Windows, the process exits during install and this never resolves.
-    await invoke("download_and_install_update");
+    await installUpdate();
   } catch (err) {
     status.value = "error";
     const msg = toErrorMessage(err);

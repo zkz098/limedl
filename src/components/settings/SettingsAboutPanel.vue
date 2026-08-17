@@ -177,7 +177,6 @@ function buildDefaultSettings() {
       ssdWriteCombineMb: 0,
       diskTypeOverrides: {},
     },
-    downloadLimits: null,
     autostart: false,
     setupCompleted: true,
     lastSetupStep: null,

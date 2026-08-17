@@ -3,7 +3,7 @@
  * When the Tauri backend is available, prefer the result of `getAppSettings()`
  * — Rust is the single source of truth.
  *
- * Keep this file in sync with `src-tauri/src/download/types.rs` defaults.
+ * Keep this file in sync with `crates/limedl-core/src/types.rs` defaults.
  */
 import type { AppSettings } from "../types/settings";
 

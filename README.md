@@ -96,11 +96,10 @@ Key settings:
   "scheduler": { "mode": "automatic" },
   "bt": {
     "dhtEnabled": true,
-    "maxDownloadSpeed": 0,
-    "maxUploadSpeed": 0
+    "globalDownloadRateLimit": 0,
+    "globalUploadRateLimit": 0
   },
   "aria2Rpc": { "enabled": true, "port": 6800 },
-  "downloadLimits": { "maxConcurrentHttp": 5, "maxConcurrentBt": 3 },
   "maxInMemoryDownloads": 200
 }
 ```
