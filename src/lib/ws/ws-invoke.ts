@@ -84,8 +84,7 @@ let requestId = 0;
 const pending = new Map<number, PendingRequest>();
 let connectPromise: Promise<WebSocket> | null = null;
 
-const WS_URL =
-  (import.meta !== undefined && import.meta.env?.VITE_WS_URL) || "ws://localhost:9090/ws";
+const WS_URL = import.meta?.env?.VITE_WS_URL || "ws://localhost:9090/ws";
 
 // ── Reconnect state ──
 const INITIAL_RECONNECT_DELAY = 1000;
@@ -163,6 +162,64 @@ function retryPendingRequests(socket: WebSocket) {
 }
 
 /**
+ * Handle a single WebSocket message: resolve a pending JSON-RPC request or
+ * dispatch a server-pushed event. Extracted from `getWs` to keep the
+ * connection setup's cognitive complexity within bounds.
+ */
+function handleSocketMessage(event: MessageEvent) {
+  const data = tryParseMessage(event.data);
+  if (!data) return;
+
+  if (data.jsonrpc === "2.0" && typeof data.id === "number") {
+    resolveRpcResponse(data, data.id);
+  } else if (data.jsonrpc === "2.0" && data.method && data.id === undefined) {
+    dispatchServerEvent(data);
+  }
+}
+
+function tryParseMessage(rawData: unknown): Record<string, unknown> | null {
+  if (typeof rawData !== "string") return null;
+  try {
+    const parsed = JSON.parse(rawData);
+    return isNonNullObject(parsed) ? parsed : null;
+  } catch {
+    // Ignore parse errors on individual messages
+    return null;
+  }
+}
+
+/** Resolve a JSON-RPC 2.0 request that matches a pending call. */
+function resolveRpcResponse(data: Record<string, unknown>, id: number) {
+  const req = pending.get(id);
+  if (!req) return;
+  clearTimeout(req.timer);
+  pending.delete(id);
+  if (data.error) {
+    const message = (data.error as { message?: unknown }).message;
+    req.reject(new Error(typeof message === "string" ? message : "RPC error"));
+  } else {
+    req.resolve(data.result);
+  }
+}
+
+/** Dispatch a server-pushed download event to the registered dispatcher. */
+function dispatchServerEvent(data: Record<string, unknown>) {
+  if (data.method !== "event" || !data.params || !eventDispatcher) {
+    return;
+  }
+  const params = data.params as { type?: unknown; payload?: unknown };
+  const eventType = params.type;
+  if (typeof eventType !== "string") {
+    return;
+  }
+  // Map DownloadEvent types to Tauri event names
+  const eventName = mapEventType(eventType, params.payload);
+  if (eventName) {
+    eventDispatcher(eventName, params.payload);
+  }
+}
+
+/**
  * Tear down the WebSocket and prevent any further reconnection attempts.
  * Call when the application is shutting down or switching away from NAS mode.
  */
@@ -220,42 +277,7 @@ function getWs(): Promise<WebSocket> {
           scheduleReconnect();
         }
       });
-      socket.addEventListener("message", (event) => {
-        try {
-          const rawData = event.data;
-          if (typeof rawData !== "string") return;
-          const data = JSON.parse(rawData);
-          // Check if it's a JSON-RPC response (has id)
-          if (data.jsonrpc === "2.0" && typeof data.id === "number") {
-            const id = data.id;
-            const req = pending.get(id);
-            if (req) {
-              clearTimeout(req.timer);
-              pending.delete(id);
-              if (data.error) {
-                req.reject(new Error(data.error.message || "RPC error"));
-              } else {
-                req.resolve(data.result);
-              }
-            }
-          }
-          // Check if it's a server-pushed event (has method but no id)
-          else if (data.jsonrpc === "2.0" && data.method && data.id === undefined) {
-            if (data.method === "event" && data.params && eventDispatcher) {
-              const params = data.params;
-              const eventType = params.type;
-              const payload = params.payload;
-              // Map DownloadEvent types to Tauri event names
-              const eventName = mapEventType(eventType, payload);
-              if (eventName) {
-                eventDispatcher(eventName, payload);
-              }
-            }
-          }
-        } catch {
-          // Ignore parse errors on individual messages
-        }
-      });
+      socket.addEventListener("message", handleSocketMessage);
     } catch (e) {
       connectPromise = null;
       reject(e instanceof Error ? e : new Error(String(e)));

@@ -284,31 +284,21 @@ describe("DownloadComposer", () => {
   });
 
   // ── URL validation ──────────────────────────────────────────
-  it("shows error when URL is not valid for HTTP kind", async () => {
-    const wrapper = mountWithForm({ kind: "http", url: "invalid-url" });
+  it.each<[string, "http" | "bt", string, boolean]>([
+    ["shows error when URL is not valid for HTTP kind", "http", "invalid-url", true],
+    ["does not show error for valid HTTP URL", "http", "https://example.com/file.zip", false],
+    ["shows error for HTTP URL without protocol", "http", "example.com/file.zip", true],
+  ])("%s", async (_title, kind, url, expectInvalid) => {
+    const wrapper = mountWithForm({ kind, url });
     await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
     await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
-    expect(wrapper.text()).toContain("composer.urlInvalid");
-  });
-
-  it("does not show error for valid HTTP URL", async () => {
-    const wrapper = mountWithForm({ kind: "http", url: "https://example.com/file.zip" });
-    await wrapper.find(".composer-protocol").trigger("click");
-    await nextTick();
-    await wrapper.find(".composer-protocol").trigger("click");
-    await nextTick();
-    expect(wrapper.text()).not.toContain("composer.urlInvalid");
-  });
-
-  it("shows error for HTTP URL without protocol", async () => {
-    const wrapper = mountWithForm({ kind: "http", url: "example.com/file.zip" });
-    await wrapper.find(".composer-protocol").trigger("click");
-    await nextTick();
-    await wrapper.find(".composer-protocol").trigger("click");
-    await nextTick();
-    expect(wrapper.text()).toContain("composer.urlInvalid");
+    if (expectInvalid) {
+      expect(wrapper.text()).toContain("composer.urlInvalid");
+    } else {
+      expect(wrapper.text()).not.toContain("composer.urlInvalid");
+    }
   });
 
   it("does not show error for magnet URL with BT kind", async () => {

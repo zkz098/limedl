@@ -1,13 +1,7 @@
-<script lang="ts">
-// Module-level singleton: only one InfoTooltip may be open at a time.
-// Declared outside <script setup> so it's shared across all component instances.
-import { ref } from "vue";
-const activeTrigger = ref<HTMLElement | null>(null);
-</script>
-
 <script setup lang="ts">
 import { arrow, autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
-import { computed, nextTick, onUnmounted, useId, watch } from "vue";
+import { computed, nextTick, onUnmounted, ref, useId, watch } from "vue";
+import { activeTrigger } from "../../lib/infoTooltipState";
 import { useFloatingClose } from "../../composables/useFloatingClose";
 import { t } from "../../i18n";
 

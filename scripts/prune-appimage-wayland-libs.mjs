@@ -16,6 +16,14 @@ const WAYLAND_LIBRARY_PATTERN = /^libwayland-.+/;
 // (wayland first, silent fallback to x11), so Wayland sessions run natively.
 const GDK_BACKEND_EXPORT_PATTERN = /^\s*export\s+GDK_BACKEND=.*$/gm;
 
+function readFlagValue(argv, index) {
+  const value = argv[index + 1];
+  if (!value || value.startsWith("--")) {
+    throw new Error(`Missing value for ${argv[index]}`);
+  }
+  return value;
+}
+
 function parseArgs(argv) {
   const config = {
     appImagePath: null,
@@ -23,40 +31,23 @@ function parseArgs(argv) {
     arch: process.env.ARCH || null,
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
+  for (let index = 0; index < argv.length; ) {
     const token = argv[index];
     if (token === "--appimage") {
-      const value = argv[index + 1];
-      if (!value || value.startsWith("--")) {
-        throw new Error("Missing value for --appimage");
-      }
-      config.appImagePath = value;
-      index += 1;
-      continue;
-    }
-    if (token === "--appimagetool") {
-      const value = argv[index + 1];
-      if (!value || value.startsWith("--")) {
-        throw new Error("Missing value for --appimagetool");
-      }
-      config.appImageToolPath = value;
-      index += 1;
-      continue;
-    }
-    if (token === "--arch") {
-      const value = argv[index + 1];
-      if (!value || value.startsWith("--")) {
-        throw new Error("Missing value for --arch");
-      }
-      config.arch = value;
-      index += 1;
-      continue;
-    }
-    if (!token.startsWith("--") && config.appImagePath === null) {
+      config.appImagePath = readFlagValue(argv, index);
+      index += 2;
+    } else if (token === "--appimagetool") {
+      config.appImageToolPath = readFlagValue(argv, index);
+      index += 2;
+    } else if (token === "--arch") {
+      config.arch = readFlagValue(argv, index);
+      index += 2;
+    } else if (!token.startsWith("--") && config.appImagePath === null) {
       config.appImagePath = token;
-      continue;
+      index += 1;
+    } else {
+      throw new Error(`Unknown argument: ${token}`);
     }
-    throw new Error(`Unknown argument: ${token}`);
   }
 
   if (!config.appImagePath) {
@@ -131,7 +122,8 @@ function runCommand(command, args, options = {}) {
     return result;
   }
   const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
-  throw new Error(`${command} ${args.join(" ")} failed${output ? `:\n${output}` : ""}`);
+  const detail = output ? `:\n${output}` : "";
+  throw new Error(`${command} ${args.join(" ")} failed${detail}`);
 }
 
 function detectArch(appImagePath) {
@@ -230,10 +222,12 @@ async function main() {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main().catch((error) => {
+  try {
+    await main();
+  } catch (error) {
     console.error(`[appimage-prune] ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
-  });
+  }
 }
 
 export {

@@ -103,6 +103,54 @@ function canResumeDownload(download: DownloadSummary) {
   return canResumeState(download.state);
 }
 
+/** Copy the always-present progress fields and the optional non-null ones onto a task summary. */
+function applyProgressToSummary(existing: DownloadSummary, progress: DownloadProgress) {
+  existing.state = progress.state;
+  existing.downloadedBytes = progress.downloadedBytes;
+  existing.connectionCount = progress.connectionCount;
+  if (progress.totalBytes != null) existing.totalBytes = progress.totalBytes;
+  if (progress.speedBytesPerSecond != null)
+    existing.speedBytesPerSecond = progress.speedBytesPerSecond;
+  if (progress.etaSeconds != null) existing.etaSeconds = progress.etaSeconds;
+  if (progress.allocatedThreadCount != null)
+    existing.allocatedThreadCount = progress.allocatedThreadCount;
+  if (progress.error != null) existing.error = progress.error;
+  if (progress.uploadedBytes != null) existing.uploadedBytes = progress.uploadedBytes;
+  if (progress.uploadSpeedBytesPerSecond != null)
+    existing.uploadSpeedBytesPerSecond = progress.uploadSpeedBytesPerSecond;
+  if (progress.peerCount != null) existing.peerCount = progress.peerCount;
+  if (progress.uploadStatus != null) existing.uploadStatus = progress.uploadStatus;
+  if (progress.degraded != null) existing.degraded = progress.degraded;
+  if (progress.diskType != null) existing.diskType = progress.diskType;
+  if (progress.flushing != null) existing.flushing = progress.flushing;
+}
+
+/** Mirror the live progress onto the detail side-panel snapshot (when selected). */
+function applyProgressToSnapshot(snapshot: DownloadSnapshot, progress: DownloadProgress) {
+  Object.assign(snapshot, {
+    downloadedBytes: progress.downloadedBytes,
+    state: progress.state,
+    ...(progress.totalBytes != null && { totalBytes: progress.totalBytes }),
+    ...(progress.speedBytesPerSecond != null && {
+      speedBytesPerSecond: progress.speedBytesPerSecond,
+    }),
+    ...(progress.etaSeconds != null && { etaSeconds: progress.etaSeconds }),
+    ...(progress.connectionCount !== undefined && {
+      connectionCount: progress.connectionCount,
+    }),
+    ...(progress.error != null && { error: progress.error }),
+    ...(progress.uploadedBytes != null && { uploadedBytes: progress.uploadedBytes }),
+    ...(progress.uploadSpeedBytesPerSecond != null && {
+      uploadSpeedBytesPerSecond: progress.uploadSpeedBytesPerSecond,
+    }),
+    ...(progress.peerCount != null && { peerCount: progress.peerCount }),
+    ...(progress.uploadStatus != null && { uploadStatus: progress.uploadStatus }),
+    ...(progress.degraded != null && { degraded: progress.degraded }),
+    ...(progress.diskType != null && { diskType: progress.diskType }),
+    ...(progress.flushing != null && { flushing: progress.flushing }),
+  });
+}
+
 // ── Store ──────────────────────────────────────────────────────────
 
 export const useDownloadStore = defineStore("download", () => {
@@ -184,48 +232,10 @@ export const useDownloadStore = defineStore("download", () => {
     const existing = downloads.value.find((d) => d.id === progress.id);
     if (!existing) return;
 
-    existing.state = progress.state;
-    existing.downloadedBytes = progress.downloadedBytes;
-    if (progress.totalBytes != null) existing.totalBytes = progress.totalBytes;
-    if (progress.speedBytesPerSecond != null)
-      existing.speedBytesPerSecond = progress.speedBytesPerSecond;
-    if (progress.etaSeconds != null) existing.etaSeconds = progress.etaSeconds;
-    existing.connectionCount = progress.connectionCount;
-    if (progress.allocatedThreadCount != null)
-      existing.allocatedThreadCount = progress.allocatedThreadCount;
-    if (progress.error != null) existing.error = progress.error;
-    if (progress.uploadedBytes != null) existing.uploadedBytes = progress.uploadedBytes;
-    if (progress.uploadSpeedBytesPerSecond != null)
-      existing.uploadSpeedBytesPerSecond = progress.uploadSpeedBytesPerSecond;
-    if (progress.peerCount != null) existing.peerCount = progress.peerCount;
-    if (progress.uploadStatus != null) existing.uploadStatus = progress.uploadStatus;
-    if (progress.degraded != null) existing.degraded = progress.degraded;
-    if (progress.diskType != null) existing.diskType = progress.diskType;
-    if (progress.flushing != null) existing.flushing = progress.flushing;
+    applyProgressToSummary(existing, progress);
 
     if (selectedId.value === progress.id && selectedSnapshot.value) {
-      Object.assign(selectedSnapshot.value, {
-        downloadedBytes: progress.downloadedBytes,
-        state: progress.state,
-        ...(progress.totalBytes != null && { totalBytes: progress.totalBytes }),
-        ...(progress.speedBytesPerSecond != null && {
-          speedBytesPerSecond: progress.speedBytesPerSecond,
-        }),
-        ...(progress.etaSeconds != null && { etaSeconds: progress.etaSeconds }),
-        ...(progress.connectionCount !== undefined && {
-          connectionCount: progress.connectionCount,
-        }),
-        ...(progress.error != null && { error: progress.error }),
-        ...(progress.uploadedBytes != null && { uploadedBytes: progress.uploadedBytes }),
-        ...(progress.uploadSpeedBytesPerSecond != null && {
-          uploadSpeedBytesPerSecond: progress.uploadSpeedBytesPerSecond,
-        }),
-        ...(progress.peerCount != null && { peerCount: progress.peerCount }),
-        ...(progress.uploadStatus != null && { uploadStatus: progress.uploadStatus }),
-        ...(progress.degraded != null && { degraded: progress.degraded }),
-        ...(progress.diskType != null && { diskType: progress.diskType }),
-        ...(progress.flushing != null && { flushing: progress.flushing }),
-      });
+      applyProgressToSnapshot(selectedSnapshot.value, progress);
     }
   }
 
@@ -709,6 +719,37 @@ export const useDownloadStore = defineStore("download", () => {
     applySchedulerDefaults(settings.scheduler.mode, settings.scheduler.automatic.maxThreadsPerTask);
   }
 
+  /** Apply the form-driven HTTP fields (thread mode/count, retries, checksum, name, UA). */
+  function applyFormHttpFields(
+    request: StartDownloadRequest,
+    overrides?: { fileName?: string; userAgent?: string },
+  ) {
+    request.threadMode = form.value.threadMode;
+
+    const fileName = (overrides?.fileName ?? form.value.fileName).trim();
+    if (fileName) {
+      request.fileName = fileName;
+    }
+
+    const userAgent = (overrides?.userAgent ?? form.value.userAgent).trim();
+    if (userAgent) {
+      request.userAgent = userAgent;
+    }
+
+    if (typeof form.value.threadCount === "number" && Number.isFinite(form.value.threadCount)) {
+      request.threadCount = clampThreadCount(form.value.threadCount);
+    }
+
+    if (typeof form.value.maxRetries === "number" && Number.isFinite(form.value.maxRetries)) {
+      const maxRetries = Math.trunc(form.value.maxRetries);
+      if (maxRetries >= 0) {
+        request.maxRetries = maxRetries;
+      }
+    }
+
+    request.checksum = form.value.checksum;
+  }
+
   function buildStartRequest(): StartDownloadRequest {
     const request: StartDownloadRequest = {
       kind: form.value.kind,
@@ -719,33 +760,8 @@ export const useDownloadStore = defineStore("download", () => {
     };
 
     if (form.value.kind === "http") {
-      request.threadMode = form.value.threadMode;
-
-      const fileName = form.value.fileName.trim();
-      if (fileName) {
-        request.fileName = fileName;
-      }
-
-      const userAgent = form.value.userAgent.trim();
-      if (userAgent) {
-        request.userAgent = userAgent;
-      }
-
-      if (typeof form.value.threadCount === "number" && Number.isFinite(form.value.threadCount)) {
-        request.threadCount = clampThreadCount(form.value.threadCount);
-      }
-
-      if (typeof form.value.maxRetries === "number" && Number.isFinite(form.value.maxRetries)) {
-        const maxRetries = Math.trunc(form.value.maxRetries);
-        if (maxRetries >= 0) {
-          request.maxRetries = maxRetries;
-        }
-      }
-
-      request.checksum = form.value.checksum;
-    }
-
-    if (form.value.kind === "bt") {
+      applyFormHttpFields(request);
+    } else if (form.value.kind === "bt") {
       if (form.value.selectedFileIndices && form.value.selectedFileIndices.length > 0) {
         request.selectedFileIndices = [...form.value.selectedFileIndices];
       }
@@ -886,19 +902,7 @@ export const useDownloadStore = defineStore("download", () => {
       startPaused: false,
     };
     if (entry.kind === "http") {
-      request.threadMode = form.value.threadMode;
-      const fileName = entry.fileName.trim();
-      if (fileName) request.fileName = fileName;
-      const userAgent = form.value.userAgent.trim();
-      if (userAgent) request.userAgent = userAgent;
-      if (typeof form.value.threadCount === "number" && Number.isFinite(form.value.threadCount)) {
-        request.threadCount = clampThreadCount(form.value.threadCount);
-      }
-      if (typeof form.value.maxRetries === "number" && Number.isFinite(form.value.maxRetries)) {
-        const maxRetries = Math.trunc(form.value.maxRetries);
-        if (maxRetries >= 0) request.maxRetries = maxRetries;
-      }
-      request.checksum = form.value.checksum;
+      applyFormHttpFields(request, { fileName: entry.fileName });
     }
     return request;
   }

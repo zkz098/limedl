@@ -288,43 +288,21 @@ describe("SettingsIoBaselinePanel", () => {
       expect(value).toBe("2048");
     });
 
-    it("clamps value to minimum 64 when set lower", async () => {
+    it.each([
+      ["clamps value to minimum 64 when set lower", "10", 64],
+      ["clamps value to maximum 32768 when set higher", "50000", 32768],
+      ["truncates non-integer values", "123.89", 123],
+    ])("%s", async (_title, input, expected) => {
       const wrapper = mountPanel();
       await flushPromises();
       await nextTick();
 
       const inputs = getTextFields(wrapper);
-      await inputs[0].setValue("10");
+      await inputs[0].setValue(input);
       await nextTick();
 
       const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.bufferLimitMb).toBe(64);
-    });
-
-    it("clamps value to maximum 32768 when set higher", async () => {
-      const wrapper = mountPanel();
-      await flushPromises();
-      await nextTick();
-
-      const inputs = getTextFields(wrapper);
-      await inputs[0].setValue("50000");
-      await nextTick();
-
-      const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.bufferLimitMb).toBe(32768);
-    });
-
-    it("truncates non-integer values", async () => {
-      const wrapper = mountPanel();
-      await flushPromises();
-      await nextTick();
-
-      const inputs = getTextFields(wrapper);
-      await inputs[0].setValue("123.89");
-      await nextTick();
-
-      const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.bufferLimitMb).toBe(123);
+      expect(draft.ioBaseline.bufferLimitMb).toBe(expected);
     });
 
     it("renders min/max attributes on the input", async () => {
@@ -376,43 +354,21 @@ describe("SettingsIoBaselinePanel", () => {
       expect(inputs[1].attributes("disabled")).toBeUndefined();
     });
 
-    it("clamps to minimum 16", async () => {
+    it.each([
+      ["clamps to minimum 16", "1", 16],
+      ["clamps to maximum 4096", "5000", 4096],
+      ["truncates non-integer values", "99.99", 99],
+    ])("%s", async (_title, input, expected) => {
       const wrapper = mountPanel({ gameMode: true });
       await flushPromises();
       await nextTick();
 
       const inputs = getTextFields(wrapper);
-      await inputs[1].setValue("1");
+      await inputs[1].setValue(input);
       await nextTick();
 
       const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.gameModeBufferMb).toBe(16);
-    });
-
-    it("clamps to maximum 4096", async () => {
-      const wrapper = mountPanel({ gameMode: true });
-      await flushPromises();
-      await nextTick();
-
-      const inputs = getTextFields(wrapper);
-      await inputs[1].setValue("5000");
-      await nextTick();
-
-      const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.gameModeBufferMb).toBe(4096);
-    });
-
-    it("truncates non-integer values", async () => {
-      const wrapper = mountPanel({ gameMode: true });
-      await flushPromises();
-      await nextTick();
-
-      const inputs = getTextFields(wrapper);
-      await inputs[1].setValue("99.99");
-      await nextTick();
-
-      const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.gameModeBufferMb).toBe(99);
+      expect(draft.ioBaseline.gameModeBufferMb).toBe(expected);
     });
 
     it("renders min/max attributes on the input", async () => {
@@ -429,43 +385,21 @@ describe("SettingsIoBaselinePanel", () => {
   // ── 4. Max parallel HDD input ───────────────────────────────
 
   describe("Max parallel HDD input", () => {
-    it("clamps to minimum 1", async () => {
+    it.each([
+      ["clamps to minimum 1", "0", 1],
+      ["clamps to maximum 16", "20", 16],
+      ["truncates non-integer values", "7.8", 7],
+    ])("%s", async (_title, input, expected) => {
       const wrapper = mountPanel();
       await flushPromises();
       await nextTick();
 
       const inputs = getTextFields(wrapper);
-      await inputs[2].setValue("0");
+      await inputs[2].setValue(input);
       await nextTick();
 
       const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.maxParallelHdd).toBe(1);
-    });
-
-    it("clamps to maximum 16", async () => {
-      const wrapper = mountPanel();
-      await flushPromises();
-      await nextTick();
-
-      const inputs = getTextFields(wrapper);
-      await inputs[2].setValue("20");
-      await nextTick();
-
-      const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.maxParallelHdd).toBe(16);
-    });
-
-    it("truncates non-integer values", async () => {
-      const wrapper = mountPanel();
-      await flushPromises();
-      await nextTick();
-
-      const inputs = getTextFields(wrapper);
-      await inputs[2].setValue("7.8");
-      await nextTick();
-
-      const draft = getDraft(wrapper);
-      expect(draft.ioBaseline.maxParallelHdd).toBe(7);
+      expect(draft.ioBaseline.maxParallelHdd).toBe(expected);
     });
 
     it("renders min/max attributes on the input", async () => {

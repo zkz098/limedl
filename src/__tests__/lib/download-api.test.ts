@@ -275,36 +275,18 @@ describe("download-api", () => {
   // ── setPriority ───────────────────────────────────────────────────────
 
   describe("setPriority", () => {
-    it("calls invoke with 'download_set_priority' and { downloadId, priority }", async () => {
+    it.each<[string, "low" | "normal" | "high"]>([
+      ["calls invoke with 'download_set_priority' and { downloadId, priority }", "high"],
+      ["accepts 'low' priority", "low"],
+      ["accepts 'normal' priority", "normal"],
+    ])("%s", async (_title, priority) => {
       mockInvoke.mockResolvedValue(undefined);
 
-      await setPriority("task-1", "high");
+      await setPriority("task-1", priority);
 
       expect(mockInvoke).toHaveBeenCalledWith("download_set_priority", {
         downloadId: "task-1",
-        priority: "high",
-      });
-    });
-
-    it("accepts 'low' priority", async () => {
-      mockInvoke.mockResolvedValue(undefined);
-
-      await setPriority("task-1", "low");
-
-      expect(mockInvoke).toHaveBeenCalledWith("download_set_priority", {
-        downloadId: "task-1",
-        priority: "low",
-      });
-    });
-
-    it("accepts 'normal' priority", async () => {
-      mockInvoke.mockResolvedValue(undefined);
-
-      await setPriority("task-1", "normal");
-
-      expect(mockInvoke).toHaveBeenCalledWith("download_set_priority", {
-        downloadId: "task-1",
-        priority: "normal",
+        priority,
       });
     });
   });

@@ -46,7 +46,7 @@ export function useSetupWizardLifecycle(options: UseSetupWizardLifecycleOptions)
         // the pinia store, and passing it into the wizard would make
         // structuredClone throw DataCloneError (cloning proxies is forbidden).
         // AppSettings is plain JSON data, so a JSON round-trip is safe.
-        setupInitialSettings.value = JSON.parse(JSON.stringify(appSettings.value));
+        setupInitialSettings.value = JSON.parse(JSON.stringify(appSettings.value)); // NOSONAR: structuredClone throws on reactive proxies
         showSetupWizard.value = true;
       }
     }

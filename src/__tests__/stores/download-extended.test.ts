@@ -248,22 +248,14 @@ describe("useDownloadStore (extended)", () => {
       expect(store.canResume).toBe(false);
     });
 
-    it("canCancel returns true for active (downloading) state", () => {
+    it.each<[string, "downloading" | "completed" | "failed", boolean]>([
+      ["canCancel returns true for active (downloading) state", "downloading", true],
+      ["canCancel returns false for terminal (completed) state", "completed", false],
+      ["canCancel returns false for terminal (failed) state", "failed", false],
+    ])("%s", (_title, state, expected) => {
       store.selectedId = "t-1";
-      store.selectedSnapshot = createMockDownloadSnapshot({ id: "t-1", state: "downloading" });
-      expect(store.canCancel).toBe(true);
-    });
-
-    it("canCancel returns false for terminal (completed) state", () => {
-      store.selectedId = "t-1";
-      store.selectedSnapshot = createMockDownloadSnapshot({ id: "t-1", state: "completed" });
-      expect(store.canCancel).toBe(false);
-    });
-
-    it("canCancel returns false for terminal (failed) state", () => {
-      store.selectedId = "t-1";
-      store.selectedSnapshot = createMockDownloadSnapshot({ id: "t-1", state: "failed" });
-      expect(store.canCancel).toBe(false);
+      store.selectedSnapshot = createMockDownloadSnapshot({ id: "t-1", state });
+      expect(store.canCancel).toBe(expected);
     });
 
     it("canCancel returns false when no download is selected", () => {

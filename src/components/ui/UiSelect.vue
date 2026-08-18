@@ -55,6 +55,39 @@ function setOptionRef(el: unknown, index: number) {
   }
 }
 
+function pickVerticalTop(
+  triggerBottom: number,
+  triggerTop: number,
+  panelHeight: number,
+  gap: number,
+  viewportH: number,
+): number {
+  let top = triggerBottom + gap;
+  const spaceBelow = viewportH - triggerBottom - gap;
+  const spaceAbove = triggerTop - gap;
+
+  // Flip above if panel overflows bottom and there's more room above
+  if (panelHeight > spaceBelow && spaceAbove >= spaceBelow) {
+    top = triggerTop - panelHeight - gap;
+  }
+
+  // Clamp vertical position within viewport
+  if (top < gap) top = gap;
+  if (top + panelHeight > viewportH) {
+    top = viewportH - panelHeight - gap;
+  }
+  return top;
+}
+
+function clampHorizontal(left: number, width: number, viewportW: number, gap: number): number {
+  let result = left;
+  if (result + width > viewportW) {
+    result = viewportW - width - gap;
+  }
+  if (result < gap) result = gap;
+  return result;
+}
+
 function updatePosition() {
   if (!isOpen.value || !triggerRef.value) return;
 
@@ -63,34 +96,16 @@ function updatePosition() {
   const gap = 4;
   const viewportW = window.innerWidth;
   const viewportH = window.innerHeight;
+  const width = triggerRect.width;
 
   let top = triggerRect.bottom + gap;
   let left = triggerRect.left;
-  const width = triggerRect.width;
 
   if (panelEl) {
     const panelHeight = panelEl.clientHeight || panelEl.scrollHeight;
-
     if (panelHeight > 0) {
-      const spaceBelow = viewportH - triggerRect.bottom - gap;
-      const spaceAbove = triggerRect.top - gap;
-
-      // Flip above if panel overflows bottom and there's more room above
-      if (panelHeight > spaceBelow && spaceAbove >= spaceBelow) {
-        top = triggerRect.top - panelHeight - gap;
-      }
-
-      // Clamp vertical position within viewport
-      if (top < gap) top = gap;
-      if (top + panelHeight > viewportH) {
-        top = viewportH - panelHeight - gap;
-      }
-
-      // Clamp horizontal position within viewport
-      if (left + width > viewportW) {
-        left = viewportW - width - gap;
-      }
-      if (left < gap) left = gap;
+      top = pickVerticalTop(triggerRect.bottom, triggerRect.top, panelHeight, gap, viewportH);
+      left = clampHorizontal(left, width, viewportW, gap);
     }
   }
 
@@ -179,34 +194,65 @@ function toggle() {
   }
 }
 
+function openIfClosed() {
+  if (!isOpen.value) open();
+}
+
+function arrowKey(dir: number) {
+  openIfClosed();
+  navigate(dir);
+}
+
+function moveToFirst() {
+  openIfClosed();
+  activeIndex.value = 0;
+  focusOption(0);
+}
+
+function moveToLast() {
+  openIfClosed();
+  activeIndex.value = props.options.length - 1;
+  focusOption(props.options.length - 1);
+}
+
+function handleCharKey(event: KeyboardEvent) {
+  if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    event.preventDefault();
+    openIfClosed();
+    handleType(event.key);
+  }
+}
+
+function handleSelectKey(event: KeyboardEvent, source: "trigger" | "panel") {
+  if (source === "panel" && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    selectOption(activeIndex.value);
+    close();
+  }
+}
+
 function handleCommonKeys(event: KeyboardEvent, source: "trigger" | "panel") {
   if (props.disabled) return;
 
   switch (event.key) {
     case "ArrowDown":
       event.preventDefault();
-      if (!isOpen.value) open();
-      navigate(1);
+      arrowKey(1);
       break;
 
     case "ArrowUp":
       event.preventDefault();
-      if (!isOpen.value) open();
-      navigate(-1);
+      arrowKey(-1);
       break;
 
     case "Home":
       event.preventDefault();
-      if (!isOpen.value) open();
-      activeIndex.value = 0;
-      focusOption(0);
+      moveToFirst();
       break;
 
     case "End":
       event.preventDefault();
-      if (!isOpen.value) open();
-      activeIndex.value = props.options.length - 1;
-      focusOption(props.options.length - 1);
+      moveToLast();
       break;
 
     case "Escape":
@@ -221,19 +267,11 @@ function handleCommonKeys(event: KeyboardEvent, source: "trigger" | "panel") {
       break;
 
     default:
-      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        event.preventDefault();
-        if (!isOpen.value) open();
-        handleType(event.key);
-      }
+      handleCharKey(event);
       break;
   }
 
-  if (source === "panel" && (event.key === "Enter" || event.key === " ")) {
-    event.preventDefault();
-    selectOption(activeIndex.value);
-    close();
-  }
+  handleSelectKey(event, source);
 }
 
 function onTriggerKeydown(event: KeyboardEvent) {

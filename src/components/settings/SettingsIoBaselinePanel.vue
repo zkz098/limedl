@@ -26,7 +26,7 @@ async function scanAllDrives() {
   try {
     const diskTypes = await detectAllDiskTypes();
     // True if ANY detected drive is an HDD
-    hasHdd.value = Object.values(diskTypes).some((type) => type === "hdd");
+    hasHdd.value = Object.values(diskTypes).includes("hdd");
     if (!hasHdd.value && props.draft.ioBaseline.hddBufferEnabled) {
       props.draft.ioBaseline.hddBufferEnabled = false;
     }

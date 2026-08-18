@@ -25,6 +25,11 @@ function parseArgs(argv) {
 
 // ── Read current version ────────────────────────────────────────────────
 
+// Run a shell command in the repo root, returning its stdout.
+function exec(cmd) {
+  return execSync(cmd, { cwd: root, encoding: "utf8", stdio: "pipe" });
+}
+
 function readCurrentVersion() {
   const cargoPath = path.join(root, "Cargo.toml");
   const cargoContent = readFileSync(cargoPath, "utf8");
@@ -111,10 +116,6 @@ function main() {
   }
 
   // Git commit, tag, push
-  function exec(cmd) {
-    return execSync(cmd, { cwd: root, encoding: "utf8", stdio: "pipe" });
-  }
-
   exec(`git add ${files.join(" ")}`);
   exec(`git commit -m "chore: bump version to ${newVersion}"`);
   exec("git push origin main");

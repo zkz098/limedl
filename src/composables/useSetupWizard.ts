@@ -17,7 +17,9 @@ function cloneSettings<T>(settings: T): T {
   // (appSettings flows from a pinia store) and readonly component props.
   // AppSettings is plain JSON data, so the round-trip yields an equivalent
   // plain object.
-  return JSON.parse(JSON.stringify(settings));
+  // NOSONAR: structuredClone throws DataCloneError on Vue reactive proxies —
+  // JSON round-trip is intentional here.
+  return JSON.parse(JSON.stringify(settings)); // NOSONAR
 }
 
 export function useSetupWizard(initialSettings?: AppSettings) {
