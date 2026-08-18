@@ -105,6 +105,36 @@ Read the relevant guide **before** modifying any subsystem. Update it **after**.
 | | `subsystem-protocol-registry.md` |
 | | `subsystem-http-client-factory.md` |
 
+## Pre-commit verification gate (MANDATORY)
+
+Never commit while any check is red. CI runs every check on the whole workspace
+and fails if **any** test fails, warning is emitted, or error is raised —
+regardless of whether your own diff caused it.
+
+Therefore: **fix all failures, warnings, and errors before committing, even if
+they pre-date your change or were not introduced by you.** Leaving a broken test
+or warning "for later" blocks the entire pipeline and hides real regressions.
+
+Run the full gate locally (Windows: init MSVC first):
+
+```powershell
+# Rust — clippy/build/test under -D warnings
+& "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+$env:RUSTFLAGS="-D warnings"
+$env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+cargo clippy --workspace --all-targets
+cargo test --workspace
+
+# Frontend
+pnpm exec vue-tsc --noEmit
+pnpm run lint
+pnpm run test
+```
+
+Only commit once every check above is green. If a failure is environmental
+(e.g. a Linux-only script on Windows), fix the code so it is platform-neutral or
+otherwise reruns green in CI rather than committing around it.
+
 ## Dependency discipline
 
 After `cargo update`/`cargo add`/`cargo remove`, commit changed lockfiles:
