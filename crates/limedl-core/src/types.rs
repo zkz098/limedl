@@ -152,9 +152,9 @@ impl TaskId {
         }
     }
 
-    /// Parse from legacy prefixed string: "http:uuid" or "bt:hex".
-    /// Returns error if the inner part is invalid.
-    pub fn from_legacy_string(s: &str) -> Result<Self, DownloadError> {
+    /// Parse a task id from its wire-string form: `"http:uuid"` or `"bt:hex"`.
+    /// Returns an error if the inner part is invalid.
+    pub fn from_wire_string(s: &str) -> Result<Self, DownloadError> {
         #[cfg(feature = "bt")]
         {
             if let Some(hex) = s.strip_prefix("bt:") {
@@ -215,7 +215,7 @@ impl<'de> Visitor<'de> for TaskIdVisitor {
     }
 
     fn visit_str<E: de::Error>(self, v: &str) -> Result<TaskId, E> {
-        TaskId::from_legacy_string(v).map_err(|e| de::Error::custom(e))
+        TaskId::from_wire_string(v).map_err(|e| de::Error::custom(e))
     }
 
     fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<TaskId, M::Error> {

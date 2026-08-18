@@ -643,7 +643,7 @@ async fn download_list_returns_active_downloads() -> TestResult {
 
     // Clean up — cancel each via the summary IDs
     for summary in &summaries {
-        let tid = TaskId::from_legacy_string(&summary.id)?;
+        let tid = TaskId::from_wire_string(&summary.id)?;
         let _ = dispatcher.cancel(&tid).await;
     }
     core.registry.shutdown_all().await;

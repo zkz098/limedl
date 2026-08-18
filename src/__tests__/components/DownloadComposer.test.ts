@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
-import { setActivePinia, createPinia } from "pinia";
+import { setActivePinia, createPinia, storeToRefs } from "pinia";
 import DownloadComposer from "../../components/limedl/DownloadComposer.vue";
 import type { DownloadFormState } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
+import { useDownloadStore } from "../../stores/download";
 
 import { setupDownloadStoreMocks } from "../fixtures/download-store-mocks";
 setupDownloadStoreMocks();
 
-import { useDownloadComposer } from "../../composables/useDownloadComposer";
+// Reflect the store's state refs + actions with the same `.value`-ref contract
+// the download store reflects the state refs + actions with the same `.value`-ref contract
+function useComposer() {
+  const store = useDownloadStore();
+  return { ...store, ...storeToRefs(store) };
+}
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -153,7 +159,7 @@ describe("DownloadComposer", () => {
   });
 
   function mountWithForm(formOverrides?: Partial<DownloadFormState>) {
-    const c = useDownloadComposer();
+    const c = useComposer();
     if (formOverrides) {
       Object.assign(c.form.value, formOverrides);
     }
@@ -184,7 +190,7 @@ describe("DownloadComposer", () => {
   });
 
   it("shows starting label when isStarting is true", () => {
-    const c = useDownloadComposer();
+    const c = useComposer();
     c.isStarting.value = true;
     const wrapper = mount(DownloadComposer, {
       props: { settings: createSettings() },
@@ -204,7 +210,7 @@ describe("DownloadComposer", () => {
   // ── Protocol detection ──────────────────────────────────────
   it("detects HTTP protocol from URL", async () => {
     const wrapper = mountWithForm();
-    const c = useDownloadComposer();
+    const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("https://example.com/file.zip");
     await nextTick();
@@ -213,7 +219,7 @@ describe("DownloadComposer", () => {
 
   it("detects magnet link as BT protocol", async () => {
     const wrapper = mountWithForm();
-    const c = useDownloadComposer();
+    const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("magnet:?xt=urn:btih:ABC123");
     await nextTick();
@@ -222,7 +228,7 @@ describe("DownloadComposer", () => {
 
   it("detects .torrent URL as BT protocol", async () => {
     const wrapper = mountWithForm();
-    const c = useDownloadComposer();
+    const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("https://example.com/file.torrent");
     await nextTick();
@@ -231,7 +237,7 @@ describe("DownloadComposer", () => {
 
   it("detects info hash as BT protocol", async () => {
     const wrapper = mountWithForm();
-    const c = useDownloadComposer();
+    const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("deadbeefcafebabedeadbeefcafebabedeadbeef");
     await nextTick();
@@ -245,14 +251,14 @@ describe("DownloadComposer", () => {
 
   it("toggles protocol kind when protocol button is clicked", async () => {
     const wrapper = mountWithForm({ kind: "http" });
-    const c = useDownloadComposer();
+    const c = useComposer();
     await wrapper.find(".composer-protocol").trigger("click");
     expect(c.form.value.kind).toBe("bt");
   });
 
   it("auto-extracts file name from HTTP URL", async () => {
     const wrapper = mountWithForm({ fileName: "" });
-    const c = useDownloadComposer();
+    const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("https://example.com/myfile.zip");
     await nextTick();
@@ -261,7 +267,7 @@ describe("DownloadComposer", () => {
 
   it("auto-extracts file name from magnet dn parameter", async () => {
     const wrapper = mountWithForm({ fileName: "" });
-    const c = useDownloadComposer();
+    const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("magnet:?xt=urn:btih:ABC&dn=ubuntu.iso");
     await nextTick();
@@ -270,7 +276,7 @@ describe("DownloadComposer", () => {
 
   it("does not overwrite existing file name when URL changes", async () => {
     const wrapper = mountWithForm({ fileName: "existing.zip" });
-    const c = useDownloadComposer();
+    const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
     await urlInput.setValue("https://example.com/newfile.zip");
     await nextTick();

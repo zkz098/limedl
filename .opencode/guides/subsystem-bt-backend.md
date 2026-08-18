@@ -10,14 +10,14 @@
 
 ## 涉及文件
 
-- `crates/limedl-core/src/bt_backend_own/mod.rs` — IrontideBtBackend 结构体定义 + DownloadBackend trait 实现 + Clone impl
-- `crates/limedl-core/src/bt_backend_own/lifecycle.rs` — 生命周期方法（start/pause/resume/cancel/remove/purge） + `build_canceled_snapshot()`
-- `crates/limedl-core/src/bt_backend_own/session.rs` — irontide Session 初始化/关闭/设置热重载
-- `crates/limedl-core/src/bt_backend_own/snapshot.rs` — 从 irontide stats 构建 DownloadSnapshot + 状态映射 + ETA 估算
-- `crates/limedl-core/src/bt_backend_own/queries.rs` — 对等节点/piece/tracker/文件状态查询 + 限速 + 预览 + `emit_pending_summary`
-- `crates/limedl-core/src/bt_backend_own/alerts.rs` — irontide 告警事件桥接（唯一 Aria2 事件发射源） + `extract_info_hash`
-- `crates/limedl-core/src/bt_backend_own/uploads.rs` — 上传策略循环（按上传量和分享率限制）
-- `crates/limedl-core/src/bt_backend_own/tests.rs`
+- `crates/limedl-core/src/bt_backend/mod.rs` — IrontideBtBackend 结构体定义 + DownloadBackend trait 实现 + Clone impl
+- `crates/limedl-core/src/bt_backend/lifecycle.rs` — 生命周期方法（start/pause/resume/cancel/remove/purge） + `build_canceled_snapshot()`
+- `crates/limedl-core/src/bt_backend/session.rs` — irontide Session 初始化/关闭/设置热重载
+- `crates/limedl-core/src/bt_backend/snapshot.rs` — 从 irontide stats 构建 DownloadSnapshot + 状态映射 + ETA 估算
+- `crates/limedl-core/src/bt_backend/queries.rs` — 对等节点/piece/tracker/文件状态查询 + 限速 + 预览 + `emit_pending_summary`
+- `crates/limedl-core/src/bt_backend/alerts.rs` — irontide 告警事件桥接（唯一 Aria2 事件发射源） + `extract_info_hash`
+- `crates/limedl-core/src/bt_backend/uploads.rs` — 上传策略循环（按上传量和分享率限制）
+- `crates/limedl-core/src/bt_backend/tests.rs`
 
 ## 数据流向
 

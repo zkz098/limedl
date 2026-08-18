@@ -1,7 +1,6 @@
-﻿//! Irontide-based BitTorrent backend implementation.
+//! Irontide-based BitTorrent backend implementation.
 //!
 //! This backend uses the `irontide` crate as the underlying BT engine,
-//! replacing the previous stub implementation.
 
 pub(crate) mod alerts;
 pub(crate) mod lifecycle;

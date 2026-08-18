@@ -5,7 +5,8 @@ import UiButton from "../ui/UiButton.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import { useI18n } from "../../i18n";
-import { useDownloadComposer } from "../../composables/useDownloadComposer";
+import { useDownloadStore } from "../../stores/download";
+import { storeToRefs } from "pinia";
 import { detectKindFromUrl, extractFileNameFromUrl } from "../../lib/url-utils";
 
 import type { ChecksumMode, ThreadMode } from "../../types/download";
@@ -20,7 +21,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const composer = useDownloadComposer();
+const downloadStore = useDownloadStore();
 
 const {
   form,
@@ -31,11 +32,13 @@ const {
   batchUrls,
   batchEntries,
   batchSubmitProgress,
+} = storeToRefs(downloadStore);
+const {
   pickDestinationDirectory,
   pickTorrentSourceFile,
   parseBatchUrls,
   toggleBatchMode,
-} = composer;
+} = downloadStore;
 
 const urlInputRef = ref<InstanceType<typeof UiTextField> | null>(null);
 const isAdvancedOpen = ref(false);
@@ -169,9 +172,9 @@ onMounted(() => {
 
 async function handleFormSubmit() {
   if (batchMode.value) {
-    await composer.submitBatch();
+    await downloadStore.submitBatch();
   } else {
-    await composer.submitStart();
+    await downloadStore.submitStart();
   }
   emit("submit");
 }

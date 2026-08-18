@@ -55,8 +55,8 @@ import { useI18n } from "./i18n";
 import { useViewNavigation } from "./composables/useViewNavigation";
 import type { PersistablePage } from "./composables/useViewNavigation";
 import { useMultiSelect } from "./composables/useMultiSelect";
-import { useNetworkStatus } from "./composables/useNetworkStatus";
-import { useAppUpdate } from "./composables/useAppUpdate";
+import { useNetworkStatusStore } from "./stores/networkStatus";
+import { useAppUpdateStore } from "./stores/appUpdate";
 import NotificationToast from "./components/ui/NotificationToast.vue";
 import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings } from "./types/settings";
@@ -237,10 +237,11 @@ onErrorCaptured((err, _instance, info) => {
   return false;
 });
 
-const { updateAvailable, runStartupCheck } = useAppUpdate();
+const appUpdateStore = useAppUpdateStore();
+const { updateAvailable } = storeToRefs(appUpdateStore);
 
 onMounted(() => {
-  runStartupCheck();
+  appUpdateStore.runStartupCheck();
   mountSetupWizard();
 
   // Initialize Pinia stores (replaces onMounted from composables)
@@ -249,7 +250,7 @@ onMounted(() => {
 
   // ── Network & connection monitoring ──
   // Browser online/offline detection (works in all modes)
-  const networkStatus = useNetworkStatus();
+  const networkStatus = useNetworkStatusStore();
   networkStatus.start();
 
   // WebSocket reconnection monitoring (NAS mode only)

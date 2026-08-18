@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-use crate::bt_backend_own::IrontideBtBackend;
+use crate::bt_backend::IrontideBtBackend;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::types::{DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};

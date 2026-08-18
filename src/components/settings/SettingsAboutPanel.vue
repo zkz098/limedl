@@ -2,8 +2,9 @@
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "../../i18n";
 import logoUrl from "../../assets/logo.webp";
-import { useAppUpdate } from "../../composables/useAppUpdate";
+import { useAppUpdateStore } from "../../stores/appUpdate";
 import { useNotificationStore } from "../../stores/notification";
+import { storeToRefs } from "pinia";
 import { saveAppSettings, factoryReset } from "../../lib/tauri/settings-api";
 import type { AppSettings } from "../../types/settings";
 import { relaunch, exit } from "@tauri-apps/plugin-process";
@@ -32,6 +33,7 @@ const { t } = useI18n();
 const emit = defineEmits<{
   "restart-setup": [];
 }>();
+const appUpdate = useAppUpdateStore();
 const {
   status,
   progressPercent,
@@ -47,11 +49,8 @@ const {
   isChecking,
   isDownloading,
   isInstalling,
-  setChannel,
-  checkForUpdates,
-  downloadAndInstall,
-  acknowledgeUpdate,
-} = useAppUpdate();
+} = storeToRefs(appUpdate);
+const { setChannel, checkForUpdates, downloadAndInstall, acknowledgeUpdate } = appUpdate;
 
 // System info
 const appName = ref("");

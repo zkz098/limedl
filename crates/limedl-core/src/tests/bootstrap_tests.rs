@@ -112,7 +112,7 @@ async fn find_active_by_url_dedup() {
         priority: None,
     };
     let id = dm.start(request).await.unwrap();
-    let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
     let uuid = match task_id {
         TaskId::Http(u) => u,
         #[cfg(feature = "bt")]
@@ -190,8 +190,8 @@ async fn find_active_by_url_different_urls() {
     let _s2 = dm.status(&id2.to_string()).await.unwrap();
 
     // Cleanup
-    let tid1 = TaskId::from_legacy_string(&id1.to_string()).unwrap();
-    let tid2 = TaskId::from_legacy_string(&id2.to_string()).unwrap();
+    let tid1 = TaskId::from_wire_string(&id1.to_string()).unwrap();
+    let tid2 = TaskId::from_wire_string(&id2.to_string()).unwrap();
     let TaskId::Http(uuid1) = tid1 else {
         unreachable!()
     };

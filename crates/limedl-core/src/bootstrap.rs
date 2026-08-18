@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-use crate::bt_backend_own::IrontideBtBackend;
+use crate::bt_backend::IrontideBtBackend;
 use crate::cdn::CdnService;
 use crate::error::Result;
 use crate::event_bus::EventBus;

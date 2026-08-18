@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use crate::{
     backend_registry::BackendRegistry,
-    bt_backend_own::IrontideBtBackend,
+    bt_backend::IrontideBtBackend,
     dispatcher::Dispatcher,
     event_bus::{DownloadEvent, EventBus},
     manager::DownloadManager,

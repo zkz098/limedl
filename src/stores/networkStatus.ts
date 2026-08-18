@@ -1,6 +1,6 @@
 import { ref } from "vue";
-import { createGlobalState } from "@vueuse/core";
-import { useNotificationStore } from "../stores/notification";
+import { defineStore } from "pinia";
+import { useNotificationStore } from "./notification";
 import { t } from "../i18n";
 
 /**
@@ -9,10 +9,8 @@ import { t } from "../i18n";
  * Listens to `window` `online` / `offline` events and shows toast
  * notifications when the connectivity state changes, so the user can
  * distinguish network failures from software bugs.
- *
- * Uses `createGlobalState` so the singleton is shared across the app.
  */
-export const useNetworkStatus = createGlobalState(() => {
+export const useNetworkStatusStore = defineStore("networkStatus", () => {
   const isOnline = ref(navigator.onLine);
   let wasOffline = false;
 

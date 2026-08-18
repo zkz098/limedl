@@ -43,7 +43,7 @@ async fn download_survives_restart() {
         priority: None,
     };
         let id = dm.start(request).await.unwrap();
-        let task_id = TaskId::from_legacy_string(&id.to_string()).unwrap();
+        let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
         let inner = match task_id {
             TaskId::Http(u) => u,
             #[cfg(feature = "bt")]
@@ -110,7 +110,7 @@ async fn download_survives_restart() {
         let restored = list
             .iter()
             .find(|s| {
-                let Ok(tid) = TaskId::from_legacy_string(&s.id) else {
+                let Ok(tid) = TaskId::from_wire_string(&s.id) else {
                     return false;
                 };
                 match tid {

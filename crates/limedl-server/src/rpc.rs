@@ -551,7 +551,7 @@ async fn handle_download_action(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task_id = TaskId::from_legacy_string(task_id_str)
+    let task_id = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let dispatcher = make_dispatcher(state);
     let snapshot = match method {
@@ -666,7 +666,7 @@ async fn handle_open_in_explorer(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task_id = TaskId::from_legacy_string(task_id_str)
+    let task_id = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let backend = state
         .registry
@@ -690,7 +690,7 @@ async fn handle_open_file(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task_id = TaskId::from_legacy_string(task_id_str)
+    let task_id = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let backend = state
         .registry
@@ -714,7 +714,7 @@ async fn handle_open_dir(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task_id = TaskId::from_legacy_string(task_id_str)
+    let task_id = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let backend = state
         .registry
@@ -738,7 +738,7 @@ async fn handle_set_priority(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task_id = TaskId::from_legacy_string(task_id_str)
+    let task_id = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let priority: limedl_core::types::Priority = serde_json::from_value(
         p.get("priority").cloned().unwrap_or(serde_json::Value::Null),
@@ -920,7 +920,7 @@ async fn handle_bt_set_speed_limit(
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
     let dl_limit = params.get("downloadLimitBps").and_then(|v| v.as_u64());
     let ul_limit = params.get("uploadLimitBps").and_then(|v| v.as_u64());
-    let task = TaskId::from_legacy_string(task_id_str)
+    let task = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let dispatcher = make_dispatcher(state);
     dispatcher
@@ -960,7 +960,7 @@ async fn handle_bt_get_details(
         .get("taskId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing taskId"))?;
-    let task = TaskId::from_legacy_string(task_id_str)
+    let task = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let dispatcher = make_dispatcher(state);
     let result = match method {
@@ -1014,7 +1014,7 @@ async fn handle_bt_update_files(
                 .collect()
         })
         .unwrap_or_default();
-    let task = TaskId::from_legacy_string(task_id_str)
+    let task = TaskId::from_wire_string(task_id_str)
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid task ID: {e}")))?;
     let dispatcher = make_dispatcher(state);
     dispatcher

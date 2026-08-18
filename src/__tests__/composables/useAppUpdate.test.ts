@@ -2,13 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
-const mockInvoke = vi.fn();
+const { mockInvoke, mockListen } = vi.hoisted(() => {
+  return {
+    mockInvoke: vi.fn(),
+    mockListen: vi.fn().mockResolvedValue(vi.fn()),
+  };
+});
+
 vi.mock("#invoke", () => ({
   invoke: mockInvoke,
   setEventDispatcher: vi.fn(),
 }));
 
-const mockListen = vi.fn().mockResolvedValue(vi.fn());
 vi.mock("#event", () => ({
   listen: mockListen,
 }));
@@ -26,19 +31,20 @@ vi.mock("../../stores/notification", () => ({
 }));
 
 // ── Imports (after mocks) ──────────────────────────────────────────
-
-
+import { createPinia, setActivePinia, storeToRefs } from "pinia";
+import { useAppUpdateStore } from "../../stores/appUpdate";
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
 /**
- * Re-import the module to get a fresh singleton state between tests.
- * vi.mock persists, so dependency mocks survive resetModules().
+ * Create a fresh Pinia instance and return the update store, wrapped so
+ * `storeToRefs` gives ref-with-`.value` access matching the original
+ * composable's contract (state read-only, actions callable directly).
  */
 async function createAppUpdate() {
-  vi.resetModules();
-  const fresh = await import("../../composables/useAppUpdate");
-  return fresh.useAppUpdate();
+  setActivePinia(createPinia());
+  const store = useAppUpdateStore();
+  return { ...store, ...storeToRefs(store) };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,7 +62,7 @@ function mockUpdateResult(overrides: Record<string, any> = {}): any {
 
 // ── Tests ───────────────────────────────────────────────────────────
 
-describe("useAppUpdate", () => {
+describe("useAppUpdateStore", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();

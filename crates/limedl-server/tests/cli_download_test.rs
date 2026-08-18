@@ -38,7 +38,7 @@ async fn cli_download_from_test_server() {
     let id = dm.start(request).await.unwrap();
 
     // Wait for download to complete (poll with timeout)
-    let task_id = limedl_core::types::TaskId::from_legacy_string(&id.to_string()).unwrap();
+    let task_id = limedl_core::types::TaskId::from_wire_string(&id.to_string()).unwrap();
     let limedl_core::types::TaskId::Http(uuid) = &task_id else {
         panic!("Expected HTTP TaskId from download start");
     };

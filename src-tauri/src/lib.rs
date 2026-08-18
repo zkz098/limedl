@@ -507,7 +507,7 @@ pub fn run() {
                                         .any(|s| matches!(s.state, DownloadState::Downloading));
                                     for s in &list {
                                         if let Ok(task_id) =
-                                            TaskId::from_legacy_string(&s.id)
+                                            TaskId::from_wire_string(&s.id)
                                         {
                                             if has_active
                                                 && matches!(s.state, DownloadState::Downloading)

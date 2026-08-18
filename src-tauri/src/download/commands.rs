@@ -108,7 +108,7 @@ pub async fn download_pause(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -120,7 +120,7 @@ pub async fn download_resume(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -132,7 +132,7 @@ pub async fn download_cancel(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -144,7 +144,7 @@ pub async fn download_remove(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -156,7 +156,7 @@ pub async fn download_purge(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -168,7 +168,7 @@ pub async fn download_open_in_explorer(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -192,7 +192,7 @@ pub async fn download_open_file(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -216,7 +216,7 @@ pub async fn download_open_dir(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -240,7 +240,7 @@ pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<DownloadSnapshot> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -258,7 +258,7 @@ pub async fn download_set_priority(
     download_id: String,
     priority: Priority,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -407,7 +407,7 @@ pub async fn bt_set_speed_limit(
     download_limit_bps: Option<u64>,
     upload_limit_bps: Option<u64>,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -430,7 +430,7 @@ pub async fn bt_get_peers(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtPeerInfo>> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -442,7 +442,7 @@ pub async fn bt_get_trackers(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtTrackerInfo>> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -454,7 +454,7 @@ pub async fn bt_get_pieces(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtPieceInfo>> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -466,7 +466,7 @@ pub async fn get_bt_files(
     state: State<'_, AppState>,
     download_id: String,
 ) -> CommandResult<Vec<BtFileStatus>> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;
@@ -479,7 +479,7 @@ pub async fn update_bt_files(
     download_id: String,
     included_indices: Vec<usize>,
 ) -> CommandResult<()> {
-    let task_id = TaskId::from_legacy_string(&download_id).map_err(|e| SerializableError {
+    let task_id = TaskId::from_wire_string(&download_id).map_err(|e| SerializableError {
         kind: "parse".into(),
         message: format!("Invalid task ID: {e}"),
     })?;

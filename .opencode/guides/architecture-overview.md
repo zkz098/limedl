@@ -13,7 +13,7 @@ limedl 的整体架构描述：工作空间布局、三目标平台（Tauri Desk
 
 ** 核心库 **：
 
-- `crates/limedl-core/src/` — 22+ 模块：event_bus、types、protocol、manager、http_executor、scheduler、task_lifecycle、bt_backend_own/、cdn/、database、buffer_pool、rate_limiter/、checksum/、file_ops/、settings、http_client_factory/、backend_registry、dispatcher、manifest、retry、aria2_rpc、ws_manifest
+- `crates/limedl-core/src/` — 22+ 模块：event_bus、types、protocol、manager、http_executor、scheduler、task_lifecycle、bt_backend/、cdn/、database、buffer_pool、rate_limiter/、checksum/、file_ops/、settings、http_client_factory/、backend_registry、dispatcher、manifest、retry、aria2_rpc、ws_manifest
 - lib 名称：`limedl_core`
 
 ** 服务端 / CLI **：
