@@ -5,6 +5,7 @@ use std::sync::Arc;
 use clap::{Parser, Subcommand};
 
 mod auth;
+mod aria2c;
 mod config;
 mod rate_limiter;
 mod rpc;
@@ -39,6 +40,13 @@ enum Commands {
         #[arg(long)]
         pass: Option<String>,
     },
+    /// Download one or more files with aria2c-compatible CLI options
+    #[command(disable_help_flag = true)]
+    Aria2c {
+        /// Raw aria2c-style arguments (`--opt=val`, `-s4`, positional URIs)
+        #[arg(value_name = "ARIA2C_ARGS", trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Quick single-file HTTP download
     Download {
         /// URL to download
@@ -66,6 +74,28 @@ async fn main() -> anyhow::Result<()> {
             user,
             pass,
         } => run_daemon(config_path, port, user, pass).await,
+        Commands::Aria2c { args } => {
+            let parsed = aria2c::parse_args(&args);
+            match parsed {
+                Ok(cfg) => {
+                    let code = aria2c::run(&cfg).await?;
+                    std::process::exit(code);
+                }
+                Err(mark) if mark == aria2c::HELP_MARK => {
+                    aria2c::print_usage();
+                    Ok(())
+                }
+                Err(mark) if mark == aria2c::VERSION_MARK => {
+                    println!("limedl/{} (aria2c compatible)", env!("CARGO_PKG_VERSION"));
+                    Ok(())
+                }
+                Err(msg) => {
+                    eprintln!("aria2c: {msg}");
+                    eprintln!("try 'limedl aria2c --help'");
+                    std::process::exit(1);
+                }
+            }
+        }
         Commands::Download { url, output } => run_single_download(&url, output.as_ref()).await,
         Commands::InstallAutostart => install_autostart(),
         Commands::UninstallAutostart => uninstall_autostart(),

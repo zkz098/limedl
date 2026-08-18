@@ -2,3 +2,4 @@
 pub mod config;
 pub mod rate_limiter;
 pub mod rpc;
+pub mod aria2c;
