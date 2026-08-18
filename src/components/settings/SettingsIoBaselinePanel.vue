@@ -9,8 +9,9 @@ import UiTextField from "../ui/UiTextField.vue";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
+
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   gameMode: boolean;
   bufferUsageBytes: number;
@@ -27,8 +28,8 @@ async function scanAllDrives() {
     const diskTypes = await detectAllDiskTypes();
     // True if ANY detected drive is an HDD
     hasHdd.value = Object.values(diskTypes).includes("hdd");
-    if (!hasHdd.value && props.draft.ioBaseline.hddBufferEnabled) {
-      props.draft.ioBaseline.hddBufferEnabled = false;
+    if (!hasHdd.value && draft.value.ioBaseline.hddBufferEnabled) {
+      draft.value.ioBaseline.hddBufferEnabled = false;
     }
   } catch {
     hasHdd.value = true; // safe fallback: assume HDD on error
@@ -40,27 +41,27 @@ onMounted(() => {
 });
 
 function onHddBufferToggle(value: boolean) {
-  props.draft.ioBaseline.hddBufferEnabled = value;
+  draft.value.ioBaseline.hddBufferEnabled = value;
 }
 
 const showHddWarning = computed(
-  () => hasHdd.value === false && (props.draft.ioBaseline.hddBufferEnabled ?? true),
+  () => hasHdd.value === false && (draft.value.ioBaseline.hddBufferEnabled ?? true),
 );
 const showHddInfo = computed(
-  () => hasHdd.value === false && !(props.draft.ioBaseline.hddBufferEnabled ?? true),
+  () => hasHdd.value === false && !(draft.value.ioBaseline.hddBufferEnabled ?? true),
 );
 
 const bufferLimit = computed({
-  get: () => props.draft.ioBaseline.bufferLimitMb,
+  get: () => draft.value.ioBaseline.bufferLimitMb,
   set: (value: number | null) => {
-    props.draft.ioBaseline.bufferLimitMb = Math.max(64, Math.min(32768, Math.trunc(value ?? 1024)));
+    draft.value.ioBaseline.bufferLimitMb = Math.max(64, Math.min(32768, Math.trunc(value ?? 1024)));
   },
 });
 
 const gameModeBuffer = computed({
-  get: () => props.draft.ioBaseline.gameModeBufferMb,
+  get: () => draft.value.ioBaseline.gameModeBufferMb,
   set: (value: number | null) => {
-    props.draft.ioBaseline.gameModeBufferMb = Math.max(
+    draft.value.ioBaseline.gameModeBufferMb = Math.max(
       16,
       Math.min(4096, Math.trunc(value ?? 128)),
     );
@@ -68,16 +69,16 @@ const gameModeBuffer = computed({
 });
 
 const maxParallelHdd = computed({
-  get: () => props.draft.ioBaseline.maxParallelHdd,
+  get: () => draft.value.ioBaseline.maxParallelHdd,
   set: (value: number | null) => {
-    props.draft.ioBaseline.maxParallelHdd = Math.max(1, Math.min(16, Math.trunc(value ?? 4)));
+    draft.value.ioBaseline.maxParallelHdd = Math.max(1, Math.min(16, Math.trunc(value ?? 4)));
   },
 });
 
 const gameModeMaxParallel = computed({
-  get: () => props.draft.ioBaseline.gameModeMaxParallel,
+  get: () => draft.value.ioBaseline.gameModeMaxParallel,
   set: (value: number | null) => {
-    props.draft.ioBaseline.gameModeMaxParallel = Math.max(1, Math.min(8, Math.trunc(value ?? 1)));
+    draft.value.ioBaseline.gameModeMaxParallel = Math.max(1, Math.min(8, Math.trunc(value ?? 1)));
   },
 });
 

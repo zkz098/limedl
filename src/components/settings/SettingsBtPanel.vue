@@ -8,8 +8,9 @@ import type { AppSettings } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
+
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   btSummary: string;
   btUploadLimitMiB: number;
@@ -23,13 +24,13 @@ const emit = defineEmits<{
 }>();
 
 const trackerListEntries = computed(() =>
-  props.draft.bt.trackerList
+  draft.value.bt.trackerList
     .split(/\r?\n/)
     .map((tracker) => tracker.trim())
     .filter(Boolean),
 );
 
-const pauseEnabled = computed(() => props.draft.bt.pauseUploadWhenLimitReached);
+const pauseEnabled = computed(() => draft.value.bt.pauseUploadWhenLimitReached);
 
 const mode = ref<"recommended" | "custom">("recommended");
 

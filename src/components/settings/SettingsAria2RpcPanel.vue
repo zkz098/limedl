@@ -7,27 +7,28 @@ import type { AppSettings } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
+
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
 }>();
 
 const portModel = computed({
-  get: () => String(props.draft.aria2Rpc.port),
+  get: () => String(draft.value.aria2Rpc.port),
   set: (value: string) => {
     const parsed = parseInt(value, 10);
     if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 65535) {
-      props.draft.aria2Rpc.port = parsed;
+      draft.value.aria2Rpc.port = parsed;
     } else if (value === "") {
-      props.draft.aria2Rpc.port = 6800;
+      draft.value.aria2Rpc.port = 6800;
     }
   },
 });
 
 const secretModel = computed({
-  get: () => props.draft.aria2Rpc.secret ?? "",
+  get: () => draft.value.aria2Rpc.secret ?? "",
   set: (value: string) => {
-    props.draft.aria2Rpc.secret = value.trim() || null;
+    draft.value.aria2Rpc.secret = value.trim() || null;
   },
 });
 

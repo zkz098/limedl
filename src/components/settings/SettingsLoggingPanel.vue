@@ -8,8 +8,9 @@ import type { AppSettings, LogLevel } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
+
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   logLevelOptions: Array<{ label: string; value: LogLevel }>;
   loggingSummary: string;
@@ -26,8 +27,8 @@ type RetentionStrategy = "none" | "count" | "days" | "both";
 
 const retentionStrategy = computed({
   get(): RetentionStrategy {
-    const hasCount = props.draft.logging.retentionCount != null;
-    const hasDays = props.draft.logging.retentionDays != null;
+    const hasCount = draft.value.logging.retentionCount != null;
+    const hasDays = draft.value.logging.retentionDays != null;
     if (hasCount && hasDays) return "both";
     if (hasCount) return "count";
     if (hasDays) return "days";
@@ -35,24 +36,24 @@ const retentionStrategy = computed({
   },
   set(value: RetentionStrategy) {
     if (value === "none") {
-      props.draft.logging.retentionCount = null;
-      props.draft.logging.retentionDays = null;
+      draft.value.logging.retentionCount = null;
+      draft.value.logging.retentionDays = null;
     } else if (value === "count") {
-      props.draft.logging.retentionDays = null;
-      if (props.draft.logging.retentionCount == null) {
-        props.draft.logging.retentionCount = 10;
+      draft.value.logging.retentionDays = null;
+      if (draft.value.logging.retentionCount == null) {
+        draft.value.logging.retentionCount = 10;
       }
     } else if (value === "days") {
-      props.draft.logging.retentionCount = null;
-      if (props.draft.logging.retentionDays == null) {
-        props.draft.logging.retentionDays = 30;
+      draft.value.logging.retentionCount = null;
+      if (draft.value.logging.retentionDays == null) {
+        draft.value.logging.retentionDays = 30;
       }
     } else if (value === "both") {
-      if (props.draft.logging.retentionCount == null) {
-        props.draft.logging.retentionCount = 10;
+      if (draft.value.logging.retentionCount == null) {
+        draft.value.logging.retentionCount = 10;
       }
-      if (props.draft.logging.retentionDays == null) {
-        props.draft.logging.retentionDays = 30;
+      if (draft.value.logging.retentionDays == null) {
+        draft.value.logging.retentionDays = 30;
       }
     }
   },

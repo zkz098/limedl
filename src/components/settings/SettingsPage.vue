@@ -386,7 +386,7 @@ defineExpose({
       <div class="settings-page__content flex-1 overflow-y-auto min-w-0 min-h-0 pb-4">
         <SettingsAppearancePanel
           v-show="activeTab === 'appearance'"
-          :draft="form"
+          v-model:draft="form"
           :t="t"
           :language="language"
           :language-options="languageOptions"
@@ -397,7 +397,7 @@ defineExpose({
 
         <SettingsSchedulerPanel
           v-show="activeTab === 'scheduler'"
-          :draft="form"
+          v-model:draft="form"
           :t="t"
           :scheduler-mode-options="schedulerModeOptions"
           :adaptive-profile-options="adaptiveProfileOptions"
@@ -407,7 +407,7 @@ defineExpose({
 
         <SettingsDownloadDefaultsPanel
           v-show="activeTab === 'downloads'"
-          :draft="form"
+          v-model:draft="form"
           :t="t"
           :checksum-options="checksumOptions"
           :download-summary="downloadSummary"
@@ -418,7 +418,7 @@ defineExpose({
 
         <SettingsBtPanel
           v-show="activeTab === 'bt'"
-          :draft="form"
+          v-model:draft="form"
           :t="t"
           :bt-summary="btSummary"
           :bt-upload-limit-mi-b="btUploadLimitMiB"
@@ -430,7 +430,7 @@ defineExpose({
 
         <SettingsIoBaselinePanel
           v-show="activeTab === 'io'"
-          :draft="form"
+          v-model:draft="form"
           :t="t"
           :game-mode="gameMode ?? false"
           :buffer-usage-bytes="bufferUsageBytes ?? 0"
@@ -440,11 +440,11 @@ defineExpose({
           :queued-count="queuedCount ?? 0"
         />
 
-        <SettingsAria2RpcPanel v-show="activeTab === 'aria2Rpc'" :draft="form" :t="t" />
+        <SettingsAria2RpcPanel v-show="activeTab === 'aria2Rpc'" v-model:draft="form" :t="t" />
 
         <SettingsLoggingPanel
           v-show="activeTab === 'logging'"
-          :draft="form"
+          v-model:draft="form"
           :t="t"
           :log-level-options="logLevelOptions"
           :logging-summary="loggingSummary"
@@ -456,7 +456,7 @@ defineExpose({
 
         <SettingsProxyPanel
           v-show="activeTab === 'proxy'"
-          :draft="form"
+          v-model:draft="form"
           :t="t"
           :proxy-mode-options="proxyModeOptions"
           :proxy-summary="proxySummary"

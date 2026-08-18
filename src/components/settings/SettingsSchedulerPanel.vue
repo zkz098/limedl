@@ -13,8 +13,9 @@ const emit = defineEmits<{
   "update:globalSpeedLimitMiBps": [value: number | null];
 }>();
 
+const draft = defineModel<AppSettings>("draft", { required: true });
+
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   schedulerModeOptions: Array<{ label: string; value: SchedulerMode }>;
   adaptiveProfileOptions: Array<{ label: string; value: AdaptiveProfile }>;
@@ -63,7 +64,7 @@ const PRESETS: Record<PresetKey, PresetConfig> = {
 const viewMode = ref<ViewMode>("simple");
 
 const performancePreset = computed<PerformancePreset>(() => {
-  const { mode, automatic } = props.draft.scheduler;
+  const { mode, automatic } = draft.value.scheduler;
   if (mode === "traditional") return "custom";
 
   // Iteration order matches PRESETS declaration order (ES2015+ stable insertion order).
@@ -106,32 +107,32 @@ const presetCards = computed<
 
 function applyPreset(preset: PresetKey) {
   const config = PRESETS[preset];
-  props.draft.scheduler.mode = config.mode;
-  props.draft.scheduler.automatic.maxParallelThreads = config.maxParallelThreads;
-  props.draft.scheduler.automatic.maxThreadsPerTask = config.maxThreadsPerTask;
-  props.draft.scheduler.automatic.minThreadsPerTask = config.minThreadsPerTask;
-  props.draft.scheduler.automatic.adaptiveProfile = config.adaptiveProfile;
+  draft.value.scheduler.mode = config.mode;
+  draft.value.scheduler.automatic.maxParallelThreads = config.maxParallelThreads;
+  draft.value.scheduler.automatic.maxThreadsPerTask = config.maxThreadsPerTask;
+  draft.value.scheduler.automatic.minThreadsPerTask = config.minThreadsPerTask;
+  draft.value.scheduler.automatic.adaptiveProfile = config.adaptiveProfile;
 }
 
 const maxThreadsPerTaskMax = computed(() =>
-  Math.max(1, props.draft.scheduler.automatic.maxParallelThreads),
+  Math.max(1, draft.value.scheduler.automatic.maxParallelThreads),
 );
 
-const isTraditional = computed(() => props.draft.scheduler.mode === "traditional");
+const isTraditional = computed(() => draft.value.scheduler.mode === "traditional");
 
 const hourOptions = computed(() =>
   Array.from({ length: 24 }, (_, i) => ({ label: String(i), value: i })),
 );
 
 const scheduleEnabled = computed({
-  get: () => props.draft.speedLimitSchedule.length > 0,
+  get: () => draft.value.speedLimitSchedule.length > 0,
   set: (enabled: boolean) => {
     if (enabled) {
-      props.draft.speedLimitSchedule = props.draft.speedLimitSchedule.length
-        ? props.draft.speedLimitSchedule
+      draft.value.speedLimitSchedule = draft.value.speedLimitSchedule.length
+        ? draft.value.speedLimitSchedule
         : [{ startHour: 0, endHour: 6, limitBps: 0 }];
     } else {
-      props.draft.speedLimitSchedule = [];
+      draft.value.speedLimitSchedule = [];
     }
   },
 });
@@ -145,11 +146,11 @@ function setSlotLimit(slot: SpeedLimitSlot, value: number | null) {
 }
 
 function removeSlot(index: number) {
-  props.draft.speedLimitSchedule.splice(index, 1);
+  draft.value.speedLimitSchedule.splice(index, 1);
 }
 
 function addSlot() {
-  props.draft.speedLimitSchedule.push({ startHour: 0, endHour: 6, limitBps: 0 });
+  draft.value.speedLimitSchedule.push({ startHour: 0, endHour: 6, limitBps: 0 });
 }
 
 function slotWrapsMidnight(slot: SpeedLimitSlot) {

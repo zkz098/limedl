@@ -17,8 +17,9 @@ import {
   disable as disableAutostart,
 } from "@tauri-apps/plugin-autostart";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
+
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   language: SupportedLanguage;
   languageOptions: Array<{ label: string; value: string }>;
@@ -32,11 +33,11 @@ async function onAutostartChange(value: boolean) {
   // the debug binary, which cannot run standalone after reboot (no dev
   // server) and shows a blank window.
   if (value && import.meta.env.DEV) {
-    props.draft.autostart = false;
+    draft.value.autostart = false;
     console.warn("[autostart] registration is disabled in dev mode");
     return;
   }
-  props.draft.autostart = value;
+  draft.value.autostart = value;
   try {
     if (value) {
       await enableAutostart();
