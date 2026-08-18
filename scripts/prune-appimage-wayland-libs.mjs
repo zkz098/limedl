@@ -197,7 +197,8 @@ async function pruneAppImageWaylandLibraries({
     await rm(backupPath, { force: true });
     return {
       appImagePath: absoluteAppImagePath,
-      removedLibraries: removedLibraries.map((libraryPath) => path.relative(extractedAppDir, libraryPath)),
+      removedLibraries: removedLibraries.map((libraryPath) =>
+        path.relative(extractedAppDir, libraryPath).split(path.sep).join("/")),
       patchedGdkBackend,
     };
   } finally {

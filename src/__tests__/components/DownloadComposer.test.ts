@@ -321,7 +321,7 @@ describe("DownloadComposer", () => {
   });
 
   it("shows error for invalid HTTP URL in BT kind", async () => {
-    const wrapper = mountWithForm({ kind: "bt", url: "not-a-url" });
+    const wrapper = mountWithForm({ kind: "bt", url: "http://" });
     await wrapper.find(".composer-protocol").trigger("click");
     await nextTick();
     await wrapper.find(".composer-protocol").trigger("click");
