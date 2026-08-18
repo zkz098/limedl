@@ -13,7 +13,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { fileURLToPath } from "node:url";
 import { TestFileServer } from "./server/test-file-server";
+
+/** ESM-safe directory of this file (package.json is `type: module`). */
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Playwright storage state marking the setup wizard as completed.
