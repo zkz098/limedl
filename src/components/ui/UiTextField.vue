@@ -3,6 +3,9 @@ const props = withDefaults(
   defineProps<{
     modelValue: string | number | null;
     type?: "text" | "number" | "url";
+    id?: string;
+    ariaLabel?: string;
+    ariaLabelledby?: string;
     placeholder?: string;
     disabled?: boolean;
     min?: number;
@@ -47,6 +50,9 @@ function onInput(event: Event) {
       unit
     }}</span>
     <input
+      :id="id"
+      :aria-label="ariaLabel"
+      :aria-labelledby="ariaLabelledby"
       :value="type === 'number' ? (modelValue ?? '') : modelValue"
       class="ui-textfield"
       :type="type"
@@ -64,6 +70,9 @@ function onInput(event: Event) {
   </div>
   <input
     v-else
+    :id="id"
+    :aria-label="ariaLabel"
+    :aria-labelledby="ariaLabelledby"
     :value="type === 'number' ? (modelValue ?? '') : modelValue"
     class="ui-textfield"
     :type="type"

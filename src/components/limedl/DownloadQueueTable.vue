@@ -800,7 +800,7 @@ function metaForDownload(download: DownloadSummary) {
               <span>{{ t("queue.setSpeedLimit") }}</span>
             </button>
           </template>
-          <div class="task-context-menu__divider" role="separator" />
+          <hr class="task-context-menu__divider" />
           <div class="task-context-menu__group">
             <span
               class="task-context-menu__group-label px-[0.6rem] text-[0.68rem] uppercase tracking-wider"
@@ -830,7 +830,7 @@ function metaForDownload(download: DownloadSummary) {
               />
             </button>
           </div>
-          <div class="task-context-menu__divider" role="separator" />
+          <hr class="task-context-menu__divider" />
           <button
             type="button"
             class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
@@ -1152,6 +1152,7 @@ function metaForDownload(download: DownloadSummary) {
 
 .task-context-menu__divider {
   height: 1px;
+  border: none;
   margin: 0.15rem 0.35rem;
   background: var(--color-border);
 }

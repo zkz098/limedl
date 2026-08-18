@@ -48,10 +48,7 @@ test.describe("queue scenarios", () => {
       ),
     );
 
-    // Wait for Vue reactivity to render the tasks
-    await page.waitForTimeout(500);
-
-    // Get all visible download rows in DOM order
+    // Get all visible download rows in DOM order (assertion auto-retries)
     const rows = page.locator("[data-testid^='download-row-']");
     await expect(rows).toHaveCount(3);
 
@@ -80,8 +77,6 @@ test.describe("queue scenarios", () => {
       "download.list",
       TASK_IDS.map((id) => makeMockSummary(id, taskConfigs[id])),
     );
-
-    await page.waitForTimeout(500);
 
     // All tasks visible on "All" (default) category
     await expect(page.locator("[data-testid='download-row-filter-dl']")).toBeVisible();
@@ -132,8 +127,6 @@ test.describe("queue scenarios", () => {
       makeMockSummary("search-gamma", { fileName: "GammaDocument.pdf" }),
     ]);
 
-    await page.waitForTimeout(500);
-
     // All visible initially
     await expect(page.locator("[data-testid='download-row-search-alpha']")).toBeVisible();
     await expect(page.locator("[data-testid='download-row-search-beta']")).toBeVisible();
@@ -176,7 +169,7 @@ test.describe("queue scenarios", () => {
       makeMockSummary("sort-cherry", { fileName: "cherry.tar.gz" }),
     ]);
 
-    await page.waitForTimeout(500);
+    await expect(page.locator("[data-testid^='download-row-']")).toHaveCount(3);
 
     // Default sort is "added_at desc", so newest first.
     // Change sort key to "name" via the sort dropdown.
@@ -258,9 +251,6 @@ test.describe("queue scenarios", () => {
         }),
       );
     }
-
-    // Give Vue a brief moment to flush all pending reactivity updates
-    await page.waitForTimeout(300);
 
     // The task should still be visible and in downloading state
     await expectTaskVisible(page, TASK_ID);

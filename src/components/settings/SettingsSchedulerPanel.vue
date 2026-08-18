@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
@@ -14,6 +14,7 @@ const emit = defineEmits<{
 }>();
 
 const draft = defineModel<AppSettings>("draft", { required: true });
+const uid = useId();
 
 const props = defineProps<{
   t: (key: string, options?: Record<string, unknown>) => string;
@@ -193,26 +194,28 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
         :label="t('settings.performancePreference')"
         :info-tooltip="t('settings.performancePreferenceHint')"
       >
-        <div
+        <fieldset
           class="performance-presets"
-          role="radiogroup"
           :aria-label="t('settings.performancePreference')"
         >
-          <button
+          <label
             v-for="card in presetCards"
             :key="card.value"
-            type="button"
             class="performance-preset-card"
             :class="{ 'is-active': performancePreset === card.value }"
-            role="radio"
-            :aria-checked="performancePreset === card.value"
-            @click="applyPreset(card.value)"
           >
+            <input
+              type="radio"
+              name="performancePreset"
+              :value="card.value"
+              :checked="performancePreset === card.value"
+              @change="applyPreset(card.value)"
+            />
             <span :class="card.icon" class="performance-preset-card__icon" aria-hidden="true" />
             <span class="performance-preset-card__title">{{ card.title }}</span>
             <span class="performance-preset-card__desc">{{ card.description }}</span>
-          </button>
-        </div>
+          </label>
+        </fieldset>
       </SettingsField>
     </div>
 
@@ -391,23 +394,24 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
                 class="speed-limit-schedule__slot"
               >
                 <div class="speed-limit-schedule__field">
-                  <label class="speed-limit-schedule__field-label">
+                  <label class="speed-limit-schedule__field-label" :for="`${uid}-start-${index}`">
                     {{ t("settings.speedLimitScheduleStartHour") }}
                   </label>
-                  <UiSelect v-model="slot.startHour" :options="hourOptions" />
+                  <UiSelect v-model="slot.startHour" :id="`${uid}-start-${index}`" :options="hourOptions" />
                 </div>
                 <div class="speed-limit-schedule__field">
-                  <label class="speed-limit-schedule__field-label">
+                  <label class="speed-limit-schedule__field-label" :for="`${uid}-end-${index}`">
                     {{ t("settings.speedLimitScheduleEndHour") }}
                   </label>
-                  <UiSelect v-model="slot.endHour" :options="hourOptions" />
+                  <UiSelect v-model="slot.endHour" :id="`${uid}-end-${index}`" :options="hourOptions" />
                 </div>
                 <div class="speed-limit-schedule__field speed-limit-schedule__field--limit">
-                  <label class="speed-limit-schedule__field-label">
+                  <label class="speed-limit-schedule__field-label" :for="`${uid}-limit-${index}`">
                     {{ t("settings.speedLimitScheduleLimit") }}
                   </label>
                   <UiTextField
                     type="number"
+                    :id="`${uid}-limit-${index}`"
                     :model-value="slotLimitMiBps(slot)"
                     :min="0"
                     :max="1048576"
@@ -504,6 +508,23 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.performance-preset-card input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .performance-preset-card {
@@ -535,7 +556,8 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
   box-shadow: var(--shadow-accent);
 }
 
-.performance-preset-card:focus-visible {
+.performance-preset-card:focus-visible,
+.performance-preset-card:has(input[type="radio"]:focus-visible) {
   outline: none;
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 2px var(--color-focus-ring);

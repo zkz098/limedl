@@ -48,8 +48,6 @@ test.describe("BitTorrent download", () => {
       }),
     ]);
 
-    await page.waitForTimeout(500);
-
     // Task row should appear with BT kind
     await expectTaskVisible(page, TASK_ID);
   });

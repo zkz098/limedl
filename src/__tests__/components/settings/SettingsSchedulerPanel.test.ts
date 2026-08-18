@@ -262,13 +262,13 @@ describe("SettingsSchedulerPanel", () => {
   it("applies energy saver preset when clicked", async () => {
     const { draft, wrapper } = mountPanel();
 
-    // Find the energy saver preset card
-    const presetBtns = wrapper.findAll('[role="radio"]');
-    const energyBtn = presetBtns.find((btn) =>
-      btn.text().includes("settings.performancePresetEnergySaver"),
+    // Find the energy saver preset card (native radio inside a label)
+    const presetCards = wrapper.findAll("label.performance-preset-card");
+    const energyCard = presetCards.find((card) =>
+      card.text().includes("settings.performancePresetEnergySaver"),
     );
-    expect(energyBtn).toBeTruthy();
-    await energyBtn!.trigger("click");
+    expect(energyCard).toBeTruthy();
+    await energyCard!.find('input[type="radio"]').setValue(true);
     await nextTick();
 
     // Draft should be updated to energy saver values

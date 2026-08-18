@@ -245,10 +245,7 @@ test.describe("Settings page", () => {
     // Select "Fixed Threads" (traditional) from the dropdown
     await fixedThreadsOption.click();
 
-    // Wait for Vue reactivity to update the template (v-if for traditional mode fields)
-    await page.waitForTimeout(300);
-
-    // Now the "Max parallel tasks" field should appear (traditional mode only)
+    // The "Max parallel tasks" field should appear (assertion auto-retries until v-if renders)
     const maxTasksField = page.locator(".settings-page__content").getByText("Max parallel tasks");
     await expect(maxTasksField).toBeVisible();
 

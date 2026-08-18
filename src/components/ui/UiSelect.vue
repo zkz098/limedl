@@ -10,6 +10,9 @@ const props = withDefaults(
   defineProps<{
     modelValue: T;
     options: { label: string; value: T }[];
+    id?: string;
+    ariaLabel?: string;
+    ariaLabelledby?: string;
     disabled?: boolean;
     placeholder?: string;
   }>(),
@@ -323,6 +326,9 @@ onUnmounted(() => {
   <div class="ui-select">
     <button
       ref="triggerRef"
+      :id="id"
+      :aria-label="ariaLabel"
+      :aria-labelledby="ariaLabelledby"
       type="button"
       class="ui-select__trigger"
       :disabled="disabled"

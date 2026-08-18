@@ -49,10 +49,7 @@ test.describe("batch operations", () => {
       ),
     );
 
-    // Wait for Vue reactivity to render all tasks
-    await page.waitForTimeout(500);
-
-    // Verify all tasks are visible
+    // Verify all tasks are visible (assertions auto-retry while Vue renders)
     for (const taskId of TASK_IDS) {
       await expectTaskVisible(page, taskId);
     }
@@ -66,10 +63,7 @@ test.describe("batch operations", () => {
     await expect(multiSelectBtn).toBeVisible();
     await multiSelectBtn.click();
 
-    // Wait for Vue reactivity to render the batch action buttons
-    await page.waitForTimeout(500);
-
-    // Now batch action buttons should appear
+    // Batch action buttons should appear once multi-select is enabled
     await expect(page.getByRole("button", { name: "Select all" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Pause all" })).toBeVisible();
 
@@ -90,8 +84,7 @@ test.describe("batch operations", () => {
     // Enable multi-select mode
     await page.getByRole("button", { name: "Multi-select" }).click();
 
-    // Wait for Vue reactivity to render the batch action buttons
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("button", { name: "Select all" })).toBeVisible();
 
     // Select all tasks
     await page.getByRole("button", { name: "Select all" }).click();
@@ -117,10 +110,7 @@ test.describe("batch operations", () => {
       );
     }
 
-    // Wait for Vue reactivity to process the state updates from pause responses
-    await page.waitForTimeout(500);
-
-    // Verify each task shows paused state
+    // Verify each task shows paused state (assertions auto-retry)
     for (const taskId of TASK_IDS) {
       await expectTaskState(page, taskId, "paused");
     }
@@ -131,8 +121,7 @@ test.describe("batch operations", () => {
     // First pause all tasks
     await page.getByRole("button", { name: "Multi-select" }).click();
 
-    // Wait for Vue reactivity to render the batch action buttons
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("button", { name: "Select all" })).toBeVisible();
 
     await page.getByRole("button", { name: "Select all" }).click();
 
@@ -156,8 +145,7 @@ test.describe("batch operations", () => {
       await expectTaskState(page, taskId, "paused");
     }
 
-    // Wait for Vue reactivity to settle before clicking "Resume all"
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("button", { name: "Resume all" })).toBeVisible();
 
     // Now resume all — but first deselect and reselect (resume all works on
     // paused tasks regardless of selection in the implementation)
@@ -191,10 +179,7 @@ test.describe("batch operations", () => {
       );
     }
 
-    // Wait for Vue reactivity to process the resumed state updates
-    await page.waitForTimeout(500);
-
-    // Verify each task shows downloading state
+    // Verify each task shows downloading state (assertions auto-retry)
     for (const taskId of TASK_IDS) {
       await expectTaskState(page, taskId, "downloading");
     }

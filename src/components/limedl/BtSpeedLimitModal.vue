@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, useId, watch } from "vue";
 import UiDialog from "../ui/UiDialog.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiButton from "../ui/UiButton.vue";
@@ -25,6 +25,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
+const uid = useId();
 const downloadLimitKb = ref(0);
 const uploadLimitKb = ref(0);
 
@@ -67,9 +68,10 @@ function handleCancel() {
 
     <div class="speed-limit-modal">
       <div class="speed-limit-modal__field">
-        <label class="speed-limit-modal__label">{{ t("queue.btDownloadLimit") }}</label>
+        <label class="speed-limit-modal__label" :for="`${uid}-download`">{{ t("queue.btDownloadLimit") }}</label>
         <UiTextField
           v-model="downloadLimitKb"
+          :id="`${uid}-download`"
           type="number"
           :min="0"
           placeholder="0"
@@ -78,9 +80,10 @@ function handleCancel() {
         />
       </div>
       <div class="speed-limit-modal__field">
-        <label class="speed-limit-modal__label">{{ t("queue.btUploadLimit") }}</label>
+        <label class="speed-limit-modal__label" :for="`${uid}-upload`">{{ t("queue.btUploadLimit") }}</label>
         <UiTextField
           v-model="uploadLimitKb"
+          :id="`${uid}-upload`"
           type="number"
           :min="0"
           placeholder="0"
