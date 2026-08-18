@@ -395,16 +395,12 @@ async fn run_one(
     let (dest_dir, file_name) = resolve_output(args, url, idx);
 
     // `-Z/--conditional-get`: skip if the output file already exists.
-    if args.conditional_get {
-        let target = file_name
-            .as_ref()
-            .map(|n| std::path::Path::new(&dest_dir).join(n));
-        if let Some(t) = &target {
-            if t.exists() {
-                println!("[#{} {url}] skipped ({}) — already exists", idx + 1, t.display());
-                return Ok(None);
-            }
-        }
+    if args.conditional_get
+        && let Some(t) = file_name.as_ref().map(|n| std::path::Path::new(&dest_dir).join(n))
+        && t.exists()
+    {
+        println!("[#{} {url}] skipped ({}) — already exists", idx + 1, t.display());
+        return Ok(None);
     }
 
     let (checksum_mode, expected_checksum) = map_checksum(args.checksum.as_ref())?;
