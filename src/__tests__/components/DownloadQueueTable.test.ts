@@ -607,6 +607,96 @@ describe("DownloadQueueTable", () => {
     });
   });
 
+  // ── Background Context Menu ─────────────────────────────────
+
+  describe("background context menu", () => {
+    const inlineTeleportStubs = {
+      ...stubs,
+      Teleport: { template: "<div><slot /></div>" },
+    };
+
+    it("right-clicking empty area opens background menu at mouse position", async () => {
+      const downloads = [createMockDownload({ id: "bg-1", fileName: "bg-test.zip" })];
+
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      // Right-click on the panel header (not a task row)
+      await wrapper.find(".queue-panel__header").trigger("contextmenu", {
+        clientX: 210,
+        clientY: 160,
+      });
+
+      const menu = wrapper.find(".task-context-menu");
+      expect(menu.exists()).toBe(true);
+      expect(menu.attributes("style")).toContain("left: 210px");
+      expect(menu.attributes("style")).toContain("top: 160px");
+    });
+
+    it("new task item emits newTask", async () => {
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({}),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      await wrapper.find(".queue-panel__header").trigger("contextmenu", {
+        clientX: 100,
+        clientY: 100,
+      });
+
+      const newTaskBtn = wrapper
+        .findAll(".task-context-menu__item")
+        .find((b) => b.text().includes("nav.newTask"));
+      expect(newTaskBtn!.exists()).toBe(true);
+      await newTaskBtn!.trigger("click");
+
+      expect(wrapper.emitted("newTask")).toBeTruthy();
+      expect(wrapper.find(".task-context-menu").exists()).toBe(false);
+    });
+
+    it("refresh item emits refresh", async () => {
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({}),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      await wrapper.find(".queue-panel__header").trigger("contextmenu", {
+        clientX: 100,
+        clientY: 100,
+      });
+
+      const refreshBtn = wrapper
+        .findAll(".task-context-menu__item")
+        .find((b) => b.text().includes("common.refresh"));
+      expect(refreshBtn!.exists()).toBe(true);
+      await refreshBtn!.trigger("click");
+
+      expect(wrapper.emitted("refresh")).toBeTruthy();
+      expect(wrapper.find(".task-context-menu").exists()).toBe(false);
+    });
+
+    it("right-clicking a task row still opens the task context menu, not the background one", async () => {
+      const downloads = [createMockDownload({ id: "row-bg", fileName: "row.zip" })];
+      const wrapper = mount(DownloadQueueTable, {
+        props: createProps({ downloads }),
+        attachTo: document.body,
+        global: { stubs: inlineTeleportStubs },
+      });
+
+      await wrapper.find("tbody tr").trigger("contextmenu", { clientX: 50, clientY: 50 });
+
+      // Only the task menu (with its full item set) should appear.
+      const items = wrapper.findAll(".task-context-menu__item");
+      expect(items.length).toBeGreaterThan(2);
+      expect(items.some((b) => b.text().includes("nav.newTask"))).toBe(false);
+    });
+  });
+
   // ── Meta Formatting ─────────────────────────────────────────
 
   describe("meta formatting", () => {

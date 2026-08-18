@@ -42,8 +42,10 @@ const emit = defineEmits<{
   deleteTask: [downloadId: string];
   deleteTaskPermanently: [downloadId: string];
   doubleClick: [downloadId: string];
+  newTask: [];
   openInExplorer: [downloadId: string];
   pauseOrResume: [downloadId: string];
+  refresh: [];
   select: [downloadId: string];
   setBtSpeedLimit: [downloadId: string];
   setPriority: [downloadId: string, priority: Priority];
@@ -55,6 +57,8 @@ const syncHideDelayMs = 420;
 const { t } = useI18n();
 const contextMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
 const contextMenuPanelRef = ref<HTMLElement | null>(null);
+const backgroundMenu = ref<{ x: number; y: number } | null>(null);
+const backgroundMenuPanelRef = ref<HTMLElement | null>(null);
 const priorityMenu = ref<{ downloadId: string; x: number; y: number } | null>(null);
 const priorityMenuRef = ref<HTMLElement | null>(null);
 const isSyncIndicatorVisible = ref(false);
@@ -322,32 +326,40 @@ function handleRowKeydown(event: KeyboardEvent, downloadId: string) {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const { x, y } = clampMenuPosition(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    backgroundMenu.value = null;
     contextMenu.value = { downloadId, x, y };
   }
 }
 
-function closeMenus() {
+function closeAllMenus() {
   contextMenu.value = null;
+  priorityMenu.value = null;
+  backgroundMenu.value = null;
+}
+
+function closeBackgroundMenu() {
+  backgroundMenu.value = null;
 }
 
 const showContextMenu = computed(() => contextMenu.value !== null);
-useFloatingClose(contextMenuPanelRef, showContextMenu, closeMenus);
+useFloatingClose(contextMenuPanelRef, showContextMenu, closeAllMenus);
 
-function handleContextMenuKeydown(event: KeyboardEvent) {
-  if (!contextMenu.value) return;
+const showBackgroundMenu = computed(() => backgroundMenu.value !== null);
+useFloatingClose(backgroundMenuPanelRef, showBackgroundMenu, closeBackgroundMenu);
+
+function handleMenuKeydown(event: KeyboardEvent, panel: HTMLElement | null) {
+  if (!panel) return;
 
   switch (event.key) {
     case "Escape":
       event.preventDefault();
-      closeMenus();
+      closeAllMenus();
       break;
     case "ArrowDown":
     case "ArrowUp": {
       event.preventDefault();
       const items = Array.from(
-        contextMenuPanelRef.value?.querySelectorAll<HTMLButtonElement>(
-          ".task-context-menu__item:not(:disabled)",
-        ) ?? [],
+        panel.querySelectorAll<HTMLButtonElement>(".task-context-menu__item:not(:disabled)"),
       );
       if (items.length === 0) return;
       const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
@@ -373,8 +385,27 @@ function clampMenuPosition(clientX: number, clientY: number) {
 function openTaskContextMenu(event: MouseEvent, downloadId: string) {
   emit("select", downloadId);
 
+  backgroundMenu.value = null;
   const { x, y } = clampMenuPosition(event.clientX, event.clientY);
   contextMenu.value = { downloadId, x, y };
+}
+
+function openBackgroundContextMenu(event: MouseEvent) {
+  contextMenu.value = null;
+  priorityMenu.value = null;
+
+  const { x, y } = clampMenuPosition(event.clientX, event.clientY);
+  backgroundMenu.value = { x, y };
+}
+
+function handleNewTask() {
+  backgroundMenu.value = null;
+  emit("newTask");
+}
+
+function handleRefresh() {
+  backgroundMenu.value = null;
+  emit("refresh");
 }
 
 function handlePauseOrResume() {
@@ -486,7 +517,7 @@ function metaForDownload(download: DownloadSummary) {
 </script>
 
 <template>
-  <section class="queue-panel grid gap-4">
+  <section class="queue-panel grid gap-4" @contextmenu.prevent="openBackgroundContextMenu($event)">
     <div class="desk-panel__header queue-panel__header py-1">
       <div>
         <p class="section-kicker">{{ t("queue.kicker") }}</p>
@@ -779,7 +810,7 @@ function metaForDownload(download: DownloadSummary) {
           class="task-context-menu fixed z-30 min-w-48 grid gap-[0.15rem] p-[0.35rem] border rounded-md"
           :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
           @pointerdown.stop
-          @keydown="handleContextMenuKeydown"
+          @keydown="handleMenuKeydown($event, contextMenuPanelRef)"
         >
           <button
             type="button"
@@ -919,6 +950,38 @@ function metaForDownload(download: DownloadSummary) {
       :title="t('queue.emptyTitle')"
       :description="t('queue.emptyDescription')"
     />
+
+    <Teleport to="body">
+      <div
+        v-if="backgroundMenu"
+        ref="backgroundMenuPanelRef"
+        class="task-context-menu fixed z-30 min-w-48 grid gap-[0.15rem] p-[0.35rem] border rounded-md"
+        :style="{ left: `${backgroundMenu.x}px`, top: `${backgroundMenu.y}px` }"
+        role="menu"
+        :aria-label="t('queue.title')"
+        @pointerdown.stop
+        @keydown="handleMenuKeydown($event, backgroundMenuPanelRef)"
+      >
+        <button
+          type="button"
+          role="menuitem"
+          class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
+          @click="handleNewTask"
+        >
+          <span class="i-ri-add-line" aria-hidden="true" />
+          <span>{{ t("nav.newTask") }}</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          class="task-context-menu__item flex items-center gap-[0.6rem] min-h-8 px-[0.6rem] border-0 rounded-sm bg-transparent text-sm text-left cursor-pointer"
+          @click="handleRefresh"
+        >
+          <span class="i-ri-refresh-line" aria-hidden="true" />
+          <span>{{ t("common.refresh") }}</span>
+        </button>
+      </div>
+    </Teleport>
   </section>
 </template>
 
