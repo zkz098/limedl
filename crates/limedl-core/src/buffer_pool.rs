@@ -480,9 +480,10 @@ impl DownloadBuffer {
 
     /// Create a pool-backed double-buffer without an I/O worker.
     ///
-    /// Test-only: uses `spawn_blocking` for flush (compatible with tests that
-    /// don't spawn an `IoWorker`). Production always calls `new_with_worker`.
-    #[cfg(test)]
+    /// Test/bench-only: uses `spawn_blocking` for flush (compatible with tests
+    /// and benchmarks that don't spawn an `IoWorker`). Production always calls
+    /// `new_with_worker`.
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn new(pool: Arc<BufferPool>, slot: SlotGuard, file: Arc<File>) -> Self {
         let half_size = pool.half_size();
         Self {

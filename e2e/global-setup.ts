@@ -17,14 +17,14 @@ import { fileURLToPath } from "node:url";
 import { TestFileServer } from "./server/test-file-server";
 
 /** ESM-safe directory of this file (package.json is `type: module`). */
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Playwright storage state marking the setup wizard as completed.
  * Generated here (not committed) so fresh CI clones can run NAS WebUI tests.
  * The `origin` must match the NAS WebUI baseURL used in playwright.config.ts.
  */
-const STORAGE_STATE_PATH = path.join(__dirname, "storage-state.json");
+const STORAGE_STATE_PATH = path.join(scriptDir, "storage-state.json");
 
 export default async function globalSetup(): Promise<void> {
   const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "limedl-e2e-"));

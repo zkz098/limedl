@@ -26,7 +26,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use common::BenchHarness;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use limedl_core::buffer_pool::{BufferPool, DownloadBuffer};
+use limedl_core::buffer_pool::{BufferPool, DownloadBuffer, IoWorker};
 
 // 鈹€鈹€ Configuration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 // 100 MB total data, written in 1 MB chunks.
@@ -100,8 +100,8 @@ fn bench_double_hdd(c: &mut Criterion) {
 
 // 鈹€鈹€ SSD local-buffer benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 //
-// Uses a simple local-buffer (write-combining, 8 MB limit) to write the same
-// 100 MB payload. The buffer auto-flushes when the local limit is exceeded;
+// Uses a local ping-pong (double-buffer) to write the same 100 MB payload.
+// This is the production SSD write path. The buffer flushes a half when full;
 // the final `flush_all()` persists any remaining buffered data.
 
 fn bench_local_ssd(c: &mut Criterion) {
@@ -111,14 +111,21 @@ fn bench_local_ssd(c: &mut Criterion) {
     let mut group = c.benchmark_group("buffer_pool");
     group.throughput(Throughput::Bytes(TOTAL_DATA));
 
-    group.bench_function("local_ssd", |b| {
+    // Dedicated I/O worker thread (production SSD ping-pong path).
+    let worker = IoWorker::spawn_pool(1);
+
+    group.bench_function("ssd_pingpong", |b| {
         b.iter_custom(|iters| {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("ssd");
                     let file = Arc::new(File::create(&file_path).unwrap());
-                    let buffer = DownloadBuffer::new_local(8 * 1024 * 1024, file.clone());
+                    let buffer = DownloadBuffer::new_local_pingpong_with_worker(
+                        4 * 1024 * 1024,
+                        file.clone(),
+                        worker.clone(),
+                    );
 
                     for i in 0..CHUNK_COUNT {
                         buffer
@@ -250,15 +257,20 @@ fn bench_multi_stream_random(c: &mut Criterion) {
         });
     });
 
-    // 鈹€鈹€ Multi-stream through local buffer (SSD) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-    group.bench_function("local_ssd", |b| {
+    // Multi-stream through SSD ping-pong buffer.
+    let worker = IoWorker::spawn_pool(1);
+    group.bench_function("ssd_pingpong", |b| {
         b.iter_custom(|iters| {
             harness.rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("msssd");
                     let file = Arc::new(File::create(&file_path).unwrap());
-                    let buffer = Arc::new(DownloadBuffer::new_local(8 * 1024 * 1024, file.clone()));
+                    let buffer = Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
+                        4 * 1024 * 1024,
+                        file.clone(),
+                        worker.clone(),
+                    ));
 
                     const STREAMS: usize = 4;
                     let per_stream = offsets.len() / STREAMS;
