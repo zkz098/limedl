@@ -28,7 +28,7 @@ limedl 的整体架构描述：工作空间布局、三目标平台（Tauri Desk
 - `src-tauri/src/lib.rs` — Tauri 入口、EventBus→Tauri bridge 后台任务
 - `src-tauri/src/download/commands.rs` — Tauri IPC 命令（薄壳，经 Dispatcher 委派）
 - `src-tauri/src/download/commands_cdn.rs` — CDN 命令
-- `src-tauri/src/download/aria2_rpc.rs` — Aria2 RPC 集成
+- `crates/limedl-core/src/aria2_rpc.rs` — Aria2 RPC 集成（经 `limedl-core` 的 `aria2-rpc` feature；桌面/ NAS 均在 bootstrap 后接线）
 - lib 名称：`limedl_lib`
 
 ** 前端 **：
