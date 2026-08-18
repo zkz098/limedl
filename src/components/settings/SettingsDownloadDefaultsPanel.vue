@@ -33,7 +33,7 @@ const emit = defineEmits<{
         :label="t('settings.defaultDownloadLocation')"
         :info-tooltip="t('settings.defaultDownloadHint')"
       >
-        <div class="settings-directory-field">
+        <div class="settings-directory-field settings-download-dir-field">
           <UiTextField
             v-model="draft.download.defaultDownloadDir"
             type="text"

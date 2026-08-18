@@ -196,7 +196,7 @@ test.describe("Settings page", () => {
     // We verify the field exists and can be changed.
 
     // Make the form dirty by modifying the download directory so the Save button is enabled
-    const dirInput = page.locator(".settings-directory-field .ui-textfield");
+    const dirInput = page.locator(".settings-download-dir-field .ui-textfield");
     await dirInput.click();
     await dirInput.fill("/new/downloads");
 
