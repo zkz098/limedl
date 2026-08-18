@@ -1,6 +1,14 @@
-use urlencoding::encode as url_encode;
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
 use super::types::{GitHubMirrorSettings, MirrorEntry};
+
+/// Percent-encode every byte except RFC 3986 unreserved characters
+/// (alphanumerics and `-`, `_`, `.`, `~`).
+const URL_ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'~');
 
 /// Check whether the given URL targets GitHub (github.com, www.github.com, or
 /// subdomains like api.github.com).  Case-insensitive host matching.
@@ -46,7 +54,7 @@ pub fn rewrite(url: &str, settings: &GitHubMirrorSettings) -> Vec<String> {
         return vec![url.to_string()];
     }
 
-    let encoded = url_encode(url);
+    let encoded = utf8_percent_encode(url, URL_ENCODE_SET).to_string();
     let mut result: Vec<String> = mirrors
         .iter()
         .map(|entry| {

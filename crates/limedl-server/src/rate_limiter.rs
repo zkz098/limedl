@@ -5,7 +5,7 @@ use governor::clock::DefaultClock;
 use governor::state::InMemoryState;
 use governor::state::direct::NotKeyed;
 use governor::{Quota, RateLimiter};
-use nonzero_ext::nonzero;
+use std::num::NonZeroU32;
 
 /// Classification of JSON-RPC method safety for rate limiting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,10 +52,10 @@ impl WsRateLimiter {
         Self {
             connections: DashMap::new(),
             global_safe: RateLimiter::direct(
-                Quota::per_second(nonzero!(500u32)).allow_burst(nonzero!(750u32)),
+                Quota::per_second(NonZeroU32::new(500).unwrap()).allow_burst(NonZeroU32::new(750).unwrap()),
             ),
             global_mutating: RateLimiter::direct(
-                Quota::per_second(nonzero!(50u32)).allow_burst(nonzero!(100u32)),
+                Quota::per_second(NonZeroU32::new(50).unwrap()).allow_burst(NonZeroU32::new(100).unwrap()),
             ),
         }
     }
@@ -96,10 +96,10 @@ impl WsRateLimiter {
     pub fn register(&self, id: &str) {
         let limits = Arc::new(ConnLimits {
             safe: RateLimiter::direct(
-                Quota::per_second(nonzero!(100u32)).allow_burst(nonzero!(150u32)),
+                Quota::per_second(NonZeroU32::new(100).unwrap()).allow_burst(NonZeroU32::new(150).unwrap()),
             ),
             mutating: RateLimiter::direct(
-                Quota::per_second(nonzero!(10u32)).allow_burst(nonzero!(20u32)),
+                Quota::per_second(NonZeroU32::new(10).unwrap()).allow_burst(NonZeroU32::new(20).unwrap()),
             ),
         });
         self.connections.insert(id.to_owned(), limits);

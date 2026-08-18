@@ -2,6 +2,7 @@
     Client, Response, StatusCode, Url,
     header::{self, HeaderMap, HeaderValue},
 };
+use percent_encoding::percent_decode_str;
 
 use super::{
     error::{DownloadError, Result},
@@ -157,7 +158,7 @@ fn parse_content_disposition(value: &str) -> Option<String> {
         if let Some(rest) = part.strip_prefix("filename*=") {
             let rest = rest.trim_matches('"');
             let encoded = rest.split("''").nth(1).unwrap_or(rest);
-            if let Ok(decoded) = urlencoding::decode(encoded) {
+            if let Ok(decoded) = percent_decode_str(encoded).decode_utf8() {
                 return Some(decoded.into_owned());
             }
         }
