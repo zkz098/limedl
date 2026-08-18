@@ -1,4 +1,5 @@
 import { invoke } from "#invoke";
+import { commandName } from "../ws/command-name";
 
 /** App identity/version info returned by `app_get_info` (dual-mode: Tauri IPC + NAS WebSocket). */
 export interface AppInfo {
@@ -19,20 +20,20 @@ export interface CheckUpdateFullResult {
 }
 
 export function getAppInfo() {
-  return invoke<AppInfo>("app_get_info");
+  return invoke<AppInfo>(commandName("app_get_info"));
 }
 
 /** Update tray language (dual-mode: Tauri IPC + NAS WebSocket). */
 export function updateTrayLanguage(language: string) {
-  return invoke<void>("update_tray_language", { language });
+  return invoke<void>(commandName("update_tray_language"), { language });
 }
 
 /** Check for app updates. */
 export function checkUpdateFull() {
-  return invoke<CheckUpdateFullResult | null>("check_update_full");
+  return invoke<CheckUpdateFullResult | null>(commandName("check_update_full"));
 }
 
 /** Download and install the pending update. */
 export function installUpdate() {
-  return invoke<void>("download_and_install_update");
+  return invoke<void>(commandName("download_and_install_update"));
 }

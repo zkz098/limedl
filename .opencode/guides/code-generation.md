@@ -18,6 +18,7 @@ cargo test --manifest-path crates/limedl-core/Cargo.toml --features ts -- export
 
 Output:
 - `src/types/generated/types.ts` — Rust type definitions (ts-rs)
+- `src/types/generated/settings-default.ts` — `AppSettings::default()` as TS (`DEFAULT_APP_SETTINGS`; Rust is the single source of truth, consumed via `src/lib/app-settings-defaults.ts` re-export)
 - `src/lib/ws/generated/ws-commands.ts` — WS command manifest
 - `src/lib/ws/generated/ws-events.ts` — WS event manifest
 

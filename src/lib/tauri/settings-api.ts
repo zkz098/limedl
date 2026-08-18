@@ -1,4 +1,5 @@
 import { invoke } from "#invoke";
+import { commandName } from "../ws/command-name";
 
 import type { AppSettings } from "../../types/settings";
 
@@ -13,45 +14,45 @@ export interface IoStatus {
 }
 
 export function getAppSettings() {
-  return invoke<AppSettings>("settings_get");
+  return invoke<AppSettings>(commandName("settings_get"));
 }
 
 export function saveAppSettings(settings: AppSettings) {
-  return invoke<AppSettings>("settings_save", { settings });
+  return invoke<AppSettings>(commandName("settings_save"), { settings });
 }
 
 export function fetchTrackerList(trackerListUrl: string) {
-  return invoke<string>("settings_fetch_tracker_list", { trackerListUrl });
+  return invoke<string>(commandName("settings_fetch_tracker_list"), { trackerListUrl });
 }
 
 export function toggleGameMode(enabled: boolean) {
-  return invoke<boolean>("toggle_game_mode", { enabled });
+  return invoke<boolean>(commandName("toggle_game_mode"), { enabled });
 }
 
 export function getIoStatus() {
-  return invoke<IoStatus>("get_io_status");
+  return invoke<IoStatus>(commandName("get_io_status"));
 }
 
 export function detectDiskType(dir: string) {
-  return invoke<"ssd" | "hdd">("detect_disk_type", { dir });
+  return invoke<"ssd" | "hdd">(commandName("detect_disk_type"), { dir });
 }
 
 export function detectAllDiskTypes() {
-  return invoke<Record<string, "ssd" | "hdd">>("detect_all_disk_types");
+  return invoke<Record<string, "ssd" | "hdd">>(commandName("detect_all_disk_types"));
 }
 
 export function toggleOverclockMode(enabled: boolean) {
-  return invoke<boolean>("toggle_overclock_mode", { enabled });
+  return invoke<boolean>(commandName("toggle_overclock_mode"), { enabled });
 }
 
 export function getOverclockMode() {
-  return invoke<boolean>("get_overclock_mode");
+  return invoke<boolean>(commandName("get_overclock_mode"));
 }
 
 export function factoryReset() {
-  return invoke<void>("factory_reset");
+  return invoke<void>(commandName("factory_reset"));
 }
 
 export function openLogDir() {
-  return invoke<void>("logging_open_dir");
+  return invoke<void>(commandName("logging_open_dir"));
 }

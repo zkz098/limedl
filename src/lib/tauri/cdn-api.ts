@@ -1,34 +1,35 @@
 import { invoke } from "#invoke";
+import { commandName } from "../ws/command-name";
 import type { CdnDetail, SpeedTestCandidate } from "../../types/cdn";
 
 export function fetchCloudflareRanges() {
-  return invoke<string[]>("cdn_fetch_ranges");
+  return invoke<string[]>(commandName("cdn_fetch_ranges"));
 }
 
 export function testAcceleration() {
-  return invoke<void>("cdn_test");
+  return invoke<void>(commandName("cdn_test"));
 }
 
 export function applyAcceleration(ip: string, speedMbps: number) {
-  return invoke<void>("cdn_apply", { ip, speedMbps });
+  return invoke<void>(commandName("cdn_apply"), { ip, speedMbps });
 }
 
 export function clearAcceleration() {
-  return invoke<void>("cdn_clear");
+  return invoke<void>(commandName("cdn_clear"));
 }
 
 export function getAccelerationStatus() {
-  return invoke<string>("cdn_status");
+  return invoke<string>(commandName("cdn_status"));
 }
 
 export function cancelAcceleration() {
-  return invoke<void>("cdn_cancel");
+  return invoke<void>(commandName("cdn_cancel"));
 }
 
 export function getAccelerationDetail() {
-  return invoke<CdnDetail>("cdn_detail");
+  return invoke<CdnDetail>(commandName("cdn_detail"));
 }
 
 export function getAccelerationCandidates() {
-  return invoke<SpeedTestCandidate[]>("cdn_candidates");
+  return invoke<SpeedTestCandidate[]>(commandName("cdn_candidates"));
 }
