@@ -313,7 +313,7 @@ async fn run_daemon(
             let std_listener = listener.into_std()?;
             let handle = axum_server::Handle::new();
             let server =
-                axum_server::from_tcp_rustls(std_listener, tls_config).handle(handle.clone());
+                axum_server::from_tcp_rustls(std_listener, tls_config)?.handle(handle.clone());
             tracing::info!("HTTPS enabled");
             let serve_handle = tokio::spawn(server.serve(app.into_make_service()));
             shutdown_signal.await;

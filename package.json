@@ -35,30 +35,30 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "@vue/devtools-api": "^8.2.1",
-    "@vueuse/core": "^14.3.0",
+    "@vueuse/core": "^14.4.0",
     "i18next": "^26.3.6",
-    "pinia": "^4.0.2",
-    "vue": "^3.5.40"
+    "pinia": "^4.0.3",
+    "vue": "^3.5.41"
   },
   "devDependencies": {
     "@iconify-json/ri": "^1.2.10",
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2.11.4",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.2.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "^4.1.10",
     "@vue/test-utils": "^2.4.11",
     "cross-env": "^10.1.0",
-    "jsdom": "^29.1.1",
-    "oxfmt": "^0.60.0",
-    "oxlint": "^1.75.0",
+    "jsdom": "^30.0.1",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
     "oxlint-tsgolint": "^7.0.2001",
     "sharp": "^0.35.3",
     "typescript": "~6.0.3",
     "unocss": "^66.7.5",
-    "vite": "^8.1.5",
+    "vite": "^8.2.1",
     "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.8"
+    "vue-tsc": "^3.3.10"
   },
   "packageManager": "pnpm@11.14.0"
 }

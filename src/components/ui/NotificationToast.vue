@@ -20,7 +20,7 @@ function iconFor(type: Notification["type"]) {
   }[type];
 }
 
-const reversed = computed(() => props.notifications.slice().reverse());
+const reversed = computed(() => props.notifications.toReversed());
 </script>
 
 <template>
