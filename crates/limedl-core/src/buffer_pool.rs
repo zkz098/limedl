@@ -194,7 +194,7 @@ impl<'a> Drop for FlipTokenGuard<'a> {
 
 /// Configuration for the shared ping-pong flip logic.
 struct PingPongCfg<'a> {
-    /// Global buffer pool for HDD memory tracking. `None` for SSD local mode.
+    /// Global buffer pool for HDD memory tracking. `None` for SSD (ping-pong) mode.
     pool: Option<&'a Arc<BufferPool>>,
     /// Whether to fsync in the IoWorker background flush path.
     bg_sync: bool,
@@ -298,7 +298,6 @@ impl BufferPool {
     }
 
     /// Release a slot permit (called from `DownloadBuffer::Drop`).
-    #[allow(dead_code)]
     pub fn release_slot(&self) {
         self.active_count.fetch_sub(1, Ordering::Relaxed);
     }
@@ -404,7 +403,7 @@ impl BufferPool {
 }
 
 // ---------------------------------------------------------------------------
-// DownloadBuffer — per-download double buffer (HDD) or local buffer (SSD)
+// DownloadBuffer — per-download double buffer (HDD) or ping-pong buffer (SSD)
 // ---------------------------------------------------------------------------
 
 /// Internal mode for `DownloadBuffer`.
@@ -426,13 +425,6 @@ enum BufferMode {
         slot: SlotGuard,
         file: Arc<File>,
     },
-    /// Local-limit mode used for SSD write combining.
-    Local {
-        chunks: Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        buffered_bytes: AtomicU64,
-        local_limit: u64,
-        file: Arc<File>,
-    },
     /// Local ping-pong mode for SSD write combining.
     /// Same double-buffer logic as HDD but without global pool/slot management.
     LocalPingPong {
@@ -451,46 +443,13 @@ enum BufferMode {
 }
 
 /// A per-download buffer that accumulates chunks in memory and flushes them
-/// to disk either sequentially (local mode) or via a background double-buffer
-/// ping-pong (HDD mode).
+/// to disk via a background double-buffer ping-pong (HDD / SSD).
 pub struct DownloadBuffer {
     mode: BufferMode,
     io_worker: Option<IoWorker>,
 }
 
 impl DownloadBuffer {
-    /// Create a pool-backed double-buffer for HDD downloads.
-    ///
-    /// `pool` — the global buffer pool.
-    /// `slot` — a pre-acquired slot permit from `pool.acquire_slot()`.
-    /// `file` — the output file wrapped in `Arc` for background I/O.
-    ///
-    /// This constructor uses `spawn_blocking` for flush operations (compatible
-    /// with tests / no-IoWorker contexts).  Prefer `new_with_worker` in
-    /// production code.
-    #[allow(dead_code)]
-    pub fn new(pool: Arc<BufferPool>, slot: SlotGuard, file: Arc<File>) -> Self {
-        let half_size = pool.half_size();
-        Self {
-            mode: BufferMode::Double {
-                half_a: Arc::new(Mutex::new(BTreeMap::new())),
-                half_b: Arc::new(Mutex::new(BTreeMap::new())),
-                active_is_a: AtomicBool::new(true),
-                usage_a: AtomicU64::new(0),
-                usage_b: AtomicU64::new(0),
-                half_size,
-                flush_handle: Mutex::new(None),
-                notify: Arc::new(Notify::new()),
-                error_flag: Arc::new(AtomicBool::new(false)),
-                flip_token: AtomicBool::new(false),
-                pool,
-                slot,
-                file,
-            },
-            io_worker: None,
-        }
-    }
-
     /// Create a pool-backed double-buffer with a dedicated I/O worker.
     pub fn new_with_worker(
         pool: Arc<BufferPool>,
@@ -519,38 +478,30 @@ impl DownloadBuffer {
         }
     }
 
-    /// Create a local-limit buffer for SSD write combining.
+    /// Create a pool-backed double-buffer without an I/O worker.
     ///
-    /// `limit_bytes` — the maximum bytes to accumulate before flushing.
-    /// `file` — the output file wrapped in `Arc`.
-    ///
-    /// This constructor uses `spawn_blocking` for flush operations (compatible
-    /// with tests / no-IoWorker contexts).  Prefer `new_local_with_worker` in
-    /// production code.
-    #[allow(dead_code)]
-    pub fn new_local(limit_bytes: u64, file: Arc<File>) -> Self {
+    /// Test-only: uses `spawn_blocking` for flush (compatible with tests that
+    /// don't spawn an `IoWorker`). Production always calls `new_with_worker`.
+    #[cfg(test)]
+    pub fn new(pool: Arc<BufferPool>, slot: SlotGuard, file: Arc<File>) -> Self {
+        let half_size = pool.half_size();
         Self {
-            mode: BufferMode::Local {
-                chunks: Arc::new(Mutex::new(BTreeMap::new())),
-                buffered_bytes: AtomicU64::new(0),
-                local_limit: limit_bytes,
+            mode: BufferMode::Double {
+                half_a: Arc::new(Mutex::new(BTreeMap::new())),
+                half_b: Arc::new(Mutex::new(BTreeMap::new())),
+                active_is_a: AtomicBool::new(true),
+                usage_a: AtomicU64::new(0),
+                usage_b: AtomicU64::new(0),
+                half_size,
+                flush_handle: Mutex::new(None),
+                notify: Arc::new(Notify::new()),
+                error_flag: Arc::new(AtomicBool::new(false)),
+                flip_token: AtomicBool::new(false),
+                pool,
+                slot,
                 file,
             },
             io_worker: None,
-        }
-    }
-
-    /// Create a local-limit buffer with a dedicated I/O worker.
-    #[allow(dead_code)]
-    pub fn new_local_with_worker(limit_bytes: u64, file: Arc<File>, worker: IoWorker) -> Self {
-        Self {
-            mode: BufferMode::Local {
-                chunks: Arc::new(Mutex::new(BTreeMap::new())),
-                buffered_bytes: AtomicU64::new(0),
-                local_limit: limit_bytes,
-                file,
-            },
-            io_worker: Some(worker),
         }
     }
 
@@ -616,16 +567,6 @@ impl DownloadBuffer {
                     data,
                 )
                 .await
-            }
-            BufferMode::Local {
-                chunks,
-                buffered_bytes,
-                local_limit,
-                file,
-            } => {
-                self.buffer_chunk_local(chunks, buffered_bytes, *local_limit, file, offset, data)
-                    .await;
-                Ok(())
             }
             BufferMode::LocalPingPong {
                 half_a,
@@ -914,63 +855,6 @@ impl DownloadBuffer {
         ).await
     }
 
-    /// Local (SSD) mode: insert if under the local limit; otherwise flush the
-    /// current buffer synchronously (blocking the current task) and retry.
-    async fn buffer_chunk_local(
-        &self,
-        chunks: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        buffered_bytes: &AtomicU64,
-        local_limit: u64,
-        file: &Arc<File>,
-        offset: u64,
-        data: Bytes,
-    ) {
-        let len = data.len() as u64;
-
-        // Fast path — atomically claim space, then check the limit.
-        // Using fetch_add avoids the TOCTOU race between a separate load
-        // and the subsequent fetch_add, and saturating arithmetic prevents
-        // overflow panics in debug builds.
-        let prev = buffered_bytes.fetch_add(len, Ordering::Relaxed);
-        let new_total = prev.saturating_add(len);
-        if local_limit == 0 || new_total <= local_limit {
-            // Room was available — insert and we're done.
-            chunks.lock().insert(offset, data);
-            return;
-        }
-        // Exceeded limit — undo the speculative add, then fall through to flush.
-        buffered_bytes.fetch_sub(len, Ordering::Relaxed);
-
-        // Buffer is full — flush via IoWorker or spawn_blocking so we don't
-        // block the tokio async runtime.
-        let file = file.clone();
-        let entries: Vec<(u64, Bytes)> = {
-            let mut map = chunks.lock();
-            std::mem::take(&mut *map).into_iter().collect()
-        };
-        let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
-        if let Some(ref worker) = self.io_worker {
-            if let Err(e) = worker.write_batch(file, entries, false).await {
-                tracing::error!("SSD local buffer flush failed (IoWorker): {e}");
-            }
-        } else {
-            tokio::task::spawn_blocking(move || {
-                for (off, chunk) in &entries {
-                    if let Err(e) = write_all_at(&file, chunk, *off) {
-                        tracing::error!("SSD local buffer flush failed at offset {off}: {e}");
-                    }
-                }
-            })
-            .await
-            .expect("spawn_blocking panicked during SSD flush");
-        }
-        buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
-
-        // Now insert the new chunk.
-        chunks.lock().insert(offset, data);
-        buffered_bytes.fetch_add(len, Ordering::Relaxed);
-    }
-
     /// Local ping-pong mode: same double-buffer flip logic as HDD but without
     /// global pool/slot management.
     #[allow(clippy::too_many_arguments)]
@@ -1005,7 +889,6 @@ impl DownloadBuffer {
 
     /// Flush a single half's buffer to disk without pool tracking.
     /// Used by `flush_all` for LocalPingPong mode.
-    #[allow(dead_code)]
     async fn flush_one_half_local(
         half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         usage: &AtomicU64,
@@ -1041,9 +924,9 @@ impl DownloadBuffer {
 
     /// Flush all buffered data to disk.
     ///
-    /// In double-buffer mode: waits for any active background flush, then
+    /// In HDD double-buffer mode: waits for any active background flush, then
     /// flushes both halves synchronously (via spawn_blocking).
-    /// In local mode: flushes the single map synchronously.
+    /// In SSD ping-pong mode: flushes both halves synchronously.
     ///
     /// Returns an error if any flush failed.
     pub async fn flush_all(&self) -> Result<(), DownloadError> {
@@ -1093,30 +976,6 @@ impl DownloadBuffer {
                     ));
                 }
 
-                Ok(())
-            }
-            BufferMode::Local {
-                chunks,
-                buffered_bytes,
-                file,
-                ..
-            } => {
-                let entries: Vec<(u64, Bytes)> = {
-                    let mut map = chunks.lock();
-                    if map.is_empty() {
-                        return Ok(());
-                    }
-                    std::mem::take(&mut *map).into_iter().collect()
-                };
-                let flushed: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
-                if let Some(ref worker) = self.io_worker {
-                    worker.write_batch(file.clone(), entries, false).await?;
-                } else {
-                    for (off, chunk) in &entries {
-                        write_all_at(file, chunk, *off)?;
-                    }
-                }
-                buffered_bytes.fetch_sub(flushed, Ordering::Relaxed);
                 Ok(())
             }
             BufferMode::LocalPingPong {
@@ -1226,7 +1085,6 @@ impl DownloadBuffer {
                     let _ = h.await;
                 }
             }
-            BufferMode::Local { .. } => {}
         }
     }
 
@@ -1260,19 +1118,6 @@ impl DownloadBuffer {
                 }
                 error_flag.store(false, Ordering::Release);
             }
-            BufferMode::Local {
-                chunks,
-                buffered_bytes,
-                ..
-            } => {
-                let bytes: u64 = {
-                    let mut map = chunks.lock();
-                    let sum = map.values().map(|d| d.len() as u64).sum();
-                    map.clear();
-                    sum
-                };
-                buffered_bytes.fetch_sub(bytes, Ordering::Relaxed);
-            }
             BufferMode::LocalPingPong {
                 half_a,
                 half_b,
@@ -1291,33 +1136,31 @@ impl DownloadBuffer {
             }
         }
     }
-
-    /// Total bytes currently buffered.
-    #[allow(dead_code)]
+    /// Total bytes currently buffered (test-only).
+    #[cfg(test)]
     pub fn len(&self) -> u64 {
         match &self.mode {
             BufferMode::Double {
                 usage_a, usage_b, ..
             } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
-            BufferMode::Local { buffered_bytes, .. } => buffered_bytes.load(Ordering::Relaxed),
-            BufferMode::LocalPingPong { usage_a, usage_b, .. } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
+            BufferMode::LocalPingPong { usage_a, usage_b, .. } => {
+                usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed)
+            }
         }
     }
 
-    /// Whether the buffer is empty.
-    #[allow(dead_code)]
+    /// Whether the buffer is empty (test-only).
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Whether any background flush has degraded (double mode only).
-    /// Always `false` in local mode.
-    #[allow(dead_code)]
+    /// Whether any background flush has degraded (test-only).
+    #[cfg(test)]
     pub fn has_degraded(&self) -> bool {
         match &self.mode {
             BufferMode::Double { error_flag, .. } => error_flag.load(Ordering::Relaxed),
             BufferMode::LocalPingPong { error_flag, .. } => error_flag.load(Ordering::Relaxed),
-            BufferMode::Local { .. } => false,
         }
     }
 }
@@ -1357,24 +1200,6 @@ impl Drop for DownloadBuffer {
                 // `slot` (SlotGuard) and `flush_handle` (JoinHandle) are
                 // dropped after this, returning the semaphore permit and
                 // detaching the background task respectively.
-            }
-            BufferMode::Local {
-                chunks,
-                buffered_bytes,
-                ..
-            } => {
-                let bytes: u64 = {
-                    let mut map = chunks.lock();
-                    let sum = map.values().map(|d| d.len() as u64).sum();
-                    map.clear();
-                    sum
-                };
-                if bytes > 0 {
-                    tracing::warn!(
-                        "SSD Local DownloadBuffer dropped with {bytes} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
-                    );
-                }
-                buffered_bytes.fetch_sub(bytes, Ordering::Relaxed);
             }
             BufferMode::LocalPingPong {
                 half_a,
@@ -2031,88 +1856,9 @@ mod tests {
     // DownloadBuffer — SSD (Local) mode
     // -----------------------------------------------------------------------
 
-    #[tokio::test]
-    #[timeout(10000)]
-    async fn test_ssd_buffer_creation() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file);
 
-        assert_eq!(buf.len(), 0);
-        assert!(!buf.has_degraded());
-    }
 
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_ssd_buffer_chunk_and_flush() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file.clone());
 
-        let data = Bytes::from("hello ssd buffer");
-        buf.buffer_chunk(0, data.clone()).await.unwrap();
-        assert_eq!(buf.len(), 16);
-
-        buf.flush_all().await.unwrap();
-        assert_eq!(buf.len(), 0);
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert_eq!(&content[..16], b"hello ssd buffer");
-    }
-
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_ssd_buffer_chunk_multiple_offsets() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file);
-
-        buf.buffer_chunk(0, Bytes::from("aaaa")).await.unwrap();
-        buf.buffer_chunk(10, Bytes::from("bbbb")).await.unwrap();
-        buf.buffer_chunk(20, Bytes::from("cccc")).await.unwrap();
-        assert_eq!(buf.len(), 12);
-
-        buf.flush_all().await.unwrap();
-        assert_eq!(buf.len(), 0);
-
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert_eq!(&content[0..4], b"aaaa");
-        assert_eq!(&content[10..14], b"bbbb");
-        assert_eq!(&content[20..24], b"cccc");
-    }
-
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_ssd_buffer_auto_flush_when_full() {
-        // When local_limit is reached, the buffer auto-flushes synchronously.
-        let (_dir, file) = temp_file();
-        let local_limit = 100u64;
-        let buf = DownloadBuffer::new_local(local_limit, file);
-
-        // Fill nearly to capacity.
-        let chunk1 = Bytes::from(vec![0xAAu8; 60]);
-        let chunk2 = Bytes::from(vec![0xBBu8; 40]);
-        buf.buffer_chunk(0, chunk1).await.unwrap();
-        assert_eq!(buf.len(), 60);
-
-        // chunk2 puts us exactly at 100 (equal to local_limit), so it fits.
-        buf.buffer_chunk(60, chunk2).await.unwrap();
-        assert_eq!(buf.len(), 100);
-
-        // This chunk exceeds local_limit → triggers an auto-flush.
-        let chunk3 = Bytes::from(vec![0xCCu8; 10]);
-        buf.buffer_chunk(120, chunk3).await.unwrap();
-
-        // After auto-flush + insert, buffer should have just chunk3 (10 bytes).
-        assert_eq!(buf.len(), 10);
-
-        // Verify chunk1 and chunk2 are on disk.
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert_eq!(content[0], 0xAA);
-        assert_eq!(content[59], 0xAA);
-        assert_eq!(content[60], 0xBB);
-        assert_eq!(content[99], 0xBB);
-        // chunk3 should NOT be on disk yet (still buffered).
-        // Actually, since we don't have enough data to confirm absence,
-        // just check file length is at least 100.
-        assert!(content.len() >= 100);
-    }
 
     // -----------------------------------------------------------------------
     // flush_all
@@ -2130,13 +1876,6 @@ mod tests {
         buf.flush_all().await.unwrap();
     }
 
-    #[tokio::test]
-    #[timeout(10000)]
-    async fn test_flush_all_ssd_empty() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file);
-        buf.flush_all().await.unwrap();
-    }
 
     // -----------------------------------------------------------------------
     // clear()
@@ -2167,25 +1906,6 @@ mod tests {
         assert_eq!(&content[..8], b"new data");
     }
 
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_clear_ssd() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file);
-
-        buf.buffer_chunk(0, Bytes::from("discard me"))
-            .await
-            .unwrap();
-        assert_eq!(buf.len(), 10);
-
-        buf.clear();
-        assert_eq!(buf.len(), 0);
-
-        buf.buffer_chunk(0, Bytes::from("fresh")).await.unwrap();
-        buf.flush_all().await.unwrap();
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert_eq!(&content[..5], b"fresh");
-    }
 
     // -----------------------------------------------------------------------
     // DownloadBuffer — SSD (LocalPingPong) mode
@@ -2508,17 +2228,6 @@ mod tests {
         assert!(content.is_empty());
     }
 
-    #[tokio::test]
-    #[timeout(10000)]
-    async fn test_zero_size_chunk_ssd() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file);
-
-        buf.buffer_chunk(0, Bytes::new()).await.unwrap();
-        assert_eq!(buf.len(), 0);
-
-        buf.flush_all().await.unwrap();
-    }
 
     // -----------------------------------------------------------------------
     // Concurrent buffer_chunk calls
@@ -2565,39 +2274,6 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_concurrent_ssd_buffer_chunks() {
-        let (_dir, file) = temp_file();
-        let file_arc = file.clone();
-        let buf = Arc::new(DownloadBuffer::new_local(4 * MB, file_arc));
-
-        let mut handles = Vec::new();
-        let num_chunks = 8u64;
-        for i in 0..num_chunks {
-            let b = buf.clone();
-            handles.push(tokio::spawn(async move {
-                let payload = vec![i as u8; 1024];
-                b.buffer_chunk(i * 1024, Bytes::from(payload))
-                    .await
-                    .unwrap();
-            }));
-        }
-        for h in handles {
-            h.await.unwrap();
-        }
-
-        assert_eq!(buf.len(), num_chunks * 1024);
-
-        buf.flush_all().await.unwrap();
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert!(content.len() >= (num_chunks * 1024) as usize);
-
-        for i in 0..num_chunks {
-            let off = (i * 1024) as usize;
-            assert_eq!(content[off], i as u8);
-        }
-    }
 
     // -----------------------------------------------------------------------
     // Game mode transition while slots are held
@@ -2708,42 +2384,11 @@ mod tests {
         assert_eq!(&content[..3], b"BBB");
     }
 
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_overlapping_writes_ssd() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file);
-
-        buf.buffer_chunk(0, Bytes::from("XXX")).await.unwrap();
-        buf.buffer_chunk(0, Bytes::from("YYY")).await.unwrap();
-
-        buf.flush_all().await.unwrap();
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert_eq!(&content[..3], b"YYY");
-    }
 
     // -----------------------------------------------------------------------
     // Multiple flushes
     // -----------------------------------------------------------------------
 
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_flush_all_multiple_times_ssd() {
-        let (_dir, file) = temp_file();
-        let buf = DownloadBuffer::new_local(4 * MB, file);
-
-        buf.buffer_chunk(0, Bytes::from("first")).await.unwrap();
-        buf.flush_all().await.unwrap();
-        assert_eq!(buf.len(), 0);
-
-        buf.buffer_chunk(10, Bytes::from("second")).await.unwrap();
-        buf.flush_all().await.unwrap();
-        assert_eq!(buf.len(), 0);
-
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert_eq!(&content[0..5], b"first");
-        assert_eq!(&content[10..16], b"second");
-    }
 
     #[tokio::test]
     #[timeout(30000)]
@@ -3052,22 +2697,6 @@ mod tests {
         assert_eq!(&content[..15], b"hello io worker");
     }
 
-    #[tokio::test]
-    #[timeout(30000)]
-    async fn test_ssd_with_worker_buffer_chunk_and_flush() {
-        let (_dir, file) = temp_file();
-        let worker = IoWorker::spawn();
-        let buf = DownloadBuffer::new_local_with_worker(4 * MB, file.clone(), worker);
-
-        let data = Bytes::from("hello ssd io worker");
-        buf.buffer_chunk(0, data.clone()).await.unwrap();
-        assert_eq!(buf.len(), 19);
-
-        buf.flush_all().await.unwrap();
-        assert_eq!(buf.len(), 0);
-        let content = fs::read(_dir.path().join("test.bin")).unwrap();
-        assert_eq!(&content[..19], b"hello ssd io worker");
-    }
 
     #[tokio::test]
     #[timeout(30000)]
