@@ -1206,9 +1206,10 @@ impl DownloadBuffer {
 
     /// Wait for any in-progress background flush to complete, discarding its result.
     ///
-    /// Used on cancellation: we must drain the background task before closing the
-    /// file handle, otherwise `cleanup_files` will fail on Windows (sharing violation
-    /// because the background `spawn_blocking` still holds an `Arc<File>`).
+    /// Test-only helper: the production cancel paths use `flush_all` instead, which
+    /// also awaits the in-flight background task but persists buffered data (draining
+    /// here would discard chunks already credited to `downloaded_bytes`).
+    #[cfg(test)]
     pub async fn drain_background(&self) {
         match &self.mode {
             BufferMode::Double { flush_handle, .. } => {

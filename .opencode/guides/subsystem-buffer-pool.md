@@ -39,7 +39,7 @@ Worker 下载数据块 → buffer_chunk(offset, data)
   │      → IoWorker::write_batch() 异步刷盘
   └─ [SSD] 写入本地 BTreeMap → 缓冲满 → IoWorker::write_batch()
 
-取消/暂停 → drain_background() → 等待后台 flush 完成
+取消/暂停 → flush_all() → 等待后台 flush 完成并持久化已计费数据（drain_background 仅测试辅助）
 下载完成 → flush_all() → SlotGuard drop → 归还池槽位
 
 最终化 → finalize_temp_file(temp_path, destination_path)
