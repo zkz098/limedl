@@ -54,6 +54,7 @@ fn http_request(url: String, dest_dir: &std::path::Path) -> StartDownloadRequest
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        headers: None,
         mirror_urls: None,
         priority: None,
     }
@@ -441,6 +442,7 @@ async fn bt_contract_start_magnet_and_cancel() -> TestResult {
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        headers: None,
         mirror_urls: None,
         priority: None,
     };
@@ -479,6 +481,7 @@ async fn bt_contract_start_magnet_and_remove() -> TestResult {
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        headers: None,
         mirror_urls: None,
         priority: None,
     };

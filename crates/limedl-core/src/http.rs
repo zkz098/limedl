@@ -139,6 +139,7 @@ pub fn build_segment_request(
     client: &Client,
     url: &str,
     user_agent: &str,
+    extra_headers: &[String],
     start: u64,
     end: u64,
     validator: Option<(header::HeaderName, HeaderValue)>,
@@ -149,6 +150,30 @@ pub fn build_segment_request(
         .header(header::RANGE, format!("bytes={start}-{end}"));
     if let Some((name, value)) = validator {
         builder = builder.header(name, value);
+    }
+    apply_extra_headers(builder, extra_headers)
+}
+
+/// Apply `"Name: Value"` extra headers to a request builder, skipping any
+/// malformed entries.
+pub fn apply_extra_headers(
+    mut builder: reqwest::RequestBuilder,
+    headers: &[String],
+) -> reqwest::RequestBuilder {
+    for h in headers {
+        if let Some((name, value)) = h.split_once(':') {
+            let name = name.trim();
+            let value = value.trim();
+            if name.is_empty() || value.is_empty() {
+                continue;
+            }
+            if let (Ok(n), Ok(v)) = (
+                header::HeaderName::from_bytes(name.as_bytes()),
+                header::HeaderValue::from_str(value),
+            ) {
+                builder = builder.header(n, v);
+            }
+        }
     }
     builder
 }
@@ -587,6 +612,7 @@ mod tests {
             &client,
             "https://example.com/file",
             "TestAgent/1.0",
+            &[],
             100,
             199,
             None,
@@ -603,6 +629,7 @@ mod tests {
             &client,
             "https://example.com/file",
             "TestAgent/1.0",
+            &[],
             0,
             99,
             validator,
@@ -691,6 +718,7 @@ mod tests {
             url: String::new(),
             final_url: String::new(),
             user_agent: String::new(),
+            extra_headers: vec![],
             destination_dir: String::new(),
             file_name: String::new(),
             file_name_locked: false,

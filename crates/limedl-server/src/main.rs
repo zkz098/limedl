@@ -577,6 +577,7 @@ async fn run_single_download(url: &str, output: Option<&PathBuf>) -> anyhow::Res
         user_agent: None,
         expected_checksum: None,
         selected_file_indices: None,
+        headers: None,
         priority: None,
     };
 

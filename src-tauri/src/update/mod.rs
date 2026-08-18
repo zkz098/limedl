@@ -137,6 +137,7 @@ pub async fn download_and_install_update(
             let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
             let request = StartDownloadRequest {
                 kind: None,
+                headers: None,
                 url: update.download_url.to_string(),
                 destination_dir: temp_dir.to_string_lossy().to_string(),
                 file_name: None,

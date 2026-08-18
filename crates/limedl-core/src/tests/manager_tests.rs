@@ -141,6 +141,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         }),
@@ -594,6 +595,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -613,6 +615,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -706,6 +709,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -776,6 +780,7 @@ async fn checksum_match_succeeds() -> TestResult {
             expected_checksum: Some(expected_good),
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -838,6 +843,7 @@ async fn checksum_mismatch_detected() -> TestResult {
             expected_checksum: Some(expected_bad),
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -1062,6 +1068,7 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
                     url: String::new(),
                     final_url: String::new(),
                     user_agent: "test".into(),
+                    extra_headers: vec![],
                     destination_dir: String::new(),
                     file_name: String::new(),
                     file_name_locked: false,
@@ -1208,6 +1215,7 @@ fn make_managed(id: &str, state: DownloadState, url: &str) -> Arc<ManagedDownloa
                 url: url.to_string(),
                 final_url: url.to_string(),
                 user_agent: "test".into(),
+                extra_headers: vec![],
                 destination_dir: String::new(),
                 file_name: String::new(),
                 file_name_locked: false,
@@ -1275,6 +1283,7 @@ async fn start_rejects_unsupported_scheme() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -1309,6 +1318,7 @@ async fn start_rejects_empty_destination_dir() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -1343,6 +1353,7 @@ async fn start_rejects_relative_destination_dir() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -1377,6 +1388,7 @@ async fn start_rejects_checksum_mode_mismatch() -> TestResult {
             expected_checksum: Some("abc123".into()),
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })

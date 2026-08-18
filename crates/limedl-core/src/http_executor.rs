@@ -32,7 +32,8 @@ use crate::{
         reset_download_file, write_all_at,
     },
     http::{
-        build_segment_request, extract_total_bytes, header_string, if_range_header, infer_file_name,
+        apply_extra_headers, build_segment_request, extract_total_bytes, header_string, if_range_header,
+        infer_file_name,
         supports_ranges, validate_probe_response, validate_segment_response,
     },
     manager::{
@@ -73,23 +74,26 @@ impl HttpExecutor {
         dm: &DownloadManager,
         url: &str,
         user_agent: &str,
+        extra_headers: &[String],
     ) -> Result<RemoteMetadata> {
         let (client, _, _) = dm.resolve_client(url).await;
-        let head = client
-            .head(url)
-            .header(header::USER_AGENT, user_agent)
-            .send()
-            .await;
+        let head = apply_extra_headers(
+            client.head(url).header(header::USER_AGENT, user_agent),
+            extra_headers,
+        )
+        .send()
+        .await;
         let response = match head {
             Ok(response) if response.status().is_success() => response,
-            _ => {
+            _ => apply_extra_headers(
                 client
                     .get(url)
                     .header(header::USER_AGENT, user_agent)
-                    .header(header::RANGE, "bytes=0-0")
-                    .send()
-                    .await?
-            }
+                    .header(header::RANGE, "bytes=0-0"),
+                extra_headers,
+            )
+            .send()
+            .await?,
         };
 
         validate_probe_response(&response)?;
@@ -125,7 +129,12 @@ impl HttpExecutor {
     ) -> Result<()> {
         let current_manifest = { managed.lock_core().manifest.clone() };
         let metadata = self
-            .probe(&dm, &current_manifest.final_url, &current_manifest.user_agent)
+            .probe(
+                &dm,
+                &current_manifest.final_url,
+                &current_manifest.user_agent,
+                &current_manifest.extra_headers,
+            )
             .await?;
 
         // Check available disk space before starting the download
@@ -146,6 +155,7 @@ impl HttpExecutor {
             destination_dir: current_manifest.destination_dir.clone(),
             file_name: Some(current_manifest.file_name.clone()),
             user_agent: Some(current_manifest.user_agent.clone()),
+            headers: Some(current_manifest.extra_headers.clone()),
             thread_mode: Some(current_manifest.thread_mode),
             thread_count: current_manifest.requested_thread_count,
             max_retries: None,
@@ -386,11 +396,12 @@ impl HttpExecutor {
                     }
             }
 
-            let (url, user_agent, validator, state) = {
+            let (url, user_agent, extra_headers, validator, state) = {
                 let core = managed.lock_core();
                 (
                     core.manifest.final_url.clone(),
                     core.manifest.user_agent.clone(),
+                    core.manifest.extra_headers.clone(),
                     if_range_header(&core.manifest),
                     core.manifest.state,
                 )
@@ -417,9 +428,11 @@ impl HttpExecutor {
                     let client = client.clone();
                     let url = url.clone();
                     let user_agent = user_agent.clone();
+                    let extra_headers = extra_headers.clone();
                     let validator = validator.clone();
                     async move {
-                        let mut builder = client.get(url).header(header::USER_AGENT, user_agent);
+                        let mut builder =
+                            apply_extra_headers(client.get(url).header(header::USER_AGENT, user_agent), &extra_headers);
                         if start_offset > 0 {
                             builder =
                                 builder.header(header::RANGE, format!("bytes={start_offset}-"));
@@ -1293,11 +1306,12 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
             }
         }
 
-        let (url, user_agent, validator) = {
+        let (url, user_agent, extra_headers, validator) = {
             let core = ctx.managed.lock_core();
             (
                 core.manifest.final_url.clone(),
                 core.manifest.user_agent.clone(),
+                core.manifest.extra_headers.clone(),
                 if_range_header(&core.manifest),
             )
         };
@@ -1307,11 +1321,20 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
                 let client = ctx.client.clone();
                 let url = url.clone();
                 let user_agent = user_agent.clone();
+                let extra_headers = extra_headers.clone();
                 let validator = validator.clone();
                 async move {
-                    build_segment_request(&client, &url, &user_agent, current, end, validator)
-                        .send()
-                        .await
+                    build_segment_request(
+                        &client,
+                        &url,
+                        &user_agent,
+                        &extra_headers,
+                        current,
+                        end,
+                        validator,
+                    )
+                    .send()
+                    .await
                 }
             },
             ctx.token.clone(),

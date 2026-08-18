@@ -43,6 +43,7 @@ async fn mirror_fallback_on_primary_failure() {
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        headers: None,
         mirror_urls: Some(vec![broken_url.to_string(), mirror_url.clone()]),
         user_agent: None,
     priority: None,

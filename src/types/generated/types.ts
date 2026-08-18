@@ -323,7 +323,7 @@ throughputMbps: number | null,
  */
 error: string | null, };
 
-export type StartDownloadRequest = { kind: TaskKind | null, url: string, destinationDir: string, fileName?: string | null, userAgent: string | null, threadMode?: ThreadMode | null, threadCount?: number | null, maxRetries?: number | null, checksum?: ChecksumMode | null, expectedChecksum?: string | null, selectedFileIndices?: Array<number> | null, startPaused: boolean, mirrorUrls?: Array<string> | null, priority?: Priority | null, };
+export type StartDownloadRequest = { kind: TaskKind | null, url: string, destinationDir: string, fileName?: string | null, userAgent: string | null, threadMode?: ThreadMode | null, threadCount?: number | null, maxRetries?: number | null, checksum?: ChecksumMode | null, expectedChecksum?: string | null, selectedFileIndices?: Array<number> | null, headers?: Array<string> | null, startPaused: boolean, mirrorUrls?: Array<string> | null, priority?: Priority | null, };
 
 export type TaskKind = "http" | "bt";
 

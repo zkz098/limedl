@@ -38,6 +38,26 @@ pub struct Aria2cArgs {
     pub checksum: Option<(String, String)>,
     pub dry_run: bool,
     pub quiet: bool,
+    /// `-i` batch input file (URLs, one per line, `#` comments)
+    pub input_file: Option<PathBuf>,
+    /// `-Z` conditional-get: skip when the output file already exists
+    pub conditional_get: bool,
+    /// `--select-file` (1-based) — BT file selection
+    pub select_files: Vec<usize>,
+    /// `-S` show torrent file listing (accepted; engine display limited)
+    pub show_files: bool,
+    /// `--enable-rpc` config (mode: start an aria2 RPC server)
+    pub rpc: Option<RpcConfig>,
+    /// Warnings for accepted-but-unwired options
+    pub unsupported: Vec<String>,
+}
+
+/// RPC (`--enable-rpc`) configuration mapping to the aria2 RPC server.
+#[derive(Debug, Clone, Default)]
+pub struct RpcConfig {
+    pub secret: Option<String>,
+    pub port: u16,
+    pub listen_all: bool,
 }
 
 /// Parse `--size`-style values with K/M/G suffixes (bytes for limits, split …).
@@ -75,6 +95,11 @@ fn option_takes_value(name: &str) -> bool {
             | "--user-agent" | "-U"
             | "--header" | "-H"
             | "--checksum"
+            | "-i" | "--input-file"
+            | "--select-file"
+            | "--seed-time"
+            | "--rpc-secret"
+            | "--rpc-listen-port"
     )
 }
 
@@ -103,6 +128,44 @@ fn apply(name: &str, value: Option<String>, cfg: &mut Aria2cArgs) -> Result<(), 
         }
         "--user-agent" | "-U" => cfg.user_agent = Some(need()),
         "--header" | "-H" => cfg.headers.push(need()),
+        "-i" | "--input-file" => cfg.input_file = Some(PathBuf::from(need())),
+        "--select-file" => {
+            let v = need();
+            match v.parse::<usize>() {
+                Ok(n) if n >= 1 => cfg.select_files.push(n),
+                _ => return Err(format!("invalid --select-file index: {v} (must be >= 1)")),
+            }
+        }
+        "-Z" | "--conditional-get" => cfg.conditional_get = true,
+        "-S" | "--show-files" => cfg.show_files = true,
+        "--seed-time" => {
+            let v = need();
+            v.parse::<u64>()
+                .map_err(|_| format!("invalid --seed-time: {v}"))?;
+            cfg.unsupported.push("--seed-time is not wired in the CLI engine; ignoring".to_string());
+        }
+        "--check-integrity" => {
+            cfg.unsupported
+                .push("--check-integrity is not wired in the CLI engine; ignoring".to_string());
+        }
+        "--enable-rpc" => {
+            cfg.rpc = Some(cfg.rpc.take().unwrap_or_default());
+        }
+        "--rpc-secret" => {
+            let rpc = cfg.rpc.get_or_insert_with(RpcConfig::default);
+            rpc.secret = Some(need());
+        }
+        "--rpc-listen-port" => {
+            let v = need();
+            let rpc = cfg.rpc.get_or_insert_with(RpcConfig::default);
+            rpc.port = v
+                .parse::<u16>()
+                .map_err(|_| format!("invalid --rpc-listen-port: {v}"))?;
+        }
+        "--rpc-listen-all" | "--enable-rpc-listen-all" => {
+            let rpc = cfg.rpc.get_or_insert_with(RpcConfig::default);
+            rpc.listen_all = true;
+        }
         "--checksum" => {
             let v = need();
             let (alg, hash) = v
@@ -181,6 +244,34 @@ pub fn parse_args(argv: &[String]) -> Result<Aria2cArgs, String> {
 
 /// Run aria2c-compatible downloads. Returns the process exit code.
 pub async fn run(args: &Aria2cArgs) -> anyhow::Result<i32> {
+    for w in &args.unsupported {
+        eprintln!("aria2c: warning: {w}");
+    }
+
+    let mut args = args.clone();
+    // `-i/--input-file`: append URIs read from the file.
+    if let Some(input) = &args.input_file {
+        let content = std::fs::read_to_string(input)
+            .map_err(|e| anyhow::anyhow!("cannot read --input-file {}: {e}", input.display()))?;
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            args.urls.push(line.to_string());
+        }
+    }
+
+    if args.show_files {
+        eprintln!("aria2c: -S/--show-files needs the BT backend file preview; not wired in the CLI engine (Stage 3 subset)");
+        return Ok(1);
+    }
+
+    // `--enable-rpc`: start the aria2 JSON-RPC server and stay running.
+    if let Some(rpc) = &args.rpc {
+        return run_rpc(rpc).await;
+    }
+
     if args.urls.is_empty() {
         eprintln!("aria2c: no URIs provided");
         return Ok(3);
@@ -196,9 +287,6 @@ pub async fn run(args: &Aria2cArgs) -> anyhow::Result<i32> {
     // rather than silently ignoring them.
     if args.resume {
         eprintln!("aria2c: warning: --continue is not yet wired in the CLI engine; ignoring");
-    }
-    if !args.headers.is_empty() {
-        eprintln!("aria2c: warning: --header is not yet wired in the CLI engine; ignoring");
     }
     if args.min_split_size.is_some() {
         eprintln!("aria2c: warning: --min-split-size is not yet wired in the CLI engine; ignoring");
@@ -263,6 +351,37 @@ pub async fn run(args: &Aria2cArgs) -> anyhow::Result<i32> {
     }
 }
 
+/// `--enable-rpc`: start the aria2 JSON-RPC server (via the shared core engine)
+/// and stay running until Ctrl-C. Returns the process exit code.
+async fn run_rpc(rpc: &RpcConfig) -> anyhow::Result<i32> {
+    let temp_dir = std::env::temp_dir().join("limedl-aria2c-rpc");
+    let state_dir = temp_dir.join("state");
+    std::fs::create_dir_all(&state_dir)?;
+
+    let systems = limedl_core::bootstrap::bootstrap(state_dir.clone()).await?;
+    let mut settings = systems.settings.clone();
+    settings.aria2_rpc.enabled = true;
+    settings.aria2_rpc.secret = rpc.secret.clone();
+    settings.aria2_rpc.port = rpc.port;
+
+    let (tx, rx) = tokio::sync::watch::channel(false);
+    let server = limedl_core::Aria2RpcServer::new(
+        systems.registry.clone(),
+        &settings.aria2_rpc,
+        systems.event_bus.clone(),
+    );
+    let addr = format!("127.0.0.1:{}", rpc.port);
+    println!("aria2c: RPC server listening on {addr} (Ctrl-C to stop)");
+
+    tokio::select! {
+        res = server.serve(rx, vec![]) => { res?; }
+        _ = tokio::signal::ctrl_c() => { println!("aria2c: shutting down"); }
+    }
+    let _ = tx.send(true);
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    Ok(0)
+}
+
 /// Download one URL to completion; returns `Some(exit_code)` on failure.
 async fn run_one(
     manager: &Arc<limedl_core::DownloadManager>,
@@ -274,6 +393,20 @@ async fn run_one(
     let mut rx = event_bus.subscribe();
 
     let (dest_dir, file_name) = resolve_output(args, url, idx);
+
+    // `-Z/--conditional-get`: skip if the output file already exists.
+    if args.conditional_get {
+        let target = file_name
+            .as_ref()
+            .map(|n| std::path::Path::new(&dest_dir).join(n));
+        if let Some(t) = &target {
+            if t.exists() {
+                println!("[#{} {url}] skipped ({}) — already exists", idx + 1, t.display());
+                return Ok(None);
+            }
+        }
+    }
+
     let (checksum_mode, expected_checksum) = map_checksum(args.checksum.as_ref())?;
 
     let thread_count = args
@@ -291,10 +424,19 @@ async fn run_one(
         max_retries: Some(5),
         checksum: checksum_mode,
         expected_checksum,
+        headers: if args.headers.is_empty() {
+            None
+        } else {
+            Some(args.headers.clone())
+        },
         start_paused: false,
         mirror_urls: None,
         user_agent: args.user_agent.clone(),
-        selected_file_indices: None,
+        selected_file_indices: if args.select_files.is_empty() {
+            None
+        } else {
+            Some(args.select_files.clone())
+        },
         priority: None,
     };
 
@@ -390,6 +532,13 @@ pub fn print_usage() {
     println!("      --checksum <TYPE=HASH>          verify checksum (sha256/blake3/sha1/xxh3)");
     println!("      --dry-run                       print URIs only");
     println!("  -q, --quiet                         suppress progress");
+    println!("  -i, --input-file <FILE>             read URIs from a file");
+    println!("  -Z, --conditional-get               skip if output file exists");
+    println!("      --select-file <N>               BT: select 1-based file index (repeatable)");
+    println!("  -S, --show-files                    list torrent files (not wired)");
+    println!("      --enable-rpc                    start aria2 JSON-RPC server");
+    println!("      --rpc-secret <SECRET>           RPC auth secret");
+    println!("      --rpc-listen-port <PORT>        RPC listen port (default 6800)");
     println!("      --version                       print version");
     println!("  -h, --help                          show this help");
 }
@@ -447,5 +596,29 @@ mod tests {
     fn help_and_version_markers() {
         assert!(parse_args(&v(&["--help"])).is_err());
         assert!(parse_args(&v(&["--version"])).is_err());
+    }
+
+    #[test]
+    fn parses_input_file_and_conditional_get() {
+        let a = parse_args(&v(&["-i", "list.txt", "-Z", "u"])).unwrap();
+        assert_eq!(a.input_file, Some(PathBuf::from("list.txt")));
+        assert!(a.conditional_get);
+    }
+
+    #[test]
+    fn parses_select_file_and_rpc() {
+        let a = parse_args(&v(&[
+            "--select-file=2",
+            "--select-file", "5",
+            "--enable-rpc",
+            "--rpc-secret=tok",
+            "--rpc-listen-port=6900",
+            "u",
+        ]))
+        .unwrap();
+        assert_eq!(a.select_files, vec![2, 5]);
+        let rpc = a.rpc.expect("rpc config");
+        assert_eq!(rpc.secret.as_deref(), Some("tok"));
+        assert_eq!(rpc.port, 6900);
     }
 }

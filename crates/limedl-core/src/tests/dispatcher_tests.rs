@@ -105,6 +105,7 @@ fn make_download(id: &str, state: DownloadState) -> Arc<ManagedDownload> {
                 url: "https://example.com/file.bin".into(),
                 final_url: "https://example.com/file.bin".into(),
                 user_agent: "test".into(),
+                extra_headers: vec![],
                 destination_dir: "".into(),
                 file_name: "file.bin".into(),
                 file_name_locked: false,

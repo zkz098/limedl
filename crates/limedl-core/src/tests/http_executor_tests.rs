@@ -67,6 +67,7 @@ async fn single_stream_download_completes_successfully() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -129,6 +130,7 @@ async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
             expected_checksum: Some(server.blake3_hash.clone()),
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -177,6 +179,7 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
             expected_checksum: Some(wrong_checksum),
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -236,6 +239,7 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -293,6 +297,7 @@ async fn multi_stream_blake3_checksum_match() -> TestResult {
             expected_checksum: Some(server.blake3_hash.clone()),
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -337,6 +342,7 @@ async fn multi_stream_sha256_checksum_match() -> TestResult {
             expected_checksum: Some(server.sha256_hash.clone()),
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -390,6 +396,7 @@ async fn http_301_redirect_follows_and_completes() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -443,6 +450,7 @@ async fn http_302_redirect_follows_and_completes() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -508,6 +516,7 @@ async fn http_416_range_not_satisfiable_fails() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -570,6 +579,7 @@ async fn connection_refused_fails_gracefully() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -637,6 +647,7 @@ async fn unreachable_host_fails_gracefully() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -690,6 +701,7 @@ async fn no_content_length_chunked_download_completes() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -756,6 +768,7 @@ async fn wrong_content_length_truncates_completed_download() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -848,6 +861,7 @@ async fn cancel_download_while_in_progress() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
                     priority: None,
         })
@@ -945,6 +959,7 @@ async fn mark_chunk_released_respects_worker_id() -> TestResult {
                 url: "http://example.com/file".to_string(),
                 final_url: "http://example.com/file".to_string(),
                 user_agent: "test".into(),
+                extra_headers: vec![],
                 destination_dir: String::new(),
                 file_name: String::new(),
                 file_name_locked: false,
@@ -1193,6 +1208,7 @@ async fn tail_sprint_selective_release_completes() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
             priority: None,
         })

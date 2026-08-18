@@ -41,6 +41,7 @@ async fn scheduler_respects_max_parallel_tasks() {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
             user_agent: None,
             priority: None,

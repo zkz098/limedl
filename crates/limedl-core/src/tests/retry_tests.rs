@@ -114,6 +114,7 @@ fn make_managed() -> Arc<crate::manager::ManagedDownload> {
                 url: String::new(),
                 final_url: String::new(),
                 user_agent: "test".into(),
+                extra_headers: vec![],
                 destination_dir: String::new(),
                 file_name: String::new(),
                 file_name_locked: false,

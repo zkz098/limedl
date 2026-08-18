@@ -681,6 +681,7 @@ mod tests {
                     url: format!("https://example.com/{id}"),
                     final_url: format!("https://cdn.example.com/{id}"),
                     user_agent: String::new(),
+                    extra_headers: vec![],
                     destination_dir: String::new(),
                     file_name: format!("{id}.bin"),
                     file_name_locked: false,

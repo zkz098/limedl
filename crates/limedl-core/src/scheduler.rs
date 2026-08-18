@@ -629,6 +629,7 @@ mod tests {
             url: url.to_string(),
             final_url: url.to_string(),
             user_agent: String::new(),
+            extra_headers: vec![],
             destination_dir: String::new(),
             file_name: String::new(),
             file_name_locked: false,

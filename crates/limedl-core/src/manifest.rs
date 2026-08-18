@@ -14,6 +14,10 @@ pub struct Manifest {
     pub final_url: String,
     #[serde(default = "default_http_user_agent")]
     pub user_agent: String,
+    /// Extra HTTP headers (`"Name: Value"`) applied to the live download
+    /// session. In-memory only in the CLI pass (not persisted as a DB column).
+    #[serde(default)]
+    pub extra_headers: Vec<String>,
     pub destination_dir: String,
     pub file_name: String,
     #[serde(default = "default_true")]

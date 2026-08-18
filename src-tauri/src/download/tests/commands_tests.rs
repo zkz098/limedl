@@ -31,6 +31,7 @@ fn make_request(url: &str, kind: Option<TaskKind>) -> StartDownloadRequest {
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        headers: None,
         mirror_urls: None,
         priority: None,
     }
@@ -455,6 +456,7 @@ fn make_server_req(
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        headers: None,
         mirror_urls: None,
         priority: None,
     }
@@ -782,6 +784,7 @@ async fn download_start_bt_magnet() -> TestResult {
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: true,
+        headers: None,
         mirror_urls: None,
         priority: None,
     };

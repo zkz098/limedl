@@ -47,6 +47,7 @@ fn make_test_manifest(id: &str, state: DownloadState) -> Manifest {
         url: "https://example.com/file".to_string(),
         final_url: "https://example.com/file".to_string(),
         user_agent: default_http_user_agent(),
+        extra_headers: vec![],
         destination_dir: "/tmp".to_string(),
         file_name: "test.bin".to_string(),
         file_name_locked: true,
@@ -140,6 +141,7 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
             priority: None,
         })
@@ -225,6 +227,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
+            headers: None,
             mirror_urls: None,
             priority: None,
         })

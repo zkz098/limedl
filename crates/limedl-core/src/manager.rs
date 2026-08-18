@@ -651,6 +651,7 @@ impl DownloadManager {
             url: request.url.clone(),
             final_url: request.url.clone(),
             user_agent,
+            extra_headers: request.headers.clone().unwrap_or_default(),
             destination_dir: destination_dir.to_string_lossy().to_string(),
             file_name: safe_name.clone(),
             file_name_locked: request.file_name.is_some(),

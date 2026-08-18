@@ -337,6 +337,8 @@ pub struct StartDownloadRequest {
     pub expected_checksum: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_file_indices: Option<Vec<usize>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headers: Option<Vec<String>>,
     #[serde(default)]
     pub start_paused: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]

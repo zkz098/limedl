@@ -216,6 +216,7 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
         expected_checksum: None,
         selected_file_indices: None,
         start_paused: false,
+        headers: None,
         mirror_urls: None,
         user_agent: None,
     priority: None,
