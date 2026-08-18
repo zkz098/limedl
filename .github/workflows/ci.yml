@@ -47,7 +47,7 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install Playwright system dependencies
-        run: pnpm exec --ignore-scripts playwright install --with-deps chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
