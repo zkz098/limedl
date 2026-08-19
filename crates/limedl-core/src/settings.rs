@@ -190,6 +190,16 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
         } else {
             0.0
         },
+        anti_leech_enabled: settings.anti_leech_enabled,
+        anti_leech_action: settings.anti_leech_action,
+        anti_leech_grace_secs: settings.anti_leech_grace_secs,
+        anti_leech_ratio: if settings.anti_leech_ratio.is_finite() {
+            settings.anti_leech_ratio.clamp(0.0, 1.0)
+        } else {
+            0.0
+        },
+        anti_leech_ban_secs: settings.anti_leech_ban_secs,
+        anti_leech_max_upload_slots: settings.anti_leech_max_upload_slots.max(1),
         upnp_enabled: settings.upnp_enabled,
         listen_port_range,
         listen_port: settings

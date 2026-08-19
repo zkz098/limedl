@@ -862,6 +862,19 @@ pub struct BtPortRange {
     pub end: u16,
 }
 
+/// Enforcement action taken against peers identified as leechers.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BtAntiLeechAction {
+    /// Session-wide ban of the offending peer IP (ban/unban managed by the loop).
+    #[default]
+    Ban,
+    /// Reduce per-torrent upload (unchoke) slots so fewer leechers are served.
+    LimitSlots,
+}
+
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -876,6 +889,29 @@ pub struct BtSettings {
     pub pause_upload_when_limit_reached: bool,
     pub upload_limit_bytes: u64,
     pub upload_ratio_limit: f64,
+
+    // -- Anti-leech (反吸血) policy loop --
+    /// Master switch for the anti-leech background loop.
+    #[serde(default)]
+    pub anti_leech_enabled: bool,
+    /// How offending peers are handled.
+    #[serde(default)]
+    pub anti_leech_action: BtAntiLeechAction,
+    /// Min seconds we must have been unchoking a peer before it can be flagged
+    /// as a leecher (warm-up grace; avoids penalising slow-start peers).
+    #[serde(default = "default_anti_leech_grace_secs")]
+    pub anti_leech_grace_secs: u64,
+    /// Min give-back share (own download / own upload) a peer must sustain to
+    /// avoid being flagged when it is not choking us. 0 disables the ratio check.
+    #[serde(default = "default_anti_leech_ratio")]
+    pub anti_leech_ratio: f64,
+    /// Ban duration in seconds; a peer is auto-unbanned after this for forgiveness.
+    #[serde(default = "default_anti_leech_ban_secs")]
+    pub anti_leech_ban_secs: u64,
+    /// When action = LimitSlots, max concurrent unchoke slots per torrent that
+    /// currently has detected leechers.
+    #[serde(default = "default_anti_leech_max_upload_slots")]
+    pub anti_leech_max_upload_slots: u32,
     #[serde(default)]
     pub upnp_enabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -953,6 +989,12 @@ impl Default for BtSettings {
             pause_upload_when_limit_reached: false,
             upload_limit_bytes: 0,
             upload_ratio_limit: 0.0,
+            anti_leech_enabled: false,
+            anti_leech_action: BtAntiLeechAction::default(),
+            anti_leech_grace_secs: default_anti_leech_grace_secs(),
+            anti_leech_ratio: default_anti_leech_ratio(),
+            anti_leech_ban_secs: default_anti_leech_ban_secs(),
+            anti_leech_max_upload_slots: default_anti_leech_max_upload_slots(),
             upnp_enabled: false,
             listen_port_range: None,
             listen_port: None,
@@ -979,6 +1021,19 @@ impl Default for BtSettings {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_anti_leech_grace_secs() -> u64 {
+    300
+}
+fn default_anti_leech_ratio() -> f64 {
+    0.1
+}
+fn default_anti_leech_ban_secs() -> u64 {
+    3600
+}
+fn default_anti_leech_max_upload_slots() -> u32 {
+    4
 }
 
 fn default_max_downloads() -> u32 {

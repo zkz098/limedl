@@ -3,6 +3,7 @@
 //! This backend uses the `irontide` crate as the underlying BT engine,
 
 pub(crate) mod alerts;
+pub(crate) mod anti_leech;
 pub(crate) mod lifecycle;
 pub(crate) mod queries;
 pub(crate) mod session;
@@ -11,6 +12,7 @@ pub(crate) mod snapshot;
 pub(crate) mod tests;
 pub(crate) mod uploads;
 
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
@@ -60,6 +62,13 @@ pub struct IrontideBtBackend {
     pub(crate) alert_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Join handle for the upload policy background task.
     pub(crate) upload_policy_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Join handle for the anti-leech background task.
+    pub(crate) anti_leech_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Anti-leech: IP → ban-expiry-ms for peers we banned. (Ban action only.)
+    pub(crate) banned_leechers: Arc<DashMap<IpAddr, u64>>,
+    /// Anti-leech: info-hash → original upload-slot count before the loop capped
+    /// it (LimitSlots action only), used to restore slots once leechers clear.
+    pub(crate) anti_leech_slot_state: Arc<DashMap<Id20, usize>>,
     /// Reusable HTTP client with proxy support for .torrent URL fetches.
     pub(crate) http_client: Option<reqwest::Client>,
     /// Global download speed limit (bytes/sec) from AppSettings.
@@ -89,6 +98,9 @@ impl Clone for IrontideBtBackend {
             task_map: self.task_map.clone(),
             alert_task: self.alert_task.clone(),
             upload_policy_task: self.upload_policy_task.clone(),
+            anti_leech_task: self.anti_leech_task.clone(),
+            banned_leechers: self.banned_leechers.clone(),
+            anti_leech_slot_state: self.anti_leech_slot_state.clone(),
             http_client: self.http_client.clone(),
             global_speed_limit_bps: self.global_speed_limit_bps,
             paused_by_limit: self.paused_by_limit.clone(),

@@ -61,6 +61,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
             .await?,
         );
         bt.clone().spawn_upload_policy_loop();
+        bt.clone().spawn_anti_leech_loop();
         bt.clone().setup_alert_bridge().await;
         bt
     };

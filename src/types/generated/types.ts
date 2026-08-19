@@ -32,6 +32,11 @@ export type AutomaticSchedulerSettings = { maxParallelThreads: number, maxThread
 export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
 
 /**
+ * Enforcement action taken against peers identified as leechers.
+ */
+export type BtAntiLeechAction = "ban" | "limit_slots";
+
+/**
  * Protocol encryption (MSE/PE) mode.
  */
 export type BtEncryptionMode = "enabled" | "disabled" | "forced";
@@ -51,7 +56,34 @@ export type BtPreallocateMode = "none" | "full";
 
 export type BtRuntimeStatus = { connected: boolean, dhtEnabled: boolean, dhtNodes?: number | null, torrentCount: number, peerCount: number, uploadSpeedBytesPerSecond?: number | null, uploadedBytes: number, updatedAtMs: number, seedCount?: number | null, leechCount?: number | null, };
 
-export type BtSettings = { dhtEnabled: boolean, trackerList: string, trackerListUrl: string, pauseUploadWhenLimitReached: boolean, uploadLimitBytes: number, uploadRatioLimit: number, upnpEnabled: boolean, listenPortRange?: BtPortRange | null, 
+export type BtSettings = { dhtEnabled: boolean, trackerList: string, trackerListUrl: string, pauseUploadWhenLimitReached: boolean, uploadLimitBytes: number, uploadRatioLimit: number, 
+/**
+ * Master switch for the anti-leech background loop.
+ */
+antiLeechEnabled: boolean, 
+/**
+ * How offending peers are handled.
+ */
+antiLeechAction: BtAntiLeechAction, 
+/**
+ * Min seconds we must have been unchoking a peer before it can be flagged
+ * as a leecher (warm-up grace; avoids penalising slow-start peers).
+ */
+antiLeechGraceSecs: number, 
+/**
+ * Min give-back share (own download / own upload) a peer must sustain to
+ * avoid being flagged when it is not choking us. 0 disables the ratio check.
+ */
+antiLeechRatio: number, 
+/**
+ * Ban duration in seconds; a peer is auto-unbanned after this for forgiveness.
+ */
+antiLeechBanSecs: number, 
+/**
+ * When action = LimitSlots, max concurrent unchoke slots per torrent that
+ * currently has detected leechers.
+ */
+antiLeechMaxUploadSlots: number, upnpEnabled: boolean, listenPortRange?: BtPortRange | null, 
 /**
  * TCP listen port. None = OS assigns.
  */

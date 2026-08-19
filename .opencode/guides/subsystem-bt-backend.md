@@ -4,7 +4,7 @@
 
 通过 irontide 库管理 BitTorrent 下载的完整生命周期：会话管理、torrent 元数据解析、对等节点连接、文件选择、上传策略、进度/状态查询。bt 任务使用 TaskId::Bt(Id20)，ID 为原始 info_hash hex 字符串。
 
-核心类型：IrontideBtBackend（持有 session handle、task_map、alert_task、upload_policy_task、torrent_created_at、bt_slot_guards 等字段）。
+核心类型：IrontideBtBackend（持有 session handle、task_map、alert_task、upload_policy_task、anti_leech_task、banned_leechers、anti_leech_slot_state、torrent_created_at、bt_slot_guards 等字段）。
 
 自身有 `active_bt_count` 原子槽位（与 DownloadManager 的 DownloadSlotGuard 独立）。`max_concurrent_bt` 由 DownloadManager 和 IrontideBtBackend 共享，通过 `DownloadSlotGuard` 协调。
 
@@ -17,6 +17,7 @@
 - `crates/limedl-core/src/bt_backend/queries.rs` — 对等节点/piece/tracker/文件状态查询 + 限速 + 预览 + `emit_pending_summary`
 - `crates/limedl-core/src/bt_backend/alerts.rs` — irontide 告警事件桥接（唯一 Aria2 事件发射源） + `extract_info_hash`
 - `crates/limedl-core/src/bt_backend/uploads.rs` — 上传策略循环（按上传量和分享率限制）
+- `crates/limedl-core/src/bt_backend/anti_leech.rs` — 反吸血策略循环（识别并处理只下载不回报的对等端）
 - `crates/limedl-core/src/bt_backend/tests.rs`
 
 ## 数据流向
@@ -47,6 +48,13 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
   ├─ 每 5 秒检查每个 torrent 的上传量和分享率
   ├─ 超过限制且 pause_upload_when_limit_reached → 暂停上传（set_upload_limit → 1 byte/s）
   └─ 限制解除后 → 恢复上传（set_upload_limit → 0，无限制）
+
+反吸血策略循环（spawn_anti_leech_loop，每 10 秒）：
+  ├─ 对每个活跃 torrent 调 get_peer_info + peer_unchoke_durations
+  ├─ peer_is_leecher() 识别吸血对等端（见下方策略判断）
+  ├─ Ban 动作：ban_peer(ip) + banned_leechers 记录到期时间，到期自动 unban
+  ├─ LimitSlots 动作：set_max_uploads 收紧上传槽位，吸血者消失后恢复原值
+  └─ 功能关闭时 cleanup_disabled() 撤销所有自身触发的 ban/槽位限制
 ```
 
 ## 设计决策与约定
@@ -76,6 +84,18 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 - 上传策略循环独立于下载，通过 `paused_by_limit: DashMap<Id20, ()>` 跟踪被限制上传的 torrent。
 - 仅在限制条件**不再满足**时恢复上传，避免 per-tick 振荡（pause → unpause → pause 循环）。
 - 全局上传限制在 irontide session settings 中设定，per-torrent 限速通过 `set_upload_limit(info_hash, bps)` 实现。
+
+### 反吸血（anti-leech）
+- 与上传策略循环**相互独立**：上传策略按用户设定的整体上传量/分享率限制整 torrent；反吸血只针对**单个不回报的对等端**。
+- `peer_is_leecher()` 是纯函数（可单测），判断规则：
+  1. 跳过 `upload_only`（BEP 21 seeder）、我们正在 choke 的 peer、未过宽限期（`grace_secs`）及 `progress >= 1.0` 的 peer。
+  2. 信号 A：peer 一直 choke 我们（`peer_choking`）而我们已放开上传超过宽限期且回传约 0 → 吸血。
+  3. 信号 B：即使未 choke，回传/取用比例低于 `ratio` → 吸血（`ratio=0` 时关闭此判断）。
+- `banned_leechers: DashMap<IpAddr, u64>` 记录 ban 到期时间戳；每轮 sweep 到期自动 `unban_peer` 宽容处理（避免误伤共享 NAT/VPN）。
+- `anti_leech_slot_state: DashMap<Id20, usize>` 记录 LimitSlots 前的原槽位数以便恢复。
+- 动作通过 `DownloadEvent::Warning` 通知前端（复用现有事件，不改 ws_manifest）。
+- 后台任务句柄保存在 `anti_leech_task`，shutdown 时 abort（与 alert/upload 一致）；bootstrap 中 `spawn_anti_leech_loop()` 启动。
+- 相关 BtSettings 字段：`anti_leech_enabled/action/grace_secs/ratio/ban_secs/max_upload_slots`。
 
 ### 设置热重载
 - `apply_settings()` 复制 BtSettings 到 `Arc<Mutex<>>`，并在 irontide session 中立即应用全局速率限制变更，无需重启 session。

@@ -488,6 +488,28 @@ const enUS = {
       btGroupRateLimit: "Rate Limits",
       btGroupTracker: "Tracker",
       btGroupSeeding: "Seeding & Limits",
+      btGroupAntiLeech: "Anti-Leech",
+
+      // Anti-leech
+      btAntiLeechEnabled: "Enable anti-leech",
+      btAntiLeechEnabledHint:
+        "Periodically identify peers that download from you without giving data back, then enforce the selected action.",
+      btAntiLeechAction: "Enforcement action",
+      btAntiLeechActionHint:
+        "Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once.",
+      btAntiLeechActionBan: "Ban peer",
+      btAntiLeechActionLimitSlots: "Limit upload slots",
+      btAntiLeechGrace: "Grace period",
+      btAntiLeechGraceHint:
+        "Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers.",
+      btAntiLeechRatio: "Minimum give-back ratio",
+      btAntiLeechRatioHint:
+        "Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check.",
+      btAntiLeechBanSecs: "Ban duration",
+      btAntiLeechBanSecsHint: "Seconds a banned peer stays banned before it is unbanned and may reconnect.",
+      btAntiLeechMaxUploadSlots: "Max upload slots",
+      btAntiLeechMaxUploadSlotsHint:
+        "When a torrent has detected leechers, its concurrent upload slots are capped at this value.",
 
       // Network
       btListenPort: "Listen Port",

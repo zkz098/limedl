@@ -114,6 +114,9 @@ impl IrontideBtBackend {
             task_map: Arc::new(DashMap::new()),
             alert_task: Arc::new(Mutex::new(None)),
             upload_policy_task: Arc::new(Mutex::new(None)),
+            anti_leech_task: Arc::new(Mutex::new(None)),
+            banned_leechers: Arc::new(DashMap::new()),
+            anti_leech_slot_state: Arc::new(DashMap::new()),
             http_client,
             global_speed_limit_bps: settings.global_speed_limit_bps,
             paused_by_limit: Arc::new(DashMap::new()),
@@ -137,6 +140,12 @@ impl IrontideBtBackend {
         // Phase 2: abort background tasks
         {
             let mut slot = lock(&self.upload_policy_task);
+            if let Some(h) = slot.take() {
+                h.abort();
+            }
+        }
+        {
+            let mut slot = lock(&self.anti_leech_task);
             if let Some(h) = slot.take() {
                 h.abort();
             }

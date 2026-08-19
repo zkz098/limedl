@@ -467,7 +467,28 @@ const zhCN = {
       btGroupRateLimit: "速率限制",
       btGroupTracker: "Tracker",
       btGroupSeeding: "做种与限制",
+      btGroupAntiLeech: "反吸血",
 
+      // Anti-leech
+      btAntiLeechEnabled: "启用反吸血",
+      btAntiLeechEnabledHint:
+        "定期识别只下载却不回传数据的对等端，并按所选策略处理。",
+      btAntiLeechAction: "处理方式",
+      btAntiLeechActionHint:
+        "封禁：断开并暂时拉黑违规对等端；限制上传槽位：当 torrent 有吸血对等端时限制同时上传的槽位数。",
+      btAntiLeechActionBan: "封禁对等端",
+      btAntiLeechActionLimitSlots: "限制上传槽位",
+      btAntiLeechGrace: "宽限期",
+      btAntiLeechGraceHint:
+        "对等端需被放开上传这么久后才可能被标记，避免误伤刚接入的慢启动对等端。",
+      btAntiLeechRatio: "最低回报比例",
+      btAntiLeechRatioHint:
+        "回传数据低于其取得数据该比例的 peer 将被视为吸血者；填 0 关闭比例判断。",
+      btAntiLeechBanSecs: "封禁时长",
+      btAntiLeechBanSecsHint: "被封禁对等端需等待的秒数，到期后自动解封可重新连接。",
+      btAntiLeechMaxUploadSlots: "最大上传槽位",
+      btAntiLeechMaxUploadSlotsHint:
+        "当 torrent 检测到吸血对等端时，其并发上传槽位将限制为该值。",
       // Network
       btListenPort: "监听端口",
       btListenPortHint: "留空由系统自动分配。1024–65535",

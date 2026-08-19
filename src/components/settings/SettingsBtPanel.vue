@@ -36,6 +36,7 @@ const mode = ref<"recommended" | "custom">("recommended");
 
 const trackerOpen = ref(true);
 const seedingOpen = ref(true);
+const antiLeechOpen = ref(false);
 const networkOpen = ref(true);
 const protocolsOpen = ref(true);
 const diskSecurityOpen = ref(true);
@@ -48,6 +49,10 @@ function toggleTracker() {
 
 function toggleSeeding() {
   seedingOpen.value = !seedingOpen.value;
+}
+
+function toggleAntiLeech() {
+  antiLeechOpen.value = !antiLeechOpen.value;
 }
 
 function toggleNetwork() {
@@ -266,6 +271,112 @@ function toggleRateLimit() {
                   :disabled="!pauseEnabled"
                   unit="x"
                   @update:model-value="draft.bt.uploadRatioLimit = Number($event ?? 0)"
+                />
+              </SettingsField>
+            </div>
+          </div>
+        </div>
+
+        <!-- 反吸血 -->
+        <div class="bt-subgroup" :class="{ 'bt-subgroup--open': antiLeechOpen }">
+          <button
+            type="button"
+            class="bt-subgroup__header"
+            :aria-expanded="antiLeechOpen"
+            @click="toggleAntiLeech"
+          >
+            <span
+              class="i-ri-arrow-down-s-line bt-subgroup__chevron"
+              :class="{ 'bt-subgroup__chevron--open': antiLeechOpen }"
+              aria-hidden="true"
+            />
+            <span class="bt-subgroup__title">{{ t("settings.btGroupAntiLeech") }}</span>
+          </button>
+          <div v-show="antiLeechOpen" class="bt-subgroup__content">
+            <div class="settings-grid">
+              <SettingsField
+                wide
+                :label="t('settings.btAntiLeechEnabled')"
+                :info-tooltip="t('settings.btAntiLeechEnabledHint')"
+              >
+                <UiSwitch
+                  v-model="draft.bt.antiLeechEnabled"
+                  :label="t('settings.btAntiLeechEnabled')"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btAntiLeechAction')"
+                :hint="t('settings.btAntiLeechActionHint')"
+              >
+                <UiSelect
+                  v-model="draft.bt.antiLeechAction"
+                  :disabled="!draft.bt.antiLeechEnabled"
+                  :options="[
+                    { label: t('settings.btAntiLeechActionBan'), value: 'ban' },
+                    { label: t('settings.btAntiLeechActionLimitSlots'), value: 'limit_slots' },
+                  ]"
+                  :placeholder="t('settings.btAntiLeechAction')"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btAntiLeechGrace')"
+                :hint="t('settings.btAntiLeechGraceHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.antiLeechGraceSecs"
+                  :min="0"
+                  :max="86400"
+                  :disabled="!draft.bt.antiLeechEnabled"
+                  unit="s"
+                  @update:model-value="draft.bt.antiLeechGraceSecs = Number($event ?? 0)"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btAntiLeechRatio')"
+                :hint="t('settings.btAntiLeechRatioHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.antiLeechRatio"
+                  :min="0"
+                  :max="1"
+                  :step="0.01"
+                  :disabled="!draft.bt.antiLeechEnabled"
+                  unit="x"
+                  @update:model-value="draft.bt.antiLeechRatio = Number($event ?? 0)"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btAntiLeechBanSecs')"
+                :hint="t('settings.btAntiLeechBanSecsHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.antiLeechBanSecs"
+                  :min="0"
+                  :max="604800"
+                  :disabled="!draft.bt.antiLeechEnabled || draft.bt.antiLeechAction !== 'ban'"
+                  unit="s"
+                  @update:model-value="draft.bt.antiLeechBanSecs = Number($event ?? 0)"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btAntiLeechMaxUploadSlots')"
+                :hint="t('settings.btAntiLeechMaxUploadSlotsHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.antiLeechMaxUploadSlots"
+                  :min="1"
+                  :max="64"
+                  :disabled="!draft.bt.antiLeechEnabled || draft.bt.antiLeechAction !== 'limit_slots'"
+                  @update:model-value="draft.bt.antiLeechMaxUploadSlots = Number($event ?? 1)"
                 />
               </SettingsField>
             </div>
