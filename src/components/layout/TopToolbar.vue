@@ -304,6 +304,7 @@ function closeColumnMenu() {
         type="text"
         class="toolbar-search__input w-full border rounded-md py-1 pl-8 pr-3 font-inherit text-sm outline-none"
         :placeholder="t('toolbar.searchPlaceholder')"
+        :aria-label="t('toolbar.searchPlaceholder')"
         @input="handleSearchInput"
       />
       <button

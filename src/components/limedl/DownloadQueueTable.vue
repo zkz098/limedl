@@ -551,6 +551,7 @@ function metaForDownload(download: DownloadSummary) {
                   type="checkbox"
                   class="w-4 h-4 m-0 cursor-pointer"
                   :checked="allPageSelected"
+                  :aria-label="t('toolbar.selectAll')"
                   @change="toggleSelectAllOnPage"
                 />
               </th>
@@ -592,6 +593,7 @@ function metaForDownload(download: DownloadSummary) {
                   type="checkbox"
                   class="w-4 h-4 m-0 cursor-pointer"
                   :checked="multiSelect.selectedIds.has(download.id)"
+                  :aria-label="download.fileName || download.id"
                   @change="$emit('toggleSelect', download.id)"
                 />
               </td>

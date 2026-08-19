@@ -223,6 +223,7 @@ function rowClass(index: number) {
             <input
               type="checkbox"
               :checked="fileSelections.get(file.index)?.selected ?? false"
+              :aria-label="file.path"
               @change="toggleSelection(file.index)"
             />
           </div>

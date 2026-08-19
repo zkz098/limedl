@@ -25,7 +25,7 @@ const reversed = computed(() => props.notifications.toReversed());
 
 <template>
   <Teleport to="body">
-    <div class="notification-toast-stack" role="region" :aria-label="t('notifications.title')">
+    <section class="notification-toast-stack" :aria-label="t('notifications.title')">
       <TransitionGroup name="toast">
         <div
           v-for="notification in reversed"

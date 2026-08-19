@@ -554,6 +554,7 @@ onBeforeUnmount(() => {
                       type="checkbox"
                       :checked="file.included"
                       :disabled="isUpdatingFiles"
+                      :aria-label="file.path"
                       class="accent-[var(--color-accent)] cursor-pointer"
                       @change="toggleFileInclusion(file.index, file.included)"
                     />

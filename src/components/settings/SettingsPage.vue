@@ -312,12 +312,12 @@ defineExpose({
     </div>
 
     <div class="settings-page__layout flex flex-1 gap-5 min-h-0 overflow-hidden">
-      <aside
-        class="settings-page__sidebar w-52 flex-none flex flex-col gap-3 pb-4"
-        role="tablist"
-        :aria-label="t('settings.title')"
-      >
-        <nav class="settings-page__tabs flex flex-col gap-1">
+      <aside class="settings-page__sidebar w-52 flex-none flex flex-col gap-3 pb-4">
+        <nav
+          class="settings-page__tabs flex flex-col gap-1"
+          role="tablist"
+          :aria-label="t('settings.title')"
+        >
           <!-- Common tabs: always visible -->
           <button
             v-for="tab in commonTabs"

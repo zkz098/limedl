@@ -119,7 +119,7 @@ function onDragEnd(): void {
         <span>{{ t("settings.githubMirror.emptyHint") }}</span>
       </div>
 
-      <ul v-else class="github-mirror-panel__list" role="list">
+      <ul v-else class="github-mirror-panel__list">
         <li
           v-for="(mirror, index) in draft.githubMirror.mirrors"
           :key="mirror._uid ?? index"

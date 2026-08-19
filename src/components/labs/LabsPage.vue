@@ -89,8 +89,8 @@ defineExpose({
     </div>
 
     <div class="settings-page__layout">
-      <aside class="settings-page__sidebar" role="tablist" :aria-label="t('labs.title')">
-        <nav class="settings-page__tabs">
+      <aside class="settings-page__sidebar">
+        <nav class="settings-page__tabs" role="tablist" :aria-label="t('labs.title')">
           <button
             v-for="tab in tabs"
             :key="tab.id"
