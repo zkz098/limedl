@@ -23,30 +23,38 @@ function selectLanguage(value: "zh-CN" | "en-US") {
   >
     <SettingsSection :title="t('setupWizard.languageTitle')" icon="i-ri-translate-2">
       <div class="language-options" role="radiogroup" :aria-label="t('setupWizard.languageTitle')">
-        <button
-          type="button"
+        <label
           class="language-card"
           :class="{ 'is-selected': language === 'zh-CN' }"
-          role="radio"
-          :aria-checked="language === 'zh-CN'"
-          @click="selectLanguage('zh-CN')"
         >
+          <input
+            class="language-card__radio"
+            type="radio"
+            name="setup-language"
+            value="zh-CN"
+            :checked="language === 'zh-CN'"
+            @change="selectLanguage('zh-CN')"
+          />
           <span class="language-card__check i-ri-check-line" aria-hidden="true" />
           <span class="language-card__native">简体中文</span>
           <span class="language-card__translated">{{ t("language.zhCN") }}</span>
-        </button>
-        <button
-          type="button"
+        </label>
+        <label
           class="language-card"
           :class="{ 'is-selected': language === 'en-US' }"
-          role="radio"
-          :aria-checked="language === 'en-US'"
-          @click="selectLanguage('en-US')"
         >
+          <input
+            class="language-card__radio"
+            type="radio"
+            name="setup-language"
+            value="en-US"
+            :checked="language === 'en-US'"
+            @change="selectLanguage('en-US')"
+          />
           <span class="language-card__check i-ri-check-line" aria-hidden="true" />
           <span class="language-card__native">English</span>
           <span class="language-card__translated">{{ t("language.enUS") }}</span>
-        </button>
+        </label>
       </div>
     </SettingsSection>
   </StepShell>
@@ -79,6 +87,20 @@ function selectLanguage(value: "zh-CN" | "en-US") {
     box-shadow 0.2s ease;
 }
 
+/* Native radio is visually hidden but stays keyboard-focusable/announced */
+.language-card__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .language-card:hover {
   border-color: var(--color-border-strong);
   background: var(--color-surface-muted);
@@ -90,7 +112,7 @@ function selectLanguage(value: "zh-CN" | "en-US") {
   transform: scale(0.98) translateY(0);
 }
 
-.language-card:focus-visible {
+.language-card:has(.language-card__radio:focus-visible) {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px var(--color-focus-ring);

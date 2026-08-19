@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 
 import { useI18n } from "../../i18n";
 
@@ -23,6 +23,17 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const dialogStyle = computed(() => ({ width: props.width }));
+const panelRef = ref<HTMLElement | null>(null);
+let previouslyFocused: HTMLElement | null = null;
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'textarea:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ");
 
 function close() {
   emit("update:modelValue", false);
@@ -34,14 +45,39 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
+// aria-modal requires focus containment: keep Tab/Shift+Tab within the dialog.
+function onFocusTrapKeydown(event: KeyboardEvent) {
+  if (event.key !== "Tab") return;
+  const panel = panelRef.value;
+  if (!panel) return;
+  const focusables = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 watch(
   () => props.modelValue,
-  (visible) => {
+  async (visible) => {
     document.body.classList.toggle("dialog-open", visible);
     if (visible) {
+      previouslyFocused = document.activeElement as HTMLElement | null;
       window.addEventListener("keydown", onKeydown);
+      window.addEventListener("keydown", onFocusTrapKeydown);
+      await nextTick();
+      panelRef.value?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
     } else {
       window.removeEventListener("keydown", onKeydown);
+      window.removeEventListener("keydown", onFocusTrapKeydown);
+      previouslyFocused?.focus?.();
+      previouslyFocused = null;
     }
   },
   { immediate: true },
@@ -50,6 +86,8 @@ watch(
 onBeforeUnmount(() => {
   document.body.classList.remove("dialog-open");
   window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("keydown", onFocusTrapKeydown);
+  previouslyFocused?.focus?.();
 });
 </script>
 
@@ -57,7 +95,13 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <Transition name="dialog-fade">
       <div v-if="modelValue" class="ui-dialog" @click.self="closeOnOverlay ? close() : undefined">
-        <div class="ui-dialog__panel" :style="dialogStyle" role="dialog" aria-modal="true">
+        <div
+          ref="panelRef"
+          class="ui-dialog__panel"
+          :style="dialogStyle"
+          role="dialog"
+          aria-modal="true"
+        >
           <div class="ui-dialog__header">
             <div class="ui-dialog__title">
               <slot name="title">
