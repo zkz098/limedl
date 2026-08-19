@@ -168,7 +168,7 @@ function open() {
   if (props.disabled || props.options.length === 0) return;
 
   isOpen.value = true;
-  activeIndex.value = selectedIndex.value >= 0 ? selectedIndex.value : 0;
+  activeIndex.value = Math.max(selectedIndex.value, 0);
 
   nextTick(() => {
     updatePosition();

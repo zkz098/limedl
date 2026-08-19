@@ -26,8 +26,8 @@ import type {
 import { listen } from "#event";
 import { useIntervalFn } from "@vueuse/core";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
 }>();
 
@@ -56,7 +56,7 @@ const PHASE_KEY_MAP: Record<string, string> = {
 
 // ── Computed ──
 const statusType = computed<"idle" | "testing" | "ready" | "error">(() => {
-  const cdn = props.draft.cdnAcceleration;
+  const cdn = draft.value.cdnAcceleration;
   if (cdn.lastError) return "error";
   if (cdn.activeIp != null && cdn.activeSpeedMbps != null) return "ready";
   if (testing.value) return "testing";
@@ -83,10 +83,10 @@ const statusBadgeLabel = computed(() => {
   return props.t(`settings.cdnAcceleration.${keyMap[statusType.value]}`);
 });
 
-const hasResult = computed(() => props.draft.cdnAcceleration.activeIp != null);
+const hasResult = computed(() => draft.value.cdnAcceleration.activeIp != null);
 
 const lastTestTime = computed(() => {
-  const ms = props.draft.cdnAcceleration.lastTestAtMs;
+  const ms = draft.value.cdnAcceleration.lastTestAtMs;
   if (ms == null) return null;
   return new Date(ms).toLocaleString();
 });
@@ -110,10 +110,10 @@ const progressLabel = computed(() => {
   return `${current} / ${total}`;
 });
 
-const activeIp = computed(() => props.draft.cdnAcceleration.activeIp);
+const activeIp = computed(() => draft.value.cdnAcceleration.activeIp);
 
 const activeSpeedFormatted = computed(() => {
-  const s = props.draft.cdnAcceleration.activeSpeedMbps;
+  const s = draft.value.cdnAcceleration.activeSpeedMbps;
   if (s == null) return "-";
   return s.toFixed(2);
 });
@@ -133,7 +133,7 @@ const bestLatency = computed(() => {
 });
 
 const speedImprovement = computed(() => {
-  const best = props.draft.cdnAcceleration.activeSpeedMbps;
+  const best = draft.value.cdnAcceleration.activeSpeedMbps;
   const baseline = defaultNode.value?.throughputMbps;
   if (best == null || baseline == null || baseline <= 0) return null;
   return ((best - baseline) / baseline) * 100;
@@ -154,7 +154,7 @@ function fmtImprovement(pct: number | null): string {
 
 // ── Update from detail ──
 function updateFromDetail(detail: CdnDetail): void {
-  const cdn = props.draft.cdnAcceleration;
+  const cdn = draft.value.cdnAcceleration;
 
   testing.value = detail.state === "Testing";
   phase.value = detail.phase;
@@ -207,7 +207,7 @@ async function clearResult(): Promise<void> {
   } catch (e) {
     console.error("Failed to clear CDN acceleration:", e);
   }
-  const cdn = props.draft.cdnAcceleration;
+  const cdn = draft.value.cdnAcceleration;
   cdn.activeIp = null;
   cdn.activeSpeedMbps = null;
   cdn.lastTestAtMs = null;
@@ -222,7 +222,7 @@ async function clearResult(): Promise<void> {
 async function applyCandidate(ip: string, speedMbps: number): Promise<void> {
   try {
     await applyAcceleration(ip, speedMbps);
-    const cdn = props.draft.cdnAcceleration;
+    const cdn = draft.value.cdnAcceleration;
     cdn.activeIp = ip;
     cdn.activeSpeedMbps = speedMbps;
     cdn.lastTestAtMs = Date.now();
@@ -263,7 +263,7 @@ function applyManualIp(): void {
 
   applyAcceleration(ip, 0)
     .then(() => {
-      const cdn = props.draft.cdnAcceleration;
+      const cdn = draft.value.cdnAcceleration;
       cdn.activeIp = ip;
       cdn.activeSpeedMbps = 0;
       cdn.lastTestAtMs = Date.now();

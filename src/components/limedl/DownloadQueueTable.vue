@@ -494,8 +494,10 @@ function metaForDownload(download: DownloadSummary) {
     if (hasSeedCount || hasLeechCount) {
       parts.push(`${download.seedCount ?? "—"} S / ${download.leechCount ?? "—"} L`);
     }
-    parts.push(t("queue.peerCount", { count: download.peerCount ?? 0 }));
-    parts.push(t("queue.uploaded", { size: formatBytes(download.uploadedBytes) }));
+    parts.push(
+      t("queue.peerCount", { count: download.peerCount ?? 0 }),
+      t("queue.uploaded", { size: formatBytes(download.uploadedBytes) }),
+    );
     return parts.join(" · ");
   }
 

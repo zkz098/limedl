@@ -5,8 +5,9 @@ import type { AppSettings, ProxyMode } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
+
 defineProps<{
-  draft: AppSettings;
   t: (key: string, options?: Record<string, unknown>) => string;
   proxyModeOptions: Array<{ label: string; value: ProxyMode }>;
   proxySummary: string;

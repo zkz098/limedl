@@ -16,7 +16,7 @@ const props = defineProps<{
 const portModel = computed({
   get: () => String(draft.value.aria2Rpc.port),
   set: (value: string) => {
-    const parsed = parseInt(value, 10);
+    const parsed = Number.parseInt(value, 10);
     if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 65535) {
       draft.value.aria2Rpc.port = parsed;
     } else if (value === "") {

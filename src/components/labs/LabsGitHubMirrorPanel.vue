@@ -7,8 +7,8 @@ import SettingsSection from "../settings/SettingsSection.vue";
 import SettingsField from "../settings/SettingsField.vue";
 import type { AppSettings } from "../../types/settings";
 
+const draft = defineModel<AppSettings>("draft", { required: true });
 const props = defineProps<{
-  draft: AppSettings;
   t: (key: string, params?: Record<string, unknown>) => string;
 }>();
 
@@ -16,25 +16,25 @@ const dragIndex = ref<number | null>(null);
 let uidCounter = 0;
 
 function ensureGithubMirror(): void {
-  if (!props.draft.githubMirror) {
-    props.draft.githubMirror = { enabled: false, mirrors: [] };
+  if (!draft.value.githubMirror) {
+    draft.value.githubMirror = { enabled: false, mirrors: [] };
   }
-  if (!Array.isArray(props.draft.githubMirror.mirrors)) {
-    props.draft.githubMirror.mirrors = [];
+  if (!Array.isArray(draft.value.githubMirror.mirrors)) {
+    draft.value.githubMirror.mirrors = [];
   }
 }
 
 const githubMirrorEnabled = computed<boolean>({
-  get: () => props.draft.githubMirror?.enabled ?? false,
+  get: () => draft.value.githubMirror?.enabled ?? false,
   set: (value: boolean) => {
     ensureGithubMirror();
-    props.draft.githubMirror.enabled = value;
+    draft.value.githubMirror.enabled = value;
   },
 });
 
 function addMirror(): void {
   ensureGithubMirror();
-  const mirrors = props.draft.githubMirror.mirrors;
+  const mirrors = draft.value.githubMirror.mirrors;
   mirrors.push({
     url: "",
     enabled: true,
@@ -45,14 +45,14 @@ function addMirror(): void {
 
 function removeMirror(index: number): void {
   ensureGithubMirror();
-  const mirrors = props.draft.githubMirror.mirrors;
+  const mirrors = draft.value.githubMirror.mirrors;
   mirrors.splice(index, 1);
   renumberMirrors();
 }
 
 function renumberMirrors(): void {
   ensureGithubMirror();
-  props.draft.githubMirror.mirrors.forEach((mirror, index) => {
+  draft.value.githubMirror.mirrors.forEach((mirror, index) => {
     mirror.order = index;
   });
 }
@@ -68,7 +68,7 @@ function onDragOver(event: DragEvent, index: number): void {
   }
 
   ensureGithubMirror();
-  const mirrors = props.draft.githubMirror.mirrors;
+  const mirrors = draft.value.githubMirror.mirrors;
   const moved = mirrors.splice(dragIndex.value, 1)[0];
   mirrors.splice(index, 0, moved);
   dragIndex.value = index;
