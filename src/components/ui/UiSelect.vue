@@ -3,8 +3,9 @@ let listboxIdCounter = 0;
 </script>
 
 <script setup lang="ts" generic="T extends string | number | null">
-import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
+import { computed, inject, nextTick, onMounted, onUnmounted, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
+import { FIELD_ASSOCIATION } from "./field-association";
 
 const props = withDefaults(
   defineProps<{
@@ -27,6 +28,13 @@ const emit = defineEmits<{
 }>();
 
 const listboxId = `ui-select-listbox-${listboxIdCounter++}`;
+
+// When rendered inside a SettingsField and no explicit name is given, link
+// the button trigger to the field's visible label via aria-labelledby.
+const fieldAssociation = inject(FIELD_ASSOCIATION, null);
+const resolvedLabelledby = computed(
+  () => props.ariaLabelledby ?? fieldAssociation?.labelId ?? undefined,
+);
 
 const isOpen = ref(false);
 const triggerRef = ref<HTMLButtonElement | null>(null);
@@ -328,7 +336,7 @@ onUnmounted(() => {
       ref="triggerRef"
       :id="id"
       :aria-label="ariaLabel"
-      :aria-labelledby="ariaLabelledby"
+      :aria-labelledby="resolvedLabelledby"
       type="button"
       class="ui-select__trigger"
       :disabled="disabled"

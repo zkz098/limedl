@@ -191,6 +191,7 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
     <div class="settings-grid">
       <SettingsField
         wide
+        no-association
         :label="t('settings.performancePreference')"
         :info-tooltip="t('settings.performancePreferenceHint')"
       >
@@ -380,6 +381,7 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
     <div class="settings-grid">
       <SettingsField
         wide
+        no-association
         :label="t('settings.speedLimitSchedule')"
         :info-tooltip="t('settings.speedLimitScheduleHint')"
       >

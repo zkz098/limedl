@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed, inject } from "vue";
+import { FIELD_ASSOCIATION } from "./field-association";
+
 const props = withDefaults(
   defineProps<{
     modelValue: string | number | null;
@@ -26,6 +29,11 @@ const props = withDefaults(
   },
 );
 
+// When rendered inside a SettingsField and no explicit id is given, inherit
+// the field's generated id so the <label for> association works.
+const fieldAssociation = inject(FIELD_ASSOCIATION, null);
+const resolvedId = computed(() => props.id ?? fieldAssociation?.id ?? undefined);
+
 const emit = defineEmits<{
   "update:modelValue": [value: string | number | null];
 }>();
@@ -50,7 +58,7 @@ function onInput(event: Event) {
       unit
     }}</span>
     <input
-      :id="id"
+      :id="resolvedId"
       :aria-label="ariaLabel"
       :aria-labelledby="ariaLabelledby"
       :value="type === 'number' ? (modelValue ?? '') : modelValue"
@@ -70,7 +78,7 @@ function onInput(event: Event) {
   </div>
   <input
     v-else
-    :id="id"
+    :id="resolvedId"
     :aria-label="ariaLabel"
     :aria-labelledby="ariaLabelledby"
     :value="type === 'number' ? (modelValue ?? '') : modelValue"

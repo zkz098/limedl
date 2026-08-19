@@ -190,6 +190,7 @@ function toggleRateLimit() {
               </SettingsField>
 
               <SettingsField
+                v-slot="{ id }"
                 wide
                 :label="t('settings.btTrackerList')"
                 :info-tooltip="
@@ -197,6 +198,7 @@ function toggleRateLimit() {
                 "
               >
                 <textarea
+                  :id="id"
                   v-model="draft.bt.trackerList"
                   class="settings-textarea"
                   :placeholder="t('settings.btTrackerListPlaceholder')"
