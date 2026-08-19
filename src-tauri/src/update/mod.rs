@@ -134,10 +134,16 @@ pub async fn download_and_install_update(
                 .context("failed to create temp directory for update")?;
 
             // ── 3. Start download via limedl-core engine ─────────
+            // NOTE: GitHub's `api.github.com/.../releases/assets/<id>` endpoint only
+            // redirects to the real artifact when the request carries
+            // `Accept: application/octet-stream`; without it, GitHub responds 200 with
+            // the asset's JSON metadata, which would be saved as the "installer" and
+            // then fail minisign verification. tauri-plugin-updater does the same
+            // (Update::download injects this header) — we must replicate it.
             let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
             let request = StartDownloadRequest {
                 kind: None,
-                headers: None,
+                headers: Some(vec!["Accept: application/octet-stream".to_string()]),
                 url: update.download_url.to_string(),
                 destination_dir: temp_dir.to_string_lossy().to_string(),
                 file_name: None,

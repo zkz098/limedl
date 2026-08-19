@@ -1231,3 +1231,127 @@ async fn tail_sprint_selective_release_completes() -> TestResult {
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
+
+// ==========================================================================
+// GitHub release-asset endpoint (self-update download path)
+//
+// Regression tests for the self-update signature failure:
+// `https://api.github.com/.../releases/assets/<id>` only redirects to the real
+// artifact when the request carries `Accept: application/octet-stream`; without
+// it GitHub returns the asset's JSON metadata, which the updater would save as
+// the "installer" and then reject at minisign verification.
+// ==========================================================================
+
+#[tokio::test]
+#[timeout(30_000)]
+async fn github_asset_with_accept_header_downloads_real_bytes() -> TestResult {
+    let server = TestServer::new(64 * 1024).await;
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: server.file_url_github_asset(),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: None,
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(1),
+            checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            // This is the header the self-update flow must send; it mirrors
+            // tauri-plugin-updater's `Update::download()` behavior.
+            headers: Some(vec!["Accept: application/octet-stream".to_string()]),
+            mirror_urls: None,
+            priority: None,
+        })
+        .await?;
+
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
+    assert_eq!(
+        status.state,
+        DownloadState::Completed,
+        "with Accept: application/octet-stream the download must complete with the real artifact, error={:?}",
+        status.error,
+    );
+
+    let dest_path = std::path::Path::new(&status.destination_path);
+    let downloaded = tokio::fs::read(dest_path).await?;
+    assert_eq!(
+        downloaded.len() as u64,
+        server.file_size,
+        "must download the real binary, not the metadata JSON"
+    );
+    assert_eq!(
+        &downloaded[..],
+        &generate_test_content(server.file_size)[..],
+        "downloaded bytes must match the real artifact content"
+    );
+
+    let _ = manager.remove(&id.to_string()).await;
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(30_000)]
+async fn github_asset_without_accept_header_gets_metadata_json() -> TestResult {
+    let server = TestServer::new(64 * 1024).await;
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+
+    let manager = Arc::new(DownloadManager::new(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: server.file_url_github_asset(),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: None,
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(1),
+            checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            headers: None,
+            mirror_urls: None,
+            priority: None,
+        })
+        .await?;
+
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
+    // Even though the download "completes", the bytes are the asset metadata
+    // JSON, not the installer — this is exactly why a signature check would fail.
+    let dest_path = std::path::Path::new(&status.destination_path);
+    let downloaded = tokio::fs::read(dest_path).await?;
+    assert_ne!(
+        downloaded.len() as u64,
+        server.file_size,
+        "without the Accept header the file must NOT be the real artifact"
+    );
+    let text = String::from_utf8_lossy(&downloaded);
+    assert!(
+        text.contains("\"name\"") && text.contains("content_type"),
+        "expected JSON metadata, got: {text}"
+    );
+
+    let _ = manager.remove(&id.to_string()).await;
+    Ok(())
+}
+

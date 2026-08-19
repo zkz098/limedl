@@ -97,6 +97,7 @@ impl TestServer {
             .route("/file/no-length", get(serve_file_no_length))
             .route("/file/wrong-length", get(serve_file_wrong_length))
             .route("/file/status/{code}", get(serve_file_status))
+            .route("/file/github-asset", get(serve_github_asset))
             .with_state(state);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -220,6 +221,18 @@ impl TestServer {
     /// Useful for testing retry logic with arbitrary server error status codes.
     pub fn file_url_status(&self, code: u16) -> String {
         format!("{}/file/status/{code}", self.addr)
+    }
+
+    /// URL mimicking GitHub's release-asset download endpoint
+    /// (`https://api.github.com/.../releases/assets/<id>`).
+    ///
+    /// Like GitHub, this endpoint only redirects to the real artifact when the
+    /// request carries `Accept: application/octet-stream`; without that header it
+    /// responds `200 OK` with the asset's JSON metadata. Downloaders that omit the
+    /// header (e.g. the self-update flow before the fix) would silently save the
+    /// metadata JSON instead of the installer, then fail signature verification.
+    pub fn file_url_github_asset(&self) -> String {
+        format!("{}/file/github-asset", self.addr)
     }
 }
 
@@ -586,6 +599,48 @@ async fn serve_file_status(
 ) -> impl IntoResponse {
     let status = StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     (status, Vec::<u8>::new()).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/github-asset
+// ---------------------------------------------------------------------------
+
+/// GitHub-style release asset endpoint.
+///
+/// Mimics `GET https://api.github.com/repos/{owner}/{repo}/releases/assets/<id>`:
+/// - with `Accept: application/octet-stream` → `302 Found` → `/file` (real bytes)
+/// - otherwise → `200 OK` with the asset's JSON metadata body
+///
+/// This is the exact behavior that requires the self-update download to send the
+/// `Accept: application/octet-stream` header, otherwise the "installer" is the
+/// metadata JSON and minisign verification fails.
+async fn serve_github_asset(
+    State(_state): State<Arc<ServerState>>,
+    req_headers: HeaderMap,
+) -> impl IntoResponse {
+    let accepts_octet_stream = req_headers
+        .get(header::ACCEPT)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.contains("application/octet-stream"));
+
+    if accepts_octet_stream {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::LOCATION, HeaderValue::from_static("/file"));
+        return (StatusCode::FOUND, headers, Vec::<u8>::new()).into_response();
+    }
+
+    // JSON metadata that loosely mirrors GitHub's asset object.
+    let metadata = format!(
+        r#"{{"name":"test-file.bin","size":{},"content_type":"application/json"}}"#,
+        0
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
+    headers.insert(header::CONTENT_LENGTH, usize_header_value(metadata.len()));
+    (StatusCode::OK, headers, metadata.into_bytes()).into_response()
 }
 
 // ---------------------------------------------------------------------------
