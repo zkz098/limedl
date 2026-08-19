@@ -50,7 +50,7 @@ const reversed = computed(() => props.notifications.toReversed());
           </button>
         </div>
       </TransitionGroup>
-    </div>
+    </section>
   </Teleport>
 </template>
 
