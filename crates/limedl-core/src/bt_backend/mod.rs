@@ -69,6 +69,9 @@ pub struct IrontideBtBackend {
     /// Anti-leech: info-hash → original upload-slot count before the loop capped
     /// it (LimitSlots action only), used to restore slots once leechers clear.
     pub(crate) anti_leech_slot_state: Arc<DashMap<Id20, usize>>,
+    /// Blocklist: key (`enabled:path`) of the last successfully applied IP
+    /// filter, so we don't reload/rewrite the filter on every settings save.
+    pub(crate) applied_blocklist_key: Arc<Mutex<Option<String>>>,
     /// Reusable HTTP client with proxy support for .torrent URL fetches.
     pub(crate) http_client: Option<reqwest::Client>,
     /// Global download speed limit (bytes/sec) from AppSettings.
@@ -101,6 +104,7 @@ impl Clone for IrontideBtBackend {
             anti_leech_task: self.anti_leech_task.clone(),
             banned_leechers: self.banned_leechers.clone(),
             anti_leech_slot_state: self.anti_leech_slot_state.clone(),
+            applied_blocklist_key: self.applied_blocklist_key.clone(),
             http_client: self.http_client.clone(),
             global_speed_limit_bps: self.global_speed_limit_bps,
             paused_by_limit: self.paused_by_limit.clone(),

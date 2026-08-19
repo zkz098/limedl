@@ -42,6 +42,7 @@ const protocolsOpen = ref(true);
 const diskSecurityOpen = ref(true);
 const queueOpen = ref(true);
 const rateLimitOpen = ref(true);
+const engineTuningOpen = ref(false);
 
 function toggleTracker() {
   trackerOpen.value = !trackerOpen.value;
@@ -73,6 +74,10 @@ function toggleQueue() {
 
 function toggleRateLimit() {
   rateLimitOpen.value = !rateLimitOpen.value;
+}
+
+function toggleEngineTuning() {
+  engineTuningOpen.value = !engineTuningOpen.value;
 }
 </script>
 
@@ -379,11 +384,162 @@ function toggleRateLimit() {
                   @update:model-value="draft.bt.antiLeechMaxUploadSlots = Number($event ?? 1)"
                 />
               </SettingsField>
+
+              <SettingsField
+                wide
+                :label="t('settings.btBlocklistEnabled')"
+                :info-tooltip="t('settings.btBlocklistEnabledHint')"
+              >
+                <UiSwitch
+                  v-model="draft.bt.blocklistEnabled"
+                  :label="t('settings.btBlocklistEnabled')"
+                />
+              </SettingsField>
+
+              <SettingsField
+                wide
+                :label="t('settings.btBlocklistPath')"
+                :hint="t('settings.btBlocklistPathHint')"
+              >
+                <UiTextField
+                  type="text"
+                  :model-value="draft.bt.blocklistPath"
+                  :disabled="!draft.bt.blocklistEnabled"
+                  placeholder="C:/path/to/blocklist.dat"
+                  @update:model-value="draft.bt.blocklistPath = String($event ?? '')"
+                />
+              </SettingsField>
             </div>
           </div>
         </div>
 
-        <!-- 网络与端口 -->
+        <!-- 引擎调参 -->
+        <div class="bt-subgroup" :class="{ 'bt-subgroup--open': engineTuningOpen }">
+          <button
+            type="button"
+            class="bt-subgroup__header"
+            :aria-expanded="engineTuningOpen"
+            @click="toggleEngineTuning"
+          >
+            <span
+              class="i-ri-arrow-down-s-line bt-subgroup__chevron"
+              :class="{ 'bt-subgroup__chevron--open': engineTuningOpen }"
+              aria-hidden="true"
+            />
+            <span class="bt-subgroup__title">{{ t("settings.btGroupEngineTuning") }}</span>
+          </button>
+          <div v-show="engineTuningOpen" class="bt-subgroup__content">
+            <div class="settings-grid">
+              <SettingsField
+                :label="t('settings.btSeedChokingAlgorithm')"
+                :hint="t('settings.btSeedChokingAlgorithmHint')"
+              >
+                <UiSelect
+                  v-model="draft.bt.seedChokingAlgorithm"
+                  :options="[
+                    { label: t('settings.btSeedChokingFastestUpload'), value: 'fastest_upload' },
+                    { label: t('settings.btSeedChokingRoundRobin'), value: 'round_robin' },
+                    { label: t('settings.btSeedChokingAntiLeech'), value: 'anti_leech' },
+                  ]"
+                  :placeholder="t('settings.btSeedChokingAlgorithm')"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btChokingAlgorithm')"
+                :hint="t('settings.btChokingAlgorithmHint')"
+              >
+                <UiSelect
+                  v-model="draft.bt.chokingAlgorithm"
+                  :options="[
+                    { label: t('settings.btChokingFixedSlots'), value: 'fixed_slots' },
+                    { label: t('settings.btChokingRateBased'), value: 'rate_based' },
+                  ]"
+                  :placeholder="t('settings.btChokingAlgorithm')"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btMaxUploadSlotsPerTorrent')"
+                :hint="t('settings.btMaxUploadSlotsPerTorrentHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.maxUploadSlotsPerTorrent"
+                  :min="1"
+                  :max="64"
+                  @update:model-value="draft.bt.maxUploadSlotsPerTorrent = Number($event ?? 4)"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btMaxPeersPerTorrent')"
+                :hint="t('settings.btMaxPeersPerTorrentHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.maxPeersPerTorrent"
+                  :min="1"
+                  :max="4096"
+                  @update:model-value="draft.bt.maxPeersPerTorrent = Number($event ?? 128)"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btSmartBanFailures')"
+                :hint="t('settings.btSmartBanFailuresHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.smartBanMaxFailures"
+                  :min="1"
+                  :max="100"
+                  @update:model-value="draft.bt.smartBanMaxFailures = Number($event ?? 3)"
+                />
+              </SettingsField>
+
+              <SettingsField
+                wide
+                :label="t('settings.btSmartBanParole')"
+                :info-tooltip="t('settings.btSmartBanParoleHint')"
+              >
+                <UiSwitch
+                  v-model="draft.bt.smartBanParole"
+                  :label="t('settings.btSmartBanParole')"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btEvictionBanDuration')"
+                :hint="t('settings.btEvictionBanDurationHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.evictionBanDurationSecs"
+                  :min="0"
+                  :max="604800"
+                  unit="s"
+                  @update:model-value="draft.bt.evictionBanDurationSecs = Number($event ?? 600)"
+                />
+              </SettingsField>
+
+              <SettingsField
+                :label="t('settings.btDataContributionTimeout')"
+                :hint="t('settings.btDataContributionTimeoutHint')"
+              >
+                <UiTextField
+                  type="number"
+                  :model-value="draft.bt.dataContributionTimeoutSecs"
+                  :min="0"
+                  :max="86400"
+                  unit="s"
+                  @update:model-value="draft.bt.dataContributionTimeoutSecs = Number($event ?? 60)"
+                />
+              </SettingsField>
+            </div>
+          </div>
+        </div>
+
         <div class="bt-subgroup" :class="{ 'bt-subgroup--open': networkOpen }">
           <button
             type="button"

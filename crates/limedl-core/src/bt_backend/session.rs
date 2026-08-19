@@ -82,17 +82,9 @@ impl IrontideBtBackend {
         // Build an HTTP client with proxy support for .torrent URL fetching
         let http_client = build_http_client(settings).ok();
 
-        // Apply BT-specific global rate limits if set.
-        if bt.global_download_rate_limit > 0 || bt.global_upload_rate_limit > 0 {
-            let mut irontide_settings = irontide::prelude::Settings::default();
-            if bt.global_download_rate_limit > 0 {
-                irontide_settings.download_rate_limit = bt.global_download_rate_limit;
-            }
-            if bt.global_upload_rate_limit > 0 {
-                irontide_settings.upload_rate_limit = bt.global_upload_rate_limit;
-            }
-            let _ = session.apply_settings(irontide_settings).await;
-        }
+        // Apply BT-specific engine tuning (choker algorithms, upload slots, peer
+        // counts, ban duration, data-contribution timeout) and global rate limits.
+        let _ = session.apply_settings(build_engine_settings(bt)).await;
 
         // Apply top-level global speed limit if set (per-torrent fallback).
         if settings.global_speed_limit_bps > 0 {
@@ -105,7 +97,7 @@ impl IrontideBtBackend {
         let runtime_handle = tokio::runtime::Handle::try_current()
             .map_err(|e| crate::error::DownloadError::Torrent(format!("no tokio runtime: {e}")))?;
 
-        Ok(Self {
+        let backend = Self {
             session,
             state_dir,
             default_output_dir,
@@ -117,6 +109,7 @@ impl IrontideBtBackend {
             anti_leech_task: Arc::new(Mutex::new(None)),
             banned_leechers: Arc::new(DashMap::new()),
             anti_leech_slot_state: Arc::new(DashMap::new()),
+            applied_blocklist_key: Arc::new(Mutex::new(None)),
             http_client,
             global_speed_limit_bps: settings.global_speed_limit_bps,
             paused_by_limit: Arc::new(DashMap::new()),
@@ -125,7 +118,11 @@ impl IrontideBtBackend {
             max_concurrent_bt,
             bt_slot_guards: Arc::new(DashMap::new()),
             torrent_created_at: Arc::new(DashMap::new()),
-        })
+        };
+
+        backend.apply_blocklist().await;
+
+        Ok(backend)
     }
 
     pub async fn shutdown(&self) {
@@ -185,22 +182,196 @@ impl IrontideBtBackend {
         let bt = settings.bt.clone();
         *lock(&self.bt_settings) = bt.clone();
 
-        // Apply live rate limit changes immediately (no restart required).
-        if bt.global_download_rate_limit > 0 || bt.global_upload_rate_limit > 0 {
-            tokio::task::block_in_place(|| {
-                self.runtime_handle.block_on(async {
-                    let mut irontide_settings = irontide::prelude::Settings::default();
-                    if bt.global_download_rate_limit > 0 {
-                        irontide_settings.download_rate_limit = bt.global_download_rate_limit;
-                    }
-                    if bt.global_upload_rate_limit > 0 {
-                        irontide_settings.upload_rate_limit = bt.global_upload_rate_limit;
-                    }
-                    let _ = self.session.apply_settings(irontide_settings).await;
-                });
-            });
-        }
+        // Apply engine tuning + rate limits and reload the blocklist. Scheduled
+        // onto the captured runtime without blocking so this works whether we
+        // are called from a sync Tauri handler or from inside a current-thread
+        // runtime (tests).
+        let session = self.session.clone();
+        let bt_settings = self.bt_settings.clone();
+        let applied_blocklist_key = self.applied_blocklist_key.clone();
+        self.runtime_handle.spawn(async move {
+            let _ = session.apply_settings(build_engine_settings(&bt)).await;
+            apply_blocklist_impl(&session, &bt_settings, &applied_blocklist_key).await;
+        });
 
-        tracing::debug!("irontide settings updated");
+        tracing::debug!("irontide settings update scheduled");
+    }
+
+    /// Load the configured peer IP blocklist (if any) and set it on the session,
+    /// replacing the previous filter. Re-applies only when the config changes.
+    pub(crate) async fn apply_blocklist(&self) {
+        apply_blocklist_impl(&self.session, &self.bt_settings, &self.applied_blocklist_key).await;
+    }
+}
+
+/// Core blocklist application logic (used at startup and on settings reload).
+async fn apply_blocklist_impl(
+    session: &irontide::session::SessionHandle,
+    bt_settings: &Arc<Mutex<crate::types::BtSettings>>,
+    applied_key: &Arc<Mutex<Option<String>>>,
+) {
+    let settings = lock(bt_settings).clone();
+    let enabled = settings.blocklist_enabled;
+    let path = settings.blocklist_path.trim().to_string();
+
+    // Skip redundant re-applies (config unchanged since last successful load).
+    let key = format!("{enabled}:{path}");
+    {
+        let last = lock(applied_key);
+        if last.as_ref() == Some(&key) {
+            return;
+        }
+    }
+
+    if !enabled || path.is_empty() {
+        match session.set_ip_filter(irontide::session::IpFilter::new()).await {
+            Ok(()) => *lock(applied_key) = Some(key),
+            Err(e) => tracing::warn!("blocklist: failed to clear IP filter: {e}"),
+        }
+        return;
+    }
+
+    let content = match tokio::fs::read_to_string(&path).await {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("blocklist: failed to read {path}: {e}");
+            return;
+        }
+    };
+    let is_dat = path.to_ascii_lowercase().ends_with(".dat");
+    let parsed = if is_dat {
+        irontide::session::parse_dat(&content)
+    } else {
+        irontide::session::parse_p2p(&content)
+    };
+
+    match parsed {
+        Ok(filter) => {
+            let ranges = filter.num_ranges();
+            match session.set_ip_filter(filter).await {
+                Ok(()) => {
+                    *lock(applied_key) = Some(key);
+                    tracing::info!("blocklist: applied {ranges} blocked ranges from {path}");
+                }
+                Err(e) => tracing::warn!("blocklist: failed to set IP filter: {e}"),
+            }
+        }
+        Err(e) => {
+            // Don't cache the failure so the user can fix the file and re-save.
+            *lock(applied_key) = None;
+            tracing::warn!("blocklist: failed to parse {path} into an IP filter: {e}");
+        }
+    }
+}
+
+
+/// Map a limedl seed-choking enum to the irontide engine enum.
+fn map_seed_choking(a: crate::types::BtSeedChokingAlgorithm) -> irontide::session::SeedChokingAlgorithm {
+    use crate::types::BtSeedChokingAlgorithm::*;
+    match a {
+        FastestUpload => irontide::session::SeedChokingAlgorithm::FastestUpload,
+        RoundRobin => irontide::session::SeedChokingAlgorithm::RoundRobin,
+        AntiLeech => irontide::session::SeedChokingAlgorithm::AntiLeech,
+    }
+}
+
+/// Map a limedl choking enum to the irontide engine enum.
+fn map_choking(a: crate::types::BtChokingAlgorithm) -> irontide::session::ChokingAlgorithm {
+    use crate::types::BtChokingAlgorithm::*;
+    match a {
+        FixedSlots => irontide::session::ChokingAlgorithm::FixedSlots,
+        RateBased => irontide::session::ChokingAlgorithm::RateBased,
+    }
+}
+
+/// Build an irontide [`Settings`] from the limedl BT settings: engine tuning
+/// fields plus global rate limits. Used at startup and on hot-reload.
+fn build_engine_settings(bt: &crate::types::BtSettings) -> irontide::session::Settings {
+    irontide::session::Settings {
+        download_rate_limit: bt.global_download_rate_limit,
+        upload_rate_limit: bt.global_upload_rate_limit,
+        seed_choking_algorithm: map_seed_choking(bt.seed_choking_algorithm),
+        choking_algorithm: map_choking(bt.choking_algorithm),
+        max_upload_slots_per_torrent: bt.max_upload_slots_per_torrent as i32,
+        max_peers_per_torrent: bt.max_peers_per_torrent as usize,
+        smart_ban_max_failures: bt.smart_ban_max_failures,
+        smart_ban_parole: bt.smart_ban_parole,
+        eviction_ban_duration_secs: bt.eviction_ban_duration_secs,
+        data_contribution_timeout_secs: bt.data_contribution_timeout_secs,
+        ..Default::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{BtChokingAlgorithm, BtSeedChokingAlgorithm, BtSettings};
+
+    #[test]
+    fn test_map_seed_choking_algorithms() {
+        assert_eq!(
+            map_seed_choking(BtSeedChokingAlgorithm::FastestUpload),
+            irontide::session::SeedChokingAlgorithm::FastestUpload
+        );
+        assert_eq!(
+            map_seed_choking(BtSeedChokingAlgorithm::RoundRobin),
+            irontide::session::SeedChokingAlgorithm::RoundRobin
+        );
+        assert_eq!(
+            map_seed_choking(BtSeedChokingAlgorithm::AntiLeech),
+            irontide::session::SeedChokingAlgorithm::AntiLeech
+        );
+    }
+
+    #[test]
+    fn test_map_choking_algorithms() {
+        assert_eq!(
+            map_choking(BtChokingAlgorithm::FixedSlots),
+            irontide::session::ChokingAlgorithm::FixedSlots
+        );
+        assert_eq!(
+            map_choking(BtChokingAlgorithm::RateBased),
+            irontide::session::ChokingAlgorithm::RateBased
+        );
+    }
+
+    #[test]
+    fn test_build_engine_settings_maps_tuning_and_limits() {
+        let bt = BtSettings {
+            global_download_rate_limit: 1024,
+            global_upload_rate_limit: 2048,
+            seed_choking_algorithm: BtSeedChokingAlgorithm::AntiLeech,
+            choking_algorithm: BtChokingAlgorithm::RateBased,
+            max_upload_slots_per_torrent: 6,
+            max_peers_per_torrent: 200,
+            smart_ban_max_failures: 2,
+            smart_ban_parole: false,
+            eviction_ban_duration_secs: 900,
+            data_contribution_timeout_secs: 45,
+            ..BtSettings::default()
+        };
+        let s = build_engine_settings(&bt);
+        assert_eq!(s.download_rate_limit, 1024);
+        assert_eq!(s.upload_rate_limit, 2048);
+        assert_eq!(s.seed_choking_algorithm, irontide::session::SeedChokingAlgorithm::AntiLeech);
+        assert_eq!(s.choking_algorithm, irontide::session::ChokingAlgorithm::RateBased);
+        assert_eq!(s.max_upload_slots_per_torrent, 6);
+        assert_eq!(s.max_peers_per_torrent, 200);
+        assert_eq!(s.smart_ban_max_failures, 2);
+        assert!(!s.smart_ban_parole);
+        assert_eq!(s.eviction_ban_duration_secs, 900);
+        assert_eq!(s.data_contribution_timeout_secs, 45);
+    }
+
+    #[test]
+    fn test_build_engine_settings_defaults() {
+        let bt = BtSettings::default();
+        let s = build_engine_settings(&bt);
+        assert_eq!(s.max_upload_slots_per_torrent, 4);
+        assert_eq!(s.max_peers_per_torrent, 128);
+        assert_eq!(s.smart_ban_max_failures, 3);
+        assert!(s.smart_ban_parole);
+        assert_eq!(s.eviction_ban_duration_secs, 600);
+        assert_eq!(s.data_contribution_timeout_secs, 60);
     }
 }

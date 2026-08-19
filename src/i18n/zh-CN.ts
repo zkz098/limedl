@@ -489,6 +489,36 @@ const zhCN = {
       btAntiLeechMaxUploadSlots: "最大上传槽位",
       btAntiLeechMaxUploadSlotsHint:
         "当 torrent 检测到吸血对等端时，其并发上传槽位将限制为该值。",
+      btBlocklistEnabled: "IP 黑名单",
+      btBlocklistEnabledHint:
+        "将会话的 IP 过滤设为黑名单文件中的网段，被封段的（如已知吸血 IDC/网络）连接将被拒绝。",
+      btBlocklistPath: "黑名单文件",
+      btBlocklistPathHint:
+        "填写黑名单文件路径。支持 eMule .dat 或 P2P 明文（每行一个 CIDR）格式，按文件扩展名自动选择解析器。",
+      btGroupEngineTuning: "引擎调参",
+      btSeedChokingAlgorithm: "做种 choke 算法",
+      btSeedChokingAlgorithmHint:
+        "做种时对 peer 的排序方式。反吸血优先回报最高的做种对等端。",
+      btSeedChokingFastestUpload: "最快上传",
+      btSeedChokingRoundRobin: "轮询",
+      btSeedChokingAntiLeech: "反吸血",
+      btChokingAlgorithm: "unchoke 算法",
+      btChokingAlgorithmHint: "每个 torrent 的 unchoke 槽位如何确定：固定槽位数 或 按速率自动调整。",
+      btChokingFixedSlots: "固定槽位",
+      btChokingRateBased: "按速率",
+      btMaxUploadSlotsPerTorrent: "每个 torrent 最大上传槽位",
+      btMaxUploadSlotsPerTorrentHint: "每个 torrent 的最大并发 unchoke 槽位数。",
+      btMaxPeersPerTorrent: "每个 torrent 最大 peer 数",
+      btMaxPeersPerTorrentHint: "每个 torrent 的最大 peer 连接数。",
+      btSmartBanFailures: "智能封禁失败次数",
+      btSmartBanFailuresHint: "hash 校验失败的涉事次数超过该值后自动封禁该 peer。",
+      btSmartBanParole: "智能封禁假释",
+      btSmartBanParoleHint: "从无关 peer 重新下载失败分片以判定责任，判责前不扣分。",
+      btEvictionBanDuration: "驱逐封禁时长",
+      btEvictionBanDurationHint: "被驱逐（不贡献数据的）peer 需等待的封禁秒数，到期后可重新连接。",
+      btDataContributionTimeout: "数据贡献超时",
+      btDataContributionTimeoutHint:
+        "超过该秒数未收到分片数据的 peer 将被断开；填 0 关闭此保护。",
       // Network
       btListenPort: "监听端口",
       btListenPortHint: "留空由系统自动分配。1024–65535",

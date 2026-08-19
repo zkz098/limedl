@@ -37,6 +37,11 @@ export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
 export type BtAntiLeechAction = "ban" | "limit_slots";
 
 /**
+ * Top-level unchoke-slot algorithm (engine tuning).
+ */
+export type BtChokingAlgorithm = "fixed_slots" | "rate_based";
+
+/**
  * Protocol encryption (MSE/PE) mode.
  */
 export type BtEncryptionMode = "enabled" | "disabled" | "forced";
@@ -55,6 +60,11 @@ export type BtPortRange = { start: number, end: number, };
 export type BtPreallocateMode = "none" | "full";
 
 export type BtRuntimeStatus = { connected: boolean, dhtEnabled: boolean, dhtNodes?: number | null, torrentCount: number, peerCount: number, uploadSpeedBytesPerSecond?: number | null, uploadedBytes: number, updatedAtMs: number, seedCount?: number | null, leechCount?: number | null, };
+
+/**
+ * Seed-mode choking algorithm (engine tuning).
+ */
+export type BtSeedChokingAlgorithm = "fastest_upload" | "round_robin" | "anti_leech";
 
 export type BtSettings = { dhtEnabled: boolean, trackerList: string, trackerListUrl: string, pauseUploadWhenLimitReached: boolean, uploadLimitBytes: number, uploadRatioLimit: number, 
 /**
@@ -83,7 +93,48 @@ antiLeechBanSecs: number,
  * When action = LimitSlots, max concurrent unchoke slots per torrent that
  * currently has detected leechers.
  */
-antiLeechMaxUploadSlots: number, upnpEnabled: boolean, listenPortRange?: BtPortRange | null, 
+antiLeechMaxUploadSlots: number, 
+/**
+ * Seed-mode choking algorithm.
+ */
+seedChokingAlgorithm: BtSeedChokingAlgorithm, 
+/**
+ * Top-level unchoke-slot algorithm.
+ */
+chokingAlgorithm: BtChokingAlgorithm, 
+/**
+ * Maximum upload (unchoke) slots per torrent.
+ */
+maxUploadSlotsPerTorrent: number, 
+/**
+ * Maximum peer connections per torrent.
+ */
+maxPeersPerTorrent: number, 
+/**
+ * Hash-failure involvements before the engine auto-bans a peer (smart ban).
+ */
+smartBanMaxFailures: number, 
+/**
+ * Use parole to isolate the offending peer before striking (smart ban).
+ */
+smartBanParole: boolean, 
+/**
+ * Seconds an evicted peer is blocked from reconnecting before it may rejoin.
+ */
+evictionBanDurationSecs: number, 
+/**
+ * Seconds without receiving piece data before the engine disconnects a
+ * peer (0 = disabled). Helps drop under-contributing peers.
+ */
+dataContributionTimeoutSecs: number, 
+/**
+ * Master switch for loading a peer IP blocklist into the session.
+ */
+blocklistEnabled: boolean, 
+/**
+ * Path to a blocklist file (eMule `.dat` or P2P plaintext, one CIDR per line).
+ */
+blocklistPath: string, upnpEnabled: boolean, listenPortRange?: BtPortRange | null, 
 /**
  * TCP listen port. None = OS assigns.
  */

@@ -510,6 +510,37 @@ const enUS = {
       btAntiLeechMaxUploadSlots: "Max upload slots",
       btAntiLeechMaxUploadSlotsHint:
         "When a torrent has detected leechers, its concurrent upload slots are capped at this value.",
+      btBlocklistEnabled: "IP blocklist",
+      btBlocklistEnabledHint:
+        "Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection.",
+      btBlocklistPath: "Blocklist file",
+      btBlocklistPathHint:
+        "Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension.",
+      btGroupEngineTuning: "Engine Tuning",
+      btSeedChokingAlgorithm: "Seed choking algorithm",
+      btSeedChokingAlgorithmHint:
+        "How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back.",
+      btSeedChokingFastestUpload: "Fastest upload",
+      btSeedChokingRoundRobin: "Round-robin",
+      btSeedChokingAntiLeech: "Anti-leech",
+      btChokingAlgorithm: "Unchoke algorithm",
+      btChokingAlgorithmHint:
+        "How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts.",
+      btChokingFixedSlots: "Fixed slots",
+      btChokingRateBased: "Rate-based",
+      btMaxUploadSlotsPerTorrent: "Max upload slots / torrent",
+      btMaxUploadSlotsPerTorrentHint: "Maximum concurrent unchoke slots per torrent.",
+      btMaxPeersPerTorrent: "Max peers / torrent",
+      btMaxPeersPerTorrentHint: "Maximum peer connections per torrent.",
+      btSmartBanFailures: "Smart-ban failures",
+      btSmartBanFailuresHint: "Hash-failure involvements before a peer is automatically banned.",
+      btSmartBanParole: "Smart-ban parole",
+      btSmartBanParoleHint: "Re-download a failed piece from an uninvolved peer to attribute the fault before striking.",
+      btEvictionBanDuration: "Eviction ban duration",
+      btEvictionBanDurationHint: "Seconds an evicted (non-contributing) peer is blocked from reconnecting.",
+      btDataContributionTimeout: "Data-contribution timeout",
+      btDataContributionTimeoutHint:
+        "Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard.",
 
       // Network
       btListenPort: "Listen Port",

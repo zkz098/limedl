@@ -4,7 +4,7 @@
 
 通过 irontide 库管理 BitTorrent 下载的完整生命周期：会话管理、torrent 元数据解析、对等节点连接、文件选择、上传策略、进度/状态查询。bt 任务使用 TaskId::Bt(Id20)，ID 为原始 info_hash hex 字符串。
 
-核心类型：IrontideBtBackend（持有 session handle、task_map、alert_task、upload_policy_task、anti_leech_task、banned_leechers、anti_leech_slot_state、torrent_created_at、bt_slot_guards 等字段）。
+核心类型：IrontideBtBackend（持有 session handle、task_map、alert_task、upload_policy_task、anti_leech_task、banned_leechers、anti_leech_slot_state、applied_blocklist_key、torrent_created_at、bt_slot_guards 等字段）。
 
 自身有 `active_bt_count` 原子槽位（与 DownloadManager 的 DownloadSlotGuard 独立）。`max_concurrent_bt` 由 DownloadManager 和 IrontideBtBackend 共享，通过 `DownloadSlotGuard` 协调。
 
@@ -98,7 +98,23 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 - 相关 BtSettings 字段：`anti_leech_enabled/action/grace_secs/ratio/ban_secs/max_upload_slots`。
 
 ### 设置热重载
-- `apply_settings()` 复制 BtSettings 到 `Arc<Mutex<>>`，并在 irontide session 中立即应用全局速率限制变更，无需重启 session。
+- `apply_settings()` 复制 BtSettings 到 `Arc<Mutex<>>`，并通过 `build_engine_settings()` 把引擎调参 + 全局速率限制应用到 irontide session，无需重启 session。
+- 注意：热重载采用 **spawn 到运行时异步应用**（而非 `block_in_place`），因此既能在 Tauri 同步 handler 中使用，也能在 current-thread 测试运行时中安全调用。
+
+### 引擎调参（透传）
+- BtSettings 暴露一组引擎调参字段，经 `build_engine_settings()` 映射为 irontide `Settings`，在启动与热重载时应用：
+  - `seed_choking_algorithm`（含 `AntiLeech`：做种时优先回报最高的 peer）
+  - `choking_algorithm`（FixedSlots / RateBased）
+  - `max_upload_slots_per_torrent`、`max_peers_per_torrent`
+  - `smart_ban_max_failures` / `smart_ban_parole`（hash 失败智能封禁）
+  - `eviction_ban_duration_secs`（被驱逐 peer 的重新连接封禁时长）
+  - `data_contribution_timeout_secs`（不贡献数据的 peer 被断开）
+
+### IP 黑名单
+- BtSettings 的 `blocklist_enabled` / `blocklist_path` 控制会话级 IP 过滤。
+- `apply_blocklist()`（启动与热重载时）读取文件，按扩展名 **`.dat` → `parse_dat`，否则 `parse_p2p`**，得到 `irontide IpFilter` 后 `set_ip_filter()` 替换会话过滤。
+- 本地/私网地址自动豁免，替换不会误伤内网。
+- `applied_blocklist_key: Mutex<Option<String>>` 记录上次成功加载的 `enabled:path`，避免每次保存设置都重读大文件；解析失败不缓存，便于用户改文件后重存生效。
 
 ### 关闭流程
 1. 保存 session state（`save_session_state`）

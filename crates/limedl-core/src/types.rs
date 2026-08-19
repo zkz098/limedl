@@ -875,6 +875,34 @@ pub enum BtAntiLeechAction {
     LimitSlots,
 }
 
+/// Seed-mode choking algorithm (engine tuning).
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BtSeedChokingAlgorithm {
+    /// Unchoke the peers we upload to fastest.
+    #[default]
+    FastestUpload,
+    /// Round-robin through all interested peers.
+    RoundRobin,
+    /// Prefer leechers over seeds (anti-leech).
+    AntiLeech,
+}
+
+/// Top-level unchoke-slot algorithm (engine tuning).
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BtChokingAlgorithm {
+    /// Fixed number of unchoke slots.
+    #[default]
+    FixedSlots,
+    /// Rate-based unchoking (auto-adjusts slots).
+    RateBased,
+}
+
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -912,6 +940,41 @@ pub struct BtSettings {
     /// currently has detected leechers.
     #[serde(default = "default_anti_leech_max_upload_slots")]
     pub anti_leech_max_upload_slots: u32,
+
+    // -- Engine tuning (passed through to the irontide choker/peer manager) --
+    /// Seed-mode choking algorithm.
+    #[serde(default)]
+    pub seed_choking_algorithm: BtSeedChokingAlgorithm,
+    /// Top-level unchoke-slot algorithm.
+    #[serde(default)]
+    pub choking_algorithm: BtChokingAlgorithm,
+    /// Maximum upload (unchoke) slots per torrent.
+    #[serde(default = "default_max_upload_slots_per_torrent")]
+    pub max_upload_slots_per_torrent: u32,
+    /// Maximum peer connections per torrent.
+    #[serde(default = "default_max_peers_per_torrent")]
+    pub max_peers_per_torrent: u32,
+    /// Hash-failure involvements before the engine auto-bans a peer (smart ban).
+    #[serde(default = "default_smart_ban_max_failures")]
+    pub smart_ban_max_failures: u32,
+    /// Use parole to isolate the offending peer before striking (smart ban).
+    #[serde(default = "default_true")]
+    pub smart_ban_parole: bool,
+    /// Seconds an evicted peer is blocked from reconnecting before it may rejoin.
+    #[serde(default = "default_eviction_ban_duration_secs")]
+    pub eviction_ban_duration_secs: u64,
+    /// Seconds without receiving piece data before the engine disconnects a
+    /// peer (0 = disabled). Helps drop under-contributing peers.
+    #[serde(default = "default_data_contribution_timeout_secs")]
+    pub data_contribution_timeout_secs: u64,
+
+    // -- IP blocklist (反吸血黑名单) --
+    /// Master switch for loading a peer IP blocklist into the session.
+    #[serde(default)]
+    pub blocklist_enabled: bool,
+    /// Path to a blocklist file (eMule `.dat` or P2P plaintext, one CIDR per line).
+    #[serde(default)]
+    pub blocklist_path: String,
     #[serde(default)]
     pub upnp_enabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -995,6 +1058,16 @@ impl Default for BtSettings {
             anti_leech_ratio: default_anti_leech_ratio(),
             anti_leech_ban_secs: default_anti_leech_ban_secs(),
             anti_leech_max_upload_slots: default_anti_leech_max_upload_slots(),
+            seed_choking_algorithm: BtSeedChokingAlgorithm::default(),
+            choking_algorithm: BtChokingAlgorithm::default(),
+            max_upload_slots_per_torrent: default_max_upload_slots_per_torrent(),
+            max_peers_per_torrent: default_max_peers_per_torrent(),
+            smart_ban_max_failures: default_smart_ban_max_failures(),
+            smart_ban_parole: true,
+            eviction_ban_duration_secs: default_eviction_ban_duration_secs(),
+            data_contribution_timeout_secs: default_data_contribution_timeout_secs(),
+            blocklist_enabled: false,
+            blocklist_path: String::new(),
             upnp_enabled: false,
             listen_port_range: None,
             listen_port: None,
@@ -1034,6 +1107,22 @@ fn default_anti_leech_ban_secs() -> u64 {
 }
 fn default_anti_leech_max_upload_slots() -> u32 {
     4
+}
+
+fn default_max_upload_slots_per_torrent() -> u32 {
+    4
+}
+fn default_max_peers_per_torrent() -> u32 {
+    128
+}
+fn default_smart_ban_max_failures() -> u32 {
+    3
+}
+fn default_eviction_ban_duration_secs() -> u64 {
+    600
+}
+fn default_data_contribution_timeout_secs() -> u64 {
+    60
 }
 
 fn default_max_downloads() -> u32 {

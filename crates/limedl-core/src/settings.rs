@@ -200,6 +200,16 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
         },
         anti_leech_ban_secs: settings.anti_leech_ban_secs,
         anti_leech_max_upload_slots: settings.anti_leech_max_upload_slots.max(1),
+        seed_choking_algorithm: settings.seed_choking_algorithm,
+        choking_algorithm: settings.choking_algorithm,
+        max_upload_slots_per_torrent: settings.max_upload_slots_per_torrent.clamp(1, 64),
+        max_peers_per_torrent: settings.max_peers_per_torrent.clamp(1, 4096),
+        smart_ban_max_failures: settings.smart_ban_max_failures.clamp(1, 100),
+        smart_ban_parole: settings.smart_ban_parole,
+        eviction_ban_duration_secs: settings.eviction_ban_duration_secs.min(604_800),
+        data_contribution_timeout_secs: settings.data_contribution_timeout_secs.min(86_400),
+        blocklist_enabled: settings.blocklist_enabled,
+        blocklist_path: settings.blocklist_path.trim().to_string(),
         upnp_enabled: settings.upnp_enabled,
         listen_port_range,
         listen_port: settings
@@ -393,7 +403,7 @@ pub async fn persist_settings(settings_path: &Path, settings: &AppSettings) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::BtPortRange;
+    use crate::types::{BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm};
     use std::io::Write;
     use tempfile::tempdir;
 
@@ -944,6 +954,56 @@ mod tests {
             })
         );
         assert_eq!(result.listen_port, Some(6881));
+    }
+
+    #[test]
+    fn test_normalize_bt_engine_tuning_roundtrip() {
+        let input = BtSettings {
+            seed_choking_algorithm: BtSeedChokingAlgorithm::AntiLeech,
+            choking_algorithm: BtChokingAlgorithm::RateBased,
+            max_upload_slots_per_torrent: 8,
+            max_peers_per_torrent: 256,
+            smart_ban_max_failures: 5,
+            smart_ban_parole: false,
+            eviction_ban_duration_secs: 1200,
+            data_contribution_timeout_secs: 30,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert_eq!(result.seed_choking_algorithm, BtSeedChokingAlgorithm::AntiLeech);
+        assert_eq!(result.choking_algorithm, BtChokingAlgorithm::RateBased);
+        assert_eq!(result.max_upload_slots_per_torrent, 8);
+        assert_eq!(result.max_peers_per_torrent, 256);
+        assert_eq!(result.smart_ban_max_failures, 5);
+        assert!(!result.smart_ban_parole);
+        assert_eq!(result.eviction_ban_duration_secs, 1200);
+        assert_eq!(result.data_contribution_timeout_secs, 30);
+    }
+
+    #[test]
+    fn test_normalize_bt_engine_tuning_clamped() {
+        let input = BtSettings {
+            max_upload_slots_per_torrent: 0,
+            max_peers_per_torrent: 99999,
+            data_contribution_timeout_secs: 999999,
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert_eq!(result.max_upload_slots_per_torrent, 1);
+        assert_eq!(result.max_peers_per_torrent, 4096);
+        assert_eq!(result.data_contribution_timeout_secs, 86_400);
+    }
+
+    #[test]
+    fn test_normalize_bt_blocklist_fields() {
+        let input = BtSettings {
+            blocklist_enabled: true,
+            blocklist_path: String::from("  /path/to/blocklist.dat  "),
+            ..BtSettings::default()
+        };
+        let result = normalize_bt_settings(input).unwrap();
+        assert!(result.blocklist_enabled);
+        assert_eq!(result.blocklist_path, "/path/to/blocklist.dat");
     }
 
     // -----------------------------------------------------------------------
