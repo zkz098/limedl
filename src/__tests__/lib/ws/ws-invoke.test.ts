@@ -176,18 +176,12 @@ describe("applyTransform", () => {
   });
 
   // --- Edge cases --------------------------------------------------------
-  it("returns empty args object when args is undefined even for identity spec", () => {
-    const spec = WS_COMMANDS.find((c) => c.tauriName === "download_list")!;
-    expect(applyTransform(spec, undefined)).toEqual({});
-  });
-
-  it("returns empty args object when args is undefined for rename spec", () => {
-    const spec = WS_COMMANDS.find((c) => c.tauriName === "download_pause")!;
-    expect(applyTransform(spec, undefined)).toEqual({});
-  });
-
-  it("returns empty args object when args is undefined for unwrapField spec", () => {
-    const spec = WS_COMMANDS.find((c) => c.tauriName === "download_start")!;
+  it.each<[string, string]>([
+    ["returns empty args object when args is undefined even for identity spec", "download_list"],
+    ["returns empty args object when args is undefined for rename spec", "download_pause"],
+    ["returns empty args object when args is undefined for unwrapField spec", "download_start"],
+  ])("%s", (_title, tauriName) => {
+    const spec = WS_COMMANDS.find((c) => c.tauriName === tauriName)!;
     expect(applyTransform(spec, undefined)).toEqual({});
   });
 });

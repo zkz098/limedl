@@ -14,7 +14,24 @@ const WAYLAND_LIBRARY_PATTERN = /^libwayland-.+/;
 // hook (workaround for tauri#8541), forcing every AppImage to run under
 // XWayland. Removing the line lets GTK3 pick backends in its default order
 // (wayland first, silent fallback to x11), so Wayland sessions run natively.
-const GDK_BACKEND_EXPORT_PATTERN = /^\s*export\s+GDK_BACKEND=[^\n]*/gm;
+const GDK_BACKEND_EXPORT_PREFIX = "export GDK_BACKEND=";
+
+function lineHasGdkBackendExport(line) {
+  return line.trimStart().startsWith(GDK_BACKEND_EXPORT_PREFIX);
+}
+
+function hasGdkBackendExport(hookContent) {
+  return hookContent.split("\n").some(lineHasGdkBackendExport);
+}
+
+// Removes the line content, keeping the newline so the hook layout is
+// otherwise untouched (matches the previous regex replace behavior).
+function removeGdkBackendExport(hookContent) {
+  return hookContent
+    .split("\n")
+    .map((line) => (lineHasGdkBackendExport(line) ? "" : line))
+    .join("\n");
+}
 
 function readFlagValue(argv, index) {
   const value = argv[index + 1];
@@ -96,10 +113,10 @@ async function patchGdkBackendHook(appDir) {
     return false;
   }
   const hookContent = await readFile(hookPath, "utf8");
-  if (!GDK_BACKEND_EXPORT_PATTERN.test(hookContent)) {
+  if (!hasGdkBackendExport(hookContent)) {
     return false;
   }
-  const patchedContent = hookContent.replace(GDK_BACKEND_EXPORT_PATTERN, "");
+  const patchedContent = removeGdkBackendExport(hookContent);
   await writeFile(hookPath, patchedContent, "utf8");
   return true;
 }

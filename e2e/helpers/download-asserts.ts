@@ -47,6 +47,21 @@ export async function expectProgressValue(
   expect(Number(widthMatch![1])).toBeGreaterThanOrEqual(minValue);
 }
 
+// Speed units, longest first so "KB/s" is matched before its "B/s" suffix.
+const SPEED_UNITS = ["GB/s", "MB/s", "KB/s", "B/s"];
+
+/** Extracts the numeric speed value from a formatted speed string, e.g. "1.2 MB/s". */
+function extractSpeedValue(text: string): number | null {
+  const lower = text.toLowerCase();
+  for (const unit of SPEED_UNITS) {
+    const idx = lower.indexOf(unit.toLowerCase());
+    if (idx === -1) continue;
+    const value = Number.parseFloat(text.slice(0, idx).trim());
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
 /**
  * Asserts that the task's speed display shows a non-zero value with a unit suffix
  * (e.g. "1.2 MB/s", "500 KB/s").
@@ -58,14 +73,8 @@ export async function expectSpeedDisplay(page: Page, taskId: string): Promise<vo
   const text = await locator.textContent();
   expect(text).toBeTruthy();
 
-  // Should contain a number followed by a unit
-  const speedPattern = /([\d.]+)\s*(B|KB|MB|GB)\/s/i;
-  expect(text).toMatch(speedPattern);
-
-  // Extract the numeric value and ensure it's > 0
-  const match = text!.match(speedPattern);
-  if (match) {
-    const value = Number.parseFloat(match[1]);
-    expect(value).toBeGreaterThan(0);
-  }
+  // Should contain a number followed by a unit; the parsed value must be > 0
+  const speedValue = extractSpeedValue(text ?? "");
+  expect(speedValue).not.toBeNull();
+  expect(speedValue!).toBeGreaterThan(0);
 }
