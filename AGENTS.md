@@ -23,6 +23,16 @@
 | Test (Rust) | `cargo test --workspace` |
 | Build | `pnpm run build` (vue-tsc → vite build) |
 | Version bump | `node scripts/bump-version.mjs patch` |
+| Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C` |
+
+## Releases
+
+Pushing a `v*` tag triggers `.github/workflows/release.yml`. A `changelog` job generates
+the GitHub release body **automatically** from Conventional Commits between the previous
+tag and the released tag using **git-cliff** (`cliff.toml`), then injects it into the release
+via `tauri-action`/`softprops`. Commit types `test:`/`ci:`/`chore:`/`build:`/`style:` are omitted
+from the notes; `feat:`/`fix:`/`perf:`/`refactor:`/`docs:` are grouped into sections. Keep commit
+subjects Conventional (with meaningful `scope:`) so release notes stay readable.
 
 ## Architecture
 
