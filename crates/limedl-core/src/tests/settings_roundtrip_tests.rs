@@ -1,6 +1,50 @@
 use ntest::timeout;
 use tempfile::TempDir;
 
+use crate::types::SchedulerSettings;
+
+/// Guard against default drift: the derived/serde defaults for every
+/// `SchedulerSettings` field must stay in sync, because the frontend
+/// `DEFAULT_APP_SETTINGS` and the settings JSON round-trip both rely on the
+/// Rust `Default` impl. A mismatch here once caused `connectionWarmupEnabled`
+/// to silently reset (Default said `false`, serde default said `true`).
+#[test]
+fn scheduler_defaults_match_serde_defaults() {
+    let defaulted = SchedulerSettings::default();
+    assert!(
+        defaulted.connection_warmup_enabled,
+        "connection_warmup_enabled should default to true (Default)"
+    );
+    assert!(
+        !defaulted.tail_sprint_enabled,
+        "tail_sprint_enabled should default to false (Default)"
+    );
+
+    // A legacy settings blob missing the warmup/tail-sprint keys (but with the
+    // required scheduler fields present) must deserialize to the same defaults
+    // as `Default::default()`, otherwise legacy configs diverge from fresh ones.
+    let legacy: SchedulerSettings = serde_json::from_str(
+        r#"{"mode":"traditional","traditional":{"maxParallelTasks":3},"automatic":{"maxParallelThreads":16,"maxThreadsPerTask":8,"adaptiveProfile":"balanced"}}"#,
+    )
+    .unwrap();
+    assert!(
+        legacy.connection_warmup_enabled,
+        "connection_warmup_enabled should default to true (serde)"
+    );
+    assert!(
+        !legacy.tail_sprint_enabled,
+        "tail_sprint_enabled should default to false (serde)"
+    );
+
+    // Serialize Default and re-deserialize: must be stable under round-trip.
+    let roundtrip: SchedulerSettings =
+        serde_json::from_str(&serde_json::to_string(&defaulted).unwrap()).unwrap();
+    assert!(
+        roundtrip.connection_warmup_enabled,
+        "Default should survive JSON round-trip"
+    );
+}
+
 /// Verify settings persist to disk and survive restart.
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]

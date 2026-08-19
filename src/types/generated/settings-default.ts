@@ -41,7 +41,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     },
     "chunkSizeStrategy": "adaptive",
     "tailSprintEnabled": false,
-    "connectionWarmupEnabled": false
+    "connectionWarmupEnabled": true
   },
   "download": {
     "defaultDownloadDir": "",

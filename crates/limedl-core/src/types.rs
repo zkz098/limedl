@@ -784,7 +784,7 @@ pub enum ChunkSizeStrategy {
 
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerSettings {
     pub mode: SchedulerMode,
@@ -799,6 +799,19 @@ pub struct SchedulerSettings {
 }
 
 fn default_warmup() -> bool { true }
+
+impl Default for SchedulerSettings {
+    fn default() -> Self {
+        Self {
+            mode: SchedulerMode::default(),
+            traditional: TraditionalSchedulerSettings::default(),
+            automatic: AutomaticSchedulerSettings::default(),
+            chunk_size_strategy: ChunkSizeStrategy::default(),
+            tail_sprint_enabled: false,
+            connection_warmup_enabled: true,
+        }
+    }
+}
 
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
