@@ -13,6 +13,11 @@ function resolveColorMode(mode: ColorMode): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function applyColorMode(mode: ColorMode) {
+  document.documentElement.dataset.colorModePreference = mode;
+  document.documentElement.dataset.colorMode = resolveColorMode(mode);
+}
+
 export const useAppSettingsStore = defineStore("appSettings", () => {
   // ── Owned state ──────────────────────────────────────────────────
   const sortKey = ref<SortKey>("added_at");
@@ -25,11 +30,6 @@ export const useAppSettingsStore = defineStore("appSettings", () => {
   let colorSchemeQuery: MediaQueryList | null = null;
 
   // ── Color mode logic ─────────────────────────────────────────────
-  function applyColorMode(mode: ColorMode) {
-    document.documentElement.dataset.colorModePreference = mode;
-    document.documentElement.dataset.colorMode = resolveColorMode(mode);
-  }
-
   function applyAppearanceSettings(settings: AppSettings) {
     document.documentElement.dataset.theme = settings.appearance?.themeColor ?? "lime";
     document.documentElement.dataset.surface = settings.appearance?.backgroundOpacity ?? "default";

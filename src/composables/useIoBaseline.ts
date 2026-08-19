@@ -17,6 +17,10 @@ async function fetchStatus() {
   }
 }
 
+async function refreshStatus() {
+  await fetchStatus();
+}
+
 function startPolling() {
   pollConsumers += 1;
   if (pollConsumers > 1) {
@@ -70,10 +74,6 @@ export function useIoBaseline() {
     } finally {
       isToggling.value = false;
     }
-  }
-
-  async function refreshStatus() {
-    await fetchStatus();
   }
 
   return {

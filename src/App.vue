@@ -65,12 +65,6 @@ import { saveAppSettings } from "./lib/tauri/settings-api";
 import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/tauri/download-api";
 import { toMessage, toErrorMessage } from "./composables/downloadHelpers";
 
-// Multi-select refs (declared before configure closure)
-let multiSelectMode = ref(false);
-let selectedIds = ref<Set<string>>(new Set());
-let showBatchDeleteDialog = ref(false);
-let removedDownloadIds = ref<string[]>([]);
-
 // BT speed limit modal state
 const showBtSpeedLimitModal = ref(false);
 const btSpeedLimitTaskId = ref("");
@@ -80,31 +74,6 @@ const btSpeedLimitUploadLimit = ref(0);
 // ── Pinia stores ───────────────────────────────────────────────────
 const notify = useNotificationStore();
 const downloadStore = useDownloadStore();
-downloadStore.configure({
-  onDownloadFailed: (fileName, reason) => {
-    notify.notifyError(
-      t("messages.downloadFailed", {
-        fileName,
-        reason,
-      }),
-    );
-  },
-  onDownloadsRemoved: (removedIds) => {
-    removedDownloadIds.value = removedIds;
-    if (selectedIds.value.size === 0) return;
-    let changed = false;
-    const next = new Set(selectedIds.value);
-    for (const id of removedIds) {
-      if (next.has(id)) {
-        next.delete(id);
-        changed = true;
-      }
-    }
-    if (changed) {
-      selectedIds.value = next;
-    }
-  },
-});
 
 // Use storeToRefs to preserve ref reactivity (Pinia auto-unwraps otherwise)
 const {
@@ -155,12 +124,11 @@ const {
 const { categoryCounts, sidebarStats } = useCategoryCounts(downloads);
 
 const ms = useMultiSelect(downloads as Ref<Array<{ id: string }>>);
-// Reassign refs to the composable's refs so closure captures work correctly
-multiSelectMode = ms.multiSelectMode;
-selectedIds = ms.selectedIds;
-showBatchDeleteDialog = ms.showBatchDeleteDialog;
-removedDownloadIds = ms.removedDownloadIds;
 const {
+  multiSelectMode,
+  selectedIds,
+  showBatchDeleteDialog,
+  removedDownloadIds,
   handleToggleMultiSelectMode,
   handleToggleSelect,
   handleSelectAll,
@@ -169,6 +137,34 @@ const {
 } = ms;
 
 const { t } = useI18n();
+
+// downloadStore.configure is invoked after the multi-select refs and `t` are
+// in scope; its callbacks reference them but only run at runtime after mount.
+downloadStore.configure({
+  onDownloadFailed: (fileName, reason) => {
+    notify.notifyError(
+      t("messages.downloadFailed", {
+        fileName,
+        reason,
+      }),
+    );
+  },
+  onDownloadsRemoved: (removedIds) => {
+    removedDownloadIds.value = removedIds;
+    if (selectedIds.value.size === 0) return;
+    let changed = false;
+    const next = new Set(selectedIds.value);
+    for (const id of removedIds) {
+      if (next.has(id)) {
+        next.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      selectedIds.value = next;
+    }
+  },
+});
 const {
   gameMode,
   bufferUsageBytes,

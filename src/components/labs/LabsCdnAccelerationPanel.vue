@@ -700,7 +700,7 @@ onUnmounted(() => {
 }
 
 .cdn-panel__error-msg {
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .cdn-panel__error-text {

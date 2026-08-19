@@ -14,7 +14,7 @@ const WAYLAND_LIBRARY_PATTERN = /^libwayland-.+/;
 // hook (workaround for tauri#8541), forcing every AppImage to run under
 // XWayland. Removing the line lets GTK3 pick backends in its default order
 // (wayland first, silent fallback to x11), so Wayland sessions run natively.
-const GDK_BACKEND_EXPORT_PATTERN = /^\s*export\s+GDK_BACKEND=.*$/gm;
+const GDK_BACKEND_EXPORT_PATTERN = /^\s*export\s+GDK_BACKEND=[^\n]*/gm;
 
 function readFlagValue(argv, index) {
   const value = argv[index + 1];

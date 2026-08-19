@@ -113,7 +113,7 @@ const reversed = computed(() => props.notifications.toReversed());
 
 .notification-toast__message {
   flex: 1 1 auto;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .notification-toast__close {

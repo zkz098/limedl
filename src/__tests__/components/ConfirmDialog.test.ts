@@ -31,19 +31,13 @@ function createWrapper(props: Record<string, unknown> = {}) {
 
 describe("ConfirmDialog", () => {
   describe("Rendering", () => {
-    it("renders kicker text", () => {
+    it.each<[string, string]>([
+      ["renders kicker text", "Confirm Action"],
+      ["renders title", "Are you sure?"],
+      ["renders message text", "This will delete the item."],
+    ])("%s", (_title, expectedText) => {
       const wrapper = createWrapper();
-      expect(wrapper.text()).toContain("Confirm Action");
-    });
-
-    it("renders title", () => {
-      const wrapper = createWrapper();
-      expect(wrapper.text()).toContain("Are you sure?");
-    });
-
-    it("renders message text", () => {
-      const wrapper = createWrapper();
-      expect(wrapper.text()).toContain("This will delete the item.");
+      expect(wrapper.text()).toContain(expectedText);
     });
 
     it("renders confirm button with custom text", () => {

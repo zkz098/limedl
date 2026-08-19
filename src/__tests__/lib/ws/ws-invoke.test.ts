@@ -50,38 +50,24 @@ describe("isNonNullObject", () => {
 // applyTransform
 // ---------------------------------------------------------------------------
 describe("applyTransform", () => {
-  // --- No spec -----------------------------------------------------------
-  it("returns args unchanged when spec is undefined", () => {
-    const args = { foo: "bar" };
-    expect(applyTransform(undefined, args)).toBe(args);
-  });
-
-  // --- No args -----------------------------------------------------------
-  it("returns empty object when args is undefined", () => {
-    const spec = WS_COMMANDS.find((c) => c.tauriName === "download_list")!;
-    expect(applyTransform(spec, undefined)).toEqual({});
-  });
-
-  it("returns empty object when args is undefined even without spec", () => {
-    expect(applyTransform(undefined, undefined)).toEqual({});
-  });
-
-  // --- Identity ----------------------------------------------------------
-  it("identity transform returns args unchanged", () => {
-    const spec = WS_COMMANDS.find((c) => c.tauriName === "download_list")!;
-    expect(spec.paramTransform).toEqual({ kind: "identity" });
-
-    const args = { someField: "value" };
+  // --- No spec / no args / identity (parameterized) -------------------
+  it.each<[string, string | undefined, Record<string, unknown> | undefined, "empty" | "identity"]>([
+    ["returns args unchanged when spec is undefined", undefined, { foo: "bar" }, "identity"],
+    ["returns empty object when args is undefined", "download_list", undefined, "empty"],
+    ["returns empty object when args is undefined even without spec", undefined, undefined, "empty"],
+    ["identity transform returns args unchanged", "download_list", { someField: "value" }, "identity"],
+    ["identity transform preserves the same object reference", "settings_get", { a: 1, b: 2 }, "identity"],
+  ])("%s", (_title, tauriName, args, mode) => {
+    const spec = tauriName ? WS_COMMANDS.find((c) => c.tauriName === tauriName)! : undefined;
     const result = applyTransform(spec, args);
-    expect(result).toBe(args);
-  });
-
-  it("identity transform preserves the same object reference", () => {
-    const spec = WS_COMMANDS.find((c) => c.tauriName === "settings_get")!;
-    expect(spec.paramTransform).toEqual({ kind: "identity" });
-
-    const args = { a: 1, b: 2 };
-    expect(applyTransform(spec, args)).toBe(args);
+    if (mode === "identity") {
+      if (spec) {
+        expect(spec.paramTransform).toEqual({ kind: "identity" });
+      }
+      expect(result).toBe(args);
+    } else {
+      expect(result).toEqual({});
+    }
   });
 
   // --- Rename ------------------------------------------------------------

@@ -208,40 +208,18 @@ describe("DownloadComposer", () => {
   });
 
   // ── Protocol detection ──────────────────────────────────────
-  it("detects HTTP protocol from URL", async () => {
+  it.each<[string, string, "http" | "bt"]>([
+    ["detects HTTP protocol from URL", "https://example.com/file.zip", "http"],
+    ["detects magnet link as BT protocol", "magnet:?xt=urn:btih:ABC123", "bt"],
+    ["detects .torrent URL as BT protocol", "https://example.com/file.torrent", "bt"],
+    ["detects info hash as BT protocol", "deadbeefcafebabedeadbeefcafebabedeadbeef", "bt"],
+  ])("%s", async (_title, url, expectedKind) => {
     const wrapper = mountWithForm();
     const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("https://example.com/file.zip");
+    await urlInput.setValue(url);
     await nextTick();
-    expect(c.form.value.kind).toBe("http");
-  });
-
-  it("detects magnet link as BT protocol", async () => {
-    const wrapper = mountWithForm();
-    const c = useComposer();
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("magnet:?xt=urn:btih:ABC123");
-    await nextTick();
-    expect(c.form.value.kind).toBe("bt");
-  });
-
-  it("detects .torrent URL as BT protocol", async () => {
-    const wrapper = mountWithForm();
-    const c = useComposer();
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("https://example.com/file.torrent");
-    await nextTick();
-    expect(c.form.value.kind).toBe("bt");
-  });
-
-  it("detects info hash as BT protocol", async () => {
-    const wrapper = mountWithForm();
-    const c = useComposer();
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("deadbeefcafebabedeadbeefcafebabedeadbeef");
-    await nextTick();
-    expect(c.form.value.kind).toBe("bt");
+    expect(c.form.value.kind).toBe(expectedKind);
   });
 
   it("shows BT protocol label when kind is bt", () => {
@@ -256,31 +234,17 @@ describe("DownloadComposer", () => {
     expect(c.form.value.kind).toBe("bt");
   });
 
-  it("auto-extracts file name from HTTP URL", async () => {
-    const wrapper = mountWithForm({ fileName: "" });
+  it.each<[string, string, string, string]>([
+    ["auto-extracts file name from HTTP URL", "https://example.com/myfile.zip", "", "myfile.zip"],
+    ["auto-extracts file name from magnet dn parameter", "magnet:?xt=urn:btih:ABC&dn=ubuntu.iso", "", "ubuntu.iso"],
+    ["does not overwrite existing file name when URL changes", "https://example.com/newfile.zip", "existing.zip", "existing.zip"],
+  ])("%s", async (_title, url, initialFileName, expectedFileName) => {
+    const wrapper = mountWithForm({ fileName: initialFileName });
     const c = useComposer();
     const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("https://example.com/myfile.zip");
+    await urlInput.setValue(url);
     await nextTick();
-    expect(c.form.value.fileName).toBe("myfile.zip");
-  });
-
-  it("auto-extracts file name from magnet dn parameter", async () => {
-    const wrapper = mountWithForm({ fileName: "" });
-    const c = useComposer();
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("magnet:?xt=urn:btih:ABC&dn=ubuntu.iso");
-    await nextTick();
-    expect(c.form.value.fileName).toBe("ubuntu.iso");
-  });
-
-  it("does not overwrite existing file name when URL changes", async () => {
-    const wrapper = mountWithForm({ fileName: "existing.zip" });
-    const c = useComposer();
-    const urlInput = wrapper.find(".ui-textfield-stub");
-    await urlInput.setValue("https://example.com/newfile.zip");
-    await nextTick();
-    expect(c.form.value.fileName).toBe("existing.zip");
+    expect(c.form.value.fileName).toBe(expectedFileName);
   });
 
   // ── URL validation ──────────────────────────────────────────

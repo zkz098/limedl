@@ -386,19 +386,13 @@ describe("SetupWizard", () => {
 
   // ── Validation ───────────────────────────────────────────────────
 
-  describe("validation", () => {
-    // Design decision: The wizard currently does not disable the primary
-    // Next/Complete button based on per-step validation. StepDirectory and
-    // StepPerformance collect values but never emit an invalid state, and
-    // SetupWizard.vue never binds :disabled to the primary action button.
-    // Adding field-level validation gating is deferred to a future UX pass.
-    // When that pass lands, add a test here that verifies the button is
-    // disabled when required fields are missing.
-    it("is intentionally empty — validation gating is deferred", () => {
-      // Placeholder: see the describe-block comment for design rationale.
-      expect(true).toBe(true);
-    });
-  });
+  // Design decision: The wizard currently does not disable the primary
+  // Next/Complete button based on per-step validation. StepDirectory and
+  // StepPerformance collect values but never emit an invalid state, and
+  // SetupWizard.vue never binds :disabled to the primary action button.
+  // Adding field-level validation gating is deferred to a future UX pass;
+  // when that lands, add a test here that verifies the button is disabled
+  // when required fields are missing.
 
   // ── Finalize ─────────────────────────────────────────────────────
 

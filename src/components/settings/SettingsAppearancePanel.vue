@@ -234,17 +234,17 @@ const emit = defineEmits<{
 }
 
 .theme-color-button--amber {
-  background: linear-gradient(135deg, #d97706, #eab308);
+  background: linear-gradient(135deg, #b45309, #854d0e);
   color: #ffffff;
 }
 
 .theme-color-button--sky {
-  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  background: linear-gradient(135deg, #0369a1, #075985);
   color: #ffffff;
 }
 
 .theme-color-button--lime {
-  background: linear-gradient(135deg, #4d7c0f, #a3e635);
+  background: linear-gradient(135deg, #4d7c0f, #3f6212);
   color: #ffffff;
 }
 </style>

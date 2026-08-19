@@ -59,7 +59,7 @@ export async function expectSpeedDisplay(page: Page, taskId: string): Promise<vo
   expect(text).toBeTruthy();
 
   // Should contain a number followed by a unit
-  const speedPattern = /([\d.]+)\s*(B\/s|KB\/s|MB\/s|GB\/s)/i;
+  const speedPattern = /([\d.]+)\s*(B|KB|MB|GB)\/s/i;
   expect(text).toMatch(speedPattern);
 
   // Extract the numeric value and ensure it's > 0

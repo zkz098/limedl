@@ -121,31 +121,17 @@ describe("DetailPanel", () => {
     expect(badge.text()).toBe("states.downloading");
   });
 
-  it("renders state badge with success tone for completed state", () => {
-    const overview = createOverview({ state: "completed" });
+  it.each<[string, "completed" | "failed" | "paused", string]>([
+    ["renders state badge with success tone for completed state", "completed", "tone-success"],
+    ["renders state badge with danger tone for failed state", "failed", "tone-danger"],
+    ["renders state badge with warning tone for paused state", "paused", "tone-warning"],
+  ])("%s", (_title, state, tone) => {
+    const overview = createOverview({ state });
     const wrapper = mount(DetailPanel, {
       props: createProps({ selectedOverview: overview }),
       global: { stubs },
     });
-    expect(wrapper.find(".ui-badge-stub").classes()).toContain("tone-success");
-  });
-
-  it("renders state badge with danger tone for failed state", () => {
-    const overview = createOverview({ state: "failed" });
-    const wrapper = mount(DetailPanel, {
-      props: createProps({ selectedOverview: overview }),
-      global: { stubs },
-    });
-    expect(wrapper.find(".ui-badge-stub").classes()).toContain("tone-danger");
-  });
-
-  it("renders state badge with warning tone for paused state", () => {
-    const overview = createOverview({ state: "paused" });
-    const wrapper = mount(DetailPanel, {
-      props: createProps({ selectedOverview: overview }),
-      global: { stubs },
-    });
-    expect(wrapper.find(".ui-badge-stub").classes()).toContain("tone-warning");
+    expect(wrapper.find(".ui-badge-stub").classes()).toContain(tone);
   });
 
   it("renders CDN badge when cdnAccelerated is true", () => {

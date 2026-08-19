@@ -190,7 +190,14 @@ async function pickLogDirectory() {
         const basename = sepIdx >= 0 ? cur.slice(sepIdx + 1) : cur;
         const filename = basename.includes(".") ? basename : "limedl.log";
         const sep = navigator.userAgent.includes("Windows") ? "\\" : "/";
-        form.logging.filePath = selectedPath.replace(/[\\/]+$/, "") + sep + filename;
+        // Strip any trailing path separators. A manual loop avoids the regex
+        // that Sonar S8786 flags as potentially involving non-linear
+        // backtracking (path separators are single chars, so this is clearer).
+        let trimmed = selectedPath;
+        while (trimmed.length > 1 && (trimmed.endsWith("/") || trimmed.endsWith("\\"))) {
+          trimmed = trimmed.slice(0, -1);
+        }
+        form.logging.filePath = trimmed + sep + filename;
       }
     } catch (error) {
       notifyError(

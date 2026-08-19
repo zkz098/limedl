@@ -268,46 +268,22 @@ describe("useAppUpdateStore", () => {
     expect(app.downloadedBytes.value).toBe(0);
   });
 
-  it("downloadAndInstall sets error on failure with generic message", async () => {
+  it.each<[string, string, string]>([
+    ["downloadAndInstall sets error on failure with generic message", "Connection lost", "Connection lost"],
+    ["downloadAndInstall sets disk space error message", "Not enough disk space", "settings.aboutDiskSpaceInsufficient"],
+    ["downloadAndInstall sets signature error message", "signature verification failed", "settings.aboutSignatureInvalid"],
+  ])("%s", async (_title, thrownMessage, expectedMessage) => {
     const update = mockUpdateResult();
     mockInvoke.mockResolvedValueOnce(update);
 
     const app = await createAppUpdate();
 
     await app.checkForUpdates();
-    mockInvoke.mockRejectedValueOnce(new Error("Connection lost"));
+    mockInvoke.mockRejectedValueOnce(new Error(thrownMessage));
     await app.downloadAndInstall();
 
     expect(app.status.value).toBe("error");
-    expect(app.errorMessage.value).toBe("Connection lost");
-  });
-
-  it("downloadAndInstall sets disk space error message", async () => {
-    const update = mockUpdateResult();
-    mockInvoke.mockResolvedValueOnce(update);
-
-    const app = await createAppUpdate();
-
-    await app.checkForUpdates();
-    mockInvoke.mockRejectedValueOnce(new Error("Not enough disk space"));
-    await app.downloadAndInstall();
-
-    expect(app.status.value).toBe("error");
-    expect(app.errorMessage.value).toBe("settings.aboutDiskSpaceInsufficient");
-  });
-
-  it("downloadAndInstall sets signature error message", async () => {
-    const update = mockUpdateResult();
-    mockInvoke.mockResolvedValueOnce(update);
-
-    const app = await createAppUpdate();
-
-    await app.checkForUpdates();
-    mockInvoke.mockRejectedValueOnce(new Error("signature verification failed"));
-    await app.downloadAndInstall();
-
-    expect(app.status.value).toBe("error");
-    expect(app.errorMessage.value).toBe("settings.aboutSignatureInvalid");
+    expect(app.errorMessage.value).toBe(expectedMessage);
   });
 
   it("downloadAndInstall goes up-to-date if no update object", async () => {
