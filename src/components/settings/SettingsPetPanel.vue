@@ -2,6 +2,7 @@
 import type { AppSettings } from "../../types/settings";
 import SettingsSection from "./SettingsSection.vue";
 import SettingsField from "./SettingsField.vue";
+import UiSlider from "../ui/UiSlider.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 
 defineProps<{
@@ -28,26 +29,24 @@ const draft = defineModel<AppSettings>("draft", { required: true });
         </SettingsField>
 
         <SettingsField label="大小" :hint="`当前: ${draft.pet.scale.toFixed(1)}x`">
-          <input
-            v-model.number="draft.pet.scale"
-            type="range"
-            min="0.5"
-            max="2"
-            step="0.1"
+          <UiSlider
+            v-model="draft.pet.scale"
+            :min="0.5"
+            :max="2"
+            :step="0.1"
             :disabled="!draft.pet.enabled"
-            class="settings-range"
+            aria-label="桌宠大小"
           />
         </SettingsField>
 
         <SettingsField label="不透明度" :hint="`当前: ${Math.round(draft.pet.opacity * 100)}%`">
-          <input
-            v-model.number="draft.pet.opacity"
-            type="range"
-            min="0.2"
-            max="1"
-            step="0.05"
+          <UiSlider
+            v-model="draft.pet.opacity"
+            :min="0.2"
+            :max="1"
+            :step="0.05"
             :disabled="!draft.pet.enabled"
-            class="settings-range"
+            aria-label="桌宠不透明度"
           />
         </SettingsField>
 
@@ -75,10 +74,6 @@ const draft = defineModel<AppSettings>("draft", { required: true });
 </template>
 
 <style scoped>
-.settings-range {
-  width: 100%;
-}
-
 .settings-select {
   width: 100%;
   padding: 0.5rem 0.75rem;
