@@ -64,6 +64,7 @@ import type { ViewOptions, MultiSelectState } from "./types/download";
 import { saveAppSettings } from "./lib/tauri/settings-api";
 import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/tauri/download-api";
 import { toMessage, toErrorMessage } from "./composables/downloadHelpers";
+import { listen } from "#event";
 
 // BT speed limit modal state
 const showBtSpeedLimitModal = ref(false);
@@ -236,7 +237,26 @@ onErrorCaptured((err, _instance, info) => {
 const appUpdateStore = useAppUpdateStore();
 const { updateAvailable } = storeToRefs(appUpdateStore);
 
+const settingsInitialTab = ref("appearance");
+
 onMounted(() => {
+  // Pet: open settings from pet window
+  try {
+    void listen<{ tab?: string }>("open-settings", (event) => {
+      const tab = (event.payload as unknown as { tab?: string })?.tab;
+      if (tab === "pet") {
+        settingsInitialTab.value = "pet";
+      }
+      navigateTo("settings");
+    });
+    void listen("open-settings-pet", () => {
+      settingsInitialTab.value = "pet";
+      navigateTo("settings");
+    });
+  } catch {
+    // ignore on NAS
+  }
+
   appUpdateStore.runStartupCheck();
   mountSetupWizard();
 
@@ -667,6 +687,7 @@ watch(
         <SettingsPage
           ref="settingsPage"
           :settings="appSettings"
+          :initial-tab="settingsInitialTab"
           :game-mode="gameMode"
           :buffer-usage-bytes="bufferUsageBytes"
           :buffer-limit-bytes="bufferLimitBytes"

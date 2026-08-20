@@ -1,4 +1,5 @@
-use tauri::{AppHandle, Manager, WebviewWindow};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 const PET_WINDOW_LABEL: &str = "pet";
 const PET_BASE_SIZE: f64 = 160.0;
@@ -171,5 +172,163 @@ pub async fn pet_set_enabled(app: AppHandle, enabled: bool) -> Result<(), String
     } else {
         let _ = destroy_pet_window(&app);
     }
+    Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PetMenuState {
+    pub has_active: bool,
+    pub speed_limit_active: bool,
+    pub game_mode: bool,
+    pub main_visible: bool,
+}
+
+#[tauri::command]
+pub async fn pet_get_menu_state(app: AppHandle) -> Result<PetMenuState, String> {
+    use limedl_core::manager::DownloadManager;
+    use limedl_core::types::DownloadState;
+
+    let state = app.state::<limedl_core::manager::AppState>();
+    let has_active = if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
+        dm.list()
+            .await
+            .map(|list| list.iter().any(|s| matches!(s.state, DownloadState::Downloading)))
+            .unwrap_or(false)
+    } else {
+        false
+    };
+    let settings = state.settings.read();
+    let speed_limit_active = settings.global_speed_limit_bps > 0;
+    let game_mode = if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
+        dm.game_mode()
+    } else {
+        false
+    };
+    drop(settings);
+    let main_visible = app
+        .get_webview_window("main")
+        .map(|w| w.is_visible().unwrap_or(false))
+        .unwrap_or(false);
+    Ok(PetMenuState {
+        has_active,
+        speed_limit_active,
+        game_mode,
+        main_visible,
+    })
+}
+
+#[tauri::command]
+pub async fn pet_toggle_pause_all(app: AppHandle) -> Result<(), String> {
+    use limedl_core::types::{DownloadState, TaskId};
+    use limedl_core::Dispatcher;
+
+    let state = app.state::<limedl_core::manager::AppState>();
+    let dispatcher = Dispatcher::new(state.registry.clone(), state.event_bus.clone());
+    let list = dispatcher.list().await.map_err(|e| e.to_string())?;
+    let has_active = list
+        .iter()
+        .any(|s| matches!(s.state, DownloadState::Downloading));
+    for s in &list {
+        let Ok(task_id) = TaskId::from_wire_string(&s.id) else {
+            continue;
+        };
+        if has_active && matches!(s.state, DownloadState::Downloading) {
+            let _ = dispatcher.pause(&task_id).await;
+        } else if !has_active && matches!(s.state, DownloadState::Paused) {
+            let _ = dispatcher.resume(&task_id).await;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pet_toggle_speed_limit(app: AppHandle) -> Result<(), String> {
+    use limedl_core::manager::DownloadManager;
+    let state = app.state::<limedl_core::manager::AppState>();
+    {
+        let mut settings = state.settings.write();
+        if settings.global_speed_limit_bps > 0 {
+            settings.global_speed_limit_bps = 0;
+        } else {
+            settings.global_speed_limit_bps = 1_048_576;
+        }
+    }
+    if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
+        let s = state.settings.read().clone();
+        let _ = dm.apply_settings(s).await;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pet_toggle_game_mode(app: AppHandle) -> Result<(), String> {
+    use limedl_core::manager::DownloadManager;
+    let state = app.state::<limedl_core::manager::AppState>();
+    if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
+        let current = dm.game_mode();
+        dm.set_game_mode(!current);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pet_open_download_dir(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<limedl_core::manager::AppState>();
+    let dir = state
+        .settings
+        .read()
+        .download
+        .default_download_dir
+        .clone();
+    if !dir.is_empty() {
+        tauri_plugin_opener::open_path(dir, None::<&str>).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pet_show_main(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+    // Restore pet if it was hidden with main (keepAlive=false case)
+    let pet_enabled = app
+        .state::<limedl_core::manager::AppState>()
+        .settings
+        .read()
+        .pet
+        .enabled;
+    if pet_enabled {
+        if let Some(pet) = app.get_webview_window("pet") {
+            let _ = pet.show();
+        } else {
+            let _ = ensure_pet_window(&app);
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pet_open_settings(app: AppHandle) -> Result<(), String> {
+    // Ensure main window is visible first
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    } else {
+        // Main window not yet created (unlikely), try to show via pet_show_main
+        let _ = pet_show_main(app.clone()).await;
+    }
+    // Notify frontend to open settings with pet tab
+    let _ = app.emit("open-settings", serde_json::json!({ "tab": "pet" }));
+    // Also emit generic open-settings for backward compat
+    let _ = app.emit("open-settings-pet", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pet_quit(app: AppHandle) -> Result<(), String> {
+    app.exit(0);
     Ok(())
 }

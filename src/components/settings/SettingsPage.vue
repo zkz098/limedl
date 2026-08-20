@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, toRef, watch } from "vue";
+import { listen } from "#event";
 
 import { useI18n } from "../../i18n";
 import { useAsyncGuard } from "../../composables/useAsyncGuard";
@@ -47,6 +48,7 @@ const props = defineProps<{
   activeSlots?: number;
   maxSlots?: number;
   queuedCount?: number;
+  initialTab?: string;
 }>();
 
 const emit = defineEmits<{
@@ -273,8 +275,36 @@ async function persistSettings() {
   );
 }
 
-const activeTab = ref("appearance");
+const activeTab = ref(props.initialTab ?? "appearance");
 const isAdvancedExpanded = ref(false);
+
+watch(
+  () => props.initialTab,
+  (tab) => {
+    if (tab) activeTab.value = tab;
+  },
+);
+
+// Also listen directly for pet-triggered events while page is already open
+onMounted(() => {
+  let un1: (() => void) | null = null;
+  let un2: (() => void) | null = null;
+  void listen<{ tab?: string } | null>("open-settings", (e) => {
+    const tab = (e.payload as unknown as { tab?: string } | null)?.tab;
+    if (tab === "pet") activeTab.value = "pet";
+  }).then((fn) => {
+    un1 = fn;
+  });
+  void listen("open-settings-pet", () => {
+    activeTab.value = "pet";
+  }).then((fn) => {
+    un2 = fn;
+  });
+  onUnmounted(() => {
+    un1?.();
+    un2?.();
+  });
+});
 
 // Auto-expand advanced section when an advanced tab is selected
 watch(activeTab, (tab) => {

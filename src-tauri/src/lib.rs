@@ -39,8 +39,10 @@ use download::{
     toggle_overclock_mode, update_bt_files, CloseBehavior,
 };
 use pet::{
-    pet_close, pet_hide, pet_set_enabled, pet_set_ignore_cursor_events, pet_set_scale,
-    pet_show, pet_start_drag, pet_update_position,
+    pet_close, pet_get_menu_state, pet_hide, pet_open_download_dir, pet_open_settings,
+    pet_quit, pet_set_enabled, pet_set_ignore_cursor_events, pet_set_scale, pet_show,
+    pet_show_main, pet_start_drag, pet_toggle_game_mode, pet_toggle_pause_all,
+    pet_toggle_speed_limit, pet_update_position,
 };
 pub use update::{check_update_full, download_and_install_update};
 
@@ -678,6 +680,14 @@ pub fn run() {
             pet_start_drag,
             pet_update_position,
             pet_set_enabled,
+            pet_get_menu_state,
+            pet_toggle_pause_all,
+            pet_toggle_speed_limit,
+            pet_toggle_game_mode,
+            pet_open_download_dir,
+            pet_show_main,
+            pet_open_settings,
+            pet_quit,
             download_start,
             download_pause,
             download_resume,

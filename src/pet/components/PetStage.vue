@@ -1,11 +1,26 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import PetSprite from "./PetSprite.vue";
+import PetContextMenu from "./PetContextMenu.vue";
 import { usePetBehavior } from "../composables/usePetBehavior";
 import { usePetFps } from "../composables/usePetFps";
-import { petStartDrag, petSetIgnoreCursorEvents, petUpdatePosition } from "../../lib/tauri/pet-api";
+import {
+  petStartDrag,
+  petSetIgnoreCursorEvents,
+  petUpdatePosition,
+  petGetMenuState,
+  petTogglePauseAll,
+  petToggleSpeedLimit,
+  petToggleGameMode,
+  petOpenDownloadDir,
+  petShowMain,
+  petOpenSettings,
+  petSetEnabled,
+  petQuit,
+  type PetMenuState,
+} from "../../lib/tauri/pet-api";
 import { startDownload } from "../../lib/tauri/download-api";
 import type { PetSettings } from "../../types/settings";
 import type { StartDownloadRequest } from "../../types/generated/types";
@@ -26,18 +41,30 @@ const dropMessage = ref<string | null>(null);
 let dropMsgTimer: number | null = null;
 let positionSaveTimer: number | null = null;
 
+// Context menu state
+const showMenu = ref(false);
+const menuX = ref(0);
+const menuY = ref(0);
+const menuState = ref<PetMenuState | null>(null);
+let originalSize: { w: number; h: number } | null = null;
+
 // Hover → toggle cursor events (穿透逻辑)
 async function setHover(hover: boolean) {
   isHovering.value = hover;
   try {
-    // hovering = 可交互 (ignore=false), not hovering = 穿透 (ignore=true)
-    await petSetIgnoreCursorEvents(!hover && !isDragging.value);
+    // hovering or menu/dragging = 可交互 (ignore=false), not hovering = 穿透 (ignore=true)
+    const shouldIgnore = !hover && !isDragging.value && !showMenu.value;
+    await petSetIgnoreCursorEvents(shouldIgnore);
   } catch {
     // ignore on NAS or when window not available
   }
 }
 
 async function handleMouseDown(e: MouseEvent) {
+  if (showMenu.value) {
+    closeMenu();
+    return;
+  }
   if (e.button !== 0) return;
   isDragging.value = true;
   onDragStart();
@@ -57,9 +84,108 @@ async function handleMouseDown(e: MouseEvent) {
   }, 300);
 }
 
-function handleContextMenu(e: MouseEvent) {
+async function expandForMenu() {
+  try {
+    const win = getCurrentWindow();
+    const size = await win.innerSize();
+    originalSize = { w: size.width, h: size.height };
+    // Expand to fit menu (240x360) if smaller
+    const targetW = 240;
+    const targetH = 380;
+    if (size.width < targetW || size.height < targetH) {
+      await win.setSize(new PhysicalSize(targetW, targetH));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+async function restoreFromMenu() {
+  if (originalSize) {
+    try {
+      const win = getCurrentWindow();
+      await win.setSize(new PhysicalSize(originalSize.w, originalSize.h));
+    } catch {
+      // ignore
+    }
+    originalSize = null;
+  }
+}
+
+async function handleContextMenu(e: MouseEvent) {
   e.preventDefault();
-  // TODO: show native menu via Rust (popup_menu). Skeleton keeps default.
+  // Fetch menu state for checkmarks
+  try {
+    menuState.value = await petGetMenuState();
+  } catch {
+    menuState.value = null;
+  }
+  // Position inside window (clamped)
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  // Menu visual size ~ 192x320, but window will be expanded
+  let x = e.clientX;
+  let y = e.clientY;
+  // After expand, window is 240x380, so clamp to that expanded size
+  const menuW = 200;
+  const menuH = 300;
+  const expandedW = 240;
+  const expandedH = 380;
+  // Clamp to expanded window bounds with 6px margin
+  x = Math.min(Math.max(6, x), expandedW - menuW - 6);
+  y = Math.min(Math.max(6, y), expandedH - menuH - 6);
+  // If window not yet expanded, use current window size for clamping fallback
+  if (winW < expandedW) {
+    x = Math.min(x, winW - menuW - 6);
+    y = Math.min(y, winH - menuH - 6);
+  }
+  menuX.value = x;
+  menuY.value = y;
+  showMenu.value = true;
+  void expandForMenu();
+  // Ensure pet is interactive while menu open
+  void petSetIgnoreCursorEvents(false);
+}
+
+function closeMenu() {
+  showMenu.value = false;
+  void restoreFromMenu();
+  // Restore hover state correctly
+  void petSetIgnoreCursorEvents(!isHovering.value && !isDragging.value);
+}
+
+async function handleMenuAction(id: string) {
+  try {
+    switch (id) {
+      case "show_main":
+        await petShowMain();
+        break;
+      case "pause_all":
+        await petTogglePauseAll();
+        break;
+      case "speed_limit":
+        await petToggleSpeedLimit();
+        break;
+      case "game_mode":
+        await petToggleGameMode();
+        break;
+      case "open_dir":
+        await petOpenDownloadDir();
+        break;
+      case "settings":
+        await petOpenSettings();
+        break;
+      case "hide_pet":
+        await petSetEnabled(false);
+        break;
+      case "quit":
+        await petQuit();
+        break;
+    }
+  } catch (err) {
+    console.error("[pet] menu action failed", id, err);
+  }
+  closeMenu();
 }
 
 async function savePosition() {
@@ -198,6 +324,7 @@ onMounted(async () => {
 onUnmounted(() => {
   if (dropMsgTimer !== null) window.clearTimeout(dropMsgTimer);
   if (positionSaveTimer !== null) window.clearTimeout(positionSaveTimer);
+  showMenu.value = false;
 });
 </script>
 
@@ -223,6 +350,15 @@ onUnmounted(() => {
     </Transition>
 
     <div v-if="dragOver" class="pet-drop-hint">松开添加下载</div>
+
+    <PetContextMenu
+      :x="menuX"
+      :y="menuY"
+      :state="menuState"
+      :visible="showMenu"
+      @close="closeMenu"
+      @action="handleMenuAction"
+    />
   </div>
 </template>
 
