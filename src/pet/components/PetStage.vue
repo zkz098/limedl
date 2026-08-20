@@ -90,23 +90,47 @@ async function handleMouseDown(e: MouseEvent) {
     startPos = null;
   }
 
+  let pendingPos: { x: number; y: number } | null = null;
+  let rafId: number | null = null;
+
+  const flushPos = () => {
+    if (pendingPos) {
+      void win.setPosition(new PhysicalPosition(pendingPos.x, pendingPos.y));
+      pendingPos = null;
+    }
+    rafId = null;
+  };
+
   const onMouseMove = (ev: MouseEvent) => {
     if (!isDragging.value || !startPos || !startMouse) return;
     const curX = ev.screenX * scale;
     const curY = ev.screenY * scale;
     const dx = curX - startMouse.x;
     const dy = curY - startMouse.y;
-    void win.setPosition(new PhysicalPosition(startPos.x + dx, startPos.y + dy));
+    pendingPos = { x: Math.round(startPos.x + dx), y: Math.round(startPos.y + dy) };
+    if (rafId === null) {
+      rafId = window.requestAnimationFrame(flushPos);
+    }
   };
 
   const cleanup = () => {
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
+    if (rafId !== null) {
+      window.cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    pendingPos = null;
   };
 
   const onMouseUp = () => {
     cleanup();
     if (!isDragging.value) return;
+    // Flush any pending position before ending drag
+    if (pendingPos) {
+      void win.setPosition(new PhysicalPosition(pendingPos.x, pendingPos.y));
+      pendingPos = null;
+    }
     isDragging.value = false;
     onDragEnd();
     void savePosition();
