@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
+import { listen } from "#event";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import PetStage from "./components/PetStage.vue";
 import { getAppSettings } from "../lib/tauri/settings-api";
-import type { PetSettings } from "../types/settings";
+import type { AppSettings, PetSettings } from "../types/settings";
 
 const petSettings = ref<PetSettings | null>(null);
 const isReady = ref(false);
@@ -19,17 +21,51 @@ async function loadPetSettings() {
       opacity: 1,
       keepAliveWhenMainHidden: true,
       model: "default",
+      transparentBackground: false,
     } as PetSettings;
   } finally {
     isReady.value = true;
   }
 }
 
-onMounted(() => {
-  void loadPetSettings();
+// React to scale changes without restart — resize window immediately
+watch(
+  () => petSettings.value?.scale,
+  async (scale) => {
+    if (!scale || !petSettings.value) return;
+    try {
+      const win = getCurrentWindow();
+      const size = 160 * scale;
+      await win.setSize(new LogicalSize(size, size));
+    } catch {
+      // ignore
+    }
+  },
+);
+
+let unlistenSettings: (() => void) | null = null;
+let unlistenPet: (() => void) | null = null;
+
+onMounted(async () => {
+  await loadPetSettings();
+  // Live-update when main window saves settings (no restart needed)
+  try {
+    unlistenSettings = await listen<AppSettings>("settings-updated", (event) => {
+      const pet = (event.payload as AppSettings).pet;
+      if (pet) petSettings.value = pet;
+    });
+    unlistenPet = await listen<PetSettings>("pet-settings-updated", (event) => {
+      petSettings.value = event.payload as PetSettings;
+    });
+  } catch {
+    // ignore on NAS / test
+  }
 });
 
-onUnmounted(() => {});
+onUnmounted(() => {
+  unlistenSettings?.();
+  unlistenPet?.();
+});
 </script>
 
 <template>

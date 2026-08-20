@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::{Context, anyhow};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::{
@@ -304,6 +304,7 @@ pub async fn logging_open_dir(state: State<'_, AppState>) -> CommandResult<()> {
 
 #[tauri::command]
 pub async fn settings_save(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     settings: AppSettings,
 ) -> CommandResult<AppSettings> {
@@ -356,6 +357,12 @@ pub async fn settings_save(
                     tracing::info!("Aria2 RPC 服务器已停止");
                 }
             }
+
+            // Notify all windows (including pet) that settings changed — allows
+            // pet window to apply scale/opacity/transparentBackground instantly
+            // without requiring a restart.
+            let _ = app.emit("settings-updated", saved.clone());
+            let _ = app.emit("pet-settings-updated", saved.pet.clone());
 
             Ok(saved)
         }
