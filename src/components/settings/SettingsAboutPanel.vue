@@ -90,7 +90,14 @@ const showResetConfirm = ref(false);
 function buildDefaultSettings() {
   return {
     globalSpeedLimitBps: 0,
-    pet: { enabled: false, scale: 1, opacity: 1, keepAliveWhenMainHidden: true, model: "default" },
+    pet: {
+      enabled: false,
+      scale: 1,
+      opacity: 1,
+      keepAliveWhenMainHidden: true,
+      model: "default",
+      transparentBackground: false,
+    },
     appearance: {
       themeColor: "lime",
       backgroundOpacity: "default",

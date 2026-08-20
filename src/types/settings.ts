@@ -82,4 +82,5 @@ export const DEFAULT_PET_SETTINGS: GeneratedPetSettings = {
   opacity: 1,
   keepAliveWhenMainHidden: true,
   model: "default",
+  transparentBackground: false,
 };

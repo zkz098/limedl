@@ -5,6 +5,7 @@ import type { PetState } from "../composables/usePetBehavior";
 const props = defineProps<{
   state: PetState;
   frame: number;
+  transparent?: boolean;
 }>();
 
 // Placeholder sprite: we use CSS + emoji transform instead of real sheet.
@@ -52,7 +53,11 @@ const offset = computed(() => {
 </script>
 
 <template>
-  <div class="pet-sprite" :class="animationClass" :style="{ transform: `translateY(${offset}px)` }">
+  <div
+    class="pet-sprite"
+    :class="[animationClass, { 'pet-sprite--transparent': transparent }]"
+    :style="{ transform: `translateY(${offset}px)` }"
+  >
     <div class="pet-emoji">{{ label }}</div>
     <div class="pet-shadow" />
     <!-- TODO: replace with sprite sheet
@@ -85,6 +90,17 @@ const offset = computed(() => {
   position: relative;
   cursor: grab;
   user-select: none;
+}
+
+.pet-sprite--transparent {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.pet-sprite--transparent .pet-shadow,
+.pet-sprite--transparent .pet-state-label {
+  opacity: 0.85;
 }
 
 .pet-sprite:active {

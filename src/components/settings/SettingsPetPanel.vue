@@ -51,6 +51,13 @@ const draft = defineModel<AppSettings>("draft", { required: true });
           />
         </SettingsField>
 
+        <SettingsField
+          label="透明背景"
+          hint="开启后隐藏白色卡片背景，只显示角色本身（适合 Live2D/透明贴图）"
+        >
+          <UiSwitch v-model="draft.pet.transparentBackground" :disabled="!draft.pet.enabled" />
+        </SettingsField>
+
         <SettingsField label="模型" hint="占位：后续支持多模型/换装">
           <select v-model="draft.pet.model" :disabled="!draft.pet.enabled" class="settings-select">
             <option value="default">default（占位）</option>

@@ -1483,6 +1483,8 @@ pub struct PetSettings {
     pub y: Option<i32>,
     #[serde(default = "default_pet_model")]
     pub model: String,
+    #[serde(default)]
+    pub transparent_background: bool,
 }
 
 impl Default for PetSettings {
@@ -1495,6 +1497,7 @@ impl Default for PetSettings {
             x: None,
             y: None,
             model: default_pet_model(),
+            transparent_background: false,
         }
     }
 }

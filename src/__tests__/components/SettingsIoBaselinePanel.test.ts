@@ -48,7 +48,14 @@ function createDraft(overrides?: Partial<IoBaselineSettings>): AppSettings {
   const base: AppSettings = {
     // Provide minimal required AppSettings fields beyond ioBaseline
     globalSpeedLimitBps: 0,
-    pet: { enabled: false, scale: 1, opacity: 1, keepAliveWhenMainHidden: true, model: "default" },
+    pet: {
+      enabled: false,
+      scale: 1,
+      opacity: 1,
+      keepAliveWhenMainHidden: true,
+      model: "default",
+      transparentBackground: false,
+    },
     appearance: {
       themeColor: "lime",
       backgroundOpacity: "default",

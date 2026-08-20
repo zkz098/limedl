@@ -136,5 +136,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     opacity: 1.0,
     keepAliveWhenMainHidden: true,
     model: "default",
+    transparentBackground: false,
   },
 };

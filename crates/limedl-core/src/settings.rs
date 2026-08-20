@@ -162,6 +162,7 @@ fn normalize_pet_settings(settings: crate::types::PetSettings) -> crate::types::
         x: settings.x,
         y: settings.y,
         model,
+        transparent_background: settings.transparent_background,
     }
 }
 

@@ -562,6 +562,7 @@ export type PetSettings = {
   x?: number | null;
   y?: number | null;
   model: string;
+  transparentBackground: boolean;
 };
 
 /**

@@ -402,7 +402,11 @@ onUnmounted(() => {
   <div
     ref="stageRef"
     class="pet-stage"
-    :class="{ 'is-drag-over': dragOver, 'is-dragging': isDragging }"
+    :class="{
+      'is-drag-over': dragOver,
+      'is-dragging': isDragging,
+      'is-transparent': settings.transparentBackground,
+    }"
     @mouseenter="setHover(true)"
     @mouseleave="setHover(false)"
     @mousedown="handleMouseDown"
@@ -411,7 +415,7 @@ onUnmounted(() => {
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
-    <PetSprite :state="state" :frame="frame" />
+    <PetSprite :state="state" :frame="frame" :transparent="settings.transparentBackground" />
 
     <Transition name="fade">
       <div v-if="dropMessage" class="pet-bubble">

@@ -49,7 +49,14 @@ vi.mock("../../lib/tauri/settings-api", () => ({
 vi.mock("../../components/settings/settingsComposables", () => {
   const defaultForm = {
     globalSpeedLimitBps: 0,
-    pet: { enabled: false, scale: 1, opacity: 1, keepAliveWhenMainHidden: true, model: "default" },
+    pet: {
+      enabled: false,
+      scale: 1,
+      opacity: 1,
+      keepAliveWhenMainHidden: true,
+      model: "default",
+      transparentBackground: false,
+    },
     appearance: {
       themeColor: "lime",
       backgroundOpacity: "default",
@@ -269,7 +276,14 @@ const stubs = {
 function createSettings(): AppSettings {
   return {
     globalSpeedLimitBps: 0,
-    pet: { enabled: false, scale: 1, opacity: 1, keepAliveWhenMainHidden: true, model: "default" },
+    pet: {
+      enabled: false,
+      scale: 1,
+      opacity: 1,
+      keepAliveWhenMainHidden: true,
+      model: "default",
+      transparentBackground: false,
+    },
     appearance: {
       themeColor: "lime",
       backgroundOpacity: "default",
