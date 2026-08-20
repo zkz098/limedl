@@ -98,6 +98,8 @@ impl TestServer {
             .route("/file/wrong-length", get(serve_file_wrong_length))
             .route("/file/status/{code}", get(serve_file_status))
             .route("/file/github-asset", get(serve_github_asset))
+            .route("/file/range-shifted/{shift}", get(serve_file_range_shifted))
+            .route("/file/range-bitflip", get(serve_file_range_bitflip))
             .with_state(state);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -186,6 +188,31 @@ impl TestServer {
     /// should complete at the final destination.
     pub fn file_url_redirect(&self, status_code: u16) -> String {
         format!("{}/file/redirect/{status_code}", self.addr)
+    }
+
+    /// URL that serves a `206` slice of the file whose *content* is shifted by
+    /// `shift` bytes relative to the advertised `Content-Range`, while keeping the
+    /// byte count identical.
+    ///
+    /// A well-behaved server returns `data[start..=end]` for `bytes=start-end`;
+    /// this endpoint returns `data[start+shift ..= end+shift]` but still claims the
+    /// range `start-end`. This simulates a misbehaving CDN/proxy that serves the
+    /// wrong bytes for each range (the classic source of "SHA doesn't match" on
+    /// multi-threaded range downloads). Ranges whose shifted span would fall out of
+    /// bounds are served correctly, so every requested range still succeeds and the
+    /// whole download completes — leaving only the checksum to catch the corruption.
+    pub fn file_url_range_shifted(&self, shift: u64) -> String {
+        format!("{}/file/range-shifted/{shift}", self.addr)
+    }
+
+    /// URL that serves `206` range slices with content that drifts from the source.
+    ///
+    /// Every served range has its first byte bit-flipped relative to the true
+    /// content, simulating a flaky origin that returns different bytes on retry.
+    /// Byte counts stay identical, so the downloader completes every chunk and only
+    /// a checksum comparison can detect the corruption.
+    pub fn file_url_range_bitflip(&self) -> String {
+        format!("{}/file/range-bitflip", self.addr)
     }
 
     /// URL that returns `416 Range Not Satisfiable` for any request with a `Range` header.
@@ -602,6 +629,106 @@ async fn serve_file_status(
 }
 
 // ---------------------------------------------------------------------------
+// GET /file/range-shifted/{shift}
+// ---------------------------------------------------------------------------
+
+/// Serve a byte range whose *content* is shifted by `shift` bytes from the
+/// advertised `Content-Range`, with identical length.
+///
+/// `bytes=start-end` returns `data[start+shift ..= end+shift]` but declares
+/// `Content-Range: bytes start-end/{len}`. Spans that would fall out of bounds are
+/// served correctly so every range still succeeds. This reproduces the real-world
+/// failure where a multi-threaded download assembles a silently-shifted file from
+/// a misbehaving range server.
+async fn serve_file_range_shifted(
+    State(state): State<Arc<ServerState>>,
+    Path(shift): Path<u64>,
+    req_headers: HeaderMap,
+) -> impl IntoResponse {
+    let data_len = state.data.len();
+    let mut resp_headers = HeaderMap::new();
+    resp_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    resp_headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
+    );
+    add_checksum_headers(&mut resp_headers, &state);
+
+    let Some(range_value) = req_headers.get(header::RANGE).and_then(|v| v.to_str().ok()) else {
+        resp_headers.insert(header::CONTENT_LENGTH, usize_header_value(data_len));
+        return (StatusCode::OK, resp_headers, state.data.to_vec()).into_response();
+    };
+    let Some(range_str) = range_value.strip_prefix("bytes=") else {
+        return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+    };
+    let Some((start, end)) = parse_byte_range(range_str, data_len) else {
+        return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+    };
+
+    let shifted_start = start.saturating_add(shift as usize);
+    let shifted_end = end.saturating_add(shift as usize);
+    let body = if shifted_end < data_len && shifted_start < data_len {
+        state.data[shifted_start..=shifted_end].to_vec()
+    } else {
+        // Out-of-bounds range — serve the true bytes so the request still succeeds.
+        state.data[start..=end].to_vec()
+    };
+
+    let content_range = format!("bytes {start}-{end}/{data_len}");
+    resp_headers.insert(
+        header::CONTENT_RANGE,
+        HeaderValue::from_str(&content_range).unwrap(),
+    );
+    resp_headers.insert(header::CONTENT_LENGTH, usize_header_value(body.len()));
+    (StatusCode::PARTIAL_CONTENT, resp_headers, body).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/range-bitflip
+// ---------------------------------------------------------------------------
+
+/// Serve `206` ranges whose first byte is bit-flipped vs. the true content.
+///
+/// Byte counts are unchanged, so every chunk completes normally; only a checksum
+/// comparison can reveal that the assembled file differs from the source.
+async fn serve_file_range_bitflip(
+    State(state): State<Arc<ServerState>>,
+    req_headers: HeaderMap,
+) -> impl IntoResponse {
+    let data_len = state.data.len();
+    let mut resp_headers = HeaderMap::new();
+    resp_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    resp_headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
+    );
+    add_checksum_headers(&mut resp_headers, &state);
+
+    let Some(range_value) = req_headers.get(header::RANGE).and_then(|v| v.to_str().ok()) else {
+        resp_headers.insert(header::CONTENT_LENGTH, usize_header_value(data_len));
+        return (StatusCode::OK, resp_headers, state.data.to_vec()).into_response();
+    };
+    let Some(range_str) = range_value.strip_prefix("bytes=") else {
+        return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+    };
+    let Some((start, end)) = parse_byte_range(range_str, data_len) else {
+        return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+    };
+
+    let mut body = state.data[start..=end].to_vec();
+    if let Some(first) = body.first_mut() {
+        *first ^= 0xFF;
+    }
+    let content_range = format!("bytes {start}-{end}/{data_len}");
+    resp_headers.insert(
+        header::CONTENT_RANGE,
+        HeaderValue::from_str(&content_range).unwrap(),
+    );
+    resp_headers.insert(header::CONTENT_LENGTH, usize_header_value(body.len()));
+    (StatusCode::PARTIAL_CONTENT, resp_headers, body).into_response()
+}
+
+// ---------------------------------------------------------------------------
 // GET /file/github-asset
 // ---------------------------------------------------------------------------
 
@@ -765,6 +892,51 @@ mod tests {
         // Content must be the first 512 bytes of the deterministic file
         let expected = generate_content(64 * 1024);
         assert_eq!(&body[..], &expected[..512]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[timeout(30_000)]
+    async fn range_shifted_endpoint_serves_shifted_content() -> TestResult {
+        let server = TestServer::new(64 * 1024).await;
+        let url = server.file_url_range_shifted(1);
+
+        let client = reqwest::Client::new();
+        // Advertised range 1000-1999, but content is data[1001..=2000].
+        let response = client
+            .get(&url)
+            .header(header::RANGE, "bytes=1000-1999")
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        let body = response.bytes().await?;
+        assert_eq!(body.len(), 1000);
+
+        let expected = generate_content(64 * 1024);
+        assert_eq!(&body[..], &expected[1001..2001], "range-shifted server returned wrong bytes");
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[timeout(30_000)]
+    async fn range_bitflip_endpoint_corrupts_content() -> TestResult {
+        let server = TestServer::new(64 * 1024).await;
+        let url = server.file_url_range_bitflip();
+
+        let client = reqwest::Client::new();
+        let response = client
+            .get(&url)
+            .header(header::RANGE, "bytes=0-31")
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        let body = response.bytes().await?;
+        assert_eq!(body.len(), 32);
+
+        let expected = generate_content(64 * 1024);
+        assert_ne!(&body[..], &expected[..32], "bitflip server must corrupt the range");
+        // Only the first byte differs; the rest is intact.
+        assert_eq!(&body[1..], &expected[1..32]);
         Ok(())
     }
 }

@@ -324,6 +324,10 @@ impl HttpExecutor {
                 .map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;
         }
         let file = Arc::new(open_download_file(&file_path, total_bytes)?);
+        // Test-only: remember this download's temp file (by id) so a pipeline
+        // fault-injection test can arm a targeted write-failure. Inert in prod.
+        #[cfg(any(test, feature = "test-utils"))]
+        crate::buffer_pool::fault::register_file(&managed.lock_core().manifest.id, &file);
 
         // HDD/SSD optimization: set up buffered writing
         let settings = dm.settings().await?;
@@ -633,6 +637,10 @@ impl HttpExecutor {
             )
         };
         let file = Arc::new(open_download_file(&file_path, total_size)?);
+        // Test-only: remember this download's temp file (by id) so a pipeline
+        // fault-injection test can arm a targeted write-failure. Inert in prod.
+        #[cfg(any(test, feature = "test-utils"))]
+        crate::buffer_pool::fault::register_file(&managed.lock_core().manifest.id, &file);
 
         // HDD/SSD optimization: set up buffered writing
         let settings = dm.settings().await?;
@@ -1090,6 +1098,22 @@ manager::WaitState::Canceled => {
             && !expected.eq_ignore_ascii_case(computed)
         {
             let error_msg = format!("Checksum mismatch: expected {expected}, got {computed}");
+            // Preserve the corrupt temp file for diagnosis instead of letting the
+            // downstream cleanup delete the only evidence of what went wrong. The
+            // renamed `{id}.part.corrupt` survives even if `cleanup_files` later
+            // removes the original temp path (which no longer exists after the
+            // rename).
+            let corrupt_path = temp_path.with_extension("part.corrupt");
+            match std::fs::rename(&temp_path, &corrupt_path) {
+                Ok(_) => tracing::warn!(
+                    "checksum mismatch; preserved corrupt temp file at {}",
+                    corrupt_path.display()
+                ),
+                Err(e) => tracing::warn!(
+                    "failed to preserve corrupt temp file {}: {e}",
+                    temp_path.display()
+                ),
+            }
             {
                 let mut core = managed.lock_core();
                 core.snapshot.state = DownloadState::Failed;

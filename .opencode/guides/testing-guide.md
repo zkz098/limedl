@@ -44,6 +44,19 @@
 - Windows 上必须先初始化 MSVC 环境（vcvarsall.bat x64），否则 clippy/test 因链接器失败。
 - 依赖：axum（HTTP mock）、tempfile、ntest（超时注解）。
 
+### 下载完整性 / 损坏检测测试（Rust 集成 E2E）
+
+针对"下载完成后 SHA 与源不一致"这类偶发数据损坏 bug，提供字节级 oracle 层：
+
+- `tests/corruption_oracle_tests.rs` — 走完整引擎后**独立重读落盘文件**，用 SHA-256 与源内容比对（而非只看 `state == Completed`）。参数矩阵覆盖 多线程×大小（含参差尾块）×校验模式×迭代；确定性内容（seed 42）下任何一次失败都是真实引擎非确定性，视为 bug 报告而非 flaky。
+- `tests/adversarial_interception_tests.rs` — 用坏服务器（range 错位 / 每段首字节翻转）验证：提供了 `expected_checksum` 时必须 `Failed` 拦截，且失败时保留 `.corrupt` 临时文件供取证。
+- `tests/resume_corruption_tests.rs` — pause→resume 后仍字节级一致（多线程半途打断 + 带宽限速下的中/尾段暂停）。
+- `tests/buffer_integrity_tests.rs` — SSD/HDD 写合并缓冲在**写入异常**下的完整性：通过 `buffer_pool::fault`（仅 test-utils 编译）对后台 flush 批量写注入确定性 I/O 失败，验证缓冲把失败标记为 degraded、`flush_all` 必须报错、**已写入字节不损坏**（只丢失败批次的数据并以错误上报，绝不静默成功）；另有一条全管道 E2E（强制 SSD ping-pong 缓冲 + 多线程）复现真实报告的 `SSD ping-pong buffer flush failed`，必须 `Failed` 而非静默 `Completed`。故障按下载 id 定点、并全局串行锁隔离，避免并行测试互相干扰。
+
+配套 harness 新增端点：`/file/range-shifted/{shift}`（Content-Range 错位）与 `/file/range-bitflip`（每段内容翻转），用于模拟真实世界里 CDN/代理返回错误字节的损坏源。
+
+> 引擎未显式传 `expected_checksum` 时不做自动比对（产品行为，测试仅快照该现状并由 oracle 独立标记坏文件）——不要为了让这些测试全绿而绕过损坏检测。
+
 ### E2E 测试（Playwright）
 
 - 框架已配置但 CI 暂不执行（需要桌面环境）。
