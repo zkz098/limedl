@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 const PET_WINDOW_LABEL: &str = "pet";
 const PET_BASE_SIZE: f64 = 160.0;
 const PET_MIN_SIZE: f64 = 80.0;
-const PET_MAX_SIZE: f64 = 500.0;
+const PET_MAX_SIZE: f64 = 640.0;
 
 /// Ensure the pet window exists. Creates it lazily if missing.
 /// Caller should check `settings.pet.enabled` before calling.

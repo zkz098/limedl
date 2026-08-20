@@ -97,11 +97,10 @@ body {
 .pet-root {
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
   background: transparent;
   user-select: none;
+  overflow: visible;
 }
 
 .pet-loading {

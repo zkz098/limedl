@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import {
   getCurrentWindow,
   LogicalSize,
@@ -35,6 +35,8 @@ const props = defineProps<{
 
 const { state, onDragStart, onDragEnd, onDropSuccess } = usePetBehavior();
 const { frame } = usePetFps(state);
+
+const baseSize = computed(() => 160 * (props.settings.scale ?? 1));
 
 const stageRef = ref<HTMLDivElement | null>(null);
 void stageRef;
@@ -157,13 +159,15 @@ async function expandForMenu() {
     const win = getCurrentWindow();
     const size = await win.innerSize();
     originalSize = { w: size.width, h: size.height };
-    // Expand to fit menu — use logical size so it scales with DPI
-    const target = new LogicalSize(240, 380);
+    // Expand to fit menu below the pet — use logical size so it scales with DPI
+    // Pet is baseSize (160*scale) at top, menu 200x~300 below needs baseSize+320
+    const targetW = 260;
+    const targetH = Math.ceil(baseSize.value + 320);
     const factor = await win.scaleFactor();
     const curW = size.width / factor;
     const curH = size.height / factor;
-    if (curW < 240 || curH < 380) {
-      await win.setSize(target);
+    if (curW < targetW || curH < targetH) {
+      await win.setSize(new LogicalSize(targetW, targetH));
     }
   } catch {
     // ignore
@@ -190,30 +194,13 @@ async function handleContextMenu(e: MouseEvent) {
   } catch {
     menuState.value = null;
   }
-  // Position inside window (clamped)
-  const winW = window.innerWidth;
-  const winH = window.innerHeight;
-  // Menu visual size ~ 192x320, but window will be expanded
-  let x = e.clientX;
-  let y = e.clientY;
-  // After expand, window is 240x380, so clamp to that expanded size
-  const menuW = 200;
-  const menuH = 300;
-  const expandedW = 240;
-  const expandedH = 380;
-  // Clamp to expanded window bounds with 6px margin
-  x = Math.min(Math.max(6, x), expandedW - menuW - 6);
-  y = Math.min(Math.max(6, y), expandedH - menuH - 6);
-  // If window not yet expanded, use current window size for clamping fallback
-  if (winW < expandedW) {
-    x = Math.min(x, winW - menuW - 6);
-    y = Math.min(y, winH - menuH - 6);
-  }
-  menuX.value = x;
-  menuY.value = y;
+  // Expand first so the window can host the menu without clipping
+  await expandForMenu();
+  // Fixed position below the pet — keeps the cat from shifting
+  // and guarantees the menu is fully visible in the expanded window
+  menuX.value = 20;
+  menuY.value = Math.ceil(baseSize.value + 8);
   showMenu.value = true;
-  void expandForMenu();
-  // Ensure pet is interactive while menu open
   void petSetIgnoreCursorEvents(false);
 }
 
@@ -402,6 +389,7 @@ onUnmounted(() => {
   <div
     ref="stageRef"
     class="pet-stage"
+    :style="{ width: `${baseSize}px`, height: `${baseSize}px` }"
     :class="{
       'is-drag-over': dragOver,
       'is-dragging': isDragging,
@@ -438,12 +426,12 @@ onUnmounted(() => {
 
 <style scoped>
 .pet-stage {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   border-radius: 16px;
   transition: background 0.2s;
 }
