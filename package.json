@@ -12,6 +12,8 @@
     "build:nas": "vue-tsc --noEmit && vite build --mode nas",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:dev": "cmd /c \"call \\\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat\\\" x64 && pnpm tauri dev\"",
+    "tauri:dev:win": "powershell -ExecutionPolicy Bypass -File scripts/tauri-dev.ps1",
     "lint": "oxlint --type-aware --type-check .",
     "format": "oxfmt .",
     "test": "vitest run",
