@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { getCurrentWindow, LogicalSize, PhysicalSize } from "@tauri-apps/api/window";
+import {
+  getCurrentWindow,
+  LogicalSize,
+  PhysicalPosition,
+  PhysicalSize,
+} from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import PetSprite from "./PetSprite.vue";
 import PetContextMenu from "./PetContextMenu.vue";
 import { usePetBehavior } from "../composables/usePetBehavior";
 import { usePetFps } from "../composables/usePetFps";
 import {
-  petStartDrag,
   petSetIgnoreCursorEvents,
   petUpdatePosition,
   petGetMenuState,
@@ -68,17 +72,38 @@ async function handleMouseDown(e: MouseEvent) {
   if (e.button !== 0) return;
   isDragging.value = true;
   onDragStart();
-  // Keep drag state until the OS drag actually ends (mouse up).
-  // We must listen for mouseup *before* starting the OS drag, because
-  // start_dragging enters a modal OS loop and may swallow the initial events.
-  let moveUnlisten: (() => void) | null = null;
-  const cleanup = () => {
-    window.removeEventListener("mouseup", onMouseUp);
-    if (moveUnlisten) {
-      moveUnlisten();
-      moveUnlisten = null;
-    }
+  void petSetIgnoreCursorEvents(false);
+
+  // Manual JS drag — far more reliable than OS start_dragging which swallows mouseup
+  // and left the previous implementation stuck in drag forever.
+  const win = getCurrentWindow();
+  let startPos: { x: number; y: number } | null = null;
+  let startMouse: { x: number; y: number } | null = null;
+  let scale = 1;
+  try {
+    const pos = await win.outerPosition();
+    startPos = { x: pos.x, y: pos.y };
+    scale = await win.scaleFactor();
+    startMouse = { x: e.screenX * scale, y: e.screenY * scale };
+  } catch {
+    // fallback: use client position only
+    startPos = null;
+  }
+
+  const onMouseMove = (ev: MouseEvent) => {
+    if (!isDragging.value || !startPos || !startMouse) return;
+    const curX = ev.screenX * scale;
+    const curY = ev.screenY * scale;
+    const dx = curX - startMouse.x;
+    const dy = curY - startMouse.y;
+    void win.setPosition(new PhysicalPosition(startPos.x + dx, startPos.y + dy));
   };
+
+  const cleanup = () => {
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+  };
+
   const onMouseUp = () => {
     cleanup();
     if (!isDragging.value) return;
@@ -86,30 +111,21 @@ async function handleMouseDown(e: MouseEvent) {
     onDragEnd();
     void savePosition();
   };
+
+  window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp, { once: true });
-  // Also watch window moves — if the OS drag is active, the window will emit
-  // tauri://move continuously; this helps keep the drag alive even if mouseup
-  // is swallowed by the OS capture. We don't end drag on move stop, only on mouseup.
-  try {
-    moveUnlisten = await listen("tauri://move", () => {
-      // Window is moving — keep isDragging true, no-op
-    });
-  } catch {
-    // ignore
-  }
-  try {
-    await petSetIgnoreCursorEvents(false);
-    await petStartDrag();
-  } catch (err) {
-    console.error("[pet] start_drag failed", err);
-    // If start_drag failed, end drag immediately
-    cleanup();
-    isDragging.value = false;
-    onDragEnd();
-  }
-  // Fallback: if mouseup was somehow missed (OS capture), poll for drag end
-  // by checking if mouse is still down after a delay — but the primary
-  // mechanism is mouseup, so we don't need a timeout that snaps back to idle.
+
+  // Safety: if for any reason mouseup is missed, also end drag on window blur / escape
+  const onKey = (ev: KeyboardEvent) => {
+    if (ev.key === "Escape") {
+      cleanup();
+      if (isDragging.value) {
+        isDragging.value = false;
+        onDragEnd();
+      }
+    }
+  };
+  window.addEventListener("keydown", onKey, { once: true });
 }
 
 async function expandForMenu() {
