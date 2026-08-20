@@ -1452,6 +1452,53 @@ fn default_max_in_memory_downloads() -> usize {
     200
 }
 
+fn default_pet_scale() -> f64 {
+    1.0
+}
+
+fn default_pet_opacity() -> f64 {
+    1.0
+}
+
+fn default_pet_model() -> String {
+    String::from("default")
+}
+
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PetSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_pet_scale")]
+    pub scale: f64,
+    #[serde(default = "default_pet_opacity")]
+    pub opacity: f64,
+    #[serde(default = "default_true")]
+    pub keep_alive_when_main_hidden: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y: Option<i32>,
+    #[serde(default = "default_pet_model")]
+    pub model: String,
+}
+
+impl Default for PetSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            scale: default_pet_scale(),
+            opacity: default_pet_opacity(),
+            keep_alive_when_main_hidden: true,
+            x: None,
+            y: None,
+            model: default_pet_model(),
+        }
+    }
+}
+
 /// A time-of-day speed limit slot.
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
@@ -1510,6 +1557,8 @@ pub struct AppSettings {
     /// Older terminal-state entries are evicted when this limit is exceeded.
     #[serde(default = "default_max_in_memory_downloads")]
     pub max_in_memory_downloads: usize,
+    #[serde(default)]
+    pub pet: PetSettings,
 }
 
 #[cfg_attr(feature = "ts", derive(TS))]

@@ -1,4 +1,5 @@
 mod download;
+mod pet;
 mod update;
 
 #[cfg(feature = "test-utils")]
@@ -36,6 +37,10 @@ use download::{
     download_start, download_status, get_bt_files, get_io_status, get_overclock_mode, init_logging,
     logging_open_dir, settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode,
     toggle_overclock_mode, update_bt_files, CloseBehavior,
+};
+use pet::{
+    pet_close, pet_hide, pet_set_enabled, pet_set_ignore_cursor_events, pet_set_scale,
+    pet_show, pet_start_drag, pet_update_position,
 };
 pub use update::{check_update_full, download_and_install_update};
 
@@ -441,6 +446,19 @@ pub fn run() {
                                 let _ = window.show();
                                 let _ = window.set_focus();
                             }
+                            let pet_enabled = app
+                                .state::<AppState>()
+                                .settings
+                                .read()
+                                .pet
+                                .enabled;
+                            if pet_enabled {
+                                if let Some(pet) = app.get_webview_window("pet") {
+                                    let _ = pet.show();
+                                } else {
+                                    let _ = pet::ensure_pet_window(app);
+                                }
+                            }
                         }
                     });
 
@@ -472,6 +490,22 @@ pub fn run() {
                             if let Some(window) = app.get_webview_window("main") {
                                 let _ = window.show();
                                 let _ = window.set_focus();
+                            }
+                            // Restore pet window if it was hidden with main window
+                            {
+                                let pet_enabled = app
+                                    .state::<AppState>()
+                                    .settings
+                                    .read()
+                                    .pet
+                                    .enabled;
+                                if pet_enabled {
+                                    if let Some(pet) = app.get_webview_window("pet") {
+                                        let _ = pet.show();
+                                    } else {
+                                        let _ = pet::ensure_pet_window(&app);
+                                    }
+                                }
                             }
                         }
                         "pause_all" | "resume_all" => {
@@ -585,11 +619,28 @@ pub fn run() {
                 .visible(!is_autostart)
                 .build()?;
 
+            // Pet window — lazy creation if enabled
+            {
+                let pet_enabled = app
+                    .state::<AppState>()
+                    .settings
+                    .read()
+                    .pet
+                    .enabled;
+                if pet_enabled {
+                    let _ = pet::ensure_pet_window(app.handle());
+                }
+            }
+
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Only intercept main window close — pet window should close normally
+                if window.label() != "main" {
+                    return;
+                }
                 api.prevent_close();
                 let handle = window.app_handle().clone();
                 let state = window.state::<AppState>();
@@ -600,6 +651,12 @@ pub fn run() {
                     // Minimize to tray instead of exiting
                     if let Some(win) = handle.get_webview_window("main") {
                         let _ = win.hide();
+                    }
+                    // Handle pet window per keep_alive setting
+                    if !settings.pet.keep_alive_when_main_hidden
+                        && let Some(pet) = handle.get_webview_window("pet")
+                    {
+                        let _ = pet.hide();
                     }
                 } else {
                     // Exit completely
@@ -613,6 +670,14 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            pet_show,
+            pet_hide,
+            pet_close,
+            pet_set_scale,
+            pet_set_ignore_cursor_events,
+            pet_start_drag,
+            pet_update_position,
+            pet_set_enabled,
             download_start,
             download_pause,
             download_resume,

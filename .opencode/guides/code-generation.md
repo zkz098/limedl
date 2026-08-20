@@ -5,6 +5,7 @@
 ## When to regenerate
 
 After any of:
+
 - Adding/modifying a Rust struct/enum with `#[derive(TS)]` / `#[cfg_attr(feature = "ts", derive(TS))]`
 - Adding a new entry to `WS_COMMANDS` or `WS_EVENTS` in `ws_manifest.rs`
 - Adding a new `DownloadEvent` variant
@@ -17,6 +18,7 @@ cargo test --manifest-path crates/limedl-core/Cargo.toml --features ts -- export
 ```
 
 Output:
+
 - `src/types/generated/types.ts` — Rust type definitions (ts-rs)
 - `src/types/generated/settings-default.ts` — `AppSettings::default()` as TS (`DEFAULT_APP_SETTINGS`; Rust is the single source of truth, consumed via `src/lib/app-settings-defaults.ts` re-export)
 - `src/lib/ws/generated/ws-commands.ts` — WS command manifest
@@ -36,6 +38,7 @@ Source of truth: Rust structs/enums in `crates/limedl-core/src/`.
 - Frontend re-export files (`src/types/settings.ts`, `download.ts`, `cdn.ts`) add only pure-frontend types.
 
 Rules:
+
 - Never manually edit TypeScript types matching Rust structs — edit Rust and regenerate.
 - Generated files must be committed alongside Rust changes.
 

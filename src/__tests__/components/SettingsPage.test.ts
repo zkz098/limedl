@@ -49,6 +49,7 @@ vi.mock("../../lib/tauri/settings-api", () => ({
 vi.mock("../../components/settings/settingsComposables", () => {
   const defaultForm = {
     globalSpeedLimitBps: 0,
+    pet: { enabled: false, scale: 1, opacity: 1, keepAliveWhenMainHidden: true, model: "default" },
     appearance: {
       themeColor: "lime",
       backgroundOpacity: "default",
@@ -91,16 +92,16 @@ vi.mock("../../components/settings/settingsComposables", () => {
       antiLeechRatio: 0.1,
       antiLeechBanSecs: 3600,
       antiLeechMaxUploadSlots: 4,
-            seedChokingAlgorithm: "fastest_upload",
-            chokingAlgorithm: "fixed_slots",
-            maxUploadSlotsPerTorrent: 4,
-            maxPeersPerTorrent: 128,
-            smartBanMaxFailures: 3,
-            smartBanParole: true,
-            evictionBanDurationSecs: 600,
-            dataContributionTimeoutSecs: 60,
-            blocklistEnabled: false,
-            blocklistPath: "",
+      seedChokingAlgorithm: "fastest_upload",
+      chokingAlgorithm: "fixed_slots",
+      maxUploadSlotsPerTorrent: 4,
+      maxPeersPerTorrent: 128,
+      smartBanMaxFailures: 3,
+      smartBanParole: true,
+      evictionBanDurationSecs: 600,
+      dataContributionTimeoutSecs: 60,
+      blocklistEnabled: false,
+      blocklistPath: "",
       dhtEnabled: true,
       trackerList: "",
       trackerListUrl: "https://cf.trackerslist.com/best.txt",
@@ -268,6 +269,7 @@ const stubs = {
 function createSettings(): AppSettings {
   return {
     globalSpeedLimitBps: 0,
+    pet: { enabled: false, scale: 1, opacity: 1, keepAliveWhenMainHidden: true, model: "default" },
     appearance: {
       themeColor: "lime",
       backgroundOpacity: "default",
@@ -310,16 +312,16 @@ function createSettings(): AppSettings {
       antiLeechRatio: 0.1,
       antiLeechBanSecs: 3600,
       antiLeechMaxUploadSlots: 4,
-            seedChokingAlgorithm: "fastest_upload",
-            chokingAlgorithm: "fixed_slots",
-            maxUploadSlotsPerTorrent: 4,
-            maxPeersPerTorrent: 128,
-            smartBanMaxFailures: 3,
-            smartBanParole: true,
-            evictionBanDurationSecs: 600,
-            dataContributionTimeoutSecs: 60,
-            blocklistEnabled: false,
-            blocklistPath: "",
+      seedChokingAlgorithm: "fastest_upload",
+      chokingAlgorithm: "fixed_slots",
+      maxUploadSlotsPerTorrent: 4,
+      maxPeersPerTorrent: 128,
+      smartBanMaxFailures: 3,
+      smartBanParole: true,
+      evictionBanDurationSecs: 600,
+      dataContributionTimeoutSecs: 60,
+      blocklistEnabled: false,
+      blocklistPath: "",
       dhtEnabled: true,
       trackerList: "",
       trackerListUrl: "",
@@ -403,17 +405,18 @@ describe("SettingsPage", () => {
   it("renders sidebar with all tab buttons (common + advanced)", () => {
     const wrapper = mountPage();
     const tabs = wrapper.findAll('[role="tab"]');
-    // 4 common + 5 advanced = 9 total (advanced are present but hidden)
-    expect(tabs).toHaveLength(9);
+    // 5 common + 5 advanced = 10 total (advanced are present but hidden)
+    expect(tabs).toHaveLength(10);
     expect(tabs[0].text()).toContain("settings.appearanceKicker");
-    expect(tabs[1].text()).toContain("settings.downloads");
-    expect(tabs[2].text()).toContain("settings.proxyTitle");
-    expect(tabs[3].text()).toContain("settings.aboutKicker");
-    expect(tabs[4].text()).toContain("settings.scheduler");
-    expect(tabs[5].text()).toContain("settings.bt");
-    expect(tabs[6].text()).toContain("settings.io");
-    expect(tabs[7].text()).toContain("settings.aria2Rpc");
-    expect(tabs[8].text()).toContain("settings.logging");
+    expect(tabs[1].text()).toContain("settings.pet");
+    expect(tabs[2].text()).toContain("settings.downloads");
+    expect(tabs[3].text()).toContain("settings.proxyTitle");
+    expect(tabs[4].text()).toContain("settings.aboutKicker");
+    expect(tabs[5].text()).toContain("settings.scheduler");
+    expect(tabs[6].text()).toContain("settings.bt");
+    expect(tabs[7].text()).toContain("settings.io");
+    expect(tabs[8].text()).toContain("settings.aria2Rpc");
+    expect(tabs[9].text()).toContain("settings.logging");
   });
 
   it("renders save button with save icon", () => {
@@ -445,13 +448,13 @@ describe("SettingsPage", () => {
 
     const tabs = wrapper.findAll('[role="tab"]');
 
-    // Click scheduler tab (index 4: 4 common + scheduler)
-    expect(tabs[4].text()).toContain("settings.scheduler");
-    await tabs[4].trigger("click");
+    // Click scheduler tab (index 5: 5 common + scheduler)
+    expect(tabs[5].text()).toContain("settings.scheduler");
+    await tabs[5].trigger("click");
     await nextTick();
 
     // Check that the tab has aria-selected
-    expect(tabs[4].attributes("aria-selected")).toBe("true");
+    expect(tabs[5].attributes("aria-selected")).toBe("true");
     expect(tabs[0].attributes("aria-selected")).toBe("false");
   });
 
@@ -484,7 +487,7 @@ describe("SettingsPage", () => {
     await nextTick();
 
     const tabs = wrapper.findAll('[role="tab"]');
-    expect(tabs.length).toBeGreaterThanOrEqual(9); // 4 common + 5 advanced = 9 total
+    expect(tabs.length).toBeGreaterThanOrEqual(10); // 5 common + 5 advanced = 10 total
 
     for (let i = 0; i < tabs.length; i++) {
       // eslint-disable-next-line no-await-in-loop
@@ -524,8 +527,8 @@ describe("SettingsPage", () => {
     const wrapper = mountPage();
     const tabs = wrapper.findAll('[role="tab"]');
 
-    // Go to about tab (index 3 = last common tab)
-    await tabs[3].trigger("click");
+    // Go to about tab (index 4 = last common tab)
+    await tabs[4].trigger("click");
     await nextTick();
 
     expect(wrapper.find('[data-panel="about"]').exists()).toBe(true);
@@ -547,10 +550,10 @@ describe("SettingsPage", () => {
     expect(tabs[0].attributes("aria-selected")).toBe("true");
 
     // Click a different tab
-    await tabs[3].trigger("click");
+    await tabs[4].trigger("click");
     await nextTick();
 
-    expect(tabs[3].attributes("aria-selected")).toBe("true");
+    expect(tabs[4].attributes("aria-selected")).toBe("true");
     expect(tabs[0].attributes("aria-selected")).toBe("false");
   });
 });

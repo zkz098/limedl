@@ -5,10 +5,7 @@ import { WS_COMMANDS } from "./generated/ws-commands";
  * from `WS_COMMANDS` (no WebSocket/NAS counterpart). The app updater has no
  * meaning on the NAS web server.
  */
-const TAURI_ONLY_COMMANDS: readonly string[] = [
-  "check_update_full",
-  "download_and_install_update",
-];
+const TAURI_ONLY_COMMANDS: readonly string[] = ["check_update_full", "download_and_install_update"];
 
 const known = new Set<string>(WS_COMMANDS.map((c) => c.tauriName));
 for (const name of TAURI_ONLY_COMMANDS) {

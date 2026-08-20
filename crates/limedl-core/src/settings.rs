@@ -77,6 +77,8 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         ssd_write_combine_mb: settings.io_baseline.ssd_write_combine_mb.clamp(0, 4096),
     };
 
+    let pet = normalize_pet_settings(settings.pet);
+
     Ok(AppSettings {
         appearance: settings.appearance,
         proxy,
@@ -116,6 +118,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         last_setup_step: settings.last_setup_step.map(|s| s.clamp(0, 9)),
         double_click: settings.double_click,
         max_in_memory_downloads: clamp_max_in_memory(settings.max_in_memory_downloads),
+        pet,
     })
 }
 
@@ -130,6 +133,36 @@ fn normalize_min_threads(raw: usize, max_per_task: usize) -> usize {
 /// 0 = unlimited (no eviction). Positive values clamped to [10, 10000].
 fn clamp_max_in_memory(raw: usize) -> usize {
     if raw == 0 { 0 } else { raw.clamp(10, 10000) }
+}
+
+fn normalize_pet_settings(settings: crate::types::PetSettings) -> crate::types::PetSettings {
+    let scale = if settings.scale.is_finite() {
+        settings.scale.clamp(0.5, 2.0)
+    } else {
+        1.0
+    };
+    let opacity = if settings.opacity.is_finite() {
+        settings.opacity.clamp(0.2, 1.0)
+    } else {
+        1.0
+    };
+    let model = {
+        let trimmed = settings.model.trim().to_string();
+        if trimmed.is_empty() {
+            String::from("default")
+        } else {
+            trimmed
+        }
+    };
+    crate::types::PetSettings {
+        enabled: settings.enabled,
+        scale,
+        opacity,
+        keep_alive_when_main_hidden: settings.keep_alive_when_main_hidden,
+        x: settings.x,
+        y: settings.y,
+        model,
+    }
 }
 
 fn normalize_logging_settings(settings: LogSettings) -> LogSettings {
@@ -386,6 +419,7 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         last_setup_step: None,
         double_click: DoubleClickSettings::default(),
         max_in_memory_downloads: 200,
+        pet: Default::default(),
     })
 }
 

@@ -269,9 +269,21 @@ describe("useAppUpdateStore", () => {
   });
 
   it.each<[string, string, string]>([
-    ["downloadAndInstall sets error on failure with generic message", "Connection lost", "Connection lost"],
-    ["downloadAndInstall sets disk space error message", "Not enough disk space", "settings.aboutDiskSpaceInsufficient"],
-    ["downloadAndInstall sets signature error message", "signature verification failed", "settings.aboutSignatureInvalid"],
+    [
+      "downloadAndInstall sets error on failure with generic message",
+      "Connection lost",
+      "Connection lost",
+    ],
+    [
+      "downloadAndInstall sets disk space error message",
+      "Not enough disk space",
+      "settings.aboutDiskSpaceInsufficient",
+    ],
+    [
+      "downloadAndInstall sets signature error message",
+      "signature verification failed",
+      "settings.aboutSignatureInvalid",
+    ],
   ])("%s", async (_title, thrownMessage, expectedMessage) => {
     const update = mockUpdateResult();
     mockInvoke.mockResolvedValueOnce(update);

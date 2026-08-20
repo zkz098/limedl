@@ -78,7 +78,8 @@ export async function setLanguage(language: SupportedLanguage) {
 document.documentElement.lang = currentLanguage.value;
 
 // Update system tray menu on initial load (setLanguage only fires on change)
-void (async () => { // NOSONAR: deliberate fire-and-forget — top-level await would block module init on WS connect
+void (async () => {
+  // NOSONAR: deliberate fire-and-forget — top-level await would block module init on WS connect
   try {
     await updateTrayLanguage(currentLanguage.value);
   } catch {

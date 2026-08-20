@@ -139,10 +139,7 @@ function onChunkStrategyChange(enabled: boolean) {
       icon="i-ri-dashboard-line"
       :summary="t('settings.performancePreferenceHint')"
     >
-      <fieldset
-        class="performance-presets"
-        :aria-label="t('settings.performancePreference')"
-      >
+      <fieldset class="performance-presets" :aria-label="t('settings.performancePreference')">
         <label
           v-for="card in presetCards"
           :key="card.value"

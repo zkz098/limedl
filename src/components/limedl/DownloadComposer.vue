@@ -33,12 +33,8 @@ const {
   batchEntries,
   batchSubmitProgress,
 } = storeToRefs(downloadStore);
-const {
-  pickDestinationDirectory,
-  pickTorrentSourceFile,
-  parseBatchUrls,
-  toggleBatchMode,
-} = downloadStore;
+const { pickDestinationDirectory, pickTorrentSourceFile, parseBatchUrls, toggleBatchMode } =
+  downloadStore;
 
 const urlInputRef = ref<InstanceType<typeof UiTextField> | null>(null);
 const isAdvancedOpen = ref(false);
@@ -301,11 +297,22 @@ async function handleFormSubmit() {
             <div v-show="isAdvancedOpen" class="composer-advanced__panel">
               <div class="composer-advanced__content">
                 <div class="composer-grid">
-                  <label class="composer-field composer-field--compact" :for="'composer-thread-strategy'">
+                  <label
+                    class="composer-field composer-field--compact"
+                    :for="'composer-thread-strategy'"
+                  >
                     <span class="composer-field__label">{{ t("composer.threadStrategy") }}</span>
-                    <UiSelect v-model="form.threadMode" :options="threadModeOptions" :id="'composer-thread-strategy'" :aria-label="t('composer.threadStrategy')" />
+                    <UiSelect
+                      v-model="form.threadMode"
+                      :options="threadModeOptions"
+                      :id="'composer-thread-strategy'"
+                      :aria-label="t('composer.threadStrategy')"
+                    />
                   </label>
-                  <label class="composer-field composer-field--compact" :for="'composer-thread-count'">
+                  <label
+                    class="composer-field composer-field--compact"
+                    :for="'composer-thread-count'"
+                  >
                     <span class="composer-field__label">{{ t("composer.threadCount") }}</span>
                     <UiSelect
                       v-model="form.threadCount"
@@ -317,9 +324,18 @@ async function handleFormSubmit() {
                   </label>
                   <label class="composer-field composer-field--compact" :for="'composer-retries'">
                     <span class="composer-field__label">{{ t("composer.retries") }}</span>
-                    <UiTextField type="number" v-model="form.maxRetries" :min="0" :id="'composer-retries'" :aria-label="t('composer.retries')" />
+                    <UiTextField
+                      type="number"
+                      v-model="form.maxRetries"
+                      :min="0"
+                      :id="'composer-retries'"
+                      :aria-label="t('composer.retries')"
+                    />
                   </label>
-                  <label class="composer-field composer-field--compact" :for="'composer-user-agent'">
+                  <label
+                    class="composer-field composer-field--compact"
+                    :for="'composer-user-agent'"
+                  >
                     <span class="composer-field__label">{{ t("composer.userAgent") }}</span>
                     <UiTextField
                       v-model="form.userAgent"
@@ -331,16 +347,39 @@ async function handleFormSubmit() {
                   </label>
                   <label class="composer-field composer-field--compact" :for="'composer-checksum'">
                     <span class="composer-field__label">{{ t("composer.checksum") }}</span>
-                    <UiSelect v-model="form.checksum" :options="checksumOptions" :id="'composer-checksum'" :aria-label="t('composer.checksum')" />
+                    <UiSelect
+                      v-model="form.checksum"
+                      :options="checksumOptions"
+                      :id="'composer-checksum'"
+                      :aria-label="t('composer.checksum')"
+                    />
                   </label>
                   <template v-if="form.kind === 'bt'">
-                    <label class="composer-field composer-field--compact" :for="'composer-bt-download-limit'">
+                    <label
+                      class="composer-field composer-field--compact"
+                      :for="'composer-bt-download-limit'"
+                    >
                       <span class="composer-field__label">{{ t("composer.btDownloadLimit") }}</span>
-                      <UiTextField type="number" v-model="form.downloadLimitBps" :min="0" :id="'composer-bt-download-limit'" :aria-label="t('composer.btDownloadLimit')" />
+                      <UiTextField
+                        type="number"
+                        v-model="form.downloadLimitBps"
+                        :min="0"
+                        :id="'composer-bt-download-limit'"
+                        :aria-label="t('composer.btDownloadLimit')"
+                      />
                     </label>
-                    <label class="composer-field composer-field--compact" :for="'composer-bt-upload-limit'">
+                    <label
+                      class="composer-field composer-field--compact"
+                      :for="'composer-bt-upload-limit'"
+                    >
                       <span class="composer-field__label">{{ t("composer.btUploadLimit") }}</span>
-                      <UiTextField type="number" v-model="form.uploadLimitBps" :min="0" :id="'composer-bt-upload-limit'" :aria-label="t('composer.btUploadLimit')" />
+                      <UiTextField
+                        type="number"
+                        v-model="form.uploadLimitBps"
+                        :min="0"
+                        :id="'composer-bt-upload-limit'"
+                        :aria-label="t('composer.btUploadLimit')"
+                      />
                     </label>
                   </template>
                 </div>
@@ -477,11 +516,22 @@ async function handleFormSubmit() {
             <div v-show="isAdvancedOpen" class="composer-advanced__panel">
               <div class="composer-advanced__content">
                 <div class="composer-grid">
-                  <label class="composer-field composer-field--compact" :for="'composer-thread-strategy'">
+                  <label
+                    class="composer-field composer-field--compact"
+                    :for="'composer-thread-strategy'"
+                  >
                     <span class="composer-field__label">{{ t("composer.threadStrategy") }}</span>
-                    <UiSelect v-model="form.threadMode" :options="threadModeOptions" :id="'composer-thread-strategy'" :aria-label="t('composer.threadStrategy')" />
+                    <UiSelect
+                      v-model="form.threadMode"
+                      :options="threadModeOptions"
+                      :id="'composer-thread-strategy'"
+                      :aria-label="t('composer.threadStrategy')"
+                    />
                   </label>
-                  <label class="composer-field composer-field--compact" :for="'composer-thread-count'">
+                  <label
+                    class="composer-field composer-field--compact"
+                    :for="'composer-thread-count'"
+                  >
                     <span class="composer-field__label">{{ t("composer.threadCount") }}</span>
                     <UiSelect
                       v-model="form.threadCount"
@@ -493,9 +543,18 @@ async function handleFormSubmit() {
                   </label>
                   <label class="composer-field composer-field--compact" :for="'composer-retries'">
                     <span class="composer-field__label">{{ t("composer.retries") }}</span>
-                    <UiTextField type="number" v-model="form.maxRetries" :min="0" :id="'composer-retries'" :aria-label="t('composer.retries')" />
+                    <UiTextField
+                      type="number"
+                      v-model="form.maxRetries"
+                      :min="0"
+                      :id="'composer-retries'"
+                      :aria-label="t('composer.retries')"
+                    />
                   </label>
-                  <label class="composer-field composer-field--compact" :for="'composer-user-agent'">
+                  <label
+                    class="composer-field composer-field--compact"
+                    :for="'composer-user-agent'"
+                  >
                     <span class="composer-field__label">{{ t("composer.userAgent") }}</span>
                     <UiTextField
                       v-model="form.userAgent"
@@ -507,7 +566,12 @@ async function handleFormSubmit() {
                   </label>
                   <label class="composer-field composer-field--compact" :for="'composer-checksum'">
                     <span class="composer-field__label">{{ t("composer.checksum") }}</span>
-                    <UiSelect v-model="form.checksum" :options="checksumOptions" :id="'composer-checksum'" :aria-label="t('composer.checksum')" />
+                    <UiSelect
+                      v-model="form.checksum"
+                      :options="checksumOptions"
+                      :id="'composer-checksum'"
+                      :aria-label="t('composer.checksum')"
+                    />
                   </label>
                 </div>
                 <p class="composer-hint">{{ threadHint }}</p>

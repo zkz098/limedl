@@ -12,17 +12,17 @@
 
 ## Toolchain
 
-| Purpose | Command |
-|---------|---------|
-| Install deps | `pnpm install --frozen-lockfile` |
-| Frontend dev | `pnpm run tauri dev` |
-| Lint | `pnpm run lint` (oxlint) |
-| Format | `pnpm run format` (oxfmt) |
-| Type-check | `pnpm exec vue-tsc --noEmit` |
-| Test (frontend) | `pnpm run test` |
-| Test (Rust) | `cargo test --workspace` |
-| Build | `pnpm run build` (vue-tsc → vite build) |
-| Version bump | `node scripts/bump-version.mjs patch` |
+| Purpose         | Command                                                       |
+| --------------- | ------------------------------------------------------------- |
+| Install deps    | `pnpm install --frozen-lockfile`                              |
+| Frontend dev    | `pnpm run tauri dev`                                          |
+| Lint            | `pnpm run lint` (oxlint)                                      |
+| Format          | `pnpm run format` (oxfmt)                                     |
+| Type-check      | `pnpm exec vue-tsc --noEmit`                                  |
+| Test (frontend) | `pnpm run test`                                               |
+| Test (Rust)     | `cargo test --workspace`                                      |
+| Build           | `pnpm run build` (vue-tsc → vite build)                       |
+| Version bump    | `node scripts/bump-version.mjs patch`                         |
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C` |
 
 ## Releases
@@ -50,11 +50,11 @@ All Rust crates use edition 2024.
 
 ### Multi-platform
 
-| Target | Frontend | Backend | Build |
-|--------|----------|---------|-------|
-| Tauri Desktop | Vue 3 via Tauri IPC | `src-tauri/` | `pnpm run tauri dev` |
-| NAS WebUI | Same Vue via WebSocket | `limedl-server` | `pnpm run build:nas` |
-| CLI | N/A | `limedl-server` | `limedl daemon` / `limedl download <url>` |
+| Target        | Frontend               | Backend         | Build                                     |
+| ------------- | ---------------------- | --------------- | ----------------------------------------- |
+| Tauri Desktop | Vue 3 via Tauri IPC    | `src-tauri/`    | `pnpm run tauri dev`                      |
+| NAS WebUI     | Same Vue via WebSocket | `limedl-server` | `pnpm run build:nas`                      |
+| CLI           | N/A                    | `limedl-server` | `limedl daemon` / `limedl download <url>` |
 
 ### Frontend dual-mode
 
@@ -68,6 +68,7 @@ Switched via `vite.config.ts` resolve.alias. **Never call `invoke` directly** �
 ### Event system
 
 `EventBus` = `tokio::sync::broadcast::channel<DownloadEvent>`. Each adapter subscribes independently:
+
 - Tauri: `src-tauri/src/lib.rs` background task → `app_handle.emit()`
 - NAS: `rpc.rs` per-connection task → WebSocket push
 - Aria2 RPC: direct `event_bus.subscribe()`
@@ -75,6 +76,7 @@ Switched via `vite.config.ts` resolve.alias. **Never call `invoke` directly** �
 ### Protocol routing
 
 `DownloadBackend` trait (unified API) → `BackendRegistry` routes by TaskId prefix:
+
 - `http:` → `DownloadManager`
 - `bt:` → `IrontideBtBackend`
 
@@ -102,18 +104,18 @@ Full workflow: see `.opencode/guides/code-generation.md`.
 
 Read the relevant guide **before** modifying any subsystem. Update it **after**.
 
-| Core guides | Rust subsystem guides |
-|-------------|----------------------|
+| Core guides                                 | Rust subsystem guides                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `.opencode/guides/architecture-overview.md` | `subsystem-download-manager.md` (HTTP + checksum + rate limiter + data flow) |
-| `.opencode/guides/code-generation.md` | `subsystem-bt-backend.md` |
-| `.opencode/guides/troubleshooting.md` | `subsystem-cdn-accelerator.md` |
-| `.opencode/guides/testing-guide.md` | `subsystem-aria2-rpc.md` |
-| `.opencode/guides/ui-design-guide.md` | `subsystem-database.md` |
-| `.opencode/guides/ui-component-guide.md` | `subsystem-buffer-pool.md` (includes file_ops) |
-| | `subsystem-settings.md` |
-| | `subsystem-event-bus.md` |
-| | `subsystem-protocol-registry.md` |
-| | `subsystem-http-client-factory.md` |
+| `.opencode/guides/code-generation.md`       | `subsystem-bt-backend.md`                                                    |
+| `.opencode/guides/troubleshooting.md`       | `subsystem-cdn-accelerator.md`                                               |
+| `.opencode/guides/testing-guide.md`         | `subsystem-aria2-rpc.md`                                                     |
+| `.opencode/guides/ui-design-guide.md`       | `subsystem-database.md`                                                      |
+| `.opencode/guides/ui-component-guide.md`    | `subsystem-buffer-pool.md` (includes file_ops)                               |
+|                                             | `subsystem-settings.md`                                                      |
+|                                             | `subsystem-event-bus.md`                                                     |
+|                                             | `subsystem-protocol-registry.md`                                             |
+|                                             | `subsystem-http-client-factory.md`                                           |
 
 ## Pre-commit verification gate (MANDATORY)
 

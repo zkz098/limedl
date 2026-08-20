@@ -28,6 +28,7 @@ import SettingsLoggingPanel from "./SettingsLoggingPanel.vue";
 import SettingsProxyPanel from "./SettingsProxyPanel.vue";
 import SettingsSchedulerPanel from "./SettingsSchedulerPanel.vue";
 import SettingsAboutPanel from "./SettingsAboutPanel.vue";
+import SettingsPetPanel from "./SettingsPetPanel.vue";
 
 import {
   DEFAULT_HTTP_USER_AGENT,
@@ -284,6 +285,7 @@ watch(activeTab, (tab) => {
 
 const commonTabs = [
   { id: "appearance", icon: "i-ri-palette-line", labelKey: "settings.appearanceKicker" },
+  { id: "pet", icon: "i-ri-bear-smile-line", labelKey: "settings.pet" },
   { id: "downloads", icon: "i-ri-download-line", labelKey: "settings.downloads" },
   { id: "proxy", icon: "i-ri-global-line", labelKey: "settings.proxyTitle" },
   { id: "about", icon: "i-ri-information-line", labelKey: "settings.aboutKicker" },
@@ -468,6 +470,8 @@ defineExpose({
           :proxy-mode-options="proxyModeOptions"
           :proxy-summary="proxySummary"
         />
+
+        <SettingsPetPanel v-show="activeTab === 'pet'" v-model:draft="form" :t="t" />
 
         <SettingsAboutPanel v-show="activeTab === 'about'" @restart-setup="emit('restartSetup')" />
       </div>

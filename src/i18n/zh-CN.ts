@@ -421,6 +421,7 @@ const zhCN = {
         "启用后可降低下载卡在 99% 的几率。在接近完成时自动加速剩余分块：检测慢速连接并重试，并拆分末尾分块进行并行竞速。",
       connectionWarmup: "连接预热",
       connectionWarmupHint: "下载开始前预先建立 HTTP 连接，减少首次请求的延迟。",
+      pet: "桌宠",
       downloads: "下载",
       downloadsTitle: "下载默认值",
       bt: "BT",
@@ -471,8 +472,7 @@ const zhCN = {
 
       // Anti-leech
       btAntiLeechEnabled: "启用反吸血",
-      btAntiLeechEnabledHint:
-        "定期识别只下载却不回传数据的对等端，并按所选策略处理。",
+      btAntiLeechEnabledHint: "定期识别只下载却不回传数据的对等端，并按所选策略处理。",
       btAntiLeechAction: "处理方式",
       btAntiLeechActionHint:
         "封禁：断开并暂时拉黑违规对等端；限制上传槽位：当 torrent 有吸血对等端时限制同时上传的槽位数。",
@@ -487,8 +487,7 @@ const zhCN = {
       btAntiLeechBanSecs: "封禁时长",
       btAntiLeechBanSecsHint: "被封禁对等端需等待的秒数，到期后自动解封可重新连接。",
       btAntiLeechMaxUploadSlots: "最大上传槽位",
-      btAntiLeechMaxUploadSlotsHint:
-        "当 torrent 检测到吸血对等端时，其并发上传槽位将限制为该值。",
+      btAntiLeechMaxUploadSlotsHint: "当 torrent 检测到吸血对等端时，其并发上传槽位将限制为该值。",
       btBlocklistEnabled: "IP 黑名单",
       btBlocklistEnabledHint:
         "将会话的 IP 过滤设为黑名单文件中的网段，被封段的（如已知吸血 IDC/网络）连接将被拒绝。",
@@ -497,13 +496,13 @@ const zhCN = {
         "填写黑名单文件路径。支持 eMule .dat 或 P2P 明文（每行一个 CIDR）格式，按文件扩展名自动选择解析器。",
       btGroupEngineTuning: "引擎调参",
       btSeedChokingAlgorithm: "做种 choke 算法",
-      btSeedChokingAlgorithmHint:
-        "做种时对 peer 的排序方式。反吸血优先回报最高的做种对等端。",
+      btSeedChokingAlgorithmHint: "做种时对 peer 的排序方式。反吸血优先回报最高的做种对等端。",
       btSeedChokingFastestUpload: "最快上传",
       btSeedChokingRoundRobin: "轮询",
       btSeedChokingAntiLeech: "反吸血",
       btChokingAlgorithm: "unchoke 算法",
-      btChokingAlgorithmHint: "每个 torrent 的 unchoke 槽位如何确定：固定槽位数 或 按速率自动调整。",
+      btChokingAlgorithmHint:
+        "每个 torrent 的 unchoke 槽位如何确定：固定槽位数 或 按速率自动调整。",
       btChokingFixedSlots: "固定槽位",
       btChokingRateBased: "按速率",
       btMaxUploadSlotsPerTorrent: "每个 torrent 最大上传槽位",
@@ -517,8 +516,7 @@ const zhCN = {
       btEvictionBanDuration: "驱逐封禁时长",
       btEvictionBanDurationHint: "被驱逐（不贡献数据的）peer 需等待的封禁秒数，到期后可重新连接。",
       btDataContributionTimeout: "数据贡献超时",
-      btDataContributionTimeoutHint:
-        "超过该秒数未收到分片数据的 peer 将被断开；填 0 关闭此保护。",
+      btDataContributionTimeoutHint: "超过该秒数未收到分片数据的 peer 将被断开；填 0 关闭此保护。",
       // Network
       btListenPort: "监听端口",
       btListenPortHint: "留空由系统自动分配。1024–65535",

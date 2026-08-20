@@ -50,6 +50,7 @@ Worker 下载数据块 → buffer_chunk(offset, data)
 ## 设计决策与约定
 
 ### BufferPool
+
 - HDD 半缓冲大小 = effective_limit / effective_max_parallel / 2，最小 64 KiB。
 - 游戏模式仅影响 HDD 池（缩减内存和并发），SSD 不受影响。
 - 所有 flush 提交到专用 IoWorker 线程（单线程串行化），`spawn_blocking` 仅作 fallback。
@@ -57,6 +58,7 @@ Worker 下载数据块 → buffer_chunk(offset, data)
 - Crash recovery 不依赖缓冲池状态——仅从 SQLite 已持久化 chunks 恢复。
 
 ### FileOps
+
 - 文件预分配优先 `file.allocate()`，OS 不支持时回退 `file.set_len()`。
 - `write_all_at` 为 `pub(super)` 可见——仅 buffer_pool 和 manager 使用。
 - 同名文件冲突：内容相同接受（幂等重试），不同报 AlreadyExists。

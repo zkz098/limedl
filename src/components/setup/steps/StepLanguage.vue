@@ -23,10 +23,7 @@ function selectLanguage(value: "zh-CN" | "en-US") {
   >
     <SettingsSection :title="t('setupWizard.languageTitle')" icon="i-ri-translate-2">
       <div class="language-options" role="radiogroup" :aria-label="t('setupWizard.languageTitle')">
-        <label
-          class="language-card"
-          :class="{ 'is-selected': language === 'zh-CN' }"
-        >
+        <label class="language-card" :class="{ 'is-selected': language === 'zh-CN' }">
           <input
             class="language-card__radio"
             type="radio"
@@ -39,10 +36,7 @@ function selectLanguage(value: "zh-CN" | "en-US") {
           <span class="language-card__native">简体中文</span>
           <span class="language-card__translated">{{ t("language.zhCN") }}</span>
         </label>
-        <label
-          class="language-card"
-          :class="{ 'is-selected': language === 'en-US' }"
-        >
+        <label class="language-card" :class="{ 'is-selected': language === 'en-US' }">
           <input
             class="language-card__radio"
             type="radio"

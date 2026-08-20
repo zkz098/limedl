@@ -121,7 +121,11 @@ defineExpose({
       </aside>
 
       <div class="settings-page__content">
-        <LabsCdnAccelerationPanel v-show="activeTab === 'cdnAcceleration'" v-model:draft="form" :t="t" />
+        <LabsCdnAccelerationPanel
+          v-show="activeTab === 'cdnAcceleration'"
+          v-model:draft="form"
+          :t="t"
+        />
         <LabsGitHubMirrorPanel v-show="activeTab === 'githubMirror'" v-model:draft="form" :t="t" />
       </div>
     </div>

@@ -2,7 +2,16 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { chmod, copyFile, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  copyFile,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -48,7 +57,7 @@ function parseArgs(argv) {
     arch: process.env.ARCH || null,
   };
 
-  for (let index = 0; index < argv.length; ) {
+  for (let index = 0; index < argv.length;) {
     const token = argv[index];
     if (token === "--appimage") {
       config.appImagePath = readFlagValue(argv, index);
@@ -207,7 +216,8 @@ async function pruneAppImageWaylandLibraries({
     return {
       appImagePath: absoluteAppImagePath,
       removedLibraries: removedLibraries.map((libraryPath) =>
-        path.relative(extractedAppDir, libraryPath).split(path.sep).join("/")),
+        path.relative(extractedAppDir, libraryPath).split(path.sep).join("/"),
+      ),
       patchedGdkBackend,
     };
   } finally {
@@ -232,7 +242,9 @@ async function main() {
   if (result.removedLibraries.length === 0) {
     return;
   }
-  console.log(`[appimage-prune] removed ${result.removedLibraries.length} bundled Wayland libraries:`);
+  console.log(
+    `[appimage-prune] removed ${result.removedLibraries.length} bundled Wayland libraries:`,
+  );
   for (const libraryPath of result.removedLibraries) {
     console.log(`  - ${libraryPath}`);
   }

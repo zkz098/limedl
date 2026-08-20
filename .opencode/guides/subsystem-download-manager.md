@@ -83,18 +83,21 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 ## 设计决策与约定
 
 ### 架构
+
 - DownloadManager 拆分为 3 个 ZST actor（HttpExecutor / Scheduler / TaskLifecycle），不持有 DownloadManager 引用，通过方法参数接收，避免循环引用。
 - CRUD 方法（start/pause/resume/cancel/remove/purge）委托 actor 完成具体工作。
 - 所有事件通过 EventBus::publish() 统一发布，前端发射由 lib.rs 的独立订阅任务完成。
 - AIMD 状态变更在 scheduler.rs 中，worker 只报告下载字节数。
 
 ### 校验和
+
 - ChecksumHasher 枚举封装三种算法（Blake3 / SHA256 / XXH3-128）。mode 为 None 时不调用（直接返回 Err）。
 - 使用 `spawn_blocking` 避免阻塞 tokio 运行时。
 - 输出格式：Blake3 用 `to_hex()`，SHA-256 用 `format!("{:x}")`，XXH3-128 用 `format!("{:032x}")`。
 - `hash_slices()` 为同步函数，用于内存缓冲场景的快速校验。
 
 ### 速率限制
+
 - RateLimiter 是全局令牌桶（`Arc<Mutex<Inner>>`），速率 0 = 无限制。令牌桶容量 = max(2 × rate, 1)。
 - HTTP chunk worker 累积 ~256KB 或 8 chunk（取先到）才调一次 `consume()`，不逐 chunk 消费。
 - `consume()` 异步（tokio::time::sleep），`consume_blocking()` 同步（std::thread::sleep）。
@@ -102,6 +105,7 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - AIMD 采样窗口 2s 不受批量消费影响。
 
 ### 崩溃恢复 & 错误处理
+
 - 重启时 `load_downloads_from_db()` 从 SQLite 重建 ManagedDownload，最后持久化的 chunk 状态续传。
 - 瞬态故障指数退避重试（max_retries 限制）；checksum 不匹配仅重下受影响 chunk。
 - 磁盘空间检查在 Phase 2 进行，预留 10% buffer。
@@ -113,11 +117,11 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 
 **公开 API**：
 
-| 函数 | 作用 |
-|------|------|
-| `is_github_url(url)` | 判定 URL 是否为 GitHub（`github.com` 或子域名） |
-| `active_mirrors(settings)` | 返回已启用、非空的镜像列表（按 `order` 排序） |
-| `rewrite(url, settings)` | 生成尝试 URL 列表：`{mirror_base}/{url_encoded_original}` + 原始 URL 作为最后回退 |
+| 函数                       | 作用                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------- |
+| `is_github_url(url)`       | 判定 URL 是否为 GitHub（`github.com` 或子域名）                                   |
+| `active_mirrors(settings)` | 返回已启用、非空的镜像列表（按 `order` 排序）                                     |
+| `rewrite(url, settings)`   | 生成尝试 URL 列表：`{mirror_base}/{url_encoded_original}` + 原始 URL 作为最后回退 |
 
 - 镜像未启用或 URL 非 GitHub → 返回单元素向量（仅原始 URL）。
 - 镜像为空 → 同上。

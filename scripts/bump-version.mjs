@@ -13,7 +13,9 @@ const root = path.resolve(scriptDir, "..");
 function parseArgs(argv) {
   const level = argv[0];
   if (!level || !["patch", "minor", "major"].includes(level)) {
-    console.error("Usage: node scripts/bump-version.mjs <patch|minor|major> [--no-push] [--dry-run]");
+    console.error(
+      "Usage: node scripts/bump-version.mjs <patch|minor|major> [--no-push] [--dry-run]",
+    );
     process.exit(1);
   }
   return {
@@ -104,9 +106,10 @@ function main() {
     const content = readFileSync(filePath, "utf8");
     // Cargo.lock holds workspace member versions; a plain replaceAll would
     // also rewrite third-party crates that share the version string.
-    const updated = f === "Cargo.lock"
-      ? updateLockVersions(content, newVersion)
-      : content.replaceAll(currentVersion, newVersion);
+    const updated =
+      f === "Cargo.lock"
+        ? updateLockVersions(content, newVersion)
+        : content.replaceAll(currentVersion, newVersion);
     writeFileSync(filePath, updated, "utf8");
     console.log(`\x1b[32m  Updated: ${f}\x1b[0m`);
   }

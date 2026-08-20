@@ -53,6 +53,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     form.notifications = { ...base.notifications, ...next.notifications };
     form.ioBaseline = { ...base.ioBaseline, ...next.ioBaseline };
     form.doubleClick = { ...base.doubleClick, ...next.doubleClick };
+    form.pet = { ...base.pet, ...next.pet };
 
     form.autostart = next.autostart ?? base.autostart ?? false;
     form.setupCompleted = next.setupCompleted ?? base.setupCompleted ?? false;
@@ -61,8 +62,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     form.speedLimitSchedule = [...(next.speedLimitSchedule ?? base.speedLimitSchedule ?? [])];
 
     // Keep the explicit fallbacks the fields historically relied on.
-    form.download.defaultUserAgent =
-      form.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
+    form.download.defaultUserAgent = form.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
     form.bt.trackerListUrl = form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL;
   }
 
@@ -71,6 +71,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
   function buildSettingsPayload(): AppSettings {
     return {
       globalSpeedLimitBps: form.globalSpeedLimitBps ?? 0,
+      pet: { ...form.pet },
       appearance: { ...form.appearance },
       proxy: { ...form.proxy },
       scheduler: { ...form.scheduler },

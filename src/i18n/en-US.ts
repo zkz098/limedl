@@ -437,6 +437,7 @@ const enUS = {
       connectionWarmup: "Connection Warmup",
       connectionWarmupHint:
         "Pre-establish HTTP connections before downloading to reduce first-request latency.",
+      pet: "Pet",
       downloads: "Downloads",
       downloadsTitle: "Download Defaults",
       bt: "BT",
@@ -506,7 +507,8 @@ const enUS = {
       btAntiLeechRatioHint:
         "Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check.",
       btAntiLeechBanSecs: "Ban duration",
-      btAntiLeechBanSecsHint: "Seconds a banned peer stays banned before it is unbanned and may reconnect.",
+      btAntiLeechBanSecsHint:
+        "Seconds a banned peer stays banned before it is unbanned and may reconnect.",
       btAntiLeechMaxUploadSlots: "Max upload slots",
       btAntiLeechMaxUploadSlotsHint:
         "When a torrent has detected leechers, its concurrent upload slots are capped at this value.",
@@ -535,9 +537,11 @@ const enUS = {
       btSmartBanFailures: "Smart-ban failures",
       btSmartBanFailuresHint: "Hash-failure involvements before a peer is automatically banned.",
       btSmartBanParole: "Smart-ban parole",
-      btSmartBanParoleHint: "Re-download a failed piece from an uninvolved peer to attribute the fault before striking.",
+      btSmartBanParoleHint:
+        "Re-download a failed piece from an uninvolved peer to attribute the fault before striking.",
       btEvictionBanDuration: "Eviction ban duration",
-      btEvictionBanDurationHint: "Seconds an evicted (non-contributing) peer is blocked from reconnecting.",
+      btEvictionBanDurationHint:
+        "Seconds an evicted (non-contributing) peer is blocked from reconnecting.",
       btDataContributionTimeout: "Data-contribution timeout",
       btDataContributionTimeoutHint:
         "Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard.",

@@ -24,6 +24,16 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   return {
     plugins: [vue(), ...UnoCSS()],
     clearScreen: false,
+    build: {
+      rollupOptions: {
+        input: isNas
+          ? { main: fileURLToPath(new URL("./index.html", import.meta.url)) }
+          : {
+              main: fileURLToPath(new URL("./index.html", import.meta.url)),
+              pet: fileURLToPath(new URL("./pet.html", import.meta.url)),
+            },
+      },
+    },
     resolve: {
       alias: isNas ? nasAlias : tauriAlias,
     },

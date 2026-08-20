@@ -21,6 +21,7 @@ export type {
   LogLevel,
   LogSettings,
   NotificationSettings,
+  PetSettings,
   ProxyMode,
   ProxySettings,
   SchedulerMode,
@@ -37,6 +38,7 @@ import type {
   Aria2RpcSettings as GeneratedAria2RpcSettings,
   IoBaselineSettings as GeneratedIoBaselineSettings,
   MirrorEntry as GeneratedMirrorEntry,
+  PetSettings as GeneratedPetSettings,
 } from "./generated/types";
 
 /** Aria2RpcSettings as generated from Rust. */
@@ -64,8 +66,20 @@ export interface GitHubMirrorSettings {
  * AppSettings with frontend-extended sub-types.
  * Generated counterpart is in generated/types.ts.
  */
-export type AppSettings = Omit<GeneratedAppSettings, "ioBaseline" | "githubMirror" | "aria2Rpc"> & {
+export type AppSettings = Omit<
+  GeneratedAppSettings,
+  "ioBaseline" | "githubMirror" | "aria2Rpc" | "pet"
+> & {
   ioBaseline: IoBaselineSettings;
   githubMirror: GitHubMirrorSettings;
   aria2Rpc: Aria2RpcSettings;
+  pet: GeneratedPetSettings;
+};
+
+export const DEFAULT_PET_SETTINGS: GeneratedPetSettings = {
+  enabled: false,
+  scale: 1,
+  opacity: 1,
+  keepAliveWhenMainHidden: true,
+  model: "default",
 };
