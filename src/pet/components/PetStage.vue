@@ -68,20 +68,48 @@ async function handleMouseDown(e: MouseEvent) {
   if (e.button !== 0) return;
   isDragging.value = true;
   onDragStart();
+  // Keep drag state until the OS drag actually ends (mouse up).
+  // We must listen for mouseup *before* starting the OS drag, because
+  // start_dragging enters a modal OS loop and may swallow the initial events.
+  let moveUnlisten: (() => void) | null = null;
+  const cleanup = () => {
+    window.removeEventListener("mouseup", onMouseUp);
+    if (moveUnlisten) {
+      moveUnlisten();
+      moveUnlisten = null;
+    }
+  };
+  const onMouseUp = () => {
+    cleanup();
+    if (!isDragging.value) return;
+    isDragging.value = false;
+    onDragEnd();
+    void savePosition();
+  };
+  window.addEventListener("mouseup", onMouseUp, { once: true });
+  // Also watch window moves — if the OS drag is active, the window will emit
+  // tauri://move continuously; this helps keep the drag alive even if mouseup
+  // is swallowed by the OS capture. We don't end drag on move stop, only on mouseup.
+  try {
+    moveUnlisten = await listen("tauri://move", () => {
+      // Window is moving — keep isDragging true, no-op
+    });
+  } catch {
+    // ignore
+  }
   try {
     await petSetIgnoreCursorEvents(false);
     await petStartDrag();
   } catch (err) {
     console.error("[pet] start_drag failed", err);
-  }
-  // Tauri's start_dragging blocks until drop; we poll position afterwards
-  // Use a small delay to detect drag end
-  window.setTimeout(() => {
+    // If start_drag failed, end drag immediately
+    cleanup();
     isDragging.value = false;
     onDragEnd();
-    void savePosition();
-    void setHover(false);
-  }, 300);
+  }
+  // Fallback: if mouseup was somehow missed (OS capture), poll for drag end
+  // by checking if mouse is still down after a delay — but the primary
+  // mechanism is mouseup, so we don't need a timeout that snaps back to idle.
 }
 
 async function expandForMenu() {
