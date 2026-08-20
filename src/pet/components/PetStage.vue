@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalSize, PhysicalSize } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import PetSprite from "./PetSprite.vue";
 import PetContextMenu from "./PetContextMenu.vue";
@@ -48,13 +48,13 @@ const menuY = ref(0);
 const menuState = ref<PetMenuState | null>(null);
 let originalSize: { w: number; h: number } | null = null;
 
-// Hover → toggle cursor events (穿透逻辑)
+// Hover → toggle cursor events
+// 临时修复：Windows 下 ignore=true 会导致收不到 mouseenter 从而无法拖动，
+// 骨架阶段让桌宠始终可交互（会挡住 160px 区域的桌面点击，但保证可拖）
 async function setHover(hover: boolean) {
   isHovering.value = hover;
   try {
-    // hovering or menu/dragging = 可交互 (ignore=false), not hovering = 穿透 (ignore=true)
-    const shouldIgnore = !hover && !isDragging.value && !showMenu.value;
-    await petSetIgnoreCursorEvents(shouldIgnore);
+    await petSetIgnoreCursorEvents(false);
   } catch {
     // ignore on NAS or when window not available
   }
@@ -89,11 +89,13 @@ async function expandForMenu() {
     const win = getCurrentWindow();
     const size = await win.innerSize();
     originalSize = { w: size.width, h: size.height };
-    // Expand to fit menu (240x360) if smaller
-    const targetW = 240;
-    const targetH = 380;
-    if (size.width < targetW || size.height < targetH) {
-      await win.setSize(new PhysicalSize(targetW, targetH));
+    // Expand to fit menu — use logical size so it scales with DPI
+    const target = new LogicalSize(240, 380);
+    const factor = await win.scaleFactor();
+    const curW = size.width / factor;
+    const curH = size.height / factor;
+    if (curW < 240 || curH < 380) {
+      await win.setSize(target);
     }
   } catch {
     // ignore
@@ -150,8 +152,8 @@ async function handleContextMenu(e: MouseEvent) {
 function closeMenu() {
   showMenu.value = false;
   void restoreFromMenu();
-  // Restore hover state correctly
-  void petSetIgnoreCursorEvents(!isHovering.value && !isDragging.value);
+  // 保持可交互
+  void petSetIgnoreCursorEvents(false);
 }
 
 async function handleMenuAction(id: string) {
@@ -295,8 +297,8 @@ async function handleDrop(e: DragEvent) {
 }
 
 onMounted(async () => {
-  // Initial state:穿透，悬停才交互
-  void setHover(false);
+  // 始终可交互，保证拖动可用
+  void setHover(true);
 
   // Listen to Tauri drag-drop events for file paths (fallback)
   try {

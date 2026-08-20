@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 const PET_WINDOW_LABEL: &str = "pet";
 const PET_BASE_SIZE: f64 = 160.0;
 const PET_MIN_SIZE: f64 = 80.0;
-const PET_MAX_SIZE: f64 = 320.0;
+const PET_MAX_SIZE: f64 = 500.0;
 
 /// Ensure the pet window exists. Creates it lazily if missing.
 /// Caller should check `settings.pet.enabled` before calling.
@@ -46,16 +46,46 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<WebviewWindow, String> {
     let window = builder.build().map_err(|e| e.to_string())?;
 
     // Apply initial position if saved, otherwise bottom-right of primary monitor
-    if let (Some(x), Some(y)) = (pet.x, pet.y) {
-        let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
-    } else if let Ok(Some(monitor)) = window.primary_monitor() {
-        let monitor_size = monitor.size();
-        let monitor_pos = monitor.position();
-        // Fallback: bottom-right with 20px margin
-        let x = monitor_pos.x + monitor_size.width as i32 - size as i32 - 20;
-        let y = monitor_pos.y + monitor_size.height as i32 - size as i32 - 60;
-        let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
-    }
+    // Saved x/y are physical pixels (from outerPosition), so use PhysicalPosition
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let phys_w = (size * scale) as i32;
+    let phys_h = (size * scale) as i32;
+    let positioned = if let (Some(x), Some(y)) = (pet.x, pet.y) {
+        // Validate saved position is fully visible on a monitor; if not, fallback to bottom-right
+        let on_monitor = window
+            .available_monitors()
+            .ok()
+            .map(|mons| {
+                mons.iter().any(|m| {
+                    let pos = m.position();
+                    let sz = m.size();
+                    x >= pos.x
+                        && x + phys_w <= pos.x + sz.width as i32
+                        && y >= pos.y
+                        && y + phys_h <= pos.y + sz.height as i32
+                })
+            })
+            .unwrap_or(true);
+        if on_monitor {
+            let _ =
+                window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    if !positioned && let Ok(Some(monitor)) = window.primary_monitor() {
+            let monitor_size = monitor.size();
+            let monitor_pos = monitor.position();
+            let margin_x = (20.0 * scale) as i32;
+            let margin_y = (60.0 * scale) as i32;
+            let x = monitor_pos.x + monitor_size.width as i32 - phys_w - margin_x;
+            let y = monitor_pos.y + monitor_size.height as i32 - phys_h - margin_y;
+            let _ = window
+                .set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+        }
 
     // Show after positioning to avoid flash at wrong location
     let _ = window.show();
@@ -97,9 +127,9 @@ pub async fn pet_set_scale(app: AppHandle, scale: f64) -> Result<(), String> {
     let size = (PET_BASE_SIZE * scale).clamp(PET_MIN_SIZE, PET_MAX_SIZE);
     if let Some(window) = app.get_webview_window(PET_WINDOW_LABEL) {
         window
-            .set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                width: size as u32,
-                height: size as u32,
+            .set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: size,
+                height: size,
             }))
             .map_err(|e| e.to_string())?;
     }
