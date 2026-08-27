@@ -68,7 +68,9 @@ function handleCancel() {
 
     <div class="speed-limit-modal">
       <div class="speed-limit-modal__field">
-        <label class="speed-limit-modal__label" :for="`${uid}-download`">{{ t("queue.btDownloadLimit") }}</label>
+        <label class="speed-limit-modal__label" :for="`${uid}-download`">{{
+          t("queue.btDownloadLimit")
+        }}</label>
         <UiTextField
           v-model="downloadLimitKb"
           :id="`${uid}-download`"
@@ -80,7 +82,9 @@ function handleCancel() {
         />
       </div>
       <div class="speed-limit-modal__field">
-        <label class="speed-limit-modal__label" :for="`${uid}-upload`">{{ t("queue.btUploadLimit") }}</label>
+        <label class="speed-limit-modal__label" :for="`${uid}-upload`">{{
+          t("queue.btUploadLimit")
+        }}</label>
         <UiTextField
           v-model="uploadLimitKb"
           :id="`${uid}-upload`"

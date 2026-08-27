@@ -54,9 +54,24 @@ describe("applyTransform", () => {
   it.each<[string, string | undefined, Record<string, unknown> | undefined, "empty" | "identity"]>([
     ["returns args unchanged when spec is undefined", undefined, { foo: "bar" }, "identity"],
     ["returns empty object when args is undefined", "download_list", undefined, "empty"],
-    ["returns empty object when args is undefined even without spec", undefined, undefined, "empty"],
-    ["identity transform returns args unchanged", "download_list", { someField: "value" }, "identity"],
-    ["identity transform preserves the same object reference", "settings_get", { a: 1, b: 2 }, "identity"],
+    [
+      "returns empty object when args is undefined even without spec",
+      undefined,
+      undefined,
+      "empty",
+    ],
+    [
+      "identity transform returns args unchanged",
+      "download_list",
+      { someField: "value" },
+      "identity",
+    ],
+    [
+      "identity transform preserves the same object reference",
+      "settings_get",
+      { a: 1, b: 2 },
+      "identity",
+    ],
   ])("%s", (_title, tauriName, args, mode) => {
     const spec = tauriName ? WS_COMMANDS.find((c) => c.tauriName === tauriName)! : undefined;
     const result = applyTransform(spec, args);

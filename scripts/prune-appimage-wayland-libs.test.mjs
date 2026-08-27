@@ -46,12 +46,15 @@ test("removeWaylandLibraries prunes only usr/lib/libwayland-*", async () => {
 
     const removed = await removeWaylandLibraries(appDir);
 
-    expect(
-      removed.map((entry) => path.basename(entry)),
-    ).toEqual(["libwayland-client.so.0", "libwayland-egl.so.1"]);
+    expect(removed.map((entry) => path.basename(entry))).toEqual([
+      "libwayland-client.so.0",
+      "libwayland-egl.so.1",
+    ]);
     await expect(fs.stat(path.join(libDir, "libwayland-client.so.0"))).rejects.toThrow();
     expect(await fs.readFile(path.join(libDir, "libEGL_mesa.so.0"), "utf8")).toBe("keep");
-    expect(await fs.readFile(path.join(appDir, "usr", "share", "libwayland-note.txt"), "utf8")).toBe("keep");
+    expect(
+      await fs.readFile(path.join(appDir, "usr", "share", "libwayland-note.txt"), "utf8"),
+    ).toBe("keep");
   });
 });
 
@@ -64,8 +67,8 @@ test("patchGdkBackendHook removes the GDK_BACKEND=x11 export from the AppRun hoo
         "#!/bin/sh",
         "",
         "export GDK_BACKEND=x11 # Crash with Wayland backend on Wayland - We tested it without it",
-        "export GTK_PATH=\"${APPDIR}/usr/lib/gtk-3.0\"",
-        "export GSETTINGS_SCHEMA_DIR=\"${APPDIR}/usr/share/glib-2.0/schemas\"",
+        'export GTK_PATH="${APPDIR}/usr/lib/gtk-3.0"',
+        'export GSETTINGS_SCHEMA_DIR="${APPDIR}/usr/share/glib-2.0/schemas"',
       ].join("\n"),
     );
 
@@ -86,7 +89,7 @@ test("patchGdkBackendHook is a no-op when the hook is absent or has no GDK_BACKE
 
     await writeFile(
       path.join(appDir, "apprun-hooks", "linuxdeploy-plugin-gtk.sh"),
-      "export GTK_PATH=\"${APPDIR}/usr/lib/gtk-3.0\"\n",
+      'export GTK_PATH="${APPDIR}/usr/lib/gtk-3.0"\n',
     );
     expect(await patchGdkBackendHook(appDir)).toBe(false);
   });
@@ -128,7 +131,9 @@ test("pruneAppImageWaylandLibraries reports patchedGdkBackend on success", async
 });
 
 test("parseArgs fails fast for missing appimage value", () => {
-  expect(() => parseArgs(["--appimage", "--appimagetool", "tool"])).toThrow(/Missing value for --appimage/);
+  expect(() => parseArgs(["--appimage", "--appimagetool", "tool"])).toThrow(
+    /Missing value for --appimage/,
+  );
   expect(() => parseArgs([])).toThrow(/Provide --appimage <path>/);
 });
 
@@ -202,10 +207,14 @@ test("pruneAppImageWaylandLibraries reports appimagetool start failures clearly"
 });
 
 test("cli reports missing appimage argument", () => {
-  const result = spawnSync(process.execPath, ["scripts/prune-appimage-wayland-libs.mjs", "--appimage"], {
-    cwd: process.cwd(),
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/prune-appimage-wayland-libs.mjs", "--appimage"],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    },
+  );
 
   expect(result.status).not.toBe(0);
   expect(`${result.stdout}\n${result.stderr}`).toMatch(/Missing value for --appimage/);

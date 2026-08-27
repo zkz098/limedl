@@ -98,16 +98,16 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
       antiLeechRatio: 0.1,
       antiLeechBanSecs: 3600,
       antiLeechMaxUploadSlots: 4,
-            seedChokingAlgorithm: "fastest_upload",
-            chokingAlgorithm: "fixed_slots",
-            maxUploadSlotsPerTorrent: 4,
-            maxPeersPerTorrent: 128,
-            smartBanMaxFailures: 3,
-            smartBanParole: true,
-            evictionBanDurationSecs: 600,
-            dataContributionTimeoutSecs: 60,
-            blocklistEnabled: false,
-            blocklistPath: "",
+      seedChokingAlgorithm: "fastest_upload",
+      chokingAlgorithm: "fixed_slots",
+      maxUploadSlotsPerTorrent: 4,
+      maxPeersPerTorrent: 128,
+      smartBanMaxFailures: 3,
+      smartBanParole: true,
+      evictionBanDurationSecs: 600,
+      dataContributionTimeoutSecs: 60,
+      blocklistEnabled: false,
+      blocklistPath: "",
       dhtEnabled: true,
       trackerList: "",
       trackerListUrl: "",
@@ -148,6 +148,7 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
       lastError: null,
     },
     githubMirror: { enabled: false, mirrors: [] },
+    urlRewrite: { enabled: false, rules: [] },
     notifications: { enabled: true },
     ioBaseline: {
       bufferLimitMb: 1024,
@@ -252,8 +253,18 @@ describe("DownloadComposer", () => {
 
   it.each<[string, string, string, string]>([
     ["auto-extracts file name from HTTP URL", "https://example.com/myfile.zip", "", "myfile.zip"],
-    ["auto-extracts file name from magnet dn parameter", "magnet:?xt=urn:btih:ABC&dn=ubuntu.iso", "", "ubuntu.iso"],
-    ["does not overwrite existing file name when URL changes", "https://example.com/newfile.zip", "existing.zip", "existing.zip"],
+    [
+      "auto-extracts file name from magnet dn parameter",
+      "magnet:?xt=urn:btih:ABC&dn=ubuntu.iso",
+      "",
+      "ubuntu.iso",
+    ],
+    [
+      "does not overwrite existing file name when URL changes",
+      "https://example.com/newfile.zip",
+      "existing.zip",
+      "existing.zip",
+    ],
   ])("%s", async (_title, url, initialFileName, expectedFileName) => {
     const wrapper = mountWithForm({ fileName: initialFileName });
     const c = useComposer();

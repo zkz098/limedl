@@ -48,16 +48,16 @@ WebSocket 连接 → rpc.rs
 
 ### Config (`config.rs`)
 
-| 类型 | 字段 | 说明 |
-|------|------|------|
-| `ServerConfig` | `host` (默认 `0.0.0.0`) | 监听地址 |
-| | `port` (默认 `9090`) | 监听端口 |
-| | `data_dir` | 下载数据目录 |
-| | `auth: Option<AuthConfig>` | 认证配置 |
-| | `web_dir` (默认 `./dist`) | 前端静态文件目录 |
-| | `tls: TlsConfig` | TLS 配置 |
-| `AuthConfig` | `username`, `password` | 凭证 |
-| `TlsConfig` | `enabled`, `cert_path`, `key_path` | TLS 证书 |
+| 类型           | 字段                               | 说明             |
+| -------------- | ---------------------------------- | ---------------- |
+| `ServerConfig` | `host` (默认 `0.0.0.0`)            | 监听地址         |
+|                | `port` (默认 `9090`)               | 监听端口         |
+|                | `data_dir`                         | 下载数据目录     |
+|                | `auth: Option<AuthConfig>`         | 认证配置         |
+|                | `web_dir` (默认 `./dist`)          | 前端静态文件目录 |
+|                | `tls: TlsConfig`                   | TLS 配置         |
+| `AuthConfig`   | `username`, `password`             | 凭证             |
+| `TlsConfig`    | `enabled`, `cert_path`, `key_path` | TLS 证书         |
 
 - `ServerConfig::load(path)` 从 JSON 文件读取，失败时回退到默认值。
 - `apply_cli_overrides(port, user, pass)` 用 CLI 参数覆盖文件配置。
@@ -71,14 +71,15 @@ WebSocket 连接 → rpc.rs
 
 ### Security (`security.rs`)
 
-| 函数 | 作用 |
-|------|------|
-| `nas_csp_header()` | 动态生成 CSP：`connect-src` 允许当前 WebSocket 源 |
-| `security_headers_layers()` | 返回 4 个 `SetResponseHeaderLayer` |
+| 函数                        | 作用                                              |
+| --------------------------- | ------------------------------------------------- |
+| `nas_csp_header()`          | 动态生成 CSP：`connect-src` 允许当前 WebSocket 源 |
+| `security_headers_layers()` | 返回 4 个 `SetResponseHeaderLayer`                |
 
 > 注意：Tauri desktop 在 `tauri.conf.json` 中定义了显式 CSP（含 `connect-src: ipc:` 等），NAS WebUI 则通过服务端 `nas_csp_header()` 使用严格 CSP。两者通过不同的适配路径处理，不相交。
 
 四个安全头：
+
 - `Content-Security-Policy`（动态，含 WS 源）
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`

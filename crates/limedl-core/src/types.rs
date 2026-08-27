@@ -1490,6 +1490,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub github_mirror: GitHubMirrorSettings,
     #[serde(default)]
+    pub url_rewrite: UrlRewriteSettings,
+    #[serde(default)]
     pub global_speed_limit_bps: u64,
     #[serde(default)]
     pub speed_limit_schedule: Vec<SpeedLimitSlot>,
@@ -1510,6 +1512,79 @@ pub struct AppSettings {
     /// Older terminal-state entries are evicted when this limit is exceeded.
     #[serde(default = "default_max_in_memory_downloads")]
     pub max_in_memory_downloads: usize,
+}
+
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MatchType {
+    #[default]
+    Host,
+    Prefix,
+    Regex,
+    Wildcard,
+}
+
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReplacementMode {
+    #[default]
+    PrefixProxy,
+    Template,
+}
+
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RewriteTarget {
+    #[serde(default)]
+    pub url_template: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub order: u32,
+}
+
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UrlRewriteRule {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub match_type: MatchType,
+    #[serde(default)]
+    pub pattern: String,
+    #[serde(default)]
+    pub replacement_mode: ReplacementMode,
+    #[serde(default)]
+    pub targets: Vec<RewriteTarget>,
+    #[serde(default)]
+    pub encode_url: bool,
+    #[serde(default = "default_true")]
+    pub fallback_to_original: bool,
+    #[serde(default)]
+    pub order: u32,
+}
+
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UrlRewriteSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub rules: Vec<UrlRewriteRule>,
 }
 
 #[cfg_attr(feature = "ts", derive(TS))]

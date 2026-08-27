@@ -67,8 +67,6 @@ describe("useSettingsForm — scheduler toggle sync", () => {
     expect(form.scheduler.connectionWarmupEnabled).toBe(
       DEFAULT_APP_SETTINGS.scheduler.connectionWarmupEnabled,
     );
-    expect(form.scheduler.tailSprintEnabled).toBe(
-      DEFAULT_APP_SETTINGS.scheduler.tailSprintEnabled,
-    );
+    expect(form.scheduler.tailSprintEnabled).toBe(DEFAULT_APP_SETTINGS.scheduler.tailSprintEnabled);
   });
 });

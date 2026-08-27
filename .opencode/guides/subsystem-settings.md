@@ -4,7 +4,7 @@
 
 管理应用配置的加载、验证、持久化和分发。配置以 JSON 格式存储在 settings.json（原子写入：先写 .json.tmp，再 rename），通过 AppSettings 结构体封装所有设置分类。
 
-核心类型：AppSettings（根结构体，含 appearance / proxy / scheduler / download / bt / logging / aria2_rpc / cdn_acceleration / github_mirror / global_speed_limit_bps / notifications / io_baseline / autostart / setup_completed 等字段）。各子设置结构体定义在 types.rs。
+核心类型：AppSettings（根结构体，含 appearance / proxy / scheduler / download / bt / logging / aria2_rpc / cdn_acceleration / github_mirror / url_rewrite / global_speed_limit_bps / notifications / io_baseline / autostart / setup_completed 等字段）。各子设置结构体定义在 types.rs。
 
 关键枚举：ThreadMode（Fixed / Adaptive）、AdaptiveProfile（Conservative / Balanced / Aggressive）、ChecksumMode（None / Blake3 / Sha256 / Xxh3128）、SchedulerMode（Traditional / Automatic）、ProxyMode（Disabled / System / Manual）、DiskType（Ssd / Hdd）、ColorMode（Light / Dark / System）。
 

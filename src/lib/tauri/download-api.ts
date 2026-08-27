@@ -84,7 +84,11 @@ export function setBtSpeedLimit(
   downloadLimitBps?: number,
   uploadLimitBps?: number,
 ) {
-  return invoke<void>(commandName("bt_set_speed_limit"), { downloadId, downloadLimitBps, uploadLimitBps });
+  return invoke<void>(commandName("bt_set_speed_limit"), {
+    downloadId,
+    downloadLimitBps,
+    uploadLimitBps,
+  });
 }
 
 export function setPriority(downloadId: string, priority: Priority) {

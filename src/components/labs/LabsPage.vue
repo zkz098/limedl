@@ -8,7 +8,7 @@ import type { AppSettings } from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
 
 import LabsCdnAccelerationPanel from "./LabsCdnAccelerationPanel.vue";
-import LabsGitHubMirrorPanel from "./LabsGitHubMirrorPanel.vue";
+import LabsUrlRewritePanel from "./LabsUrlRewritePanel.vue";
 
 import { serializeSettings, useSettingsForm } from "../settings/settingsComposables";
 
@@ -66,7 +66,7 @@ const activeTab = ref("cdnAcceleration");
 
 const tabs = [
   { id: "cdnAcceleration", icon: "i-ri-speed-up-line", labelKey: "settings.cdnAcceleration.title" },
-  { id: "githubMirror", icon: "i-ri-github-line", labelKey: "settings.githubMirror.title" },
+  { id: "urlRewrite", icon: "i-ri-links-line", labelKey: "settings.urlRewrite.title" },
 ] as const;
 
 defineExpose({
@@ -121,8 +121,12 @@ defineExpose({
       </aside>
 
       <div class="settings-page__content">
-        <LabsCdnAccelerationPanel v-show="activeTab === 'cdnAcceleration'" v-model:draft="form" :t="t" />
-        <LabsGitHubMirrorPanel v-show="activeTab === 'githubMirror'" v-model:draft="form" :t="t" />
+        <LabsCdnAccelerationPanel
+          v-show="activeTab === 'cdnAcceleration'"
+          v-model:draft="form"
+          :t="t"
+        />
+        <LabsUrlRewritePanel v-show="activeTab === 'urlRewrite'" v-model:draft="form" :t="t" />
       </div>
     </div>
   </section>

@@ -195,10 +195,7 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
         :label="t('settings.performancePreference')"
         :info-tooltip="t('settings.performancePreferenceHint')"
       >
-        <fieldset
-          class="performance-presets"
-          :aria-label="t('settings.performancePreference')"
-        >
+        <fieldset class="performance-presets" :aria-label="t('settings.performancePreference')">
           <label
             v-for="card in presetCards"
             :key="card.value"
@@ -399,13 +396,21 @@ function slotWrapsMidnight(slot: SpeedLimitSlot) {
                   <label class="speed-limit-schedule__field-label" :for="`${uid}-start-${index}`">
                     {{ t("settings.speedLimitScheduleStartHour") }}
                   </label>
-                  <UiSelect v-model="slot.startHour" :id="`${uid}-start-${index}`" :options="hourOptions" />
+                  <UiSelect
+                    v-model="slot.startHour"
+                    :id="`${uid}-start-${index}`"
+                    :options="hourOptions"
+                  />
                 </div>
                 <div class="speed-limit-schedule__field">
                   <label class="speed-limit-schedule__field-label" :for="`${uid}-end-${index}`">
                     {{ t("settings.speedLimitScheduleEndHour") }}
                   </label>
-                  <UiSelect v-model="slot.endHour" :id="`${uid}-end-${index}`" :options="hourOptions" />
+                  <UiSelect
+                    v-model="slot.endHour"
+                    :id="`${uid}-end-${index}`"
+                    :options="hourOptions"
+                  />
                 </div>
                 <div class="speed-limit-schedule__field speed-limit-schedule__field--limit">
                   <label class="speed-limit-schedule__field-label" :for="`${uid}-limit-${index}`">

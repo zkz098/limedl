@@ -50,6 +50,19 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     form.aria2Rpc = { ...base.aria2Rpc, ...next.aria2Rpc };
     form.cdnAcceleration = { ...base.cdnAcceleration, ...next.cdnAcceleration };
     form.githubMirror = { ...base.githubMirror, ...next.githubMirror };
+    form.urlRewrite = {
+      enabled: next.urlRewrite?.enabled ?? base.urlRewrite?.enabled ?? false,
+      rules:
+        next.urlRewrite?.rules?.map((rule) => ({
+          ...rule,
+          targets: rule.targets?.map((target) => ({ ...target })) ?? [],
+        })) ??
+        base.urlRewrite?.rules?.map((rule) => ({
+          ...rule,
+          targets: rule.targets?.map((target) => ({ ...target })) ?? [],
+        })) ??
+        [],
+    };
     form.notifications = { ...base.notifications, ...next.notifications };
     form.ioBaseline = { ...base.ioBaseline, ...next.ioBaseline };
     form.doubleClick = { ...base.doubleClick, ...next.doubleClick };
@@ -61,8 +74,7 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     form.speedLimitSchedule = [...(next.speedLimitSchedule ?? base.speedLimitSchedule ?? [])];
 
     // Keep the explicit fallbacks the fields historically relied on.
-    form.download.defaultUserAgent =
-      form.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
+    form.download.defaultUserAgent = form.download.defaultUserAgent || DEFAULT_HTTP_USER_AGENT;
     form.bt.trackerListUrl = form.bt.trackerListUrl || DEFAULT_TRACKER_LIST_URL;
   }
 
@@ -86,6 +98,14 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
       githubMirror: {
         enabled: form.githubMirror?.enabled ?? false,
         mirrors: form.githubMirror?.mirrors?.map((mirror) => ({ ...mirror })) ?? [],
+      },
+      urlRewrite: {
+        enabled: form.urlRewrite?.enabled ?? false,
+        rules:
+          form.urlRewrite?.rules?.map((rule) => ({
+            ...rule,
+            targets: rule.targets?.map((target) => ({ ...target })) ?? [],
+          })) ?? [],
       },
       notifications: { ...form.notifications },
       ioBaseline: {

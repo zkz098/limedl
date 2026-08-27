@@ -115,6 +115,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     "enabled": false,
     "mirrors": []
   },
+  "urlRewrite": {
+    "enabled": false,
+    "rules": []
+  },
   "globalSpeedLimitBps": 0,
   "speedLimitSchedule": [],
   "notifications": {

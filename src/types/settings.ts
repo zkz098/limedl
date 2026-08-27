@@ -20,9 +20,11 @@ export type {
   DoubleClickSettings,
   LogLevel,
   LogSettings,
+  MatchType,
   NotificationSettings,
   ProxyMode,
   ProxySettings,
+  ReplacementMode,
   SchedulerMode,
   SchedulerSettings,
   SortDirection,
@@ -37,6 +39,9 @@ import type {
   Aria2RpcSettings as GeneratedAria2RpcSettings,
   IoBaselineSettings as GeneratedIoBaselineSettings,
   MirrorEntry as GeneratedMirrorEntry,
+  RewriteTarget as GeneratedRewriteTarget,
+  UrlRewriteRule as GeneratedUrlRewriteRule,
+  UrlRewriteSettings as GeneratedUrlRewriteSettings,
 } from "./generated/types";
 
 /** Aria2RpcSettings as generated from Rust. */
@@ -54,6 +59,25 @@ export interface MirrorEntry extends GeneratedMirrorEntry {
   _uid?: number;
 }
 
+/** RewriteTarget with frontend-only _uid field. */
+export interface RewriteTarget extends GeneratedRewriteTarget {
+  /** Frontend-only unique ID for stable v-for keys. Not serialized by backend. */
+  _uid?: number;
+}
+
+/** UrlRewriteRule with frontend-extended RewriteTarget and _uid field. */
+export interface UrlRewriteRule extends Omit<GeneratedUrlRewriteRule, "targets"> {
+  targets: RewriteTarget[];
+  /** Frontend-only unique ID for stable v-for keys. Not serialized by backend. */
+  _uid?: number;
+}
+
+/** UrlRewriteSettings using extended UrlRewriteRule. */
+export interface UrlRewriteSettings extends Omit<GeneratedUrlRewriteSettings, "rules"> {
+  enabled: boolean;
+  rules: UrlRewriteRule[];
+}
+
 /** GitHubMirrorSettings using extended MirrorEntry. */
 export interface GitHubMirrorSettings {
   enabled: boolean;
@@ -64,8 +88,12 @@ export interface GitHubMirrorSettings {
  * AppSettings with frontend-extended sub-types.
  * Generated counterpart is in generated/types.ts.
  */
-export type AppSettings = Omit<GeneratedAppSettings, "ioBaseline" | "githubMirror" | "aria2Rpc"> & {
+export type AppSettings = Omit<
+  GeneratedAppSettings,
+  "ioBaseline" | "githubMirror" | "urlRewrite" | "aria2Rpc"
+> & {
   ioBaseline: IoBaselineSettings;
   githubMirror: GitHubMirrorSettings;
+  urlRewrite: UrlRewriteSettings;
   aria2Rpc: Aria2RpcSettings;
 };

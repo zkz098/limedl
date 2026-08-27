@@ -380,7 +380,9 @@ function toggleEngineTuning() {
                   :model-value="draft.bt.antiLeechMaxUploadSlots"
                   :min="1"
                   :max="64"
-                  :disabled="!draft.bt.antiLeechEnabled || draft.bt.antiLeechAction !== 'limit_slots'"
+                  :disabled="
+                    !draft.bt.antiLeechEnabled || draft.bt.antiLeechAction !== 'limit_slots'
+                  "
                   @update:model-value="draft.bt.antiLeechMaxUploadSlots = Number($event ?? 1)"
                 />
               </SettingsField>

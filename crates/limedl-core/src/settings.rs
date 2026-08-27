@@ -11,9 +11,10 @@ use super::{
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
         CdnAccelerationSettings, DoubleClickSettings, DownloadDefaultsSettings,
-        GitHubMirrorSettings, IoBaselineSettings, LogSettings, MirrorEntry,
-        NotificationSettings, ProxyMode, ProxySettings, SchedulerSettings,
-        TraditionalSchedulerSettings, default_tracker_list_url,
+        GitHubMirrorSettings, IoBaselineSettings, LogSettings, MatchType, MirrorEntry,
+        NotificationSettings, ProxyMode, ProxySettings, ReplacementMode, RewriteTarget,
+        SchedulerSettings, TraditionalSchedulerSettings, UrlRewriteRule, UrlRewriteSettings,
+        default_tracker_list_url,
     },
 };
 
@@ -66,6 +67,37 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let default_download_dir = normalize_download_dir(&settings.download.default_download_dir);
 
     let github_mirror = normalize_github_mirror_settings(settings.github_mirror);
+    let mut url_rewrite = settings.url_rewrite;
+    if url_rewrite.rules.is_empty()
+        && (github_mirror.enabled || !github_mirror.mirrors.is_empty())
+    {
+        let legacy_targets: Vec<RewriteTarget> = github_mirror
+            .mirrors
+            .iter()
+            .enumerate()
+            .map(|(idx, m)| RewriteTarget {
+                url_template: m.url.clone(),
+                enabled: m.enabled,
+                order: idx as u32,
+            })
+            .collect();
+        if !legacy_targets.is_empty() {
+            url_rewrite.enabled = github_mirror.enabled;
+            url_rewrite.rules.push(UrlRewriteRule {
+                id: "preset-github".to_string(),
+                name: "GitHub 镜像".to_string(),
+                enabled: true,
+                match_type: MatchType::Host,
+                pattern: "*.github.com".to_string(),
+                replacement_mode: ReplacementMode::PrefixProxy,
+                targets: legacy_targets,
+                encode_url: true,
+                fallback_to_original: true,
+                order: 0,
+            });
+        }
+    }
+    let url_rewrite = normalize_url_rewrite_settings(url_rewrite);
     let io_baseline = IoBaselineSettings {
         buffer_limit_mb: settings.io_baseline.buffer_limit_mb.clamp(64, 32768),
         game_mode_buffer_mb: settings.io_baseline.game_mode_buffer_mb.clamp(16, 4096),
@@ -107,6 +139,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         aria2_rpc: settings.aria2_rpc.clone(),
         cdn_acceleration: settings.cdn_acceleration.clone(),
         github_mirror,
+        url_rewrite,
         global_speed_limit_bps: settings.global_speed_limit_bps,
         speed_limit_schedule: settings.speed_limit_schedule.clone(),
         notifications: settings.notifications.clone(),
@@ -342,6 +375,55 @@ fn normalize_github_mirror_settings(settings: GitHubMirrorSettings) -> GitHubMir
     }
 }
 
+fn normalize_url_rewrite_settings(settings: UrlRewriteSettings) -> UrlRewriteSettings {
+    let rules: Vec<UrlRewriteRule> = settings
+        .rules
+        .into_iter()
+        .filter_map(|mut rule| {
+            rule.id = rule.id.trim().to_string();
+            if rule.id.is_empty() {
+                rule.id = uuid::Uuid::new_v4().to_string();
+            }
+            rule.name = rule.name.trim().to_string();
+            rule.pattern = rule.pattern.trim().to_string();
+            if rule.pattern.is_empty() {
+                return None;
+            }
+
+            let targets: Vec<RewriteTarget> = rule
+                .targets
+                .into_iter()
+                .filter_map(|mut t| {
+                    t.url_template = t.url_template.trim().to_string();
+                    if t.url_template.is_empty() {
+                        None
+                    } else {
+                        Some(t)
+                    }
+                })
+                .enumerate()
+                .map(|(index, mut t)| {
+                    t.order = index as u32;
+                    t
+                })
+                .collect();
+
+            rule.targets = targets;
+            Some(rule)
+        })
+        .enumerate()
+        .map(|(index, mut rule)| {
+            rule.order = index as u32;
+            rule
+        })
+        .collect();
+
+    UrlRewriteSettings {
+        enabled: settings.enabled,
+        rules,
+    }
+}
+
 pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     let content = match fs::read_to_string(settings_path) {
         Ok(content) => content,
@@ -360,7 +442,8 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             || value.get("logging").is_some()
             || value.get("cdnAcceleration").is_some()
             || value.get("notifications").is_some()
-            || value.get("ioBaseline").is_some())
+            || value.get("ioBaseline").is_some()
+            || value.get("urlRewrite").is_some())
     {
         let parsed = serde_json::from_value::<AppSettings>(value)?;
         return normalize_settings(parsed);
@@ -377,6 +460,7 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
         github_mirror: GitHubMirrorSettings::default(),
+        url_rewrite: UrlRewriteSettings::default(),
         global_speed_limit_bps: 0,
         speed_limit_schedule: Vec::new(),
         notifications: NotificationSettings::default(),
@@ -1187,5 +1271,87 @@ mod tests {
         };
         let result = normalize_settings(settings).unwrap();
         assert_eq!(result.last_setup_step, None);
+    }
+
+    #[test]
+    fn test_legacy_github_mirror_migrates_to_url_rewrite() {
+        let settings = AppSettings {
+            github_mirror: GitHubMirrorSettings {
+                enabled: true,
+                mirrors: vec![MirrorEntry {
+                    url: "https://ghproxy.com".into(),
+                    enabled: true,
+                    order: 0,
+                }],
+            },
+            url_rewrite: UrlRewriteSettings::default(),
+            ..AppSettings::default()
+        };
+        let result = normalize_settings(settings).unwrap();
+        assert!(result.url_rewrite.enabled);
+        assert_eq!(result.url_rewrite.rules.len(), 1);
+        let rule = &result.url_rewrite.rules[0];
+        assert_eq!(rule.name, "GitHub 镜像");
+        assert_eq!(rule.match_type, MatchType::Host);
+        assert_eq!(rule.pattern, "*.github.com");
+        assert_eq!(rule.replacement_mode, ReplacementMode::PrefixProxy);
+        assert_eq!(rule.targets.len(), 1);
+        assert_eq!(rule.targets[0].url_template, "https://ghproxy.com");
+        assert!(rule.encode_url);
+        assert!(rule.fallback_to_original);
+    }
+
+    #[test]
+    fn test_normalize_url_rewrite_drops_empty_and_renumbers() {
+        let settings = UrlRewriteSettings {
+            enabled: true,
+            rules: vec![
+                UrlRewriteRule {
+                    id: "".into(),
+                    name: " Valid Rule ".into(),
+                    enabled: true,
+                    match_type: MatchType::Prefix,
+                    pattern: " https://valid.com ".into(),
+                    replacement_mode: ReplacementMode::PrefixProxy,
+                    targets: vec![
+                        RewriteTarget {
+                            url_template: "   ".into(),
+                            enabled: true,
+                            order: 10,
+                        },
+                        RewriteTarget {
+                            url_template: " https://target.com ".into(),
+                            enabled: true,
+                            order: 20,
+                        },
+                    ],
+                    encode_url: false,
+                    fallback_to_original: true,
+                    order: 5,
+                },
+                UrlRewriteRule {
+                    id: "empty_pattern".into(),
+                    name: "Drop Me".into(),
+                    enabled: true,
+                    match_type: MatchType::Prefix,
+                    pattern: "   ".into(),
+                    targets: vec![],
+                    replacement_mode: ReplacementMode::PrefixProxy,
+                    encode_url: false,
+                    fallback_to_original: true,
+                    order: 6,
+                },
+            ],
+        };
+        let normalized = normalize_url_rewrite_settings(settings);
+        assert_eq!(normalized.rules.len(), 1);
+        let rule = &normalized.rules[0];
+        assert!(!rule.id.is_empty());
+        assert_eq!(rule.name, "Valid Rule");
+        assert_eq!(rule.pattern, "https://valid.com");
+        assert_eq!(rule.order, 0);
+        assert_eq!(rule.targets.len(), 1);
+        assert_eq!(rule.targets[0].url_template, "https://target.com");
+        assert_eq!(rule.targets[0].order, 0);
     }
 }

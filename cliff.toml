@@ -36,14 +36,14 @@ filter_unconventional = true
 
 commit_parsers = [
   # order matters: a commit is assigned to its first matching parser
-  { message = "^feat",    group = "🚀 Features" },
-  { message = "^fix",     group = "🐛 Bug Fixes" },
-  { message = "^perf",    group = "⚡ Performance" },
+  { message = "^feat", group = "🚀 Features" },
+  { message = "^fix", group = "🐛 Bug Fixes" },
+  { message = "^perf", group = "⚡ Performance" },
   { message = "^refactor", group = "♻️ Refactoring" },
-  { message = "^docs",    group = "📚 Documentation" },
+  { message = "^docs", group = "📚 Documentation" },
   # housekeeping that should NOT appear in release notes
-  { message = "^test",    skip = true },
-  { message = "^ci",      skip = true },
+  { message = "^test", skip = true },
+  { message = "^ci", skip = true },
   { message = "^chore|^build|^style", skip = true },
-  { message = ".*",       group = "Other" },
+  { message = ".*", group = "Other" },
 ]

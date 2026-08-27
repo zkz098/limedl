@@ -42,9 +42,7 @@ export const requestPermission = async (): Promise<"granted" | "denied"> => {
   }
 };
 
-export const sendNotification = async (
-  options: NotificationOptions | string,
-): Promise<void> => {
+export const sendNotification = async (options: NotificationOptions | string): Promise<void> => {
   if (!isSupported() || Notification.permission !== "granted") return;
   try {
     const opts = typeof options === "string" ? { title: options } : options;

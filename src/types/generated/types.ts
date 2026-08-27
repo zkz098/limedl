@@ -2,7 +2,7 @@
 
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 
-export type AppSettings = { appearance: AppearanceSettings, proxy: ProxySettings, scheduler: SchedulerSettings, download: DownloadDefaultsSettings, bt: BtSettings, logging: LogSettings, aria2Rpc: Aria2RpcSettings, cdnAcceleration: CdnAccelerationSettings, githubMirror: GitHubMirrorSettings, globalSpeedLimitBps: number, speedLimitSchedule: Array<SpeedLimitSlot>, notifications: NotificationSettings, ioBaseline: IoBaselineSettings, autostart: boolean, setupCompleted: boolean, lastSetupStep: number | null, 
+export type AppSettings = { appearance: AppearanceSettings, proxy: ProxySettings, scheduler: SchedulerSettings, download: DownloadDefaultsSettings, bt: BtSettings, logging: LogSettings, aria2Rpc: Aria2RpcSettings, cdnAcceleration: CdnAccelerationSettings, githubMirror: GitHubMirrorSettings, urlRewrite: UrlRewriteSettings, globalSpeedLimitBps: number, speedLimitSchedule: Array<SpeedLimitSlot>, notifications: NotificationSettings, ioBaseline: IoBaselineSettings, autostart: boolean, setupCompleted: boolean, lastSetupStep: number | null, 
 /**
  * Double-click action configuration for download tasks.
  */
@@ -343,6 +343,8 @@ retentionCount: number | null,
  */
 retentionDays: number | null, };
 
+export type MatchType = "host" | "prefix" | "regex" | "wildcard";
+
 export type MirrorEntry = { url: string, enabled: boolean, order: number, };
 
 export type NotificationSettings = { enabled: boolean, };
@@ -356,6 +358,10 @@ export type Priority = "low" | "normal" | "high";
 export type ProxyMode = "disabled" | "system" | "manual";
 
 export type ProxySettings = { mode: ProxyMode, manualUrl: string, };
+
+export type ReplacementMode = "prefix_proxy" | "template";
+
+export type RewriteTarget = { urlTemplate: string, enabled: boolean, order: number, };
 
 /**
  * Safety classification for JSON-RPC method rate limiting.
@@ -417,3 +423,7 @@ export type ThreadMode = "fixed" | "adaptive";
 export type TorrentFileEntry = { index: number, path: string, size: number, };
 
 export type TraditionalSchedulerSettings = { maxParallelTasks: number, };
+
+export type UrlRewriteRule = { id: string, name: string, enabled: boolean, matchType: MatchType, pattern: string, replacementMode: ReplacementMode, targets: Array<RewriteTarget>, encodeUrl: boolean, fallbackToOriginal: boolean, order: number, };
+
+export type UrlRewriteSettings = { enabled: boolean, rules: Array<UrlRewriteRule>, };

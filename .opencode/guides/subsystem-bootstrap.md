@@ -34,15 +34,15 @@ bootstrap(state_dir)
 
 ## CoreSystems 字段
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `download_manager` | `Arc<DownloadManager>` | HTTP 下载管理器 |
-| `bt_backend` | `Arc<IrontideBtBackend>` | irontide BT 后端 |
-| `registry` | `Arc<BackendRegistry>` | 协议路由注册表 |
-| `event_bus` | `Arc<EventBus>` | 统一事件总线 |
-| `rate_limiter` | `Arc<RateLimiter>` | 全局令牌桶限速器 |
-| `settings` | `AppSettings` | 应用设置快照 |
-| `cdn_service` | `Arc<CdnService>` | CDN 加速服务 |
+| 字段               | 类型                     | 说明             |
+| ------------------ | ------------------------ | ---------------- |
+| `download_manager` | `Arc<DownloadManager>`   | HTTP 下载管理器  |
+| `bt_backend`       | `Arc<IrontideBtBackend>` | irontide BT 后端 |
+| `registry`         | `Arc<BackendRegistry>`   | 协议路由注册表   |
+| `event_bus`        | `Arc<EventBus>`          | 统一事件总线     |
+| `rate_limiter`     | `Arc<RateLimiter>`       | 全局令牌桶限速器 |
+| `settings`         | `AppSettings`            | 应用设置快照     |
+| `cdn_service`      | `Arc<CdnService>`        | CDN 加速服务     |
 
 ## 设计决策与约定
 

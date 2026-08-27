@@ -3528,6 +3528,7 @@ dependencies = [
  "parking_lot",
  "percent-encoding",
  "rand 0.10.2",
+ "regex",
  "reqwest 0.13.4",
  "rusqlite",
  "sanitize-filename",

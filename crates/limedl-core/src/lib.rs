@@ -29,6 +29,7 @@ pub mod settings;
 pub mod slot_guard;
 pub mod task_lifecycle;
 pub mod types;
+pub mod url_rewrite;
 pub mod ws_manifest;
 
 #[cfg(any(test, feature = "test-utils"))]

@@ -51,6 +51,7 @@ use super::http_client_factory::build_http_client;
 use super::mirror::rewrite as mirror_rewrite;
 use super::now_ms;
 use super::settings::{load_settings, normalize_settings, persist_settings, resolve_user_agent};
+use super::url_rewrite::rewrite_url;
 
 pub const DEFAULT_FIXED_THREADS: usize = 8;
 pub(crate) const DEFAULT_RETRIES: u32 = 4;
@@ -969,12 +970,18 @@ impl DownloadManager {
 }
 
 impl DownloadManager {
-    /// Check whether the given URL should use GitHub mirrors, and if so return
-    /// the list of mirror URLs (in priority order with the original URL appended
-    /// as the final fallback).  Returns a single-element list (the original URL)
-    /// if mirroring is disabled or the URL is not a GitHub URL.
+    /// Check whether the given URL matches rewrite rules (or legacy GitHub mirrors),
+    /// and if so return the list of candidate URLs (in priority order with the original URL
+    /// appended as the final fallback). Returns a single-element list (the original URL)
+    /// if rewriting is disabled or no rule matches.
     pub async fn mirror_urls_for(&self, url: &str) -> Vec<String> {
         let settings = self.settings.read().await;
+        if settings.url_rewrite.enabled {
+            let rewritten = rewrite_url(url, &settings.url_rewrite);
+            if rewritten.len() > 1 || (rewritten.len() == 1 && rewritten[0] != url) {
+                return rewritten;
+            }
+        }
         mirror_rewrite(url, &settings.github_mirror)
     }
 

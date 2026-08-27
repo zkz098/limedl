@@ -41,7 +41,10 @@ describe("RPC command-surface consistency", () => {
     const known = new Set(WS_COMMANDS.map((c) => c.tauriName));
     for (const name of TAURI_ONLY_COMMANDS) known.add(name);
     for (const cmd of used) {
-      expect(known.has(cmd), `invoked "${cmd}" is not in WS_COMMANDS nor Tauri-only allowlist`).toBe(true);
+      expect(
+        known.has(cmd),
+        `invoked "${cmd}" is not in WS_COMMANDS nor Tauri-only allowlist`,
+      ).toBe(true);
     }
   });
 

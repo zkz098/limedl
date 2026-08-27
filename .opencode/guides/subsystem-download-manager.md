@@ -83,18 +83,21 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 ## 设计决策与约定
 
 ### 架构
+
 - DownloadManager 拆分为 3 个 ZST actor（HttpExecutor / Scheduler / TaskLifecycle），不持有 DownloadManager 引用，通过方法参数接收，避免循环引用。
 - CRUD 方法（start/pause/resume/cancel/remove/purge）委托 actor 完成具体工作。
 - 所有事件通过 EventBus::publish() 统一发布，前端发射由 lib.rs 的独立订阅任务完成。
 - AIMD 状态变更在 scheduler.rs 中，worker 只报告下载字节数。
 
 ### 校验和
+
 - ChecksumHasher 枚举封装三种算法（Blake3 / SHA256 / XXH3-128）。mode 为 None 时不调用（直接返回 Err）。
 - 使用 `spawn_blocking` 避免阻塞 tokio 运行时。
 - 输出格式：Blake3 用 `to_hex()`，SHA-256 用 `format!("{:x}")`，XXH3-128 用 `format!("{:032x}")`。
 - `hash_slices()` 为同步函数，用于内存缓冲场景的快速校验。
 
 ### 速率限制
+
 - RateLimiter 是全局令牌桶（`Arc<Mutex<Inner>>`），速率 0 = 无限制。令牌桶容量 = max(2 × rate, 1)。
 - HTTP chunk worker 累积 ~256KB 或 8 chunk（取先到）才调一次 `consume()`，不逐 chunk 消费。
 - `consume()` 异步（tokio::time::sleep），`consume_blocking()` 同步（std::thread::sleep）。
@@ -102,25 +105,25 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - AIMD 采样窗口 2s 不受批量消费影响。
 
 ### 崩溃恢复 & 错误处理
+
 - 重启时 `load_downloads_from_db()` 从 SQLite 重建 ManagedDownload，最后持久化的 chunk 状态续传。
 - 瞬态故障指数退避重试（max_retries 限制）；checksum 不匹配仅重下受影响 chunk。
 - 磁盘空间检查在 Phase 2 进行，预留 10% buffer。
 - Progress 事件在周期性 persist 路径有 500ms 节流（终态立即发送）。
 
-### GitHub 镜像重写 (`mirror.rs`)
+### 链接模式替换与镜像重写 (`url_rewrite.rs` / `mirror.rs`)
 
-在受限网络环境中，将 GitHub 下载 URL 重写为配置的镜像地址（如 ghproxy、mirror.gh）。
+在受限网络或需要加速的环境中，根据配置的匹配模式（域名 Host、前缀 Prefix、正则表达式 Regex、通配符 Wildcard）将下载 URL 重写为配置的镜像或代理地址（如 ghproxy、hf-mirror 等）。
 
-**公开 API**：
+**核心 API (`url_rewrite.rs`)**：
 
-| 函数 | 作用 |
-|------|------|
-| `is_github_url(url)` | 判定 URL 是否为 GitHub（`github.com` 或子域名） |
-| `active_mirrors(settings)` | 返回已启用、非空的镜像列表（按 `order` 排序） |
-| `rewrite(url, settings)` | 生成尝试 URL 列表：`{mirror_base}/{url_encoded_original}` + 原始 URL 作为最后回退 |
+| 函数                            | 作用                                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `matches_rule(url, rule)`       | 判定 URL 是否匹配某条重写规则（支持 Host、Prefix、Regex、Wildcard）                       |
+| `rewrite_url(url, settings)`    | 根据启用的规则生成尝试 URL 列表（按目标 order 排序），并在配置回退时将原始 URL 附加于末尾 |
+| `wildcard_match(pattern, text)` | 通配符匹配函数（支持 `*` 与 `?`）                                                         |
 
-- 镜像未启用或 URL 非 GitHub → 返回单元素向量（仅原始 URL）。
-- 镜像为空 → 同上。
-- URL 使用 `url_encode()` 编码后拼接到镜像 base URL 后（base 末尾斜杠自动去重）。
-- 原始 URL 始终附加在列表末尾，作为最终回退。
-- `GitHubMirrorSettings` 和 `MirrorEntry` 类型定义在 `types.rs`，settings 由 `settings.rs` 管理。
+- 规则未启用或未匹配任何规则 → 返回单元素向量（仅原始 URL）。
+- 支持前缀代理模式（`PrefixProxy`，可选 Percent-Encode）与模板/正则替换模式（`Template`，支持 capture group `$1`, `$2` 或 `{url}`, `{raw_url}` 变量）。
+- 原始 URL 默认附加在列表末尾作为最终回退（可配置）。
+- `UrlRewriteSettings`, `UrlRewriteRule`, `MatchType`, `ReplacementMode` 等类型定义在 `types.rs`，settings 由 `settings.rs` 管理并支持从旧版 `github_mirror` 自动迁移。
