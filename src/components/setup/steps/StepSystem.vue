@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import {
-  enable as enableAutostart,
-  disable as disableAutostart,
-} from "@tauri-apps/plugin-autostart";
+import { enableAutostart, disableAutostart } from "../../../lib/platform";
 import { useI18n } from "../../../i18n";
 import type { AppSettings, ProxyMode, ProxySettings } from "../../../types/settings";
 import StepShell from "../StepShell.vue";

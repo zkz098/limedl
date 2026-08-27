@@ -72,6 +72,7 @@ async fn start_server() -> RpcE2eServer {
     let rpc_state = Arc::new(limedl_server::rpc::RpcState {
         registry: core.registry,
         event_bus: core.event_bus,
+        dispatcher: core.dispatcher,
         clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
         rate_limiter: Arc::new(limedl_server::rate_limiter::WsRateLimiter::new()),
         cdn_service: core.cdn_service,

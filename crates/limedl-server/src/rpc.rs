@@ -6,7 +6,7 @@ use futures_util::{SinkExt, StreamExt};
 use limedl_core::types::StartDownloadRequest;
 use limedl_core::types::TaskId;
 use limedl_core::{
-    BackendRegistry, CdnService, Dispatcher, DownloadEvent, DownloadManager, EventBus,
+    BackendRegistry, CdnService, Dispatcher, DownloadEvent, EventBus,
 };
 use limedl_core::ws_manifest::WS_COMMANDS;
 use parking_lot::Mutex;
@@ -84,6 +84,7 @@ impl JsonRpcError {
 pub struct RpcState {
     pub registry: Arc<BackendRegistry>,
     pub event_bus: Arc<EventBus>,
+    pub dispatcher: Arc<Dispatcher>,
     /// Connected WebSocket senders for event broadcasting
     pub clients: Arc<Mutex<Vec<tokio::sync::mpsc::Sender<Message>>>>,
     /// WebSocket JSON-RPC rate limiter (per-connection + global)
@@ -570,12 +571,9 @@ async fn handle_download_action(
 // ── Handler: settings.get ──────────────────────────────────────────
 
 async fn handle_settings_get(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    let settings = dm
-        .settings()
+    let settings = state
+        .dispatcher
+        .get_settings()
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     serde_json::to_value(settings).map_err(|e| JsonRpcError::server_error(e.to_string()))
@@ -584,15 +582,13 @@ async fn handle_settings_get(state: &RpcState) -> Result<serde_json::Value, Json
 // ── Handler: logging.openDir ────────────────────────────────
 
 async fn handle_open_log_dir(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    let settings = dm
-        .settings()
+    let settings = state
+        .dispatcher
+        .get_settings()
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
-    let dir = limedl_core::logging::log_dir_for(&settings.logging, dm.dirs.state_dir())
+    let state_dir = crate::config::default_data_dir().join("downloads");
+    let dir = limedl_core::logging::log_dir_for(&settings.logging, &state_dir)
         .map_err(|e| JsonRpcError::server_error(format!("Failed to resolve log directory: {e}")))?;
     limedl_core::platform::open_in_file_manager(&dir)
         .map_err(|e| JsonRpcError::server_error(format!("Failed to open log directory: {e}")))?;
@@ -608,41 +604,22 @@ async fn handle_settings_save(
     let settings: limedl_core::types::AppSettings =
         serde_json::from_value(params.cloned().unwrap_or_default())
             .map_err(|e| JsonRpcError::invalid_params(format!("Invalid params: {e}")))?;
-    // Normalize before broadcasting so validation errors surface to the caller
-    let settings = limedl_core::settings::normalize_settings(settings)
-        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid settings: {e}")))?;
-    // Broadcast to all backends (propagates first error instead of silently swallowing)
-    state
-        .registry
-        .update_all_settings(&settings)
+    let saved = state
+        .dispatcher
+        .save_settings(&settings)
         .await
         .map_err(|e| JsonRpcError::server_error(format!("Failed to save settings: {e}")))?;
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    let saved = dm
-        .settings()
-        .await
-        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     serde_json::to_value(saved).map_err(|e| JsonRpcError::server_error(e.to_string()))
 }
 
 async fn handle_factory_reset(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
     state.registry.shutdown_all().await;
-    let dm = state
-        .registry
-        .get_typed::<limedl_core::manager::DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    // Delete the parent directory containing downloads/ and settings.json.
-    // Attempt removal directly instead of checking existence first,
-    // eliminating the TOCTOU window between check and removal.
-    let parent_dir = dm
-        .dirs
-        .state_dir()
+    let _ = state.dispatcher.factory_reset().await;
+    let state_dir = crate::config::default_data_dir().join("downloads");
+    let parent_dir = state_dir
         .parent()
         .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| dm.dirs.state_dir().clone());
+        .unwrap_or(state_dir);
     match std::fs::remove_dir_all(&parent_dir) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -763,31 +740,20 @@ async fn handle_toggle_game_mode(
         .get("enabled")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    dm.set_game_mode(enabled);
-    Ok(serde_json::json!(enabled))
+    let result = state
+        .dispatcher
+        .toggle_game_mode(Some(enabled))
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    Ok(serde_json::json!(result))
 }
 
 // ── Handler: settings.getIoStatus ──────────────────────────────────
 
 async fn handle_get_io_status(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    let pool = &dm.buffer_pool;
-    Ok(serde_json::json!({
-        "gameMode": pool.game_mode(),
-        "bufferUsageBytes": pool.current_usage(),
-        "bufferLimitBytes": pool.effective_limit(),
-        "activeSlots": pool.active_slots(),
-        "maxSlots": pool.max_slots(),
-        "queuedCount": pool.queued_count(),
-        "degradationCount": pool.degradation_count(),
-    }))
+    state
+        .dispatcher
+        .get_io_status()
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))
 }
 
 // ── Handler: settings.detectDiskType ────────────────────────────────
@@ -801,11 +767,10 @@ async fn handle_detect_disk_type(
         .get("dir")
         .and_then(|v| v.as_str())
         .ok_or_else(|| JsonRpcError::invalid_params("Missing dir"))?;
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    let disk_type = dm.resolve_disk_type(std::path::Path::new(dir)).await;
+    let disk_type = state
+        .dispatcher
+        .detect_disk_type(std::path::Path::new(dir))
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     Ok(serde_json::json!(match disk_type {
         limedl_core::types::DiskType::Hdd => "hdd",
         limedl_core::types::DiskType::Ssd => "ssd",
@@ -813,9 +778,9 @@ async fn handle_detect_disk_type(
 }
 
 async fn handle_detect_all_disk_types(
-    _state: &RpcState,
+    state: &RpcState,
 ) -> Result<serde_json::Value, JsonRpcError> {
-    let disk_types = limedl_core::file_ops::detect_all_disk_types();
+    let disk_types = state.dispatcher.detect_all_disk_types();
     let result: std::collections::HashMap<String, String> = disk_types
         .into_iter()
         .map(|(drive, dt)| {
@@ -844,22 +809,17 @@ async fn handle_toggle_overclock_mode(
         .get("enabled")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    dm.set_overclock_mode(enabled);
-    Ok(serde_json::json!(enabled))
+    let result = state
+        .dispatcher
+        .toggle_overclock_mode(Some(enabled))
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    Ok(serde_json::json!(result))
 }
 
 // ── Handler: settings.getOverclockMode ─────────────────────────────
 
 async fn handle_get_overclock_mode(state: &RpcState) -> Result<serde_json::Value, JsonRpcError> {
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?;
-    Ok(serde_json::json!(dm.overclock_mode()))
+    Ok(serde_json::json!(state.dispatcher.get_overclock_mode()))
 }
 
 // ── Handler: settings.fetchTrackerList ─────────────────────────────
@@ -1082,10 +1042,7 @@ async fn handle_cdn_routes(
             }))
         }
         "cdn.test" => {
-            let dm = state.registry.get_typed::<DownloadManager>().ok_or_else(|| {
-                JsonRpcError::server_error("HTTP backend not found")
-            })?;
-            let settings = dm.settings().await.map_err(|e| {
+            let settings = state.dispatcher.get_settings().await.map_err(|e| {
                 JsonRpcError::server_error(e.to_string())
             })?;
             state.cdn_service.start_test(settings).await.map_err(|e| {
@@ -1093,13 +1050,11 @@ async fn handle_cdn_routes(
             })?;
             let cdn = state.cdn_service.clone();
             let event_bus = state.event_bus.clone();
-            let dm_for_monitor = state.registry.get_typed::<DownloadManager>()
-                .ok_or_else(|| JsonRpcError::server_error("HTTP backend not found"))?
-                .clone();
+            let dispatcher = state.dispatcher.clone();
             tokio::spawn(async move {
                 let outcome = cdn.monitor_test(event_bus).await;
                 let now_ms = limedl_core::now_ms();
-                if let Ok(mut current) = dm_for_monitor.settings().await {
+                if let Ok(mut current) = dispatcher.get_settings().await {
                     use limedl_core::cdn::accelerator::AccelState;
                     match &outcome.state {
                         AccelState::Ready => {
@@ -1115,7 +1070,7 @@ async fn handle_cdn_routes(
                         }
                         _ => {}
                     }
-                    let _ = dm_for_monitor.apply_settings(current).await;
+                    let _ = dispatcher.save_settings(&current).await;
                 }
             });
             Ok(serde_json::json!(null))
@@ -1132,22 +1087,19 @@ async fn handle_cdn_routes(
             let ip: std::net::IpAddr = ip_str.parse().map_err(|e| {
                 JsonRpcError::invalid_params(format!("Invalid IP address: {e}"))
             })?;
-            let dm = state.registry.get_typed::<DownloadManager>().ok_or_else(|| {
-                JsonRpcError::server_error("HTTP backend not found")
-            })?;
-            let settings = dm.settings().await.map_err(|e| {
+            let settings = state.dispatcher.get_settings().await.map_err(|e| {
                 JsonRpcError::server_error(e.to_string())
             })?;
             state.cdn_service.apply_ip(ip, speed, &settings).await.map_err(|e| {
                 JsonRpcError::server_error(e.to_string())
             })?;
             // Persist
-            if let Ok(mut current) = dm.settings().await {
+            if let Ok(mut current) = state.dispatcher.get_settings().await {
                 current.cdn_acceleration.active_ip = Some(ip_str.to_string());
                 current.cdn_acceleration.active_speed_mbps = Some(speed);
                 current.cdn_acceleration.last_test_at_ms = Some(limedl_core::now_ms());
                 current.cdn_acceleration.last_error = None;
-                let _ = dm.apply_settings(current).await;
+                let _ = state.dispatcher.save_settings(&current).await;
             }
             Ok(serde_json::json!(null))
         }
@@ -1188,6 +1140,7 @@ mod tests {
         let rpc_state = Arc::new(RpcState {
             registry: core.registry,
             event_bus: core.event_bus,
+            dispatcher: core.dispatcher,
             clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
             rate_limiter: Arc::new(crate::rate_limiter::WsRateLimiter::new()),
             cdn_service: core.cdn_service,

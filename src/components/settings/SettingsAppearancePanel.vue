@@ -12,10 +12,7 @@ import type {
 } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
 import SettingsSection from "./SettingsSection.vue";
-import {
-  enable as enableAutostart,
-  disable as disableAutostart,
-} from "@tauri-apps/plugin-autostart";
+import { enableAutostart, disableAutostart } from "../../lib/platform";
 
 const draft = defineModel<AppSettings>("draft", { required: true });
 

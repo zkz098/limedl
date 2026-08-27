@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { open } from "@tauri-apps/plugin-dialog";
+import { openDialog } from "../../../lib/platform";
 import { useI18n } from "../../../i18n";
 import type { AppSettings } from "../../../types/settings";
 import StepShell from "../StepShell.vue";
@@ -30,7 +30,7 @@ function onPathChange(value: string | number | null) {
 
 async function browseDirectory() {
   try {
-    const selectedPath = await open({
+    const selectedPath = await openDialog({
       directory: true,
       multiple: false,
       title: t("setupWizard.directoryTitle"),

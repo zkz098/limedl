@@ -65,9 +65,11 @@ const MAX_CDN_CLIENT_CACHE_SIZE: usize = 50;
 pub struct AppState {
     pub registry: Arc<super::backend_registry::BackendRegistry>,
     pub event_bus: Arc<EventBus>,
+    pub dispatcher: Arc<super::dispatcher::Dispatcher>,
     pub cdn_service: Arc<super::cdn::CdnService>,
     pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
     pub settings: Arc<ParkingRwLock<AppSettings>>,
+    pub settings_service: Arc<super::services::SettingsService>,
     /// Cancelled during shutdown to stop the periodic emit task gracefully
     /// before backends are torn down.
     pub emit_cancel: CancellationToken,
@@ -381,6 +383,62 @@ impl DownloadManager {
                 max_concurrent_http: Arc::new(AtomicUsize::new(5)),
                 max_concurrent_bt: Arc::new(AtomicUsize::new(3)),
                 overclock_mode: Arc::new(AtomicBool::new(false)),
+            },
+            http_executor: Arc::new(HttpExecutor),
+            scheduler: Arc::new(Scheduler),
+            task_lifecycle: Arc::new(TaskLifecycle),
+        };
+
+        manager.load_downloads_from_db()?;
+        Ok(manager)
+    }
+
+    /// Construct a DownloadManager reusing the shared infrastructure from SystemContext.
+    pub fn new_with_context(context: &Arc<crate::context::SystemContext>) -> Result<Self> {
+        let state_dir = context.state_dir.clone();
+        fs::create_dir_all(&state_dir)?;
+
+        let settings = context.settings_service.get_blocking();
+        let client = build_http_client(&settings)?;
+
+        let settings_path = state_dir
+            .parent()
+            .ok_or_else(|| {
+                DownloadError::Internal(format!(
+                    "state directory '{}' has no parent — cannot determine settings path",
+                    state_dir.display()
+                ))
+            })?
+            .join("settings.json");
+
+        let manager = Self {
+            http: HttpClientInfra {
+                client: Arc::new(RwLock::new(client)),
+                cdn_client_cache: Arc::new(ParkingRwLock::new(HashMap::default())),
+                cdn_accelerator: Arc::new(RwLock::new(None)),
+            },
+            dirs: StateDirs {
+                state_dir,
+                settings_path,
+            },
+            settings: Arc::new(RwLock::new(settings)),
+            downloads: Arc::new(RwLock::new(HashMap::default())),
+            db: context.db.clone(),
+            event_bus: context.event_bus.clone(),
+            rate_limiter: context.rate_limiter.clone(),
+            buffer_pool: context.buffer_pool.clone(),
+            io_worker: context.io_worker.clone(),
+            controls: RuntimeControls {
+                shutdown_token: context.shutdown_token.clone(),
+                rebalance_notify: context.concurrency.rebalance_notify.clone(),
+            },
+            disk_type_cache: Arc::new(parking_lot::Mutex::new(foldhash::HashMap::default())),
+            limits: ConcurrencyLimits {
+                active_http_count: context.concurrency.active_http_count.clone(),
+                active_bt_count: context.concurrency.active_bt_count.clone(),
+                max_concurrent_http: context.concurrency.max_concurrent_http.clone(),
+                max_concurrent_bt: context.concurrency.max_concurrent_bt.clone(),
+                overclock_mode: context.concurrency.overclock_mode.clone(),
             },
             http_executor: Arc::new(HttpExecutor),
             scheduler: Arc::new(Scheduler),

@@ -204,6 +204,7 @@ async fn run_daemon(
     let rpc_state = Arc::new(RpcState {
         registry: core.registry.clone(),
         event_bus: core.event_bus.clone(),
+        dispatcher: core.dispatcher.clone(),
         clients: Arc::new(parking_lot::Mutex::new(Vec::new())),
         rate_limiter: Arc::new(crate::rate_limiter::WsRateLimiter::new()),
         cdn_service: core.cdn_service.clone(),

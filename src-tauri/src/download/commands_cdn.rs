@@ -4,7 +4,7 @@ use serde::Serialize;
 use tauri::State;
 
 use limedl_core::{
-    AppState, CdnTestOutcome, DownloadManager,
+    AppState, CdnTestOutcome, Dispatcher,
     cdn::{
         accelerator::AccelState,
         ip_ranges::{CLOUDFLARE_IPV4_RANGES, CLOUDFLARE_IPV6_RANGES},
@@ -12,10 +12,10 @@ use limedl_core::{
     },
 };
 
-/// Persist CDN test results to DownloadManager settings.
-async fn persist_cdn_outcome(outcome: &CdnTestOutcome, mgr: &DownloadManager) {
+/// Persist CDN test results to settings via Dispatcher.
+async fn persist_cdn_outcome(outcome: &CdnTestOutcome, dispatcher: &Dispatcher) {
     let now_ms = limedl_core::now_ms();
-    if let Ok(mut current) = mgr.settings().await {
+    if let Ok(mut current) = dispatcher.get_settings().await {
         match &outcome.state {
             AccelState::Ready => {
                 current.cdn_acceleration.active_ip = outcome.active_ip.map(|i| i.to_string());
@@ -29,7 +29,7 @@ async fn persist_cdn_outcome(outcome: &CdnTestOutcome, mgr: &DownloadManager) {
             }
             _ => {}
         }
-        let _ = mgr.apply_settings(current).await;
+        let _ = dispatcher.save_settings(&current).await;
     }
 }
 
@@ -50,18 +50,9 @@ pub async fn cdn_fetch_ranges(_state: State<'_, AppState>) -> Result<CdnIpRanges
 }
 
 /// Kick off a CDN speed test in a background task.
-///
-/// Returns immediately after spawning the test. Progress can be monitored via
-/// [`cdn_status`]. When the test completes, results are auto-persisted to
-/// `AppSettings.cdnAcceleration` and a `cdn-test-complete` event is emitted.
-/// Calling this when a test is already running is a no-op.
 #[tauri::command]
 pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| "HTTP backend not available".to_string())?;
-    let settings = dm.settings().await.map_err(|e| e.to_string())?;
+    let settings = state.dispatcher.get_settings().await.map_err(|e| e.to_string())?;
 
     state
         .cdn_service
@@ -71,22 +62,17 @@ pub async fn cdn_test(state: State<'_, AppState>) -> Result<(), String> {
 
     let cdn = state.cdn_service.clone();
     let event_bus = state.event_bus.clone();
-    let mgr = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| "HTTP backend not available".to_string())?
-        .clone();
+    let dispatcher = state.dispatcher.clone();
 
     tauri::async_runtime::spawn(async move {
         let outcome = cdn.monitor_test(event_bus).await;
-        persist_cdn_outcome(&outcome, &mgr).await;
+        persist_cdn_outcome(&outcome, &dispatcher).await;
     });
 
     Ok(())
 }
 
 /// Build an accelerated reqwest client for the given IP and speed estimate.
-/// Accepts both IPv4 and IPv6 addresses.
 #[tauri::command]
 pub async fn cdn_apply(
     state: State<'_, AppState>,
@@ -94,12 +80,7 @@ pub async fn cdn_apply(
     speed_mbps: f64,
 ) -> Result<(), String> {
     let ip: IpAddr = ip.parse().map_err(|e| format!("Invalid IP address: {e}"))?;
-
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| "HTTP backend not available".to_string())?;
-    let settings = dm.settings().await.map_err(|e| e.to_string())?;
+    let settings = state.dispatcher.get_settings().await.map_err(|e| e.to_string())?;
 
     state
         .cdn_service
@@ -107,17 +88,12 @@ pub async fn cdn_apply(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Persist the applied IP to settings so it survives restart.
-    let dm = state
-        .registry
-        .get_typed::<DownloadManager>()
-        .ok_or_else(|| "HTTP backend not available".to_string())?;
-    if let Ok(mut current) = dm.settings().await {
+    if let Ok(mut current) = state.dispatcher.get_settings().await {
         current.cdn_acceleration.active_ip = Some(ip.to_string());
         current.cdn_acceleration.active_speed_mbps = Some(speed_mbps);
         current.cdn_acceleration.last_test_at_ms = Some(limedl_core::now_ms());
         current.cdn_acceleration.last_error = None;
-        let _ = dm.apply_settings(current).await;
+        let _ = state.dispatcher.save_settings(&current).await;
     }
 
     Ok(())

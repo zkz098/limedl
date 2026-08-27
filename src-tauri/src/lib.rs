@@ -99,31 +99,16 @@ async fn build_tray_menu(
     language: &str,
 ) -> Result<tauri::menu::Menu<tauri::Wry>, String> {
     use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
-    use download::manager::DownloadManager;
-    use download::types::DownloadState;
 
     let state = app.state::<AppState>();
 
-    // Check download state for Pause/Resume All
-    let has_active = if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
-        if let Ok(list) = dm.list().await {
-            list.iter().any(|s| matches!(s.state, DownloadState::Downloading))
-        } else {
-            false
-        }
-    } else {
-        false
-    };
+    // Check download state for Pause/Resume All across all backends
+    let has_active = state.dispatcher.has_active_downloads().await;
 
     // Read current settings
-    let settings = state.settings.read();
+    let settings = state.settings_service.get().await;
     let speed_limit_active = settings.global_speed_limit_bps > 0;
-    let game_mode = if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
-        dm.game_mode()
-    } else {
-        false
-    };
-    drop(settings);
+    let game_mode = state.dispatcher.game_mode();
 
     let is_zh = language == "zh-CN";
 
@@ -337,6 +322,8 @@ pub fn run() {
                 app.manage(AppState {
                     registry: core.registry.clone(),
                     event_bus: core.event_bus.clone(),
+                    dispatcher: core.dispatcher.clone(),
+                    settings_service: core.settings_service.clone(),
                     cdn_service: core.cdn_service.clone(),
                     rpc_shutdown: rpc_shutdown.clone(),
                     settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
@@ -351,6 +338,8 @@ pub fn run() {
                     let state = AppState {
                         registry: core.registry.clone(),
                         event_bus: core.event_bus.clone(),
+                        dispatcher: core.dispatcher.clone(),
+                        settings_service: core.settings_service.clone(),
                         cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                         settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
@@ -382,6 +371,8 @@ pub fn run() {
                     let state = AppState {
                         registry: core.registry.clone(),
                         event_bus: core.event_bus.clone(),
+                        dispatcher: core.dispatcher.clone(),
+                        settings_service: core.settings_service.clone(),
                         cdn_service: core.cdn_service.clone(),
                         rpc_shutdown: rpc_shutdown.clone(),
                         settings: Arc::new(ParkingRwLock::new(core.settings.clone())),
@@ -506,47 +497,34 @@ pub fn run() {
                             });
                         }
                         "speed_limit" => {
+                            let app = app.clone();
                             tauri::async_runtime::spawn(async move {
-                                use download::manager::DownloadManager;
-
                                 let state = app.state::<AppState>();
-                                {
-                                    let mut settings = state.settings.write();
-                                    if settings.global_speed_limit_bps > 0 {
-                                        settings.global_speed_limit_bps = 0;
-                                    } else {
-                                        settings.global_speed_limit_bps = 1_048_576;
-                                    }
+                                let mut settings = state.settings_service.get().await;
+                                if settings.global_speed_limit_bps > 0 {
+                                    settings.global_speed_limit_bps = 0;
+                                } else {
+                                    settings.global_speed_limit_bps = 1_048_576;
                                 }
-                                if let Some(dm) =
-                                    state.registry.get_typed::<DownloadManager>()
-                                {
-                                    let s = state.settings.read().clone();
-                                    let _ = dm.apply_settings(s).await;
-                                }
+                                let _ = state.dispatcher.save_settings(&settings).await;
                             });
                         }
                         "open_dir" => {
-                            let state = app.state::<AppState>();
-                            let dir = state
-                                .settings
-                                .read()
-                                .download
-                                .default_download_dir
-                                .clone();
-                            if !dir.is_empty() {
-                                let _ = tauri_plugin_opener::open_path(dir, None::<&str>);
-                            }
+                            let app = app.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let state = app.state::<AppState>();
+                                if let Some(dir) = state.dispatcher.default_download_dir().await
+                                    && !dir.is_empty()
+                                {
+                                    let _ = tauri_plugin_opener::open_path(dir, None::<&str>);
+                                }
+                            });
                         }
                         "game_mode" => {
+                            let app = app.clone();
                             tauri::async_runtime::spawn(async move {
-                                use download::manager::DownloadManager;
-
                                 let state = app.state::<AppState>();
-                                if let Some(dm) = state.registry.get_typed::<DownloadManager>() {
-                                    let current = dm.game_mode();
-                                    dm.set_game_mode(!current);
-                                }
+                                let _ = state.dispatcher.toggle_game_mode(None);
                             });
                         }
                         "quit" => app.exit(0),

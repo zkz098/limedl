@@ -7,10 +7,13 @@ import { useNotificationStore } from "../../stores/notification";
 import { storeToRefs } from "pinia";
 import { saveAppSettings, factoryReset } from "../../lib/tauri/settings-api";
 import type { AppSettings } from "../../types/settings";
-import { relaunch, exit } from "@tauri-apps/plugin-process";
-import { version as osVersion } from "@tauri-apps/plugin-os";
-import { getTauriVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  relaunchApp as relaunch,
+  exitApp as exit,
+  getPlatformOsVersion as osVersion,
+  getPlatformTauriVersion as getTauriVersion,
+  openUrl,
+} from "../../lib/platform";
 import { getAppInfo } from "../../lib/tauri/app-api";
 import SettingsSection from "./SettingsSection.vue";
 import SettingsField from "./SettingsField.vue";
@@ -76,7 +79,7 @@ onMounted(async () => {
   // degrade on NAS where the Tauri plugins aren't available.
   try {
     tauriVer.value = await getTauriVersion();
-    osVer.value = osVersion();
+    osVer.value = await osVersion();
   } catch (err) {
     console.error("Failed to get Tauri/OS info:", err);
   }

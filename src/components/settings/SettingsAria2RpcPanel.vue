@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "../../lib/platform";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSwitch from "../ui/UiSwitch.vue";
 import type { AppSettings } from "../../types/settings";

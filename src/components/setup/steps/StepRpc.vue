@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from "../../../i18n";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "../../../lib/platform";
 import type { AppSettings, Aria2RpcSettings } from "../../../types/settings";
 import StepShell from "../StepShell.vue";
 import SettingsSection from "../../settings/SettingsSection.vue";

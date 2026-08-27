@@ -1,8 +1,8 @@
-import { open } from "@tauri-apps/plugin-dialog";
+import { openDialog } from "../platform/dialog";
 import { t } from "../../i18n";
 
 export async function pickDirectory() {
-  const result = await open({
+  const result = await openDialog({
     directory: true,
     multiple: false,
     title: t("dialog.chooseFolder"),
@@ -20,7 +20,7 @@ export async function pickDirectory() {
 }
 
 export async function pickTorrentFile() {
-  const result = await open({
+  const result = await openDialog({
     directory: false,
     multiple: false,
     title: t("dialog.chooseTorrent"),
