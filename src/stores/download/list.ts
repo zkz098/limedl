@@ -90,19 +90,20 @@ export const useDownloadListStore = defineStore("downloadList", () => {
     }
 
     downloads.value = next;
-    downloadMap.set(summary.id, summary);
+    const reactiveItem = downloads.value.find((d) => d.id === summary.id);
+    if (reactiveItem) {
+      downloadMap.set(summary.id, reactiveItem);
+    }
   }
 
   function patchProgress(progress: DownloadProgress) {
-    let existing = downloadMap.get(progress.id);
+    let existing = downloads.value.find((d) => d.id === progress.id);
     if (!existing) {
-      existing = downloads.value.find((d) => d.id === progress.id);
-      if (existing) {
-        downloadMap.set(existing.id, existing);
-      }
+      existing = downloadMap.get(progress.id);
     }
     if (!existing) return;
 
+    downloadMap.set(existing.id, existing);
     applyProgressToSummary(existing, progress);
 
     if (selectedId.value === progress.id && selectedSnapshot.value) {
