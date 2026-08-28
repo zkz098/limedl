@@ -5,6 +5,7 @@ mod bridge;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context;
 use muda::{Menu, MenuItem, PredefinedMenuItem};
@@ -20,7 +21,10 @@ use limedl_core::types::{
     DownloadProgress, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
 };
 
-use crate::bridge::{SortField, TaskStore, format_speed};
+use crate::bridge::{
+    SortField, TaskStore, file_status_to_item, format_speed, generate_piece_map_image,
+    peer_info_to_item, summary_to_inspector_info, tracker_info_to_item,
+};
 
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     let (all, downloading, paused, completed, failed) = store.counts();
@@ -97,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
     main_window.set_new_task_dir(SharedString::from(&default_download_dir));
 
     let store = Arc::new(Mutex::new(TaskStore::new()));
+    let active_inspector_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 
     // System Tray Setup
     let tray_menu = Menu::new();
@@ -136,11 +141,13 @@ async fn main() -> anyhow::Result<()> {
         let mut rx = core.event_bus.subscribe();
         let ui_weak = main_window.as_weak();
         let store_clone = store.clone();
+        let active_inspector_id_clone = active_inspector_id.clone();
 
         tokio::spawn(async move {
             while let Ok(event) = rx.recv().await {
                 let store = store_clone.clone();
                 let ui_weak = ui_weak.clone();
+                let active_inspector_id = active_inspector_id_clone.clone();
 
                 match event {
                     DownloadEvent::Updated { summary_json, .. } => {
@@ -166,11 +173,19 @@ async fn main() -> anyhow::Result<()> {
                                     .show();
                             }
 
+                            let summary_clone = summary.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = ui_weak.upgrade() {
-                                    let mut store = store.lock();
-                                    store.insert_or_update(summary);
-                                    refresh_ui(&ui, &store);
+                                    let mut s = store.lock();
+                                    s.insert_or_update(summary_clone.clone());
+                                    refresh_ui(&ui, &s);
+
+                                    // Refresh Inspector if this task is currently viewed
+                                    if let Some(ref current_id) = *active_inspector_id.lock()
+                                        && current_id == &summary_clone.id
+                                    {
+                                        ui.set_inspector_info(summary_to_inspector_info(&summary_clone));
+                                    }
                                 }
                             });
                         }
@@ -181,9 +196,17 @@ async fn main() -> anyhow::Result<()> {
                         {
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = ui_weak.upgrade() {
-                                    let mut store = store.lock();
-                                    store.update_progress(&progress);
-                                    refresh_ui(&ui, &store);
+                                    let mut s = store.lock();
+                                    s.update_progress(&progress);
+                                    refresh_ui(&ui, &s);
+
+                                    // Refresh Inspector progress if active
+                                    if let Some(ref current_id) = *active_inspector_id.lock()
+                                        && current_id == &progress.id
+                                        && let Some(summary) = s.get_summary(current_id)
+                                    {
+                                        ui.set_inspector_info(summary_to_inspector_info(&summary));
+                                    }
                                 }
                             });
                         }
@@ -191,13 +214,77 @@ async fn main() -> anyhow::Result<()> {
                     DownloadEvent::FullState { downloads } => {
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
-                                let mut store = store.lock();
-                                store.replace_all(downloads);
-                                refresh_ui(&ui, &store);
+                                let mut s = store.lock();
+                                s.replace_all(downloads);
+                                refresh_ui(&ui, &s);
                             }
                         });
                     }
                     _ => {}
+                }
+            }
+        });
+    }
+
+    // Phase 3: Periodic Inspector Polling (Peers, Trackers, Piece Map, Files)
+    {
+        let ui_weak = main_window.as_weak();
+        let dispatcher = core.dispatcher.clone();
+        let active_inspector_id_clone = active_inspector_id.clone();
+        let store_clone = store.clone();
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(1000));
+            loop {
+                interval.tick().await;
+
+                let current_id = {
+                    let lock = active_inspector_id_clone.lock();
+                    lock.clone()
+                };
+
+                if let Some(task_id_str) = current_id
+                    && let Ok(task_id) = TaskId::from_wire_string(&task_id_str)
+                {
+                    let summary_opt = {
+                        let s = store_clone.lock();
+                        s.get_summary(&task_id_str)
+                    };
+
+                    if let Some(summary) = summary_opt {
+                        if summary.kind == limedl_core::types::TaskKind::Bt {
+                            let peers = dispatcher.bt_get_peers(&task_id).unwrap_or_default();
+                            let trackers = dispatcher.bt_get_trackers(&task_id).unwrap_or_default();
+                            let pieces = dispatcher.bt_get_pieces(&task_id).unwrap_or_default();
+                            let files = dispatcher.bt_get_files(&task_id).unwrap_or_default();
+
+                            let peer_items: Vec<PeerItem> = peers.iter().map(peer_info_to_item).collect();
+                            let tracker_items: Vec<TrackerItem> = trackers.iter().map(tracker_info_to_item).collect();
+                            let file_items: Vec<TorrentFileItem> = files.iter().map(file_status_to_item).collect();
+                            let insp_info = summary_to_inspector_info(&summary);
+
+                            let ui_weak = ui_weak.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    let (piece_map_img, piece_count_text) = generate_piece_map_image(&pieces);
+                                    ui.set_inspector_info(insp_info);
+                                    ui.set_inspector_peers(Rc::new(VecModel::from(peer_items)).into());
+                                    ui.set_inspector_trackers(Rc::new(VecModel::from(tracker_items)).into());
+                                    ui.set_inspector_piece_map(piece_map_img);
+                                    ui.set_inspector_pieces_count_text(SharedString::from(piece_count_text));
+                                    ui.set_inspector_files(Rc::new(VecModel::from(file_items)).into());
+                                }
+                            });
+                        } else {
+                            let insp_info = summary_to_inspector_info(&summary);
+                            let ui_weak = ui_weak.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    ui.set_inspector_info(insp_info);
+                                }
+                            });
+                        }
+                    }
                 }
             }
         });
@@ -469,6 +556,86 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Phase 3: Task Inspector callbacks
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        let active_inspector_id_clone = active_inspector_id.clone();
+        main_window.on_open_inspector(move |id_str| {
+            let id = id_str.to_string();
+            *active_inspector_id_clone.lock() = Some(id.clone());
+
+            if let Some(ui) = ui_weak.upgrade() {
+                let s = store_clone.lock();
+                if let Some(summary) = s.get_summary(&id) {
+                    ui.set_inspector_info(summary_to_inspector_info(&summary));
+                }
+                ui.set_inspector_tab(0);
+                ui.set_show_inspector(true);
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        let active_inspector_id_clone = active_inspector_id.clone();
+        main_window.on_close_inspector(move || {
+            *active_inspector_id_clone.lock() = None;
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_show_inspector(false);
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_set_inspector_tab(move |tab_idx| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_inspector_tab(tab_idx);
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_open_speed_limit_dialog(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_show_speed_limit_dialog(true);
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_close_speed_limit_dialog(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_show_speed_limit_dialog(false);
+            }
+        });
+    }
+
+    {
+        let dispatcher = core.dispatcher.clone();
+        let active_inspector_id_clone = active_inspector_id.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_submit_speed_limit(move |dl_kb_str, ul_kb_str| {
+            let dl_bps = dl_kb_str.trim().parse::<u64>().ok().filter(|&v| v > 0).map(|kb| kb * 1024);
+            let ul_bps = ul_kb_str.trim().parse::<u64>().ok().filter(|&v| v > 0).map(|kb| kb * 1024);
+
+            let current_id = active_inspector_id_clone.lock().clone();
+            if let Some(task_id_str) = current_id
+                && let Ok(task_id) = TaskId::from_wire_string(&task_id_str)
+            {
+                let _ = dispatcher.bt_set_speed_limit(&task_id, dl_bps, ul_bps);
+            }
+
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_show_speed_limit_dialog(false);
+            }
+        });
+    }
+
+    // Dialog: Open / Close New Task
     {
         let ui_weak = main_window.as_weak();
         main_window.on_open_new_task_dialog(move || {

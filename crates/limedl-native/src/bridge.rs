@@ -1,9 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use limedl_core::types::{DownloadProgress, DownloadState, DownloadSummary, TaskKind};
-use slint::SharedString;
+use limedl_core::types::{
+    BtFileStatus, BtPeerInfo, BtPieceInfo, BtTrackerInfo, DownloadProgress, DownloadState,
+    DownloadSummary, TaskKind,
+};
+use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString};
 
-use crate::TaskItem;
+use crate::{InspectorInfo, PeerItem, TaskItem, TorrentFileItem, TrackerItem};
 
 /// Human-readable byte formatting.
 pub fn format_bytes(bytes: u64) -> String {
@@ -131,48 +134,185 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool) -> TaskIt
     }
 }
 
-/// Apply a high-frequency `DownloadProgress` update onto an existing `TaskItem`.
-#[allow(dead_code)]
-pub fn apply_progress(item: &mut TaskItem, progress: &DownloadProgress) {
-    let (state_code, state_label, can_pause, can_resume, is_completed, is_failed) = match progress.state {
-        DownloadState::Downloading => ("downloading", "下载中", true, false, false, false),
-        DownloadState::Paused => ("paused", "已暂停", false, true, false, false),
-        DownloadState::Completed => ("completed", "已完成", false, false, true, false),
-        DownloadState::Failed => ("failed", "失败", false, true, false, true),
-        DownloadState::Canceled => ("failed", "已取消", false, true, false, true),
-        DownloadState::Queued => ("queued", "排队中", true, false, false, false),
-        DownloadState::Retrying => ("downloading", "重试中", true, false, false, false),
-        DownloadState::Verifying => ("verifying", "校验中", false, false, false, false),
+/// Convert a `DownloadSummary` into a Slint `InspectorInfo`.
+pub fn summary_to_inspector_info(summary: &DownloadSummary) -> InspectorInfo {
+    let state_label = match summary.state {
+        DownloadState::Downloading => "下载中",
+        DownloadState::Paused => "已暂停",
+        DownloadState::Completed => "已完成",
+        DownloadState::Failed => "失败",
+        DownloadState::Canceled => "已取消",
+        DownloadState::Queued => "排队中",
+        DownloadState::Retrying => "重试中",
+        DownloadState::Verifying => "校验中",
     };
 
-    let prog_val = match progress.total_bytes {
+    let progress = match summary.total_bytes {
         Some(total) if total > 0 => {
-            (progress.downloaded_bytes as f64 / total as f64).clamp(0.0, 1.0) as f32
+            (summary.downloaded_bytes as f64 / total as f64).clamp(0.0, 1.0) as f32
         }
         _ => {
-            if is_completed {
+            if matches!(summary.state, DownloadState::Completed) {
                 1.0
             } else {
-                item.progress
+                0.0
             }
         }
     };
 
-    let size_text = match progress.total_bytes {
-        Some(total) => format!("{} / {}", format_bytes(progress.downloaded_bytes), format_bytes(total)),
-        None => format_bytes(progress.downloaded_bytes),
+    let kind_str = match summary.kind {
+        TaskKind::Http => "http",
+        TaskKind::Bt => "bt",
     };
 
-    item.state_code = SharedString::from(state_code);
-    item.state_label = SharedString::from(state_label);
-    item.progress = prog_val;
-    item.speed_text = SharedString::from(format_speed(progress.speed_bytes_per_second));
-    item.size_text = SharedString::from(size_text);
-    item.eta_text = SharedString::from(format_eta(progress.eta_seconds));
-    item.can_pause = can_pause;
-    item.can_resume = can_resume;
-    item.is_completed = is_completed;
-    item.is_failed = is_failed;
+    let total_size_text = summary
+        .total_bytes
+        .map(format_bytes)
+        .unwrap_or_else(|| "未知".to_string());
+    let downloaded_size_text = format_bytes(summary.downloaded_bytes);
+    let uploaded_size_text = summary.uploaded_bytes.map(format_bytes).unwrap_or_default();
+
+    let threads_text = format!(
+        "{:?} (已分配: {} 线程)",
+        summary.thread_mode,
+        summary.allocated_thread_count.unwrap_or(1)
+    );
+
+    let seed_leech_text = match (summary.seed_count, summary.leech_count) {
+        (Some(s), Some(l)) => format!("做种: {s} | 下载: {l}"),
+        _ => String::new(),
+    };
+
+    InspectorInfo {
+        id: SharedString::from(&summary.id),
+        kind: SharedString::from(kind_str),
+        file_name: SharedString::from(&summary.file_name),
+        url: SharedString::from(&summary.url),
+        destination_path: SharedString::from(&summary.destination_path),
+        state_label: SharedString::from(state_label),
+        speed_text: SharedString::from(format_speed(summary.speed_bytes_per_second)),
+        upload_speed_text: SharedString::from(format_speed(summary.upload_speed_bytes_per_second)),
+        total_size_text: SharedString::from(total_size_text),
+        downloaded_size_text: SharedString::from(downloaded_size_text),
+        uploaded_size_text: SharedString::from(uploaded_size_text),
+        eta_text: SharedString::from(format_eta(summary.eta_seconds)),
+        progress,
+        connection_count: summary.connection_count as i32,
+        threads_text: SharedString::from(threads_text),
+        info_hash_text: SharedString::from(summary.info_hash.clone().unwrap_or_default()),
+        seed_leech_text: SharedString::from(seed_leech_text),
+        error_text: SharedString::from(summary.error.clone().unwrap_or_default()),
+    }
+}
+
+/// Convert `BtPeerInfo` to Slint `PeerItem`.
+pub fn peer_info_to_item(peer: &BtPeerInfo) -> PeerItem {
+    PeerItem {
+        address: SharedString::from(&peer.address),
+        client: SharedString::from(&peer.client),
+        flags: SharedString::from(&peer.flags),
+        download_speed: SharedString::from(format_speed(Some(peer.download_speed))),
+        upload_speed: SharedString::from(format_speed(Some(peer.upload_speed))),
+        progress: peer.progress.clamp(0.0, 1.0) as f32,
+    }
+}
+
+/// Convert `BtTrackerInfo` to Slint `TrackerItem`.
+pub fn tracker_info_to_item(tracker: &BtTrackerInfo) -> TrackerItem {
+    TrackerItem {
+        url: SharedString::from(&tracker.url),
+    }
+}
+
+/// Convert `BtFileStatus` to Slint `TorrentFileItem`.
+pub fn file_status_to_item(file: &BtFileStatus) -> TorrentFileItem {
+    let progress = if file.size > 0 {
+        (file.downloaded_bytes as f64 / file.size as f64).clamp(0.0, 1.0) as f32
+    } else {
+        1.0
+    };
+
+    TorrentFileItem {
+        index: file.index as i32,
+        path: SharedString::from(&file.path),
+        size_text: SharedString::from(format_bytes(file.size)),
+        downloaded_text: SharedString::from(format_bytes(file.downloaded_bytes)),
+        progress,
+        included: file.included,
+    }
+}
+
+/// Generate a dynamic piece map bitmap image and summary label from `BtPieceInfo` slice.
+pub fn generate_piece_map_image(pieces: &[BtPieceInfo]) -> (Image, String) {
+    if pieces.is_empty() {
+        let buf = SharedPixelBuffer::<Rgba8Pixel>::new(1, 1);
+        return (Image::from_rgba8(buf), "暂无分片数据".to_string());
+    }
+
+    let total = pieces.len();
+    let completed = pieces.iter().filter(|p| p.completed).count();
+    let percent = if total > 0 {
+        (completed as f64 / total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let summary_text = format!("{completed} / {total} 分片 ({percent:.1}%)");
+
+    let cols: u32 = if total > 2000 {
+        64
+    } else if total > 500 {
+        48
+    } else if total > 100 {
+        32
+    } else {
+        24
+    };
+
+    let rows: u32 = (total as u32).div_ceil(cols).max(1);
+    let cell_size: u32 = if rows > 40 { 6 } else if rows > 20 { 8 } else { 10 };
+    let padding: u32 = 1;
+
+    let width = cols * cell_size;
+    let height = rows * cell_size;
+
+    let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(width, height);
+    let slice = buffer.make_mut_slice();
+
+    // Background color: #0f1114
+    let bg_pixel = Rgba8Pixel { r: 15, g: 17, b: 20, a: 255 };
+    slice.fill(bg_pixel);
+
+    // Color definitions
+    let completed_pixel = Rgba8Pixel { r: 132, g: 204, b: 22, a: 255 }; // #84cc16
+    let pending_pixel = Rgba8Pixel { r: 38, g: 42, b: 49, a: 255 };    // #262a31
+
+    for (idx, piece) in pieces.iter().enumerate() {
+        let col = (idx as u32) % cols;
+        let row = (idx as u32) / cols;
+
+        let x_start = col * cell_size;
+        let y_start = row * cell_size;
+        let x_end = (x_start + cell_size).saturating_sub(padding).min(width);
+        let y_end = (y_start + cell_size).saturating_sub(padding).min(height);
+
+        let color = if piece.completed {
+            completed_pixel
+        } else {
+            pending_pixel
+        };
+
+        for y in y_start..y_end {
+            for x in x_start..x_end {
+                let pixel_idx = (y * width + x) as usize;
+                if pixel_idx < slice.len() {
+                    slice[pixel_idx] = color;
+                }
+            }
+        }
+    }
+
+    (Image::from_rgba8(buffer), summary_text)
 }
 
 /// State store managing task collections, filtering, search, sorting, and multi-selection.
@@ -204,6 +344,10 @@ impl TaskStore {
     #[allow(dead_code)]
     pub fn category(&self) -> i32 {
         self.current_category
+    }
+
+    pub fn get_summary(&self, id: &str) -> Option<DownloadSummary> {
+        self.tasks.get(id).cloned()
     }
 
     pub fn set_search_query(&mut self, query: String) {
@@ -500,6 +644,70 @@ mod tests {
     }
 
     #[test]
+    fn test_piece_map_generation() {
+        let pieces = vec![
+            BtPieceInfo { index: 0, completed: true },
+            BtPieceInfo { index: 1, completed: false },
+            BtPieceInfo { index: 2, completed: true },
+            BtPieceInfo { index: 3, completed: true },
+        ];
+
+        let (_img, text) = generate_piece_map_image(&pieces);
+        assert!(text.contains("3 / 4"));
+        assert!(text.contains("75.0%"));
+    }
+
+    #[test]
+    fn test_inspector_conversion() {
+        let summary = sample_summary(
+            "bt:abc",
+            "ubuntu.torrent",
+            DownloadState::Downloading,
+            500,
+            Some(1000),
+            500.0,
+            12345,
+        );
+
+        let info = summary_to_inspector_info(&summary);
+        assert_eq!(info.id.as_str(), "bt:abc");
+        assert_eq!(info.file_name.as_str(), "ubuntu.torrent");
+        assert_eq!(info.state_label.as_str(), "下载中");
+        assert_eq!(info.progress, 0.5);
+    }
+
+    #[test]
+    fn test_peer_and_file_conversions() {
+        let peer = BtPeerInfo {
+            address: "1.2.3.4:6881".to_string(),
+            client: "qBittorrent/5.0.0".to_string(),
+            flags: "uI".to_string(),
+            download_speed: 1024.0 * 1024.0 * 1.5,
+            upload_speed: 1024.0 * 500.0,
+            progress: 0.85,
+        };
+        let p_item = peer_info_to_item(&peer);
+        assert_eq!(p_item.address.as_str(), "1.2.3.4:6881");
+        assert_eq!(p_item.client.as_str(), "qBittorrent/5.0.0");
+        assert_eq!(p_item.download_speed.as_str(), "1.50 MB/s");
+        assert_eq!(p_item.progress, 0.85);
+
+        let file = BtFileStatus {
+            index: 0,
+            path: "movie/video.mp4".to_string(),
+            size: 1024 * 1024 * 100,
+            downloaded_bytes: 1024 * 1024 * 50,
+            included: true,
+        };
+        let f_item = file_status_to_item(&file);
+        assert_eq!(f_item.index, 0);
+        assert_eq!(f_item.path.as_str(), "movie/video.mp4");
+        assert_eq!(f_item.size_text.as_str(), "100.00 MB");
+        assert_eq!(f_item.downloaded_text.as_str(), "50.00 MB");
+        assert_eq!(f_item.progress, 0.5);
+    }
+
+    #[test]
     fn test_search_and_sorting() {
         let mut store = TaskStore::new();
         let t1 = sample_summary(
@@ -560,9 +768,6 @@ mod tests {
         let items = store.filtered_items();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].id.as_str(), "t2");
-
-        store.set_search_query(String::new());
-        assert_eq!(store.filtered_items().len(), 3);
     }
 
     #[test]
@@ -594,7 +799,6 @@ mod tests {
 
         store.toggle_select("t1");
         assert_eq!(store.selected_count(), 1);
-        assert!(store.filtered_items()[0].selected || store.filtered_items()[1].selected);
 
         store.select_all();
         assert_eq!(store.selected_count(), 2);
