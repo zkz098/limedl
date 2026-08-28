@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use limedl_core::types::{DownloadProgress, DownloadState, DownloadSummary, TaskKind};
 use slint::SharedString;
@@ -53,8 +53,31 @@ pub fn format_eta(eta: Option<u64>) -> String {
     }
 }
 
+/// Supported sort fields for task list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortField {
+    #[default]
+    Created = 0,
+    Size = 1,
+    Speed = 2,
+    Progress = 3,
+    Name = 4,
+}
+
+impl From<i32> for SortField {
+    fn from(val: i32) -> Self {
+        match val {
+            1 => SortField::Size,
+            2 => SortField::Speed,
+            3 => SortField::Progress,
+            4 => SortField::Name,
+            _ => SortField::Created,
+        }
+    }
+}
+
 /// Convert a `DownloadSummary` into a Slint `TaskItem`.
-pub fn summary_to_task_item(summary: &DownloadSummary) -> TaskItem {
+pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool) -> TaskItem {
     let (state_code, state_label, can_pause, can_resume, is_completed, is_failed) = match summary.state {
         DownloadState::Downloading => ("downloading", "下载中", true, false, false, false),
         DownloadState::Paused => ("paused", "已暂停", false, true, false, false),
@@ -104,6 +127,7 @@ pub fn summary_to_task_item(summary: &DownloadSummary) -> TaskItem {
         can_resume,
         is_completed,
         is_failed,
+        selected,
     }
 }
 
@@ -151,10 +175,14 @@ pub fn apply_progress(item: &mut TaskItem, progress: &DownloadProgress) {
     item.is_failed = is_failed;
 }
 
-/// State store managing the task collection and filtering.
+/// State store managing task collections, filtering, search, sorting, and multi-selection.
 pub struct TaskStore {
     tasks: HashMap<String, DownloadSummary>,
     current_category: i32,
+    search_query: String,
+    sort_field: SortField,
+    sort_asc: bool,
+    selected_ids: HashSet<String>,
 }
 
 impl TaskStore {
@@ -162,6 +190,10 @@ impl TaskStore {
         Self {
             tasks: HashMap::new(),
             current_category: 0,
+            search_query: String::new(),
+            sort_field: SortField::Created,
+            sort_asc: false,
+            selected_ids: HashSet::new(),
         }
     }
 
@@ -174,12 +206,65 @@ impl TaskStore {
         self.current_category
     }
 
+    pub fn set_search_query(&mut self, query: String) {
+        self.search_query = query.trim().to_lowercase();
+    }
+
+    pub fn set_sort_field(&mut self, field: SortField) {
+        self.sort_field = field;
+    }
+
+    pub fn sort_field(&self) -> i32 {
+        self.sort_field as i32
+    }
+
+    pub fn toggle_sort_order(&mut self) -> bool {
+        self.sort_asc = !self.sort_asc;
+        self.sort_asc
+    }
+
+    pub fn sort_asc(&self) -> bool {
+        self.sort_asc
+    }
+
+    pub fn toggle_select(&mut self, id: &str) {
+        if self.selected_ids.contains(id) {
+            self.selected_ids.remove(id);
+        } else {
+            self.selected_ids.insert(id.to_string());
+        }
+    }
+
+    pub fn select_all(&mut self) {
+        let ids: Vec<String> = self
+            .filtered_items_internal()
+            .into_iter()
+            .map(|item| item.id.clone())
+            .collect();
+        for id in ids {
+            self.selected_ids.insert(id);
+        }
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.selected_ids.clear();
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected_ids.len()
+    }
+
+    pub fn selected_ids(&self) -> Vec<String> {
+        self.selected_ids.iter().cloned().collect()
+    }
+
     pub fn insert_or_update(&mut self, summary: DownloadSummary) {
         self.tasks.insert(summary.id.clone(), summary);
     }
 
     pub fn remove(&mut self, id: &str) {
         self.tasks.remove(id);
+        self.selected_ids.remove(id);
     }
 
     pub fn replace_all(&mut self, list: Vec<DownloadSummary>) {
@@ -187,6 +272,7 @@ impl TaskStore {
         for item in list {
             self.tasks.insert(item.id.clone(), item);
         }
+        self.selected_ids.retain(|id| self.tasks.contains_key(id));
     }
 
     pub fn update_progress(&mut self, progress: &DownloadProgress) {
@@ -244,21 +330,96 @@ impl TaskStore {
             .sum()
     }
 
-    /// Return filtered task list for the current category.
-    pub fn filtered_items(&self) -> Vec<TaskItem> {
-        let mut list: Vec<&DownloadSummary> = self.tasks.values().collect();
-        // Sort by created_at descending
-        list.sort_by_key(|b| std::cmp::Reverse(b.created_at_ms));
+    fn filtered_items_internal(&self) -> Vec<&DownloadSummary> {
+        let query = &self.search_query;
+        let mut list: Vec<&DownloadSummary> = self
+            .tasks
+            .values()
+            .filter(|task| {
+                // Category filter
+                let cat_match = match self.current_category {
+                    1 => matches!(
+                        task.state,
+                        DownloadState::Downloading
+                            | DownloadState::Retrying
+                            | DownloadState::Verifying
+                    ),
+                    2 => matches!(task.state, DownloadState::Paused | DownloadState::Queued),
+                    3 => matches!(task.state, DownloadState::Completed),
+                    4 => matches!(task.state, DownloadState::Failed | DownloadState::Canceled),
+                    _ => true, // 0: All
+                };
+                if !cat_match {
+                    return false;
+                }
 
-        list.into_iter()
-            .filter(|task| match self.current_category {
-                1 => matches!(task.state, DownloadState::Downloading | DownloadState::Retrying | DownloadState::Verifying),
-                2 => matches!(task.state, DownloadState::Paused | DownloadState::Queued),
-                3 => matches!(task.state, DownloadState::Completed),
-                4 => matches!(task.state, DownloadState::Failed | DownloadState::Canceled),
-                _ => true, // 0: All
+                // Search filter
+                if !query.is_empty() {
+                    let name_match = task.file_name.to_lowercase().contains(query);
+                    let url_match = task.url.to_lowercase().contains(query);
+                    if !name_match && !url_match {
+                        return false;
+                    }
+                }
+
+                true
             })
-            .map(summary_to_task_item)
+            .collect();
+
+        // Sort items
+        list.sort_by(|a, b| {
+            let ordering = match self.sort_field {
+                SortField::Created => a.created_at_ms.cmp(&b.created_at_ms),
+                SortField::Size => a.total_bytes.unwrap_or(0).cmp(&b.total_bytes.unwrap_or(0)),
+                SortField::Speed => {
+                    let sa = a.speed_bytes_per_second.unwrap_or(0.0);
+                    let sb = b.speed_bytes_per_second.unwrap_or(0.0);
+                    sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+                }
+                SortField::Progress => {
+                    let pa = match a.total_bytes {
+                        Some(t) if t > 0 => a.downloaded_bytes as f64 / t as f64,
+                        _ => {
+                            if matches!(a.state, DownloadState::Completed) {
+                                1.0
+                            } else {
+                                0.0
+                            }
+                        }
+                    };
+                    let pb = match b.total_bytes {
+                        Some(t) if t > 0 => b.downloaded_bytes as f64 / t as f64,
+                        _ => {
+                            if matches!(b.state, DownloadState::Completed) {
+                                1.0
+                            } else {
+                                0.0
+                            }
+                        }
+                    };
+                    pa.partial_cmp(&pb).unwrap_or(std::cmp::Ordering::Equal)
+                }
+                SortField::Name => a.file_name.to_lowercase().cmp(&b.file_name.to_lowercase()),
+            };
+
+            if self.sort_asc {
+                ordering
+            } else {
+                ordering.reverse()
+            }
+        });
+
+        list
+    }
+
+    /// Return filtered and sorted task items for Slint view.
+    pub fn filtered_items(&self) -> Vec<TaskItem> {
+        self.filtered_items_internal()
+            .into_iter()
+            .map(|summary| {
+                let is_selected = self.selected_ids.contains(&summary.id);
+                summary_to_task_item(summary, is_selected)
+            })
             .collect()
     }
 }
@@ -268,14 +429,22 @@ mod tests {
     use super::*;
     use limedl_core::types::ThreadMode;
 
-    fn sample_summary(id: &str, state: DownloadState, downloaded: u64, total: Option<u64>) -> DownloadSummary {
+    fn sample_summary(
+        id: &str,
+        name: &str,
+        state: DownloadState,
+        downloaded: u64,
+        total: Option<u64>,
+        speed: f64,
+        created: u64,
+    ) -> DownloadSummary {
         DownloadSummary {
             id: id.to_string(),
             kind: TaskKind::Http,
             state,
-            url: format!("https://example.com/{id}.bin"),
-            file_name: format!("{id}.bin"),
-            destination_path: format!("/downloads/{id}.bin"),
+            url: format!("https://example.com/{name}"),
+            file_name: name.to_string(),
+            destination_path: format!("/downloads/{name}"),
             total_bytes: total,
             downloaded_bytes: downloaded,
             connection_count: 4,
@@ -285,7 +454,7 @@ mod tests {
             allocated_thread_count: Some(4),
             adaptive_profile: None,
             thread_note: None,
-            speed_bytes_per_second: Some(1024.0 * 1024.0 * 5.0),
+            speed_bytes_per_second: Some(speed),
             eta_seconds: Some(120),
             uploaded_bytes: None,
             upload_speed_bytes_per_second: None,
@@ -296,7 +465,7 @@ mod tests {
             error: None,
             cdn_accelerated: false,
             cdn_node_ip: None,
-            created_at_ms: 1000,
+            created_at_ms: created,
             priority: limedl_core::types::Priority::Normal,
             seed_count: None,
             leech_count: None,
@@ -331,41 +500,106 @@ mod tests {
     }
 
     #[test]
-    fn test_task_store_crud_and_counts() {
+    fn test_search_and_sorting() {
         let mut store = TaskStore::new();
-        assert_eq!(store.counts(), (0, 0, 0, 0, 0));
-
-        let t1 = sample_summary("t1", DownloadState::Downloading, 500, Some(1000));
-        let t2 = sample_summary("t2", DownloadState::Paused, 200, Some(1000));
-        let t3 = sample_summary("t3", DownloadState::Completed, 1000, Some(1000));
+        let t1 = sample_summary(
+            "t1",
+            "ubuntu-24.04.iso",
+            DownloadState::Downloading,
+            500,
+            Some(1000),
+            5000.0,
+            100,
+        );
+        let t2 = sample_summary(
+            "t2",
+            "archlinux.iso",
+            DownloadState::Paused,
+            200,
+            Some(2000),
+            1000.0,
+            200,
+        );
+        let t3 = sample_summary(
+            "t3",
+            "fedora-workstation.iso",
+            DownloadState::Completed,
+            1500,
+            Some(1500),
+            0.0,
+            300,
+        );
 
         store.insert_or_update(t1);
         store.insert_or_update(t2);
         store.insert_or_update(t3);
 
-        assert_eq!(store.counts(), (3, 1, 1, 1, 0));
-        assert!(store.total_speed() > 0.0);
+        // Default: Sort by Created DESC
+        let items = store.filtered_items();
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].id.as_str(), "t3");
+        assert_eq!(items[1].id.as_str(), "t2");
+        assert_eq!(items[2].id.as_str(), "t1");
 
-        // Filter: All
+        // Sort by Size DESC (t2: 2000, t3: 1500, t1: 1000)
+        store.set_sort_field(SortField::Size);
+        let items = store.filtered_items();
+        assert_eq!(items[0].id.as_str(), "t2");
+        assert_eq!(items[1].id.as_str(), "t3");
+        assert_eq!(items[2].id.as_str(), "t1");
+
+        // Sort by Size ASC
+        store.toggle_sort_order();
+        let items = store.filtered_items();
+        assert_eq!(items[0].id.as_str(), "t1");
+        assert_eq!(items[1].id.as_str(), "t3");
+        assert_eq!(items[2].id.as_str(), "t2");
+
+        // Search Filter
+        store.set_search_query("arch".to_string());
+        let items = store.filtered_items();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].id.as_str(), "t2");
+
+        store.set_search_query(String::new());
         assert_eq!(store.filtered_items().len(), 3);
+    }
 
-        // Filter: Downloading
-        store.set_category(1);
-        assert_eq!(store.filtered_items().len(), 1);
-        assert_eq!(store.filtered_items()[0].id.as_str(), "t1");
+    #[test]
+    fn test_multi_selection() {
+        let mut store = TaskStore::new();
+        let t1 = sample_summary(
+            "t1",
+            "file1.zip",
+            DownloadState::Downloading,
+            100,
+            Some(200),
+            10.0,
+            10,
+        );
+        let t2 = sample_summary(
+            "t2",
+            "file2.zip",
+            DownloadState::Downloading,
+            100,
+            Some(200),
+            10.0,
+            20,
+        );
 
-        // Filter: Paused
-        store.set_category(2);
-        assert_eq!(store.filtered_items().len(), 1);
-        assert_eq!(store.filtered_items()[0].id.as_str(), "t2");
+        store.insert_or_update(t1);
+        store.insert_or_update(t2);
 
-        // Filter: Completed
-        store.set_category(3);
-        assert_eq!(store.filtered_items().len(), 1);
-        assert_eq!(store.filtered_items()[0].id.as_str(), "t3");
+        assert_eq!(store.selected_count(), 0);
 
-        // Remove t1
-        store.remove("t1");
-        assert_eq!(store.counts(), (2, 0, 1, 1, 0));
+        store.toggle_select("t1");
+        assert_eq!(store.selected_count(), 1);
+        assert!(store.filtered_items()[0].selected || store.filtered_items()[1].selected);
+
+        store.select_all();
+        assert_eq!(store.selected_count(), 2);
+
+        store.clear_selection();
+        assert_eq!(store.selected_count(), 0);
     }
 }

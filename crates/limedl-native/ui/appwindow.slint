@@ -15,6 +15,7 @@ export struct TaskItem {
     can_resume: bool,
     is_completed: bool,
     is_failed: bool,
+    selected: bool,
 }
 
 component IconButton inherits Rectangle {
@@ -78,29 +79,89 @@ component PrimaryButton inherits Rectangle {
 
 component SecondaryButton inherits Rectangle {
     in property <string> text;
+    in property <bool> active: false;
     callback clicked();
 
-    background: ta.has_hover ? (ta.pressed ? #282e37 : #2f353e) : #24282f;
-    border-color: #3b424e;
+    background: root.active ? #365314 : (ta.has_hover ? (ta.pressed ? #282e37 : #2f353e) : #24282f);
+    border-color: root.active ? #84cc16 : #3b424e;
     border-width: 1px;
     border-radius: 6px;
     height: 32px;
-    min-width: 70px;
+    min-width: 60px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
     }
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
+        padding-left: 10px;
+        padding-right: 10px;
         alignment: center;
         Text {
             text: root.text;
-            color: #e5e7eb;
+            color: root.active ? #84cc16 : #e5e7eb;
             font-size: 12px;
-            font-weight: 500;
+            font-weight: root.active ? 600 : 500;
             vertical-alignment: center;
+        }
+    }
+}
+
+component CustomCheckBox inherits Rectangle {
+    in property <bool> checked: false;
+    callback toggled();
+
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: root.checked ? #84cc16 : (ta.has_hover ? #2e343d : #1a1d22);
+    border-color: root.checked ? #84cc16 : #4b5563;
+    border-width: 1px;
+
+    ta := TouchArea {
+        clicked => { root.toggled(); }
+    }
+
+    if root.checked : Text {
+        text: "✓";
+        color: #0f172a;
+        font-size: 12px;
+        font-weight: 800;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+}
+
+component SearchInput inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder: "搜索任务名称或 URL...";
+    callback text_changed(string);
+
+    background: #181b1f;
+    border-color: ta.has-focus ? #84cc16 : #2e343d;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 32px;
+    width: 220px;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+
+        ta := TextInput {
+            text <=> root.text;
+            color: #f3f4f6;
+            font-size: 12px;
+            vertical-alignment: center;
+            edited => { root.text_changed(root.text); }
+
+            if root.text == "" : Text {
+                text: root.placeholder;
+                color: #6b7280;
+                font-size: 12px;
+                vertical-alignment: center;
+            }
         }
     }
 }
@@ -189,169 +250,184 @@ component CategoryButton inherits Rectangle {
 
 component TaskCard inherits Rectangle {
     in property <TaskItem> item;
+    callback toggle_select();
     callback pause_task();
     callback resume_task();
     callback open_explorer();
     callback remove_task();
 
-    background: ta.has_hover ? #22262d : #1c1f24;
-    border-color: #2e343d;
+    background: root.item.selected ? #222d1f : (ta.has_hover ? #22262d : #1c1f24);
+    border-color: root.item.selected ? #65a30d : #2e343d;
     border-width: 1px;
     border-radius: 8px;
     height: 106px;
 
     ta := TouchArea {}
 
-    VerticalLayout {
+    HorizontalLayout {
         padding: 12px;
-        spacing: 8px;
+        spacing: 12px;
 
-        // Top Row: Badge, Title, Speed, State
-        HorizontalLayout {
+        // Selection Checkbox
+        VerticalLayout {
+            alignment: center;
+            CustomCheckBox {
+                checked: root.item.selected;
+                toggled => { root.toggle_select(); }
+            }
+        }
+
+        // Main Details
+        VerticalLayout {
             spacing: 8px;
-            alignment: space-between;
 
+            // Top Row: Badge, Title, Speed, State
             HorizontalLayout {
                 spacing: 8px;
-                // Kind badge
-                Rectangle {
-                    background: root.item.kind == "bt" ? #1e3a5f : #14532d;
-                    border-radius: 4px;
-                    height: 20px;
-                    HorizontalLayout {
-                        padding-left: 6px;
-                        padding-right: 6px;
-                        alignment: center;
-                        Text {
-                            text: root.item.kind == "bt" ? "BT" : "HTTP";
-                            color: root.item.kind == "bt" ? #38bdf8 : #4ade80;
-                            font-size: 10px;
-                            font-weight: 700;
-                            vertical-alignment: center;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    // Kind badge
+                    Rectangle {
+                        background: root.item.kind == "bt" ? #1e3a5f : #14532d;
+                        border-radius: 4px;
+                        height: 20px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            alignment: center;
+                            Text {
+                                text: root.item.kind == "bt" ? "BT" : "HTTP";
+                                color: root.item.kind == "bt" ? #38bdf8 : #4ade80;
+                                font-size: 10px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
                         }
+                    }
+
+                    // File Name
+                    Text {
+                        text: root.item.file_name;
+                        color: #f3f4f6;
+                        font-size: 14px;
+                        font-weight: 600;
+                        overflow: elide;
+                        max-width: 440px;
+                        vertical-alignment: center;
                     }
                 }
 
-                // File Name
-                Text {
-                    text: root.item.file_name;
-                    color: #f3f4f6;
-                    font-size: 14px;
-                    font-weight: 600;
-                    overflow: elide;
-                    max-width: 480px;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    // Speed
+                    if root.item.speed_text != "" : Text {
+                        text: root.item.speed_text;
+                        color: #84cc16;
+                        font-size: 12px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+
+                    // State Badge
+                    Rectangle {
+                        background: root.item.state_code == "downloading" ? #14532d : (
+                            root.item.state_code == "paused" ? #422006 : (
+                                root.item.state_code == "completed" ? #1e3a5f : #450a0a
+                            )
+                        );
+                        border-radius: 4px;
+                        height: 20px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            alignment: center;
+                            Text {
+                                text: root.item.state_label;
+                                color: root.item.state_code == "downloading" ? #4ade80 : (
+                                    root.item.state_code == "paused" ? #facc15 : (
+                                        root.item.state_code == "completed" ? #60a5fa : #f87171
+                                    )
+                                );
+                                font-size: 11px;
+                                font-weight: 500;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
                 }
             }
 
-            HorizontalLayout {
-                spacing: 10px;
+            // Progress Bar
+            Rectangle {
+                background: #282d36;
+                border-radius: 4px;
+                height: 6px;
 
-                // Speed
-                if root.item.speed_text != "" : Text {
-                    text: root.item.speed_text;
-                    color: #84cc16;
-                    font-size: 12px;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
-
-                // State Badge
                 Rectangle {
-                    background: root.item.state_code == "downloading" ? #14532d : (
-                        root.item.state_code == "paused" ? #422006 : (
-                            root.item.state_code == "completed" ? #1e3a5f : #450a0a
-                        )
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width * max(0.0, min(1.0, root.item.progress));
+                    height: parent.height;
+                    background: root.item.state_code == "completed" ? #38bdf8 : (
+                        root.item.state_code == "failed" ? #ef4444 : #84cc16
                     );
                     border-radius: 4px;
-                    height: 20px;
-                    HorizontalLayout {
-                        padding-left: 6px;
-                        padding-right: 6px;
-                        alignment: center;
-                        Text {
-                            text: root.item.state_label;
-                            color: root.item.state_code == "downloading" ? #4ade80 : (
-                                root.item.state_code == "paused" ? #facc15 : (
-                                    root.item.state_code == "completed" ? #60a5fa : #f87171
-                                )
-                            );
-                            font-size: 11px;
-                            font-weight: 500;
-                            vertical-alignment: center;
-                        }
+                }
+            }
+
+            // Bottom Row: Size & ETA, Actions
+            HorizontalLayout {
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Text {
+                        text: root.item.size_text;
+                        color: #9ca3af;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+
+                    if root.item.eta_text != "" : Text {
+                        text: root.item.eta_text;
+                        color: #6b7280;
+                        font-size: 11px;
+                        vertical-alignment: center;
                     }
                 }
-            }
-        }
 
-        // Progress Bar
-        Rectangle {
-            background: #282d36;
-            border-radius: 4px;
-            height: 6px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: end;
 
-            Rectangle {
-                x: 0px;
-                y: 0px;
-                width: parent.width * max(0.0, min(1.0, root.item.progress));
-                height: parent.height;
-                background: root.item.state_code == "completed" ? #38bdf8 : (
-                    root.item.state_code == "failed" ? #ef4444 : #84cc16
-                );
-                border-radius: 4px;
-            }
-        }
+                    if root.item.can_pause : IconButton {
+                        text: "暂停";
+                        text_color: #facc15;
+                        clicked => { root.pause_task(); }
+                    }
 
-        // Bottom Row: Size & ETA, Actions
-        HorizontalLayout {
-            alignment: space-between;
+                    if root.item.can_resume : IconButton {
+                        text: "继续";
+                        text_color: #4ade80;
+                        clicked => { root.resume_task(); }
+                    }
 
-            HorizontalLayout {
-                spacing: 12px;
-                alignment: start;
+                    IconButton {
+                        text: "打开目录";
+                        text_color: #9ca3af;
+                        clicked => { root.open_explorer(); }
+                    }
 
-                Text {
-                    text: root.item.size_text;
-                    color: #9ca3af;
-                    font-size: 12px;
-                    vertical-alignment: center;
-                }
-
-                if root.item.eta_text != "" : Text {
-                    text: root.item.eta_text;
-                    color: #6b7280;
-                    font-size: 11px;
-                    vertical-alignment: center;
-                }
-            }
-
-            HorizontalLayout {
-                spacing: 6px;
-                alignment: end;
-
-                if root.item.can_pause : IconButton {
-                    text: "暂停";
-                    text_color: #facc15;
-                    clicked => { root.pause_task(); }
-                }
-
-                if root.item.can_resume : IconButton {
-                    text: "继续";
-                    text_color: #4ade80;
-                    clicked => { root.resume_task(); }
-                }
-
-                IconButton {
-                    text: "打开目录";
-                    text_color: #9ca3af;
-                    clicked => { root.open_explorer(); }
-                }
-
-                IconButton {
-                    text: "删除";
-                    text_color: #f87171;
-                    clicked => { root.remove_task(); }
+                    IconButton {
+                        text: "删除";
+                        text_color: #f87171;
+                        clicked => { root.remove_task(); }
+                    }
                 }
             }
         }
@@ -360,8 +436,8 @@ component TaskCard inherits Rectangle {
 
 export component MainWindow inherits Window {
     title: "limedl - Native";
-    min-width: 900px;
-    min-height: 600px;
+    min-width: 960px;
+    min-height: 620px;
     default-font-family: "Segoe UI, PingFang SC, Microsoft YaHei, sans-serif";
     background: #121417;
 
@@ -376,6 +452,12 @@ export component MainWindow inherits Window {
     in property <string> global_speed_text: "0 B/s";
     in property <string> default_download_dir: "";
     in property <bool> show_new_task_dialog: false;
+
+    // Search & Sort state
+    in-out property <string> search_query: "";
+    in property <int> sort_field: 0; // 0: Created, 1: Size, 2: Speed, 3: Progress, 4: Name
+    in property <bool> sort_asc: false;
+    in property <int> selected_count: 0;
 
     // New task form fields
     in-out property <string> new_task_url: "";
@@ -393,6 +475,17 @@ export component MainWindow inherits Window {
     callback resume_task(string);
     callback open_task_explorer(string);
     callback remove_task(string);
+
+    // Phase 2 Callbacks
+    callback search_changed(string);
+    callback set_sort_field(int);
+    callback toggle_sort_asc();
+    callback toggle_select_task(string);
+    callback select_all();
+    callback clear_selection();
+    callback batch_pause();
+    callback batch_resume();
+    callback batch_remove(bool); // bool: also delete files from disk
 
     HorizontalLayout {
         // Left Sidebar
@@ -435,7 +528,7 @@ export component MainWindow inherits Window {
                             font-weight: 700;
                         }
                         Text {
-                            text: "Native Edition";
+                            text: "Native Edition (WGPU)";
                             color: #84cc16;
                             font-size: 10px;
                             font-weight: 600;
@@ -518,14 +611,15 @@ export component MainWindow inherits Window {
                 border-width: 1px;
 
                 HorizontalLayout {
-                    padding-left: 20px;
-                    padding-right: 20px;
+                    padding-left: 16px;
+                    padding-right: 16px;
                     alignment: space-between;
 
-                    // Left Title
+                    // Left Title & Search
                     HorizontalLayout {
-                        spacing: 12px;
+                        spacing: 14px;
                         alignment: start;
+
                         Text {
                             text: root.active_category == 0 ? "全部任务" : (
                                 root.active_category == 1 ? "正在下载" : (
@@ -539,12 +633,64 @@ export component MainWindow inherits Window {
                             font-weight: 700;
                             vertical-alignment: center;
                         }
+
+                        SearchInput {
+                            text <=> root.search_query;
+                            text_changed(q) => { root.search_changed(q); }
+                        }
                     }
 
-                    // Right Actions
+                    // Middle / Right Actions
                     HorizontalLayout {
-                        spacing: 10px;
+                        spacing: 8px;
                         alignment: end;
+
+                        // Sort Buttons
+                        HorizontalLayout {
+                            spacing: 4px;
+                            alignment: center;
+
+                            Text {
+                                text: "排序:";
+                                color: #6b7280;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+
+                            SecondaryButton {
+                                text: "时间";
+                                active: root.sort_field == 0;
+                                clicked => { root.set_sort_field(0); }
+                            }
+                            SecondaryButton {
+                                text: "大小";
+                                active: root.sort_field == 1;
+                                clicked => { root.set_sort_field(1); }
+                            }
+                            SecondaryButton {
+                                text: "速度";
+                                active: root.sort_field == 2;
+                                clicked => { root.set_sort_field(2); }
+                            }
+                            SecondaryButton {
+                                text: "进度";
+                                active: root.sort_field == 3;
+                                clicked => { root.set_sort_field(3); }
+                            }
+
+                            IconButton {
+                                text: root.sort_asc ? "↑ 升序" : "↓ 降序";
+                                text_color: #a3e635;
+                                clicked => { root.toggle_sort_asc(); }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 1px;
+                            height: 20px;
+                            background: #2e343d;
+                            y: 6px;
+                        }
 
                         SecondaryButton {
                             text: "全部暂停";
@@ -564,7 +710,7 @@ export component MainWindow inherits Window {
                 }
             }
 
-            // Task List Area
+            // Task List Area & Floating BatchActionBar
             Rectangle {
                 background: #121417;
 
@@ -572,14 +718,14 @@ export component MainWindow inherits Window {
                     alignment: center;
                     spacing: 12px;
                     Text {
-                        text: "暂无下载任务";
+                        text: root.search_query != "" ? "未找到匹配的下载任务" : "暂无下载任务";
                         color: #6b7280;
                         font-size: 16px;
                         font-weight: 500;
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: "点击右上角「+ 新建任务」添加 HTTP / BT 下载";
+                        text: root.search_query != "" ? "尝试清除搜索关键词" : "点击右上角「+ 新建任务」添加 HTTP / BT 下载";
                         color: #4b5563;
                         font-size: 13px;
                         horizontal-alignment: center;
@@ -589,16 +735,90 @@ export component MainWindow inherits Window {
                 if root.tasks.length > 0 : ScrollView {
                     viewport-y: 0;
                     VerticalLayout {
-                        padding: 16px;
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        padding-top: 16px;
+                        padding-bottom: root.selected_count > 0 ? 72px : 16px;
                         spacing: 10px;
                         alignment: start;
 
                         for task[idx] in root.tasks : TaskCard {
                             item: task;
+                            toggle_select => { root.toggle_select_task(task.id); }
                             pause_task => { root.pause_task(task.id); }
                             resume_task => { root.resume_task(task.id); }
                             open_explorer => { root.open_task_explorer(task.id); }
                             remove_task => { root.remove_task(task.id); }
+                        }
+                    }
+                }
+
+                // Floating Batch Action Bar
+                if root.selected_count > 0 : Rectangle {
+                    x: (parent.width - self.width) / 2;
+                    y: parent.height - self.height - 16px;
+                    width: min(parent.width - 40px, 680px);
+                    height: 52px;
+                    background: #1e2229;
+                    border-color: #84cc16;
+                    border-width: 1px;
+                    border-radius: 10px;
+                    drop-shadow-blur: 16px;
+                    drop-shadow-color: #00000088;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        alignment: space-between;
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+
+                            Text {
+                                text: "已选择 " + root.selected_count + " 个任务";
+                                color: #84cc16;
+                                font-size: 13px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+
+                            IconButton {
+                                text: "全选";
+                                text_color: #9ca3af;
+                                clicked => { root.select_all(); }
+                            }
+
+                            IconButton {
+                                text: "取消选择";
+                                text_color: #9ca3af;
+                                clicked => { root.clear_selection(); }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: end;
+
+                            SecondaryButton {
+                                text: "批量暂停";
+                                clicked => { root.batch_pause(); }
+                            }
+
+                            SecondaryButton {
+                                text: "批量继续";
+                                clicked => { root.batch_resume(); }
+                            }
+
+                            SecondaryButton {
+                                text: "移除记录";
+                                clicked => { root.batch_remove(false); }
+                            }
+
+                            PrimaryButton {
+                                text: "彻底删除";
+                                clicked => { root.batch_remove(true); }
+                            }
                         }
                     }
                 }
