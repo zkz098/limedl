@@ -34,13 +34,15 @@ export component IconButton inherits Rectangle {
         spacing: 4px;
         alignment: center;
 
-        if root.icon.width > 0 : Image {
-            source: root.icon;
-            colorize: ta.has_hover ? #ffffff : root.text_color;
-            width: root.icon_size;
-            height: root.icon_size;
-            image-fit: contain;
-            vertical-alignment: center;
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: ta.has_hover ? #ffffff : root.text_color;
+                width: root.icon_size;
+                height: root.icon_size;
+                image-fit: contain;
+            }
         }
 
         if root.text != "" : Text {
@@ -75,13 +77,15 @@ export component PrimaryButton inherits Rectangle {
         spacing: 6px;
         alignment: center;
 
-        if root.icon.width > 0 : Image {
-            source: root.icon;
-            colorize: !root.enabled ? #4d5c41 : #0b1104;
-            width: 15px;
-            height: 15px;
-            image-fit: contain;
-            vertical-alignment: center;
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: !root.enabled ? #4d5c41 : #0b1104;
+                width: 15px;
+                height: 15px;
+                image-fit: contain;
+            }
         }
 
         Text {
@@ -117,13 +121,15 @@ export component SecondaryButton inherits Rectangle {
         spacing: 5px;
         alignment: center;
 
-        if root.icon.width > 0 : Image {
-            source: root.icon;
-            colorize: root.active ? #84cc16 : (ta.has_hover ? #ffffff : #d1d5db);
-            width: 14px;
-            height: 14px;
-            image-fit: contain;
-            vertical-alignment: center;
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: root.active ? #84cc16 : (ta.has_hover ? #ffffff : #d1d5db);
+                width: 14px;
+                height: 14px;
+                image-fit: contain;
+            }
         }
 
         Text {
@@ -156,13 +162,15 @@ export component TabButton inherits Rectangle {
         spacing: 6px;
         alignment: center;
 
-        if root.icon.width > 0 : Image {
-            source: root.icon;
-            colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
-            width: 15px;
-            height: 15px;
-            image-fit: contain;
-            vertical-alignment: center;
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
+                width: 15px;
+                height: 15px;
+                image-fit: contain;
+            }
         }
 
         Text {
@@ -245,16 +253,18 @@ export component SearchInput inherits Rectangle {
     HorizontalLayout {
         padding-left: 10px;
         padding-right: 10px;
-        spacing: 6px;
+        spacing: 8px;
         alignment: center;
 
-        Image {
-            source: @image-url("../assets/icons/search-line.svg");
-            colorize: ta.has-focus ? #84cc16 : #5d6778;
-            width: 14px;
-            height: 14px;
-            image-fit: contain;
-            vertical-alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: @image-url("../assets/icons/search-line.svg");
+                colorize: ta.has-focus ? #84cc16 : #5d6778;
+                width: 14px;
+                height: 14px;
+                image-fit: contain;
+            }
         }
 
         ta := TextInput {
@@ -339,21 +349,23 @@ export component UnitInput inherits Rectangle {
             }
         }
 
-        if root.unit_text != "" : Rectangle {
-            background: #1d212a;
-            border-radius: 4px;
-            height: 24px;
-            y: 5px;
-            HorizontalLayout {
-                padding-left: 8px;
-                padding-right: 8px;
-                alignment: center;
-                Text {
-                    text: root.unit_text;
-                    color: #84cc16;
-                    font-size: 11px;
-                    font-weight: 600;
-                    vertical-alignment: center;
+        if root.unit_text != "" : VerticalLayout {
+            alignment: center;
+            Rectangle {
+                background: #1d212a;
+                border-radius: 4px;
+                height: 24px;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    alignment: center;
+                    Text {
+                        text: root.unit_text;
+                        color: #84cc16;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
                 }
             }
         }
@@ -385,15 +397,18 @@ export component StatusBadge inherits Rectangle {
         alignment: center;
 
         // Glowing Dot Indicator
-        Rectangle {
-            width: 6px;
-            height: 6px;
-            border-radius: 3px;
-            background: root.state_code == "downloading" ? #4ade80 : (
-                root.state_code == "paused" ? #facc15 : (
-                    root.state_code == "completed" ? #38bdf8 : #f87171
-                )
-            );
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 6px;
+                height: 6px;
+                border-radius: 3px;
+                background: root.state_code == "downloading" ? #4ade80 : (
+                    root.state_code == "paused" ? #facc15 : (
+                        root.state_code == "completed" ? #38bdf8 : #f87171
+                    )
+                );
+            }
         }
 
         Text {
@@ -435,13 +450,15 @@ export component CategoryButton inherits Rectangle {
             spacing: 8px;
             alignment: start;
 
-            Image {
-                source: root.icon_source;
-                colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
-                width: 16px;
-                height: 16px;
-                image-fit: contain;
-                vertical-alignment: center;
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: root.icon_source;
+                    colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
+                    width: 16px;
+                    height: 16px;
+                    image-fit: contain;
+                }
             }
 
             Text {
@@ -453,21 +470,24 @@ export component CategoryButton inherits Rectangle {
             }
         }
 
-        Rectangle {
-            background: root.active ? #365314 : #1e2229;
-            border-radius: 10px;
-            height: 20px;
-            min-width: 22px;
-            HorizontalLayout {
-                padding-left: 6px;
-                padding-right: 6px;
-                alignment: center;
-                Text {
-                    text: root.count_text;
-                    color: root.active ? #a3e635 : #8b95a5;
-                    font-size: 11px;
-                    font-weight: 600;
-                    vertical-alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                background: root.active ? #365314 : #1e2229;
+                border-radius: 10px;
+                height: 20px;
+                min-width: 22px;
+                HorizontalLayout {
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    alignment: center;
+                    Text {
+                        text: root.count_text;
+                        color: root.active ? #a3e635 : #8b95a5;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
                 }
             }
         }

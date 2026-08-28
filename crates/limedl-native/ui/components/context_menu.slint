@@ -21,13 +21,15 @@ component MenuItem inherits Rectangle {
         spacing: 8px;
         alignment: start;
 
-        if root.icon.width > 0 : Image {
-            source: root.icon;
-            colorize: root.danger ? #f87171 : (ta.has_hover ? #ffffff : root.text_color);
-            width: 15px;
-            height: 15px;
-            image-fit: contain;
-            vertical-alignment: center;
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: root.danger ? #f87171 : (ta.has_hover ? #ffffff : root.text_color);
+                width: 15px;
+                height: 15px;
+                image-fit: contain;
+            }
         }
 
         Text {

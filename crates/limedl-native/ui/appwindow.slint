@@ -37,8 +37,8 @@ import { SettingsDialog } from "components/settings_dialog.slint";
 export component MainWindow inherits Window {
     title: "limedl - Native";
     icon: @image-url("assets/icon.png");
-    min-width: 980px;
-    min-height: 640px;
+    min-width: 1000px;
+    min-height: 660px;
     default-font-family: "Segoe UI, PingFang SC, Microsoft YaHei, sans-serif";
     background: #0d0f12;
 
@@ -154,21 +154,28 @@ export component MainWindow inherits Window {
             border-width: 1px;
 
             VerticalLayout {
-                padding: 16px;
-                spacing: 14px;
+                padding-top: 18px;
+                padding-bottom: 16px;
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 16px;
 
                 // App Brand
                 HorizontalLayout {
-                    spacing: 10px;
+                    spacing: 12px;
                     alignment: start;
-                    Image {
-                        source: @image-url("assets/logo.png");
-                        width: 32px;
-                        height: 32px;
-                        image-fit: contain;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("assets/logo.png");
+                            width: 32px;
+                            height: 32px;
+                            image-fit: contain;
+                        }
                     }
                     VerticalLayout {
                         alignment: center;
+                        spacing: 1px;
                         Text {
                             text: "limedl";
                             color: #f3f4f6;
@@ -236,7 +243,7 @@ export component MainWindow inherits Window {
                         border-color: root.game_mode_active ? #f59e0b : #252b36;
                         border-width: 1px;
                         border-radius: 6px;
-                        height: 32px;
+                        height: 34px;
 
                         TouchArea {
                             clicked => { root.toggle_game_mode(); }
@@ -247,14 +254,17 @@ export component MainWindow inherits Window {
                             padding-right: 10px;
                             alignment: space-between;
                             HorizontalLayout {
-                                spacing: 6px;
-                                Image {
-                                    source: @image-url("assets/icons/gamepad-line.svg");
-                                    colorize: root.game_mode_active ? #f59e0b : #8b95a5;
-                                    width: 15px;
-                                    height: 15px;
-                                    image-fit: contain;
-                                    vertical-alignment: center;
+                                spacing: 8px;
+                                alignment: start;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("assets/icons/gamepad-line.svg");
+                                        colorize: root.game_mode_active ? #f59e0b : #8b95a5;
+                                        width: 15px;
+                                        height: 15px;
+                                        image-fit: contain;
+                                    }
                                 }
                                 Text {
                                     text: "游戏模式";
@@ -279,7 +289,7 @@ export component MainWindow inherits Window {
                         border-color: root.overclock_mode_active ? #ec4899 : #252b36;
                         border-width: 1px;
                         border-radius: 6px;
-                        height: 32px;
+                        height: 34px;
 
                         TouchArea {
                             clicked => { root.toggle_overclock_mode(); }
@@ -290,14 +300,17 @@ export component MainWindow inherits Window {
                             padding-right: 10px;
                             alignment: space-between;
                             HorizontalLayout {
-                                spacing: 6px;
-                                Image {
-                                    source: @image-url("assets/icons/rocket-line.svg");
-                                    colorize: root.overclock_mode_active ? #ec4899 : #8b95a5;
-                                    width: 15px;
-                                    height: 15px;
-                                    image-fit: contain;
-                                    vertical-alignment: center;
+                                spacing: 8px;
+                                alignment: start;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("assets/icons/rocket-line.svg");
+                                        colorize: root.overclock_mode_active ? #ec4899 : #8b95a5;
+                                        width: 15px;
+                                        height: 15px;
+                                        image-fit: contain;
+                                    }
                                 }
                                 Text {
                                     text: "超频模式";
@@ -351,7 +364,7 @@ export component MainWindow inherits Window {
                     border-color: #252b36;
                     border-width: 1px;
                     border-radius: 6px;
-                    height: 34px;
+                    height: 36px;
 
                     ta_set := TouchArea {
                         clicked => { root.open_settings(); }
@@ -363,13 +376,15 @@ export component MainWindow inherits Window {
                         alignment: center;
                         spacing: 8px;
 
-                        Image {
-                            source: @image-url("assets/icons/settings-3-line.svg");
-                            colorize: ta_set.has_hover ? #ffffff : #d1d5db;
-                            width: 16px;
-                            height: 16px;
-                            image-fit: contain;
-                            vertical-alignment: center;
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("assets/icons/settings-3-line.svg");
+                                colorize: ta_set.has_hover ? #ffffff : #d1d5db;
+                                width: 16px;
+                                height: 16px;
+                                image-fit: contain;
+                            }
                         }
 
                         Text {
@@ -386,40 +401,48 @@ export component MainWindow inherits Window {
 
         // Right Main Content
         VerticalLayout {
-            // Top Toolbar
+            // Top Toolbar with vertical centering and proper padding
             Rectangle {
-                height: 56px;
+                height: 62px;
                 background: #111419;
                 border-color: #20242d;
                 border-width: 1px;
 
                 HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
+                    padding-left: 20px;
+                    padding-right: 20px;
+                    padding-top: 14px;
+                    padding-bottom: 14px;
                     alignment: space-between;
 
                     // Left Title & Search
                     HorizontalLayout {
-                        spacing: 14px;
+                        spacing: 16px;
                         alignment: start;
 
-                        Text {
-                            text: root.active_category == 0 ? "全部任务" : (
-                                root.active_category == 1 ? "正在下载" : (
-                                    root.active_category == 2 ? "已暂停" : (
-                                        root.active_category == 3 ? "已完成" : "失败/错误"
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: root.active_category == 0 ? "全部任务" : (
+                                    root.active_category == 1 ? "正在下载" : (
+                                        root.active_category == 2 ? "已暂停" : (
+                                            root.active_category == 3 ? "已完成" : "失败/错误"
+                                        )
                                     )
-                                )
-                            );
-                            color: #f3f4f6;
-                            font-size: 16px;
-                            font-weight: 700;
-                            vertical-alignment: center;
+                                );
+                                color: #f3f4f6;
+                                font-size: 16px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
                         }
 
-                        SearchInput {
-                            text <=> root.search_query;
-                            text_changed(q) => { root.search_changed(q); }
+                        VerticalLayout {
+                            alignment: center;
+                            SearchInput {
+                                text <=> root.search_query;
+                                text_changed(q) => { root.search_changed(q); }
+                            }
                         }
                     }
 
@@ -469,11 +492,13 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        Rectangle {
-                            width: 1px;
-                            height: 20px;
-                            background: #242934;
-                            y: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 1px;
+                                height: 20px;
+                                background: #242934;
+                            }
                         }
 
                         SecondaryButton {
@@ -522,10 +547,10 @@ export component MainWindow inherits Window {
                 if root.tasks.length > 0 : ScrollView {
                     viewport-y: 0;
                     VerticalLayout {
-                        padding-left: 16px;
-                        padding-right: 16px;
-                        padding-top: 16px;
-                        padding-bottom: root.selected_count > 0 ? 72px : 16px;
+                        padding-left: 18px;
+                        padding-right: 18px;
+                        padding-top: 18px;
+                        padding-bottom: root.selected_count > 0 ? 72px : 18px;
                         spacing: 10px;
                         alignment: start;
 
@@ -541,7 +566,7 @@ export component MainWindow inherits Window {
                                 root.context_menu_state = {
                                     visible: true,
                                     x: mx + 240px,
-                                    y: my + 80px + (idx * 114px),
+                                    y: my + 86px + (idx * 114px),
                                     task_id: task.id,
                                     task_name: task.file_name,
                                     task_url: task.url,

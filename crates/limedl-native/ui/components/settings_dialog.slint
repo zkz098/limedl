@@ -246,15 +246,17 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             HorizontalLayout {
                                 spacing: 6px;
-                                Image {
-                                    source: @image-url("../assets/icons/hard-drive-2-line.svg");
-                                    colorize: #38bdf8;
-                                    width: 15px;
-                                    height: 15px;
-                                    image-fit: contain;
-                                    vertical-alignment: center;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("../assets/icons/hard-drive-2-line.svg");
+                                        colorize: #38bdf8;
+                                        width: 15px;
+                                        height: 15px;
+                                        image-fit: contain;
+                                    }
                                 }
-                                Text { text: "磁盘类型检测 (SSD / HDD):"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                                Text { text: "磁盘类型检测 (SSD / HDD):"; color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
                             }
                             Text { text: root.settings_form.disk_type_text; color: #38bdf8; font-size: 12px; }
                         }
@@ -263,15 +265,17 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             HorizontalLayout {
                                 spacing: 6px;
-                                Image {
-                                    source: @image-url("../assets/icons/cpu-line.svg");
-                                    colorize: #a3e635;
-                                    width: 15px;
-                                    height: 15px;
-                                    image-fit: contain;
-                                    vertical-alignment: center;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("../assets/icons/cpu-line.svg");
+                                        colorize: #a3e635;
+                                        width: 15px;
+                                        height: 15px;
+                                        image-fit: contain;
+                                    }
                                 }
-                                Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                                Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
                             }
                             Text { text: root.settings_form.io_status_text; color: #a3e635; font-size: 12px; }
                         }
