@@ -254,7 +254,6 @@ export component SearchInput inherits Rectangle {
         padding-left: 10px;
         padding-right: 10px;
         spacing: 8px;
-        alignment: center;
 
         VerticalLayout {
             alignment: center;
@@ -267,18 +266,31 @@ export component SearchInput inherits Rectangle {
             }
         }
 
-        ta := TextInput {
-            text <=> root.text;
-            color: #f3f4f6;
-            font-size: 12px;
-            vertical-alignment: center;
-            edited => { root.text_changed(root.text); }
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                clip: true;
+                height: 20px;
 
-            if root.text == "" : Text {
-                text: root.placeholder;
-                color: #5d6778;
-                font-size: 12px;
-                vertical-alignment: center;
+                if root.text == "" : Text {
+                    text: root.placeholder;
+                    color: #5d6778;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                ta := TextInput {
+                    text <=> root.text;
+                    color: #f3f4f6;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                    single-line: true;
+                    width: 100%;
+                    height: 100%;
+                    edited => { root.text_changed(root.text); }
+                }
             }
         }
     }
@@ -289,6 +301,9 @@ export component CustomTextInput inherits Rectangle {
     in property <string> placeholder: "";
     in property <bool> enabled: true;
 
+    callback edited(string);
+    callback accepted(string);
+
     background: #14161b;
     border-color: ta.has-focus ? #84cc16 : #2b313d;
     border-width: 1px;
@@ -296,22 +311,36 @@ export component CustomTextInput inherits Rectangle {
     height: 36px;
 
     HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        alignment: center;
+        padding-left: 12px;
+        padding-right: 12px;
 
-        ta := TextInput {
-            text <=> root.text;
-            enabled: root.enabled;
-            color: #f3f4f6;
-            font-size: 13px;
-            vertical-alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                clip: true;
+                height: 22px;
 
-            if root.text == "" : Text {
-                text: root.placeholder;
-                color: #5d6778;
-                font-size: 13px;
-                vertical-alignment: center;
+                if root.text == "" : Text {
+                    text: root.placeholder;
+                    color: #5d6778;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                ta := TextInput {
+                    text <=> root.text;
+                    enabled: root.enabled;
+                    color: #f3f4f6;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                    single-line: true;
+                    width: 100%;
+                    height: 100%;
+                    edited => { root.edited(root.text); }
+                    accepted => { root.accepted(root.text); }
+                }
             }
         }
     }
@@ -323,6 +352,9 @@ export component UnitInput inherits Rectangle {
     in property <string> unit_text: "";
     in property <bool> enabled: true;
 
+    callback edited(string);
+    callback accepted(string);
+
     background: #14161b;
     border-color: ta.has-focus ? #84cc16 : #2b313d;
     border-width: 1px;
@@ -330,22 +362,38 @@ export component UnitInput inherits Rectangle {
     height: 36px;
 
     HorizontalLayout {
-        padding-left: 10px;
+        padding-left: 12px;
         padding-right: 6px;
+        spacing: 8px;
         alignment: space-between;
 
-        ta := TextInput {
-            text <=> root.text;
-            enabled: root.enabled;
-            color: #f3f4f6;
-            font-size: 13px;
-            vertical-alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                clip: true;
+                height: 22px;
 
-            if root.text == "" : Text {
-                text: root.placeholder;
-                color: #5d6778;
-                font-size: 13px;
-                vertical-alignment: center;
+                if root.text == "" : Text {
+                    text: root.placeholder;
+                    color: #5d6778;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                ta := TextInput {
+                    text <=> root.text;
+                    enabled: root.enabled;
+                    color: #f3f4f6;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                    single-line: true;
+                    width: 100%;
+                    height: 100%;
+                    edited => { root.edited(root.text); }
+                    accepted => { root.accepted(root.text); }
+                }
             }
         }
 
