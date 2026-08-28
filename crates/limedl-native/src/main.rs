@@ -114,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    tracing::info!("启动 limedl Native 桌面客户端 (FemtoVG + WGPU)...");
+    tracing::info!("启动 limedl Native 桌面客户端 (Skia)...");
 
     // Initialize core subsystems
     let state_dir = dirs_or_temp_dir().join("downloads");
@@ -166,7 +166,7 @@ async fn main() -> anyhow::Result<()> {
     let sep1 = PredefinedMenuItem::separator();
     let menu_pause_all = MenuItem::with_id("pause_all", "全部暂停", true, None);
     let menu_resume_all = MenuItem::with_id("resume_all", "全部继续", true, None);
-    let menu_game_mode = MenuItem::with_id("game_mode", "🎮 游戏模式开关", true, None);
+    let menu_game_mode = MenuItem::with_id("game_mode", "游戏模式开关", true, None);
     let menu_open_dir = MenuItem::with_id("open_dir", "打开下载目录", true, None);
     let sep2 = PredefinedMenuItem::separator();
     let menu_quit = MenuItem::with_id("quit", "退出 limedl", true, None);

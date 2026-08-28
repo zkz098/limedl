@@ -8,7 +8,12 @@
 [target.x86_64-pc-windows-msvc]
 # Desktop: x86-64-v3 for modern performance
 # Use rust-lld linker (faster than MSVC link.exe)
-rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "linker=rust-lld"]
+# Skia (via i-slint-renderer-skia) bundles ICU (skunicode_icu.lib) which duplicates
+# symbols from windows-rs ICU shims (icuuc). LLD defaults to error on duplicates;
+# /FORCE:MULTIPLE allows the first definition to win (Skia's ICU) and fixes:
+#   duplicate symbol: ubrk_getLocaleByType / ures_getByKey / uloc_getName ...
+# See: slint skia + windows crate ICU clash on Windows.
+rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "linker=rust-lld", "-C", "link-arg=/FORCE:MULTIPLE"]
 
 [target.x86_64-unknown-linux-gnu]
 # Desktop / CI tests: x86-64-v3

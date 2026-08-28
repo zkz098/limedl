@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 limedl-core = { path = "../limedl-core" }
-slint = { workspace = true, features = ["std", "backend-default", "renderer-femtovg-wgpu", "accessibility", "compat-1-2"] }
+slint = { workspace = true, features = ["std", "backend-default", "renderer-skia", "accessibility", "compat-1-2"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

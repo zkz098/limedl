@@ -75,6 +75,20 @@ opt-level = "s" # Optimize for size — I/O-bound app, distribution size matters
 panic = "abort" # Strip unwinding machinery → smaller binary
 strip = true # Strip debug symbols
 
+# ── Native UI 独立优化 ─────────────────────────────────────────
+# Slint/Skia 渲染为 CPU/GPU 密集型，需速度优先；覆盖 workspace 的体积优先。
+# 仅 limedl-native crate 用 opt-level 3，其余 crate 仍保持 "s" 以控制分发体积。
+[profile.release.package.limedl-native]
+opt-level = 3
+
+# 可选：如需全链路速度优先（连带 limedl-core / slint），改用自定义 profile：
+#   cargo build -p limedl-native --profile native-release
+[profile.native-release]
+inherits = "release"
+opt-level = 3
+codegen-units = 1 # 更激进的单单元优化，利于 Skia 内联
+lto = "thin"
+
 # ── CI-optimized dev profile ────────────────────────────────────
 [profile.dev]
 debug = "line-tables-only" # Keep backtraces, skip full debug info

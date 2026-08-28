@@ -60,17 +60,102 @@ export struct InspectorInfo {
 }
 
 export struct SettingsFormData {
+    // ── 常规下载 ──
     default_download_dir: string,
     max_parallel_tasks: string,
     global_speed_limit_kb: string,
+    download_max_retries: string,
+    download_checksum: string, // blake3/sha256/xxh3_128/none
+    download_auto_detect_sha256: bool,
+    download_user_agent: string,
+    // ── 外观 / 启动 ──
+    appearance_color_mode: string, // system/light/dark
+    appearance_theme_color: string, // amber/sky/lime
+    appearance_close_behavior: string, // minimizeToTray/exit
+    appearance_show_detail_info: bool,
+    autostart: bool,
+    notifications_enabled: bool,
+    double_click_completed: string, // none/open_file/open_in_explorer/open_download_dir
+    double_click_uncompleted: string, // none/toggle_pause_resume
+    // ── 代理 ──
+    proxy_mode: string, // disabled/system/manual
+    proxy_manual_url: string,
+    // ── 调度 ──
+    scheduler_mode: string, // automatic/traditional
+    scheduler_max_parallel_threads: string,
+    scheduler_max_threads_per_task: string,
+    scheduler_min_threads_per_task: string,
+    scheduler_adaptive_profile: string, // conservative/balanced/aggressive
+    scheduler_chunk_strategy: string, // adaptive/fixed
+    scheduler_tail_sprint: bool,
+    scheduler_connection_warmup: bool,
+    // ── BT 网络（基础 + 进阶） ──
     dht_enabled: bool,
     listen_port: string,
-    max_bt_connections: string,
+    max_bt_connections: string, // maxPeersPerTorrent
     tracker_url: string,
+    bt_upnp_enabled: bool,
+    bt_natpmp_enabled: bool,
+    bt_ipv6_enabled: bool,
+    bt_pex_enabled: bool,
+    bt_lsd_enabled: bool,
+    bt_utp_enabled: bool,
+    bt_encryption_mode: string, // enabled/disabled/forced
+    bt_preallocate_mode: string, // none/full
+    bt_max_downloads: string,
+    bt_max_seeds: string,
+    bt_max_torrents: string,
+    bt_active_limit: string,
+    bt_global_download_rate_limit_kb: string,
+    bt_global_upload_rate_limit_kb: string,
+    bt_enable_fast_extension: bool,
+    bt_enable_holepunch: bool,
+    bt_enable_web_seed: bool,
+    bt_enable_super_seeding: bool,
+    // BT 做种与反吸血
+    bt_pause_upload_when_limit: bool,
+    bt_upload_limit_kb: string,
+    bt_upload_ratio_limit: string,
+    bt_anti_leech_enabled: bool,
+    bt_anti_leech_action: string, // ban/limit_slots
+    bt_anti_leech_grace_secs: string,
+    bt_anti_leech_ratio: string,
+    bt_anti_leech_ban_secs: string,
+    bt_anti_leech_max_upload_slots: string,
+    bt_blocklist_enabled: bool,
+    bt_blocklist_path: string,
+    // BT 引擎调优
+    bt_seed_choking_algorithm: string, // fastest_upload/round_robin/anti_leech
+    bt_choking_algorithm: string, // fixed_slots/rate_based
+    bt_max_upload_slots_per_torrent: string,
+    bt_smart_ban_max_failures: string,
+    bt_smart_ban_parole: bool,
+    bt_eviction_ban_duration_secs: string,
+    bt_data_contribution_timeout_secs: string,
+    // ── IO 基线 ──
+    io_buffer_limit_mb: string,
+    io_game_mode_buffer_mb: string,
+    io_max_parallel_hdd: string,
+    io_game_mode_max_parallel: string,
+    io_hdd_buffer_enabled: bool,
+    io_ssd_write_combine_mb: string,
+    // ── 日志 ──
+    logging_enabled: bool,
+    logging_level: string, // trace/debug/info/warn/error
+    logging_file_path: string,
+    logging_retention_count: string,
+    logging_retention_days: string,
+    // ── Aria2 RPC ──
+    aria2_enabled: bool,
+    aria2_port: string,
+    aria2_secret: string,
+    // ── 运行态只读展示（不落盘） ──
     game_mode: bool,
     overclock_mode: bool,
     io_status_text: string,
     disk_type_text: string,
+    // ── 高级 ──
+    max_in_memory_downloads: string,
 }
 
 export struct ContextMenuState {

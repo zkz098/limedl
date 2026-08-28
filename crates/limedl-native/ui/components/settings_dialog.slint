@@ -1,4 +1,4 @@
-import { ScrollView } from "std-widgets.slint";
+import { ScrollView, ComboBox } from "std-widgets.slint";
 import { SettingsFormData } from "../types.slint";
 import {
     CustomTextInput,
@@ -29,8 +29,8 @@ export component SettingsDialog inherits Rectangle {
     TouchArea {}
 
     Rectangle {
-        width: min(parent.width - 60px, 800px);
-        height: min(parent.height - 60px, 600px);
+        width: min(parent.width - 60px, 920px);
+        height: min(parent.height - 60px, 680px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         background: #171a20;
@@ -42,13 +42,13 @@ export component SettingsDialog inherits Rectangle {
 
         VerticalLayout {
             padding: 20px;
-            spacing: 14px;
+            spacing: 12px;
 
             // Header
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: "⚙ 设置中心";
+                    text: "设置中心";
                     color: #f3f4f6;
                     font-size: 16px;
                     font-weight: 700;
@@ -60,30 +60,60 @@ export component SettingsDialog inherits Rectangle {
                 }
             }
 
-            // Tab Headers
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
-
-                TabButton {
-                    text: "常规下载";
-                    icon: @image-url("../assets/icons/download-line.svg");
-                    active: root.settings_tab == 0;
-                    clicked => { root.set_tab(0); }
-                }
-
-                TabButton {
-                    text: "BitTorrent 网络";
-                    icon: @image-url("../assets/icons/global-line.svg");
-                    active: root.settings_tab == 1;
-                    clicked => { root.set_tab(1); }
-                }
-
-                TabButton {
-                    text: "性能实验室 & IO";
-                    icon: @image-url("../assets/icons/cpu-line.svg");
-                    active: root.settings_tab == 2;
-                    clicked => { root.set_tab(2); }
+            // Tab Headers — 2 rows to fit 8 tabs
+            VerticalLayout {
+                spacing: 6px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+                    TabButton {
+                        text: "外观";
+                        icon: @image-url("../assets/icons/settings-3-line.svg");
+                        active: root.settings_tab == 0;
+                        clicked => { root.set_tab(0); }
+                    }
+                    TabButton {
+                        text: "下载";
+                        icon: @image-url("../assets/icons/download-line.svg");
+                        active: root.settings_tab == 1;
+                        clicked => { root.set_tab(1); }
+                    }
+                    TabButton {
+                        text: "代理";
+                        icon: @image-url("../assets/icons/global-line.svg");
+                        active: root.settings_tab == 2;
+                        clicked => { root.set_tab(2); }
+                    }
+                    TabButton {
+                        text: "调度";
+                        icon: @image-url("../assets/icons/dashboard-3-line.svg");
+                        active: root.settings_tab == 3;
+                        clicked => { root.set_tab(3); }
+                    }
+                    TabButton {
+                        text: "BT 网络";
+                        icon: @image-url("../assets/icons/radar-line.svg");
+                        active: root.settings_tab == 4;
+                        clicked => { root.set_tab(4); }
+                    }
+                    TabButton {
+                        text: "IO 实验室";
+                        icon: @image-url("../assets/icons/cpu-line.svg");
+                        active: root.settings_tab == 5;
+                        clicked => { root.set_tab(5); }
+                    }
+                    TabButton {
+                        text: "日志";
+                        icon: @image-url("../assets/icons/file-list-line.svg");
+                        active: root.settings_tab == 6;
+                        clicked => { root.set_tab(6); }
+                    }
+                    TabButton {
+                        text: "Aria2";
+                        icon: @image-url("../assets/icons/download-cloud-2-line.svg");
+                        active: root.settings_tab == 7;
+                        clicked => { root.set_tab(7); }
+                    }
                 }
             }
 
@@ -92,18 +122,134 @@ export component SettingsDialog inherits Rectangle {
                 background: #272d38;
             }
 
-            // Tab Content
+            // Tab Content — unified container
             Rectangle {
                 background: #111418;
                 border-radius: 8px;
                 border-color: #232832;
                 border-width: 1px;
 
-                // Tab 0: General
+                // ── Tab 0: 外观 / 启动 ──
                 if root.settings_tab == 0 : ScrollView {
                     VerticalLayout {
                         padding: 16px;
                         spacing: 14px;
+
+                        Text { text: "外观与系统集成"; color: #a3e635; font-size: 13px; font-weight: 700; }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "主题模式 (system/light/dark):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["system", "light", "dark"];
+                                    current-value <=> root.settings_form.appearance_color_mode;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "主题色 (amber/sky/lime):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["amber", "sky", "lime"];
+                                    current-value <=> root.settings_form.appearance_theme_color;
+                                    height: 36px;
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "关闭行为 (minimizeToTray/exit):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["minimizeToTray", "exit"];
+                                    current-value <=> root.settings_form.appearance_close_behavior;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "内存保留数 (10-10000):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput {
+                                    text <=> root.settings_form.max_in_memory_downloads;
+                                    placeholder: "200";
+                                    unit_text: "条";
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "显示详情面板"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "在主界面右侧展示下载详情与分片热力图"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.appearance_show_detail_info;
+                                toggled => { root.settings_form.appearance_show_detail_info = !root.settings_form.appearance_show_detail_info; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "开机自启"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "登录系统后自动启动 limedl-native"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.autostart;
+                                toggled => { root.settings_form.autostart = !root.settings_form.autostart; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "系统通知"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "完成/失败时发送桌面通知"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.notifications_enabled;
+                                toggled => { root.settings_form.notifications_enabled = !root.settings_form.notifications_enabled; }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "双击已完成任务 (none/open_file/open_in_explorer/open_download_dir):"; color: #9ca3af; font-size: 12px; }
+                            ComboBox {
+                                    model: ["none", "open_file", "open_in_explorer", "open_download_dir"];
+                                    current-value <=> root.settings_form.double_click_completed;
+                                    height: 36px;
+                                }
+                        }
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "双击未完成任务 (none/toggle_pause_resume):"; color: #9ca3af; font-size: 12px; }
+                            ComboBox {
+                                    model: ["none", "toggle_pause_resume"];
+                                    current-value <=> root.settings_form.double_click_uncompleted;
+                                    height: 36px;
+                                }
+                        }
+                    }
+                }
+
+                // ── Tab 1: 下载 ──
+                if root.settings_tab == 1 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        Text { text: "下载默认值"; color: #a3e635; font-size: 13px; font-weight: 700; }
 
                         VerticalLayout {
                             spacing: 4px;
@@ -122,19 +268,62 @@ export component SettingsDialog inherits Rectangle {
                             }
                         }
 
-                        VerticalLayout {
-                            spacing: 4px;
-                            Text { text: "最大同时下载任务数:"; color: #9ca3af; font-size: 12px; }
-                            UnitInput {
-                                text <=> root.settings_form.max_parallel_tasks;
-                                placeholder: "3";
-                                unit_text: "个";
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "最大同时任务数 (traditional):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput {
+                                    text <=> root.settings_form.max_parallel_tasks;
+                                    placeholder: "3";
+                                    unit_text: "个";
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "默认重试次数 (0-100):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput {
+                                    text <=> root.settings_form.download_max_retries;
+                                    placeholder: "5";
+                                    unit_text: "次";
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "默认校验 (blake3/sha256/xxh3_128/none/sha1):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["blake3", "sha256", "xxh3_128", "none", "sha1"];
+                                    current-value <=> root.settings_form.download_checksum;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "自动检测 sha256"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.download_auto_detect_sha256;
+                                    toggled => { root.settings_form.download_auto_detect_sha256 = !root.settings_form.download_auto_detect_sha256; }
+                                }
                             }
                         }
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: "全局下载带宽限速 (0 为不限制):"; color: #9ca3af; font-size: 12px; }
+                            Text { text: "默认 User-Agent (空为内置 Chrome124):"; color: #9ca3af; font-size: 12px; }
+                            CustomTextInput {
+                                text <=> root.settings_form.download_user_agent;
+                                placeholder: "Mozilla/5.0 ... Chrome/124.0.0.0";
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "全局带宽限速 (0 不限):"; color: #9ca3af; font-size: 12px; }
                             UnitInput {
                                 text <=> root.settings_form.global_speed_limit_kb;
                                 placeholder: "0";
@@ -144,44 +333,508 @@ export component SettingsDialog inherits Rectangle {
                     }
                 }
 
-                // Tab 1: BitTorrent
-                if root.settings_tab == 1 : ScrollView {
+                // ── Tab 2: 代理 ──
+                if root.settings_tab == 2 : ScrollView {
                     VerticalLayout {
                         padding: 16px;
                         spacing: 14px;
+
+                        Text { text: "代理设置"; color: #a3e635; font-size: 13px; font-weight: 700; }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "代理模式 (disabled/system/manual):"; color: #9ca3af; font-size: 12px; }
+                            ComboBox {
+                                    model: ["disabled", "system", "manual"];
+                                    current-value <=> root.settings_form.proxy_mode;
+                                    height: 36px;
+                                }
+                            Text { text: "system 跟随系统代理，manual 需填写下游 URL"; color: #6b7280; font-size: 11px; }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "手动代理 URL:"; color: #9ca3af; font-size: 12px; }
+                            CustomTextInput {
+                                text <=> root.settings_form.proxy_manual_url;
+                                placeholder: "http://127.0.0.1:7890";
+                            }
+                        }
+                    }
+                }
+
+                // ── Tab 3: 调度 ──
+                if root.settings_tab == 3 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        Text { text: "调度与性能"; color: #a3e635; font-size: 13px; font-weight: 700; }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "分配模式 (automatic/traditional):"; color: #9ca3af; font-size: 12px; }
+                            ComboBox {
+                                    model: ["automatic", "traditional"];
+                                    current-value <=> root.settings_form.scheduler_mode;
+                                    height: 36px;
+                                }
+                            Text { text: "automatic 为自适应线程池，traditional 为固定并发任务"; color: #6b7280; font-size: 11px; }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "自动-最大并行线程 (1-128):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput {
+                                    text <=> root.settings_form.scheduler_max_parallel_threads;
+                                    placeholder: "16";
+                                    unit_text: "线程";
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "单任务最大线程 (1-64):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput {
+                                    text <=> root.settings_form.scheduler_max_threads_per_task;
+                                    placeholder: "8";
+                                    unit_text: "线程";
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "单任务最小线程 (0-64):"; color: #9ca3af; font-size: 12px; }
+                            UnitInput {
+                                text <=> root.settings_form.scheduler_min_threads_per_task;
+                                placeholder: "0";
+                                unit_text: "线程";
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "自适应档位 (conservative/balanced/aggressive):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["conservative", "balanced", "aggressive"];
+                                    current-value <=> root.settings_form.scheduler_adaptive_profile;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "分块策略 (adaptive/fixed):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["adaptive", "fixed"];
+                                    current-value <=> root.settings_form.scheduler_chunk_strategy;
+                                    height: 36px;
+                                }
+                            }
+                        }
 
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: "启用 DHT 分布式哈希网络"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
-                                Text { text: "允许在没有 Tracker 服务器的情况下搜寻更多节点"; color: #6b7280; font-size: 11px; }
+                                Text { text: "尾部冲刺 (Tail Sprint)"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "末段并行补齐，缩短长尾"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.scheduler_tail_sprint;
+                                toggled => { root.settings_form.scheduler_tail_sprint = !root.settings_form.scheduler_tail_sprint; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "连接预热"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "建连阶段预建多个连接加速起步"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.scheduler_connection_warmup;
+                                toggled => { root.settings_form.scheduler_connection_warmup = !root.settings_form.scheduler_connection_warmup; }
+                            }
+                        }
+                    }
+                }
+
+                // ── Tab 4: BT 网络 ──
+                if root.settings_tab == 4 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+
+                        Text { text: "BitTorrent 网络"; color: #a3e635; font-size: 13px; font-weight: 700; }
+
+                        // 基础
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "启用 DHT"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "无 Tracker 时通过 DHT 发现节点"; color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
                                 checked: root.settings_form.dht_enabled;
                                 toggled => { root.settings_form.dht_enabled = !root.settings_form.dht_enabled; }
                             }
                         }
-
-                        Rectangle { height: 1px; background: #1a1e26; }
-
-                        VerticalLayout {
-                            spacing: 4px;
-                            Text { text: "BT 监听端口:"; color: #9ca3af; font-size: 12px; }
-                            UnitInput {
-                                text <=> root.settings_form.listen_port;
-                                placeholder: "6881";
-                                unit_text: "端口";
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "监听端口 (空为随机):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput {
+                                    text <=> root.settings_form.listen_port;
+                                    placeholder: "空";
+                                    unit_text: "端口";
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "每 Torrent 最大 peers:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput {
+                                    text <=> root.settings_form.max_bt_connections;
+                                    placeholder: "128";
+                                    unit_text: "个";
+                                }
                             }
                         }
 
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "UPnP"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_upnp_enabled;
+                                    toggled => { root.settings_form.bt_upnp_enabled = !root.settings_form.bt_upnp_enabled; }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "NAT-PMP"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_natpmp_enabled;
+                                    toggled => { root.settings_form.bt_natpmp_enabled = !root.settings_form.bt_natpmp_enabled; }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "IPv6"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_ipv6_enabled;
+                                    toggled => { root.settings_form.bt_ipv6_enabled = !root.settings_form.bt_ipv6_enabled; }
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "PEX"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_pex_enabled;
+                                    toggled => { root.settings_form.bt_pex_enabled = !root.settings_form.bt_pex_enabled; }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "LSD"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_lsd_enabled;
+                                    toggled => { root.settings_form.bt_lsd_enabled = !root.settings_form.bt_lsd_enabled; }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "uTP"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_utp_enabled;
+                                    toggled => { root.settings_form.bt_utp_enabled = !root.settings_form.bt_utp_enabled; }
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "加密模式 (enabled/disabled/forced):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["enabled", "disabled", "forced"];
+                                    current-value <=> root.settings_form.bt_encryption_mode;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "预分配 (none/full):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["none", "full"];
+                                    current-value <=> root.settings_form.bt_preallocate_mode;
+                                    height: 36px;
+                                }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        Text { text: "队列与限速"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "最大活跃下载:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_max_downloads; placeholder: "3"; unit_text: "个"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "最大做种:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_max_seeds; placeholder: "5"; unit_text: "个"; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "最大 Torrent 数:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_max_torrents; placeholder: "100"; unit_text: "个"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "活跃上限:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_active_limit; placeholder: "500"; unit_text: "个"; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "全局下载限速:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_global_download_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "全局上传限速:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_global_upload_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        Text { text: "做种与完成"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "达到上限后暂停做种"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "上传量或分享率达标后自动暂停"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.bt_pause_upload_when_limit;
+                                toggled => { root.settings_form.bt_pause_upload_when_limit = !root.settings_form.bt_pause_upload_when_limit; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "做种上传上限:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_upload_limit_kb; placeholder: "0"; unit_text: "KB"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "分享率上限 (0 不限):"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput { text <=> root.settings_form.bt_upload_ratio_limit; placeholder: "0"; }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        Text { text: "反吸血与屏蔽"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "启用反吸血检测"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "识别只下载不上传的节点"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.bt_anti_leech_enabled;
+                                toggled => { root.settings_form.bt_anti_leech_enabled = !root.settings_form.bt_anti_leech_enabled; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "处置方式 (ban/limit_slots):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["ban", "limit_slots"];
+                                    current-value <=> root.settings_form.bt_anti_leech_action;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "观察宽限时间:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_anti_leech_grace_secs; placeholder: "300"; unit_text: "秒"; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "分享率阈值 (0-1):"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput { text <=> root.settings_form.bt_anti_leech_ratio; placeholder: "0.1"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "封禁时长:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_anti_leech_ban_secs; placeholder: "3600"; unit_text: "秒"; }
+                            }
+                        }
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: "最大全局连接数 (Peers):"; color: #9ca3af; font-size: 12px; }
-                            UnitInput {
-                                text <=> root.settings_form.max_bt_connections;
-                                placeholder: "200";
-                                unit_text: "个";
+                            Text { text: "限制模式最大上传槽位 (1-64):"; color: #9ca3af; font-size: 12px; }
+                            UnitInput { text <=> root.settings_form.bt_anti_leech_max_upload_slots; placeholder: "4"; unit_text: "个"; }
+                        }
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "启用 IP 屏蔽列表"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "加载本地 blocklist 文件"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.bt_blocklist_enabled;
+                                toggled => { root.settings_form.bt_blocklist_enabled = !root.settings_form.bt_blocklist_enabled; }
+                            }
+                        }
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "屏蔽列表路径:"; color: #9ca3af; font-size: 12px; }
+                            CustomTextInput { text <=> root.settings_form.bt_blocklist_path; placeholder: "C:/path/to/blocklist.dat"; }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        Text { text: "引擎调优"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "做种调度 (fastest_upload/round_robin/anti_leech):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["fastest_upload", "round_robin", "anti_leech"];
+                                    current-value <=> root.settings_form.bt_seed_choking_algorithm;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "阻塞算法 (fixed_slots/rate_based):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["fixed_slots", "rate_based"];
+                                    current-value <=> root.settings_form.bt_choking_algorithm;
+                                    height: 36px;
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "每 Torrent 最大上传槽位:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_max_upload_slots_per_torrent; placeholder: "4"; unit_text: "个"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "智能封禁阈值 (1-100):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_smart_ban_max_failures; placeholder: "3"; unit_text: "次"; }
+                            }
+                        }
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "智能封禁假释"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "先隔离再判定，减少误封"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.bt_smart_ban_parole;
+                                toggled => { root.settings_form.bt_smart_ban_parole = !root.settings_form.bt_smart_ban_parole; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "驱逐后禁止重连时长:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_eviction_ban_duration_secs; placeholder: "600"; unit_text: "秒"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "无数据贡献超时:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.bt_data_contribution_timeout_secs; placeholder: "60"; unit_text: "秒"; }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "Fast Extension"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_enable_fast_extension;
+                                    toggled => { root.settings_form.bt_enable_fast_extension = !root.settings_form.bt_enable_fast_extension; }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "Holepunch"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_enable_holepunch;
+                                    toggled => { root.settings_form.bt_enable_holepunch = !root.settings_form.bt_enable_holepunch; }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "WebSeed"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_enable_web_seed;
+                                    toggled => { root.settings_form.bt_enable_web_seed = !root.settings_form.bt_enable_web_seed; }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "SuperSeed"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.bt_enable_super_seeding;
+                                    toggled => { root.settings_form.bt_enable_super_seeding = !root.settings_form.bt_enable_super_seeding; }
+                                }
                             }
                         }
 
@@ -189,12 +842,12 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 6px;
-                            Text { text: "公共 Tracker 列表远程订阅 URL:"; color: #9ca3af; font-size: 12px; }
+                            Text { text: "Tracker 订阅 URL:"; color: #9ca3af; font-size: 12px; }
                             HorizontalLayout {
                                 spacing: 8px;
                                 CustomTextInput {
                                     text <=> root.settings_form.tracker_url;
-                                    placeholder: "https://raw.githubusercontent.com/trackerslist/trackerslist/master/best.txt";
+                                    placeholder: "https://cf.trackerslist.com/best.txt";
                                 }
                                 SecondaryButton {
                                     text: "立即同步";
@@ -202,22 +855,25 @@ export component SettingsDialog inherits Rectangle {
                                     clicked => { root.fetch_trackers(root.settings_form.tracker_url); }
                                 }
                             }
+                            Text { text: "同步后写入 bt.trackerList，需手动保存生效"; color: #6b7280; font-size: 11px; }
                         }
                     }
                 }
 
-                // Tab 2: Performance & Labs
-                if root.settings_tab == 2 : ScrollView {
+                // ── Tab 5: IO 实验室 ──
+                if root.settings_tab == 5 : ScrollView {
                     VerticalLayout {
                         padding: 16px;
                         spacing: 14px;
+
+                        Text { text: "IO 基线与性能模式"; color: #a3e635; font-size: 13px; font-weight: 700; }
 
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: "🎮 游戏优化模式 (Game Mode)"; color: #f59e0b; font-size: 13px; font-weight: 600; }
-                                Text { text: "动态缩小缓冲池占用并降低磁盘 IO 写入频率，减少对大型 3D 游戏的掉帧抢占"; color: #6b7280; font-size: 11px; }
+                                Text { text: "游戏模式"; color: #f59e0b; font-size: 13px; font-weight: 600; }
+                                Text { text: "动态缩小缓冲并降 IO 频率，降低对 3D 游戏抢占"; color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
                                 checked: root.settings_form.game_mode;
@@ -225,18 +881,64 @@ export component SettingsDialog inherits Rectangle {
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
-
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: "⚡ 极速超频模式 (Overclock Mode)"; color: #ec4899; font-size: 13px; font-weight: 600; }
-                                Text { text: "打破传统任务并发限制，激进启用多线程下载以压榨带宽极限"; color: #6b7280; font-size: 11px; }
+                                Text { text: "超频模式"; color: #ec4899; font-size: 13px; font-weight: 600; }
+                                Text { text: "激进多线程压榨带宽极限"; color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
                                 checked: root.settings_form.overclock_mode;
                                 toggled => { root.toggle_overclock_mode(); }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "缓冲池上限:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.io_buffer_limit_mb; placeholder: "1024"; unit_text: "MB"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "游戏模式缓冲:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.io_game_mode_buffer_mb; placeholder: "128"; unit_text: "MB"; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "HDD 最大并行:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.io_max_parallel_hdd; placeholder: "4"; unit_text: "个"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "游戏模式最大并行:"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.io_game_mode_max_parallel; placeholder: "1"; unit_text: "个"; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: space-between;
+                                spacing: 2px;
+                                Text { text: "HDD 双缓冲优化"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                ToggleSwitch {
+                                    checked: root.settings_form.io_hdd_buffer_enabled;
+                                    toggled => { root.settings_form.io_hdd_buffer_enabled = !root.settings_form.io_hdd_buffer_enabled; }
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "SSD 写合并 (0=auto):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.io_ssd_write_combine_mb; placeholder: "0"; unit_text: "MB"; }
                             }
                         }
 
@@ -275,10 +977,111 @@ export component SettingsDialog inherits Rectangle {
                                         image-fit: contain;
                                     }
                                 }
-                                Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                Text { text: "缓冲池状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
                             }
                             Text { text: root.settings_form.io_status_text; color: #a3e635; font-size: 12px; }
                         }
+                    }
+                }
+
+                // ── Tab 6: 日志 ──
+                if root.settings_tab == 6 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        Text { text: "日志"; color: #a3e635; font-size: 13px; font-weight: 700; }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "启用文件日志"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "写入 filePath 指定的日志文件"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.logging_enabled;
+                                toggled => { root.settings_form.logging_enabled = !root.settings_form.logging_enabled; }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "日志级别 (trace/debug/info/warn/error):"; color: #9ca3af; font-size: 12px; }
+                            ComboBox {
+                                    model: ["trace", "debug", "info", "warn", "error"];
+                                    current-value <=> root.settings_form.logging_level;
+                                    height: 36px;
+                                }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "日志文件路径:"; color: #9ca3af; font-size: 12px; }
+                            CustomTextInput {
+                                text <=> root.settings_form.logging_file_path;
+                                placeholder: "留空由系统决定，例 D:\\limedl\\logs\\limedl.log";
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "保留文件数 (空=不限):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.logging_retention_count; placeholder: "空"; unit_text: "个"; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "保留天数 (空=不限):"; color: #9ca3af; font-size: 12px; }
+                                UnitInput { text <=> root.settings_form.logging_retention_days; placeholder: "空"; unit_text: "天"; }
+                            }
+                        }
+                    }
+                }
+
+                // ── Tab 7: Aria2 RPC ──
+                if root.settings_tab == 7 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        Text { text: "Aria2 RPC"; color: #a3e635; font-size: 13px; font-weight: 700; }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "启用 Aria2 RPC 服务"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "供浏览器插件（Aria2 Explorer 等）接管下载"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.aria2_enabled;
+                                toggled => { root.settings_form.aria2_enabled = !root.settings_form.aria2_enabled; }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "RPC 端口 (1-65535):"; color: #9ca3af; font-size: 12px; }
+                            UnitInput {
+                                text <=> root.settings_form.aria2_port;
+                                placeholder: "6800";
+                                unit_text: "端口";
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "RPC Secret (空为无鉴权):"; color: #9ca3af; font-size: 12px; }
+                            CustomTextInput {
+                                text <=> root.settings_form.aria2_secret;
+                                placeholder: "留空表示不设 Secret";
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+                        Text { text: "提示：Aria2 Explorer 扩展可在 Chrome/Edge/Firefox 商店搜索安装，填入 http://127.0.0.1:{端口} 与 Secret 即可接管。"; color: #6b7280; font-size: 11px; wrap: word-wrap; }
                     }
                 }
             }

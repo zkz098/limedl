@@ -1,8 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use limedl_core::types::{
-    AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtTrackerInfo, DiskType, DownloadProgress,
-    DownloadState, DownloadSummary, TaskKind,
+    AdaptiveProfile, AppSettings, BtAntiLeechAction, BtChokingAlgorithm, BtEncryptionMode,
+    BtFileStatus, BtPeerInfo, BtPieceInfo, BtPreallocateMode, BtSeedChokingAlgorithm,
+    BtTrackerInfo, ChecksumMode, ChunkSizeStrategy, CloseBehavior, ColorMode, DiskType,
+    DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadProgress, DownloadState,
+    DownloadSummary, LogLevel, ProxyMode, SchedulerMode, TaskKind, ThemeColor,
 };
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString};
 
@@ -317,6 +320,145 @@ pub fn generate_piece_map_image(pieces: &[BtPieceInfo]) -> (Image, String) {
     (Image::from_rgba8(buffer), summary_text)
 }
 
+fn proxy_mode_to_str(m: ProxyMode) -> SharedString {
+    SharedString::from(match m {
+        ProxyMode::Disabled => "disabled",
+        ProxyMode::System => "system",
+        ProxyMode::Manual => "manual",
+    })
+}
+fn str_to_proxy_mode(s: &str) -> Option<ProxyMode> {
+    match s.trim() {
+        "disabled" => Some(ProxyMode::Disabled),
+        "system" => Some(ProxyMode::System),
+        "manual" => Some(ProxyMode::Manual),
+        _ => None,
+    }
+}
+fn scheduler_mode_to_str(m: SchedulerMode) -> SharedString {
+    SharedString::from(match m {
+        SchedulerMode::Traditional => "traditional",
+        SchedulerMode::Automatic => "automatic",
+    })
+}
+fn adaptive_profile_to_str(p: AdaptiveProfile) -> SharedString {
+    SharedString::from(match p {
+        AdaptiveProfile::Conservative => "conservative",
+        AdaptiveProfile::Balanced => "balanced",
+        AdaptiveProfile::Aggressive => "aggressive",
+    })
+}
+fn chunk_strategy_to_str(s: ChunkSizeStrategy) -> SharedString {
+    SharedString::from(match s {
+        ChunkSizeStrategy::Adaptive => "adaptive",
+        ChunkSizeStrategy::Fixed => "fixed",
+    })
+}
+fn checksum_to_str(c: ChecksumMode) -> SharedString {
+    SharedString::from(match c {
+        ChecksumMode::Blake3 => "blake3",
+        ChecksumMode::Sha256 => "sha256",
+        ChecksumMode::Xxh3128 => "xxh3_128",
+        ChecksumMode::None => "none",
+        ChecksumMode::Sha1 => "sha1",
+    })
+}
+fn str_to_checksum(s: &str) -> Option<ChecksumMode> {
+    match s.trim() {
+        "blake3" => Some(ChecksumMode::Blake3),
+        "sha256" => Some(ChecksumMode::Sha256),
+        "xxh3_128" => Some(ChecksumMode::Xxh3128),
+        "none" => Some(ChecksumMode::None),
+        "sha1" => Some(ChecksumMode::Sha1),
+        _ => None,
+    }
+}
+fn color_mode_to_str(c: &ColorMode) -> SharedString {
+    SharedString::from(match c {
+        ColorMode::System => "system",
+        ColorMode::Light => "light",
+        ColorMode::Dark => "dark",
+    })
+}
+fn theme_color_to_str(c: &ThemeColor) -> SharedString {
+    SharedString::from(match c {
+        ThemeColor::Amber => "amber",
+        ThemeColor::Sky => "sky",
+        ThemeColor::Lime => "lime",
+    })
+}
+fn close_behavior_to_str(c: &CloseBehavior) -> SharedString {
+    SharedString::from(match c {
+        CloseBehavior::MinimizeToTray => "minimizeToTray",
+        CloseBehavior::Exit => "exit",
+    })
+}
+fn log_level_to_str(l: LogLevel) -> SharedString {
+    SharedString::from(match l {
+        LogLevel::Trace => "trace",
+        LogLevel::Debug => "debug",
+        LogLevel::Info => "info",
+        LogLevel::Warn => "warn",
+        LogLevel::Error => "error",
+    })
+}
+fn str_to_log_level(s: &str) -> Option<LogLevel> {
+    match s.trim() {
+        "trace" => Some(LogLevel::Trace),
+        "debug" => Some(LogLevel::Debug),
+        "info" => Some(LogLevel::Info),
+        "warn" => Some(LogLevel::Warn),
+        "error" => Some(LogLevel::Error),
+        _ => None,
+    }
+}
+fn encryption_to_str(m: BtEncryptionMode) -> SharedString {
+    SharedString::from(match m {
+        BtEncryptionMode::Enabled => "enabled",
+        BtEncryptionMode::Disabled => "disabled",
+        BtEncryptionMode::Forced => "forced",
+    })
+}
+fn preallocate_to_str(m: BtPreallocateMode) -> SharedString {
+    SharedString::from(match m {
+        BtPreallocateMode::None => "none",
+        BtPreallocateMode::Full => "full",
+    })
+}
+fn double_click_completed_to_str(v: DoubleClickOnCompleted) -> SharedString {
+    SharedString::from(match v {
+        DoubleClickOnCompleted::None => "none",
+        DoubleClickOnCompleted::OpenFile => "open_file",
+        DoubleClickOnCompleted::OpenInExplorer => "open_in_explorer",
+        DoubleClickOnCompleted::OpenDownloadDir => "open_download_dir",
+    })
+}
+fn double_click_uncompleted_to_str(v: DoubleClickOnUncompleted) -> SharedString {
+    SharedString::from(match v {
+        DoubleClickOnUncompleted::None => "none",
+        DoubleClickOnUncompleted::TogglePauseResume => "toggle_pause_resume",
+    })
+}
+fn anti_leech_action_to_str(v: BtAntiLeechAction) -> SharedString {
+    SharedString::from(match v {
+        BtAntiLeechAction::Ban => "ban",
+        BtAntiLeechAction::LimitSlots => "limit_slots",
+    })
+}
+fn seed_choking_to_str(v: BtSeedChokingAlgorithm) -> SharedString {
+    SharedString::from(match v {
+        BtSeedChokingAlgorithm::FastestUpload => "fastest_upload",
+        BtSeedChokingAlgorithm::RoundRobin => "round_robin",
+        BtSeedChokingAlgorithm::AntiLeech => "anti_leech",
+    })
+}
+fn choking_to_str(v: BtChokingAlgorithm) -> SharedString {
+    SharedString::from(match v {
+        BtChokingAlgorithm::FixedSlots => "fixed_slots",
+        BtChokingAlgorithm::RateBased => "rate_based",
+    })
+}
+
 /// Convert `AppSettings` and runtime modes to `SettingsFormData`.
 pub fn app_settings_to_form(
     settings: &AppSettings,
@@ -330,62 +472,431 @@ pub fn app_settings_to_form(
     } else {
         "0".to_string()
     };
+    let bt_dl_kb = if settings.bt.global_download_rate_limit > 0 {
+        (settings.bt.global_download_rate_limit / 1024).to_string()
+    } else {
+        "0".to_string()
+    };
+    let bt_ul_kb = if settings.bt.global_upload_rate_limit > 0 {
+        (settings.bt.global_upload_rate_limit / 1024).to_string()
+    } else {
+        "0".to_string()
+    };
 
     SettingsFormData {
+        // 常规下载
         default_download_dir: SharedString::from(&settings.download.default_download_dir),
         max_parallel_tasks: SharedString::from(
             settings.scheduler.traditional.max_parallel_tasks.to_string(),
         ),
         global_speed_limit_kb: SharedString::from(speed_limit_kb),
+        download_max_retries: SharedString::from(settings.download.default_max_retries.to_string()),
+        download_checksum: checksum_to_str(settings.download.default_checksum),
+        download_auto_detect_sha256: settings.download.auto_detect_sha256,
+        download_user_agent: SharedString::from(&settings.download.default_user_agent),
+        // 外观
+        appearance_color_mode: color_mode_to_str(&settings.appearance.color_mode),
+        appearance_theme_color: theme_color_to_str(&settings.appearance.theme_color),
+        appearance_close_behavior: close_behavior_to_str(&settings.appearance.close_behavior),
+        appearance_show_detail_info: settings.appearance.show_detail_info,
+        autostart: settings.autostart,
+        notifications_enabled: settings.notifications.enabled,
+        double_click_completed: double_click_completed_to_str(settings.double_click.on_completed),
+        double_click_uncompleted: double_click_uncompleted_to_str(
+            settings.double_click.on_uncompleted,
+        ),
+        // 代理
+        proxy_mode: proxy_mode_to_str(settings.proxy.mode),
+        proxy_manual_url: SharedString::from(&settings.proxy.manual_url),
+        // 调度
+        scheduler_mode: scheduler_mode_to_str(settings.scheduler.mode),
+        scheduler_max_parallel_threads: SharedString::from(
+            settings.scheduler.automatic.max_parallel_threads.to_string(),
+        ),
+        scheduler_max_threads_per_task: SharedString::from(
+            settings.scheduler.automatic.max_threads_per_task.to_string(),
+        ),
+        scheduler_min_threads_per_task: SharedString::from(
+            settings.scheduler.automatic.min_threads_per_task.to_string(),
+        ),
+        scheduler_adaptive_profile: adaptive_profile_to_str(
+            settings.scheduler.automatic.adaptive_profile,
+        ),
+        scheduler_chunk_strategy: chunk_strategy_to_str(settings.scheduler.chunk_size_strategy),
+        scheduler_tail_sprint: settings.scheduler.tail_sprint_enabled,
+        scheduler_connection_warmup: settings.scheduler.connection_warmup_enabled,
+        // BT 基础 + 进阶
         dht_enabled: settings.bt.dht_enabled,
         listen_port: SharedString::from(
-            settings.bt.listen_port.map(|p| p.to_string()).unwrap_or_else(|| "6881".to_string()),
+            settings.bt.listen_port.map(|p| p.to_string()).unwrap_or_default(),
         ),
-        max_bt_connections: SharedString::from(
-            settings.bt.max_peers_per_torrent.to_string(),
-        ),
+        max_bt_connections: SharedString::from(settings.bt.max_peers_per_torrent.to_string()),
         tracker_url: SharedString::from(&settings.bt.tracker_list_url),
+        bt_upnp_enabled: settings.bt.upnp_enabled,
+        bt_natpmp_enabled: settings.bt.enable_natpmp,
+        bt_ipv6_enabled: settings.bt.enable_ipv6,
+        bt_pex_enabled: settings.bt.enable_pex,
+        bt_lsd_enabled: settings.bt.enable_lsd,
+        bt_utp_enabled: settings.bt.enable_utp,
+        bt_encryption_mode: encryption_to_str(settings.bt.encryption_mode),
+        bt_preallocate_mode: preallocate_to_str(settings.bt.preallocate_mode),
+        bt_max_downloads: SharedString::from(settings.bt.max_downloads.to_string()),
+        bt_max_seeds: SharedString::from(settings.bt.max_seeds.to_string()),
+        bt_max_torrents: SharedString::from(settings.bt.max_torrents.to_string()),
+        bt_active_limit: SharedString::from(settings.bt.active_limit.to_string()),
+        bt_global_download_rate_limit_kb: SharedString::from(bt_dl_kb),
+        bt_global_upload_rate_limit_kb: SharedString::from(bt_ul_kb),
+        bt_enable_fast_extension: settings.bt.enable_fast_extension,
+        bt_enable_holepunch: settings.bt.enable_holepunch,
+        bt_enable_web_seed: settings.bt.enable_web_seed,
+        bt_enable_super_seeding: settings.bt.enable_super_seeding,
+        bt_pause_upload_when_limit: settings.bt.pause_upload_when_limit_reached,
+        bt_upload_limit_kb: SharedString::from(if settings.bt.upload_limit_bytes > 0 {
+            (settings.bt.upload_limit_bytes / 1024).to_string()
+        } else {
+            "0".to_string()
+        }),
+        bt_upload_ratio_limit: SharedString::from({
+            let r = settings.bt.upload_ratio_limit;
+            if r == 0.0 { "0".to_string() } else { r.to_string() }
+        }),
+        bt_anti_leech_enabled: settings.bt.anti_leech_enabled,
+        bt_anti_leech_action: anti_leech_action_to_str(settings.bt.anti_leech_action),
+        bt_anti_leech_grace_secs: SharedString::from(settings.bt.anti_leech_grace_secs.to_string()),
+        bt_anti_leech_ratio: SharedString::from({
+            let r = settings.bt.anti_leech_ratio;
+            if r == 0.0 { "0".to_string() } else { r.to_string() }
+        }),
+        bt_anti_leech_ban_secs: SharedString::from(settings.bt.anti_leech_ban_secs.to_string()),
+        bt_anti_leech_max_upload_slots: SharedString::from(
+            settings.bt.anti_leech_max_upload_slots.to_string(),
+        ),
+        bt_blocklist_enabled: settings.bt.blocklist_enabled,
+        bt_blocklist_path: SharedString::from(&settings.bt.blocklist_path),
+        bt_seed_choking_algorithm: seed_choking_to_str(settings.bt.seed_choking_algorithm),
+        bt_choking_algorithm: choking_to_str(settings.bt.choking_algorithm),
+        bt_max_upload_slots_per_torrent: SharedString::from(
+            settings.bt.max_upload_slots_per_torrent.to_string(),
+        ),
+        bt_smart_ban_max_failures: SharedString::from(settings.bt.smart_ban_max_failures.to_string()),
+        bt_smart_ban_parole: settings.bt.smart_ban_parole,
+        bt_eviction_ban_duration_secs: SharedString::from(
+            settings.bt.eviction_ban_duration_secs.to_string(),
+        ),
+        bt_data_contribution_timeout_secs: SharedString::from(
+            settings.bt.data_contribution_timeout_secs.to_string(),
+        ),
+        // IO 基线
+        io_buffer_limit_mb: SharedString::from(settings.io_baseline.buffer_limit_mb.to_string()),
+        io_game_mode_buffer_mb: SharedString::from(
+            settings.io_baseline.game_mode_buffer_mb.to_string(),
+        ),
+        io_max_parallel_hdd: SharedString::from(settings.io_baseline.max_parallel_hdd.to_string()),
+        io_game_mode_max_parallel: SharedString::from(
+            settings.io_baseline.game_mode_max_parallel.to_string(),
+        ),
+        io_hdd_buffer_enabled: settings.io_baseline.hdd_buffer_enabled,
+        io_ssd_write_combine_mb: SharedString::from(
+            settings.io_baseline.ssd_write_combine_mb.to_string(),
+        ),
+        // 日志
+        logging_enabled: settings.logging.enabled,
+        logging_level: log_level_to_str(settings.logging.level),
+        logging_file_path: SharedString::from(&settings.logging.file_path),
+        logging_retention_count: SharedString::from(
+            settings.logging.retention_count.map(|v| v.to_string()).unwrap_or_default(),
+        ),
+        logging_retention_days: SharedString::from(
+            settings.logging.retention_days.map(|v| v.to_string()).unwrap_or_default(),
+        ),
+        // Aria2
+        aria2_enabled: settings.aria2_rpc.enabled,
+        aria2_port: SharedString::from(settings.aria2_rpc.port.to_string()),
+        aria2_secret: SharedString::from(settings.aria2_rpc.secret.clone().unwrap_or_default()),
+        // 运行态
         game_mode,
         overclock_mode,
         io_status_text: SharedString::from(io_status_text),
         disk_type_text: SharedString::from(disk_type_text),
+        max_in_memory_downloads: SharedString::from(
+            settings.max_in_memory_downloads.to_string(),
+        ),
     }
 }
 
 /// Update `AppSettings` from `SettingsFormData`.
 pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &SettingsFormData) {
+    // ── 下载 ──
     let dir = form.default_download_dir.trim();
     if !dir.is_empty() {
         settings.download.default_download_dir = dir.to_string();
     }
+    if let Ok(v) = form.download_max_retries.trim().parse::<u32>() {
+        settings.download.default_max_retries = v.min(100);
+    }
+    if let Some(c) = str_to_checksum(form.download_checksum.as_str()) {
+        settings.download.default_checksum = c;
+    }
+    settings.download.auto_detect_sha256 = form.download_auto_detect_sha256;
+    // user-agent 允许清空（回退到默认值由后端处理），此处直接写入
+    settings.download.default_user_agent = form.download_user_agent.trim().to_string();
 
     if let Ok(parallel) = form.max_parallel_tasks.trim().parse::<usize>()
         && parallel > 0
     {
-        settings.scheduler.traditional.max_parallel_tasks = parallel;
+        settings.scheduler.traditional.max_parallel_tasks = parallel.min(64);
     }
-
     if let Ok(limit_kb) = form.global_speed_limit_kb.trim().parse::<u64>() {
         settings.global_speed_limit_bps = limit_kb * 1024;
     }
 
-    settings.bt.dht_enabled = form.dht_enabled;
-
-    if let Ok(port) = form.listen_port.trim().parse::<u16>()
-        && port > 0
-    {
-        settings.bt.listen_port = Some(port);
+    // ── 外观 / 启动 ──
+    match form.appearance_color_mode.as_str() {
+        "light" => settings.appearance.color_mode = ColorMode::Light,
+        "dark" => settings.appearance.color_mode = ColorMode::Dark,
+        _ => settings.appearance.color_mode = ColorMode::System,
+    }
+    match form.appearance_theme_color.as_str() {
+        "amber" => settings.appearance.theme_color = ThemeColor::Amber,
+        "sky" => settings.appearance.theme_color = ThemeColor::Sky,
+        _ => settings.appearance.theme_color = ThemeColor::Lime,
+    }
+    match form.appearance_close_behavior.as_str() {
+        "exit" => settings.appearance.close_behavior = CloseBehavior::Exit,
+        _ => settings.appearance.close_behavior = CloseBehavior::MinimizeToTray,
+    }
+    settings.appearance.show_detail_info = form.appearance_show_detail_info;
+    settings.autostart = form.autostart;
+    settings.notifications.enabled = form.notifications_enabled;
+    match form.double_click_completed.as_str() {
+        "open_file" => settings.double_click.on_completed = DoubleClickOnCompleted::OpenFile,
+        "open_in_explorer" => {
+            settings.double_click.on_completed = DoubleClickOnCompleted::OpenInExplorer
+        }
+        "open_download_dir" => {
+            settings.double_click.on_completed = DoubleClickOnCompleted::OpenDownloadDir
+        }
+        _ => settings.double_click.on_completed = DoubleClickOnCompleted::None,
+    }
+    match form.double_click_uncompleted.as_str() {
+        "toggle_pause_resume" => {
+            settings.double_click.on_uncompleted = DoubleClickOnUncompleted::TogglePauseResume
+        }
+        _ => settings.double_click.on_uncompleted = DoubleClickOnUncompleted::None,
     }
 
+    // ── 代理 ──
+    if let Some(m) = str_to_proxy_mode(form.proxy_mode.as_str()) {
+        settings.proxy.mode = m;
+    }
+    settings.proxy.manual_url = form.proxy_manual_url.trim().to_string();
+
+    // ── 调度 ──
+    if let Some(m) = match form.scheduler_mode.as_str() {
+        "traditional" => Some(SchedulerMode::Traditional),
+        "automatic" => Some(SchedulerMode::Automatic),
+        _ => None,
+    } {
+        settings.scheduler.mode = m;
+    }
+    if let Ok(v) = form.scheduler_max_parallel_threads.trim().parse::<usize>()
+        && v > 0
+    {
+        settings.scheduler.automatic.max_parallel_threads = v.min(128);
+    }
+    if let Ok(v) = form.scheduler_max_threads_per_task.trim().parse::<usize>()
+        && v > 0
+    {
+        settings.scheduler.automatic.max_threads_per_task = v.min(64);
+    }
+    if let Ok(v) = form.scheduler_min_threads_per_task.trim().parse::<usize>() {
+        settings.scheduler.automatic.min_threads_per_task =
+            v.min(settings.scheduler.automatic.max_threads_per_task);
+    }
+    match form.scheduler_adaptive_profile.as_str() {
+        "conservative" => {
+            settings.scheduler.automatic.adaptive_profile = AdaptiveProfile::Conservative
+        }
+        "aggressive" => {
+            settings.scheduler.automatic.adaptive_profile = AdaptiveProfile::Aggressive
+        }
+        _ => settings.scheduler.automatic.adaptive_profile = AdaptiveProfile::Balanced,
+    }
+    match form.scheduler_chunk_strategy.as_str() {
+        "fixed" => settings.scheduler.chunk_size_strategy = ChunkSizeStrategy::Fixed,
+        _ => settings.scheduler.chunk_size_strategy = ChunkSizeStrategy::Adaptive,
+    }
+    settings.scheduler.tail_sprint_enabled = form.scheduler_tail_sprint;
+    settings.scheduler.connection_warmup_enabled = form.scheduler_connection_warmup;
+
+    // ── BT ──
+    settings.bt.dht_enabled = form.dht_enabled;
+    let lp = form.listen_port.trim();
+    if lp.is_empty() {
+        settings.bt.listen_port = None;
+    } else if let Ok(port) = lp.parse::<u16>() {
+        if port == 0 {
+            settings.bt.listen_port = None;
+        } else {
+            settings.bt.listen_port = Some(port);
+        }
+    }
     if let Ok(conns) = form.max_bt_connections.trim().parse::<u32>()
         && conns > 0
     {
-        settings.bt.max_peers_per_torrent = conns;
+        settings.bt.max_peers_per_torrent = conns.min(4096);
+    }
+    let tracker_url = form.tracker_url.trim();
+    // 允许清空
+    settings.bt.tracker_list_url = tracker_url.to_string();
+    settings.bt.upnp_enabled = form.bt_upnp_enabled;
+    settings.bt.enable_natpmp = form.bt_natpmp_enabled;
+    settings.bt.enable_ipv6 = form.bt_ipv6_enabled;
+    settings.bt.enable_pex = form.bt_pex_enabled;
+    settings.bt.enable_lsd = form.bt_lsd_enabled;
+    settings.bt.enable_utp = form.bt_utp_enabled;
+    match form.bt_encryption_mode.as_str() {
+        "disabled" => settings.bt.encryption_mode = BtEncryptionMode::Disabled,
+        "forced" => settings.bt.encryption_mode = BtEncryptionMode::Forced,
+        _ => settings.bt.encryption_mode = BtEncryptionMode::Enabled,
+    }
+    match form.bt_preallocate_mode.as_str() {
+        "full" => settings.bt.preallocate_mode = BtPreallocateMode::Full,
+        _ => settings.bt.preallocate_mode = BtPreallocateMode::None,
+    }
+    if let Ok(v) = form.bt_max_downloads.trim().parse::<u32>() {
+        settings.bt.max_downloads = v.clamp(1, 1000);
+    }
+    if let Ok(v) = form.bt_max_seeds.trim().parse::<u32>() {
+        settings.bt.max_seeds = v.clamp(0, 1000);
+    }
+    if let Ok(v) = form.bt_max_torrents.trim().parse::<u32>() {
+        settings.bt.max_torrents = v.clamp(1, 10000);
+    }
+    if let Ok(v) = form.bt_active_limit.trim().parse::<u32>() {
+        settings.bt.active_limit = v.clamp(1, 10000);
+    }
+    if let Ok(v) = form.bt_global_download_rate_limit_kb.trim().parse::<u64>() {
+        settings.bt.global_download_rate_limit = v * 1024;
+    }
+    if let Ok(v) = form.bt_global_upload_rate_limit_kb.trim().parse::<u64>() {
+        settings.bt.global_upload_rate_limit = v * 1024;
+    }
+    settings.bt.enable_fast_extension = form.bt_enable_fast_extension;
+    settings.bt.enable_holepunch = form.bt_enable_holepunch;
+    settings.bt.enable_web_seed = form.bt_enable_web_seed;
+    settings.bt.enable_super_seeding = form.bt_enable_super_seeding;
+    settings.bt.pause_upload_when_limit_reached = form.bt_pause_upload_when_limit;
+    if let Ok(v) = form.bt_upload_limit_kb.trim().parse::<u64>() {
+        settings.bt.upload_limit_bytes = v * 1024;
+    }
+    if let Ok(v) = form.bt_upload_ratio_limit.trim().parse::<f64>() {
+        settings.bt.upload_ratio_limit = v.clamp(0.0, 1000.0);
+    }
+    settings.bt.anti_leech_enabled = form.bt_anti_leech_enabled;
+    match form.bt_anti_leech_action.as_str() {
+        "limit_slots" => settings.bt.anti_leech_action = BtAntiLeechAction::LimitSlots,
+        _ => settings.bt.anti_leech_action = BtAntiLeechAction::Ban,
+    }
+    if let Ok(v) = form.bt_anti_leech_grace_secs.trim().parse::<u64>() {
+        settings.bt.anti_leech_grace_secs = v;
+    }
+    if let Ok(v) = form.bt_anti_leech_ratio.trim().parse::<f64>() {
+        settings.bt.anti_leech_ratio = v.clamp(0.0, 1.0);
+    }
+    if let Ok(v) = form.bt_anti_leech_ban_secs.trim().parse::<u64>() {
+        settings.bt.anti_leech_ban_secs = v;
+    }
+    if let Ok(v) = form.bt_anti_leech_max_upload_slots.trim().parse::<u32>()
+        && v > 0
+    {
+        settings.bt.anti_leech_max_upload_slots = v.clamp(1, 64);
+    }
+    settings.bt.blocklist_enabled = form.bt_blocklist_enabled;
+    settings.bt.blocklist_path = form.bt_blocklist_path.trim().to_string();
+    match form.bt_seed_choking_algorithm.as_str() {
+        "round_robin" => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::RoundRobin,
+        "anti_leech" => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::AntiLeech,
+        _ => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::FastestUpload,
+    }
+    match form.bt_choking_algorithm.as_str() {
+        "rate_based" => settings.bt.choking_algorithm = BtChokingAlgorithm::RateBased,
+        _ => settings.bt.choking_algorithm = BtChokingAlgorithm::FixedSlots,
+    }
+    if let Ok(v) = form.bt_max_upload_slots_per_torrent.trim().parse::<u32>()
+        && v > 0
+    {
+        settings.bt.max_upload_slots_per_torrent = v.clamp(1, 64);
+    }
+    if let Ok(v) = form.bt_smart_ban_max_failures.trim().parse::<u32>()
+        && v > 0
+    {
+        settings.bt.smart_ban_max_failures = v.clamp(1, 100);
+    }
+    settings.bt.smart_ban_parole = form.bt_smart_ban_parole;
+    if let Ok(v) = form.bt_eviction_ban_duration_secs.trim().parse::<u64>() {
+        settings.bt.eviction_ban_duration_secs = v;
+    }
+    if let Ok(v) = form.bt_data_contribution_timeout_secs.trim().parse::<u64>() {
+        settings.bt.data_contribution_timeout_secs = v;
     }
 
-    let tracker_url = form.tracker_url.trim();
-    if !tracker_url.is_empty() {
-        settings.bt.tracker_list_url = tracker_url.to_string();
+    // ── IO 基线 ──
+    if let Ok(v) = form.io_buffer_limit_mb.trim().parse::<u64>() {
+        settings.io_baseline.buffer_limit_mb = v.clamp(64, 32768);
+    }
+    if let Ok(v) = form.io_game_mode_buffer_mb.trim().parse::<u64>() {
+        settings.io_baseline.game_mode_buffer_mb = v.clamp(16, 4096);
+    }
+    if let Ok(v) = form.io_max_parallel_hdd.trim().parse::<u32>() {
+        settings.io_baseline.max_parallel_hdd = v.clamp(1, 16);
+    }
+    if let Ok(v) = form.io_game_mode_max_parallel.trim().parse::<u32>() {
+        settings.io_baseline.game_mode_max_parallel = v.clamp(1, 8);
+    }
+    settings.io_baseline.hdd_buffer_enabled = form.io_hdd_buffer_enabled;
+    if let Ok(v) = form.io_ssd_write_combine_mb.trim().parse::<u64>() {
+        settings.io_baseline.ssd_write_combine_mb = v.min(4096);
+    }
+
+    // ── 日志 ──
+    settings.logging.enabled = form.logging_enabled;
+    if let Some(l) = str_to_log_level(form.logging_level.as_str()) {
+        settings.logging.level = l;
+    }
+    settings.logging.file_path = form.logging_file_path.trim().to_string();
+    let rc = form.logging_retention_count.trim();
+    if rc.is_empty() {
+        settings.logging.retention_count = None;
+    } else if let Ok(v) = rc.parse::<u32>() {
+        settings.logging.retention_count = Some(v.min(10000));
+    }
+    let rd = form.logging_retention_days.trim();
+    if rd.is_empty() {
+        settings.logging.retention_days = None;
+    } else if let Ok(v) = rd.parse::<u32>() {
+        settings.logging.retention_days = Some(v.min(36500));
+    }
+
+    // ── Aria2 ──
+    settings.aria2_rpc.enabled = form.aria2_enabled;
+    if let Ok(v) = form.aria2_port.trim().parse::<u16>()
+        && v != 0
+    {
+        settings.aria2_rpc.port = v;
+    }
+    let sec = form.aria2_secret.trim();
+    if sec.is_empty() {
+        settings.aria2_rpc.secret = None;
+    } else {
+        settings.aria2_rpc.secret = Some(sec.to_string());
+    }
+
+    // ── 高级 ──
+    if let Ok(v) = form.max_in_memory_downloads.trim().parse::<usize>()
+        && v > 0
+    {
+        settings.max_in_memory_downloads = v.clamp(10, 10000);
     }
 }
 
