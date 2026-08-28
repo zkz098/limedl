@@ -1,5 +1,8 @@
-﻿use std::{
-    sync::Arc,
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -7,11 +10,12 @@ use parking_lot::Mutex;
 
 /// Token-bucket rate limiter for global download speed control.
 ///
-/// Thread-safe: inner state protected by `std::sync::Mutex` held only
+/// Thread-safe: inner state protected by `parking_lot::Mutex` held only
 /// for brief arithmetic, never across an await point or blocking call.
 /// Cloneable via `Arc` — pass a single instance through the entire app.
 #[derive(Debug, Clone)]
 pub struct RateLimiter {
+    rate: Arc<AtomicU64>,
     inner: Arc<Mutex<Inner>>,
 }
 
@@ -26,6 +30,7 @@ struct Inner {
 impl Default for RateLimiter {
     fn default() -> Self {
         Self {
+            rate: Arc::new(AtomicU64::new(0)),
             inner: Arc::new(Mutex::new(Inner {
                 rate: 0,
                 capacity: 0,
@@ -42,6 +47,7 @@ impl RateLimiter {
     /// Refills tokens with the *current* rate before switching, so any
     /// budget accumulated under the old limit is preserved coherently.
     pub fn set_rate(&self, new_rate: u64) {
+        self.rate.store(new_rate, Ordering::Release);
         let mut inner = lock_inner(&self.inner);
         let elapsed = inner.last_refill.elapsed().as_secs_f64();
         if inner.rate > 0 {
@@ -64,7 +70,7 @@ impl RateLimiter {
     /// Async consumer — pauses the current task until `n` bytes of
     /// budget are available, or returns immediately when the limit is 0.
     pub async fn consume(&self, n: usize) {
-        if n == 0 {
+        if n == 0 || self.rate.load(Ordering::Relaxed) == 0 {
             return;
         }
         let n = n as u64;
@@ -84,7 +90,7 @@ impl RateLimiter {
     /// across the sleep.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn consume_blocking(&self, n: usize) {
-        if n == 0 {
+        if n == 0 || self.rate.load(Ordering::Relaxed) == 0 {
             return;
         }
         let n = n as u64;

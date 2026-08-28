@@ -48,6 +48,15 @@ export const useDownloadListStore = defineStore("downloadList", () => {
 
   // ── Core reactive state ──────────────────────────────────────────
   const downloads = ref<DownloadSummary[]>([]);
+  const downloadMap = new Map<string, DownloadSummary>();
+
+  function syncDownloadMap(items: DownloadSummary[]) {
+    downloadMap.clear();
+    for (const item of items) {
+      downloadMap.set(item.id, item);
+    }
+  }
+
   const selectedId = ref<string | null>(null);
   const selectedSnapshot = ref<DownloadSnapshot | null>(null);
   const isAutoRefreshing = ref(false);
@@ -81,10 +90,17 @@ export const useDownloadListStore = defineStore("downloadList", () => {
     }
 
     downloads.value = next;
+    downloadMap.set(summary.id, summary);
   }
 
   function patchProgress(progress: DownloadProgress) {
-    const existing = downloads.value.find((d) => d.id === progress.id);
+    let existing = downloadMap.get(progress.id);
+    if (!existing) {
+      existing = downloads.value.find((d) => d.id === progress.id);
+      if (existing) {
+        downloadMap.set(existing.id, existing);
+      }
+    }
     if (!existing) return;
 
     applyProgressToSummary(existing, progress);
@@ -96,6 +112,7 @@ export const useDownloadListStore = defineStore("downloadList", () => {
 
   function removeSummary(downloadId: string) {
     downloads.value = downloads.value.filter((download) => download.id !== downloadId);
+    downloadMap.delete(downloadId);
 
     callbacks.onDownloadsRemoved?.([downloadId]);
 
@@ -107,7 +124,7 @@ export const useDownloadListStore = defineStore("downloadList", () => {
   }
 
   function ensureSelection() {
-    if (selectedId.value && downloads.value.some((download) => download.id === selectedId.value)) {
+    if (selectedId.value && (downloadMap.has(selectedId.value) || downloads.value.some((download) => download.id === selectedId.value))) {
       return;
     }
 
@@ -129,7 +146,7 @@ export const useDownloadListStore = defineStore("downloadList", () => {
       return null;
     }
 
-    return downloads.value.find((download) => download.id === selectedId.value) ?? null;
+    return downloadMap.get(selectedId.value) ?? downloads.value.find((download) => download.id === selectedId.value) ?? null;
   });
 
   const selectedDownload = computed(() => selectedSnapshot.value ?? selectedSummary.value);
@@ -159,6 +176,7 @@ export const useDownloadListStore = defineStore("downloadList", () => {
     try {
       const oldIds = new Set(downloads.value.map((d) => d.id));
       downloads.value = await listDownloads();
+      syncDownloadMap(downloads.value);
       const newIds = new Set(downloads.value.map((d) => d.id));
       const removedIds = [...oldIds].filter((id) => !newIds.has(id));
       if (removedIds.length > 0) {

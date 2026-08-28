@@ -102,29 +102,9 @@ impl IoWorker {
                         }
                         return Ok(());
                     }
-                    // Merge adjacent contiguous entries to reduce syscall count.
-                    let mut i = 0;
-                    while i < entries.len() {
-                        let (start_off, ref first_data) = entries[i];
-                        let mut end_off = start_off + first_data.len() as u64;
-                        let mut j = i + 1;
-                        while j < entries.len() && entries[j].0 == end_off {
-                            end_off += entries[j].1.len() as u64;
-                            j += 1;
-                        }
-                        if j == i + 1 {
-                            // Single entry, write directly (no allocation).
-                            write_all_at(&file, &entries[i].1, entries[i].0)?;
-                        } else {
-                            // Merge entries i..j into one contiguous buffer.
-                            let total_len = (end_off - start_off) as usize;
-                            let mut merged = Vec::with_capacity(total_len);
-                            for (_, chunk) in &entries[i..j] {
-                                merged.extend_from_slice(chunk);
-                            }
-                            write_all_at(&file, &merged, start_off)?;
-                        }
-                        i = j;
+                    // Zero-copy sequential chunk writes (no intermediate buffer allocations).
+                    for (offset, chunk) in &entries {
+                        write_all_at(&file, chunk, *offset)?;
                     }
                     if sync {
                         file.sync_data().map_err(|e| {
