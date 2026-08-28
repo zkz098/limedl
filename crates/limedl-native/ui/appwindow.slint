@@ -189,30 +189,35 @@ export component MainWindow inherits Window {
                     spacing: 4px;
                     CategoryButton {
                         title: "全部任务";
+                        icon_source: @image-url("assets/icons/download-cloud-2-line.svg");
                         count_text: root.count_all;
                         active: root.active_category == 0;
                         clicked => { root.select_category(0); }
                     }
                     CategoryButton {
                         title: "正在下载";
+                        icon_source: @image-url("assets/icons/download-line.svg");
                         count_text: root.count_downloading;
                         active: root.active_category == 1;
                         clicked => { root.select_category(1); }
                     }
                     CategoryButton {
                         title: "已暂停";
+                        icon_source: @image-url("assets/icons/pause-circle-line.svg");
                         count_text: root.count_paused;
                         active: root.active_category == 2;
                         clicked => { root.select_category(2); }
                     }
                     CategoryButton {
                         title: "已完成";
+                        icon_source: @image-url("assets/icons/checkbox-circle-line.svg");
                         count_text: root.count_completed;
                         active: root.active_category == 3;
                         clicked => { root.select_category(3); }
                     }
                     CategoryButton {
                         title: "失败/错误";
+                        icon_source: @image-url("assets/icons/error-warning-line.svg");
                         count_text: root.count_failed;
                         active: root.active_category == 4;
                         clicked => { root.select_category(4); }
@@ -241,12 +246,23 @@ export component MainWindow inherits Window {
                             padding-left: 10px;
                             padding-right: 10px;
                             alignment: space-between;
-                            Text {
-                                text: "🎮 游戏模式";
-                                color: root.game_mode_active ? #f59e0b : #9ca3af;
-                                font-size: 12px;
-                                font-weight: 500;
-                                vertical-alignment: center;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Image {
+                                    source: @image-url("assets/icons/gamepad-line.svg");
+                                    colorize: root.game_mode_active ? #f59e0b : #8b95a5;
+                                    width: 15px;
+                                    height: 15px;
+                                    image-fit: contain;
+                                    vertical-alignment: center;
+                                }
+                                Text {
+                                    text: "游戏模式";
+                                    color: root.game_mode_active ? #f59e0b : #9ca3af;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    vertical-alignment: center;
+                                }
                             }
                             Text {
                                 text: root.game_mode_active ? "ON" : "OFF";
@@ -273,12 +289,23 @@ export component MainWindow inherits Window {
                             padding-left: 10px;
                             padding-right: 10px;
                             alignment: space-between;
-                            Text {
-                                text: "⚡ 超频模式";
-                                color: root.overclock_mode_active ? #ec4899 : #9ca3af;
-                                font-size: 12px;
-                                font-weight: 500;
-                                vertical-alignment: center;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Image {
+                                    source: @image-url("assets/icons/rocket-line.svg");
+                                    colorize: root.overclock_mode_active ? #ec4899 : #8b95a5;
+                                    width: 15px;
+                                    height: 15px;
+                                    image-fit: contain;
+                                    vertical-alignment: center;
+                                }
+                                Text {
+                                    text: "超频模式";
+                                    color: root.overclock_mode_active ? #ec4899 : #9ca3af;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    vertical-alignment: center;
+                                }
                             }
                             Text {
                                 text: root.overclock_mode_active ? "ON" : "OFF";
@@ -335,9 +362,19 @@ export component MainWindow inherits Window {
                         padding-right: 12px;
                         alignment: center;
                         spacing: 8px;
+
+                        Image {
+                            source: @image-url("assets/icons/settings-3-line.svg");
+                            colorize: ta_set.has_hover ? #ffffff : #d1d5db;
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                            vertical-alignment: center;
+                        }
+
                         Text {
-                            text: "⚙ 设置中心";
-                            color: #d1d5db;
+                            text: "设置中心";
+                            color: ta_set.has_hover ? #ffffff : #d1d5db;
                             font-size: 12px;
                             font-weight: 600;
                             vertical-alignment: center;
@@ -425,7 +462,8 @@ export component MainWindow inherits Window {
                             }
 
                             IconButton {
-                                text: root.sort_asc ? "↑ 升序" : "↓ 降序";
+                                text: root.sort_asc ? "升序" : "降序";
+                                icon: @image-url("assets/icons/arrow-up-down-line.svg");
                                 text_color: #a3e635;
                                 clicked => { root.toggle_sort_asc(); }
                             }
@@ -440,16 +478,19 @@ export component MainWindow inherits Window {
 
                         SecondaryButton {
                             text: "全部暂停";
+                            icon: @image-url("assets/icons/pause-line.svg");
                             clicked => { root.pause_all(); }
                         }
 
                         SecondaryButton {
                             text: "全部继续";
+                            icon: @image-url("assets/icons/play-line.svg");
                             clicked => { root.resume_all(); }
                         }
 
                         PrimaryButton {
-                            text: "+ 新建任务";
+                            text: "新建任务";
+                            icon: @image-url("assets/icons/add-line.svg");
                             clicked => { root.open_new_task_dialog(); }
                         }
                     }
@@ -471,7 +512,7 @@ export component MainWindow inherits Window {
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: root.search_query != "" ? "尝试清除搜索关键词" : "点击右上角「+ 新建任务」添加 HTTP / BT 下载";
+                        text: root.search_query != "" ? "尝试清除搜索关键词" : "点击右上角「新建任务」添加 HTTP / BT 下载";
                         color: #4b5563;
                         font-size: 13px;
                         horizontal-alignment: center;
@@ -517,7 +558,7 @@ export component MainWindow inherits Window {
                 if root.selected_count > 0 : Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - self.height - 16px;
-                    width: min(parent.width - 40px, 680px);
+                    width: min(parent.width - 40px, 700px);
                     height: 52px;
                     background: #181b22;
                     border-color: #84cc16;
@@ -562,21 +603,25 @@ export component MainWindow inherits Window {
 
                             SecondaryButton {
                                 text: "批量暂停";
+                                icon: @image-url("assets/icons/pause-line.svg");
                                 clicked => { root.batch_pause(); }
                             }
 
                             SecondaryButton {
                                 text: "批量继续";
+                                icon: @image-url("assets/icons/play-line.svg");
                                 clicked => { root.batch_resume(); }
                             }
 
                             SecondaryButton {
                                 text: "移除记录";
+                                icon: @image-url("assets/icons/delete-bin-line.svg");
                                 clicked => { root.batch_remove(false); }
                             }
 
                             PrimaryButton {
                                 text: "彻底删除";
+                                icon: @image-url("assets/icons/delete-bin-6-line.svg");
                                 clicked => { root.batch_remove(true); }
                             }
                         }

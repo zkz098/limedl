@@ -55,7 +55,7 @@ export component SettingsDialog inherits Rectangle {
                     vertical-alignment: center;
                 }
                 IconButton {
-                    text: "✕";
+                    icon: @image-url("../assets/icons/close-line.svg");
                     clicked => { root.close(); }
                 }
             }
@@ -67,18 +67,21 @@ export component SettingsDialog inherits Rectangle {
 
                 TabButton {
                     text: "常规下载";
+                    icon: @image-url("../assets/icons/download-line.svg");
                     active: root.settings_tab == 0;
                     clicked => { root.set_tab(0); }
                 }
 
                 TabButton {
                     text: "BitTorrent 网络";
+                    icon: @image-url("../assets/icons/global-line.svg");
                     active: root.settings_tab == 1;
                     clicked => { root.set_tab(1); }
                 }
 
                 TabButton {
                     text: "性能实验室 & IO";
+                    icon: @image-url("../assets/icons/cpu-line.svg");
                     active: root.settings_tab == 2;
                     clicked => { root.set_tab(2); }
                 }
@@ -112,7 +115,8 @@ export component SettingsDialog inherits Rectangle {
                                     placeholder: "/downloads";
                                 }
                                 SecondaryButton {
-                                    text: "📁 浏览...";
+                                    text: "浏览...";
+                                    icon: @image-url("../assets/icons/folder-open-line.svg");
                                     clicked => { root.pick_default_folder(); }
                                 }
                             }
@@ -194,6 +198,7 @@ export component SettingsDialog inherits Rectangle {
                                 }
                                 SecondaryButton {
                                     text: "立即同步";
+                                    icon: @image-url("../assets/icons/refresh-line.svg");
                                     clicked => { root.fetch_trackers(root.settings_form.tracker_url); }
                                 }
                             }
@@ -239,13 +244,35 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: "磁盘类型检测 (SSD / HDD):"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Image {
+                                    source: @image-url("../assets/icons/hard-drive-2-line.svg");
+                                    colorize: #38bdf8;
+                                    width: 15px;
+                                    height: 15px;
+                                    image-fit: contain;
+                                    vertical-alignment: center;
+                                }
+                                Text { text: "磁盘类型检测 (SSD / HDD):"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                            }
                             Text { text: root.settings_form.disk_type_text; color: #38bdf8; font-size: 12px; }
                         }
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Image {
+                                    source: @image-url("../assets/icons/cpu-line.svg");
+                                    colorize: #a3e635;
+                                    width: 15px;
+                                    height: 15px;
+                                    image-fit: contain;
+                                    vertical-alignment: center;
+                                }
+                                Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                            }
                             Text { text: root.settings_form.io_status_text; color: #a3e635; font-size: 12px; }
                         }
                     }

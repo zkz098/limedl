@@ -1,8 +1,22 @@
+export component RiIcon inherits Image {
+    in property <image> icon_source;
+    in property <color> icon_color: #d1d5db;
+    in property <length> icon_size: 16px;
+
+    source: root.icon_source;
+    colorize: root.icon_color;
+    width: root.icon_size;
+    height: root.icon_size;
+    image-fit: contain;
+}
+
 export component IconButton inherits Rectangle {
-    in property <string> text;
+    in property <string> text: "";
+    in property <image> icon;
     in property <color> hover_color: #242932;
     in property <color> text_color: #d1d5db;
     in property <length> font_size: 12px;
+    in property <length> icon_size: 14px;
     callback clicked();
 
     background: ta.has_hover ? (ta.pressed ? root.hover_color.darker(0.2) : root.hover_color) : transparent;
@@ -15,12 +29,23 @@ export component IconButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
+        padding-left: root.text != "" ? 8px : 6px;
+        padding-right: root.text != "" ? 8px : 6px;
+        spacing: 4px;
         alignment: center;
-        Text {
+
+        if root.icon.width > 0 : Image {
+            source: root.icon;
+            colorize: ta.has_hover ? #ffffff : root.text_color;
+            width: root.icon_size;
+            height: root.icon_size;
+            image-fit: contain;
+            vertical-alignment: center;
+        }
+
+        if root.text != "" : Text {
             text: root.text;
-            color: root.text_color;
+            color: ta.has_hover ? #ffffff : root.text_color;
             font-size: root.font_size;
             font-weight: 500;
             vertical-alignment: center;
@@ -30,6 +55,7 @@ export component IconButton inherits Rectangle {
 
 export component PrimaryButton inherits Rectangle {
     in property <string> text;
+    in property <image> icon;
     in property <bool> enabled: true;
     callback clicked();
 
@@ -44,9 +70,20 @@ export component PrimaryButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 6px;
         alignment: center;
+
+        if root.icon.width > 0 : Image {
+            source: root.icon;
+            colorize: !root.enabled ? #4d5c41 : #0b1104;
+            width: 15px;
+            height: 15px;
+            image-fit: contain;
+            vertical-alignment: center;
+        }
+
         Text {
             text: root.text;
             color: !root.enabled ? #4d5c41 : #0b1104;
@@ -59,6 +96,7 @@ export component PrimaryButton inherits Rectangle {
 
 export component SecondaryButton inherits Rectangle {
     in property <string> text;
+    in property <image> icon;
     in property <bool> active: false;
     callback clicked();
 
@@ -76,10 +114,21 @@ export component SecondaryButton inherits Rectangle {
     HorizontalLayout {
         padding-left: 10px;
         padding-right: 10px;
+        spacing: 5px;
         alignment: center;
+
+        if root.icon.width > 0 : Image {
+            source: root.icon;
+            colorize: root.active ? #84cc16 : (ta.has_hover ? #ffffff : #d1d5db);
+            width: 14px;
+            height: 14px;
+            image-fit: contain;
+            vertical-alignment: center;
+        }
+
         Text {
             text: root.text;
-            color: root.active ? #84cc16 : #e5e7eb;
+            color: root.active ? #84cc16 : (ta.has_hover ? #ffffff : #e5e7eb);
             font-size: 12px;
             font-weight: root.active ? 600 : 500;
             vertical-alignment: center;
@@ -89,6 +138,7 @@ export component SecondaryButton inherits Rectangle {
 
 export component TabButton inherits Rectangle {
     in property <string> text;
+    in property <image> icon;
     in property <bool> active: false;
     callback clicked();
 
@@ -103,7 +153,18 @@ export component TabButton inherits Rectangle {
     HorizontalLayout {
         padding-left: 12px;
         padding-right: 12px;
+        spacing: 6px;
         alignment: center;
+
+        if root.icon.width > 0 : Image {
+            source: root.icon;
+            colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
+            width: 15px;
+            height: 15px;
+            image-fit: contain;
+            vertical-alignment: center;
+        }
+
         Text {
             text: root.text;
             color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
@@ -179,12 +240,22 @@ export component SearchInput inherits Rectangle {
     border-width: 1px;
     border-radius: 6px;
     height: 32px;
-    width: 220px;
+    width: 230px;
 
     HorizontalLayout {
         padding-left: 10px;
         padding-right: 10px;
+        spacing: 6px;
         alignment: center;
+
+        Image {
+            source: @image-url("../assets/icons/search-line.svg");
+            colorize: ta.has-focus ? #84cc16 : #5d6778;
+            width: 14px;
+            height: 14px;
+            image-fit: contain;
+            vertical-alignment: center;
+        }
 
         ta := TextInput {
             text <=> root.text;
@@ -341,6 +412,7 @@ export component StatusBadge inherits Rectangle {
 
 export component CategoryButton inherits Rectangle {
     in property <string> title;
+    in property <image> icon_source;
     in property <string> count_text: "0";
     in property <bool> active: false;
     callback clicked();
@@ -359,12 +431,26 @@ export component CategoryButton inherits Rectangle {
         spacing: 8px;
         alignment: space-between;
 
-        Text {
-            text: root.title;
-            color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
-            font-size: 13px;
-            font-weight: root.active ? 600 : 400;
-            vertical-alignment: center;
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            Image {
+                source: root.icon_source;
+                colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
+                width: 16px;
+                height: 16px;
+                image-fit: contain;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: root.title;
+                color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
+                font-size: 13px;
+                font-weight: root.active ? 600 : 400;
+                vertical-alignment: center;
+            }
         }
 
         Rectangle {

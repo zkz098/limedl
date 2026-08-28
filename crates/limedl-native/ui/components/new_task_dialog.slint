@@ -7,7 +7,7 @@ export component NewTaskDialog inherits Rectangle {
     in property <string> default_download_dir;
 
     callback close();
-    callback submit(string, string, string); // url, dir, filename
+    callback submit(string, string, string);
     callback pick_torrent_file();
     callback pick_save_folder();
 
@@ -44,7 +44,7 @@ export component NewTaskDialog inherits Rectangle {
                     vertical-alignment: center;
                 }
                 IconButton {
-                    text: "✕";
+                    icon: @image-url("../assets/icons/close-line.svg");
                     clicked => { root.close(); }
                 }
             }
@@ -61,7 +61,8 @@ export component NewTaskDialog inherits Rectangle {
                         vertical-alignment: center;
                     }
                     SecondaryButton {
-                        text: "📂 选择种子文件...";
+                        text: "选择种子...";
+                        icon: @image-url("../assets/icons/file-upload-line.svg");
                         clicked => { root.pick_torrent_file(); }
                     }
                 }
@@ -86,7 +87,8 @@ export component NewTaskDialog inherits Rectangle {
                         placeholder: root.default_download_dir;
                     }
                     SecondaryButton {
-                        text: "📁 浏览...";
+                        text: "浏览...";
+                        icon: @image-url("../assets/icons/folder-open-line.svg");
                         clicked => { root.pick_save_folder(); }
                     }
                 }
@@ -121,6 +123,7 @@ export component NewTaskDialog inherits Rectangle {
 
                 PrimaryButton {
                     text: "立即下载";
+                    icon: @image-url("../assets/icons/download-line.svg");
                     enabled: root.new_task_url != "";
                     clicked => {
                         root.submit(

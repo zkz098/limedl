@@ -5,7 +5,7 @@ export component SpeedLimitDialog inherits Rectangle {
     in-out property <string> speed_limit_ul_kb: "0";
 
     callback close();
-    callback submit(string, string); // dl_kb, ul_kb
+    callback submit(string, string);
 
     width: 100%;
     height: 100%;
@@ -39,7 +39,7 @@ export component SpeedLimitDialog inherits Rectangle {
                     vertical-alignment: center;
                 }
                 IconButton {
-                    text: "✕";
+                    icon: @image-url("../assets/icons/close-line.svg");
                     clicked => { root.close(); }
                 }
             }
@@ -75,6 +75,7 @@ export component SpeedLimitDialog inherits Rectangle {
                 }
                 PrimaryButton {
                     text: "应用限速";
+                    icon: @image-url("../assets/icons/speed-up-line.svg");
                     clicked => {
                         root.submit(root.speed_limit_dl_kb, root.speed_limit_ul_kb);
                     }

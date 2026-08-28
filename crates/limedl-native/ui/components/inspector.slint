@@ -4,7 +4,7 @@ import { IconButton, PrimaryButton, SecondaryButton, TabButton } from "common.sl
 
 export component TaskInspector inherits Rectangle {
     in property <InspectorInfo> inspector_info;
-    in property <int> inspector_tab: 0; // 0: Overview, 1: Peers, 2: Trackers, 3: Piece Map, 4: Files
+    in property <int> inspector_tab: 0;
     in property <[PeerItem]> inspector_peers: [];
     in property <[TrackerItem]> inspector_trackers: [];
     in property <[TorrentFileItem]> inspector_files: [];
@@ -78,7 +78,7 @@ export component TaskInspector inherits Rectangle {
                 }
 
                 IconButton {
-                    text: "✕";
+                    icon: @image-url("../assets/icons/close-line.svg");
                     clicked => { root.close(); }
                 }
             }
@@ -90,30 +90,35 @@ export component TaskInspector inherits Rectangle {
 
                 TabButton {
                     text: "任务概览";
+                    icon: @image-url("../assets/icons/information-line.svg");
                     active: root.inspector_tab == 0;
                     clicked => { root.set_tab(0); }
                 }
 
                 if root.inspector_info.kind == "bt" : TabButton {
                     text: "对等节点 (" + root.inspector_peers.length + ")";
+                    icon: @image-url("../assets/icons/group-line.svg");
                     active: root.inspector_tab == 1;
                     clicked => { root.set_tab(1); }
                 }
 
                 if root.inspector_info.kind == "bt" : TabButton {
                     text: "Trackers (" + root.inspector_trackers.length + ")";
+                    icon: @image-url("../assets/icons/radar-line.svg");
                     active: root.inspector_tab == 2;
                     clicked => { root.set_tab(2); }
                 }
 
                 if root.inspector_info.kind == "bt" : TabButton {
                     text: "分片点阵图";
+                    icon: @image-url("../assets/icons/layout-grid-line.svg");
                     active: root.inspector_tab == 3;
                     clicked => { root.set_tab(3); }
                 }
 
                 if root.inspector_info.kind == "bt" : TabButton {
                     text: "文件清单 (" + root.inspector_files.length + ")";
+                    icon: @image-url("../assets/icons/file-list-line.svg");
                     active: root.inspector_tab == 4;
                     clicked => { root.set_tab(4); }
                 }
@@ -349,10 +354,12 @@ export component TaskInspector inherits Rectangle {
                     spacing: 8px;
                     if root.inspector_info.kind == "bt" : SecondaryButton {
                         text: "设置限速";
+                        icon: @image-url("../assets/icons/speed-up-line.svg");
                         clicked => { root.open_speed_limit(); }
                     }
                     SecondaryButton {
                         text: "打开目录";
+                        icon: @image-url("../assets/icons/folder-open-line.svg");
                         clicked => { root.open_explorer(root.inspector_info.id); }
                     }
                 }
