@@ -1,0 +1,25 @@
+[package]
+name = "limedl-native"
+version.workspace = true
+description = "Lightweight native desktop UI for limedl based on Slint"
+license.workspace = true
+edition = "2024"
+build = "build.rs"
+
+[[bin]]
+name = "limedl-native"
+path = "src/main.rs"
+
+[dependencies]
+limedl-core = { path = "../limedl-core" }
+slint = { workspace = true, features = ["std", "backend-default", "renderer-femtovg-wgpu", "accessibility", "compat-1-2"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+parking_lot = { workspace = true }
+
+[build-dependencies]
+slint-build = { workspace = true }

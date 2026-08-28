@@ -6,8 +6,8 @@
 
 **Windows**: initialize MSVC before any Rust command:
 
-```powershell
-& "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+```cmd
+cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
 ```
 
 ## Toolchain
@@ -41,6 +41,7 @@ subjects Conventional (with meaningful `scope:`) so release notes stay readable.
 ```
 limedl/
 ├── crates/limedl-core/   # Pure download engine (lib: limedl_core)
+├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
 ├── crates/limedl-server/ # axum HTTP/WS server + CLI
 ├── src-tauri/            # Tauri v2 desktop shell (lib: limedl_lib)
 └── src/                  # Vue 3 frontend (shared across targets)
@@ -131,7 +132,7 @@ Run the full gate locally (Windows: init MSVC first):
 
 ```powershell
 # Rust — clippy/build/test under -D warnings
-& "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
 $env:RUSTFLAGS="-D warnings"
 $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 cargo clippy --workspace --all-targets

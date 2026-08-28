@@ -454,7 +454,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
 /// Contains only high-frequency fields. Static/low-frequency fields stay in `DownloadSummary`.
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub id: String,

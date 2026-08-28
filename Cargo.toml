@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/limedl-core", "crates/limedl-server", "src-tauri"]
+members = ["crates/limedl-core", "crates/limedl-native", "crates/limedl-server", "src-tauri"]
 
 [workspace.package]
 version = "0.2.1"
@@ -63,6 +63,8 @@ tauri-plugin-autostart = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-os = "2"
+slint = { version = "1.9", default-features = false }
+slint-build = "1.9"
 
 [profile.release]
 # Optimized for binary size while preserving good runtime performance.
