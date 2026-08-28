@@ -65,6 +65,8 @@ pub struct HttpExecutor;
 const TAIL_SPRINT_STALL_WINDOW_SECS: u64 = 8;
 /// Tail Sprint: minimum remaining bytes to qualify for chunk splitting (1 MiB).
 const TAIL_SPRINT_MIN_SPLIT_SIZE: u64 = 1024 * 1024;
+/// Work Stealing: minimum remaining bytes of an active chunk to qualify for splitting (2 MiB).
+const WORK_STEAL_MIN_SPLIT_SIZE: u64 = 2 * 1024 * 1024;
 
 impl HttpExecutor {
     /// Probe a remote URL to obtain file metadata (final URL, file name,
@@ -649,17 +651,6 @@ impl HttpExecutor {
         let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
         let ssd_write_combine_mb = settings.io_baseline.ssd_write_combine_mb;
         drop(settings);
-        let checksum_mode = {
-            let core = managed.lock_core();
-            core.manifest.checksum_mode
-        };
-        // Incremental Blake3 hasher — avoids file re-read during finalize
-        let incremental_hasher: Option<Arc<parking_lot::Mutex<blake3::Hasher>>> =
-            if checksum_mode == ChecksumMode::Blake3 {
-                Some(Arc::new(parking_lot::Mutex::new(blake3::Hasher::new())))
-            } else {
-                None
-            };
         // ── Connection warmup: pre-establish TCP+TLS before workers start ──
         if warmup_enabled {
             let final_url = managed.lock_core().manifest.final_url.clone();
@@ -785,15 +776,6 @@ impl HttpExecutor {
                     dm.task_lifecycle.emit_progress(&dm, &managed);
                     flush_result?;
                 }
-                // Store incremental checksum if computed
-                if let Some(ref hasher) = incremental_hasher {
-                    let guard = hasher.lock();
-                    let hash = guard.finalize();
-                    let mut core = managed.lock_core();
-                    let hex = hash.to_hex().to_string();
-                    core.manifest.checksum = Some(hex);
-                    core.snapshot.checksum = core.manifest.checksum.clone();
-                }
                 return Ok(RunOutcome::Finished);
             }
 
@@ -807,18 +789,16 @@ impl HttpExecutor {
                         {
                             tracing::warn!("flush on pause failed: {e}");
                         }
-                        // Clear incremental checksum — fresh hasher on resume misses pre-pause bytes
-                        managed.lock_core().manifest.checksum = None;
                         return Ok(RunOutcome::Paused);
                     }
-manager::WaitState::Canceled => {
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on cancel failed: {e}");
+                    manager::WaitState::Canceled => {
+                        if let Some(ref buf) = write_buffer
+                            && let Err(e) = buf.flush_all().await
+                        {
+                            tracing::warn!("flush on cancel failed: {e}");
+                        }
+                        return Ok(RunOutcome::Canceled);
                     }
-                    return Ok(RunOutcome::Canceled);
-                }
                 }
             }
 
@@ -921,7 +901,7 @@ manager::WaitState::Canceled => {
                 let worker_id = next_worker_id;
                 let chunk = {
                     let mut core = managed.lock_core();
-                    claim_next_chunk(&mut core.manifest, worker_id, target_workers)
+                    claim_or_steal_chunk(&mut core.manifest, worker_id, target_workers)
                 };
                 let Some(chunk) = chunk else {
                     break;
@@ -947,7 +927,6 @@ manager::WaitState::Canceled => {
                 let file = file.clone();
                 let wbuf = write_buffer.clone();
                 let dtyp = disk_type;
-                let inc_hasher = incremental_hasher.clone();
                 workers.spawn(async move {
                     download_chunk(ChunkWorkerCtx {
                         managed,
@@ -961,7 +940,6 @@ manager::WaitState::Canceled => {
                         manager: manager_for_worker,
                         write_buffer: wbuf,
                         disk_type: dtyp,
-                        incremental_hasher: inc_hasher,
                         worker_id,
                     })
                     .await
@@ -1030,8 +1008,6 @@ manager::WaitState::Canceled => {
                     {
                         tracing::warn!("flush on pause failed: {e}");
                     }
-                    // Clear incremental checksum — fresh hasher on resume misses pre-pause bytes
-                    managed.lock_core().manifest.checksum = None;
                     return Ok(RunOutcome::Paused);
                 }
                 ChunkWorkerOutcome::Canceled => {
@@ -1241,6 +1217,72 @@ fn claim_next_chunk(manifest: &mut crate::manifest::Manifest, worker_id: usize, 
     Some(chunk.clone())
 }
 
+/// Dynamically steal work from the active chunk with the largest remaining un-downloaded range.
+fn steal_chunk(manifest: &mut crate::manifest::Manifest, worker_id: usize) -> Option<ChunkManifest> {
+    let mut best_chunk_idx: Option<usize> = None;
+    let mut max_remaining: u64 = 0;
+
+    for (idx, chunk) in manifest.chunks.iter().enumerate() {
+        if !chunk.completed && chunk.claimed_by.is_some() {
+            let current_pos = chunk.start.saturating_add(chunk.downloaded);
+            if chunk.end > current_pos {
+                let remaining = chunk.end - current_pos;
+                if remaining >= WORK_STEAL_MIN_SPLIT_SIZE && remaining > max_remaining {
+                    max_remaining = remaining;
+                    best_chunk_idx = Some(idx);
+                }
+            }
+        }
+    }
+
+    let target_idx = best_chunk_idx?;
+    let target_chunk = manifest.chunks.get_mut(target_idx)?;
+    let current_pos = target_chunk.start.saturating_add(target_chunk.downloaded);
+    let original_end = target_chunk.end;
+    let remaining = original_end.saturating_sub(current_pos);
+    if remaining < WORK_STEAL_MIN_SPLIT_SIZE {
+        return None;
+    }
+    let half = remaining / 2;
+    let mid = current_pos + half;
+
+    target_chunk.end = mid;
+    target_chunk.dirty = true;
+
+    let new_index = manifest.chunks.len();
+    let stolen_chunk = ChunkManifest {
+        index: new_index,
+        start: mid + 1,
+        end: original_end,
+        downloaded: 0,
+        completed: false,
+        claimed_by: Some(worker_id),
+        dirty: true,
+    };
+    manifest.chunks.push(stolen_chunk.clone());
+    manifest.updated_at_ms = now_ms();
+
+    tracing::info!(
+        "Work stealing: worker {worker_id} stole bytes {}-{} from chunk {target_idx} (new chunk {new_index})",
+        mid + 1,
+        original_end
+    );
+
+    Some(stolen_chunk)
+}
+
+/// Attempt to claim an unclaimed chunk, or dynamically steal work from an active chunk.
+fn claim_or_steal_chunk(
+    manifest: &mut crate::manifest::Manifest,
+    worker_id: usize,
+    total_workers: usize,
+) -> Option<ChunkManifest> {
+    if let Some(chunk) = claim_next_chunk(manifest, worker_id, total_workers) {
+        return Some(chunk);
+    }
+    steal_chunk(manifest, worker_id)
+}
+
 pub(crate) fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize, worker_id: usize) {
     let mut core = managed.lock_core();
     if let Some(chunk) = core.manifest.chunks.get_mut(chunk_index) {
@@ -1293,7 +1335,6 @@ struct ChunkWorkerCtx {
     manager: Arc<DownloadManager>,
     write_buffer: Option<Arc<DownloadBuffer>>,
     disk_type: DiskType,
-    incremental_hasher: Option<Arc<parking_lot::Mutex<blake3::Hasher>>>,
     worker_id: usize,
 }
 
@@ -1397,6 +1438,17 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
                 bytes_since_consume = 0;
                 chunks_since_consume = 0;
             }
+
+            // Check dynamic chunk end (which may have been shortened if work was stolen)
+            let dynamic_end = {
+                let core = ctx.managed.lock_core();
+                core.manifest.chunks.get(ctx.chunk.index).map(|c| c.end).unwrap_or(end)
+            };
+
+            if current > dynamic_end {
+                break;
+            }
+
             if current + bytes.len() as u64 - 1 > end {
                 mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
                 return Err(DownloadError::InvalidResponse(String::from(
@@ -1404,26 +1456,33 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
                 )));
             }
 
+            let (to_write, reached_dynamic_end) = if current + bytes.len() as u64 - 1 > dynamic_end {
+                let allowed = (dynamic_end.saturating_sub(current) + 1) as usize;
+                (bytes.slice(..allowed.min(bytes.len())), true)
+            } else {
+                (bytes.clone(), false)
+            };
+
             if let Some(ref buf) = ctx.write_buffer {
-                if buf.buffer_chunk(current, bytes.clone()).await.is_err() {
+                if buf.buffer_chunk(current, to_write.clone()).await.is_err() {
                     // Background flush failed — fall back to direct write.
-                    write_all_at(&ctx.file, &bytes, current)?;
+                    write_all_at(&ctx.file, &to_write, current)?;
                     if ctx.disk_type == DiskType::Hdd {
                         let mut core = ctx.managed.lock_core();
                         core.snapshot.degraded = true;
                     }
                 }
             } else {
-                write_all_at(&ctx.file, &bytes, current)?;
+                write_all_at(&ctx.file, &to_write, current)?;
             }
-            // Feed downloaded bytes through incremental hasher (Blake3 only)
-            if let Some(ref hasher) = ctx.incremental_hasher {
-                let mut guard = hasher.lock();
-                guard.update(&bytes);
-            }
-            current += bytes.len() as u64;
+
+            current += to_write.len() as u64;
             {
-                record_progress_on_managed(&ctx.managed, Some(ctx.chunk.index), bytes.len() as u64);
+                record_progress_on_managed(&ctx.managed, Some(ctx.chunk.index), to_write.len() as u64);
+            }
+
+            if reached_dynamic_end {
+                break;
             }
             // Check if tail sprint released our chunk claim — exit early to avoid
             // wasting bandwidth competing with a new worker on the same chunk.
@@ -1471,4 +1530,195 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
         core.manifest.updated_at_ms = now_ms();
     }
     Ok(ChunkWorkerOutcome::Finished)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::ChunkManifest;
+    use crate::types::{ChecksumMode, DownloadState, Priority, ThreadMode};
+
+    fn make_test_manifest(chunks: Vec<ChunkManifest>) -> crate::manifest::Manifest {
+        crate::manifest::Manifest {
+            id: "test-task".to_string(),
+            url: "https://example.com/test.bin".to_string(),
+            final_url: "https://example.com/test.bin".to_string(),
+            user_agent: "limedl".to_string(),
+            extra_headers: Vec::new(),
+            destination_dir: "/tmp".to_string(),
+            file_name: "test.bin".to_string(),
+            file_name_locked: false,
+            destination_path: "/tmp/test.bin".to_string(),
+            temp_path: "/tmp/test.bin.part".to_string(),
+            total_bytes: Some(chunks.iter().map(|c| c.end - c.start + 1).sum()),
+            downloaded_bytes: chunks.iter().map(|c| c.downloaded).sum(),
+            supports_ranges: true,
+            chunk_size: 4 * 1024 * 1024,
+            connection_count: 0,
+            thread_mode: ThreadMode::Adaptive,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile_snapshot: None,
+            thread_note: None,
+            etag: None,
+            last_modified: None,
+            state: DownloadState::Downloading,
+            cdn_accelerated: false,
+            cdn_node_ip: None,
+            checksum_mode: ChecksumMode::None,
+            checksum: None,
+            expected_checksum: None,
+            error: None,
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            chunks,
+            mirror_url: None,
+            mirror_urls: Vec::new(),
+            current_mirror_index: 0,
+            priority: Priority::Normal,
+        }
+    }
+
+    #[test]
+    fn test_claim_next_chunk_stripe_and_fallback() {
+        let chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 999,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 1000,
+                end: 1999,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        let mut manifest = make_test_manifest(chunks);
+
+        let claimed_0 = claim_next_chunk(&mut manifest, 0, 2);
+        assert!(claimed_0.is_some());
+        assert_eq!(claimed_0.unwrap().index, 0);
+        assert_eq!(manifest.chunks[0].claimed_by, Some(0));
+
+        let claimed_1 = claim_next_chunk(&mut manifest, 1, 2);
+        assert!(claimed_1.is_some());
+        assert_eq!(claimed_1.unwrap().index, 1);
+        assert_eq!(manifest.chunks[1].claimed_by, Some(1));
+
+        let claimed_none = claim_next_chunk(&mut manifest, 0, 2);
+        assert!(claimed_none.is_none());
+    }
+
+    #[test]
+    fn test_steal_chunk_splits_largest_remaining() {
+        let chunks = vec![
+            // Chunk 0: 0..9_999_999 (10 MB), 2 MB downloaded, remaining 8 MB
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 9_999_999,
+                downloaded: 2_000_000,
+                completed: false,
+                claimed_by: Some(0),
+                dirty: false,
+            },
+            // Chunk 1: 10_000_000..19_999_999 (10 MB), 7 MB downloaded, remaining 3 MB
+            ChunkManifest {
+                index: 1,
+                start: 10_000_000,
+                end: 19_999_999,
+                downloaded: 7_000_000,
+                completed: false,
+                claimed_by: Some(1),
+                dirty: false,
+            },
+        ];
+        let mut manifest = make_test_manifest(chunks);
+
+        // Worker 2 attempts work stealing
+        let stolen = steal_chunk(&mut manifest, 2);
+        assert!(stolen.is_some(), "should successfully steal a chunk");
+        let stolen_chunk = stolen.unwrap();
+
+        // Should have targeted Chunk 0 (8 MB remaining vs 3 MB remaining)
+        assert_eq!(stolen_chunk.index, 2);
+        assert_eq!(stolen_chunk.claimed_by, Some(2));
+        assert_eq!(stolen_chunk.downloaded, 0);
+        assert!(!stolen_chunk.completed);
+
+        // Remaining was 8_000_000 bytes (from 2_000_000 to 9_999_999)
+        // Midpoint = 2_000_000 + 3_999_999 = 5_999_999
+        // Chunk 0 end should now be 5_999_999 (covers 0..5_999_999, which is 6 MB)
+        assert_eq!(manifest.chunks[0].end, 5_999_999);
+        assert!(manifest.chunks[0].dirty);
+
+        // Stolen chunk should cover 6_000_000..9_999_999 (4 MB)
+        assert_eq!(stolen_chunk.start, 6_000_000);
+        assert_eq!(stolen_chunk.end, 9_999_999);
+
+        // Total chunks should now be 3
+        assert_eq!(manifest.chunks.len(), 3);
+    }
+
+    #[test]
+    fn test_steal_chunk_ignores_small_remaining() {
+        let chunks = vec![
+            // Chunk 0: only 1 MB remaining (< 2 MB threshold)
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 1_000_000,
+                downloaded: 0,
+                completed: false,
+                claimed_by: Some(0),
+                dirty: false,
+            },
+        ];
+        let mut manifest = make_test_manifest(chunks);
+
+        let stolen = steal_chunk(&mut manifest, 1);
+        assert!(stolen.is_none(), "should not steal chunks smaller than threshold");
+        assert_eq!(manifest.chunks.len(), 1);
+    }
+
+    #[test]
+    fn test_claim_or_steal_chunk_prefers_unclaimed() {
+        let chunks = vec![
+            ChunkManifest {
+                index: 0,
+                start: 0,
+                end: 10_000_000,
+                downloaded: 0,
+                completed: false,
+                claimed_by: Some(0),
+                dirty: false,
+            },
+            ChunkManifest {
+                index: 1,
+                start: 10_000_001,
+                end: 20_000_000,
+                downloaded: 0,
+                completed: false,
+                claimed_by: None,
+                dirty: false,
+            },
+        ];
+        let mut manifest = make_test_manifest(chunks);
+
+        let claimed = claim_or_steal_chunk(&mut manifest, 1, 2);
+        assert!(claimed.is_some());
+        assert_eq!(claimed.unwrap().index, 1);
+        // Chunk 0 end should not be modified
+        assert_eq!(manifest.chunks[0].end, 10_000_000);
+        assert_eq!(manifest.chunks.len(), 2);
+    }
 }

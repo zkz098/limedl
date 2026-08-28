@@ -6,6 +6,64 @@ members = ["crates/limedl-core", "crates/limedl-server", "src-tauri"]
 version = "0.1.16"
 license = "GPL-3.0-or-later"
 
+[workspace.dependencies]
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
+tokio-util = { version = "0.7" }
+reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls", "http2"] }
+futures-util = "0.3"
+blake3 = "1"
+sha2 = "0.11"
+sha1 = "0.11"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+sanitize-filename = "0.6"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+percent-encoding = "2"
+regex = "1"
+anyhow = "1"
+time = { version = ">=0.3.47, <0.4", features = ["local-offset"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.7", features = ["cors"] }
+base64 = "0.23"
+rusqlite = { version = "0.40", features = ["bundled", "cache"] }
+async-trait = "0.1"
+dashmap = "6"
+bytes = "1"
+foldhash = "0.2"
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+fs4 = { version = "1", features = ["sync"] }
+rand = "0.10"
+irontide = { version = "1", default-features = false, features = ["crypto-aws-lc"] }
+libc = "0.2"
+open = "5"
+ts-rs = { version = "12" }
+mimalloc = "0.1.48"
+minisign-verify = "0.2"
+governor = "0.10"
+subtle = "2"
+clap = { version = "4", features = ["derive"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
+rust-embed = "8"
+tempfile = "3"
+ntest = "0.9"
+serde_bytes = "0.11"
+tokio-tungstenite = "0.30"
+criterion = { version = "0.8", features = ["html_reports"] }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-build = { version = "2" }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-os = "2"
+
 [profile.release]
 # Optimized for binary size while preserving good runtime performance.
 # Download manager is I/O-bound, not CPU-bound — size matters for distribution.

@@ -9,42 +9,40 @@ edition = "2024"
 name = "limedl_core"
 
 [dependencies]
-tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
-tokio-util = { version = "0.7" }
-reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls", "http2"] }
-futures-util = "0.3"
-blake3 = "1"
-sha2 = "0.11"
-sha1 = "0.11"
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
-sanitize-filename = "0.6"
-thiserror = "2"
-uuid = { version = "1", features = ["v4", "serde"] }
-percent-encoding = "2"
-regex = "1"
-anyhow = "1"
-time = { version = ">=0.3.47, <0.4", features = ["local-offset"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
-axum = { version = "0.8", features = ["ws"], optional = true }
-tower-http = { version = "0.7", features = ["cors"], optional = true }
-base64 = "0.23"
-rusqlite = { version = "0.40", features = ["bundled", "cache"] }
-async-trait = "0.1"
-dashmap = "6"
-bytes = "1"
-foldhash = "0.2"
-parking_lot = "0.12"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-fs4 = { version = "1", features = ["sync"] }
-rand = { version = "0.10", optional = true }
-irontide = { version = "1", default-features = false, features = [
-  "crypto-aws-lc",
-], optional = true }
-libc = "0.2"
-open = "5"
-ts-rs = { version = "12", optional = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+reqwest = { workspace = true }
+futures-util = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
+sha1 = { workspace = true }
+xxhash-rust = { workspace = true }
+sanitize-filename = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+percent-encoding = { workspace = true }
+regex = { workspace = true }
+anyhow = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+axum = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+base64 = { workspace = true }
+rusqlite = { workspace = true }
+async-trait = { workspace = true }
+dashmap = { workspace = true }
+bytes = { workspace = true }
+foldhash = { workspace = true }
+parking_lot = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+fs4 = { workspace = true }
+rand = { workspace = true, optional = true }
+irontide = { workspace = true, optional = true }
+libc = { workspace = true }
+open = { workspace = true }
+ts-rs = { workspace = true, optional = true }
 
 [features]
 bt = ["dep:irontide"]
@@ -54,14 +52,14 @@ test-utils = ["rand", "dep:axum", "dep:tower-http"]
 ts = ["dep:ts-rs"]
 
 [dev-dependencies]
-tempfile = "3"
-rand = "0.10"
-ntest = "0.9"
-serde_bytes = "0.11"
-tokio-tungstenite = "0.30"
-axum = { version = "0.8", features = ["ws"] }
-tower-http = { version = "0.7", features = ["cors"] }
-criterion = { version = "0.8", features = ["html_reports"] }
+tempfile = { workspace = true }
+rand = { workspace = true }
+ntest = { workspace = true }
+serde_bytes = { workspace = true }
+tokio-tungstenite = { workspace = true }
+axum = { workspace = true }
+tower-http = { workspace = true }
+criterion = { workspace = true }
 
 [[bench]]
 name = "aimd"

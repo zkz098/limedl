@@ -20,9 +20,9 @@ embed-frontend = ["dep:rust-embed"]
 
 [dependencies]
 limedl-core = { path = "../limedl-core", features = ["aria2-rpc"] }
-axum = { version = "0.8", features = ["ws"] }
+axum = { workspace = true }
 axum-server = { version = "0.8", features = ["tls-rustls"], optional = true }
-tower-http = { version = "0.7", features = [
+tower-http = { workspace = true, features = [
   "fs",
   "set-header",
   "limit",
@@ -30,37 +30,29 @@ tower-http = { version = "0.7", features = [
   "compression-br",
   "compression-zstd",
 ] }
-governor = "0.10"
-dashmap = "6"
-uuid = { version = "1", features = ["v4"] }
-tokio = { version = "1", features = [
-  "fs",
-  "io-util",
-  "macros",
-  "rt-multi-thread",
-  "signal",
-  "sync",
-  "time",
-] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-subtle = "2"
-clap = { version = "4", features = ["derive"] }
-anyhow = "1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
-parking_lot = "0.12"
-futures-util = "0.3"
-base64 = "0.23"
-reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
-rust-embed = { version = "8", optional = true }
-tower = { version = "0.5", default-features = false, features = ["util"] }
+governor = { workspace = true }
+dashmap = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true, features = ["signal"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+subtle = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+parking_lot = { workspace = true }
+futures-util = { workspace = true }
+base64 = { workspace = true }
+reqwest = { workspace = true }
+rust-embed = { workspace = true, optional = true }
+tower = { workspace = true }
 
 [dev-dependencies]
 limedl-core = { path = "../limedl-core", features = ["test-utils"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-tempfile = "3"
-serde_json = "1"
-ntest = "0.9"
-tokio-tungstenite = "0.30"
-futures-util = "0.3"
+tokio = { workspace = true }
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+ntest = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures-util = { workspace = true }
