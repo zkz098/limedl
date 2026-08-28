@@ -91,14 +91,26 @@ const detailRows = computed<DetailRow[]>(() => {
     ];
   }
 
-  return [
+  const httpRows: DetailRow[] = [
     ...commonRows,
     {
       label: t("inspector.fields.checksum"),
       value: snapshot.checksum ?? t("common.dash"),
       wide: true,
+      mono: true,
     },
   ];
+
+  if (snapshot.expectedChecksum) {
+    httpRows.push({
+      label: t("inspector.fields.expectedChecksum"),
+      value: snapshot.expectedChecksum,
+      wide: true,
+      mono: true,
+    });
+  }
+
+  return httpRows;
 });
 
 const stateTone = computed(() => toneForState(props.selectedOverview?.state ?? ""));

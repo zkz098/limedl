@@ -232,6 +232,32 @@ impl HttpExecutor {
             core.sync_snapshot_from_manifest();
         }
 
+        // Auto-detect SHA-256 if not provided and setting is enabled
+        if current_manifest.expected_checksum.is_none() && settings.download.auto_detect_sha256 {
+            let (target_url, file_name, user_agent, extra_headers) = {
+                let core = managed.lock_core();
+                (
+                    core.manifest.final_url.clone(),
+                    core.manifest.file_name.clone(),
+                    core.manifest.user_agent.clone(),
+                    core.manifest.extra_headers.clone(),
+                )
+            };
+            if let Some(detected_hash) =
+                crate::checksum::detect_sha256(&client, &target_url, &file_name, &user_agent, &extra_headers)
+                    .await
+            {
+                tracing::info!("Auto-detected SHA-256 for {}: {}", file_name, detected_hash);
+                let mut core = managed.lock_core();
+                if core.manifest.expected_checksum.is_none() {
+                    core.manifest.expected_checksum = Some(detected_hash.clone());
+                    core.manifest.checksum_mode = ChecksumMode::Sha256;
+                    core.snapshot.expected_checksum = Some(detected_hash);
+                    core.snapshot.checksum_mode = ChecksumMode::Sha256;
+                }
+            }
+        }
+
         // Emit a frontend-visible warning for files exceeding 4 GB (FAT32 limitation).
         if let Some(total) = metadata.total_bytes
             && total > 4_294_967_295

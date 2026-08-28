@@ -1,7 +1,10 @@
-﻿use std::path::PathBuf;
+use std::path::PathBuf;
 
 use super::error::{DownloadError, Result};
 use super::types::ChecksumMode;
+
+pub mod detect;
+pub use detect::{detect_sha256, parse_sha256_file, parse_sha256sums};
 
 pub enum ChecksumHasher {
     Blake3(Box<blake3::Hasher>),

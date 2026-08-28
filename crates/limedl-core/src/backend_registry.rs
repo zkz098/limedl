@@ -305,6 +305,7 @@ mod tests {
             peer_count: None,
             upload_status: None,
             info_hash: None,
+            expected_checksum: None,
             error: None,
             cdn_accelerated: false,
             cdn_node_ip: None,

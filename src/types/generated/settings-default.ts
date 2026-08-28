@@ -47,7 +47,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     "defaultDownloadDir": "",
     "defaultMaxRetries": 5,
     "defaultChecksum": "blake3",
-    "defaultUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    "defaultUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "autoDetectSha256": true
   },
   "bt": {
     "dhtEnabled": true,

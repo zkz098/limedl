@@ -124,6 +124,7 @@ function buildDefaultSettings() {
       defaultMaxRetries: 5,
       defaultChecksum: "blake3" as const,
       defaultUserAgent: "",
+      autoDetectSha256: true,
     },
     bt: {
       pauseUploadWhenLimitReached: false,

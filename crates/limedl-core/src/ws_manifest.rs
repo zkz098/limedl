@@ -177,6 +177,12 @@ pub const WS_COMMANDS: &[WsCommandSpec] = &[
         },
         safety: SafetyClass::Mutating,
     },
+    WsCommandSpec {
+        tauri_name: "download_probe_checksum",
+        rpc_method: "download.probeChecksum",
+        param_transform: ParamTransform::Identity,
+        safety: SafetyClass::Safe,
+    },
     // ── Settings ────────────────────────────────────────────────────────
     WsCommandSpec {
         tauri_name: "settings_get",

@@ -133,6 +133,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             default_max_retries: settings.download.default_max_retries.clamp(0, 20),
             default_checksum: settings.download.default_checksum,
             default_user_agent,
+            auto_detect_sha256: settings.download.auto_detect_sha256,
         },
         bt,
         logging,

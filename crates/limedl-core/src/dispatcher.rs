@@ -481,4 +481,34 @@ impl Dispatcher {
             .update_torrent_files(*info_hash, included_indices)
             .await
     }
+
+    /// Proactively probe candidate SHA-256 checksum files for a URL.
+    pub async fn probe_checksum(&self, url: &str, file_name: Option<&str>) -> Result<Option<String>> {
+        let client = self.http_client.clone().unwrap_or_default();
+        let target_file_name = file_name
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| {
+                reqwest::Url::parse(url)
+                    .ok()
+                    .and_then(|u| {
+                        u.path_segments()
+                            .and_then(|mut segments| segments.next_back().map(ToOwned::to_owned))
+                    })
+                    .unwrap_or_else(|| String::from("download"))
+            });
+        let user_agent = self
+            .get_settings()
+            .await
+            .map(|s| s.download.default_user_agent)
+            .unwrap_or_else(|_| crate::types::default_http_user_agent());
+
+        Ok(crate::checksum::detect_sha256(
+            &client,
+            url,
+            &target_file_name,
+            &user_agent,
+            &[],
+        )
+        .await)
+    }
 }

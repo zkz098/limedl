@@ -103,6 +103,7 @@ function createSettings(): AppSettings {
       defaultMaxRetries: 5,
       defaultChecksum: "blake3",
       defaultUserAgent: "Mozilla/5.0",
+      autoDetectSha256: true,
     },
     bt: {
       pauseUploadWhenLimitReached: false,

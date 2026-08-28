@@ -129,3 +129,144 @@ async fn checksum_wrong_fails() {
 
     core.registry.shutdown_all().await;
 }
+
+/// Download without expected_checksum, but server has `.sha256` → Auto-detected & Completed
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn checksum_autodetect_sha256_completes() {
+    let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
+    let url = format!("{}/file", test_server.addr);
+
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+    let dest_dir = tmp.path().join("output");
+    std::fs::create_dir_all(&dest_dir).unwrap();
+
+    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+    let dm = &core.download_manager;
+
+    let request = StartDownloadRequest {
+        url: url.clone(),
+        destination_dir: dest_dir.to_string_lossy().to_string(),
+        file_name: Some("test-file.bin".into()),
+        kind: None,
+        thread_mode: None,
+        thread_count: Some(1),
+        max_retries: Some(1),
+        checksum: None,
+        expected_checksum: None,
+        selected_file_indices: None,
+        start_paused: false,
+        headers: None,
+        mirror_urls: None,
+        user_agent: None,
+        priority: None,
+    };
+    let id = dm.start(request).await.unwrap();
+    let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
+    let inner = match task_id {
+        TaskId::Http(u) => u,
+        #[cfg(feature = "bt")]
+        TaskId::Bt(_) => unreachable!(),
+    };
+
+    let start = std::time::Instant::now();
+    loop {
+        let snapshot = dm.status(&inner.to_string()).await.unwrap();
+        match snapshot.state {
+            DownloadState::Completed => {
+                assert_eq!(snapshot.checksum_mode, ChecksumMode::Sha256);
+                assert_eq!(snapshot.expected_checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
+                assert_eq!(snapshot.checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
+                break;
+            }
+            DownloadState::Failed => panic!("Download failed: {:?}", snapshot.error),
+            _ => {}
+        }
+        if start.elapsed() > std::time::Duration::from_secs(30) {
+            panic!("Download timed out after 30s");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+
+    core.registry.shutdown_all().await;
+}
+
+/// Download with manually provided SHA-256 and no checksum_mode → resolves to Sha256 & Completed
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn checksum_manual_sha256_completes() {
+    let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
+    let url = format!("{}/file", test_server.addr);
+
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+    let dest_dir = tmp.path().join("output");
+    std::fs::create_dir_all(&dest_dir).unwrap();
+
+    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+    let dm = &core.download_manager;
+
+    let request = StartDownloadRequest {
+        url: url.clone(),
+        destination_dir: dest_dir.to_string_lossy().to_string(),
+        file_name: Some("test-file.bin".into()),
+        kind: None,
+        thread_mode: None,
+        thread_count: Some(1),
+        max_retries: Some(1),
+        checksum: None,
+        expected_checksum: Some(test_server.sha256_hash.clone()),
+        selected_file_indices: None,
+        start_paused: false,
+        headers: None,
+        mirror_urls: None,
+        user_agent: None,
+        priority: None,
+    };
+    let id = dm.start(request).await.unwrap();
+    let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
+    let inner = match task_id {
+        TaskId::Http(u) => u,
+        #[cfg(feature = "bt")]
+        TaskId::Bt(_) => unreachable!(),
+    };
+
+    let start = std::time::Instant::now();
+    loop {
+        let snapshot = dm.status(&inner.to_string()).await.unwrap();
+        match snapshot.state {
+            DownloadState::Completed => {
+                assert_eq!(snapshot.checksum_mode, ChecksumMode::Sha256);
+                assert_eq!(snapshot.expected_checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
+                assert_eq!(snapshot.checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
+                break;
+            }
+            DownloadState::Failed => panic!("Download failed: {:?}", snapshot.error),
+            _ => {}
+        }
+        if start.elapsed() > std::time::Duration::from_secs(30) {
+            panic!("Download timed out after 30s");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+
+    core.registry.shutdown_all().await;
+}
+
+/// Test Dispatcher::probe_checksum
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn test_dispatcher_probe_checksum() {
+    let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
+    let url = format!("{}/file", test_server.addr);
+
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+
+    let probed = core.dispatcher.probe_checksum(&url, Some("test-file.bin")).await.unwrap();
+    assert_eq!(probed.as_deref(), Some(test_server.sha256_hash.as_str()));
+
+    core.registry.shutdown_all().await;
+}

@@ -650,6 +650,7 @@ mod tests {
                     adaptive_profile: None,
                     thread_note: None,
                     checksum: None,
+                    expected_checksum: None,
                     checksum_mode: ChecksumMode::None,
                     etag: None,
                     last_modified: None,

@@ -125,6 +125,8 @@ pub struct DownloadDefaultsSettings {
     pub default_checksum: ChecksumMode,
     #[serde(default = "default_http_user_agent")]
     pub default_user_agent: String,
+    #[serde(default = "default_true")]
+    pub auto_detect_sha256: bool,
 }
 
 impl Default for DownloadDefaultsSettings {
@@ -134,6 +136,7 @@ impl Default for DownloadDefaultsSettings {
             default_max_retries: 5,
             default_checksum: ChecksumMode::Blake3,
             default_user_agent: default_http_user_agent(),
+            auto_detect_sha256: true,
         }
     }
 }

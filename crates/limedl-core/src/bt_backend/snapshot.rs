@@ -49,6 +49,7 @@ impl super::IrontideBtBackend {
             adaptive_profile: None,
             thread_note: Some(String::from("BT task managed by irontide")),
             checksum: None,
+            expected_checksum: None,
             checksum_mode: ChecksumMode::None,
             etag: None,
             last_modified: None,

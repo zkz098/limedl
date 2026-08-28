@@ -695,8 +695,20 @@ impl DownloadManager {
         let supports_parallel = true;
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);
+        let expected_checksum = request
+            .expected_checksum
+            .as_ref()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        let checksum_mode = match (request.checksum, &expected_checksum) {
+            (Some(mode), _) => mode,
+            (None, Some(_)) => ChecksumMode::Sha256,
+            (None, None) => settings.download.default_checksum,
+        };
+
         // Validate: if expected_checksum is provided, checksum_mode must not be None
-        if request.expected_checksum.is_some() && request.checksum == Some(ChecksumMode::None) {
+        if expected_checksum.is_some() && checksum_mode == ChecksumMode::None {
             return Err(DownloadError::InvalidRequest(
                 "checksum_mode is required when expected_checksum is provided".into(),
             ));
@@ -730,9 +742,9 @@ impl DownloadManager {
             etag: None,
             last_modified: None,
             state: DownloadState::Queued,
-            checksum_mode: request.checksum.unwrap_or_default(),
+            checksum_mode,
             checksum: None,
-            expected_checksum: request.expected_checksum.clone(),
+            expected_checksum,
             error: None,
             created_at_ms: now,
             updated_at_ms: now,

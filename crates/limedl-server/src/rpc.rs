@@ -426,6 +426,7 @@ async fn dispatch_method(
         "download_open_in_explorer" => handle_open_in_explorer(params, state).await,
         "download_open_file" => handle_open_file(params, state).await,
         "download_open_dir" => handle_open_dir(params, state).await,
+        "download_probe_checksum" => handle_download_probe_checksum(params, state).await,
         "download_set_priority" => handle_set_priority(params, state).await,
         "toggle_game_mode" => handle_toggle_game_mode(params, state).await,
         "get_io_status" => handle_get_io_status(state).await,
@@ -702,6 +703,29 @@ async fn handle_open_dir(
         .await
         .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
     Ok(serde_json::json!({}))
+}
+
+// ── Handler: download.probeChecksum ─────────────────────────
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProbeChecksumParams {
+    url: String,
+    file_name: Option<String>,
+}
+
+async fn handle_download_probe_checksum(
+    params: Option<&serde_json::Value>,
+    state: &RpcState,
+) -> Result<serde_json::Value, JsonRpcError> {
+    let p: ProbeChecksumParams = serde_json::from_value(params.cloned().unwrap_or_default())
+        .map_err(|e| JsonRpcError::invalid_params(format!("Invalid params: {e}")))?;
+    let dispatcher = make_dispatcher(state);
+    let result = dispatcher
+        .probe_checksum(&p.url, p.file_name.as_deref())
+        .await
+        .map_err(|e| JsonRpcError::server_error(e.to_string()))?;
+    Ok(serde_json::to_value(result).unwrap_or(serde_json::Value::Null))
 }
 
 // ── Handler: download.setPriority ─────────────────────────────

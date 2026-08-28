@@ -175,4 +175,16 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        version: 9,
+        name: "add_expected_checksum",
+        up: |conn| {
+            conn.execute(
+                "ALTER TABLE downloads ADD COLUMN expected_checksum TEXT",
+                [],
+            )
+            .context("failed to add expected_checksum column")?;
+            Ok(())
+        },
+    },
 ];

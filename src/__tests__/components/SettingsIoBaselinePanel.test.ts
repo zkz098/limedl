@@ -79,6 +79,7 @@ function createDraft(overrides?: Partial<IoBaselineSettings>): AppSettings {
       defaultMaxRetries: 3,
       defaultChecksum: "blake3",
       defaultUserAgent: "",
+      autoDetectSha256: true,
     },
     bt: {
       pauseUploadWhenLimitReached: false,

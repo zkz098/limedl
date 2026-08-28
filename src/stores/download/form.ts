@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 import { pickDirectory, pickTorrentFile } from "../../lib/tauri/dialog-api";
 import { readClipboardText } from "../../lib/platform";
-import { setBtSpeedLimit, startDownload } from "../../lib/tauri/download-api";
+import { probeChecksum, setBtSpeedLimit, startDownload } from "../../lib/tauri/download-api";
 import { t } from "../../i18n";
 import { toMessage } from "../../composables/downloadHelpers";
 import { detectKindFromUrl, extractFileNameFromUrl } from "../../lib/url-utils";
@@ -32,6 +32,9 @@ export const useDownloadFormStore = defineStore("downloadForm", () => {
     threadCount: DEFAULT_THREAD_COUNT,
     maxRetries: 5,
     checksum: "blake3",
+    expectedChecksum: "",
+    isProbingChecksum: false,
+    checksumDetected: false,
     downloadLimitBps: null,
     uploadLimitBps: null,
   });
@@ -70,6 +73,9 @@ export const useDownloadFormStore = defineStore("downloadForm", () => {
     form.value.threadCount = DEFAULT_THREAD_COUNT;
     form.value.maxRetries = 5;
     form.value.checksum = "blake3";
+    form.value.expectedChecksum = "";
+    form.value.isProbingChecksum = false;
+    form.value.checksumDetected = false;
     form.value.downloadLimitBps = null;
     form.value.uploadLimitBps = null;
     isFileNameLocked.value = false;
@@ -147,7 +153,13 @@ export const useDownloadFormStore = defineStore("downloadForm", () => {
       }
     }
 
-    request.checksum = form.value.checksum;
+    const expected = form.value.expectedChecksum.trim();
+    if (expected) {
+      request.expectedChecksum = expected;
+      request.checksum = "sha256";
+    } else {
+      request.checksum = form.value.checksum;
+    }
   }
 
   function buildStartRequest(): StartDownloadRequest {
@@ -368,6 +380,27 @@ export const useDownloadFormStore = defineStore("downloadForm", () => {
     }
   }
 
+  async function probeSha256Checksum() {
+    const url = form.value.url.trim();
+    if (!url || form.value.kind !== "http") return;
+    if (form.value.expectedChecksum.trim() && !form.value.checksumDetected) return;
+
+    form.value.isProbingChecksum = true;
+    try {
+      const fileName = form.value.fileName.trim() || undefined;
+      const detected = await probeChecksum(url, fileName);
+      if (detected) {
+        form.value.expectedChecksum = detected;
+        form.value.checksum = "sha256";
+        form.value.checksumDetected = true;
+      }
+    } catch (err) {
+      console.warn("Checksum probe failed", err);
+    } finally {
+      form.value.isProbingChecksum = false;
+    }
+  }
+
   function toggleBatchMode(): void {
     batchMode.value = !batchMode.value;
     if (!batchMode.value) {
@@ -402,5 +435,6 @@ export const useDownloadFormStore = defineStore("downloadForm", () => {
     buildBatchRequest,
     submitBatch,
     toggleBatchMode,
+    probeSha256Checksum,
   };
 });

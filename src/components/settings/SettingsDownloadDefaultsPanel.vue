@@ -2,6 +2,7 @@
 import UiButton from "../ui/UiButton.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
+import UiSwitch from "../ui/UiSwitch.vue";
 import type { ChecksumMode } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
 import SettingsField from "./SettingsField.vue";
@@ -61,6 +62,17 @@ const emit = defineEmits<{
         :info-tooltip="t('settings.checksumHint')"
       >
         <UiSelect v-model="draft.download.defaultChecksum" :options="checksumOptions" />
+      </SettingsField>
+
+      <SettingsField
+        wide
+        :label="t('settings.autoDetectSha256')"
+        :info-tooltip="t('settings.autoDetectSha256Hint')"
+      >
+        <UiSwitch
+          v-model="draft.download.autoDetectSha256"
+          :label="t('settings.autoDetectSha256Label')"
+        />
       </SettingsField>
 
       <SettingsField

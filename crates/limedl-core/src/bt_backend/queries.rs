@@ -315,6 +315,7 @@ fn fallback_pending_summary(
         peer_count: Some(0),
         upload_status: Some(BtUploadStatus::Idle),
         info_hash: None,
+        expected_checksum: None,
         error: None,
         cdn_accelerated: false,
         cdn_node_ip: None,

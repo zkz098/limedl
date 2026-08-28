@@ -173,6 +173,7 @@ fn insert_then_get_preserves_all_fields() {
     manifest.requested_thread_count = Some(4);
     manifest.checksum_mode = ChecksumMode::Sha256;
     manifest.checksum = Some("sha256hash".into());
+    manifest.expected_checksum = Some("sha256expected".into());
     manifest.error = Some("some error".into());
     manifest.adaptive_profile_snapshot = Some(AdaptiveProfile::Aggressive);
     manifest.thread_note = Some("my thread note".into());
@@ -240,6 +241,7 @@ fn insert_then_get_preserves_all_fields() {
     assert_eq!(loaded.state, DownloadState::Downloading);
     assert_eq!(loaded.checksum_mode, ChecksumMode::Sha256);
     assert_eq!(loaded.checksum.as_deref(), Some("sha256hash"));
+    assert_eq!(loaded.expected_checksum.as_deref(), Some("sha256expected"));
     assert_eq!(loaded.error.as_deref(), Some("some error"));
     assert_eq!(loaded.created_at_ms, 5000);
     assert_eq!(loaded.updated_at_ms, 6000);
@@ -698,6 +700,10 @@ fn table_has_column_detects_existing_column() {
         columns.contains(&"current_mirror_index".to_string()),
         "current_mirror_index column should exist"
     );
+    assert!(
+        columns.contains(&"expected_checksum".to_string()),
+        "expected_checksum column should exist"
+    );
 }
 
 fn create_v1_schema(conn: &Connection) {
@@ -751,8 +757,8 @@ fn migration_compat_v0_with_chunk_size_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            8,
-            "expected user_version = 8 after migration"
+            9,
+            "expected user_version = 9 after migration"
         );
         let has_mirror_urls = table_has_column(&conn, "downloads", "mirror_urls").unwrap();
         assert!(
@@ -792,8 +798,8 @@ fn migration_compat_v1_with_mirror_columns_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            8,
-            "expected user_version = 8 after migration"
+            9,
+            "expected user_version = 9 after migration"
         );
     }
 
@@ -828,8 +834,8 @@ fn migration_compat_v0_fully_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            8,
-            "expected user_version = 8 after migration"
+            9,
+            "expected user_version = 9 after migration"
         );
     }
 

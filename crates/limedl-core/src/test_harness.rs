@@ -100,6 +100,10 @@ impl TestServer {
             .route("/file/github-asset", get(serve_github_asset))
             .route("/file/range-shifted/{shift}", get(serve_file_range_shifted))
             .route("/file/range-bitflip", get(serve_file_range_bitflip))
+            .route("/file.sha256", get(serve_sha256))
+            .route("/file.sha256sum", get(serve_sha256))
+            .route("/SHA256SUMS", get(serve_sha256sums))
+            .route("/sha256sums.txt", get(serve_sha256sums))
             .with_state(state);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -260,6 +264,16 @@ impl TestServer {
     /// metadata JSON instead of the installer, then fail signature verification.
     pub fn file_url_github_asset(&self) -> String {
         format!("{}/file/github-asset", self.addr)
+    }
+
+    /// URL for the direct .sha256 checksum file of the main file.
+    pub fn file_sha256_url(&self) -> String {
+        format!("{}/file.sha256", self.addr)
+    }
+
+    /// URL for the SHA256SUMS manifest file.
+    pub fn sha256sums_url(&self) -> String {
+        format!("{}/SHA256SUMS", self.addr)
     }
 }
 
@@ -768,6 +782,32 @@ async fn serve_github_asset(
     );
     headers.insert(header::CONTENT_LENGTH, usize_header_value(metadata.len()));
     (StatusCode::OK, headers, metadata.into_bytes()).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file.sha256 and /SHA256SUMS
+// ---------------------------------------------------------------------------
+
+async fn serve_sha256(State(state): State<Arc<ServerState>>) -> impl IntoResponse {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    (StatusCode::OK, headers, state.sha256_hash.clone()).into_response()
+}
+
+async fn serve_sha256sums(State(state): State<Arc<ServerState>>) -> impl IntoResponse {
+    let manifest = format!(
+        "{}  file\n{}  test-file.bin\n",
+        state.sha256_hash, state.sha256_hash
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    (StatusCode::OK, headers, manifest).into_response()
 }
 
 // ---------------------------------------------------------------------------

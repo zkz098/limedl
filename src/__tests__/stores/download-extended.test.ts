@@ -57,6 +57,7 @@ function createMinimalAppSettings(overrides?: Partial<AppSettings>): AppSettings
       defaultMaxRetries: 3,
       defaultChecksum: "blake3",
       defaultUserAgent: "",
+      autoDetectSha256: true,
     },
     bt: {
       pauseUploadWhenLimitReached: false,
@@ -551,6 +552,7 @@ describe("useDownloadStore (extended)", () => {
           defaultMaxRetries: 5,
           defaultChecksum: "sha256" as const,
           defaultUserAgent: "TestAgent/1.0",
+      autoDetectSha256: true,
         },
         scheduler: {
           mode: "automatic" as const,

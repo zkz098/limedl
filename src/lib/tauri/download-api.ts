@@ -55,6 +55,10 @@ export function openDownloadDir(downloadId: string) {
   return invoke<void>(commandName("download_open_dir"), { downloadId });
 }
 
+export function probeChecksum(url: string, fileName?: string) {
+  return invoke<string | null>(commandName("download_probe_checksum"), { url, fileName });
+}
+
 export function getDownloadStatus(downloadId: string) {
   return invoke<DownloadSnapshot>(commandName("download_status"), { downloadId });
 }

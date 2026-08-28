@@ -74,6 +74,7 @@ fn make_download(id: &str, state: DownloadState) -> Arc<ManagedDownload> {
                 adaptive_profile: None,
                 thread_note: None,
                 checksum: None,
+                expected_checksum: None,
                 checksum_mode: ChecksumMode::None,
                 etag: None,
                 last_modified: None,

@@ -24,6 +24,7 @@ export const WS_COMMANDS: readonly WsCommandSpec[] = [
   { tauriName: "download_open_in_explorer", rpcMethod: "download.openInExplorer", paramTransform: { kind: "rename", from: "downloadId", to: "taskId" }, safety: "mutating" },
   { tauriName: "download_open_file", rpcMethod: "download.openFile", paramTransform: { kind: "rename", from: "downloadId", to: "taskId" }, safety: "mutating" },
   { tauriName: "download_open_dir", rpcMethod: "download.openDir", paramTransform: { kind: "rename", from: "downloadId", to: "taskId" }, safety: "mutating" },
+  { tauriName: "download_probe_checksum", rpcMethod: "download.probeChecksum", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "settings_get", rpcMethod: "settings.get", paramTransform: { kind: "identity" }, safety: "safe" },
   { tauriName: "settings_save", rpcMethod: "settings.save", paramTransform: { kind: "unwrapField", field: "settings" }, safety: "mutating" },
   { tauriName: "factory_reset", rpcMethod: "settings.factoryReset", paramTransform: { kind: "identity" }, safety: "mutating" },

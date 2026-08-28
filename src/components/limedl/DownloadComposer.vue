@@ -33,7 +33,7 @@ const {
   batchEntries,
   batchSubmitProgress,
 } = storeToRefs(downloadStore);
-const { pickDestinationDirectory, pickTorrentSourceFile, parseBatchUrls, toggleBatchMode } =
+const { pickDestinationDirectory, pickTorrentSourceFile, parseBatchUrls, toggleBatchMode, probeSha256Checksum } =
   downloadStore;
 
 const urlInputRef = ref<InstanceType<typeof UiTextField> | null>(null);
@@ -136,6 +136,8 @@ function validateUrl() {
 
   if (!isValidUrl(url)) {
     urlError.value = t("composer.urlInvalid");
+  } else if (form.value.kind === "http" && props.settings?.download.autoDetectSha256 !== false) {
+    void probeSha256Checksum();
   }
 }
 
@@ -353,6 +355,39 @@ async function handleFormSubmit() {
                       :id="'composer-checksum'"
                       :aria-label="t('composer.checksum')"
                     />
+                  </label>
+                  <label
+                    v-if="form.kind === 'http'"
+                    class="composer-field composer-field--compact"
+                    :for="'composer-expected-checksum'"
+                  >
+                    <div class="composer-field__header">
+                      <span class="composer-field__label">{{ t("composer.expectedChecksum") }}</span>
+                      <span v-if="form.checksumDetected" class="composer-field__badge">
+                        <span class="i-ri-check-line" aria-hidden="true" />
+                        {{ t("composer.checksumDetected") }}
+                      </span>
+                    </div>
+                    <div class="composer-checksum-input">
+                      <UiTextField
+                        v-model="form.expectedChecksum"
+                        type="text"
+                        :placeholder="t('composer.expectedChecksumPlaceholder')"
+                        :id="'composer-expected-checksum'"
+                        :aria-label="t('composer.expectedChecksum')"
+                        @input="form.checksumDetected = false"
+                      />
+                      <UiButton
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        class="composer-probe-btn"
+                        :loading="form.isProbingChecksum"
+                        icon="i-ri-radar-line"
+                        :title="t('composer.probeChecksum')"
+                        @click="probeSha256Checksum()"
+                      />
+                    </div>
                   </label>
                   <template v-if="form.kind === 'bt'">
                     <label
@@ -1090,5 +1125,34 @@ async function handleFormSubmit() {
   border-radius: var(--radius-pill);
   background: var(--color-accent);
   transition: width 0.3s ease;
+}
+
+.composer-checksum-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.composer-checksum-input :deep(.ui-text-field) {
+  flex: 1 1 auto;
+}
+
+.composer-probe-btn {
+  flex-shrink: 0;
+}
+
+.composer-field__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.composer-field__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-micro);
+  color: var(--color-success-text);
+  font-weight: 500;
 }
 </style>

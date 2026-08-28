@@ -1,4 +1,4 @@
-﻿// Tauri-specific modules — everything else lives in limedl-core
+// Tauri-specific modules — everything else lives in limedl-core
 pub(crate) mod commands;
 pub(crate) mod commands_cdn;
 
@@ -10,7 +10,7 @@ pub use commands::{
     app_get_info, bt_get_peers, bt_get_pieces, bt_get_trackers, bt_preview_torrent,
     bt_runtime_status, bt_set_speed_limit, detect_all_disk_types, detect_disk_type, download_cancel,
     download_list, download_open_dir, download_open_file, download_open_in_explorer, factory_reset,
-    download_pause, download_purge, download_remove, download_resume, download_set_priority,
+    download_pause, download_probe_checksum, download_purge, download_remove, download_resume, download_set_priority,
     download_start, download_status, get_bt_files, get_io_status, get_overclock_mode,
     logging_open_dir, settings_fetch_tracker_list, settings_get, settings_save, toggle_game_mode,
     toggle_overclock_mode, update_bt_files,

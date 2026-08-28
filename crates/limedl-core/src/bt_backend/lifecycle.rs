@@ -337,6 +337,7 @@ fn build_canceled_snapshot(info_hash: &Id20) -> DownloadSnapshot {
         adaptive_profile: None,
         thread_note: None,
         checksum: None,
+        expected_checksum: None,
         checksum_mode: ChecksumMode::None,
         etag: None,
         last_modified: None,

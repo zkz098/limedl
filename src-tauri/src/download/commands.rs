@@ -209,6 +209,15 @@ pub async fn download_open_dir(
 }
 
 #[tauri::command]
+pub async fn download_probe_checksum(
+    state: State<'_, AppState>,
+    url: String,
+    file_name: Option<String>,
+) -> CommandResult<Option<String>> {
+    map_dl_err(state.dispatcher.probe_checksum(&url, file_name.as_deref()).await)
+}
+
+#[tauri::command]
 pub async fn download_status(
     state: State<'_, AppState>,
     download_id: String,

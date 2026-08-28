@@ -289,6 +289,8 @@ pub struct DownloadSnapshot {
     pub thread_note: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_checksum: Option<String>,
     pub checksum_mode: ChecksumMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,
@@ -383,6 +385,8 @@ pub struct DownloadSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub info_hash: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_checksum: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(default)]
     pub cdn_accelerated: bool,
@@ -430,6 +434,7 @@ impl From<&DownloadSnapshot> for DownloadSummary {
             peer_count: value.peer_count,
             upload_status: value.upload_status,
             info_hash: value.info_hash.clone(),
+            expected_checksum: value.expected_checksum.clone(),
             error: value.error.clone(),
             cdn_accelerated: value.cdn_accelerated,
             cdn_node_ip: value.cdn_node_ip.clone(),

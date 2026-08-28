@@ -61,6 +61,9 @@ export interface DownloadFormState {
   threadCount: number | null;
   maxRetries: number | null;
   checksum: _ChecksumMode;
+  expectedChecksum: string;
+  isProbingChecksum?: boolean;
+  checksumDetected?: boolean;
   downloadLimitBps: number | null;
   uploadLimitBps: number | null;
   selectedFileIndices?: number[];

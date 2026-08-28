@@ -125,7 +125,8 @@ pub(crate) fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Res
                 requested_thread_count, desired_thread_count, allocated_thread_count,
                 adaptive_profile_snapshot, thread_note, etag, last_modified,
                 state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
-                chunk_size, mirror_url, mirror_urls, current_mirror_index, priority, cdn_accelerated, cdn_node_ip
+                chunk_size, mirror_url, mirror_urls, current_mirror_index, priority, cdn_accelerated, cdn_node_ip,
+                expected_checksum
             ) VALUES (
                 :id, :url, :final_url, :user_agent, :destination_dir, :file_name,
                 :file_name_locked, :destination_path, :temp_path, :total_bytes,
@@ -133,7 +134,8 @@ pub(crate) fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Res
                 :requested_thread_count, :desired_thread_count, :allocated_thread_count,
                 :adaptive_profile_snapshot, :thread_note, :etag, :last_modified,
                 :state, :checksum_mode, :checksum, :error, :created_at_ms, :updated_at_ms,
-                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index, :priority, :cdn_accelerated, :cdn_node_ip
+                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index, :priority, :cdn_accelerated, :cdn_node_ip,
+                :expected_checksum
             )",
         )
         .context("failed to prepare insert manifest")?;
@@ -173,6 +175,7 @@ pub(crate) fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Res
         ":priority": manifest.priority as u8,
         ":cdn_accelerated": manifest.cdn_accelerated,
         ":cdn_node_ip": manifest.cdn_node_ip.as_deref(),
+        ":expected_checksum": manifest.expected_checksum.as_deref(),
     })
     .with_context(|| format!("failed to insert download {}", manifest.id))?;
 
@@ -209,7 +212,8 @@ pub(crate) fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Res
                 current_mirror_index = :current_mirror_index,
                 priority = :priority,
                 cdn_accelerated = :cdn_accelerated,
-                cdn_node_ip = :cdn_node_ip
+                cdn_node_ip = :cdn_node_ip,
+                expected_checksum = :expected_checksum
              WHERE id = :id",
         )
         .context("failed to prepare update manifest")?;
@@ -249,6 +253,7 @@ pub(crate) fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Res
         ":priority": manifest.priority as u8,
         ":cdn_accelerated": manifest.cdn_accelerated,
         ":cdn_node_ip": manifest.cdn_node_ip.as_deref(),
+        ":expected_checksum": manifest.expected_checksum.as_deref(),
     })
     .with_context(|| format!("failed to update download {}", manifest.id))?;
 
@@ -292,7 +297,7 @@ pub(crate) fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
         state: text_to_state(&state_str)?,
         checksum_mode: text_to_checksum_mode(&checksum_mode_str)?,
         checksum: row.get(23)?,
-        expected_checksum: None,
+        expected_checksum: row.get::<_, Option<String>>(34).unwrap_or(None),
         error: row.get(24)?,
         created_at_ms: row.get::<_, i64>(25)? as u64,
         updated_at_ms: row.get::<_, i64>(26)? as u64,

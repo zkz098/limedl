@@ -407,6 +407,7 @@ export const useDownloadStore = defineStore("download", () => {
     applyAppSettingsDefaults: formStore.applyAppSettingsDefaults,
     pickDestinationDirectory: formStore.pickDestinationDirectory,
     pickTorrentSourceFile: formStore.pickTorrentSourceFile,
+    probeSha256Checksum: formStore.probeSha256Checksum,
 
     // List
     refreshList: listStore.refreshList,
