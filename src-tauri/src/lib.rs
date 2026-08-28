@@ -1,5 +1,8 @@
 mod download;
+mod tray_i18n;
 mod update;
+
+use tray_i18n::TrayI18n;
 
 #[cfg(feature = "test-utils")]
 pub use download::aimd;
@@ -110,52 +113,41 @@ async fn build_tray_menu(
     let speed_limit_active = settings.global_speed_limit_bps > 0;
     let game_mode = state.dispatcher.game_mode();
 
-    let is_zh = language == "zh-CN";
+    let i18n = TrayI18n::for_language(language);
 
     // Build menu items
-    let show_text = if is_zh { "显示窗口" } else { "Show Window" };
-    let show = MenuItemBuilder::with_id("show", show_text)
+    let show = MenuItemBuilder::with_id("show", i18n.show)
         .build(app)
         .map_err(|e| e.to_string())?;
 
     let sep1 = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
 
     let (pause_text, pause_id) = if has_active {
-        (
-            if is_zh { "暂停全部下载" } else { "Pause All" },
-            "pause_all",
-        )
+        (i18n.pause_all, "pause_all")
     } else {
-        (
-            if is_zh { "恢复全部下载" } else { "Resume All" },
-            "resume_all",
-        )
+        (i18n.resume_all, "resume_all")
     };
     let pause = MenuItemBuilder::with_id(pause_id, pause_text)
         .build(app)
         .map_err(|e| e.to_string())?;
 
-    let speed_text = if is_zh { "限速模式" } else { "Speed Limit" };
-    let speed = CheckMenuItemBuilder::with_id("speed_limit", speed_text)
+    let speed = CheckMenuItemBuilder::with_id("speed_limit", i18n.speed_limit)
         .checked(speed_limit_active)
         .build(app)
         .map_err(|e| e.to_string())?;
 
-    let open_text = if is_zh { "打开下载目录" } else { "Open Download Dir" };
-    let open = MenuItemBuilder::with_id("open_dir", open_text)
+    let open = MenuItemBuilder::with_id("open_dir", i18n.open_dir)
         .build(app)
         .map_err(|e| e.to_string())?;
 
-    let game_text = if is_zh { "游戏模式" } else { "Game Mode" };
-    let game = CheckMenuItemBuilder::with_id("game_mode", game_text)
+    let game = CheckMenuItemBuilder::with_id("game_mode", i18n.game_mode)
         .checked(game_mode)
         .build(app)
         .map_err(|e| e.to_string())?;
 
     let sep2 = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
 
-    let quit_text = if is_zh { "退出" } else { "Quit" };
-    let quit = MenuItemBuilder::with_id("quit", quit_text)
+    let quit = MenuItemBuilder::with_id("quit", i18n.quit)
         .build(app)
         .map_err(|e| e.to_string())?;
 

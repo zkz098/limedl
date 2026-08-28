@@ -1,5 +1,5 @@
 import type { DownloadState, DownloadSummary } from "../types/download";
-import { t } from "../i18n";
+import { t, useReadonlyLanguage } from "../i18n";
 
 type ProgressShape = Pick<DownloadSummary, "downloadedBytes" | "totalBytes" | "state">;
 
@@ -56,12 +56,21 @@ export function formatEta(value?: number | null) {
   return parts.join(" ");
 }
 
-export function formatTimestamp(value?: number | null) {
+export function formatTimestamp(value?: number | null, customLang?: string) {
   if (typeof value !== "number") {
     return "—";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  let lang = customLang;
+  if (!lang) {
+    try {
+      lang = useReadonlyLanguage?.()?.value;
+    } catch {
+      // Fallback
+    }
+  }
+
+  return new Intl.DateTimeFormat(lang || "zh-CN", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(value);

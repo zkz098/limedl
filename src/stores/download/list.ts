@@ -124,7 +124,11 @@ export const useDownloadListStore = defineStore("downloadList", () => {
   }
 
   function ensureSelection() {
-    if (selectedId.value && (downloadMap.has(selectedId.value) || downloads.value.some((download) => download.id === selectedId.value))) {
+    if (
+      selectedId.value &&
+      (downloadMap.has(selectedId.value) ||
+        downloads.value.some((download) => download.id === selectedId.value))
+    ) {
       return;
     }
 
@@ -146,7 +150,11 @@ export const useDownloadListStore = defineStore("downloadList", () => {
       return null;
     }
 
-    return downloadMap.get(selectedId.value) ?? downloads.value.find((download) => download.id === selectedId.value) ?? null;
+    return (
+      downloadMap.get(selectedId.value) ??
+      downloads.value.find((download) => download.id === selectedId.value) ??
+      null
+    );
   });
 
   const selectedDownload = computed(() => selectedSnapshot.value ?? selectedSummary.value);

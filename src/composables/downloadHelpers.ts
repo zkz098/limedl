@@ -27,7 +27,31 @@ const errorPatterns: [RegExp, string][] = [
   [/internal server error|server error/i, "errors.serverError"],
 ];
 
-export function toFriendlyError(raw: string): string {
+function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z0-9])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+export function toFriendlyError(raw: string, kind?: string | null): string {
+  if (kind) {
+    const camelKind = snakeToCamel(kind);
+    const key = `errors.${camelKind}`;
+    const translated = t(key);
+    if (translated !== key) {
+      return translated;
+    }
+  }
+
+  // Check if raw message contains a [kind] prefix (e.g. "[insufficient_disk_space] ...")
+  const prefixMatch = raw.match(/^\[([a-z0-9_]+)\]/i);
+  if (prefixMatch && prefixMatch[1]) {
+    const camelKind = snakeToCamel(prefixMatch[1]);
+    const key = `errors.${camelKind}`;
+    const translated = t(key);
+    if (translated !== key) {
+      return translated;
+    }
+  }
+
   for (const [pattern, key] of errorPatterns) {
     if (pattern.test(raw)) {
       return t(key);
@@ -50,8 +74,15 @@ export function toErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export function toMessage(error: unknown) {
-  return toFriendlyError(toErrorMessage(error));
+export function toMessage(error: unknown): string {
+  let kind: string | undefined;
+  if (typeof error === "object" && error !== null) {
+    const maybeKind = (error as { kind?: unknown }).kind;
+    if (typeof maybeKind === "string" && maybeKind.length > 0) {
+      kind = maybeKind;
+    }
+  }
+  return toFriendlyError(toErrorMessage(error), kind);
 }
 
 export function toSummary(snapshot: DownloadSnapshot): DownloadSummary {

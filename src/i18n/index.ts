@@ -1,9 +1,17 @@
-import i18next from "i18next";
+import i18next, { type ParseKeys } from "i18next";
 import { computed, readonly, ref } from "vue";
 
 import { updateTrayLanguage } from "../lib/tauri/app-api";
 
-import { resources, supportedLanguages, type SupportedLanguage } from "./resources";
+import {
+  resources,
+  supportedLanguages,
+  type SupportedLanguage,
+  type TranslationResources,
+} from "./resources";
+
+export type TranslationKey = ParseKeys;
+export type { SupportedLanguage, TranslationResources };
 
 const storageKey = "limedl.language";
 
@@ -53,8 +61,12 @@ export const languageOptions = computed(() => [
   { label: i18next.t("language.enUS", { lng: currentLanguage.value }), value: "en-US" },
 ]);
 
-export function t(key: string, options?: Record<string, unknown>) {
-  return i18next.t(key, { lng: currentLanguage.value, ...options });
+export function t(key: TranslationKey | (string & {}), options?: Record<string, unknown>): string {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  return (i18next.t as (k: string, opts?: Record<string, unknown>) => string)(key, {
+    lng: currentLanguage.value,
+    ...options,
+  });
 }
 
 export async function setLanguage(language: SupportedLanguage) {

@@ -116,3 +116,65 @@ describe("setLanguage", () => {
     expect(document.documentElement.lang).toBe("zh-CN");
   });
 });
+
+// ── Translation Symmetry & Key Parity ─────────────────────────────────
+
+import zhCN from "../../i18n/zh-CN";
+import enUS from "../../i18n/en-US";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function extractLeafStrings(obj: Record<string, unknown>, prefix = ""): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (isRecord(value)) {
+      Object.assign(result, extractLeafStrings(value, fullKey));
+    } else if (typeof value === "string") {
+      result[fullKey] = value;
+    }
+  }
+  return result;
+}
+
+function extractPlaceholders(text: string): string[] {
+  const matches = text.match(/\{\{([^}]+)\}\}/g) ?? [];
+  return matches.map((m) => m.replace(/[{}]/g, "").trim()).toSorted();
+}
+
+describe("Translation Resource Symmetry", () => {
+  const zhMap = extractLeafStrings(zhCN.translation);
+  const enMap = extractLeafStrings(enUS.translation);
+  const zhKeys = Object.keys(zhMap).toSorted();
+  const enKeys = Object.keys(enMap).toSorted();
+
+  it("ensures all zh-CN keys exist in en-US", () => {
+    const missingInEn = zhKeys.filter((k) => !Object.hasOwn(enMap, k));
+    expect(missingInEn).toEqual([]);
+  });
+
+  it("ensures all en-US keys exist in zh-CN", () => {
+    const missingInZh = enKeys.filter((k) => !Object.hasOwn(zhMap, k));
+    expect(missingInZh).toEqual([]);
+  });
+
+  it("ensures matching interpolation parameters between zh-CN and en-US", () => {
+    const mismatchedPlaceholders: Record<string, { zh: string[]; en: string[] }> = {};
+
+    for (const key of zhKeys) {
+      if (!Object.hasOwn(enMap, key)) continue;
+      const zhVal = zhMap[key];
+      const enVal = enMap[key];
+      if (typeof zhVal !== "string" || typeof enVal !== "string") continue;
+      const zhParams = extractPlaceholders(zhVal);
+      const enParams = extractPlaceholders(enVal);
+      if (JSON.stringify(zhParams) !== JSON.stringify(enParams)) {
+        mismatchedPlaceholders[key] = { zh: zhParams, en: enParams };
+      }
+    }
+
+    expect(mismatchedPlaceholders).toEqual({});
+  });
+});

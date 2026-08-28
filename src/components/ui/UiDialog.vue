@@ -74,8 +74,9 @@ watch(
       window.addEventListener("keydown", onKeydown);
       window.addEventListener("keydown", onFocusTrapKeydown);
       await nextTick();
-      const initialFocus = panelRef.value?.querySelector<HTMLElement>("[autofocus]")
-        ?? panelRef.value?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      const initialFocus =
+        panelRef.value?.querySelector<HTMLElement>("[autofocus]") ??
+        panelRef.value?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
       initialFocus?.focus();
     } else {
       window.removeEventListener("keydown", onKeydown);

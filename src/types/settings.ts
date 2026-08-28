@@ -47,7 +47,10 @@ import type {
 export type Aria2RpcSettings = GeneratedAria2RpcSettings;
 
 /** CdnAccelerationSettings with optional provider fields. */
-export interface CdnAccelerationSettings extends Omit<GeneratedCdnAccelerationSettings, "provider" | "customTestUrl" | "customCidrs"> {
+export interface CdnAccelerationSettings extends Omit<
+  GeneratedCdnAccelerationSettings,
+  "provider" | "customTestUrl" | "customCidrs"
+> {
   provider?: string;
   customTestUrl?: string | null;
   customCidrs?: string | null;

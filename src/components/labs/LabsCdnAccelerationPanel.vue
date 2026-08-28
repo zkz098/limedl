@@ -384,10 +384,7 @@ onUnmounted(() => {
       :label="t('settings.cdnAcceleration.providerLabel')"
       :description="t('settings.cdnAcceleration.providerDesc')"
     >
-      <UiSelect
-        v-model="selectedProvider"
-        :options="providerOptions"
-      />
+      <UiSelect v-model="selectedProvider" :options="providerOptions" />
     </SettingsField>
 
     <!-- Custom CDN Settings -->
@@ -396,20 +393,14 @@ onUnmounted(() => {
         :label="t('settings.cdnAcceleration.customTestUrlLabel')"
         :description="t('settings.cdnAcceleration.customTestUrlDesc')"
       >
-        <UiTextField
-          v-model="customTestUrl"
-          placeholder="https://example.com/test-file.bin"
-        />
+        <UiTextField v-model="customTestUrl" placeholder="https://example.com/test-file.bin" />
       </SettingsField>
 
       <SettingsField
         :label="t('settings.cdnAcceleration.customCidrsLabel')"
         :description="t('settings.cdnAcceleration.customCidrsDesc')"
       >
-        <UiTextField
-          v-model="customCidrs"
-          placeholder="1.2.3.0/24, 2606:4700::/32"
-        />
+        <UiTextField v-model="customCidrs" placeholder="1.2.3.0/24, 2606:4700::/32" />
       </SettingsField>
     </template>
 

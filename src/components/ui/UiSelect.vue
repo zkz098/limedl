@@ -77,11 +77,7 @@ async function updatePosition() {
   try {
     const { x, y } = await computePosition(trigger, panel, {
       placement: "bottom-start",
-      middleware: [
-        offset(4),
-        flip({ padding: 8 }),
-        shift({ padding: 8 }),
-      ],
+      middleware: [offset(4), flip({ padding: 8 }), shift({ padding: 8 })],
     });
 
     panelStyle.value = {
