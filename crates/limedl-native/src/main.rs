@@ -16,14 +16,16 @@ use tracing_subscriber::EnvFilter;
 use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
 use limedl_core::bootstrap::bootstrap;
+use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::{
-    DownloadProgress, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
+    AppSettings, DownloadProgress, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
 };
 
 use crate::bridge::{
-    SortField, TaskStore, file_status_to_item, format_speed, generate_piece_map_image,
-    peer_info_to_item, summary_to_inspector_info, tracker_info_to_item,
+    SortField, TaskStore, app_settings_to_form, file_status_to_item, format_disk_types_map,
+    format_io_status_json, format_speed, generate_piece_map_image, peer_info_to_item,
+    summary_to_inspector_info, tracker_info_to_item, update_app_settings_from_form,
 };
 
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
@@ -47,6 +49,33 @@ fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
 
     let items = store.filtered_items();
     ui.set_tasks(Rc::new(VecModel::from(items)).into());
+}
+
+fn refresh_settings_state(
+    ui: &MainWindow,
+    dispatcher: &Dispatcher,
+    settings: &AppSettings,
+    game_mode: bool,
+    overclock_mode: bool,
+) {
+    let io_status_str = match dispatcher.get_io_status() {
+        Ok(v) => format_io_status_json(&v),
+        Err(_) => "智能缓冲池未就绪".to_string(),
+    };
+    let disk_types = dispatcher.detect_all_disk_types();
+    let disk_types_str = format_disk_types_map(&disk_types);
+
+    let form_data = app_settings_to_form(
+        settings,
+        game_mode,
+        overclock_mode,
+        &io_status_str,
+        &disk_types_str,
+    );
+
+    ui.set_settings_form(form_data);
+    ui.set_game_mode_active(game_mode);
+    ui.set_overclock_mode_active(overclock_mode);
 }
 
 fn create_default_tray_icon() -> tray_icon::Icon {
@@ -89,11 +118,24 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_context(|| "初始化 limedl-core 失败")?;
 
-    let default_download_dir = core
+    let initial_settings = core
         .dispatcher
-        .default_download_dir()
+        .get_settings()
         .await
-        .unwrap_or_else(|| state_dir.to_string_lossy().to_string());
+        .unwrap_or_default();
+    let current_settings = Arc::new(Mutex::new(initial_settings.clone()));
+
+    let default_download_dir = if !initial_settings.download.default_download_dir.is_empty() {
+        initial_settings.download.default_download_dir.clone()
+    } else {
+        core.dispatcher
+            .default_download_dir()
+            .await
+            .unwrap_or_else(|| state_dir.to_string_lossy().to_string())
+    };
+
+    let game_mode_active = Arc::new(Mutex::new(core.dispatcher.game_mode()));
+    let overclock_mode_active = Arc::new(Mutex::new(core.dispatcher.get_overclock_mode()));
 
     // Create Main Window
     let main_window = MainWindow::new()?;
@@ -103,12 +145,22 @@ async fn main() -> anyhow::Result<()> {
     let store = Arc::new(Mutex::new(TaskStore::new()));
     let active_inspector_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 
+    // Initialize UI settings state
+    refresh_settings_state(
+        &main_window,
+        &core.dispatcher,
+        &initial_settings,
+        *game_mode_active.lock(),
+        *overclock_mode_active.lock(),
+    );
+
     // System Tray Setup
     let tray_menu = Menu::new();
     let menu_show = MenuItem::with_id("show", "显示主窗口", true, None);
     let sep1 = PredefinedMenuItem::separator();
     let menu_pause_all = MenuItem::with_id("pause_all", "全部暂停", true, None);
     let menu_resume_all = MenuItem::with_id("resume_all", "全部继续", true, None);
+    let menu_game_mode = MenuItem::with_id("game_mode", "🎮 游戏模式开关", true, None);
     let menu_open_dir = MenuItem::with_id("open_dir", "打开下载目录", true, None);
     let sep2 = PredefinedMenuItem::separator();
     let menu_quit = MenuItem::with_id("quit", "退出 limedl", true, None);
@@ -118,6 +170,7 @@ async fn main() -> anyhow::Result<()> {
         &sep1,
         &menu_pause_all,
         &menu_resume_all,
+        &menu_game_mode,
         &menu_open_dir,
         &sep2,
         &menu_quit,
@@ -295,6 +348,7 @@ async fn main() -> anyhow::Result<()> {
         let ui_weak = main_window.as_weak();
         let dispatcher = core.dispatcher.clone();
         let default_dir = default_download_dir.clone();
+        let game_mode_active_clone = game_mode_active.clone();
 
         tokio::spawn(async move {
             let menu_channel = muda::MenuEvent::receiver();
@@ -335,6 +389,17 @@ async fn main() -> anyhow::Result<()> {
                                                 let _ = dispatcher.resume(&task_id).await;
                                             }
                                         }
+                                    }
+                                }
+                                "game_mode" => {
+                                    if let Ok(new_val) = dispatcher.toggle_game_mode(None) {
+                                        *game_mode_active_clone.lock() = new_val;
+                                        let ui_weak = ui_weak.clone();
+                                        let _ = slint::invoke_from_event_loop(move || {
+                                            if let Some(ui) = ui_weak.upgrade() {
+                                                ui.set_game_mode_active(new_val);
+                                            }
+                                        });
                                     }
                                 }
                                 "open_dir" => {
@@ -632,6 +697,145 @@ async fn main() -> anyhow::Result<()> {
             if let Some(ui) = ui_weak.upgrade() {
                 ui.set_show_speed_limit_dialog(false);
             }
+        });
+    }
+
+    // Phase 4: Settings Dialog & Performance Modes
+    {
+        let ui_weak = main_window.as_weak();
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let game_mode_clone = game_mode_active.clone();
+        let overclock_mode_clone = overclock_mode_active.clone();
+
+        main_window.on_open_settings(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                let settings = current_settings_clone.lock().clone();
+                let gm = *game_mode_clone.lock();
+                let oc = *overclock_mode_clone.lock();
+                refresh_settings_state(&ui, &dispatcher, &settings, gm, oc);
+                ui.set_show_settings(true);
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_close_settings(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_show_settings(false);
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_set_settings_tab(move |tab| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_settings_tab(tab);
+            }
+        });
+    }
+
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_save_settings(move |form_data| {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                let mut settings = {
+                    let s = current_settings_clone.lock();
+                    s.clone()
+                };
+
+                update_app_settings_from_form(&mut settings, &form_data);
+
+                if let Ok(saved) = dispatcher.save_settings(&settings).await {
+                    *current_settings_clone.lock() = saved.clone();
+                    let default_dir = saved.download.default_download_dir.clone();
+
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            ui.set_default_download_dir(SharedString::from(&default_dir));
+                            ui.set_show_settings(false);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Toggle Game Mode
+    {
+        let dispatcher = core.dispatcher.clone();
+        let game_mode_clone = game_mode_active.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_toggle_game_mode(move || {
+            if let Ok(new_val) = dispatcher.toggle_game_mode(None) {
+                *game_mode_clone.lock() = new_val;
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_game_mode_active(new_val);
+                    let mut form = ui.get_settings_form();
+                    form.game_mode = new_val;
+                    ui.set_settings_form(form);
+                }
+            }
+        });
+    }
+
+    // Toggle Overclock Mode
+    {
+        let dispatcher = core.dispatcher.clone();
+        let overclock_mode_clone = overclock_mode_active.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_toggle_overclock_mode(move || {
+            if let Ok(new_val) = dispatcher.toggle_overclock_mode(None) {
+                *overclock_mode_clone.lock() = new_val;
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_overclock_mode_active(new_val);
+                    let mut form = ui.get_settings_form();
+                    form.overclock_mode = new_val;
+                    ui.set_settings_form(form);
+                }
+            }
+        });
+    }
+
+    // Fetch Remote Trackers
+    {
+        let dispatcher = core.dispatcher.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_fetch_trackers_remote(move |url_str| {
+            let dispatcher = dispatcher.clone();
+            let url = url_str.to_string();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                if let Ok(trackers) = dispatcher.fetch_tracker_list(&url).await {
+                    tracing::info!("成功同步远程 Tracker 列表: {} 个", trackers.len());
+                    let _ = Notification::new()
+                        .appname("limedl")
+                        .summary("Tracker 列表同步成功")
+                        .body(&format!("已获取并配置 {} 个公共 Tracker", trackers.len()))
+                        .show();
+
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut form = ui.get_settings_form();
+                            form.tracker_url = SharedString::from(&url);
+                            ui.set_settings_form(form);
+                        }
+                    });
+                }
+            });
         });
     }
 

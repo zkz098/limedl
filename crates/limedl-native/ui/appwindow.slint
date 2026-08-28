@@ -61,6 +61,20 @@ export struct InspectorInfo {
     error_text: string,
 }
 
+export struct SettingsFormData {
+    default_download_dir: string,
+    max_parallel_tasks: string,
+    global_speed_limit_kb: string,
+    dht_enabled: bool,
+    listen_port: string,
+    max_bt_connections: string,
+    tracker_url: string,
+    game_mode: bool,
+    overclock_mode: bool,
+    io_status_text: string,
+    disk_type_text: string,
+}
+
 component IconButton inherits Rectangle {
     in property <string> text;
     in property <color> hover_color: #2f353e;
@@ -206,6 +220,29 @@ component CustomCheckBox inherits Rectangle {
         font-weight: 800;
         vertical-alignment: center;
         horizontal-alignment: center;
+    }
+}
+
+component ToggleSwitch inherits Rectangle {
+    in property <bool> checked: false;
+    callback toggled();
+
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: root.checked ? #84cc16 : #2e343d;
+
+    ta := TouchArea {
+        clicked => { root.toggled(); }
+    }
+
+    Rectangle {
+        x: root.checked ? parent.width - self.width - 3px : 3px;
+        y: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        background: root.checked ? #0f172a : #9ca3af;
     }
 }
 
@@ -556,6 +593,13 @@ export component MainWindow inherits Window {
     in-out property <string> speed_limit_dl_kb: "0";
     in-out property <string> speed_limit_ul_kb: "0";
 
+    // Phase 4: Settings & Performance Modes state
+    in property <bool> show_settings: false;
+    in property <int> settings_tab: 0; // 0: General, 1: BT, 2: Performance & Labs
+    in-out property <SettingsFormData> settings_form;
+    in property <bool> game_mode_active: false;
+    in property <bool> overclock_mode_active: false;
+
     // New task form fields
     in-out property <string> new_task_url: "";
     in-out property <string> new_task_dir: "";
@@ -592,6 +636,15 @@ export component MainWindow inherits Window {
     callback close_speed_limit_dialog();
     callback submit_speed_limit(string, string); // dl_kb, ul_kb
 
+    // Phase 4 Callbacks
+    callback open_settings();
+    callback close_settings();
+    callback set_settings_tab(int);
+    callback save_settings(SettingsFormData);
+    callback toggle_game_mode();
+    callback toggle_overclock_mode();
+    callback fetch_trackers_remote(string);
+
     HorizontalLayout {
         // Left Sidebar
         Rectangle {
@@ -602,7 +655,7 @@ export component MainWindow inherits Window {
 
             VerticalLayout {
                 padding: 16px;
-                spacing: 16px;
+                spacing: 14px;
 
                 // App Brand
                 HorizontalLayout {
@@ -679,27 +732,124 @@ export component MainWindow inherits Window {
                 // Spacer
                 Rectangle {}
 
+                // Quick Mode Controls (Game Mode & Overclock)
+                VerticalLayout {
+                    spacing: 6px;
+
+                    Rectangle {
+                        background: root.game_mode_active ? #3b200b : #1f2329;
+                        border-color: root.game_mode_active ? #f59e0b : #2c313a;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        height: 32px;
+
+                        TouchArea {
+                            clicked => { root.toggle_game_mode(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            alignment: space-between;
+                            Text {
+                                text: "🎮 游戏模式";
+                                color: root.game_mode_active ? #f59e0b : #9ca3af;
+                                font-size: 12px;
+                                font-weight: 500;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: root.game_mode_active ? "ON" : "OFF";
+                                color: root.game_mode_active ? #fcd34d : #6b7280;
+                                font-size: 11px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        background: root.overclock_mode_active ? #31132b : #1f2329;
+                        border-color: root.overclock_mode_active ? #ec4899 : #2c313a;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        height: 32px;
+
+                        TouchArea {
+                            clicked => { root.toggle_overclock_mode(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            alignment: space-between;
+                            Text {
+                                text: "⚡ 超频模式";
+                                color: root.overclock_mode_active ? #ec4899 : #9ca3af;
+                                font-size: 12px;
+                                font-weight: 500;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: root.overclock_mode_active ? "ON" : "OFF";
+                                color: root.overclock_mode_active ? #f472b6 : #6b7280;
+                                font-size: 11px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
                 // Global Speed Widget
                 Rectangle {
                     background: #1f2329;
                     border-color: #2c313a;
                     border-width: 1px;
                     border-radius: 8px;
-                    height: 64px;
+                    height: 56px;
 
                     VerticalLayout {
-                        padding: 10px;
+                        padding-left: 10px;
+                        padding-right: 10px;
                         alignment: space-around;
                         Text {
                             text: "实时总下载速率";
                             color: #9ca3af;
-                            font-size: 11px;
+                            font-size: 10px;
                         }
                         Text {
                             text: root.global_speed_text;
                             color: #84cc16;
-                            font-size: 16px;
+                            font-size: 15px;
                             font-weight: 700;
+                        }
+                    }
+                }
+
+                // Settings Button
+                Rectangle {
+                    background: ta_set.has_hover ? #282e37 : #1f2329;
+                    border-color: #2c313a;
+                    border-width: 1px;
+                    border-radius: 6px;
+                    height: 34px;
+
+                    ta_set := TouchArea {
+                        clicked => { root.open_settings(); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: center;
+                        spacing: 8px;
+                        Text {
+                            text: "⚙ 设置中心";
+                            color: #d1d5db;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
                         }
                     }
                 }
@@ -926,6 +1076,216 @@ export component MainWindow inherits Window {
                                 clicked => { root.batch_remove(true); }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal Dialog: Settings Center
+    if root.show_settings : Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        background: #000000aa;
+
+        TouchArea {}
+
+        Rectangle {
+            width: min(parent.width - 80px, 780px);
+            height: min(parent.height - 60px, 580px);
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: #181b20;
+            border-color: #2e343d;
+            border-width: 1px;
+            border-radius: 12px;
+
+            VerticalLayout {
+                padding: 18px;
+                spacing: 14px;
+
+                // Header
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text { text: "⚙ 设置中心"; color: #f3f4f6; font-size: 16px; font-weight: 700; vertical-alignment: center; }
+                    IconButton { text: "✕"; clicked => { root.close_settings(); } }
+                }
+
+                // Tab Headers
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    TabButton {
+                        text: "常规下载";
+                        active: root.settings_tab == 0;
+                        clicked => { root.set_settings_tab(0); }
+                    }
+
+                    TabButton {
+                        text: "BitTorrent 网络";
+                        active: root.settings_tab == 1;
+                        clicked => { root.set_settings_tab(1); }
+                    }
+
+                    TabButton {
+                        text: "性能实验室 & IO";
+                        active: root.settings_tab == 2;
+                        clicked => { root.set_settings_tab(2); }
+                    }
+                }
+
+                Rectangle { height: 1px; background: #282d36; }
+
+                // Tab Content
+                Rectangle {
+                    background: #131518;
+                    border-radius: 8px;
+                    border-color: #242930;
+                    border-width: 1px;
+
+                    // Tab 0: General
+                    if root.settings_tab == 0 : ScrollView {
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 14px;
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "默认下载保存目录:"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput { text <=> root.settings_form.default_download_dir; placeholder: "/downloads"; }
+                            }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "最大同时下载任务数:"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput { text <=> root.settings_form.max_parallel_tasks; placeholder: "3"; }
+                            }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "全局下载带宽限速 (KB/s, 0 为不限制):"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput { text <=> root.settings_form.global_speed_limit_kb; placeholder: "0"; }
+                            }
+                        }
+                    }
+
+                    // Tab 1: BitTorrent
+                    if root.settings_tab == 1 : ScrollView {
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 14px;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    Text { text: "启用 DHT 分布式哈希网络"; color: #f3f4f6; font-size: 13px; font-weight: 500; }
+                                    Text { text: "允许在没有 Tracker 服务器的情况下搜寻更多节点"; color: #6b7280; font-size: 11px; }
+                                }
+                                ToggleSwitch {
+                                    checked: root.settings_form.dht_enabled;
+                                    toggled => { root.settings_form.dht_enabled = !root.settings_form.dht_enabled; }
+                                }
+                            }
+
+                            Rectangle { height: 1px; background: #1e2229; }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "BT 监听端口:"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput { text <=> root.settings_form.listen_port; placeholder: "6881"; }
+                            }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "最大全局连接数 (Peers):"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput { text <=> root.settings_form.max_bt_connections; placeholder: "200"; }
+                            }
+
+                            Rectangle { height: 1px; background: #1e2229; }
+
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text { text: "公共 Tracker 列表远程订阅 URL:"; color: #9ca3af; font-size: 12px; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    CustomTextInput { text <=> root.settings_form.tracker_url; placeholder: "https://raw.githubusercontent.com/trackerslist/trackerslist/master/best.txt"; }
+                                    SecondaryButton {
+                                        text: "立即同步";
+                                        clicked => { root.fetch_trackers_remote(root.settings_form.tracker_url); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Tab 2: Performance & Labs
+                    if root.settings_tab == 2 : ScrollView {
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 14px;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    Text { text: "🎮 游戏优化模式 (Game Mode)"; color: #f59e0b; font-size: 13px; font-weight: 600; }
+                                    Text { text: "降低内存缓冲占用与磁盘 IO 写入频率，减少对大型 3D 游戏的掉帧抢占"; color: #6b7280; font-size: 11px; }
+                                }
+                                ToggleSwitch {
+                                    checked: root.settings_form.game_mode;
+                                    toggled => { root.toggle_game_mode(); }
+                                }
+                            }
+
+                            Rectangle { height: 1px; background: #1e2229; }
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    Text { text: "⚡ 极速超频模式 (Overclock Mode)"; color: #ec4899; font-size: 13px; font-weight: 600; }
+                                    Text { text: "打破传统任务并发限制，激进启用多线程下载以压榨带宽极限"; color: #6b7280; font-size: 11px; }
+                                }
+                                ToggleSwitch {
+                                    checked: root.settings_form.overclock_mode;
+                                    toggled => { root.toggle_overclock_mode(); }
+                                }
+                            }
+
+                            Rectangle { height: 1px; background: #1e2229; }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "磁盘类型检测 (SSD / HDD):"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                                Text { text: root.settings_form.disk_type_text; color: #38bdf8; font-size: 12px; }
+                            }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                                Text { text: root.settings_form.io_status_text; color: #a3e635; font-size: 12px; }
+                            }
+                        }
+                    }
+                }
+
+                // Footer Actions
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 10px;
+
+                    SecondaryButton {
+                        text: "取消";
+                        clicked => { root.close_settings(); }
+                    }
+
+                    PrimaryButton {
+                        text: "保存设置";
+                        clicked => { root.save_settings(root.settings_form); }
                     }
                 }
             }

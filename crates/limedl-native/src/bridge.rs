@@ -1,12 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
 use limedl_core::types::{
-    BtFileStatus, BtPeerInfo, BtPieceInfo, BtTrackerInfo, DownloadProgress, DownloadState,
-    DownloadSummary, TaskKind,
+    AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtTrackerInfo, DiskType, DownloadProgress,
+    DownloadState, DownloadSummary, TaskKind,
 };
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString};
 
-use crate::{InspectorInfo, PeerItem, TaskItem, TorrentFileItem, TrackerItem};
+use crate::{
+    InspectorInfo, PeerItem, SettingsFormData, TaskItem, TorrentFileItem, TrackerItem,
+};
 
 /// Human-readable byte formatting.
 pub fn format_bytes(bytes: u64) -> String {
@@ -313,6 +315,109 @@ pub fn generate_piece_map_image(pieces: &[BtPieceInfo]) -> (Image, String) {
     }
 
     (Image::from_rgba8(buffer), summary_text)
+}
+
+/// Convert `AppSettings` and runtime modes to `SettingsFormData`.
+pub fn app_settings_to_form(
+    settings: &AppSettings,
+    game_mode: bool,
+    overclock_mode: bool,
+    io_status_text: &str,
+    disk_type_text: &str,
+) -> SettingsFormData {
+    let speed_limit_kb = if settings.global_speed_limit_bps > 0 {
+        (settings.global_speed_limit_bps / 1024).to_string()
+    } else {
+        "0".to_string()
+    };
+
+    SettingsFormData {
+        default_download_dir: SharedString::from(&settings.download.default_download_dir),
+        max_parallel_tasks: SharedString::from(
+            settings.scheduler.traditional.max_parallel_tasks.to_string(),
+        ),
+        global_speed_limit_kb: SharedString::from(speed_limit_kb),
+        dht_enabled: settings.bt.dht_enabled,
+        listen_port: SharedString::from(
+            settings.bt.listen_port.map(|p| p.to_string()).unwrap_or_else(|| "6881".to_string()),
+        ),
+        max_bt_connections: SharedString::from(
+            settings.bt.max_peers_per_torrent.to_string(),
+        ),
+        tracker_url: SharedString::from(&settings.bt.tracker_list_url),
+        game_mode,
+        overclock_mode,
+        io_status_text: SharedString::from(io_status_text),
+        disk_type_text: SharedString::from(disk_type_text),
+    }
+}
+
+/// Update `AppSettings` from `SettingsFormData`.
+pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &SettingsFormData) {
+    let dir = form.default_download_dir.trim();
+    if !dir.is_empty() {
+        settings.download.default_download_dir = dir.to_string();
+    }
+
+    if let Ok(parallel) = form.max_parallel_tasks.trim().parse::<usize>()
+        && parallel > 0
+    {
+        settings.scheduler.traditional.max_parallel_tasks = parallel;
+    }
+
+    if let Ok(limit_kb) = form.global_speed_limit_kb.trim().parse::<u64>() {
+        settings.global_speed_limit_bps = limit_kb * 1024;
+    }
+
+    settings.bt.dht_enabled = form.dht_enabled;
+
+    if let Ok(port) = form.listen_port.trim().parse::<u16>()
+        && port > 0
+    {
+        settings.bt.listen_port = Some(port);
+    }
+
+    if let Ok(conns) = form.max_bt_connections.trim().parse::<u32>()
+        && conns > 0
+    {
+        settings.bt.max_peers_per_torrent = conns;
+    }
+
+    let tracker_url = form.tracker_url.trim();
+    if !tracker_url.is_empty() {
+        settings.bt.tracker_list_url = tracker_url.to_string();
+    }
+}
+
+/// Format detected disk types into readable summary text.
+pub fn format_disk_types_map(disks: &HashMap<String, DiskType>) -> String {
+    if disks.is_empty() {
+        return "未检测到磁盘信息".to_string();
+    }
+
+    let mut parts = Vec::new();
+    for (path, disk_type) in disks {
+        let type_name = match disk_type {
+            DiskType::Ssd => "SSD 固态硬盘",
+            DiskType::Hdd => "HDD 机械硬盘",
+        };
+        parts.push(format!("{path} ({type_name})"));
+    }
+    parts.join(" | ")
+}
+
+/// Format buffer pool / IO status JSON payload.
+pub fn format_io_status_json(val: &serde_json::Value) -> String {
+    let allocated = val.get("allocatedBytes").and_then(|v| v.as_u64()).unwrap_or(0);
+    let capacity = val.get("capacityBytes").and_then(|v| v.as_u64()).unwrap_or(1024 * 1024 * 1024);
+    let active_buffers = val.get("activeBuffers").and_then(|v| v.as_u64()).unwrap_or(0);
+
+    format!(
+        "已用缓存: {} / 上限: {} (活跃缓冲槽: {} 个)",
+        format_bytes(allocated),
+        format_bytes(capacity),
+        active_buffers
+    )
 }
 
 /// State store managing task collections, filtering, search, sorting, and multi-selection.
@@ -708,6 +813,32 @@ mod tests {
     }
 
     #[test]
+    fn test_settings_conversion() {
+        let mut settings = AppSettings::default();
+        settings.download.default_download_dir = "/custom/downloads".to_string();
+        settings.scheduler.traditional.max_parallel_tasks = 5;
+        settings.global_speed_limit_bps = 1024 * 500;
+        settings.bt.dht_enabled = true;
+        settings.bt.listen_port = Some(6882);
+
+        let form = app_settings_to_form(&settings, true, false, "IO OK", "D: SSD");
+        assert_eq!(form.default_download_dir.as_str(), "/custom/downloads");
+        assert_eq!(form.max_parallel_tasks.as_str(), "5");
+        assert_eq!(form.global_speed_limit_kb.as_str(), "500");
+        assert!(form.dht_enabled);
+        assert_eq!(form.listen_port.as_str(), "6882");
+        assert!(form.game_mode);
+        assert!(!form.overclock_mode);
+
+        let mut updated = AppSettings::default();
+        update_app_settings_from_form(&mut updated, &form);
+        assert_eq!(updated.download.default_download_dir, "/custom/downloads");
+        assert_eq!(updated.scheduler.traditional.max_parallel_tasks, 5);
+        assert_eq!(updated.global_speed_limit_bps, 1024 * 500);
+        assert_eq!(updated.bt.listen_port, Some(6882));
+    }
+
+    #[test]
     fn test_search_and_sorting() {
         let mut store = TaskStore::new();
         let t1 = sample_summary(
@@ -806,4 +937,29 @@ mod tests {
         store.clear_selection();
         assert_eq!(store.selected_count(), 0);
     }
+
+    #[test]
+    fn test_disk_types_and_io_status() {
+        let mut disks = HashMap::new();
+        disks.insert("C:\\".to_string(), DiskType::Ssd);
+        disks.insert("D:\\".to_string(), DiskType::Hdd);
+
+        let disks_text = format_disk_types_map(&disks);
+        assert!(disks_text.contains("SSD"));
+        assert!(disks_text.contains("HDD"));
+
+        let empty_disks = HashMap::new();
+        assert_eq!(format_disk_types_map(&empty_disks), "未检测到磁盘信息");
+
+        let io_val = serde_json::json!({
+            "allocatedBytes": 1024 * 1024 * 64,
+            "capacityBytes": 1024 * 1024 * 1024,
+            "activeBuffers": 2
+        });
+        let io_text = format_io_status_json(&io_val);
+        assert!(io_text.contains("64.00 MB"));
+        assert!(io_text.contains("1.00 GB"));
+        assert!(io_text.contains("2 个"));
+    }
 }
+
