@@ -17,6 +17,5 @@ export const WS_EVENTS: readonly WsEventSpec[] = [
 ];
 
 export const EVENT_TYPE_MAP: Record<string, string> = Object.fromEntries(
-  WS_EVENTS.map(c => [c.wsType, c.tauriEventName])
+  WS_EVENTS.map((c) => [c.wsType, c.tauriEventName]),
 );
-

@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from "pinia";
 import { setupDownloadStoreMocks } from "../fixtures/download-store-mocks";
 setupDownloadStoreMocks();
 
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 import {
   cancelDownload,
   getBtRuntimeStatus,
@@ -118,7 +118,6 @@ function createMinimalAppSettings(overrides?: Partial<AppSettings>): AppSettings
       lastTestAtMs: null,
       lastError: null,
     },
-    githubMirror: { enabled: false, mirrors: [] },
     urlRewrite: { enabled: false, rules: [] },
     notifications: { enabled: false },
     ioBaseline: {
@@ -552,7 +551,7 @@ describe("useDownloadStore (extended)", () => {
           defaultMaxRetries: 5,
           defaultChecksum: "sha256" as const,
           defaultUserAgent: "TestAgent/1.0",
-      autoDetectSha256: true,
+          autoDetectSha256: true,
         },
         scheduler: {
           mode: "automatic" as const,

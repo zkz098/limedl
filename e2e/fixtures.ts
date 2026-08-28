@@ -104,7 +104,6 @@ export const test = base.extend<MyFixtures>({
         lastTestAtMs: null,
         lastError: null,
       },
-      githubMirror: { enabled: false, mirrors: [] },
       ioBaseline: {
         bufferLimitMb: 256,
         gameModeBufferMb: 64,

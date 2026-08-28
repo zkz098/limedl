@@ -37,7 +37,6 @@ import type {
   Aria2RpcSettings as GeneratedAria2RpcSettings,
   CdnAccelerationSettings as GeneratedCdnAccelerationSettings,
   IoBaselineSettings as GeneratedIoBaselineSettings,
-  MirrorEntry as GeneratedMirrorEntry,
   RewriteTarget as GeneratedRewriteTarget,
   UrlRewriteRule as GeneratedUrlRewriteRule,
   UrlRewriteSettings as GeneratedUrlRewriteSettings,
@@ -62,12 +61,6 @@ export interface IoBaselineSettings extends GeneratedIoBaselineSettings {
   gameMode?: boolean;
 }
 
-/** MirrorEntry with frontend-only _uid field. */
-export interface MirrorEntry extends GeneratedMirrorEntry {
-  /** Frontend-only unique ID for stable v-for keys. Not serialized by backend. */
-  _uid?: number;
-}
-
 /** RewriteTarget with frontend-only _uid field. */
 export interface RewriteTarget extends GeneratedRewriteTarget {
   /** Frontend-only unique ID for stable v-for keys. Not serialized by backend. */
@@ -87,22 +80,15 @@ export interface UrlRewriteSettings extends Omit<GeneratedUrlRewriteSettings, "r
   rules: UrlRewriteRule[];
 }
 
-/** GitHubMirrorSettings using extended MirrorEntry. */
-export interface GitHubMirrorSettings {
-  enabled: boolean;
-  mirrors: MirrorEntry[];
-}
-
 /**
  * AppSettings with frontend-extended sub-types.
  * Generated counterpart is in generated/types.ts.
  */
 export type AppSettings = Omit<
   GeneratedAppSettings,
-  "ioBaseline" | "githubMirror" | "urlRewrite" | "aria2Rpc" | "cdnAcceleration"
+  "ioBaseline" | "urlRewrite" | "aria2Rpc" | "cdnAcceleration"
 > & {
   ioBaseline: IoBaselineSettings;
-  githubMirror: GitHubMirrorSettings;
   urlRewrite: UrlRewriteSettings;
   aria2Rpc: Aria2RpcSettings;
   cdnAcceleration: CdnAccelerationSettings;

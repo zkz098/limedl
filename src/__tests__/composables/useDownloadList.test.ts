@@ -20,7 +20,7 @@ import {
   mockTauriCommandValue,
   resetTauriMocks,
 } from "../mocks/tauri-mock";
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 import { createMockDownloadTask } from "../fixtures/downloads";
 
 const mockInvoke = vi.mocked(invoke);

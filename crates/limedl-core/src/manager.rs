@@ -2,10 +2,7 @@ use std::{
     fs, io,
     net::IpAddr,
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-    },
+    sync::Arc,
     time::Duration,
 };
 
@@ -27,30 +24,25 @@ use super::{
     database::Database,
     error::{DownloadError, Result, io_error_with_path},
     event_bus::{DownloadEvent, EventBus},
-    file_ops::detect_disk_type,
     http_executor::HttpExecutor,
     lock,
     logging::apply_logging_settings,
-    manifest::{
-        CHUNK_SIZE, Manifest, snapshot_from_manifest,
-    },
-    migration::migrate_json_manifests,
+    manifest::{CHUNK_SIZE, Manifest, snapshot_from_manifest},
     protocol::DownloadBackend,
     rate_limiter::RateLimiter,
     scheduler::Scheduler,
     slot_guard::DownloadSlotGuard,
     task_lifecycle::TaskLifecycle,
     types::{
-        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType,
-        DownloadSnapshot, DownloadState, DownloadSummary, Priority, SchedulerMode, StartDownloadRequest,
-        TaskId, ThreadMode,
+        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadSnapshot,
+        DownloadState, DownloadSummary, Priority, SchedulerMode, StartDownloadRequest, TaskId,
+        ThreadMode,
     },
 };
 
 use super::http_client_factory::build_http_client;
-use super::mirror::rewrite as mirror_rewrite;
 use super::now_ms;
-use super::settings::{load_settings, normalize_settings, persist_settings, resolve_user_agent};
+use super::settings::resolve_user_agent;
 use super::url_rewrite::rewrite_url;
 
 pub const DEFAULT_FIXED_THREADS: usize = 8;
@@ -95,20 +87,6 @@ impl AppState {
 
 // ── Sub-structures for field grouping ──────────────────────────────────
 
-/// Concurrency limits and counters for HTTP/BT download throttling.
-pub struct ConcurrencyLimits {
-    /// Active HTTP download counter (for concurrent throttling)
-    pub active_http_count: Arc<AtomicUsize>,
-    /// Active BT download counter (for concurrent throttling)
-    pub active_bt_count: Arc<AtomicUsize>,
-    /// Maximum concurrent HTTP downloads
-    pub max_concurrent_http: Arc<AtomicUsize>,
-    /// Maximum concurrent BT downloads
-    pub max_concurrent_bt: Arc<AtomicUsize>,
-    /// Overclock mode flag (allows scheduler to pin all adaptive tasks at max threads)
-    pub overclock_mode: Arc<AtomicBool>,
-}
-
 /// Runtime control signals for shutdown and scheduler rebalance coordination.
 pub struct RuntimeControls {
     /// Cancellation token for graceful shutdown of scheduler loop and workers.
@@ -147,7 +125,9 @@ pub struct DownloadManager {
     pub http: HttpClientInfra,
     /// File system paths for state and settings.
     pub dirs: StateDirs,
-    pub settings: Arc<RwLock<AppSettings>>,
+    pub settings_service: Arc<crate::services::SettingsService>,
+    pub concurrency: Arc<crate::services::ConcurrencyManager>,
+    pub disk_io: Arc<crate::services::DiskIoService>,
     pub downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
     pub db: Arc<Database>,
     pub event_bus: Arc<EventBus>,
@@ -156,9 +136,6 @@ pub struct DownloadManager {
     /// Dedicated I/O worker thread for file flush operations.
     pub io_worker: IoWorker,
     pub controls: RuntimeControls,
-    /// Cache disk type detections keyed by device ID to avoid redundant OS queries.
-    pub(crate) disk_type_cache: Arc<parking_lot::Mutex<foldhash::HashMap<u64, DiskType>>>,
-    pub limits: ConcurrencyLimits,
     /// HTTP download executor actor — handles probe, single/chunked download, finalize.
     pub http_executor: Arc<HttpExecutor>,
     /// Scheduler actor — handles background rebalance loop and thread allocation.
@@ -168,15 +145,6 @@ pub struct DownloadManager {
     pub task_lifecycle: Arc<TaskLifecycle>,
 }
 
-// NOTE: `max_concurrent_http` and `overclock_mode` are now `Arc`-wrapped
-// so Clone shares them correctly with the live `DownloadManager`.
-// The `start()`/`resume()` methods use `self: &Arc<Self>` and pass
-// `self.clone()` (Arc::clone) to spawned download futures — those futures
-// hold an Arc aliasing the SAME atomics, so `apply_settings` /
-// `toggle_overclock_mode` / `set_overclock_mode` propagate correctly.
-// The trait impl (`DownloadBackend for DownloadManager`) still constructs
-// a temporary Arc via `Clone` for the UFCS call — safe because atomics
-// are now Arc-shared.
 impl Clone for DownloadManager {
     fn clone(&self) -> Self {
         Self {
@@ -189,7 +157,9 @@ impl Clone for DownloadManager {
                 state_dir: self.dirs.state_dir.clone(),
                 settings_path: self.dirs.settings_path.clone(),
             },
-            settings: self.settings.clone(),
+            settings_service: self.settings_service.clone(),
+            concurrency: self.concurrency.clone(),
+            disk_io: self.disk_io.clone(),
             downloads: self.downloads.clone(),
             db: self.db.clone(),
             controls: RuntimeControls {
@@ -200,14 +170,6 @@ impl Clone for DownloadManager {
             rate_limiter: self.rate_limiter.clone(),
             buffer_pool: self.buffer_pool.clone(),
             io_worker: self.io_worker.clone(),
-            disk_type_cache: self.disk_type_cache.clone(),
-            limits: ConcurrencyLimits {
-                active_http_count: self.limits.active_http_count.clone(),
-                active_bt_count: self.limits.active_bt_count.clone(),
-                max_concurrent_http: self.limits.max_concurrent_http.clone(),
-                max_concurrent_bt: self.limits.max_concurrent_bt.clone(),
-                overclock_mode: self.limits.overclock_mode.clone(),
-            },
             http_executor: self.http_executor.clone(),
             scheduler: self.scheduler.clone(),
             task_lifecycle: self.task_lifecycle.clone(),
@@ -320,81 +282,8 @@ pub(crate) enum ChunkWorkerOutcome {
 }
 
 impl DownloadManager {
-    pub fn new(
-        state_dir: PathBuf,
-        rate_limiter: Arc<RateLimiter>,
-        event_bus: Arc<EventBus>,
-    ) -> Result<Self> {
-        fs::create_dir_all(&state_dir)?;
-
-        let settings_path = state_dir
-            .parent()
-            .ok_or_else(|| {
-                DownloadError::Internal(format!(
-                    "state directory '{}' has no parent — cannot determine settings path",
-                    state_dir.display()
-                ))
-            })?
-            .join("settings.json");
-        let settings = load_settings(&settings_path)?;
-        let client = build_http_client(&settings)?;
-
-        let db_path = state_dir.join("downloads.db");
-        let db = Database::open(&db_path)?;
-        let db = Arc::new(db);
-
-        migrate_json_manifests(&db, &state_dir)?;
-
-        let io = &settings.io_baseline;
-        let buffer_pool = Arc::new(BufferPool::new(
-            io.buffer_limit_mb,
-            io.game_mode_buffer_mb,
-            io.max_parallel_hdd,
-            io.game_mode_max_parallel,
-        ));
-        let io_worker =
-            IoWorker::spawn_pool(std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(4));
-
-        let manager = Self {
-            http: HttpClientInfra {
-                client: Arc::new(RwLock::new(client)),
-                cdn_client_cache: Arc::new(ParkingRwLock::new(HashMap::default())),
-                cdn_accelerator: Arc::new(RwLock::new(None)),
-            },
-            dirs: StateDirs {
-                state_dir,
-                settings_path,
-            },
-            settings: Arc::new(RwLock::new(settings)),
-            downloads: Arc::new(RwLock::new(HashMap::default())),
-            db,
-            event_bus,
-            rate_limiter,
-            buffer_pool,
-            io_worker,
-            controls: RuntimeControls {
-                shutdown_token: CancellationToken::new(),
-                rebalance_notify: Arc::new(Notify::new()),
-            },
-            disk_type_cache: Arc::new(parking_lot::Mutex::new(foldhash::HashMap::default())),
-            limits: ConcurrencyLimits {
-                active_http_count: Arc::new(AtomicUsize::new(0)),
-                active_bt_count: Arc::new(AtomicUsize::new(0)),
-                max_concurrent_http: Arc::new(AtomicUsize::new(5)),
-                max_concurrent_bt: Arc::new(AtomicUsize::new(3)),
-                overclock_mode: Arc::new(AtomicBool::new(false)),
-            },
-            http_executor: Arc::new(HttpExecutor),
-            scheduler: Arc::new(Scheduler),
-            task_lifecycle: Arc::new(TaskLifecycle),
-        };
-
-        manager.load_downloads_from_db()?;
-        Ok(manager)
-    }
-
     /// Construct a DownloadManager reusing the shared infrastructure from SystemContext.
-    pub fn new_with_context(context: &Arc<crate::context::SystemContext>) -> Result<Self> {
+    pub fn new(context: &Arc<crate::context::SystemContext>) -> Result<Self> {
         let state_dir = context.state_dir.clone();
         fs::create_dir_all(&state_dir)?;
 
@@ -421,7 +310,9 @@ impl DownloadManager {
                 state_dir,
                 settings_path,
             },
-            settings: Arc::new(RwLock::new(settings)),
+            settings_service: context.settings_service.clone(),
+            concurrency: context.concurrency.clone(),
+            disk_io: context.disk_io.clone(),
             downloads: Arc::new(RwLock::new(HashMap::default())),
             db: context.db.clone(),
             event_bus: context.event_bus.clone(),
@@ -432,14 +323,6 @@ impl DownloadManager {
                 shutdown_token: context.shutdown_token.clone(),
                 rebalance_notify: context.concurrency.rebalance_notify.clone(),
             },
-            disk_type_cache: Arc::new(parking_lot::Mutex::new(foldhash::HashMap::default())),
-            limits: ConcurrencyLimits {
-                active_http_count: context.concurrency.active_http_count.clone(),
-                active_bt_count: context.concurrency.active_bt_count.clone(),
-                max_concurrent_http: context.concurrency.max_concurrent_http.clone(),
-                max_concurrent_bt: context.concurrency.max_concurrent_bt.clone(),
-                overclock_mode: context.concurrency.overclock_mode.clone(),
-            },
             http_executor: Arc::new(HttpExecutor),
             scheduler: Arc::new(Scheduler),
             task_lifecycle: Arc::new(TaskLifecycle),
@@ -449,22 +332,35 @@ impl DownloadManager {
         Ok(manager)
     }
 
+    /// Convenience constructor for tests/CLI that creates a SystemContext with given components.
+    pub fn new_with_components(
+        state_dir: PathBuf,
+        rate_limiter: Arc<RateLimiter>,
+        event_bus: Arc<EventBus>,
+    ) -> Result<Self> {
+        let context = Arc::new(crate::context::SystemContext::with_components(
+            state_dir,
+            rate_limiter,
+            event_bus,
+        )?);
+        Self::new(&context)
+    }
+
+    /// Alias for new(&context) for backward compatibility.
+    pub fn new_with_context(context: &Arc<crate::context::SystemContext>) -> Result<Self> {
+        Self::new(context)
+    }
+
     pub async fn settings(&self) -> Result<AppSettings> {
-        Ok(self.settings.read().await.clone())
+        Ok(self.settings_service.get().await)
     }
 
     pub fn initial_settings(&self) -> AppSettings {
-        tokio::task::block_in_place(|| self.settings.blocking_read().clone())
+        self.settings_service.get_blocking()
     }
 
     pub fn settings_default_download_dir(&self) -> Option<String> {
-        let dir = tokio::task::block_in_place(|| {
-            self.settings
-                .blocking_read()
-                .download
-                .default_download_dir
-                .clone()
-        });
+        let dir = self.settings_service.get_blocking().download.default_download_dir;
         if dir.is_empty() { None } else { Some(dir) }
     }
 
@@ -486,7 +382,7 @@ impl DownloadManager {
         // Clone CDN settings under the read lock, then drop it immediately.
         // This prevents blocking update_settings() during the DNS lookup below.
         let (cdn_enabled, cdn_active_ip) = {
-            let settings = self.settings.read().await;
+            let settings = self.settings_service.get().await;
             (
                 settings.cdn_acceleration.enabled,
                 settings.cdn_acceleration.active_ip.clone(),
@@ -549,7 +445,7 @@ impl DownloadManager {
                 }
             }
             // Cache miss — build new accelerated client
-            let settings = self.settings.read().await;
+            let settings = self.settings_service.get().await;
             match super::cdn::build_accelerated_client(host, ip, &settings) {
                 Ok(accelerated) => {
                     tracing::info!("resolve_client: CDN acceleration active for {host} via {ip}");
@@ -578,7 +474,8 @@ impl DownloadManager {
     }
 
     pub async fn apply_settings(&self, settings: AppSettings) -> Result<AppSettings> {
-        let normalized = normalize_settings(settings)?;
+        let current = self.settings_service.get().await;
+        let normalized = self.settings_service.update(&settings).await?;
 
         // Apply non-client-affecting settings immediately
         self.rate_limiter
@@ -593,15 +490,9 @@ impl DownloadManager {
             .set_game_mode(normalized.io_baseline.game_mode);
 
         // Only rebuild client when proxy or user-agent actually changed
-        let client_changed = {
-            let current = self.settings.read().await;
-            current.proxy.mode != normalized.proxy.mode
-                || current.proxy.manual_url != normalized.proxy.manual_url
-                || current.download.default_user_agent != normalized.download.default_user_agent
-        };
-
-        persist_settings(&self.dirs.settings_path, &normalized).await?;
-        *self.settings.write().await = normalized.clone();
+        let client_changed = current.proxy.mode != normalized.proxy.mode
+            || current.proxy.manual_url != normalized.proxy.manual_url
+            || current.download.default_user_agent != normalized.download.default_user_agent;
 
         if client_changed {
             let next_client = build_http_client(&normalized)?;
@@ -629,7 +520,7 @@ impl DownloadManager {
         // Acquire a concurrent download slot (HTTP throttle)
         let slot = self.try_acquire_http()?;
 
-        let settings = self.settings.read().await.clone();
+        let settings = self.settings_service.get().await;
         let download_id = Uuid::new_v4();
         let user_agent = resolve_user_agent(
             request.user_agent.as_deref(),
@@ -1040,65 +931,40 @@ impl DownloadManager {
 }
 
 impl DownloadManager {
-    /// Check whether the given URL matches rewrite rules (or legacy GitHub mirrors),
+    /// Check whether the given URL matches rewrite rules,
     /// and if so return the list of candidate URLs (in priority order with the original URL
     /// appended as the final fallback). Returns a single-element list (the original URL)
     /// if rewriting is disabled or no rule matches.
     pub async fn mirror_urls_for(&self, url: &str) -> Vec<String> {
-        let settings = self.settings.read().await;
+        let settings = self.settings_service.get().await;
         if settings.url_rewrite.enabled {
             let rewritten = rewrite_url(url, &settings.url_rewrite);
             if rewritten.len() > 1 || (rewritten.len() == 1 && rewritten[0] != url) {
                 return rewritten;
             }
         }
-        mirror_rewrite(url, &settings.github_mirror)
+        vec![url.to_string()]
     }
 
     pub fn game_mode(&self) -> bool {
-        self.buffer_pool.game_mode()
+        self.disk_io.game_mode()
     }
 
     pub fn set_game_mode(&self, enabled: bool) {
-        self.buffer_pool.set_game_mode(enabled);
+        self.disk_io.set_game_mode(enabled);
     }
 
     pub fn set_overclock_mode(&self, enabled: bool) {
-        self.limits.overclock_mode.store(enabled, Ordering::Relaxed);
-        self.controls.rebalance_notify.notify_one();
+        self.concurrency.set_overclock_mode(enabled);
     }
 
     pub fn overclock_mode(&self) -> bool {
-        self.limits.overclock_mode.load(Ordering::Relaxed)
+        self.concurrency.overclock_mode()
     }
 
     /// Resolve the disk type for a given directory path.
-    /// Checks user overrides first, then a per-device cache, then OS detection.
     pub async fn resolve_disk_type(&self, dir: &Path) -> DiskType {
-        let settings = self.settings.read().await;
-        let dir_str = dir.to_string_lossy().to_string();
-        if let Some(disk_type) = settings.io_baseline.disk_type_overrides.get(&dir_str) {
-            return *disk_type;
-        }
-        drop(settings);
-
-        // Check per-device cache on Unix to avoid repeated OS queries.
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::MetadataExt;
-            if let Ok(meta) = std::fs::metadata(dir) {
-                let dev = meta.dev();
-                let mut cache = self.disk_type_cache.lock();
-                if let Some(cached) = cache.get(&dev) {
-                    return *cached;
-                }
-                let detected = detect_disk_type(dir);
-                cache.insert(dev, detected);
-                return detected;
-            }
-        }
-
-        detect_disk_type(dir)
+        self.disk_io.resolve_disk_type(dir).await
     }
 
     // ── Concurrent download throttle ────────────────────────────
@@ -1106,39 +972,13 @@ impl DownloadManager {
     /// Try to acquire an HTTP download slot.
     /// Returns `Ok(DownloadSlotGuard)` if under limit, `Err` if at capacity.
     pub fn try_acquire_http(&self) -> std::result::Result<DownloadSlotGuard, DownloadError> {
-        let max = self.limits.max_concurrent_http.load(Ordering::Acquire);
-        let counter = &self.limits.active_http_count;
-        loop {
-            let current = counter.load(Ordering::Acquire);
-            if current >= max {
-                return Err(DownloadError::TooManyConcurrentDownloads);
-            }
-            if counter
-                .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                return Ok(DownloadSlotGuard::new(self.limits.active_http_count.clone()));
-            }
-        }
+        self.concurrency.try_acquire_http()
     }
 
     /// Try to acquire a BT download slot.
     /// Returns `Ok(DownloadSlotGuard)` if under limit, `Err` if at capacity.
     pub fn try_acquire_bt(&self) -> std::result::Result<DownloadSlotGuard, DownloadError> {
-        let max = self.limits.max_concurrent_bt.load(Ordering::Acquire);
-        let counter = &self.limits.active_bt_count;
-        loop {
-            let current = counter.load(Ordering::Acquire);
-            if current >= max {
-                return Err(DownloadError::TooManyConcurrentDownloads);
-            }
-            if counter
-                .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                return Ok(DownloadSlotGuard::new(self.limits.active_bt_count.clone()));
-            }
-        }
+        self.concurrency.try_acquire_bt()
     }
 }
 

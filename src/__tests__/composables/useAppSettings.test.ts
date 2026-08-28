@@ -17,7 +17,7 @@ import { invoke } from "#invoke";
 import { createMockInvoke, resetTauriMocks } from "../mocks/tauri-mock";
 import { getAppSettings, saveAppSettings } from "../../lib/tauri/settings-api";
 import { useAppSettingsStore } from "../../stores/appSettings";
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 import { DEFAULT_VISIBLE_COLUMNS } from "../../lib/column-defs";
 import type { AppSettings } from "../../types/settings";
 
@@ -134,7 +134,6 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       lastTestAtMs: null,
       lastError: null,
     },
-    githubMirror: { enabled: false, mirrors: [] },
     urlRewrite: { enabled: false, rules: [] },
     notifications: { enabled: true },
     ioBaseline: {

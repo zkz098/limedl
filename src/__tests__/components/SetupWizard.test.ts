@@ -168,7 +168,6 @@ function createDefaultSettings(): AppSettings {
       lastTestAtMs: null,
       lastError: null,
     },
-    githubMirror: { enabled: false, mirrors: [] },
     urlRewrite: { enabled: false, rules: [] },
     notifications: { enabled: true },
     ioBaseline: {

@@ -70,6 +70,12 @@ impl DiskDeviceManager {
         queue.write_batch(file, entries, sync).await
     }
 
+    /// Record write activity (bytes and operation count) for global/device-level metrics.
+    pub fn record_write(&self, bytes: u64) {
+        let queue = self.get_or_create_queue(Path::new("."));
+        queue.record_direct_write(bytes);
+    }
+
     /// Collect live runtime metrics for all active physical/logical device queues.
     pub fn get_device_metrics(&self) -> Vec<DeviceMetric> {
         self.queues.iter().map(|entry| entry.value().metrics()).collect()

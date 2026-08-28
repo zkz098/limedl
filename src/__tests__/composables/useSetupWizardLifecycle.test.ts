@@ -119,7 +119,6 @@ function createDefaultSettings(overrides: Partial<AppSettings> = {}): AppSetting
       lastTestAtMs: null,
       lastError: null,
     },
-    githubMirror: { enabled: false, mirrors: [] },
     urlRewrite: { enabled: false, rules: [] },
     notifications: { enabled: true },
     ioBaseline: {

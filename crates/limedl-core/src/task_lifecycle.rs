@@ -416,7 +416,7 @@ impl TaskLifecycle {
     /// in-memory map exceeds `max_in_memory_downloads`.  Removes the oldest
     /// terminal entries first.  Returns the number of entries removed.
     pub(crate) async fn evict_completed(&self, dm: &DownloadManager) -> usize {
-        let limit = dm.settings.read().await.max_in_memory_downloads;
+        let limit = dm.settings_service.get().await.max_in_memory_downloads;
         if limit == 0 {
             return 0;
         }

@@ -542,12 +542,13 @@ async fn run_single_download(url: &str, output: Option<&PathBuf>) -> anyhow::Res
 
     let rate_limiter = Arc::new(limedl_core::RateLimiter::default());
     let event_bus = Arc::new(limedl_core::EventBus::new(8192));
-
-    let download_manager = Arc::new(limedl_core::DownloadManager::new(
+    let context = Arc::new(limedl_core::SystemContext::with_components(
         state_dir.clone(),
         rate_limiter.clone(),
         event_bus.clone(),
     )?);
+
+    let download_manager = Arc::new(limedl_core::DownloadManager::new(&context)?);
 
     let output_path = output.cloned().unwrap_or_else(|| {
         let filename = url.split('/').next_back().unwrap_or("download");

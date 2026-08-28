@@ -6,6 +6,7 @@ use crate::buffer_pool::{BufferPool, IoWorker};
 use crate::database::Database;
 use crate::error::Result;
 use crate::event_bus::EventBus;
+use crate::io_scheduler::DiskDeviceManager;
 use crate::rate_limiter::RateLimiter;
 use crate::services::{ConcurrencyManager, DiskIoService, SettingsService};
 
@@ -18,6 +19,7 @@ pub struct SystemContext {
     pub rate_limiter: Arc<RateLimiter>,
     pub buffer_pool: Arc<BufferPool>,
     pub io_worker: IoWorker,
+    pub device_manager: Arc<DiskDeviceManager>,
     pub concurrency: Arc<ConcurrencyManager>,
     pub settings_service: Arc<SettingsService>,
     pub disk_io: Arc<DiskIoService>,
@@ -25,7 +27,19 @@ pub struct SystemContext {
 }
 
 impl SystemContext {
+    /// Create a standard SystemContext using default RateLimiter and EventBus.
     pub fn new(state_dir: PathBuf) -> Result<Self> {
+        let rate_limiter = Arc::new(RateLimiter::default());
+        let event_bus = Arc::new(EventBus::new(8192));
+        Self::with_components(state_dir, rate_limiter, event_bus)
+    }
+
+    /// Create a SystemContext with custom RateLimiter and EventBus instances (e.g. for CLI/tests).
+    pub fn with_components(
+        state_dir: PathBuf,
+        rate_limiter: Arc<RateLimiter>,
+        event_bus: Arc<EventBus>,
+    ) -> Result<Self> {
         std::fs::create_dir_all(&state_dir)?;
 
         let settings_path = state_dir
@@ -53,19 +67,20 @@ impl SystemContext {
             io.max_parallel_hdd,
             io.game_mode_max_parallel,
         ));
-        let io_worker = IoWorker::spawn_pool(
+        let device_manager = Arc::new(DiskDeviceManager::new());
+        let io_worker = IoWorker::spawn_pool_with_device_manager(
             std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(4)
                 .min(4),
+            Some(device_manager.clone()),
         );
 
-        let rate_limiter = Arc::new(RateLimiter::default());
-        let event_bus = Arc::new(EventBus::new(8192));
         let concurrency = Arc::new(ConcurrencyManager::new(5, 3));
-        let disk_io = Arc::new(DiskIoService::new(
+        let disk_io = Arc::new(DiskIoService::new_with_device_manager(
             buffer_pool.clone(),
             settings_service.clone(),
+            device_manager.clone(),
         ));
         let shutdown_token = CancellationToken::new();
 
@@ -76,6 +91,7 @@ impl SystemContext {
             rate_limiter,
             buffer_pool,
             io_worker,
+            device_manager,
             concurrency,
             settings_service,
             disk_io,

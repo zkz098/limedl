@@ -39,7 +39,7 @@ fn make_request(url: &str, kind: Option<TaskKind>) -> StartDownloadRequest {
 
 fn make_manager(tmp: &tempfile::TempDir) -> DownloadManager {
     std::fs::create_dir_all(tmp.path().join("state").join("logs")).unwrap();
-    DownloadManager::new(
+    DownloadManager::new_with_components(
         tmp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

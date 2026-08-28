@@ -5,7 +5,7 @@ import UiButton from "../ui/UiButton.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import UiSelect from "../ui/UiSelect.vue";
 import { useI18n } from "../../i18n";
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 import { storeToRefs } from "pinia";
 import { detectKindFromUrl, extractFileNameFromUrl } from "../../lib/url-utils";
 
@@ -33,8 +33,13 @@ const {
   batchEntries,
   batchSubmitProgress,
 } = storeToRefs(downloadStore);
-const { pickDestinationDirectory, pickTorrentSourceFile, parseBatchUrls, toggleBatchMode, probeSha256Checksum } =
-  downloadStore;
+const {
+  pickDestinationDirectory,
+  pickTorrentSourceFile,
+  parseBatchUrls,
+  toggleBatchMode,
+  probeSha256Checksum,
+} = downloadStore;
 
 const urlInputRef = ref<InstanceType<typeof UiTextField> | null>(null);
 const isAdvancedOpen = ref(false);
@@ -362,7 +367,9 @@ async function handleFormSubmit() {
                     :for="'composer-expected-checksum'"
                   >
                     <div class="composer-field__header">
-                      <span class="composer-field__label">{{ t("composer.expectedChecksum") }}</span>
+                      <span class="composer-field__label">{{
+                        t("composer.expectedChecksum")
+                      }}</span>
                       <span v-if="form.checksumDetected" class="composer-field__badge">
                         <span class="i-ri-check-line" aria-hidden="true" />
                         {{ t("composer.checksumDetected") }}

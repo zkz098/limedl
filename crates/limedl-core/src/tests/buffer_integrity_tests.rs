@@ -280,7 +280,7 @@ async fn pipeline_ssd_buffer_flush_failure_ends_failed() -> TestResult {
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

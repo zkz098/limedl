@@ -721,21 +721,6 @@ const enUS = {
         vsDefault: "vs. default node",
         defaultNode: "Default Node",
       },
-      githubMirror: {
-        title: "GitHub Mirror",
-        description:
-          "Automatically rewrite GitHub download URLs through mirror proxies for faster downloads.",
-        enableLabel: "Enable GitHub Mirror",
-        enableDescription:
-          "Downloads from github.com will be redirected through configured mirrors.",
-        addMirror: "Add Mirror",
-        mirrorUrl: "Mirror URL",
-        mirrorUrlPlaceholder: "https://ghproxy.com",
-        mirrorUrlHint: "The mirror service base URL. Original URL will be appended after encoding.",
-        emptyHint: "No mirrors configured. Add at least one mirror URL.",
-        deleteMirror: "Remove mirror",
-        dragHint: "Drag to reorder. Mirrors are tried in order from top to bottom.",
-      },
       urlRewrite: {
         title: "URL Pattern Rewrite",
         description:

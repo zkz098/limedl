@@ -140,7 +140,6 @@ function createDraft(overrides?: Partial<IoBaselineSettings>): AppSettings {
       lastTestAtMs: null,
       lastError: null,
     },
-    githubMirror: { enabled: false, mirrors: [] },
     urlRewrite: { enabled: false, rules: [] },
     notifications: { enabled: false },
     ioBaseline: {

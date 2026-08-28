@@ -44,7 +44,7 @@ const SetupWizard = defineAsyncComponent({
     template: '<div class="async-loader"><div class="async-loader__spinner"></div></div>',
   },
 });
-import { useDownloadStore } from "./stores/download";
+import { useDownloadStore } from "./stores/download/index";
 import { useNotificationStore } from "./stores/notification";
 import { useAppSettingsStore } from "./stores/appSettings";
 import { useIoBaseline } from "./composables/useIoBaseline";

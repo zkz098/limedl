@@ -83,7 +83,7 @@ impl Scheduler {
 
     /// Update adaptive (AIMD) thread targets for all active downloads.
     pub async fn update_adaptive_targets(&self, dm: &DownloadManager) -> Result<()> {
-        let settings = dm.settings.read().await.clone();
+        let settings = dm.settings_service.get().await;
         if settings.scheduler.mode != SchedulerMode::Automatic {
             return Ok(());
         }
@@ -98,17 +98,14 @@ impl Scheduler {
         let downloads = dm.downloads.read().await;
 
         // ── Overclock mode: pin all adaptive tasks at max threads ──────────
-        if dm.overclock_mode() {
+        if dm.concurrency.overclock_mode() {
             for managed in downloads.values() {
                 let mut core = managed.lock_core();
                 let manifest = &mut core.manifest;
-                if manifest.thread_mode != ThreadMode::Adaptive
-                    || manifest.state != DownloadState::Downloading
-                    || !manifest.supports_ranges
+                if manifest.thread_mode == ThreadMode::Adaptive
+                    && manifest.state == DownloadState::Downloading
+                    && manifest.supports_ranges
                 {
-                    continue;
-                }
-                if manifest.desired_thread_count != Some(adaptive_cap) {
                     manifest.desired_thread_count = Some(adaptive_cap);
                     manifest.updated_at_ms = now_ms();
                     sync_snapshot_with_manifest(&mut core);
@@ -246,7 +243,7 @@ impl Scheduler {
 
     /// Rebalance thread allocations across all active downloads.
     pub async fn rebalance_allocations(&self, dm: &DownloadManager) -> Result<()> {
-        let settings = dm.settings.read().await.clone();
+        let settings = dm.settings_service.get().await;
 
         // Phase 1: collect all Arc references under the read lock, then drop it
         let (mut entries, all_downloads) = {
@@ -483,7 +480,7 @@ impl Scheduler {
 
     /// Check the speed limit schedule and apply the matching limit (or revert to global default).
     async fn apply_speed_limit_schedule(&self, dm: &DownloadManager) {
-        let settings = dm.settings.read().await;
+        let settings = dm.settings_service.get().await;
         let schedule = &settings.speed_limit_schedule;
         if schedule.is_empty() {
             return;
@@ -518,13 +515,11 @@ impl Scheduler {
             }
         });
 
-        drop(settings); // release the read lock before calling set_rate
-
         match limit {
             Some(bps) => dm.rate_limiter.set_rate(bps),
             None => {
                 // Re-read settings to get global_speed_limit_bps (schedule may have changed)
-                let settings = dm.settings.read().await;
+                let settings = dm.settings_service.get().await;
                 dm.rate_limiter.set_rate(settings.global_speed_limit_bps);
             }
         }

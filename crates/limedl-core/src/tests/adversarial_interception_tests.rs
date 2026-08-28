@@ -56,7 +56,7 @@ async fn assert_corrupting_server_is_caught(url: &str, server: &TestServer) -> T
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -143,7 +143,7 @@ async fn corrupting_server_without_expected_completes_but_file_is_bad() -> TestR
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

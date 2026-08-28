@@ -47,7 +47,7 @@ async fn single_stream_download_completes_successfully() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -110,7 +110,7 @@ async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -156,7 +156,7 @@ async fn single_stream_checksum_mismatch_fails() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -219,7 +219,7 @@ async fn multi_stream_download_completes_successfully() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -277,7 +277,7 @@ async fn multi_stream_blake3_checksum_match() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -322,7 +322,7 @@ async fn multi_stream_sha256_checksum_match() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -376,7 +376,7 @@ async fn http_301_redirect_follows_and_completes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -430,7 +430,7 @@ async fn http_302_redirect_follows_and_completes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -496,7 +496,7 @@ async fn http_416_range_not_satisfiable_fails() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -559,7 +559,7 @@ async fn connection_refused_fails_gracefully() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -627,7 +627,7 @@ async fn unreachable_host_fails_gracefully() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -681,7 +681,7 @@ async fn no_content_length_chunked_download_completes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -748,7 +748,7 @@ async fn wrong_content_length_truncates_completed_download() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -839,7 +839,7 @@ async fn cancel_download_while_in_progress() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1177,7 +1177,7 @@ async fn tail_sprint_selective_release_completes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = std::sync::Arc::new(DownloadManager::new(
+    let manager = std::sync::Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         std::sync::Arc::new(RateLimiter::default()),
         std::sync::Arc::new(EventBus::new(1024)),
@@ -1250,7 +1250,7 @@ async fn github_asset_with_accept_header_downloads_real_bytes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1310,7 +1310,7 @@ async fn github_asset_without_accept_header_gets_metadata_json() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

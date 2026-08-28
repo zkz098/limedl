@@ -5,7 +5,7 @@ import { setupDownloadStoreMocks } from "../fixtures/download-store-mocks";
 setupDownloadStoreMocks();
 
 import { resetTauriMocks } from "../mocks/tauri-mock";
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 import { createMockDownloadSnapshot, DownloadPresets, resetMockIds } from "../fixtures/downloads";
 
 import {

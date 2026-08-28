@@ -126,7 +126,7 @@ async fn run_oracle_round(server: &TestServer, threads: usize, mode: ChecksumMod
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
 
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -197,7 +197,7 @@ async fn oracle_with_expected_checksum_completes() -> TestResult {
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -264,7 +264,7 @@ async fn oracle_short_download_flagged_not_matching_source() -> TestResult {
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

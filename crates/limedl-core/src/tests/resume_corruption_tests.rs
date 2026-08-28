@@ -178,7 +178,7 @@ async fn run_multi_thread_resume() -> TestResult {
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -232,7 +232,7 @@ async fn run_fraction_resume(ratio: f64) -> TestResult {
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let dest_dir = temp.path().join("out");
     std::fs::create_dir_all(&dest_dir)?;
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

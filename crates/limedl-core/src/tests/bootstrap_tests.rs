@@ -69,7 +69,7 @@ async fn bootstrap_creates_state_dir() {
 fn make_manager(state_dir: &std::path::Path) -> Arc<DownloadManager> {
     let rate_limiter = Arc::new(RateLimiter::default());
     let event_bus = Arc::new(EventBus::new(1024));
-    let dm = DownloadManager::new(state_dir.to_path_buf(), rate_limiter, event_bus)
+    let dm = DownloadManager::new_with_components(state_dir.to_path_buf(), rate_limiter, event_bus)
         .expect("DownloadManager::new");
     let dm = Arc::new(dm);
     dm.scheduler.clone().start_scheduler_loop(dm.clone());

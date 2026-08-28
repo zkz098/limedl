@@ -2,32 +2,68 @@
 
 export type AdaptiveProfile = "conservative" | "balanced" | "aggressive";
 
-export type AppSettings = { appearance: AppearanceSettings, proxy: ProxySettings, scheduler: SchedulerSettings, download: DownloadDefaultsSettings, bt: BtSettings, logging: LogSettings, aria2Rpc: Aria2RpcSettings, cdnAcceleration: CdnAccelerationSettings, githubMirror: GitHubMirrorSettings, urlRewrite: UrlRewriteSettings, globalSpeedLimitBps: number, speedLimitSchedule: Array<SpeedLimitSlot>, notifications: NotificationSettings, ioBaseline: IoBaselineSettings, autostart: boolean, setupCompleted: boolean, lastSetupStep: number | null, 
-/**
- * Double-click action configuration for download tasks.
- */
-doubleClick: DoubleClickSettings, 
-/**
- * Maximum number of completed/failed/canceled downloads kept in memory.
- * Older terminal-state entries are evicted when this limit is exceeded.
- */
-maxInMemoryDownloads: number, };
+export type AppSettings = {
+  appearance: AppearanceSettings;
+  proxy: ProxySettings;
+  scheduler: SchedulerSettings;
+  download: DownloadDefaultsSettings;
+  bt: BtSettings;
+  logging: LogSettings;
+  aria2Rpc: Aria2RpcSettings;
+  cdnAcceleration: CdnAccelerationSettings;
+  urlRewrite: UrlRewriteSettings;
+  globalSpeedLimitBps: number;
+  speedLimitSchedule: Array<SpeedLimitSlot>;
+  notifications: NotificationSettings;
+  ioBaseline: IoBaselineSettings;
+  autostart: boolean;
+  setupCompleted: boolean;
+  lastSetupStep: number | null;
+  /**
+   * Double-click action configuration for download tasks.
+   */
+  doubleClick: DoubleClickSettings;
+  /**
+   * Maximum number of completed/failed/canceled downloads kept in memory.
+   * Older terminal-state entries are evicted when this limit is exceeded.
+   */
+  maxInMemoryDownloads: number;
+};
 
-export type AppearanceSettings = { themeColor: ThemeColor, backgroundOpacity: BackgroundOpacityPreset, colorMode: ColorMode, showDetailInfo: boolean, showHeatmap: boolean, sortKey: SortKey, sortDirection: SortDirection, compactView: boolean, visibleColumns: Array<string>, 
-/**
- * Behavior when closing the main window: exit or minimize to tray.
- */
-closeBehavior: CloseBehavior, };
+export type AppearanceSettings = {
+  themeColor: ThemeColor;
+  backgroundOpacity: BackgroundOpacityPreset;
+  colorMode: ColorMode;
+  showDetailInfo: boolean;
+  showHeatmap: boolean;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  compactView: boolean;
+  visibleColumns: Array<string>;
+  /**
+   * Behavior when closing the main window: exit or minimize to tray.
+   */
+  closeBehavior: CloseBehavior;
+};
 
-export type Aria2RpcSettings = { enabled: boolean, port: number, secret: string | null, 
-/**
- * Allowed CORS origins for the Aria2 RPC HTTP endpoint.
- * If empty, defaults to ["http://localhost", "http://127.0.0.1"].
- * If empty AND allow_any_origin is true, allows all origins (insecure).
- */
-corsAllowedOrigins: Array<string>, };
+export type Aria2RpcSettings = {
+  enabled: boolean;
+  port: number;
+  secret: string | null;
+  /**
+   * Allowed CORS origins for the Aria2 RPC HTTP endpoint.
+   * If empty, defaults to ["http://localhost", "http://127.0.0.1"].
+   * If empty AND allow_any_origin is true, allows all origins (insecure).
+   */
+  corsAllowedOrigins: Array<string>;
+};
 
-export type AutomaticSchedulerSettings = { maxParallelThreads: number, maxThreadsPerTask: number, minThreadsPerTask: number, adaptiveProfile: AdaptiveProfile, };
+export type AutomaticSchedulerSettings = {
+  maxParallelThreads: number;
+  maxThreadsPerTask: number;
+  minThreadsPerTask: number;
+  adaptiveProfile: AdaptiveProfile;
+};
 
 export type BackgroundOpacityPreset = "default" | "acrylic" | "frosted";
 
@@ -46,165 +82,209 @@ export type BtChokingAlgorithm = "fixed_slots" | "rate_based";
  */
 export type BtEncryptionMode = "enabled" | "disabled" | "forced";
 
-export type BtFileStatus = { index: number, path: string, size: number, downloadedBytes: number, included: boolean, };
+export type BtFileStatus = {
+  index: number;
+  path: string;
+  size: number;
+  downloadedBytes: number;
+  included: boolean;
+};
 
-export type BtPeerInfo = { address: string, client: string, flags: string, downloadSpeed: number, uploadSpeed: number, progress: number, };
+export type BtPeerInfo = {
+  address: string;
+  client: string;
+  flags: string;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  progress: number;
+};
 
-export type BtPieceInfo = { index: number, completed: boolean, };
+export type BtPieceInfo = { index: number; completed: boolean };
 
-export type BtPortRange = { start: number, end: number, };
+export type BtPortRange = { start: number; end: number };
 
 /**
  * Preallocation strategy for torrent files.
  */
 export type BtPreallocateMode = "none" | "full";
 
-export type BtRuntimeStatus = { connected: boolean, dhtEnabled: boolean, dhtNodes?: number | null, torrentCount: number, peerCount: number, uploadSpeedBytesPerSecond?: number | null, uploadedBytes: number, updatedAtMs: number, seedCount?: number | null, leechCount?: number | null, };
+export type BtRuntimeStatus = {
+  connected: boolean;
+  dhtEnabled: boolean;
+  dhtNodes?: number | null;
+  torrentCount: number;
+  peerCount: number;
+  uploadSpeedBytesPerSecond?: number | null;
+  uploadedBytes: number;
+  updatedAtMs: number;
+  seedCount?: number | null;
+  leechCount?: number | null;
+};
 
 /**
  * Seed-mode choking algorithm (engine tuning).
  */
 export type BtSeedChokingAlgorithm = "fastest_upload" | "round_robin" | "anti_leech";
 
-export type BtSettings = { dhtEnabled: boolean, trackerList: string, trackerListUrl: string, pauseUploadWhenLimitReached: boolean, uploadLimitBytes: number, uploadRatioLimit: number, 
-/**
- * Master switch for the anti-leech background loop.
- */
-antiLeechEnabled: boolean, 
-/**
- * How offending peers are handled.
- */
-antiLeechAction: BtAntiLeechAction, 
-/**
- * Min seconds we must have been unchoking a peer before it can be flagged
- * as a leecher (warm-up grace; avoids penalising slow-start peers).
- */
-antiLeechGraceSecs: number, 
-/**
- * Min give-back share (own download / own upload) a peer must sustain to
- * avoid being flagged when it is not choking us. 0 disables the ratio check.
- */
-antiLeechRatio: number, 
-/**
- * Ban duration in seconds; a peer is auto-unbanned after this for forgiveness.
- */
-antiLeechBanSecs: number, 
-/**
- * When action = LimitSlots, max concurrent unchoke slots per torrent that
- * currently has detected leechers.
- */
-antiLeechMaxUploadSlots: number, 
-/**
- * Seed-mode choking algorithm.
- */
-seedChokingAlgorithm: BtSeedChokingAlgorithm, 
-/**
- * Top-level unchoke-slot algorithm.
- */
-chokingAlgorithm: BtChokingAlgorithm, 
-/**
- * Maximum upload (unchoke) slots per torrent.
- */
-maxUploadSlotsPerTorrent: number, 
-/**
- * Maximum peer connections per torrent.
- */
-maxPeersPerTorrent: number, 
-/**
- * Hash-failure involvements before the engine auto-bans a peer (smart ban).
- */
-smartBanMaxFailures: number, 
-/**
- * Use parole to isolate the offending peer before striking (smart ban).
- */
-smartBanParole: boolean, 
-/**
- * Seconds an evicted peer is blocked from reconnecting before it may rejoin.
- */
-evictionBanDurationSecs: number, 
-/**
- * Seconds without receiving piece data before the engine disconnects a
- * peer (0 = disabled). Helps drop under-contributing peers.
- */
-dataContributionTimeoutSecs: number, 
-/**
- * Master switch for loading a peer IP blocklist into the session.
- */
-blocklistEnabled: boolean, 
-/**
- * Path to a blocklist file (eMule `.dat` or P2P plaintext, one CIDR per line).
- */
-blocklistPath: string, upnpEnabled: boolean, listenPortRange?: BtPortRange | null, 
-/**
- * TCP listen port. None = OS assigns.
- */
-listenPort?: number | null, 
-/**
- * Enable NAT-PMP/PCP port mapping.
- */
-enableNatpmp: boolean, 
-/**
- * Enable IPv6 dual-stack.
- */
-enableIpv6: boolean, 
-/**
- * Peer Exchange (BEP 11).
- */
-enablePex: boolean, 
-/**
- * Local Service Discovery (BEP 14).
- */
-enableLsd: boolean, 
-/**
- * µTP micro transport protocol (BEP 29).
- */
-enableUtp: boolean, 
-/**
- * Fast Extension (BEP 6).
- */
-enableFastExtension: boolean, 
-/**
- * Holepunch (BEP 55).
- */
-enableHolepunch: boolean, 
-/**
- * HTTP Web Seed support.
- */
-enableWebSeed: boolean, 
-/**
- * Super seeding mode (BEP 16). Default OFF.
- */
-enableSuperSeeding: boolean, globalDownloadRateLimit: number, globalUploadRateLimit: number, 
-/**
- * File preallocation strategy. (irontide only)
- */
-preallocateMode: BtPreallocateMode, 
-/**
- * Protocol encryption mode. (irontide only)
- */
-encryptionMode: BtEncryptionMode, 
-/**
- * Max auto-managed active downloads. (irontide only)
- */
-maxDownloads: number, 
-/**
- * Max auto-managed active seed tasks. (irontide only)
- */
-maxSeeds: number, 
-/**
- * Max total torrents. (irontide only)
- */
-maxTorrents: number, 
-/**
- * Hard limit on total active torrents (downloading + seeding + checking). (irontide only)
- */
-activeLimit: number, };
+export type BtSettings = {
+  dhtEnabled: boolean;
+  trackerList: string;
+  trackerListUrl: string;
+  pauseUploadWhenLimitReached: boolean;
+  uploadLimitBytes: number;
+  uploadRatioLimit: number;
+  /**
+   * Master switch for the anti-leech background loop.
+   */
+  antiLeechEnabled: boolean;
+  /**
+   * How offending peers are handled.
+   */
+  antiLeechAction: BtAntiLeechAction;
+  /**
+   * Min seconds we must have been unchoking a peer before it can be flagged
+   * as a leecher (warm-up grace; avoids penalising slow-start peers).
+   */
+  antiLeechGraceSecs: number;
+  /**
+   * Min give-back share (own download / own upload) a peer must sustain to
+   * avoid being flagged when it is not choking us. 0 disables the ratio check.
+   */
+  antiLeechRatio: number;
+  /**
+   * Ban duration in seconds; a peer is auto-unbanned after this for forgiveness.
+   */
+  antiLeechBanSecs: number;
+  /**
+   * When action = LimitSlots, max concurrent unchoke slots per torrent that
+   * currently has detected leechers.
+   */
+  antiLeechMaxUploadSlots: number;
+  /**
+   * Seed-mode choking algorithm.
+   */
+  seedChokingAlgorithm: BtSeedChokingAlgorithm;
+  /**
+   * Top-level unchoke-slot algorithm.
+   */
+  chokingAlgorithm: BtChokingAlgorithm;
+  /**
+   * Maximum upload (unchoke) slots per torrent.
+   */
+  maxUploadSlotsPerTorrent: number;
+  /**
+   * Maximum peer connections per torrent.
+   */
+  maxPeersPerTorrent: number;
+  /**
+   * Hash-failure involvements before the engine auto-bans a peer (smart ban).
+   */
+  smartBanMaxFailures: number;
+  /**
+   * Use parole to isolate the offending peer before striking (smart ban).
+   */
+  smartBanParole: boolean;
+  /**
+   * Seconds an evicted peer is blocked from reconnecting before it may rejoin.
+   */
+  evictionBanDurationSecs: number;
+  /**
+   * Seconds without receiving piece data before the engine disconnects a
+   * peer (0 = disabled). Helps drop under-contributing peers.
+   */
+  dataContributionTimeoutSecs: number;
+  /**
+   * Master switch for loading a peer IP blocklist into the session.
+   */
+  blocklistEnabled: boolean;
+  /**
+   * Path to a blocklist file (eMule `.dat` or P2P plaintext, one CIDR per line).
+   */
+  blocklistPath: string;
+  upnpEnabled: boolean;
+  listenPortRange?: BtPortRange | null;
+  /**
+   * TCP listen port. None = OS assigns.
+   */
+  listenPort?: number | null;
+  /**
+   * Enable NAT-PMP/PCP port mapping.
+   */
+  enableNatpmp: boolean;
+  /**
+   * Enable IPv6 dual-stack.
+   */
+  enableIpv6: boolean;
+  /**
+   * Peer Exchange (BEP 11).
+   */
+  enablePex: boolean;
+  /**
+   * Local Service Discovery (BEP 14).
+   */
+  enableLsd: boolean;
+  /**
+   * µTP micro transport protocol (BEP 29).
+   */
+  enableUtp: boolean;
+  /**
+   * Fast Extension (BEP 6).
+   */
+  enableFastExtension: boolean;
+  /**
+   * Holepunch (BEP 55).
+   */
+  enableHolepunch: boolean;
+  /**
+   * HTTP Web Seed support.
+   */
+  enableWebSeed: boolean;
+  /**
+   * Super seeding mode (BEP 16). Default OFF.
+   */
+  enableSuperSeeding: boolean;
+  globalDownloadRateLimit: number;
+  globalUploadRateLimit: number;
+  /**
+   * File preallocation strategy. (irontide only)
+   */
+  preallocateMode: BtPreallocateMode;
+  /**
+   * Protocol encryption mode. (irontide only)
+   */
+  encryptionMode: BtEncryptionMode;
+  /**
+   * Max auto-managed active downloads. (irontide only)
+   */
+  maxDownloads: number;
+  /**
+   * Max auto-managed active seed tasks. (irontide only)
+   */
+  maxSeeds: number;
+  /**
+   * Max total torrents. (irontide only)
+   */
+  maxTorrents: number;
+  /**
+   * Hard limit on total active torrents (downloading + seeding + checking). (irontide only)
+   */
+  activeLimit: number;
+};
 
-export type BtTrackerInfo = { url: string, };
+export type BtTrackerInfo = { url: string };
 
 export type BtUploadStatus = "idle" | "uploading" | "paused" | "paused_by_limit";
 
-export type CdnAccelerationSettings = { enabled: boolean, provider: string, customTestUrl: string | null, customCidrs: string | null, activeIp: string | null, activeSpeedMbps: number | null, lastTestAtMs: number | null, lastError: string | null, };
+export type CdnAccelerationSettings = {
+  enabled: boolean;
+  provider: string;
+  customTestUrl: string | null;
+  customCidrs: string | null;
+  activeIp: string | null;
+  activeSpeedMbps: number | null;
+  lastTestAtMs: number | null;
+  lastError: string | null;
+};
 
 /**
  * Phases of the CDN speed test. Frontend consumes these as camelCase strings.
@@ -214,11 +294,18 @@ export type CdnTestPhase = "fetchingRanges" | "screening" | "measuringThroughput
 /**
  * Progress snapshot emitted to the frontend during a CDN speed test.
  */
-export type CdnTestProgress = { phase: CdnTestPhase, current: number, total: number, };
+export type CdnTestProgress = { phase: CdnTestPhase; current: number; total: number };
 
 export type ChecksumMode = "none" | "blake3" | "sha256" | "sha1" | "xxh3_128";
 
-export type ChunkInfo = { index: number, start: number, end: number, downloaded: number, completed: boolean, claimedBy?: number | null, };
+export type ChunkInfo = {
+  index: number;
+  start: number;
+  end: number;
+  downloaded: number;
+  completed: boolean;
+  claimedBy?: number | null;
+};
 
 export type ChunkSizeStrategy = "adaptive" | "fixed";
 
@@ -232,7 +319,12 @@ export type ColorMode = "light" | "dark" | "system";
 /**
  * Baseline measurement of the default DNS-resolved node (no IP override).
  */
-export type DefaultNodeResult = { ip: string | null, tcpLatencyMs: number, throughputMbps: number | null, error: string | null, };
+export type DefaultNodeResult = {
+  ip: string | null;
+  tcpLatencyMs: number;
+  throughputMbps: number | null;
+  error: string | null;
+};
 
 /**
  * Disk type for I/O optimization decisions.
@@ -242,7 +334,11 @@ export type DiskType = "ssd" | "hdd";
 /**
  * Action to perform when double-clicking a completed download task.
  */
-export type DoubleClickOnCompleted = "none" | "open_file" | "open_in_explorer" | "open_download_dir";
+export type DoubleClickOnCompleted =
+  | "none"
+  | "open_file"
+  | "open_in_explorer"
+  | "open_download_dir";
 
 /**
  * Action to perform when double-clicking an uncompleted download task.
@@ -252,102 +348,214 @@ export type DoubleClickOnUncompleted = "none" | "toggle_pause_resume";
 /**
  * Settings for double-click behavior on download tasks.
  */
-export type DoubleClickSettings = { 
-/**
- * Action when double-clicking a completed task.
- */
-onCompleted: DoubleClickOnCompleted, 
-/**
- * Action when double-clicking an uncompleted task.
- */
-onUncompleted: DoubleClickOnUncompleted, };
+export type DoubleClickSettings = {
+  /**
+   * Action when double-clicking a completed task.
+   */
+  onCompleted: DoubleClickOnCompleted;
+  /**
+   * Action when double-clicking an uncompleted task.
+   */
+  onUncompleted: DoubleClickOnUncompleted;
+};
 
-export type DownloadDefaultsSettings = { defaultDownloadDir: string, defaultMaxRetries: number, defaultChecksum: ChecksumMode, defaultUserAgent: string, autoDetectSha256: boolean, };
+export type DownloadDefaultsSettings = {
+  defaultDownloadDir: string;
+  defaultMaxRetries: number;
+  defaultChecksum: ChecksumMode;
+  defaultUserAgent: string;
+  autoDetectSha256: boolean;
+};
 
 /**
  * Lightweight incremental progress update sent every ~300ms during active downloads.
  * Contains only high-frequency fields. Static/low-frequency fields stay in `DownloadSummary`.
  */
-export type DownloadProgress = { id: string, state: DownloadState, downloadedBytes: number, totalBytes?: number | null, speedBytesPerSecond?: number | null, etaSeconds?: number | null, connectionCount: number, allocatedThreadCount?: number | null, error?: string | null, uploadedBytes?: number | null, uploadSpeedBytesPerSecond?: number | null, peerCount?: number | null, uploadStatus?: BtUploadStatus | null, degraded: boolean, diskType?: DiskType | null, flushing: boolean, };
+export type DownloadProgress = {
+  id: string;
+  state: DownloadState;
+  downloadedBytes: number;
+  totalBytes?: number | null;
+  speedBytesPerSecond?: number | null;
+  etaSeconds?: number | null;
+  connectionCount: number;
+  allocatedThreadCount?: number | null;
+  error?: string | null;
+  uploadedBytes?: number | null;
+  uploadSpeedBytesPerSecond?: number | null;
+  peerCount?: number | null;
+  uploadStatus?: BtUploadStatus | null;
+  degraded: boolean;
+  diskType?: DiskType | null;
+  flushing: boolean;
+};
 
-export type DownloadSnapshot = { id: string, kind: TaskKind, state: DownloadState, url: string, finalUrl: string, fileName: string, destinationPath: string, tempPath: string, totalBytes?: number | null, downloadedBytes: number, supportsRanges: boolean, connectionCount: number, threadMode: ThreadMode, requestedThreadCount?: number | null, desiredThreadCount?: number | null, allocatedThreadCount?: number | null, adaptiveProfile?: AdaptiveProfile | null, threadNote?: string | null, checksum?: string | null, expectedChecksum?: string | null, checksumMode: ChecksumMode, etag?: string | null, lastModified?: string | null, error?: string | null, speedBytesPerSecond?: number | null, etaSeconds?: number | null, uploadedBytes?: number | null, uploadSpeedBytesPerSecond?: number | null, peerCount?: number | null, uploadStatus?: BtUploadStatus | null, infoHash?: string | null, createdAtMs: number, updatedAtMs: number, priority: Priority, cdnAccelerated: boolean, cdnNodeIp?: string | null, chunks?: Array<ChunkInfo>, seedCount?: number | null, leechCount?: number | null, downloadLimitBps?: number | null, uploadLimitBps?: number | null, mirrorUrl?: string | null, degraded: boolean, 
-/**
- * Disk type for this download (set after detection).
- * None if not yet detected (defaults to SSD behavior).
- */
-diskType?: DiskType | null, 
-/**
- * Whether the buffer is currently being flushed to disk.
- */
-flushing: boolean, };
+export type DownloadSnapshot = {
+  id: string;
+  kind: TaskKind;
+  state: DownloadState;
+  url: string;
+  finalUrl: string;
+  fileName: string;
+  destinationPath: string;
+  tempPath: string;
+  totalBytes?: number | null;
+  downloadedBytes: number;
+  supportsRanges: boolean;
+  connectionCount: number;
+  threadMode: ThreadMode;
+  requestedThreadCount?: number | null;
+  desiredThreadCount?: number | null;
+  allocatedThreadCount?: number | null;
+  adaptiveProfile?: AdaptiveProfile | null;
+  threadNote?: string | null;
+  checksum?: string | null;
+  expectedChecksum?: string | null;
+  checksumMode: ChecksumMode;
+  etag?: string | null;
+  lastModified?: string | null;
+  error?: string | null;
+  speedBytesPerSecond?: number | null;
+  etaSeconds?: number | null;
+  uploadedBytes?: number | null;
+  uploadSpeedBytesPerSecond?: number | null;
+  peerCount?: number | null;
+  uploadStatus?: BtUploadStatus | null;
+  infoHash?: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+  priority: Priority;
+  cdnAccelerated: boolean;
+  cdnNodeIp?: string | null;
+  chunks?: Array<ChunkInfo>;
+  seedCount?: number | null;
+  leechCount?: number | null;
+  downloadLimitBps?: number | null;
+  uploadLimitBps?: number | null;
+  mirrorUrl?: string | null;
+  degraded: boolean;
+  /**
+   * Disk type for this download (set after detection).
+   * None if not yet detected (defaults to SSD behavior).
+   */
+  diskType?: DiskType | null;
+  /**
+   * Whether the buffer is currently being flushed to disk.
+   */
+  flushing: boolean;
+};
 
-export type DownloadState = "queued" | "downloading" | "paused" | "retrying" | "verifying" | "completed" | "failed" | "canceled";
+export type DownloadState =
+  | "queued"
+  | "downloading"
+  | "paused"
+  | "retrying"
+  | "verifying"
+  | "completed"
+  | "failed"
+  | "canceled";
 
-export type DownloadSummary = { id: string, kind: TaskKind, state: DownloadState, url: string, fileName: string, destinationPath: string, totalBytes?: number | null, downloadedBytes: number, connectionCount: number, threadMode: ThreadMode, requestedThreadCount?: number | null, desiredThreadCount?: number | null, allocatedThreadCount?: number | null, adaptiveProfile?: AdaptiveProfile | null, threadNote?: string | null, speedBytesPerSecond?: number | null, etaSeconds?: number | null, uploadedBytes?: number | null, uploadSpeedBytesPerSecond?: number | null, peerCount?: number | null, uploadStatus?: BtUploadStatus | null, infoHash?: string | null, expectedChecksum?: string | null, error?: string | null, cdnAccelerated: boolean, cdnNodeIp?: string | null, createdAtMs: number, priority: Priority, seedCount?: number | null, leechCount?: number | null, downloadLimitBps?: number | null, uploadLimitBps?: number | null, chunks?: Array<ChunkInfo>, mirrorUrl?: string | null, };
-
-export type GitHubMirrorSettings = { enabled: boolean, mirrors: Array<MirrorEntry>, };
+export type DownloadSummary = {
+  id: string;
+  kind: TaskKind;
+  state: DownloadState;
+  url: string;
+  fileName: string;
+  destinationPath: string;
+  totalBytes?: number | null;
+  downloadedBytes: number;
+  connectionCount: number;
+  threadMode: ThreadMode;
+  requestedThreadCount?: number | null;
+  desiredThreadCount?: number | null;
+  allocatedThreadCount?: number | null;
+  adaptiveProfile?: AdaptiveProfile | null;
+  threadNote?: string | null;
+  speedBytesPerSecond?: number | null;
+  etaSeconds?: number | null;
+  uploadedBytes?: number | null;
+  uploadSpeedBytesPerSecond?: number | null;
+  peerCount?: number | null;
+  uploadStatus?: BtUploadStatus | null;
+  infoHash?: string | null;
+  expectedChecksum?: string | null;
+  error?: string | null;
+  cdnAccelerated: boolean;
+  cdnNodeIp?: string | null;
+  createdAtMs: number;
+  priority: Priority;
+  seedCount?: number | null;
+  leechCount?: number | null;
+  downloadLimitBps?: number | null;
+  uploadLimitBps?: number | null;
+  chunks?: Array<ChunkInfo>;
+  mirrorUrl?: string | null;
+};
 
 /**
  * I/O baseline settings for HDD/SSD intelligent buffer optimization.
  */
-export type IoBaselineSettings = { 
-/**
- * Total memory buffer pool limit in MiB for HDD downloads.
- * Default: 1024 MiB (1 GiB). User can adjust.
- */
-bufferLimitMb: number, 
-/**
- * Buffer size in MiB to use when game/performance mode is active.
- * Default: 128 MiB.
- */
-gameModeBufferMb: number, 
-/**
- * Maximum number of parallel HDD download buffers (slots).
- * Default: 4. User can adjust.
- */
-maxParallelHdd: number, 
-/**
- * Reduced max-parallel when game mode is active.
- * Default: 1.
- */
-gameModeMaxParallel: number, 
-/**
- * User-specified disk type overrides keyed by directory path.
- * e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
- */
-diskTypeOverrides: Record<string, DiskType>, 
-/**
- * Whether HDD double-buffer optimization is enabled.
- * When disabled on HDD, uses a small 4 MiB write-combining buffer instead of the pool.
- * Default: true.
- */
-hddBufferEnabled: boolean, 
-/**
- * SSD write-combining buffer size per download in MiB.
- * 0 = auto (use chunk size). Max 4096 MiB (4 GiB).
- * Default: 0.
- */
-ssdWriteCombineMb: number, };
+export type IoBaselineSettings = {
+  /**
+   * Total memory buffer pool limit in MiB for HDD downloads.
+   * Default: 1024 MiB (1 GiB). User can adjust.
+   */
+  bufferLimitMb: number;
+  /**
+   * Buffer size in MiB to use when game/performance mode is active.
+   * Default: 128 MiB.
+   */
+  gameModeBufferMb: number;
+  /**
+   * Maximum number of parallel HDD download buffers (slots).
+   * Default: 4. User can adjust.
+   */
+  maxParallelHdd: number;
+  /**
+   * Reduced max-parallel when game mode is active.
+   * Default: 1.
+   */
+  gameModeMaxParallel: number;
+  /**
+   * User-specified disk type overrides keyed by directory path.
+   * e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
+   */
+  diskTypeOverrides: Record<string, DiskType>;
+  /**
+   * Whether HDD double-buffer optimization is enabled.
+   * When disabled on HDD, uses a small 4 MiB write-combining buffer instead of the pool.
+   * Default: true.
+   */
+  hddBufferEnabled: boolean;
+  /**
+   * SSD write-combining buffer size per download in MiB.
+   * 0 = auto (use chunk size). Max 4096 MiB (4 GiB).
+   * Default: 0.
+   */
+  ssdWriteCombineMb: number;
+};
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
-export type LogSettings = { enabled: boolean, level: LogLevel, filePath: string, 
-/**
- * Maximum number of rotated startup log files to keep (e.g., `limedl.1.log`, `limedl.2.log`, ...).
- * `None` = no count-based cleanup. `Some(0)` = delete all old logs.
- */
-retentionCount: number | null, 
-/**
- * Maximum age in days of log files to keep. Older files are deleted on startup.
- * `None` = no age-based cleanup.
- */
-retentionDays: number | null, };
+export type LogSettings = {
+  enabled: boolean;
+  level: LogLevel;
+  filePath: string;
+  /**
+   * Maximum number of rotated startup log files to keep (e.g., `limedl.1.log`, `limedl.2.log`, ...).
+   * `None` = no count-based cleanup. `Some(0)` = delete all old logs.
+   */
+  retentionCount: number | null;
+  /**
+   * Maximum age in days of log files to keep. Older files are deleted on startup.
+   * `None` = no age-based cleanup.
+   */
+  retentionDays: number | null;
+};
 
 export type MatchType = "host" | "prefix" | "regex" | "wildcard";
 
-export type MirrorEntry = { url: string, enabled: boolean, order: number, };
-
-export type NotificationSettings = { enabled: boolean, };
+export type NotificationSettings = { enabled: boolean };
 
 /**
  * Download priority — affects scheduler ordering.
@@ -357,11 +565,11 @@ export type Priority = "low" | "normal" | "high";
 
 export type ProxyMode = "disabled" | "system" | "manual";
 
-export type ProxySettings = { mode: ProxyMode, manualUrl: string, };
+export type ProxySettings = { mode: ProxyMode; manualUrl: string };
 
 export type ReplacementMode = "prefix_proxy" | "template";
 
-export type RewriteTarget = { urlTemplate: string, enabled: boolean, order: number, };
+export type RewriteTarget = { urlTemplate: string; enabled: boolean; order: number };
 
 /**
  * Safety classification for JSON-RPC method rate limiting.
@@ -370,9 +578,16 @@ export type SafetyClass = "safe" | "mutating";
 
 export type SchedulerMode = "traditional" | "automatic";
 
-export type SchedulerSettings = { mode: SchedulerMode, traditional: TraditionalSchedulerSettings, automatic: AutomaticSchedulerSettings, chunkSizeStrategy: ChunkSizeStrategy, tailSprintEnabled: boolean, connectionWarmupEnabled: boolean, };
+export type SchedulerSettings = {
+  mode: SchedulerMode;
+  traditional: TraditionalSchedulerSettings;
+  automatic: AutomaticSchedulerSettings;
+  chunkSizeStrategy: ChunkSizeStrategy;
+  tailSprintEnabled: boolean;
+  connectionWarmupEnabled: boolean;
+};
 
-export type SerializableError = { kind: string, message: string, };
+export type SerializableError = { kind: string; message: string };
 
 export type SortDirection = "asc" | "desc";
 
@@ -381,38 +596,57 @@ export type SortKey = "name" | "size" | "progress" | "speed" | "added_at" | "sta
 /**
  * A time-of-day speed limit slot.
  */
-export type SpeedLimitSlot = { 
-/**
- * Start hour (0-23, inclusive)
- */
-startHour: number, 
-/**
- * End hour (0-23, exclusive — e.g. 18 means "until 18:00")
- */
-endHour: number, 
-/**
- * Speed limit in bytes per second (0 = unlimited)
- */
-limitBps: number, };
+export type SpeedLimitSlot = {
+  /**
+   * Start hour (0-23, inclusive)
+   */
+  startHour: number;
+  /**
+   * End hour (0-23, exclusive — e.g. 18 means "until 18:00")
+   */
+  endHour: number;
+  /**
+   * Speed limit in bytes per second (0 = unlimited)
+   */
+  limitBps: number;
+};
 
 /**
  * Result for a single IP after the two-phase speed test.
  */
-export type SpeedTestResult = { ip: string, 
-/**
- * TCP connect latency in milliseconds.
- */
-tcpLatencyMs: number, 
-/**
- * Throughput in MB/s (bytes / seconds / 1_000_000), or None if Phase 2 failed.
- */
-throughputMbps: number | null, 
-/**
- * Error message from Phase 2, if any.
- */
-error: string | null, };
+export type SpeedTestResult = {
+  ip: string;
+  /**
+   * TCP connect latency in milliseconds.
+   */
+  tcpLatencyMs: number;
+  /**
+   * Throughput in MB/s (bytes / seconds / 1_000_000), or None if Phase 2 failed.
+   */
+  throughputMbps: number | null;
+  /**
+   * Error message from Phase 2, if any.
+   */
+  error: string | null;
+};
 
-export type StartDownloadRequest = { kind: TaskKind | null, url: string, destinationDir: string, fileName?: string | null, userAgent: string | null, threadMode?: ThreadMode | null, threadCount?: number | null, maxRetries?: number | null, checksum?: ChecksumMode | null, expectedChecksum?: string | null, selectedFileIndices?: Array<number> | null, headers?: Array<string> | null, startPaused: boolean, mirrorUrls?: Array<string> | null, priority?: Priority | null, };
+export type StartDownloadRequest = {
+  kind: TaskKind | null;
+  url: string;
+  destinationDir: string;
+  fileName?: string | null;
+  userAgent: string | null;
+  threadMode?: ThreadMode | null;
+  threadCount?: number | null;
+  maxRetries?: number | null;
+  checksum?: ChecksumMode | null;
+  expectedChecksum?: string | null;
+  selectedFileIndices?: Array<number> | null;
+  headers?: Array<string> | null;
+  startPaused: boolean;
+  mirrorUrls?: Array<string> | null;
+  priority?: Priority | null;
+};
 
 export type TaskKind = "http" | "bt";
 
@@ -420,10 +654,21 @@ export type ThemeColor = "amber" | "sky" | "lime";
 
 export type ThreadMode = "fixed" | "adaptive";
 
-export type TorrentFileEntry = { index: number, path: string, size: number, };
+export type TorrentFileEntry = { index: number; path: string; size: number };
 
-export type TraditionalSchedulerSettings = { maxParallelTasks: number, };
+export type TraditionalSchedulerSettings = { maxParallelTasks: number };
 
-export type UrlRewriteRule = { id: string, name: string, enabled: boolean, matchType: MatchType, pattern: string, replacementMode: ReplacementMode, targets: Array<RewriteTarget>, encodeUrl: boolean, fallbackToOriginal: boolean, order: number, };
+export type UrlRewriteRule = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  matchType: MatchType;
+  pattern: string;
+  replacementMode: ReplacementMode;
+  targets: Array<RewriteTarget>;
+  encodeUrl: boolean;
+  fallbackToOriginal: boolean;
+  order: number;
+};
 
-export type UrlRewriteSettings = { enabled: boolean, rules: Array<UrlRewriteRule>, };
+export type UrlRewriteSettings = { enabled: boolean; rules: Array<UrlRewriteRule> };

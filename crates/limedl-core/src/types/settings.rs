@@ -395,17 +395,6 @@ pub struct CdnAccelerationSettings {
 #[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GitHubMirrorSettings {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default)]
-    pub mirrors: Vec<super::common::MirrorEntry>,
-}
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     #[serde(default)]
     pub appearance: AppearanceSettings,
@@ -423,8 +412,6 @@ pub struct AppSettings {
     pub aria2_rpc: Aria2RpcSettings,
     #[serde(default)]
     pub cdn_acceleration: CdnAccelerationSettings,
-    #[serde(default)]
-    pub github_mirror: GitHubMirrorSettings,
     #[serde(default)]
     pub url_rewrite: UrlRewriteSettings,
     #[serde(default)]

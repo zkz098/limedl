@@ -5,7 +5,7 @@ import { setActivePinia, createPinia, storeToRefs } from "pinia";
 import DownloadComposer from "../../components/limedl/DownloadComposer.vue";
 import type { DownloadFormState } from "../../types/download";
 import type { AppSettings } from "../../types/settings";
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 
 import { setupDownloadStoreMocks } from "../fixtures/download-store-mocks";
 setupDownloadStoreMocks();
@@ -148,7 +148,6 @@ function createSettings(overrides: Partial<AppSettings> = {}): AppSettings {
       lastTestAtMs: null,
       lastError: null,
     },
-    githubMirror: { enabled: false, mirrors: [] },
     urlRewrite: { enabled: false, rules: [] },
     notifications: { enabled: true },
     ioBaseline: {

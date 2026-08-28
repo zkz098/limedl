@@ -146,7 +146,7 @@ impl HttpExecutor {
             check_disk_space(Path::new(&current_manifest.destination_dir), needed)?;
         }
 
-        let settings = dm.settings.read().await.clone();
+        let settings = dm.settings_service.get().await;
         let chunk_size =
             resolve_chunk_size(settings.scheduler.chunk_size_strategy, metadata.total_bytes);
         let supports_parallel =

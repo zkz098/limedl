@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use parking_lot::RwLock;
 
 use crate::error::Result;
 use crate::settings::{load_settings, normalize_settings, persist_settings};
@@ -25,19 +25,19 @@ impl SettingsService {
 
     /// Read the current settings asynchronously.
     pub async fn get(&self) -> AppSettings {
-        self.settings.read().await.clone()
+        self.settings.read().clone()
     }
 
     /// Read the current settings in a blocking context.
     pub fn get_blocking(&self) -> AppSettings {
-        tokio::task::block_in_place(|| self.settings.blocking_read().clone())
+        self.settings.read().clone()
     }
 
     /// Normalize, persist, and update in-memory settings.
     pub async fn update(&self, new_settings: &AppSettings) -> Result<AppSettings> {
         let normalized = normalize_settings(new_settings.clone())?;
         persist_settings(&self.settings_path, &normalized).await?;
-        let mut w = self.settings.write().await;
+        let mut w = self.settings.write();
         *w = normalized.clone();
         Ok(normalized)
     }
@@ -50,7 +50,7 @@ impl SettingsService {
 
     /// Returns the default download directory if non-empty.
     pub async fn default_download_dir(&self) -> Option<String> {
-        let dir = self.settings.read().await.download.default_download_dir.clone();
+        let dir = self.settings.read().download.default_download_dir.clone();
         if dir.is_empty() {
             None
         } else {

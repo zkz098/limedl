@@ -49,7 +49,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
     form.logging = { ...base.logging, ...next.logging };
     form.aria2Rpc = { ...base.aria2Rpc, ...next.aria2Rpc };
     form.cdnAcceleration = { ...base.cdnAcceleration, ...next.cdnAcceleration };
-    form.githubMirror = { ...base.githubMirror, ...next.githubMirror };
     form.urlRewrite = {
       enabled: next.urlRewrite?.enabled ?? base.urlRewrite?.enabled ?? false,
       rules:
@@ -95,10 +94,6 @@ export function useSettingsForm(options: UseSettingsFormOptions) {
         corsAllowedOrigins: form.aria2Rpc.corsAllowedOrigins ?? [],
       },
       cdnAcceleration: { ...form.cdnAcceleration },
-      githubMirror: {
-        enabled: form.githubMirror?.enabled ?? false,
-        mirrors: form.githubMirror?.mirrors?.map((mirror) => ({ ...mirror })) ?? [],
-      },
       urlRewrite: {
         enabled: form.urlRewrite?.enabled ?? false,
         rules:

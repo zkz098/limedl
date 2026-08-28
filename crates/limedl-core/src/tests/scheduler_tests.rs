@@ -33,7 +33,7 @@ async fn create_manager() -> (tempfile::TempDir, Arc<DownloadManager>) {
     let state_dir = tmp.path().join("state");
     std::fs::create_dir_all(state_dir.join("logs")).ok();
     let manager = Arc::new(
-        DownloadManager::new(
+        DownloadManager::new_with_components(
             state_dir,
             Arc::new(RateLimiter::default()),
             Arc::new(EventBus::new(1024)),

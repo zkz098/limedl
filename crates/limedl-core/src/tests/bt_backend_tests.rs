@@ -30,7 +30,7 @@ async fn bt_max_concurrent_arc_pointer_identity() {
     assert!(
         Arc::ptr_eq(
             &core.bt_backend.max_concurrent_bt,
-            &core.download_manager.limits.max_concurrent_bt,
+            &core.download_manager.concurrency.max_concurrent_bt,
         ),
         "BT backend and DM must share the exact same Arc<AtomicUsize> allocation"
     );

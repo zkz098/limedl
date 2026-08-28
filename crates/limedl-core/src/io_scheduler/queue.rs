@@ -200,6 +200,12 @@ impl DeviceQueue {
             .map_err(|_| DownloadError::Internal("Device I/O queue dropped response".into()))?
     }
 
+    /// Record write activity directly without dispatching a queue command.
+    pub fn record_direct_write(&self, bytes: u64) {
+        self.bytes_written.fetch_add(bytes, Ordering::Relaxed);
+        self.write_ops_count.fetch_add(1, Ordering::Relaxed);
+    }
+
     /// Get current runtime metrics for this device queue.
     pub fn metrics(&self) -> DeviceMetric {
         DeviceMetric {

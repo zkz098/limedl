@@ -90,7 +90,6 @@ function makeMockSettings(overrides: Partial<Record<string, unknown>> = {}) {
       lastTestAtMs: null,
       lastError: null,
     },
-    githubMirror: { enabled: false, mirrors: [] },
     notifications: { enabled: true },
     ioBaseline: {
       bufferLimitMb: 256,

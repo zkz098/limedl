@@ -91,10 +91,19 @@ impl IoWorker {
     /// `n` must be at least 1. Each thread has its own channel for independent
     /// command processing.
     pub fn spawn_pool(n: usize) -> Self {
+        Self::spawn_pool_with_device_manager(n, None)
+    }
+
+    /// Spawn a pool of dedicated I/O worker threads with optional DiskDeviceManager metrics integration.
+    pub fn spawn_pool_with_device_manager(
+        n: usize,
+        device_manager: Option<Arc<crate::io_scheduler::DiskDeviceManager>>,
+    ) -> Self {
         let n = n.max(1);
         let mut txs = Vec::with_capacity(n);
         for i in 0..n {
             let (tx, mut rx) = mpsc::unbounded_channel::<IoCommand>();
+            let dm = device_manager.clone();
             thread::Builder::new()
                 .name(format!("limedl-io-worker-{i}"))
                 .spawn(move || {
@@ -103,12 +112,22 @@ impl IoWorker {
 
                     // Normal processing loop
                     while let Some(cmd) = rx.blocking_recv() {
-                        Self::process_command(cmd, &mut last_sync, &mut bytes_since_last_sync);
+                        Self::process_command(
+                            cmd,
+                            &mut last_sync,
+                            &mut bytes_since_last_sync,
+                            dm.as_ref(),
+                        );
                     }
                     // All senders dropped — drain any commands that were queued
                     // before the final sender dropped.
                     while let Ok(cmd) = rx.try_recv() {
-                        Self::process_command(cmd, &mut last_sync, &mut bytes_since_last_sync);
+                        Self::process_command(
+                            cmd,
+                            &mut last_sync,
+                            &mut bytes_since_last_sync,
+                            dm.as_ref(),
+                        );
                     }
                 })
                 .expect("failed to spawn I/O worker thread");
@@ -127,6 +146,7 @@ impl IoWorker {
         cmd: IoCommand,
         last_sync: &mut Instant,
         bytes_since_last_sync: &mut u64,
+        device_manager: Option<&Arc<crate::io_scheduler::DiskDeviceManager>>,
     ) {
         match cmd {
             IoCommand::WriteBatch {
@@ -154,6 +174,9 @@ impl IoWorker {
                     if !entries.is_empty() {
                         // High-performance coalesced write: merges contiguous slices into single syscalls
                         write_coalesced_entries(&file, &entries)?;
+                        if let Some(dm) = device_manager {
+                            dm.record_write(batch_bytes);
+                        }
                     }
 
                     // Adaptive vs Forced hardware sync

@@ -92,7 +92,7 @@ async fn create_manager_with_server(
     let temp = tempdir().expect("tempdir");
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
     let manager = Arc::new(
-        DownloadManager::new(
+        DownloadManager::new_with_components(
             temp.path().join("state"),
             Arc::new(RateLimiter::default()),
             Arc::new(EventBus::new(1024)),
@@ -176,7 +176,7 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
 
     // ── Simulate restart ──────────────────────────────────────────
     let state_dir = _tmp.path().join("state");
-    let manager2 = Arc::new(DownloadManager::new(
+    let manager2 = Arc::new(DownloadManager::new_with_components(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -258,7 +258,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
 
     // ── Simulate restart ──────────────────────────────────────────
     let state_dir = _tmp.path().join("state");
-    let manager2 = Arc::new(DownloadManager::new(
+    let manager2 = Arc::new(DownloadManager::new_with_components(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -316,7 +316,7 @@ async fn verifying_promoted_to_completed_if_dest_exists() -> TestResult {
     drop(db); // close before manager opens
 
     // Create manager — load_downloads_from_db should promote Verifying → Completed
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -378,7 +378,7 @@ async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
     drop(db);
 
     // Create manager — load_downloads_from_db should load chunks for Paused
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

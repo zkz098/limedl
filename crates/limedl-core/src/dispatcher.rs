@@ -286,7 +286,7 @@ impl Dispatcher {
         }
     }
 
-    /// Resolve candidate mirror URLs based on GitHub mirror and URL rewrite rules.
+    /// Resolve candidate mirror URLs based on URL rewrite rules.
     pub async fn resolve_mirror_urls(&self, url: &str) -> Vec<String> {
         if let Some(s) = &self.settings_service {
             let settings = s.get().await;
@@ -296,10 +296,8 @@ impl Dispatcher {
                     return rewritten;
                 }
             }
-            crate::mirror::rewrite(url, &settings.github_mirror)
-        } else {
-            vec![url.to_string()]
         }
+        vec![url.to_string()]
     }
 
     /// Fetch and normalize tracker list from remote URL.

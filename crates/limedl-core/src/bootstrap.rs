@@ -41,7 +41,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     let context = Arc::new(SystemContext::new(state_dir.clone())?);
     let settings = context.settings_service.get_blocking();
 
-    let download_manager = DownloadManager::new_with_context(&context)?;
+    let download_manager = DownloadManager::new(&context)?;
     let download_manager = Arc::new(download_manager);
     download_manager
         .scheduler

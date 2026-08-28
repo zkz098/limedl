@@ -38,7 +38,7 @@ fn make_manager() -> (tempfile::TempDir, Arc<DownloadManager>) {
     let tmp = tempdir().expect("tempdir");
     let state_dir = tmp.path().join("state");
     std::fs::create_dir_all(state_dir.join("logs")).ok();
-    let dm = DownloadManager::new(
+    let dm = DownloadManager::new_with_components(
         state_dir,
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

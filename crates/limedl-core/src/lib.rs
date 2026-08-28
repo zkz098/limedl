@@ -20,7 +20,6 @@ pub mod http_executor;
 pub mod io_scheduler;
 pub mod manifest;
 pub mod migration;
-pub mod mirror;
 pub mod persistence;
 pub mod platform;
 pub mod protocol;

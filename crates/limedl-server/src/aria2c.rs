@@ -301,14 +301,17 @@ pub async fn run(args: &Aria2cArgs) -> anyhow::Result<i32> {
         rate_limiter.set_rate(limit);
     }
     let event_bus = Arc::new(limedl_core::EventBus::new(8192));
-
-    let download_manager = Arc::new(
-        limedl_core::DownloadManager::new(
+    let context = Arc::new(
+        limedl_core::SystemContext::with_components(
             state_dir.clone(),
             rate_limiter.clone(),
             event_bus.clone(),
         )
-        .context("create DownloadManager")?,
+        .context("create SystemContext")?,
+    );
+
+    let download_manager = Arc::new(
+        limedl_core::DownloadManager::new(&context).context("create DownloadManager")?,
     );
 
     let max_concurrent = args.max_concurrent_downloads.unwrap_or(MAX_CONCURRENT_DEFAULT).max(1);

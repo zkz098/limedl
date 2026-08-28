@@ -11,10 +11,9 @@ use super::{
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
         CdnAccelerationSettings, DoubleClickSettings, DownloadDefaultsSettings,
-        GitHubMirrorSettings, IoBaselineSettings, LogSettings, MatchType, MirrorEntry,
-        NotificationSettings, ProxyMode, ProxySettings, ReplacementMode, RewriteTarget,
-        SchedulerSettings, TraditionalSchedulerSettings, UrlRewriteRule, UrlRewriteSettings,
-        default_tracker_list_url,
+        IoBaselineSettings, LogSettings, NotificationSettings, ProxyMode, ProxySettings,
+        RewriteTarget, SchedulerSettings, TraditionalSchedulerSettings, UrlRewriteRule,
+        UrlRewriteSettings, default_tracker_list_url,
     },
 };
 
@@ -66,38 +65,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
     let default_download_dir = normalize_download_dir(&settings.download.default_download_dir);
 
-    let github_mirror = normalize_github_mirror_settings(settings.github_mirror);
-    let mut url_rewrite = settings.url_rewrite;
-    if url_rewrite.rules.is_empty()
-        && (github_mirror.enabled || !github_mirror.mirrors.is_empty())
-    {
-        let legacy_targets: Vec<RewriteTarget> = github_mirror
-            .mirrors
-            .iter()
-            .enumerate()
-            .map(|(idx, m)| RewriteTarget {
-                url_template: m.url.clone(),
-                enabled: m.enabled,
-                order: idx as u32,
-            })
-            .collect();
-        if !legacy_targets.is_empty() {
-            url_rewrite.enabled = github_mirror.enabled;
-            url_rewrite.rules.push(UrlRewriteRule {
-                id: "preset-github".to_string(),
-                name: "GitHub 镜像".to_string(),
-                enabled: true,
-                match_type: MatchType::Host,
-                pattern: "*.github.com".to_string(),
-                replacement_mode: ReplacementMode::PrefixProxy,
-                targets: legacy_targets,
-                encode_url: true,
-                fallback_to_original: true,
-                order: 0,
-            });
-        }
-    }
-    let url_rewrite = normalize_url_rewrite_settings(url_rewrite);
+    let url_rewrite = normalize_url_rewrite_settings(settings.url_rewrite);
     let io_baseline = IoBaselineSettings {
         buffer_limit_mb: settings.io_baseline.buffer_limit_mb.clamp(64, 32768),
         game_mode_buffer_mb: settings.io_baseline.game_mode_buffer_mb.clamp(16, 4096),
@@ -139,7 +107,6 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         logging,
         aria2_rpc: settings.aria2_rpc.clone(),
         cdn_acceleration: settings.cdn_acceleration.clone(),
-        github_mirror,
         url_rewrite,
         global_speed_limit_bps: settings.global_speed_limit_bps,
         speed_limit_schedule: settings.speed_limit_schedule.clone(),
@@ -345,37 +312,6 @@ pub fn normalize_tracker_list_url(tracker_list_url: &str) -> Result<String> {
     Ok(parsed.to_string())
 }
 
-fn normalize_github_mirror_settings(settings: GitHubMirrorSettings) -> GitHubMirrorSettings {
-    let mirrors: Vec<MirrorEntry> = settings
-        .mirrors
-        .into_iter()
-        .map(|mut entry| {
-            entry.url = entry.url.trim().to_string();
-            entry
-        })
-        .filter(|entry| {
-            if entry.url.is_empty() {
-                return false;
-            }
-            // Validate URL format and ensure it starts with http:// or https://
-            if !entry.url.starts_with("http://") && !entry.url.starts_with("https://") {
-                return false;
-            }
-            Url::parse(&entry.url).is_ok()
-        })
-        .enumerate()
-        .map(|(index, mut entry)| {
-            entry.order = index as u32;
-            entry
-        })
-        .collect();
-
-    GitHubMirrorSettings {
-        enabled: settings.enabled,
-        mirrors,
-    }
-}
-
 fn normalize_url_rewrite_settings(settings: UrlRewriteSettings) -> UrlRewriteSettings {
     let rules: Vec<UrlRewriteRule> = settings
         .rules
@@ -434,7 +370,7 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         Err(error) => return Err(error.into()),
     };
 
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content)
+    if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&content)
         && (value.get("appearance").is_some()
             || value.get("proxy").is_some()
             || value.get("scheduler").is_some()
@@ -444,8 +380,61 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             || value.get("cdnAcceleration").is_some()
             || value.get("notifications").is_some()
             || value.get("ioBaseline").is_some()
-            || value.get("urlRewrite").is_some())
+            || value.get("urlRewrite").is_some()
+            || value.get("githubMirror").is_some())
     {
+        // Smooth migration: if legacy githubMirror exists and urlRewrite has no rules, migrate it.
+        if let Some(gh_val) = value.get("githubMirror") {
+            let gh_enabled = gh_val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+            let mirrors = gh_val.get("mirrors").and_then(|v| v.as_array());
+            let has_rules = value
+                .get("urlRewrite")
+                .and_then(|ur| ur.get("rules"))
+                .and_then(|r| r.as_array())
+                .is_some_and(|arr| !arr.is_empty());
+            if !has_rules
+                && let Some(mirrors) = mirrors
+                && (gh_enabled || !mirrors.is_empty())
+            {
+                let targets: Vec<serde_json::Value> = mirrors
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, m)| {
+                        let url = m.get("url").and_then(|u| u.as_str())?.trim();
+                        if url.is_empty() {
+                            return None;
+                        }
+                        let enabled = m.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
+                        Some(serde_json::json!({
+                            "urlTemplate": url,
+                            "enabled": enabled,
+                            "order": idx as u32
+                        }))
+                    })
+                    .collect();
+                if !targets.is_empty() {
+                    let rule = serde_json::json!({
+                        "id": "preset-github",
+                        "name": "GitHub 镜像",
+                        "enabled": true,
+                        "matchType": "host",
+                        "pattern": "*.github.com",
+                        "replacementMode": "prefix_proxy",
+                        "targets": targets,
+                        "encodeUrl": true,
+                        "fallbackToOriginal": true,
+                        "order": 0
+                    });
+                    if value.get("urlRewrite").is_none() {
+                        value["urlRewrite"] = serde_json::json!({ "enabled": gh_enabled, "rules": [rule] });
+                    } else {
+                        value["urlRewrite"]["enabled"] = serde_json::Value::Bool(gh_enabled);
+                        value["urlRewrite"]["rules"] = serde_json::json!([rule]);
+                    }
+                }
+            }
+        }
+
         let parsed = serde_json::from_value::<AppSettings>(value)?;
         return normalize_settings(parsed);
     }
@@ -460,7 +449,6 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         logging: LogSettings::default(),
         aria2_rpc: Aria2RpcSettings::default(),
         cdn_acceleration: CdnAccelerationSettings::default(),
-        github_mirror: GitHubMirrorSettings::default(),
         url_rewrite: UrlRewriteSettings::default(),
         global_speed_limit_bps: 0,
         speed_limit_schedule: Vec::new(),
@@ -488,7 +476,9 @@ pub async fn persist_settings(settings_path: &Path, settings: &AppSettings) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm};
+    use crate::types::{
+        BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, MatchType, ReplacementMode,
+    };
     use std::io::Write;
     use tempfile::tempdir;
 
@@ -792,95 +782,6 @@ mod tests {
         assert!(matches!(err, DownloadError::InvalidResponse(_)));
     }
 
-    // -----------------------------------------------------------------------
-    // normalize_github_mirror_settings
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_normalize_github_mirror_empty() {
-        let input = GitHubMirrorSettings::default();
-        let result = normalize_github_mirror_settings(input);
-        assert!(result.mirrors.is_empty());
-    }
-
-    #[test]
-    fn test_normalize_github_mirror_valid_urls_filtered_and_ordered() {
-        let input = GitHubMirrorSettings {
-            enabled: true,
-            mirrors: vec![
-                MirrorEntry {
-                    url: "https://mirror2.example.com".into(),
-                    enabled: true,
-                    order: 99,
-                },
-                MirrorEntry {
-                    url: "https://mirror1.example.com".into(),
-                    enabled: true,
-                    order: 42,
-                },
-            ],
-        };
-        let result = normalize_github_mirror_settings(input);
-        assert_eq!(result.mirrors.len(), 2);
-        // order should be reassigned: 0, 1 based on iteration order
-        assert_eq!(result.mirrors[0].order, 0);
-        assert_eq!(result.mirrors[1].order, 1);
-        assert_eq!(result.mirrors[0].url, "https://mirror2.example.com");
-        assert_eq!(result.mirrors[1].url, "https://mirror1.example.com");
-    }
-
-    #[test]
-    fn test_normalize_github_mirror_invalid_urls_filtered() {
-        let input = GitHubMirrorSettings {
-            enabled: true,
-            mirrors: vec![
-                MirrorEntry {
-                    url: "ftp://mirror.example.com".into(),
-                    enabled: true,
-                    order: 0,
-                },
-                MirrorEntry {
-                    url: "not-a-url".into(),
-                    enabled: true,
-                    order: 1,
-                },
-                MirrorEntry {
-                    url: "https://valid.example.com".into(),
-                    enabled: true,
-                    order: 2,
-                },
-            ],
-        };
-        let result = normalize_github_mirror_settings(input);
-        assert_eq!(result.mirrors.len(), 1);
-        assert_eq!(result.mirrors[0].url, "https://valid.example.com");
-    }
-
-    #[test]
-    fn test_normalize_github_mirror_empty_url_filtered() {
-        let input = GitHubMirrorSettings {
-            enabled: true,
-            mirrors: vec![
-                MirrorEntry {
-                    url: "".into(),
-                    enabled: true,
-                    order: 0,
-                },
-                MirrorEntry {
-                    url: "  ".into(),
-                    enabled: true,
-                    order: 1,
-                },
-                MirrorEntry {
-                    url: "https://real.example.com".into(),
-                    enabled: true,
-                    order: 2,
-                },
-            ],
-        };
-        let result = normalize_github_mirror_settings(input);
-        assert_eq!(result.mirrors.len(), 1);
-        assert_eq!(result.mirrors[0].url, "https://real.example.com");
-    }
 
     // -----------------------------------------------------------------------
     // resolve_user_agent
@@ -1276,22 +1177,21 @@ mod tests {
 
     #[test]
     fn test_legacy_github_mirror_migrates_to_url_rewrite() {
-        let settings = AppSettings {
-            github_mirror: GitHubMirrorSettings {
-                enabled: true,
-                mirrors: vec![MirrorEntry {
-                    url: "https://ghproxy.com".into(),
-                    enabled: true,
-                    order: 0,
-                }],
-            },
-            url_rewrite: UrlRewriteSettings::default(),
-            ..AppSettings::default()
-        };
-        let result = normalize_settings(settings).unwrap();
-        assert!(result.url_rewrite.enabled);
-        assert_eq!(result.url_rewrite.rules.len(), 1);
-        let rule = &result.url_rewrite.rules[0];
+        let temp = tempfile::tempdir().unwrap();
+        let settings_path = temp.path().join("settings.json");
+        let json_content = r#"{
+            "githubMirror": {
+                "enabled": true,
+                "mirrors": [
+                    { "url": "https://ghproxy.com", "enabled": true, "order": 0 }
+                ]
+            }
+        }"#;
+        std::fs::write(&settings_path, json_content).unwrap();
+        let loaded = load_settings(&settings_path).unwrap();
+        assert!(loaded.url_rewrite.enabled);
+        assert_eq!(loaded.url_rewrite.rules.len(), 1);
+        let rule = &loaded.url_rewrite.rules[0];
         assert_eq!(rule.name, "GitHub 镜像");
         assert_eq!(rule.match_type, MatchType::Host);
         assert_eq!(rule.pattern, "*.github.com");

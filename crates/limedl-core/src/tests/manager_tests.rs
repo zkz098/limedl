@@ -26,7 +26,7 @@ use crate::settings::load_settings;
 use crate::types::{
     AdaptiveProfile, AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
     CdnAccelerationSettings, ChecksumMode, DownloadDefaultsSettings, DownloadSnapshot,
-    DownloadState, GitHubMirrorSettings, LogSettings, NotificationSettings, Priority, ProxyMode,
+    DownloadState, LogSettings, NotificationSettings, Priority, ProxyMode,
     ProxySettings, SchedulerMode, SchedulerSettings, StartDownloadRequest, ThreadMode,
     TraditionalSchedulerSettings,
 };
@@ -121,7 +121,7 @@ async fn start_returns_before_http_probe_finishes() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -544,7 +544,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -572,8 +572,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
-            github_mirror: GitHubMirrorSettings::default(),
-            global_speed_limit_bps: 0,
+                        global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
             io_baseline: IoBaselineSettings::default(),
             autostart: false,
@@ -658,7 +657,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -686,8 +685,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
             logging: LogSettings::default(),
             aria2_rpc: Aria2RpcSettings::default(),
             cdn_acceleration: CdnAccelerationSettings::default(),
-            github_mirror: GitHubMirrorSettings::default(),
-            global_speed_limit_bps: 0,
+                        global_speed_limit_bps: 0,
             notifications: NotificationSettings::default(),
             io_baseline: IoBaselineSettings::default(),
             autostart: false,
@@ -757,7 +755,7 @@ async fn checksum_match_succeeds() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -819,7 +817,7 @@ async fn checksum_mismatch_detected() -> TestResult {
     });
 
     let temp = tempdir()?;
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1005,14 +1003,14 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
 
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
     )?);
 
     // Bypass the settings clamp ([10, 10000]) so we can use a small limit.
-    manager.settings.write().await.max_in_memory_downloads = 2;
+    manager.settings_service.inner().write().max_in_memory_downloads = 2;
 
     let make_dl = |id: &str, state: DownloadState, created_at: u64| -> Arc<ManagedDownload> {
         Arc::new(ManagedDownload {
@@ -1265,7 +1263,7 @@ fn make_managed(id: &str, state: DownloadState, url: &str) -> Arc<ManagedDownloa
 async fn start_rejects_unsupported_scheme() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1300,7 +1298,7 @@ async fn start_rejects_unsupported_scheme() -> TestResult {
 async fn start_rejects_empty_destination_dir() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1335,7 +1333,7 @@ async fn start_rejects_empty_destination_dir() -> TestResult {
 async fn start_rejects_relative_destination_dir() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1370,7 +1368,7 @@ async fn start_rejects_relative_destination_dir() -> TestResult {
 async fn start_rejects_checksum_mode_mismatch() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1407,7 +1405,7 @@ async fn start_rejects_checksum_mode_mismatch() -> TestResult {
 async fn pause_on_paused_task_returns_snapshot_unchanged() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1439,7 +1437,7 @@ async fn pause_on_paused_task_returns_snapshot_unchanged() -> TestResult {
 async fn cancel_on_completed_task_skips_file_cleanup_and_removes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1466,7 +1464,7 @@ async fn cancel_on_completed_task_skips_file_cleanup_and_removes() -> TestResult
 async fn cancel_on_already_canceled_task_still_removes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1498,7 +1496,7 @@ async fn cancel_on_already_canceled_task_still_removes() -> TestResult {
 async fn resume_canceled_task_returns_canceled_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1520,7 +1518,7 @@ async fn resume_canceled_task_returns_canceled_error() -> TestResult {
 async fn resume_completed_task_returns_not_resumable_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1542,7 +1540,7 @@ async fn resume_completed_task_returns_not_resumable_error() -> TestResult {
 async fn resume_running_task_returns_already_running_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1566,7 +1564,7 @@ async fn resume_running_task_returns_already_running_error() -> TestResult {
 async fn get_summary_nonexistent_id_returns_none() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1582,7 +1580,7 @@ async fn get_summary_nonexistent_id_returns_none() -> TestResult {
 async fn find_active_by_url_no_match_returns_none() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1598,7 +1596,7 @@ async fn find_active_by_url_no_match_returns_none() -> TestResult {
 async fn find_active_by_url_match_returns_some() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1623,14 +1621,14 @@ async fn find_active_by_url_match_returns_some() -> TestResult {
 async fn try_acquire_http_at_capacity_returns_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
     )?);
 
     // Set max to 0 to simulate at capacity
-    manager.limits.max_concurrent_http.store(0, Ordering::Release);
+    manager.concurrency.max_concurrent_http.store(0, Ordering::Release);
 
     let result = manager.try_acquire_http();
     assert!(matches!(result, Err(DownloadError::TooManyConcurrentDownloads)));
@@ -1642,14 +1640,14 @@ async fn try_acquire_http_at_capacity_returns_error() -> TestResult {
 async fn try_acquire_bt_at_capacity_returns_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
     )?);
 
     // Set max to 0 to simulate at capacity
-    manager.limits.max_concurrent_bt.store(0, Ordering::Release);
+    manager.concurrency.max_concurrent_bt.store(0, Ordering::Release);
 
     let result = manager.try_acquire_bt();
     assert!(matches!(result, Err(DownloadError::TooManyConcurrentDownloads)));
@@ -1663,7 +1661,7 @@ async fn try_acquire_bt_at_capacity_returns_error() -> TestResult {
 async fn apply_settings_proxy_change_triggers_client_rebuild() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1688,7 +1686,7 @@ async fn apply_settings_proxy_change_triggers_client_rebuild() -> TestResult {
 async fn game_mode_setter_and_getter() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),
@@ -1709,7 +1707,7 @@ async fn game_mode_setter_and_getter() -> TestResult {
 async fn overclock_mode_setter_and_getter() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
-    let manager = Arc::new(DownloadManager::new(
+    let manager = Arc::new(DownloadManager::new_with_components(
         temp.path().join("state"),
         Arc::new(RateLimiter::default()),
         Arc::new(EventBus::new(1024)),

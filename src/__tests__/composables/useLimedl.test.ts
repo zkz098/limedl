@@ -107,7 +107,7 @@ const mockIsPermissionGranted = vi.mocked(isPermissionGranted);
 const mockSendNotification = vi.mocked(sendNotification);
 
 // Pinia store under test
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 
 // ── Suite ───────────────────────────────────────────────────────────────────
 

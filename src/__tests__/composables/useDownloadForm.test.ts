@@ -39,7 +39,7 @@ vi.mock("#event", () => ({
 
 import { startDownload } from "../../lib/tauri/download-api";
 import { pickDirectory, pickTorrentFile } from "../../lib/tauri/dialog-api";
-import { useDownloadStore } from "../../stores/download";
+import { useDownloadStore } from "../../stores/download/index";
 
 const mockStartDownload = vi.mocked(startDownload);
 const mockPickDirectory = vi.mocked(pickDirectory);
