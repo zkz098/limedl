@@ -7,6 +7,10 @@ export {
     InspectorInfo,
     SettingsFormData,
     ContextMenuState,
+    CdnCandidateItem,
+    UrlRewriteTargetItem,
+    UrlRewriteRuleItem,
+    LabsFormData,
 } from "types.slint";
 
 import {
@@ -17,6 +21,10 @@ import {
     InspectorInfo,
     SettingsFormData,
     ContextMenuState,
+    CdnCandidateItem,
+    UrlRewriteTargetItem,
+    UrlRewriteRuleItem,
+    LabsFormData,
 } from "types.slint";
 
 import {
@@ -33,6 +41,7 @@ import { NewTaskDialog } from "components/new_task_dialog.slint";
 import { TaskInspector } from "components/inspector.slint";
 import { SpeedLimitDialog } from "components/speed_limit_dialog.slint";
 import { SettingsDialog } from "components/settings_dialog.slint";
+import { LabsDialog } from "components/labs_dialog.slint";
 
 export component MainWindow inherits Window {
     title: "limedl - Native";
@@ -79,6 +88,13 @@ export component MainWindow inherits Window {
     in-out property <SettingsFormData> settings_form;
     in property <bool> game_mode_active: false;
     in property <bool> overclock_mode_active: false;
+
+    // Phase 6: Labs (CDN Acceleration & URL Rewrite) state
+    in property <bool> show_labs: false;
+    in property <int> labs_tab: 0;
+    in-out property <LabsFormData> labs_form;
+    in property <[CdnCandidateItem]> cdn_candidates: [];
+    in property <[UrlRewriteRuleItem]> rewrite_rules: [];
 
     // Context Menu state
     in-out property <ContextMenuState> context_menu_state: {
@@ -129,7 +145,7 @@ export component MainWindow inherits Window {
     callback close_speed_limit_dialog();
     callback submit_speed_limit(string, string);
 
-    // Phase 4 Callbacks
+    // Phase 4 Settings Callbacks
     callback open_settings();
     callback close_settings();
     callback set_settings_tab(int);
@@ -138,10 +154,40 @@ export component MainWindow inherits Window {
     callback toggle_overclock_mode();
     callback fetch_trackers_remote(string);
 
+    // Phase 6 Labs Callbacks
+    callback open_labs();
+    callback close_labs();
+    callback set_labs_tab(int);
+    callback save_labs(LabsFormData);
+    callback start_cdn_test();
+    callback cancel_cdn_test();
+    callback clear_cdn_test();
+    callback apply_cdn_candidate(string, float);
+    callback toggle_cdn_advanced();
+    callback apply_manual_cdn_ip(string);
+    callback import_rewrite_preset(string);
+    callback add_custom_rule();
+    callback remove_rule(int);
+    callback toggle_rule_expanded(int);
+    callback toggle_rule_enabled(int);
+    callback update_rule_name(int, string);
+    callback update_rule_match_type(int, string);
+    callback update_rule_pattern(int, string);
+    callback update_rule_mode(int, string);
+    callback toggle_rule_encode(int);
+    callback toggle_rule_fallback(int);
+    callback add_rule_target(int);
+    callback remove_rule_target(int, int);
+    callback update_rule_target(int, int, string);
+    callback toggle_rule_target(int, int);
+    callback test_url_changed(string);
+
     // Phase 5 Native Pickers & Clipboard Callbacks
     callback pick_torrent_file();
     callback pick_save_folder();
     callback pick_default_folder();
+    callback pick_log_folder();
+    callback open_log_folder();
     callback copy_task_url(string);
     callback purge_single_task(string);
 
@@ -358,41 +404,85 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                // Settings Button
-                Rectangle {
-                    background: ta_set.has_hover ? #222731 : #181b22;
-                    border-color: #252b36;
-                    border-width: 1px;
-                    border-radius: 6px;
-                    height: 36px;
+                // Settings & Labs Buttons
+                HorizontalLayout {
+                    spacing: 8px;
 
-                    ta_set := TouchArea {
-                        clicked => { root.open_settings(); }
-                    }
+                    // Settings Button
+                    Rectangle {
+                        background: ta_set.has_hover ? #222731 : #181b22;
+                        border-color: #252b36;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        height: 36px;
 
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: center;
-                        spacing: 8px;
-
-                        VerticalLayout {
-                            alignment: center;
-                            Image {
-                                source: @image-url("assets/icons/settings-3-line.svg");
-                                colorize: ta_set.has_hover ? #ffffff : #d1d5db;
-                                width: 16px;
-                                height: 16px;
-                                image-fit: contain;
-                            }
+                        ta_set := TouchArea {
+                            clicked => { root.open_settings(); }
                         }
 
-                        Text {
-                            text: "设置中心";
-                            color: ta_set.has_hover ? #ffffff : #d1d5db;
-                            font-size: 12px;
-                            font-weight: 600;
-                            vertical-alignment: center;
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            alignment: center;
+                            spacing: 6px;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("assets/icons/settings-3-line.svg");
+                                    colorize: ta_set.has_hover ? #ffffff : #d1d5db;
+                                    width: 15px;
+                                    height: 15px;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            Text {
+                                text: "设置";
+                                color: ta_set.has_hover ? #ffffff : #d1d5db;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Labs Button
+                    Rectangle {
+                        background: ta_lab.has_hover ? #222731 : #181b22;
+                        border-color: #252b36;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        height: 36px;
+
+                        ta_lab := TouchArea {
+                            clicked => { root.open_labs(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            alignment: center;
+                            spacing: 6px;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("assets/icons/flask-line.svg");
+                                    colorize: ta_lab.has_hover ? #a3e635 : #d1d5db;
+                                    width: 15px;
+                                    height: 15px;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            Text {
+                                text: "实验室";
+                                color: ta_lab.has_hover ? #a3e635 : #d1d5db;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
                         }
                     }
                 }
@@ -681,6 +771,41 @@ export component MainWindow inherits Window {
         toggle_overclock_mode => { root.toggle_overclock_mode(); }
         fetch_trackers(url) => { root.fetch_trackers_remote(url); }
         pick_default_folder => { root.pick_default_folder(); }
+        pick_log_folder => { root.pick_log_folder(); }
+        open_log_folder => { root.open_log_folder(); }
+    }
+
+    // Dialog: Labs (CDN Acceleration & URL Rewrite)
+    if root.show_labs : LabsDialog {
+        labs_tab: root.labs_tab;
+        labs_form <=> root.labs_form;
+        cdn_candidates: root.cdn_candidates;
+        rewrite_rules: root.rewrite_rules;
+        close => { root.close_labs(); }
+        set_tab(tab) => { root.set_labs_tab(tab); }
+        save_labs(data) => { root.save_labs(data); }
+        start_cdn_test => { root.start_cdn_test(); }
+        cancel_cdn_test => { root.cancel_cdn_test(); }
+        clear_cdn_test => { root.clear_cdn_test(); }
+        apply_cdn_candidate(ip, tp) => { root.apply_cdn_candidate(ip, tp); }
+        toggle_cdn_advanced => { root.toggle_cdn_advanced(); }
+        apply_manual_cdn_ip(ip) => { root.apply_manual_cdn_ip(ip); }
+        import_rewrite_preset(p) => { root.import_rewrite_preset(p); }
+        add_custom_rule => { root.add_custom_rule(); }
+        remove_rule(idx) => { root.remove_rule(idx); }
+        toggle_rule_expanded(idx) => { root.toggle_rule_expanded(idx); }
+        toggle_rule_enabled(idx) => { root.toggle_rule_enabled(idx); }
+        update_rule_name(idx, name) => { root.update_rule_name(idx, name); }
+        update_rule_match_type(idx, mt) => { root.update_rule_match_type(idx, mt); }
+        update_rule_pattern(idx, pat) => { root.update_rule_pattern(idx, pat); }
+        update_rule_mode(idx, mode) => { root.update_rule_mode(idx, mode); }
+        toggle_rule_encode(idx) => { root.toggle_rule_encode(idx); }
+        toggle_rule_fallback(idx) => { root.toggle_rule_fallback(idx); }
+        add_rule_target(idx) => { root.add_rule_target(idx); }
+        remove_rule_target(ridx, tidx) => { root.remove_rule_target(ridx, tidx); }
+        update_rule_target(ridx, tidx, tmpl) => { root.update_rule_target(ridx, tidx, tmpl); }
+        toggle_rule_target(ridx, tidx) => { root.toggle_rule_target(ridx, tidx); }
+        test_url_changed(url) => { root.test_url_changed(url); }
     }
 
     // Dialog: Task Inspector

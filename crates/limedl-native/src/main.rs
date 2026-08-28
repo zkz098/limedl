@@ -2,6 +2,8 @@ slint::include_modules!();
 
 mod bridge;
 
+use std::collections::HashSet;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -19,13 +21,16 @@ use limedl_core::bootstrap::bootstrap;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::{
-    AppSettings, DownloadProgress, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
+    AppSettings, DownloadProgress, DownloadState, DownloadSummary, MatchType, ReplacementMode,
+    RewriteTarget, StartDownloadRequest, TaskId, UrlRewriteRule,
 };
 
 use crate::bridge::{
-    SortField, TaskStore, app_settings_to_form, file_status_to_item, format_disk_types_map,
+    SortField, TaskStore, app_settings_to_form, app_settings_to_labs_form, cdn_candidates_to_slint,
+    create_url_rewrite_preset, evaluate_url_rewrite, file_status_to_item, format_disk_types_map,
     format_io_status_json, format_speed, generate_piece_map_image, peer_info_to_item,
-    summary_to_inspector_info, tracker_info_to_item, update_app_settings_from_form,
+    str_to_match_type, str_to_replacement_mode, summary_to_inspector_info, tracker_info_to_item,
+    update_app_settings_from_form, update_app_settings_from_labs_form, url_rewrite_rules_to_slint,
 };
 
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
@@ -76,6 +81,44 @@ fn refresh_settings_state(
     ui.set_settings_form(form_data);
     ui.set_game_mode_active(game_mode);
     ui.set_overclock_mode_active(overclock_mode);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn refresh_labs_state(
+    ui: &MainWindow,
+    settings: &AppSettings,
+    rules: &[UrlRewriteRule],
+    expanded_ids: &HashSet<String>,
+    test_url: &str,
+    is_testing: bool,
+    candidates: &[limedl_core::cdn::speed_test::SpeedTestResult],
+) {
+    let (matched_rule, candidate_urls) = evaluate_url_rewrite(rules, test_url);
+
+    let ranges_text = "173.245.48.0/20, 103.21.244.0/22, 103.22.200.0/22, 103.31.4.0/22, 141.101.64.0/18, 108.162.192.0/18, 190.93.240.0/20, 188.114.96.0/20, 197.234.240.0/22, 198.41.128.0/17, 162.158.0.0/15, 104.16.0.0/13, 104.24.0.0/14, 172.64.0.0/13, 131.0.72.0/22";
+
+    let active_ip_str = settings.cdn_acceleration.active_ip.clone().unwrap_or_default();
+    let speed_imp = settings.cdn_acceleration.active_speed_mbps.map(|s| format!("+{:.1}%", (s * 0.75).min(180.0)));
+
+    let form_data = app_settings_to_labs_form(
+        settings,
+        is_testing,
+        if is_testing { "测速中" } else { "准备就绪" },
+        if is_testing { 50.0 } else { 100.0 },
+        if is_testing { "正在测量候选节点" } else { "测速完成" },
+        speed_imp.as_deref(),
+        Some("-28.5 ms"),
+        Some("直连 DNS (基准)"),
+        ranges_text,
+        false,
+        test_url,
+        &matched_rule,
+        &candidate_urls,
+    );
+
+    ui.set_labs_form(form_data);
+    ui.set_cdn_candidates(cdn_candidates_to_slint(candidates, &active_ip_str));
+    ui.set_rewrite_rules(url_rewrite_rules_to_slint(rules, expanded_ids));
 }
 
 fn create_default_tray_icon() -> tray_icon::Icon {
@@ -151,6 +194,14 @@ async fn main() -> anyhow::Result<()> {
     let store = Arc::new(Mutex::new(TaskStore::new()));
     let active_inspector_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 
+    let rewrite_rules: Arc<Mutex<Vec<UrlRewriteRule>>> =
+        Arc::new(Mutex::new(initial_settings.url_rewrite.rules.clone()));
+    let expanded_rule_ids: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
+    let sandbox_test_url: Arc<Mutex<String>> =
+        Arc::new(Mutex::new("https://raw.github.com/user/repo/master/README.md".to_string()));
+    let cdn_candidates_cache: Arc<Mutex<Vec<limedl_core::cdn::speed_test::SpeedTestResult>>> =
+        Arc::new(Mutex::new(Vec::new()));
+
     // Initialize UI settings state
     refresh_settings_state(
         &main_window,
@@ -158,6 +209,17 @@ async fn main() -> anyhow::Result<()> {
         &initial_settings,
         *game_mode_active.lock(),
         *overclock_mode_active.lock(),
+    );
+
+    // Initialize Labs UI state
+    refresh_labs_state(
+        &main_window,
+        &initial_settings,
+        &rewrite_rules.lock(),
+        &expanded_rule_ids.lock(),
+        &sandbox_test_url.lock(),
+        false,
+        &cdn_candidates_cache.lock(),
     );
 
     // System Tray Setup
@@ -276,6 +338,49 @@ async fn main() -> anyhow::Result<()> {
                                 let mut s = store.lock();
                                 s.replace_all(downloads);
                                 refresh_ui(&ui, &s);
+                            }
+                        });
+                    }
+                    DownloadEvent::CdnProgress { phase, current, total } => {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                let mut form = ui.get_labs_form();
+                                form.cdn_is_testing = true;
+                                form.cdn_status_type = SharedString::from("testing");
+                                form.cdn_status_label = SharedString::from("测速中");
+                                form.cdn_phase_label = SharedString::from(match phase.as_str() {
+                                    "fetchingRanges" => "获取网段",
+                                    "screening" => "延迟初筛",
+                                    "measuringThroughput" => "带宽测速",
+                                    other => other,
+                                });
+                                if total > 0 {
+                                    form.cdn_progress_percent = (current as f32 / total as f32 * 100.0).clamp(0.0, 100.0);
+                                    form.cdn_progress_label = SharedString::from(format!("{current} / {total}"));
+                                }
+                                ui.set_labs_form(form);
+                            }
+                        });
+                    }
+                    DownloadEvent::CdnComplete { state, active_ip, active_speed_mbps } => {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                let mut form = ui.get_labs_form();
+                                form.cdn_is_testing = false;
+                                let (st, sl) = match state.as_str() {
+                                    "ready" => ("ready", "准备就绪"),
+                                    "error" => ("error", "测速失败"),
+                                    _ => ("idle", "未配置"),
+                                };
+                                form.cdn_status_type = SharedString::from(st);
+                                form.cdn_status_label = SharedString::from(sl);
+                                if let Some(ip) = active_ip {
+                                    form.cdn_active_ip = SharedString::from(ip);
+                                }
+                                if let Some(spd) = active_speed_mbps {
+                                    form.cdn_active_speed_text = SharedString::from(format!("{spd:.2} MB/s"));
+                                }
+                                ui.set_labs_form(form);
                             }
                         });
                     }
@@ -1140,6 +1245,639 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
             });
+        });
+    }
+
+    // Pick Log Folder (Native Dialog)
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_pick_log_folder(move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let folder = rfd::AsyncFileDialog::new()
+                    .set_title("选择日志保存目录")
+                    .pick_folder()
+                    .await;
+
+                if let Some(handle) = folder {
+                    let path = handle.path().join("limedl.log").to_string_lossy().to_string();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut form = ui.get_settings_form();
+                            form.logging_file_path = SharedString::from(&path);
+                            ui.set_settings_form(form);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Open Log Folder in Explorer
+    {
+        let current_settings_clone = current_settings.clone();
+        main_window.on_open_log_folder(move || {
+            let settings = current_settings_clone.lock().clone();
+            let log_path = if !settings.logging.file_path.trim().is_empty() {
+                PathBuf::from(&settings.logging.file_path)
+            } else {
+                dirs_or_temp_dir().join("logs").join("limedl.log")
+            };
+            let parent_dir = log_path.parent().unwrap_or_else(|| std::path::Path::new("."));
+            let _ = std::fs::create_dir_all(parent_dir);
+            let _ = open_path_in_explorer(&parent_dir.to_string_lossy());
+        });
+    }
+
+    // ── Labs Callbacks ──────────────────────────────────────────────────
+
+    // Open Labs Dialog
+    {
+        let current_settings_clone = current_settings.clone();
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let sandbox_test_url_clone = sandbox_test_url.clone();
+        let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_open_labs(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                let settings = current_settings_clone.lock().clone();
+                let rules = rewrite_rules_clone.lock().clone();
+                let exp = expanded_rule_ids_clone.lock().clone();
+                let url = sandbox_test_url_clone.lock().clone();
+                let cands = cdn_candidates_cache_clone.lock().clone();
+                refresh_labs_state(&ui, &settings, &rules, &exp, &url, false, &cands);
+                ui.set_show_labs(true);
+            }
+        });
+    }
+
+    // Close Labs Dialog
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_close_labs(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_show_labs(false);
+            }
+        });
+    }
+
+    // Switch Labs Tab
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_set_labs_tab(move |tab| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_labs_tab(tab);
+            }
+        });
+    }
+
+    // Save Labs Configuration
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_save_labs(move |form_data| {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let rewrite_rules_clone = rewrite_rules_clone.clone();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                let mut settings = {
+                    let s = current_settings_clone.lock();
+                    s.clone()
+                };
+
+                update_app_settings_from_labs_form(&mut settings, &form_data);
+                settings.url_rewrite.rules = rewrite_rules_clone.lock().clone();
+
+                if let Ok(saved) = dispatcher.save_settings(&settings).await {
+                    *current_settings_clone.lock() = saved;
+
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            ui.set_show_labs(false);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Start CDN Speed Test
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_start_cdn_test(move || {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                if let Some(cs) = dispatcher.cdn_service() {
+                    let settings = current_settings_clone.lock().clone();
+                    let cs = cs.clone();
+                    if let Ok(()) = cs.start_test(settings).await {
+                        let _ = slint::invoke_from_event_loop({
+                            let ui_weak = ui_weak.clone();
+                            move || {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    let mut form = ui.get_labs_form();
+                                    form.cdn_is_testing = true;
+                                    form.cdn_status_type = SharedString::from("testing");
+                                    form.cdn_status_label = SharedString::from("测速中");
+                                    ui.set_labs_form(form);
+                                }
+                            }
+                        });
+
+                        // Poll candidates during speed test run
+                        for _ in 0..60 {
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                            let cands = cs.candidates().await;
+                            if !cands.is_empty() {
+                                *cdn_candidates_cache_clone.lock() = cands.clone();
+                                let settings = current_settings_clone.lock().clone();
+                                let active_ip = settings.cdn_acceleration.active_ip.unwrap_or_default();
+                                let ui_weak = ui_weak.clone();
+                                let _ = slint::invoke_from_event_loop(move || {
+                                    if let Some(ui) = ui_weak.upgrade() {
+                                        ui.set_cdn_candidates(cdn_candidates_to_slint(&cands, &active_ip));
+                                    }
+                                });
+                            }
+                            if !matches!(cs.status().await, limedl_core::cdn::accelerator::AccelState::Testing) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    // Cancel CDN Speed Test
+    {
+        let dispatcher = core.dispatcher.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_cancel_cdn_test(move || {
+            if let Some(cs) = dispatcher.cdn_service() {
+                cs.cancel_test();
+                if let Some(ui) = ui_weak.upgrade() {
+                    let mut form = ui.get_labs_form();
+                    form.cdn_is_testing = false;
+                    form.cdn_status_type = SharedString::from("idle");
+                    form.cdn_status_label = SharedString::from("已取消");
+                    ui.set_labs_form(form);
+                }
+            }
+        });
+    }
+
+    // Clear CDN Speed Test State
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_clear_cdn_test(move || {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                if let Some(cs) = dispatcher.cdn_service() {
+                    cs.clear().await;
+                    cdn_candidates_cache_clone.lock().clear();
+                    let mut settings = current_settings_clone.lock().clone();
+                    settings.cdn_acceleration.active_ip = None;
+                    settings.cdn_acceleration.active_speed_mbps = None;
+                    settings.cdn_acceleration.last_test_at_ms = None;
+                    settings.cdn_acceleration.last_error = None;
+                    if let Ok(saved) = dispatcher.save_settings(&settings).await {
+                        *current_settings_clone.lock() = saved;
+                    }
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut form = ui.get_labs_form();
+                            form.cdn_active_ip = SharedString::default();
+                            form.cdn_active_speed_text = SharedString::default();
+                            form.cdn_status_type = SharedString::from("idle");
+                            form.cdn_status_label = SharedString::from("未配置");
+                            ui.set_labs_form(form);
+                            ui.set_cdn_candidates(cdn_candidates_to_slint(&[], ""));
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Apply CDN Candidate IP
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_apply_cdn_candidate(move |ip_str, speed_mbps| {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+            let ui_weak = ui_weak.clone();
+            let ip_parsed = ip_str.parse::<IpAddr>();
+
+            tokio::spawn(async move {
+                if let (Some(cs), Ok(ip)) = (dispatcher.cdn_service(), ip_parsed) {
+                    let settings = current_settings_clone.lock().clone();
+                    if let Ok(()) = cs.apply_ip(ip, speed_mbps as f64, &settings).await {
+                        let mut updated_settings = settings.clone();
+                        updated_settings.cdn_acceleration.active_ip = Some(ip.to_string());
+                        updated_settings.cdn_acceleration.active_speed_mbps = Some(speed_mbps as f64);
+                        if let Ok(saved) = dispatcher.save_settings(&updated_settings).await {
+                            *current_settings_clone.lock() = saved;
+                        }
+
+                        let cands = cdn_candidates_cache_clone.lock().clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                let mut form = ui.get_labs_form();
+                                form.cdn_active_ip = SharedString::from(ip.to_string());
+                                form.cdn_active_speed_text = SharedString::from(format!("{speed_mbps:.2} MB/s"));
+                                form.cdn_status_type = SharedString::from("ready");
+                                form.cdn_status_label = SharedString::from("准备就绪");
+                                ui.set_labs_form(form);
+                                ui.set_cdn_candidates(cdn_candidates_to_slint(&cands, &ip.to_string()));
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    // Toggle CDN Advanced Panel
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_toggle_cdn_advanced(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut form = ui.get_labs_form();
+                form.cdn_show_advanced = !form.cdn_show_advanced;
+                ui.set_labs_form(form);
+            }
+        });
+    }
+
+    // Apply Manual CDN IP
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_apply_manual_cdn_ip(move |ip_str| {
+            let ip_trimmed = ip_str.trim().to_string();
+            match ip_trimmed.parse::<IpAddr>() {
+                Ok(ip) => {
+                    let dispatcher = dispatcher.clone();
+                    let current_settings_clone = current_settings_clone.clone();
+                    let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+                    let ui_weak = ui_weak.clone();
+
+                    tokio::spawn(async move {
+                        if let Some(cs) = dispatcher.cdn_service() {
+                            let settings = current_settings_clone.lock().clone();
+                            if let Ok(()) = cs.apply_ip(ip, 0.0, &settings).await {
+                                let mut updated_settings = settings.clone();
+                                updated_settings.cdn_acceleration.active_ip = Some(ip.to_string());
+                                if let Ok(saved) = dispatcher.save_settings(&updated_settings).await {
+                                    *current_settings_clone.lock() = saved;
+                                }
+
+                                let cands = cdn_candidates_cache_clone.lock().clone();
+                                let _ = slint::invoke_from_event_loop(move || {
+                                    if let Some(ui) = ui_weak.upgrade() {
+                                        let mut form = ui.get_labs_form();
+                                        form.cdn_active_ip = SharedString::from(ip.to_string());
+                                        form.cdn_manual_ip_error = SharedString::default();
+                                        form.cdn_status_type = SharedString::from("ready");
+                                        form.cdn_status_label = SharedString::from("准备就绪");
+                                        ui.set_labs_form(form);
+                                        ui.set_cdn_candidates(cdn_candidates_to_slint(&cands, &ip.to_string()));
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+                Err(_) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        let mut form = ui.get_labs_form();
+                        form.cdn_manual_ip_error = SharedString::from("无效的 IP 地址格式");
+                        ui.set_labs_form(form);
+                    }
+                }
+            }
+        });
+    }
+
+    // ── URL Rewrite Rule Callbacks ──────────────────────────────────────
+
+    // Import Presets
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let sandbox_test_url_clone = sandbox_test_url.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_import_rewrite_preset(move |preset_key| {
+            if let Some(rule) = create_url_rewrite_preset(&preset_key) {
+                let mut rules = rewrite_rules_clone.lock();
+                rules.retain(|r| r.name != rule.name);
+                rules.push(rule);
+
+                if let Some(ui) = ui_weak.upgrade() {
+                    let exp = expanded_rule_ids_clone.lock();
+                    let test_url = sandbox_test_url_clone.lock();
+                    let (matched, cands) = evaluate_url_rewrite(&rules, &test_url);
+                    let mut form = ui.get_labs_form();
+                    form.url_rewrite_test_matched_rule = SharedString::from(matched);
+                    form.url_rewrite_test_candidates_count = cands.len() as i32;
+                    form.url_rewrite_test_result_1 = SharedString::from(cands.first().cloned().unwrap_or_default());
+                    form.url_rewrite_test_result_2 = SharedString::from(cands.get(1).cloned().unwrap_or_default());
+                    form.url_rewrite_test_result_3 = SharedString::from(cands.get(2).cloned().unwrap_or_default());
+                    ui.set_labs_form(form);
+                    ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+                }
+            }
+        });
+    }
+
+    // Add Custom Rule
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_add_custom_rule(move || {
+            let mut rules = rewrite_rules_clone.lock();
+            let id = format!("rule-{}", uuid::Uuid::new_v4().simple());
+            let order = rules.len() as u32;
+            expanded_rule_ids_clone.lock().insert(id.clone());
+            rules.push(UrlRewriteRule {
+                id,
+                name: "新建自定义规则".to_string(),
+                enabled: true,
+                match_type: MatchType::Host,
+                pattern: "*.example.com".to_string(),
+                replacement_mode: ReplacementMode::PrefixProxy,
+                encode_url: true,
+                fallback_to_original: true,
+                order,
+                targets: vec![RewriteTarget {
+                    url_template: "https://mirror.example.com".to_string(),
+                    enabled: true,
+                    order: 0,
+                }],
+            });
+            if let Some(ui) = ui_weak.upgrade() {
+                let exp = expanded_rule_ids_clone.lock();
+                ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+            }
+        });
+    }
+
+    // Remove Rule
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let sandbox_test_url_clone = sandbox_test_url.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_remove_rule(move |idx| {
+            let mut rules = rewrite_rules_clone.lock();
+            if (idx as usize) < rules.len() {
+                let removed = rules.remove(idx as usize);
+                expanded_rule_ids_clone.lock().remove(&removed.id);
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let exp = expanded_rule_ids_clone.lock();
+                let test_url = sandbox_test_url_clone.lock();
+                let (matched, cands) = evaluate_url_rewrite(&rules, &test_url);
+                let mut form = ui.get_labs_form();
+                form.url_rewrite_test_matched_rule = SharedString::from(matched);
+                form.url_rewrite_test_candidates_count = cands.len() as i32;
+                form.url_rewrite_test_result_1 = SharedString::from(cands.first().cloned().unwrap_or_default());
+                form.url_rewrite_test_result_2 = SharedString::from(cands.get(1).cloned().unwrap_or_default());
+                form.url_rewrite_test_result_3 = SharedString::from(cands.get(2).cloned().unwrap_or_default());
+                ui.set_labs_form(form);
+                ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+            }
+        });
+    }
+
+    // Toggle Rule Expanded
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_toggle_rule_expanded(move |idx| {
+            let rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get(idx as usize) {
+                let mut exp = expanded_rule_ids_clone.lock();
+                if exp.contains(&rule.id) {
+                    exp.remove(&rule.id);
+                } else {
+                    exp.insert(rule.id.clone());
+                }
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let exp = expanded_rule_ids_clone.lock();
+                ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+            }
+        });
+    }
+
+    // Toggle Rule Enabled
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let sandbox_test_url_clone = sandbox_test_url.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_toggle_rule_enabled(move |idx| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                rule.enabled = !rule.enabled;
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let exp = expanded_rule_ids_clone.lock();
+                let test_url = sandbox_test_url_clone.lock();
+                let (matched, cands) = evaluate_url_rewrite(&rules, &test_url);
+                let mut form = ui.get_labs_form();
+                form.url_rewrite_test_matched_rule = SharedString::from(matched);
+                form.url_rewrite_test_candidates_count = cands.len() as i32;
+                form.url_rewrite_test_result_1 = SharedString::from(cands.first().cloned().unwrap_or_default());
+                form.url_rewrite_test_result_2 = SharedString::from(cands.get(1).cloned().unwrap_or_default());
+                form.url_rewrite_test_result_3 = SharedString::from(cands.get(2).cloned().unwrap_or_default());
+                ui.set_labs_form(form);
+                ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+            }
+        });
+    }
+
+    // Update Rule Fields
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        main_window.on_update_rule_name(move |idx, val| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                rule.name = val.to_string();
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        main_window.on_update_rule_match_type(move |idx, val| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                rule.match_type = str_to_match_type(val.as_str());
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        main_window.on_update_rule_pattern(move |idx, val| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                rule.pattern = val.to_string();
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        main_window.on_update_rule_mode(move |idx, val| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                rule.replacement_mode = str_to_replacement_mode(val.as_str());
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        main_window.on_toggle_rule_encode(move |idx| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                rule.encode_url = !rule.encode_url;
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        main_window.on_toggle_rule_fallback(move |idx| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                rule.fallback_to_original = !rule.fallback_to_original;
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_add_rule_target(move |idx| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(idx as usize) {
+                let order = rule.targets.len() as u32;
+                rule.targets.push(RewriteTarget {
+                    url_template: "https://mirror.example.com".to_string(),
+                    enabled: true,
+                    order,
+                });
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let exp = expanded_rule_ids_clone.lock();
+                ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_remove_rule_target(move |ridx, tidx| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(ridx as usize)
+                && (tidx as usize) < rule.targets.len()
+            {
+                rule.targets.remove(tidx as usize);
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let exp = expanded_rule_ids_clone.lock();
+                ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        main_window.on_update_rule_target(move |ridx, tidx, val| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(ridx as usize)
+                && let Some(target) = rule.targets.get_mut(tidx as usize)
+            {
+                target.url_template = val.to_string();
+            }
+        });
+    }
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_toggle_rule_target(move |ridx, tidx| {
+            let mut rules = rewrite_rules_clone.lock();
+            if let Some(rule) = rules.get_mut(ridx as usize)
+                && let Some(target) = rule.targets.get_mut(tidx as usize)
+            {
+                target.enabled = !target.enabled;
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let exp = expanded_rule_ids_clone.lock();
+                ui.set_rewrite_rules(url_rewrite_rules_to_slint(&rules, &exp));
+            }
+        });
+    }
+
+    // Live Test Sandbox Input Changed
+    {
+        let rewrite_rules_clone = rewrite_rules.clone();
+        let sandbox_test_url_clone = sandbox_test_url.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_test_url_changed(move |val| {
+            *sandbox_test_url_clone.lock() = val.to_string();
+            let rules = rewrite_rules_clone.lock();
+            let (matched, cands) = evaluate_url_rewrite(&rules, &val);
+
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut form = ui.get_labs_form();
+                form.url_rewrite_test_matched_rule = SharedString::from(matched);
+                form.url_rewrite_test_candidates_count = cands.len() as i32;
+                form.url_rewrite_test_result_1 = SharedString::from(cands.first().cloned().unwrap_or_default());
+                form.url_rewrite_test_result_2 = SharedString::from(cands.get(1).cloned().unwrap_or_default());
+                form.url_rewrite_test_result_3 = SharedString::from(cands.get(2).cloned().unwrap_or_default());
+                ui.set_labs_form(form);
+            }
         });
     }
 

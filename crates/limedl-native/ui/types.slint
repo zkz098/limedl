@@ -59,18 +59,83 @@ export struct InspectorInfo {
     error_text: string,
 }
 
+export struct CdnCandidateItem {
+    ip: string,
+    latency_text: string,
+    throughput_text: string,
+    throughput_mbps: float,
+    is_active: bool,
+    is_failed: bool,
+}
+
+export struct UrlRewriteTargetItem {
+    url_template: string,
+    enabled: bool,
+    order: int,
+}
+
+export struct UrlRewriteRuleItem {
+    id: string,
+    name: string,
+    enabled: bool,
+    match_type: string, // host / prefix / regex / wildcard
+    pattern: string,
+    replacement_mode: string, // prefix_proxy / template
+    encode_url: bool,
+    fallback_to_original: bool,
+    order: int,
+    targets: [UrlRewriteTargetItem],
+    is_expanded: bool,
+}
+
+export struct LabsFormData {
+    // ── CDN 网络优选 ──
+    cdn_enabled: bool,
+    cdn_provider: string, // cloudflare / fastly / custom
+    cdn_custom_test_url: string,
+    cdn_custom_cidrs: string,
+    cdn_status_type: string, // idle / testing / ready / error
+    cdn_status_label: string,
+    cdn_is_testing: bool,
+    cdn_phase_label: string,
+    cdn_progress_percent: float,
+    cdn_progress_label: string,
+    cdn_active_ip: string,
+    cdn_active_speed_text: string,
+    cdn_last_test_time: string,
+    cdn_speed_improvement_text: string,
+    cdn_latency_improvement_text: string,
+    cdn_default_node_text: string,
+    cdn_last_error: string,
+    cdn_show_advanced: bool,
+    cdn_manual_ip: string,
+    cdn_manual_ip_error: string,
+    cdn_ranges_text: string,
+
+    // ── URL 镜像重写 ──
+    url_rewrite_enabled: bool,
+    url_rewrite_test_url: string,
+    url_rewrite_test_matched_rule: string,
+    url_rewrite_test_candidates_count: int,
+    url_rewrite_test_result_1: string,
+    url_rewrite_test_result_2: string,
+    url_rewrite_test_result_3: string,
+}
+
 export struct SettingsFormData {
     // ── 常规下载 ──
     default_download_dir: string,
     max_parallel_tasks: string,
     global_speed_limit_kb: string,
     download_max_retries: string,
-    download_checksum: string, // blake3/sha256/xxh3_128/none
+    download_checksum: string, // blake3/sha256/xxh3_128/none/sha1
     download_auto_detect_sha256: bool,
     download_user_agent: string,
     // ── 外观 / 启动 ──
     appearance_color_mode: string, // system/light/dark
     appearance_theme_color: string, // amber/sky/lime
+    appearance_background_opacity: string, // default/acrylic/frosted
+    appearance_language: string, // zh-CN/en-US
     appearance_close_behavior: string, // minimizeToTray/exit
     appearance_show_detail_info: bool,
     autostart: bool,
@@ -154,8 +219,11 @@ export struct SettingsFormData {
     overclock_mode: bool,
     io_status_text: string,
     disk_type_text: string,
-    // ── 高级 ──
+    // ── 高级与关于 ──
     max_in_memory_downloads: string,
+    app_version: string,
+    engine_version: string,
+    arch_info: string,
 }
 
 export struct ContextMenuState {

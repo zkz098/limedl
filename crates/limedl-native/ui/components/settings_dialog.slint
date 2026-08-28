@@ -21,6 +21,8 @@ export component SettingsDialog inherits Rectangle {
     callback toggle_overclock_mode();
     callback fetch_trackers(string);
     callback pick_default_folder();
+    callback pick_log_folder();
+    callback open_log_folder();
 
     width: 100%;
     height: 100%;
@@ -29,8 +31,8 @@ export component SettingsDialog inherits Rectangle {
     TouchArea {}
 
     Rectangle {
-        width: min(parent.width - 60px, 920px);
-        height: min(parent.height - 60px, 680px);
+        width: min(parent.width - 60px, 940px);
+        height: min(parent.height - 60px, 700px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         background: #171a20;
@@ -47,12 +49,26 @@ export component SettingsDialog inherits Rectangle {
             // Header
             HorizontalLayout {
                 alignment: space-between;
-                Text {
-                    text: "设置中心";
-                    color: #f3f4f6;
-                    font-size: 16px;
-                    font-weight: 700;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../assets/icons/settings-3-line.svg");
+                            colorize: #a3e635;
+                            width: 18px;
+                            height: 18px;
+                            image-fit: contain;
+                        }
+                    }
+                    Text {
+                        text: "设置中心 (Settings)";
+                        color: #f3f4f6;
+                        font-size: 16px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
                 }
                 IconButton {
                     icon: @image-url("../assets/icons/close-line.svg");
@@ -60,15 +76,17 @@ export component SettingsDialog inherits Rectangle {
                 }
             }
 
-            // Tab Headers — 2 rows to fit 8 tabs
+            // Tab Headers (Two-tier Common vs Advanced)
             VerticalLayout {
                 spacing: 6px;
                 HorizontalLayout {
                     spacing: 6px;
                     alignment: start;
+
+                    Text { text: "常用:"; color: #6b7280; font-size: 11px; font-weight: 600; vertical-alignment: center; }
                     TabButton {
                         text: "外观";
-                        icon: @image-url("../assets/icons/settings-3-line.svg");
+                        icon: @image-url("../assets/icons/palette-line.svg");
                         active: root.settings_tab == 0;
                         clicked => { root.set_tab(0); }
                     }
@@ -85,6 +103,16 @@ export component SettingsDialog inherits Rectangle {
                         clicked => { root.set_tab(2); }
                     }
                     TabButton {
+                        text: "关于";
+                        icon: @image-url("../assets/icons/information-line.svg");
+                        active: root.settings_tab == 8;
+                        clicked => { root.set_tab(8); }
+                    }
+
+                    Rectangle { width: 1px; height: 18px; background: #2b313d; }
+
+                    Text { text: "高级:"; color: #6b7280; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                    TabButton {
                         text: "调度";
                         icon: @image-url("../assets/icons/dashboard-3-line.svg");
                         active: root.settings_tab == 3;
@@ -97,8 +125,8 @@ export component SettingsDialog inherits Rectangle {
                         clicked => { root.set_tab(4); }
                     }
                     TabButton {
-                        text: "IO 实验室";
-                        icon: @image-url("../assets/icons/cpu-line.svg");
+                        text: "IO 存储";
+                        icon: @image-url("../assets/icons/hard-drive-2-line.svg");
                         active: root.settings_tab == 5;
                         clicked => { root.set_tab(5); }
                     }
@@ -110,7 +138,7 @@ export component SettingsDialog inherits Rectangle {
                     }
                     TabButton {
                         text: "Aria2";
-                        icon: @image-url("../assets/icons/download-cloud-2-line.svg");
+                        icon: @image-url("../assets/icons/terminal-box-line.svg");
                         active: root.settings_tab == 7;
                         clicked => { root.set_tab(7); }
                     }
@@ -154,6 +182,28 @@ export component SettingsDialog inherits Rectangle {
                                 ComboBox {
                                     model: ["amber", "sky", "lime"];
                                     current-value <=> root.settings_form.appearance_theme_color;
+                                    height: 36px;
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "背景透明预设 (default/acrylic/frosted):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["default", "acrylic", "frosted"];
+                                    current-value <=> root.settings_form.appearance_background_opacity;
+                                    height: 36px;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "界面语言 (zh-CN/en-US):"; color: #9ca3af; font-size: 12px; }
+                                ComboBox {
+                                    model: ["zh-CN", "en-US"];
+                                    current-value <=> root.settings_form.appearance_language;
                                     height: 36px;
                                 }
                             }
@@ -1018,9 +1068,22 @@ export component SettingsDialog inherits Rectangle {
                         VerticalLayout {
                             spacing: 4px;
                             Text { text: "日志文件路径:"; color: #9ca3af; font-size: 12px; }
-                            CustomTextInput {
-                                text <=> root.settings_form.logging_file_path;
-                                placeholder: "留空由系统决定，例 D:\\limedl\\logs\\limedl.log";
+                            HorizontalLayout {
+                                spacing: 8px;
+                                CustomTextInput {
+                                    text <=> root.settings_form.logging_file_path;
+                                    placeholder: "留空由系统决定，例 D:\\limedl\\logs\\limedl.log";
+                                }
+                                SecondaryButton {
+                                    text: "选择路径...";
+                                    icon: @image-url("../assets/icons/folder-open-line.svg");
+                                    clicked => { root.pick_log_folder(); }
+                                }
+                                SecondaryButton {
+                                    text: "打开目录";
+                                    icon: @image-url("../assets/icons/folder-open-line.svg");
+                                    clicked => { root.open_log_folder(); }
+                                }
                             }
                         }
 
@@ -1046,7 +1109,7 @@ export component SettingsDialog inherits Rectangle {
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: "Aria2 RPC"; color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: "Aria2 RPC 服务"; color: #a3e635; font-size: 13px; font-weight: 700; }
 
                         HorizontalLayout {
                             alignment: space-between;
@@ -1084,6 +1147,70 @@ export component SettingsDialog inherits Rectangle {
                         Text { text: "提示：Aria2 Explorer 扩展可在 Chrome/Edge/Firefox 商店搜索安装，填入 http://127.0.0.1:{端口} 与 Secret 即可接管。"; color: #6b7280; font-size: 11px; wrap: word-wrap; }
                     }
                 }
+
+                // ── Tab 8: 关于 ──
+                if root.settings_tab == 8 : ScrollView {
+                    VerticalLayout {
+                        padding: 18px;
+                        spacing: 16px;
+
+                        HorizontalLayout {
+                            spacing: 16px;
+                            alignment: start;
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../assets/logo.png");
+                                    width: 48px;
+                                    height: 48px;
+                                    image-fit: contain;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 3px;
+                                Text { text: "limedl - Native Edition"; color: #f3f4f6; font-size: 16px; font-weight: 700; }
+                                Text { text: "轻量级高性能异步多协议下载引擎"; color: #84cc16; font-size: 12px; font-weight: 600; }
+                                Text { text: "跨平台多端统一调度内核，支持 HTTP/HTTPS 多线程自适应加速与完整 BitTorrent 协议。"; color: #9ca3af; font-size: 11px; }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1f242e; }
+
+                        Rectangle {
+                            background: #14171d;
+                            border-color: #232832;
+                            border-width: 1px;
+                            border-radius: 8px;
+
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 10px;
+                                Text { text: "系统与环境信息"; color: #a3e635; font-size: 12px; font-weight: 700; }
+
+                                HorizontalLayout {
+                                    Text { width: 140px; text: "客户端版本:"; color: #6b7280; font-size: 12px; }
+                                    Text { text: root.settings_form.app_version; color: #f3f4f6; font-size: 12px; font-weight: 600; font-family: "Consolas, monospace"; }
+                                }
+                                HorizontalLayout {
+                                    Text { width: 140px; text: "核心引擎:"; color: #6b7280; font-size: 12px; }
+                                    Text { text: root.settings_form.engine_version; color: #f3f4f6; font-size: 12px; font-weight: 600; font-family: "Consolas, monospace"; }
+                                }
+                                HorizontalLayout {
+                                    Text { width: 140px; text: "目标架构与图形栈:"; color: #6b7280; font-size: 12px; }
+                                    Text { text: root.settings_form.arch_info; color: #38bdf8; font-size: 12px; font-weight: 600; font-family: "Consolas, monospace"; }
+                                }
+                                HorizontalLayout {
+                                    Text { width: 140px; text: "核心技术栈:"; color: #6b7280; font-size: 12px; }
+                                    Text { text: "Rust Edition 2024 / Slint Native UI / Skia 硬件加速 / Tokio 异步运行时"; color: #9ca3af; font-size: 12px; }
+                                }
+                                HorizontalLayout {
+                                    Text { width: 140px; text: "开源协议:"; color: #6b7280; font-size: 12px; }
+                                    Text { text: "MIT / Apache-2.0 Dual License"; color: #9ca3af; font-size: 12px; }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Footer
@@ -1098,6 +1225,7 @@ export component SettingsDialog inherits Rectangle {
 
                 PrimaryButton {
                     text: "保存设置";
+                    icon: @image-url("../assets/icons/save-line.svg");
                     clicked => { root.save(root.settings_form); }
                 }
             }

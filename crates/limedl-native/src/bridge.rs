@@ -1,16 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
+use limedl_core::cdn::speed_test::SpeedTestResult;
 use limedl_core::types::{
-    AdaptiveProfile, AppSettings, BtAntiLeechAction, BtChokingAlgorithm, BtEncryptionMode,
-    BtFileStatus, BtPeerInfo, BtPieceInfo, BtPreallocateMode, BtSeedChokingAlgorithm,
-    BtTrackerInfo, ChecksumMode, ChunkSizeStrategy, CloseBehavior, ColorMode, DiskType,
-    DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadProgress, DownloadState,
-    DownloadSummary, LogLevel, ProxyMode, SchedulerMode, TaskKind, ThemeColor,
+    AdaptiveProfile, AppSettings, BackgroundOpacityPreset, BtAntiLeechAction, BtChokingAlgorithm,
+    BtEncryptionMode, BtFileStatus, BtPeerInfo, BtPieceInfo, BtPreallocateMode,
+    BtSeedChokingAlgorithm, BtTrackerInfo, ChecksumMode, ChunkSizeStrategy, CloseBehavior,
+    ColorMode, DiskType, DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadProgress,
+    DownloadState, DownloadSummary, LogLevel, MatchType, ProxyMode, ReplacementMode, RewriteTarget,
+    SchedulerMode, TaskKind, ThemeColor, UrlRewriteRule, UrlRewriteSettings,
 };
-use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString};
+use slint::{Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 
 use crate::{
-    InspectorInfo, PeerItem, SettingsFormData, TaskItem, TorrentFileItem, TrackerItem,
+    CdnCandidateItem, InspectorInfo, LabsFormData, PeerItem, SettingsFormData, TaskItem,
+    TorrentFileItem, TrackerItem, UrlRewriteRuleItem, UrlRewriteTargetItem,
 };
 
 /// Human-readable byte formatting.
@@ -425,6 +428,20 @@ fn preallocate_to_str(m: BtPreallocateMode) -> SharedString {
         BtPreallocateMode::Full => "full",
     })
 }
+fn background_opacity_to_str(v: &BackgroundOpacityPreset) -> SharedString {
+    SharedString::from(match v {
+        BackgroundOpacityPreset::Default => "default",
+        BackgroundOpacityPreset::Acrylic => "acrylic",
+        BackgroundOpacityPreset::Frosted => "frosted",
+    })
+}
+fn str_to_background_opacity(s: &str) -> BackgroundOpacityPreset {
+    match s {
+        "acrylic" => BackgroundOpacityPreset::Acrylic,
+        "frosted" => BackgroundOpacityPreset::Frosted,
+        _ => BackgroundOpacityPreset::Default,
+    }
+}
 fn double_click_completed_to_str(v: DoubleClickOnCompleted) -> SharedString {
     SharedString::from(match v {
         DoubleClickOnCompleted::None => "none",
@@ -497,6 +514,8 @@ pub fn app_settings_to_form(
         // 外观
         appearance_color_mode: color_mode_to_str(&settings.appearance.color_mode),
         appearance_theme_color: theme_color_to_str(&settings.appearance.theme_color),
+        appearance_background_opacity: background_opacity_to_str(&settings.appearance.background_opacity),
+        appearance_language: SharedString::from("zh-CN"),
         appearance_close_behavior: close_behavior_to_str(&settings.appearance.close_behavior),
         appearance_show_detail_info: settings.appearance.show_detail_info,
         autostart: settings.autostart,
@@ -621,6 +640,9 @@ pub fn app_settings_to_form(
         max_in_memory_downloads: SharedString::from(
             settings.max_in_memory_downloads.to_string(),
         ),
+        app_version: SharedString::from(format!("v{}", env!("CARGO_PKG_VERSION"))),
+        engine_version: SharedString::from(format!("limedl-core v{}", env!("CARGO_PKG_VERSION"))),
+        arch_info: SharedString::from(format!("{} / {} (Skia)", std::env::consts::ARCH, std::env::consts::OS)),
     }
 }
 
@@ -661,6 +683,8 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
         "sky" => settings.appearance.theme_color = ThemeColor::Sky,
         _ => settings.appearance.theme_color = ThemeColor::Lime,
     }
+    settings.appearance.background_opacity =
+        str_to_background_opacity(form.appearance_background_opacity.as_str());
     match form.appearance_close_behavior.as_str() {
         "exit" => settings.appearance.close_behavior = CloseBehavior::Exit,
         _ => settings.appearance.close_behavior = CloseBehavior::MinimizeToTray,
@@ -1184,6 +1208,325 @@ impl TaskStore {
     }
 }
 
+// ── Labs Bridge Helpers ─────────────────────────────────────────────
+
+#[allow(clippy::too_many_arguments)]
+pub fn app_settings_to_labs_form(
+    settings: &AppSettings,
+    is_testing: bool,
+    phase_label: &str,
+    progress_percent: f32,
+    progress_label: &str,
+    speed_improvement: Option<&str>,
+    latency_improvement: Option<&str>,
+    default_node_text: Option<&str>,
+    ranges_text: &str,
+    show_advanced: bool,
+    test_url: &str,
+    matched_rule: &str,
+    candidates: &[String],
+) -> LabsFormData {
+    let cdn = &settings.cdn_acceleration;
+    let (status_type, status_label) = if is_testing {
+        ("testing", "测速中")
+    } else if cdn.last_error.is_some() {
+        ("error", "测速失败")
+    } else if cdn.active_ip.is_some() {
+        ("ready", "准备就绪")
+    } else {
+        ("idle", "未配置")
+    };
+
+    let active_speed_text = cdn
+        .active_speed_mbps
+        .map(|s| format!("{s:.2} MB/s"))
+        .unwrap_or_default();
+
+    let last_test_time = cdn
+        .last_test_at_ms
+        .map(|ts| {
+            let secs = (ts / 1000) as i64;
+            if let Ok(dt) = time::OffsetDateTime::from_unix_timestamp(secs) {
+                format!(
+                    "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                    dt.year(),
+                    dt.month() as u8,
+                    dt.day(),
+                    dt.hour(),
+                    dt.minute(),
+                    dt.second()
+                )
+            } else {
+                format!("{secs}")
+            }
+        })
+        .unwrap_or_default();
+
+    LabsFormData {
+        cdn_enabled: cdn.enabled,
+        cdn_provider: SharedString::from(if cdn.provider.is_empty() { "cloudflare" } else { &cdn.provider }),
+        cdn_custom_test_url: SharedString::from(cdn.custom_test_url.as_deref().unwrap_or_default()),
+        cdn_custom_cidrs: SharedString::from(cdn.custom_cidrs.as_deref().unwrap_or_default()),
+        cdn_status_type: SharedString::from(status_type),
+        cdn_status_label: SharedString::from(status_label),
+        cdn_is_testing: is_testing,
+        cdn_phase_label: SharedString::from(phase_label),
+        cdn_progress_percent: progress_percent,
+        cdn_progress_label: SharedString::from(progress_label),
+        cdn_active_ip: SharedString::from(cdn.active_ip.as_deref().unwrap_or_default()),
+        cdn_active_speed_text: SharedString::from(active_speed_text),
+        cdn_last_test_time: SharedString::from(last_test_time),
+        cdn_speed_improvement_text: SharedString::from(speed_improvement.unwrap_or_default()),
+        cdn_latency_improvement_text: SharedString::from(latency_improvement.unwrap_or_default()),
+        cdn_default_node_text: SharedString::from(default_node_text.unwrap_or_default()),
+        cdn_last_error: SharedString::from(cdn.last_error.as_deref().unwrap_or_default()),
+        cdn_show_advanced: show_advanced,
+        cdn_manual_ip: SharedString::default(),
+        cdn_manual_ip_error: SharedString::default(),
+        cdn_ranges_text: SharedString::from(ranges_text),
+
+        url_rewrite_enabled: settings.url_rewrite.enabled,
+        url_rewrite_test_url: SharedString::from(test_url),
+        url_rewrite_test_matched_rule: SharedString::from(matched_rule),
+        url_rewrite_test_candidates_count: candidates.len() as i32,
+        url_rewrite_test_result_1: SharedString::from(candidates.first().cloned().unwrap_or_default()),
+        url_rewrite_test_result_2: SharedString::from(candidates.get(1).cloned().unwrap_or_default()),
+        url_rewrite_test_result_3: SharedString::from(candidates.get(2).cloned().unwrap_or_default()),
+    }
+}
+
+pub fn update_app_settings_from_labs_form(settings: &mut AppSettings, form: &LabsFormData) {
+    settings.cdn_acceleration.enabled = form.cdn_enabled;
+    settings.cdn_acceleration.provider = form.cdn_provider.trim().to_string();
+    let test_url = form.cdn_custom_test_url.trim().to_string();
+    settings.cdn_acceleration.custom_test_url = if test_url.is_empty() { None } else { Some(test_url) };
+    let cidrs = form.cdn_custom_cidrs.trim().to_string();
+    settings.cdn_acceleration.custom_cidrs = if cidrs.is_empty() { None } else { Some(cidrs) };
+    settings.url_rewrite.enabled = form.url_rewrite_enabled;
+}
+
+pub fn cdn_candidates_to_slint(
+    candidates: &[SpeedTestResult],
+    active_ip: &str,
+) -> ModelRc<CdnCandidateItem> {
+    let items: Vec<CdnCandidateItem> = candidates
+        .iter()
+        .map(|c| {
+            let ip_str = c.ip.to_string();
+            let is_active = !ip_str.is_empty() && ip_str == active_ip;
+            let latency_text = format!("{:.1} ms", c.tcp_latency_ms);
+            let throughput_text = match c.throughput_mbps {
+                Some(tp) if tp > 0.0 => format!("{:.2} MB/s", tp),
+                _ => "-".to_string(),
+            };
+            let is_failed = c.error.is_some();
+
+            CdnCandidateItem {
+                ip: SharedString::from(ip_str),
+                latency_text: SharedString::from(latency_text),
+                throughput_text: SharedString::from(throughput_text),
+                throughput_mbps: c.throughput_mbps.unwrap_or(0.0) as f32,
+                is_active,
+                is_failed,
+            }
+        })
+        .collect();
+
+    ModelRc::new(VecModel::from(items))
+}
+
+pub fn match_type_to_str(m: MatchType) -> &'static str {
+    match m {
+        MatchType::Host => "host",
+        MatchType::Prefix => "prefix",
+        MatchType::Regex => "regex",
+        MatchType::Wildcard => "wildcard",
+    }
+}
+
+pub fn str_to_match_type(s: &str) -> MatchType {
+    match s {
+        "prefix" => MatchType::Prefix,
+        "regex" => MatchType::Regex,
+        "wildcard" => MatchType::Wildcard,
+        _ => MatchType::Host,
+    }
+}
+
+pub fn replacement_mode_to_str(m: ReplacementMode) -> &'static str {
+    match m {
+        ReplacementMode::PrefixProxy => "prefix_proxy",
+        ReplacementMode::Template => "template",
+    }
+}
+
+pub fn str_to_replacement_mode(s: &str) -> ReplacementMode {
+    match s {
+        "template" => ReplacementMode::Template,
+        _ => ReplacementMode::PrefixProxy,
+    }
+}
+
+pub fn url_rewrite_rules_to_slint(
+    rules: &[UrlRewriteRule],
+    expanded_ids: &HashSet<String>,
+) -> ModelRc<UrlRewriteRuleItem> {
+    let items: Vec<UrlRewriteRuleItem> = rules
+        .iter()
+        .map(|r| {
+            let is_expanded = expanded_ids.contains(&r.id);
+            let target_items: Vec<UrlRewriteTargetItem> = r
+                .targets
+                .iter()
+                .map(|t| UrlRewriteTargetItem {
+                    url_template: SharedString::from(&t.url_template),
+                    enabled: t.enabled,
+                    order: t.order as i32,
+                })
+                .collect();
+
+            UrlRewriteRuleItem {
+                id: SharedString::from(&r.id),
+                name: SharedString::from(&r.name),
+                enabled: r.enabled,
+                match_type: SharedString::from(match_type_to_str(r.match_type)),
+                pattern: SharedString::from(&r.pattern),
+                replacement_mode: SharedString::from(replacement_mode_to_str(r.replacement_mode)),
+                encode_url: r.encode_url,
+                fallback_to_original: r.fallback_to_original,
+                order: r.order as i32,
+                targets: ModelRc::new(VecModel::from(target_items)),
+                is_expanded,
+            }
+        })
+        .collect();
+
+    ModelRc::new(VecModel::from(items))
+}
+
+#[allow(dead_code)]
+pub fn slint_to_url_rewrite_rules(models: &[UrlRewriteRuleItem]) -> Vec<UrlRewriteRule> {
+    models
+        .iter()
+        .map(|m| {
+            let mut targets = Vec::new();
+            for i in 0..m.targets.row_count() {
+                if let Some(t) = m.targets.row_data(i) {
+                    targets.push(RewriteTarget {
+                        url_template: t.url_template.to_string(),
+                        enabled: t.enabled,
+                        order: t.order as u32,
+                    });
+                }
+            }
+
+            UrlRewriteRule {
+                id: m.id.to_string(),
+                name: m.name.to_string(),
+                enabled: m.enabled,
+                match_type: str_to_match_type(m.match_type.as_str()),
+                pattern: m.pattern.to_string(),
+                replacement_mode: str_to_replacement_mode(m.replacement_mode.as_str()),
+                encode_url: m.encode_url,
+                fallback_to_original: m.fallback_to_original,
+                order: m.order as u32,
+                targets,
+            }
+        })
+        .collect()
+}
+
+pub fn evaluate_url_rewrite(rules: &[UrlRewriteRule], test_url: &str) -> (String, Vec<String>) {
+    let trimmed = test_url.trim();
+    if trimmed.is_empty() {
+        return (String::new(), Vec::new());
+    }
+
+    let mut matched_rule_name = String::new();
+    let mut enabled_rules: Vec<&UrlRewriteRule> = rules.iter().filter(|r| r.enabled).collect();
+    enabled_rules.sort_by_key(|r| r.order);
+
+    for rule in &enabled_rules {
+        if limedl_core::url_rewrite::matches_rule(trimmed, rule) {
+            matched_rule_name = rule.name.clone();
+            break;
+        }
+    }
+
+    let settings = UrlRewriteSettings {
+        enabled: true,
+        rules: rules.to_vec(),
+    };
+    let candidates = limedl_core::url_rewrite::rewrite_url(trimmed, &settings);
+
+    (matched_rule_name, candidates)
+}
+
+pub fn create_url_rewrite_preset(preset_key: &str) -> Option<UrlRewriteRule> {
+    match preset_key {
+        "github" => Some(UrlRewriteRule {
+            id: format!("preset-gh-{}", uuid::Uuid::new_v4().simple()),
+            name: "GitHub 镜像代理".to_string(),
+            enabled: true,
+            match_type: MatchType::Host,
+            pattern: "*.github.com".to_string(),
+            replacement_mode: ReplacementMode::PrefixProxy,
+            encode_url: true,
+            fallback_to_original: true,
+            order: 0,
+            targets: vec![
+                RewriteTarget {
+                    url_template: "https://ghproxy.net".to_string(),
+                    enabled: true,
+                    order: 0,
+                },
+                RewriteTarget {
+                    url_template: "https://mirror.ghproxy.cc".to_string(),
+                    enabled: true,
+                    order: 1,
+                },
+            ],
+        }),
+        "huggingface" => Some(UrlRewriteRule {
+            id: format!("preset-hf-{}", uuid::Uuid::new_v4().simple()),
+            name: "Hugging Face 镜像".to_string(),
+            enabled: true,
+            match_type: MatchType::Regex,
+            pattern: r"^https://huggingface\.co/(.*)$".to_string(),
+            replacement_mode: ReplacementMode::Template,
+            encode_url: false,
+            fallback_to_original: true,
+            order: 1,
+            targets: vec![
+                RewriteTarget {
+                    url_template: "https://hf-mirror.com/$1".to_string(),
+                    enabled: true,
+                    order: 0,
+                },
+            ],
+        }),
+        "civitai" => Some(UrlRewriteRule {
+            id: format!("preset-civitai-{}", uuid::Uuid::new_v4().simple()),
+            name: "Civitai 镜像".to_string(),
+            enabled: true,
+            match_type: MatchType::Host,
+            pattern: "*.civitai.com".to_string(),
+            replacement_mode: ReplacementMode::PrefixProxy,
+            encode_url: true,
+            fallback_to_original: true,
+            order: 2,
+            targets: vec![
+                RewriteTarget {
+                    url_template: "https://civitai.work".to_string(),
+                    enabled: true,
+                    order: 0,
+                },
+            ],
+        }),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1471,6 +1814,46 @@ mod tests {
         assert!(io_text.contains("64.00 MB"));
         assert!(io_text.contains("1.00 GB"));
         assert!(io_text.contains("2 个"));
+    }
+
+    #[test]
+    fn test_labs_form_and_url_rewrite() {
+        let mut settings = AppSettings::default();
+        settings.cdn_acceleration.enabled = true;
+        settings.cdn_acceleration.active_ip = Some("104.16.0.1".to_string());
+        settings.cdn_acceleration.active_speed_mbps = Some(45.2);
+
+        let form = app_settings_to_labs_form(
+            &settings,
+            false,
+            "就绪",
+            100.0,
+            "测速完成",
+            Some("+25%"),
+            Some("-15ms"),
+            Some("104.16.0.2"),
+            "104.16.0.0/12",
+            false,
+            "https://raw.github.com/user/repo/master/README.md",
+            "GitHub 镜像",
+            &["https://ghproxy.net/https://raw.github.com/user/repo/master/README.md".to_string()],
+        );
+
+        assert!(form.cdn_enabled);
+        assert_eq!(form.cdn_status_type.as_str(), "ready");
+        assert_eq!(form.cdn_active_ip.as_str(), "104.16.0.1");
+        assert_eq!(form.url_rewrite_test_matched_rule.as_str(), "GitHub 镜像");
+
+        let gh_rule = create_url_rewrite_preset("github").expect("gh preset");
+        assert_eq!(gh_rule.name, "GitHub 镜像代理");
+        assert_eq!(gh_rule.targets.len(), 2);
+
+        let (matched_rule, candidates) = evaluate_url_rewrite(
+            &[gh_rule],
+            "https://raw.github.com/user/repo/master/README.md",
+        );
+        assert_eq!(matched_rule, "GitHub 镜像代理");
+        assert!(candidates.len() >= 2);
     }
 }
 

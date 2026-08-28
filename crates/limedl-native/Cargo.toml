@@ -20,6 +20,8 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 parking_lot = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
 tray-icon = "0.24"
 muda = "0.19"
 notify-rust = "4"

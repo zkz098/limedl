@@ -102,16 +102,18 @@ export component SecondaryButton inherits Rectangle {
     in property <string> text;
     in property <image> icon;
     in property <bool> active: false;
+    in property <bool> enabled: true;
     callback clicked();
 
-    background: root.active ? #26331a : (ta.has_hover ? (ta.pressed ? #20242c : #252b34) : #1a1d23);
-    border-color: root.active ? #84cc16 : #323844;
+    background: !root.enabled ? #15181e : (root.active ? #26331a : (ta.has_hover ? (ta.pressed ? #20242c : #252b34) : #1a1d23));
+    border-color: !root.enabled ? #252a34 : (root.active ? #84cc16 : #323844);
     border-width: 1px;
     border-radius: 6px;
     height: 32px;
     min-width: 60px;
 
     ta := TouchArea {
+        enabled: root.enabled;
         clicked => { root.clicked(); }
     }
 
@@ -125,7 +127,7 @@ export component SecondaryButton inherits Rectangle {
             alignment: center;
             Image {
                 source: root.icon;
-                colorize: root.active ? #84cc16 : (ta.has_hover ? #ffffff : #d1d5db);
+                colorize: !root.enabled ? #4b5563 : (root.active ? #84cc16 : (ta.has_hover ? #ffffff : #d1d5db));
                 width: 14px;
                 height: 14px;
                 image-fit: contain;
@@ -134,9 +136,54 @@ export component SecondaryButton inherits Rectangle {
 
         Text {
             text: root.text;
-            color: root.active ? #84cc16 : (ta.has_hover ? #ffffff : #e5e7eb);
+            color: !root.enabled ? #4b5563 : (root.active ? #84cc16 : (ta.has_hover ? #ffffff : #e5e7eb));
             font-size: 12px;
             font-weight: root.active ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component DangerButton inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    background: !root.enabled ? #201315 : (ta.has_hover ? (ta.pressed ? #7f1d1d : #b91c1c) : #991b1b);
+    border-color: #dc2626;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 32px;
+    min-width: 60px;
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 5px;
+        alignment: center;
+
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: !root.enabled ? #6b7280 : #fecaca;
+                width: 14px;
+                height: 14px;
+                image-fit: contain;
+            }
+        }
+
+        Text {
+            text: root.text;
+            color: !root.enabled ? #6b7280 : #fef2f2;
+            font-size: 12px;
+            font-weight: 600;
             vertical-alignment: center;
         }
     }
@@ -468,6 +515,106 @@ export component StatusBadge inherits Rectangle {
             );
             font-size: 11px;
             font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component ToneBadge inherits Rectangle {
+    in property <string> text;
+    in property <string> tone: "neutral"; // neutral, success, info, warning, danger
+
+    background: root.tone == "success" ? #14351a : (
+        root.tone == "info" ? #132a42 : (
+            root.tone == "warning" ? #3b280c : (
+                root.tone == "danger" ? #3b1216 : #20252e
+            )
+        )
+    );
+    border-color: root.tone == "success" ? #22c55e : (
+        root.tone == "info" ? #38bdf8 : (
+            root.tone == "warning" ? #f59e0b : (
+                root.tone == "danger" ? #ef4444 : #3b4352
+            )
+        )
+    );
+    border-width: 1px;
+    border-radius: 4px;
+    height: 22px;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.tone == "success" ? #4ade80 : (
+                root.tone == "info" ? #38bdf8 : (
+                    root.tone == "warning" ? #fbbf24 : (
+                        root.tone == "danger" ? #f87171 : #9ca3af
+                    )
+                )
+            );
+            font-size: 11px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component CodeChip inherits Rectangle {
+    in property <string> text;
+    background: #14171d;
+    border-color: #2b313d;
+    border-width: 1px;
+    border-radius: 4px;
+    height: 22px;
+
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 6px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: #a3e635;
+            font-size: 11px;
+            font-family: "Consolas, Fira Code, monospace";
+            font-weight: 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component WarningBanner inherits Rectangle {
+    in property <string> text;
+    background: #2a1d08;
+    border-color: #f59e0b;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 38px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 8px;
+        alignment: start;
+
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: @image-url("../assets/icons/error-warning-line.svg");
+                colorize: #f59e0b;
+                width: 16px;
+                height: 16px;
+                image-fit: contain;
+            }
+        }
+
+        Text {
+            text: root.text;
+            color: #fcd34d;
+            font-size: 12px;
+            font-weight: 500;
             vertical-alignment: center;
         }
     }

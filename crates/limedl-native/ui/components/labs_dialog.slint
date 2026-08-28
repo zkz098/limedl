@@ -1,0 +1,848 @@
+import { ScrollView, ComboBox } from "std-widgets.slint";
+import {
+    CdnCandidateItem,
+    LabsFormData,
+    UrlRewriteRuleItem,
+    UrlRewriteTargetItem,
+} from "../types.slint";
+import {
+    CodeChip,
+    CustomTextInput,
+    DangerButton,
+    IconButton,
+    PrimaryButton,
+    SecondaryButton,
+    TabButton,
+    ToggleSwitch,
+    ToneBadge,
+    WarningBanner,
+} from "common.slint";
+
+export component LabsDialog inherits Rectangle {
+    in property <int> labs_tab: 0; // 0: CDN Acceleration, 1: URL Rewrite
+    in-out property <LabsFormData> labs_form;
+    in property <[CdnCandidateItem]> cdn_candidates: [];
+    in property <[UrlRewriteRuleItem]> rewrite_rules: [];
+
+    callback close();
+    callback set_tab(int);
+    callback save_labs(LabsFormData);
+
+    // CDN Acceleration callbacks
+    callback start_cdn_test();
+    callback cancel_cdn_test();
+    callback clear_cdn_test();
+    callback apply_cdn_candidate(string, float);
+    callback toggle_cdn_advanced();
+    callback apply_manual_cdn_ip(string);
+
+    // URL Rewrite callbacks
+    callback import_rewrite_preset(string); // "github" / "huggingface" / "civitai"
+    callback add_custom_rule();
+    callback remove_rule(int);
+    callback toggle_rule_expanded(int);
+    callback toggle_rule_enabled(int);
+    callback update_rule_name(int, string);
+    callback update_rule_match_type(int, string);
+    callback update_rule_pattern(int, string);
+    callback update_rule_mode(int, string);
+    callback toggle_rule_encode(int);
+    callback toggle_rule_fallback(int);
+    callback add_rule_target(int);
+    callback remove_rule_target(int, int);
+    callback update_rule_target(int, int, string);
+    callback toggle_rule_target(int, int);
+    callback test_url_changed(string);
+
+    width: 100%;
+    height: 100%;
+    background: #000000bb;
+
+    TouchArea {}
+
+    Rectangle {
+        width: min(parent.width - 60px, 940px);
+        height: min(parent.height - 60px, 700px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #171a20;
+        border-color: #2e3542;
+        border-width: 1px;
+        border-radius: 12px;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #000000cc;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            // Header
+            HorizontalLayout {
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../assets/icons/flask-line.svg");
+                            colorize: #a3e635;
+                            width: 18px;
+                            height: 18px;
+                            image-fit: contain;
+                        }
+                    }
+                    Text {
+                        text: "实验室 (Labs)";
+                        color: #f3f4f6;
+                        font-size: 16px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+                IconButton {
+                    icon: @image-url("../assets/icons/close-line.svg");
+                    clicked => { root.close(); }
+                }
+            }
+
+            // Warning Banner
+            WarningBanner {
+                text: "实验室功能处于试验阶段，可能影响下载稳定性或性能，请谨慎调整。";
+            }
+
+            // Tab Headers
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                TabButton {
+                    text: "CDN 网络优选";
+                    icon: @image-url("../assets/icons/speed-up-line.svg");
+                    active: root.labs_tab == 0;
+                    clicked => { root.set_tab(0); }
+                }
+                TabButton {
+                    text: "URL 镜像重写";
+                    icon: @image-url("../assets/icons/links-line.svg");
+                    active: root.labs_tab == 1;
+                    clicked => { root.set_tab(1); }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: #272d38;
+            }
+
+            // Tab Content
+            Rectangle {
+                background: #111418;
+                border-radius: 8px;
+                border-color: #232832;
+                border-width: 1px;
+
+                // ── Tab 0: CDN 网络优选 ──
+                if root.labs_tab == 0 : ScrollView {
+                    VerticalLayout {
+                        padding: 18px;
+                        spacing: 14px;
+
+                        // Title & Status Badge
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "CDN 智能优选加速"; color: #a3e635; font-size: 14px; font-weight: 700; }
+                                Text { text: "通过测速挑选最佳边缘 IP，绕过 DNS 污染并大幅提升连接速度"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToneBadge {
+                                text: root.labs_form.cdn_status_label;
+                                tone: root.labs_form.cdn_status_type == "ready" ? "success" : (
+                                    root.labs_form.cdn_status_type == "testing" ? "info" : (
+                                        root.labs_form.cdn_status_type == "error" ? "danger" : "neutral"
+                                    )
+                                );
+                            }
+                        }
+
+                        // Enable Switch
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "启用 CDN 网络优选"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "在发起 HTTP 下载时自动应用选定的高速边缘 IP"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.labs_form.cdn_enabled;
+                                toggled => { root.labs_form.cdn_enabled = !root.labs_form.cdn_enabled; }
+                            }
+                        }
+
+                        // Provider Selection
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "优选提供商 (cloudflare / fastly / custom):"; color: #9ca3af; font-size: 12px; }
+                            ComboBox {
+                                model: ["cloudflare", "fastly", "custom"];
+                                current-value <=> root.labs_form.cdn_provider;
+                                height: 36px;
+                            }
+                        }
+
+                        // Custom Provider Options
+                        if root.labs_form.cdn_provider == "custom" : VerticalLayout {
+                            spacing: 8px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "自定义测速文件 URL:"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput {
+                                    text <=> root.labs_form.cdn_custom_test_url;
+                                    placeholder: "https://example.com/speedtest-file.bin";
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "自定义 CIDR 网段 (逗号分隔):"; color: #9ca3af; font-size: 12px; }
+                                CustomTextInput {
+                                    text <=> root.labs_form.cdn_custom_cidrs;
+                                    placeholder: "1.2.3.0/24, 2606:4700::/32";
+                                }
+                            }
+                        }
+
+                        // Staged Progress Area
+                        if root.labs_form.cdn_is_testing : Rectangle {
+                            background: #181d26;
+                            border-color: #2b3342;
+                            border-width: 1px;
+                            border-radius: 6px;
+
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 8px;
+                                HorizontalLayout {
+                                    alignment: space-between;
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Image {
+                                                source: @image-url("../assets/icons/refresh-line.svg");
+                                                colorize: #38bdf8;
+                                                width: 14px;
+                                                height: 14px;
+                                                image-fit: contain;
+                                            }
+                                        }
+                                        Text {
+                                            text: root.labs_form.cdn_phase_label;
+                                            color: #38bdf8;
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    Text {
+                                        text: root.labs_form.cdn_progress_label;
+                                        color: #9ca3af;
+                                        font-size: 11px;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                Rectangle {
+                                    height: 6px;
+                                    background: #232a38;
+                                    border-radius: 3px;
+                                    Rectangle {
+                                        x: 0;
+                                        y: 0;
+                                        height: 100%;
+                                        width: min(parent.width * root.labs_form.cdn_progress_percent / 100.0, parent.width);
+                                        background: #38bdf8;
+                                        border-radius: 3px;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Action Buttons
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+
+                            if !root.labs_form.cdn_is_testing : PrimaryButton {
+                                text: root.labs_form.cdn_active_ip != "" ? "重新测速" : "开始测速";
+                                icon: @image-url("../assets/icons/rocket-line.svg");
+                                clicked => { root.start_cdn_test(); }
+                            }
+
+                            if root.labs_form.cdn_is_testing : DangerButton {
+                                text: "停止测速";
+                                icon: @image-url("../assets/icons/pause-line.svg");
+                                clicked => { root.cancel_cdn_test(); }
+                            }
+
+                            if root.labs_form.cdn_status_type == "ready" : SecondaryButton {
+                                text: "清除优选";
+                                icon: @image-url("../assets/icons/eraser-line.svg");
+                                clicked => { root.clear_cdn_test(); }
+                            }
+                        }
+
+                        Text {
+                            text: "提示：测速过程会消耗约 20-50MB 流量测试各候选节点真实吞吐。";
+                            color: #6b7280;
+                            font-size: 11px;
+                        }
+
+                        // Error message
+                        if root.labs_form.cdn_last_error != "" : Rectangle {
+                            background: #351417;
+                            border-color: #ef4444;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            HorizontalLayout {
+                                padding: 10px;
+                                spacing: 8px;
+                                Image {
+                                    source: @image-url("../assets/icons/error-warning-line.svg");
+                                    colorize: #ef4444;
+                                    width: 16px;
+                                    height: 16px;
+                                }
+                                Text {
+                                    text: "测速失败: " + root.labs_form.cdn_last_error;
+                                    color: #fca5a5;
+                                    font-size: 12px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Best Result Card
+                        if root.labs_form.cdn_active_ip != "" : Rectangle {
+                            background: #141922;
+                            border-color: #22c55e;
+                            border-width: 1px;
+                            border-radius: 8px;
+
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 10px;
+                                HorizontalLayout {
+                                    alignment: space-between;
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        Text { text: "当前生效优选节点"; color: #86efac; font-size: 12px; font-weight: 600; }
+                                        Text { text: root.labs_form.cdn_active_ip; color: #f3f4f6; font-size: 15px; font-weight: 700; font-family: "Consolas, monospace"; }
+                                    }
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        Text { text: "实测带宽"; color: #86efac; font-size: 12px; font-weight: 600; }
+                                        Text { text: root.labs_form.cdn_active_speed_text; color: #a3e635; font-size: 15px; font-weight: 700; }
+                                    }
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        Text { text: "测速时间"; color: #9ca3af; font-size: 12px; }
+                                        Text { text: root.labs_form.cdn_last_test_time; color: #d1d5db; font-size: 12px; }
+                                    }
+                                }
+
+                                if root.labs_form.cdn_speed_improvement_text != "" : HorizontalLayout {
+                                    spacing: 12px;
+                                    Text {
+                                        text: "相对直连提速: " + root.labs_form.cdn_speed_improvement_text;
+                                        color: #4ade80;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                    }
+                                    Text {
+                                        text: "延迟变化: " + root.labs_form.cdn_latency_improvement_text;
+                                        color: #38bdf8;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                    }
+                                    Text {
+                                        text: "(基准直连: " + root.labs_form.cdn_default_node_text + ")";
+                                        color: #6b7280;
+                                        font-size: 11px;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Candidate Nodes Table
+                        if root.cdn_candidates.length > 0 : VerticalLayout {
+                            spacing: 6px;
+                            Text { text: "候选节点测速明细:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+
+                            Rectangle {
+                                background: #14171d;
+                                border-color: #232832;
+                                border-width: 1px;
+                                border-radius: 6px;
+
+                                VerticalLayout {
+                                    padding: 8px;
+                                    spacing: 4px;
+
+                                    // Table Header
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        height: 24px;
+                                        Text { width: 180px; text: "IP 地址"; color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { width: 120px; text: "TCP 延迟"; color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { width: 140px; text: "实测带宽"; color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { width: 100px; text: "状态"; color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { text: "操作"; color: #6b7280; font-size: 11px; font-weight: 600; }
+                                    }
+
+                                    Rectangle { height: 1px; background: #1f242e; }
+
+                                    // Table Rows
+                                    for cand in root.cdn_candidates : HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        height: 32px;
+                                        alignment: space-between;
+
+                                        Text {
+                                            width: 180px;
+                                            text: cand.ip;
+                                            color: cand.is_active ? #a3e635 : #e5e7eb;
+                                            font-size: 12px;
+                                            font-family: "Consolas, monospace";
+                                            font-weight: cand.is_active ? 700 : 400;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            width: 120px;
+                                            text: cand.latency_text;
+                                            color: #9ca3af;
+                                            font-size: 12px;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            width: 140px;
+                                            text: cand.throughput_text;
+                                            color: cand.throughput_text != "-" ? #38bdf8 : #6b7280;
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                            vertical-alignment: center;
+                                        }
+                                        VerticalLayout {
+                                            width: 100px;
+                                            alignment: center;
+                                            if cand.is_active : ToneBadge { text: "生效中"; tone: "success"; }
+                                            if !cand.is_active && cand.is_failed : ToneBadge { text: "失败"; tone: "danger"; }
+                                            if !cand.is_active && !cand.is_failed : ToneBadge { text: "备选"; tone: "neutral"; }
+                                        }
+                                        VerticalLayout {
+                                            alignment: center;
+                                            if !cand.is_active && !cand.is_failed : SecondaryButton {
+                                                text: "应用";
+                                                clicked => { root.apply_cdn_candidate(cand.ip, cand.throughput_mbps); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Advanced Panel (CIDRs and Manual IP)
+                        Rectangle {
+                            background: #151921;
+                            border-color: #272f3e;
+                            border-width: 1px;
+                            border-radius: 6px;
+
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 10px;
+                                HorizontalLayout {
+                                    alignment: space-between;
+                                    Text { text: "高级网段与手动 IP 覆盖"; color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                    IconButton {
+                                        text: root.labs_form.cdn_show_advanced ? "收起" : "展开";
+                                        icon: @image-url("../assets/icons/settings-3-line.svg");
+                                        clicked => { root.toggle_cdn_advanced(); }
+                                    }
+                                }
+
+                                if root.labs_form.cdn_show_advanced : VerticalLayout {
+                                    spacing: 10px;
+                                    VerticalLayout {
+                                        spacing: 4px;
+                                        Text { text: "Cloudflare 预设网段:"; color: #6b7280; font-size: 11px; }
+                                        Text { text: root.labs_form.cdn_ranges_text; color: #a3e635; font-size: 11px; wrap: word-wrap; }
+                                    }
+
+                                    VerticalLayout {
+                                        spacing: 4px;
+                                        Text { text: "手动指定 IP 地址 (直接生效):"; color: #9ca3af; font-size: 12px; }
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            CustomTextInput {
+                                                text <=> root.labs_form.cdn_manual_ip;
+                                                placeholder: "例如: 104.16.0.1";
+                                            }
+                                            SecondaryButton {
+                                                text: "立即应用";
+                                                clicked => { root.apply_manual_cdn_ip(root.labs_form.cdn_manual_ip); }
+                                            }
+                                        }
+                                        if root.labs_form.cdn_manual_ip_error != "" : Text {
+                                            text: root.labs_form.cdn_manual_ip_error;
+                                            color: #ef4444;
+                                            font-size: 11px;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Tab 1: URL 镜像重写 ──
+                if root.labs_tab == 1 : ScrollView {
+                    VerticalLayout {
+                        padding: 18px;
+                        spacing: 14px;
+
+                        // Title & Toggle
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "URL 镜像重写与分发"; color: #a3e635; font-size: 14px; font-weight: 700; }
+                                Text { text: "根据域名或正则规则将 GitHub、Hugging Face 等下载自动替换为国内高速镜像"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.labs_form.url_rewrite_enabled;
+                                toggled => { root.labs_form.url_rewrite_enabled = !root.labs_form.url_rewrite_enabled; }
+                            }
+                        }
+
+                        // Presets & Add Rule Bar
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: space-between;
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: start;
+                                Text { text: "一键导入预设:"; color: #9ca3af; font-size: 12px; vertical-alignment: center; }
+                                SecondaryButton {
+                                    text: "GitHub 镜像";
+                                    icon: @image-url("../assets/icons/links-line.svg");
+                                    clicked => { root.import_rewrite_preset("github"); }
+                                }
+                                SecondaryButton {
+                                    text: "Hugging Face";
+                                    icon: @image-url("../assets/icons/cpu-line.svg");
+                                    clicked => { root.import_rewrite_preset("huggingface"); }
+                                }
+                                SecondaryButton {
+                                    text: "Civitai";
+                                    icon: @image-url("../assets/icons/layout-grid-line.svg");
+                                    clicked => { root.import_rewrite_preset("civitai"); }
+                                }
+                            }
+
+                            PrimaryButton {
+                                text: "添加规则";
+                                icon: @image-url("../assets/icons/add-line.svg");
+                                clicked => { root.add_custom_rule(); }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1f242e; }
+
+                        // Rules List
+                        if root.rewrite_rules.length == 0 : VerticalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            Text { text: "暂无重写规则"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                            Text { text: "点击上方「一键导入预设」或「添加规则」进行配置"; color: #4b5563; font-size: 11px; horizontal-alignment: center; }
+                        }
+
+                        for rule[r_idx] in root.rewrite_rules : Rectangle {
+                            background: #15181f;
+                            border-color: #272d38;
+                            border-width: 1px;
+                            border-radius: 8px;
+
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 10px;
+
+                                // Rule Card Header
+                                HorizontalLayout {
+                                    alignment: space-between;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: start;
+
+                                        ToggleSwitch {
+                                            checked: rule.enabled;
+                                            toggled => { root.toggle_rule_enabled(r_idx); }
+                                        }
+
+                                        Text {
+                                            text: rule.name != "" ? rule.name : "未命名规则";
+                                            color: #f3f4f6;
+                                            font-size: 13px;
+                                            font-weight: 600;
+                                            vertical-alignment: center;
+                                        }
+
+                                        ToneBadge {
+                                            text: rule.match_type;
+                                            tone: "info";
+                                        }
+
+                                        if rule.pattern != "" : Text {
+                                            text: rule.pattern;
+                                            color: #9ca3af;
+                                            font-size: 11px;
+                                            font-family: "Consolas, monospace";
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        alignment: end;
+                                        IconButton {
+                                            text: rule.is_expanded ? "收起" : "编辑";
+                                            icon: @image-url("../assets/icons/settings-3-line.svg");
+                                            clicked => { root.toggle_rule_expanded(r_idx); }
+                                        }
+                                        IconButton {
+                                            icon: @image-url("../assets/icons/delete-bin-line.svg");
+                                            text_color: #f87171;
+                                            clicked => { root.remove_rule(r_idx); }
+                                        }
+                                    }
+                                }
+
+                                // Expanded Editor
+                                if rule.is_expanded : VerticalLayout {
+                                    spacing: 10px;
+                                    Rectangle { height: 1px; background: #202632; }
+
+                                    HorizontalLayout {
+                                        spacing: 12px;
+                                        VerticalLayout {
+                                            spacing: 4px;
+                                            Text { text: "规则名称:"; color: #9ca3af; font-size: 12px; }
+                                            CustomTextInput {
+                                                text: rule.name;
+                                                placeholder: "例如: GitHub 镜像";
+                                                edited(val) => { root.update_rule_name(r_idx, val); }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            spacing: 4px;
+                                            Text { text: "匹配类型 (host / prefix / regex / wildcard):"; color: #9ca3af; font-size: 12px; }
+                                            ComboBox {
+                                                model: ["host", "prefix", "regex", "wildcard"];
+                                                current-value: rule.match_type;
+                                                selected(val) => { root.update_rule_match_type(r_idx, val); }
+                                                height: 36px;
+                                            }
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 12px;
+                                        VerticalLayout {
+                                            spacing: 4px;
+                                            Text { text: "匹配表达式 Pattern:"; color: #9ca3af; font-size: 12px; }
+                                            CustomTextInput {
+                                                text: rule.pattern;
+                                                placeholder: rule.match_type == "host" ? "*.github.com" : (
+                                                    rule.match_type == "regex" ? "^https://huggingface\\.co/(.*)" : "https://example.com/downloads/"
+                                                );
+                                                edited(val) => { root.update_rule_pattern(r_idx, val); }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            spacing: 4px;
+                                            Text { text: "重写模式 (prefix_proxy / template):"; color: #9ca3af; font-size: 12px; }
+                                            ComboBox {
+                                                model: ["prefix_proxy", "template"];
+                                                current-value: rule.replacement_mode;
+                                                selected(val) => { root.update_rule_mode(r_idx, val); }
+                                                height: 36px;
+                                            }
+                                        }
+                                    }
+
+                                    // Switch Options
+                                    HorizontalLayout {
+                                        spacing: 20px;
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            ToggleSwitch {
+                                                checked: rule.encode_url;
+                                                toggled => { root.toggle_rule_encode(r_idx); }
+                                            }
+                                            Text { text: "URL 编码原链接 (推荐)"; color: #9ca3af; font-size: 12px; vertical-alignment: center; }
+                                        }
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            ToggleSwitch {
+                                                checked: rule.fallback_to_original;
+                                                toggled => { root.toggle_rule_fallback(r_idx); }
+                                            }
+                                            Text { text: "失败后回退原始 URL (推荐)"; color: #9ca3af; font-size: 12px; vertical-alignment: center; }
+                                        }
+                                    }
+
+                                    // Targets Section
+                                    VerticalLayout {
+                                        spacing: 6px;
+                                        HorizontalLayout {
+                                            alignment: space-between;
+                                            Text { text: "重写镜像目标 (按优先级从上至下):"; color: #a3e635; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                            SecondaryButton {
+                                                text: "添加目标";
+                                                icon: @image-url("../assets/icons/add-line.svg");
+                                                clicked => { root.add_rule_target(r_idx); }
+                                            }
+                                        }
+
+                                        for target[t_idx] in rule.targets : HorizontalLayout {
+                                            spacing: 8px;
+                                            alignment: space-between;
+
+                                            ToggleSwitch {
+                                                checked: target.enabled;
+                                                toggled => { root.toggle_rule_target(r_idx, t_idx); }
+                                            }
+
+                                            CustomTextInput {
+                                                text: target.url_template;
+                                                placeholder: rule.replacement_mode == "prefix_proxy" ? "https://ghproxy.net" : "https://hf-mirror.com/$1";
+                                                edited(val) => { root.update_rule_target(r_idx, t_idx, val); }
+                                            }
+
+                                            IconButton {
+                                                icon: @image-url("../assets/icons/delete-bin-line.svg");
+                                                text_color: #f87171;
+                                                clicked => { root.remove_rule_target(r_idx, t_idx); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Live Test Sandbox
+                        Rectangle {
+                            background: #141922;
+                            border-color: #38bdf8;
+                            border-width: 1px;
+                            border-radius: 8px;
+
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 10px;
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Image {
+                                            source: @image-url("../assets/icons/flask-line.svg");
+                                            colorize: #38bdf8;
+                                            width: 16px;
+                                            height: 16px;
+                                            image-fit: contain;
+                                        }
+                                    }
+                                    Text {
+                                        text: "在线测试沙盒 (Live Test Sandbox)";
+                                        color: #38bdf8;
+                                        font-size: 13px;
+                                        font-weight: 700;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    Text { text: "输入测试 URL:"; color: #9ca3af; font-size: 12px; }
+                                    CustomTextInput {
+                                        text <=> root.labs_form.url_rewrite_test_url;
+                                        placeholder: "https://raw.github.com/user/repo/file.zip";
+                                        edited(val) => { root.test_url_changed(val); }
+                                    }
+                                }
+
+                                if root.labs_form.url_rewrite_test_url != "" : VerticalLayout {
+                                    spacing: 6px;
+                                    if root.labs_form.url_rewrite_test_matched_rule != "" : HorizontalLayout {
+                                        spacing: 6px;
+                                        Text { text: "✓"; color: #4ade80; font-size: 13px; font-weight: 800; }
+                                        Text {
+                                            text: "命中规则: " + root.labs_form.url_rewrite_test_matched_rule;
+                                            color: #4ade80;
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                        }
+                                    }
+
+                                    if root.labs_form.url_rewrite_test_result_1 != "" : HorizontalLayout {
+                                        spacing: 6px;
+                                        Text { text: "1."; color: #9ca3af; font-size: 12px; font-family: "Consolas, monospace"; }
+                                        Text { text: root.labs_form.url_rewrite_test_result_1; color: #38bdf8; font-size: 12px; font-family: "Consolas, monospace"; }
+                                    }
+
+                                    if root.labs_form.url_rewrite_test_result_2 != "" : HorizontalLayout {
+                                        spacing: 6px;
+                                        Text { text: "2."; color: #9ca3af; font-size: 12px; font-family: "Consolas, monospace"; }
+                                        Text { text: root.labs_form.url_rewrite_test_result_2; color: #38bdf8; font-size: 12px; font-family: "Consolas, monospace"; }
+                                    }
+
+                                    if root.labs_form.url_rewrite_test_result_3 != "" : HorizontalLayout {
+                                        spacing: 6px;
+                                        Text { text: "3."; color: #9ca3af; font-size: 12px; font-family: "Consolas, monospace"; }
+                                        Text { text: root.labs_form.url_rewrite_test_result_3; color: #9ca3af; font-size: 12px; font-family: "Consolas, monospace"; }
+                                        ToneBadge { text: "Fallback"; tone: "neutral"; }
+                                    }
+
+                                    if root.labs_form.url_rewrite_test_matched_rule == "" : Text {
+                                        text: "未命中任何重写规则，将使用原 URL 直连下载。";
+                                        color: #6b7280;
+                                        font-size: 12px;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Footer
+            HorizontalLayout {
+                alignment: end;
+                spacing: 10px;
+
+                SecondaryButton {
+                    text: "关闭";
+                    clicked => { root.close(); }
+                }
+
+                PrimaryButton {
+                    text: "保存配置";
+                    icon: @image-url("../assets/icons/save-line.svg");
+                    clicked => { root.save_labs(root.labs_form); }
+                }
+            }
+        }
+    }
+}

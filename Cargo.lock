@@ -5098,10 +5098,12 @@ dependencies = [
  "serde_json",
  "slint",
  "slint-build",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "tray-icon",
+ "uuid",
 ]
 
 [[package]]
