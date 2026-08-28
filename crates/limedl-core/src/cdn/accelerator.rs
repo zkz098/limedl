@@ -1,14 +1,14 @@
-﻿#![allow(dead_code)]
+#![allow(dead_code)]
 
 use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
 
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use crate::cdn::ip_ranges::{CdnIpCache, get_ip_ranges};
+use crate::cdn::ip_ranges::CdnIpCache;
+use crate::cdn::provider::{CdnProvider, CloudflareProvider};
 use crate::cdn::resolver::{build_accelerated_client, is_private_ip};
 use crate::cdn::speed_test::{
     CdnTestPhase, DefaultNodeResult, SpeedTestConfig, SpeedTestResult, measure_default_node,
@@ -53,6 +53,8 @@ pub struct CdnAccelerator {
     /// Shared IP range cache — populated by `start_test()` and available
     /// for `is_cloudflare_domain()` from `resolve_client()`.
     ip_cache: RwLock<Option<CdnIpCache>>,
+    /// Active CDN Provider (defaults to Cloudflare).
+    provider: RwLock<Arc<dyn CdnProvider>>,
 }
 
 impl Default for CdnAccelerator {
@@ -64,6 +66,11 @@ impl Default for CdnAccelerator {
 impl CdnAccelerator {
     /// Create a new accelerator in [`AccelState::Idle`].
     pub fn new() -> Self {
+        Self::with_provider(Arc::new(CloudflareProvider))
+    }
+
+    /// Create a new accelerator with a specific [`CdnProvider`].
+    pub fn with_provider(provider: Arc<dyn CdnProvider>) -> Self {
         Self {
             state: RwLock::new(AccelState::Idle),
             active_ip: RwLock::new(None),
@@ -76,7 +83,19 @@ impl CdnAccelerator {
             all_candidates: RwLock::new(Vec::new()),
             default_node: RwLock::new(None),
             ip_cache: RwLock::new(None),
+            provider: RwLock::new(provider),
         }
+    }
+
+    /// Return the active CDN provider.
+    pub async fn provider(&self) -> Arc<dyn CdnProvider> {
+        self.provider.read().await.clone()
+    }
+
+    /// Set a new CDN provider.
+    pub async fn set_provider(&self, provider: Arc<dyn CdnProvider>) {
+        let mut p = self.provider.write().await;
+        *p = provider;
     }
 
     /// Kick off a CDN speed test in a background task.
@@ -114,15 +133,8 @@ impl CdnAccelerator {
             this.phase_progress_current.store(0, Ordering::Release);
             this.phase_progress_total.store(0, Ordering::Release);
 
-            let ip_cache = Arc::new(tokio::sync::Mutex::new(CdnIpCache {
-                ipv4_addrs: Vec::new(),
-                ipv6_addrs: Vec::new(),
-                ipv4_cidrs: Vec::new(),
-                ipv6_cidrs: Vec::new(),
-                fetched_at: Instant::now(),
-                from_fallback: true,
-            }));
-            let range_data = get_ip_ranges(ip_cache, token.child_token()).await;
+            let provider = this.provider.read().await.clone();
+            let range_data = provider.fetch_ip_ranges(token.child_token()).await;
 
             // Check cancellation before starting the heavy work.
             if token.is_cancelled() {
@@ -139,6 +151,7 @@ impl CdnAccelerator {
 
             let ips = range_data.all_addrs();
             tracing::info!(
+                provider = provider.name(),
                 "cdn test: got {} IPs (v4={} v6={} fallback={})",
                 ips.len(),
                 range_data.ipv4_addrs.len(),
@@ -147,8 +160,9 @@ impl CdnAccelerator {
             );
 
             if ips.is_empty() {
-                tracing::error!("cdn test: no Cloudflare IPs available");
-                *this.state.write().await = AccelState::Error("no Cloudflare IPs available".into());
+                let err_msg = format!("no {} IPs available", provider.name());
+                tracing::error!("cdn test: {err_msg}");
+                *this.state.write().await = AccelState::Error(err_msg);
                 this.phase_atomic.store(PHASE_NONE, Ordering::Release);
                 this.phase_progress_current.store(0, Ordering::Release);
                 this.phase_progress_total.store(0, Ordering::Release);
@@ -157,10 +171,14 @@ impl CdnAccelerator {
 
             // ── Phase: Screening → MeasuringThroughput ──────────
             tracing::info!(
+                provider = provider.name(),
                 "cdn test: phase=Screening → MeasuringThroughput, {} IPs",
                 ips.len()
             );
-            let config = SpeedTestConfig::default();
+            let config = SpeedTestConfig {
+                test_url: provider.default_test_url().to_string(),
+                ..Default::default()
+            };
             let acc_ref = Arc::clone(&this);
             let progress_cb: crate::cdn::speed_test::ProgressFn =
                 Box::new(move |phase, current, total| {
@@ -537,5 +555,28 @@ mod tests {
         // Clear resets candidates.
         acc.clear().await;
         assert!(acc.candidates().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_provider_switching_and_fastly() {
+        use crate::cdn::provider::{FastlyProvider, CustomCdnProvider, CdnProviderKind};
+
+        let acc = Arc::new(CdnAccelerator::new());
+        assert_eq!(acc.provider().await.kind(), CdnProviderKind::Cloudflare);
+
+        let fastly = Arc::new(FastlyProvider);
+        acc.set_provider(fastly).await;
+        assert_eq!(acc.provider().await.kind(), CdnProviderKind::Fastly);
+        assert_eq!(acc.provider().await.name(), "Fastly");
+
+        let custom = Arc::new(CustomCdnProvider::new(
+            "MyCustomCDN",
+            "https://example.com/test",
+            vec!["1.2.3.0/24".to_string()],
+            vec![],
+        ));
+        let custom_acc = CdnAccelerator::with_provider(custom);
+        assert_eq!(custom_acc.provider().await.kind(), CdnProviderKind::Custom);
+        assert_eq!(custom_acc.provider().await.default_test_url(), "https://example.com/test");
     }
 }

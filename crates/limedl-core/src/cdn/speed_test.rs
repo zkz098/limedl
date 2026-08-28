@@ -67,6 +67,8 @@ pub struct SpeedTestConfig {
     pub throughput_duration: Duration,
     /// Number of fastest IPs (by TCP latency) to advance to Phase 2.
     pub top_n_candidates: usize,
+    /// Test URL for throughput measurement.
+    pub test_url: String,
 }
 
 impl Default for SpeedTestConfig {
@@ -76,6 +78,7 @@ impl Default for SpeedTestConfig {
             tcp_timeout: Duration::from_secs(3),
             throughput_duration: Duration::from_secs(10),
             top_n_candidates: 5,
+            test_url: SPEED_TEST_URL.to_string(),
         }
     }
 }
@@ -464,13 +467,21 @@ pub async fn run_speed_test(
         p(CdnTestPhase::MeasuringThroughput, 0, top_count);
     }
 
+    let test_url = config.test_url.clone();
+    let hostname = Url::parse(&test_url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h.to_string()))
+        .unwrap_or_else(|| "speed.cloudflare.com".to_string());
+
     let mut join_set = JoinSet::new();
     for (ip, latency) in &top_n {
         let ip = *ip;
         let latency = *latency;
         let s = settings.clone();
+        let host_clone = hostname.clone();
+        let url_clone = test_url.clone();
         join_set.spawn(async move {
-            let result = measure_throughput(ip, "speed.cloudflare.com", SPEED_TEST_URL, &s).await;
+            let result = measure_throughput(ip, &host_clone, &url_clone, &s).await;
             (ip, latency, result)
         });
     }
