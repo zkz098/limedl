@@ -26,12 +26,14 @@ pub fn open_download_file(path: &Path, total_size: Option<u64>) -> Result<File> 
         .open(path)
         .map_err(|e| io_error_with_path(e, path.to_string_lossy()))?;
 
+    let _ = set_sparse_file(&file);
     preallocate_file(&file, total_size)?;
     Ok(file)
 }
 
 pub fn reset_download_file(file: &File, total_size: Option<u64>) -> Result<()> {
     file.set_len(0)?;
+    let _ = set_sparse_file(file);
     preallocate_file(file, total_size)
 }
 
@@ -235,6 +237,136 @@ pub fn write_all_at(file: &File, mut buffer: &[u8], mut offset: u64) -> Result<(
     Ok(())
 }
 
+/// Write a sequence of buffer slices to `file` at `offset`, using vectored I/O (`pwritev`)
+/// on Unix platforms to eliminate memory allocations and copies, with single-syscall
+/// coalescing fallback on other platforms.
+#[cfg(unix)]
+pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Result<()> {
+    use std::io::IoSlice;
+    use std::os::unix::fs::FileExt;
+
+    if bufs.is_empty() {
+        return Ok(());
+    }
+    if bufs.len() == 1 {
+        return write_all_at(file, bufs[0], offset);
+    }
+
+    let mut io_slices: Vec<IoSlice<'_>> = bufs.iter().map(|b| IoSlice::new(b)).collect();
+    let mut remaining = &mut io_slices[..];
+
+    while !remaining.is_empty() {
+        // Skip leading empty slices
+        while let Some(first) = remaining.first() && first.is_empty() {
+            remaining = &mut remaining[1..];
+        }
+        if remaining.is_empty() {
+            break;
+        }
+
+        let written = file.write_vectored_at(remaining, offset)?;
+        if written == 0 {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "failed to write download data (write_vectored_at returned zero)",
+            )));
+        }
+        offset += written as u64;
+
+        let mut to_advance = written;
+        let mut advance_slices = 0;
+        for slice in remaining.iter_mut() {
+            if to_advance >= slice.len() {
+                to_advance -= slice.len();
+                advance_slices += 1;
+            } else {
+                *slice = IoSlice::new(&slice[to_advance..]);
+                to_advance = 0;
+                break;
+            }
+        }
+        remaining = &mut remaining[advance_slices..];
+    }
+    Ok(())
+}
+
+/// Write a sequence of buffer slices to `file` at `offset`, using vectored I/O (`pwritev`)
+/// on Unix platforms to eliminate memory allocations and copies, with single-syscall
+/// coalescing fallback on other platforms.
+#[cfg(not(unix))]
+pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], offset: u64) -> Result<()> {
+    if bufs.is_empty() {
+        return Ok(());
+    }
+    if bufs.len() == 1 {
+        return write_all_at(file, bufs[0], offset);
+    }
+
+    // Windows / non-Unix fallback: coalesce slices into a contiguous buffer
+    // to perform a single seek_write syscall.
+    let total_len: usize = bufs.iter().map(|b| b.len()).sum();
+    let mut combined = Vec::with_capacity(total_len);
+    for b in bufs {
+        combined.extend_from_slice(b);
+    }
+    write_all_at(file, &combined, offset)
+}
+
+/// Configure the file as sparse to avoid zero-filling stalls on non-sequential chunk writes.
+#[cfg(windows)]
+pub fn set_sparse_file(file: &File) -> io::Result<()> {
+    use std::os::windows::io::AsRawHandle;
+
+    const FSCTL_SET_SPARSE: u32 = 0x000900C4;
+    let handle = file.as_raw_handle();
+    let mut bytes_returned: u32 = 0;
+
+    unsafe extern "system" {
+        fn DeviceIoControl(
+            h_device: isize,
+            dw_io_control_code: u32,
+            lp_in_buffer: *const std::ffi::c_void,
+            n_in_buffer_size: u32,
+            lp_out_buffer: *mut std::ffi::c_void,
+            n_out_buffer_size: u32,
+            lp_bytes_returned: *mut u32,
+            lp_overlapped: *mut std::ffi::c_void,
+        ) -> i32;
+        fn GetLastError() -> u32;
+    }
+
+    let success = unsafe {
+        DeviceIoControl(
+            handle as isize,
+            FSCTL_SET_SPARSE,
+            std::ptr::null(),
+            0,
+            std::ptr::null_mut(),
+            0,
+            &mut bytes_returned,
+            std::ptr::null_mut(),
+        )
+    };
+
+    if success == 0 {
+        let err = unsafe { GetLastError() };
+        // ERROR_INVALID_FUNCTION (1), ERROR_NOT_SUPPORTED (50), ERROR_INVALID_PARAMETER (87)
+        // are returned when the filesystem (e.g. FAT32, exFAT, or certain network mounts)
+        // does not support sparse files. We gracefully treat this as non-fatal.
+        if err == 1 || err == 50 || err == 87 {
+            return Ok(());
+        }
+        return Err(io::Error::from_raw_os_error(err as i32));
+    }
+
+    Ok(())
+}
+
+/// Configure the file as sparse on Unix platforms (no-op as Unix filesystems natively support sparse holes).
+#[cfg(not(windows))]
+pub fn set_sparse_file(_file: &File) -> io::Result<()> {
+    Ok(())
+}
+
 /// Checks that the destination directory has enough free space for the download.
 /// `required_bytes` is the total file size. We require 10% buffer above that.
 pub fn check_disk_space(destination_dir: &Path, required_bytes: u64) -> Result<()> {
@@ -254,10 +386,16 @@ fn preallocate_file(file: &File, total_size: Option<u64>) -> Result<()> {
         return Ok(());
     };
 
+    // On Windows, enable sparse attribute first so out-of-order chunk writes
+    // (e.g. BT pieces or multi-connection HTTP chunks) never trigger synchronous zero-filling stalls.
+    #[cfg(windows)]
+    let _ = set_sparse_file(file);
+
     match file.allocate(total_size) {
         Ok(()) => Ok(()),
         Err(error) => match error.raw_os_error() {
-            Some(38 | 45 | 95 | 524) => {
+            // 1 = EPERM, 22 = EINVAL, 38 = ENOSYS, 45 = ENOTSUP, 95 = EOPNOTSUPP, 524 = ENOTSUP (glibc)
+            Some(1 | 22 | 38 | 45 | 95 | 524) => {
                 file.set_len(total_size)?;
                 Ok(())
             }
@@ -297,7 +435,7 @@ mod tests {
     use super::{
         check_disk_space, cleanup_finalizing_paths,
         files_have_same_content, finalize_temp_file, open_download_file, preallocate_file,
-        reset_download_file, unique_finalizing_path, write_all_at,
+        reset_download_file, set_sparse_file, unique_finalizing_path, write_all_at, write_all_vectored_at,
     };
     use crate::error::DownloadError;
 
@@ -684,6 +822,89 @@ mod tests {
             }
             other => panic!("expected Io(AlreadyExists), got {other:?}"),
         }
+        Ok(())
+    }
+
+    // ── write_all_vectored_at & sparse tests ──────────
+
+    #[timeout(30_000)]
+    #[test]
+    fn write_all_vectored_at_multiple_slices() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("vectored.dat");
+        let file = open_download_file(&path, Some(1024))?;
+
+        let slices: Vec<&[u8]> = vec![b"hello ", b"vectored ", b"world!"];
+        write_all_vectored_at(&file, &slices, 10)?;
+
+        let bytes = fs::read(&path)?;
+        assert_eq!(&bytes[10..31], b"hello vectored world!");
+        assert_eq!(bytes.len(), 1024);
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn write_all_vectored_at_empty_and_single() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("vectored_empty.dat");
+        let file = open_download_file(&path, Some(512))?;
+
+        // Empty bufs slice should be no-op
+        write_all_vectored_at(&file, &[], 0)?;
+
+        // Array with empty slices and one data slice
+        let slices: Vec<&[u8]> = vec![b"", b"single_data", b""];
+        write_all_vectored_at(&file, &slices, 0)?;
+
+        let bytes = fs::read(&path)?;
+        assert_eq!(&bytes[..11], b"single_data");
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn open_download_file_sparse_and_high_offset_write() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("sparse_high_offset.part");
+        // Preallocate 10 MB file
+        let file = open_download_file(&path, Some(10 * 1024 * 1024))?;
+        assert_eq!(file.metadata()?.len(), 10 * 1024 * 1024);
+
+        // Write at high offset (5 MB and 9 MB)
+        let middle_offset = 5 * 1024 * 1024;
+        write_all_at(&file, b"middle_sparse_chunk", middle_offset)?;
+
+        let end_offset = 9 * 1024 * 1024;
+        let slices: Vec<&[u8]> = vec![b"end_", b"sparse_", b"chunk"];
+        write_all_vectored_at(&file, &slices, end_offset)?;
+
+        let bytes = fs::read(&path)?;
+        assert_eq!(bytes.len(), 10 * 1024 * 1024);
+        assert_eq!(
+            &bytes[middle_offset as usize..(middle_offset as usize + 19)],
+            b"middle_sparse_chunk"
+        );
+        assert_eq!(
+            &bytes[end_offset as usize..(end_offset as usize + 16)],
+            b"end_sparse_chunk"
+        );
+        Ok(())
+    }
+
+    #[timeout(30_000)]
+    #[test]
+    fn set_sparse_file_on_regular_file() -> TestResult {
+        let temp = tempdir()?;
+        let path = temp.path().join("sparse_test.dat");
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .read(true)
+            .open(&path)?;
+
+        assert!(set_sparse_file(&file).is_ok());
         Ok(())
     }
 }

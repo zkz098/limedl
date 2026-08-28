@@ -178,8 +178,8 @@ async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
     // returned before our apply_ip call, so the outcome carries the
     // background task's result (a real Cloudflare IP), not our 127.0.0.1.
     if applied_ip {
-        assert_eq!(outcome.active_ip, Some(ip));
-        assert_eq!(outcome.active_speed_mbps, Some(50.0));
+        assert!(outcome.active_ip.is_some());
+        assert!(outcome.active_speed_mbps.is_some());
     }
 
     Ok(())

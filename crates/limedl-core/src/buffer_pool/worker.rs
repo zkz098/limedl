@@ -7,7 +7,7 @@ use bytes::Bytes;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::error::DownloadError;
-use crate::file_ops::write_all_at;
+use crate::file_ops::{write_all_at, write_all_vectored_at};
 
 /// Write sync policy for IoWorker batch processing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,7 +33,8 @@ enum IoCommand {
 }
 
 /// Write a list of offset-sorted byte chunks to disk, coalescing adjacent entries
-/// into a single system call to drastically reduce context switches.
+/// into a single system call / vectored I/O (pwritev on Unix) to drastically reduce
+/// context switches and eliminate memory allocations.
 pub fn write_coalesced_entries(file: &File, entries: &[(u64, Bytes)]) -> Result<(), DownloadError> {
     if entries.is_empty() {
         return Ok(());
@@ -58,13 +59,12 @@ pub fn write_coalesced_entries(file: &File, entries: &[(u64, Bytes)]) -> Result<
             // Single chunk, direct zero-copy write
             write_all_at(file, &entries[idx].1, start_offset)?;
         } else {
-            // Multiple adjacent chunks: coalesce into a single buffer and single syscall
-            let total_len = (end_offset - start_offset) as usize;
-            let mut combined = Vec::with_capacity(total_len);
-            for entry in &entries[idx..next_idx] {
-                combined.extend_from_slice(&entry.1);
-            }
-            write_all_at(file, &combined, start_offset)?;
+            // Multiple adjacent chunks: zero-copy vectored write (Unix) or coalesced single syscall (Windows)
+            let slices: Vec<&[u8]> = entries[idx..next_idx]
+                .iter()
+                .map(|(_, d)| d.as_ref())
+                .collect();
+            write_all_vectored_at(file, &slices, start_offset)?;
         }
 
         idx = next_idx;
