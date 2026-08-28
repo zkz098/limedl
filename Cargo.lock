@@ -5194,6 +5194,7 @@ version = "0.2.1"
 dependencies = [
  "anyhow",
  "arboard",
+ "image",
  "limedl-core",
  "muda",
  "notify-rust",

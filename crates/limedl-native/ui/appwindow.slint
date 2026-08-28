@@ -36,6 +36,7 @@ import { SettingsDialog } from "components/settings_dialog.slint";
 
 export component MainWindow inherits Window {
     title: "limedl - Native";
+    icon: @image-url("assets/icon.png");
     min-width: 980px;
     min-height: 640px;
     default-font-family: "Segoe UI, PingFang SC, Microsoft YaHei, sans-serif";
@@ -160,23 +161,11 @@ export component MainWindow inherits Window {
                 HorizontalLayout {
                     spacing: 10px;
                     alignment: start;
-                    Rectangle {
+                    Image {
+                        source: @image-url("assets/logo.png");
                         width: 32px;
                         height: 32px;
-                        background: #84cc16;
-                        border-radius: 8px;
-                        drop-shadow-blur: 8px;
-                        drop-shadow-color: #84cc1644;
-                        HorizontalLayout {
-                            alignment: center;
-                            Text {
-                                text: "L";
-                                color: #0b1104;
-                                font-size: 18px;
-                                font-weight: 900;
-                                vertical-alignment: center;
-                            }
-                        }
+                        image-fit: contain;
                     }
                     VerticalLayout {
                         alignment: center;

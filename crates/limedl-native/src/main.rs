@@ -79,18 +79,24 @@ fn refresh_settings_state(
 }
 
 fn create_default_tray_icon() -> tray_icon::Icon {
-    // Generate a clean 32x32 RGBA lime-green "L" icon for tray
+    const ICON_BYTES: &[u8] = include_bytes!("../ui/assets/32x32.png");
+    if let Ok(dyn_img) = image::load_from_memory_with_format(ICON_BYTES, image::ImageFormat::Png) {
+        let rgba = dyn_img.to_rgba8();
+        let (width, height) = rgba.dimensions();
+        if let Ok(icon) = tray_icon::Icon::from_rgba(rgba.into_raw(), width, height) {
+            return icon;
+        }
+    }
+
+    // Fallback: 32x32 RGBA icon
     const SIZE: u32 = 32;
     let mut rgba = Vec::with_capacity((SIZE * SIZE * 4) as usize);
     for y in 0..SIZE {
         for x in 0..SIZE {
-            let is_border = x == 0 || y == 0 || x == SIZE - 1 || y == SIZE - 1;
             let is_l = ((8..=12).contains(&x) && (6..=26).contains(&y))
                 || ((8..=24).contains(&x) && (22..=26).contains(&y));
             if is_l {
-                rgba.extend_from_slice(&[132, 204, 22, 255]); // #84cc16
-            } else if is_border {
-                rgba.extend_from_slice(&[46, 52, 61, 200]);
+                rgba.extend_from_slice(&[132, 204, 22, 255]);
             } else {
                 rgba.extend_from_slice(&[24, 27, 31, 230]);
             }
