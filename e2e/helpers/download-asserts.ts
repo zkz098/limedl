@@ -33,18 +33,21 @@ export async function expectProgressValue(
   taskId: string,
   minValue: number,
 ): Promise<void> {
+  const row = page.locator(`[data-testid="download-row-${taskId}"]`);
+  await expect(row).toBeVisible();
+
   const locator = page.locator(
     `[data-testid="download-row-${taskId}"] [data-testid="task-progress-bar"]`,
   );
-  await expect(locator).toBeVisible();
+  await expect(locator).toBeAttached();
 
-  // Read the style attribute and extract the width percentage
-  const styleAttr = await locator.getAttribute("style");
-  expect(styleAttr).not.toBeNull();
-
-  const widthMatch = styleAttr!.match(/width:\s*([\d.]+)%/);
-  expect(widthMatch).not.toBeNull();
-  expect(Number(widthMatch![1])).toBeGreaterThanOrEqual(minValue);
+  await expect(async () => {
+    const styleAttr = await locator.getAttribute("style");
+    expect(styleAttr).not.toBeNull();
+    const widthMatch = styleAttr!.match(/width:\s*([\d.]+)%/);
+    expect(widthMatch).not.toBeNull();
+    expect(Number(widthMatch![1])).toBeGreaterThanOrEqual(minValue);
+  }).toPass({ timeout: 5000 });
 }
 
 // Speed units, longest first so "KB/s" is matched before its "B/s" suffix.

@@ -248,16 +248,14 @@ mod imp {
     }
 
     fn strip_partition(name: &str) -> &str {
-        if let Some(pos) = name.rfind('p') {
-            if (name.starts_with("nvme") || name.starts_with("mmcblk"))
+        if name.starts_with("nvme") || name.starts_with("mmcblk") {
+            if let Some(pos) = name.rfind('p')
                 && name[pos + 1..].chars().all(|c| c.is_ascii_digit())
             {
                 return &name[..pos];
             }
         } else if let Some(pos) = name.find(|c: char| c.is_ascii_digit()) {
-            if !name.starts_with("nvme") && !name.starts_with("mmcblk") {
-                return &name[..pos];
-            }
+            return &name[..pos];
         }
         name
     }
