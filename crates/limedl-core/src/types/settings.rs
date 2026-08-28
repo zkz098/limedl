@@ -373,6 +373,12 @@ pub struct CdnAccelerationSettings {
     #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
+    pub provider: String,
+    #[serde(default)]
+    pub custom_test_url: Option<String>,
+    #[serde(default)]
+    pub custom_cidrs: Option<String>,
+    #[serde(default)]
     pub active_ip: Option<String>,
     #[serde(default)]
     pub active_speed_mbps: Option<f64>,

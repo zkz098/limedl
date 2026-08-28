@@ -106,6 +106,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   },
   "cdnAcceleration": {
     "enabled": false,
+    "provider": "",
+    "customTestUrl": null,
+    "customCidrs": null,
     "activeIp": null,
     "activeSpeedMbps": null,
     "lastTestAtMs": null,

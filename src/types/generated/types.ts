@@ -204,7 +204,7 @@ export type BtTrackerInfo = { url: string, };
 
 export type BtUploadStatus = "idle" | "uploading" | "paused" | "paused_by_limit";
 
-export type CdnAccelerationSettings = { enabled: boolean, activeIp: string | null, activeSpeedMbps: number | null, lastTestAtMs: number | null, lastError: string | null, };
+export type CdnAccelerationSettings = { enabled: boolean, provider: string, customTestUrl: string | null, customCidrs: string | null, activeIp: string | null, activeSpeedMbps: number | null, lastTestAtMs: number | null, lastError: string | null, };
 
 /**
  * Phases of the CDN speed test. Frontend consumes these as camelCase strings.

@@ -117,6 +117,10 @@ impl CdnAccelerator {
             *state = AccelState::Testing;
         }
 
+        // Set provider from settings.
+        let provider = create_provider_from_settings(&settings);
+        self.set_provider(provider).await;
+
         // Reset stored results from any previous run.
         *self.active_ip.write().await = None;
         *self.active_speed_mbps.write().await = None;
@@ -340,7 +344,14 @@ impl CdnAccelerator {
         speed_mbps: f64,
         settings: &AppSettings,
     ) -> anyhow::Result<()> {
-        let client = build_accelerated_client("speed.cloudflare.com", ip, settings)
+        let provider = self.provider.read().await.clone();
+        let test_url = provider.default_test_url();
+        let hostname = reqwest::Url::parse(test_url)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_string()))
+            .unwrap_or_else(|| "speed.cloudflare.com".to_string());
+
+        let client = build_accelerated_client(&hostname, ip, settings)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         *self.accelerated_client.write().await = Some(client);
@@ -357,6 +368,9 @@ impl CdnAccelerator {
     /// downloads can use acceleration immediately without re-running the speed test.
     pub async fn init_from_settings(self: &Arc<Self>, settings: &AppSettings) {
         let cdn = &settings.cdn_acceleration;
+        let provider = create_provider_from_settings(settings);
+        self.set_provider(provider).await;
+
         if !cdn.enabled {
             return;
         }
@@ -444,6 +458,39 @@ impl CdnAccelerator {
     /// Cloudflare CIDR membership with live (rather than static) data.
     pub async fn ip_cache(&self) -> Option<CdnIpCache> {
         self.ip_cache.read().await.clone()
+    }
+}
+
+/// Construct a [`CdnProvider`] based on [`AppSettings`].
+pub fn create_provider_from_settings(settings: &AppSettings) -> Arc<dyn CdnProvider> {
+    let cdn = &settings.cdn_acceleration;
+    match cdn.provider.as_str() {
+        "fastly" => Arc::new(crate::cdn::provider::FastlyProvider),
+        "custom" => {
+            let test_url = cdn
+                .custom_test_url
+                .as_deref()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or("https://speed.cloudflare.com/__down?bytes=25000000");
+            let cidrs_str = cdn.custom_cidrs.as_deref().unwrap_or("");
+            let mut v4 = Vec::new();
+            let mut v6 = Vec::new();
+            for part in cidrs_str
+                .split(&[',', '\n', ';', ' '][..])
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+            {
+                if part.contains(':') {
+                    v6.push(part.to_string());
+                } else {
+                    v4.push(part.to_string());
+                }
+            }
+            Arc::new(crate::cdn::provider::CustomCdnProvider::new(
+                "Custom", test_url, v4, v6,
+            ))
+        }
+        _ => Arc::new(crate::cdn::provider::CloudflareProvider),
     }
 }
 

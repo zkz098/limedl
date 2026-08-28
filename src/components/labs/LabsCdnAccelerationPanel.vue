@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import UiButton from "../ui/UiButton.vue";
 import UiBadge from "../ui/UiBadge.vue";
+import UiSelect from "../ui/UiSelect.vue";
 import SettingsSection from "../settings/SettingsSection.vue";
 import SettingsField from "../settings/SettingsField.vue";
 import UiProgress from "../ui/UiProgress.vue";
@@ -109,6 +110,33 @@ const progressLabel = computed(() => {
   const { current, total } = phaseProgress.value;
   return `${current} / ${total}`;
 });
+
+const selectedProvider = computed({
+  get: () => draft.value.cdnAcceleration.provider || "cloudflare",
+  set: (val: string) => {
+    draft.value.cdnAcceleration.provider = val;
+  },
+});
+
+const customTestUrl = computed({
+  get: () => draft.value.cdnAcceleration.customTestUrl ?? "",
+  set: (val: string) => {
+    draft.value.cdnAcceleration.customTestUrl = val || null;
+  },
+});
+
+const customCidrs = computed({
+  get: () => draft.value.cdnAcceleration.customCidrs ?? "",
+  set: (val: string) => {
+    draft.value.cdnAcceleration.customCidrs = val || null;
+  },
+});
+
+const providerOptions = computed(() => [
+  { label: props.t("settings.cdnAcceleration.providerCloudflare"), value: "cloudflare" },
+  { label: props.t("settings.cdnAcceleration.providerFastly"), value: "fastly" },
+  { label: props.t("settings.cdnAcceleration.providerCustom"), value: "custom" },
+]);
 
 const activeIp = computed(() => draft.value.cdnAcceleration.activeIp);
 
@@ -350,6 +378,40 @@ onUnmounted(() => {
         :label="t('settings.cdnAcceleration.enable')"
       />
     </SettingsField>
+
+    <!-- Provider Selection -->
+    <SettingsField
+      :label="t('settings.cdnAcceleration.providerLabel')"
+      :description="t('settings.cdnAcceleration.providerDesc')"
+    >
+      <UiSelect
+        v-model="selectedProvider"
+        :options="providerOptions"
+      />
+    </SettingsField>
+
+    <!-- Custom CDN Settings -->
+    <template v-if="selectedProvider === 'custom'">
+      <SettingsField
+        :label="t('settings.cdnAcceleration.customTestUrlLabel')"
+        :description="t('settings.cdnAcceleration.customTestUrlDesc')"
+      >
+        <UiTextField
+          v-model="customTestUrl"
+          placeholder="https://example.com/test-file.bin"
+        />
+      </SettingsField>
+
+      <SettingsField
+        :label="t('settings.cdnAcceleration.customCidrsLabel')"
+        :description="t('settings.cdnAcceleration.customCidrsDesc')"
+      >
+        <UiTextField
+          v-model="customCidrs"
+          placeholder="1.2.3.0/24, 2606:4700::/32"
+        />
+      </SettingsField>
+    </template>
 
     <!-- Staged progress -->
     <div v-show="testing || phase" class="cdn-panel__progress mt-5">

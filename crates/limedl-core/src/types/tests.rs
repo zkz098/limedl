@@ -5,6 +5,9 @@ use crate::error::DownloadError;
 fn test_cdn_settings_round_trip() {
     let original = CdnAccelerationSettings {
         enabled: true,
+        provider: "cloudflare".into(),
+        custom_test_url: None,
+        custom_cidrs: None,
         active_ip: Some("192.168.1.100".into()),
         active_speed_mbps: Some(45.5),
         last_test_at_ms: Some(1700000000000),
@@ -20,6 +23,9 @@ fn test_cdn_settings_defaults() {
     let json = "{}";
     let settings: CdnAccelerationSettings = serde_json::from_str(json).unwrap();
     assert!(!settings.enabled);
+    assert!(settings.provider.is_empty());
+    assert!(settings.custom_test_url.is_none());
+    assert!(settings.custom_cidrs.is_none());
     assert!(settings.active_ip.is_none());
     assert!(settings.active_speed_mbps.is_none());
     assert!(settings.last_test_at_ms.is_none());
@@ -47,6 +53,9 @@ fn test_settings_round_trip_with_cdn() {
     let original = AppSettings {
         cdn_acceleration: CdnAccelerationSettings {
             enabled: true,
+            provider: "fastly".into(),
+            custom_test_url: None,
+            custom_cidrs: None,
             active_ip: Some("10.0.0.1".into()),
             active_speed_mbps: Some(88.3),
             last_test_at_ms: Some(1700000000000),

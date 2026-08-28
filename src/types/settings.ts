@@ -8,7 +8,6 @@ export type {
   BtPortRange,
   BtPreallocateMode,
   BtSettings,
-  CdnAccelerationSettings,
   ChecksumMode,
   ChunkSizeStrategy,
   CloseBehavior,
@@ -33,10 +32,10 @@ export type {
   TraditionalSchedulerSettings,
 } from "./generated/types";
 
-// ── Import generated types for local extension ──
 import type {
   AppSettings as GeneratedAppSettings,
   Aria2RpcSettings as GeneratedAria2RpcSettings,
+  CdnAccelerationSettings as GeneratedCdnAccelerationSettings,
   IoBaselineSettings as GeneratedIoBaselineSettings,
   MirrorEntry as GeneratedMirrorEntry,
   RewriteTarget as GeneratedRewriteTarget,
@@ -46,6 +45,13 @@ import type {
 
 /** Aria2RpcSettings as generated from Rust. */
 export type Aria2RpcSettings = GeneratedAria2RpcSettings;
+
+/** CdnAccelerationSettings with optional provider fields. */
+export interface CdnAccelerationSettings extends Omit<GeneratedCdnAccelerationSettings, "provider" | "customTestUrl" | "customCidrs"> {
+  provider?: string;
+  customTestUrl?: string | null;
+  customCidrs?: string | null;
+}
 
 /** IoBaselineSettings with frontend-only gameMode field (runtime-only, never persisted). */
 export interface IoBaselineSettings extends GeneratedIoBaselineSettings {
@@ -90,10 +96,11 @@ export interface GitHubMirrorSettings {
  */
 export type AppSettings = Omit<
   GeneratedAppSettings,
-  "ioBaseline" | "githubMirror" | "urlRewrite" | "aria2Rpc"
+  "ioBaseline" | "githubMirror" | "urlRewrite" | "aria2Rpc" | "cdnAcceleration"
 > & {
   ioBaseline: IoBaselineSettings;
   githubMirror: GitHubMirrorSettings;
   urlRewrite: UrlRewriteSettings;
   aria2Rpc: Aria2RpcSettings;
+  cdnAcceleration: CdnAccelerationSettings;
 };
