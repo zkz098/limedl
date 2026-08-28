@@ -4,137 +4,145 @@
 import type { AppSettings } from "./types";
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  appearance: {
-    themeColor: "lime",
-    backgroundOpacity: "default",
-    colorMode: "system",
-    showDetailInfo: true,
-    showHeatmap: true,
-    sortKey: "added_at",
-    sortDirection: "desc",
-    compactView: false,
-    visibleColumns: ["file", "size", "downloaded", "status", "progress", "speed", "eta"],
-    closeBehavior: "minimizeToTray",
+  "appearance": {
+    "themeColor": "lime",
+    "backgroundOpacity": "default",
+    "colorMode": "system",
+    "showDetailInfo": true,
+    "showHeatmap": true,
+    "sortKey": "added_at",
+    "sortDirection": "desc",
+    "compactView": false,
+    "visibleColumns": [
+      "file",
+      "size",
+      "downloaded",
+      "status",
+      "progress",
+      "speed",
+      "eta"
+    ],
+    "closeBehavior": "minimizeToTray"
   },
-  proxy: {
-    mode: "disabled",
-    manualUrl: "",
+  "proxy": {
+    "mode": "disabled",
+    "manualUrl": ""
   },
-  scheduler: {
-    mode: "automatic",
-    traditional: {
-      maxParallelTasks: 3,
+  "scheduler": {
+    "mode": "automatic",
+    "traditional": {
+      "maxParallelTasks": 3
     },
-    automatic: {
-      maxParallelThreads: 16,
-      maxThreadsPerTask: 8,
-      minThreadsPerTask: 0,
-      adaptiveProfile: "balanced",
+    "automatic": {
+      "maxParallelThreads": 16,
+      "maxThreadsPerTask": 8,
+      "minThreadsPerTask": 0,
+      "adaptiveProfile": "balanced"
     },
-    chunkSizeStrategy: "adaptive",
-    tailSprintEnabled: false,
-    connectionWarmupEnabled: true,
+    "chunkSizeStrategy": "adaptive",
+    "tailSprintEnabled": false,
+    "connectionWarmupEnabled": true
   },
-  download: {
-    defaultDownloadDir: "",
-    defaultMaxRetries: 5,
-    defaultChecksum: "blake3",
-    defaultUserAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "download": {
+    "defaultDownloadDir": "",
+    "defaultMaxRetries": 5,
+    "defaultChecksum": "blake3",
+    "defaultUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
   },
-  bt: {
-    dhtEnabled: true,
-    trackerList: "",
-    trackerListUrl: "https://cf.trackerslist.com/best.txt",
-    pauseUploadWhenLimitReached: false,
-    uploadLimitBytes: 0,
-    uploadRatioLimit: 0.0,
-    antiLeechEnabled: false,
-    antiLeechAction: "ban",
-    antiLeechGraceSecs: 300,
-    antiLeechRatio: 0.1,
-    antiLeechBanSecs: 3600,
-    antiLeechMaxUploadSlots: 4,
-    seedChokingAlgorithm: "fastest_upload",
-    chokingAlgorithm: "fixed_slots",
-    maxUploadSlotsPerTorrent: 4,
-    maxPeersPerTorrent: 128,
-    smartBanMaxFailures: 3,
-    smartBanParole: true,
-    evictionBanDurationSecs: 600,
-    dataContributionTimeoutSecs: 60,
-    blocklistEnabled: false,
-    blocklistPath: "",
-    upnpEnabled: false,
-    enableNatpmp: true,
-    enableIpv6: true,
-    enablePex: true,
-    enableLsd: true,
-    enableUtp: true,
-    enableFastExtension: true,
-    enableHolepunch: true,
-    enableWebSeed: true,
-    enableSuperSeeding: false,
-    globalDownloadRateLimit: 0,
-    globalUploadRateLimit: 0,
-    preallocateMode: "none",
-    encryptionMode: "enabled",
-    maxDownloads: 3,
-    maxSeeds: 5,
-    maxTorrents: 100,
-    activeLimit: 500,
+  "bt": {
+    "dhtEnabled": true,
+    "trackerList": "",
+    "trackerListUrl": "https://cf.trackerslist.com/best.txt",
+    "pauseUploadWhenLimitReached": false,
+    "uploadLimitBytes": 0,
+    "uploadRatioLimit": 0.0,
+    "antiLeechEnabled": false,
+    "antiLeechAction": "ban",
+    "antiLeechGraceSecs": 300,
+    "antiLeechRatio": 0.1,
+    "antiLeechBanSecs": 3600,
+    "antiLeechMaxUploadSlots": 4,
+    "seedChokingAlgorithm": "fastest_upload",
+    "chokingAlgorithm": "fixed_slots",
+    "maxUploadSlotsPerTorrent": 4,
+    "maxPeersPerTorrent": 128,
+    "smartBanMaxFailures": 3,
+    "smartBanParole": true,
+    "evictionBanDurationSecs": 600,
+    "dataContributionTimeoutSecs": 60,
+    "blocklistEnabled": false,
+    "blocklistPath": "",
+    "upnpEnabled": false,
+    "enableNatpmp": true,
+    "enableIpv6": true,
+    "enablePex": true,
+    "enableLsd": true,
+    "enableUtp": true,
+    "enableFastExtension": true,
+    "enableHolepunch": true,
+    "enableWebSeed": true,
+    "enableSuperSeeding": false,
+    "globalDownloadRateLimit": 0,
+    "globalUploadRateLimit": 0,
+    "preallocateMode": "none",
+    "encryptionMode": "enabled",
+    "maxDownloads": 3,
+    "maxSeeds": 5,
+    "maxTorrents": 100,
+    "activeLimit": 500
   },
-  logging: {
-    enabled: true,
-    level: "info",
-    filePath: "",
-    retentionCount: null,
-    retentionDays: null,
+  "logging": {
+    "enabled": true,
+    "level": "info",
+    "filePath": "",
+    "retentionCount": null,
+    "retentionDays": null
   },
-  aria2Rpc: {
-    enabled: true,
-    port: 6800,
-    secret: null,
-    corsAllowedOrigins: [],
+  "aria2Rpc": {
+    "enabled": true,
+    "port": 6800,
+    "secret": null,
+    "corsAllowedOrigins": []
   },
-  cdnAcceleration: {
-    enabled: false,
-    provider: "",
-    customTestUrl: null,
-    customCidrs: null,
-    activeIp: null,
-    activeSpeedMbps: null,
-    lastTestAtMs: null,
-    lastError: null,
+  "cdnAcceleration": {
+    "enabled": false,
+    "provider": "",
+    "customTestUrl": null,
+    "customCidrs": null,
+    "activeIp": null,
+    "activeSpeedMbps": null,
+    "lastTestAtMs": null,
+    "lastError": null
   },
-  githubMirror: {
-    enabled: false,
-    mirrors: [],
+  "githubMirror": {
+    "enabled": false,
+    "mirrors": []
   },
-  urlRewrite: {
-    enabled: false,
-    rules: [],
+  "urlRewrite": {
+    "enabled": false,
+    "rules": []
   },
-  globalSpeedLimitBps: 0,
-  speedLimitSchedule: [],
-  notifications: {
-    enabled: false,
+  "globalSpeedLimitBps": 0,
+  "speedLimitSchedule": [],
+  "notifications": {
+    "enabled": false
   },
-  ioBaseline: {
-    bufferLimitMb: 1024,
-    gameModeBufferMb: 128,
-    maxParallelHdd: 4,
-    gameModeMaxParallel: 1,
-    diskTypeOverrides: {},
-    hddBufferEnabled: true,
-    ssdWriteCombineMb: 0,
+  "ioBaseline": {
+    "bufferLimitMb": 1024,
+    "gameModeBufferMb": 128,
+    "maxParallelHdd": 4,
+    "gameModeMaxParallel": 1,
+    "diskTypeOverrides": {},
+    "hddBufferEnabled": true,
+    "ssdWriteCombineMb": 0
   },
-  autostart: false,
-  setupCompleted: false,
-  lastSetupStep: null,
-  doubleClick: {
-    onCompleted: "none",
-    onUncompleted: "none",
+  "autostart": false,
+  "setupCompleted": false,
+  "lastSetupStep": null,
+  "doubleClick": {
+    "onCompleted": "none",
+    "onUncompleted": "none"
   },
-  maxInMemoryDownloads: 0,
+  "maxInMemoryDownloads": 0
 };
+
