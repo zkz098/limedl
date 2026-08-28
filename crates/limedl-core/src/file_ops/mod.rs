@@ -242,8 +242,7 @@ pub fn write_all_at(file: &File, mut buffer: &[u8], mut offset: u64) -> Result<(
 /// coalescing fallback on other platforms.
 #[cfg(unix)]
 pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Result<()> {
-    use std::io::IoSlice;
-    use std::os::unix::fs::FileExt;
+    use std::os::unix::io::AsRawFd;
 
     if bufs.is_empty() {
         return Ok(());
@@ -252,39 +251,86 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Re
         return write_all_at(file, bufs[0], offset);
     }
 
-    let mut io_slices: Vec<IoSlice<'_>> = bufs.iter().map(|b| IoSlice::new(b)).collect();
-    let mut remaining = &mut io_slices[..];
+    let fd = file.as_raw_fd();
+    let mut slices = bufs;
+    let mut first_slice_offset = 0usize;
 
-    while !remaining.is_empty() {
+    while !slices.is_empty() {
         // Skip leading empty slices
-        while let Some(first) = remaining.first() && first.is_empty() {
-            remaining = &mut remaining[1..];
-        }
-        if remaining.is_empty() {
-            break;
-        }
-
-        let written = file.write_vectored_at(remaining, offset)?;
-        if written == 0 {
-            return Err(DownloadError::InvalidResponse(String::from(
-                "failed to write download data (write_vectored_at returned zero)",
-            )));
-        }
-        offset += written as u64;
-
-        let mut to_advance = written;
-        let mut advance_slices = 0;
-        for slice in remaining.iter_mut() {
-            if to_advance >= slice.len() {
-                to_advance -= slice.len();
-                advance_slices += 1;
+        while let Some(first) = slices.first() {
+            if first.len() <= first_slice_offset {
+                slices = &slices[1..];
+                first_slice_offset = 0;
             } else {
-                *slice = IoSlice::new(&slice[to_advance..]);
-                to_advance = 0;
                 break;
             }
         }
-        remaining = &mut remaining[advance_slices..];
+        if slices.is_empty() {
+            break;
+        }
+
+        // Limit the batch to 1024 (POSIX UIO_MAXIOV limit)
+        let batch_len = slices.len().min(1024);
+        let mut iov: Vec<libc::iovec> = Vec::with_capacity(batch_len);
+
+        for (i, slice) in slices[..batch_len].iter().enumerate() {
+            let data = if i == 0 {
+                &slice[first_slice_offset..]
+            } else {
+                *slice
+            };
+            if !data.is_empty() {
+                iov.push(libc::iovec {
+                    iov_base: data.as_ptr() as *mut libc::c_void,
+                    iov_len: data.len(),
+                });
+            }
+        }
+
+        if iov.is_empty() {
+            slices = &slices[batch_len..];
+            first_slice_offset = 0;
+            continue;
+        }
+
+        let res = unsafe {
+            libc::pwritev(
+                fd,
+                iov.as_ptr(),
+                iov.len() as libc::c_int,
+                offset as libc::off_t,
+            )
+        };
+
+        if res < 0 {
+            let err = std::io::Error::last_os_error();
+            if err.kind() == std::io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(DownloadError::Io(err));
+        }
+
+        if res == 0 {
+            return Err(DownloadError::InvalidResponse(String::from(
+                "failed to write download data (pwritev returned 0)",
+            )));
+        }
+
+        let mut written = res as usize;
+        offset += written as u64;
+
+        // Advance through written slices
+        while written > 0 && !slices.is_empty() {
+            let current_len = slices[0].len() - first_slice_offset;
+            if written >= current_len {
+                written -= current_len;
+                slices = &slices[1..];
+                first_slice_offset = 0;
+            } else {
+                first_slice_offset += written;
+                written = 0;
+            }
+        }
     }
     Ok(())
 }
