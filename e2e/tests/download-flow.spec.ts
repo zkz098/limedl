@@ -144,11 +144,11 @@ test.describe("download flow", () => {
   test("navigate back to home", async ({ page }) => {
     // Navigate to settings first
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.getByRole("heading", { name: /^Settings$/ })).toBeVisible();
+    await expect(page.locator(".settings-page")).toBeVisible();
 
     // Close the Settings modal overlay first, then navigate via sidebar
     await page.locator("button.overlay-close").click();
-    await expect(page.getByRole("heading", { name: /^Settings$/ })).not.toBeVisible();
+    await expect(page.locator(".settings-page")).not.toBeVisible();
 
     // Navigate to home via the "Home" sidebar button
     await page.getByRole("button", { name: "Home" }).click();
