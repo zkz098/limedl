@@ -359,7 +359,7 @@ impl Database {
                         manifest.chunks.iter().filter(|c| c.dirty).collect();
                     if !dirty_chunks.is_empty() {
                         let mut stmt = conn
-                            .prepare(
+                            .prepare_cached(
                                 "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
                                          downloaded, completed, claimed_by)
                                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -405,7 +405,9 @@ impl Database {
     /// Delete a download and all its chunks (cascaded via FK).
     pub fn delete_download(&self, id: &str) -> Result<()> {
         let conn = self.lock_write();
-        conn.execute("DELETE FROM downloads WHERE id = ?1", params![id])
+        conn.prepare_cached("DELETE FROM downloads WHERE id = ?1")
+            .context("failed to prepare delete download query")?
+            .execute(params![id])
             .with_context(|| format!("failed to delete download {id}"))?;
         self.vacuum_if_needed(&conn, 100)?;
         Ok(())
@@ -417,7 +419,7 @@ impl Database {
         let conn = self.lock_read();
 
         let mut stmt = conn
-            .prepare("SELECT * FROM downloads WHERE id = ?1")
+            .prepare_cached("SELECT * FROM downloads WHERE id = ?1")
             .context("failed to prepare get_download query")?;
 
         let opt = stmt
@@ -440,7 +442,7 @@ impl Database {
         let conn = self.lock_read();
 
         let mut stmt = conn
-            .prepare("SELECT * FROM downloads ORDER BY created_at_ms DESC")
+            .prepare_cached("SELECT * FROM downloads ORDER BY created_at_ms DESC")
             .context("failed to prepare list_downloads query")?;
 
         let mut manifests: Vec<Manifest> = stmt
@@ -450,7 +452,7 @@ impl Database {
             .context("failed to collect downloads")?;
 
         let mut chunk_stmt = conn
-            .prepare("SELECT * FROM chunks ORDER BY download_id, chunk_index")
+            .prepare_cached("SELECT * FROM chunks ORDER BY download_id, chunk_index")
             .context("failed to prepare list_chunks query")?;
 
         let all_chunks: Vec<(String, ChunkManifest)> = chunk_stmt
@@ -482,7 +484,7 @@ impl Database {
         let conn = self.lock_read();
 
         let mut stmt = conn
-            .prepare("SELECT * FROM downloads ORDER BY created_at_ms DESC")
+            .prepare_cached("SELECT * FROM downloads ORDER BY created_at_ms DESC")
             .context("failed to prepare list_download_headers query")?;
 
         let manifests: Vec<Manifest> = stmt

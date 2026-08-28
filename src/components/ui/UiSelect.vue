@@ -3,7 +3,8 @@ let listboxIdCounter = 0;
 </script>
 
 <script setup lang="ts" generic="T extends string | number | null">
-import { computed, inject, nextTick, onMounted, onUnmounted, ref } from "vue";
+import { computed, inject, nextTick, onUnmounted, ref } from "vue";
+import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
 import { onClickOutside } from "@vueuse/core";
 import { FIELD_ASSOCIATION } from "./field-association";
 
@@ -45,6 +46,7 @@ const panelStyle = ref({ top: "0px", left: "0px", width: "0px" });
 
 const typeAhead = ref("");
 let typeAheadTimer: ReturnType<typeof setTimeout> | undefined;
+let cleanupAutoUpdate: (() => void) | null = null;
 
 const selectedIndex = computed(() =>
   props.options.findIndex((option) => option.value === props.modelValue),
@@ -66,65 +68,35 @@ function setOptionRef(el: unknown, index: number) {
   }
 }
 
-function pickVerticalTop(
-  triggerBottom: number,
-  triggerTop: number,
-  panelHeight: number,
-  gap: number,
-  viewportH: number,
-): number {
-  let top = triggerBottom + gap;
-  const spaceBelow = viewportH - triggerBottom - gap;
-  const spaceAbove = triggerTop - gap;
+async function updatePosition() {
+  if (!isOpen.value || !triggerRef.value || !panelRef.value) return;
 
-  // Flip above if panel overflows bottom and there's more room above
-  if (panelHeight > spaceBelow && spaceAbove >= spaceBelow) {
-    top = triggerTop - panelHeight - gap;
+  const trigger = triggerRef.value;
+  const panel = panelRef.value;
+
+  try {
+    const { x, y } = await computePosition(trigger, panel, {
+      placement: "bottom-start",
+      middleware: [
+        offset(4),
+        flip({ padding: 8 }),
+        shift({ padding: 8 }),
+      ],
+    });
+
+    panelStyle.value = {
+      top: `${y}px`,
+      left: `${x}px`,
+      width: `${trigger.getBoundingClientRect().width}px`,
+    };
+  } catch {
+    const triggerRect = trigger.getBoundingClientRect();
+    panelStyle.value = {
+      top: `${triggerRect.bottom + 4}px`,
+      left: `${triggerRect.left}px`,
+      width: `${triggerRect.width}px`,
+    };
   }
-
-  // Clamp vertical position within viewport
-  if (top < gap) top = gap;
-  if (top + panelHeight > viewportH) {
-    top = viewportH - panelHeight - gap;
-  }
-  return top;
-}
-
-function clampHorizontal(left: number, width: number, viewportW: number, gap: number): number {
-  let result = left;
-  if (result + width > viewportW) {
-    result = viewportW - width - gap;
-  }
-  if (result < gap) result = gap;
-  return result;
-}
-
-function updatePosition() {
-  if (!isOpen.value || !triggerRef.value) return;
-
-  const triggerRect = triggerRef.value.getBoundingClientRect();
-  const panelEl = panelRef.value;
-  const gap = 4;
-  const viewportW = window.innerWidth;
-  const viewportH = window.innerHeight;
-  const width = triggerRect.width;
-
-  let top = triggerRect.bottom + gap;
-  let left = triggerRect.left;
-
-  if (panelEl) {
-    const panelHeight = panelEl.clientHeight || panelEl.scrollHeight;
-    if (panelHeight > 0) {
-      top = pickVerticalTop(triggerRect.bottom, triggerRect.top, panelHeight, gap, viewportH);
-      left = clampHorizontal(left, width, viewportW, gap);
-    }
-  }
-
-  panelStyle.value = {
-    top: `${top}px`,
-    left: `${left}px`,
-    width: `${width}px`,
-  };
 }
 
 function focusOption(index: number) {
@@ -179,6 +151,12 @@ function open() {
   activeIndex.value = Math.max(selectedIndex.value, 0);
 
   nextTick(() => {
+    if (triggerRef.value && panelRef.value) {
+      cleanupAutoUpdate?.();
+      cleanupAutoUpdate = autoUpdate(triggerRef.value, panelRef.value, () => {
+        updatePosition();
+      });
+    }
     updatePosition();
     focusOption(activeIndex.value);
   });
@@ -188,6 +166,8 @@ function close() {
   if (!isOpen.value) return;
 
   isOpen.value = false;
+  cleanupAutoUpdate?.();
+  cleanupAutoUpdate = null;
   if (typeAheadTimer) clearTimeout(typeAheadTimer);
   typeAhead.value = "";
 
@@ -317,15 +297,10 @@ const stopClickOutside = onClickOutside(panelRef, (event) => {
   close();
 });
 
-onMounted(() => {
-  window.addEventListener("resize", updatePosition);
-  window.addEventListener("scroll", updatePosition, true);
-});
-
 onUnmounted(() => {
   stopClickOutside();
-  window.removeEventListener("resize", updatePosition);
-  window.removeEventListener("scroll", updatePosition, true);
+  cleanupAutoUpdate?.();
+  cleanupAutoUpdate = null;
   if (typeAheadTimer) clearTimeout(typeAheadTimer);
 });
 </script>

@@ -105,6 +105,9 @@ impl Database {
             .execute_batch("PRAGMA busy_timeout = 5000;")
             .context("failed to set busy timeout on read connection")?;
 
+        write_conn.set_prepared_statement_cache_capacity(64);
+        read_conn.set_prepared_statement_cache_capacity(64);
+
         Ok(Self {
             write_conn: Arc::new(Mutex::new(write_conn)),
             read_conn: Arc::new(Mutex::new(read_conn)),
@@ -119,6 +122,7 @@ impl Database {
     #[cfg(test)]
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory().context("failed to open in-memory database")?;
+        conn.set_prepared_statement_cache_capacity(64);
         conn.execute_batch("PRAGMA foreign_keys = ON;")
             .context("failed to enable foreign keys")?;
         conn.execute_batch("PRAGMA busy_timeout = 5000;")

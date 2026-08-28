@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
 
 import { useI18n } from "../../i18n";
 
@@ -24,9 +24,11 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const dialogStyle = computed(() => ({ width: props.width }));
 const panelRef = ref<HTMLElement | null>(null);
+const titleId = useId();
 let previouslyFocused: HTMLElement | null = null;
 
 const FOCUSABLE_SELECTOR = [
+  "[autofocus]",
   "a[href]",
   "button:not([disabled])",
   "textarea:not([disabled])",
@@ -72,7 +74,9 @@ watch(
       window.addEventListener("keydown", onKeydown);
       window.addEventListener("keydown", onFocusTrapKeydown);
       await nextTick();
-      panelRef.value?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
+      const initialFocus = panelRef.value?.querySelector<HTMLElement>("[autofocus]")
+        ?? panelRef.value?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      initialFocus?.focus();
     } else {
       window.removeEventListener("keydown", onKeydown);
       window.removeEventListener("keydown", onFocusTrapKeydown);
@@ -101,9 +105,10 @@ onBeforeUnmount(() => {
           :style="dialogStyle"
           role="dialog"
           aria-modal="true"
+          :aria-labelledby="titleId"
         >
           <div class="ui-dialog__header">
-            <div class="ui-dialog__title">
+            <div :id="titleId" class="ui-dialog__title">
               <slot name="title">
                 <h2>{{ title }}</h2>
               </slot>

@@ -67,15 +67,16 @@ impl Database {
             .context("failed to begin transaction")?;
 
         let result = (|| -> Result<()> {
-            conn.execute(
+            conn.prepare_cached(
                 "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 WHERE id = ?4",
-                params![downloaded_bytes as i64, state, updated_at_ms as i64, id],
             )
+            .context("failed to prepare download progress update")?
+            .execute(params![downloaded_bytes as i64, state, updated_at_ms as i64, id])
             .context("failed to update download progress row")?;
 
             if !dirty_chunks.is_empty() {
                 let mut stmt = conn
-                    .prepare(
+                    .prepare_cached(
                         "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
                                  downloaded, completed, claimed_by)
                          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -116,15 +117,16 @@ impl Database {
 
         let result = (|| -> Result<()> {
             for entry in entries {
-                conn.execute(
+                conn.prepare_cached(
                     "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 WHERE id = ?4",
-                    params![entry.downloaded_bytes as i64, entry.state.as_str(), entry.updated_at_ms as i64, entry.id.as_str()],
                 )
+                .context("failed to prepare progress update in batch")?
+                .execute(params![entry.downloaded_bytes as i64, entry.state.as_str(), entry.updated_at_ms as i64, entry.id.as_str()])
                 .with_context(|| format!("failed to update progress row for {}", entry.id))?;
 
                 if !entry.dirty_chunks.is_empty() {
                     let mut stmt = conn
-                        .prepare(
+                        .prepare_cached(
                             "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
                                      downloaded, completed, claimed_by)
                              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -166,18 +168,17 @@ impl Database {
         download_id: &str,
         chunks: &[ChunkManifest],
     ) -> Result<()> {
-        conn.execute(
-            "DELETE FROM chunks WHERE download_id = ?1",
-            params![download_id],
-        )
-        .context("failed to clear old chunks")?;
+        conn.prepare_cached("DELETE FROM chunks WHERE download_id = ?1")
+            .context("failed to prepare chunk clear")?
+            .execute(params![download_id])
+            .context("failed to clear old chunks")?;
 
         if chunks.is_empty() {
             return Ok(());
         }
 
         let mut stmt = conn
-            .prepare(
+            .prepare_cached(
                 "INSERT INTO chunks (download_id, chunk_index, start_byte, end_byte,
                          downloaded, completed, claimed_by)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -202,7 +203,7 @@ impl Database {
         download_id: &str,
     ) -> Result<Vec<ChunkManifest>> {
         let mut stmt = conn
-            .prepare("SELECT * FROM chunks WHERE download_id = ?1 ORDER BY chunk_index")
+            .prepare_cached("SELECT * FROM chunks WHERE download_id = ?1 ORDER BY chunk_index")
             .context("failed to prepare fetch_chunks query")?;
 
         let chunks = stmt
