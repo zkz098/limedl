@@ -23,6 +23,8 @@ parking_lot = { workspace = true }
 tray-icon = "0.24"
 muda = "0.19"
 notify-rust = "4"
+rfd = "0.16"
+arboard = "3.6"
 
 [build-dependencies]
 slint-build = { workspace = true }

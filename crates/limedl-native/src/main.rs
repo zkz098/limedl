@@ -1015,6 +1015,128 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Pick Torrent File (Native Dialog)
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_pick_torrent_file(move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let file = rfd::AsyncFileDialog::new()
+                    .add_filter("Torrent Files", &["torrent", "TORRENT"])
+                    .set_title("选择 Torrent 种子文件")
+                    .pick_file()
+                    .await;
+
+                if let Some(handle) = file {
+                    let path = handle.path().to_string_lossy().to_string();
+                    let file_name = handle.file_name();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            ui.set_new_task_url(SharedString::from(&path));
+                            if ui.get_new_task_filename().trim().is_empty() {
+                                ui.set_new_task_filename(SharedString::from(&file_name));
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Pick Save Folder (Native Dialog)
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_pick_save_folder(move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let folder = rfd::AsyncFileDialog::new()
+                    .set_title("选择下载保存目录")
+                    .pick_folder()
+                    .await;
+
+                if let Some(handle) = folder {
+                    let path = handle.path().to_string_lossy().to_string();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            ui.set_new_task_dir(SharedString::from(&path));
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Pick Default Save Folder in Settings (Native Dialog)
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_pick_default_folder(move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let folder = rfd::AsyncFileDialog::new()
+                    .set_title("选择默认下载保存目录")
+                    .pick_folder()
+                    .await;
+
+                if let Some(handle) = folder {
+                    let path = handle.path().to_string_lossy().to_string();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut form = ui.get_settings_form();
+                            form.default_download_dir = SharedString::from(&path);
+                            ui.set_settings_form(form);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Copy URL to Clipboard
+    {
+        main_window.on_copy_task_url(move |url| {
+            let url_str = url.to_string();
+            tokio::spawn(async move {
+                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                    let _ = clipboard.set_text(&url_str);
+                    let _ = Notification::new()
+                        .appname("limedl")
+                        .summary("链接已复制")
+                        .body("下载链接已复制到系统剪贴板")
+                        .show();
+                }
+            });
+        });
+    }
+
+    // Purge Single Task
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_purge_single_task(move |id_str| {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let ui_weak = ui_weak.clone();
+            let id = id_str.to_string();
+
+            tokio::spawn(async move {
+                if let Ok(task_id) = TaskId::from_wire_string(&id) {
+                    if let Err(err) = dispatcher.purge(&task_id).await {
+                        tracing::error!("彻底删除任务失败: {err}");
+                    } else {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                let mut store = store_clone.lock();
+                                store.remove(&id);
+                                refresh_ui(&ui, &store);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    }
+
     tracing::info!("limedl Native UI 启动完毕，进入主事件循环");
     let _tray_guard = tray_icon;
     main_window.run()?;

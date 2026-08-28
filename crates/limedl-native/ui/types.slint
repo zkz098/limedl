@@ -1,0 +1,86 @@
+export struct TaskItem {
+    id: string,
+    kind: string,
+    file_name: string,
+    url: string,
+    state_code: string,
+    state_label: string,
+    progress: float,
+    speed_text: string,
+    size_text: string,
+    eta_text: string,
+    can_pause: bool,
+    can_resume: bool,
+    is_completed: bool,
+    is_failed: bool,
+    selected: bool,
+}
+
+export struct PeerItem {
+    address: string,
+    client: string,
+    flags: string,
+    download_speed: string,
+    upload_speed: string,
+    progress: float,
+}
+
+export struct TrackerItem {
+    url: string,
+}
+
+export struct TorrentFileItem {
+    index: int,
+    path: string,
+    size_text: string,
+    downloaded_text: string,
+    progress: float,
+    included: bool,
+}
+
+export struct InspectorInfo {
+    id: string,
+    kind: string,
+    file_name: string,
+    url: string,
+    destination_path: string,
+    state_label: string,
+    speed_text: string,
+    upload_speed_text: string,
+    total_size_text: string,
+    downloaded_size_text: string,
+    uploaded_size_text: string,
+    eta_text: string,
+    progress: float,
+    connection_count: int,
+    threads_text: string,
+    info_hash_text: string,
+    seed_leech_text: string,
+    error_text: string,
+}
+
+export struct SettingsFormData {
+    default_download_dir: string,
+    max_parallel_tasks: string,
+    global_speed_limit_kb: string,
+    dht_enabled: bool,
+    listen_port: string,
+    max_bt_connections: string,
+    tracker_url: string,
+    game_mode: bool,
+    overclock_mode: bool,
+    io_status_text: string,
+    disk_type_text: string,
+}
+
+export struct ContextMenuState {
+    visible: bool,
+    x: length,
+    y: length,
+    task_id: string,
+    task_name: string,
+    task_url: string,
+    can_pause: bool,
+    can_resume: bool,
+    is_bt: bool,
+}

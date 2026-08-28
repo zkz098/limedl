@@ -1,0 +1,118 @@
+import { ContextMenuState } from "../types.slint";
+
+component MenuItem inherits Rectangle {
+    in property <string> text;
+    in property <color> text_color: #d1d5db;
+    in property <bool> danger: false;
+    callback clicked();
+
+    height: 30px;
+    border-radius: 4px;
+    background: ta.has_hover ? (root.danger ? #3f1518 : #20252e) : transparent;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: start;
+        Text {
+            text: root.text;
+            color: root.danger ? #f87171 : (ta.has_hover ? #ffffff : root.text_color);
+            font-size: 12px;
+            font-weight: 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component ContextMenu inherits Rectangle {
+    in property <ContextMenuState> menu_state;
+    callback close();
+    callback open_inspector(string);
+    callback pause_task(string);
+    callback resume_task(string);
+    callback open_explorer(string);
+    callback copy_url(string);
+    callback open_speed_limit(string);
+    callback remove_task(string);
+    callback purge_task(string);
+
+    // Click outside overlay to dismiss
+    Rectangle {
+        width: 10000px;
+        height: 10000px;
+        x: -5000px;
+        y: -5000px;
+        background: transparent;
+        TouchArea {
+            clicked => { root.close(); }
+        }
+    }
+
+    // Popup card positioned at (menu_state.x, menu_state.y)
+    Rectangle {
+        x: min(root.menu_state.x, parent.width - self.width - 10px);
+        y: min(root.menu_state.y, parent.height - self.height - 10px);
+        width: 180px;
+        background: #181b22;
+        border-color: #343c4a;
+        border-width: 1px;
+        border-radius: 8px;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #000000bb;
+
+        VerticalLayout {
+            padding: 6px;
+            spacing: 2px;
+
+            MenuItem {
+                text: "🔍 查看详情";
+                clicked => { root.open_inspector(root.menu_state.task_id); root.close(); }
+            }
+
+            if root.menu_state.can_pause : MenuItem {
+                text: "⏸ 暂停任务";
+                clicked => { root.pause_task(root.menu_state.task_id); root.close(); }
+            }
+
+            if root.menu_state.can_resume : MenuItem {
+                text: "▶ 继续任务";
+                clicked => { root.resume_task(root.menu_state.task_id); root.close(); }
+            }
+
+            MenuItem {
+                text: "📁 打开所在目录";
+                clicked => { root.open_explorer(root.menu_state.task_id); root.close(); }
+            }
+
+            MenuItem {
+                text: "📋 复制下载链接";
+                clicked => { root.copy_url(root.menu_state.task_url); root.close(); }
+            }
+
+            if root.menu_state.is_bt : MenuItem {
+                text: "⚡ 设置限速";
+                clicked => { root.open_speed_limit(root.menu_state.task_id); root.close(); }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: #272d38;
+            }
+
+            MenuItem {
+                text: "🗑 移除记录";
+                clicked => { root.remove_task(root.menu_state.task_id); root.close(); }
+            }
+
+            MenuItem {
+                text: "❌ 彻底删除文件";
+                danger: true;
+                clicked => { root.purge_task(root.menu_state.task_id); root.close(); }
+            }
+        }
+    }
+}

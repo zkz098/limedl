@@ -1,0 +1,367 @@
+import { ScrollView } from "std-widgets.slint";
+import { InspectorInfo, PeerItem, TrackerItem, TorrentFileItem } from "../types.slint";
+import { IconButton, PrimaryButton, SecondaryButton, TabButton } from "common.slint";
+
+export component TaskInspector inherits Rectangle {
+    in property <InspectorInfo> inspector_info;
+    in property <int> inspector_tab: 0; // 0: Overview, 1: Peers, 2: Trackers, 3: Piece Map, 4: Files
+    in property <[PeerItem]> inspector_peers: [];
+    in property <[TrackerItem]> inspector_trackers: [];
+    in property <[TorrentFileItem]> inspector_files: [];
+    in property <image> inspector_piece_map;
+    in property <string> inspector_pieces_count_text: "";
+
+    callback close();
+    callback set_tab(int);
+    callback open_speed_limit();
+    callback open_explorer(string);
+
+    width: 100%;
+    height: 100%;
+    background: #000000bb;
+
+    TouchArea {}
+
+    Rectangle {
+        width: min(parent.width - 60px, 800px);
+        height: min(parent.height - 60px, 600px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #171a20;
+        border-color: #2e3542;
+        border-width: 1px;
+        border-radius: 12px;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #000000cc;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+
+            // Header
+            HorizontalLayout {
+                alignment: space-between;
+                spacing: 12px;
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: start;
+                    Rectangle {
+                        background: root.inspector_info.kind == "bt" ? #152c42 : #153920;
+                        border-color: root.inspector_info.kind == "bt" ? #255078 : #276238;
+                        border-width: 1px;
+                        border-radius: 4px;
+                        height: 22px;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            alignment: center;
+                            Text {
+                                text: root.inspector_info.kind == "bt" ? "BitTorrent" : "HTTP";
+                                color: root.inspector_info.kind == "bt" ? #38bdf8 : #4ade80;
+                                font-size: 11px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: root.inspector_info.file_name;
+                        color: #f3f4f6;
+                        font-size: 16px;
+                        font-weight: 700;
+                        overflow: elide;
+                        max-width: 560px;
+                        vertical-alignment: center;
+                    }
+                }
+
+                IconButton {
+                    text: "✕";
+                    clicked => { root.close(); }
+                }
+            }
+
+            // Tab Navigation
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                TabButton {
+                    text: "任务概览";
+                    active: root.inspector_tab == 0;
+                    clicked => { root.set_tab(0); }
+                }
+
+                if root.inspector_info.kind == "bt" : TabButton {
+                    text: "对等节点 (" + root.inspector_peers.length + ")";
+                    active: root.inspector_tab == 1;
+                    clicked => { root.set_tab(1); }
+                }
+
+                if root.inspector_info.kind == "bt" : TabButton {
+                    text: "Trackers (" + root.inspector_trackers.length + ")";
+                    active: root.inspector_tab == 2;
+                    clicked => { root.set_tab(2); }
+                }
+
+                if root.inspector_info.kind == "bt" : TabButton {
+                    text: "分片点阵图";
+                    active: root.inspector_tab == 3;
+                    clicked => { root.set_tab(3); }
+                }
+
+                if root.inspector_info.kind == "bt" : TabButton {
+                    text: "文件清单 (" + root.inspector_files.length + ")";
+                    active: root.inspector_tab == 4;
+                    clicked => { root.set_tab(4); }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: #272d38;
+            }
+
+            // Tab Content
+            Rectangle {
+                background: #111418;
+                border-radius: 8px;
+                border-color: #232832;
+                border-width: 1px;
+
+                // Tab 0: Overview
+                if root.inspector_tab == 0 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        HorizontalLayout {
+                            spacing: 20px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "当前状态"; color: #6b7280; font-size: 11px; }
+                                Text { text: root.inspector_info.state_label; color: #84cc16; font-size: 14px; font-weight: 700; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "下载速率"; color: #6b7280; font-size: 11px; }
+                                Text { text: root.inspector_info.speed_text != "" ? root.inspector_info.speed_text : "0 B/s"; color: #4ade80; font-size: 14px; font-weight: 700; }
+                            }
+                            if root.inspector_info.upload_speed_text != "" : VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "上传速率"; color: #6b7280; font-size: 11px; }
+                                Text { text: root.inspector_info.upload_speed_text; color: #38bdf8; font-size: 14px; font-weight: 700; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "已下载 / 总容量"; color: #6b7280; font-size: 11px; }
+                                Text { text: root.inspector_info.downloaded_size_text + " / " + root.inspector_info.total_size_text; color: #e5e7eb; font-size: 13px; font-weight: 600; }
+                            }
+                            if root.inspector_info.eta_text != "" : VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "预计剩余"; color: #6b7280; font-size: 11px; }
+                                Text { text: root.inspector_info.eta_text; color: #facc15; font-size: 13px; font-weight: 500; }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "保存路径:"; color: #6b7280; font-size: 11px; }
+                            Text { text: root.inspector_info.destination_path; color: #d1d5db; font-size: 12px; }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "源地址 / 链接:"; color: #6b7280; font-size: 11px; }
+                            Text { text: root.inspector_info.url; color: #9ca3af; font-size: 11px; overflow: elide; }
+                        }
+
+                        if root.inspector_info.threads_text != "" : VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "线程调度模式:"; color: #6b7280; font-size: 11px; }
+                            Text { text: root.inspector_info.threads_text; color: #d1d5db; font-size: 12px; }
+                        }
+
+                        if root.inspector_info.info_hash_text != "" : VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "特征哈希 (Info Hash):"; color: #6b7280; font-size: 11px; }
+                            Text { text: root.inspector_info.info_hash_text; color: #38bdf8; font-size: 11px; }
+                        }
+
+                        if root.inspector_info.error_text != "" : VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "错误信息:"; color: #ef4444; font-size: 11px; }
+                            Text { text: root.inspector_info.error_text; color: #f87171; font-size: 12px; }
+                        }
+                    }
+                }
+
+                // Tab 1: BT Peers
+                if root.inspector_tab == 1 : ScrollView {
+                    if root.inspector_peers.length == 0 : VerticalLayout {
+                        alignment: center;
+                        Text { text: "暂无连接的对等节点 (Peers)"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                    }
+                    if root.inspector_peers.length > 0 : VerticalLayout {
+                        padding: 12px;
+                        spacing: 6px;
+                        for peer in root.inspector_peers : Rectangle {
+                            background: #171a21;
+                            border-color: #262c37;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            height: 38px;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                alignment: space-between;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Text { text: peer.address; color: #f3f4f6; font-size: 12px; font-weight: 500; }
+                                    Text { text: peer.client + " [" + peer.flags + "]"; color: #8b95a5; font-size: 10px; }
+                                }
+                                HorizontalLayout {
+                                    spacing: 12px;
+                                    alignment: end;
+                                    Text { text: "↓ " + peer.download_speed; color: #4ade80; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: "↑ " + peer.upload_speed; color: #38bdf8; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: Math.round(peer.progress * 100) + "%"; color: #a3e635; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Tab 2: BT Trackers
+                if root.inspector_tab == 2 : ScrollView {
+                    if root.inspector_trackers.length == 0 : VerticalLayout {
+                        alignment: center;
+                        Text { text: "暂无已注册 Tracker"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                    }
+                    if root.inspector_trackers.length > 0 : VerticalLayout {
+                        padding: 12px;
+                        spacing: 6px;
+                        for tracker in root.inspector_trackers : Rectangle {
+                            background: #171a21;
+                            border-color: #262c37;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            height: 32px;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                alignment: start;
+                                Text { text: tracker.url; color: #d1d5db; font-size: 12px; vertical-alignment: center; }
+                            }
+                        }
+                    }
+                }
+
+                // Tab 3: Piece Map
+                if root.inspector_tab == 3 : VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    alignment: center;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text { text: "分片完成度点阵图:"; color: #9ca3af; font-size: 13px; font-weight: 600; }
+                        Text { text: root.inspector_pieces_count_text; color: #84cc16; font-size: 12px; font-weight: 700; }
+                    }
+
+                    Rectangle {
+                        background: #0b0c0f;
+                        border-color: #252b36;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        height: 240px;
+
+                        Image {
+                            source: root.inspector_piece_map;
+                            image-fit: contain;
+                            width: 100%;
+                            height: 100%;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 16px;
+                        alignment: center;
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Rectangle { width: 12px; height: 12px; background: #84cc16; border-radius: 2px; }
+                            Text { text: "已完成分片"; color: #9ca3af; font-size: 11px; }
+                        }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Rectangle { width: 12px; height: 12px; background: #262a31; border-radius: 2px; }
+                            Text { text: "未下载分片"; color: #9ca3af; font-size: 11px; }
+                        }
+                    }
+                }
+
+                // Tab 4: BT Files
+                if root.inspector_tab == 4 : ScrollView {
+                    if root.inspector_files.length == 0 : VerticalLayout {
+                        alignment: center;
+                        Text { text: "单文件任务或尚未解析文件清单"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                    }
+                    if root.inspector_files.length > 0 : VerticalLayout {
+                        padding: 12px;
+                        spacing: 6px;
+                        for file in root.inspector_files : Rectangle {
+                            background: #171a21;
+                            border-color: #262c37;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            height: 42px;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                alignment: space-between;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Text { text: file.path; color: #f3f4f6; font-size: 12px; font-weight: 500; overflow: elide; max-width: 440px; }
+                                    Text { text: file.downloaded_text + " / " + file.size_text; color: #8b95a5; font-size: 10px; }
+                                }
+                                Text {
+                                    text: Math.round(file.progress * 100) + "%";
+                                    color: file.progress >= 1.0 ? #38bdf8 : #84cc16;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Footer
+            HorizontalLayout {
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    if root.inspector_info.kind == "bt" : SecondaryButton {
+                        text: "设置限速";
+                        clicked => { root.open_speed_limit(); }
+                    }
+                    SecondaryButton {
+                        text: "打开目录";
+                        clicked => { root.open_explorer(root.inspector_info.id); }
+                    }
+                }
+
+                PrimaryButton {
+                    text: "关闭";
+                    clicked => { root.close(); }
+                }
+            }
+        }
+    }
+}

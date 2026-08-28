@@ -1,0 +1,389 @@
+export component IconButton inherits Rectangle {
+    in property <string> text;
+    in property <color> hover_color: #242932;
+    in property <color> text_color: #d1d5db;
+    in property <length> font_size: 12px;
+    callback clicked();
+
+    background: ta.has_hover ? (ta.pressed ? root.hover_color.darker(0.2) : root.hover_color) : transparent;
+    border-radius: 6px;
+    height: 28px;
+    min-width: 28px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.text_color;
+            font-size: root.font_size;
+            font-weight: 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component PrimaryButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    background: !root.enabled ? #2a3322 : (ta.has_hover ? (ta.pressed ? #65a30d : #a3e635) : #84cc16);
+    border-radius: 6px;
+    height: 32px;
+    min-width: 80px;
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: !root.enabled ? #4d5c41 : #0b1104;
+            font-size: 13px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component SecondaryButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active: false;
+    callback clicked();
+
+    background: root.active ? #26331a : (ta.has_hover ? (ta.pressed ? #20242c : #252b34) : #1a1d23);
+    border-color: root.active ? #84cc16 : #323844;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 32px;
+    min-width: 60px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.active ? #84cc16 : #e5e7eb;
+            font-size: 12px;
+            font-weight: root.active ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component TabButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active: false;
+    callback clicked();
+
+    background: root.active ? #232b1d : (ta.has_hover ? #1a1e25 : transparent);
+    border-radius: 6px;
+    height: 34px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
+            font-size: 12px;
+            font-weight: root.active ? 600 : 400;
+            vertical-alignment: center;
+        }
+    }
+
+    if root.active : Rectangle {
+        y: parent.height - 2px;
+        height: 2px;
+        background: #84cc16;
+        border-radius: 1px;
+    }
+}
+
+export component CustomCheckBox inherits Rectangle {
+    in property <bool> checked: false;
+    callback toggled();
+
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: root.checked ? #84cc16 : (ta.has_hover ? #242932 : #15181d);
+    border-color: root.checked ? #84cc16 : #3f4756;
+    border-width: 1px;
+
+    ta := TouchArea {
+        clicked => { root.toggled(); }
+    }
+
+    if root.checked : Text {
+        text: "✓";
+        color: #0b1104;
+        font-size: 12px;
+        font-weight: 800;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+}
+
+export component ToggleSwitch inherits Rectangle {
+    in property <bool> checked: false;
+    callback toggled();
+
+    width: 42px;
+    height: 22px;
+    border-radius: 11px;
+    background: root.checked ? #84cc16 : #252b34;
+
+    ta := TouchArea {
+        clicked => { root.toggled(); }
+    }
+
+    Rectangle {
+        x: root.checked ? parent.width - self.width - 3px : 3px;
+        y: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        background: root.checked ? #0b1104 : #9ca3af;
+    }
+}
+
+export component SearchInput inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder: "搜索任务名称或 URL...";
+    callback text_changed(string);
+
+    background: #15171c;
+    border-color: ta.has-focus ? #84cc16 : #2a2f3a;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 32px;
+    width: 220px;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+
+        ta := TextInput {
+            text <=> root.text;
+            color: #f3f4f6;
+            font-size: 12px;
+            vertical-alignment: center;
+            edited => { root.text_changed(root.text); }
+
+            if root.text == "" : Text {
+                text: root.placeholder;
+                color: #5d6778;
+                font-size: 12px;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+export component CustomTextInput inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder: "";
+    in property <bool> enabled: true;
+
+    background: #14161b;
+    border-color: ta.has-focus ? #84cc16 : #2b313d;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 36px;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+
+        ta := TextInput {
+            text <=> root.text;
+            enabled: root.enabled;
+            color: #f3f4f6;
+            font-size: 13px;
+            vertical-alignment: center;
+
+            if root.text == "" : Text {
+                text: root.placeholder;
+                color: #5d6778;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+export component UnitInput inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder: "";
+    in property <string> unit_text: "";
+    in property <bool> enabled: true;
+
+    background: #14161b;
+    border-color: ta.has-focus ? #84cc16 : #2b313d;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 36px;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 6px;
+        alignment: space-between;
+
+        ta := TextInput {
+            text <=> root.text;
+            enabled: root.enabled;
+            color: #f3f4f6;
+            font-size: 13px;
+            vertical-alignment: center;
+
+            if root.text == "" : Text {
+                text: root.placeholder;
+                color: #5d6778;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
+        }
+
+        if root.unit_text != "" : Rectangle {
+            background: #1d212a;
+            border-radius: 4px;
+            height: 24px;
+            y: 5px;
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                alignment: center;
+                Text {
+                    text: root.unit_text;
+                    color: #84cc16;
+                    font-size: 11px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+
+export component StatusBadge inherits Rectangle {
+    in property <string> state_code;
+    in property <string> state_label;
+
+    background: root.state_code == "downloading" ? #142e1b : (
+        root.state_code == "paused" ? #33200b : (
+            root.state_code == "completed" ? #112842 : #361214
+        )
+    );
+    border-color: root.state_code == "downloading" ? #22542e : (
+        root.state_code == "paused" ? #543615 : (
+            root.state_code == "completed" ? #1d406b : #5c1f23
+        )
+    );
+    border-width: 1px;
+    border-radius: 10px;
+    height: 20px;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 5px;
+        alignment: center;
+
+        // Glowing Dot Indicator
+        Rectangle {
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: root.state_code == "downloading" ? #4ade80 : (
+                root.state_code == "paused" ? #facc15 : (
+                    root.state_code == "completed" ? #38bdf8 : #f87171
+                )
+            );
+        }
+
+        Text {
+            text: root.state_label;
+            color: root.state_code == "downloading" ? #4ade80 : (
+                root.state_code == "paused" ? #facc15 : (
+                    root.state_code == "completed" ? #60a5fa : #f87171
+                )
+            );
+            font-size: 11px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component CategoryButton inherits Rectangle {
+    in property <string> title;
+    in property <string> count_text: "0";
+    in property <bool> active: false;
+    callback clicked();
+
+    background: root.active ? #232b1d : (ta.has_hover ? #171b21 : transparent);
+    border-radius: 6px;
+    height: 36px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 8px;
+        alignment: space-between;
+
+        Text {
+            text: root.title;
+            color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
+            font-size: 13px;
+            font-weight: root.active ? 600 : 400;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            background: root.active ? #365314 : #1e2229;
+            border-radius: 10px;
+            height: 20px;
+            min-width: 22px;
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                alignment: center;
+                Text {
+                    text: root.count_text;
+                    color: root.active ? #a3e635 : #8b95a5;
+                    font-size: 11px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

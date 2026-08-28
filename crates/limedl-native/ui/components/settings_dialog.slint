@@ -1,0 +1,272 @@
+import { ScrollView } from "std-widgets.slint";
+import { SettingsFormData } from "../types.slint";
+import {
+    CustomTextInput,
+    IconButton,
+    PrimaryButton,
+    SecondaryButton,
+    TabButton,
+    ToggleSwitch,
+    UnitInput,
+} from "common.slint";
+
+export component SettingsDialog inherits Rectangle {
+    in property <int> settings_tab: 0;
+    in-out property <SettingsFormData> settings_form;
+
+    callback close();
+    callback set_tab(int);
+    callback save(SettingsFormData);
+    callback toggle_game_mode();
+    callback toggle_overclock_mode();
+    callback fetch_trackers(string);
+    callback pick_default_folder();
+
+    width: 100%;
+    height: 100%;
+    background: #000000bb;
+
+    TouchArea {}
+
+    Rectangle {
+        width: min(parent.width - 60px, 800px);
+        height: min(parent.height - 60px, 600px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #171a20;
+        border-color: #2e3542;
+        border-width: 1px;
+        border-radius: 12px;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #000000cc;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+
+            // Header
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "⚙ 设置中心";
+                    color: #f3f4f6;
+                    font-size: 16px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+                IconButton {
+                    text: "✕";
+                    clicked => { root.close(); }
+                }
+            }
+
+            // Tab Headers
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                TabButton {
+                    text: "常规下载";
+                    active: root.settings_tab == 0;
+                    clicked => { root.set_tab(0); }
+                }
+
+                TabButton {
+                    text: "BitTorrent 网络";
+                    active: root.settings_tab == 1;
+                    clicked => { root.set_tab(1); }
+                }
+
+                TabButton {
+                    text: "性能实验室 & IO";
+                    active: root.settings_tab == 2;
+                    clicked => { root.set_tab(2); }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: #272d38;
+            }
+
+            // Tab Content
+            Rectangle {
+                background: #111418;
+                border-radius: 8px;
+                border-color: #232832;
+                border-width: 1px;
+
+                // Tab 0: General
+                if root.settings_tab == 0 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "默认下载保存目录:"; color: #9ca3af; font-size: 12px; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                CustomTextInput {
+                                    text <=> root.settings_form.default_download_dir;
+                                    placeholder: "/downloads";
+                                }
+                                SecondaryButton {
+                                    text: "📁 浏览...";
+                                    clicked => { root.pick_default_folder(); }
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "最大同时下载任务数:"; color: #9ca3af; font-size: 12px; }
+                            UnitInput {
+                                text <=> root.settings_form.max_parallel_tasks;
+                                placeholder: "3";
+                                unit_text: "个";
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "全局下载带宽限速 (0 为不限制):"; color: #9ca3af; font-size: 12px; }
+                            UnitInput {
+                                text <=> root.settings_form.global_speed_limit_kb;
+                                placeholder: "0";
+                                unit_text: "KB/s";
+                            }
+                        }
+                    }
+                }
+
+                // Tab 1: BitTorrent
+                if root.settings_tab == 1 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "启用 DHT 分布式哈希网络"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: "允许在没有 Tracker 服务器的情况下搜寻更多节点"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.dht_enabled;
+                                toggled => { root.settings_form.dht_enabled = !root.settings_form.dht_enabled; }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "BT 监听端口:"; color: #9ca3af; font-size: 12px; }
+                            UnitInput {
+                                text <=> root.settings_form.listen_port;
+                                placeholder: "6881";
+                                unit_text: "端口";
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "最大全局连接数 (Peers):"; color: #9ca3af; font-size: 12px; }
+                            UnitInput {
+                                text <=> root.settings_form.max_bt_connections;
+                                placeholder: "200";
+                                unit_text: "个";
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            Text { text: "公共 Tracker 列表远程订阅 URL:"; color: #9ca3af; font-size: 12px; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                CustomTextInput {
+                                    text <=> root.settings_form.tracker_url;
+                                    placeholder: "https://raw.githubusercontent.com/trackerslist/trackerslist/master/best.txt";
+                                }
+                                SecondaryButton {
+                                    text: "立即同步";
+                                    clicked => { root.fetch_trackers(root.settings_form.tracker_url); }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Tab 2: Performance & Labs
+                if root.settings_tab == 2 : ScrollView {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "🎮 游戏优化模式 (Game Mode)"; color: #f59e0b; font-size: 13px; font-weight: 600; }
+                                Text { text: "动态缩小缓冲池占用并降低磁盘 IO 写入频率，减少对大型 3D 游戏的掉帧抢占"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.game_mode;
+                                toggled => { root.toggle_game_mode(); }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "⚡ 极速超频模式 (Overclock Mode)"; color: #ec4899; font-size: 13px; font-weight: 600; }
+                                Text { text: "打破传统任务并发限制，激进启用多线程下载以压榨带宽极限"; color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.overclock_mode;
+                                toggled => { root.toggle_overclock_mode(); }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #1a1e26; }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "磁盘类型检测 (SSD / HDD):"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                            Text { text: root.settings_form.disk_type_text; color: #38bdf8; font-size: 12px; }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                            Text { text: root.settings_form.io_status_text; color: #a3e635; font-size: 12px; }
+                        }
+                    }
+                }
+            }
+
+            // Footer
+            HorizontalLayout {
+                alignment: end;
+                spacing: 10px;
+
+                SecondaryButton {
+                    text: "取消";
+                    clicked => { root.close(); }
+                }
+
+                PrimaryButton {
+                    text: "保存设置";
+                    clicked => { root.save(root.settings_form); }
+                }
+            }
+        }
+    }
+}

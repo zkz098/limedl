@@ -1,566 +1,45 @@
 import { ScrollView } from "std-widgets.slint";
-
-export struct TaskItem {
-    id: string,
-    kind: string,
-    file_name: string,
-    url: string,
-    state_code: string,
-    state_label: string,
-    progress: float,
-    speed_text: string,
-    size_text: string,
-    eta_text: string,
-    can_pause: bool,
-    can_resume: bool,
-    is_completed: bool,
-    is_failed: bool,
-    selected: bool,
-}
-
-export struct PeerItem {
-    address: string,
-    client: string,
-    flags: string,
-    download_speed: string,
-    upload_speed: string,
-    progress: float,
-}
-
-export struct TrackerItem {
-    url: string,
-}
-
-export struct TorrentFileItem {
-    index: int,
-    path: string,
-    size_text: string,
-    downloaded_text: string,
-    progress: float,
-    included: bool,
-}
-
-export struct InspectorInfo {
-    id: string,
-    kind: string,
-    file_name: string,
-    url: string,
-    destination_path: string,
-    state_label: string,
-    speed_text: string,
-    upload_speed_text: string,
-    total_size_text: string,
-    downloaded_size_text: string,
-    uploaded_size_text: string,
-    eta_text: string,
-    progress: float,
-    connection_count: int,
-    threads_text: string,
-    info_hash_text: string,
-    seed_leech_text: string,
-    error_text: string,
-}
-
-export struct SettingsFormData {
-    default_download_dir: string,
-    max_parallel_tasks: string,
-    global_speed_limit_kb: string,
-    dht_enabled: bool,
-    listen_port: string,
-    max_bt_connections: string,
-    tracker_url: string,
-    game_mode: bool,
-    overclock_mode: bool,
-    io_status_text: string,
-    disk_type_text: string,
-}
-
-component IconButton inherits Rectangle {
-    in property <string> text;
-    in property <color> hover_color: #2f353e;
-    in property <color> text_color: #d1d5db;
-    in property <length> font_size: 12px;
-    callback clicked();
-
-    background: ta.has_hover ? (ta.pressed ? root.hover_color.darker(0.2) : root.hover_color) : transparent;
-    border-radius: 6px;
-    height: 28px;
-    min-width: 28px;
-
-    ta := TouchArea {
-        clicked => { root.clicked(); }
-    }
-
-    HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
-        alignment: center;
-        Text {
-            text: root.text;
-            color: root.text_color;
-            font-size: root.font_size;
-            font-weight: 500;
-            vertical-alignment: center;
-        }
-    }
-}
-
-component PrimaryButton inherits Rectangle {
-    in property <string> text;
-    in property <bool> enabled: true;
-    callback clicked();
-
-    background: !root.enabled ? #3f4738 : (ta.has_hover ? (ta.pressed ? #65a30d : #a3e635) : #84cc16);
-    border-radius: 6px;
-    height: 32px;
-    min-width: 80px;
-
-    ta := TouchArea {
-        enabled: root.enabled;
-        clicked => { root.clicked(); }
-    }
-
-    HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
-        alignment: center;
-        Text {
-            text: root.text;
-            color: #0f172a;
-            font-size: 13px;
-            font-weight: 600;
-            vertical-alignment: center;
-        }
-    }
-}
-
-component SecondaryButton inherits Rectangle {
-    in property <string> text;
-    in property <bool> active: false;
-    callback clicked();
-
-    background: root.active ? #365314 : (ta.has_hover ? (ta.pressed ? #282e37 : #2f353e) : #24282f);
-    border-color: root.active ? #84cc16 : #3b424e;
-    border-width: 1px;
-    border-radius: 6px;
-    height: 32px;
-    min-width: 60px;
-
-    ta := TouchArea {
-        clicked => { root.clicked(); }
-    }
-
-    HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        alignment: center;
-        Text {
-            text: root.text;
-            color: root.active ? #84cc16 : #e5e7eb;
-            font-size: 12px;
-            font-weight: root.active ? 600 : 500;
-            vertical-alignment: center;
-        }
-    }
-}
-
-component TabButton inherits Rectangle {
-    in property <string> text;
-    in property <bool> active: false;
-    callback clicked();
-
-    background: root.active ? #262c22 : (ta.has_hover ? #1e2229 : transparent);
-    border-radius: 4px;
-    height: 34px;
-
-    ta := TouchArea {
-        clicked => { root.clicked(); }
-    }
-
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        alignment: center;
-        Text {
-            text: root.text;
-            color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
-            font-size: 12px;
-            font-weight: root.active ? 600 : 400;
-            vertical-alignment: center;
-        }
-    }
-
-    if root.active : Rectangle {
-        y: parent.height - 2px;
-        height: 2px;
-        background: #84cc16;
-        border-radius: 1px;
-    }
-}
-
-component CustomCheckBox inherits Rectangle {
-    in property <bool> checked: false;
-    callback toggled();
-
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    background: root.checked ? #84cc16 : (ta.has_hover ? #2e343d : #1a1d22);
-    border-color: root.checked ? #84cc16 : #4b5563;
-    border-width: 1px;
-
-    ta := TouchArea {
-        clicked => { root.toggled(); }
-    }
-
-    if root.checked : Text {
-        text: "✓";
-        color: #0f172a;
-        font-size: 12px;
-        font-weight: 800;
-        vertical-alignment: center;
-        horizontal-alignment: center;
-    }
-}
-
-component ToggleSwitch inherits Rectangle {
-    in property <bool> checked: false;
-    callback toggled();
-
-    width: 44px;
-    height: 24px;
-    border-radius: 12px;
-    background: root.checked ? #84cc16 : #2e343d;
-
-    ta := TouchArea {
-        clicked => { root.toggled(); }
-    }
-
-    Rectangle {
-        x: root.checked ? parent.width - self.width - 3px : 3px;
-        y: 3px;
-        width: 18px;
-        height: 18px;
-        border-radius: 9px;
-        background: root.checked ? #0f172a : #9ca3af;
-    }
-}
-
-component SearchInput inherits Rectangle {
-    in-out property <string> text;
-    in property <string> placeholder: "搜索任务名称或 URL...";
-    callback text_changed(string);
-
-    background: #181b1f;
-    border-color: ta.has-focus ? #84cc16 : #2e343d;
-    border-width: 1px;
-    border-radius: 6px;
-    height: 32px;
-    width: 220px;
-
-    HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        alignment: center;
-
-        ta := TextInput {
-            text <=> root.text;
-            color: #f3f4f6;
-            font-size: 12px;
-            vertical-alignment: center;
-            edited => { root.text_changed(root.text); }
-
-            if root.text == "" : Text {
-                text: root.placeholder;
-                color: #6b7280;
-                font-size: 12px;
-                vertical-alignment: center;
-            }
-        }
-    }
-}
-
-component CustomTextInput inherits Rectangle {
-    in-out property <string> text;
-    in property <string> placeholder: "";
-    in property <bool> enabled: true;
-
-    background: #181b1f;
-    border-color: ta.has-focus ? #84cc16 : #323842;
-    border-width: 1px;
-    border-radius: 6px;
-    height: 36px;
-
-    HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        alignment: center;
-
-        ta := TextInput {
-            text <=> root.text;
-            enabled: root.enabled;
-            color: #f3f4f6;
-            font-size: 13px;
-            vertical-alignment: center;
-
-            if root.text == "" : Text {
-                text: root.placeholder;
-                color: #6b7280;
-                font-size: 13px;
-                vertical-alignment: center;
-            }
-        }
-    }
-}
-
-component CategoryButton inherits Rectangle {
-    in property <string> title;
-    in property <string> count_text: "0";
-    in property <bool> active: false;
-    callback clicked();
-
-    background: root.active ? #262c22 : (ta.has_hover ? #1f2328 : transparent);
-    border-radius: 6px;
-    height: 36px;
-
-    ta := TouchArea {
-        clicked => { root.clicked(); }
-    }
-
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 8px;
-        alignment: space-between;
-
-        Text {
-            text: root.title;
-            color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
-            font-size: 13px;
-            font-weight: root.active ? 600 : 400;
-            vertical-alignment: center;
-        }
-
-        Rectangle {
-            background: root.active ? #365314 : #23272e;
-            border-radius: 10px;
-            height: 20px;
-            min-width: 22px;
-            HorizontalLayout {
-                padding-left: 6px;
-                padding-right: 6px;
-                alignment: center;
-                Text {
-                    text: root.count_text;
-                    color: root.active ? #a3e635 : #9ca3af;
-                    font-size: 11px;
-                    font-weight: 500;
-                    vertical-alignment: center;
-                }
-            }
-        }
-    }
-}
-
-component TaskCard inherits Rectangle {
-    in property <TaskItem> item;
-    callback toggle_select();
-    callback open_inspector();
-    callback pause_task();
-    callback resume_task();
-    callback open_explorer();
-    callback remove_task();
-
-    background: root.item.selected ? #222d1f : (ta.has_hover ? #22262d : #1c1f24);
-    border-color: root.item.selected ? #65a30d : #2e343d;
-    border-width: 1px;
-    border-radius: 8px;
-    height: 106px;
-
-    ta := TouchArea {}
-
-    HorizontalLayout {
-        padding: 12px;
-        spacing: 12px;
-
-        // Selection Checkbox
-        VerticalLayout {
-            alignment: center;
-            CustomCheckBox {
-                checked: root.item.selected;
-                toggled => { root.toggle_select(); }
-            }
-        }
-
-        // Main Details
-        VerticalLayout {
-            spacing: 8px;
-
-            // Top Row: Badge, Title, Speed, State
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    // Kind badge
-                    Rectangle {
-                        background: root.item.kind == "bt" ? #1e3a5f : #14532d;
-                        border-radius: 4px;
-                        height: 20px;
-                        HorizontalLayout {
-                            padding-left: 6px;
-                            padding-right: 6px;
-                            alignment: center;
-                            Text {
-                                text: root.item.kind == "bt" ? "BT" : "HTTP";
-                                color: root.item.kind == "bt" ? #38bdf8 : #4ade80;
-                                font-size: 10px;
-                                font-weight: 700;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-
-                    // File Name
-                    Text {
-                        text: root.item.file_name;
-                        color: #f3f4f6;
-                        font-size: 14px;
-                        font-weight: 600;
-                        overflow: elide;
-                        max-width: 420px;
-                        vertical-alignment: center;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 10px;
-
-                    // Speed
-                    if root.item.speed_text != "" : Text {
-                        text: root.item.speed_text;
-                        color: #84cc16;
-                        font-size: 12px;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
-
-                    // State Badge
-                    Rectangle {
-                        background: root.item.state_code == "downloading" ? #14532d : (
-                            root.item.state_code == "paused" ? #422006 : (
-                                root.item.state_code == "completed" ? #1e3a5f : #450a0a
-                            )
-                        );
-                        border-radius: 4px;
-                        height: 20px;
-                        HorizontalLayout {
-                            padding-left: 6px;
-                            padding-right: 6px;
-                            alignment: center;
-                            Text {
-                                text: root.item.state_label;
-                                color: root.item.state_code == "downloading" ? #4ade80 : (
-                                    root.item.state_code == "paused" ? #facc15 : (
-                                        root.item.state_code == "completed" ? #60a5fa : #f87171
-                                    )
-                                );
-                                font-size: 11px;
-                                font-weight: 500;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Progress Bar
-            Rectangle {
-                background: #282d36;
-                border-radius: 4px;
-                height: 6px;
-
-                Rectangle {
-                    x: 0px;
-                    y: 0px;
-                    width: parent.width * max(0.0, min(1.0, root.item.progress));
-                    height: parent.height;
-                    background: root.item.state_code == "completed" ? #38bdf8 : (
-                        root.item.state_code == "failed" ? #ef4444 : #84cc16
-                    );
-                    border-radius: 4px;
-                }
-            }
-
-            // Bottom Row: Size & ETA, Actions
-            HorizontalLayout {
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-
-                    Text {
-                        text: root.item.size_text;
-                        color: #9ca3af;
-                        font-size: 12px;
-                        vertical-alignment: center;
-                    }
-
-                    if root.item.eta_text != "" : Text {
-                        text: root.item.eta_text;
-                        color: #6b7280;
-                        font-size: 11px;
-                        vertical-alignment: center;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 6px;
-                    alignment: end;
-
-                    IconButton {
-                        text: "详情";
-                        text_color: #38bdf8;
-                        clicked => { root.open_inspector(); }
-                    }
-
-                    if root.item.can_pause : IconButton {
-                        text: "暂停";
-                        text_color: #facc15;
-                        clicked => { root.pause_task(); }
-                    }
-
-                    if root.item.can_resume : IconButton {
-                        text: "继续";
-                        text_color: #4ade80;
-                        clicked => { root.resume_task(); }
-                    }
-
-                    IconButton {
-                        text: "打开目录";
-                        text_color: #9ca3af;
-                        clicked => { root.open_explorer(); }
-                    }
-
-                    IconButton {
-                        text: "删除";
-                        text_color: #f87171;
-                        clicked => { root.remove_task(); }
-                    }
-                }
-            }
-        }
-    }
-}
+export {
+    TaskItem,
+    PeerItem,
+    TrackerItem,
+    TorrentFileItem,
+    InspectorInfo,
+    SettingsFormData,
+    ContextMenuState,
+} from "types.slint";
+
+import {
+    TaskItem,
+    PeerItem,
+    TrackerItem,
+    TorrentFileItem,
+    InspectorInfo,
+    SettingsFormData,
+    ContextMenuState,
+} from "types.slint";
+
+import {
+    CategoryButton,
+    IconButton,
+    PrimaryButton,
+    SearchInput,
+    SecondaryButton,
+} from "components/common.slint";
+
+import { TaskCard } from "components/task_card.slint";
+import { ContextMenu } from "components/context_menu.slint";
+import { NewTaskDialog } from "components/new_task_dialog.slint";
+import { TaskInspector } from "components/inspector.slint";
+import { SpeedLimitDialog } from "components/speed_limit_dialog.slint";
+import { SettingsDialog } from "components/settings_dialog.slint";
 
 export component MainWindow inherits Window {
     title: "limedl - Native";
     min-width: 980px;
     min-height: 640px;
     default-font-family: "Segoe UI, PingFang SC, Microsoft YaHei, sans-serif";
-    background: #121417;
+    background: #0d0f12;
 
     // State properties
     in property <[TaskItem]> tasks: [];
@@ -583,7 +62,7 @@ export component MainWindow inherits Window {
     // Phase 3: Inspector state
     in property <bool> show_inspector: false;
     in property <InspectorInfo> inspector_info;
-    in property <int> inspector_tab: 0; // 0: Overview, 1: Peers, 2: Trackers, 3: Piece Map, 4: Files
+    in property <int> inspector_tab: 0;
     in property <[PeerItem]> inspector_peers: [];
     in property <[TrackerItem]> inspector_trackers: [];
     in property <[TorrentFileItem]> inspector_files: [];
@@ -595,10 +74,23 @@ export component MainWindow inherits Window {
 
     // Phase 4: Settings & Performance Modes state
     in property <bool> show_settings: false;
-    in property <int> settings_tab: 0; // 0: General, 1: BT, 2: Performance & Labs
+    in property <int> settings_tab: 0;
     in-out property <SettingsFormData> settings_form;
     in property <bool> game_mode_active: false;
     in property <bool> overclock_mode_active: false;
+
+    // Context Menu state
+    in-out property <ContextMenuState> context_menu_state: {
+        visible: false,
+        x: 0px,
+        y: 0px,
+        task_id: "",
+        task_name: "",
+        task_url: "",
+        can_pause: false,
+        can_resume: false,
+        is_bt: false,
+    };
 
     // New task form fields
     in-out property <string> new_task_url: "";
@@ -609,7 +101,7 @@ export component MainWindow inherits Window {
     callback select_category(int);
     callback open_new_task_dialog();
     callback close_new_task_dialog();
-    callback submit_new_task(string, string, string); // url, dir, filename
+    callback submit_new_task(string, string, string);
     callback pause_all();
     callback resume_all();
     callback pause_task(string);
@@ -626,7 +118,7 @@ export component MainWindow inherits Window {
     callback clear_selection();
     callback batch_pause();
     callback batch_resume();
-    callback batch_remove(bool); // bool: also delete files from disk
+    callback batch_remove(bool);
 
     // Phase 3 Callbacks
     callback open_inspector(string);
@@ -634,7 +126,7 @@ export component MainWindow inherits Window {
     callback set_inspector_tab(int);
     callback open_speed_limit_dialog();
     callback close_speed_limit_dialog();
-    callback submit_speed_limit(string, string); // dl_kb, ul_kb
+    callback submit_speed_limit(string, string);
 
     // Phase 4 Callbacks
     callback open_settings();
@@ -645,12 +137,19 @@ export component MainWindow inherits Window {
     callback toggle_overclock_mode();
     callback fetch_trackers_remote(string);
 
+    // Phase 5 Native Pickers & Clipboard Callbacks
+    callback pick_torrent_file();
+    callback pick_save_folder();
+    callback pick_default_folder();
+    callback copy_task_url(string);
+    callback purge_single_task(string);
+
     HorizontalLayout {
         // Left Sidebar
         Rectangle {
             width: 220px;
-            background: #171a1f;
-            border-color: #262a31;
+            background: #12151a;
+            border-color: #20242d;
             border-width: 1px;
 
             VerticalLayout {
@@ -659,20 +158,22 @@ export component MainWindow inherits Window {
 
                 // App Brand
                 HorizontalLayout {
-                    spacing: 8px;
+                    spacing: 10px;
                     alignment: start;
                     Rectangle {
-                        width: 28px;
-                        height: 28px;
+                        width: 32px;
+                        height: 32px;
                         background: #84cc16;
-                        border-radius: 6px;
+                        border-radius: 8px;
+                        drop-shadow-blur: 8px;
+                        drop-shadow-color: #84cc1644;
                         HorizontalLayout {
                             alignment: center;
                             Text {
                                 text: "L";
-                                color: #0f172a;
-                                font-size: 16px;
-                                font-weight: 800;
+                                color: #0b1104;
+                                font-size: 18px;
+                                font-weight: 900;
                                 vertical-alignment: center;
                             }
                         }
@@ -686,7 +187,7 @@ export component MainWindow inherits Window {
                             font-weight: 700;
                         }
                         Text {
-                            text: "Native Edition (WGPU)";
+                            text: "Native Edition";
                             color: #84cc16;
                             font-size: 10px;
                             font-weight: 600;
@@ -737,8 +238,8 @@ export component MainWindow inherits Window {
                     spacing: 6px;
 
                     Rectangle {
-                        background: root.game_mode_active ? #3b200b : #1f2329;
-                        border-color: root.game_mode_active ? #f59e0b : #2c313a;
+                        background: root.game_mode_active ? #351d0b : #181b22;
+                        border-color: root.game_mode_active ? #f59e0b : #252b36;
                         border-width: 1px;
                         border-radius: 6px;
                         height: 32px;
@@ -760,7 +261,7 @@ export component MainWindow inherits Window {
                             }
                             Text {
                                 text: root.game_mode_active ? "ON" : "OFF";
-                                color: root.game_mode_active ? #fcd34d : #6b7280;
+                                color: root.game_mode_active ? #fcd34d : #5d6778;
                                 font-size: 11px;
                                 font-weight: 700;
                                 vertical-alignment: center;
@@ -769,8 +270,8 @@ export component MainWindow inherits Window {
                     }
 
                     Rectangle {
-                        background: root.overclock_mode_active ? #31132b : #1f2329;
-                        border-color: root.overclock_mode_active ? #ec4899 : #2c313a;
+                        background: root.overclock_mode_active ? #31132b : #181b22;
+                        border-color: root.overclock_mode_active ? #ec4899 : #252b36;
                         border-width: 1px;
                         border-radius: 6px;
                         height: 32px;
@@ -792,7 +293,7 @@ export component MainWindow inherits Window {
                             }
                             Text {
                                 text: root.overclock_mode_active ? "ON" : "OFF";
-                                color: root.overclock_mode_active ? #f472b6 : #6b7280;
+                                color: root.overclock_mode_active ? #f472b6 : #5d6778;
                                 font-size: 11px;
                                 font-weight: 700;
                                 vertical-alignment: center;
@@ -803,20 +304,21 @@ export component MainWindow inherits Window {
 
                 // Global Speed Widget
                 Rectangle {
-                    background: #1f2329;
-                    border-color: #2c313a;
+                    background: #181b22;
+                    border-color: #252b36;
                     border-width: 1px;
                     border-radius: 8px;
                     height: 56px;
 
                     VerticalLayout {
-                        padding-left: 10px;
-                        padding-right: 10px;
+                        padding-left: 12px;
+                        padding-right: 12px;
                         alignment: space-around;
                         Text {
                             text: "实时总下载速率";
-                            color: #9ca3af;
+                            color: #8b95a5;
                             font-size: 10px;
+                            font-weight: 500;
                         }
                         Text {
                             text: root.global_speed_text;
@@ -829,8 +331,8 @@ export component MainWindow inherits Window {
 
                 // Settings Button
                 Rectangle {
-                    background: ta_set.has_hover ? #282e37 : #1f2329;
-                    border-color: #2c313a;
+                    background: ta_set.has_hover ? #222731 : #181b22;
+                    border-color: #252b36;
                     border-width: 1px;
                     border-radius: 6px;
                     height: 34px;
@@ -861,8 +363,8 @@ export component MainWindow inherits Window {
             // Top Toolbar
             Rectangle {
                 height: 56px;
-                background: #16181d;
-                border-color: #262a31;
+                background: #111419;
+                border-color: #20242d;
                 border-width: 1px;
 
                 HorizontalLayout {
@@ -943,7 +445,7 @@ export component MainWindow inherits Window {
                         Rectangle {
                             width: 1px;
                             height: 20px;
-                            background: #2e343d;
+                            background: #242934;
                             y: 6px;
                         }
 
@@ -967,7 +469,7 @@ export component MainWindow inherits Window {
 
             // Task List Area & Floating BatchActionBar
             Rectangle {
-                background: #121417;
+                background: #0d0f12;
 
                 if root.tasks.length == 0 : VerticalLayout {
                     alignment: center;
@@ -1005,6 +507,19 @@ export component MainWindow inherits Window {
                             resume_task => { root.resume_task(task.id); }
                             open_explorer => { root.open_task_explorer(task.id); }
                             remove_task => { root.remove_task(task.id); }
+                            show_menu(mx, my) => {
+                                root.context_menu_state = {
+                                    visible: true,
+                                    x: mx + 240px,
+                                    y: my + 80px + (idx * 114px),
+                                    task_id: task.id,
+                                    task_name: task.file_name,
+                                    task_url: task.url,
+                                    can_pause: task.can_pause,
+                                    can_resume: task.can_resume,
+                                    is_bt: task.kind == "bt",
+                                };
+                            }
                         }
                     }
                 }
@@ -1015,12 +530,12 @@ export component MainWindow inherits Window {
                     y: parent.height - self.height - 16px;
                     width: min(parent.width - 40px, 680px);
                     height: 52px;
-                    background: #1e2229;
+                    background: #181b22;
                     border-color: #84cc16;
                     border-width: 1px;
                     border-radius: 10px;
-                    drop-shadow-blur: 16px;
-                    drop-shadow-color: #00000088;
+                    drop-shadow-blur: 20px;
+                    drop-shadow-color: #000000cc;
 
                     HorizontalLayout {
                         padding-left: 16px;
@@ -1082,722 +597,65 @@ export component MainWindow inherits Window {
         }
     }
 
-    // Modal Dialog: Settings Center
-    if root.show_settings : Rectangle {
-        x: 0;
-        y: 0;
-        width: parent.width;
-        height: parent.height;
-        background: #000000aa;
-
-        TouchArea {}
-
-        Rectangle {
-            width: min(parent.width - 80px, 780px);
-            height: min(parent.height - 60px, 580px);
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            background: #181b20;
-            border-color: #2e343d;
-            border-width: 1px;
-            border-radius: 12px;
-
-            VerticalLayout {
-                padding: 18px;
-                spacing: 14px;
-
-                // Header
-                HorizontalLayout {
-                    alignment: space-between;
-                    Text { text: "⚙ 设置中心"; color: #f3f4f6; font-size: 16px; font-weight: 700; vertical-alignment: center; }
-                    IconButton { text: "✕"; clicked => { root.close_settings(); } }
-                }
-
-                // Tab Headers
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-
-                    TabButton {
-                        text: "常规下载";
-                        active: root.settings_tab == 0;
-                        clicked => { root.set_settings_tab(0); }
-                    }
-
-                    TabButton {
-                        text: "BitTorrent 网络";
-                        active: root.settings_tab == 1;
-                        clicked => { root.set_settings_tab(1); }
-                    }
-
-                    TabButton {
-                        text: "性能实验室 & IO";
-                        active: root.settings_tab == 2;
-                        clicked => { root.set_settings_tab(2); }
-                    }
-                }
-
-                Rectangle { height: 1px; background: #282d36; }
-
-                // Tab Content
-                Rectangle {
-                    background: #131518;
-                    border-radius: 8px;
-                    border-color: #242930;
-                    border-width: 1px;
-
-                    // Tab 0: General
-                    if root.settings_tab == 0 : ScrollView {
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 14px;
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "默认下载保存目录:"; color: #9ca3af; font-size: 12px; }
-                                CustomTextInput { text <=> root.settings_form.default_download_dir; placeholder: "/downloads"; }
-                            }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "最大同时下载任务数:"; color: #9ca3af; font-size: 12px; }
-                                CustomTextInput { text <=> root.settings_form.max_parallel_tasks; placeholder: "3"; }
-                            }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "全局下载带宽限速 (KB/s, 0 为不限制):"; color: #9ca3af; font-size: 12px; }
-                                CustomTextInput { text <=> root.settings_form.global_speed_limit_kb; placeholder: "0"; }
-                            }
-                        }
-                    }
-
-                    // Tab 1: BitTorrent
-                    if root.settings_tab == 1 : ScrollView {
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 14px;
-
-                            HorizontalLayout {
-                                alignment: space-between;
-                                VerticalLayout {
-                                    spacing: 2px;
-                                    Text { text: "启用 DHT 分布式哈希网络"; color: #f3f4f6; font-size: 13px; font-weight: 500; }
-                                    Text { text: "允许在没有 Tracker 服务器的情况下搜寻更多节点"; color: #6b7280; font-size: 11px; }
-                                }
-                                ToggleSwitch {
-                                    checked: root.settings_form.dht_enabled;
-                                    toggled => { root.settings_form.dht_enabled = !root.settings_form.dht_enabled; }
-                                }
-                            }
-
-                            Rectangle { height: 1px; background: #1e2229; }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "BT 监听端口:"; color: #9ca3af; font-size: 12px; }
-                                CustomTextInput { text <=> root.settings_form.listen_port; placeholder: "6881"; }
-                            }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "最大全局连接数 (Peers):"; color: #9ca3af; font-size: 12px; }
-                                CustomTextInput { text <=> root.settings_form.max_bt_connections; placeholder: "200"; }
-                            }
-
-                            Rectangle { height: 1px; background: #1e2229; }
-
-                            VerticalLayout {
-                                spacing: 6px;
-                                Text { text: "公共 Tracker 列表远程订阅 URL:"; color: #9ca3af; font-size: 12px; }
-                                HorizontalLayout {
-                                    spacing: 8px;
-                                    CustomTextInput { text <=> root.settings_form.tracker_url; placeholder: "https://raw.githubusercontent.com/trackerslist/trackerslist/master/best.txt"; }
-                                    SecondaryButton {
-                                        text: "立即同步";
-                                        clicked => { root.fetch_trackers_remote(root.settings_form.tracker_url); }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Tab 2: Performance & Labs
-                    if root.settings_tab == 2 : ScrollView {
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 14px;
-
-                            HorizontalLayout {
-                                alignment: space-between;
-                                VerticalLayout {
-                                    spacing: 2px;
-                                    Text { text: "🎮 游戏优化模式 (Game Mode)"; color: #f59e0b; font-size: 13px; font-weight: 600; }
-                                    Text { text: "降低内存缓冲占用与磁盘 IO 写入频率，减少对大型 3D 游戏的掉帧抢占"; color: #6b7280; font-size: 11px; }
-                                }
-                                ToggleSwitch {
-                                    checked: root.settings_form.game_mode;
-                                    toggled => { root.toggle_game_mode(); }
-                                }
-                            }
-
-                            Rectangle { height: 1px; background: #1e2229; }
-
-                            HorizontalLayout {
-                                alignment: space-between;
-                                VerticalLayout {
-                                    spacing: 2px;
-                                    Text { text: "⚡ 极速超频模式 (Overclock Mode)"; color: #ec4899; font-size: 13px; font-weight: 600; }
-                                    Text { text: "打破传统任务并发限制，激进启用多线程下载以压榨带宽极限"; color: #6b7280; font-size: 11px; }
-                                }
-                                ToggleSwitch {
-                                    checked: root.settings_form.overclock_mode;
-                                    toggled => { root.toggle_overclock_mode(); }
-                                }
-                            }
-
-                            Rectangle { height: 1px; background: #1e2229; }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "磁盘类型检测 (SSD / HDD):"; color: #9ca3af; font-size: 12px; font-weight: 600; }
-                                Text { text: root.settings_form.disk_type_text; color: #38bdf8; font-size: 12px; }
-                            }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "智能缓冲池 (Buffer Pool) 状态:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
-                                Text { text: root.settings_form.io_status_text; color: #a3e635; font-size: 12px; }
-                            }
-                        }
-                    }
-                }
-
-                // Footer Actions
-                HorizontalLayout {
-                    alignment: end;
-                    spacing: 10px;
-
-                    SecondaryButton {
-                        text: "取消";
-                        clicked => { root.close_settings(); }
-                    }
-
-                    PrimaryButton {
-                        text: "保存设置";
-                        clicked => { root.save_settings(root.settings_form); }
-                    }
-                }
-            }
-        }
+    // Context Menu Overlay
+    if root.context_menu_state.visible : ContextMenu {
+        menu_state: root.context_menu_state;
+        close => { root.context_menu_state.visible = false; }
+        open_inspector(id) => { root.open_inspector(id); }
+        pause_task(id) => { root.pause_task(id); }
+        resume_task(id) => { root.resume_task(id); }
+        open_explorer(id) => { root.open_task_explorer(id); }
+        copy_url(url) => { root.copy_task_url(url); }
+        open_speed_limit(id) => { root.open_inspector(id); root.open_speed_limit_dialog(); }
+        remove_task(id) => { root.remove_task(id); }
+        purge_task(id) => { root.purge_single_task(id); }
     }
 
-    // Modal Dialog: Task Inspector
-    if root.show_inspector : Rectangle {
-        x: 0;
-        y: 0;
-        width: parent.width;
-        height: parent.height;
-        background: #000000aa;
-
-        TouchArea {}
-
-        Rectangle {
-            width: min(parent.width - 80px, 780px);
-            height: min(parent.height - 60px, 580px);
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            background: #181b20;
-            border-color: #2e343d;
-            border-width: 1px;
-            border-radius: 12px;
-
-            VerticalLayout {
-                padding: 18px;
-                spacing: 12px;
-
-                // Inspector Header
-                HorizontalLayout {
-                    alignment: space-between;
-                    spacing: 12px;
-
-                    HorizontalLayout {
-                        spacing: 10px;
-                        alignment: start;
-                        Rectangle {
-                            background: root.inspector_info.kind == "bt" ? #1e3a5f : #14532d;
-                            border-radius: 4px;
-                            height: 22px;
-                            HorizontalLayout {
-                                padding-left: 8px;
-                                padding-right: 8px;
-                                alignment: center;
-                                Text {
-                                    text: root.inspector_info.kind == "bt" ? "BitTorrent" : "HTTP";
-                                    color: root.inspector_info.kind == "bt" ? #38bdf8 : #4ade80;
-                                    font-size: 11px;
-                                    font-weight: 700;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-
-                        Text {
-                            text: root.inspector_info.file_name;
-                            color: #f3f4f6;
-                            font-size: 16px;
-                            font-weight: 700;
-                            overflow: elide;
-                            max-width: 540px;
-                            vertical-alignment: center;
-                        }
-                    }
-
-                    IconButton {
-                        text: "✕";
-                        clicked => { root.close_inspector(); }
-                    }
-                }
-
-                // Tab Header
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-
-                    TabButton {
-                        text: "任务概览";
-                        active: root.inspector_tab == 0;
-                        clicked => { root.set_inspector_tab(0); }
-                    }
-
-                    if root.inspector_info.kind == "bt" : TabButton {
-                        text: "对等节点 (" + root.inspector_peers.length + ")";
-                        active: root.inspector_tab == 1;
-                        clicked => { root.set_inspector_tab(1); }
-                    }
-
-                    if root.inspector_info.kind == "bt" : TabButton {
-                        text: "Trackers (" + root.inspector_trackers.length + ")";
-                        active: root.inspector_tab == 2;
-                        clicked => { root.set_inspector_tab(2); }
-                    }
-
-                    if root.inspector_info.kind == "bt" : TabButton {
-                        text: "分片点阵图";
-                        active: root.inspector_tab == 3;
-                        clicked => { root.set_inspector_tab(3); }
-                    }
-
-                    if root.inspector_info.kind == "bt" : TabButton {
-                        text: "文件清单 (" + root.inspector_files.length + ")";
-                        active: root.inspector_tab == 4;
-                        clicked => { root.set_inspector_tab(4); }
-                    }
-                }
-
-                Rectangle {
-                    height: 1px;
-                    background: #282d36;
-                }
-
-                // Tab Content Area
-                Rectangle {
-                    background: #131518;
-                    border-radius: 8px;
-                    border-color: #242930;
-                    border-width: 1px;
-
-                    // Tab 0: Overview
-                    if root.inspector_tab == 0 : ScrollView {
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 12px;
-
-                            HorizontalLayout {
-                                spacing: 20px;
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "当前状态"; color: #6b7280; font-size: 11px; }
-                                    Text { text: root.inspector_info.state_label; color: #84cc16; font-size: 14px; font-weight: 600; }
-                                }
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "下载速率"; color: #6b7280; font-size: 11px; }
-                                    Text { text: root.inspector_info.speed_text != "" ? root.inspector_info.speed_text : "0 B/s"; color: #4ade80; font-size: 14px; font-weight: 600; }
-                                }
-                                if root.inspector_info.upload_speed_text != "" : VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "上传速率"; color: #6b7280; font-size: 11px; }
-                                    Text { text: root.inspector_info.upload_speed_text; color: #38bdf8; font-size: 14px; font-weight: 600; }
-                                }
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "已下载 / 总容量"; color: #6b7280; font-size: 11px; }
-                                    Text { text: root.inspector_info.downloaded_size_text + " / " + root.inspector_info.total_size_text; color: #e5e7eb; font-size: 13px; font-weight: 500; }
-                                }
-                                if root.inspector_info.eta_text != "" : VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "预计剩余"; color: #6b7280; font-size: 11px; }
-                                    Text { text: root.inspector_info.eta_text; color: #facc15; font-size: 13px; }
-                                }
-                            }
-
-                            Rectangle { height: 1px; background: #1e2229; }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "保存路径:"; color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.destination_path; color: #d1d5db; font-size: 12px; }
-                            }
-
-                            VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "源地址 / 链接:"; color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.url; color: #9ca3af; font-size: 11px; overflow: elide; }
-                            }
-
-                            if root.inspector_info.threads_text != "" : VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "线程调度模式:"; color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.threads_text; color: #d1d5db; font-size: 12px; }
-                            }
-
-                            if root.inspector_info.info_hash_text != "" : VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "特征哈希 (Info Hash):"; color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.info_hash_text; color: #38bdf8; font-size: 11px; }
-                            }
-
-                            if root.inspector_info.error_text != "" : VerticalLayout {
-                                spacing: 4px;
-                                Text { text: "错误信息:"; color: #ef4444; font-size: 11px; }
-                                Text { text: root.inspector_info.error_text; color: #f87171; font-size: 12px; }
-                            }
-                        }
-                    }
-
-                    // Tab 1: BT Peers
-                    if root.inspector_tab == 1 : ScrollView {
-                        if root.inspector_peers.length == 0 : VerticalLayout {
-                            alignment: center;
-                            Text { text: "暂无连接的对等节点 (Peers)"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                        }
-                        if root.inspector_peers.length > 0 : VerticalLayout {
-                            padding: 12px;
-                            spacing: 6px;
-                            for peer in root.inspector_peers : Rectangle {
-                                background: #1a1e24;
-                                border-radius: 6px;
-                                height: 38px;
-                                HorizontalLayout {
-                                    padding-left: 10px;
-                                    padding-right: 10px;
-                                    alignment: space-between;
-                                    VerticalLayout {
-                                        alignment: center;
-                                        Text { text: peer.address; color: #f3f4f6; font-size: 12px; font-weight: 500; }
-                                        Text { text: peer.client + " [" + peer.flags + "]"; color: #9ca3af; font-size: 10px; }
-                                    }
-                                    HorizontalLayout {
-                                        spacing: 12px;
-                                        alignment: end;
-                                        Text { text: "↓ " + peer.download_speed; color: #4ade80; font-size: 11px; vertical-alignment: center; }
-                                        Text { text: "↑ " + peer.upload_speed; color: #38bdf8; font-size: 11px; vertical-alignment: center; }
-                                        Text { text: Math.round(peer.progress * 100) + "%"; color: #a3e635; font-size: 11px; vertical-alignment: center; }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Tab 2: BT Trackers
-                    if root.inspector_tab == 2 : ScrollView {
-                        if root.inspector_trackers.length == 0 : VerticalLayout {
-                            alignment: center;
-                            Text { text: "暂无已注册 Tracker"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                        }
-                        if root.inspector_trackers.length > 0 : VerticalLayout {
-                            padding: 12px;
-                            spacing: 6px;
-                            for tracker in root.inspector_trackers : Rectangle {
-                                background: #1a1e24;
-                                border-radius: 6px;
-                                height: 32px;
-                                HorizontalLayout {
-                                    padding-left: 10px;
-                                    padding-right: 10px;
-                                    alignment: start;
-                                    Text { text: tracker.url; color: #d1d5db; font-size: 12px; vertical-alignment: center; }
-                                }
-                            }
-                        }
-                    }
-
-                    // Tab 3: Piece Map
-                    if root.inspector_tab == 3 : VerticalLayout {
-                        padding: 16px;
-                        spacing: 12px;
-                        alignment: center;
-
-                        HorizontalLayout {
-                            alignment: space-between;
-                            Text { text: "分片完成度点阵图:"; color: #9ca3af; font-size: 13px; font-weight: 600; }
-                            Text { text: root.inspector_pieces_count_text; color: #84cc16; font-size: 12px; font-weight: 600; }
-                        }
-
-                        Rectangle {
-                            background: #0f1114;
-                            border-color: #282d36;
-                            border-width: 1px;
-                            border-radius: 6px;
-                            height: 240px;
-
-                            Image {
-                                source: root.inspector_piece_map;
-                                image-fit: contain;
-                                width: 100%;
-                                height: 100%;
-                            }
-                        }
-
-                        HorizontalLayout {
-                            spacing: 16px;
-                            alignment: center;
-                            HorizontalLayout {
-                                spacing: 6px;
-                                Rectangle { width: 12px; height: 12px; background: #84cc16; border-radius: 2px; }
-                                Text { text: "已完成分片"; color: #9ca3af; font-size: 11px; }
-                            }
-                            HorizontalLayout {
-                                spacing: 6px;
-                                Rectangle { width: 12px; height: 12px; background: #262a31; border-radius: 2px; }
-                                Text { text: "未下载分片"; color: #9ca3af; font-size: 11px; }
-                            }
-                        }
-                    }
-
-                    // Tab 4: BT Files
-                    if root.inspector_tab == 4 : ScrollView {
-                        if root.inspector_files.length == 0 : VerticalLayout {
-                            alignment: center;
-                            Text { text: "单文件任务或尚未解析文件清单"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                        }
-                        if root.inspector_files.length > 0 : VerticalLayout {
-                            padding: 12px;
-                            spacing: 6px;
-                            for file in root.inspector_files : Rectangle {
-                                background: #1a1e24;
-                                border-radius: 6px;
-                                height: 42px;
-                                HorizontalLayout {
-                                    padding-left: 10px;
-                                    padding-right: 10px;
-                                    alignment: space-between;
-                                    VerticalLayout {
-                                        alignment: center;
-                                        Text { text: file.path; color: #f3f4f6; font-size: 12px; font-weight: 500; overflow: elide; max-width: 440px; }
-                                        Text { text: file.downloaded_text + " / " + file.size_text; color: #9ca3af; font-size: 10px; }
-                                    }
-                                    Text {
-                                        text: Math.round(file.progress * 100) + "%";
-                                        color: file.progress >= 1.0 ? #38bdf8 : #84cc16;
-                                        font-size: 12px;
-                                        font-weight: 600;
-                                        vertical-alignment: center;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Inspector Footer Actions
-                HorizontalLayout {
-                    alignment: space-between;
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        if root.inspector_info.kind == "bt" : SecondaryButton {
-                            text: "设置限速";
-                            clicked => { root.open_speed_limit_dialog(); }
-                        }
-                        SecondaryButton {
-                            text: "打开目录";
-                            clicked => { root.open_task_explorer(root.inspector_info.id); }
-                        }
-                    }
-
-                    PrimaryButton {
-                        text: "关闭";
-                        clicked => { root.close_inspector(); }
-                    }
-                }
-            }
-        }
+    // Dialog: Settings Center
+    if root.show_settings : SettingsDialog {
+        settings_tab: root.settings_tab;
+        settings_form <=> root.settings_form;
+        close => { root.close_settings(); }
+        set_tab(tab) => { root.set_settings_tab(tab); }
+        save(form) => { root.save_settings(form); }
+        toggle_game_mode => { root.toggle_game_mode(); }
+        toggle_overclock_mode => { root.toggle_overclock_mode(); }
+        fetch_trackers(url) => { root.fetch_trackers_remote(url); }
+        pick_default_folder => { root.pick_default_folder(); }
     }
 
-    // Modal Dialog: Speed Limit
-    if root.show_speed_limit_dialog : Rectangle {
-        x: 0;
-        y: 0;
-        width: parent.width;
-        height: parent.height;
-        background: #000000aa;
-
-        TouchArea {}
-
-        Rectangle {
-            width: 400px;
-            height: 260px;
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            background: #1a1d22;
-            border-color: #323842;
-            border-width: 1px;
-            border-radius: 10px;
-
-            VerticalLayout {
-                padding: 20px;
-                spacing: 14px;
-
-                HorizontalLayout {
-                    alignment: space-between;
-                    Text { text: "单任务速度限制 (KB/s)"; color: #f3f4f6; font-size: 15px; font-weight: 700; vertical-alignment: center; }
-                    IconButton { text: "✕"; clicked => { root.close_speed_limit_dialog(); } }
-                }
-
-                VerticalLayout {
-                    spacing: 4px;
-                    Text { text: "下载速率限制 (0 为不限制):"; color: #9ca3af; font-size: 12px; }
-                    CustomTextInput { text <=> root.speed_limit_dl_kb; placeholder: "0"; }
-                }
-
-                VerticalLayout {
-                    spacing: 4px;
-                    Text { text: "上传速率限制 (0 为不限制):"; color: #9ca3af; font-size: 12px; }
-                    CustomTextInput { text <=> root.speed_limit_ul_kb; placeholder: "0"; }
-                }
-
-                Rectangle {}
-
-                HorizontalLayout {
-                    alignment: end;
-                    spacing: 10px;
-                    SecondaryButton { text: "取消"; clicked => { root.close_speed_limit_dialog(); } }
-                    PrimaryButton {
-                        text: "应用限速";
-                        clicked => {
-                            root.submit_speed_limit(root.speed_limit_dl_kb, root.speed_limit_ul_kb);
-                        }
-                    }
-                }
-            }
-        }
+    // Dialog: Task Inspector
+    if root.show_inspector : TaskInspector {
+        inspector_info: root.inspector_info;
+        inspector_tab: root.inspector_tab;
+        inspector_peers: root.inspector_peers;
+        inspector_trackers: root.inspector_trackers;
+        inspector_files: root.inspector_files;
+        inspector_piece_map: root.inspector_piece_map;
+        inspector_pieces_count_text: root.inspector_pieces_count_text;
+        close => { root.close_inspector(); }
+        set_tab(tab) => { root.set_inspector_tab(tab); }
+        open_speed_limit => { root.open_speed_limit_dialog(); }
+        open_explorer(id) => { root.open_task_explorer(id); }
     }
 
-    // Modal Dialog: New Task
-    if root.show_new_task_dialog : Rectangle {
-        x: 0;
-        y: 0;
-        width: parent.width;
-        height: parent.height;
-        background: #000000aa;
+    // Dialog: Speed Limit
+    if root.show_speed_limit_dialog : SpeedLimitDialog {
+        speed_limit_dl_kb <=> root.speed_limit_dl_kb;
+        speed_limit_ul_kb <=> root.speed_limit_ul_kb;
+        close => { root.close_speed_limit_dialog(); }
+        submit(dl, ul) => { root.submit_speed_limit(dl, ul); }
+    }
 
-        TouchArea {}
-
-        Rectangle {
-            width: 520px;
-            height: 320px;
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            background: #1a1d22;
-            border-color: #323842;
-            border-width: 1px;
-            border-radius: 10px;
-
-            VerticalLayout {
-                padding: 20px;
-                spacing: 14px;
-
-                HorizontalLayout {
-                    alignment: space-between;
-                    Text {
-                        text: "新建下载任务";
-                        color: #f3f4f6;
-                        font-size: 16px;
-                        font-weight: 700;
-                        vertical-alignment: center;
-                    }
-                    IconButton {
-                        text: "✕";
-                        clicked => { root.close_new_task_dialog(); }
-                    }
-                }
-
-                VerticalLayout {
-                    spacing: 4px;
-                    Text {
-                        text: "下载链接 / 磁力链接 / 本地 Torrent 路径:";
-                        color: #9ca3af;
-                        font-size: 12px;
-                    }
-                    CustomTextInput {
-                        text <=> root.new_task_url;
-                        placeholder: "http://, https://, magnet:?xt=, 或 .torrent 路径";
-                    }
-                }
-
-                VerticalLayout {
-                    spacing: 4px;
-                    Text {
-                        text: "保存目录 (留空使用默认目录):";
-                        color: #9ca3af;
-                        font-size: 12px;
-                    }
-                    CustomTextInput {
-                        text <=> root.new_task_dir;
-                        placeholder: root.default_download_dir;
-                    }
-                }
-
-                VerticalLayout {
-                    spacing: 4px;
-                    Text {
-                        text: "自定义文件名 (可选):";
-                        color: #9ca3af;
-                        font-size: 12px;
-                    }
-                    CustomTextInput {
-                        text <=> root.new_task_filename;
-                        placeholder: "默认从 URL / Torrent 自动识别";
-                    }
-                }
-
-                // Spacer
-                Rectangle {}
-
-                HorizontalLayout {
-                    alignment: end;
-                    spacing: 10px;
-
-                    SecondaryButton {
-                        text: "取消";
-                        clicked => { root.close_new_task_dialog(); }
-                    }
-
-                    PrimaryButton {
-                        text: "立即下载";
-                        enabled: root.new_task_url != "";
-                        clicked => {
-                            root.submit_new_task(
-                                root.new_task_url,
-                                root.new_task_dir == "" ? root.default_download_dir : root.new_task_dir,
-                                root.new_task_filename
-                            );
-                        }
-                    }
-                }
-            }
-        }
+    // Dialog: New Task
+    if root.show_new_task_dialog : NewTaskDialog {
+        new_task_url <=> root.new_task_url;
+        new_task_dir <=> root.new_task_dir;
+        new_task_filename <=> root.new_task_filename;
+        default_download_dir: root.default_download_dir;
+        close => { root.close_new_task_dialog(); }
+        submit(url, dir, filename) => { root.submit_new_task(url, dir, filename); }
+        pick_torrent_file => { root.pick_torrent_file(); }
+        pick_save_folder => { root.pick_save_folder(); }
     }
 }

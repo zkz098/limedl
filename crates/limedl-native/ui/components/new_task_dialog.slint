@@ -1,0 +1,136 @@
+import { CustomTextInput, IconButton, PrimaryButton, SecondaryButton } from "common.slint";
+
+export component NewTaskDialog inherits Rectangle {
+    in-out property <string> new_task_url;
+    in-out property <string> new_task_dir;
+    in-out property <string> new_task_filename;
+    in property <string> default_download_dir;
+
+    callback close();
+    callback submit(string, string, string); // url, dir, filename
+    callback pick_torrent_file();
+    callback pick_save_folder();
+
+    width: 100%;
+    height: 100%;
+    background: #000000bb;
+
+    TouchArea {}
+
+    Rectangle {
+        width: min(parent.width - 60px, 560px);
+        height: 360px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #171a20;
+        border-color: #2e3542;
+        border-width: 1px;
+        border-radius: 12px;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #000000cc;
+
+        VerticalLayout {
+            padding: 22px;
+            spacing: 16px;
+
+            // Header
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "新建下载任务";
+                    color: #f3f4f6;
+                    font-size: 16px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+                IconButton {
+                    text: "✕";
+                    clicked => { root.close(); }
+                }
+            }
+
+            // URL & Torrent Picker
+            VerticalLayout {
+                spacing: 6px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "下载链接 / 磁力链接 / 本地 Torrent 路径:";
+                        color: #9ca3af;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                    SecondaryButton {
+                        text: "📂 选择种子文件...";
+                        clicked => { root.pick_torrent_file(); }
+                    }
+                }
+                CustomTextInput {
+                    text <=> root.new_task_url;
+                    placeholder: "http://, https://, magnet:?xt=, 或选择本地 .torrent 文件";
+                }
+            }
+
+            // Save Directory Picker
+            VerticalLayout {
+                spacing: 6px;
+                Text {
+                    text: "保存目录:";
+                    color: #9ca3af;
+                    font-size: 12px;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    CustomTextInput {
+                        text <=> root.new_task_dir;
+                        placeholder: root.default_download_dir;
+                    }
+                    SecondaryButton {
+                        text: "📁 浏览...";
+                        clicked => { root.pick_save_folder(); }
+                    }
+                }
+            }
+
+            // Custom Filename
+            VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: "自定义文件名 (可选):";
+                    color: #9ca3af;
+                    font-size: 12px;
+                }
+                CustomTextInput {
+                    text <=> root.new_task_filename;
+                    placeholder: "留空自动识别文件名";
+                }
+            }
+
+            // Spacer
+            Rectangle {}
+
+            // Actions
+            HorizontalLayout {
+                alignment: end;
+                spacing: 10px;
+
+                SecondaryButton {
+                    text: "取消";
+                    clicked => { root.close(); }
+                }
+
+                PrimaryButton {
+                    text: "立即下载";
+                    enabled: root.new_task_url != "";
+                    clicked => {
+                        root.submit(
+                            root.new_task_url,
+                            root.new_task_dir == "" ? root.default_download_dir : root.new_task_dir,
+                            root.new_task_filename
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
