@@ -1437,3 +1437,40 @@ async fn test_background_flush_failure_using_readonly_file_with_worker() {
     drop(buf);
     assert_eq!(pool.active_slots(), 0);
 }
+
+#[test]
+fn test_write_coalesced_entries_contiguous() {
+    use crate::buffer_pool::worker::write_coalesced_entries;
+
+    let (_dir, file) = temp_file();
+    let entries = vec![
+        (0u64, Bytes::from_static(b"Hello ")),
+        (6u64, Bytes::from_static(b"World ")),
+        (12u64, Bytes::from_static(b"from LimeDL!")),
+    ];
+
+    write_coalesced_entries(&file, &entries).expect("coalesced write succeeds");
+    drop(file);
+
+    let content = fs::read(_dir.path().join("test.bin")).expect("read test file");
+    assert_eq!(content, b"Hello World from LimeDL!");
+}
+
+#[test]
+fn test_write_coalesced_entries_disjoint() {
+    use crate::buffer_pool::worker::write_coalesced_entries;
+
+    let (_dir, file) = temp_file();
+    let entries = vec![
+        (0u64, Bytes::from_static(b"AAAA")),
+        (10u64, Bytes::from_static(b"BBBB")),
+        (14u64, Bytes::from_static(b"CCCC")),
+    ];
+
+    write_coalesced_entries(&file, &entries).expect("coalesced write succeeds");
+    drop(file);
+
+    let content = fs::read(_dir.path().join("test.bin")).expect("read test file");
+    assert_eq!(&content[0..4], b"AAAA");
+    assert_eq!(&content[10..18], b"BBBBCCCC");
+}

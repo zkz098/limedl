@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use super::worker::IoWorker;
+use super::worker::{IoWorker, SyncMode};
 use super::{BufferPool, SlotGuard};
 use crate::error::DownloadError;
 use crate::file_ops::write_all_at;
@@ -32,7 +32,7 @@ struct PingPongCfg<'a> {
     /// Global buffer pool for HDD memory tracking. `None` for SSD (ping-pong) mode.
     pool: Option<&'a Arc<BufferPool>>,
     /// Whether to fsync in the IoWorker background flush path.
-    bg_sync: bool,
+    bg_sync: SyncMode,
     /// Whether to fsync in the spawn_blocking fallback background flush path.
     bg_fsync: bool,
     /// Label for tracing/error messages (e.g., "HDD" or "SSD ping-pong").
@@ -457,8 +457,8 @@ impl DownloadBuffer {
         self.buffer_chunk_pingpong_impl(
             PingPongCfg {
                 pool: Some(pool),
-                bg_sync: true,
-                bg_fsync: true,
+                bg_sync: SyncMode::Adaptive,
+                bg_fsync: false,
                 label: "HDD",
             },
             half_a, half_b, active_is_a, usage_a, usage_b,
@@ -489,7 +489,7 @@ impl DownloadBuffer {
         self.buffer_chunk_pingpong_impl(
             PingPongCfg {
                 pool: None,
-                bg_sync: false,
+                bg_sync: SyncMode::None,
                 bg_fsync: false,
                 label: "SSD ping-pong",
             },
@@ -516,7 +516,7 @@ impl DownloadBuffer {
         };
         usage.store(0, Ordering::Release);
         if let Some(worker) = io_worker {
-            worker.write_batch(file.clone(), entries, true).await?;
+            worker.write_batch(file.clone(), entries, SyncMode::None).await?;
         } else {
             let f = file.clone();
             tokio::task::spawn_blocking(move || -> Result<(), DownloadError> {
@@ -659,7 +659,7 @@ impl DownloadBuffer {
         pool.sub_usage(bytes);
 
         if let Some(worker) = io_worker {
-            worker.write_batch(file.clone(), entries, true).await?;
+            worker.write_batch(file.clone(), entries, SyncMode::Force).await?;
         } else {
             let f = file.clone();
             tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {

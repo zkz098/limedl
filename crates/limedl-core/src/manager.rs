@@ -691,7 +691,7 @@ impl DownloadManager {
         }
 
         let destination_path = unique_destination_path(&destination_dir, &safe_name);
-        let temp_path = self.dirs.state_dir.join(format!("{download_id}.part"));
+        let temp_path = destination_dir.join(format!("{download_id}.part"));
         let supports_parallel = true;
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
             resolve_thread_settings(&settings, &request, supports_parallel);

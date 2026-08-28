@@ -51,8 +51,8 @@ pub fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<(
     match std::fs::rename(temp_path, destination_path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == ErrorKind::CrossesDevices => {
-            // Fallback: copy via staging path when source and destination
-            // reside on different mount points / drive letters.
+            // Fallback: copy via staging path in destination_path's parent directory
+            // when source and destination reside on different mount points / drive letters.
             let staging_path = unique_finalizing_path(destination_path)?;
             let mut source = File::open(temp_path)?;
             let mut destination = OpenOptions::new()
@@ -77,66 +77,32 @@ pub fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<(
             drop(destination);
             drop(source);
 
-            if let Err(error) = fs::hard_link(&staging_path, destination_path) {
-                if error.kind() == ErrorKind::AlreadyExists
-                    && files_have_same_content(&staging_path, destination_path)?
-                {
-                    fs::remove_file(&staging_path)
-                        .map_err(|e| io_error_with_path(e, staging_path.to_string_lossy()))?;
-                    fs::remove_file(temp_path)
-                        .map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
-                    return Ok(());
-                }
-                if error.kind() == ErrorKind::AlreadyExists {
+            // staging_path and destination_path are in the exact same directory,
+            // so renaming staging_path to destination_path is guaranteed to be a same-volume atomic move.
+            if let Err(error) = std::fs::rename(&staging_path, destination_path) {
+                if destination_path.exists() {
+                    if files_have_same_content(&staging_path, destination_path)? {
+                        let _ = fs::remove_file(&staging_path);
+                        let _ = fs::remove_file(temp_path);
+                        return Ok(());
+                    }
                     let _ = fs::remove_file(&staging_path);
                     return Err(destination_exists_error(destination_path));
                 }
-
-                fallback_copy_staging_to_destination(&staging_path, destination_path)?;
+                let _ = fs::remove_file(&staging_path);
+                return Err(error.into());
             }
 
-            fs::remove_file(&staging_path)
-                .map_err(|e| io_error_with_path(e, staging_path.to_string_lossy()))?;
-            fs::remove_file(temp_path)
-                .map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
+            let _ = fs::remove_file(temp_path);
             Ok(())
         }
         Err(e) => Err(e.into()),
     }
 }
 
-fn fallback_copy_staging_to_destination(
-    staging_path: &Path,
-    destination_path: &Path,
-) -> Result<()> {
-    let mut source = File::open(staging_path)?;
-    let mut destination = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(destination_path)
-        .map_err(|error| {
-            if error.kind() == ErrorKind::AlreadyExists {
-                destination_exists_error(destination_path)
-            } else {
-                DownloadError::Io(error)
-            }
-        })?;
-
-    if let Err(error) = copy_file_buffered(&mut source, &mut destination) {
-        drop(destination);
-        drop(source);
-        let _ = fs::remove_file(destination_path);
-        return Err(error.into());
-    }
-    destination.flush()?;
-    destination.sync_all()?;
-    Ok(())
-}
-
-/// Copy file contents using a 256 KB stack-allocated buffer instead of the
-/// stdlib default 8 KB buffer used by [`io::copy`].
+/// Copy file contents using a 1 MB heap-allocated buffer for high-throughput disk copy.
 fn copy_file_buffered(source: &mut File, dest: &mut File) -> io::Result<u64> {
-    let mut buffer = [0u8; 262144];
+    let mut buffer = vec![0u8; 1024 * 1024];
     let mut total = 0u64;
     loop {
         let bytes_read = match source.read(&mut buffer) {
@@ -179,10 +145,10 @@ fn files_have_same_content(left_path: &Path, right_path: &Path) -> Result<bool> 
         return Ok(false);
     }
 
-    let mut left = BufReader::new(left);
-    let mut right = BufReader::new(right);
-    let mut left_buffer = [0; 8192];
-    let mut right_buffer = [0; 8192];
+    let mut left = BufReader::with_capacity(1024 * 1024, left);
+    let mut right = BufReader::with_capacity(1024 * 1024, right);
+    let mut left_buffer = vec![0u8; 1024 * 1024];
+    let mut right_buffer = vec![0u8; 1024 * 1024];
     loop {
         let left_read = left.read(&mut left_buffer)?;
         let right_read = right.read(&mut right_buffer)?;
@@ -329,7 +295,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        check_disk_space, cleanup_finalizing_paths, fallback_copy_staging_to_destination,
+        check_disk_space, cleanup_finalizing_paths,
         files_have_same_content, finalize_temp_file, open_download_file, preallocate_file,
         reset_download_file, unique_finalizing_path, write_all_at,
     };
@@ -712,29 +678,6 @@ mod tests {
 
         let result = unique_finalizing_path(&dest);
         assert!(result.is_err(), "expected exhaustion error");
-        match result.unwrap_err() {
-            DownloadError::Io(io_err) => {
-                assert_eq!(io_err.kind(), std::io::ErrorKind::AlreadyExists);
-            }
-            other => panic!("expected Io(AlreadyExists), got {other:?}"),
-        }
-        Ok(())
-    }
-
-    // ── fallback_copy_staging_to_destination ───────
-
-    #[timeout(30_000)]
-    #[test]
-    fn fallback_copy_staging_to_destination_already_exists() -> TestResult {
-        let temp = tempdir()?;
-        let staging = temp.path().join("staging.tmp");
-        let dest = temp.path().join("dest.bin");
-
-        fs::write(&staging, b"staging content")?;
-        fs::write(&dest, b"existing content")?;
-
-        let result = fallback_copy_staging_to_destination(&staging, &dest);
-        assert!(result.is_err(), "expected error when destination exists");
         match result.unwrap_err() {
             DownloadError::Io(io_err) => {
                 assert_eq!(io_err.kind(), std::io::ErrorKind::AlreadyExists);

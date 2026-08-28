@@ -23,7 +23,8 @@ use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 pub use download_buffer::DownloadBuffer;
-pub use worker::IoWorker;
+#[allow(unused_imports)]
+pub use worker::{IoWorker, SyncMode};
 
 // ---------------------------------------------------------------------------
 // SlotGuard — RAII guard for a semaphore permit

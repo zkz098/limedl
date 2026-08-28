@@ -96,7 +96,7 @@ async fn assert_corrupting_server_is_caught(url: &str, server: &TestServer) -> T
 
     // The corrupt temp file must be preserved for diagnosis (renamed to `.corrupt`)
     // rather than silently deleted.
-    let corrupt_path = temp.path().join("state").join(format!("{id}.part.corrupt"));
+    let corrupt_path = dest_dir.join(format!("{id}.part.corrupt"));
     assert!(
         corrupt_path.exists(),
         "checksum-mismatch download should preserve {} for diagnosis",

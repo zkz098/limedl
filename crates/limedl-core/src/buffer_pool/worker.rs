@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::sync::Arc;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use tokio::sync::{mpsc, oneshot};
@@ -8,19 +9,67 @@ use tokio::sync::{mpsc, oneshot};
 use crate::error::DownloadError;
 use crate::file_ops::write_all_at;
 
+/// Write sync policy for IoWorker batch processing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyncMode {
+    /// No sync (SSD mode).
+    None,
+    /// Adaptive sync (HDD periodic/volume threshold: >=16MB or >=3s).
+    Adaptive,
+    /// Force immediate sync (on pause, cancel, finish, or flush_all).
+    Force,
+}
+
 /// Command sent to the dedicated I/O worker threads.
 enum IoCommand {
-    /// Write a batch of (offset, chunk) pairs to a file.  The entries are
+    /// Write a batch of (offset, chunk) pairs to a file. The entries are
     /// already in ascending-offset order (drained from a BTreeMap).
     WriteBatch {
         file: Arc<File>,
         entries: Vec<(u64, Bytes)>,
-        /// Whether to fsync after this batch. HDD double-buffer writes should
-        /// sync for crash safety; SSD write-combining batches are large enough
-        /// that per-batch fsync provides diminishing returns.
-        sync: bool,
+        sync: SyncMode,
         done: oneshot::Sender<Result<(), DownloadError>>,
     },
+}
+
+/// Write a list of offset-sorted byte chunks to disk, coalescing adjacent entries
+/// into a single system call to drastically reduce context switches.
+pub fn write_coalesced_entries(file: &File, entries: &[(u64, Bytes)]) -> Result<(), DownloadError> {
+    if entries.is_empty() {
+        return Ok(());
+    }
+    if entries.len() == 1 {
+        return write_all_at(file, &entries[0].1, entries[0].0);
+    }
+
+    let mut idx = 0;
+    while idx < entries.len() {
+        let start_offset = entries[idx].0;
+        let mut end_offset = start_offset + entries[idx].1.len() as u64;
+        let mut next_idx = idx + 1;
+
+        // Group all contiguous slices
+        while next_idx < entries.len() && entries[next_idx].0 == end_offset {
+            end_offset += entries[next_idx].1.len() as u64;
+            next_idx += 1;
+        }
+
+        if next_idx == idx + 1 {
+            // Single chunk, direct zero-copy write
+            write_all_at(file, &entries[idx].1, start_offset)?;
+        } else {
+            // Multiple adjacent chunks: coalesce into a single buffer and single syscall
+            let total_len = (end_offset - start_offset) as usize;
+            let mut combined = Vec::with_capacity(total_len);
+            for entry in &entries[idx..next_idx] {
+                combined.extend_from_slice(&entry.1);
+            }
+            write_all_at(file, &combined, start_offset)?;
+        }
+
+        idx = next_idx;
+    }
+    Ok(())
 }
 
 /// Handle to a pool of dedicated I/O worker threads that serialise flush calls.
@@ -49,14 +98,17 @@ impl IoWorker {
             thread::Builder::new()
                 .name(format!("limedl-io-worker-{i}"))
                 .spawn(move || {
+                    let mut last_sync = Instant::now();
+                    let mut bytes_since_last_sync = 0u64;
+
                     // Normal processing loop
                     while let Some(cmd) = rx.blocking_recv() {
-                        Self::process_command(cmd);
+                        Self::process_command(cmd, &mut last_sync, &mut bytes_since_last_sync);
                     }
                     // All senders dropped — drain any commands that were queued
                     // before the final sender dropped.
                     while let Ok(cmd) = rx.try_recv() {
-                        Self::process_command(cmd);
+                        Self::process_command(cmd, &mut last_sync, &mut bytes_since_last_sync);
                     }
                 })
                 .expect("failed to spawn I/O worker thread");
@@ -71,7 +123,11 @@ impl IoWorker {
     }
 
     /// Process a single I/O command (extracted for reuse in normal loop and drain phase).
-    fn process_command(cmd: IoCommand) {
+    fn process_command(
+        cmd: IoCommand,
+        last_sync: &mut Instant,
+        bytes_since_last_sync: &mut u64,
+    ) {
         match cmd {
             IoCommand::WriteBatch {
                 file,
@@ -92,24 +148,36 @@ impl IoWorker {
                         return;
                     }
                 }
-                // entries are already sorted by offset (BTreeMap drain order).
+
+                let batch_bytes: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
                 let result = (|| -> Result<(), DownloadError> {
-                    if entries.is_empty() {
-                        if sync {
+                    if !entries.is_empty() {
+                        // High-performance coalesced write: merges contiguous slices into single syscalls
+                        write_coalesced_entries(&file, &entries)?;
+                    }
+
+                    // Adaptive vs Forced hardware sync
+                    match sync {
+                        SyncMode::None => {}
+                        SyncMode::Force => {
                             file.sync_data().map_err(|e| {
                                 DownloadError::Internal(format!("fsync failed: {e}"))
                             })?;
+                            *last_sync = Instant::now();
+                            *bytes_since_last_sync = 0;
                         }
-                        return Ok(());
-                    }
-                    // Zero-copy sequential chunk writes (no intermediate buffer allocations).
-                    for (offset, chunk) in &entries {
-                        write_all_at(&file, chunk, *offset)?;
-                    }
-                    if sync {
-                        file.sync_data().map_err(|e| {
-                            DownloadError::Internal(format!("fsync failed: {e}"))
-                        })?;
+                        SyncMode::Adaptive => {
+                            *bytes_since_last_sync += batch_bytes;
+                            if *bytes_since_last_sync >= 16 * 1024 * 1024
+                                || last_sync.elapsed() >= Duration::from_secs(3)
+                            {
+                                file.sync_data().map_err(|e| {
+                                    DownloadError::Internal(format!("fsync failed: {e}"))
+                                })?;
+                                *last_sync = Instant::now();
+                                *bytes_since_last_sync = 0;
+                            }
+                        }
                     }
                     Ok(())
                 })();
@@ -127,7 +195,7 @@ impl IoWorker {
         &self,
         file: Arc<File>,
         entries: Vec<(u64, Bytes)>,
-        sync: bool,
+        sync: SyncMode,
     ) -> Result<(), DownloadError> {
         let idx = (Arc::as_ptr(&file) as usize) % self.txs.len();
         let tx = &self.txs[idx];
