@@ -63,7 +63,10 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    // NOTE: no global tracing subscriber here — the daemon path calls
+    // limedl_core::init_logging() (registry + reloadable level + console +
+    // file layers). Pre-installing a subscriber makes that try_init fail and
+    // drops its reload layer, breaking settings saves after the first.
 
     let cli = Cli::parse();
 

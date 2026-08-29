@@ -1,15 +1,18 @@
 import { ContextMenuState } from "../types.slint";
 
+import { Theme } from "../theme.slint";
+import { ContextMenuState } from "../types.slint";
+
 component MenuItem inherits Rectangle {
     in property <string> text;
     in property <image> icon;
-    in property <color> text_color: #d1d5db;
+    in property <color> text_color: Theme.cd1d5db;
     in property <bool> danger: false;
     callback clicked();
 
     height: 32px;
     border-radius: 4px;
-    background: ta.has_hover ? (root.danger ? #3f1518 : #20252e) : transparent;
+    background: ta.has_hover ? (root.danger ? Theme.c3f1518 : Theme.c20252e) : transparent;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
@@ -25,7 +28,7 @@ component MenuItem inherits Rectangle {
             alignment: center;
             Image {
                 source: root.icon;
-                colorize: root.danger ? #f87171 : (ta.has_hover ? #ffffff : root.text_color);
+                colorize: root.danger ? Theme.cf87171 : (ta.has_hover ? Theme.cffffff : root.text_color);
                 width: 15px;
                 height: 15px;
                 image-fit: contain;
@@ -34,7 +37,7 @@ component MenuItem inherits Rectangle {
 
         Text {
             text: root.text;
-            color: root.danger ? #f87171 : (ta.has_hover ? #ffffff : root.text_color);
+            color: root.danger ? Theme.cf87171 : (ta.has_hover ? Theme.cffffff : root.text_color);
             font-size: 12px;
             font-weight: 500;
             vertical-alignment: center;
@@ -71,12 +74,12 @@ export component ContextMenu inherits Rectangle {
         x: min(root.menu_state.x, parent.width - self.width - 10px);
         y: min(root.menu_state.y, parent.height - self.height - 10px);
         width: 190px;
-        background: #181b22;
-        border-color: #343c4a;
+        background: Theme.c181b22;
+        border-color: Theme.c343c4a;
         border-width: 1px;
         border-radius: 8px;
         drop-shadow-blur: 16px;
-        drop-shadow-color: #000000bb;
+        drop-shadow-color: Theme.c000000bb;
 
         VerticalLayout {
             padding: 6px;
@@ -120,7 +123,7 @@ export component ContextMenu inherits Rectangle {
 
             Rectangle {
                 height: 1px;
-                background: #272d38;
+                background: Theme.c272d38;
             }
 
             MenuItem {

@@ -1,5 +1,8 @@
 import { IconButton, PrimaryButton, SecondaryButton, UnitInput } from "common.slint";
 
+import { Theme } from "../theme.slint";
+import { IconButton, PrimaryButton, SecondaryButton, UnitInput } from "common.slint";
+
 export component SpeedLimitDialog inherits Rectangle {
     in-out property <string> speed_limit_dl_kb: "0";
     in-out property <string> speed_limit_ul_kb: "0";
@@ -9,7 +12,7 @@ export component SpeedLimitDialog inherits Rectangle {
 
     width: 100%;
     height: 100%;
-    background: #000000bb;
+    background: Theme.c000000bb;
 
     TouchArea {}
 
@@ -18,12 +21,12 @@ export component SpeedLimitDialog inherits Rectangle {
         height: 280px;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: #171a20;
-        border-color: #2e3542;
+        background: Theme.c171a20;
+        border-color: Theme.c2e3542;
         border-width: 1px;
         border-radius: 12px;
         drop-shadow-blur: 24px;
-        drop-shadow-color: #000000cc;
+        drop-shadow-color: Theme.c000000cc;
 
         VerticalLayout {
             padding: 22px;
@@ -33,7 +36,7 @@ export component SpeedLimitDialog inherits Rectangle {
                 alignment: space-between;
                 Text {
                     text: @tr("Task Speed Limit");
-                    color: #f3f4f6;
+                    color: Theme.cf3f4f6;
                     font-size: 15px;
                     font-weight: 700;
                     vertical-alignment: center;
@@ -46,7 +49,7 @@ export component SpeedLimitDialog inherits Rectangle {
 
             VerticalLayout {
                 spacing: 4px;
-                Text { text: @tr("Download Rate Limit (0 for unlimited):"); color: #9ca3af; font-size: 12px; }
+                Text { text: @tr("Download Rate Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px; }
                 UnitInput {
                     text <=> root.speed_limit_dl_kb;
                     placeholder: "0";
@@ -56,7 +59,7 @@ export component SpeedLimitDialog inherits Rectangle {
 
             VerticalLayout {
                 spacing: 4px;
-                Text { text: @tr("Upload Rate Limit (0 for unlimited):"); color: #9ca3af; font-size: 12px; }
+                Text { text: @tr("Upload Rate Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px; }
                 UnitInput {
                     text <=> root.speed_limit_ul_kb;
                     placeholder: "0";

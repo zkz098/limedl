@@ -1,4 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../theme.slint";
+import { ScrollView } from "std-widgets.slint";
 import { InspectorInfo, PeerItem, TrackerItem, TorrentFileItem } from "../types.slint";
 import { IconButton, PrimaryButton, SecondaryButton, TabButton } from "common.slint";
 
@@ -18,7 +21,7 @@ export component TaskInspector inherits Rectangle {
 
     width: 100%;
     height: 100%;
-    background: #000000bb;
+    background: Theme.c000000bb;
 
     TouchArea {}
 
@@ -27,12 +30,12 @@ export component TaskInspector inherits Rectangle {
         height: min(parent.height - 60px, 600px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: #171a20;
-        border-color: #2e3542;
+        background: Theme.c171a20;
+        border-color: Theme.c2e3542;
         border-width: 1px;
         border-radius: 12px;
         drop-shadow-blur: 24px;
-        drop-shadow-color: #000000cc;
+        drop-shadow-color: Theme.c000000cc;
 
         VerticalLayout {
             padding: 20px;
@@ -47,8 +50,8 @@ export component TaskInspector inherits Rectangle {
                     spacing: 10px;
                     alignment: start;
                     Rectangle {
-                        background: root.inspector_info.kind == "bt" ? #152c42 : #153920;
-                        border-color: root.inspector_info.kind == "bt" ? #255078 : #276238;
+                        background: root.inspector_info.kind == "bt" ? Theme.c152c42 : Theme.c153920;
+                        border-color: root.inspector_info.kind == "bt" ? Theme.c255078 : Theme.c276238;
                         border-width: 1px;
                         border-radius: 4px;
                         height: 22px;
@@ -58,7 +61,7 @@ export component TaskInspector inherits Rectangle {
                             alignment: center;
                             Text {
                                 text: root.inspector_info.kind == "bt" ? "BitTorrent" : "HTTP";
-                                color: root.inspector_info.kind == "bt" ? #38bdf8 : #4ade80;
+                                color: root.inspector_info.kind == "bt" ? Theme.c38bdf8 : Theme.c4ade80;
                                 font-size: 11px;
                                 font-weight: 700;
                                 vertical-alignment: center;
@@ -68,7 +71,7 @@ export component TaskInspector inherits Rectangle {
 
                     Text {
                         text: root.inspector_info.file_name;
-                        color: #f3f4f6;
+                        color: Theme.cf3f4f6;
                         font-size: 16px;
                         font-weight: 700;
                         overflow: elide;
@@ -126,14 +129,14 @@ export component TaskInspector inherits Rectangle {
 
             Rectangle {
                 height: 1px;
-                background: #272d38;
+                background: Theme.c272d38;
             }
 
             // Tab Content
             Rectangle {
-                background: #111418;
+                background: Theme.c111418;
                 border-radius: 8px;
-                border-color: #232832;
+                border-color: Theme.c232832;
                 border-width: 1px;
 
                 // Tab 0: Overview
@@ -147,60 +150,60 @@ export component TaskInspector inherits Rectangle {
                             VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("Status"); color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.state_label; color: #84cc16; font-size: 14px; font-weight: 700; }
+                                Text { text: root.inspector_info.state_label; color: Theme.c84cc16; font-size: 14px; font-weight: 700; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("Download Speed"); color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.speed_text != "" ? root.inspector_info.speed_text : "0 B/s"; color: #4ade80; font-size: 14px; font-weight: 700; }
+                                Text { text: root.inspector_info.speed_text != "" ? root.inspector_info.speed_text : "0 B/s"; color: Theme.c4ade80; font-size: 14px; font-weight: 700; }
                             }
                             if root.inspector_info.upload_speed_text != "" : VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("Upload Speed"); color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.upload_speed_text; color: #38bdf8; font-size: 14px; font-weight: 700; }
+                                Text { text: root.inspector_info.upload_speed_text; color: Theme.c38bdf8; font-size: 14px; font-weight: 700; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("Downloaded / Total Size"); color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.downloaded_size_text + " / " + root.inspector_info.total_size_text; color: #e5e7eb; font-size: 13px; font-weight: 600; }
+                                Text { text: root.inspector_info.downloaded_size_text + " / " + root.inspector_info.total_size_text; color: Theme.ce5e7eb; font-size: 13px; font-weight: 600; }
                             }
                             if root.inspector_info.eta_text != "" : VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("ETA"); color: #6b7280; font-size: 11px; }
-                                Text { text: root.inspector_info.eta_text; color: #facc15; font-size: 13px; font-weight: 500; }
+                                Text { text: root.inspector_info.eta_text; color: Theme.cfacc15; font-size: 13px; font-weight: 500; }
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
                         VerticalLayout {
                             spacing: 4px;
                             Text { text: @tr("Save Path:"); color: #6b7280; font-size: 11px; }
-                            Text { text: root.inspector_info.destination_path; color: #d1d5db; font-size: 12px; }
+                            Text { text: root.inspector_info.destination_path; color: Theme.cd1d5db; font-size: 12px; }
                         }
 
                         VerticalLayout {
                             spacing: 4px;
                             Text { text: @tr("Source URL:"); color: #6b7280; font-size: 11px; }
-                            Text { text: root.inspector_info.url; color: #9ca3af; font-size: 11px; overflow: elide; }
+                            Text { text: root.inspector_info.url; color: Theme.c9ca3af; font-size: 11px; overflow: elide; }
                         }
 
                         if root.inspector_info.threads_text != "" : VerticalLayout {
                             spacing: 4px;
                             Text { text: @tr("Thread Mode:"); color: #6b7280; font-size: 11px; }
-                            Text { text: root.inspector_info.threads_text; color: #d1d5db; font-size: 12px; }
+                            Text { text: root.inspector_info.threads_text; color: Theme.cd1d5db; font-size: 12px; }
                         }
 
                         if root.inspector_info.info_hash_text != "" : VerticalLayout {
                             spacing: 4px;
                             Text { text: @tr("Info Hash:"); color: #6b7280; font-size: 11px; }
-                            Text { text: root.inspector_info.info_hash_text; color: #38bdf8; font-size: 11px; }
+                            Text { text: root.inspector_info.info_hash_text; color: Theme.c38bdf8; font-size: 11px; }
                         }
 
                         if root.inspector_info.error_text != "" : VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Error:"); color: #ef4444; font-size: 11px; }
-                            Text { text: root.inspector_info.error_text; color: #f87171; font-size: 12px; }
+                            Text { text: @tr("Error:"); color: Theme.cef4444; font-size: 11px; }
+                            Text { text: root.inspector_info.error_text; color: Theme.cf87171; font-size: 12px; }
                         }
                     }
                 }
@@ -215,8 +218,8 @@ export component TaskInspector inherits Rectangle {
                         padding: 12px;
                         spacing: 6px;
                         for peer in root.inspector_peers : Rectangle {
-                            background: #171a21;
-                            border-color: #262c37;
+                            background: Theme.c171a21;
+                            border-color: Theme.c262c37;
                             border-width: 1px;
                             border-radius: 6px;
                             height: 38px;
@@ -226,15 +229,15 @@ export component TaskInspector inherits Rectangle {
                                 alignment: space-between;
                                 VerticalLayout {
                                     alignment: center;
-                                    Text { text: peer.address; color: #f3f4f6; font-size: 12px; font-weight: 500; }
-                                    Text { text: peer.client + " [" + peer.flags + "]"; color: #8b95a5; font-size: 10px; }
+                                    Text { text: peer.address; color: Theme.cf3f4f6; font-size: 12px; font-weight: 500; }
+                                    Text { text: peer.client + " [" + peer.flags + "]"; color: Theme.c8b95a5; font-size: 10px; }
                                 }
                                 HorizontalLayout {
                                     spacing: 12px;
                                     alignment: end;
-                                    Text { text: "↓ " + peer.download_speed; color: #4ade80; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    Text { text: "↑ " + peer.upload_speed; color: #38bdf8; font-size: 11px; font-weight: 600; vertical-alignment: center; }
-                                    Text { text: Math.round(peer.progress * 100) + "%"; color: #a3e635; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: "↓ " + peer.download_speed; color: Theme.c4ade80; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: "↑ " + peer.upload_speed; color: Theme.c38bdf8; font-size: 11px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: Math.round(peer.progress * 100) + "%"; color: Theme.ca3e635; font-size: 11px; font-weight: 600; vertical-alignment: center; }
                                 }
                             }
                         }
@@ -251,8 +254,8 @@ export component TaskInspector inherits Rectangle {
                         padding: 12px;
                         spacing: 6px;
                         for tracker in root.inspector_trackers : Rectangle {
-                            background: #171a21;
-                            border-color: #262c37;
+                            background: Theme.c171a21;
+                            border-color: Theme.c262c37;
                             border-width: 1px;
                             border-radius: 6px;
                             height: 32px;
@@ -260,7 +263,7 @@ export component TaskInspector inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 alignment: start;
-                                Text { text: tracker.url; color: #d1d5db; font-size: 12px; vertical-alignment: center; }
+                                Text { text: tracker.url; color: Theme.cd1d5db; font-size: 12px; vertical-alignment: center; }
                             }
                         }
                     }
@@ -274,13 +277,13 @@ export component TaskInspector inherits Rectangle {
 
                     HorizontalLayout {
                         alignment: space-between;
-                        Text { text: @tr("Piece Map Completion:"); color: #9ca3af; font-size: 13px; font-weight: 600; }
-                        Text { text: root.inspector_pieces_count_text; color: #84cc16; font-size: 12px; font-weight: 700; }
+                        Text { text: @tr("Piece Map Completion:"); color: Theme.c9ca3af; font-size: 13px; font-weight: 600; }
+                        Text { text: root.inspector_pieces_count_text; color: Theme.c84cc16; font-size: 12px; font-weight: 700; }
                     }
 
                     Rectangle {
-                        background: #0b0c0f;
-                        border-color: #252b36;
+                        background: Theme.c0b0c0f;
+                        border-color: Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
                         height: 240px;
@@ -298,13 +301,13 @@ export component TaskInspector inherits Rectangle {
                         alignment: center;
                         HorizontalLayout {
                             spacing: 6px;
-                            Rectangle { width: 12px; height: 12px; background: #84cc16; border-radius: 2px; }
-                            Text { text: @tr("Completed Pieces"); color: #9ca3af; font-size: 11px; }
+                            Rectangle { width: 12px; height: 12px; background: Theme.c84cc16; border-radius: 2px; }
+                            Text { text: @tr("Completed Pieces"); color: Theme.c9ca3af; font-size: 11px; }
                         }
                         HorizontalLayout {
                             spacing: 6px;
-                            Rectangle { width: 12px; height: 12px; background: #262a31; border-radius: 2px; }
-                            Text { text: @tr("Pending Pieces"); color: #9ca3af; font-size: 11px; }
+                            Rectangle { width: 12px; height: 12px; background: Theme.c262a31; border-radius: 2px; }
+                            Text { text: @tr("Pending Pieces"); color: Theme.c9ca3af; font-size: 11px; }
                         }
                     }
                 }
@@ -319,8 +322,8 @@ export component TaskInspector inherits Rectangle {
                         padding: 12px;
                         spacing: 6px;
                         for file in root.inspector_files : Rectangle {
-                            background: #171a21;
-                            border-color: #262c37;
+                            background: Theme.c171a21;
+                            border-color: Theme.c262c37;
                             border-width: 1px;
                             border-radius: 6px;
                             height: 42px;
@@ -330,12 +333,12 @@ export component TaskInspector inherits Rectangle {
                                 alignment: space-between;
                                 VerticalLayout {
                                     alignment: center;
-                                    Text { text: file.path; color: #f3f4f6; font-size: 12px; font-weight: 500; overflow: elide; max-width: 440px; }
-                                    Text { text: file.downloaded_text + " / " + file.size_text; color: #8b95a5; font-size: 10px; }
+                                    Text { text: file.path; color: Theme.cf3f4f6; font-size: 12px; font-weight: 500; overflow: elide; max-width: 440px; }
+                                    Text { text: file.downloaded_text + " / " + file.size_text; color: Theme.c8b95a5; font-size: 10px; }
                                 }
                                 Text {
                                     text: Math.round(file.progress * 100) + "%";
-                                    color: file.progress >= 1.0 ? #38bdf8 : #84cc16;
+                                    color: file.progress >= 1.0 ? Theme.c38bdf8 : Theme.c84cc16;
                                     font-size: 12px;
                                     font-weight: 700;
                                     vertical-alignment: center;

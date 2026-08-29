@@ -1,5 +1,8 @@
 import { CustomTextInput, IconButton, PrimaryButton, SecondaryButton } from "common.slint";
 
+import { Theme } from "../theme.slint";
+import { CustomTextInput, IconButton, PrimaryButton, SecondaryButton } from "common.slint";
+
 export component NewTaskDialog inherits Rectangle {
     in-out property <string> new_task_url;
     in-out property <string> new_task_dir;
@@ -13,7 +16,7 @@ export component NewTaskDialog inherits Rectangle {
 
     width: 100%;
     height: 100%;
-    background: #000000bb;
+    background: Theme.c000000bb;
 
     TouchArea {}
 
@@ -22,12 +25,12 @@ export component NewTaskDialog inherits Rectangle {
         height: 360px;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: #171a20;
-        border-color: #2e3542;
+        background: Theme.c171a20;
+        border-color: Theme.c2e3542;
         border-width: 1px;
         border-radius: 12px;
         drop-shadow-blur: 24px;
-        drop-shadow-color: #000000cc;
+        drop-shadow-color: Theme.c000000cc;
 
         VerticalLayout {
             padding: 22px;
@@ -38,7 +41,7 @@ export component NewTaskDialog inherits Rectangle {
                 alignment: space-between;
                 Text {
                     text: @tr("New Download Task");
-                    color: #f3f4f6;
+                    color: Theme.cf3f4f6;
                     font-size: 16px;
                     font-weight: 700;
                     vertical-alignment: center;
@@ -56,7 +59,7 @@ export component NewTaskDialog inherits Rectangle {
                     alignment: space-between;
                     Text {
                         text: @tr("Download URL / Magnet / Local Torrent Path:");
-                        color: #9ca3af;
+                        color: Theme.c9ca3af;
                         font-size: 12px;
                         vertical-alignment: center;
                     }
@@ -77,7 +80,7 @@ export component NewTaskDialog inherits Rectangle {
                 spacing: 6px;
                 Text {
                     text: @tr("Save Directory:");
-                    color: #9ca3af;
+                    color: Theme.c9ca3af;
                     font-size: 12px;
                 }
                 HorizontalLayout {
@@ -99,7 +102,7 @@ export component NewTaskDialog inherits Rectangle {
                 spacing: 4px;
                 Text {
                     text: @tr("Custom Filename (Optional):");
-                    color: #9ca3af;
+                    color: Theme.c9ca3af;
                     font-size: 12px;
                 }
                 CustomTextInput {

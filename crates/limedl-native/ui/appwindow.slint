@@ -1,4 +1,14 @@
 import { ScrollView } from "std-widgets.slint";
+import { Theme, ColorModePref } from "theme.slint";
+
+// Bundled MiSans VF variable font (family "MiSans VF", wght 150-700). Embedded
+// into the binary at compile time and auto-registered at startup, so every
+// platform renders with the same typeface. The .ttf is NOT in git (MiSans
+// license forbids re-distributing the font file itself); fetch it with
+// scripts/fetch-misans.ps1 — build.rs fails with the same instruction if missing.
+import "../assets/fonts/MiSansVF.ttf";
+
+export { Theme, ColorModePref }
 export {
     TaskItem,
     PeerItem,
@@ -48,8 +58,12 @@ export component MainWindow inherits Window {
     icon: @image-url("assets/icon.png");
     min-width: 1000px;
     min-height: 660px;
-    default-font-family: "Segoe UI, PingFang SC, Microsoft YaHei, sans-serif";
-    background: #0d0f12;
+    // NOTE: font-family in Slint is a SINGLE family name (no CSS fallback
+    // stacks). MiSans VF is bundled via the import above, so this resolves on
+    // every platform and all UI text renders with the same typeface; glyphs
+    // missing from MiSans (emoji, rare Han) still fall back to system fonts.
+    default-font-family: "MiSans VF";
+    background: Theme.c0d0f12;
 
     // State properties
     in property <[TaskItem]> tasks: [];
@@ -188,6 +202,7 @@ export component MainWindow inherits Window {
     callback pick_default_folder();
     callback pick_log_folder();
     callback open_log_folder();
+    callback open_font_license();
     callback copy_task_url(string);
     callback purge_single_task(string);
 
@@ -195,8 +210,8 @@ export component MainWindow inherits Window {
         // Left Sidebar
         Rectangle {
             width: 220px;
-            background: #12151a;
-            border-color: #20242d;
+            background: Theme.c12151a;
+            border-color: Theme.c20242d;
             border-width: 1px;
 
             VerticalLayout {
@@ -224,13 +239,13 @@ export component MainWindow inherits Window {
                         spacing: 1px;
                         Text {
                             text: "limedl";
-                            color: #f3f4f6;
+                            color: Theme.cf3f4f6;
                             font-size: 16px;
                             font-weight: 700;
                         }
                         Text {
                             text: "Native Edition";
-                            color: #84cc16;
+                            color: Theme.c84cc16;
                             font-size: 10px;
                             font-weight: 600;
                         }
@@ -285,8 +300,8 @@ export component MainWindow inherits Window {
                     spacing: 6px;
 
                     Rectangle {
-                        background: root.game_mode_active ? #351d0b : #181b22;
-                        border-color: root.game_mode_active ? #f59e0b : #252b36;
+                        background: root.game_mode_active ? Theme.c351d0b : Theme.c181b22;
+                        border-color: root.game_mode_active ? Theme.cf59e0b : Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
                         height: 34px;
@@ -306,7 +321,7 @@ export component MainWindow inherits Window {
                                     alignment: center;
                                     Image {
                                         source: @image-url("assets/icons/gamepad-line.svg");
-                                        colorize: root.game_mode_active ? #f59e0b : #8b95a5;
+                                        colorize: root.game_mode_active ? Theme.cf59e0b : Theme.c8b95a5;
                                         width: 15px;
                                         height: 15px;
                                         image-fit: contain;
@@ -314,7 +329,7 @@ export component MainWindow inherits Window {
                                 }
                                 Text {
                                     text: @tr("Game Mode");
-                                    color: root.game_mode_active ? #f59e0b : #9ca3af;
+                                    color: root.game_mode_active ? Theme.cf59e0b : Theme.c9ca3af;
                                     font-size: 12px;
                                     font-weight: 500;
                                     vertical-alignment: center;
@@ -322,7 +337,7 @@ export component MainWindow inherits Window {
                             }
                             Text {
                                 text: root.game_mode_active ? "ON" : "OFF";
-                                color: root.game_mode_active ? #fcd34d : #5d6778;
+                                color: root.game_mode_active ? Theme.cfcd34d : Theme.c5d6778;
                                 font-size: 11px;
                                 font-weight: 700;
                                 vertical-alignment: center;
@@ -331,8 +346,8 @@ export component MainWindow inherits Window {
                     }
 
                     Rectangle {
-                        background: root.overclock_mode_active ? #31132b : #181b22;
-                        border-color: root.overclock_mode_active ? #ec4899 : #252b36;
+                        background: root.overclock_mode_active ? Theme.c31132b : Theme.c181b22;
+                        border-color: root.overclock_mode_active ? Theme.cec4899 : Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
                         height: 34px;
@@ -352,7 +367,7 @@ export component MainWindow inherits Window {
                                     alignment: center;
                                     Image {
                                         source: @image-url("assets/icons/rocket-line.svg");
-                                        colorize: root.overclock_mode_active ? #ec4899 : #8b95a5;
+                                        colorize: root.overclock_mode_active ? Theme.cec4899 : Theme.c8b95a5;
                                         width: 15px;
                                         height: 15px;
                                         image-fit: contain;
@@ -360,7 +375,7 @@ export component MainWindow inherits Window {
                                 }
                                 Text {
                                     text: @tr("Overclock Mode");
-                                    color: root.overclock_mode_active ? #ec4899 : #9ca3af;
+                                    color: root.overclock_mode_active ? Theme.cec4899 : Theme.c9ca3af;
                                     font-size: 12px;
                                     font-weight: 500;
                                     vertical-alignment: center;
@@ -368,7 +383,7 @@ export component MainWindow inherits Window {
                             }
                             Text {
                                 text: root.overclock_mode_active ? "ON" : "OFF";
-                                color: root.overclock_mode_active ? #f472b6 : #5d6778;
+                                color: root.overclock_mode_active ? Theme.cf472b6 : Theme.c5d6778;
                                 font-size: 11px;
                                 font-weight: 700;
                                 vertical-alignment: center;
@@ -379,8 +394,8 @@ export component MainWindow inherits Window {
 
                 // Global Speed Widget
                 Rectangle {
-                    background: #181b22;
-                    border-color: #252b36;
+                    background: Theme.c181b22;
+                    border-color: Theme.c252b36;
                     border-width: 1px;
                     border-radius: 8px;
                     height: 56px;
@@ -391,13 +406,13 @@ export component MainWindow inherits Window {
                         alignment: space-around;
                         Text {
                             text: @tr("Realtime Download Speed");
-                            color: #8b95a5;
+                            color: Theme.c8b95a5;
                             font-size: 10px;
                             font-weight: 500;
                         }
                         Text {
                             text: root.global_speed_text;
-                            color: #84cc16;
+                            color: Theme.c84cc16;
                             font-size: 15px;
                             font-weight: 700;
                         }
@@ -410,8 +425,8 @@ export component MainWindow inherits Window {
 
                     // Settings Button
                     Rectangle {
-                        background: ta_set.has_hover ? #222731 : #181b22;
-                        border-color: #252b36;
+                        background: ta_set.has_hover ? Theme.c222731 : Theme.c181b22;
+                        border-color: Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
                         height: 36px;
@@ -430,7 +445,7 @@ export component MainWindow inherits Window {
                                 alignment: center;
                                 Image {
                                     source: @image-url("assets/icons/settings-3-line.svg");
-                                    colorize: ta_set.has_hover ? #ffffff : #d1d5db;
+                                    colorize: ta_set.has_hover ? Theme.cffffff : Theme.cd1d5db;
                                     width: 15px;
                                     height: 15px;
                                     image-fit: contain;
@@ -439,7 +454,7 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: @tr("Settings");
-                                color: ta_set.has_hover ? #ffffff : #d1d5db;
+                                color: ta_set.has_hover ? Theme.cffffff : Theme.cd1d5db;
                                 font-size: 12px;
                                 font-weight: 600;
                                 vertical-alignment: center;
@@ -449,8 +464,8 @@ export component MainWindow inherits Window {
 
                     // Labs Button
                     Rectangle {
-                        background: ta_lab.has_hover ? #222731 : #181b22;
-                        border-color: #252b36;
+                        background: ta_lab.has_hover ? Theme.c222731 : Theme.c181b22;
+                        border-color: Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
                         height: 36px;
@@ -469,7 +484,7 @@ export component MainWindow inherits Window {
                                 alignment: center;
                                 Image {
                                     source: @image-url("assets/icons/flask-line.svg");
-                                    colorize: ta_lab.has_hover ? #a3e635 : #d1d5db;
+                                    colorize: ta_lab.has_hover ? Theme.ca3e635 : Theme.cd1d5db;
                                     width: 15px;
                                     height: 15px;
                                     image-fit: contain;
@@ -478,7 +493,7 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: @tr("Labs");
-                                color: ta_lab.has_hover ? #a3e635 : #d1d5db;
+                                color: ta_lab.has_hover ? Theme.ca3e635 : Theme.cd1d5db;
                                 font-size: 12px;
                                 font-weight: 600;
                                 vertical-alignment: center;
@@ -494,8 +509,8 @@ export component MainWindow inherits Window {
             // Top Toolbar with vertical centering and proper padding
             Rectangle {
                 height: 62px;
-                background: #111419;
-                border-color: #20242d;
+                background: Theme.c111419;
+                border-color: Theme.c20242d;
                 border-width: 1px;
 
                 HorizontalLayout {
@@ -520,7 +535,7 @@ export component MainWindow inherits Window {
                                         )
                                     )
                                 );
-                                color: #f3f4f6;
+                                color: Theme.cf3f4f6;
                                 font-size: 16px;
                                 font-weight: 700;
                                 vertical-alignment: center;
@@ -577,7 +592,7 @@ export component MainWindow inherits Window {
                             IconButton {
                                 text: root.sort_asc ? @tr("Ascending") : @tr("Descending");
                                 icon: @image-url("assets/icons/arrow-up-down-line.svg");
-                                text_color: #a3e635;
+                                text_color: Theme.ca3e635;
                                 clicked => { root.toggle_sort_asc(); }
                             }
                         }
@@ -587,7 +602,7 @@ export component MainWindow inherits Window {
                             Rectangle {
                                 width: 1px;
                                 height: 20px;
-                                background: #242934;
+                                background: Theme.c242934;
                             }
                         }
 
@@ -614,7 +629,7 @@ export component MainWindow inherits Window {
 
             // Task List Area & Floating BatchActionBar
             Rectangle {
-                background: #0d0f12;
+                background: Theme.c0d0f12;
 
                 if root.tasks.length == 0 : VerticalLayout {
                     alignment: center;
@@ -628,7 +643,7 @@ export component MainWindow inherits Window {
                     }
                     Text {
                         text: root.search_query != "" ? @tr("Try clearing your search keywords") : @tr("Click \"New Task\" in the top-right corner to add HTTP / BT downloads");
-                        color: #4b5563;
+                        color: Theme.c4b5563;
                         font-size: 13px;
                         horizontal-alignment: center;
                     }
@@ -675,12 +690,12 @@ export component MainWindow inherits Window {
                     y: parent.height - self.height - 16px;
                     width: min(parent.width - 40px, 700px);
                     height: 52px;
-                    background: #181b22;
-                    border-color: #84cc16;
+                    background: Theme.c181b22;
+                    border-color: Theme.c84cc16;
                     border-width: 1px;
                     border-radius: 10px;
                     drop-shadow-blur: 20px;
-                    drop-shadow-color: #000000cc;
+                    drop-shadow-color: Theme.c000000cc;
 
                     HorizontalLayout {
                         padding-left: 16px;
@@ -693,7 +708,7 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: @tr("Selected ") + root.selected_count + @tr(" tasks");
-                                color: #84cc16;
+                                color: Theme.c84cc16;
                                 font-size: 13px;
                                 font-weight: 700;
                                 vertical-alignment: center;
@@ -701,13 +716,13 @@ export component MainWindow inherits Window {
 
                             IconButton {
                                 text: @tr("Select All");
-                                text_color: #9ca3af;
+                                text_color: Theme.c9ca3af;
                                 clicked => { root.select_all(); }
                             }
 
                             IconButton {
                                 text: @tr("Deselect");
-                                text_color: #9ca3af;
+                                text_color: Theme.c9ca3af;
                                 clicked => { root.clear_selection(); }
                             }
                         }
@@ -773,6 +788,7 @@ export component MainWindow inherits Window {
         pick_default_folder => { root.pick_default_folder(); }
         pick_log_folder => { root.pick_log_folder(); }
         open_log_folder => { root.open_log_folder(); }
+        open_font_license => { root.open_font_license(); }
     }
 
     // Dialog: Labs (CDN Acceleration & URL Rewrite)

@@ -1,0 +1,254 @@
+// Auto-generated color theme for the native UI. See scripts/generate-theme-slint.ps1
+// for the source mapping tables (static dark -> light values + brand accent ramps).
+//
+// Usage rules:
+//  - 'mode' is set from Rust (settings.appearance.color_mode).
+//  - 'accent' is set from Rust (settings.appearance.theme_color).
+//  - 'dark' resolves the effective scheme: explicit choice, or the OS scheme
+//    in system mode (via the std-widgets Palette global).
+//  - Property names are the DARK hex values (c<hex>) so every call site maps
+//    1:1 back to the literal it replaced. Do not introduce new hardcoded
+//    hex colors in components; add a token here instead. Brand-accent tokens
+//    (buttons/selection/brand text) follow 'accent'; status colors
+//    (success/warning/danger/info) intentionally do not.
+import { Palette } from "std-widgets.slint";
+
+export enum ColorModePref { System, Light, Dark }
+
+export enum ThemeAccent { Lime, Amber, Sky }
+
+export global Theme {
+    /// User preference from settings (system/light/dark).
+    in-out property <ColorModePref> mode: ColorModePref.System;
+
+    /// Brand accent from settings (lime/amber/sky).
+    in-out property <ThemeAccent> accent: ThemeAccent.Lime;
+
+    /// Effective dark flag used by every color token below.
+    // Note: builtin ColorScheme enum uses lowercase variants.
+    in-out property <bool> dark: mode == ColorModePref.Dark
+        || (mode == ColorModePref.System && Palette.color-scheme == ColorScheme.dark);
+
+    /// dark #0d0f12 / light #f4f5f7
+    in property <color> c0d0f12: dark ? #0d0f12 : #f4f5f7;
+    /// dark #12151a / light #ffffff
+    in property <color> c12151a: dark ? #12151a : #ffffff;
+    /// dark #181b22 / light #ffffff
+    in property <color> c181b22: dark ? #181b22 : #ffffff;
+    /// dark #111419 / light #f8f9fa
+    in property <color> c111419: dark ? #111419 : #f8f9fa;
+    /// dark #111418 / light #f8f9fa
+    in property <color> c111418: dark ? #111418 : #f8f9fa;
+    /// dark #0b0c0f / light #e9ebef
+    in property <color> c0b0c0f: dark ? #0b0c0f : #e9ebef;
+    /// dark #13161b / light #f2f3f5
+    in property <color> c13161b: dark ? #13161b : #f2f3f5;
+    /// dark #14161b / light #f0f1f4
+    in property <color> c14161b: dark ? #14161b : #f0f1f4;
+    /// dark #14171d / light #eff1f4
+    in property <color> c14171d: dark ? #14171d : #eff1f4;
+    /// dark #141922 / light #eef0f4
+    in property <color> c141922: dark ? #141922 : #eef0f4;
+    /// dark #15171c / light #eff1f4
+    in property <color> c15171c: dark ? #15171c : #eff1f4;
+    /// dark #15181d / light #eff1f4
+    in property <color> c15181d: dark ? #15181d : #eff1f4;
+    /// dark #15181e / light #eff1f4
+    in property <color> c15181e: dark ? #15181e : #eff1f4;
+    /// dark #15181f / light #eff1f4
+    in property <color> c15181f: dark ? #15181f : #eff1f4;
+    /// dark #151921 / light #eef0f3
+    in property <color> c151921: dark ? #151921 : #eef0f3;
+    /// dark #171a20 / light #f0f1f4
+    in property <color> c171a20: dark ? #171a20 : #f0f1f4;
+    /// dark #171a21 / light #eff1f4
+    in property <color> c171a21: dark ? #171a21 : #eff1f4;
+    /// dark #171b21 / light #eef0f3
+    in property <color> c171b21: dark ? #171b21 : #eef0f3;
+    /// dark #191c22 / light #eff1f4
+    in property <color> c191c22: dark ? #191c22 : #eff1f4;
+    /// dark #1a1d23 / light #eceef2
+    in property <color> c1a1d23: dark ? #1a1d23 : #eceef2;
+    /// dark #1a1e25 / light #eceef2
+    in property <color> c1a1e25: dark ? #1a1e25 : #eceef2;
+    /// dark #1a1e26 / light #eceef1
+    in property <color> c1a1e26: dark ? #1a1e26 : #eceef1;
+    /// dark #1d212a / light #e9ecf0
+    in property <color> c1d212a: dark ? #1d212a : #e9ecf0;
+    /// dark #1e2229 / light #e9ecf0
+    in property <color> c1e2229: dark ? #1e2229 : #e9ecf0;
+    /// dark #1f242e / light #e8ebf0
+    in property <color> c1f242e: dark ? #1f242e : #e8ebf0;
+    /// dark #20242c / light #e7eaef
+    in property <color> c20242c: dark ? #20242c : #e7eaef;
+    /// dark #20242d / light #e7eaef
+    in property <color> c20242d: dark ? #20242d : #e7eaef;
+    /// dark #20252e / light #e7eaef
+    in property <color> c20252e: dark ? #20252e : #e7eaef;
+    /// dark #22262f / light #e6e9ee
+    in property <color> c22262f: dark ? #22262f : #e6e9ee;
+    /// dark #222731 / light #e7eaef
+    in property <color> c222731: dark ? #222731 : #e7eaef;
+    /// dark #232832 / light #e6e9ee
+    in property <color> c232832: dark ? #232832 : #e6e9ee;
+    /// dark #232a38 / light #e6e9ee
+    in property <color> c232a38: dark ? #232a38 : #e6e9ee;
+    /// dark #242932 / light #e6e9ee
+    in property <color> c242932: dark ? #242932 : #e6e9ee;
+    /// dark #242934 / light #e6e9ee
+    in property <color> c242934: dark ? #242934 : #e6e9ee;
+    /// dark #252a34 / light #e5e8ee
+    in property <color> c252a34: dark ? #252a34 : #e5e8ee;
+    /// dark #252b34 / light #e5e8ee
+    in property <color> c252b34: dark ? #252b34 : #e5e8ee;
+    /// dark #252b36 / light #e5e8ee
+    in property <color> c252b36: dark ? #252b36 : #e5e8ee;
+    /// dark #262a31 / light #e5e8ed
+    in property <color> c262a31: dark ? #262a31 : #e5e8ed;
+    /// dark #262c37 / light #e4e7ed
+    in property <color> c262c37: dark ? #262c37 : #e4e7ed;
+    /// dark #272d38 / light #dfe3ea
+    in property <color> c272d38: dark ? #272d38 : #dfe3ea;
+    /// dark #272f3e / light #dfe3ea
+    in property <color> c272f3e: dark ? #272f3e : #dfe3ea;
+    /// dark #2a2f3a / light #dfe2e9
+    in property <color> c2a2f3a: dark ? #2a2f3a : #dfe2e9;
+    /// dark #2b313d / light #dee2e9
+    in property <color> c2b313d: dark ? #2b313d : #dee2e9;
+    /// dark #2b3342 / light #dfe3ec
+    in property <color> c2b3342: dark ? #2b3342 : #dfe3ec;
+    /// dark #2e3542 / light #d9dde5
+    in property <color> c2e3542: dark ? #2e3542 : #d9dde5;
+    /// dark #323844 / light #d5dae3
+    in property <color> c323844: dark ? #323844 : #d5dae3;
+    /// dark #323845 / light #d5dae3
+    in property <color> c323845: dark ? #323845 : #d5dae3;
+    /// dark #343c4a / light #d2d8e1
+    in property <color> c343c4a: dark ? #343c4a : #d2d8e1;
+    /// dark #3b4352 / light #cdd4df
+    in property <color> c3b4352: dark ? #3b4352 : #cdd4df;
+    /// dark #3f4756 / light #c9d0da
+    in property <color> c3f4756: dark ? #3f4756 : #c9d0da;
+    /// dark #202632 / light #e4e7ed
+    in property <color> c202632: dark ? #202632 : #e4e7ed;
+    /// dark #181d26 / light #eef0f4
+    in property <color> c181d26: dark ? #181d26 : #eef0f4;
+    /// dark #f3f4f6 / light #1f2329
+    in property <color> cf3f4f6: dark ? #f3f4f6 : #1f2329;
+    /// dark #d1d5db / light #374151
+    in property <color> cd1d5db: dark ? #d1d5db : #374151;
+    /// dark #9ca3af / light #6b7280
+    in property <color> c9ca3af: dark ? #9ca3af : #6b7280;
+    /// dark #6b7280 / light #6b7280
+    in property <color> c6b7280: dark ? #6b7280 : #6b7280;
+    /// dark #8b95a5 / light #7c8698
+    in property <color> c8b95a5: dark ? #8b95a5 : #7c8698;
+    /// dark #5d6778 / light #8a93a3
+    in property <color> c5d6778: dark ? #5d6778 : #8a93a3;
+    /// dark #4b5563 / light #9ca3af
+    in property <color> c4b5563: dark ? #4b5563 : #9ca3af;
+    /// dark #626c7d / light #8a93a3
+    in property <color> c626c7d: dark ? #626c7d : #8a93a3;
+    /// dark #e5e7eb / light #374151
+    in property <color> ce5e7eb: dark ? #e5e7eb : #374151;
+    /// dark #ffffff / light #1f2329
+    in property <color> cffffff: dark ? #ffffff : #1f2329;
+    /// dark #38bdf8 / light #0284c7
+    in property <color> c38bdf8: dark ? #38bdf8 : #0284c7;
+    /// dark #60a5fa / light #2563eb
+    in property <color> c60a5fa: dark ? #60a5fa : #2563eb;
+    /// dark #112842 / light #dbeafe
+    in property <color> c112842: dark ? #112842 : #dbeafe;
+    /// dark #1d406b / light #bfdbfe
+    in property <color> c1d406b: dark ? #1d406b : #bfdbfe;
+    /// dark #132a42 / light #e0f2fe
+    in property <color> c132a42: dark ? #132a42 : #e0f2fe;
+    /// dark #255078 / light #93c5fd
+    in property <color> c255078: dark ? #255078 : #93c5fd;
+    /// dark #152c42 / light #e0f2fe
+    in property <color> c152c42: dark ? #152c42 : #e0f2fe;
+    /// dark #4ade80 / light #16a34a
+    in property <color> c4ade80: dark ? #4ade80 : #16a34a;
+    /// dark #22c55e / light #16a34a
+    in property <color> c22c55e: dark ? #22c55e : #16a34a;
+    /// dark #86efac / light #15803d
+    in property <color> c86efac: dark ? #86efac : #15803d;
+    /// dark #142e1b / light #dcfce7
+    in property <color> c142e1b: dark ? #142e1b : #dcfce7;
+    /// dark #14351a / light #dcfce7
+    in property <color> c14351a: dark ? #14351a : #dcfce7;
+    /// dark #153920 / light #dcfce7
+    in property <color> c153920: dark ? #153920 : #dcfce7;
+    /// dark #22542e / light #bbf7d0
+    in property <color> c22542e: dark ? #22542e : #bbf7d0;
+    /// dark #276238 / light #15803d
+    in property <color> c276238: dark ? #276238 : #15803d;
+    /// dark #ef4444 / light #dc2626
+    in property <color> cef4444: dark ? #ef4444 : #dc2626;
+    /// dark #f87171 / light #dc2626
+    in property <color> cf87171: dark ? #f87171 : #dc2626;
+    /// dark #991b1b / light #b91c1c
+    in property <color> c991b1b: dark ? #991b1b : #b91c1c;
+    /// dark #7f1d1d / light #b91c1c
+    in property <color> c7f1d1d: dark ? #7f1d1d : #b91c1c;
+    /// dark #201315 / light #fef2f2
+    in property <color> c201315: dark ? #201315 : #fef2f2;
+    /// dark #361214 / light #fee2e2
+    in property <color> c361214: dark ? #361214 : #fee2e2;
+    /// dark #3f1518 / light #fee2e2
+    in property <color> c3f1518: dark ? #3f1518 : #fee2e2;
+    /// dark #3b1216 / light #fee2e2
+    in property <color> c3b1216: dark ? #3b1216 : #fee2e2;
+    /// dark #5c1f23 / light #fecaca
+    in property <color> c5c1f23: dark ? #5c1f23 : #fecaca;
+    /// dark #351417 / light #fee2e2
+    in property <color> c351417: dark ? #351417 : #fee2e2;
+    /// dark #fca5a5 / light #f87171
+    in property <color> cfca5a5: dark ? #fca5a5 : #f87171;
+    /// dark #f59e0b / light #d97706
+    in property <color> cf59e0b: dark ? #f59e0b : #d97706;
+    /// dark #facc15 / light #eab308
+    in property <color> cfacc15: dark ? #facc15 : #eab308;
+    /// dark #fcd34d / light #fbbf24
+    in property <color> cfcd34d: dark ? #fcd34d : #fbbf24;
+    /// dark #fbbf24 / light #d97706
+    in property <color> cfbbf24: dark ? #fbbf24 : #d97706;
+    /// dark #351d0b / light #fef3c7
+    in property <color> c351d0b: dark ? #351d0b : #fef3c7;
+    /// dark #3b280c / light #fef3c7
+    in property <color> c3b280c: dark ? #3b280c : #fef3c7;
+    /// dark #543615 / light #fde68a
+    in property <color> c543615: dark ? #543615 : #fde68a;
+    /// dark #33200b / light #fde68a
+    in property <color> c33200b: dark ? #33200b : #fde68a;
+    /// dark #2a1d08 / light #fef9c3
+    in property <color> c2a1d08: dark ? #2a1d08 : #fef9c3;
+    /// dark #ec4899 / light #db2777
+    in property <color> cec4899: dark ? #ec4899 : #db2777;
+    /// dark #f472b6 / light #db2777
+    in property <color> cf472b6: dark ? #f472b6 : #db2777;
+    /// dark #31132b / light #fce7f3
+    in property <color> c31132b: dark ? #31132b : #fce7f3;
+    /// dark #000000bb / light #00000066
+    in property <color> c000000bb: dark ? #000000bb : #00000066;
+    /// dark #000000cc / light #00000066
+    in property <color> c000000cc: dark ? #000000cc : #00000066;
+    /// brand accent (was dark #84cc16) 鈥?follows theme_color
+    in property <color> c84cc16: dark ? (accent == ThemeAccent.Amber ? #f59e0b : accent == ThemeAccent.Sky ? #0ea5e9 : #84cc16) : (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : #65a30d);
+    /// brand accent (was dark #a3e635) 鈥?follows theme_color
+    in property <color> ca3e635: dark ? (accent == ThemeAccent.Amber ? #fbbf24 : accent == ThemeAccent.Sky ? #38bdf8 : #a3e635) : (accent == ThemeAccent.Amber ? #f59e0b : accent == ThemeAccent.Sky ? #0ea5e9 : #84cc16);
+    /// brand accent (was dark #65a30d) 鈥?follows theme_color
+    in property <color> c65a30d: dark ? (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : #65a30d) : (accent == ThemeAccent.Amber ? #b45309 : accent == ThemeAccent.Sky ? #0369a1 : #4d7c0f);
+    /// brand accent (was dark #365314) 鈥?follows theme_color
+    in property <color> c365314: dark ? (accent == ThemeAccent.Amber ? #78350f : accent == ThemeAccent.Sky ? #0c4a6e : #365314) : (accent == ThemeAccent.Amber ? #713f12 : accent == ThemeAccent.Sky ? #0c4a6e : #1a2e05);
+    /// brand accent (was dark #26331a) 鈥?follows theme_color
+    in property <color> c26331a: dark ? (accent == ThemeAccent.Amber ? #451a03 : accent == ThemeAccent.Sky ? #082f49 : #26331a) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : #ecfccb);
+    /// brand accent (was dark #232b1d) 鈥?follows theme_color
+    in property <color> c232b1d: dark ? (accent == ThemeAccent.Amber ? #3b280c : accent == ThemeAccent.Sky ? #0c4a6e : #232b1d) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : #f0f7e2);
+    /// brand accent (was dark #2a3322) 鈥?follows theme_color
+    in property <color> c2a3322: dark ? (accent == ThemeAccent.Amber ? #422006 : accent == ThemeAccent.Sky ? #075985 : #2a3322) : (accent == ThemeAccent.Amber ? #fde68a : accent == ThemeAccent.Sky ? #bae6fd : #eaf6d9);
+    /// brand accent (was dark #1c2618) 鈥?follows theme_color
+    in property <color> c1c2618: dark ? (accent == ThemeAccent.Amber ? #451a03 : accent == ThemeAccent.Sky ? #082f49 : #1c2618) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : #eaf6d9);
+    /// brand accent (was dark #4d5c41) 鈥?follows theme_color
+    in property <color> c4d5c41: dark ? (accent == ThemeAccent.Amber ? #92400e : accent == ThemeAccent.Sky ? #0369a1 : #4d5c41) : (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : #9db876);
+}

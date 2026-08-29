@@ -1,4 +1,7 @@
 import { TaskItem } from "../types.slint";
+
+import { Theme } from "../theme.slint";
+import { TaskItem } from "../types.slint";
 import { CustomCheckBox, IconButton, StatusBadge } from "common.slint";
 
 export component TaskCard inherits Rectangle {
@@ -11,8 +14,8 @@ export component TaskCard inherits Rectangle {
     callback remove_task();
     callback show_menu(length, length);
 
-    background: root.item.selected ? #1c2618 : (ta.has_hover ? #191c22 : #13161b);
-    border-color: root.item.selected ? #65a30d : (ta.has_hover ? #323845 : #22262f);
+    background: root.item.selected ? Theme.c1c2618 : (ta.has_hover ? Theme.c191c22 : Theme.c13161b);
+    border-color: root.item.selected ? Theme.c65a30d : (ta.has_hover ? Theme.c323845 : Theme.c22262f);
     border-width: 1px;
     border-radius: 8px;
     height: 104px;
@@ -56,8 +59,8 @@ export component TaskCard inherits Rectangle {
                     VerticalLayout {
                         alignment: center;
                         Rectangle {
-                            background: root.item.kind == "bt" ? #152c42 : #153920;
-                            border-color: root.item.kind == "bt" ? #255078 : #276238;
+                            background: root.item.kind == "bt" ? Theme.c152c42 : Theme.c153920;
+                            border-color: root.item.kind == "bt" ? Theme.c255078 : Theme.c276238;
                             border-width: 1px;
                             border-radius: 4px;
                             height: 20px;
@@ -67,7 +70,7 @@ export component TaskCard inherits Rectangle {
                                 alignment: center;
                                 Text {
                                     text: root.item.kind == "bt" ? "BT" : "HTTP";
-                                    color: root.item.kind == "bt" ? #38bdf8 : #4ade80;
+                                    color: root.item.kind == "bt" ? Theme.c38bdf8 : Theme.c4ade80;
                                     font-size: 10px;
                                     font-weight: 700;
                                     vertical-alignment: center;
@@ -79,7 +82,7 @@ export component TaskCard inherits Rectangle {
                     // File Name
                     Text {
                         text: root.item.file_name;
-                        color: #f3f4f6;
+                        color: Theme.cf3f4f6;
                         font-size: 14px;
                         font-weight: 600;
                         overflow: elide;
@@ -95,7 +98,7 @@ export component TaskCard inherits Rectangle {
                     // Speed
                     if root.item.speed_text != "" : Text {
                         text: root.item.speed_text;
-                        color: #84cc16;
+                        color: Theme.c84cc16;
                         font-size: 12px;
                         font-weight: 700;
                         vertical-alignment: center;
@@ -114,7 +117,7 @@ export component TaskCard inherits Rectangle {
 
             // Progress Bar
             Rectangle {
-                background: #1e2229;
+                background: Theme.c1e2229;
                 border-radius: 3px;
                 height: 5px;
 
@@ -123,8 +126,8 @@ export component TaskCard inherits Rectangle {
                     y: 0px;
                     width: parent.width * max(0.0, min(1.0, root.item.progress));
                     height: parent.height;
-                    background: root.item.state_code == "completed" ? #38bdf8 : (
-                        root.item.state_code == "failed" ? #ef4444 : #84cc16
+                    background: root.item.state_code == "completed" ? Theme.c38bdf8 : (
+                        root.item.state_code == "failed" ? Theme.cef4444 : Theme.c84cc16
                     );
                     border-radius: 3px;
                 }
@@ -140,14 +143,14 @@ export component TaskCard inherits Rectangle {
 
                     Text {
                         text: root.item.size_text;
-                        color: #9ca3af;
+                        color: Theme.c9ca3af;
                         font-size: 12px;
                         vertical-alignment: center;
                     }
 
                     if root.item.eta_text != "" : Text {
                         text: root.item.eta_text;
-                        color: #626c7d;
+                        color: Theme.c626c7d;
                         font-size: 11px;
                         vertical-alignment: center;
                     }
@@ -160,34 +163,34 @@ export component TaskCard inherits Rectangle {
                     IconButton {
                         text: @tr("Details");
                         icon: @image-url("../assets/icons/information-line.svg");
-                        text_color: #38bdf8;
+                        text_color: Theme.c38bdf8;
                         clicked => { root.open_inspector(); }
                     }
 
                     if root.item.can_pause : IconButton {
                         text: @tr("Pause");
                         icon: @image-url("../assets/icons/pause-line.svg");
-                        text_color: #facc15;
+                        text_color: Theme.cfacc15;
                         clicked => { root.pause_task(); }
                     }
 
                     if root.item.can_resume : IconButton {
                         text: @tr("Resume");
                         icon: @image-url("../assets/icons/play-line.svg");
-                        text_color: #4ade80;
+                        text_color: Theme.c4ade80;
                         clicked => { root.resume_task(); }
                     }
 
                     IconButton {
                         text: @tr("Folder");
                         icon: @image-url("../assets/icons/folder-open-line.svg");
-                        text_color: #9ca3af;
+                        text_color: Theme.c9ca3af;
                         clicked => { root.open_explorer(); }
                     }
 
                     IconButton {
                         icon: @image-url("../assets/icons/more-2-fill.svg");
-                        text_color: #9ca3af;
+                        text_color: Theme.c9ca3af;
                         clicked => { root.show_menu(parent.width - 120px, 40px); }
                     }
                 }

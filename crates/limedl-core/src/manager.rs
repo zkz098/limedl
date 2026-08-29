@@ -486,8 +486,10 @@ impl DownloadManager {
             normalized.io_baseline.max_parallel_hdd,
             normalized.io_baseline.game_mode_max_parallel,
         );
-        self.buffer_pool
-            .set_game_mode(normalized.io_baseline.game_mode);
+        // NOTE: io_baseline.game_mode is #[serde(skip)] (runtime-only, never persisted).
+        // Do not overwrite the current buffer_pool game_mode here; it is managed
+        // exclusively via DiskIoService::toggle_game_mode() by the native/Tauri UI
+        // and would otherwise reset to `false` on every settings save.
 
         // Only rebuild client when proxy or user-agent actually changed
         let client_changed = current.proxy.mode != normalized.proxy.mode

@@ -877,3 +877,533 @@ msgstr "Remove Records"
 
 msgid "Delete Files"
 msgstr "Delete Files"
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Peers ({})"
+msgstr "Peers ({})"
+
+msgid "Trackers ({})"
+msgstr "Trackers ({})"
+
+msgid "Piece Map"
+msgstr "Piece Map"
+
+msgid "Files ({})"
+msgstr "Files ({})"
+
+msgid "Downloaded / Total Size"
+msgstr "Downloaded / Total Size"
+
+msgid "ETA"
+msgstr "ETA"
+
+msgid "Source URL:"
+msgstr "Source URL:"
+
+msgid "Thread Mode:"
+msgstr "Thread Mode:"
+
+msgid "Info Hash:"
+msgstr "Info Hash:"
+
+msgid "Error:"
+msgstr "Error:"
+
+msgid "No connected peers"
+msgstr "No connected peers"
+
+msgid "No registered trackers"
+msgstr "No registered trackers"
+
+msgid "Piece Map Completion:"
+msgstr "Piece Map Completion:"
+
+msgid "Completed Pieces"
+msgstr "Completed Pieces"
+
+msgid "Pending Pieces"
+msgstr "Pending Pieces"
+
+msgid "Single file task or file list not yet parsed"
+msgstr "Single file task or file list not yet parsed"
+
+msgid "Download URL / Magnet / Local Torrent Path:"
+msgstr "Download URL / Magnet / Local Torrent Path:"
+
+msgid "http://, https://, magnet:?xt=, or select a local .torrent file"
+msgstr "http://, https://, magnet:?xt=, or select a local .torrent file"
+
+msgid "Leave empty to auto-detect filename"
+msgstr "Leave empty to auto-detect filename"
+
+msgid "Common:"
+msgstr "Common:"
+
+msgid "Appearance"
+msgstr "Appearance"
+
+msgid "Advanced:"
+msgstr "Advanced:"
+
+msgid "IO & Storage"
+msgstr "IO & Storage"
+
+msgid "Aria2"
+msgstr "Aria2"
+
+msgid "Appearance & System Integration"
+msgstr "Appearance & System Integration"
+
+msgid "Theme Mode (system/light/dark):"
+msgstr "Theme Mode (system/light/dark):"
+
+msgid "Theme Color (amber/sky/lime):"
+msgstr "Theme Color (amber/sky/lime):"
+
+msgid "Background Opacity Preset (default/acrylic/frosted):"
+msgstr "Background Opacity Preset (default/acrylic/frosted):"
+
+msgid "UI Language (zh-CN/en-US):"
+msgstr "UI Language (zh-CN/en-US):"
+
+msgid "Close Behavior (minimizeToTray/exit):"
+msgstr "Close Behavior (minimizeToTray/exit):"
+
+msgid "Max In-Memory Records (10-10000):"
+msgstr "Max In-Memory Records (10-10000):"
+
+msgid "items"
+msgstr "items"
+
+msgid "Show Detail Panel"
+msgstr "Show Detail Panel"
+
+msgid "Show download inspector and piece heatmap on the right"
+msgstr "Show download inspector and piece heatmap on the right"
+
+msgid "Launch on Startup"
+msgstr "Launch on Startup"
+
+msgid "Automatically launch limedl-native upon user login"
+msgstr "Automatically launch limedl-native upon user login"
+
+msgid "System Notifications"
+msgstr "System Notifications"
+
+msgid "Show desktop notification on task completion/failure"
+msgstr "Show desktop notification on task completion/failure"
+
+msgid "Double-click Completed Task (none/open_file/open_in_explorer/open_download_dir):"
+msgstr "Double-click Completed Task (none/open_file/open_in_explorer/open_download_dir):"
+
+msgid "Double-click Uncompleted Task (none/toggle_pause_resume):"
+msgstr "Double-click Uncompleted Task (none/toggle_pause_resume):"
+
+msgid "Download Defaults"
+msgstr "Download Defaults"
+
+msgid "Default Download Folder:"
+msgstr "Default Download Folder:"
+
+msgid "Max Concurrent Tasks (traditional):"
+msgstr "Max Concurrent Tasks (traditional):"
+
+msgid "Max Retries (0-100):"
+msgstr "Max Retries (0-100):"
+
+msgid "times"
+msgstr "times"
+
+msgid "Default Checksum (blake3/sha256/xxh3_128/none/sha1):"
+msgstr "Default Checksum (blake3/sha256/xxh3_128/none/sha1):"
+
+msgid "Auto-detect SHA-256"
+msgstr "Auto-detect SHA-256"
+
+msgid "Default User-Agent (empty for Chrome 124):"
+msgstr "Default User-Agent (empty for Chrome 124):"
+
+msgid "Global Bandwidth Limit (0 for unlimited):"
+msgstr "Global Bandwidth Limit (0 for unlimited):"
+
+msgid "Task Speed Limit"
+msgstr "Task Speed Limit"
+
+msgid "Download Rate Limit (0 for unlimited):"
+msgstr "Download Rate Limit (0 for unlimited):"
+
+msgid "Upload Rate Limit (0 for unlimited):"
+msgstr "Upload Rate Limit (0 for unlimited):"
+
+msgid "Apply Speed Limit"
+msgstr "Apply Speed Limit"
+
+
+msgid "Follow System"
+msgstr "Follow System"
+
+msgid "Light"
+msgstr "Light"
+
+msgid "Dark"
+msgstr "Dark"
+
+msgid "Amber"
+msgstr "Amber"
+
+msgid "Sky Blue"
+msgstr "Sky Blue"
+
+msgid "Lime"
+msgstr "Lime"
+
+msgid "Default"
+msgstr "Default"
+
+msgid "Acrylic"
+msgstr "Acrylic"
+
+msgid "Frosted"
+msgstr "Frosted"
+
+msgid "简体中文"
+msgstr "简体中文"
+
+msgid "English"
+msgstr "English"
+
+msgid "Minimize to Tray"
+msgstr "Minimize to Tray"
+
+msgid "Exit"
+msgstr "Exit"
+
+msgid "No Action"
+msgstr "No Action"
+
+msgid "Open File"
+msgstr "Open File"
+
+msgid "Show in Explorer"
+msgstr "Show in Explorer"
+
+msgid "Open Download Directory"
+msgstr "Open Download Directory"
+
+msgid "Pause / Resume"
+msgstr "Pause / Resume"
+
+msgid "BLAKE3"
+msgstr "BLAKE3"
+
+msgid "SHA-256"
+msgstr "SHA-256"
+
+msgid "XXH3-128"
+msgstr "XXH3-128"
+
+msgid "None (skip)"
+msgstr "None (skip)"
+
+msgid "SHA-1"
+msgstr "SHA-1"
+
+msgid "Disabled"
+msgstr "Disabled"
+
+msgid "System Proxy"
+msgstr "System Proxy"
+
+msgid "Manual"
+msgstr "Manual"
+
+msgid "Automatic (adaptive)"
+msgstr "Automatic (adaptive)"
+
+msgid "Traditional (fixed)"
+msgstr "Traditional (fixed)"
+
+msgid "Conservative"
+msgstr "Conservative"
+
+msgid "Balanced"
+msgstr "Balanced"
+
+msgid "Aggressive"
+msgstr "Aggressive"
+
+msgid "Adaptive"
+msgstr "Adaptive"
+
+msgid "Fixed"
+msgstr "Fixed"
+
+msgid "Enabled"
+msgstr "Enabled"
+
+msgid "Forced"
+msgstr "Forced"
+
+msgid "None (sparse)"
+msgstr "None (sparse)"
+
+msgid "Full (zero-fill)"
+msgstr "Full (zero-fill)"
+
+msgid "Ban"
+msgstr "Ban"
+
+msgid "Limit Upload Slots"
+msgstr "Limit Upload Slots"
+
+msgid "Fastest Upload First"
+msgstr "Fastest Upload First"
+
+msgid "Round Robin"
+msgstr "Round Robin"
+
+msgid "Anti-Leech First"
+msgstr "Anti-Leech First"
+
+msgid "Fixed Slots"
+msgstr "Fixed Slots"
+
+msgid "Rate Based"
+msgstr "Rate Based"
+
+msgid "Trace"
+msgstr "Trace"
+
+msgid "Debug"
+msgstr "Debug"
+
+msgid "Info"
+msgstr "Info"
+
+msgid "Warn"
+msgstr "Warn"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Follow system switches automatically from the current Windows app theme."
+msgstr ""
+
+
+msgid "Controls transparency and background blur for app panels and dialogs."
+msgstr ""
+
+
+msgid "Show detailed fields like URL, checksum, threads in the download inspector."
+msgstr ""
+
+
+msgid "Start Limedl automatically when you log in. The app will start minimized to the system tray."
+msgstr ""
+
+
+msgid "Action to perform when double-clicking a completed download task."
+msgstr ""
+
+
+msgid "Action to perform when double-clicking an uncompleted download task."
+msgstr ""
+
+
+msgid "New tasks will prefill this folder, and you can still override it per task."
+msgstr ""
+
+
+msgid "New tasks no longer show checksum mode separately. This setting is used globally."
+msgstr ""
+
+
+msgid "Automatically probe for matching .sha256 or parent SHA256SUMS files when downloading HTTP links, and verify after completion."
+msgstr ""
+
+
+msgid "New HTTP tasks prefill this UA, and each task can override it."
+msgstr ""
+
+
+msgid "Limit total download speed across all active tasks. 0 means unlimited."
+msgstr ""
+
+
+msgid "Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."
+msgstr ""
+
+
+msgid "Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."
+msgstr ""
+
+
+msgid "Auto-adjust chunk strategy based on network conditions"
+msgstr ""
+
+
+msgid "Set to 0 to use 50% of the max thread count automatically. The adaptive algorithm never goes below this once reached."
+msgstr ""
+
+
+msgid "DHT discovers peers from the distributed network. Changes apply to the BT session after restart."
+msgstr ""
+
+
+msgid "Leave empty for auto-assignment. 1024–65535"
+msgstr ""
+
+
+msgid "Maximum peer connections per torrent."
+msgstr ""
+
+
+msgid "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."
+msgstr ""
+
+
+msgid "MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."
+msgstr ""
+
+
+msgid "Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."
+msgstr ""
+
+
+msgid "Maximum number of auto-managed active downloads"
+msgstr ""
+
+
+msgid "Maximum number of auto-managed active seeds"
+msgstr ""
+
+
+msgid "Maximum total number of torrents allowed"
+msgstr ""
+
+
+msgid "Hard limit on total active torrents (downloading + seeding + checking)"
+msgstr ""
+
+
+msgid "0 = unlimited"
+msgstr ""
+
+
+msgid "0 = unlimited"
+msgstr ""
+
+
+msgid "When either the uploaded amount or share ratio limit is reached, the matching BT task is paused."
+msgstr ""
+
+
+msgid "0 or empty means no limit"
+msgstr ""
+
+
+msgid "For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit."
+msgstr ""
+
+
+msgid "Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers."
+msgstr ""
+
+
+msgid "Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check."
+msgstr ""
+
+
+msgid "Seconds a banned peer stays banned before it is unbanned and may reconnect."
+msgstr ""
+
+
+msgid "Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."
+msgstr ""
+
+
+msgid "When a torrent has detected leechers, its concurrent upload slots are capped at this value."
+msgstr ""
+
+
+msgid "Periodically identify peers that download from you without giving data back, then enforce the selected action."
+msgstr ""
+
+
+msgid "Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."
+msgstr ""
+
+
+msgid "Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."
+msgstr ""
+
+
+msgid "How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."
+msgstr ""
+
+
+msgid "How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."
+msgstr ""
+
+
+msgid "Maximum concurrent unchoke slots per torrent."
+msgstr ""
+
+
+msgid "Hash-failure involvements before a peer is automatically banned."
+msgstr ""
+
+
+msgid "Re-download a failed piece from an uninvolved peer to attribute the fault before striking."
+msgstr ""
+
+
+msgid "Seconds an evicted (non-contributing) peer is blocked from reconnecting."
+msgstr ""
+
+
+msgid "Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."
+msgstr ""
+
+
+msgid "Enable double-buffer pool optimization for mechanical hard drives to improve write performance. Not needed for SSDs."
+msgstr ""
+
+
+msgid "Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes."
+msgstr ""
+
+
+msgid "Buffer limit when game mode is active, reducing impact on gaming performance."
+msgstr ""
+
+
+msgid "Maximum number of HDD downloads that can use the buffer simultaneously. Each gets an equal share of the buffer pool."
+msgstr ""
+
+
+msgid "Maximum parallel HDD downloads when game mode is active."
+msgstr ""
+
+
+msgid "Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data."
+msgstr ""
+
+
+msgid "Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."
+msgstr ""
+
+
+msgid "Default 6800. Make sure the port is available."
+msgstr ""
+
+
+msgid "Leave empty to allow connections without a secret. If set, configure the same token in your browser extension."
+msgstr ""
+
+msgid "Font License:"
+msgstr ""
+
+msgid "MiSans VF © Beijing Xiaomi Mobile Software Co.,Ltd. Free for commercial use."
+msgstr ""

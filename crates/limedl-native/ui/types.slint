@@ -128,30 +128,30 @@ export struct SettingsFormData {
     max_parallel_tasks: string,
     global_speed_limit_kb: string,
     download_max_retries: string,
-    download_checksum: string, // blake3/sha256/xxh3_128/none/sha1
+    download_checksum_idx: int, // index into bridge.rs combo::CHECKSUMS (blake3/sha256/xxh3_128/none/sha1)
     download_auto_detect_sha256: bool,
     download_user_agent: string,
     // ── 外观 / 启动 ──
-    appearance_color_mode: string, // system/light/dark
-    appearance_theme_color: string, // amber/sky/lime
-    appearance_background_opacity: string, // default/acrylic/frosted
-    appearance_language: string, // zh-CN/en-US
-    appearance_close_behavior: string, // minimizeToTray/exit
+    appearance_color_mode_idx: int, // index into combo::COLOR_MODES (system/light/dark)
+    appearance_theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime)
+    appearance_background_opacity_idx: int, // index into combo::OPACITY_PRESETS (default/acrylic/frosted)
+    appearance_language_idx: int, // index into combo::LANGUAGES (zh-CN/en-US)
+    appearance_close_behavior_idx: int, // index into combo::CLOSE_BEHAVIORS (minimizeToTray/exit)
     appearance_show_detail_info: bool,
     autostart: bool,
     notifications_enabled: bool,
-    double_click_completed: string, // none/open_file/open_in_explorer/open_download_dir
-    double_click_uncompleted: string, // none/toggle_pause_resume
+    double_click_completed_idx: int, // index into combo::DOUBLE_CLICK_COMPLETED
+    double_click_uncompleted_idx: int, // index into combo::DOUBLE_CLICK_UNCOMPLETED
     // ── 代理 ──
-    proxy_mode: string, // disabled/system/manual
+    proxy_mode_idx: int, // index into combo::PROXY_MODES (disabled/system/manual)
     proxy_manual_url: string,
     // ── 调度 ──
-    scheduler_mode: string, // automatic/traditional
+    scheduler_mode_idx: int, // index into combo::SCHEDULER_MODES (automatic/traditional)
     scheduler_max_parallel_threads: string,
     scheduler_max_threads_per_task: string,
     scheduler_min_threads_per_task: string,
-    scheduler_adaptive_profile: string, // conservative/balanced/aggressive
-    scheduler_chunk_strategy: string, // adaptive/fixed
+    scheduler_adaptive_profile_idx: int, // index into combo::ADAPTIVE_PROFILES (conservative/balanced/aggressive)
+    scheduler_chunk_strategy_idx: int, // index into combo::CHUNK_STRATEGIES (adaptive/fixed)
     scheduler_tail_sprint: bool,
     scheduler_connection_warmup: bool,
     // ── BT 网络（基础 + 进阶） ──
@@ -165,8 +165,8 @@ export struct SettingsFormData {
     bt_pex_enabled: bool,
     bt_lsd_enabled: bool,
     bt_utp_enabled: bool,
-    bt_encryption_mode: string, // enabled/disabled/forced
-    bt_preallocate_mode: string, // none/full
+    bt_encryption_mode_idx: int, // index into combo::ENCRYPTION_MODES (enabled/disabled/forced)
+    bt_preallocate_mode_idx: int, // index into combo::PREALLOC_MODES (none/full)
     bt_max_downloads: string,
     bt_max_seeds: string,
     bt_max_torrents: string,
@@ -182,7 +182,7 @@ export struct SettingsFormData {
     bt_upload_limit_kb: string,
     bt_upload_ratio_limit: string,
     bt_anti_leech_enabled: bool,
-    bt_anti_leech_action: string, // ban/limit_slots
+    bt_anti_leech_action_idx: int, // index into combo::ANTI_LEECH_ACTIONS (ban/limit_slots)
     bt_anti_leech_grace_secs: string,
     bt_anti_leech_ratio: string,
     bt_anti_leech_ban_secs: string,
@@ -190,8 +190,8 @@ export struct SettingsFormData {
     bt_blocklist_enabled: bool,
     bt_blocklist_path: string,
     // BT 引擎调优
-    bt_seed_choking_algorithm: string, // fastest_upload/round_robin/anti_leech
-    bt_choking_algorithm: string, // fixed_slots/rate_based
+    bt_seed_choking_algorithm_idx: int, // index into combo::SEED_CHOKING (fastest_upload/round_robin/anti_leech)
+    bt_choking_algorithm_idx: int, // index into combo::CHOKING_ALGOS (fixed_slots/rate_based)
     bt_max_upload_slots_per_torrent: string,
     bt_smart_ban_max_failures: string,
     bt_smart_ban_parole: bool,
@@ -206,7 +206,7 @@ export struct SettingsFormData {
     io_ssd_write_combine_mb: string,
     // ── 日志 ──
     logging_enabled: bool,
-    logging_level: string, // trace/debug/info/warn/error
+    logging_level_idx: int, // index into combo::LOG_LEVELS (trace/debug/info/warn/error)
     logging_file_path: string,
     logging_retention_count: string,
     logging_retention_days: string,

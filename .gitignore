@@ -49,3 +49,7 @@ e2e/storage-state.json
 
 # Deepwork state
 .slim/deepwork/
+
+# MiSans VF font — fetched by scripts/fetch-misans.ps1, not committed to git
+# (MiSans font license forbids re-distributing the font file itself)
+crates/limedl-native/assets/fonts/

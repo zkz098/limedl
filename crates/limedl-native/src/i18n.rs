@@ -59,8 +59,14 @@ impl Language {
 }
 
 /// Activate bundled translation catalog in Slint runtime.
+/// Must be called after the first Slint component has been created.
 pub fn apply_translation(lang: Language) {
-    let _ = slint::select_bundled_translation(lang.as_code());
+    if let Err(e) = slint::select_bundled_translation(lang.as_code()) {
+        tracing::warn!(
+            "Failed to select Slint translation '{}': {e}",
+            lang.as_code()
+        );
+    }
 }
 
 /// Format ETA seconds localized.

@@ -12,10 +12,15 @@ use anyhow::Context;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt::{self, MakeWriter},
-    layer::SubscriberExt,
+    layer::{Layer as _, SubscriberExt},
     reload,
     util::SubscriberInitExt,
+    EnvFilter,
 };
+
+/// Fallback console filter when `RUST_LOG` is unset (matches the historical
+/// console behavior of the desktop/server apps).
+const DEFAULT_CONSOLE_FILTER: &str = "info,limedl=debug";
 
 use super::types::{LogLevel, LogSettings};
 
@@ -117,33 +122,48 @@ pub fn init_logging(settings: &LogSettings, state_dir: &Path) -> anyhow::Result<
     }));
 
     let (level_layer, level_reload) = reload::Layer::new(to_level_filter(settings.level));
-    let fmt_layer =
-        fmt::layer()
-            .with_target(true)
-            .with_ansi(false)
-            .with_writer(DynamicFileWriter {
-                runtime: runtime.clone(),
-            });
 
-    // try_init returns Err if a global subscriber is already set (e.g. from
-    // another test running in parallel). Treat this as a success and just
-    // store our control handle so future apply_logging_settings() calls can
-    // update the level filter.
+    // Console output keeps `RUST_LOG` semantics via a per-layer static filter.
+    let console_layer = fmt::layer()
+        .with_target(true)
+        .with_ansi(true)
+        .with_filter(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new(DEFAULT_CONSOLE_FILTER)),
+        );
+
+    let file_layer = fmt::layer()
+        .with_target(true)
+        .with_ansi(false)
+        .with_writer(DynamicFileWriter {
+            runtime: runtime.clone(),
+        });
+
     let init_result = tracing_subscriber::registry()
         .with(level_layer)
-        .with(fmt_layer)
+        .with(console_layer)
+        .with(file_layer)
         .try_init();
+
     if let Err(e) = &init_result {
-        tracing::warn!("tracing subscriber already initialized (from another test?): {e}");
+        // A global subscriber is already installed (an app that set up its own
+        // tracing, or a parallel test). The layers built above — including the
+        // `reload::Layer` behind `level_reload` — are dropped together with
+        // the subscriber, so the handle MUST NOT be stored: a dead handle
+        // would make every later apply_logging_settings() fail permanently
+        // (Weak::upgrade → SubscriberGone), which surfaced as "failed to
+        // update tracing level filter" on the second settings save. Degrade
+        // gracefully instead — the pre-installed subscriber keeps working.
+        tracing::warn!(
+            "global tracing subscriber already installed; file logging and runtime level reload are unavailable: {e}"
+        );
+        return Ok(());
     }
 
-    let set_result = LOGGER_CONTROL.set(LoggerControl {
+    let _ = LOGGER_CONTROL.set(LoggerControl {
         runtime,
         level_reload,
     });
-    if set_result.is_err() {
-        tracing::debug!("logger control already set by another test");
-    }
 
     tracing::info!("logging initialized");
     Ok(())
@@ -154,10 +174,21 @@ pub fn apply_logging_settings(settings: &LogSettings, state_dir: &Path) -> anyho
         return init_logging(settings, state_dir);
     };
 
-    control
-        .level_reload
-        .modify(|level| *level = to_level_filter(settings.level))
-        .context("failed to update tracing level filter")?;
+    // `reload::Handle::modify` uses a try-lock internally, so concurrent
+    // settings saves (e.g. settings + labs dialogs saved at once, or a
+    // double-invoked save) can briefly contend on the lock and return a
+    // spurious "poisoned" error. Retry briefly before failing the save.
+    let mut filter_applied =
+        control.level_reload.modify(|level| *level = to_level_filter(settings.level));
+    for _ in 0..10 {
+        if filter_applied.is_ok() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+        filter_applied =
+            control.level_reload.modify(|level| *level = to_level_filter(settings.level));
+    }
+    filter_applied.context("failed to update tracing level filter")?;
 
     let mut runtime = control.runtime.write();
     runtime.enabled = settings.enabled;
@@ -377,6 +408,15 @@ fn perform_startup_rotation(
         Some(d) => d,
         None => return,
     };
+
+    // Ensure the directory exists before touching the lock/log files
+    if let Err(e) = fs::create_dir_all(log_dir) {
+        eprintln!(
+            "[limedl] failed to create log directory {}: {e}",
+            log_dir.display()
+        );
+        return;
+    }
 
     // Acquire an exclusive file lock — skip rotation if another instance holds it
     let lock_path = log_dir.join(".lock");

@@ -24,6 +24,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Build           | `pnpm run build` (vue-tsc → vite build)                       |
 | Version bump    | `node scripts/bump-version.mjs patch`                         |
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C` |
+| Fetch UI font   | `pwsh scripts/fetch-misans.ps1` (one-time, required before building limedl-native; font is not in git due to MiSans license) |
 
 ## Releases
 

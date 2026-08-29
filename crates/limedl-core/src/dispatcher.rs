@@ -260,11 +260,30 @@ impl Dispatcher {
             cdn.clear().await;
         }
 
-        // Sync ConcurrencyManager limits
+        // Sync ConcurrencyManager limits (covers both Traditional and Automatic)
         if let Some(concurrency) = &self.concurrency {
-            concurrency.update_limits(
-                saved.scheduler.traditional.max_parallel_tasks,
-                saved.scheduler.traditional.max_parallel_tasks.min(3),
+            let max_http = match saved.scheduler.mode {
+                crate::types::SchedulerMode::Traditional => {
+                    saved.scheduler.traditional.max_parallel_tasks
+                }
+                crate::types::SchedulerMode::Automatic => {
+                    saved.scheduler.automatic.max_parallel_threads
+                }
+            };
+            let max_bt = (saved.bt.max_downloads as usize).clamp(1, 1000);
+            concurrency.update_limits(max_http, max_bt);
+            concurrency.rebalance_notify.notify_waiters();
+        }
+        // Ensure buffer pool limits & rate limiter are hot-reloaded even if
+        // a backend broadcast was skipped (e.g., registry had no Http backend
+        // in unit tests). DownloadManager::apply_settings already does this
+        // via broadcast, but we keep a direct sync for robustness.
+        if let Some(disk) = &self.disk_io {
+            disk.buffer_pool().update_limits(
+                saved.io_baseline.buffer_limit_mb,
+                saved.io_baseline.game_mode_buffer_mb,
+                saved.io_baseline.max_parallel_hdd,
+                saved.io_baseline.game_mode_max_parallel,
             );
         }
 

@@ -1,5 +1,6 @@
 slint::include_modules!();
 
+mod autostart;
 mod bridge;
 mod i18n;
 
@@ -11,19 +12,20 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
+use tokio::sync::watch;
 use muda::{Menu, MenuItem, PredefinedMenuItem};
 use notify_rust::Notification;
 use parking_lot::Mutex;
 use slint::{ComponentHandle, SharedString, VecModel};
-use tracing_subscriber::EnvFilter;
 use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
+use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::bootstrap::bootstrap;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::{
-    AppSettings, DownloadProgress, DownloadState, DownloadSummary, MatchType, ReplacementMode,
-    RewriteTarget, StartDownloadRequest, TaskId, UrlRewriteRule,
+    AppSettings, ColorMode, DownloadProgress, DownloadState, DownloadSummary, MatchType,
+    ReplacementMode, RewriteTarget, StartDownloadRequest, TaskId, ThemeColor, UrlRewriteRule,
 };
 
 use crate::bridge::{
@@ -152,6 +154,24 @@ fn build_tray_menu(lang: Language) -> Menu {
     tray_menu
 }
 
+/// Push the saved appearance (color mode + theme accent) into the Slint Theme
+/// global. 'System' mode resolves at render time against the OS scheme via the
+/// std Palette.
+fn apply_appearance(ui: &MainWindow, mode: ColorMode, theme_color: ThemeColor) {
+    let pref = match mode {
+        ColorMode::System => ColorModePref::System,
+        ColorMode::Light => ColorModePref::Light,
+        ColorMode::Dark => ColorModePref::Dark,
+    };
+    let accent = match theme_color {
+        ThemeColor::Lime => ThemeAccent::Lime,
+        ThemeColor::Amber => ThemeAccent::Amber,
+        ThemeColor::Sky => ThemeAccent::Sky,
+    };
+    ui.global::<Theme>().set_mode(pref);
+    ui.global::<Theme>().set_accent(accent);
+}
+
 fn create_default_tray_icon() -> tray_icon::Icon {
     const ICON_BYTES: &[u8] = include_bytes!("../ui/assets/32x32.png");
     if let Ok(dyn_img) = image::load_from_memory_with_format(ICON_BYTES, image::ImageFormat::Png) {
@@ -181,18 +201,19 @@ fn create_default_tray_icon() -> tray_icon::Icon {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize console tracing
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,limedl=debug")),
-        )
-        .init();
-
-    tracing::info!("启动 limedl Native 桌面客户端 (Skia)...");
+    // NOTE: do NOT install a global tracing subscriber here — core's
+    // init_logging() owns it (registry + reloadable level filter + console +
+    // file layers). Pre-installing one makes init_logging's try_init fail,
+    // drops its reload layer and turns every settings save after the first
+    // into "failed to update tracing level filter".
 
     // Initialize core subsystems
     let state_dir = dirs_or_temp_dir().join("downloads");
     std::fs::create_dir_all(&state_dir)?;
+    // ── Settings migration: copy Tauri settings on first Native run ──
+    // If Native settings.json is absent but Tauri's exists (user switched
+    // from Tauri → Native), copy it so the user does not perceive a reset.
+    migrate_tauri_settings_if_needed(&state_dir);
 
     let core = bootstrap(state_dir.clone())
         .await
@@ -203,9 +224,37 @@ async fn main() -> anyhow::Result<()> {
         .get_settings()
         .await
         .unwrap_or_default();
+    // Own the global tracing subscriber (console + file + reloadable level).
+    // Call BEFORE any other work so bootstrap-time settings load logs land in
+    // the log file too. Saved log level/path apply immediately.
+    limedl_core::init_logging(&initial_settings.logging, &state_dir)
+        .with_context(|| "初始化日志失败")?;
+    tracing::info!("启动 limedl Native 桌面客户端 (Skia)...");
     let current_settings = Arc::new(Mutex::new(initial_settings.clone()));
+    // Sync OS autostart registration with persisted flag (no-op if already consistent)
+    autostart::sync_from_settings(initial_settings.autostart);
+    // Aria2 RPC: start server if enabled in persisted settings
+    let rpc_shutdown: Arc<Mutex<Option<watch::Sender<bool>>>> = Arc::new(Mutex::new(None));
+    if initial_settings.aria2_rpc.enabled {
+        let (tx, rx) = watch::channel(false);
+        let rpc_server = Aria2RpcServer::new(
+            core.registry.clone(),
+            &initial_settings.aria2_rpc,
+            core.event_bus.clone(),
+        );
+        let cors = initial_settings.aria2_rpc.cors_allowed_origins.clone();
+        tokio::spawn(async move {
+            if let Err(e) = rpc_server.serve(rx, cors).await {
+                tracing::error!("Aria2 RPC server stopped: {e:#}");
+            }
+        });
+        *rpc_shutdown.lock() = Some(tx);
+        tracing::info!(
+            "Aria2 RPC 已启动 (port: {})",
+            initial_settings.aria2_rpc.port
+        );
+    }
     let initial_lang = Language::from_code(&initial_settings.appearance.language);
-    i18n::apply_translation(initial_lang);
 
     let default_download_dir = if !initial_settings.download.default_download_dir.is_empty() {
         initial_settings.download.default_download_dir.clone()
@@ -221,6 +270,16 @@ async fn main() -> anyhow::Result<()> {
 
     // Create Main Window
     let main_window = MainWindow::new()?;
+    // Slint requires select_bundled_translation() to be called AFTER the first
+    // component is created (the translation bundle is registered during
+    // creation and auto-selects the system locale). Calling it earlier returns
+    // `NoTranslationsBundled` and the saved language would be ignored.
+    i18n::apply_translation(initial_lang);
+    apply_appearance(
+        &main_window,
+        initial_settings.appearance.color_mode.clone(),
+        initial_settings.appearance.theme_color.clone(),
+    );
     main_window.set_default_download_dir(SharedString::from(&default_download_dir));
     main_window.set_new_task_dir(SharedString::from(&default_download_dir));
 
@@ -882,6 +941,7 @@ async fn main() -> anyhow::Result<()> {
         let store_clone = store.clone();
         let pending_tray_lang_clone = pending_tray_lang.clone();
         let active_inspector_id_clone = active_inspector_id.clone();
+        let rpc_shutdown_clone = rpc_shutdown.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_save_settings(move |form_data| {
@@ -890,42 +950,116 @@ async fn main() -> anyhow::Result<()> {
             let store_clone = store_clone.clone();
             let pending_tray_lang_clone = pending_tray_lang_clone.clone();
             let active_inspector_id_clone = active_inspector_id_clone.clone();
+            let rpc_shutdown = rpc_shutdown_clone.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
-                let mut settings = {
+                let old_settings = {
                     let s = current_settings_clone.lock();
                     s.clone()
                 };
+                let mut settings = old_settings.clone();
 
-                update_app_settings_from_form(&mut settings, &form_data);
+                if let Err(msg) = update_app_settings_from_form(&mut settings, &form_data) {
+                    tracing::error!("设置表单校验失败: {msg}");
+                    let _ = Notification::new()
+                        .appname("limedl")
+                        .summary("设置校验失败")
+                        .body(&msg)
+                        .show();
+                    return;
+                }
 
-                if let Ok(saved) = dispatcher.save_settings(&settings).await {
-                    *current_settings_clone.lock() = saved.clone();
-                    let default_dir = saved.download.default_download_dir.clone();
-                    let new_lang = Language::from_code(&saved.appearance.language);
-
-                    // Signal tray update to main thread (TrayIcon is !Send)
-                    *pending_tray_lang_clone.lock() = Some(new_lang);
-
-                    let _ = slint::invoke_from_event_loop(move || {
-                        i18n::apply_translation(new_lang);
-                        if let Some(ui) = ui_weak.upgrade() {
-                            let mut s = store_clone.lock();
-                            s.set_language(new_lang);
-                            ui.set_default_download_dir(SharedString::from(&default_dir));
-                            refresh_ui(&ui, &s);
-
-                            // Refresh Inspector if active
-                            if let Some(ref current_id) = *active_inspector_id_clone.lock()
-                                && let Some(summary) = s.get_summary(current_id)
-                            {
-                                ui.set_inspector_info(summary_to_inspector_info(&summary, new_lang));
+                match dispatcher.save_settings(&settings).await {
+                    Ok(saved) => {
+                        // ── Autostart OS 同步 ──
+                        if saved.autostart != old_settings.autostart {
+                            if let Err(e) = crate::autostart::set_enabled(saved.autostart) {
+                                tracing::warn!("autostart 切换失败: {e:#}");
+                                let _ = Notification::new()
+                                    .appname("limedl")
+                                    .summary("自启动设置失败")
+                                    .body(&format!("{e:#}"))
+                                    .show();
+                            } else {
+                                tracing::info!("autostart 已切换为 {}", saved.autostart);
                             }
-
-                            ui.set_show_settings(false);
                         }
-                    });
+                        // ── Aria2 RPC 热重载 ──
+                        if saved.aria2_rpc != old_settings.aria2_rpc {
+                            // Shutdown old server if any
+                            if let Some(tx) = rpc_shutdown.lock().take() {
+                                let _ = tx.send(true);
+                                tracing::info!("Aria2 RPC 旧服务已停止");
+                            }
+                            if saved.aria2_rpc.enabled {
+                                let (tx, rx) = watch::channel(false);
+                                let rpc_server = Aria2RpcServer::new(
+                                    dispatcher.registry().clone(),
+                                    &saved.aria2_rpc,
+                                    dispatcher.event_bus().clone(),
+                                );
+                                let cors = saved.aria2_rpc.cors_allowed_origins.clone();
+                                let port = saved.aria2_rpc.port;
+                                tokio::spawn(async move {
+                                    if let Err(e) = rpc_server.serve(rx, cors).await {
+                                        tracing::error!("Aria2 RPC server stopped: {e:#}");
+                                    }
+                                });
+                                *rpc_shutdown.lock() = Some(tx);
+                                tracing::info!("Aria2 RPC 已重启 (port: {port})");
+                                let _ = Notification::new()
+                                    .appname("limedl")
+                                    .summary("Aria2 RPC 已重启")
+                                    .body(&format!("监听端口: {port}"))
+                                    .show();
+                            } else {
+                                tracing::info!("Aria2 RPC 已停止");
+                                let _ = Notification::new()
+                                    .appname("limedl")
+                                    .summary("Aria2 RPC 已停止")
+                                    .body("服务已关闭")
+                                    .show();
+                            }
+                        }
+                        *current_settings_clone.lock() = saved.clone();
+                        let default_dir = saved.download.default_download_dir.clone();
+                        let new_lang = Language::from_code(&saved.appearance.language);
+                        let new_color_mode = saved.appearance.color_mode;
+                        let new_theme_color = saved.appearance.theme_color;
+
+                        // Signal tray update to main thread (TrayIcon is !Send)
+                        *pending_tray_lang_clone.lock() = Some(new_lang);
+
+                        let _ = slint::invoke_from_event_loop(move || {
+                            i18n::apply_translation(new_lang);
+                            if let Some(ui) = ui_weak.upgrade() {
+                                apply_appearance(&ui, new_color_mode, new_theme_color);
+                                let mut s = store_clone.lock();
+                                s.set_language(new_lang);
+                                ui.set_default_download_dir(SharedString::from(&default_dir));
+                                refresh_ui(&ui, &s);
+
+                                // Refresh Inspector if active
+                                if let Some(ref current_id) = *active_inspector_id_clone.lock()
+                                    && let Some(summary) = s.get_summary(current_id)
+                                {
+                                    ui.set_inspector_info(summary_to_inspector_info(&summary, new_lang));
+                                }
+
+                                ui.set_show_settings(false);
+                            }
+                        });
+                    }
+                    Err(err) => {
+                        tracing::error!("保存设置失败: {err:#}");
+                        let msg = format!("{err:#}");
+                        let _ = Notification::new()
+                            .appname("limedl")
+                            .summary("保存设置失败")
+                            .body(&msg)
+                            .show();
+                    }
                 }
             });
         });
@@ -980,21 +1114,32 @@ async fn main() -> anyhow::Result<()> {
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
-                if let Ok(trackers) = dispatcher.fetch_tracker_list(&url).await {
-                    tracing::info!("成功同步远程 Tracker 列表: {} 个", trackers.len());
-                    let _ = Notification::new()
-                        .appname("limedl")
-                        .summary("Tracker 列表同步成功")
-                        .body(&format!("已获取并配置 {} 个公共 Tracker", trackers.len()))
-                        .show();
+                match dispatcher.fetch_tracker_list(&url).await {
+                    Ok(trackers) => {
+                        tracing::info!("成功同步远程 Tracker 列表: {} 个", trackers.len());
+                        let _ = Notification::new()
+                            .appname("limedl")
+                            .summary("Tracker 列表同步成功")
+                            .body(&format!("已获取并配置 {} 个公共 Tracker", trackers.len()))
+                            .show();
 
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak.upgrade() {
-                            let mut form = ui.get_settings_form();
-                            form.tracker_url = SharedString::from(&url);
-                            ui.set_settings_form(form);
-                        }
-                    });
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                let mut form = ui.get_settings_form();
+                                form.tracker_url = SharedString::from(&url);
+                                ui.set_settings_form(form);
+                            }
+                        });
+                    }
+                    Err(err) => {
+                        tracing::error!("同步 Tracker 列表失败: {err:#}");
+                        let msg = format!("同步失败: {err:#}");
+                        let _ = Notification::new()
+                            .appname("limedl")
+                            .summary("Tracker 同步失败")
+                            .body(&msg)
+                            .show();
+                    }
                 }
             });
         });
@@ -1339,6 +1484,13 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Open the MiSans font license page (About tab attribution link)
+    {
+        main_window.on_open_font_license(move || {
+            let _ = open_url_in_browser("https://hyperos.mi.com/font/zh/download");
+        });
+    }
+
     // ── Labs Callbacks ──────────────────────────────────────────────────
 
     // Open Labs Dialog
@@ -1407,14 +1559,24 @@ async fn main() -> anyhow::Result<()> {
                 update_app_settings_from_labs_form(&mut settings, &form_data);
                 settings.url_rewrite.rules = rewrite_rules_clone.lock().clone();
 
-                if let Ok(saved) = dispatcher.save_settings(&settings).await {
-                    *current_settings_clone.lock() = saved;
-
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_show_labs(false);
-                        }
-                    });
+                match dispatcher.save_settings(&settings).await {
+                    Ok(saved) => {
+                        *current_settings_clone.lock() = saved;
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                ui.set_show_labs(false);
+                            }
+                        });
+                    }
+                    Err(err) => {
+                        tracing::error!("保存实验室设置失败: {err:#}");
+                        let msg = format!("{err:#}");
+                        let _ = Notification::new()
+                            .appname("limedl")
+                            .summary("保存实验室设置失败")
+                            .body(&msg)
+                            .show();
+                    }
                 }
             });
         });
@@ -1955,9 +2117,60 @@ async fn main() -> anyhow::Result<()> {
 
     // Graceful shutdown
     tracing::info!("Native UI 正在退出，关闭核心引擎...");
+    // Stop Aria2 RPC server first
+    if let Some(tx) = rpc_shutdown.lock().take() {
+        let _ = tx.send(true);
+    }
     core.registry.shutdown_all().await;
 
     Ok(())
+}
+
+fn tauri_settings_path() -> Option<PathBuf> {
+    if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .map(|p| p.join("com.zkz20.limedl").join("settings.json"))
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME")
+            .map(|h| PathBuf::from(h).join("Library/Application Support/com.zkz20.limedl/settings.json"))
+    } else {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+            .map(|base| base.join("com.zkz20.limedl/settings.json"))
+    }
+}
+
+fn migrate_tauri_settings_if_needed(native_state_dir: &std::path::Path) {
+    // native settings.json is at <state_dir.parent>/settings.json
+    let Some(native_settings) = native_state_dir
+        .parent()
+        .map(|p| p.join("settings.json"))
+    else {
+        return;
+    };
+    if native_settings.exists() {
+        return;
+    }
+    let Some(tauri_settings) = tauri_settings_path() else {
+        return;
+    };
+    if !tauri_settings.exists() {
+        return;
+    }
+    tracing::info!(
+        "检测到 Tauri 设置文件 {}，但 Native 设置不存在，自动迁移到 {}",
+        tauri_settings.display(),
+        native_settings.display()
+    );
+    if let Some(parent) = native_settings.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    match std::fs::copy(&tauri_settings, &native_settings) {
+        Ok(_) => tracing::info!("设置迁移完成"),
+        Err(e) => tracing::warn!("设置迁移失败: {e:#}"),
+    }
 }
 
 fn open_path_in_explorer(path: &str) -> std::io::Result<()> {
@@ -1972,6 +2185,24 @@ fn open_path_in_explorer(path: &str) -> std::io::Result<()> {
     #[cfg(not(any(windows, target_os = "macos")))]
     {
         std::process::Command::new("xdg-open").arg(path).spawn()?;
+    }
+    Ok(())
+}
+
+/// Opens a URL in the system default browser.
+fn open_url_in_browser(url: &str) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        // explorer.exe hands URLs to the default browser without cmd quoting quirks.
+        std::process::Command::new("explorer").arg(url).spawn()?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open").arg(url).spawn()?;
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open").arg(url).spawn()?;
     }
     Ok(())
 }

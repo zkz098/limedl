@@ -1,4 +1,7 @@
 import { ScrollView, ComboBox } from "std-widgets.slint";
+
+import { Theme } from "../theme.slint";
+import { ScrollView, ComboBox } from "std-widgets.slint";
 import { SettingsFormData } from "../types.slint";
 import {
     CustomTextInput,
@@ -23,10 +26,11 @@ export component SettingsDialog inherits Rectangle {
     callback pick_default_folder();
     callback pick_log_folder();
     callback open_log_folder();
+    callback open_font_license();
 
     width: 100%;
     height: 100%;
-    background: #000000bb;
+    background: Theme.c000000bb;
 
     TouchArea {}
 
@@ -35,12 +39,12 @@ export component SettingsDialog inherits Rectangle {
         height: min(parent.height - 60px, 700px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: #171a20;
-        border-color: #2e3542;
+        background: Theme.c171a20;
+        border-color: Theme.c2e3542;
         border-width: 1px;
         border-radius: 12px;
         drop-shadow-blur: 24px;
-        drop-shadow-color: #000000cc;
+        drop-shadow-color: Theme.c000000cc;
 
         VerticalLayout {
             padding: 20px;
@@ -56,7 +60,7 @@ export component SettingsDialog inherits Rectangle {
                         alignment: center;
                         Image {
                             source: @image-url("../assets/icons/settings-3-line.svg");
-                            colorize: #a3e635;
+                            colorize: Theme.ca3e635;
                             width: 18px;
                             height: 18px;
                             image-fit: contain;
@@ -64,7 +68,7 @@ export component SettingsDialog inherits Rectangle {
                     }
                     Text {
                         text: @tr("Settings Center");
-                        color: #f3f4f6;
+                        color: Theme.cf3f4f6;
                         font-size: 16px;
                         font-weight: 700;
                         vertical-alignment: center;
@@ -109,7 +113,7 @@ export component SettingsDialog inherits Rectangle {
                         clicked => { root.set_tab(8); }
                     }
 
-                    Rectangle { width: 1px; height: 18px; background: #2b313d; }
+                    Rectangle { width: 1px; height: 18px; background: Theme.c2b313d; }
 
                     Text { text: @tr("Advanced:"); color: #6b7280; font-size: 11px; font-weight: 600; vertical-alignment: center; }
                     TabButton {
@@ -147,41 +151,56 @@ export component SettingsDialog inherits Rectangle {
 
             Rectangle {
                 height: 1px;
-                background: #272d38;
+                background: Theme.c272d38;
             }
 
             // Tab Content — unified container
             Rectangle {
-                background: #111418;
+                background: Theme.c111418;
                 border-radius: 8px;
-                border-color: #232832;
+                border-color: Theme.c232832;
                 border-width: 1px;
 
                 // ── Tab 0: 外观 / 启动 ──
                 if root.settings_tab == 0 : ScrollView {
                     VerticalLayout {
+                        // Top-align content: ScrollView stretches short content to fill
+                        // the viewport, which would otherwise spread rows far apart.
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: @tr("Appearance & System Integration"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("Appearance & System Integration"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         HorizontalLayout {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Theme Mode (system/light/dark):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Theme Mode (system/light/dark):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Follow system switches automatically from the current Windows app theme."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
+                                // Display labels are localized via @tr; option order MUST match
+                                // bridge.rs `combo` canonical value arrays.
                                 ComboBox {
-                                    model: ["system", "light", "dark"];
-                                    current-value <=> root.settings_form.appearance_color_mode;
+                                    model: [@tr("Follow System"), @tr("Light"), @tr("Dark")];
+                                    current-index <=> root.settings_form.appearance_color_mode_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Theme Color (amber/sky/lime):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Theme Color (amber/sky/lime):"); color: Theme.c9ca3af; font-size: 12px; }
                                 ComboBox {
-                                    model: ["amber", "sky", "lime"];
-                                    current-value <=> root.settings_form.appearance_theme_color;
+                                    model: [@tr("Amber"), @tr("Sky Blue"), @tr("Lime")];
+                                    current-index <=> root.settings_form.appearance_theme_color_idx;
                                     height: 36px;
                                 }
                             }
@@ -191,19 +210,29 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Background Opacity Preset (default/acrylic/frosted):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Background Opacity Preset (default/acrylic/frosted):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Controls transparency and background blur for app panels and dialogs."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["default", "acrylic", "frosted"];
-                                    current-value <=> root.settings_form.appearance_background_opacity;
+                                    model: [@tr("Default"), @tr("Acrylic"), @tr("Frosted")];
+                                    current-index <=> root.settings_form.appearance_background_opacity_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("UI Language (zh-CN/en-US):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("UI Language (zh-CN/en-US):"); color: Theme.c9ca3af; font-size: 12px; }
                                 ComboBox {
-                                    model: ["zh-CN", "en-US"];
-                                    current-value <=> root.settings_form.appearance_language;
+                                    model: [@tr("简体中文"), @tr("English")];
+                                    current-index <=> root.settings_form.appearance_language_idx;
                                     height: 36px;
                                 }
                             }
@@ -213,16 +242,16 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Close Behavior (minimizeToTray/exit):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Close Behavior (minimizeToTray/exit):"); color: Theme.c9ca3af; font-size: 12px; }
                                 ComboBox {
-                                    model: ["minimizeToTray", "exit"];
-                                    current-value <=> root.settings_form.appearance_close_behavior;
+                                    model: [@tr("Minimize to Tray"), @tr("Exit")];
+                                    current-index <=> root.settings_form.appearance_close_behavior_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max In-Memory Records (10-10000):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max In-Memory Records (10-10000):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput {
                                     text <=> root.settings_form.max_in_memory_downloads;
                                     placeholder: "200";
@@ -235,7 +264,17 @@ export component SettingsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Show Detail Panel"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Show Detail Panel"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Show detailed fields like URL, checksum, threads in the download inspector."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Show download inspector and piece heatmap on the right"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -248,7 +287,17 @@ export component SettingsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Launch on Startup"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Launch on Startup"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Start Limedl automatically when you log in. The app will start minimized to the system tray."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Automatically launch limedl-native upon user login"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -261,7 +310,7 @@ export component SettingsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("System Notifications"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("System Notifications"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
                                 Text { text: @tr("Show desktop notification on task completion/failure"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -270,23 +319,43 @@ export component SettingsDialog inherits Rectangle {
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Double-click Completed Task (none/open_file/open_in_explorer/open_download_dir):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Double-click Completed Task (none/open_file/open_in_explorer/open_download_dir):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Action to perform when double-clicking a completed download task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             ComboBox {
-                                    model: ["none", "open_file", "open_in_explorer", "open_download_dir"];
-                                    current-value <=> root.settings_form.double_click_completed;
+                                    model: [@tr("No Action"), @tr("Open File"), @tr("Show in Explorer"), @tr("Open Download Directory")];
+                                    current-index <=> root.settings_form.double_click_completed_idx;
                                     height: 36px;
                                 }
                         }
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Double-click Uncompleted Task (none/toggle_pause_resume):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Double-click Uncompleted Task (none/toggle_pause_resume):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Action to perform when double-clicking an uncompleted download task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             ComboBox {
-                                    model: ["none", "toggle_pause_resume"];
-                                    current-value <=> root.settings_form.double_click_uncompleted;
+                                    model: [@tr("No Action"), @tr("Pause / Resume")];
+                                    current-index <=> root.settings_form.double_click_uncompleted_idx;
                                     height: 36px;
                                 }
                         }
@@ -296,21 +365,34 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 1: 下载 ──
                 if root.settings_tab == 1 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: @tr("Download Defaults"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("Download Defaults"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Default Download Folder:"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Default Download Folder:"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("New tasks will prefill this folder, and you can still override it per task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             HorizontalLayout {
                                 spacing: 8px;
                                 CustomTextInput {
+                                    horizontal-stretch: 1;
                                     text <=> root.settings_form.default_download_dir;
                                     placeholder: "/downloads";
                                 }
                                 SecondaryButton {
+                                    horizontal-stretch: 0;
                                     text: @tr("Browse...");
                                     icon: @image-url("../assets/icons/folder-open-line.svg");
                                     clicked => { root.pick_default_folder(); }
@@ -322,7 +404,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Concurrent Tasks (traditional):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Concurrent Tasks (traditional):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput {
                                     text <=> root.settings_form.max_parallel_tasks;
                                     placeholder: "3";
@@ -331,7 +413,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Retries (0-100):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Retries (0-100):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput {
                                     text <=> root.settings_form.download_max_retries;
                                     placeholder: "5";
@@ -344,17 +426,37 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Default Checksum (blake3/sha256/xxh3_128/none/sha1):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Default Checksum (blake3/sha256/xxh3_128/none/sha1):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("New tasks no longer show checksum mode separately. This setting is used globally."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["blake3", "sha256", "xxh3_128", "none", "sha1"];
-                                    current-value <=> root.settings_form.download_checksum;
+                                    model: [@tr("BLAKE3"), @tr("SHA-256"), @tr("XXH3-128"), @tr("None (skip)"), @tr("SHA-1")];
+                                    current-index <=> root.settings_form.download_checksum_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: @tr("Auto-detect SHA-256"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Auto-detect SHA-256"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Automatically probe for matching .sha256 or parent SHA256SUMS files when downloading HTTP links, and verify after completion."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ToggleSwitch {
                                     checked: root.settings_form.download_auto_detect_sha256;
                                     toggled => { root.settings_form.download_auto_detect_sha256 = !root.settings_form.download_auto_detect_sha256; }
@@ -364,7 +466,17 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Default User-Agent (empty for Chrome 124):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Default User-Agent (empty for Chrome 124):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("New HTTP tasks prefill this UA, and each task can override it."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             CustomTextInput {
                                 text <=> root.settings_form.download_user_agent;
                                 placeholder: "Mozilla/5.0 ... Chrome/124.0.0.0";
@@ -373,7 +485,17 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Global Bandwidth Limit (0 for unlimited):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Global Bandwidth Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Limit total download speed across all active tasks. 0 means unlimited."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             UnitInput {
                                 text <=> root.settings_form.global_speed_limit_kb;
                                 placeholder: "0";
@@ -386,17 +508,28 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 2: 代理 ──
                 if root.settings_tab == 2 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: @tr("Proxy Settings"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("Proxy Settings"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Proxy Mode (disabled/system/manual):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Proxy Mode (disabled/system/manual):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             ComboBox {
-                                    model: ["disabled", "system", "manual"];
-                                    current-value <=> root.settings_form.proxy_mode;
+                                    model: [@tr("Disabled"), @tr("System Proxy"), @tr("Manual")];
+                                    current-index <=> root.settings_form.proxy_mode_idx;
                                     height: 36px;
                                 }
                             Text { text: @tr("system follows OS proxy; manual requires proxy URL below"); color: #6b7280; font-size: 11px; }
@@ -404,7 +537,7 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Manual Proxy URL:"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Manual Proxy URL:"); color: Theme.c9ca3af; font-size: 12px; }
                             CustomTextInput {
                                 text <=> root.settings_form.proxy_manual_url;
                                 placeholder: "http://127.0.0.1:7890";
@@ -416,17 +549,18 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 3: 调度 ──
                 if root.settings_tab == 3 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: @tr("Scheduler & Performance"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("Scheduler & Performance"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Allocation Mode (automatic/traditional):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Allocation Mode (automatic/traditional):"); color: Theme.c9ca3af; font-size: 12px; }
                             ComboBox {
-                                    model: ["automatic", "traditional"];
-                                    current-value <=> root.settings_form.scheduler_mode;
+                                    model: [@tr("Automatic (adaptive)"), @tr("Traditional (fixed)")];
+                                    current-index <=> root.settings_form.scheduler_mode_idx;
                                     height: 36px;
                                 }
                             Text { text: @tr("automatic uses adaptive thread pool; traditional uses fixed concurrency"); color: #6b7280; font-size: 11px; }
@@ -436,7 +570,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Auto - Max Parallel Threads (1-128):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Auto - Max Parallel Threads (1-128):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput {
                                     text <=> root.settings_form.scheduler_max_parallel_threads;
                                     placeholder: "16";
@@ -445,7 +579,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Threads per Task (1-64):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Threads per Task (1-64):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput {
                                     text <=> root.settings_form.scheduler_max_threads_per_task;
                                     placeholder: "8";
@@ -456,7 +590,17 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Min Threads per Task (0-64):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Min Threads per Task (0-64):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Set to 0 to use 50% of the max thread count automatically. The adaptive algorithm never goes below this once reached."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             UnitInput {
                                 text <=> root.settings_form.scheduler_min_threads_per_task;
                                 placeholder: "0";
@@ -468,19 +612,39 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Adaptive Profile (conservative/balanced/aggressive):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Adaptive Profile (conservative/balanced/aggressive):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["conservative", "balanced", "aggressive"];
-                                    current-value <=> root.settings_form.scheduler_adaptive_profile;
+                                    model: [@tr("Conservative"), @tr("Balanced"), @tr("Aggressive")];
+                                    current-index <=> root.settings_form.scheduler_adaptive_profile_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Chunk Strategy (adaptive/fixed):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Chunk Strategy (adaptive/fixed):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Auto-adjust chunk strategy based on network conditions"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["adaptive", "fixed"];
-                                    current-value <=> root.settings_form.scheduler_chunk_strategy;
+                                    model: [@tr("Adaptive"), @tr("Fixed")];
+                                    current-index <=> root.settings_form.scheduler_chunk_strategy_idx;
                                     height: 36px;
                                 }
                             }
@@ -490,7 +654,7 @@ export component SettingsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Tail Sprint"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Tail Sprint"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
                                 Text { text: @tr("Parallelize tail chunks to minimize finishing latency"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -503,7 +667,7 @@ export component SettingsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Connection Warmup"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Connection Warmup"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
                                 Text { text: @tr("Pre-establish multiple connections during handshake for faster warmup"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -517,17 +681,28 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 4: BT 网络 ──
                 if root.settings_tab == 4 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 12px;
 
-                        Text { text: @tr("BitTorrent Network"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("BitTorrent Network"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         // 基础
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Enable DHT"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Enable DHT"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("DHT discovers peers from the distributed network. Changes apply to the BT session after restart."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Discover peers via DHT when no trackers are available"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -539,7 +714,17 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Listen Port (empty for random):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Listen Port (empty for random):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Leave empty for auto-assignment. 1024–65535"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput {
                                     text <=> root.settings_form.listen_port;
                                     placeholder: @tr("Random");
@@ -548,7 +733,17 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Peers per Torrent:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Peers per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum peer connections per torrent."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput {
                                     text <=> root.settings_form.max_bt_connections;
                                     placeholder: "128";
@@ -557,14 +752,14 @@ export component SettingsDialog inherits Rectangle {
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
                         HorizontalLayout {
                             spacing: 12px;
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "UPnP"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "UPnP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_upnp_enabled;
                                     toggled => { root.settings_form.bt_upnp_enabled = !root.settings_form.bt_upnp_enabled; }
@@ -573,7 +768,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "NAT-PMP"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "NAT-PMP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_natpmp_enabled;
                                     toggled => { root.settings_form.bt_natpmp_enabled = !root.settings_form.bt_natpmp_enabled; }
@@ -582,7 +777,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "IPv6"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "IPv6"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_ipv6_enabled;
                                     toggled => { root.settings_form.bt_ipv6_enabled = !root.settings_form.bt_ipv6_enabled; }
@@ -595,7 +790,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "PEX"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "PEX"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_pex_enabled;
                                     toggled => { root.settings_form.bt_pex_enabled = !root.settings_form.bt_pex_enabled; }
@@ -604,7 +799,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "LSD"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "LSD"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_lsd_enabled;
                                     toggled => { root.settings_form.bt_lsd_enabled = !root.settings_form.bt_lsd_enabled; }
@@ -613,7 +808,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "uTP"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "uTP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_utp_enabled;
                                     toggled => { root.settings_form.bt_utp_enabled = !root.settings_form.bt_utp_enabled; }
@@ -625,37 +820,77 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Encryption Mode (enabled/disabled/forced):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Encryption Mode (enabled/disabled/forced):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["enabled", "disabled", "forced"];
-                                    current-value <=> root.settings_form.bt_encryption_mode;
+                                    model: [@tr("Enabled"), @tr("Disabled"), @tr("Forced")];
+                                    current-index <=> root.settings_form.bt_encryption_mode_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Pre-allocation Mode (none/full):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Pre-allocation Mode (none/full):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["none", "full"];
-                                    current-value <=> root.settings_form.bt_preallocate_mode;
+                                    model: [@tr("None (sparse)"), @tr("Full (zero-fill)")];
+                                    current-index <=> root.settings_form.bt_preallocate_mode_idx;
                                     height: 36px;
                                 }
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
-                        Text { text: @tr("Queuing & Rate Limits"); color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        Text { text: @tr("Queuing & Rate Limits"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
                         HorizontalLayout {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Active Downloads:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Active Downloads:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum number of auto-managed active downloads"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_max_downloads; placeholder: "3"; unit_text: @tr("tasks"); }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Active Seeds:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Active Seeds:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum number of auto-managed active seeds"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_max_seeds; placeholder: "5"; unit_text: @tr("tasks"); }
                             }
                         }
@@ -663,12 +898,32 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Torrents:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Torrents:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum total number of torrents allowed"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_max_torrents; placeholder: "100"; unit_text: @tr("tasks"); }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Active Limit:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Active Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Hard limit on total active torrents (downloading + seeding + checking)"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_active_limit; placeholder: "500"; unit_text: @tr("tasks"); }
                             }
                         }
@@ -676,24 +931,54 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Global Download Rate Limit:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Global Download Rate Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("0 = unlimited"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_global_download_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Global Upload Rate Limit:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Global Upload Rate Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("0 = unlimited"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_global_upload_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
-                        Text { text: @tr("Seeding & Completion"); color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        Text { text: @tr("Seeding & Completion"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Pause Seeding upon Reaching Limit"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Pause Seeding upon Reaching Limit"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("When either the uploaded amount or share ratio limit is reached, the matching BT task is paused."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Automatically pause seeding once upload limit or ratio target is reached"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -705,24 +990,54 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Seeding Upload Limit:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Seeding Upload Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("0 or empty means no limit"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_upload_limit_kb; placeholder: "0"; unit_text: "KB"; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Share Ratio Limit (0 for unlimited):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Share Ratio Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 CustomTextInput { text <=> root.settings_form.bt_upload_ratio_limit; placeholder: "0"; }
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
-                        Text { text: @tr("Anti-Leech & Peer Banning"); color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        Text { text: @tr("Anti-Leech & Peer Banning"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Enable Anti-Leech Detection"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Enable Anti-Leech Detection"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Periodically identify peers that download from you without giving data back, then enforce the selected action."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Detect peers that download without uploading"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -734,16 +1049,36 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Action (ban/limit_slots):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Action (ban/limit_slots):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["ban", "limit_slots"];
-                                    current-value <=> root.settings_form.bt_anti_leech_action;
+                                    model: [@tr("Ban"), @tr("Limit Upload Slots")];
+                                    current-index <=> root.settings_form.bt_anti_leech_action_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Grace Period:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Grace Period:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_anti_leech_grace_secs; placeholder: "300"; unit_text: @tr("secs"); }
                             }
                         }
@@ -751,25 +1086,65 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Share Ratio Threshold (0-1):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Share Ratio Threshold (0-1):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 CustomTextInput { text <=> root.settings_form.bt_anti_leech_ratio; placeholder: "0.1"; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Ban Duration:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Ban Duration:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds a banned peer stays banned before it is unbanned and may reconnect."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_anti_leech_ban_secs; placeholder: "3600"; unit_text: @tr("secs"); }
                             }
                         }
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Max Upload Slots in Limit Mode (1-64):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Max Upload Slots in Limit Mode (1-64):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("When a torrent has detected leechers, its concurrent upload slots are capped at this value."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             UnitInput { text <=> root.settings_form.bt_anti_leech_max_upload_slots; placeholder: "4"; unit_text: @tr("slots"); }
                         }
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Enable IP Blocklist"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Enable IP Blocklist"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Load local blocklist filter file"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -779,30 +1154,60 @@ export component SettingsDialog inherits Rectangle {
                         }
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Blocklist Path:"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Blocklist Path:"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             CustomTextInput { text <=> root.settings_form.bt_blocklist_path; placeholder: "C:/path/to/blocklist.dat"; }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
-                        Text { text: @tr("Engine Tuning"); color: #9ca3af; font-size: 12px; font-weight: 600; }
+                        Text { text: @tr("Engine Tuning"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
                         HorizontalLayout {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Seed Choking (fastest_upload/round_robin/anti_leech):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Seed Choking (fastest_upload/round_robin/anti_leech):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["fastest_upload", "round_robin", "anti_leech"];
-                                    current-value <=> root.settings_form.bt_seed_choking_algorithm;
+                                    model: [@tr("Fastest Upload First"), @tr("Round Robin"), @tr("Anti-Leech First")];
+                                    current-index <=> root.settings_form.bt_seed_choking_algorithm_idx;
                                     height: 36px;
                                 }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Choking Algorithm (fixed_slots/rate_based):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Choking Algorithm (fixed_slots/rate_based):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ComboBox {
-                                    model: ["fixed_slots", "rate_based"];
-                                    current-value <=> root.settings_form.bt_choking_algorithm;
+                                    model: [@tr("Fixed Slots"), @tr("Rate Based")];
+                                    current-index <=> root.settings_form.bt_choking_algorithm_idx;
                                     height: 36px;
                                 }
                             }
@@ -811,12 +1216,32 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Max Upload Slots per Torrent:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Max Upload Slots per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum concurrent unchoke slots per torrent."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_max_upload_slots_per_torrent; placeholder: "4"; unit_text: @tr("slots"); }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Smart Ban Threshold (1-100):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Smart Ban Threshold (1-100):"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Hash-failure involvements before a peer is automatically banned."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_smart_ban_max_failures; placeholder: "3"; unit_text: @tr("failures"); }
                             }
                         }
@@ -824,7 +1249,17 @@ export component SettingsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Smart Ban Parole"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Smart Ban Parole"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Re-download a failed piece from an uninvolved peer to attribute the fault before striking."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Isolate suspicious peers before permanent ban to prevent false positives"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -836,24 +1271,44 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Ban Duration after Eviction:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Ban Duration after Eviction:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds an evicted (non-contributing) peer is blocked from reconnecting."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_eviction_ban_duration_secs; placeholder: "600"; unit_text: @tr("secs"); }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("No Data Contribution Timeout:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("No Data Contribution Timeout:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.bt_data_contribution_timeout_secs; placeholder: "60"; unit_text: @tr("secs"); }
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
                         HorizontalLayout {
                             spacing: 12px;
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "Fast Extension"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "Fast Extension"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_fast_extension;
                                     toggled => { root.settings_form.bt_enable_fast_extension = !root.settings_form.bt_enable_fast_extension; }
@@ -862,7 +1317,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "Holepunch"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "Holepunch"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_holepunch;
                                     toggled => { root.settings_form.bt_enable_holepunch = !root.settings_form.bt_enable_holepunch; }
@@ -871,7 +1326,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "WebSeed"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "WebSeed"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_web_seed;
                                     toggled => { root.settings_form.bt_enable_web_seed = !root.settings_form.bt_enable_web_seed; }
@@ -880,7 +1335,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "SuperSeed"; color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: "SuperSeed"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_super_seeding;
                                     toggled => { root.settings_form.bt_enable_super_seeding = !root.settings_form.bt_enable_super_seeding; }
@@ -888,18 +1343,30 @@ export component SettingsDialog inherits Rectangle {
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
                         VerticalLayout {
                             spacing: 6px;
-                            Text { text: @tr("Tracker Subscription URL:"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Tracker Subscription URL:"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             HorizontalLayout {
                                 spacing: 8px;
                                 CustomTextInput {
+                                    horizontal-stretch: 1;
                                     text <=> root.settings_form.tracker_url;
                                     placeholder: "https://cf.trackerslist.com/best.txt";
                                 }
                                 SecondaryButton {
+                                    horizontal-stretch: 0;
                                     text: @tr("Sync Now");
                                     icon: @image-url("../assets/icons/refresh-line.svg");
                                     clicked => { root.fetch_trackers(root.settings_form.tracker_url); }
@@ -913,16 +1380,17 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 5: IO 实验室 ──
                 if root.settings_tab == 5 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: @tr("IO Baseline & Performance Modes"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("IO Baseline & Performance Modes"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Game Mode"); color: #f59e0b; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Game Mode"); color: Theme.cf59e0b; font-size: 13px; font-weight: 600; }
                                 Text { text: @tr("Reduces buffer and IO frequency to minimize latency interference with 3D games"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -935,7 +1403,7 @@ export component SettingsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Overclock Mode"); color: #ec4899; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Overclock Mode"); color: Theme.cec4899; font-size: 13px; font-weight: 600; }
                                 Text { text: @tr("Aggressive multi-threading to push bandwidth to the hardware limit"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -944,18 +1412,38 @@ export component SettingsDialog inherits Rectangle {
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
                         HorizontalLayout {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Buffer Pool Limit:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Buffer Pool Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.io_buffer_limit_mb; placeholder: "1024"; unit_text: "MB"; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Game Mode Buffer:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Game Mode Buffer:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Buffer limit when game mode is active, reducing impact on gaming performance."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.io_game_mode_buffer_mb; placeholder: "128"; unit_text: "MB"; }
                             }
                         }
@@ -964,12 +1452,32 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("HDD Max Parallel:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("HDD Max Parallel:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum number of HDD downloads that can use the buffer simultaneously. Each gets an equal share of the buffer pool."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.io_max_parallel_hdd; placeholder: "4"; unit_text: @tr("tasks"); }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Game Mode Max Parallel:"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Game Mode Max Parallel:"); color: Theme.c9ca3af; font-size: 12px;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum parallel HDD downloads when game mode is active."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 UnitInput { text <=> root.settings_form.io_game_mode_max_parallel; placeholder: "1"; unit_text: @tr("tasks"); }
                             }
                         }
@@ -979,7 +1487,17 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: @tr("HDD Double-Buffer Optimization"); color: #f3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: @tr("HDD Double-Buffer Optimization"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Enable double-buffer pool optimization for mechanical hard drives to improve write performance. Not needed for SSDs."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 ToggleSwitch {
                                     checked: root.settings_form.io_hdd_buffer_enabled;
                                     toggled => { root.settings_form.io_hdd_buffer_enabled = !root.settings_form.io_hdd_buffer_enabled; }
@@ -987,12 +1505,12 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("SSD Write Combining (0=auto):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("SSD Write Combining (0=auto):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput { text <=> root.settings_form.io_ssd_write_combine_mb; placeholder: "0"; unit_text: "MB"; }
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
 
                         VerticalLayout {
                             spacing: 4px;
@@ -1002,15 +1520,15 @@ export component SettingsDialog inherits Rectangle {
                                     alignment: center;
                                     Image {
                                         source: @image-url("../assets/icons/hard-drive-2-line.svg");
-                                        colorize: #38bdf8;
+                                        colorize: Theme.c38bdf8;
                                         width: 15px;
                                         height: 15px;
                                         image-fit: contain;
                                     }
                                 }
-                                Text { text: @tr("Disk Type Detection (SSD / HDD):"); color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                Text { text: @tr("Disk Type Detection (SSD / HDD):"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
                             }
-                            Text { text: root.settings_form.disk_type_text; color: #38bdf8; font-size: 12px; }
+                            Text { text: root.settings_form.disk_type_text; color: Theme.c38bdf8; font-size: 12px; }
                         }
 
                         VerticalLayout {
@@ -1021,15 +1539,15 @@ export component SettingsDialog inherits Rectangle {
                                     alignment: center;
                                     Image {
                                         source: @image-url("../assets/icons/cpu-line.svg");
-                                        colorize: #a3e635;
+                                        colorize: Theme.ca3e635;
                                         width: 15px;
                                         height: 15px;
                                         image-fit: contain;
                                     }
                                 }
-                                Text { text: @tr("Buffer Pool Status:"); color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                Text { text: @tr("Buffer Pool Status:"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
                             }
-                            Text { text: root.settings_form.io_status_text; color: #a3e635; font-size: 12px; }
+                            Text { text: root.settings_form.io_status_text; color: Theme.ca3e635; font-size: 12px; }
                         }
                     }
                 }
@@ -1037,16 +1555,17 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 6: 日志 ──
                 if root.settings_tab == 6 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: @tr("Logging"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("Logging"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Enable File Logging"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Enable File Logging"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
                                 Text { text: @tr("Write logs to the specified filePath"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -1057,29 +1576,42 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Log Level (trace/debug/info/warn/error):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Log Level (trace/debug/info/warn/error):"); color: Theme.c9ca3af; font-size: 12px; }
                             ComboBox {
-                                    model: ["trace", "debug", "info", "warn", "error"];
-                                    current-value <=> root.settings_form.logging_level;
+                                    model: [@tr("Trace"), @tr("Debug"), @tr("Info"), @tr("Warn"), @tr("Error")];
+                                    current-index <=> root.settings_form.logging_level_idx;
                                     height: 36px;
                                 }
                         }
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Log File Path:"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Log File Path:"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             HorizontalLayout {
                                 spacing: 8px;
                                 CustomTextInput {
+                                    horizontal-stretch: 1;
                                     text <=> root.settings_form.logging_file_path;
                                     placeholder: @tr("Leave empty for system default, e.g. D:\\limedl\\logs\\limedl.log");
                                 }
                                 SecondaryButton {
+                                    horizontal-stretch: 0;
                                     text: @tr("Select Path...");
                                     icon: @image-url("../assets/icons/folder-open-line.svg");
                                     clicked => { root.pick_log_folder(); }
                                 }
                                 SecondaryButton {
+                                    horizontal-stretch: 0;
                                     text: @tr("Open Folder");
                                     icon: @image-url("../assets/icons/folder-open-line.svg");
                                     clicked => { root.open_log_folder(); }
@@ -1091,12 +1623,12 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Retention Files (empty for unlimited):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Retention Files (empty for unlimited):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput { text <=> root.settings_form.logging_retention_count; placeholder: @tr("Unlimited"); unit_text: @tr("files"); }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Retention Days (empty for unlimited):"); color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Retention Days (empty for unlimited):"); color: Theme.c9ca3af; font-size: 12px; }
                                 UnitInput { text <=> root.settings_form.logging_retention_days; placeholder: @tr("Unlimited"); unit_text: @tr("days"); }
                             }
                         }
@@ -1106,16 +1638,27 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 7: Aria2 RPC ──
                 if root.settings_tab == 7 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
-                        Text { text: @tr("Aria2 RPC Service"); color: #a3e635; font-size: 13px; font-weight: 700; }
+                        Text { text: @tr("Aria2 RPC Service"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: @tr("Enable Aria2 RPC Service"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Enable Aria2 RPC Service"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                                    Tooltip {
+                                        Rectangle {
+                                            background: Theme.c111419;
+                                            border-width: 1px;
+        border-color: Theme.c2e3542;
+                                            border-radius: 8px;
+                                            max-width: 520px;
+                                            HorizontalLayout { padding: 10px; Text { text: @tr("Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                        }
+                                    } }
                                 Text { text: @tr("Allows browser extensions (such as Aria2 Explorer) to intercept downloads"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
@@ -1126,7 +1669,17 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("RPC Port (1-65535):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("RPC Port (1-65535):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Default 6800. Make sure the port is available."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             UnitInput {
                                 text <=> root.settings_form.aria2_port;
                                 placeholder: "6800";
@@ -1136,14 +1689,24 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("RPC Secret (empty for no authentication):"); color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("RPC Secret (empty for no authentication):"); color: Theme.c9ca3af; font-size: 12px;
+                                Tooltip {
+                                    Rectangle {
+                                        background: Theme.c111419;
+                                        border-width: 1px;
+        border-color: Theme.c2e3542;
+                                        border-radius: 8px;
+                                        max-width: 520px;
+                                        HorizontalLayout { padding: 10px; Text { text: @tr("Leave empty to allow connections without a secret. If set, configure the same token in your browser extension."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
+                                    }
+                                } }
                             CustomTextInput {
                                 text <=> root.settings_form.aria2_secret;
                                 placeholder: @tr("Leave empty for no secret");
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1a1e26; }
+                        Rectangle { height: 1px; background: Theme.c1a1e26; }
                         Text { text: @tr("Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."); color: #6b7280; font-size: 11px; wrap: word-wrap; }
                     }
                 }
@@ -1151,6 +1714,7 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 8: 关于 ──
                 if root.settings_tab == 8 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 18px;
                         spacing: 16px;
 
@@ -1168,44 +1732,65 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 3px;
-                                Text { text: "limedl - Native Edition"; color: #f3f4f6; font-size: 16px; font-weight: 700; }
-                                Text { text: @tr("Lightweight high-performance asynchronous multi-protocol download engine"); color: #84cc16; font-size: 12px; font-weight: 600; }
-                                Text { text: @tr("Cross-platform unified engine supporting HTTP/HTTPS adaptive multi-threading and full BitTorrent protocols."); color: #9ca3af; font-size: 11px; }
+                                Text { text: "limedl - Native Edition"; color: Theme.cf3f4f6; font-size: 16px; font-weight: 700; }
+                                Text { text: @tr("Lightweight high-performance asynchronous multi-protocol download engine"); color: Theme.c84cc16; font-size: 12px; font-weight: 600; }
+                                Text { text: @tr("Cross-platform unified engine supporting HTTP/HTTPS adaptive multi-threading and full BitTorrent protocols."); color: Theme.c9ca3af; font-size: 11px; }
                             }
                         }
 
-                        Rectangle { height: 1px; background: #1f242e; }
+                        Rectangle { height: 1px; background: Theme.c1f242e; }
 
                         Rectangle {
-                            background: #14171d;
-                            border-color: #232832;
+                            background: Theme.c14171d;
+                            border-color: Theme.c232832;
                             border-width: 1px;
                             border-radius: 8px;
 
                             VerticalLayout {
                                 padding: 14px;
                                 spacing: 10px;
-                                Text { text: @tr("System & Environment Info"); color: #a3e635; font-size: 12px; font-weight: 700; }
+                                Text { text: @tr("System & Environment Info"); color: Theme.ca3e635; font-size: 12px; font-weight: 700; }
 
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("Client Version:"); color: #6b7280; font-size: 12px; }
-                                    Text { text: root.settings_form.app_version; color: #f3f4f6; font-size: 12px; font-weight: 600; font-family: "Consolas, monospace"; }
+                                    Text { text: root.settings_form.app_version; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; font-family: "Consolas"; }
                                 }
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("Engine Core:"); color: #6b7280; font-size: 12px; }
-                                    Text { text: root.settings_form.engine_version; color: #f3f4f6; font-size: 12px; font-weight: 600; font-family: "Consolas, monospace"; }
+                                    Text { text: root.settings_form.engine_version; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; font-family: "Consolas"; }
                                 }
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("Target Arch & Graphics:"); color: #6b7280; font-size: 12px; }
-                                    Text { text: root.settings_form.arch_info; color: #38bdf8; font-size: 12px; font-weight: 600; font-family: "Consolas, monospace"; }
+                                    Text { text: root.settings_form.arch_info; color: Theme.c38bdf8; font-size: 12px; font-weight: 600; font-family: "Consolas"; }
                                 }
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("Core Technology Stack:"); color: #6b7280; font-size: 12px; }
-                                    Text { text: @tr("Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"); color: #9ca3af; font-size: 12px; }
+                                    Text { text: @tr("Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"); color: Theme.c9ca3af; font-size: 12px; }
                                 }
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("License:"); color: #6b7280; font-size: 12px; }
-                                    Text { text: "MIT / Apache-2.0 Dual License"; color: #9ca3af; font-size: 12px; }
+                                    Text { text: "MIT / Apache-2.0 Dual License"; color: Theme.c9ca3af; font-size: 12px; }
+                                }
+                                HorizontalLayout {
+                                    Text { width: 140px; text: @tr("Font License:"); color: #6b7280; font-size: 12px; }
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text { text: @tr("MiSans VF © Beijing Xiaomi Mobile Software Co.,Ltd. Free for commercial use."); color: Theme.c9ca3af; font-size: 12px; }
+                                        HorizontalLayout {
+                                            alignment: start;
+                                            Text {
+                                                text: "hyperos.mi.com/font";
+                                                color: lic-ta.has_hover ? Theme.c60a5fa : Theme.c38bdf8;
+                                                font-size: 12px;
+                                                font-family: "Consolas";
+                                                vertical-alignment: center;
+                                                lic-ta := TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => { root.open_font_license(); }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

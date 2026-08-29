@@ -102,6 +102,11 @@ jobs:
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       - name: Enable lld-link
         run: echo "RUSTFLAGS=-C linker=lld-link" >> "$env:GITHUB_ENV"
+      # limedl-native embeds MiSans VF at compile time; the font is not in git
+      # (MiSans font license) — fetch it from the official source first.
+      - name: Fetch bundled MiSans VF font
+        shell: pwsh
+        run: ./scripts/fetch-misans.ps1
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # Windows tests: core + server are pure Rust logic (no GUI dep).
       # src-tauri tests are also pure logic (no Tauri runtime needed).
@@ -122,6 +127,11 @@ jobs:
           components: clippy
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       # macOS ships WebKit natively — no apt install needed.
+      # limedl-native embeds MiSans VF at compile time; the font is not in git
+      # (MiSans font license) — fetch it from the official source first.
+      - name: Fetch bundled MiSans VF font
+        shell: pwsh
+        run: ./scripts/fetch-misans.ps1
       # All tests in these crates are pure Rust logic tests that
       # do not require a running Tauri runtime or system WebView.
       - run: cargo clippy --workspace --all-targets -- -D warnings
@@ -143,6 +153,11 @@ jobs:
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: cargo-llvm-cov
+      # limedl-native embeds MiSans VF at compile time; the font is not in git
+      # (MiSans font license) — fetch it from the official source first.
+      - name: Fetch bundled MiSans VF font
+        shell: pwsh
+        run: ./scripts/fetch-misans.ps1
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check ts-rs bindings are up-to-date
         run: |

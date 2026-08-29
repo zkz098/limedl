@@ -1,6 +1,8 @@
+import { Theme } from "../theme.slint";
+
 export component RiIcon inherits Image {
     in property <image> icon_source;
-    in property <color> icon_color: #d1d5db;
+    in property <color> icon_color: Theme.cd1d5db;
     in property <length> icon_size: 16px;
 
     source: root.icon_source;
@@ -13,8 +15,8 @@ export component RiIcon inherits Image {
 export component IconButton inherits Rectangle {
     in property <string> text: "";
     in property <image> icon;
-    in property <color> hover_color: #242932;
-    in property <color> text_color: #d1d5db;
+    in property <color> hover_color: Theme.c242932;
+    in property <color> text_color: Theme.cd1d5db;
     in property <length> font_size: 12px;
     in property <length> icon_size: 14px;
     callback clicked();
@@ -38,7 +40,7 @@ export component IconButton inherits Rectangle {
             alignment: center;
             Image {
                 source: root.icon;
-                colorize: ta.has_hover ? #ffffff : root.text_color;
+                colorize: ta.has_hover ? Theme.cffffff : root.text_color;
                 width: root.icon_size;
                 height: root.icon_size;
                 image-fit: contain;
@@ -47,7 +49,7 @@ export component IconButton inherits Rectangle {
 
         if root.text != "" : Text {
             text: root.text;
-            color: ta.has_hover ? #ffffff : root.text_color;
+            color: ta.has_hover ? Theme.cffffff : root.text_color;
             font-size: root.font_size;
             font-weight: 500;
             vertical-alignment: center;
@@ -61,7 +63,7 @@ export component PrimaryButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    background: !root.enabled ? #2a3322 : (ta.has_hover ? (ta.pressed ? #65a30d : #a3e635) : #84cc16);
+    background: !root.enabled ? Theme.c2a3322 : (ta.has_hover ? (ta.pressed ? Theme.c65a30d : Theme.ca3e635) : Theme.c84cc16);
     border-radius: 6px;
     height: 32px;
     min-width: 80px;
@@ -81,7 +83,7 @@ export component PrimaryButton inherits Rectangle {
             alignment: center;
             Image {
                 source: root.icon;
-                colorize: !root.enabled ? #4d5c41 : #0b1104;
+                colorize: !root.enabled ? Theme.c4d5c41 : #0b1104;
                 width: 15px;
                 height: 15px;
                 image-fit: contain;
@@ -90,7 +92,7 @@ export component PrimaryButton inherits Rectangle {
 
         Text {
             text: root.text;
-            color: !root.enabled ? #4d5c41 : #0b1104;
+            color: !root.enabled ? Theme.c4d5c41 : #0b1104;
             font-size: 13px;
             font-weight: 700;
             vertical-alignment: center;
@@ -105,8 +107,8 @@ export component SecondaryButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    background: !root.enabled ? #15181e : (root.active ? #26331a : (ta.has_hover ? (ta.pressed ? #20242c : #252b34) : #1a1d23));
-    border-color: !root.enabled ? #252a34 : (root.active ? #84cc16 : #323844);
+    background: !root.enabled ? Theme.c15181e : (root.active ? Theme.c26331a : (ta.has_hover ? (ta.pressed ? Theme.c20242c : Theme.c252b34) : Theme.c1a1d23));
+    border-color: !root.enabled ? Theme.c252a34 : (root.active ? Theme.c84cc16 : Theme.c323844);
     border-width: 1px;
     border-radius: 6px;
     height: 32px;
@@ -127,7 +129,7 @@ export component SecondaryButton inherits Rectangle {
             alignment: center;
             Image {
                 source: root.icon;
-                colorize: !root.enabled ? #4b5563 : (root.active ? #84cc16 : (ta.has_hover ? #ffffff : #d1d5db));
+                colorize: !root.enabled ? Theme.c4b5563 : (root.active ? Theme.c84cc16 : (ta.has_hover ? Theme.cffffff : Theme.cd1d5db));
                 width: 14px;
                 height: 14px;
                 image-fit: contain;
@@ -136,7 +138,7 @@ export component SecondaryButton inherits Rectangle {
 
         Text {
             text: root.text;
-            color: !root.enabled ? #4b5563 : (root.active ? #84cc16 : (ta.has_hover ? #ffffff : #e5e7eb));
+            color: !root.enabled ? Theme.c4b5563 : (root.active ? Theme.c84cc16 : (ta.has_hover ? Theme.cffffff : Theme.ce5e7eb));
             font-size: 12px;
             font-weight: root.active ? 600 : 500;
             vertical-alignment: center;
@@ -150,7 +152,7 @@ export component DangerButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    background: !root.enabled ? #201315 : (ta.has_hover ? (ta.pressed ? #7f1d1d : #b91c1c) : #991b1b);
+    background: !root.enabled ? Theme.c201315 : (ta.has_hover ? (ta.pressed ? Theme.c7f1d1d : #b91c1c) : Theme.c991b1b);
     border-color: #dc2626;
     border-width: 1px;
     border-radius: 6px;
@@ -195,7 +197,7 @@ export component TabButton inherits Rectangle {
     in property <bool> active: false;
     callback clicked();
 
-    background: root.active ? #232b1d : (ta.has_hover ? #1a1e25 : transparent);
+    background: root.active ? Theme.c232b1d : (ta.has_hover ? Theme.c1a1e25 : transparent);
     border-radius: 6px;
     height: 34px;
 
@@ -213,7 +215,7 @@ export component TabButton inherits Rectangle {
             alignment: center;
             Image {
                 source: root.icon;
-                colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
+                colorize: root.active ? Theme.c84cc16 : (ta.has_hover ? Theme.cf3f4f6 : Theme.c8b95a5);
                 width: 15px;
                 height: 15px;
                 image-fit: contain;
@@ -222,7 +224,7 @@ export component TabButton inherits Rectangle {
 
         Text {
             text: root.text;
-            color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
+            color: root.active ? Theme.c84cc16 : (ta.has_hover ? Theme.cf3f4f6 : Theme.c9ca3af);
             font-size: 12px;
             font-weight: root.active ? 600 : 400;
             vertical-alignment: center;
@@ -232,7 +234,7 @@ export component TabButton inherits Rectangle {
     if root.active : Rectangle {
         y: parent.height - 2px;
         height: 2px;
-        background: #84cc16;
+        background: Theme.c84cc16;
         border-radius: 1px;
     }
 }
@@ -244,8 +246,8 @@ export component CustomCheckBox inherits Rectangle {
     width: 18px;
     height: 18px;
     border-radius: 4px;
-    background: root.checked ? #84cc16 : (ta.has_hover ? #242932 : #15181d);
-    border-color: root.checked ? #84cc16 : #3f4756;
+    background: root.checked ? Theme.c84cc16 : (ta.has_hover ? Theme.c242932 : Theme.c15181d);
+    border-color: root.checked ? Theme.c84cc16 : Theme.c3f4756;
     border-width: 1px;
 
     ta := TouchArea {
@@ -269,7 +271,7 @@ export component ToggleSwitch inherits Rectangle {
     width: 42px;
     height: 22px;
     border-radius: 11px;
-    background: root.checked ? #84cc16 : #252b34;
+    background: root.checked ? Theme.c84cc16 : Theme.c252b34;
 
     ta := TouchArea {
         clicked => { root.toggled(); }
@@ -281,7 +283,7 @@ export component ToggleSwitch inherits Rectangle {
         width: 16px;
         height: 16px;
         border-radius: 8px;
-        background: root.checked ? #0b1104 : #9ca3af;
+        background: root.checked ? #0b1104 : Theme.c9ca3af;
     }
 }
 
@@ -290,8 +292,8 @@ export component SearchInput inherits Rectangle {
     in property <string> placeholder: @tr("Search downloads...");
     callback text_changed(string);
 
-    background: #15171c;
-    border-color: ta.has-focus ? #84cc16 : #2a2f3a;
+    background: Theme.c15171c;
+    border-color: ta.has-focus ? Theme.c84cc16 : Theme.c2a2f3a;
     border-width: 1px;
     border-radius: 6px;
     height: 32px;
@@ -304,9 +306,10 @@ export component SearchInput inherits Rectangle {
 
         VerticalLayout {
             alignment: center;
+            width: 20px;
             Image {
                 source: @image-url("../assets/icons/search-line.svg");
-                colorize: ta.has-focus ? #84cc16 : #5d6778;
+                colorize: ta.has-focus ? Theme.c84cc16 : Theme.c5d6778;
                 width: 14px;
                 height: 14px;
                 image-fit: contain;
@@ -315,13 +318,14 @@ export component SearchInput inherits Rectangle {
 
         VerticalLayout {
             alignment: center;
+            horizontal-stretch: 1;
             Rectangle {
                 clip: true;
-                height: 20px;
+                height: 100%;
 
                 if root.text == "" : Text {
                     text: root.placeholder;
-                    color: #5d6778;
+                    color: Theme.c5d6778;
                     font-size: 12px;
                     vertical-alignment: center;
                     width: 100%;
@@ -330,7 +334,7 @@ export component SearchInput inherits Rectangle {
 
                 ta := TextInput {
                     text <=> root.text;
-                    color: #f3f4f6;
+                    color: Theme.cf3f4f6;
                     font-size: 12px;
                     vertical-alignment: center;
                     single-line: true;
@@ -351,8 +355,8 @@ export component CustomTextInput inherits Rectangle {
     callback edited(string);
     callback accepted(string);
 
-    background: #14161b;
-    border-color: ta.has-focus ? #84cc16 : #2b313d;
+    background: Theme.c14161b;
+    border-color: ta.has-focus ? Theme.c84cc16 : Theme.c2b313d;
     border-width: 1px;
     border-radius: 6px;
     height: 36px;
@@ -365,11 +369,11 @@ export component CustomTextInput inherits Rectangle {
             alignment: center;
             Rectangle {
                 clip: true;
-                height: 22px;
+                height: 100%;
 
                 if root.text == "" : Text {
                     text: root.placeholder;
-                    color: #5d6778;
+                    color: Theme.c5d6778;
                     font-size: 13px;
                     vertical-alignment: center;
                     width: 100%;
@@ -379,7 +383,7 @@ export component CustomTextInput inherits Rectangle {
                 ta := TextInput {
                     text <=> root.text;
                     enabled: root.enabled;
-                    color: #f3f4f6;
+                    color: Theme.cf3f4f6;
                     font-size: 13px;
                     vertical-alignment: center;
                     single-line: true;
@@ -402,8 +406,8 @@ export component UnitInput inherits Rectangle {
     callback edited(string);
     callback accepted(string);
 
-    background: #14161b;
-    border-color: ta.has-focus ? #84cc16 : #2b313d;
+    background: Theme.c14161b;
+    border-color: ta.has-focus ? Theme.c84cc16 : Theme.c2b313d;
     border-width: 1px;
     border-radius: 6px;
     height: 36px;
@@ -412,17 +416,24 @@ export component UnitInput inherits Rectangle {
         padding-left: 12px;
         padding-right: 6px;
         spacing: 8px;
-        alignment: space-between;
 
+        // NOTE: do NOT use `alignment: space-between` here. The input area's
+        // children all use percentage widths (they contribute nothing to the
+        // preferred-width calculation), so under space-between the input
+        // column collapses to zero width: the field shows only a text
+        // fragment, never gains focus and cannot be typed in. Default
+        // (stretch) alignment + horizontal-stretch on the unit badge keeps
+        // the input area at full remaining width.
         VerticalLayout {
             alignment: center;
+            horizontal-stretch: 1;
             Rectangle {
                 clip: true;
-                height: 22px;
+                height: 100%;
 
                 if root.text == "" : Text {
                     text: root.placeholder;
-                    color: #5d6778;
+                    color: Theme.c5d6778;
                     font-size: 13px;
                     vertical-alignment: center;
                     width: 100%;
@@ -432,7 +443,7 @@ export component UnitInput inherits Rectangle {
                 ta := TextInput {
                     text <=> root.text;
                     enabled: root.enabled;
-                    color: #f3f4f6;
+                    color: Theme.cf3f4f6;
                     font-size: 13px;
                     vertical-alignment: center;
                     single-line: true;
@@ -446,8 +457,9 @@ export component UnitInput inherits Rectangle {
 
         if root.unit_text != "" : VerticalLayout {
             alignment: center;
+            horizontal-stretch: 0;
             Rectangle {
-                background: #1d212a;
+                background: Theme.c1d212a;
                 border-radius: 4px;
                 height: 24px;
                 HorizontalLayout {
@@ -456,7 +468,7 @@ export component UnitInput inherits Rectangle {
                     alignment: center;
                     Text {
                         text: root.unit_text;
-                        color: #84cc16;
+                        color: Theme.c84cc16;
                         font-size: 11px;
                         font-weight: 600;
                         vertical-alignment: center;
@@ -471,14 +483,14 @@ export component StatusBadge inherits Rectangle {
     in property <string> state_code;
     in property <string> state_label;
 
-    background: root.state_code == "downloading" ? #142e1b : (
-        root.state_code == "paused" ? #33200b : (
-            root.state_code == "completed" ? #112842 : #361214
+    background: root.state_code == "downloading" ? Theme.c142e1b : (
+        root.state_code == "paused" ? Theme.c33200b : (
+            root.state_code == "completed" ? Theme.c112842 : Theme.c361214
         )
     );
-    border-color: root.state_code == "downloading" ? #22542e : (
-        root.state_code == "paused" ? #543615 : (
-            root.state_code == "completed" ? #1d406b : #5c1f23
+    border-color: root.state_code == "downloading" ? Theme.c22542e : (
+        root.state_code == "paused" ? Theme.c543615 : (
+            root.state_code == "completed" ? Theme.c1d406b : Theme.c5c1f23
         )
     );
     border-width: 1px;
@@ -498,9 +510,9 @@ export component StatusBadge inherits Rectangle {
                 width: 6px;
                 height: 6px;
                 border-radius: 3px;
-                background: root.state_code == "downloading" ? #4ade80 : (
-                    root.state_code == "paused" ? #facc15 : (
-                        root.state_code == "completed" ? #38bdf8 : #f87171
+                background: root.state_code == "downloading" ? Theme.c4ade80 : (
+                    root.state_code == "paused" ? Theme.cfacc15 : (
+                        root.state_code == "completed" ? Theme.c38bdf8 : Theme.cf87171
                     )
                 );
             }
@@ -508,9 +520,9 @@ export component StatusBadge inherits Rectangle {
 
         Text {
             text: root.state_label;
-            color: root.state_code == "downloading" ? #4ade80 : (
-                root.state_code == "paused" ? #facc15 : (
-                    root.state_code == "completed" ? #60a5fa : #f87171
+            color: root.state_code == "downloading" ? Theme.c4ade80 : (
+                root.state_code == "paused" ? Theme.cfacc15 : (
+                    root.state_code == "completed" ? Theme.c60a5fa : Theme.cf87171
                 )
             );
             font-size: 11px;
@@ -524,17 +536,17 @@ export component ToneBadge inherits Rectangle {
     in property <string> text;
     in property <string> tone: "neutral"; // neutral, success, info, warning, danger
 
-    background: root.tone == "success" ? #14351a : (
-        root.tone == "info" ? #132a42 : (
-            root.tone == "warning" ? #3b280c : (
-                root.tone == "danger" ? #3b1216 : #20252e
+    background: root.tone == "success" ? Theme.c14351a : (
+        root.tone == "info" ? Theme.c132a42 : (
+            root.tone == "warning" ? Theme.c3b280c : (
+                root.tone == "danger" ? Theme.c3b1216 : Theme.c20252e
             )
         )
     );
-    border-color: root.tone == "success" ? #22c55e : (
-        root.tone == "info" ? #38bdf8 : (
-            root.tone == "warning" ? #f59e0b : (
-                root.tone == "danger" ? #ef4444 : #3b4352
+    border-color: root.tone == "success" ? Theme.c22c55e : (
+        root.tone == "info" ? Theme.c38bdf8 : (
+            root.tone == "warning" ? Theme.cf59e0b : (
+                root.tone == "danger" ? Theme.cef4444 : Theme.c3b4352
             )
         )
     );
@@ -548,10 +560,10 @@ export component ToneBadge inherits Rectangle {
         alignment: center;
         Text {
             text: root.text;
-            color: root.tone == "success" ? #4ade80 : (
-                root.tone == "info" ? #38bdf8 : (
-                    root.tone == "warning" ? #fbbf24 : (
-                        root.tone == "danger" ? #f87171 : #9ca3af
+            color: root.tone == "success" ? Theme.c4ade80 : (
+                root.tone == "info" ? Theme.c38bdf8 : (
+                    root.tone == "warning" ? Theme.cfbbf24 : (
+                        root.tone == "danger" ? Theme.cf87171 : Theme.c9ca3af
                     )
                 )
             );
@@ -564,8 +576,8 @@ export component ToneBadge inherits Rectangle {
 
 export component CodeChip inherits Rectangle {
     in property <string> text;
-    background: #14171d;
-    border-color: #2b313d;
+    background: Theme.c14171d;
+    border-color: Theme.c2b313d;
     border-width: 1px;
     border-radius: 4px;
     height: 22px;
@@ -576,9 +588,9 @@ export component CodeChip inherits Rectangle {
         alignment: center;
         Text {
             text: root.text;
-            color: #a3e635;
+            color: Theme.ca3e635;
             font-size: 11px;
-            font-family: "Consolas, Fira Code, monospace";
+            font-family: "Consolas";
             font-weight: 500;
             vertical-alignment: center;
         }
@@ -587,8 +599,8 @@ export component CodeChip inherits Rectangle {
 
 export component WarningBanner inherits Rectangle {
     in property <string> text;
-    background: #2a1d08;
-    border-color: #f59e0b;
+    background: Theme.c2a1d08;
+    border-color: Theme.cf59e0b;
     border-width: 1px;
     border-radius: 6px;
     height: 38px;
@@ -603,7 +615,7 @@ export component WarningBanner inherits Rectangle {
             alignment: center;
             Image {
                 source: @image-url("../assets/icons/error-warning-line.svg");
-                colorize: #f59e0b;
+                colorize: Theme.cf59e0b;
                 width: 16px;
                 height: 16px;
                 image-fit: contain;
@@ -612,7 +624,7 @@ export component WarningBanner inherits Rectangle {
 
         Text {
             text: root.text;
-            color: #fcd34d;
+            color: Theme.cfcd34d;
             font-size: 12px;
             font-weight: 500;
             vertical-alignment: center;
@@ -627,7 +639,7 @@ export component CategoryButton inherits Rectangle {
     in property <bool> active: false;
     callback clicked();
 
-    background: root.active ? #232b1d : (ta.has_hover ? #171b21 : transparent);
+    background: root.active ? Theme.c232b1d : (ta.has_hover ? Theme.c171b21 : transparent);
     border-radius: 6px;
     height: 36px;
 
@@ -649,7 +661,7 @@ export component CategoryButton inherits Rectangle {
                 alignment: center;
                 Image {
                     source: root.icon_source;
-                    colorize: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #8b95a5);
+                    colorize: root.active ? Theme.c84cc16 : (ta.has_hover ? Theme.cf3f4f6 : Theme.c8b95a5);
                     width: 16px;
                     height: 16px;
                     image-fit: contain;
@@ -658,7 +670,7 @@ export component CategoryButton inherits Rectangle {
 
             Text {
                 text: root.title;
-                color: root.active ? #84cc16 : (ta.has_hover ? #f3f4f6 : #9ca3af);
+                color: root.active ? Theme.c84cc16 : (ta.has_hover ? Theme.cf3f4f6 : Theme.c9ca3af);
                 font-size: 13px;
                 font-weight: root.active ? 600 : 400;
                 vertical-alignment: center;
@@ -668,7 +680,7 @@ export component CategoryButton inherits Rectangle {
         VerticalLayout {
             alignment: center;
             Rectangle {
-                background: root.active ? #365314 : #1e2229;
+                background: root.active ? Theme.c365314 : Theme.c1e2229;
                 border-radius: 10px;
                 height: 20px;
                 min-width: 22px;
@@ -678,7 +690,7 @@ export component CategoryButton inherits Rectangle {
                     alignment: center;
                     Text {
                         text: root.count_text;
-                        color: root.active ? #a3e635 : #8b95a5;
+                        color: root.active ? Theme.ca3e635 : Theme.c8b95a5;
                         font-size: 11px;
                         font-weight: 600;
                         vertical-alignment: center;

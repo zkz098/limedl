@@ -877,3 +877,480 @@ msgstr "移除记录"
 
 msgid "Delete Files"
 msgstr "彻底删除"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Peers ({})"
+msgstr "节点 ({})"
+
+msgid "Trackers ({})"
+msgstr "服务器 ({})"
+
+msgid "Piece Map"
+msgstr "分片分布"
+
+msgid "Files ({})"
+msgstr "文件列表 ({})"
+
+msgid "Downloaded / Total Size"
+msgstr "已下载 / 总大小"
+
+msgid "ETA"
+msgstr "剩余时间"
+
+msgid "Source URL:"
+msgstr "来源链接:"
+
+msgid "Thread Mode:"
+msgstr "线程模式:"
+
+msgid "Info Hash:"
+msgstr "Info Hash:"
+
+msgid "Error:"
+msgstr "错误:"
+
+msgid "No connected peers"
+msgstr "暂无已连接节点"
+
+msgid "No registered trackers"
+msgstr "暂无注册 Tracker 服务器"
+
+msgid "Piece Map Completion:"
+msgstr "分片完成度:"
+
+msgid "Completed Pieces"
+msgstr "已完成分片"
+
+msgid "Pending Pieces"
+msgstr "待完成分片"
+
+msgid "Single file task or file list not yet parsed"
+msgstr "单文件任务或文件列表尚未解析"
+
+msgid "Download URL / Magnet / Local Torrent Path:"
+msgstr "下载链接 / Magnet / 本地种子路径:"
+
+msgid "http://, https://, magnet:?xt=, or select a local .torrent file"
+msgstr "支持 http://、https://、magnet:?xt=，或选择本地 .torrent 文件"
+
+msgid "Leave empty to auto-detect filename"
+msgstr "留空则自动识别文件名"
+
+msgid "Common:"
+msgstr "常规:"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Advanced:"
+msgstr "高级:"
+
+msgid "IO & Storage"
+msgstr "IO 与存储"
+
+msgid "Aria2"
+msgstr "Aria2"
+
+msgid "Appearance & System Integration"
+msgstr "外观与系统集成"
+
+msgid "Theme Mode (system/light/dark):"
+msgstr "主题模式 (system/light/dark):"
+
+msgid "Theme Color (amber/sky/lime):"
+msgstr "主题颜色 (amber/sky/lime):"
+
+msgid "Background Opacity Preset (default/acrylic/frosted):"
+msgstr "背景透明度 (default/acrylic/frosted):"
+
+msgid "UI Language (zh-CN/en-US):"
+msgstr "界面语言 (zh-CN/en-US):"
+
+msgid "Close Behavior (minimizeToTray/exit):"
+msgstr "关闭行为 (minimizeToTray/exit):"
+
+msgid "Max In-Memory Records (10-10000):"
+msgstr "内存中最大记录数 (10-10000):"
+
+msgid "items"
+msgstr "条"
+
+msgid "Show Detail Panel"
+msgstr "显示详情面板"
+
+msgid "Show download inspector and piece heatmap on the right"
+msgstr "在右侧显示任务检查器与分片热力图"
+
+msgid "Launch on Startup"
+msgstr "开机自启动"
+
+msgid "Automatically launch limedl-native upon user login"
+msgstr "用户登录后自动启动 limedl-native"
+
+msgid "System Notifications"
+msgstr "系统通知"
+
+msgid "Show desktop notification on task completion/failure"
+msgstr "任务完成/失败时显示桌面通知"
+
+msgid "Double-click Completed Task (none/open_file/open_in_explorer/open_download_dir):"
+msgstr "双击已完成任务 (none/open_file/open_in_explorer/open_download_dir):"
+
+msgid "Double-click Uncompleted Task (none/toggle_pause_resume):"
+msgstr "双击未完成任务 (none/toggle_pause_resume):"
+
+msgid "Download Defaults"
+msgstr "下载默认设置"
+
+msgid "Default Download Folder:"
+msgstr "默认下载目录:"
+
+msgid "Max Concurrent Tasks (traditional):"
+msgstr "最大并发任务数 (traditional):"
+
+msgid "Max Retries (0-100):"
+msgstr "最大重试次数 (0-100):"
+
+msgid "times"
+msgstr "次"
+
+msgid "Default Checksum (blake3/sha256/xxh3_128/none/sha1):"
+msgstr "默认校验算法 (blake3/sha256/xxh3_128/none/sha1):"
+
+msgid "Auto-detect SHA-256"
+msgstr "自动识别 SHA-256"
+
+msgid "Default User-Agent (empty for Chrome 124):"
+msgstr "默认 User-Agent (留空使用 Chrome 124):"
+
+msgid "Global Bandwidth Limit (0 for unlimited):"
+msgstr "全局带宽限制 (0 为不限制):"
+
+msgid "Task Speed Limit"
+msgstr "任务限速"
+
+msgid "Download Rate Limit (0 for unlimited):"
+msgstr "下载限速 (0 为不限制):"
+
+msgid "Upload Rate Limit (0 for unlimited):"
+msgstr "上传限速 (0 为不限制):"
+
+msgid "Apply Speed Limit"
+msgstr "应用限速"
+
+msgid "Follow System"
+msgstr "跟随系统"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Amber"
+msgstr "琥珀"
+
+msgid "Sky Blue"
+msgstr "天蓝"
+
+msgid "Lime"
+msgstr "青柠"
+
+msgid "Default"
+msgstr "默认"
+
+msgid "Acrylic"
+msgstr "亚克力"
+
+msgid "Frosted"
+msgstr "磨砂"
+
+msgid "简体中文"
+msgstr "简体中文"
+
+msgid "English"
+msgstr "English"
+
+msgid "Minimize to Tray"
+msgstr "最小化到托盘"
+
+msgid "Exit"
+msgstr "退出程序"
+
+msgid "No Action"
+msgstr "无操作"
+
+msgid "Open File"
+msgstr "打开文件"
+
+msgid "Show in Explorer"
+msgstr "在资源管理器中显示"
+
+msgid "Open Download Directory"
+msgstr "打开下载目录"
+
+msgid "Pause / Resume"
+msgstr "暂停 / 继续"
+
+msgid "BLAKE3"
+msgstr "BLAKE3"
+
+msgid "SHA-256"
+msgstr "SHA-256"
+
+msgid "XXH3-128"
+msgstr "XXH3-128"
+
+msgid "None (skip)"
+msgstr "不校验"
+
+msgid "SHA-1"
+msgstr "SHA-1"
+
+msgid "Disabled"
+msgstr "禁用"
+
+msgid "System Proxy"
+msgstr "跟随系统"
+
+msgid "Manual"
+msgstr "手动"
+
+msgid "Automatic (adaptive)"
+msgstr "自动 (自适应线程)"
+
+msgid "Traditional (fixed)"
+msgstr "传统 (固定并发)"
+
+msgid "Conservative"
+msgstr "保守"
+
+msgid "Balanced"
+msgstr "均衡"
+
+msgid "Aggressive"
+msgstr "激进"
+
+msgid "Adaptive"
+msgstr "自适应"
+
+msgid "Fixed"
+msgstr "固定"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Forced"
+msgstr "强制"
+
+msgid "None (sparse)"
+msgstr "无 (sparse)"
+
+msgid "Full (zero-fill)"
+msgstr "完整 (zero-fill)"
+
+msgid "Ban"
+msgstr "封禁"
+
+msgid "Limit Upload Slots"
+msgstr "限制上传槽位"
+
+msgid "Fastest Upload First"
+msgstr "最快上传优先"
+
+msgid "Round Robin"
+msgstr "轮询调度"
+
+msgid "Anti-Leech First"
+msgstr "反吸血优先"
+
+msgid "Fixed Slots"
+msgstr "固定槽位"
+
+msgid "Rate Based"
+msgstr "基于速率"
+
+msgid "Trace"
+msgstr "Trace"
+
+msgid "Debug"
+msgstr "Debug"
+
+msgid "Info"
+msgstr "Info"
+
+msgid "Warn"
+msgstr "Warn"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Follow system switches automatically from the current Windows app theme."
+msgstr "跟随系统会根据 Windows 当前的应用主题自动切换。"
+
+msgid "Controls transparency and background blur for app panels and dialogs."
+msgstr "影响应用面板与模态框的透明度和背景模糊程度。"
+
+msgid "Show detailed fields like URL, checksum, threads in the download inspector."
+msgstr "在下载检查器中显示 URL、校验和、线程等详细字段。"
+
+msgid "Start Limedl automatically when you log in. The app will start minimized to the system tray."
+msgstr "登录系统时自动启动 Limedl，启动后将最小化到系统托盘。"
+
+msgid "Action to perform when double-clicking a completed download task."
+msgstr "设置双击已完成下载任务时的行为。"
+
+msgid "Action to perform when double-clicking an uncompleted download task."
+msgstr "设置双击未完成下载任务时的行为。"
+
+msgid "New tasks will prefill this folder, and you can still override it per task."
+msgstr "新建任务时会自动带入该目录，你仍然可以在任务里临时改掉。"
+
+msgid "New tasks no longer show checksum mode separately. This setting is used globally."
+msgstr "新建任务中不再单独显示校验方式，统一使用这里的设置。"
+
+msgid "Automatically probe for matching .sha256 or parent SHA256SUMS files when downloading HTTP links, and verify after completion."
+msgstr "下载 HTTP 链接时自动探测同名 .sha256 或目录下的 SHA256SUMS 校验文件，完成后自动核对。"
+
+msgid "New HTTP tasks prefill this UA, and each task can override it."
+msgstr "新建 HTTP 任务会自动带入该 UA，也可以在任务里单独覆盖。"
+
+msgid "Limit total download speed across all active tasks. 0 means unlimited."
+msgstr "限制所有活跃任务的总下载速度。0 表示不限速。"
+
+msgid "Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."
+msgstr "支持常见 HTTP / HTTPS / SOCKS 代理地址，按完整 URL 填写。"
+
+msgid "Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."
+msgstr "保守更偏节制线程，平衡兼顾开销与速度，激进优先追求下载速度。"
+
+msgid "Auto-adjust chunk strategy based on network conditions"
+msgstr "根据网络状况自动调整分块策略"
+
+msgid "Set to 0 to use 50% of the max thread count automatically. The adaptive algorithm never goes below this once reached."
+msgstr "设为 0 则自动取最大线程数的 50%。到达最低值后自适应算法不会继续减线程。"
+
+msgid "DHT discovers peers from the distributed network. Changes apply to the BT session after restart."
+msgstr "DHT 会从分布式网络发现 Peer；修改后会在下次启动的 BT 会话中生效。"
+
+msgid "Leave empty for auto-assignment. 1024–65535"
+msgstr "留空由系统自动分配。1024–65535"
+
+msgid "Maximum peer connections per torrent."
+msgstr "每个 torrent 的最大 peer 连接数。"
+
+msgid "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."
+msgstr "从该地址下载 TXT，每行一个 Tracker URL。点击更新只会刷新下方列表，仍需保存设置。"
+
+msgid "MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."
+msgstr "MSE/PE 协议加密。强制模式可能拒绝未加密连接。仅 irontide。"
+
+msgid "Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."
+msgstr "完全预分配可减少磁盘碎片，但创建任务较慢。仅 irontide。"
+
+msgid "Maximum number of auto-managed active downloads"
+msgstr "自动管理的最大活跃下载任务数"
+
+msgid "Maximum number of auto-managed active seeds"
+msgstr "自动管理的最大活跃做种任务数"
+
+msgid "Maximum total number of torrents allowed"
+msgstr "允许添加的 Torrent 总数上限"
+
+msgid "Hard limit on total active torrents (downloading + seeding + checking)"
+msgstr "同时活跃（下载+做种+校验）的硬上限"
+
+msgid "0 = unlimited"
+msgstr "0 = 不限制"
+
+msgid "0 = unlimited"
+msgstr "0 = 不限制"
+
+msgid "When either the uploaded amount or share ratio limit is reached, the matching BT task is paused."
+msgstr "满足上传量上限或分享率上限任一条件后，会暂停对应 BT 任务。"
+
+msgid "0 or empty means no limit"
+msgstr "填 0 或留空表示不限速"
+
+msgid "For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit."
+msgstr "例如 2 表示上传量达到已下载量的 2 倍后暂停；填 0 表示不按倍数限制。"
+
+msgid "Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers."
+msgstr "对等端需被放开上传这么久后才可能被标记，避免误伤刚接入的慢启动对等端。"
+
+msgid "Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check."
+msgstr "回传数据低于其取得数据该比例的 peer 将被视为吸血者；填 0 关闭比例判断。"
+
+msgid "Seconds a banned peer stays banned before it is unbanned and may reconnect."
+msgstr "被封禁对等端需等待的秒数，到期后自动解封可重新连接。"
+
+msgid "Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."
+msgstr "封禁：断开并暂时拉黑违规对等端；限制上传槽位：当 torrent 有吸血对等端时限制同时上传的槽位数。"
+
+msgid "When a torrent has detected leechers, its concurrent upload slots are capped at this value."
+msgstr "当 torrent 检测到吸血对等端时，其并发上传槽位将限制为该值。"
+
+msgid "Periodically identify peers that download from you without giving data back, then enforce the selected action."
+msgstr "定期识别只下载却不回传数据的对等端，并按所选策略处理。"
+
+msgid "Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."
+msgstr "将会话的 IP 过滤设为黑名单文件中的网段，被封段的（如已知吸血 IDC/网络）连接将被拒绝。"
+
+msgid "Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."
+msgstr "填写黑名单文件路径。支持 eMule .dat 或 P2P 明文（每行一个 CIDR）格式，按文件扩展名自动选择解析器。"
+
+msgid "How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."
+msgstr "做种时对 peer 的排序方式。反吸血优先回报最高的做种对等端。"
+
+msgid "How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."
+msgstr "每个 torrent 的 unchoke 槽位如何确定：固定槽位数 或 按速率自动调整。"
+
+msgid "Maximum concurrent unchoke slots per torrent."
+msgstr "每个 torrent 的最大并发 unchoke 槽位数。"
+
+msgid "Hash-failure involvements before a peer is automatically banned."
+msgstr "hash 校验失败的涉事次数超过该值后自动封禁该 peer。"
+
+msgid "Re-download a failed piece from an uninvolved peer to attribute the fault before striking."
+msgstr "从无关 peer 重新下载失败分片以判定责任，判责前不扣分。"
+
+msgid "Seconds an evicted (non-contributing) peer is blocked from reconnecting."
+msgstr "被驱逐（不贡献数据的）peer 需等待的封禁秒数，到期后可重新连接。"
+
+msgid "Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."
+msgstr "超过该秒数未收到分片数据的 peer 将被断开；填 0 关闭此保护。"
+
+msgid "Enable double-buffer pool optimization for mechanical hard drives to improve write performance. Not needed for SSDs."
+msgstr "为机械硬盘启用双缓冲池优化，提升写入性能。SSD 不需要此功能。"
+
+msgid "Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes."
+msgstr "HDD 下载时用于缓冲的内存上限。更大的缓冲区可将更多随机写入转化为顺序写入。"
+
+msgid "Buffer limit when game mode is active, reducing impact on gaming performance."
+msgstr "游戏模式激活时的缓冲区上限，降低对游戏性能的影响。"
+
+msgid "Maximum number of HDD downloads that can use the buffer simultaneously. Each gets an equal share of the buffer pool."
+msgstr "可同时使用缓冲区的 HDD 下载数量上限。每个下载均分缓冲池。"
+
+msgid "Maximum parallel HDD downloads when game mode is active."
+msgstr "游戏模式激活时的最大并行 HDD 下载数。"
+
+msgid "Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data."
+msgstr "支持绝对路径或相对路径；留空时自动写入应用数据目录下的 logs/limedl.log。"
+
+msgid "Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."
+msgstr "在本地启动兼容 Aria2 RPC 的服务端，允许 Chrome 下载插件通过 Aria2 协议发起下载。"
+
+msgid "Default 6800. Make sure the port is available."
+msgstr "默认 6800。确保端口未被其他程序占用。"
+
+msgid "Leave empty to allow connections without a secret. If set, configure the same token in your browser extension."
+msgstr "留空允许无密钥连接。设置后需在插件中配置相同 token。"
+
+msgid "MiSans VF © Beijing Xiaomi Mobile Software Co.,Ltd. Free for commercial use."
+msgstr "MiSans VF © 北京小米移动软件有限公司，免费商用授权。"
+
+msgid "Font License:"
+msgstr "字体授权:"

@@ -301,6 +301,46 @@ pub fn generate_piece_map_image(pieces: &[BtPieceInfo], lang: Language) -> (Imag
     (Image::from_rgba8(buffer), summary_text)
 }
 
+/// Canonical option lists for the settings dialog ComboBoxes (persisted values).
+/// The display labels live in `ui/components/settings_dialog.slint` via `@tr` and
+/// MUST keep the same order as these arrays. Form structs carry the selected
+/// index (see `SettingsFormData` in `ui/types.slint`), never the raw string.
+pub(crate) mod combo {
+    pub const COLOR_MODES: [&str; 3] = ["system", "light", "dark"];
+    pub const THEME_COLORS: [&str; 3] = ["amber", "sky", "lime"];
+    pub const OPACITY_PRESETS: [&str; 3] = ["default", "acrylic", "frosted"];
+    pub const LANGUAGES: [&str; 2] = ["zh-CN", "en-US"];
+    pub const CLOSE_BEHAVIORS: [&str; 2] = ["minimizeToTray", "exit"];
+    pub const DOUBLE_CLICK_COMPLETED: [&str; 4] =
+        ["none", "open_file", "open_in_explorer", "open_download_dir"];
+    pub const DOUBLE_CLICK_UNCOMPLETED: [&str; 2] = ["none", "toggle_pause_resume"];
+    pub const CHECKSUMS: [&str; 5] = ["blake3", "sha256", "xxh3_128", "none", "sha1"];
+    pub const PROXY_MODES: [&str; 3] = ["disabled", "system", "manual"];
+    pub const SCHEDULER_MODES: [&str; 2] = ["automatic", "traditional"];
+    pub const ADAPTIVE_PROFILES: [&str; 3] = ["conservative", "balanced", "aggressive"];
+    pub const CHUNK_STRATEGIES: [&str; 2] = ["adaptive", "fixed"];
+    pub const ENCRYPTION_MODES: [&str; 3] = ["enabled", "disabled", "forced"];
+    pub const PREALLOC_MODES: [&str; 2] = ["none", "full"];
+    pub const ANTI_LEECH_ACTIONS: [&str; 2] = ["ban", "limit_slots"];
+    pub const SEED_CHOKING: [&str; 3] = ["fastest_upload", "round_robin", "anti_leech"];
+    pub const CHOKING_ALGOS: [&str; 2] = ["fixed_slots", "rate_based"];
+    pub const LOG_LEVELS: [&str; 5] = ["trace", "debug", "info", "warn", "error"];
+
+    /// Index of `value` in `list`; `0` when missing (Slint ComboBox default).
+    pub fn idx_of(list: impl AsRef<[&'static str]>, value: &str) -> i32 {
+        list.as_ref()
+            .iter()
+            .position(|v| *v == value)
+            .map_or(0, |i| i as i32)
+    }
+
+    /// Canonical value at `index`; `list[0]` when out of range.
+    pub fn value_at(list: impl AsRef<[&'static str]>, index: i32) -> &'static str {
+        let list = list.as_ref();
+        list.get(index.max(0) as usize).copied().unwrap_or(list[0])
+    }
+}
+
 fn proxy_mode_to_str(m: ProxyMode) -> SharedString {
     SharedString::from(match m {
         ProxyMode::Disabled => "disabled",
@@ -479,7 +519,7 @@ pub fn app_settings_to_form(
         "0".to_string()
     };
 
-    let language_val = if settings.appearance.language.is_empty() {
+    let language_src = if settings.appearance.language.is_empty() {
         lang.as_bcp47()
     } else {
         settings.appearance.language.as_str()
@@ -493,27 +533,52 @@ pub fn app_settings_to_form(
         ),
         global_speed_limit_kb: SharedString::from(speed_limit_kb),
         download_max_retries: SharedString::from(settings.download.default_max_retries.to_string()),
-        download_checksum: checksum_to_str(settings.download.default_checksum),
+        download_checksum_idx: combo::idx_of(
+            combo::CHECKSUMS,
+            &checksum_to_str(settings.download.default_checksum),
+        ),
         download_auto_detect_sha256: settings.download.auto_detect_sha256,
         download_user_agent: SharedString::from(&settings.download.default_user_agent),
         // 外观
-        appearance_color_mode: color_mode_to_str(&settings.appearance.color_mode),
-        appearance_theme_color: theme_color_to_str(&settings.appearance.theme_color),
-        appearance_background_opacity: background_opacity_to_str(&settings.appearance.background_opacity),
-        appearance_language: SharedString::from(language_val),
-        appearance_close_behavior: close_behavior_to_str(&settings.appearance.close_behavior),
+        appearance_color_mode_idx: combo::idx_of(
+            combo::COLOR_MODES,
+            &color_mode_to_str(&settings.appearance.color_mode),
+        ),
+        appearance_theme_color_idx: combo::idx_of(
+            combo::THEME_COLORS,
+            &theme_color_to_str(&settings.appearance.theme_color),
+        ),
+        appearance_background_opacity_idx: combo::idx_of(
+            combo::OPACITY_PRESETS,
+            &background_opacity_to_str(&settings.appearance.background_opacity),
+        ),
+        appearance_language_idx: combo::idx_of(combo::LANGUAGES, language_src),
+        appearance_close_behavior_idx: combo::idx_of(
+            combo::CLOSE_BEHAVIORS,
+            &close_behavior_to_str(&settings.appearance.close_behavior),
+        ),
         appearance_show_detail_info: settings.appearance.show_detail_info,
         autostart: settings.autostart,
         notifications_enabled: settings.notifications.enabled,
-        double_click_completed: double_click_completed_to_str(settings.double_click.on_completed),
-        double_click_uncompleted: double_click_uncompleted_to_str(
-            settings.double_click.on_uncompleted,
+        double_click_completed_idx: combo::idx_of(
+            combo::DOUBLE_CLICK_COMPLETED,
+            &double_click_completed_to_str(settings.double_click.on_completed),
+        ),
+        double_click_uncompleted_idx: combo::idx_of(
+            combo::DOUBLE_CLICK_UNCOMPLETED,
+            &double_click_uncompleted_to_str(settings.double_click.on_uncompleted),
         ),
         // 代理
-        proxy_mode: proxy_mode_to_str(settings.proxy.mode),
+        proxy_mode_idx: combo::idx_of(
+            combo::PROXY_MODES,
+            &proxy_mode_to_str(settings.proxy.mode),
+        ),
         proxy_manual_url: SharedString::from(&settings.proxy.manual_url),
         // 调度
-        scheduler_mode: scheduler_mode_to_str(settings.scheduler.mode),
+        scheduler_mode_idx: combo::idx_of(
+            combo::SCHEDULER_MODES,
+            &scheduler_mode_to_str(settings.scheduler.mode),
+        ),
         scheduler_max_parallel_threads: SharedString::from(
             settings.scheduler.automatic.max_parallel_threads.to_string(),
         ),
@@ -523,10 +588,14 @@ pub fn app_settings_to_form(
         scheduler_min_threads_per_task: SharedString::from(
             settings.scheduler.automatic.min_threads_per_task.to_string(),
         ),
-        scheduler_adaptive_profile: adaptive_profile_to_str(
-            settings.scheduler.automatic.adaptive_profile,
+        scheduler_adaptive_profile_idx: combo::idx_of(
+            combo::ADAPTIVE_PROFILES,
+            &adaptive_profile_to_str(settings.scheduler.automatic.adaptive_profile),
         ),
-        scheduler_chunk_strategy: chunk_strategy_to_str(settings.scheduler.chunk_size_strategy),
+        scheduler_chunk_strategy_idx: combo::idx_of(
+            combo::CHUNK_STRATEGIES,
+            &chunk_strategy_to_str(settings.scheduler.chunk_size_strategy),
+        ),
         scheduler_tail_sprint: settings.scheduler.tail_sprint_enabled,
         scheduler_connection_warmup: settings.scheduler.connection_warmup_enabled,
         // BT 基础 + 进阶
@@ -542,8 +611,14 @@ pub fn app_settings_to_form(
         bt_pex_enabled: settings.bt.enable_pex,
         bt_lsd_enabled: settings.bt.enable_lsd,
         bt_utp_enabled: settings.bt.enable_utp,
-        bt_encryption_mode: encryption_to_str(settings.bt.encryption_mode),
-        bt_preallocate_mode: preallocate_to_str(settings.bt.preallocate_mode),
+        bt_encryption_mode_idx: combo::idx_of(
+            combo::ENCRYPTION_MODES,
+            &encryption_to_str(settings.bt.encryption_mode),
+        ),
+        bt_preallocate_mode_idx: combo::idx_of(
+            combo::PREALLOC_MODES,
+            &preallocate_to_str(settings.bt.preallocate_mode),
+        ),
         bt_max_downloads: SharedString::from(settings.bt.max_downloads.to_string()),
         bt_max_seeds: SharedString::from(settings.bt.max_seeds.to_string()),
         bt_max_torrents: SharedString::from(settings.bt.max_torrents.to_string()),
@@ -565,7 +640,10 @@ pub fn app_settings_to_form(
             if r == 0.0 { "0".to_string() } else { r.to_string() }
         }),
         bt_anti_leech_enabled: settings.bt.anti_leech_enabled,
-        bt_anti_leech_action: anti_leech_action_to_str(settings.bt.anti_leech_action),
+        bt_anti_leech_action_idx: combo::idx_of(
+            combo::ANTI_LEECH_ACTIONS,
+            &anti_leech_action_to_str(settings.bt.anti_leech_action),
+        ),
         bt_anti_leech_grace_secs: SharedString::from(settings.bt.anti_leech_grace_secs.to_string()),
         bt_anti_leech_ratio: SharedString::from({
             let r = settings.bt.anti_leech_ratio;
@@ -577,8 +655,14 @@ pub fn app_settings_to_form(
         ),
         bt_blocklist_enabled: settings.bt.blocklist_enabled,
         bt_blocklist_path: SharedString::from(&settings.bt.blocklist_path),
-        bt_seed_choking_algorithm: seed_choking_to_str(settings.bt.seed_choking_algorithm),
-        bt_choking_algorithm: choking_to_str(settings.bt.choking_algorithm),
+        bt_seed_choking_algorithm_idx: combo::idx_of(
+            combo::SEED_CHOKING,
+            &seed_choking_to_str(settings.bt.seed_choking_algorithm),
+        ),
+        bt_choking_algorithm_idx: combo::idx_of(
+            combo::CHOKING_ALGOS,
+            &choking_to_str(settings.bt.choking_algorithm),
+        ),
         bt_max_upload_slots_per_torrent: SharedString::from(
             settings.bt.max_upload_slots_per_torrent.to_string(),
         ),
@@ -605,7 +689,10 @@ pub fn app_settings_to_form(
         ),
         // 日志
         logging_enabled: settings.logging.enabled,
-        logging_level: log_level_to_str(settings.logging.level),
+        logging_level_idx: combo::idx_of(
+            combo::LOG_LEVELS,
+            &log_level_to_str(settings.logging.level),
+        ),
         logging_file_path: SharedString::from(&settings.logging.file_path),
         logging_retention_count: SharedString::from(
             settings.logging.retention_count.map(|v| v.to_string()).unwrap_or_default(),
@@ -632,7 +719,119 @@ pub fn app_settings_to_form(
 }
 
 /// Update `AppSettings` from `SettingsFormData`.
-pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &SettingsFormData) {
+/// Returns `Err` with a human-readable message if any field contains
+/// non-empty but unparsable content (e.g. "abc" in a numeric field or
+/// an invalid proxy URL). Empty strings retain the previous value for
+/// numeric fields (mirroring Tauri behaviour) but mandatory string fields
+/// like proxy manual URL are validated eagerly so the user gets immediate
+/// feedback instead of a silent no-op or a later `normalize_settings` error.
+pub fn update_app_settings_from_form(
+    settings: &mut AppSettings,
+    form: &SettingsFormData,
+) -> Result<(), String> {
+    // ── 严格校验：非空但无法解析的数值为用户输入错误，必须报错而非静默忽略
+    {
+        let check_u64 = |raw: &str, label: &str| -> Result<(), String> {
+            let s = raw.trim();
+            if s.is_empty() {
+                return Ok(());
+            }
+            s.parse::<u64>()
+                .map(|_| ())
+                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效数字", label, s))
+        };
+        let check_usize = |raw: &str, label: &str| -> Result<(), String> {
+            let s = raw.trim();
+            if s.is_empty() {
+                return Ok(());
+            }
+            s.parse::<usize>()
+                .map(|_| ())
+                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效整数", label, s))
+        };
+        let check_u32 = |raw: &str, label: &str| -> Result<(), String> {
+            let s = raw.trim();
+            if s.is_empty() {
+                return Ok(());
+            }
+            s.parse::<u32>()
+                .map(|_| ())
+                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效整数", label, s))
+        };
+        let check_u16 = |raw: &str, label: &str| -> Result<(), String> {
+            let s = raw.trim();
+            if s.is_empty() {
+                return Ok(());
+            }
+            s.parse::<u16>()
+                .map(|_| ())
+                .map_err(|_| format!("{} 格式错误: '{}' 请输入 0-65535 的端口号", label, s))
+        };
+        let check_f64 = |raw: &str, label: &str| -> Result<(), String> {
+            let s = raw.trim();
+            if s.is_empty() {
+                return Ok(());
+            }
+            s.parse::<f64>()
+                .map(|_| ())
+                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效数字", label, s))
+        };
+        // 下载
+        check_u32(form.download_max_retries.trim(), "最大重试次数")?;
+        check_usize(form.max_parallel_tasks.trim(), "最大并发任务数")?;
+        check_u64(form.global_speed_limit_kb.trim(), "全局限速")?;
+        // 调度
+        check_usize(form.scheduler_max_parallel_threads.trim(), "自动调度-最大并行线程")?;
+        check_usize(form.scheduler_max_threads_per_task.trim(), "单任务最大线程")?;
+        check_usize(form.scheduler_min_threads_per_task.trim(), "单任务最小线程")?;
+        // BT 基础
+        check_u16(form.listen_port.trim(), "BT 监听端口")?;
+        check_u32(form.max_bt_connections.trim(), "每 Torrent 最大 Peers")?;
+        // BT 队列与限速
+        check_u32(form.bt_max_downloads.trim(), "BT 最大下载数")?;
+        check_u32(form.bt_max_seeds.trim(), "BT 最大做种数")?;
+        check_u32(form.bt_max_torrents.trim(), "BT 最大 Torrent 数")?;
+        check_u32(form.bt_active_limit.trim(), "BT 活跃限制")?;
+        check_u64(form.bt_global_download_rate_limit_kb.trim(), "BT 全局下载限速")?;
+        check_u64(form.bt_global_upload_rate_limit_kb.trim(), "BT 全局上传限速")?;
+        check_u64(form.bt_upload_limit_kb.trim(), "做种上传限制")?;
+        check_f64(form.bt_upload_ratio_limit.trim(), "分享率限制")?;
+        check_u64(form.bt_anti_leech_grace_secs.trim(), "反吸血宽限期")?;
+        check_f64(form.bt_anti_leech_ratio.trim(), "反吸血分享率阈值")?;
+        check_u64(form.bt_anti_leech_ban_secs.trim(), "反吸血封禁时长")?;
+        check_u32(form.bt_anti_leech_max_upload_slots.trim(), "反吸血限槽模式槽位")?;
+        check_u32(form.bt_max_upload_slots_per_torrent.trim(), "每 Torrent 最大上传槽")?;
+        check_u32(form.bt_smart_ban_max_failures.trim(), "智能封禁阈值")?;
+        check_u64(form.bt_eviction_ban_duration_secs.trim(), "驱逐封禁时长")?;
+        check_u64(form.bt_data_contribution_timeout_secs.trim(), "无贡献超时")?;
+        // IO
+        check_u64(form.io_buffer_limit_mb.trim(), "IO 缓冲上限")?;
+        check_u64(form.io_game_mode_buffer_mb.trim(), "游戏模式缓冲")?;
+        check_u32(form.io_max_parallel_hdd.trim(), "HDD 最大并行")?;
+        check_u32(form.io_game_mode_max_parallel.trim(), "游戏模式最大并行")?;
+        check_u64(form.io_ssd_write_combine_mb.trim(), "SSD 合并缓冲")?;
+        // 日志
+        if !form.logging_retention_count.trim().is_empty() {
+            check_u32(form.logging_retention_count.trim(), "日志保留数量")?;
+        }
+        if !form.logging_retention_days.trim().is_empty() {
+            check_u32(form.logging_retention_days.trim(), "日志保留天数")?;
+        }
+        // Aria2
+        if !form.aria2_port.trim().is_empty() {
+            check_u16(form.aria2_port.trim(), "Aria2 端口")?;
+        }
+        // 高级
+        if !form.max_in_memory_downloads.trim().is_empty() {
+            check_usize(form.max_in_memory_downloads.trim(), "内存保留记录数")?;
+        }
+        // 代理：若为 manual 则必须提供合法 URL，留空会在 normalize 阶段报错，这里提前给出更友好的提示
+        if combo::value_at(combo::PROXY_MODES, form.proxy_mode_idx) == "manual"
+            && form.proxy_manual_url.trim().is_empty()
+        {
+            return Err("代理模式为 manual 时必须填写代理 URL".to_string());
+        }
+    }
     // ── 下载 ──
     let dir = form.default_download_dir.trim();
     if !dir.is_empty() {
@@ -641,7 +840,8 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
     if let Ok(v) = form.download_max_retries.trim().parse::<u32>() {
         settings.download.default_max_retries = v.min(100);
     }
-    if let Some(c) = str_to_checksum(form.download_checksum.as_str()) {
+    if let Some(c) = str_to_checksum(combo::value_at(combo::CHECKSUMS, form.download_checksum_idx))
+    {
         settings.download.default_checksum = c;
     }
     settings.download.auto_detect_sha256 = form.download_auto_detect_sha256;
@@ -658,27 +858,30 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
     }
 
     // ── 外观 / 启动 ──
-    match form.appearance_color_mode.as_str() {
+    match combo::value_at(combo::COLOR_MODES, form.appearance_color_mode_idx) {
         "light" => settings.appearance.color_mode = ColorMode::Light,
         "dark" => settings.appearance.color_mode = ColorMode::Dark,
         _ => settings.appearance.color_mode = ColorMode::System,
     }
-    match form.appearance_theme_color.as_str() {
+    match combo::value_at(combo::THEME_COLORS, form.appearance_theme_color_idx) {
         "amber" => settings.appearance.theme_color = ThemeColor::Amber,
         "sky" => settings.appearance.theme_color = ThemeColor::Sky,
         _ => settings.appearance.theme_color = ThemeColor::Lime,
     }
-    settings.appearance.background_opacity =
-        str_to_background_opacity(form.appearance_background_opacity.as_str());
-    settings.appearance.language = form.appearance_language.trim().to_string();
-    match form.appearance_close_behavior.as_str() {
+    settings.appearance.background_opacity = str_to_background_opacity(combo::value_at(
+        combo::OPACITY_PRESETS,
+        form.appearance_background_opacity_idx,
+    ));
+    settings.appearance.language = combo::value_at(combo::LANGUAGES, form.appearance_language_idx)
+        .to_string();
+    match combo::value_at(combo::CLOSE_BEHAVIORS, form.appearance_close_behavior_idx) {
         "exit" => settings.appearance.close_behavior = CloseBehavior::Exit,
         _ => settings.appearance.close_behavior = CloseBehavior::MinimizeToTray,
     }
     settings.appearance.show_detail_info = form.appearance_show_detail_info;
     settings.autostart = form.autostart;
     settings.notifications.enabled = form.notifications_enabled;
-    match form.double_click_completed.as_str() {
+    match combo::value_at(combo::DOUBLE_CLICK_COMPLETED, form.double_click_completed_idx) {
         "open_file" => settings.double_click.on_completed = DoubleClickOnCompleted::OpenFile,
         "open_in_explorer" => {
             settings.double_click.on_completed = DoubleClickOnCompleted::OpenInExplorer
@@ -688,7 +891,7 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
         }
         _ => settings.double_click.on_completed = DoubleClickOnCompleted::None,
     }
-    match form.double_click_uncompleted.as_str() {
+    match combo::value_at(combo::DOUBLE_CLICK_UNCOMPLETED, form.double_click_uncompleted_idx) {
         "toggle_pause_resume" => {
             settings.double_click.on_uncompleted = DoubleClickOnUncompleted::TogglePauseResume
         }
@@ -696,13 +899,13 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
     }
 
     // ── 代理 ──
-    if let Some(m) = str_to_proxy_mode(form.proxy_mode.as_str()) {
+    if let Some(m) = str_to_proxy_mode(combo::value_at(combo::PROXY_MODES, form.proxy_mode_idx)) {
         settings.proxy.mode = m;
     }
     settings.proxy.manual_url = form.proxy_manual_url.trim().to_string();
 
     // ── 调度 ──
-    if let Some(m) = match form.scheduler_mode.as_str() {
+    if let Some(m) = match combo::value_at(combo::SCHEDULER_MODES, form.scheduler_mode_idx) {
         "traditional" => Some(SchedulerMode::Traditional),
         "automatic" => Some(SchedulerMode::Automatic),
         _ => None,
@@ -723,7 +926,7 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
         settings.scheduler.automatic.min_threads_per_task =
             v.min(settings.scheduler.automatic.max_threads_per_task);
     }
-    match form.scheduler_adaptive_profile.as_str() {
+    match combo::value_at(combo::ADAPTIVE_PROFILES, form.scheduler_adaptive_profile_idx) {
         "conservative" => {
             settings.scheduler.automatic.adaptive_profile = AdaptiveProfile::Conservative
         }
@@ -732,7 +935,7 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
         }
         _ => settings.scheduler.automatic.adaptive_profile = AdaptiveProfile::Balanced,
     }
-    match form.scheduler_chunk_strategy.as_str() {
+    match combo::value_at(combo::CHUNK_STRATEGIES, form.scheduler_chunk_strategy_idx) {
         "fixed" => settings.scheduler.chunk_size_strategy = ChunkSizeStrategy::Fixed,
         _ => settings.scheduler.chunk_size_strategy = ChunkSizeStrategy::Adaptive,
     }
@@ -765,12 +968,12 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
     settings.bt.enable_pex = form.bt_pex_enabled;
     settings.bt.enable_lsd = form.bt_lsd_enabled;
     settings.bt.enable_utp = form.bt_utp_enabled;
-    match form.bt_encryption_mode.as_str() {
+    match combo::value_at(combo::ENCRYPTION_MODES, form.bt_encryption_mode_idx) {
         "disabled" => settings.bt.encryption_mode = BtEncryptionMode::Disabled,
         "forced" => settings.bt.encryption_mode = BtEncryptionMode::Forced,
         _ => settings.bt.encryption_mode = BtEncryptionMode::Enabled,
     }
-    match form.bt_preallocate_mode.as_str() {
+    match combo::value_at(combo::PREALLOC_MODES, form.bt_preallocate_mode_idx) {
         "full" => settings.bt.preallocate_mode = BtPreallocateMode::Full,
         _ => settings.bt.preallocate_mode = BtPreallocateMode::None,
     }
@@ -804,7 +1007,7 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
         settings.bt.upload_ratio_limit = v.clamp(0.0, 1000.0);
     }
     settings.bt.anti_leech_enabled = form.bt_anti_leech_enabled;
-    match form.bt_anti_leech_action.as_str() {
+    match combo::value_at(combo::ANTI_LEECH_ACTIONS, form.bt_anti_leech_action_idx) {
         "limit_slots" => settings.bt.anti_leech_action = BtAntiLeechAction::LimitSlots,
         _ => settings.bt.anti_leech_action = BtAntiLeechAction::Ban,
     }
@@ -824,12 +1027,12 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
     }
     settings.bt.blocklist_enabled = form.bt_blocklist_enabled;
     settings.bt.blocklist_path = form.bt_blocklist_path.trim().to_string();
-    match form.bt_seed_choking_algorithm.as_str() {
+    match combo::value_at(combo::SEED_CHOKING, form.bt_seed_choking_algorithm_idx) {
         "round_robin" => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::RoundRobin,
         "anti_leech" => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::AntiLeech,
         _ => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::FastestUpload,
     }
-    match form.bt_choking_algorithm.as_str() {
+    match combo::value_at(combo::CHOKING_ALGOS, form.bt_choking_algorithm_idx) {
         "rate_based" => settings.bt.choking_algorithm = BtChokingAlgorithm::RateBased,
         _ => settings.bt.choking_algorithm = BtChokingAlgorithm::FixedSlots,
     }
@@ -871,7 +1074,7 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
 
     // ── 日志 ──
     settings.logging.enabled = form.logging_enabled;
-    if let Some(l) = str_to_log_level(form.logging_level.as_str()) {
+    if let Some(l) = str_to_log_level(combo::value_at(combo::LOG_LEVELS, form.logging_level_idx)) {
         settings.logging.level = l;
     }
     settings.logging.file_path = form.logging_file_path.trim().to_string();
@@ -908,6 +1111,8 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
     {
         settings.max_in_memory_downloads = v.clamp(10, 10000);
     }
+
+    Ok(())
 }
 
 /// Format detected disk types into readable summary text.
@@ -1590,6 +1795,39 @@ mod tests {
     }
 
     #[test]
+    fn test_combo_idx_and_value_roundtrip() {
+        let cases: [(&[&str], &str); 18] = [
+            (&combo::COLOR_MODES, "dark"),
+            (&combo::THEME_COLORS, "sky"),
+            (&combo::OPACITY_PRESETS, "frosted"),
+            (&combo::LANGUAGES, "en-US"),
+            (&combo::CLOSE_BEHAVIORS, "minimizeToTray"),
+            (&combo::DOUBLE_CLICK_COMPLETED, "open_in_explorer"),
+            (&combo::DOUBLE_CLICK_UNCOMPLETED, "toggle_pause_resume"),
+            (&combo::CHECKSUMS, "xxh3_128"),
+            (&combo::PROXY_MODES, "manual"),
+            (&combo::SCHEDULER_MODES, "traditional"),
+            (&combo::ADAPTIVE_PROFILES, "balanced"),
+            (&combo::CHUNK_STRATEGIES, "fixed"),
+            (&combo::ENCRYPTION_MODES, "forced"),
+            (&combo::PREALLOC_MODES, "full"),
+            (&combo::ANTI_LEECH_ACTIONS, "limit_slots"),
+            (&combo::SEED_CHOKING, "round_robin"),
+            (&combo::CHOKING_ALGOS, "rate_based"),
+            (&combo::LOG_LEVELS, "warn"),
+        ];
+        for (list, value) in cases {
+            let idx = combo::idx_of(list, value);
+            assert!(idx > 0 || list.first() == Some(&value), "idx for {value}");
+            assert_eq!(combo::value_at(list, idx), value, "roundtrip {value}");
+        }
+        // Out-of-range / unknown values fall back safely.
+        assert_eq!(combo::idx_of(combo::COLOR_MODES, "nope"), 0);
+        assert_eq!(combo::value_at(combo::COLOR_MODES, 99), "system");
+        assert_eq!(combo::value_at(combo::COLOR_MODES, -3), "system");
+    }
+
+    #[test]
     fn test_format_speed() {
         assert_eq!(format_speed(Some(1024.0 * 1024.0 * 2.5)), "2.50 MB/s");
         assert_eq!(format_speed(None), "");
@@ -1687,7 +1925,7 @@ mod tests {
         assert!(!form.overclock_mode);
 
         let mut updated = AppSettings::default();
-        update_app_settings_from_form(&mut updated, &form);
+        update_app_settings_from_form(&mut updated, &form).expect("valid form should update");
         assert_eq!(updated.download.default_download_dir, "/custom/downloads");
         assert_eq!(updated.scheduler.traditional.max_parallel_tasks, 5);
         assert_eq!(updated.global_speed_limit_bps, 1024 * 500);
