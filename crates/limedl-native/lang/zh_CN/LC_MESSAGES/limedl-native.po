@@ -1,0 +1,879 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: limedl-native 0.3.0\n"
+"POT-Creation-Date: 2026-08-29 12:00+0800\n"
+"PO-Revision-Date: 2026-08-29 12:00+0800\n"
+"Last-Translator: limedl team\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Search downloads..."
+msgstr "搜索下载任务..."
+
+msgid "Details"
+msgstr "详情"
+
+msgid "Pause"
+msgstr "暂停"
+
+msgid "Resume"
+msgstr "继续"
+
+msgid "Folder"
+msgstr "目录"
+
+msgid "View Details"
+msgstr "查看任务详情"
+
+msgid "Pause Task"
+msgstr "暂停下载任务"
+
+msgid "Resume Task"
+msgstr "继续下载任务"
+
+msgid "Open Containing Folder"
+msgstr "打开所在文件夹"
+
+msgid "Copy Download Link"
+msgstr "复制下载链接"
+
+msgid "Set Speed Limit"
+msgstr "配置单任务限速"
+
+msgid "Remove Record"
+msgstr "从列表中移除"
+
+msgid "Delete File Permanently"
+msgstr "彻底删除本地文件"
+
+msgid "New Download Task"
+msgstr "新建下载任务"
+
+msgid "Download URL (HTTP / HTTPS / Magnet / Torrent):"
+msgstr "下载链接 (HTTP / HTTPS / Magnet / Torrent):"
+
+msgid "Select Torrent..."
+msgstr "选择种子..."
+
+msgid "Save Directory:"
+msgstr "保存目录:"
+
+msgid "Browse..."
+msgstr "浏览..."
+
+msgid "Custom Filename (Optional):"
+msgstr "自定义文件名 (可选):"
+
+msgid "Leave empty to use remote filename automatically"
+msgstr "留空则自动从响应头或 URL 解析"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Start Download"
+msgstr "立即下载"
+
+msgid "Speed Limit Settings"
+msgstr "限速设置"
+
+msgid "Configure task speed limits (0 for unlimited):"
+msgstr "配置此任务的最大传输带宽 (0 为不限制):"
+
+msgid "Download Limit:"
+msgstr "下载限速:"
+
+msgid "Upload Limit (BT):"
+msgstr "上传限速 (BT):"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Task Inspector"
+msgstr "任务详情检查器 (Inspector)"
+
+msgid "Overview"
+msgstr "概览"
+
+msgid "Pieces Map"
+msgstr "分片分布"
+
+msgid "Peers"
+msgstr "节点 (Peers)"
+
+msgid "Trackers"
+msgstr "服务器 (Trackers)"
+
+msgid "Files"
+msgstr "文件列表"
+
+msgid "Task ID:"
+msgstr "任务 ID:"
+
+msgid "Engine Protocol:"
+msgstr "协议引擎:"
+
+msgid "Resource URL:"
+msgstr "资源链接:"
+
+msgid "Save Path:"
+msgstr "保存路径:"
+
+msgid "Total Size:"
+msgstr "文件总大小:"
+
+msgid "Downloaded:"
+msgstr "已下载数据:"
+
+msgid "Uploaded (BT):"
+msgstr "已上传数据:"
+
+msgid "Active Connections:"
+msgstr "活跃连接数:"
+
+msgid "Share Ratio:"
+msgstr "分享率:"
+
+msgid "Active Rate Limits:"
+msgstr "当前限速:"
+
+msgid "Pieces Progress"
+msgstr "分片完成分布"
+
+msgid "IP Address"
+msgstr "IP 地址"
+
+msgid "Client"
+msgstr "客户端"
+
+msgid "Flags"
+msgstr "标志"
+
+msgid "Progress"
+msgstr "进度"
+
+msgid "Download Speed"
+msgstr "下载速度"
+
+msgid "Upload Speed"
+msgstr "上传速度"
+
+msgid "Tier"
+msgstr "层级"
+
+msgid "URL"
+msgstr "URL 地址"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Peers Count"
+msgstr "节点数"
+
+msgid "File Name"
+msgstr "文件名"
+
+msgid "Size"
+msgstr "大小"
+
+msgid "Priority"
+msgstr "优先级"
+
+msgid "Speed Limit"
+msgstr "限速设置"
+
+msgid "Open Folder"
+msgstr "打开目录"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Pieces bitmap is only available for active BitTorrent tasks."
+msgstr "分片位图可视化仅适用于 BitTorrent 多分片下载任务。"
+
+msgid "No peers connected yet."
+msgstr "暂无已连接节点数据"
+
+msgid "No tracker servers available."
+msgstr "暂无 Tracker 服务器信息"
+
+msgid "No file information available."
+msgstr "暂无多文件结构信息"
+
+msgid "Settings Center"
+msgstr "设置中心"
+
+msgid "General"
+msgstr "常规"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Proxy"
+msgstr "代理"
+
+msgid "Scheduler"
+msgstr "调度"
+
+msgid "BT Network"
+msgstr "BT 网络"
+
+msgid "IO Baseline"
+msgstr "IO 实验"
+
+msgid "Logging"
+msgstr "日志"
+
+msgid "Aria2 RPC"
+msgstr "Aria2"
+
+msgid "About"
+msgstr "关于"
+
+msgid "Language & Appearance"
+msgstr "语言与外观"
+
+msgid "Language:"
+msgstr "界面语言:"
+
+msgid "Theme Mode (dark/light/system):"
+msgstr "主题模式 (dark/light/system):"
+
+msgid "UI Scale (0.5 - 2.0):"
+msgstr "界面缩放比例 (0.5 - 2.0):"
+
+msgid "Font Family (leave empty for system default):"
+msgstr "自定义字体 (留空使用系统默认):"
+
+msgid "System default font"
+msgstr "系统默认字体"
+
+msgid "Close to System Tray"
+msgstr "关闭窗口时最小化到系统托盘"
+
+msgid "Keep background downloads running when window is closed"
+msgstr "窗口关闭后在系统托盘保持后台运行与下载"
+
+msgid "Auto-start on System Boot"
+msgstr "开机自启动"
+
+msgid "Launch limedl quietly in background on system startup"
+msgstr "开机登录后自动启动 limedl 并静默在系统托盘"
+
+msgid "Download & Storage"
+msgstr "下载与存储"
+
+msgid "Default Download Directory:"
+msgstr "默认下载保存目录:"
+
+msgid "Leave empty for system Downloads, e.g. D:\\Downloads"
+msgstr "留空使用系统默认，例如 D:\\Downloads"
+
+msgid "Select Path..."
+msgstr "选择路径..."
+
+msgid "Auto-create Subdirectory for Multi-file Torrents"
+msgstr "多文件种子自动创建独立子文件夹"
+
+msgid "Keep multi-file downloads organized in a dedicated directory"
+msgstr "避免多个文件散落到下载根目录中"
+
+msgid "Disk Pre-allocation Strategy (none/sparse/falloc/full):"
+msgstr "磁盘空间预分配策略 (none/sparse/falloc/full):"
+
+msgid "sparse: fast; falloc: OS pre-allocated; full: zero-fill to prevent fragmentation"
+msgstr "sparse 速度快；falloc 驱动级预占；full 零填充防碎片"
+
+msgid "Auto Checksum Verification upon Completion"
+msgstr "下载完成后自动校验 Checksum"
+
+msgid "Verify SHA256/MD5 if checksum metadata is provided"
+msgstr "若资源包含散列摘要，完成时自动校验完整性"
+
+msgid "Proxy Settings"
+msgstr "代理设置"
+
+msgid "Proxy Mode (disabled/system/manual):"
+msgstr "代理模式 (disabled/system/manual):"
+
+msgid "system follows OS proxy; manual requires proxy URL below"
+msgstr "system 跟随系统代理，manual 需填写下游 URL"
+
+msgid "Manual Proxy URL:"
+msgstr "手动代理 URL:"
+
+msgid "Scheduler & Performance"
+msgstr "调度与性能"
+
+msgid "Allocation Mode (automatic/traditional):"
+msgstr "分配模式 (automatic/traditional):"
+
+msgid "automatic uses adaptive thread pool; traditional uses fixed concurrency"
+msgstr "automatic 为自适应线程池，traditional 为固定并发任务"
+
+msgid "Auto - Max Parallel Threads (1-128):"
+msgstr "自动-最大并行线程 (1-128):"
+
+msgid "Max Threads per Task (1-64):"
+msgstr "单任务最大线程 (1-64):"
+
+msgid "Min Threads per Task (0-64):"
+msgstr "单任务最小线程 (0-64):"
+
+msgid "Adaptive Profile (conservative/balanced/aggressive):"
+msgstr "自适应档位 (conservative/balanced/aggressive):"
+
+msgid "Chunk Strategy (adaptive/fixed):"
+msgstr "分块策略 (adaptive/fixed):"
+
+msgid "Tail Sprint"
+msgstr "尾部冲刺 (Tail Sprint)"
+
+msgid "Parallelize tail chunks to minimize finishing latency"
+msgstr "末段并行补齐，缩短长尾"
+
+msgid "Connection Warmup"
+msgstr "连接预热"
+
+msgid "Pre-establish multiple connections during handshake for faster warmup"
+msgstr "建连阶段预建多个连接加速起步"
+
+msgid "BitTorrent Network"
+msgstr "BitTorrent 网络"
+
+msgid "Enable DHT"
+msgstr "启用 DHT"
+
+msgid "Discover peers via DHT when no trackers are available"
+msgstr "无 Tracker 时通过 DHT 发现节点"
+
+msgid "Listen Port (empty for random):"
+msgstr "监听端口 (空为随机):"
+
+msgid "Random"
+msgstr "随机"
+
+msgid "port"
+msgstr "端口"
+
+msgid "Max Peers per Torrent:"
+msgstr "每 Torrent 最大 peers:"
+
+msgid "peers"
+msgstr "个"
+
+msgid "tasks"
+msgstr "个"
+
+msgid "threads"
+msgstr "线程"
+
+msgid "secs"
+msgstr "秒"
+
+msgid "slots"
+msgstr "个"
+
+msgid "failures"
+msgstr "次"
+
+msgid "files"
+msgstr "个"
+
+msgid "days"
+msgstr "天"
+
+msgid "Unlimited"
+msgstr "不限"
+
+msgid "Encryption Mode (enabled/disabled/forced):"
+msgstr "加密模式 (enabled/disabled/forced):"
+
+msgid "Pre-allocation Mode (none/full):"
+msgstr "预分配 (none/full):"
+
+msgid "Queuing & Rate Limits"
+msgstr "队列与限速"
+
+msgid "Max Active Downloads:"
+msgstr "最大活跃下载:"
+
+msgid "Max Active Seeds:"
+msgstr "最大做种:"
+
+msgid "Max Torrents:"
+msgstr "最大 Torrent 数:"
+
+msgid "Active Limit:"
+msgstr "活跃上限:"
+
+msgid "Global Download Rate Limit:"
+msgstr "全局下载限速:"
+
+msgid "Global Upload Rate Limit:"
+msgstr "全局上传限速:"
+
+msgid "Seeding & Completion"
+msgstr "做种与完成"
+
+msgid "Pause Seeding upon Reaching Limit"
+msgstr "达到上限后暂停做种"
+
+msgid "Automatically pause seeding once upload limit or ratio target is reached"
+msgstr "上传量或分享率达标后自动暂停"
+
+msgid "Seeding Upload Limit:"
+msgstr "做种上传上限:"
+
+msgid "Share Ratio Limit (0 for unlimited):"
+msgstr "分享率上限 (0 不限):"
+
+msgid "Anti-Leech & Peer Banning"
+msgstr "反吸血与屏蔽"
+
+msgid "Enable Anti-Leech Detection"
+msgstr "启用反吸血检测"
+
+msgid "Detect peers that download without uploading"
+msgstr "识别只下载不上传的节点"
+
+msgid "Action (ban/limit_slots):"
+msgstr "处置方式 (ban/limit_slots):"
+
+msgid "Grace Period:"
+msgstr "观察宽限时间:"
+
+msgid "Share Ratio Threshold (0-1):"
+msgstr "分享率阈值 (0-1):"
+
+msgid "Ban Duration:"
+msgstr "封禁时长:"
+
+msgid "Max Upload Slots in Limit Mode (1-64):"
+msgstr "限制模式最大上传槽位 (1-64):"
+
+msgid "Enable IP Blocklist"
+msgstr "启用 IP 屏蔽列表"
+
+msgid "Load local blocklist filter file"
+msgstr "加载本地 blocklist 文件"
+
+msgid "Blocklist Path:"
+msgstr "屏蔽列表路径:"
+
+msgid "Engine Tuning"
+msgstr "引擎调优"
+
+msgid "Seed Choking (fastest_upload/round_robin/anti_leech):"
+msgstr "做种调度 (fastest_upload/round_robin/anti_leech):"
+
+msgid "Choking Algorithm (fixed_slots/rate_based):"
+msgstr "阻塞算法 (fixed_slots/rate_based):"
+
+msgid "Max Upload Slots per Torrent:"
+msgstr "每 Torrent 最大上传槽位:"
+
+msgid "Smart Ban Threshold (1-100):"
+msgstr "智能封禁阈值 (1-100):"
+
+msgid "Smart Ban Parole"
+msgstr "智能封禁假释"
+
+msgid "Isolate suspicious peers before permanent ban to prevent false positives"
+msgstr "先隔离再判定，减少误封"
+
+msgid "Ban Duration after Eviction:"
+msgstr "驱逐后禁止重连时长:"
+
+msgid "No Data Contribution Timeout:"
+msgstr "无数据贡献超时:"
+
+msgid "Tracker Subscription URL:"
+msgstr "Tracker 订阅 URL:"
+
+msgid "Sync Now"
+msgstr "立即同步"
+
+msgid "Synced trackers update bt.trackerList. Click Save to apply."
+msgstr "同步后写入 bt.trackerList，需手动保存生效"
+
+msgid "IO Baseline & Performance Modes"
+msgstr "IO 基线与性能模式"
+
+msgid "Game Mode"
+msgstr "游戏模式"
+
+msgid "Reduces buffer and IO frequency to minimize latency interference with 3D games"
+msgstr "动态缩小缓冲并降 IO 频率，降低对 3D 游戏抢占"
+
+msgid "Overclock Mode"
+msgstr "超频模式"
+
+msgid "Aggressive multi-threading to push bandwidth to the hardware limit"
+msgstr "激进多线程压榨带宽极限"
+
+msgid "Buffer Pool Limit:"
+msgstr "缓冲池上限:"
+
+msgid "Game Mode Buffer:"
+msgstr "游戏模式缓冲:"
+
+msgid "HDD Max Parallel:"
+msgstr "HDD 最大并行:"
+
+msgid "Game Mode Max Parallel:"
+msgstr "游戏模式最大并行:"
+
+msgid "HDD Double-Buffer Optimization"
+msgstr "HDD 双缓冲优化"
+
+msgid "SSD Write Combining (0=auto):"
+msgstr "SSD 写合并 (0=auto):"
+
+msgid "Disk Type Detection (SSD / HDD):"
+msgstr "磁盘类型检测 (SSD / HDD):"
+
+msgid "Buffer Pool Status:"
+msgstr "缓冲池状态:"
+
+msgid "Logging"
+msgstr "日志"
+
+msgid "Enable File Logging"
+msgstr "启用文件日志"
+
+msgid "Write logs to the specified filePath"
+msgstr "写入 filePath 指定的日志文件"
+
+msgid "Log Level (trace/debug/info/warn/error):"
+msgstr "日志级别 (trace/debug/info/warn/error):"
+
+msgid "Log File Path:"
+msgstr "日志文件路径:"
+
+msgid "Leave empty for system default, e.g. D:\\limedl\\logs\\limedl.log"
+msgstr "留空由系统决定，例 D:\\limedl\\logs\\limedl.log"
+
+msgid "Retention Files (empty for unlimited):"
+msgstr "保留文件数 (空=不限):"
+
+msgid "Retention Days (empty for unlimited):"
+msgstr "保留天数 (空=不限):"
+
+msgid "Aria2 RPC Service"
+msgstr "Aria2 RPC 服务"
+
+msgid "Enable Aria2 RPC Service"
+msgstr "启用 Aria2 RPC 服务"
+
+msgid "Allows browser extensions (such as Aria2 Explorer) to intercept downloads"
+msgstr "供浏览器插件（Aria2 Explorer 等）接管下载"
+
+msgid "RPC Port (1-65535):"
+msgstr "RPC 端口 (1-65535):"
+
+msgid "RPC Secret (empty for no authentication):"
+msgstr "RPC Secret (空为无鉴权):"
+
+msgid "Leave empty for no secret"
+msgstr "留空表示不设 Secret"
+
+msgid "Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."
+msgstr "提示：Aria2 Explorer 扩展可在 Chrome/Edge/Firefox 商店搜索安装，填入 http://127.0.0.1:{{端口}} 与 Secret 即可接管。"
+
+msgid "Lightweight high-performance asynchronous multi-protocol download engine"
+msgstr "轻量级高性能异步多协议下载引擎"
+
+msgid "Cross-platform unified engine supporting HTTP/HTTPS adaptive multi-threading and full BitTorrent protocols."
+msgstr "跨平台多端统一调度内核，支持 HTTP/HTTPS 多线程自适应加速与完整 BitTorrent 协议。"
+
+msgid "System & Environment Info"
+msgstr "系统与环境信息"
+
+msgid "Client Version:"
+msgstr "客户端版本:"
+
+msgid "Engine Core:"
+msgstr "核心引擎:"
+
+msgid "Target Arch & Graphics:"
+msgstr "目标架构与图形栈:"
+
+msgid "Core Technology Stack:"
+msgstr "核心技术栈:"
+
+msgid "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
+msgstr "Rust Edition 2024 / Slint Native UI / Skia 硬件加速 / Tokio 异步运行时"
+
+msgid "License:"
+msgstr "开源协议:"
+
+msgid "Save Settings"
+msgstr "保存设置"
+
+msgid "Labs"
+msgstr "实验室 (Labs)"
+
+msgid "Labs features are experimental and may affect stability or performance. Use with caution."
+msgstr "实验室功能处于试验阶段，可能影响下载稳定性或性能，请谨慎调整。"
+
+msgid "CDN Optimization"
+msgstr "CDN 网络优选"
+
+msgid "URL Rewrite"
+msgstr "URL 镜像重写"
+
+msgid "CDN Smart Optimization"
+msgstr "CDN 智能优选加速"
+
+msgid "Selects optimal edge IPs to bypass DNS pollution and boost download speeds"
+msgstr "通过测速挑选最佳边缘 IP，绕过 DNS 污染并大幅提升连接速度"
+
+msgid "Enable CDN Optimization"
+msgstr "启用 CDN 网络优选"
+
+msgid "Automatically applies high-speed edge IPs when initiating HTTP downloads"
+msgstr "在发起 HTTP 下载时自动应用选定的高速边缘 IP"
+
+msgid "Optimization Provider (cloudflare / fastly / custom):"
+msgstr "优选提供商 (cloudflare / fastly / custom):"
+
+msgid "Custom Speedtest File URL:"
+msgstr "自定义测速文件 URL:"
+
+msgid "Custom CIDR Ranges (comma separated):"
+msgstr "自定义 CIDR 网段 (逗号分隔):"
+
+msgid "Retest Speed"
+msgstr "重新测速"
+
+msgid "Start Speedtest"
+msgstr "开始测速"
+
+msgid "Stop Speedtest"
+msgstr "停止测速"
+
+msgid "Clear Optimization"
+msgstr "清除优选"
+
+msgid "Tip: Speedtest will consume approx 20-50MB traffic to measure candidate node throughput."
+msgstr "提示：测速过程会消耗约 20-50MB 流量测试各候选节点真实吞吐。"
+
+msgid "Speedtest Failed: "
+msgstr "测速失败: "
+
+msgid "Active Node"
+msgstr "当前生效优选节点"
+
+msgid "Measured Bandwidth"
+msgstr "实测带宽"
+
+msgid "Test Time"
+msgstr "测速时间"
+
+msgid "vs Direct: "
+msgstr "相对直连提速: "
+
+msgid "Latency Diff: "
+msgstr "延迟变化: "
+
+msgid "Benchmark: "
+msgstr "基准直连: "
+
+msgid "Candidate Nodes Details:"
+msgstr "候选节点测速明细:"
+
+msgid "TCP Latency"
+msgstr "TCP 延迟"
+
+msgid "Bandwidth"
+msgstr "实测带宽"
+
+msgid "Action"
+msgstr "操作"
+
+msgid "Active"
+msgstr "生效中"
+
+msgid "Failed"
+msgstr "失败"
+
+msgid "Standby"
+msgstr "备选"
+
+msgid "Apply"
+msgstr "应用"
+
+msgid "Advanced Ranges & Manual IP Override"
+msgstr "高级网段与手动 IP 覆盖"
+
+msgid "Collapse"
+msgstr "收起"
+
+msgid "Expand"
+msgstr "展开"
+
+msgid "Cloudflare Preset CIDRs:"
+msgstr "Cloudflare 预设网段:"
+
+msgid "Manual IP Override (Applies immediately):"
+msgstr "手动指定 IP 地址 (直接生效):"
+
+msgid "e.g. 104.16.0.1"
+msgstr "例如: 104.16.0.1"
+
+msgid "Apply Now"
+msgstr "立即应用"
+
+msgid "URL Mirror Rewrite & Dispatch"
+msgstr "URL 镜像重写与分发"
+
+msgid "Automatically redirect GitHub, Hugging Face, etc. downloads to high-speed mirrors based on domains or regex"
+msgstr "根据域名或正则规则将 GitHub、Hugging Face 等下载自动替换为国内高速镜像"
+
+msgid "Import Presets:"
+msgstr "一键导入预设:"
+
+msgid "GitHub Mirrors"
+msgstr "GitHub 镜像"
+
+msgid "Add Rule"
+msgstr "添加规则"
+
+msgid "No rewrite rules configured"
+msgstr "暂无重写规则"
+
+msgid "Click \"Import Presets\" or \"Add Rule\" above to configure"
+msgstr "点击上方「一键导入预设」或「添加规则」进行配置"
+
+msgid "Unnamed Rule"
+msgstr "未命名规则"
+
+msgid "Edit"
+msgstr "编辑"
+
+msgid "Rule Name:"
+msgstr "规则名称:"
+
+msgid "e.g. GitHub Mirrors"
+msgstr "例如: GitHub 镜像"
+
+msgid "Match Type (host / prefix / regex / wildcard):"
+msgstr "匹配类型 (host / prefix / regex / wildcard):"
+
+msgid "Match Pattern:"
+msgstr "匹配表达式 Pattern:"
+
+msgid "Replacement Mode (prefix_proxy / template):"
+msgstr "重写模式 (prefix_proxy / template):"
+
+msgid "URL Encode Original (Recommended)"
+msgstr "URL 编码原链接 (推荐)"
+
+msgid "Fallback to Original on Failure (Recommended)"
+msgstr "失败后回退原始 URL (推荐)"
+
+msgid "Mirror Targets (top-to-bottom priority):"
+msgstr "重写镜像目标 (按优先级从上至下):"
+
+msgid "Add Target"
+msgstr "添加目标"
+
+msgid "Live Test Sandbox"
+msgstr "在线测试沙盒 (Live Test Sandbox)"
+
+msgid "Input Test URL:"
+msgstr "输入测试 URL:"
+
+msgid "Matched Rule: "
+msgstr "命中规则: "
+
+msgid "No rewrite rules matched. Original URL will be used."
+msgstr "未命中任何重写规则，将使用原 URL 直连下载。"
+
+msgid "Save Config"
+msgstr "保存配置"
+
+msgid "All Tasks"
+msgstr "全部任务"
+
+msgid "Downloading"
+msgstr "正在下载"
+
+msgid "Paused"
+msgstr "已暂停"
+
+msgid "Completed"
+msgstr "已完成"
+
+msgid "Failed / Error"
+msgstr "失败/错误"
+
+msgid "Realtime Download Speed"
+msgstr "实时总下载速率"
+
+msgid "Sort:"
+msgstr "排序:"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Size"
+msgstr "大小"
+
+msgid "Speed"
+msgstr "速度"
+
+msgid "Ascending"
+msgstr "升序"
+
+msgid "Descending"
+msgstr "降序"
+
+msgid "Pause All"
+msgstr "全部暂停"
+
+msgid "Resume All"
+msgstr "全部继续"
+
+msgid "New Task"
+msgstr "新建任务"
+
+msgid "No matching download tasks found"
+msgstr "未找到匹配的下载任务"
+
+msgid "No download tasks"
+msgstr "暂无下载任务"
+
+msgid "Try clearing your search keywords"
+msgstr "尝试清除搜索关键词"
+
+msgid "Click \"New Task\" in the top-right corner to add HTTP / BT downloads"
+msgstr "点击右上角「新建任务」添加 HTTP / BT 下载"
+
+msgid "Selected "
+msgstr "已选择 "
+
+msgid " tasks"
+msgstr " 个任务"
+
+msgid "Select All"
+msgstr "全选"
+
+msgid "Deselect"
+msgstr "取消选择"
+
+msgid "Pause Selected"
+msgstr "批量暂停"
+
+msgid "Resume Selected"
+msgstr "批量继续"
+
+msgid "Remove Records"
+msgstr "移除记录"
+
+msgid "Delete Files"
+msgstr "彻底删除"

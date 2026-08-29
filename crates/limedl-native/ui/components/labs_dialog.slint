@@ -93,7 +93,7 @@ export component LabsDialog inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "实验室 (Labs)";
+                        text: @tr("Labs");
                         color: #f3f4f6;
                         font-size: 16px;
                         font-weight: 700;
@@ -108,7 +108,7 @@ export component LabsDialog inherits Rectangle {
 
             // Warning Banner
             WarningBanner {
-                text: "实验室功能处于试验阶段，可能影响下载稳定性或性能，请谨慎调整。";
+                text: @tr("Labs features are experimental and may affect stability or performance. Use with caution.");
             }
 
             // Tab Headers
@@ -116,13 +116,13 @@ export component LabsDialog inherits Rectangle {
                 spacing: 8px;
                 alignment: start;
                 TabButton {
-                    text: "CDN 网络优选";
+                    text: @tr("CDN Optimization");
                     icon: @image-url("../assets/icons/speed-up-line.svg");
                     active: root.labs_tab == 0;
                     clicked => { root.set_tab(0); }
                 }
                 TabButton {
-                    text: "URL 镜像重写";
+                    text: @tr("URL Rewrite");
                     icon: @image-url("../assets/icons/links-line.svg");
                     active: root.labs_tab == 1;
                     clicked => { root.set_tab(1); }
@@ -152,8 +152,8 @@ export component LabsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: "CDN 智能优选加速"; color: #a3e635; font-size: 14px; font-weight: 700; }
-                                Text { text: "通过测速挑选最佳边缘 IP，绕过 DNS 污染并大幅提升连接速度"; color: #6b7280; font-size: 11px; }
+                                Text { text: @tr("CDN Smart Optimization"); color: #a3e635; font-size: 14px; font-weight: 700; }
+                                Text { text: @tr("Selects optimal edge IPs to bypass DNS pollution and boost download speeds"); color: #6b7280; font-size: 11px; }
                             }
                             ToneBadge {
                                 text: root.labs_form.cdn_status_label;
@@ -170,8 +170,8 @@ export component LabsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: "启用 CDN 网络优选"; color: #f3f4f6; font-size: 13px; font-weight: 600; }
-                                Text { text: "在发起 HTTP 下载时自动应用选定的高速边缘 IP"; color: #6b7280; font-size: 11px; }
+                                Text { text: @tr("Enable CDN Optimization"); color: #f3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Automatically applies high-speed edge IPs when initiating HTTP downloads"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
                                 checked: root.labs_form.cdn_enabled;
@@ -182,7 +182,7 @@ export component LabsDialog inherits Rectangle {
                         // Provider Selection
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: "优选提供商 (cloudflare / fastly / custom):"; color: #9ca3af; font-size: 12px; }
+                            Text { text: @tr("Optimization Provider (cloudflare / fastly / custom):"); color: #9ca3af; font-size: 12px; }
                             ComboBox {
                                 model: ["cloudflare", "fastly", "custom"];
                                 current-value <=> root.labs_form.cdn_provider;
@@ -195,7 +195,7 @@ export component LabsDialog inherits Rectangle {
                             spacing: 8px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: "自定义测速文件 URL:"; color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Custom Speedtest File URL:"); color: #9ca3af; font-size: 12px; }
                                 CustomTextInput {
                                     text <=> root.labs_form.cdn_custom_test_url;
                                     placeholder: "https://example.com/speedtest-file.bin";
@@ -203,7 +203,7 @@ export component LabsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: "自定义 CIDR 网段 (逗号分隔):"; color: #9ca3af; font-size: 12px; }
+                                Text { text: @tr("Custom CIDR Ranges (comma separated):"); color: #9ca3af; font-size: 12px; }
                                 CustomTextInput {
                                     text <=> root.labs_form.cdn_custom_cidrs;
                                     placeholder: "1.2.3.0/24, 2606:4700::/32";
@@ -273,26 +273,26 @@ export component LabsDialog inherits Rectangle {
                             alignment: start;
 
                             if !root.labs_form.cdn_is_testing : PrimaryButton {
-                                text: root.labs_form.cdn_active_ip != "" ? "重新测速" : "开始测速";
+                                text: root.labs_form.cdn_active_ip != "" ? @tr("Retest Speed") : @tr("Start Speedtest");
                                 icon: @image-url("../assets/icons/rocket-line.svg");
                                 clicked => { root.start_cdn_test(); }
                             }
 
                             if root.labs_form.cdn_is_testing : DangerButton {
-                                text: "停止测速";
+                                text: @tr("Stop Speedtest");
                                 icon: @image-url("../assets/icons/pause-line.svg");
                                 clicked => { root.cancel_cdn_test(); }
                             }
 
                             if root.labs_form.cdn_status_type == "ready" : SecondaryButton {
-                                text: "清除优选";
+                                text: @tr("Clear Optimization");
                                 icon: @image-url("../assets/icons/eraser-line.svg");
                                 clicked => { root.clear_cdn_test(); }
                             }
                         }
 
                         Text {
-                            text: "提示：测速过程会消耗约 20-50MB 流量测试各候选节点真实吞吐。";
+                            text: @tr("Tip: Speedtest will consume approx 20-50MB traffic to measure candidate node throughput.");
                             color: #6b7280;
                             font-size: 11px;
                         }
@@ -313,7 +313,7 @@ export component LabsDialog inherits Rectangle {
                                     height: 16px;
                                 }
                                 Text {
-                                    text: "测速失败: " + root.labs_form.cdn_last_error;
+                                    text: @tr("Speedtest Failed: ") + root.labs_form.cdn_last_error;
                                     color: #fca5a5;
                                     font-size: 12px;
                                     vertical-alignment: center;
@@ -335,17 +335,17 @@ export component LabsDialog inherits Rectangle {
                                     alignment: space-between;
                                     VerticalLayout {
                                         spacing: 2px;
-                                        Text { text: "当前生效优选节点"; color: #86efac; font-size: 12px; font-weight: 600; }
+                                        Text { text: @tr("Active Node"); color: #86efac; font-size: 12px; font-weight: 600; }
                                         Text { text: root.labs_form.cdn_active_ip; color: #f3f4f6; font-size: 15px; font-weight: 700; font-family: "Consolas, monospace"; }
                                     }
                                     VerticalLayout {
                                         spacing: 2px;
-                                        Text { text: "实测带宽"; color: #86efac; font-size: 12px; font-weight: 600; }
+                                        Text { text: @tr("Measured Bandwidth"); color: #86efac; font-size: 12px; font-weight: 600; }
                                         Text { text: root.labs_form.cdn_active_speed_text; color: #a3e635; font-size: 15px; font-weight: 700; }
                                     }
                                     VerticalLayout {
                                         spacing: 2px;
-                                        Text { text: "测速时间"; color: #9ca3af; font-size: 12px; }
+                                        Text { text: @tr("Test Time"); color: #9ca3af; font-size: 12px; }
                                         Text { text: root.labs_form.cdn_last_test_time; color: #d1d5db; font-size: 12px; }
                                     }
                                 }
@@ -353,19 +353,19 @@ export component LabsDialog inherits Rectangle {
                                 if root.labs_form.cdn_speed_improvement_text != "" : HorizontalLayout {
                                     spacing: 12px;
                                     Text {
-                                        text: "相对直连提速: " + root.labs_form.cdn_speed_improvement_text;
+                                        text: @tr("vs Direct: ") + root.labs_form.cdn_speed_improvement_text;
                                         color: #4ade80;
                                         font-size: 12px;
                                         font-weight: 600;
                                     }
                                     Text {
-                                        text: "延迟变化: " + root.labs_form.cdn_latency_improvement_text;
+                                        text: @tr("Latency Diff: ") + root.labs_form.cdn_latency_improvement_text;
                                         color: #38bdf8;
                                         font-size: 12px;
                                         font-weight: 600;
                                     }
                                     Text {
-                                        text: "(基准直连: " + root.labs_form.cdn_default_node_text + ")";
+                                        text: "(" + @tr("Benchmark: ") + root.labs_form.cdn_default_node_text + ")";
                                         color: #6b7280;
                                         font-size: 11px;
                                     }
@@ -376,7 +376,7 @@ export component LabsDialog inherits Rectangle {
                         // Candidate Nodes Table
                         if root.cdn_candidates.length > 0 : VerticalLayout {
                             spacing: 6px;
-                            Text { text: "候选节点测速明细:"; color: #9ca3af; font-size: 12px; font-weight: 600; }
+                            Text { text: @tr("Candidate Nodes Details:"); color: #9ca3af; font-size: 12px; font-weight: 600; }
 
                             Rectangle {
                                 background: #14171d;
@@ -393,11 +393,11 @@ export component LabsDialog inherits Rectangle {
                                         padding-left: 8px;
                                         padding-right: 8px;
                                         height: 24px;
-                                        Text { width: 180px; text: "IP 地址"; color: #6b7280; font-size: 11px; font-weight: 600; }
-                                        Text { width: 120px; text: "TCP 延迟"; color: #6b7280; font-size: 11px; font-weight: 600; }
-                                        Text { width: 140px; text: "实测带宽"; color: #6b7280; font-size: 11px; font-weight: 600; }
-                                        Text { width: 100px; text: "状态"; color: #6b7280; font-size: 11px; font-weight: 600; }
-                                        Text { text: "操作"; color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { width: 180px; text: @tr("IP Address"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { width: 120px; text: @tr("TCP Latency"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { width: 140px; text: @tr("Bandwidth"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { width: 100px; text: @tr("Status"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                                        Text { text: @tr("Action"); color: #6b7280; font-size: 11px; font-weight: 600; }
                                     }
 
                                     Rectangle { height: 1px; background: #1f242e; }
@@ -436,14 +436,14 @@ export component LabsDialog inherits Rectangle {
                                         VerticalLayout {
                                             width: 100px;
                                             alignment: center;
-                                            if cand.is_active : ToneBadge { text: "生效中"; tone: "success"; }
-                                            if !cand.is_active && cand.is_failed : ToneBadge { text: "失败"; tone: "danger"; }
-                                            if !cand.is_active && !cand.is_failed : ToneBadge { text: "备选"; tone: "neutral"; }
+                                            if cand.is_active : ToneBadge { text: @tr("Active"); tone: "success"; }
+                                            if !cand.is_active && cand.is_failed : ToneBadge { text: @tr("Failed"); tone: "danger"; }
+                                            if !cand.is_active && !cand.is_failed : ToneBadge { text: @tr("Standby"); tone: "neutral"; }
                                         }
                                         VerticalLayout {
                                             alignment: center;
                                             if !cand.is_active && !cand.is_failed : SecondaryButton {
-                                                text: "应用";
+                                                text: @tr("Apply");
                                                 clicked => { root.apply_cdn_candidate(cand.ip, cand.throughput_mbps); }
                                             }
                                         }
@@ -464,9 +464,9 @@ export component LabsDialog inherits Rectangle {
                                 spacing: 10px;
                                 HorizontalLayout {
                                     alignment: space-between;
-                                    Text { text: "高级网段与手动 IP 覆盖"; color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: @tr("Advanced Ranges & Manual IP Override"); color: #9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
                                     IconButton {
-                                        text: root.labs_form.cdn_show_advanced ? "收起" : "展开";
+                                        text: root.labs_form.cdn_show_advanced ? @tr("Collapse") : @tr("Expand");
                                         icon: @image-url("../assets/icons/settings-3-line.svg");
                                         clicked => { root.toggle_cdn_advanced(); }
                                     }
@@ -476,21 +476,21 @@ export component LabsDialog inherits Rectangle {
                                     spacing: 10px;
                                     VerticalLayout {
                                         spacing: 4px;
-                                        Text { text: "Cloudflare 预设网段:"; color: #6b7280; font-size: 11px; }
+                                        Text { text: @tr("Cloudflare Preset CIDRs:"); color: #6b7280; font-size: 11px; }
                                         Text { text: root.labs_form.cdn_ranges_text; color: #a3e635; font-size: 11px; wrap: word-wrap; }
                                     }
 
                                     VerticalLayout {
                                         spacing: 4px;
-                                        Text { text: "手动指定 IP 地址 (直接生效):"; color: #9ca3af; font-size: 12px; }
+                                        Text { text: @tr("Manual IP Override (Applies immediately):"); color: #9ca3af; font-size: 12px; }
                                         HorizontalLayout {
                                             spacing: 8px;
                                             CustomTextInput {
                                                 text <=> root.labs_form.cdn_manual_ip;
-                                                placeholder: "例如: 104.16.0.1";
+                                                placeholder: @tr("e.g. 104.16.0.1");
                                             }
                                             SecondaryButton {
-                                                text: "立即应用";
+                                                text: @tr("Apply Now");
                                                 clicked => { root.apply_manual_cdn_ip(root.labs_form.cdn_manual_ip); }
                                             }
                                         }
@@ -517,8 +517,8 @@ export component LabsDialog inherits Rectangle {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: "URL 镜像重写与分发"; color: #a3e635; font-size: 14px; font-weight: 700; }
-                                Text { text: "根据域名或正则规则将 GitHub、Hugging Face 等下载自动替换为国内高速镜像"; color: #6b7280; font-size: 11px; }
+                                Text { text: @tr("URL Mirror Rewrite & Dispatch"); color: #a3e635; font-size: 14px; font-weight: 700; }
+                                Text { text: @tr("Automatically redirect GitHub, Hugging Face, etc. downloads to high-speed mirrors based on domains or regex"); color: #6b7280; font-size: 11px; }
                             }
                             ToggleSwitch {
                                 checked: root.labs_form.url_rewrite_enabled;
@@ -534,9 +534,9 @@ export component LabsDialog inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 6px;
                                 alignment: start;
-                                Text { text: "一键导入预设:"; color: #9ca3af; font-size: 12px; vertical-alignment: center; }
+                                Text { text: @tr("Import Presets:"); color: #9ca3af; font-size: 12px; vertical-alignment: center; }
                                 SecondaryButton {
-                                    text: "GitHub 镜像";
+                                    text: @tr("GitHub Mirrors");
                                     icon: @image-url("../assets/icons/links-line.svg");
                                     clicked => { root.import_rewrite_preset("github"); }
                                 }
@@ -553,7 +553,7 @@ export component LabsDialog inherits Rectangle {
                             }
 
                             PrimaryButton {
-                                text: "添加规则";
+                                text: @tr("Add Rule");
                                 icon: @image-url("../assets/icons/add-line.svg");
                                 clicked => { root.add_custom_rule(); }
                             }
@@ -565,8 +565,8 @@ export component LabsDialog inherits Rectangle {
                         if root.rewrite_rules.length == 0 : VerticalLayout {
                             alignment: center;
                             spacing: 6px;
-                            Text { text: "暂无重写规则"; color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                            Text { text: "点击上方「一键导入预设」或「添加规则」进行配置"; color: #4b5563; font-size: 11px; horizontal-alignment: center; }
+                            Text { text: @tr("No rewrite rules configured"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                            Text { text: @tr("Click \"Import Presets\" or \"Add Rule\" above to configure"); color: #4b5563; font-size: 11px; horizontal-alignment: center; }
                         }
 
                         for rule[r_idx] in root.rewrite_rules : Rectangle {
@@ -592,7 +592,7 @@ export component LabsDialog inherits Rectangle {
                                         }
 
                                         Text {
-                                            text: rule.name != "" ? rule.name : "未命名规则";
+                                            text: rule.name != "" ? rule.name : @tr("Unnamed Rule");
                                             color: #f3f4f6;
                                             font-size: 13px;
                                             font-weight: 600;
@@ -617,7 +617,7 @@ export component LabsDialog inherits Rectangle {
                                         spacing: 6px;
                                         alignment: end;
                                         IconButton {
-                                            text: rule.is_expanded ? "收起" : "编辑";
+                                            text: rule.is_expanded ? @tr("Collapse") : @tr("Edit");
                                             icon: @image-url("../assets/icons/settings-3-line.svg");
                                             clicked => { root.toggle_rule_expanded(r_idx); }
                                         }
@@ -638,16 +638,16 @@ export component LabsDialog inherits Rectangle {
                                         spacing: 12px;
                                         VerticalLayout {
                                             spacing: 4px;
-                                            Text { text: "规则名称:"; color: #9ca3af; font-size: 12px; }
+                                            Text { text: @tr("Rule Name:"); color: #9ca3af; font-size: 12px; }
                                             CustomTextInput {
                                                 text: rule.name;
-                                                placeholder: "例如: GitHub 镜像";
+                                                placeholder: @tr("e.g. GitHub Mirrors");
                                                 edited(val) => { root.update_rule_name(r_idx, val); }
                                             }
                                         }
                                         VerticalLayout {
                                             spacing: 4px;
-                                            Text { text: "匹配类型 (host / prefix / regex / wildcard):"; color: #9ca3af; font-size: 12px; }
+                                            Text { text: @tr("Match Type (host / prefix / regex / wildcard):"); color: #9ca3af; font-size: 12px; }
                                             ComboBox {
                                                 model: ["host", "prefix", "regex", "wildcard"];
                                                 current-value: rule.match_type;
@@ -661,7 +661,7 @@ export component LabsDialog inherits Rectangle {
                                         spacing: 12px;
                                         VerticalLayout {
                                             spacing: 4px;
-                                            Text { text: "匹配表达式 Pattern:"; color: #9ca3af; font-size: 12px; }
+                                            Text { text: @tr("Match Pattern:"); color: #9ca3af; font-size: 12px; }
                                             CustomTextInput {
                                                 text: rule.pattern;
                                                 placeholder: rule.match_type == "host" ? "*.github.com" : (
@@ -672,7 +672,7 @@ export component LabsDialog inherits Rectangle {
                                         }
                                         VerticalLayout {
                                             spacing: 4px;
-                                            Text { text: "重写模式 (prefix_proxy / template):"; color: #9ca3af; font-size: 12px; }
+                                            Text { text: @tr("Replacement Mode (prefix_proxy / template):"); color: #9ca3af; font-size: 12px; }
                                             ComboBox {
                                                 model: ["prefix_proxy", "template"];
                                                 current-value: rule.replacement_mode;
@@ -691,7 +691,7 @@ export component LabsDialog inherits Rectangle {
                                                 checked: rule.encode_url;
                                                 toggled => { root.toggle_rule_encode(r_idx); }
                                             }
-                                            Text { text: "URL 编码原链接 (推荐)"; color: #9ca3af; font-size: 12px; vertical-alignment: center; }
+                                            Text { text: @tr("URL Encode Original (Recommended)"); color: #9ca3af; font-size: 12px; vertical-alignment: center; }
                                         }
                                         HorizontalLayout {
                                             spacing: 8px;
@@ -699,7 +699,7 @@ export component LabsDialog inherits Rectangle {
                                                 checked: rule.fallback_to_original;
                                                 toggled => { root.toggle_rule_fallback(r_idx); }
                                             }
-                                            Text { text: "失败后回退原始 URL (推荐)"; color: #9ca3af; font-size: 12px; vertical-alignment: center; }
+                                            Text { text: @tr("Fallback to Original on Failure (Recommended)"); color: #9ca3af; font-size: 12px; vertical-alignment: center; }
                                         }
                                     }
 
@@ -708,9 +708,9 @@ export component LabsDialog inherits Rectangle {
                                         spacing: 6px;
                                         HorizontalLayout {
                                             alignment: space-between;
-                                            Text { text: "重写镜像目标 (按优先级从上至下):"; color: #a3e635; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                            Text { text: @tr("Mirror Targets (top-to-bottom priority):"); color: #a3e635; font-size: 12px; font-weight: 600; vertical-alignment: center; }
                                             SecondaryButton {
-                                                text: "添加目标";
+                                                text: @tr("Add Target");
                                                 icon: @image-url("../assets/icons/add-line.svg");
                                                 clicked => { root.add_rule_target(r_idx); }
                                             }
@@ -765,7 +765,7 @@ export component LabsDialog inherits Rectangle {
                                         }
                                     }
                                     Text {
-                                        text: "在线测试沙盒 (Live Test Sandbox)";
+                                        text: @tr("Live Test Sandbox");
                                         color: #38bdf8;
                                         font-size: 13px;
                                         font-weight: 700;
@@ -775,7 +775,7 @@ export component LabsDialog inherits Rectangle {
 
                                 VerticalLayout {
                                     spacing: 4px;
-                                    Text { text: "输入测试 URL:"; color: #9ca3af; font-size: 12px; }
+                                    Text { text: @tr("Input Test URL:"); color: #9ca3af; font-size: 12px; }
                                     CustomTextInput {
                                         text <=> root.labs_form.url_rewrite_test_url;
                                         placeholder: "https://raw.github.com/user/repo/file.zip";
@@ -789,7 +789,7 @@ export component LabsDialog inherits Rectangle {
                                         spacing: 6px;
                                         Text { text: "✓"; color: #4ade80; font-size: 13px; font-weight: 800; }
                                         Text {
-                                            text: "命中规则: " + root.labs_form.url_rewrite_test_matched_rule;
+                                            text: @tr("Matched Rule: ") + root.labs_form.url_rewrite_test_matched_rule;
                                             color: #4ade80;
                                             font-size: 12px;
                                             font-weight: 600;
@@ -816,7 +816,7 @@ export component LabsDialog inherits Rectangle {
                                     }
 
                                     if root.labs_form.url_rewrite_test_matched_rule == "" : Text {
-                                        text: "未命中任何重写规则，将使用原 URL 直连下载。";
+                                        text: @tr("No rewrite rules matched. Original URL will be used.");
                                         color: #6b7280;
                                         font-size: 12px;
                                     }
@@ -833,12 +833,12 @@ export component LabsDialog inherits Rectangle {
                 spacing: 10px;
 
                 SecondaryButton {
-                    text: "关闭";
+                    text: @tr("Close");
                     clicked => { root.close(); }
                 }
 
                 PrimaryButton {
-                    text: "保存配置";
+                    text: @tr("Save Config");
                     icon: @image-url("../assets/icons/save-line.svg");
                     clicked => { root.save_labs(root.labs_form); }
                 }

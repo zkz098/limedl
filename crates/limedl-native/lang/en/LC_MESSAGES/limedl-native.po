@@ -1,0 +1,879 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: limedl-native 0.3.0\n"
+"POT-Creation-Date: 2026-08-29 12:00+0800\n"
+"PO-Revision-Date: 2026-08-29 12:00+0800\n"
+"Last-Translator: limedl team\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Search downloads..."
+msgstr "Search downloads..."
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Pause"
+msgstr "Pause"
+
+msgid "Resume"
+msgstr "Resume"
+
+msgid "Folder"
+msgstr "Folder"
+
+msgid "View Details"
+msgstr "View Details"
+
+msgid "Pause Task"
+msgstr "Pause Task"
+
+msgid "Resume Task"
+msgstr "Resume Task"
+
+msgid "Open Containing Folder"
+msgstr "Open Containing Folder"
+
+msgid "Copy Download Link"
+msgstr "Copy Download Link"
+
+msgid "Set Speed Limit"
+msgstr "Set Speed Limit"
+
+msgid "Remove Record"
+msgstr "Remove Record"
+
+msgid "Delete File Permanently"
+msgstr "Delete File Permanently"
+
+msgid "New Download Task"
+msgstr "New Download Task"
+
+msgid "Download URL (HTTP / HTTPS / Magnet / Torrent):"
+msgstr "Download URL (HTTP / HTTPS / Magnet / Torrent):"
+
+msgid "Select Torrent..."
+msgstr "Select Torrent..."
+
+msgid "Save Directory:"
+msgstr "Save Directory:"
+
+msgid "Browse..."
+msgstr "Browse..."
+
+msgid "Custom Filename (Optional):"
+msgstr "Custom Filename (Optional):"
+
+msgid "Leave empty to use remote filename automatically"
+msgstr "Leave empty to use remote filename automatically"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Start Download"
+msgstr "Start Download"
+
+msgid "Speed Limit Settings"
+msgstr "Speed Limit Settings"
+
+msgid "Configure task speed limits (0 for unlimited):"
+msgstr "Configure task speed limits (0 for unlimited):"
+
+msgid "Download Limit:"
+msgstr "Download Limit:"
+
+msgid "Upload Limit (BT):"
+msgstr "Upload Limit (BT):"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Task Inspector"
+msgstr "Task Inspector"
+
+msgid "Overview"
+msgstr "Overview"
+
+msgid "Pieces Map"
+msgstr "Pieces Map"
+
+msgid "Peers"
+msgstr "Peers"
+
+msgid "Trackers"
+msgstr "Trackers"
+
+msgid "Files"
+msgstr "Files"
+
+msgid "Task ID:"
+msgstr "Task ID:"
+
+msgid "Engine Protocol:"
+msgstr "Engine Protocol:"
+
+msgid "Resource URL:"
+msgstr "Resource URL:"
+
+msgid "Save Path:"
+msgstr "Save Path:"
+
+msgid "Total Size:"
+msgstr "Total Size:"
+
+msgid "Downloaded:"
+msgstr "Downloaded:"
+
+msgid "Uploaded (BT):"
+msgstr "Uploaded (BT):"
+
+msgid "Active Connections:"
+msgstr "Active Connections:"
+
+msgid "Share Ratio:"
+msgstr "Share Ratio:"
+
+msgid "Active Rate Limits:"
+msgstr "Active Rate Limits:"
+
+msgid "Pieces Progress"
+msgstr "Pieces Progress"
+
+msgid "IP Address"
+msgstr "IP Address"
+
+msgid "Client"
+msgstr "Client"
+
+msgid "Flags"
+msgstr "Flags"
+
+msgid "Progress"
+msgstr "Progress"
+
+msgid "Download Speed"
+msgstr "Download Speed"
+
+msgid "Upload Speed"
+msgstr "Upload Speed"
+
+msgid "Tier"
+msgstr "Tier"
+
+msgid "URL"
+msgstr "URL"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Peers Count"
+msgstr "Peers Count"
+
+msgid "File Name"
+msgstr "File Name"
+
+msgid "Size"
+msgstr "Size"
+
+msgid "Priority"
+msgstr "Priority"
+
+msgid "Speed Limit"
+msgstr "Speed Limit"
+
+msgid "Open Folder"
+msgstr "Open Folder"
+
+msgid "Close"
+msgstr "Close"
+
+msgid "Pieces bitmap is only available for active BitTorrent tasks."
+msgstr "Pieces bitmap is only available for active BitTorrent tasks."
+
+msgid "No peers connected yet."
+msgstr "No peers connected yet."
+
+msgid "No tracker servers available."
+msgstr "No tracker servers available."
+
+msgid "No file information available."
+msgstr "No file information available."
+
+msgid "Settings Center"
+msgstr "Settings Center"
+
+msgid "General"
+msgstr "General"
+
+msgid "Download"
+msgstr "Download"
+
+msgid "Proxy"
+msgstr "Proxy"
+
+msgid "Scheduler"
+msgstr "Scheduler"
+
+msgid "BT Network"
+msgstr "BT Network"
+
+msgid "IO Baseline"
+msgstr "IO Baseline"
+
+msgid "Logging"
+msgstr "Logging"
+
+msgid "Aria2 RPC"
+msgstr "Aria2 RPC"
+
+msgid "About"
+msgstr "About"
+
+msgid "Language & Appearance"
+msgstr "Language & Appearance"
+
+msgid "Language:"
+msgstr "Language:"
+
+msgid "Theme Mode (dark/light/system):"
+msgstr "Theme Mode (dark/light/system):"
+
+msgid "UI Scale (0.5 - 2.0):"
+msgstr "UI Scale (0.5 - 2.0):"
+
+msgid "Font Family (leave empty for system default):"
+msgstr "Font Family (leave empty for system default):"
+
+msgid "System default font"
+msgstr "System default font"
+
+msgid "Close to System Tray"
+msgstr "Close to System Tray"
+
+msgid "Keep background downloads running when window is closed"
+msgstr "Keep background downloads running when window is closed"
+
+msgid "Auto-start on System Boot"
+msgstr "Auto-start on System Boot"
+
+msgid "Launch limedl quietly in background on system startup"
+msgstr "Launch limedl quietly in background on system startup"
+
+msgid "Download & Storage"
+msgstr "Download & Storage"
+
+msgid "Default Download Directory:"
+msgstr "Default Download Directory:"
+
+msgid "Leave empty for system Downloads, e.g. D:\\Downloads"
+msgstr "Leave empty for system Downloads, e.g. D:\\Downloads"
+
+msgid "Select Path..."
+msgstr "Select Path..."
+
+msgid "Auto-create Subdirectory for Multi-file Torrents"
+msgstr "Auto-create Subdirectory for Multi-file Torrents"
+
+msgid "Keep multi-file downloads organized in a dedicated directory"
+msgstr "Keep multi-file downloads organized in a dedicated directory"
+
+msgid "Disk Pre-allocation Strategy (none/sparse/falloc/full):"
+msgstr "Disk Pre-allocation Strategy (none/sparse/falloc/full):"
+
+msgid "sparse: fast; falloc: OS pre-allocated; full: zero-fill to prevent fragmentation"
+msgstr "sparse: fast; falloc: OS pre-allocated; full: zero-fill to prevent fragmentation"
+
+msgid "Auto Checksum Verification upon Completion"
+msgstr "Auto Checksum Verification upon Completion"
+
+msgid "Verify SHA256/MD5 if checksum metadata is provided"
+msgstr "Verify SHA256/MD5 if checksum metadata is provided"
+
+msgid "Proxy Settings"
+msgstr "Proxy Settings"
+
+msgid "Proxy Mode (disabled/system/manual):"
+msgstr "Proxy Mode (disabled/system/manual):"
+
+msgid "system follows OS proxy; manual requires proxy URL below"
+msgstr "system follows OS proxy; manual requires proxy URL below"
+
+msgid "Manual Proxy URL:"
+msgstr "Manual Proxy URL:"
+
+msgid "Scheduler & Performance"
+msgstr "Scheduler & Performance"
+
+msgid "Allocation Mode (automatic/traditional):"
+msgstr "Allocation Mode (automatic/traditional):"
+
+msgid "automatic uses adaptive thread pool; traditional uses fixed concurrency"
+msgstr "automatic uses adaptive thread pool; traditional uses fixed concurrency"
+
+msgid "Auto - Max Parallel Threads (1-128):"
+msgstr "Auto - Max Parallel Threads (1-128):"
+
+msgid "Max Threads per Task (1-64):"
+msgstr "Max Threads per Task (1-64):"
+
+msgid "Min Threads per Task (0-64):"
+msgstr "Min Threads per Task (0-64):"
+
+msgid "Adaptive Profile (conservative/balanced/aggressive):"
+msgstr "Adaptive Profile (conservative/balanced/aggressive):"
+
+msgid "Chunk Strategy (adaptive/fixed):"
+msgstr "Chunk Strategy (adaptive/fixed):"
+
+msgid "Tail Sprint"
+msgstr "Tail Sprint"
+
+msgid "Parallelize tail chunks to minimize finishing latency"
+msgstr "Parallelize tail chunks to minimize finishing latency"
+
+msgid "Connection Warmup"
+msgstr "Connection Warmup"
+
+msgid "Pre-establish multiple connections during handshake for faster warmup"
+msgstr "Pre-establish multiple connections during handshake for faster warmup"
+
+msgid "BitTorrent Network"
+msgstr "BitTorrent Network"
+
+msgid "Enable DHT"
+msgstr "Enable DHT"
+
+msgid "Discover peers via DHT when no trackers are available"
+msgstr "Discover peers via DHT when no trackers are available"
+
+msgid "Listen Port (empty for random):"
+msgstr "Listen Port (empty for random):"
+
+msgid "Random"
+msgstr "Random"
+
+msgid "port"
+msgstr "port"
+
+msgid "Max Peers per Torrent:"
+msgstr "Max Peers per Torrent:"
+
+msgid "peers"
+msgstr "peers"
+
+msgid "tasks"
+msgstr "tasks"
+
+msgid "threads"
+msgstr "threads"
+
+msgid "secs"
+msgstr "secs"
+
+msgid "slots"
+msgstr "slots"
+
+msgid "failures"
+msgstr "failures"
+
+msgid "files"
+msgstr "files"
+
+msgid "days"
+msgstr "days"
+
+msgid "Unlimited"
+msgstr "Unlimited"
+
+msgid "Encryption Mode (enabled/disabled/forced):"
+msgstr "Encryption Mode (enabled/disabled/forced):"
+
+msgid "Pre-allocation Mode (none/full):"
+msgstr "Pre-allocation Mode (none/full):"
+
+msgid "Queuing & Rate Limits"
+msgstr "Queuing & Rate Limits"
+
+msgid "Max Active Downloads:"
+msgstr "Max Active Downloads:"
+
+msgid "Max Active Seeds:"
+msgstr "Max Active Seeds:"
+
+msgid "Max Torrents:"
+msgstr "Max Torrents:"
+
+msgid "Active Limit:"
+msgstr "Active Limit:"
+
+msgid "Global Download Rate Limit:"
+msgstr "Global Download Rate Limit:"
+
+msgid "Global Upload Rate Limit:"
+msgstr "Global Upload Rate Limit:"
+
+msgid "Seeding & Completion"
+msgstr "Seeding & Completion"
+
+msgid "Pause Seeding upon Reaching Limit"
+msgstr "Pause Seeding upon Reaching Limit"
+
+msgid "Automatically pause seeding once upload limit or ratio target is reached"
+msgstr "Automatically pause seeding once upload limit or ratio target is reached"
+
+msgid "Seeding Upload Limit:"
+msgstr "Seeding Upload Limit:"
+
+msgid "Share Ratio Limit (0 for unlimited):"
+msgstr "Share Ratio Limit (0 for unlimited):"
+
+msgid "Anti-Leech & Peer Banning"
+msgstr "Anti-Leech & Peer Banning"
+
+msgid "Enable Anti-Leech Detection"
+msgstr "Enable Anti-Leech Detection"
+
+msgid "Detect peers that download without uploading"
+msgstr "Detect peers that download without uploading"
+
+msgid "Action (ban/limit_slots):"
+msgstr "Action (ban/limit_slots):"
+
+msgid "Grace Period:"
+msgstr "Grace Period:"
+
+msgid "Share Ratio Threshold (0-1):"
+msgstr "Share Ratio Threshold (0-1):"
+
+msgid "Ban Duration:"
+msgstr "Ban Duration:"
+
+msgid "Max Upload Slots in Limit Mode (1-64):"
+msgstr "Max Upload Slots in Limit Mode (1-64):"
+
+msgid "Enable IP Blocklist"
+msgstr "Enable IP Blocklist"
+
+msgid "Load local blocklist filter file"
+msgstr "Load local blocklist filter file"
+
+msgid "Blocklist Path:"
+msgstr "Blocklist Path:"
+
+msgid "Engine Tuning"
+msgstr "Engine Tuning"
+
+msgid "Seed Choking (fastest_upload/round_robin/anti_leech):"
+msgstr "Seed Choking (fastest_upload/round_robin/anti_leech):"
+
+msgid "Choking Algorithm (fixed_slots/rate_based):"
+msgstr "Choking Algorithm (fixed_slots/rate_based):"
+
+msgid "Max Upload Slots per Torrent:"
+msgstr "Max Upload Slots per Torrent:"
+
+msgid "Smart Ban Threshold (1-100):"
+msgstr "Smart Ban Threshold (1-100):"
+
+msgid "Smart Ban Parole"
+msgstr "Smart Ban Parole"
+
+msgid "Isolate suspicious peers before permanent ban to prevent false positives"
+msgstr "Isolate suspicious peers before permanent ban to prevent false positives"
+
+msgid "Ban Duration after Eviction:"
+msgstr "Ban Duration after Eviction:"
+
+msgid "No Data Contribution Timeout:"
+msgstr "No Data Contribution Timeout:"
+
+msgid "Tracker Subscription URL:"
+msgstr "Tracker Subscription URL:"
+
+msgid "Sync Now"
+msgstr "Sync Now"
+
+msgid "Synced trackers update bt.trackerList. Click Save to apply."
+msgstr "Synced trackers update bt.trackerList. Click Save to apply."
+
+msgid "IO Baseline & Performance Modes"
+msgstr "IO Baseline & Performance Modes"
+
+msgid "Game Mode"
+msgstr "Game Mode"
+
+msgid "Reduces buffer and IO frequency to minimize latency interference with 3D games"
+msgstr "Reduces buffer and IO frequency to minimize latency interference with 3D games"
+
+msgid "Overclock Mode"
+msgstr "Overclock Mode"
+
+msgid "Aggressive multi-threading to push bandwidth to the hardware limit"
+msgstr "Aggressive multi-threading to push bandwidth to the hardware limit"
+
+msgid "Buffer Pool Limit:"
+msgstr "Buffer Pool Limit:"
+
+msgid "Game Mode Buffer:"
+msgstr "Game Mode Buffer:"
+
+msgid "HDD Max Parallel:"
+msgstr "HDD Max Parallel:"
+
+msgid "Game Mode Max Parallel:"
+msgstr "Game Mode Max Parallel:"
+
+msgid "HDD Double-Buffer Optimization"
+msgstr "HDD Double-Buffer Optimization"
+
+msgid "SSD Write Combining (0=auto):"
+msgstr "SSD Write Combining (0=auto):"
+
+msgid "Disk Type Detection (SSD / HDD):"
+msgstr "Disk Type Detection (SSD / HDD):"
+
+msgid "Buffer Pool Status:"
+msgstr "Buffer Pool Status:"
+
+msgid "Logging"
+msgstr "Logging"
+
+msgid "Enable File Logging"
+msgstr "Enable File Logging"
+
+msgid "Write logs to the specified filePath"
+msgstr "Write logs to the specified filePath"
+
+msgid "Log Level (trace/debug/info/warn/error):"
+msgstr "Log Level (trace/debug/info/warn/error):"
+
+msgid "Log File Path:"
+msgstr "Log File Path:"
+
+msgid "Leave empty for system default, e.g. D:\\limedl\\logs\\limedl.log"
+msgstr "Leave empty for system default, e.g. D:\\limedl\\logs\\limedl.log"
+
+msgid "Retention Files (empty for unlimited):"
+msgstr "Retention Files (empty for unlimited):"
+
+msgid "Retention Days (empty for unlimited):"
+msgstr "Retention Days (empty for unlimited):"
+
+msgid "Aria2 RPC Service"
+msgstr "Aria2 RPC Service"
+
+msgid "Enable Aria2 RPC Service"
+msgstr "Enable Aria2 RPC Service"
+
+msgid "Allows browser extensions (such as Aria2 Explorer) to intercept downloads"
+msgstr "Allows browser extensions (such as Aria2 Explorer) to intercept downloads"
+
+msgid "RPC Port (1-65535):"
+msgstr "RPC Port (1-65535):"
+
+msgid "RPC Secret (empty for no authentication):"
+msgstr "RPC Secret (empty for no authentication):"
+
+msgid "Leave empty for no secret"
+msgstr "Leave empty for no secret"
+
+msgid "Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."
+msgstr "Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."
+
+msgid "Lightweight high-performance asynchronous multi-protocol download engine"
+msgstr "Lightweight high-performance asynchronous multi-protocol download engine"
+
+msgid "Cross-platform unified engine supporting HTTP/HTTPS adaptive multi-threading and full BitTorrent protocols."
+msgstr "Cross-platform unified engine supporting HTTP/HTTPS adaptive multi-threading and full BitTorrent protocols."
+
+msgid "System & Environment Info"
+msgstr "System & Environment Info"
+
+msgid "Client Version:"
+msgstr "Client Version:"
+
+msgid "Engine Core:"
+msgstr "Engine Core:"
+
+msgid "Target Arch & Graphics:"
+msgstr "Target Arch & Graphics:"
+
+msgid "Core Technology Stack:"
+msgstr "Core Technology Stack:"
+
+msgid "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
+msgstr "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
+
+msgid "License:"
+msgstr "License:"
+
+msgid "Save Settings"
+msgstr "Save Settings"
+
+msgid "Labs"
+msgstr "Labs"
+
+msgid "Labs features are experimental and may affect stability or performance. Use with caution."
+msgstr "Labs features are experimental and may affect stability or performance. Use with caution."
+
+msgid "CDN Optimization"
+msgstr "CDN Optimization"
+
+msgid "URL Rewrite"
+msgstr "URL Rewrite"
+
+msgid "CDN Smart Optimization"
+msgstr "CDN Smart Optimization"
+
+msgid "Selects optimal edge IPs to bypass DNS pollution and boost download speeds"
+msgstr "Selects optimal edge IPs to bypass DNS pollution and boost download speeds"
+
+msgid "Enable CDN Optimization"
+msgstr "Enable CDN Optimization"
+
+msgid "Automatically applies high-speed edge IPs when initiating HTTP downloads"
+msgstr "Automatically applies high-speed edge IPs when initiating HTTP downloads"
+
+msgid "Optimization Provider (cloudflare / fastly / custom):"
+msgstr "Optimization Provider (cloudflare / fastly / custom):"
+
+msgid "Custom Speedtest File URL:"
+msgstr "Custom Speedtest File URL:"
+
+msgid "Custom CIDR Ranges (comma separated):"
+msgstr "Custom CIDR Ranges (comma separated):"
+
+msgid "Retest Speed"
+msgstr "Retest Speed"
+
+msgid "Start Speedtest"
+msgstr "Start Speedtest"
+
+msgid "Stop Speedtest"
+msgstr "Stop Speedtest"
+
+msgid "Clear Optimization"
+msgstr "Clear Optimization"
+
+msgid "Tip: Speedtest will consume approx 20-50MB traffic to measure candidate node throughput."
+msgstr "Tip: Speedtest will consume approx 20-50MB traffic to measure candidate node throughput."
+
+msgid "Speedtest Failed: "
+msgstr "Speedtest Failed: "
+
+msgid "Active Node"
+msgstr "Active Node"
+
+msgid "Measured Bandwidth"
+msgstr "Measured Bandwidth"
+
+msgid "Test Time"
+msgstr "Test Time"
+
+msgid "vs Direct: "
+msgstr "vs Direct: "
+
+msgid "Latency Diff: "
+msgstr "Latency Diff: "
+
+msgid "Benchmark: "
+msgstr "Benchmark: "
+
+msgid "Candidate Nodes Details:"
+msgstr "Candidate Nodes Details:"
+
+msgid "TCP Latency"
+msgstr "TCP Latency"
+
+msgid "Bandwidth"
+msgstr "Bandwidth"
+
+msgid "Action"
+msgstr "Action"
+
+msgid "Active"
+msgstr "Active"
+
+msgid "Failed"
+msgstr "Failed"
+
+msgid "Standby"
+msgstr "Standby"
+
+msgid "Apply"
+msgstr "Apply"
+
+msgid "Advanced Ranges & Manual IP Override"
+msgstr "Advanced Ranges & Manual IP Override"
+
+msgid "Collapse"
+msgstr "Collapse"
+
+msgid "Expand"
+msgstr "Expand"
+
+msgid "Cloudflare Preset CIDRs:"
+msgstr "Cloudflare Preset CIDRs:"
+
+msgid "Manual IP Override (Applies immediately):"
+msgstr "Manual IP Override (Applies immediately):"
+
+msgid "e.g. 104.16.0.1"
+msgstr "e.g. 104.16.0.1"
+
+msgid "Apply Now"
+msgstr "Apply Now"
+
+msgid "URL Mirror Rewrite & Dispatch"
+msgstr "URL Mirror Rewrite & Dispatch"
+
+msgid "Automatically redirect GitHub, Hugging Face, etc. downloads to high-speed mirrors based on domains or regex"
+msgstr "Automatically redirect GitHub, Hugging Face, etc. downloads to high-speed mirrors based on domains or regex"
+
+msgid "Import Presets:"
+msgstr "Import Presets:"
+
+msgid "GitHub Mirrors"
+msgstr "GitHub Mirrors"
+
+msgid "Add Rule"
+msgstr "Add Rule"
+
+msgid "No rewrite rules configured"
+msgstr "No rewrite rules configured"
+
+msgid "Click \"Import Presets\" or \"Add Rule\" above to configure"
+msgstr "Click \"Import Presets\" or \"Add Rule\" above to configure"
+
+msgid "Unnamed Rule"
+msgstr "Unnamed Rule"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Rule Name:"
+msgstr "Rule Name:"
+
+msgid "e.g. GitHub Mirrors"
+msgstr "e.g. GitHub Mirrors"
+
+msgid "Match Type (host / prefix / regex / wildcard):"
+msgstr "Match Type (host / prefix / regex / wildcard):"
+
+msgid "Match Pattern:"
+msgstr "Match Pattern:"
+
+msgid "Replacement Mode (prefix_proxy / template):"
+msgstr "Replacement Mode (prefix_proxy / template):"
+
+msgid "URL Encode Original (Recommended)"
+msgstr "URL Encode Original (Recommended)"
+
+msgid "Fallback to Original on Failure (Recommended)"
+msgstr "Fallback to Original on Failure (Recommended)"
+
+msgid "Mirror Targets (top-to-bottom priority):"
+msgstr "Mirror Targets (top-to-bottom priority):"
+
+msgid "Add Target"
+msgstr "Add Target"
+
+msgid "Live Test Sandbox"
+msgstr "Live Test Sandbox"
+
+msgid "Input Test URL:"
+msgstr "Input Test URL:"
+
+msgid "Matched Rule: "
+msgstr "Matched Rule: "
+
+msgid "No rewrite rules matched. Original URL will be used."
+msgstr "No rewrite rules matched. Original URL will be used."
+
+msgid "Save Config"
+msgstr "Save Config"
+
+msgid "All Tasks"
+msgstr "All Tasks"
+
+msgid "Downloading"
+msgstr "Downloading"
+
+msgid "Paused"
+msgstr "Paused"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Failed / Error"
+msgstr "Failed / Error"
+
+msgid "Realtime Download Speed"
+msgstr "Realtime Download Speed"
+
+msgid "Sort:"
+msgstr "Sort:"
+
+msgid "Time"
+msgstr "Time"
+
+msgid "Size"
+msgstr "Size"
+
+msgid "Speed"
+msgstr "Speed"
+
+msgid "Ascending"
+msgstr "Ascending"
+
+msgid "Descending"
+msgstr "Descending"
+
+msgid "Pause All"
+msgstr "Pause All"
+
+msgid "Resume All"
+msgstr "Resume All"
+
+msgid "New Task"
+msgstr "New Task"
+
+msgid "No matching download tasks found"
+msgstr "No matching download tasks found"
+
+msgid "No download tasks"
+msgstr "No download tasks"
+
+msgid "Try clearing your search keywords"
+msgstr "Try clearing your search keywords"
+
+msgid "Click \"New Task\" in the top-right corner to add HTTP / BT downloads"
+msgstr "Click \"New Task\" in the top-right corner to add HTTP / BT downloads"
+
+msgid "Selected "
+msgstr "Selected "
+
+msgid " tasks"
+msgstr " tasks"
+
+msgid "Select All"
+msgstr "Select All"
+
+msgid "Deselect"
+msgstr "Deselect"
+
+msgid "Pause Selected"
+msgstr "Pause Selected"
+
+msgid "Resume Selected"
+msgstr "Resume Selected"
+
+msgid "Remove Records"
+msgstr "Remove Records"
+
+msgid "Delete Files"
+msgstr "Delete Files"

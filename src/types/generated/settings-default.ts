@@ -22,7 +22,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
       "speed",
       "eta"
     ],
-    "closeBehavior": "minimizeToTray"
+    "closeBehavior": "minimizeToTray",
+    "language": ""
   },
   "proxy": {
     "mode": "disabled",

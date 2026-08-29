@@ -28,6 +28,7 @@ notify-rust = "4"
 rfd = "0.16"
 arboard = "3.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
+sys-locale = "0.3"
 
 [build-dependencies]
 slint-build = { workspace = true }

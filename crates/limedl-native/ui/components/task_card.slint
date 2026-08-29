@@ -158,28 +158,28 @@ export component TaskCard inherits Rectangle {
                     alignment: end;
 
                     IconButton {
-                        text: "详情";
+                        text: @tr("Details");
                         icon: @image-url("../assets/icons/information-line.svg");
                         text_color: #38bdf8;
                         clicked => { root.open_inspector(); }
                     }
 
                     if root.item.can_pause : IconButton {
-                        text: "暂停";
+                        text: @tr("Pause");
                         icon: @image-url("../assets/icons/pause-line.svg");
                         text_color: #facc15;
                         clicked => { root.pause_task(); }
                     }
 
                     if root.item.can_resume : IconButton {
-                        text: "继续";
+                        text: @tr("Resume");
                         icon: @image-url("../assets/icons/play-line.svg");
                         text_color: #4ade80;
                         clicked => { root.resume_task(); }
                     }
 
                     IconButton {
-                        text: "目录";
+                        text: @tr("Folder");
                         icon: @image-url("../assets/icons/folder-open-line.svg");
                         text_color: #9ca3af;
                         clicked => { root.open_explorer(); }

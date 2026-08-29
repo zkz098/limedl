@@ -11,6 +11,7 @@ use limedl_core::types::{
 };
 use slint::{Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 
+use crate::i18n::{self, Language};
 use crate::{
     CdnCandidateItem, InspectorInfo, LabsFormData, PeerItem, SettingsFormData, TaskItem,
     TorrentFileItem, TrackerItem, UrlRewriteRuleItem, UrlRewriteTargetItem,
@@ -45,23 +46,8 @@ pub fn format_speed(speed: Option<f64>) -> String {
 }
 
 /// Format ETA seconds.
-pub fn format_eta(eta: Option<u64>) -> String {
-    match eta {
-        Some(s) if s > 0 => {
-            if s >= 3600 {
-                let h = s / 3600;
-                let m = (s % 3600) / 60;
-                format!("剩余 {h}小时{m}分")
-            } else if s >= 60 {
-                let m = s / 60;
-                let sec = s % 60;
-                format!("剩余 {m}分{sec}秒")
-            } else {
-                format!("剩余 {s}秒")
-            }
-        }
-        _ => String::new(),
-    }
+pub fn format_eta(eta: Option<u64>, lang: Language) -> String {
+    i18n::format_eta(eta, lang)
 }
 
 /// Supported sort fields for task list.
@@ -88,17 +74,18 @@ impl From<i32> for SortField {
 }
 
 /// Convert a `DownloadSummary` into a Slint `TaskItem`.
-pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool) -> TaskItem {
-    let (state_code, state_label, can_pause, can_resume, is_completed, is_failed) = match summary.state {
-        DownloadState::Downloading => ("downloading", "下载中", true, false, false, false),
-        DownloadState::Paused => ("paused", "已暂停", false, true, false, false),
-        DownloadState::Completed => ("completed", "已完成", false, false, true, false),
-        DownloadState::Failed => ("failed", "失败", false, true, false, true),
-        DownloadState::Canceled => ("failed", "已取消", false, true, false, true),
-        DownloadState::Queued => ("queued", "排队中", true, false, false, false),
-        DownloadState::Retrying => ("downloading", "重试中", true, false, false, false),
-        DownloadState::Verifying => ("verifying", "校验中", false, false, false, false),
+pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Language) -> TaskItem {
+    let (state_code, can_pause, can_resume, is_completed, is_failed) = match summary.state {
+        DownloadState::Downloading => ("downloading", true, false, false, false),
+        DownloadState::Paused => ("paused", false, true, false, false),
+        DownloadState::Completed => ("completed", false, false, true, false),
+        DownloadState::Failed => ("failed", false, true, false, true),
+        DownloadState::Canceled => ("failed", false, true, false, true),
+        DownloadState::Queued => ("queued", true, false, false, false),
+        DownloadState::Retrying => ("downloading", true, false, false, false),
+        DownloadState::Verifying => ("verifying", false, false, false, false),
     };
+    let state_label = i18n::format_state_label(&summary.state, lang);
 
     let progress = match summary.total_bytes {
         Some(total) if total > 0 => {
@@ -133,7 +120,7 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool) -> TaskIt
         progress,
         speed_text: SharedString::from(format_speed(summary.speed_bytes_per_second)),
         size_text: SharedString::from(size_text),
-        eta_text: SharedString::from(format_eta(summary.eta_seconds)),
+        eta_text: SharedString::from(format_eta(summary.eta_seconds, lang)),
         can_pause,
         can_resume,
         is_completed,
@@ -143,17 +130,8 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool) -> TaskIt
 }
 
 /// Convert a `DownloadSummary` into a Slint `InspectorInfo`.
-pub fn summary_to_inspector_info(summary: &DownloadSummary) -> InspectorInfo {
-    let state_label = match summary.state {
-        DownloadState::Downloading => "下载中",
-        DownloadState::Paused => "已暂停",
-        DownloadState::Completed => "已完成",
-        DownloadState::Failed => "失败",
-        DownloadState::Canceled => "已取消",
-        DownloadState::Queued => "排队中",
-        DownloadState::Retrying => "重试中",
-        DownloadState::Verifying => "校验中",
-    };
+pub fn summary_to_inspector_info(summary: &DownloadSummary, lang: Language) -> InspectorInfo {
+    let state_label = i18n::format_state_label(&summary.state, lang);
 
     let progress = match summary.total_bytes {
         Some(total) if total > 0 => {
@@ -176,20 +154,20 @@ pub fn summary_to_inspector_info(summary: &DownloadSummary) -> InspectorInfo {
     let total_size_text = summary
         .total_bytes
         .map(format_bytes)
-        .unwrap_or_else(|| "未知".to_string());
+        .unwrap_or_else(|| i18n::format_unknown(lang).to_string());
     let downloaded_size_text = format_bytes(summary.downloaded_bytes);
     let uploaded_size_text = summary.uploaded_bytes.map(format_bytes).unwrap_or_default();
 
-    let threads_text = format!(
-        "{:?} (已分配: {} 线程)",
-        summary.thread_mode,
-        summary.allocated_thread_count.unwrap_or(1)
+    let threads_text = i18n::format_threads_text(
+        Some(match summary.thread_mode {
+            limedl_core::types::ThreadMode::Adaptive => "Adaptive",
+            limedl_core::types::ThreadMode::Fixed => "Fixed",
+        }),
+        summary.allocated_thread_count.unwrap_or(1),
+        lang,
     );
 
-    let seed_leech_text = match (summary.seed_count, summary.leech_count) {
-        (Some(s), Some(l)) => format!("做种: {s} | 下载: {l}"),
-        _ => String::new(),
-    };
+    let seed_leech_text = i18n::format_seed_leech(summary.seed_count, summary.leech_count, lang);
 
     InspectorInfo {
         id: SharedString::from(&summary.id),
@@ -203,7 +181,7 @@ pub fn summary_to_inspector_info(summary: &DownloadSummary) -> InspectorInfo {
         total_size_text: SharedString::from(total_size_text),
         downloaded_size_text: SharedString::from(downloaded_size_text),
         uploaded_size_text: SharedString::from(uploaded_size_text),
-        eta_text: SharedString::from(format_eta(summary.eta_seconds)),
+        eta_text: SharedString::from(format_eta(summary.eta_seconds, lang)),
         progress,
         connection_count: summary.connection_count as i32,
         threads_text: SharedString::from(threads_text),
@@ -251,10 +229,10 @@ pub fn file_status_to_item(file: &BtFileStatus) -> TorrentFileItem {
 }
 
 /// Generate a dynamic piece map bitmap image and summary label from `BtPieceInfo` slice.
-pub fn generate_piece_map_image(pieces: &[BtPieceInfo]) -> (Image, String) {
+pub fn generate_piece_map_image(pieces: &[BtPieceInfo], lang: Language) -> (Image, String) {
     if pieces.is_empty() {
         let buf = SharedPixelBuffer::<Rgba8Pixel>::new(1, 1);
-        return (Image::from_rgba8(buf), "暂无分片数据".to_string());
+        return (Image::from_rgba8(buf), i18n::format_piece_map_summary(0, 0, 0.0, lang));
     }
 
     let total = pieces.len();
@@ -265,7 +243,7 @@ pub fn generate_piece_map_image(pieces: &[BtPieceInfo]) -> (Image, String) {
         0.0
     };
 
-    let summary_text = format!("{completed} / {total} 分片 ({percent:.1}%)");
+    let summary_text = i18n::format_piece_map_summary(completed, total, percent, lang);
 
     let cols: u32 = if total > 2000 {
         64
@@ -483,6 +461,7 @@ pub fn app_settings_to_form(
     overclock_mode: bool,
     io_status_text: &str,
     disk_type_text: &str,
+    lang: Language,
 ) -> SettingsFormData {
     let speed_limit_kb = if settings.global_speed_limit_bps > 0 {
         (settings.global_speed_limit_bps / 1024).to_string()
@@ -500,6 +479,12 @@ pub fn app_settings_to_form(
         "0".to_string()
     };
 
+    let language_val = if settings.appearance.language.is_empty() {
+        lang.as_bcp47()
+    } else {
+        settings.appearance.language.as_str()
+    };
+
     SettingsFormData {
         // 常规下载
         default_download_dir: SharedString::from(&settings.download.default_download_dir),
@@ -515,7 +500,7 @@ pub fn app_settings_to_form(
         appearance_color_mode: color_mode_to_str(&settings.appearance.color_mode),
         appearance_theme_color: theme_color_to_str(&settings.appearance.theme_color),
         appearance_background_opacity: background_opacity_to_str(&settings.appearance.background_opacity),
-        appearance_language: SharedString::from("zh-CN"),
+        appearance_language: SharedString::from(language_val),
         appearance_close_behavior: close_behavior_to_str(&settings.appearance.close_behavior),
         appearance_show_detail_info: settings.appearance.show_detail_info,
         autostart: settings.autostart,
@@ -685,6 +670,7 @@ pub fn update_app_settings_from_form(settings: &mut AppSettings, form: &Settings
     }
     settings.appearance.background_opacity =
         str_to_background_opacity(form.appearance_background_opacity.as_str());
+    settings.appearance.language = form.appearance_language.trim().to_string();
     match form.appearance_close_behavior.as_str() {
         "exit" => settings.appearance.close_behavior = CloseBehavior::Exit,
         _ => settings.appearance.close_behavior = CloseBehavior::MinimizeToTray,
@@ -963,10 +949,16 @@ pub struct TaskStore {
     sort_field: SortField,
     sort_asc: bool,
     selected_ids: HashSet<String>,
+    language: Language,
 }
 
 impl TaskStore {
+    #[allow(dead_code)]
     pub fn new() -> Self {
+        Self::with_language(Language::default())
+    }
+
+    pub fn with_language(lang: Language) -> Self {
         Self {
             tasks: HashMap::new(),
             current_category: 0,
@@ -974,7 +966,16 @@ impl TaskStore {
             sort_field: SortField::Created,
             sort_asc: false,
             selected_ids: HashSet::new(),
+            language: lang,
         }
+    }
+
+    pub fn set_language(&mut self, lang: Language) {
+        self.language = lang;
+    }
+
+    pub fn language(&self) -> Language {
+        self.language
     }
 
     pub fn set_category(&mut self, cat: i32) {
@@ -1202,7 +1203,7 @@ impl TaskStore {
             .into_iter()
             .map(|summary| {
                 let is_selected = self.selected_ids.contains(&summary.id);
-                summary_to_task_item(summary, is_selected)
+                summary_to_task_item(summary, is_selected, self.language)
             })
             .collect()
     }
@@ -1225,16 +1226,17 @@ pub fn app_settings_to_labs_form(
     test_url: &str,
     matched_rule: &str,
     candidates: &[String],
+    lang: Language,
 ) -> LabsFormData {
     let cdn = &settings.cdn_acceleration;
     let (status_type, status_label) = if is_testing {
-        ("testing", "测速中")
+        ("testing", match lang { Language::ZhCn => "测速中", Language::EnUs => "Testing" })
     } else if cdn.last_error.is_some() {
-        ("error", "测速失败")
+        ("error", match lang { Language::ZhCn => "测速失败", Language::EnUs => "Failed" })
     } else if cdn.active_ip.is_some() {
-        ("ready", "准备就绪")
+        ("ready", match lang { Language::ZhCn => "准备就绪", Language::EnUs => "Ready" })
     } else {
-        ("idle", "未配置")
+        ("idle", match lang { Language::ZhCn => "未配置", Language::EnUs => "Not Configured" })
     };
 
     let active_speed_text = cdn
@@ -1596,10 +1598,10 @@ mod tests {
 
     #[test]
     fn test_format_eta() {
-        assert_eq!(format_eta(Some(30)), "剩余 30秒");
-        assert_eq!(format_eta(Some(125)), "剩余 2分5秒");
-        assert_eq!(format_eta(Some(3665)), "剩余 1小时1分");
-        assert_eq!(format_eta(None), "");
+        assert_eq!(format_eta(Some(30), Language::ZhCn), "剩余 30秒");
+        assert_eq!(format_eta(Some(125), Language::ZhCn), "剩余 2分5秒");
+        assert_eq!(format_eta(Some(3665), Language::ZhCn), "剩余 1小时1分");
+        assert_eq!(format_eta(None, Language::ZhCn), "");
     }
 
     #[test]
@@ -1611,7 +1613,7 @@ mod tests {
             BtPieceInfo { index: 3, completed: true },
         ];
 
-        let (_img, text) = generate_piece_map_image(&pieces);
+        let (_img, text) = generate_piece_map_image(&pieces, Language::ZhCn);
         assert!(text.contains("3 / 4"));
         assert!(text.contains("75.0%"));
     }
@@ -1628,7 +1630,7 @@ mod tests {
             12345,
         );
 
-        let info = summary_to_inspector_info(&summary);
+        let info = summary_to_inspector_info(&summary, Language::ZhCn);
         assert_eq!(info.id.as_str(), "bt:abc");
         assert_eq!(info.file_name.as_str(), "ubuntu.torrent");
         assert_eq!(info.state_label.as_str(), "下载中");
@@ -1675,7 +1677,7 @@ mod tests {
         settings.bt.dht_enabled = true;
         settings.bt.listen_port = Some(6882);
 
-        let form = app_settings_to_form(&settings, true, false, "IO OK", "D: SSD");
+        let form = app_settings_to_form(&settings, true, false, "IO OK", "D: SSD", Language::ZhCn);
         assert_eq!(form.default_download_dir.as_str(), "/custom/downloads");
         assert_eq!(form.max_parallel_tasks.as_str(), "5");
         assert_eq!(form.global_speed_limit_kb.as_str(), "500");
@@ -1837,6 +1839,7 @@ mod tests {
             "https://raw.github.com/user/repo/master/README.md",
             "GitHub 镜像",
             &["https://ghproxy.net/https://raw.github.com/user/repo/master/README.md".to_string()],
+            Language::ZhCn,
         );
 
         assert!(form.cdn_enabled);

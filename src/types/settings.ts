@@ -1,7 +1,6 @@
 // ── Re-exported generated types (single source of truth from Rust) ──
 export type {
   AdaptiveProfile,
-  AppearanceSettings,
   AutomaticSchedulerSettings,
   BackgroundOpacityPreset,
   BtEncryptionMode,
@@ -33,6 +32,7 @@ export type {
 } from "./generated/types";
 
 import type {
+  AppearanceSettings as GeneratedAppearanceSettings,
   AppSettings as GeneratedAppSettings,
   Aria2RpcSettings as GeneratedAria2RpcSettings,
   CdnAccelerationSettings as GeneratedCdnAccelerationSettings,
@@ -41,6 +41,11 @@ import type {
   UrlRewriteRule as GeneratedUrlRewriteRule,
   UrlRewriteSettings as GeneratedUrlRewriteSettings,
 } from "./generated/types";
+
+/** AppearanceSettings with optional language for backward compatibility. */
+export interface AppearanceSettings extends Omit<GeneratedAppearanceSettings, "language"> {
+  language?: string;
+}
 
 /** Aria2RpcSettings as generated from Rust. */
 export type Aria2RpcSettings = GeneratedAria2RpcSettings;
@@ -86,8 +91,9 @@ export interface UrlRewriteSettings extends Omit<GeneratedUrlRewriteSettings, "r
  */
 export type AppSettings = Omit<
   GeneratedAppSettings,
-  "ioBaseline" | "urlRewrite" | "aria2Rpc" | "cdnAcceleration"
+  "appearance" | "ioBaseline" | "urlRewrite" | "aria2Rpc" | "cdnAcceleration"
 > & {
+  appearance: AppearanceSettings;
   ioBaseline: IoBaselineSettings;
   urlRewrite: UrlRewriteSettings;
   aria2Rpc: Aria2RpcSettings;

@@ -32,7 +32,7 @@ export component SpeedLimitDialog inherits Rectangle {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: "单任务速度限制";
+                    text: @tr("Task Speed Limit");
                     color: #f3f4f6;
                     font-size: 15px;
                     font-weight: 700;
@@ -46,7 +46,7 @@ export component SpeedLimitDialog inherits Rectangle {
 
             VerticalLayout {
                 spacing: 4px;
-                Text { text: "下载速率限制 (0 为不限制):"; color: #9ca3af; font-size: 12px; }
+                Text { text: @tr("Download Rate Limit (0 for unlimited):"); color: #9ca3af; font-size: 12px; }
                 UnitInput {
                     text <=> root.speed_limit_dl_kb;
                     placeholder: "0";
@@ -56,7 +56,7 @@ export component SpeedLimitDialog inherits Rectangle {
 
             VerticalLayout {
                 spacing: 4px;
-                Text { text: "上传速率限制 (0 为不限制):"; color: #9ca3af; font-size: 12px; }
+                Text { text: @tr("Upload Rate Limit (0 for unlimited):"); color: #9ca3af; font-size: 12px; }
                 UnitInput {
                     text <=> root.speed_limit_ul_kb;
                     placeholder: "0";
@@ -70,11 +70,11 @@ export component SpeedLimitDialog inherits Rectangle {
                 alignment: end;
                 spacing: 10px;
                 SecondaryButton {
-                    text: "取消";
+                    text: @tr("Cancel");
                     clicked => { root.close(); }
                 }
                 PrimaryButton {
-                    text: "应用限速";
+                    text: @tr("Apply Speed Limit");
                     icon: @image-url("../assets/icons/speed-up-line.svg");
                     clicked => {
                         root.submit(root.speed_limit_dl_kb, root.speed_limit_ul_kb);

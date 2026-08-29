@@ -83,37 +83,37 @@ export component ContextMenu inherits Rectangle {
             spacing: 2px;
 
             MenuItem {
-                text: "查看详情";
+                text: @tr("View Details");
                 icon: @image-url("../assets/icons/information-line.svg");
                 clicked => { root.open_inspector(root.menu_state.task_id); root.close(); }
             }
 
             if root.menu_state.can_pause : MenuItem {
-                text: "暂停任务";
+                text: @tr("Pause Task");
                 icon: @image-url("../assets/icons/pause-line.svg");
                 clicked => { root.pause_task(root.menu_state.task_id); root.close(); }
             }
 
             if root.menu_state.can_resume : MenuItem {
-                text: "继续任务";
+                text: @tr("Resume Task");
                 icon: @image-url("../assets/icons/play-line.svg");
                 clicked => { root.resume_task(root.menu_state.task_id); root.close(); }
             }
 
             MenuItem {
-                text: "打开所在目录";
+                text: @tr("Open Containing Folder");
                 icon: @image-url("../assets/icons/folder-open-line.svg");
                 clicked => { root.open_explorer(root.menu_state.task_id); root.close(); }
             }
 
             MenuItem {
-                text: "复制下载链接";
+                text: @tr("Copy Download Link");
                 icon: @image-url("../assets/icons/file-copy-line.svg");
                 clicked => { root.copy_url(root.menu_state.task_url); root.close(); }
             }
 
             if root.menu_state.is_bt : MenuItem {
-                text: "设置速度限制";
+                text: @tr("Set Speed Limit");
                 icon: @image-url("../assets/icons/speed-up-line.svg");
                 clicked => { root.open_speed_limit(root.menu_state.task_id); root.close(); }
             }
@@ -124,13 +124,13 @@ export component ContextMenu inherits Rectangle {
             }
 
             MenuItem {
-                text: "移除记录";
+                text: @tr("Remove Record");
                 icon: @image-url("../assets/icons/delete-bin-line.svg");
                 clicked => { root.remove_task(root.menu_state.task_id); root.close(); }
             }
 
             MenuItem {
-                text: "彻底删除文件";
+                text: @tr("Delete File Permanently");
                 icon: @image-url("../assets/icons/delete-bin-6-line.svg");
                 danger: true;
                 clicked => { root.purge_task(root.menu_state.task_id); root.close(); }

@@ -214,6 +214,9 @@ pub struct AppearanceSettings {
     /// Behavior when closing the main window: exit or minimize to tray.
     #[serde(default)]
     pub close_behavior: CloseBehavior,
+    /// User interface language: e.g. "zh-CN", "en-US", or empty for system default.
+    #[serde(default)]
+    pub language: String,
 }
 
 impl Default for AppearanceSettings {
@@ -229,6 +232,7 @@ impl Default for AppearanceSettings {
             compact_view: false,
             visible_columns: default_visible_columns(),
             close_behavior: Default::default(),
+            language: String::new(),
         }
     }
 }

@@ -17,7 +17,11 @@ export type AppearanceSettings = { themeColor: ThemeColor, backgroundOpacity: Ba
 /**
  * Behavior when closing the main window: exit or minimize to tray.
  */
-closeBehavior: CloseBehavior, };
+closeBehavior: CloseBehavior, 
+/**
+ * User interface language: e.g. "zh-CN", "en-US", or empty for system default.
+ */
+language: string, };
 
 export type Aria2RpcSettings = { enabled: boolean, port: number, secret: string | null, 
 /**

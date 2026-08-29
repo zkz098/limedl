@@ -241,35 +241,35 @@ export component MainWindow inherits Window {
                 VerticalLayout {
                     spacing: 4px;
                     CategoryButton {
-                        title: "全部任务";
+                        title: @tr("All Tasks");
                         icon_source: @image-url("assets/icons/download-cloud-2-line.svg");
                         count_text: root.count_all;
                         active: root.active_category == 0;
                         clicked => { root.select_category(0); }
                     }
                     CategoryButton {
-                        title: "正在下载";
+                        title: @tr("Downloading");
                         icon_source: @image-url("assets/icons/download-line.svg");
                         count_text: root.count_downloading;
                         active: root.active_category == 1;
                         clicked => { root.select_category(1); }
                     }
                     CategoryButton {
-                        title: "已暂停";
+                        title: @tr("Paused");
                         icon_source: @image-url("assets/icons/pause-circle-line.svg");
                         count_text: root.count_paused;
                         active: root.active_category == 2;
                         clicked => { root.select_category(2); }
                     }
                     CategoryButton {
-                        title: "已完成";
+                        title: @tr("Completed");
                         icon_source: @image-url("assets/icons/checkbox-circle-line.svg");
                         count_text: root.count_completed;
                         active: root.active_category == 3;
                         clicked => { root.select_category(3); }
                     }
                     CategoryButton {
-                        title: "失败/错误";
+                        title: @tr("Failed / Error");
                         icon_source: @image-url("assets/icons/error-warning-line.svg");
                         count_text: root.count_failed;
                         active: root.active_category == 4;
@@ -313,7 +313,7 @@ export component MainWindow inherits Window {
                                     }
                                 }
                                 Text {
-                                    text: "游戏模式";
+                                    text: @tr("Game Mode");
                                     color: root.game_mode_active ? #f59e0b : #9ca3af;
                                     font-size: 12px;
                                     font-weight: 500;
@@ -359,7 +359,7 @@ export component MainWindow inherits Window {
                                     }
                                 }
                                 Text {
-                                    text: "超频模式";
+                                    text: @tr("Overclock Mode");
                                     color: root.overclock_mode_active ? #ec4899 : #9ca3af;
                                     font-size: 12px;
                                     font-weight: 500;
@@ -390,7 +390,7 @@ export component MainWindow inherits Window {
                         padding-right: 12px;
                         alignment: space-around;
                         Text {
-                            text: "实时总下载速率";
+                            text: @tr("Realtime Download Speed");
                             color: #8b95a5;
                             font-size: 10px;
                             font-weight: 500;
@@ -438,7 +438,7 @@ export component MainWindow inherits Window {
                             }
 
                             Text {
-                                text: "设置";
+                                text: @tr("Settings");
                                 color: ta_set.has_hover ? #ffffff : #d1d5db;
                                 font-size: 12px;
                                 font-weight: 600;
@@ -477,7 +477,7 @@ export component MainWindow inherits Window {
                             }
 
                             Text {
-                                text: "实验室";
+                                text: @tr("Labs");
                                 color: ta_lab.has_hover ? #a3e635 : #d1d5db;
                                 font-size: 12px;
                                 font-weight: 600;
@@ -513,10 +513,10 @@ export component MainWindow inherits Window {
                         VerticalLayout {
                             alignment: center;
                             Text {
-                                text: root.active_category == 0 ? "全部任务" : (
-                                    root.active_category == 1 ? "正在下载" : (
-                                        root.active_category == 2 ? "已暂停" : (
-                                            root.active_category == 3 ? "已完成" : "失败/错误"
+                                text: root.active_category == 0 ? @tr("All Tasks") : (
+                                    root.active_category == 1 ? @tr("Downloading") : (
+                                        root.active_category == 2 ? @tr("Paused") : (
+                                            root.active_category == 3 ? @tr("Completed") : @tr("Failed / Error")
                                         )
                                     )
                                 );
@@ -547,35 +547,35 @@ export component MainWindow inherits Window {
                             alignment: center;
 
                             Text {
-                                text: "排序:";
+                                text: @tr("Sort:");
                                 color: #6b7280;
                                 font-size: 11px;
                                 vertical-alignment: center;
                             }
 
                             SecondaryButton {
-                                text: "时间";
+                                text: @tr("Time");
                                 active: root.sort_field == 0;
                                 clicked => { root.set_sort_field(0); }
                             }
                             SecondaryButton {
-                                text: "大小";
+                                text: @tr("Size");
                                 active: root.sort_field == 1;
                                 clicked => { root.set_sort_field(1); }
                             }
                             SecondaryButton {
-                                text: "速度";
+                                text: @tr("Speed");
                                 active: root.sort_field == 2;
                                 clicked => { root.set_sort_field(2); }
                             }
                             SecondaryButton {
-                                text: "进度";
+                                text: @tr("Progress");
                                 active: root.sort_field == 3;
                                 clicked => { root.set_sort_field(3); }
                             }
 
                             IconButton {
-                                text: root.sort_asc ? "升序" : "降序";
+                                text: root.sort_asc ? @tr("Ascending") : @tr("Descending");
                                 icon: @image-url("assets/icons/arrow-up-down-line.svg");
                                 text_color: #a3e635;
                                 clicked => { root.toggle_sort_asc(); }
@@ -592,19 +592,19 @@ export component MainWindow inherits Window {
                         }
 
                         SecondaryButton {
-                            text: "全部暂停";
+                            text: @tr("Pause All");
                             icon: @image-url("assets/icons/pause-line.svg");
                             clicked => { root.pause_all(); }
                         }
 
                         SecondaryButton {
-                            text: "全部继续";
+                            text: @tr("Resume All");
                             icon: @image-url("assets/icons/play-line.svg");
                             clicked => { root.resume_all(); }
                         }
 
                         PrimaryButton {
-                            text: "新建任务";
+                            text: @tr("New Task");
                             icon: @image-url("assets/icons/add-line.svg");
                             clicked => { root.open_new_task_dialog(); }
                         }
@@ -620,14 +620,14 @@ export component MainWindow inherits Window {
                     alignment: center;
                     spacing: 12px;
                     Text {
-                        text: root.search_query != "" ? "未找到匹配的下载任务" : "暂无下载任务";
+                        text: root.search_query != "" ? @tr("No matching download tasks found") : @tr("No download tasks");
                         color: #6b7280;
                         font-size: 16px;
                         font-weight: 500;
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: root.search_query != "" ? "尝试清除搜索关键词" : "点击右上角「新建任务」添加 HTTP / BT 下载";
+                        text: root.search_query != "" ? @tr("Try clearing your search keywords") : @tr("Click \"New Task\" in the top-right corner to add HTTP / BT downloads");
                         color: #4b5563;
                         font-size: 13px;
                         horizontal-alignment: center;
@@ -692,7 +692,7 @@ export component MainWindow inherits Window {
                             alignment: start;
 
                             Text {
-                                text: "已选择 " + root.selected_count + " 个任务";
+                                text: @tr("Selected ") + root.selected_count + @tr(" tasks");
                                 color: #84cc16;
                                 font-size: 13px;
                                 font-weight: 700;
@@ -700,13 +700,13 @@ export component MainWindow inherits Window {
                             }
 
                             IconButton {
-                                text: "全选";
+                                text: @tr("Select All");
                                 text_color: #9ca3af;
                                 clicked => { root.select_all(); }
                             }
 
                             IconButton {
-                                text: "取消选择";
+                                text: @tr("Deselect");
                                 text_color: #9ca3af;
                                 clicked => { root.clear_selection(); }
                             }
@@ -717,25 +717,25 @@ export component MainWindow inherits Window {
                             alignment: end;
 
                             SecondaryButton {
-                                text: "批量暂停";
+                                text: @tr("Pause Selected");
                                 icon: @image-url("assets/icons/pause-line.svg");
                                 clicked => { root.batch_pause(); }
                             }
 
                             SecondaryButton {
-                                text: "批量继续";
+                                text: @tr("Resume Selected");
                                 icon: @image-url("assets/icons/play-line.svg");
                                 clicked => { root.batch_resume(); }
                             }
 
                             SecondaryButton {
-                                text: "移除记录";
+                                text: @tr("Remove Records");
                                 icon: @image-url("assets/icons/delete-bin-line.svg");
                                 clicked => { root.batch_remove(false); }
                             }
 
                             PrimaryButton {
-                                text: "彻底删除";
+                                text: @tr("Delete Files");
                                 icon: @image-url("assets/icons/delete-bin-6-line.svg");
                                 clicked => { root.batch_remove(true); }
                             }

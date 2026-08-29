@@ -1,6 +1,7 @@
 slint::include_modules!();
 
 mod bridge;
+mod i18n;
 
 use std::collections::HashSet;
 use std::net::IpAddr;
@@ -32,6 +33,7 @@ use crate::bridge::{
     str_to_match_type, str_to_replacement_mode, summary_to_inspector_info, tracker_info_to_item,
     update_app_settings_from_form, update_app_settings_from_labs_form, url_rewrite_rules_to_slint,
 };
+use crate::i18n::Language;
 
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     let (all, downloading, paused, completed, failed) = store.counts();
@@ -62,10 +64,11 @@ fn refresh_settings_state(
     settings: &AppSettings,
     game_mode: bool,
     overclock_mode: bool,
+    lang: Language,
 ) {
     let io_status_str = match dispatcher.get_io_status() {
         Ok(v) => format_io_status_json(&v),
-        Err(_) => "智能缓冲池未就绪".to_string(),
+        Err(_) => i18n::format_io_status_not_ready(lang).to_string(),
     };
     let disk_types = dispatcher.detect_all_disk_types();
     let disk_types_str = format_disk_types_map(&disk_types);
@@ -76,6 +79,7 @@ fn refresh_settings_state(
         overclock_mode,
         &io_status_str,
         &disk_types_str,
+        lang,
     );
 
     ui.set_settings_form(form_data);
@@ -92,6 +96,7 @@ fn refresh_labs_state(
     test_url: &str,
     is_testing: bool,
     candidates: &[limedl_core::cdn::speed_test::SpeedTestResult],
+    lang: Language,
 ) {
     let (matched_rule, candidate_urls) = evaluate_url_rewrite(rules, test_url);
 
@@ -103,22 +108,48 @@ fn refresh_labs_state(
     let form_data = app_settings_to_labs_form(
         settings,
         is_testing,
-        if is_testing { "测速中" } else { "准备就绪" },
+        i18n::format_cdn_status_label(is_testing, lang),
         if is_testing { 50.0 } else { 100.0 },
-        if is_testing { "正在测量候选节点" } else { "测速完成" },
+        i18n::format_cdn_phase_label(is_testing, lang),
         speed_imp.as_deref(),
         Some("-28.5 ms"),
-        Some("直连 DNS (基准)"),
+        Some(i18n::format_cdn_default_node(lang)),
         ranges_text,
         false,
         test_url,
         &matched_rule,
         &candidate_urls,
+        lang,
     );
 
     ui.set_labs_form(form_data);
     ui.set_cdn_candidates(cdn_candidates_to_slint(candidates, &active_ip_str));
     ui.set_rewrite_rules(url_rewrite_rules_to_slint(rules, expanded_ids));
+}
+
+fn build_tray_menu(lang: Language) -> Menu {
+    let t = i18n::get_tray_strings(lang);
+    let tray_menu = Menu::new();
+    let menu_show = MenuItem::with_id("show", t.show_window, true, None);
+    let sep1 = PredefinedMenuItem::separator();
+    let menu_pause_all = MenuItem::with_id("pause_all", t.pause_all, true, None);
+    let menu_resume_all = MenuItem::with_id("resume_all", t.resume_all, true, None);
+    let menu_game_mode = MenuItem::with_id("game_mode", t.game_mode_toggle, true, None);
+    let menu_open_dir = MenuItem::with_id("open_dir", t.open_download_dir, true, None);
+    let sep2 = PredefinedMenuItem::separator();
+    let menu_quit = MenuItem::with_id("quit", t.quit, true, None);
+
+    let _ = tray_menu.append_items(&[
+        &menu_show,
+        &sep1,
+        &menu_pause_all,
+        &menu_resume_all,
+        &menu_game_mode,
+        &menu_open_dir,
+        &sep2,
+        &menu_quit,
+    ]);
+    tray_menu
 }
 
 fn create_default_tray_icon() -> tray_icon::Icon {
@@ -165,7 +196,7 @@ async fn main() -> anyhow::Result<()> {
 
     let core = bootstrap(state_dir.clone())
         .await
-        .with_context(|| "初始化 limedl-core 失败")?;
+        .with_context(|| "初始化核心引擎失败")?;
 
     let initial_settings = core
         .dispatcher
@@ -173,6 +204,8 @@ async fn main() -> anyhow::Result<()> {
         .await
         .unwrap_or_default();
     let current_settings = Arc::new(Mutex::new(initial_settings.clone()));
+    let initial_lang = Language::from_code(&initial_settings.appearance.language);
+    i18n::apply_translation(initial_lang);
 
     let default_download_dir = if !initial_settings.download.default_download_dir.is_empty() {
         initial_settings.download.default_download_dir.clone()
@@ -191,7 +224,7 @@ async fn main() -> anyhow::Result<()> {
     main_window.set_default_download_dir(SharedString::from(&default_download_dir));
     main_window.set_new_task_dir(SharedString::from(&default_download_dir));
 
-    let store = Arc::new(Mutex::new(TaskStore::new()));
+    let store = Arc::new(Mutex::new(TaskStore::with_language(initial_lang)));
     let active_inspector_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 
     let rewrite_rules: Arc<Mutex<Vec<UrlRewriteRule>>> =
@@ -209,6 +242,7 @@ async fn main() -> anyhow::Result<()> {
         &initial_settings,
         *game_mode_active.lock(),
         *overclock_mode_active.lock(),
+        initial_lang,
     );
 
     // Initialize Labs UI state
@@ -220,35 +254,18 @@ async fn main() -> anyhow::Result<()> {
         &sandbox_test_url.lock(),
         false,
         &cdn_candidates_cache.lock(),
+        initial_lang,
     );
 
     // System Tray Setup
-    let tray_menu = Menu::new();
-    let menu_show = MenuItem::with_id("show", "显示主窗口", true, None);
-    let sep1 = PredefinedMenuItem::separator();
-    let menu_pause_all = MenuItem::with_id("pause_all", "全部暂停", true, None);
-    let menu_resume_all = MenuItem::with_id("resume_all", "全部继续", true, None);
-    let menu_game_mode = MenuItem::with_id("game_mode", "游戏模式开关", true, None);
-    let menu_open_dir = MenuItem::with_id("open_dir", "打开下载目录", true, None);
-    let sep2 = PredefinedMenuItem::separator();
-    let menu_quit = MenuItem::with_id("quit", "退出 limedl", true, None);
-
-    let _ = tray_menu.append_items(&[
-        &menu_show,
-        &sep1,
-        &menu_pause_all,
-        &menu_resume_all,
-        &menu_game_mode,
-        &menu_open_dir,
-        &sep2,
-        &menu_quit,
-    ]);
-
     let tray_icon = TrayIconBuilder::new()
-        .with_menu(Box::new(tray_menu))
-        .with_tooltip("limedl - 下载管理器")
+        .with_menu(Box::new(build_tray_menu(initial_lang)))
+        .with_tooltip(i18n::get_tray_strings(initial_lang).tooltip)
         .with_icon(create_default_tray_icon())
         .build()?;
+
+    // Channel for signalling tray menu/tooltip updates from async tasks (TrayIcon is !Send)
+    let pending_tray_lang: Arc<Mutex<Option<Language>>> = Arc::new(Mutex::new(None));
 
     // Load initial tasks from SQLite via Dispatcher
     if let Ok(initial_tasks) = core.dispatcher.list().await {
@@ -275,22 +292,28 @@ async fn main() -> anyhow::Result<()> {
                         if let Ok(summary) =
                             serde_json::from_value::<DownloadSummary>(summary_json)
                         {
+                            let current_lang = store.lock().language();
                             // Trigger system notification on completion or failure
                             if matches!(summary.state, DownloadState::Completed) {
+                                let (title, body) = i18n::format_notification_completed(
+                                    &summary.file_name,
+                                    current_lang,
+                                );
                                 let _ = Notification::new()
                                     .appname("limedl")
-                                    .summary("下载已完成")
-                                    .body(&format!("文件已保存: {}", summary.file_name))
+                                    .summary(&title)
+                                    .body(&body)
                                     .show();
                             } else if matches!(summary.state, DownloadState::Failed) {
+                                let (title, body) = i18n::format_notification_failed(
+                                    &summary.file_name,
+                                    summary.error.as_deref(),
+                                    current_lang,
+                                );
                                 let _ = Notification::new()
                                     .appname("limedl")
-                                    .summary("下载失败")
-                                    .body(&format!(
-                                        "任务失败: {} ({})",
-                                        summary.file_name,
-                                        summary.error.as_deref().unwrap_or("网络错误")
-                                    ))
+                                    .summary(&title)
+                                    .body(&body)
                                     .show();
                             }
 
@@ -298,6 +321,7 @@ async fn main() -> anyhow::Result<()> {
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = ui_weak.upgrade() {
                                     let mut s = store.lock();
+                                    let lang = s.language();
                                     s.insert_or_update(summary_clone.clone());
                                     refresh_ui(&ui, &s);
 
@@ -305,7 +329,7 @@ async fn main() -> anyhow::Result<()> {
                                     if let Some(ref current_id) = *active_inspector_id.lock()
                                         && current_id == &summary_clone.id
                                     {
-                                        ui.set_inspector_info(summary_to_inspector_info(&summary_clone));
+                                        ui.set_inspector_info(summary_to_inspector_info(&summary_clone, lang));
                                     }
                                 }
                             });
@@ -318,6 +342,7 @@ async fn main() -> anyhow::Result<()> {
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = ui_weak.upgrade() {
                                     let mut s = store.lock();
+                                    let lang = s.language();
                                     s.update_progress(&progress);
                                     refresh_ui(&ui, &s);
 
@@ -326,7 +351,7 @@ async fn main() -> anyhow::Result<()> {
                                         && current_id == &progress.id
                                         && let Some(summary) = s.get_summary(current_id)
                                     {
-                                        ui.set_inspector_info(summary_to_inspector_info(&summary));
+                                        ui.set_inspector_info(summary_to_inspector_info(&summary, lang));
                                     }
                                 }
                             });
@@ -416,6 +441,7 @@ async fn main() -> anyhow::Result<()> {
                     };
 
                     if let Some(summary) = summary_opt {
+                        let lang = store_clone.lock().language();
                         if summary.kind == limedl_core::types::TaskKind::Bt {
                             let peers = dispatcher.bt_get_peers(&task_id).unwrap_or_default();
                             let trackers = dispatcher.bt_get_trackers(&task_id).unwrap_or_default();
@@ -425,12 +451,12 @@ async fn main() -> anyhow::Result<()> {
                             let peer_items: Vec<PeerItem> = peers.iter().map(peer_info_to_item).collect();
                             let tracker_items: Vec<TrackerItem> = trackers.iter().map(tracker_info_to_item).collect();
                             let file_items: Vec<TorrentFileItem> = files.iter().map(file_status_to_item).collect();
-                            let insp_info = summary_to_inspector_info(&summary);
+                            let insp_info = summary_to_inspector_info(&summary, lang);
 
                             let ui_weak = ui_weak.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = ui_weak.upgrade() {
-                                    let (piece_map_img, piece_count_text) = generate_piece_map_image(&pieces);
+                                    let (piece_map_img, piece_count_text) = generate_piece_map_image(&pieces, lang);
                                     ui.set_inspector_info(insp_info);
                                     ui.set_inspector_peers(Rc::new(VecModel::from(peer_items)).into());
                                     ui.set_inspector_trackers(Rc::new(VecModel::from(tracker_items)).into());
@@ -440,7 +466,7 @@ async fn main() -> anyhow::Result<()> {
                                 }
                             });
                         } else {
-                            let insp_info = summary_to_inspector_info(&summary);
+                            let insp_info = summary_to_inspector_info(&summary, lang);
                             let ui_weak = ui_weak.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = ui_weak.upgrade() {
@@ -744,7 +770,7 @@ async fn main() -> anyhow::Result<()> {
             if let Some(ui) = ui_weak.upgrade() {
                 let s = store_clone.lock();
                 if let Some(summary) = s.get_summary(&id) {
-                    ui.set_inspector_info(summary_to_inspector_info(&summary));
+                    ui.set_inspector_info(summary_to_inspector_info(&summary, s.language()));
                 }
                 ui.set_inspector_tab(0);
                 ui.set_show_inspector(true);
@@ -818,13 +844,15 @@ async fn main() -> anyhow::Result<()> {
         let current_settings_clone = current_settings.clone();
         let game_mode_clone = game_mode_active.clone();
         let overclock_mode_clone = overclock_mode_active.clone();
+        let store_clone = store.clone();
 
         main_window.on_open_settings(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 let settings = current_settings_clone.lock().clone();
                 let gm = *game_mode_clone.lock();
                 let oc = *overclock_mode_clone.lock();
-                refresh_settings_state(&ui, &dispatcher, &settings, gm, oc);
+                let lang = store_clone.lock().language();
+                refresh_settings_state(&ui, &dispatcher, &settings, gm, oc, lang);
                 ui.set_show_settings(true);
             }
         });
@@ -851,11 +879,17 @@ async fn main() -> anyhow::Result<()> {
     {
         let dispatcher = core.dispatcher.clone();
         let current_settings_clone = current_settings.clone();
+        let store_clone = store.clone();
+        let pending_tray_lang_clone = pending_tray_lang.clone();
+        let active_inspector_id_clone = active_inspector_id.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_save_settings(move |form_data| {
             let dispatcher = dispatcher.clone();
             let current_settings_clone = current_settings_clone.clone();
+            let store_clone = store_clone.clone();
+            let pending_tray_lang_clone = pending_tray_lang_clone.clone();
+            let active_inspector_id_clone = active_inspector_id_clone.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
@@ -869,10 +903,26 @@ async fn main() -> anyhow::Result<()> {
                 if let Ok(saved) = dispatcher.save_settings(&settings).await {
                     *current_settings_clone.lock() = saved.clone();
                     let default_dir = saved.download.default_download_dir.clone();
+                    let new_lang = Language::from_code(&saved.appearance.language);
+
+                    // Signal tray update to main thread (TrayIcon is !Send)
+                    *pending_tray_lang_clone.lock() = Some(new_lang);
 
                     let _ = slint::invoke_from_event_loop(move || {
+                        i18n::apply_translation(new_lang);
                         if let Some(ui) = ui_weak.upgrade() {
+                            let mut s = store_clone.lock();
+                            s.set_language(new_lang);
                             ui.set_default_download_dir(SharedString::from(&default_dir));
+                            refresh_ui(&ui, &s);
+
+                            // Refresh Inspector if active
+                            if let Some(ref current_id) = *active_inspector_id_clone.lock()
+                                && let Some(summary) = s.get_summary(current_id)
+                            {
+                                ui.set_inspector_info(summary_to_inspector_info(&summary, new_lang));
+                            }
+
                             ui.set_show_settings(false);
                         }
                     });
@@ -1298,6 +1348,7 @@ async fn main() -> anyhow::Result<()> {
         let expanded_rule_ids_clone = expanded_rule_ids.clone();
         let sandbox_test_url_clone = sandbox_test_url.clone();
         let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_open_labs(move || {
@@ -1307,7 +1358,8 @@ async fn main() -> anyhow::Result<()> {
                 let exp = expanded_rule_ids_clone.lock().clone();
                 let url = sandbox_test_url_clone.lock().clone();
                 let cands = cdn_candidates_cache_clone.lock().clone();
-                refresh_labs_state(&ui, &settings, &rules, &exp, &url, false, &cands);
+                let lang = store_clone.lock().language();
+                refresh_labs_state(&ui, &settings, &rules, &exp, &url, false, &cands, lang);
                 ui.set_show_labs(true);
             }
         });
@@ -1882,7 +1934,23 @@ async fn main() -> anyhow::Result<()> {
     }
 
     tracing::info!("limedl Native UI 启动完毕，进入主事件循环");
-    let _tray_guard = tray_icon;
+
+    // Poll for pending tray menu/tooltip updates on the main thread (TrayIcon is !Send)
+    let _tray_update_timer = slint::Timer::default();
+    _tray_update_timer.start(
+        slint::TimerMode::Repeated,
+        std::time::Duration::from_millis(250),
+        {
+            let pending_tray_lang_clone = pending_tray_lang.clone();
+            move || {
+                if let Some(lang) = pending_tray_lang_clone.lock().take() {
+                    tray_icon.set_menu(Some(Box::new(build_tray_menu(lang))));
+                    let _ = tray_icon.set_tooltip(Some(i18n::get_tray_strings(lang).tooltip));
+                }
+            }
+        },
+    );
+
     main_window.run()?;
 
     // Graceful shutdown
