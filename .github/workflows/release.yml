@@ -140,6 +140,164 @@ jobs:
           args: ${{ matrix.tauri-args || '' }}
 
   # ═══════════════════════════════════════════════════════════════════════
+  # Native Desktop (Slint) — portable zip + NSIS installer + MSIX package.
+  # All artifacts are minisign-signed with the shared updater key so the
+  # native self-updater (latest-native.json) can verify downloads.
+  # ═══════════════════════════════════════════════════════════════════════
+  build-native:
+    name: Native windows-x86_64
+    runs-on: windows-latest
+    needs: changelog
+    permissions:
+      contents: write
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      # ── Rust toolchain ─────────────────────────────────────────────────
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          key: release-native-windows-x86_64
+
+      # ── MiSans VF (embedded at compile time; not in git) ─────────────
+      - name: Fetch MiSans VF font
+        shell: pwsh
+        run: pwsh scripts/fetch-misans.ps1
+
+      - name: Build limedl-native
+        shell: pwsh
+        run: cargo build --locked --release -p limedl-native
+
+      # ── Node for the tauri CLI (signer) ────────────────────────────────
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+
+      # ── Assemble dist/ ──────────────────────────────────────────────────
+      - name: Stage artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item target/release/limedl-native.exe dist/
+
+      # ── Portable zip ────────────────────────────────────────────────────
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $out = "dist/limedl-native-v$version-windows-x86_64-portable.zip"
+          Compress-Archive -Path dist/limedl-native.exe -DestinationPath $out
+          Write-Host "wrote $out"
+
+      # ── NSIS installer ─────────────────────────────────────────────────
+      - name: Package NSIS installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          choco install nsis -y --no-progress
+          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
+          if (-not (Test-Path $makensis)) { throw "makensis not found" }
+          & $makensis "/DVERSION=$version" "/DOUTFILE=dist\limedl-native-v$version-windows-x86_64-setup.exe" installer\limedl-native.nsi
+          if ($LASTEXITCODE -ne 0) { throw "makensis failed with $LASTEXITCODE" }
+
+      # ── MSIX package ────────────────────────────────────────────────────
+      - name: Package MSIX
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $ErrorActionPreference = "Stop"
+
+          $staging = "packaging/msix/staging"
+          if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
+          New-Item -ItemType Directory -Force -Path "$staging/Assets" | Out-Null
+
+          Copy-Item dist/limedl-native.exe $staging/
+          pwsh scripts/gen-msix-assets.ps1 -OutDir "$staging/Assets"
+
+          # MSIX versions are strictly a.b.c.d (numeric only) — drop any
+          # prerelease suffix from the tag.
+          $numeric = ($version -split '-')[0]
+          $msixVersion = "$numeric.0"
+
+          $manifest = Get-Content packaging/msix/AppxManifest.xml -Raw
+          $manifest = $manifest `
+            -replace '__VERSION__', $msixVersion `
+            -replace '__MSIX_IDENTITY_NAME__', $env:MSIX_IDENTITY_NAME `
+            -replace '__MSIX_PUBLISHER__', $env:MSIX_PUBLISHER
+          [System.IO.File]::WriteAllText("$staging/AppxManifest.xml", $manifest, (New-Object System.Text.UTF8Encoding($false)))
+
+          # Locate the newest Windows SDK's MakeAppx.
+          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directory |
+            Where-Object { $_.Name -match '^10\.\d' } |
+            Sort-Object -Property Name -Descending |
+            ForEach-Object { Join-Path $_.FullName "x64\makeappx.exe" } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (-not $makeappx) { throw "makeappx.exe not found" }
+
+          & $makeappx pack /d $staging /p "dist\limedl-native-v$version-windows-x86_64.msix" /o
+          if ($LASTEXITCODE -ne 0) { throw "makeappx failed with $LASTEXITCODE" }
+        env:
+          MSIX_IDENTITY_NAME: Zkz20.limedl-native
+          MSIX_PUBLISHER: "CN=zkz098"
+
+      # ── Sign everything (minisign, shared with the Tauri edition) ──────
+      - name: Sign artifacts
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          foreach ($file in @(
+            "dist/limedl-native-v$version-windows-x86_64-setup.exe",
+            "dist/limedl-native-v$version-windows-x86_64-portable.zip",
+            "dist/limedl-native-v$version-windows-x86_64.msix"
+          )) {
+            npx --yes @tauri-apps/cli signer sign $file
+            if ($LASTEXITCODE -ne 0) { throw "signing failed for $file" }
+          }
+
+      # ── Self-update manifest ───────────────────────────────────────────
+      - name: Generate latest-native.json
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          pwsh scripts/gen-native-manifest.ps1 `
+            -Version $version `
+            -SetupExe "dist/limedl-native-v$version-windows-x86_64-setup.exe" `
+            -PortableZip "dist/limedl-native-v$version-windows-x86_64-portable.zip" `
+            -Notes @'
+          ${{ needs.changelog.outputs.body }}
+          '@ `
+            -OutFile dist/latest-native.json
+
+      # ── Upload to release ──────────────────────────────────────────────
+      - name: Upload to release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        with:
+          files: |
+            dist/limedl-native-v*-windows-x86_64-setup.exe
+            dist/limedl-native-v*-windows-x86_64-setup.exe.sig
+            dist/limedl-native-v*-windows-x86_64-portable.zip
+            dist/limedl-native-v*-windows-x86_64-portable.zip.sig
+            dist/limedl-native-v*-windows-x86_64.msix
+            dist/limedl-native-v*-windows-x86_64.msix.sig
+            dist/latest-native.json
+          body: ${{ needs.changelog.outputs.body }}
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
   # Tauri Desktop — Linux AppImage (with Wayland library pruning)
   # ═══════════════════════════════════════════════════════════════════════
   build-tauri-linux:

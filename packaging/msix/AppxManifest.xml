@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX packaging manifest for limedl-native (Windows full-trust Win32).
+
+  CI replaces __VERSION__ with the release version (x.y.z → x.y.z.0).
+  Identity Name/Publisher are placeholders for local/sideload testing; when
+  submitting to the Microsoft Store, replace them with the exact values
+  Partner Center assigns to the app (Submission → Packages → Identity), or
+  the submission will be rejected with an identity mismatch.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  IgnorableNamespaces="uap rescap desktop">
+
+  <Identity
+    Name="__MSIX_IDENTITY_NAME__"
+    Publisher="__MSIX_PUBLISHER__"
+    Version="__VERSION__"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>limedl</DisplayName>
+    <PublisherDisplayName>zkz098</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.scale-100.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="zh-cn" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="limedl-native"
+      Executable="limedl-native.exe"
+      EntryPoint="Windows.FullTrustApplication">
+
+      <uap:VisualElements
+        DisplayName="limedl"
+        Description="Lightweight high-performance asynchronous multi-protocol download engine"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.scale-100.png"
+        Square44x44Logo="Assets\Square44x44Logo.scale-100.png">
+        <uap:DefaultTile Square310x310Logo="Assets\Square150x150Logo.scale-100.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!--
+          StartupTask replaces the HKCU Run registry entry inside MSIX
+          (registry writes are virtualized and would be silently lost).
+          TaskId must match STARTUP_TASK_ID in
+          crates/limedl-native/src/autostart.rs. Enabled=false: the user
+          grants it from the app (RequestEnableAsync) on first use.
+        -->
+        <desktop:Extension
+          Category="windows.startupTask"
+          Executable="limedl-native.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask
+            TaskId="limedl-native-startup"
+            Enabled="false"
+            DisplayName="limedl" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Full-trust Win32 (desktop bridge): tray icon, arbitrary download
+         paths, local aria2 RPC listener all run unrestricted. -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
