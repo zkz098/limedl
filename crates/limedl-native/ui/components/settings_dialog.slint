@@ -2,7 +2,7 @@ import { ScrollView, ComboBox } from "std-widgets.slint";
 
 import { Theme } from "../theme.slint";
 import { ScrollView, ComboBox } from "std-widgets.slint";
-import { SettingsFormData } from "../types.slint";
+import { SettingsFormData, UpdateState } from "../types.slint";
 import {
     CustomTextInput,
     IconButton,
@@ -16,6 +16,7 @@ import {
 export component SettingsDialog inherits Rectangle {
     in property <int> settings_tab: 0;
     in-out property <SettingsFormData> settings_form;
+    in-out property <UpdateState> update_state;
 
     callback close();
     callback set_tab(int);
@@ -27,6 +28,32 @@ export component SettingsDialog inherits Rectangle {
     callback pick_log_folder();
     callback open_log_folder();
     callback open_font_license();
+    callback check_updates();
+    callback start_download();
+    callback restart_now();
+
+    pure function update_status_text() -> string {
+        root.update_state.phase == "checking" ? @tr("Checking for updates...")
+        : root.update_state.phase == "up-to-date" ? @tr("You are up to date.")
+        : root.update_state.phase == "available" ? @tr("Version {} is available.", root.update_state.latest_version)
+        : root.update_state.phase == "downloading" ? @tr("Downloading update...")
+        : root.update_state.phase == "ready" ? @tr("v{} downloaded and verified. Restart to apply.", root.update_state.latest_version)
+        : root.update_state.phase == "error" ? @tr("Update check failed.")
+        : @tr("No update checked yet.");
+    }
+
+    pure function update_status_color() -> color {
+        root.update_state.phase == "available" || root.update_state.phase == "ready" ? Theme.c84cc16
+        : root.update_state.phase == "error" ? Theme.cf87171
+        : root.update_state.phase == "downloading" ? Theme.c38bdf8
+        : Theme.cf3f4f6;
+    }
+
+    pure function install_kind_label() -> string {
+        root.update_state.install_kind == "store" ? @tr("Store (MSIX)")
+        : root.update_state.install_kind == "installer" ? @tr("Installer")
+        : @tr("Portable");
+    }
 
     width: 100%;
     height: 100%;
@@ -1770,6 +1797,90 @@ export component SettingsDialog inherits Rectangle {
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("License:"); color: #6b7280; font-size: 12px; }
                                     Text { text: "MIT / Apache-2.0 Dual License"; color: Theme.c9ca3af; font-size: 12px; }
+                                }
+
+                                Rectangle { height: 1px; background: Theme.c1f242e; }
+
+                                // ── Self-update ──
+                                Text { text: @tr("Software Update"); color: Theme.ca3e635; font-size: 12px; font-weight: 700; }
+
+                                HorizontalLayout {
+                                    Text { width: 140px; text: @tr("Update Status:"); color: #6b7280; font-size: 12px; }
+                                    Text {
+                                        text: root.update_status_text();
+                                        color: root.update_status_color();
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        wrap: word-wrap;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    Text { width: 140px; text: @tr("Distribution Channel:"); color: #6b7280; font-size: 12px; }
+                                    Text {
+                                        text: root.install_kind_label();
+                                        color: Theme.c9ca3af;
+                                        font-size: 12px;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                if root.update_state.phase == "available" : Text {
+                                    text: root.update_state.notes;
+                                    color: Theme.c9ca3af;
+                                    font-size: 11px;
+                                    wrap: word-wrap;
+                                }
+
+                                if root.update_state.phase == "downloading" : VerticalLayout {
+                                    spacing: 5px;
+                                    Rectangle {
+                                        height: 6px;
+                                        border-radius: 3px;
+                                        background: Theme.c1f242e;
+                                        Rectangle {
+                                            x: 0;
+                                            y: 0;
+                                            height: parent.height;
+                                            width: parent.width * clamp(root.update_state.progress_percent, 0, 100) / 100;
+                                            border-radius: 3px;
+                                            background: Theme.c84cc16;
+                                        }
+                                    }
+                                    Text {
+                                        text: root.update_state.progress_label;
+                                        color: #6b7280;
+                                        font-size: 11px;
+                                    }
+                                }
+
+                                if root.update_state.phase == "error" && root.update_state.error_text != "" : Text {
+                                    text: root.update_state.error_text;
+                                    color: Theme.cf87171;
+                                    font-size: 11px;
+                                    wrap: word-wrap;
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    alignment: start;
+
+                                    if root.update_state.phase != "downloading" && root.update_state.phase != "ready" : SecondaryButton {
+                                        text: root.update_state.phase == "checking" ? @tr("Checking...") : @tr("Check for Updates");
+                                        enabled: root.update_state.phase != "checking";
+                                        clicked => { root.check_updates(); }
+                                    }
+
+                                    if root.update_state.phase == "available" : PrimaryButton {
+                                        text: root.update_state.install_kind == "store" ? @tr("Update in Store") : @tr("Download & Install");
+                                        clicked => { root.start_download(); }
+                                    }
+
+                                    if root.update_state.phase == "ready" : PrimaryButton {
+                                        text: @tr("Restart to Update");
+                                        clicked => { root.restart_now(); }
+                                    }
                                 }
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("Font License:"); color: #6b7280; font-size: 12px; }

@@ -29,9 +29,28 @@ rfd = "0.16"
 arboard = "3.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 sys-locale = "0.3"
+reqwest = { workspace = true }
+minisign-verify = { workspace = true }
+base64 = { workspace = true }
+sha2 = { workspace = true }
+self-replace = "1.5"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
+zip = { version = "8", default-features = false, features = ["deflate"] }
+windows = { version = "0.61", features = [
+    "Foundation",
+    "ApplicationModel",
+    "Services_Store",
+] }
+# windows 0.61 disables windows-future's `std` feature, which is where the
+# Future/IntoFuture impls for IAsyncOperation live — re-enable it so the Store
+# updater can await async WinRT calls instead of blocking the UI thread.
+windows-future = { version = "0.2", default-features = false, features = ["std"] }
+
+[target.'cfg(not(windows))'.dependencies]
+flate2 = "1"
+tar = "0.4"
 
 [build-dependencies]
 slint-build = { workspace = true }

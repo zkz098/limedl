@@ -237,3 +237,16 @@ export struct ContextMenuState {
     can_resume: bool,
     is_bt: bool,
 }
+
+/// Self-update state machine, driven from Rust and rendered by the About tab.
+/// phase: "idle" | "checking" | "up-to-date" | "available" | "downloading"
+///        | "ready" | "error" ("ready" → restart_after_update() enabled)
+export struct UpdateState {
+    phase: string,
+    latest_version: string,
+    notes: string,
+    progress_percent: float,
+    progress_label: string,
+    error_text: string,
+    install_kind: string,
+}

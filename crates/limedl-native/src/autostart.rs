@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 // Native autostart integration — OS-specific implementation.
-// Windows: HKCU\Software\Microsoft\Windows\CurrentVersion\Run (registry)
+// Windows portable/NSIS: HKCU\Software\Microsoft\Windows\CurrentVersion\Run (registry)
+// Windows MSIX/Store:    windows.startupTask manifest extension + StartupTask API
+//                        (registry Run is virtualized inside MSIX and would be lost)
 // Linux:   ~/.config/autostart/limedl-native.desktop (XDG)
 // macOS:   ~/Library/LaunchAgents/com.zkz20.limedl.plist
 
@@ -17,15 +19,40 @@ mod windows_impl {
 
     const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
     const VALUE_NAME: &str = "limedl-native";
+    /// Matches `TaskId` in packaging/msix/AppxManifest.xml.
+    const STARTUP_TASK_ID: &str = "limedl-native-startup";
 
     pub fn is_enabled() -> bool {
+        if crate::update::has_package_identity() {
+            return startup_task_enabled().unwrap_or(false);
+        }
+        winreg_is_enabled()
+    }
+
+    pub fn enable() -> anyhow::Result<()> {
+        if crate::update::has_package_identity() {
+            return startup_task_enable();
+        }
+        winreg_enable()
+    }
+
+    pub fn disable() -> anyhow::Result<()> {
+        if crate::update::has_package_identity() {
+            return startup_task_disable();
+        }
+        winreg_disable()
+    }
+
+    // ── Registry (portable / NSIS per-user installs) ──
+
+    fn winreg_is_enabled() -> bool {
         winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
             .open_subkey(RUN_KEY)
             .and_then(|k| k.get_value::<String, _>(VALUE_NAME))
             .is_ok()
     }
 
-    pub fn enable() -> anyhow::Result<()> {
+    fn winreg_enable() -> anyhow::Result<()> {
         let exe = current_exe_string().context("failed to get current exe path")?;
         // Quote path if it contains spaces
         let val = if exe.contains(' ') {
@@ -41,7 +68,7 @@ mod windows_impl {
         Ok(())
     }
 
-    pub fn disable() -> anyhow::Result<()> {
+    fn winreg_disable() -> anyhow::Result<()> {
         let key = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
             .open_subkey_with_flags(RUN_KEY, winreg::enums::KEY_WRITE)
             .context("open Run key")?;
@@ -50,6 +77,60 @@ mod windows_impl {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e.into()),
         }
+    }
+
+    // ── StartupTask (MSIX / Store installs) ──
+    // The StartupTask WinRT APIs must run where a package identity exists;
+    // callers only reach here when `has_package_identity()` returned true.
+
+    fn get_startup_task() -> anyhow::Result<windows::ApplicationModel::StartupTask> {
+        use windows::ApplicationModel::StartupTask;
+        let tasks = StartupTask::GetForCurrentPackageAsync()?.get()?;
+        let count = tasks.Size()?;
+        for i in 0..count {
+            let task = tasks.GetAt(i)?;
+            if task.TaskId()?.to_string_lossy() == STARTUP_TASK_ID {
+                return Ok(task);
+            }
+        }
+        anyhow::bail!("startup task '{STARTUP_TASK_ID}' not found in package manifest")
+    }
+
+    fn startup_task_enabled() -> anyhow::Result<bool> {
+        use windows::ApplicationModel::StartupTaskState;
+        let task = get_startup_task()?;
+        Ok(matches!(
+            task.State()?,
+            StartupTaskState::Enabled | StartupTaskState::EnabledByPolicy
+        ))
+    }
+
+    fn startup_task_enable() -> anyhow::Result<()> {
+        use windows::ApplicationModel::StartupTaskState;
+        let task = get_startup_task()?;
+        match task.State()? {
+            StartupTaskState::Enabled | StartupTaskState::EnabledByPolicy => Ok(()),
+            StartupTaskState::DisabledByUser => anyhow::bail!(
+                "startup was disabled by the user in Task Manager; re-enable it from system settings"
+            ),
+            _ => {
+                let new_state = task.RequestEnableAsync()?.get()?;
+                if matches!(
+                    new_state,
+                    StartupTaskState::Enabled | StartupTaskState::EnabledByPolicy
+                ) {
+                    Ok(())
+                } else {
+                    anyhow::bail!("startup task enable request was not granted")
+                }
+            }
+        }
+    }
+
+    fn startup_task_disable() -> anyhow::Result<()> {
+        let task = get_startup_task()?;
+        task.Disable()?;
+        Ok(())
     }
 }
 

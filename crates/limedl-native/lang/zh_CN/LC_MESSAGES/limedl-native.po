@@ -1354,3 +1354,56 @@ msgstr "MiSans VF © 北京小米移动软件有限公司，免费商用授权�
 
 msgid "Font License:"
 msgstr "字体授权:"
+msgid "Software Update"
+msgstr "软件更新"
+
+msgid "Update Status:"
+msgstr "更新状态:"
+
+msgid "Distribution Channel:"
+msgstr "分发渠道:"
+
+msgid "Check for Updates"
+msgstr "检查更新"
+
+msgid "Checking..."
+msgstr "检查中..."
+
+msgid "Update in Store"
+msgstr "在商店中更新"
+
+msgid "Download & Install"
+msgstr "下载并安装"
+
+msgid "Restart to Update"
+msgstr "重启以更新"
+
+msgid "Checking for updates..."
+msgstr "正在检查更新..."
+
+msgid "You are up to date."
+msgstr "已是最新版本。"
+
+msgid "Version {} is available."
+msgstr "发现新版本 {}。"
+
+msgid "Downloading update..."
+msgstr "正在下载更新..."
+
+msgid "v{} downloaded and verified. Restart to apply."
+msgstr "v{} 已下载并验证完成，重启后生效。"
+
+msgid "Update check failed."
+msgstr "检查更新失败。"
+
+msgid "No update checked yet."
+msgstr "尚未检查更新。"
+
+msgid "Store (MSIX)"
+msgstr "商店版 (MSIX)"
+
+msgid "Installer"
+msgstr "安装版"
+
+msgid "Portable"
+msgstr "便携版"

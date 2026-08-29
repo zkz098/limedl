@@ -262,6 +262,20 @@ pub fn format_notification_failed(
 }
 
 /// System tray menu localized strings.
+/// Format the "new version available" system notification (title, body).
+pub fn format_notification_update(version: &str, lang: Language) -> (String, String) {
+    match lang {
+        Language::ZhCn => (
+            format!("limedl 发现新版本 v{version}"),
+            "打开 设置 → 关于 以下载并安装更新。".into(),
+        ),
+        Language::EnUs => (
+            format!("limedl v{version} is available"),
+            "Open Settings → About to download and install the update.".into(),
+        ),
+    }
+}
+
 pub struct TrayMenuStrings {
     pub show_window: &'static str,
     pub pause_all: &'static str,

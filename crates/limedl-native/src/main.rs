@@ -3,6 +3,7 @@ slint::include_modules!();
 mod autostart;
 mod bridge;
 mod i18n;
+mod update;
 
 use std::collections::HashSet;
 use std::net::IpAddr;
@@ -129,6 +130,25 @@ fn refresh_labs_state(
     ui.set_rewrite_rules(url_rewrite_rules_to_slint(rules, expanded_ids));
 }
 
+/// Push a mutation into the self-update UI state (must run on the UI thread).
+fn push_update_state(
+    ui_weak: &slint::Weak<MainWindow>,
+    mutate: impl FnOnce(&mut UpdateState),
+) {
+    if let Some(ui) = ui_weak.upgrade() {
+        let mut st = ui.get_update_state();
+        mutate(&mut st);
+        ui.set_update_state(st);
+    }
+}
+
+fn set_update_error(ui_weak: &slint::Weak<MainWindow>, msg: &str) {
+    push_update_state(ui_weak, |st| {
+        st.phase = "error".into();
+        st.error_text = msg.into();
+    });
+}
+
 fn build_tray_menu(lang: Language) -> Menu {
     let t = i18n::get_tray_strings(lang);
     let tray_menu = Menu::new();
@@ -208,7 +228,10 @@ async fn main() -> anyhow::Result<()> {
     // into "failed to update tracing level filter".
 
     // Initialize core subsystems
-    let state_dir = dirs_or_temp_dir().join("downloads");
+    let base_dir = dirs_or_temp_dir();
+    let state_dir = base_dir.join("downloads");
+    // Remove stale artifacts from a previous (possibly interrupted) self-update.
+    update::clean_update_work_dir(&base_dir);
     std::fs::create_dir_all(&state_dir)?;
     // ── Settings migration: copy Tauri settings on first Native run ──
     // If Native settings.json is absent but Tauri's exists (user switched
@@ -275,6 +298,22 @@ async fn main() -> anyhow::Result<()> {
     // creation and auto-selects the system locale). Calling it earlier returns
     // `NoTranslationsBundled` and the saved language would be ignored.
     i18n::apply_translation(initial_lang);
+
+    // Self-update UI state: record the distribution channel once at startup.
+    let install_kind = update::detect_install_kind();
+    main_window.set_update_state(UpdateState {
+        phase: "idle".into(),
+        latest_version: "".into(),
+        notes: "".into(),
+        progress_percent: 0.0,
+        progress_label: "".into(),
+        error_text: "".into(),
+        install_kind: match install_kind {
+            update::InstallKind::Store => "store".into(),
+            update::InstallKind::Installer => "installer".into(),
+            update::InstallKind::Portable => "portable".into(),
+        },
+    });
     apply_appearance(
         &main_window,
         initial_settings.appearance.color_mode.clone(),
@@ -317,6 +356,9 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // System Tray Setup
+    // Pending update info shared between the update callbacks and the background check.
+    let available_update: Arc<Mutex<Option<update::AvailableUpdate>>> = Arc::new(Mutex::new(None));
+
     let tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(build_tray_menu(initial_lang)))
         .with_tooltip(i18n::get_tray_strings(initial_lang).tooltip)
@@ -2091,6 +2133,222 @@ async fn main() -> anyhow::Result<()> {
                 form.url_rewrite_test_result_2 = SharedString::from(cands.get(1).cloned().unwrap_or_default());
                 form.url_rewrite_test_result_3 = SharedString::from(cands.get(2).cloned().unwrap_or_default());
                 ui.set_labs_form(form);
+            }
+        });
+    }
+
+    // ── Self-update callbacks ────────────────────────────────────────────────
+    {
+        let ui_weak = main_window.as_weak();
+        let base_dir = base_dir.clone();
+        let available = available_update.clone();
+        main_window.on_check_for_updates(move || {
+            let ui_weak = ui_weak.clone();
+            let base_dir = base_dir.clone();
+            let available = available.clone();
+
+            let ui = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                push_update_state(&ui, |st| {
+                    st.phase = "checking".into();
+                    st.error_text = "".into();
+                });
+            });
+
+            if update::detect_install_kind() == update::InstallKind::Store {
+                // StoreContext::GetDefault must run on the UI thread.
+                let _ = slint::spawn_local(async move {
+                    match update::store::check_update_available().await {
+                        Ok(available) => {
+                            push_update_state(&ui_weak, |st| {
+                                st.phase = if available { "available".into() } else { "up-to-date".into() };
+                                st.error_text = "".into();
+                            });
+                        }
+                        Err(e) => set_update_error(&ui_weak, &format!("{e:#}")),
+                    }
+                });
+                return;
+            }
+
+            tokio::spawn(async move {
+                update::record_update_check(&base_dir);
+                match update::check_for_update().await {
+                    Ok(Some(upd)) => {
+                        let version = upd.version.clone();
+                        let notes = upd.notes.clone();
+                        *available.lock() = Some(upd);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            push_update_state(&ui_weak, |st| {
+                                st.phase = "available".into();
+                                st.latest_version = version.into();
+                                st.notes = notes.into();
+                                st.error_text = "".into();
+                            });
+                        });
+                    }
+                    Ok(None) => {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            push_update_state(&ui_weak, |st| {
+                                st.phase = "up-to-date".into();
+                                st.latest_version = "".into();
+                                st.notes = "".into();
+                                st.error_text = "".into();
+                            });
+                        });
+                    }
+                    Err(e) => {
+                        let msg = format!("{e:#}");
+                        let _ = slint::invoke_from_event_loop(move || {
+                            set_update_error(&ui_weak, &msg);
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        let base_dir = base_dir.clone();
+        let available = available_update.clone();
+        main_window.on_start_update_download(move || {
+            let Some(upd) = available.lock().clone() else {
+                return;
+            };
+            let ui_weak = ui_weak.clone();
+            let base_dir = base_dir.clone();
+
+            if update::detect_install_kind() == update::InstallKind::Store {
+                let _ = slint::spawn_local(async move {
+                    if let Err(e) = update::store::trigger_update().await {
+                        set_update_error(&ui_weak, &format!("{e:#}"));
+                    }
+                    // On success the OS replaces the package and relaunches the app.
+                });
+                return;
+            }
+
+            tokio::spawn(async move {
+                push_update_state(&ui_weak, |st| {
+                    st.phase = "downloading".into();
+                    st.progress_percent = 0.0;
+                    st.progress_label = "".into();
+                    st.error_text = "".into();
+                });
+
+                let prog_ui = ui_weak.clone();
+                let last_emit = parking_lot::Mutex::new(
+                    std::time::Instant::now() - Duration::from_secs(10),
+                );
+                let progress = move |done: u64, total: Option<u64>| {
+                    let now = std::time::Instant::now();
+                    let finished = total.is_some_and(|t| done >= t);
+                    if !finished && now - *last_emit.lock() < Duration::from_millis(150) {
+                        return;
+                    }
+                    *last_emit.lock() = now;
+                    let pct = total
+                        .map(|t| done as f32 / t as f32 * 100.0)
+                        .unwrap_or(0.0);
+                    let label = match total {
+                        Some(t) => format!(
+                            "{:.1} / {:.1} MB",
+                            done as f64 / 1_048_576.0,
+                            t as f64 / 1_048_576.0
+                        ),
+                        None => format!("{:.1} MB", done as f64 / 1_048_576.0),
+                    };
+                    let _ = slint::invoke_from_event_loop({
+                        let prog_ui = prog_ui.clone();
+                        move || {
+                            push_update_state(&prog_ui, |st| {
+                                st.progress_percent = pct;
+                                st.progress_label = label.into();
+                            });
+                        }
+                    });
+                };
+
+                let verified = match update::download_and_verify(&upd, &base_dir, &progress).await {
+                    Ok(file) => file,
+                    Err(e) => {
+                        let msg = format!("{e:#}");
+                        let _ = slint::invoke_from_event_loop(move || {
+                            set_update_error(&ui_weak, &msg);
+                        });
+                        return;
+                    }
+                };
+
+                match update::install_verified(&upd, &verified) {
+                    Ok(update::InstallOutcome::ReplacedRestartPending) => {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            push_update_state(&ui_weak, |st| st.phase = "ready".into());
+                        });
+                    }
+                    Ok(update::InstallOutcome::InstallerLaunched) => {
+                        // The NSIS installer takes over: stop this process now
+                        // so it can replace the executable and relaunch us.
+                        std::process::exit(0);
+                    }
+                    Err(e) => {
+                        let msg = format!("{e:#}");
+                        let _ = slint::invoke_from_event_loop(move || {
+                            set_update_error(&ui_weak, &msg);
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_restart_after_update(move || {
+            // On success this never returns (spawns the new binary, exits).
+            if let Err(e) = update::restart_application() {
+                set_update_error(&ui_weak, &format!("restart failed: {e:#}"));
+            }
+        });
+    }
+
+    // ── Background silent update check (GitHub channel only) ──────────────
+    // Store installs update via the OS, so there is nothing to poll here.
+    if update::detect_install_kind() != update::InstallKind::Store {
+        let ui_weak = main_window.as_weak();
+        let base_dir = base_dir.clone();
+        let available = available_update.clone();
+        let lang = initial_lang;
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(45)).await;
+            if !update::should_check_for_update_now(&base_dir, Duration::from_secs(24 * 60 * 60)) {
+                return;
+            }
+            update::record_update_check(&base_dir);
+            match update::check_for_update().await {
+                Ok(Some(upd)) => {
+                    let version = upd.version.clone();
+                    *available.lock() = Some(upd);
+                    let _ = slint::invoke_from_event_loop({
+                        let version = version.clone();
+                        move || {
+                            push_update_state(&ui_weak, |st| {
+                                st.phase = "available".into();
+                                st.latest_version = version.into();
+                                st.error_text = "".into();
+                            });
+                        }
+                    });
+                    let (title, body) = i18n::format_notification_update(&version, lang);
+                    let _ = Notification::new()
+                        .appname("limedl")
+                        .summary(&title)
+                        .body(&body)
+                        .show();
+                }
+                Ok(None) => {}
+                Err(e) => tracing::debug!("background update check failed: {e:#}"),
             }
         });
     }

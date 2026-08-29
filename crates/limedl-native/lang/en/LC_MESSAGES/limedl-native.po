@@ -1407,3 +1407,56 @@ msgstr ""
 
 msgid "MiSans VF © Beijing Xiaomi Mobile Software Co.,Ltd. Free for commercial use."
 msgstr ""
+msgid "Software Update"
+msgstr "Software Update"
+
+msgid "Update Status:"
+msgstr "Update Status:"
+
+msgid "Distribution Channel:"
+msgstr "Distribution Channel:"
+
+msgid "Check for Updates"
+msgstr "Check for Updates"
+
+msgid "Checking..."
+msgstr "Checking..."
+
+msgid "Update in Store"
+msgstr "Update in Store"
+
+msgid "Download & Install"
+msgstr "Download & Install"
+
+msgid "Restart to Update"
+msgstr "Restart to Update"
+
+msgid "Checking for updates..."
+msgstr "Checking for updates..."
+
+msgid "You are up to date."
+msgstr "You are up to date."
+
+msgid "Version {} is available."
+msgstr "Version {} is available."
+
+msgid "Downloading update..."
+msgstr "Downloading update..."
+
+msgid "v{} downloaded and verified. Restart to apply."
+msgstr "v{} downloaded and verified. Restart to apply."
+
+msgid "Update check failed."
+msgstr "Update check failed."
+
+msgid "No update checked yet."
+msgstr "No update checked yet."
+
+msgid "Store (MSIX)"
+msgstr "Store (MSIX)"
+
+msgid "Installer"
+msgstr "Installer"
+
+msgid "Portable"
+msgstr "Portable"

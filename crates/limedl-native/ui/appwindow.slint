@@ -35,6 +35,7 @@ import {
     UrlRewriteTargetItem,
     UrlRewriteRuleItem,
     LabsFormData,
+    UpdateState,
 } from "types.slint";
 
 import {
@@ -103,6 +104,17 @@ export component MainWindow inherits Window {
     in property <bool> game_mode_active: false;
     in property <bool> overclock_mode_active: false;
 
+    // Self-update state (rendered in Settings → About)
+    in-out property <UpdateState> update_state: {
+        phase: "idle",
+        latest_version: "",
+        notes: "",
+        progress_percent: 0,
+        progress_label: "",
+        error_text: "",
+        install_kind: "portable",
+    };
+
     // Phase 6: Labs (CDN Acceleration & URL Rewrite) state
     in property <bool> show_labs: false;
     in property <int> labs_tab: 0;
@@ -167,6 +179,11 @@ export component MainWindow inherits Window {
     callback toggle_game_mode();
     callback toggle_overclock_mode();
     callback fetch_trackers_remote(string);
+
+    // Self-update callbacks
+    callback check_for_updates();
+    callback start_update_download();
+    callback restart_after_update();
 
     // Phase 6 Labs Callbacks
     callback open_labs();
@@ -779,6 +796,7 @@ export component MainWindow inherits Window {
     if root.show_settings : SettingsDialog {
         settings_tab: root.settings_tab;
         settings_form <=> root.settings_form;
+        update_state <=> root.update_state;
         close => { root.close_settings(); }
         set_tab(tab) => { root.set_settings_tab(tab); }
         save(form) => { root.save_settings(form); }
@@ -789,6 +807,9 @@ export component MainWindow inherits Window {
         pick_log_folder => { root.pick_log_folder(); }
         open_log_folder => { root.open_log_folder(); }
         open_font_license => { root.open_font_license(); }
+        check_updates => { root.check_for_updates(); }
+        start_download => { root.start_update_download(); }
+        restart_now => { root.restart_after_update(); }
     }
 
     // Dialog: Labs (CDN Acceleration & URL Rewrite)
