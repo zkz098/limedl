@@ -33,6 +33,11 @@
 Unicode true
 ManifestDPIAware true
 
+; LZMA solid: best ratio for the self-extracting PE (no compatibility cost —
+; NSIS decodes it itself). Cuts the ~59MB payload to roughly half of what
+; zlib/deflate yields, which is what the updater channel downloads.
+SetCompressor /SOLID lzma
+
 Name "${APP_NAME} ${VERSION}"
 OutFile "${OUTFILE}"
 InstallDir "$LOCALAPPDATA\Programs\limedl"

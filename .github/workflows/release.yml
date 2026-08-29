@@ -191,14 +191,21 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item target/release/limedl-native.exe dist/
 
-      # ── Portable zip ────────────────────────────────────────────────────
+      # ── Portable zip ────────────────────────────────────────────
+      # 7z at -mx9 keeps the archive a plain zip/deflate (Explorer-native,
+      # zip-crate-decodable) while squeezing ~4% more than Compress-Archive.
       - name: Package portable zip
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          $out = "dist/limedl-native-v$version-windows-x86_64-portable.zip"
-          Compress-Archive -Path dist/limedl-native.exe -DestinationPath $out
-          Write-Host "wrote $out"
+          $out = "limedl-native-v$version-windows-x86_64-portable.zip"
+          Push-Location dist
+          $sevenZip = "C:\\Program Files\\7-Zip\\7z.exe"
+          if (-not (Test-Path $sevenZip)) { throw "7z.exe not found" }
+          & $sevenZip a -tzip -mx9 "..\\$out" limedl-native.exe -bso0 -bsp0
+          if ($LASTEXITCODE -ne 0) { throw "7z failed with $LASTEXITCODE" }
+          Pop-Location
+          Write-Host "wrote dist/$out"
 
       # ── NSIS installer ─────────────────────────────────────────────────
       - name: Package NSIS installer
