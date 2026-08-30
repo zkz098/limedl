@@ -107,9 +107,14 @@ export component SettingsDialog inherits Rectangle {
                 }
             }
 
-            // Tab Headers (Two-tier Common vs Advanced)
+            // Tab Headers (Two-tier Common vs Advanced). Split into two rows
+            // so the labels always fit the modal width in both locales — a
+            // single start-aligned row overflowed the 940px modal with the
+            // English labels and clipped the last tabs (Logging / Aria2).
             VerticalLayout {
                 spacing: 6px;
+
+                // Row 1 — Common
                 HorizontalLayout {
                     spacing: 6px;
                     alignment: start;
@@ -139,8 +144,12 @@ export component SettingsDialog inherits Rectangle {
                         active: root.settings_tab == 8;
                         clicked => { root.set_tab(8); }
                     }
+                }
 
-                    Rectangle { width: 1px; height: 18px; background: Theme.c2b313d; }
+                // Row 2 — Advanced
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
 
                     Text { text: @tr("Advanced:"); color: #6b7280; font-size: 11px; font-weight: 600; vertical-alignment: center; }
                     TabButton {
