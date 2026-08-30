@@ -15,6 +15,9 @@ import {
 
 export component SettingsDialog inherits Rectangle {
     in property <int> settings_tab: 0;
+    // Advanced BT settings section is collapsed by default (not persisted:
+    // the dialog is recreated on each open, so this resets to false).
+    in-out property <bool> bt_show_advanced: false;
     in-out property <SettingsFormData> settings_form;
     in-out property <UpdateState> update_state;
 
@@ -896,7 +899,33 @@ export component SettingsDialog inherits Rectangle {
 
                         Rectangle { height: 1px; background: Theme.c1a1e26; }
 
-                        Text { text: @tr("Queuing & Rate Limits"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
+                        // Advanced BT settings — collapsed by default so the
+                        // page stays scannable; click the header to expand.
+                        Rectangle {
+                            background: Theme.c151921;
+                            border-color: Theme.c272f3e;
+                            border-width: 1px;
+                            border-radius: 6px;
+
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 10px;
+
+                                HorizontalLayout {
+                                    alignment: space-between;
+                                    Text { text: @tr("Advanced BT Settings"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                    IconButton {
+                                        text: root.bt_show_advanced ? @tr("Collapse") : @tr("Expand");
+                                        icon: @image-url("../assets/icons/arrow-down-s-line.svg");
+                                        text_color: Theme.c9ca3af;
+                                        clicked => { root.bt_show_advanced = !root.bt_show_advanced; }
+                                    }
+                                }
+
+                                if root.bt_show_advanced : VerticalLayout {
+                                    spacing: 14px;
+
+                                    Text { text: @tr("Queuing & Rate Limits"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
                         HorizontalLayout {
                             spacing: 12px;
                             VerticalLayout {
@@ -1409,6 +1438,9 @@ export component SettingsDialog inherits Rectangle {
                                 }
                             }
                             Text { text: @tr("Synced trackers update bt.trackerList. Click Save to apply."); color: #6b7280; font-size: 11px; }
+                                }
+                                }
+                            }
                         }
                     }
                 }

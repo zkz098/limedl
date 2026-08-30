@@ -395,6 +395,9 @@ msgstr "加密模式 (enabled/disabled/forced):"
 msgid "Pre-allocation Mode (none/full):"
 msgstr "预分配 (none/full):"
 
+msgid "Advanced BT Settings"
+msgstr "高级 BT 设置"
+
 msgid "Queuing & Rate Limits"
 msgstr "队列与限速"
 
