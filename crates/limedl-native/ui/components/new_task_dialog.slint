@@ -1,18 +1,49 @@
-import { CustomTextInput, IconButton, PrimaryButton, SecondaryButton } from "common.slint";
+import { CustomTextInput, CustomCheckBox, IconButton, PrimaryButton, SecondaryButton } from "common.slint";
+import { ScrollView, TextEdit } from "std-widgets.slint";
 
 import { Theme } from "../theme.slint";
-import { CustomTextInput, IconButton, PrimaryButton, SecondaryButton } from "common.slint";
+import { NewTaskTorrentFileItem } from "../types.slint";
 
 export component NewTaskDialog inherits Rectangle {
+    // ── Two-way bound fields (persist on MainWindow across dialog reopen) ──
     in-out property <string> new_task_url;
     in-out property <string> new_task_dir;
     in-out property <string> new_task_filename;
     in property <string> default_download_dir;
 
+    // ── Checksum probe state (driven from Rust) ──
+    // probe_state: "idle" | "probing" | "found" | "missing" | "not_http"
+    in property <string> probe_state: "idle";
+    in property <string> probe_status_text: "";
+
+    // ── Torrent preview state (driven from Rust) ──
+    // preview_state: "none" | "loading" | "ready" | "error"
+    in property <string> preview_state: "none";
+    in property <string> preview_status_text: "";
+    in property <string> preview_summary_text: "";
+    in property <[NewTaskTorrentFileItem]> torrent_files: [];
+
+    // ── Batch mode state (driven from Rust) ──
+    in property <string> batch_count_text: "";
+    in property <bool> batch_submitting: false;
+    in property <string> batch_status_text: "";
+
     callback close();
     callback submit(string, string, string);
     callback pick_torrent_file();
     callback pick_save_folder();
+    callback probe_checksum();
+    callback reset_probe();
+    callback toggle_torrent_file(int);
+    callback set_all_torrent_files(bool);
+    callback batch_text_changed(string);
+    callback submit_batch(string, string);
+
+    // Reset the stale checksum when the URL is edited (detected hash is only
+    // valid for the URL it was probed against).
+    changed new_task_url => {
+        root.reset_probe();
+    }
 
     width: 100%;
     height: 100%;
@@ -22,7 +53,7 @@ export component NewTaskDialog inherits Rectangle {
 
     Rectangle {
         width: min(parent.width - 60px, 560px);
-        height: 360px;
+        height: root.batch_mode || root.preview_state == "ready" ? 540px : 430px;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         background: Theme.c171a20;
@@ -34,7 +65,7 @@ export component NewTaskDialog inherits Rectangle {
 
         VerticalLayout {
             padding: 22px;
-            spacing: 16px;
+            spacing: 12px;
 
             // Header
             HorizontalLayout {
@@ -52,9 +83,26 @@ export component NewTaskDialog inherits Rectangle {
                 }
             }
 
-            // URL & Torrent Picker
-            VerticalLayout {
+            // Mode tabs: single / batch
+            HorizontalLayout {
+                spacing: 8px;
+                SecondaryButton {
+                    text: @tr("Single Task");
+                    active: !root.batch_mode;
+                    clicked => { root.batch_mode = false; }
+                }
+                SecondaryButton {
+                    text: @tr("Batch Mode");
+                    active: root.batch_mode;
+                    clicked => { root.batch_mode = true; }
+                }
+            }
+
+            // ── Single mode content ──
+            if !root.batch_mode : VerticalLayout {
                 spacing: 6px;
+
+                // URL & Torrent Picker
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
@@ -69,13 +117,176 @@ export component NewTaskDialog inherits Rectangle {
                         clicked => { root.pick_torrent_file(); }
                     }
                 }
+
                 CustomTextInput {
                     text <=> root.new_task_url;
                     placeholder: @tr("http://, https://, magnet:?xt=, or select a local .torrent file");
                 }
+
+                // Checksum probe row (HTTP only, enforced by the Rust handler)
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: root.probe_status_text;
+                            color: root.probe_state == "found" ? Theme.c84cc16 : (
+                                root.probe_state == "missing" || root.probe_state == "not_http" ? Theme.cf59e0b : Theme.c9ca3af);
+                            font-size: root.probe_state == "found" ? 11px : 12px;
+                            font-family: root.probe_state == "found" ? "Consolas" : "MiSans VF";
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                    }
+                    SecondaryButton {
+                        text: @tr("Detect Checksum");
+                        enabled: root.new_task_url != "" && root.probe_state != "probing";
+                        clicked => { root.probe_checksum(); }
+                    }
+                }
+
+                // Torrent file pre-selection (shown after a torrent is previewed)
+                if root.preview_state != "none" : VerticalLayout {
+                    spacing: 6px;
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: @tr("Torrent Contents");
+                            color: Theme.ca3e635;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        HorizontalLayout {
+                            spacing: 4px;
+                            if root.preview_state == "ready" : IconButton {
+                                text: @tr("Select All");
+                                text_color: Theme.c9ca3af;
+                                clicked => { root.set_all_torrent_files(true); }
+                            }
+                            if root.preview_state == "ready" : IconButton {
+                                text: @tr("Deselect");
+                                text_color: Theme.c9ca3af;
+                                clicked => { root.set_all_torrent_files(false); }
+                            }
+                        }
+                    }
+
+                    if root.preview_state == "ready" : Rectangle {
+                        height: 120px;
+                        background: Theme.c14171d;
+                        border-color: Theme.c2b313d;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        clip: true;
+
+                        ScrollView {
+                            VerticalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                padding-top: 6px;
+                                padding-bottom: 6px;
+                                spacing: 4px;
+                                alignment: start;
+
+                                for f in root.torrent_files : HorizontalLayout {
+                                    spacing: 8px;
+                                    height: 24px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        CustomCheckBox {
+                                            checked: f.included;
+                                            toggled => { root.toggle_torrent_file(f.index); }
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        alignment: center;
+                                        horizontal-stretch: 1;
+                                        Text {
+                                            text: f.path;
+                                            color: Theme.cd1d5db;
+                                            font-size: 12px;
+                                            overflow: elide;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Text {
+                                            text: f.size_text;
+                                            color: Theme.c8b95a5;
+                                            font-size: 11px;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Preview status line: loading / error / summary
+                    Text {
+                        text: root.preview_state == "ready"
+                            ? root.preview_summary_text
+                            : root.preview_status_text;
+                        color: root.preview_state == "error" ? Theme.cf87171 : Theme.c9ca3af;
+                        font-size: 12px;
+                        overflow: elide;
+                        vertical-alignment: center;
+                    }
+                }
             }
 
-            // Save Directory Picker
+            // ── Batch mode content ──
+            if root.batch_mode : VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: @tr("Batch URLs (one per line, # comments, [01-20] ranges supported):");
+                    color: Theme.c9ca3af;
+                    font-size: 12px;
+                }
+
+                Rectangle {
+                    height: 150px;
+                    background: Theme.c14161b;
+                    border-color: te.has-focus ? Theme.c84cc16 : Theme.c2b313d;
+                    border-width: 1px;
+                    border-radius: 6px;
+                    clip: true;
+
+                    te := TextEdit {
+                        x: 10px;
+                        width: parent.width - 20px;
+                        y: 8px;
+                        height: parent.height - 16px;
+                        wrap: word-wrap;
+                        font-size: 13px;
+                        text <=> root.batch_text;
+                        edited => { root.batch_text_changed(root.batch_text); }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: root.batch_count_text;
+                        color: Theme.c9ca3af;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {}
+                    Text {
+                        text: root.batch_status_text;
+                        color: Theme.cf59e0b;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // ── Shared: Save Directory ──
             VerticalLayout {
                 spacing: 6px;
                 Text {
@@ -97,8 +308,8 @@ export component NewTaskDialog inherits Rectangle {
                 }
             }
 
-            // Custom Filename
-            VerticalLayout {
+            // ── Single mode: Custom Filename ──
+            if !root.batch_mode : VerticalLayout {
                 spacing: 4px;
                 Text {
                     text: @tr("Custom Filename (Optional):");
@@ -124,7 +335,7 @@ export component NewTaskDialog inherits Rectangle {
                     clicked => { root.close(); }
                 }
 
-                PrimaryButton {
+                if !root.batch_mode : PrimaryButton {
                     text: @tr("Start Download");
                     icon: @image-url("../assets/icons/download-line.svg");
                     enabled: root.new_task_url != "";
@@ -136,7 +347,23 @@ export component NewTaskDialog inherits Rectangle {
                         );
                     }
                 }
+
+                if root.batch_mode : PrimaryButton {
+                    text: @tr("Add Batch Tasks");
+                    icon: @image-url("../assets/icons/download-line.svg");
+                    enabled: !root.batch_submitting;
+                    clicked => {
+                        root.submit_batch(
+                            root.batch_text,
+                            root.new_task_dir == "" ? root.default_download_dir : root.new_task_dir
+                        );
+                    }
+                }
             }
         }
     }
+
+    // local state (declared last so the layout above can reference it)
+    in-out property <bool> batch_mode: false;
+    in-out property <string> batch_text: "";
 }

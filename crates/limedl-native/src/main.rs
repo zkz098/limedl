@@ -3,12 +3,14 @@ slint::include_modules!();
 mod autostart;
 mod bridge;
 mod i18n;
+mod single_instance;
 mod update;
 
 use std::collections::HashSet;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,7 +19,7 @@ use tokio::sync::watch;
 use muda::{Menu, MenuItem, PredefinedMenuItem};
 use notify_rust::Notification;
 use parking_lot::Mutex;
-use slint::{ComponentHandle, SharedString, VecModel};
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
 use limedl_core::aria2_rpc::Aria2RpcServer;
@@ -25,16 +27,18 @@ use limedl_core::bootstrap::bootstrap;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::{
-    AppSettings, ColorMode, DownloadProgress, DownloadState, DownloadSummary, MatchType,
-    ReplacementMode, RewriteTarget, StartDownloadRequest, TaskId, ThemeColor, UrlRewriteRule,
+    AppSettings, ChecksumMode, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted,
+    DownloadProgress, DownloadState, DownloadSummary, MatchType, ReplacementMode, RewriteTarget,
+    StartDownloadRequest, TaskId, ThemeColor, TorrentFileEntry, UrlRewriteRule,
 };
 
 use crate::bridge::{
     SortField, TaskStore, app_settings_to_form, app_settings_to_labs_form, cdn_candidates_to_slint,
     create_url_rewrite_preset, evaluate_url_rewrite, file_status_to_item, format_disk_types_map,
     format_io_status_json, format_speed, generate_piece_map_image, peer_info_to_item,
-    str_to_match_type, str_to_replacement_mode, summary_to_inspector_info, tracker_info_to_item,
-    update_app_settings_from_form, update_app_settings_from_labs_form, url_rewrite_rules_to_slint,
+    str_to_match_type, str_to_replacement_mode, summary_to_inspector_info, torrent_entry_to_item,
+    tracker_info_to_item, update_app_settings_from_form, update_app_settings_from_labs_form,
+    url_rewrite_rules_to_slint,
 };
 use crate::i18n::Language;
 
@@ -221,6 +225,14 @@ fn create_default_tray_icon() -> tray_icon::Icon {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Single-instance guard: a second launch activates the existing window
+    // and exits before any engine/bootstrap work happens.
+    let instance_claim = single_instance::InstanceClaim::claim();
+    if instance_claim.is_secondary() {
+        instance_claim.notify_primary();
+        return Ok(());
+    }
+
     // NOTE: do NOT install a global tracing subscriber here — core's
     // init_logging() owns it (registry + reloadable level filter + console +
     // file layers). Pre-installing one makes init_logging's try_init fail,
@@ -332,6 +344,11 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(Mutex::new("https://raw.github.com/user/repo/master/README.md".to_string()));
     let cdn_candidates_cache: Arc<Mutex<Vec<limedl_core::cdn::speed_test::SpeedTestResult>>> =
         Arc::new(Mutex::new(Vec::new()));
+    // Torrent file pre-selection cache for the new-task dialog: the previewed
+    // entries plus a parallel per-file `included` flag vec (position-aligned).
+    let new_task_torrent_entries: Arc<Mutex<Vec<TorrentFileEntry>>> =
+        Arc::new(Mutex::new(Vec::new()));
+    let new_task_torrent_included: Arc<Mutex<Vec<bool>>> = Arc::new(Mutex::new(Vec::new()));
 
     // Initialize UI settings state
     refresh_settings_state(
@@ -358,6 +375,19 @@ async fn main() -> anyhow::Result<()> {
     // System Tray Setup
     // Pending update info shared between the update callbacks and the background check.
     let available_update: Arc<Mutex<Option<update::AvailableUpdate>>> = Arc::new(Mutex::new(None));
+
+    // Single-instance activate requests from secondary launches: show window.
+    {
+        let ui_weak = main_window.as_weak();
+        instance_claim.listen_for_activate(move || {
+            let ui_weak = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    let _ = ui.show();
+                }
+            });
+        });
+    }
 
     let tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(build_tray_menu(initial_lang)))
@@ -588,70 +618,103 @@ async fn main() -> anyhow::Result<()> {
         let default_dir = default_download_dir.clone();
         let game_mode_active_clone = game_mode_active.clone();
 
-        tokio::spawn(async move {
-            let menu_channel = muda::MenuEvent::receiver();
-            let tray_channel = TrayIconEvent::receiver();
+        // Dedicated OS threads pump the *blocking* std receivers into
+        // cancellable async channels. Never call `recv()` inside
+        // `tokio::select!` via `spawn_blocking()`: cancelling the select arm
+        // mid-`recv()` leaks a blocked `recv()` on the single shared receiver,
+        // and that leaked waiter steals the next event from the channel — so
+        // menu clicks (tray exit, show-window, …) were silently dropped.
+        let (menu_tx, mut menu_rx) = tokio::sync::mpsc::unbounded_channel::<muda::MenuEvent>();
+        let (tray_tx, mut tray_rx) = tokio::sync::mpsc::unbounded_channel::<TrayIconEvent>();
+        std::thread::Builder::new()
+            .name("tray-menu-events".into())
+            .spawn(move || {
+                let receiver = muda::MenuEvent::receiver();
+                while let Ok(event) = receiver.recv() {
+                    if menu_tx.send(event).is_err() {
+                        break;
+                    }
+                }
+            })
+            .expect("failed to spawn tray menu event thread");
+        std::thread::Builder::new()
+            .name("tray-icon-events".into())
+            .spawn(move || {
+                let receiver = TrayIconEvent::receiver();
+                while let Ok(event) = receiver.recv() {
+                    if tray_tx.send(event).is_err() {
+                        break;
+                    }
+                }
+            })
+            .expect("failed to spawn tray icon event thread");
 
+        tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    Ok(event) = tokio::task::spawn_blocking(move || menu_channel.recv()) => {
-                        if let Ok(event) = event {
-                            match event.id.as_ref() {
-                                "show" => {
-                                    let _ = slint::invoke_from_event_loop({
-                                        let ui_weak = ui_weak.clone();
-                                        move || {
-                                            if let Some(ui) = ui_weak.upgrade() {
-                                                let _ = ui.show();
-                                            }
+                    Some(event) = menu_rx.recv() => {
+                        match event.id.as_ref() {
+                            "show" => {
+                                let _ = slint::invoke_from_event_loop({
+                                    let ui_weak = ui_weak.clone();
+                                    move || {
+                                        if let Some(ui) = ui_weak.upgrade() {
+                                            let _ = ui.show();
+                                        }
+                                    }
+                                });
+                            }
+                            "pause_all" => {
+                                if let Ok(list) = dispatcher.list().await {
+                                    for item in list {
+                                        if matches!(item.state, DownloadState::Downloading)
+                                            && let Ok(task_id) = TaskId::from_wire_string(&item.id)
+                                        {
+                                            let _ = dispatcher.pause(&task_id).await;
+                                        }
+                                    }
+                                }
+                            }
+                            "resume_all" => {
+                                if let Ok(list) = dispatcher.list().await {
+                                    for item in list {
+                                        if matches!(item.state, DownloadState::Paused)
+                                            && let Ok(task_id) = TaskId::from_wire_string(&item.id)
+                                        {
+                                            let _ = dispatcher.resume(&task_id).await;
+                                        }
+                                    }
+                                }
+                            }
+                            "game_mode" => {
+                                if let Ok(new_val) = dispatcher.toggle_game_mode(None) {
+                                    *game_mode_active_clone.lock() = new_val;
+                                    let ui_weak = ui_weak.clone();
+                                    let _ = slint::invoke_from_event_loop(move || {
+                                        if let Some(ui) = ui_weak.upgrade() {
+                                            ui.set_game_mode_active(new_val);
                                         }
                                     });
                                 }
-                                "pause_all" => {
-                                    if let Ok(list) = dispatcher.list().await {
-                                        for item in list {
-                                            if matches!(item.state, DownloadState::Downloading)
-                                                && let Ok(task_id) = TaskId::from_wire_string(&item.id)
-                                            {
-                                                let _ = dispatcher.pause(&task_id).await;
-                                            }
-                                        }
-                                    }
-                                }
-                                "resume_all" => {
-                                    if let Ok(list) = dispatcher.list().await {
-                                        for item in list {
-                                            if matches!(item.state, DownloadState::Paused)
-                                                && let Ok(task_id) = TaskId::from_wire_string(&item.id)
-                                            {
-                                                let _ = dispatcher.resume(&task_id).await;
-                                            }
-                                        }
-                                    }
-                                }
-                                "game_mode" => {
-                                    if let Ok(new_val) = dispatcher.toggle_game_mode(None) {
-                                        *game_mode_active_clone.lock() = new_val;
-                                        let ui_weak = ui_weak.clone();
-                                        let _ = slint::invoke_from_event_loop(move || {
-                                            if let Some(ui) = ui_weak.upgrade() {
-                                                ui.set_game_mode_active(new_val);
-                                            }
-                                        });
-                                    }
-                                }
-                                "open_dir" => {
-                                    let _ = open_path_in_explorer(&default_dir);
-                                }
-                                "quit" => {
+                            }
+                            "open_dir" => {
+                                let _ = open_path_in_explorer(&default_dir);
+                            }
+                            "quit" => {
+                                // Quit through the Slint event loop so the
+                                // runtime teardown (engine shutdown, registry
+                                // shutdown_all) runs; fall back to a hard exit
+                                // only if the event loop is already gone.
+                                if slint::quit_event_loop().is_err() {
                                     std::process::exit(0);
                                 }
-                                _ => {}
+                                break;
                             }
+                            _ => {}
                         }
                     }
-                    Ok(event) = tokio::task::spawn_blocking(move || tray_channel.recv()) => {
-                        if let Ok(TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. }) = event {
+                    Some(event) = tray_rx.recv() => {
+                        if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
                             let _ = slint::invoke_from_event_loop({
                                 let ui_weak = ui_weak.clone();
                                 move || {
@@ -662,6 +725,7 @@ async fn main() -> anyhow::Result<()> {
                             });
                         }
                     }
+                    else => break,
                 }
             }
         });
@@ -1190,8 +1254,23 @@ async fn main() -> anyhow::Result<()> {
     // Dialog: Open / Close New Task
     {
         let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
         main_window.on_open_new_task_dialog(move || {
             if let Some(ui) = ui_weak.upgrade() {
+                // Reset transient dialog state (probe / torrent preview / batch)
+                let lang = store_clone.lock().language();
+                ui.set_new_task_probe_state("idle".into());
+                ui.set_new_task_probe_status_text(SharedString::default());
+                ui.set_new_task_probe_hash(SharedString::default());
+                ui.set_new_task_preview_state("none".into());
+                ui.set_new_task_preview_status_text(SharedString::default());
+                ui.set_new_task_preview_summary_text(SharedString::default());
+                ui.set_new_task_torrent_files(ModelRc::default());
+                ui.set_new_task_batch_count_text(
+                    SharedString::from(i18n::format_batch_count(0, lang)),
+                );
+                ui.set_new_task_batch_submitting(false);
+                ui.set_new_task_batch_status_text(SharedString::default());
                 ui.set_show_new_task_dialog(true);
             }
         });
@@ -1206,13 +1285,141 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    // Submit New Task
+    // New Task: reset checksum probe (dialog calls this whenever the URL is edited,
+    // because a detected hash is only valid for the URL it was probed against)
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_reset_new_task_probe(move || {
+            if let Some(ui) = ui_weak.upgrade()
+                && ui.get_new_task_probe_state().as_str() != "idle"
+            {
+                ui.set_new_task_probe_state("idle".into());
+                ui.set_new_task_probe_status_text(SharedString::default());
+                ui.set_new_task_probe_hash(SharedString::default());
+            }
+        });
+    }
+
+    // New Task: probe .sha256 / SHA256SUMS for the entered HTTP link
     {
         let dispatcher = core.dispatcher.clone();
         let ui_weak = main_window.as_weak();
-        main_window.on_submit_new_task(move |url, dir, filename| {
-            let dispatcher = dispatcher.clone();
+        let store_clone = store.clone();
+        main_window.on_probe_new_task_checksum(move || {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
+            let url = ui.get_new_task_url().trim().to_string();
+            if url.is_empty() {
+                return;
+            }
+            let custom_name = ui.get_new_task_filename().trim().to_string();
+            let file_name = (!custom_name.is_empty()).then_some(custom_name);
+            let lang = store_clone.lock().language();
+            if !url.starts_with("http://") && !url.starts_with("https://") {
+                ui.set_new_task_probe_state("not_http".into());
+                ui.set_new_task_probe_status_text(
+                    SharedString::from(i18n::format_probe_status("not_http", "", lang)),
+                );
+                return;
+            }
+            ui.set_new_task_probe_state("probing".into());
+            ui.set_new_task_probe_status_text(
+                SharedString::from(i18n::format_probe_status("probing", "", lang)),
+            );
             let ui_weak = ui_weak.clone();
+            let dispatcher = dispatcher.clone();
+            tokio::spawn(async move {
+                let detected = dispatcher
+                    .probe_checksum(&url, file_name.as_deref())
+                    .await
+                    .ok()
+                    .flatten();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        match detected {
+                            Some(hash) => {
+                                ui.set_new_task_probe_state("found".into());
+                                ui.set_new_task_probe_status_text(SharedString::from(
+                                    i18n::format_probe_status("found", &hash, lang),
+                                ));
+                                ui.set_new_task_probe_hash(SharedString::from(hash));
+                            }
+                            None => {
+                                ui.set_new_task_probe_state("missing".into());
+                                ui.set_new_task_probe_status_text(SharedString::from(
+                                    i18n::format_probe_status("missing", "", lang),
+                                ));
+                            }
+                        }
+                    }
+                });
+            });
+        });
+    }
+
+    // New Task: torrent file pre-selection toggles
+    {
+        let ui_weak = main_window.as_weak();
+        let entries_cache = new_task_torrent_entries.clone();
+        let included_cache = new_task_torrent_included.clone();
+        main_window.on_toggle_new_task_file(move |idx| {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
+            let mut included = included_cache.lock();
+            let pos = idx.max(0) as usize;
+            if let Some(flag) = included.get_mut(pos) {
+                *flag = !*flag;
+                let entries = entries_cache.lock();
+                let items: Vec<NewTaskTorrentFileItem> = entries
+                    .iter()
+                    .zip(included.iter())
+                    .map(|(e, inc)| torrent_entry_to_item(e, *inc))
+                    .collect();
+                drop(entries);
+                drop(included);
+                ui.set_new_task_torrent_files(Rc::new(VecModel::from(items)).into());
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        let entries_cache = new_task_torrent_entries.clone();
+        let included_cache = new_task_torrent_included.clone();
+        main_window.on_set_all_new_task_files(move |all| {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
+            let mut included = included_cache.lock();
+            if included.is_empty() {
+                return;
+            }
+            included.iter_mut().for_each(|flag| *flag = all);
+            let entries = entries_cache.lock();
+            let items: Vec<NewTaskTorrentFileItem> = entries
+                .iter()
+                .zip(included.iter())
+                .map(|(e, inc)| torrent_entry_to_item(e, *inc))
+                .collect();
+            drop(entries);
+            drop(included);
+            ui.set_new_task_torrent_files(Rc::new(VecModel::from(items)).into());
+        });
+    }
+
+    // Submit New Task (single mode: with checksum probe result and BT file selection)
+    {
+        let dispatcher = core.dispatcher.clone();
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        let entries_cache = new_task_torrent_entries.clone();
+        let included_cache = new_task_torrent_included.clone();
+        main_window.on_submit_new_task(move |url, dir, filename| {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
             let url_str = url.to_string();
             let dir_str = dir.to_string();
             let filename_opt = if filename.trim().is_empty() {
@@ -1221,11 +1428,58 @@ async fn main() -> anyhow::Result<()> {
                 Some(filename.trim().to_string())
             };
 
+            // Detected checksum (cleared by the dialog whenever the URL changes,
+            // so a `found` state here is always bound to the current URL)
+            let (checksum, expected_checksum) = if ui.get_new_task_probe_state().as_str() == "found"
+            {
+                let hash = ui.get_new_task_probe_hash().to_string();
+                (
+                    (!hash.is_empty()).then_some(ChecksumMode::Sha256),
+                    (!hash.is_empty()).then_some(hash),
+                )
+            } else {
+                (None, None)
+            };
+
+            // BT file selection: None downloads everything; an empty selection
+            // is rejected with a visible hint instead of a silent no-op task.
+            let selected_file_indices = {
+                let entries = entries_cache.lock();
+                let included = included_cache.lock();
+                if entries.is_empty() || ui.get_new_task_preview_state().as_str() != "ready" {
+                    None
+                } else {
+                    let chosen: Vec<usize> = entries
+                        .iter()
+                        .zip(included.iter())
+                        .filter(|(_, inc)| **inc)
+                        .map(|(e, _)| e.index)
+                        .collect();
+                    if chosen.len() == entries.len() {
+                        None
+                    } else {
+                        Some(chosen)
+                    }
+                }
+            };
+            if selected_file_indices.as_ref().is_some_and(Vec::is_empty) {
+                let lang = store_clone.lock().language();
+                ui.set_new_task_preview_status_text(SharedString::from(
+                    i18n::no_files_selected_text(lang),
+                ));
+                return;
+            }
+
+            let ui_weak = ui_weak.clone();
+            let dispatcher = dispatcher.clone();
             tokio::spawn(async move {
                 let req = StartDownloadRequest {
                     url: url_str,
                     destination_dir: dir_str,
                     file_name: filename_opt,
+                    checksum,
+                    expected_checksum,
+                    selected_file_indices,
                     ..Default::default()
                 };
 
@@ -1243,6 +1497,94 @@ async fn main() -> anyhow::Result<()> {
                     Err(err) => {
                         tracing::error!("添加下载任务失败: {err}");
                     }
+                }
+            });
+        });
+    }
+
+    // New Task: batch mode — live link count under the textarea
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_new_task_batch_text_changed(move |text| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let count = parse_batch_urls(&text).len();
+                let lang = store_clone.lock().language();
+                ui.set_new_task_batch_count_text(SharedString::from(i18n::format_batch_count(
+                    count, lang,
+                )));
+            }
+        });
+    }
+
+    // New Task: batch mode — submit all parsed links concurrently
+    {
+        let dispatcher = core.dispatcher.clone();
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_submit_new_task_batch(move |text, dir| {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
+            let urls = parse_batch_urls(&text);
+            let dir_str = dir.to_string();
+            let lang = store_clone.lock().language();
+            if urls.is_empty() {
+                ui.set_new_task_batch_status_text(SharedString::from(i18n::format_batch_count(
+                    0, lang,
+                )));
+                return;
+            }
+            ui.set_new_task_batch_submitting(true);
+            ui.set_new_task_batch_status_text(SharedString::from(i18n::format_batch_status(
+                0,
+                urls.len(),
+                lang,
+            )));
+
+            let ui_weak = ui_weak.clone();
+            let dispatcher = dispatcher.clone();
+            tokio::spawn(async move {
+                let total = urls.len();
+                let done = Arc::new(AtomicUsize::new(0));
+                let ok_count = Arc::new(AtomicUsize::new(0));
+                for entry_url in urls {
+                    let dispatcher = dispatcher.clone();
+                    let ui_weak = ui_weak.clone();
+                    let done = done.clone();
+                    let ok_count = ok_count.clone();
+                    let dir_str = dir_str.clone();
+                    let file_name = extract_batch_file_name(&entry_url);
+                    tokio::spawn(async move {
+                        let req = StartDownloadRequest {
+                            url: entry_url,
+                            destination_dir: dir_str,
+                            file_name,
+                            ..Default::default()
+                        };
+                        if dispatcher.start(req).await.is_ok() {
+                            ok_count.fetch_add(1, Ordering::Relaxed);
+                        }
+                        let finished = done.fetch_add(1, Ordering::Relaxed) + 1;
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                if finished < total {
+                                    ui.set_new_task_batch_status_text(SharedString::from(
+                                        i18n::format_batch_status(finished, total, lang),
+                                    ));
+                                } else {
+                                    let succeeded = ok_count.load(Ordering::Relaxed);
+                                    ui.set_new_task_batch_submitting(false);
+                                    ui.set_new_task_batch_status_text(SharedString::from(
+                                        i18n::format_batch_status(succeeded, total, lang),
+                                    ));
+                                    if succeeded == total {
+                                        ui.set_show_new_task_dialog(false);
+                                    }
+                                }
+                            }
+                        });
+                    });
                 }
             });
         });
@@ -1291,6 +1633,33 @@ async fn main() -> anyhow::Result<()> {
                     && let Err(err) = dispatcher.open_in_explorer(&task_id).await
                 {
                     tracing::error!("打开任务文件目录失败: {err}");
+                }
+            });
+        });
+    }
+
+    // Double-click behavior (Settings → General: double_click on_completed /
+    // on_uncompleted). Mirrors the web client: completed tasks open the file /
+    // explorer / download dir; uncompleted tasks toggle pause/resume.
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let current_settings_clone = current_settings.clone();
+        main_window.on_task_double_clicked(move |id_str| {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let id_str = id_str.to_string();
+            tokio::spawn(async move {
+                if let Err(err) = handle_task_double_click(
+                    &dispatcher,
+                    &store_clone,
+                    &current_settings_clone,
+                    &id_str,
+                )
+                .await
+                {
+                    tracing::error!("双击任务操作失败: {err:#}");
                 }
             });
         });
@@ -1363,11 +1732,19 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    // Pick Torrent File (Native Dialog)
+    // Pick Torrent File (Native Dialog) + start file pre-selection preview
     {
         let ui_weak = main_window.as_weak();
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let entries_cache = new_task_torrent_entries.clone();
+        let included_cache = new_task_torrent_included.clone();
         main_window.on_pick_torrent_file(move || {
             let ui_weak = ui_weak.clone();
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let entries_cache = entries_cache.clone();
+            let included_cache = included_cache.clone();
             tokio::spawn(async move {
                 let file = rfd::AsyncFileDialog::new()
                     .add_filter("Torrent Files", &["torrent", "TORRENT"])
@@ -1378,11 +1755,60 @@ async fn main() -> anyhow::Result<()> {
                 if let Some(handle) = file {
                     let path = handle.path().to_string_lossy().to_string();
                     let file_name = handle.file_name();
+                    let lang = store_clone.lock().language();
+                    let path_for_ui = path.clone();
+                    let ui_weak_first = ui_weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_new_task_url(SharedString::from(&path));
+                        if let Some(ui) = ui_weak_first.upgrade() {
+                            ui.set_new_task_url(SharedString::from(&path_for_ui));
                             if ui.get_new_task_filename().trim().is_empty() {
                                 ui.set_new_task_filename(SharedString::from(&file_name));
+                            }
+                            // Torrent pre-selection: parse the file list now
+                            ui.set_new_task_preview_state("loading".into());
+                            ui.set_new_task_preview_status_text(SharedString::from(
+                                i18n::format_preview_status("loading", "", lang),
+                            ));
+                            ui.set_new_task_preview_summary_text(SharedString::default());
+                            ui.set_new_task_torrent_files(ModelRc::default());
+                        }
+                    });
+
+                    let preview = dispatcher.bt_preview_torrent(&path).await;
+                    let _ = slint::invoke_from_event_loop(move || {
+                        let Some(ui) = ui_weak.upgrade() else {
+                            return;
+                        };
+                        match preview {
+                            Ok(entries) => {
+                                let total_bytes: u64 = entries.iter().map(|e| e.size).sum();
+                                *entries_cache.lock() = entries.clone();
+                                *included_cache.lock() = vec![true; entries.len()];
+                                let items: Vec<NewTaskTorrentFileItem> = entries
+                                    .iter()
+                                    .map(|e| torrent_entry_to_item(e, true))
+                                    .collect();
+                                ui.set_new_task_torrent_files(
+                                    Rc::new(VecModel::from(items)).into(),
+                                );
+                                ui.set_new_task_preview_state("ready".into());
+                                ui.set_new_task_preview_status_text(SharedString::default());
+                                ui.set_new_task_preview_summary_text(SharedString::from(
+                                    i18n::format_preview_summary(
+                                        entries.len(),
+                                        &bridge::format_bytes(total_bytes),
+                                        lang,
+                                    ),
+                                ));
+                            }
+                            Err(err) => {
+                                entries_cache.lock().clear();
+                                included_cache.lock().clear();
+                                ui.set_new_task_torrent_files(ModelRc::default());
+                                ui.set_new_task_preview_state("error".into());
+                                ui.set_new_task_preview_status_text(SharedString::from(
+                                    i18n::format_preview_status("error", &err.to_string(), lang),
+                                ));
                             }
                         }
                     });
@@ -2447,6 +2873,75 @@ fn open_path_in_explorer(path: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Open a task's downloaded file with the OS default handler (via backend).
+/// The `Dispatcher` has no inherent `open_file`/`open_dir`, so route through
+/// the backend registry exactly like the Tauri commands do.
+async fn open_task_file(dispatcher: &Dispatcher, task_id: &TaskId) -> anyhow::Result<()> {
+    let backend = dispatcher.registry().dispatch(task_id)?;
+    Ok(backend.open_file(task_id).await?)
+}
+
+/// Open a task's download directory in the file explorer (via backend).
+async fn open_task_dir(dispatcher: &Dispatcher, task_id: &TaskId) -> anyhow::Result<()> {
+    let backend = dispatcher.registry().dispatch(task_id)?;
+    Ok(backend.open_dir(task_id).await?)
+}
+
+/// Execute the configured double-click behavior for a task. Mirrors the web
+/// client's semantics: completed tasks open the file / explorer / download
+/// dir; uncompleted tasks toggle pause/resume (pause for queued/downloading/
+/// retrying/verifying, resume for paused/failed).
+async fn handle_task_double_click(
+    dispatcher: &Dispatcher,
+    store: &Mutex<TaskStore>,
+    current_settings: &Mutex<AppSettings>,
+    id_str: &str,
+) -> anyhow::Result<()> {
+    // Snapshot the task state + configured behavior.
+    let (state, double_click) = {
+        let store = store.lock();
+        let Some(summary) = store.get_summary(id_str) else {
+            return Ok(());
+        };
+        let settings = current_settings.lock();
+        (summary.state, settings.double_click.clone())
+    };
+    let task_id = TaskId::from_wire_string(id_str)?;
+
+    if matches!(state, DownloadState::Completed) {
+        match double_click.on_completed {
+            DoubleClickOnCompleted::None => {}
+            DoubleClickOnCompleted::OpenFile => {
+                open_task_file(dispatcher, &task_id).await?;
+            }
+            DoubleClickOnCompleted::OpenInExplorer => {
+                dispatcher.open_in_explorer(&task_id).await?;
+            }
+            DoubleClickOnCompleted::OpenDownloadDir => {
+                open_task_dir(dispatcher, &task_id).await?;
+            }
+        }
+    } else {
+        match double_click.on_uncompleted {
+            DoubleClickOnUncompleted::None => {}
+            DoubleClickOnUncompleted::TogglePauseResume => {
+                if matches!(
+                    state,
+                    DownloadState::Queued
+                        | DownloadState::Downloading
+                        | DownloadState::Retrying
+                        | DownloadState::Verifying
+                ) {
+                    dispatcher.pause(&task_id).await?;
+                } else if matches!(state, DownloadState::Paused | DownloadState::Failed) {
+                    dispatcher.resume(&task_id).await?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Opens a URL in the system default browser.
 fn open_url_in_browser(url: &str) -> std::io::Result<()> {
     #[cfg(windows)]
@@ -2463,6 +2958,105 @@ fn open_url_in_browser(url: &str) -> std::io::Result<()> {
         std::process::Command::new("xdg-open").arg(url).spawn()?;
     }
     Ok(())
+}
+
+// ── New-task dialog: batch URL parsing ──────────────────────────────
+
+/// Split batch text into expanded download URLs. Blank lines and lines
+/// starting with `#` are skipped; `[01-20]` style ranges are expanded.
+fn parse_batch_urls(text: &str) -> Vec<String> {
+    let mut urls = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        urls.extend(expand_url_ranges(trimmed));
+    }
+    urls
+}
+
+/// Expand the first `[start-end]` numeric range in a URL (same semantics as
+/// the Vue composer's `expandUrlRanges`: first occurrence only, zero-padded
+/// to the width of the start token). A safety cap of 1000 expansions guards
+/// against accidental giant ranges.
+fn expand_url_ranges(url: &str) -> Vec<String> {
+    let Some(open) = url.find('[') else {
+        return vec![url.to_string()];
+    };
+    let after_open = &url[open + 1..];
+    let Some(close) = after_open.find(']') else {
+        return vec![url.to_string()];
+    };
+    let inner = &after_open[..close];
+    let Some((start_raw, end_raw)) = inner.split_once('-') else {
+        return vec![url.to_string()];
+    };
+    if start_raw.is_empty()
+        || end_raw.is_empty()
+        || !start_raw.chars().all(|c| c.is_ascii_digit())
+        || !end_raw.chars().all(|c| c.is_ascii_digit())
+    {
+        return vec![url.to_string()];
+    }
+    let Ok(start) = start_raw.parse::<u64>() else {
+        return vec![url.to_string()];
+    };
+    let Ok(end) = end_raw.parse::<u64>() else {
+        return vec![url.to_string()];
+    };
+    if start > end || end - start >= 1000 {
+        return vec![url.to_string()];
+    }
+
+    let pattern = format!("[{inner}]");
+    (start..=end)
+        .map(|i| {
+            let mut replacement = i.to_string();
+            while replacement.len() < start_raw.len() {
+                replacement.insert(0, '0');
+            }
+            url.replacen(&pattern, &replacement, 1)
+        })
+        .collect()
+}
+
+/// Best-effort filename for a batch entry: the last percent-decoded path
+/// segment of an HTTP(S) URL (matching the Vue composer's per-entry fileName).
+fn extract_batch_file_name(url: &str) -> Option<String> {
+    let trimmed = url.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+        return None;
+    }
+    let segment = reqwest::Url::parse(trimmed)
+        .ok()
+        .and_then(|u| {
+            u.path_segments()
+                .and_then(|mut segments| segments.next_back().map(ToOwned::to_owned))
+        })
+        .map(|seg| percent_decode(&seg))
+        .unwrap_or_default();
+    (!segment.is_empty()).then_some(segment)
+}
+
+/// Minimal percent-decoding for URL path segments (UTF-8 lossy).
+fn percent_decode(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 3 <= bytes.len()
+            && let Ok(value) = u8::from_str_radix(&input[i + 1..i + 3], 16)
+        {
+            out.push(value);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn dirs_or_temp_dir() -> PathBuf {
@@ -2487,5 +3081,81 @@ fn dirs_local_data_dir() -> Option<PathBuf> {
         std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_expand_url_ranges() {
+        assert_eq!(
+            expand_url_ranges("https://host/file[01-03].zip"),
+            vec![
+                "https://host/file01.zip",
+                "https://host/file02.zip",
+                "https://host/file03.zip",
+            ]
+        );
+        // No padding when the start token is not zero-padded
+        assert_eq!(
+            expand_url_ranges("https://host/file[1-2].zip"),
+            vec!["https://host/file1.zip", "https://host/file2.zip"]
+        );
+        // Only the first range expands (mirrors the Vue composer)
+        assert_eq!(
+            expand_url_ranges("https://host/a[1-2]b[3-4].zip"),
+            vec!["https://host/a1b[3-4].zip", "https://host/a2b[3-4].zip"]
+        );
+        // Non-range inputs pass through unchanged
+        assert_eq!(expand_url_ranges("https://host/a.zip"), vec!["https://host/a.zip"]);
+        assert_eq!(expand_url_ranges("https://host/a[-1].zip"), vec!["https://host/a[-1].zip"]);
+        assert_eq!(expand_url_ranges("https://host/a[x-y].zip"), vec!["https://host/a[x-y].zip"]);
+        // Reversed range: no expansion
+        assert_eq!(expand_url_ranges("https://host/a[3-1].zip"), vec!["https://host/a[3-1].zip"]);
+        // Giant range guard
+        assert_eq!(expand_url_ranges("https://host/a[1-1001].zip"), vec!["https://host/a[1-1001].zip"]);
+    }
+
+    #[test]
+    fn test_parse_batch_urls() {
+        let text = "\
+https://host/a.zip\n\
+\n\
+# comment line\n\
+  https://host/b[1-2].zip  \n\
+magnet:?xt=urn:btih:abcdef\n";
+        assert_eq!(
+            parse_batch_urls(text),
+            vec![
+                "https://host/a.zip",
+                "https://host/b1.zip",
+                "https://host/b2.zip",
+                "magnet:?xt=urn:btih:abcdef",
+            ]
+        );
+        assert!(parse_batch_urls("# only comments\n\n").is_empty());
+    }
+
+    #[test]
+    fn test_extract_batch_file_name() {
+        assert_eq!(
+            extract_batch_file_name("https://host.com/path/to/file%20name.zip").as_deref(),
+            Some("file name.zip")
+        );
+        assert_eq!(extract_batch_file_name("https://host.com/dir/").as_deref(), None);
+        assert_eq!(extract_batch_file_name("magnet:?xt=urn:btih:ab").as_deref(), None);
+        assert_eq!(extract_batch_file_name("not a url").as_deref(), None);
+    }
+
+    #[test]
+    fn test_percent_decode() {
+        assert_eq!(percent_decode("a%20b+c"), "a b+c"); // '+' is not decoded in paths
+        assert_eq!(percent_decode("a+b"), "a+b");
+        assert_eq!(percent_decode("%E4%B8%AD%E6%96%87.zip"), "中文.zip");
+        assert_eq!(percent_decode("plain"), "plain");
+        assert_eq!(percent_decode("bad%zz"), "bad%zz");
+        assert_eq!(percent_decode("trunc%2"), "trunc%2");
     }
 }

@@ -14,6 +14,7 @@ export {
     PeerItem,
     TrackerItem,
     TorrentFileItem,
+    NewTaskTorrentFileItem,
     InspectorInfo,
     SettingsFormData,
     ContextMenuState,
@@ -28,6 +29,7 @@ import {
     PeerItem,
     TrackerItem,
     TorrentFileItem,
+    NewTaskTorrentFileItem,
     InspectorInfo,
     SettingsFormData,
     ContextMenuState,
@@ -139,6 +141,19 @@ export component MainWindow inherits Window {
     in-out property <string> new_task_url: "";
     in-out property <string> new_task_dir: "";
     in-out property <string> new_task_filename: "";
+    // Checksum probe state: probe_state "idle" | "probing" | "found" | "missing" | "not_http"
+    in-out property <string> new_task_probe_state: "idle";
+    in-out property <string> new_task_probe_status_text: "";
+    in-out property <string> new_task_probe_hash: ""; // raw detected hash (submit input)
+    // Torrent preview state: "none" | "loading" | "ready" | "error"
+    in-out property <string> new_task_preview_state: "none";
+    in-out property <string> new_task_preview_status_text: "";
+    in-out property <string> new_task_preview_summary_text: "";
+    in property <[NewTaskTorrentFileItem]> new_task_torrent_files: [];
+    // Batch mode state
+    in-out property <string> new_task_batch_count_text: "";
+    in-out property <bool> new_task_batch_submitting: false;
+    in-out property <string> new_task_batch_status_text: "";
 
     // Callbacks to Rust
     callback select_category(int);
@@ -151,6 +166,7 @@ export component MainWindow inherits Window {
     callback resume_task(string);
     callback open_task_explorer(string);
     callback remove_task(string);
+    callback task_double_clicked(string);
 
     // Phase 2 Callbacks
     callback search_changed(string);
@@ -222,6 +238,14 @@ export component MainWindow inherits Window {
     callback open_font_license();
     callback copy_task_url(string);
     callback purge_single_task(string);
+
+    // New-task dialog: checksum probe / torrent file pre-selection / batch mode
+    callback probe_new_task_checksum();
+    callback reset_new_task_probe();
+    callback toggle_new_task_file(int);
+    callback set_all_new_task_files(bool);
+    callback new_task_batch_text_changed(string);
+    callback submit_new_task_batch(string, string);
 
     HorizontalLayout {
         // Left Sidebar
@@ -676,7 +700,7 @@ export component MainWindow inherits Window {
                         spacing: 10px;
                         alignment: start;
 
-                        for task[idx] in root.tasks : TaskCard {
+                        for task[idx] in root.tasks : task_card := TaskCard {
                             item: task;
                             toggle_select => { root.toggle_select_task(task.id); }
                             open_inspector => { root.open_inspector(task.id); }
@@ -684,11 +708,16 @@ export component MainWindow inherits Window {
                             resume_task => { root.resume_task(task.id); }
                             open_explorer => { root.open_task_explorer(task.id); }
                             remove_task => { root.remove_task(task.id); }
+                            double_clicked => { root.task_double_clicked(task.id); }
                             show_menu(mx, my) => {
+                                // `absolute-position` is window-relative and
+                                // already accounts for ScrollView offsets, so
+                                // adding the card-local cursor position gives
+                                // true window coordinates for the popup.
                                 root.context_menu_state = {
                                     visible: true,
-                                    x: mx + 240px,
-                                    y: my + 86px + (idx * 114px),
+                                    x: task_card.absolute-position.x + mx + 8px,
+                                    y: task_card.absolute-position.y + my + 8px,
                                     task_id: task.id,
                                     task_name: task.file_name,
                                     task_url: task.url,
@@ -874,9 +903,24 @@ export component MainWindow inherits Window {
         new_task_dir <=> root.new_task_dir;
         new_task_filename <=> root.new_task_filename;
         default_download_dir: root.default_download_dir;
+        probe_state: root.new_task_probe_state;
+        probe_status_text: root.new_task_probe_status_text;
+        preview_state: root.new_task_preview_state;
+        preview_status_text: root.new_task_preview_status_text;
+        preview_summary_text: root.new_task_preview_summary_text;
+        torrent_files: root.new_task_torrent_files;
+        batch_count_text: root.new_task_batch_count_text;
+        batch_submitting: root.new_task_batch_submitting;
+        batch_status_text: root.new_task_batch_status_text;
         close => { root.close_new_task_dialog(); }
         submit(url, dir, filename) => { root.submit_new_task(url, dir, filename); }
         pick_torrent_file => { root.pick_torrent_file(); }
         pick_save_folder => { root.pick_save_folder(); }
+        probe_checksum => { root.probe_new_task_checksum(); }
+        reset_probe => { root.reset_new_task_probe(); }
+        toggle_torrent_file(idx) => { root.toggle_new_task_file(idx); }
+        set_all_torrent_files(all) => { root.set_all_new_task_files(all); }
+        batch_text_changed(text) => { root.new_task_batch_text_changed(text); }
+        submit_batch(text, dir) => { root.submit_new_task_batch(text, dir); }
     }
 }

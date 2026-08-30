@@ -1460,3 +1460,20 @@ msgstr "Installer"
 
 msgid "Portable"
 msgstr "Portable"
+msgid "Single Task"
+msgstr "Single Task"
+
+msgid "Batch Mode"
+msgstr "Batch Mode"
+
+msgid "Detect Checksum"
+msgstr "Detect Checksum"
+
+msgid "Torrent Contents"
+msgstr "Torrent Contents"
+
+msgid "Batch URLs (one per line, # comments, [01-20] ranges supported):"
+msgstr "Batch URLs (one per line, # comments, [01-20] ranges supported):"
+
+msgid "Add Batch Tasks"
+msgstr "Add Batch Tasks"

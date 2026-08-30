@@ -7,14 +7,15 @@ use limedl_core::types::{
     BtSeedChokingAlgorithm, BtTrackerInfo, ChecksumMode, ChunkSizeStrategy, CloseBehavior,
     ColorMode, DiskType, DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadProgress,
     DownloadState, DownloadSummary, LogLevel, MatchType, ProxyMode, ReplacementMode, RewriteTarget,
-    SchedulerMode, TaskKind, ThemeColor, UrlRewriteRule, UrlRewriteSettings,
+    SchedulerMode, TaskKind, ThemeColor, TorrentFileEntry, UrlRewriteRule, UrlRewriteSettings,
 };
 use slint::{Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 
 use crate::i18n::{self, Language};
 use crate::{
-    CdnCandidateItem, InspectorInfo, LabsFormData, PeerItem, SettingsFormData, TaskItem,
-    TorrentFileItem, TrackerItem, UrlRewriteRuleItem, UrlRewriteTargetItem,
+    CdnCandidateItem, InspectorInfo, LabsFormData, NewTaskTorrentFileItem, PeerItem,
+    SettingsFormData, TaskItem, TorrentFileItem, TrackerItem, UrlRewriteRuleItem,
+    UrlRewriteTargetItem,
 };
 
 /// Human-readable byte formatting.
@@ -225,6 +226,17 @@ pub fn file_status_to_item(file: &BtFileStatus) -> TorrentFileItem {
         downloaded_text: SharedString::from(format_bytes(file.downloaded_bytes)),
         progress,
         included: file.included,
+    }
+}
+
+/// Convert a `TorrentFileEntry` (torrent preview) into a new-task dialog file
+/// row for pre-download file selection.
+pub fn torrent_entry_to_item(entry: &TorrentFileEntry, included: bool) -> NewTaskTorrentFileItem {
+    NewTaskTorrentFileItem {
+        index: entry.index as i32,
+        path: SharedString::from(entry.path.trim_start_matches('/')),
+        size_text: SharedString::from(format_bytes(entry.size)),
+        included,
     }
 }
 

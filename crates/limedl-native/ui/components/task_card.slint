@@ -13,6 +13,7 @@ export component TaskCard inherits Rectangle {
     callback open_explorer();
     callback remove_task();
     callback show_menu(length, length);
+    callback double_clicked();
 
     background: root.item.selected ? Theme.c1c2618 : (ta.has_hover ? Theme.c191c22 : Theme.c13161b);
     border-color: root.item.selected ? Theme.c65a30d : (ta.has_hover ? Theme.c323845 : Theme.c22262f);
@@ -26,6 +27,7 @@ export component TaskCard inherits Rectangle {
                 root.show_menu(self.mouse-x, self.mouse-y);
             }
         }
+        double-clicked => { root.double_clicked(); }
     }
 
     HorizontalLayout {

@@ -70,10 +70,15 @@ export component ContextMenu inherits Rectangle {
     }
 
     // Popup card positioned at (menu_state.x, menu_state.y)
+    // NOTE: height must be pinned to the content's preferred height. Without
+    // it a Rectangle carrying a layout and no explicit `height` inherits the
+    // parent (window) height, so the menu would fill the whole screen.
     Rectangle {
         x: min(root.menu_state.x, parent.width - self.width - 10px);
         y: min(root.menu_state.y, parent.height - self.height - 10px);
         width: 190px;
+        height: self.preferred-height;
+        clip: true;
         background: Theme.c181b22;
         border-color: Theme.c343c4a;
         border-width: 1px;

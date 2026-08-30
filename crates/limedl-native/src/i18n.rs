@@ -309,6 +309,101 @@ pub fn get_tray_strings(lang: Language) -> TrayMenuStrings {
     }
 }
 
+// ── New-task dialog helpers (checksum probe / torrent preview / batch) ──
+
+/// Checksum probe status line for the new-task dialog.
+/// state: "probing" | "found" | "missing" | "not_http"
+pub fn format_probe_status(state: &str, hash: &str, lang: Language) -> String {
+    match state {
+        "probing" => match lang {
+            Language::ZhCn => "正在探测校验和...".to_string(),
+            Language::EnUs => "Detecting checksum...".to_string(),
+        },
+        "found" => format!("SHA-256: {hash}"),
+        "missing" => match lang {
+            Language::ZhCn => "未找到可用的校验和文件".to_string(),
+            Language::EnUs => "No checksum file found".to_string(),
+        },
+        "not_http" => match lang {
+            Language::ZhCn => "仅 HTTP 链接支持校验和探测".to_string(),
+            Language::EnUs => "Checksum detection is only available for HTTP links".to_string(),
+        },
+        _ => String::new(),
+    }
+}
+
+/// Torrent preview section header/status for the new-task dialog.
+/// state: "loading" | "error" | "summary"
+pub fn format_preview_status(state: &str, detail: &str, lang: Language) -> String {
+    match (state, lang) {
+        ("loading", _) => {
+            if lang == Language::ZhCn {
+                "正在解析种子文件...".to_string()
+            } else {
+                "Parsing torrent...".to_string()
+            }
+        }
+        ("error", _) => {
+            if lang == Language::ZhCn {
+                format!("解析失败: {detail}")
+            } else {
+                format!("Preview failed: {detail}")
+            }
+        }
+        _ => String::new(),
+    }
+}
+
+/// Torrent file selection summary, e.g. "24 files · 12.3 GB".
+pub fn format_preview_summary(file_count: usize, size_text: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("{} 个文件 · {}", file_count, size_text),
+        Language::EnUs => format!("{} files · {}", file_count, size_text),
+    }
+}
+
+/// "Select at least one file" error shown when all torrent files are unchecked.
+pub fn no_files_selected_text(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "请至少选择一个文件",
+        Language::EnUs => "Select at least one file",
+    }
+}
+
+/// Batch link count label under the batch textarea.
+pub fn format_batch_count(count: usize, lang: Language) -> String {
+    if count == 0 {
+        return match lang {
+            Language::ZhCn => "未识别到有效链接".to_string(),
+            Language::EnUs => "No valid links detected".to_string(),
+        };
+    }
+    match lang {
+        Language::ZhCn => format!("将添加 {} 个任务", count),
+        Language::EnUs => format!("Will add {} tasks", count),
+    }
+}
+
+/// Batch submit progress/result line.
+pub fn format_batch_status(done: usize, total: usize, lang: Language) -> String {
+    if done < total {
+        return match lang {
+            Language::ZhCn => format!("正在提交... {}/{}", done, total),
+            Language::EnUs => format!("Submitting... {}/{}", done, total),
+        };
+    }
+    if done == 0 {
+        return match lang {
+            Language::ZhCn => "未识别到有效链接".to_string(),
+            Language::EnUs => "No valid links detected".to_string(),
+        };
+    }
+    match lang {
+        Language::ZhCn => format!("批量提交完成: {}/{} 成功", done, total),
+        Language::EnUs => format!("Batch submitted: {}/{} succeeded", done, total),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

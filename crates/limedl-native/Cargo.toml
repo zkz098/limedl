@@ -42,6 +42,10 @@ windows = { version = "0.61", features = [
     "Foundation",
     "ApplicationModel",
     "Services_Store",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 # windows 0.61 disables windows-future's `std` feature, which is where the
 # Future/IntoFuture impls for IAsyncOperation live — re-enable it so the Store

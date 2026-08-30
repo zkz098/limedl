@@ -38,6 +38,14 @@ export struct TorrentFileItem {
     included: bool,
 }
 
+/// One file row in the new-task dialog's torrent pre-selection list.
+export struct NewTaskTorrentFileItem {
+    index: int,
+    path: string,
+    size_text: string,
+    included: bool,
+}
+
 export struct InspectorInfo {
     id: string,
     kind: string,

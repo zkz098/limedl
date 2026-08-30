@@ -1407,3 +1407,20 @@ msgstr "安装版"
 
 msgid "Portable"
 msgstr "便携版"
+msgid "Single Task"
+msgstr "单个任务"
+
+msgid "Batch Mode"
+msgstr "批量模式"
+
+msgid "Detect Checksum"
+msgstr "探测校验和"
+
+msgid "Torrent Contents"
+msgstr "种子文件"
+
+msgid "Batch URLs (one per line, # comments, [01-20] ranges supported):"
+msgstr "批量链接（每行一个，# 为注释，支持 [01-20] 区间）："
+
+msgid "Add Batch Tasks"
+msgstr "批量提交"
