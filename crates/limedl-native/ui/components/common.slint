@@ -680,7 +680,11 @@ export component CategoryButton inherits Rectangle {
         VerticalLayout {
             alignment: center;
             Rectangle {
-                background: root.active ? Theme.c365314 : Theme.c1e2229;
+                // Active badge: accent-soft surface + accent-strong text (same
+                // semantics as the active row background). The previous
+                // c365314/ca3e635 pair mapped to a near-black pill with bright
+                // lime text in light mode — inverted versus the theme.
+                background: root.active ? Theme.c26331a : Theme.c1e2229;
                 border-radius: 10px;
                 height: 20px;
                 min-width: 22px;
@@ -690,7 +694,7 @@ export component CategoryButton inherits Rectangle {
                     alignment: center;
                     Text {
                         text: root.count_text;
-                        color: root.active ? Theme.ca3e635 : Theme.c8b95a5;
+                        color: root.active ? Theme.c65a30d : Theme.c8b95a5;
                         font-size: 11px;
                         font-weight: 600;
                         vertical-alignment: center;

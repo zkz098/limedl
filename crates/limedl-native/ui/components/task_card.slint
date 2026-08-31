@@ -190,10 +190,20 @@ export component TaskCard inherits Rectangle {
                         clicked => { root.open_explorer(); }
                     }
 
-                    IconButton {
+                    more_btn := IconButton {
                         icon: @image-url("../assets/icons/more-2-fill.svg");
                         text_color: Theme.c9ca3af;
-                        clicked => { root.show_menu(parent.width - 120px, 40px); }
+                        clicked => {
+                            // Anchor the menu at this button (card-local coords;
+                            // the parent converts them to window coords via
+                            // absolute-position). The old `parent.width - 120px`
+                            // passed a buttons-row offset, which placed the menu
+                            // to the LEFT of the card.
+                            root.show_menu(
+                                more_btn.absolute-position.x - root.absolute-position.x,
+                                more_btn.absolute-position.y - root.absolute-position.y + more_btn.height
+                            );
+                        }
                     }
                 }
             }
