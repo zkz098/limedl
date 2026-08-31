@@ -34,6 +34,7 @@ export component SettingsDialog inherits Rectangle {
     callback check_updates();
     callback start_download();
     callback restart_now();
+    callback restart_setup();
 
     pure function update_status_text() -> string {
         root.update_state.phase == "checking" ? @tr("Checking for updates...")
@@ -1837,7 +1838,7 @@ export component SettingsDialog inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     Text { width: 140px; text: @tr("License:"); color: #6b7280; font-size: 12px; }
-                                    Text { text: "MIT / Apache-2.0 Dual License"; color: Theme.c9ca3af; font-size: 12px; }
+                                    Text { text: "GPL-3.0-or-later"; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
                                 }
 
                                 Rectangle { height: 1px; background: Theme.c1f242e; }
@@ -1942,6 +1943,20 @@ export component SettingsDialog inherits Rectangle {
                                                 }
                                             }
                                         }
+                                    }
+                                }
+
+                                Rectangle { height: 1px; background: Theme.c1f242e; }
+
+                                // ── Setup wizard re-run ──
+                                Text { text: @tr("Setup Wizard"); color: Theme.ca3e635; font-size: 12px; font-weight: 700; }
+                                Text { text: @tr("Re-run the first-run wizard to reconfigure language, appearance, CDN, RPC, folder, performance and system options."); color: Theme.c9ca3af; font-size: 11px; wrap: word-wrap; }
+                                HorizontalLayout {
+                                    alignment: start;
+                                    SecondaryButton {
+                                        text: @tr("Re-run Setup Wizard");
+                                        icon: @image-url("../assets/icons/settings-3-line.svg");
+                                        clicked => { root.restart_setup(); }
                                     }
                                 }
                             }

@@ -1,0 +1,108 @@
+import { IconButton } from "common.slint";
+import { Theme } from "../theme.slint";
+import { ToastItem } from "../types.slint";
+
+/// Top-right in-app toast notifications. Dismissal is handled from Rust
+/// (auto-expire timer + dismiss callback); this component is purely visual.
+/// Declared last in the window so it paints above every dialog. The root is a
+/// transparent full-screen overlay without TouchArea, so it never intercepts
+/// clicks — only the toast cards themselves are interactive.
+export component ToastStack inherits Rectangle {
+    in property <[ToastItem]> toasts: [];
+    callback dismiss(int);
+
+    width: 100%;
+    height: 100%;
+
+    Rectangle {
+        width: 340px;
+        height: self.preferred-height;
+        x: parent.width - self.width - 16px;
+        y: 16px;
+        clip: true;
+
+        VerticalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            for toast[index] in root.toasts : Rectangle {
+                width: 100%;
+                height: self.preferred-height;
+                background: root.toast_bg(toast.kind);
+                border-color: root.toast_border(toast.kind);
+                border-width: 1px;
+                border-radius: 8px;
+                drop-shadow-blur: 12px;
+                drop-shadow-color: Theme.c000000cc;
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 8px;
+                    padding-top: 9px;
+                    padding-bottom: 9px;
+                    spacing: 8px;
+                    alignment: start;
+
+                    // Kind icon
+                    VerticalLayout {
+                        alignment: center;
+                        width: 18px;
+                        Image {
+                            source: root.toast_icon(toast.kind);
+                            colorize: root.toast_color(toast.kind);
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                        }
+                    }
+
+                    // Message
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        Text {
+                            text: toast.message;
+                            color: root.toast_color(toast.kind);
+                            font-size: 12px;
+                            font-weight: 500;
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Close button
+                    IconButton {
+                        icon: @image-url("../assets/icons/close-line.svg");
+                        text_color: Theme.c8b95a5;
+                        clicked => { root.dismiss(toast.id); }
+                    }
+                }
+            }
+        }
+    }
+
+    pure function toast_bg(kind: string) -> color {
+        kind == "success" ? Theme.c14351a :
+        kind == "error" ? Theme.c3b1216 :
+        kind == "warning" ? Theme.c3b280c :
+        Theme.c132a42;
+    }
+    pure function toast_border(kind: string) -> color {
+        kind == "success" ? Theme.c22542e :
+        kind == "error" ? Theme.c5c1f23 :
+        kind == "warning" ? Theme.c543615 :
+        Theme.c2e3542;
+    }
+    pure function toast_color(kind: string) -> color {
+        kind == "success" ? Theme.c4ade80 :
+        kind == "error" ? Theme.cf87171 :
+        kind == "warning" ? Theme.cfbbf24 :
+        Theme.c9ca3af;
+    }
+    pure function toast_icon(kind: string) -> image {
+        kind == "success" ? @image-url("../assets/icons/checkbox-circle-line.svg") :
+        kind == "error" ? @image-url("../assets/icons/error-warning-line.svg") :
+        kind == "warning" ? @image-url("../assets/icons/error-warning-line.svg") :
+        @image-url("../assets/icons/information-line.svg");
+    }
+}

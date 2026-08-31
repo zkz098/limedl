@@ -1,0 +1,57 @@
+import { MenuItem } from "context_menu.slint";
+import { Theme } from "../theme.slint";
+
+/// Right-click menu for empty areas of the task list (mirrors the web client's
+/// background context menu): New Task / Refresh. Owns an invisible full-window
+/// dismiss overlay, same pattern as `ContextMenu`.
+export component BackgroundMenu inherits Rectangle {
+    in property <bool> bg_visible: false;
+    in property <length> menu_x: 0px;
+    in property <length> menu_y: 0px;
+    callback close();
+    callback new_task();
+    callback refresh_list();
+
+    // Click outside overlay to dismiss
+    Rectangle {
+        width: 10000px;
+        height: 10000px;
+        x: -5000px;
+        y: -5000px;
+        background: transparent;
+        TouchArea {
+            clicked => { root.close(); }
+        }
+    }
+
+    Rectangle {
+        x: min(root.menu_x, parent.width - self.width - 10px);
+        y: min(root.menu_y, parent.height - self.height - 10px);
+        width: 170px;
+        height: self.preferred-height;
+        clip: true;
+        background: Theme.c181b22;
+        border-color: Theme.c343c4a;
+        border-width: 1px;
+        border-radius: 8px;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: Theme.c000000bb;
+
+        VerticalLayout {
+            padding: 6px;
+            spacing: 2px;
+
+            MenuItem {
+                text: @tr("New Task");
+                icon: @image-url("../assets/icons/add-line.svg");
+                clicked => { root.new_task(); root.close(); }
+            }
+
+            MenuItem {
+                text: @tr("Refresh Task List");
+                icon: @image-url("../assets/icons/refresh-line.svg");
+                clicked => { root.refresh_list(); root.close(); }
+            }
+        }
+    }
+}

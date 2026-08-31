@@ -1480,3 +1480,181 @@ msgstr "Batch URLs (one per line, # comments, [01-20] ranges supported):"
 
 msgid "Add Batch Tasks"
 msgstr "Add Batch Tasks"
+
+msgid "limedl Setup"
+msgstr "limedl Setup"
+
+msgid "First-run configuration"
+msgstr "First-run configuration"
+
+msgid "Welcome to limedl"
+msgstr "Welcome to limedl"
+
+msgid "The lightweight multi-protocol download manager."
+msgstr "The lightweight multi-protocol download manager."
+
+msgid "Open source license"
+msgstr "Open source license"
+
+msgid "limedl is released under the GNU General Public License v3.0 or later. The bundled MiSans font is licensed separately and loaded only locally."
+msgstr "limedl is released under the GNU General Public License v3.0 or later. The bundled MiSans font is licensed separately and loaded only locally."
+
+msgid "This quick setup configures the essential options. You can change everything later in Settings or Labs."
+msgstr "This quick setup configures the essential options. You can change everything later in Settings or Labs."
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Choose the UI language. It applies immediately."
+msgstr "Choose the UI language. It applies immediately."
+
+msgid "Chinese (Simplified)"
+msgstr "Chinese (Simplified)"
+
+msgid "Color Mode"
+msgstr "Color Mode"
+
+msgid "System"
+msgstr "System"
+
+msgid "Accent Color"
+msgstr "Accent Color"
+
+msgid "Sky"
+msgstr "Sky"
+
+msgid "CDN Acceleration"
+msgstr "CDN Acceleration"
+
+msgid "Speed up downloads by routing through the fastest CDN edge node. You can re-test or disable it anytime in Labs."
+msgstr "Speed up downloads by routing through the fastest CDN edge node. You can re-test or disable it anytime in Labs."
+
+msgid "Enable CDN Acceleration"
+msgstr "Enable CDN Acceleration"
+
+msgid "In mainland China, CDN acceleration typically improves GitHub / GitHub Release downloads the most."
+msgstr "In mainland China, CDN acceleration typically improves GitHub / GitHub Release downloads the most."
+
+msgid "Active edge node:"
+msgstr "Active edge node:"
+
+msgid "Expose a JSON-RPC endpoint so browser extensions (Aria2 Explorer) can send downloads to limedl. Disable it if you do not need it."
+msgstr "Expose a JSON-RPC endpoint so browser extensions (Aria2 Explorer) can send downloads to limedl. Disable it if you do not need it."
+
+msgid "Enable Aria2 RPC"
+msgstr "Enable Aria2 RPC"
+
+msgid "Secret token"
+msgstr "Secret token"
+
+msgid "Optional"
+msgstr "Optional"
+
+msgid "Tip: install the aria2-explorer extension and point it at this port to push links straight into limedl."
+msgstr "Tip: install the aria2-explorer extension and point it at this port to push links straight into limedl."
+
+msgid "Download Directory"
+msgstr "Download Directory"
+
+msgid "New tasks prefill this folder; you can still override it per task."
+msgstr "New tasks prefill this folder; you can still override it per task."
+
+msgid "e.g. C:\\Downloads"
+msgstr "e.g. C:\\Downloads"
+
+msgid "If left empty, the system default downloads folder is used."
+msgstr "If left empty, the system default downloads folder is used."
+
+msgid "Performance Preference"
+msgstr "Performance Preference"
+
+msgid "Controls thread allocation and adaptive behavior. Choose the preset that matches your machine, or pick custom values in Settings later."
+msgstr "Controls thread allocation and adaptive behavior. Choose the preset that matches your machine, or pick custom values in Settings later."
+
+msgid "Power Saver"
+msgstr "Power Saver"
+
+msgid "Low concurrency, minimal threads"
+msgstr "Low concurrency, minimal threads"
+
+msgid "Good default for most machines"
+msgstr "Good default for most machines"
+
+msgid "Max Speed"
+msgstr "Max Speed"
+
+msgid "Aggressive threads & parallelism"
+msgstr "Aggressive threads & parallelism"
+
+msgid "Intelligent chunk allocation"
+msgstr "Intelligent chunk allocation"
+
+msgid "Adapt chunk sizes to connection quality instead of fixed sizes"
+msgstr "Adapt chunk sizes to connection quality instead of fixed sizes"
+
+msgid "System Settings"
+msgstr "System Settings"
+
+msgid "Start with system"
+msgstr "Start with system"
+
+msgid "Launch limedl minimized to tray on login"
+msgstr "Launch limedl minimized to tray on login"
+
+msgid "Desktop notification on task completion or failure"
+msgstr "Desktop notification on task completion or failure"
+
+msgid "Summary"
+msgstr "Summary"
+
+msgid "Review your choices. Click any row to edit it."
+msgstr "Review your choices. Click any row to edit it."
+
+msgid "System default"
+msgstr "System default"
+
+msgid "Setup"
+msgstr "Setup"
+
+msgid "Performance"
+msgstr "Performance"
+
+msgid "System Options"
+msgstr "System Options"
+
+msgid "Enabled (port {})"
+msgstr "Enabled (port {})"
+
+msgid "{} · Chunk allocation: {}"
+msgstr "{} · Chunk allocation: {}"
+
+msgid "Autostart: {} · Notifications: {} · {}"
+msgstr "Autostart: {} · Notifications: {} · {}"
+
+msgid "Back"
+msgstr "Back"
+
+msgid "Skip All"
+msgstr "Skip All"
+
+msgid "Skip"
+msgstr "Skip"
+
+msgid "Next"
+msgstr "Next"
+
+msgid "Finish Setup"
+msgstr "Finish Setup"
+
+msgid "Refresh Task List"
+msgstr "Refresh Task List"
+
+msgid "Setup Wizard"
+msgstr "Setup Wizard"
+
+msgid "Re-run the first-run wizard to reconfigure language, appearance, CDN, RPC, folder, performance and system options."
+msgstr "Re-run the first-run wizard to reconfigure language, appearance, CDN, RPC, folder, performance and system options."
+
+msgid "Re-run Setup Wizard"
+msgstr "Re-run Setup Wizard"
+

@@ -1427,3 +1427,181 @@ msgstr "批量链接（每行一个，# 为注释，支持 [01-20] 区间）："
 
 msgid "Add Batch Tasks"
 msgstr "批量提交"
+
+msgid "limedl Setup"
+msgstr "limedl 初始设置"
+
+msgid "First-run configuration"
+msgstr "首次运行配置"
+
+msgid "Welcome to limedl"
+msgstr "欢迎使用 limedl"
+
+msgid "The lightweight multi-protocol download manager."
+msgstr "轻量级多协议下载管理器。"
+
+msgid "Open source license"
+msgstr "开源许可"
+
+msgid "limedl is released under the GNU General Public License v3.0 or later. The bundled MiSans font is licensed separately and loaded only locally."
+msgstr "limedl 基于 GNU 通用公共许可证 v3.0 或更高版本（GPL-3.0-or-later）发布。随附的 MiSans 字体按独立许可分发，仅在本地加载。"
+
+msgid "This quick setup configures the essential options. You can change everything later in Settings or Labs."
+msgstr "此快速设置仅包含核心选项，之后可随时在设置中心或实验室中修改。"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Choose the UI language. It applies immediately."
+msgstr "选择界面语言，立即生效。"
+
+msgid "Chinese (Simplified)"
+msgstr "简体中文"
+
+msgid "Color Mode"
+msgstr "色彩模式"
+
+msgid "System"
+msgstr "跟随系统"
+
+msgid "Accent Color"
+msgstr "强调色"
+
+msgid "Sky"
+msgstr "天蓝"
+
+msgid "CDN Acceleration"
+msgstr "CDN 加速"
+
+msgid "Speed up downloads by routing through the fastest CDN edge node. You can re-test or disable it anytime in Labs."
+msgstr "通过最优 CDN 边缘节点加速下载；可随时在实验室中重新测速或关闭。"
+
+msgid "Enable CDN Acceleration"
+msgstr "启用 CDN 加速"
+
+msgid "In mainland China, CDN acceleration typically improves GitHub / GitHub Release downloads the most."
+msgstr "在中国大陆，CDN 加速通常对 GitHub / GitHub Release 下载的提升最明显。"
+
+msgid "Active edge node:"
+msgstr "当前边缘节点:"
+
+msgid "Expose a JSON-RPC endpoint so browser extensions (Aria2 Explorer) can send downloads to limedl. Disable it if you do not need it."
+msgstr "暴露 JSON-RPC 端点，让浏览器扩展（如 Aria2 Explorer）可以向 limedl 推送下载任务；不需要时可关闭。"
+
+msgid "Enable Aria2 RPC"
+msgstr "启用 Aria2 RPC"
+
+msgid "Secret token"
+msgstr "访问令牌"
+
+msgid "Optional"
+msgstr "可选"
+
+msgid "Tip: install the aria2-explorer extension and point it at this port to push links straight into limedl."
+msgstr "提示：安装 aria2-explorer 扩展并指向该端口，即可将链接直接推送到 limedl。"
+
+msgid "Download Directory"
+msgstr "下载目录"
+
+msgid "New tasks prefill this folder; you can still override it per task."
+msgstr "新任务将预填此目录，每个任务仍可单独覆盖。"
+
+msgid "e.g. C:\\Downloads"
+msgstr "例如 C:\\Downloads"
+
+msgid "If left empty, the system default downloads folder is used."
+msgstr "留空则使用系统默认下载目录。"
+
+msgid "Performance Preference"
+msgstr "性能偏好"
+
+msgid "Controls thread allocation and adaptive behavior. Choose the preset that matches your machine, or pick custom values in Settings later."
+msgstr "控制线程分配与自适应行为。请选择适合你机器的预设，之后可在设置中自定义数值。"
+
+msgid "Power Saver"
+msgstr "省电"
+
+msgid "Low concurrency, minimal threads"
+msgstr "低并发，最少线程"
+
+msgid "Good default for most machines"
+msgstr "适合大多数机器的默认选择"
+
+msgid "Max Speed"
+msgstr "极速"
+
+msgid "Aggressive threads & parallelism"
+msgstr "激进的线程与并行度"
+
+msgid "Intelligent chunk allocation"
+msgstr "智能分块"
+
+msgid "Adapt chunk sizes to connection quality instead of fixed sizes"
+msgstr "根据连接质量自适应分块大小，而非固定大小"
+
+msgid "System Settings"
+msgstr "系统设置"
+
+msgid "Start with system"
+msgstr "随系统启动"
+
+msgid "Launch limedl minimized to tray on login"
+msgstr "登录时最小化到系统托盘启动"
+
+msgid "Desktop notification on task completion or failure"
+msgstr "任务完成或失败时发送桌面通知"
+
+msgid "Summary"
+msgstr "配置总结"
+
+msgid "Review your choices. Click any row to edit it."
+msgstr "请确认你的选择，点击任意条目即可修改。"
+
+msgid "System default"
+msgstr "系统默认"
+
+msgid "Setup"
+msgstr "设置"
+
+msgid "Performance"
+msgstr "性能"
+
+msgid "System Options"
+msgstr "系统"
+
+msgid "Enabled (port {})"
+msgstr "已启用（端口 {}）"
+
+msgid "{} · Chunk allocation: {}"
+msgstr "{} · 智能分块: {}"
+
+msgid "Autostart: {} · Notifications: {} · {}"
+msgstr "自启动: {} · 通知: {} · {}"
+
+msgid "Back"
+msgstr "上一步"
+
+msgid "Skip All"
+msgstr "全部跳过"
+
+msgid "Skip"
+msgstr "跳过"
+
+msgid "Next"
+msgstr "下一步"
+
+msgid "Finish Setup"
+msgstr "完成设置"
+
+msgid "Refresh Task List"
+msgstr "刷新任务列表"
+
+msgid "Setup Wizard"
+msgstr "设置向导"
+
+msgid "Re-run the first-run wizard to reconfigure language, appearance, CDN, RPC, folder, performance and system options."
+msgstr "重新运行首次启动向导，重新配置语言、外观、CDN、RPC、目录、性能与系统选项。"
+
+msgid "Re-run Setup Wizard"
+msgstr "重新运行设置向导"
+

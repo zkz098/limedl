@@ -33,14 +33,77 @@ use limedl_core::types::{
 };
 
 use crate::bridge::{
-    SortField, TaskStore, app_settings_to_form, app_settings_to_labs_form, cdn_candidates_to_slint,
-    create_url_rewrite_preset, evaluate_url_rewrite, file_status_to_item, format_disk_types_map,
-    format_io_status_json, format_speed, generate_piece_map_image, peer_info_to_item,
-    str_to_match_type, str_to_replacement_mode, summary_to_inspector_info, torrent_entry_to_item,
-    tracker_info_to_item, update_app_settings_from_form, update_app_settings_from_labs_form,
+    SortField, TaskStore, app_settings_to_form, app_settings_to_labs_form, app_settings_to_setup_form,
+    cdn_candidates_to_slint, create_url_rewrite_preset, evaluate_url_rewrite, file_status_to_item,
+    format_disk_types_map, format_io_status_json, format_speed, generate_piece_map_image,
+    peer_info_to_item, str_to_match_type, str_to_replacement_mode, summary_to_inspector_info,
+    torrent_entry_to_item, tracker_info_to_item, update_app_settings_from_form,
+    update_app_settings_from_labs_form, update_app_settings_from_setup_form,
     url_rewrite_rules_to_slint,
 };
 use crate::i18n::Language;
+
+// ── In-app toast notifications ───────────────────────────────────────
+
+/// One pending in-app toast (auto-expires after `duration`).
+struct ToastEntry {
+    id: usize,
+    message: String,
+    kind: &'static str, // success / error / warning / info
+}
+
+type ToastQueue = Arc<Mutex<Vec<ToastEntry>>>;
+
+static TOAST_SEQ: AtomicUsize = AtomicUsize::new(1);
+
+/// Push the current queue contents into the Slint property (any thread).
+fn sync_toasts(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue) {
+    let items: Vec<ToastItem> = queue
+        .lock()
+        .iter()
+        .map(|e| ToastItem {
+            id: e.id as i32,
+            message: SharedString::from(e.message.as_str()),
+            kind: SharedString::from(e.kind),
+        })
+        .collect();
+    let weak = ui_weak.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        if let Some(ui) = weak.upgrade() {
+            ui.set_toasts(Rc::new(VecModel::from(items)).into());
+        }
+    });
+}
+
+/// Show an in-app toast; auto-dismisses after `duration`. Safe from any thread.
+fn push_toast(
+    ui_weak: &slint::Weak<MainWindow>,
+    queue: &ToastQueue,
+    message: String,
+    kind: &'static str,
+    duration: Duration,
+) {
+    let id = TOAST_SEQ.fetch_add(1, Ordering::Relaxed);
+    queue.lock().push(ToastEntry {
+        id,
+        message,
+        kind,
+    });
+    sync_toasts(ui_weak, queue);
+    let ui_weak = ui_weak.clone();
+    let queue = queue.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(duration).await;
+        queue.lock().retain(|e| e.id != id);
+        sync_toasts(&ui_weak, &queue);
+    });
+}
+
+/// Dismiss a toast immediately (from the UI close button).
+fn dismiss_toast(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue, id: i32) {
+    queue.lock().retain(|e| e.id != id as usize);
+    sync_toasts(ui_weak, queue);
+}
 
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     let (all, downloading, paused, completed, failed) = store.counts();
@@ -336,6 +399,7 @@ async fn main() -> anyhow::Result<()> {
 
     let store = Arc::new(Mutex::new(TaskStore::with_language(initial_lang)));
     let active_inspector_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let toast_queue: ToastQueue = Arc::new(Mutex::new(Vec::new()));
 
     let rewrite_rules: Arc<Mutex<Vec<UrlRewriteRule>>> =
         Arc::new(Mutex::new(initial_settings.url_rewrite.rules.clone()));
@@ -359,6 +423,16 @@ async fn main() -> anyhow::Result<()> {
         *overclock_mode_active.lock(),
         initial_lang,
     );
+
+    // First-run setup wizard: populate the form and show it if the user has
+    // not completed setup yet (or resumes from an interrupted run).
+    main_window.set_setup_form(app_settings_to_setup_form(&initial_settings, initial_lang));
+    if !initial_settings.setup_completed {
+        let start_step = initial_settings.last_setup_step.unwrap_or(0).min(8) as i32;
+        main_window.set_setup_start_step(start_step);
+        main_window.set_show_setup_wizard(true);
+        tracing::info!("首次启动：显示设置向导 (从步骤 {start_step} 恢复)");
+    }
 
     // Initialize Labs UI state
     refresh_labs_state(
@@ -411,12 +485,14 @@ async fn main() -> anyhow::Result<()> {
         let ui_weak = main_window.as_weak();
         let store_clone = store.clone();
         let active_inspector_id_clone = active_inspector_id.clone();
+        let toast_queue_clone = toast_queue.clone();
 
         tokio::spawn(async move {
             while let Ok(event) = rx.recv().await {
                 let store = store_clone.clone();
                 let ui_weak = ui_weak.clone();
                 let active_inspector_id = active_inspector_id_clone.clone();
+                let toast_queue = toast_queue_clone.clone();
 
                 match event {
                     DownloadEvent::Updated { summary_json, .. } => {
@@ -424,7 +500,7 @@ async fn main() -> anyhow::Result<()> {
                             serde_json::from_value::<DownloadSummary>(summary_json)
                         {
                             let current_lang = store.lock().language();
-                            // Trigger system notification on completion or failure
+                            // OS notification + in-app toast on completion or failure
                             if matches!(summary.state, DownloadState::Completed) {
                                 let (title, body) = i18n::format_notification_completed(
                                     &summary.file_name,
@@ -435,6 +511,13 @@ async fn main() -> anyhow::Result<()> {
                                     .summary(&title)
                                     .body(&body)
                                     .show();
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue,
+                                    i18n::format_toast_state(&summary.file_name, &summary.state, current_lang),
+                                    "success",
+                                    Duration::from_secs(5),
+                                );
                             } else if matches!(summary.state, DownloadState::Failed) {
                                 let (title, body) = i18n::format_notification_failed(
                                     &summary.file_name,
@@ -446,6 +529,13 @@ async fn main() -> anyhow::Result<()> {
                                     .summary(&title)
                                     .body(&body)
                                     .show();
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue,
+                                    i18n::format_toast_state(&summary.file_name, &summary.state, current_lang),
+                                    "error",
+                                    Duration::from_secs(6),
+                                );
                             }
 
                             let summary_clone = summary.clone();
@@ -519,18 +609,21 @@ async fn main() -> anyhow::Result<()> {
                         });
                     }
                     DownloadEvent::CdnComplete { state, active_ip, active_speed_mbps } => {
+                        let ui_weak_evt = ui_weak.clone();
+                        let state_evt = state.clone();
+                        let ip_evt = active_ip.clone();
                         let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_weak.upgrade() {
+                            if let Some(ui) = ui_weak_evt.upgrade() {
                                 let mut form = ui.get_labs_form();
                                 form.cdn_is_testing = false;
-                                let (st, sl) = match state.as_str() {
+                                let (st, sl) = match state_evt.as_str() {
                                     "ready" => ("ready", "准备就绪"),
                                     "error" => ("error", "测速失败"),
                                     _ => ("idle", "未配置"),
                                 };
                                 form.cdn_status_type = SharedString::from(st);
                                 form.cdn_status_label = SharedString::from(sl);
-                                if let Some(ip) = active_ip {
+                                if let Some(ip) = ip_evt {
                                     form.cdn_active_ip = SharedString::from(ip);
                                 }
                                 if let Some(spd) = active_speed_mbps {
@@ -539,6 +632,26 @@ async fn main() -> anyhow::Result<()> {
                                 ui.set_labs_form(form);
                             }
                         });
+                        // In-app toast for the async test result.
+                        let lang = store_clone.lock().language();
+                        if state.as_str() == "ready" {
+                            let ip = active_ip.as_deref();
+                            push_toast(
+                                &ui_weak,
+                                &toast_queue_clone,
+                                i18n::format_toast_cdn_test_done(ip, lang),
+                                "success",
+                                Duration::from_secs(5),
+                            );
+                        } else if state.as_str() == "error" {
+                            push_toast(
+                                &ui_weak,
+                                &toast_queue_clone,
+                                i18n::format_toast_cdn_test_failed("测速失败", lang),
+                                "error",
+                                Duration::from_secs(6),
+                            );
+                        }
                     }
                     _ => {}
                 }
@@ -1048,6 +1161,7 @@ async fn main() -> anyhow::Result<()> {
         let pending_tray_lang_clone = pending_tray_lang.clone();
         let active_inspector_id_clone = active_inspector_id.clone();
         let rpc_shutdown_clone = rpc_shutdown.clone();
+        let toast_queue_clone = toast_queue.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_save_settings(move |form_data| {
@@ -1057,6 +1171,7 @@ async fn main() -> anyhow::Result<()> {
             let pending_tray_lang_clone = pending_tray_lang_clone.clone();
             let active_inspector_id_clone = active_inspector_id_clone.clone();
             let rpc_shutdown = rpc_shutdown_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
@@ -1065,14 +1180,17 @@ async fn main() -> anyhow::Result<()> {
                     s.clone()
                 };
                 let mut settings = old_settings.clone();
+                let lang = store_clone.lock().language();
 
                 if let Err(msg) = update_app_settings_from_form(&mut settings, &form_data) {
                     tracing::error!("设置表单校验失败: {msg}");
-                    let _ = Notification::new()
-                        .appname("limedl")
-                        .summary("设置校验失败")
-                        .body(&msg)
-                        .show();
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_settings_invalid(&msg, lang),
+                        "error",
+                        Duration::from_secs(6),
+                    );
                     return;
                 }
 
@@ -1082,11 +1200,13 @@ async fn main() -> anyhow::Result<()> {
                         if saved.autostart != old_settings.autostart {
                             if let Err(e) = crate::autostart::set_enabled(saved.autostart) {
                                 tracing::warn!("autostart 切换失败: {e:#}");
-                                let _ = Notification::new()
-                                    .appname("limedl")
-                                    .summary("自启动设置失败")
-                                    .body(&format!("{e:#}"))
-                                    .show();
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue,
+                                    i18n::format_toast_autostart_failed(&format!("{e:#}"), lang),
+                                    "error",
+                                    Duration::from_secs(6),
+                                );
                             } else {
                                 tracing::info!("autostart 已切换为 {}", saved.autostart);
                             }
@@ -1114,18 +1234,22 @@ async fn main() -> anyhow::Result<()> {
                                 });
                                 *rpc_shutdown.lock() = Some(tx);
                                 tracing::info!("Aria2 RPC 已重启 (port: {port})");
-                                let _ = Notification::new()
-                                    .appname("limedl")
-                                    .summary("Aria2 RPC 已重启")
-                                    .body(&format!("监听端口: {port}"))
-                                    .show();
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue,
+                                    i18n::format_toast_aria2_rpc_started(port, lang),
+                                    "info",
+                                    Duration::from_secs(5),
+                                );
                             } else {
                                 tracing::info!("Aria2 RPC 已停止");
-                                let _ = Notification::new()
-                                    .appname("limedl")
-                                    .summary("Aria2 RPC 已停止")
-                                    .body("服务已关闭")
-                                    .show();
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue,
+                                    i18n::format_toast_aria2_rpc_stopped(lang).to_string(),
+                                    "info",
+                                    Duration::from_secs(5),
+                                );
                             }
                         }
                         *current_settings_clone.lock() = saved.clone();
@@ -1133,6 +1257,15 @@ async fn main() -> anyhow::Result<()> {
                         let new_lang = Language::from_code(&saved.appearance.language);
                         let new_color_mode = saved.appearance.color_mode;
                         let new_theme_color = saved.appearance.theme_color;
+
+                        // In-app success toast.
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_settings_saved(lang).to_string(),
+                            "success",
+                            Duration::from_secs(4),
+                        );
 
                         // Signal tray update to main thread (TrayIcon is !Send)
                         *pending_tray_lang_clone.lock() = Some(new_lang);
@@ -1165,6 +1298,13 @@ async fn main() -> anyhow::Result<()> {
                             .summary("保存设置失败")
                             .body(&msg)
                             .show();
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_settings_save_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
                     }
                 }
             });
@@ -1212,22 +1352,29 @@ async fn main() -> anyhow::Result<()> {
     // Fetch Remote Trackers
     {
         let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_fetch_trackers_remote(move |url_str| {
             let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
             let url = url_str.to_string();
+            let toast_queue = toast_queue_clone.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
+                let lang = store_clone.lock().language();
                 match dispatcher.fetch_tracker_list(&url).await {
                     Ok(trackers) => {
                         tracing::info!("成功同步远程 Tracker 列表: {} 个", trackers.len());
-                        let _ = Notification::new()
-                            .appname("limedl")
-                            .summary("Tracker 列表同步成功")
-                            .body(&format!("已获取并配置 {} 个公共 Tracker", trackers.len()))
-                            .show();
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_tracker_synced(trackers.len(), lang),
+                            "success",
+                            Duration::from_secs(4),
+                        );
 
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
@@ -1239,12 +1386,14 @@ async fn main() -> anyhow::Result<()> {
                     }
                     Err(err) => {
                         tracing::error!("同步 Tracker 列表失败: {err:#}");
-                        let msg = format!("同步失败: {err:#}");
-                        let _ = Notification::new()
-                            .appname("limedl")
-                            .summary("Tracker 同步失败")
-                            .body(&msg)
-                            .show();
+                        let msg = format!("{err:#}");
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_tracker_sync_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
                     }
                 }
             });
@@ -1272,6 +1421,35 @@ async fn main() -> anyhow::Result<()> {
                 ui.set_new_task_batch_submitting(false);
                 ui.set_new_task_batch_status_text(SharedString::default());
                 ui.set_show_new_task_dialog(true);
+
+                // Clipboard auto-fill: if the URL field is still empty, read
+                // the system clipboard and prefill http/https/magnet links
+                // (mirrors the web client's autoFillFromClipboard).
+                if ui.get_new_task_url().trim().is_empty() {
+                    let ui_weak = ui_weak.clone();
+                    tokio::spawn(async move {
+                        let Ok(mut clipboard) = arboard::Clipboard::new() else {
+                            return;
+                        };
+                        let Ok(text) = clipboard.get_text() else {
+                            return;
+                        };
+                        let trimmed = text.trim().to_string();
+                        if trimmed.starts_with("magnet:?")
+                            || trimmed.starts_with("http://")
+                            || trimmed.starts_with("https://")
+                        {
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    // Re-check: the user may have typed already.
+                                    if ui.get_new_task_url().trim().is_empty() {
+                                        ui.set_new_task_url(SharedString::from(&trimmed));
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
             }
         });
     }
@@ -1416,6 +1594,7 @@ async fn main() -> anyhow::Result<()> {
         let store_clone = store.clone();
         let entries_cache = new_task_torrent_entries.clone();
         let included_cache = new_task_torrent_included.clone();
+        let toast_queue_clone = toast_queue.clone();
         main_window.on_submit_new_task(move |url, dir, filename| {
             let Some(ui) = ui_weak.upgrade() else {
                 return;
@@ -1472,6 +1651,8 @@ async fn main() -> anyhow::Result<()> {
 
             let ui_weak = ui_weak.clone();
             let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue_clone = toast_queue_clone.clone();
             tokio::spawn(async move {
                 let req = StartDownloadRequest {
                     url: url_str,
@@ -1483,9 +1664,18 @@ async fn main() -> anyhow::Result<()> {
                     ..Default::default()
                 };
 
+                let file_name = req.file_name.clone().unwrap_or_default();
                 match dispatcher.start(req).await {
                     Ok(task_id) => {
                         tracing::info!("成功添加下载任务: {task_id}");
+                        let lang = store_clone.lock().language();
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue_clone,
+                            i18n::format_toast_task_added(if file_name.is_empty() { "下载任务" } else { &file_name }, lang),
+                            "success",
+                            Duration::from_secs(4),
+                        );
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
                                 ui.set_new_task_url(SharedString::default());
@@ -1496,6 +1686,14 @@ async fn main() -> anyhow::Result<()> {
                     }
                     Err(err) => {
                         tracing::error!("添加下载任务失败: {err}");
+                        let lang = store_clone.lock().language();
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue_clone,
+                            i18n::format_toast_task_add_failed(&format!("{err}"), lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
                     }
                 }
             });
@@ -1522,6 +1720,7 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let ui_weak = main_window.as_weak();
         let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
         main_window.on_submit_new_task_batch(move |text, dir| {
             let Some(ui) = ui_weak.upgrade() else {
                 return;
@@ -1544,6 +1743,7 @@ async fn main() -> anyhow::Result<()> {
 
             let ui_weak = ui_weak.clone();
             let dispatcher = dispatcher.clone();
+            let toast_queue_clone = toast_queue_clone.clone();
             tokio::spawn(async move {
                 let total = urls.len();
                 let done = Arc::new(AtomicUsize::new(0));
@@ -1551,6 +1751,7 @@ async fn main() -> anyhow::Result<()> {
                 for entry_url in urls {
                     let dispatcher = dispatcher.clone();
                     let ui_weak = ui_weak.clone();
+                    let toast_queue = toast_queue_clone.clone();
                     let done = done.clone();
                     let ok_count = ok_count.clone();
                     let dir_str = dir_str.clone();
@@ -1566,6 +1767,17 @@ async fn main() -> anyhow::Result<()> {
                             ok_count.fetch_add(1, Ordering::Relaxed);
                         }
                         let finished = done.fetch_add(1, Ordering::Relaxed) + 1;
+                        if finished >= total {
+                            let succeeded = ok_count.load(Ordering::Relaxed);
+                            // In-app toast on the final result (best effort).
+                            push_toast(
+                                &ui_weak,
+                                &toast_queue,
+                                i18n::format_toast_batch_done(succeeded, total, lang),
+                                if succeeded == total { "success" } else { "warning" },
+                                Duration::from_secs(5),
+                            );
+                        }
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
                                 if finished < total {
@@ -1867,16 +2079,24 @@ async fn main() -> anyhow::Result<()> {
 
     // Copy URL to Clipboard
     {
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
         main_window.on_copy_task_url(move |url| {
             let url_str = url.to_string();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let ui_weak = ui_weak.clone();
             tokio::spawn(async move {
                 if let Ok(mut clipboard) = arboard::Clipboard::new() {
                     let _ = clipboard.set_text(&url_str);
-                    let _ = Notification::new()
-                        .appname("limedl")
-                        .summary("链接已复制")
-                        .body("下载链接已复制到系统剪贴板")
-                        .show();
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_link_copied(store_clone.lock().language()).to_string(),
+                        "success",
+                        Duration::from_secs(3),
+                    );
                 }
             });
         });
@@ -1959,6 +2179,320 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // ── In-app toast dismiss (close button) ───────────────────────────────
+    {
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_dismiss_toast(move |id| {
+            dismiss_toast(&ui_weak, &toast_queue_clone, id);
+        });
+    }
+
+    // ── Task-list background menu: refresh ────────────────────────────────
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_background_refresh(move || {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                if let Ok(list) = dispatcher.list().await {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut store = store_clone.lock();
+                            store.replace_all(list);
+                            refresh_ui(&ui, &store);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // ── First-run setup wizard ────────────────────────────────────────────
+
+    // Interrupted close: persist the current step so the wizard reopens there.
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let store_clone = store.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_close_setup_wizard(move |step| {
+            // Sync the task-store language with the wizard's live language
+            // selection (the @tr translation was already switched on change),
+            // so interpolated Rust-side strings stay consistent after closing.
+            if let Some(ui) = ui_weak.upgrade() {
+                let form = ui.get_setup_form();
+                let lang = if form.language_idx == 0 {
+                    Language::ZhCn
+                } else {
+                    Language::EnUs
+                };
+                store_clone.lock().set_language(lang);
+            }
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let mut settings = {
+                    let s = current_settings_clone.lock();
+                    s.clone()
+                };
+                settings.last_setup_step = Some(step.max(0) as u32);
+                match dispatcher.save_settings(&settings).await {
+                    Ok(saved) => *current_settings_clone.lock() = saved,
+                    Err(err) => tracing::warn!("保存设置向导进度失败: {err:#}"),
+                }
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_show_setup_wizard(false);
+                    }
+                });
+            });
+        });
+    }
+
+    // Language selection in the wizard: switch @tr translation immediately.
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_setup_set_language(move |idx| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut form = ui.get_setup_form();
+                form.language_idx = idx;
+                ui.set_setup_form(form);
+                let lang = if idx == 0 { Language::ZhCn } else { Language::EnUs };
+                i18n::apply_translation(lang);
+            }
+        });
+    }
+
+    // Appearance selection in the wizard: live preview via Theme global.
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_setup_set_appearance(move |color_idx, theme_idx| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut form = ui.get_setup_form();
+                form.color_mode_idx = color_idx;
+                form.theme_color_idx = theme_idx;
+                ui.set_setup_form(form);
+                let mode = match color_idx {
+                    1 => ColorMode::Light,
+                    2 => ColorMode::Dark,
+                    _ => ColorMode::System,
+                };
+                let theme = match theme_idx {
+                    0 => ThemeColor::Amber,
+                    1 => ThemeColor::Sky,
+                    _ => ThemeColor::Lime,
+                };
+                apply_appearance(&ui, mode, theme);
+            }
+        });
+    }
+
+    // Directory picker for the wizard (native dialog).
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_pick_setup_directory(move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let folder = rfd::AsyncFileDialog::new()
+                    .set_title("选择默认下载保存目录")
+                    .pick_folder()
+                    .await;
+                if let Some(handle) = folder {
+                    let path = handle.path().to_string_lossy().to_string();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut form = ui.get_setup_form();
+                            form.default_dir = SharedString::from(&path);
+                            ui.set_setup_form(form);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Finish / skip-all: persist the wizard settings and apply side effects
+    // (language, appearance, default dir, autostart, Aria2 RPC hot reload).
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let store_clone = store.clone();
+        let pending_tray_lang_clone = pending_tray_lang.clone();
+        let rpc_shutdown_clone = rpc_shutdown.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
+
+        main_window.on_finish_setup(move |form| {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let store_clone = store_clone.clone();
+            let pending_tray_lang_clone = pending_tray_lang_clone.clone();
+            let rpc_shutdown = rpc_shutdown_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                let old_settings = {
+                    let s = current_settings_clone.lock();
+                    s.clone()
+                };
+                let mut settings = old_settings.clone();
+                let lang = store_clone.lock().language();
+
+                if let Err(msg) = update_app_settings_from_setup_form(&mut settings, &form) {
+                    tracing::error!("设置向导表单校验失败: {msg}");
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_settings_invalid(&msg, lang),
+                        "error",
+                        Duration::from_secs(6),
+                    );
+                    return;
+                }
+
+                settings.setup_completed = true;
+                settings.last_setup_step = Some(8);
+
+                match dispatcher.save_settings(&settings).await {
+                    Ok(saved) => {
+                        // ── Autostart OS 同步 ──
+                        if saved.autostart != old_settings.autostart
+                            && let Err(e) = crate::autostart::set_enabled(saved.autostart)
+                        {
+                            tracing::warn!("autostart 切换失败: {e:#}");
+                            push_toast(
+                                &ui_weak,
+                                &toast_queue,
+                                i18n::format_toast_autostart_failed(&format!("{e:#}"), lang),
+                                "error",
+                                Duration::from_secs(6),
+                            );
+                        }
+                        // ── Aria2 RPC 热重载（与设置页保存路径一致） ──
+                        if saved.aria2_rpc != old_settings.aria2_rpc {
+                            if let Some(tx) = rpc_shutdown.lock().take() {
+                                let _ = tx.send(true);
+                            }
+                            if saved.aria2_rpc.enabled {
+                                let (tx, rx) = watch::channel(false);
+                                let rpc_server = Aria2RpcServer::new(
+                                    dispatcher.registry().clone(),
+                                    &saved.aria2_rpc,
+                                    dispatcher.event_bus().clone(),
+                                );
+                                let cors = saved.aria2_rpc.cors_allowed_origins.clone();
+                                let port = saved.aria2_rpc.port;
+                                tokio::spawn(async move {
+                                    if let Err(e) = rpc_server.serve(rx, cors).await {
+                                        tracing::error!("Aria2 RPC server stopped: {e:#}");
+                                    }
+                                });
+                                *rpc_shutdown.lock() = Some(tx);
+                                tracing::info!("Aria2 RPC 已重启 (port: {port})");
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue,
+                                    i18n::format_toast_aria2_rpc_started(port, lang),
+                                    "info",
+                                    Duration::from_secs(5),
+                                );
+                            } else {
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue,
+                                    i18n::format_toast_aria2_rpc_stopped(lang).to_string(),
+                                    "info",
+                                    Duration::from_secs(5),
+                                );
+                            }
+                        }
+
+                        *current_settings_clone.lock() = saved.clone();
+                        let default_dir = saved.download.default_download_dir.clone();
+                        let new_lang = Language::from_code(&saved.appearance.language);
+                        let new_color_mode = saved.appearance.color_mode;
+                        let new_theme_color = saved.appearance.theme_color;
+                        *pending_tray_lang_clone.lock() = Some(new_lang);
+
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_setup_finished(lang).to_string(),
+                            "success",
+                            Duration::from_secs(5),
+                        );
+
+                        let _ = slint::invoke_from_event_loop(move || {
+                            i18n::apply_translation(new_lang);
+                            if let Some(ui) = ui_weak.upgrade() {
+                                apply_appearance(&ui, new_color_mode, new_theme_color);
+                                let mut s = store_clone.lock();
+                                s.set_language(new_lang);
+                                ui.set_default_download_dir(SharedString::from(&default_dir));
+                                ui.set_new_task_dir(SharedString::from(&default_dir));
+                                refresh_ui(&ui, &s);
+                                ui.set_show_setup_wizard(false);
+                            }
+                        });
+                    }
+                    Err(err) => {
+                        tracing::error!("设置向导保存失败: {err:#}");
+                        let msg = format!("{err:#}");
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_settings_save_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
+                    }
+                }
+            });
+        });
+    }
+
+    // Re-run setup wizard from Settings → About: reset flags and open it.
+    {
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
+        let store_clone = store.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_restart_setup(move || {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
+            let store_clone = store_clone.clone();
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let mut settings = {
+                    let s = current_settings_clone.lock();
+                    s.clone()
+                };
+                settings.setup_completed = false;
+                settings.last_setup_step = None;
+                let lang = store_clone.lock().language();
+                let form = app_settings_to_setup_form(&settings, lang);
+                match dispatcher.save_settings(&settings).await {
+                    Ok(saved) => *current_settings_clone.lock() = saved,
+                    Err(err) => tracing::warn!("保存设置向导重置状态失败: {err:#}"),
+                }
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_setup_form(form);
+                        ui.set_setup_start_step(0);
+                        ui.set_show_settings(false);
+                        ui.set_show_setup_wizard(true);
+                    }
+                });
+            });
+        });
+    }
+
     // ── Labs Callbacks ──────────────────────────────────────────────────
 
     // Open Labs Dialog
@@ -2010,12 +2544,16 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let current_settings_clone = current_settings.clone();
         let rewrite_rules_clone = rewrite_rules.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_save_labs(move |form_data| {
             let dispatcher = dispatcher.clone();
             let current_settings_clone = current_settings_clone.clone();
             let rewrite_rules_clone = rewrite_rules_clone.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
@@ -2023,6 +2561,7 @@ async fn main() -> anyhow::Result<()> {
                     let s = current_settings_clone.lock();
                     s.clone()
                 };
+                let lang = store_clone.lock().language();
 
                 update_app_settings_from_labs_form(&mut settings, &form_data);
                 settings.url_rewrite.rules = rewrite_rules_clone.lock().clone();
@@ -2030,6 +2569,13 @@ async fn main() -> anyhow::Result<()> {
                 match dispatcher.save_settings(&settings).await {
                     Ok(saved) => {
                         *current_settings_clone.lock() = saved;
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_labs_saved(lang).to_string(),
+                            "success",
+                            Duration::from_secs(4),
+                        );
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
                                 ui.set_show_labs(false);
@@ -2039,11 +2585,13 @@ async fn main() -> anyhow::Result<()> {
                     Err(err) => {
                         tracing::error!("保存实验室设置失败: {err:#}");
                         let msg = format!("{err:#}");
-                        let _ = Notification::new()
-                            .appname("limedl")
-                            .summary("保存实验室设置失败")
-                            .body(&msg)
-                            .show();
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_labs_save_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
                     }
                 }
             });
@@ -2129,12 +2677,16 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let current_settings_clone = current_settings.clone();
         let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_clear_cdn_test(move || {
             let dispatcher = dispatcher.clone();
             let current_settings_clone = current_settings_clone.clone();
             let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
@@ -2149,6 +2701,13 @@ async fn main() -> anyhow::Result<()> {
                     if let Ok(saved) = dispatcher.save_settings(&settings).await {
                         *current_settings_clone.lock() = saved;
                     }
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_cdn_cleared(store_clone.lock().language()).to_string(),
+                        "info",
+                        Duration::from_secs(4),
+                    );
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
                             let mut form = ui.get_labs_form();
@@ -2170,12 +2729,16 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let current_settings_clone = current_settings.clone();
         let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_apply_cdn_candidate(move |ip_str, speed_mbps| {
             let dispatcher = dispatcher.clone();
             let current_settings_clone = current_settings_clone.clone();
             let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
             let ui_weak = ui_weak.clone();
             let ip_parsed = ip_str.parse::<IpAddr>();
 
@@ -2189,6 +2752,14 @@ async fn main() -> anyhow::Result<()> {
                         if let Ok(saved) = dispatcher.save_settings(&updated_settings).await {
                             *current_settings_clone.lock() = saved;
                         }
+
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_cdn_applied(&ip.to_string(), store_clone.lock().language()),
+                            "success",
+                            Duration::from_secs(4),
+                        );
 
                         let cands = cdn_candidates_cache_clone.lock().clone();
                         let _ = slint::invoke_from_event_loop(move || {
@@ -2234,6 +2805,8 @@ async fn main() -> anyhow::Result<()> {
                     let dispatcher = dispatcher.clone();
                     let current_settings_clone = current_settings_clone.clone();
                     let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+                    let store_clone = store.clone();
+                    let toast_queue_clone = toast_queue.clone();
                     let ui_weak = ui_weak.clone();
 
                     tokio::spawn(async move {
@@ -2245,6 +2818,14 @@ async fn main() -> anyhow::Result<()> {
                                 if let Ok(saved) = dispatcher.save_settings(&updated_settings).await {
                                     *current_settings_clone.lock() = saved;
                                 }
+
+                                push_toast(
+                                    &ui_weak,
+                                    &toast_queue_clone,
+                                    i18n::format_toast_cdn_applied(&ip.to_string(), store_clone.lock().language()),
+                                    "success",
+                                    Duration::from_secs(4),
+                                );
 
                                 let cands = cdn_candidates_cache_clone.lock().clone();
                                 let _ = slint::invoke_from_event_loop(move || {

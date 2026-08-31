@@ -404,6 +404,166 @@ pub fn format_batch_status(done: usize, total: usize, lang: Language) -> String 
     }
 }
 
+// ── In-app toast message helpers ─────────────────────────────────────
+
+pub fn format_toast_task_added(file_name: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("已添加下载任务: {file_name}")
+    } else {
+        format!("Download task added: {file_name}")
+    }
+}
+
+pub fn format_toast_task_add_failed(err: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("添加下载任务失败: {err}")
+    } else {
+        format!("Failed to add task: {err}")
+    }
+}
+
+pub fn format_toast_batch_done(ok: usize, total: usize, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("批量添加完成: {ok}/{total} 成功")
+    } else {
+        format!("Batch add finished: {ok}/{total} succeeded")
+    }
+}
+
+pub fn format_toast_settings_saved(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "设置已保存",
+        Language::EnUs => "Settings saved",
+    }
+}
+
+pub fn format_toast_settings_save_failed(err: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("保存设置失败: {err}")
+    } else {
+        format!("Failed to save settings: {err}")
+    }
+}
+
+pub fn format_toast_settings_invalid(err: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("设置校验失败: {err}")
+    } else {
+        format!("Invalid settings: {err}")
+    }
+}
+
+pub fn format_toast_setup_finished(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "初始设置已保存完成",
+        Language::EnUs => "Setup completed",
+    }
+}
+
+pub fn format_toast_tracker_synced(count: usize, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("Tracker 列表同步成功: {count} 个")
+    } else {
+        format!("Tracker list synced: {count} entries")
+    }
+}
+
+pub fn format_toast_tracker_sync_failed(err: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("Tracker 同步失败: {err}")
+    } else {
+        format!("Tracker sync failed: {err}")
+    }
+}
+
+pub fn format_toast_link_copied(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "下载链接已复制到剪贴板",
+        Language::EnUs => "Download link copied to clipboard",
+    }
+}
+
+pub fn format_toast_labs_saved(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "实验室设置已保存",
+        Language::EnUs => "Labs settings saved",
+    }
+}
+
+pub fn format_toast_labs_save_failed(err: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("保存实验室设置失败: {err}")
+    } else {
+        format!("Failed to save Labs settings: {err}")
+    }
+}
+
+pub fn format_toast_cdn_applied(ip: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("已应用 CDN 节点: {ip}")
+    } else {
+        format!("CDN node applied: {ip}")
+    }
+}
+
+pub fn format_toast_cdn_cleared(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "已清除 CDN 加速配置",
+        Language::EnUs => "CDN acceleration cleared",
+    }
+}
+
+pub fn format_toast_cdn_test_done(ip: Option<&str>, lang: Language) -> String {
+    match (ip, lang) {
+        (Some(ip), Language::ZhCn) => format!("CDN 测速完成，已锁定节点 {ip}"),
+        (Some(ip), Language::EnUs) => format!("CDN speedtest finished, node {ip} locked"),
+        (None, Language::ZhCn) => "CDN 测速完成".to_string(),
+        (None, Language::EnUs) => "CDN speedtest finished".to_string(),
+    }
+}
+
+pub fn format_toast_cdn_test_failed(err: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("CDN 测速失败: {err}")
+    } else {
+        format!("CDN speedtest failed: {err}")
+    }
+}
+
+pub fn format_toast_aria2_rpc_started(port: u16, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("Aria2 RPC 已启动 (端口 {port})")
+    } else {
+        format!("Aria2 RPC started (port {port})")
+    }
+}
+
+pub fn format_toast_aria2_rpc_stopped(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "Aria2 RPC 已停止",
+        Language::EnUs => "Aria2 RPC stopped",
+    }
+}
+
+pub fn format_toast_autostart_failed(err: &str, lang: Language) -> String {
+    if lang == Language::ZhCn {
+        format!("自启动设置失败: {err}")
+    } else {
+        format!("Autostart failed: {err}")
+    }
+}
+
+/// In-app toast for task terminal events (works alongside the OS notification).
+pub fn format_toast_state(file_name: &str, state: &DownloadState, lang: Language) -> String {
+    match (state, lang) {
+        (DownloadState::Completed, Language::ZhCn) => format!("下载完成: {file_name}"),
+        (DownloadState::Completed, Language::EnUs) => format!("Completed: {file_name}"),
+        (DownloadState::Failed, Language::ZhCn) => format!("下载失败: {file_name}"),
+        (DownloadState::Failed, Language::EnUs) => format!("Failed: {file_name}"),
+        _ => format_state_label(state, lang).to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

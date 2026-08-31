@@ -234,6 +234,41 @@ export struct SettingsFormData {
     arch_info: string,
 }
 
+/// One in-app toast notification (rendered by ToastStack, dismissed by Rust
+/// after `duration_ms` or by the close button).
+/// kind: "success" | "error" | "warning" | "info"
+export struct ToastItem {
+    id: int,
+    message: string,
+    kind: string,
+}
+
+export struct SetupFormData {
+    // ── Step 1: 语言 ──
+    language_idx: int, // index into combo::LANGUAGES (zh-CN/en-US)
+    // ── Step 2: 外观 ──
+    color_mode_idx: int, // index into combo::COLOR_MODES (system/light/dark)
+    theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime)
+    // ── Step 3: CDN ──
+    cdn_enabled: bool,
+    cdn_active_ip: string, // read-only status card
+    // ── Step 4: Aria2 RPC ──
+    rpc_enabled: bool,
+    rpc_port: string,
+    rpc_secret: string,
+    // ── Step 5: 下载目录 ──
+    default_dir: string,
+    // ── Step 6: 性能预设 ──
+    // 0: energySaver, 1: balanced, 2: maxSpeed, 3: custom (no preset matches)
+    scheduler_preset_idx: int,
+    chunk_strategy_idx: int, // index into combo::CHUNK_STRATEGIES (adaptive/fixed)
+    // ── Step 7: 系统 ──
+    autostart: bool,
+    notifications_enabled: bool,
+    proxy_mode_idx: int, // index into combo::PROXY_MODES (disabled/system/manual)
+    proxy_manual_url: string,
+}
+
 export struct ContextMenuState {
     visible: bool,
     x: length,

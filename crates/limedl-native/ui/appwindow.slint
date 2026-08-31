@@ -22,6 +22,8 @@ export {
     UrlRewriteTargetItem,
     UrlRewriteRuleItem,
     LabsFormData,
+    SetupFormData,
+    ToastItem,
 } from "types.slint";
 
 import {
@@ -37,6 +39,8 @@ import {
     UrlRewriteTargetItem,
     UrlRewriteRuleItem,
     LabsFormData,
+    SetupFormData,
+    ToastItem,
     UpdateState,
 } from "types.slint";
 
@@ -50,11 +54,14 @@ import {
 
 import { TaskCard } from "components/task_card.slint";
 import { ContextMenu } from "components/context_menu.slint";
+import { BackgroundMenu } from "components/background_menu.slint";
+import { ToastStack } from "components/toast_stack.slint";
 import { NewTaskDialog } from "components/new_task_dialog.slint";
 import { TaskInspector } from "components/inspector.slint";
 import { SpeedLimitDialog } from "components/speed_limit_dialog.slint";
 import { SettingsDialog } from "components/settings_dialog.slint";
 import { LabsDialog } from "components/labs_dialog.slint";
+import { SetupWizard } from "components/setup_wizard.slint";
 
 export component MainWindow inherits Window {
     title: "limedl - Native";
@@ -123,6 +130,19 @@ export component MainWindow inherits Window {
     in-out property <LabsFormData> labs_form;
     in property <[CdnCandidateItem]> cdn_candidates: [];
     in property <[UrlRewriteRuleItem]> rewrite_rules: [];
+
+    // First-run setup wizard state
+    in property <bool> show_setup_wizard: false;
+    in property <int> setup_start_step: 0;
+    in-out property <SetupFormData> setup_form;
+
+    // In-app toast notifications (driven from Rust)
+    in-out property <[ToastItem]> toasts: [];
+
+    // Task-list background context menu state
+    in-out property <bool> background_menu_visible: false;
+    in-out property <length> background_menu_x: 0px;
+    in-out property <length> background_menu_y: 0px;
 
     // Context Menu state
     in-out property <ContextMenuState> context_menu_state: {
@@ -238,6 +258,20 @@ export component MainWindow inherits Window {
     callback open_font_license();
     callback copy_task_url(string);
     callback purge_single_task(string);
+
+    // Setup wizard callbacks
+    callback close_setup_wizard(int);
+    callback finish_setup(SetupFormData);
+    callback pick_setup_directory();
+    callback setup_set_language(int);
+    callback setup_set_appearance(int, int);
+    callback restart_setup();
+
+    // In-app toast dismiss (auto-expire also handled in Rust)
+    callback dismiss_toast(int);
+
+    // Task-list background menu
+    callback background_refresh();
 
     // New-task dialog: checksum probe / torrent file pre-selection / batch mode
     callback probe_new_task_checksum();
@@ -672,26 +706,65 @@ export component MainWindow inherits Window {
             Rectangle {
                 background: Theme.c0d0f12;
 
-                if root.tasks.length == 0 : VerticalLayout {
-                    alignment: center;
-                    spacing: 12px;
-                    Text {
-                        text: root.search_query != "" ? @tr("No matching download tasks found") : @tr("No download tasks");
-                        color: #6b7280;
-                        font-size: 16px;
-                        font-weight: 500;
-                        horizontal-alignment: center;
+                if root.tasks.length == 0 : Rectangle {
+                    width: 100%;
+                    height: 100%;
+
+                    empty_menu_ta := TouchArea {
+                        pointer-event(event) => {
+                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                                // Empty list → background menu covers the whole area
+                                root.background_menu_x = self.absolute-position.x + self.mouse-x + 8px;
+                                root.background_menu_y = self.absolute-position.y + self.mouse-y + 8px;
+                                root.background_menu_visible = true;
+                            }
+                        }
                     }
-                    Text {
-                        text: root.search_query != "" ? @tr("Try clearing your search keywords") : @tr("Click \"New Task\" in the top-right corner to add HTTP / BT downloads");
-                        color: Theme.c4b5563;
-                        font-size: 13px;
-                        horizontal-alignment: center;
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 12px;
+                        Text {
+                            text: root.search_query != "" ? @tr("No matching download tasks found") : @tr("No download tasks");
+                            color: #6b7280;
+                            font-size: 16px;
+                            font-weight: 500;
+                            horizontal-alignment: center;
+                        }
+                        Text {
+                            text: root.search_query != "" ? @tr("Try clearing your search keywords") : @tr("Click \"New Task\" in the top-right corner to add HTTP / BT downloads");
+                            color: Theme.c4b5563;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                        }
                     }
                 }
 
                 if root.tasks.length > 0 : ScrollView {
                     viewport-y: 0;
+                    // Background layer: non-layout child, pinned to the full
+                    // viewport, declared BEFORE the layout so it sits below the
+                    // cards in z-order. Right-clicks on empty list space (padding,
+                    // gaps, the area below the last card) hit this TouchArea;
+                    // card clicks are captured by the card TouchAreas above.
+                    Rectangle {
+                        width: 100%;
+                        height: 100%;
+
+                        list_menu_ta := TouchArea {
+                            pointer-event(event) => {
+                                if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                                    // absolute-position is window-relative and already
+                                    // accounts for ScrollView offsets.
+                                    root.background_menu_x = self.absolute-position.x + self.mouse-x + 8px;
+                                    root.background_menu_y = self.absolute-position.y + self.mouse-y + 8px;
+                                    root.background_menu_visible = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // Card list: layout child (viewport-stretched, top-aligned)
                     VerticalLayout {
                         padding-left: 18px;
                         padding-right: 18px;
@@ -839,6 +912,7 @@ export component MainWindow inherits Window {
         check_updates => { root.check_for_updates(); }
         start_download => { root.start_update_download(); }
         restart_now => { root.restart_after_update(); }
+        restart_setup => { root.restart_setup(); }
     }
 
     // Dialog: Labs (CDN Acceleration & URL Rewrite)
@@ -922,5 +996,32 @@ export component MainWindow inherits Window {
         set_all_torrent_files(all) => { root.set_all_new_task_files(all); }
         batch_text_changed(text) => { root.new_task_batch_text_changed(text); }
         submit_batch(text, dir) => { root.submit_new_task_batch(text, dir); }
+    }
+
+    // First-run setup wizard (modal, above all dialogs)
+    if root.show_setup_wizard : SetupWizard {
+        form <=> root.setup_form;
+        start_step: root.setup_start_step;
+        close(step) => { root.close_setup_wizard(step); }
+        finish(form) => { root.finish_setup(form); }
+        pick_directory => { root.pick_setup_directory(); }
+        set_language(idx) => { root.setup_set_language(idx); }
+        set_appearance(cm, tc) => { root.setup_set_appearance(cm, tc); }
+    }
+
+    // Task-list background context menu
+    if root.background_menu_visible : BackgroundMenu {
+        bg_visible: root.background_menu_visible;
+        menu_x: root.background_menu_x;
+        menu_y: root.background_menu_y;
+        close => { root.background_menu_visible = false; }
+        new_task => { root.open_new_task_dialog(); }
+        refresh_list => { root.background_refresh(); }
+    }
+
+    // In-app toasts (topmost layer: above dialogs)
+    if root.toasts.length > 0 : ToastStack {
+        toasts <=> root.toasts;
+        dismiss(id) => { root.dismiss_toast(id); }
     }
 }

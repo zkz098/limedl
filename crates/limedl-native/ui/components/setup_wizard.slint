@@ -1,0 +1,1064 @@
+
+component StepChip inherits Rectangle {
+    in property <int> index;
+    in property <string> label;
+    in property <bool> active: false;
+    in property <bool> done: false;
+    in property <bool> clickable: false;
+    callback clicked();
+
+    width: 74px;
+    height: 34px;
+    border-radius: 6px;
+    background: root.active ? Theme.c232b1d : (ta.has_hover ? Theme.c1a1e25 : Theme.c14171d);
+
+    ta := TouchArea {
+        enabled: root.clickable;
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 1px;
+        Text {
+            text: root.done ? "✓" : (root.index + 1);
+            color: root.active ? Theme.c84cc16 : (root.done ? Theme.c38bdf8 : Theme.c626c7d);
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.label;
+            color: root.active ? Theme.cf3f4f6 : Theme.c626c7d;
+            font-size: 9px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
+component LanguageCard inherits Rectangle {
+    in property <string> text;
+    in property <string> sub_text;
+    in property <bool> selected: false;
+    callback clicked();
+
+    background: root.selected ? Theme.c232b1d : (ta.has_hover ? Theme.c1a1e25 : Theme.c14171d);
+    border-color: root.selected ? Theme.c65a30d : Theme.c2b313d;
+    border-width: 1px;
+    border-radius: 8px;
+    height: 84px;
+    width: 50%;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 4px;
+        Text {
+            text: root.text;
+            color: root.selected ? Theme.c84cc16 : Theme.cf3f4f6;
+            font-size: 15px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.sub_text;
+            color: Theme.c8b95a5;
+            font-size: 11px;
+            horizontal-alignment: center;
+        }
+        if root.selected : Text {
+            text: "✓";
+            color: Theme.c84cc16;
+            font-size: 11px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+component ThemeSwatch inherits Rectangle {
+    in property <color> swatch_color;
+    in property <string> label;
+    in property <bool> selected: false;
+    callback clicked();
+
+    background: Theme.c14171d;
+    border-color: root.selected ? root.swatch_color : Theme.c2b313d;
+    border-width: 2px;
+    border-radius: 8px;
+    height: 76px;
+    width: 96px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 6px;
+        Rectangle {
+            width: 26px;
+            height: 26px;
+            border-radius: 13px;
+            background: root.swatch_color;
+        }
+        Text {
+            text: root.label;
+            color: root.selected ? root.swatch_color : Theme.c9ca3af;
+            font-size: 11px;
+            font-weight: root.selected ? 700 : 500;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+component PerformanceCard inherits Rectangle {
+    in property <string> title;
+    in property <string> desc;
+    in property <bool> selected: false;
+    callback clicked();
+
+    background: root.selected ? Theme.c232b1d : (ta.has_hover ? Theme.c1a1e25 : Theme.c14171d);
+    border-color: root.selected ? Theme.c65a30d : Theme.c2b313d;
+    border-width: 1px;
+    border-radius: 8px;
+    height: 96px;
+    width: 33.33%;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        padding: 12px;
+        alignment: center;
+        spacing: 5px;
+        Text {
+            text: root.title;
+            color: root.selected ? Theme.c84cc16 : Theme.cf3f4f6;
+            font-size: 13px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.desc;
+            color: Theme.c8b95a5;
+            font-size: 10px;
+            wrap: word-wrap;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+component SummaryRow inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <int> edit_step;
+    callback go(int);
+
+    background: Theme.c14171d;
+    border-color: Theme.c232832;
+    border-width: 1px;
+    border-radius: 6px;
+    width: 100%;
+    height: self.preferred-height;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+        spacing: 10px;
+        alignment: space-between;
+
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            spacing: 2px;
+            Text {
+                text: root.label;
+                color: Theme.c9ca3af;
+                font-size: 10px;
+                font-weight: 600;
+            }
+            Text {
+                text: root.value;
+                color: Theme.cf3f4f6;
+                font-size: 12px;
+                overflow: elide;
+            }
+        }
+
+        IconButton {
+            text: @tr("Edit");
+            icon: @image-url("../assets/icons/eraser-line.svg");
+            text_color: Theme.ca3e635;
+            clicked => { root.go(root.edit_step); }
+        }
+    }
+}
+
+import { ScrollView } from "std-widgets.slint";
+
+import {
+    CustomTextInput,
+    IconButton,
+    PrimaryButton,
+    SecondaryButton,
+    ToggleSwitch,
+} from "common.slint";
+import { Theme } from "../theme.slint";
+import { SetupFormData } from "../types.slint";
+
+/// First-run setup wizard (mirrors the web client's 9-step flow):
+/// welcome → language → appearance → cdn → rpc → directory → performance →
+/// system → summary. Interrupted runs resume from `lastSetupStep` (passed in
+/// as `start_step`); completing or skipping all saves the settings once.
+export component SetupWizard inherits Rectangle {
+    in-out property <SetupFormData> form;
+    in property <int> start_step: 0;
+
+    callback close(int);
+    callback finish(SetupFormData);
+    callback pick_directory();
+    callback set_language(int);
+    callback set_appearance(int, int);
+
+    in-out property <int> current_step: max(0, root.start_step);
+    in-out property <int> max_completed: max(0, root.current_step);
+
+    width: 100%;
+    height: 100%;
+    background: Theme.c000000bb;
+
+    Rectangle {
+        width: min(parent.width - 80px, 780px);
+        height: min(parent.height - 80px, 620px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Theme.c171a20;
+        border-color: Theme.c2e3542;
+        border-width: 1px;
+        border-radius: 12px;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: Theme.c000000cc;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            // ── Header: brand + close ──
+            HorizontalLayout {
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../assets/logo.png");
+                            width: 28px;
+                            height: 28px;
+                            image-fit: contain;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 1px;
+                        Text {
+                            text: @tr("limedl Setup");
+                            color: Theme.cf3f4f6;
+                            font-size: 15px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: @tr("First-run configuration");
+                            color: Theme.c8b95a5;
+                            font-size: 10px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+                IconButton {
+                    icon: @image-url("../assets/icons/close-line.svg");
+                    clicked => { root.close(root.current_step); }
+                }
+            }
+
+            // ── Step indicator ──
+            Rectangle {
+                height: 8px;
+            }
+
+            Rectangle {
+                width: 100%;
+                height: 46px;
+                background: Theme.c111418;
+                border-color: Theme.c232832;
+                border-width: 1px;
+                border-radius: 8px;
+
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 4px;
+                    alignment: space-between;
+
+                    for idx in [0, 1, 2, 3, 4, 5, 6, 7, 8] : StepChip {
+                        index: idx;
+                        label: root.step_label(idx);
+                        active: root.current_step == idx;
+                        done: root.max_completed >= idx && root.current_step != idx;
+                        clickable: idx <= root.max_completed || idx == root.current_step;
+                        clicked => { root.go_to_step(idx); }
+                    }
+                }
+            }
+
+            // ── Step body ──
+            Rectangle {
+                background: Theme.c111418;
+                border-radius: 8px;
+                border-color: Theme.c232832;
+                border-width: 1px;
+                height: 340px;
+                clip: true;
+
+                if root.current_step == 0 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            alignment: start;
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../assets/logo.png");
+                                    width: 56px;
+                                    height: 56px;
+                                    image-fit: contain;
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: @tr("Welcome to limedl");
+                                    color: Theme.cf3f4f6;
+                                    font-size: 20px;
+                                    font-weight: 700;
+                                }
+                                Text {
+                                    text: @tr("The lightweight multi-protocol download manager.");
+                                    color: Theme.c9ca3af;
+                                    font-size: 12px;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: Theme.c132a42;
+                            border-color: Theme.c2e3542;
+                            border-width: 1px;
+                            border-radius: 8px;
+                            width: 100%;
+                            height: self.preferred-height;
+                            HorizontalLayout {
+                                padding: 12px;
+                                spacing: 10px;
+                                alignment: start;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("../assets/icons/file-copy-line.svg");
+                                        colorize: Theme.c8b95a5;
+                                        width: 16px;
+                                        height: 16px;
+                                        image-fit: contain;
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: center;
+                                    spacing: 3px;
+                                    Text {
+                                        text: @tr("Open source license");
+                                        color: Theme.c9ca3af;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                    }
+                                    Text {
+                                        text: @tr("limedl is released under the GNU General Public License v3.0 or later. The bundled MiSans font is licensed separately and loaded only locally.");
+                                        color: Theme.c9ca3af;
+                                        font-size: 11px;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: @tr("This quick setup configures the essential options. You can change everything later in Settings or Labs.");
+                            color: Theme.c8b95a5;
+                            font-size: 11px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                if root.current_step == 1 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("Language");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: @tr("Choose the UI language. It applies immediately.");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            width: 100%;
+                            LanguageCard {
+                                text: "简体中文";
+                                sub_text: @tr("Chinese (Simplified)");
+                                selected: root.form.language_idx == 0;
+                                clicked => { root.set_language(0); root.form.language_idx = 0; }
+                            }
+                            LanguageCard {
+                                text: "English";
+                                sub_text: @tr("English");
+                                selected: root.form.language_idx == 1;
+                                clicked => { root.set_language(1); root.form.language_idx = 1; }
+                            }
+                        }
+                    }
+                }
+
+                if root.current_step == 2 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("Appearance");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+
+                        Text {
+                            text: @tr("Color Mode");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            SecondaryButton {
+                                text: @tr("System");
+                                active: root.form.color_mode_idx == 0;
+                                clicked => { root.set_appearance(0, root.form.theme_color_idx); }
+                            }
+                            SecondaryButton {
+                                text: @tr("Light");
+                                active: root.form.color_mode_idx == 1;
+                                clicked => { root.set_appearance(1, root.form.theme_color_idx); }
+                            }
+                            SecondaryButton {
+                                text: @tr("Dark");
+                                active: root.form.color_mode_idx == 2;
+                                clicked => { root.set_appearance(2, root.form.theme_color_idx); }
+                            }
+                        }
+
+                        Text {
+                            text: @tr("Accent Color");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            ThemeSwatch {
+                                swatch_color: Theme.c84cc16;
+                                label: @tr("Lime");
+                                selected: root.form.theme_color_idx == 2;
+                                clicked => { root.set_appearance(root.form.color_mode_idx, 2); }
+                            }
+                            ThemeSwatch {
+                                swatch_color: Theme.cf59e0b;
+                                label: @tr("Amber");
+                                selected: root.form.theme_color_idx == 0;
+                                clicked => { root.set_appearance(root.form.color_mode_idx, 0); }
+                            }
+                            ThemeSwatch {
+                                swatch_color: Theme.c38bdf8;
+                                label: @tr("Sky");
+                                selected: root.form.theme_color_idx == 1;
+                                clicked => { root.set_appearance(root.form.color_mode_idx, 1); }
+                            }
+                        }
+                    }
+                }
+
+                if root.current_step == 3 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("CDN Acceleration");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: @tr("Speed up downloads by routing through the fastest CDN edge node. You can re-test or disable it anytime in Labs.");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+                            ToggleSwitch {
+                                checked: root.form.cdn_enabled;
+                                toggled => { root.form.cdn_enabled = !root.form.cdn_enabled; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: @tr("Enable CDN Acceleration");
+                                    color: Theme.cf3f4f6;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: Theme.c132a42;
+                            border-color: Theme.c2e3542;
+                            border-width: 1px;
+                            border-radius: 8px;
+                            width: 100%;
+                            height: self.preferred-height;
+                            HorizontalLayout {
+                                padding: 12px;
+                                spacing: 10px;
+                                alignment: start;
+                                VerticalLayout {
+                                    alignment: center;
+                                    width: 18px;
+                                    Image {
+                                        source: @image-url("../assets/icons/flashlight-line.svg");
+                                        colorize: Theme.cf59e0b;
+                                        width: 16px;
+                                        height: 16px;
+                                        image-fit: contain;
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: center;
+                                    Text {
+                                        text: @tr("In mainland China, CDN acceleration typically improves GitHub / GitHub Release downloads the most.");
+                                        color: Theme.c9ca3af;
+                                        font-size: 11px;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.form.cdn_active_ip != "" : HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: @tr("Active edge node:");
+                                color: Theme.c9ca3af;
+                                font-size: 12px;
+                            }
+                            Text {
+                                text: root.form.cdn_active_ip;
+                                color: Theme.c84cc16;
+                                font-size: 12px;
+                                font-family: "Consolas";
+                                font-weight: 600;
+                            }
+                        }
+                    }
+                }
+
+                if root.current_step == 4 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("Aria2 RPC");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: @tr("Expose a JSON-RPC endpoint so browser extensions (Aria2 Explorer) can send downloads to limedl. Disable it if you do not need it.");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+                            ToggleSwitch {
+                                checked: root.form.rpc_enabled;
+                                toggled => { root.form.rpc_enabled = !root.form.rpc_enabled; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: @tr("Enable Aria2 RPC");
+                                    color: Theme.cf3f4f6;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                }
+                            }
+                        }
+
+                        if root.form.rpc_enabled : VerticalLayout {
+                            spacing: 10px;
+                            HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 4px;
+                                    Text {
+                                        text: @tr("Port");
+                                        color: Theme.c9ca3af;
+                                        font-size: 12px;
+                                    }
+                                    CustomTextInput {
+                                        text <=> root.form.rpc_port;
+                                        placeholder: "6800";
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 4px;
+                                    Text {
+                                        text: @tr("Secret token");
+                                        color: Theme.c9ca3af;
+                                        font-size: 12px;
+                                    }
+                                    CustomTextInput {
+                                        text <=> root.form.rpc_secret;
+                                        placeholder: @tr("Optional");
+                                    }
+                                }
+                            }
+                            Text {
+                                text: @tr("Tip: install the aria2-explorer extension and point it at this port to push links straight into limedl.");
+                                color: Theme.c8b95a5;
+                                font-size: 11px;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+
+                if root.current_step == 5 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("Download Directory");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: @tr("New tasks prefill this folder; you can still override it per task.");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            CustomTextInput {
+                                horizontal-stretch: 1;
+                                text <=> root.form.default_dir;
+                                placeholder: @tr("e.g. C:\\Downloads");
+                            }
+                            SecondaryButton {
+                                text: @tr("Browse...");
+                                icon: @image-url("../assets/icons/folder-open-line.svg");
+                                clicked => { root.pick_directory(); }
+                            }
+                        }
+
+                        Text {
+                            text: @tr("If left empty, the system default downloads folder is used.");
+                            color: Theme.c8b95a5;
+                            font-size: 11px;
+                        }
+                    }
+                }
+
+                if root.current_step == 6 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("Performance Preference");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: @tr("Controls thread allocation and adaptive behavior. Choose the preset that matches your machine, or pick custom values in Settings later.");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            width: 100%;
+                            PerformanceCard {
+                                title: @tr("Power Saver");
+                                desc: @tr("Low concurrency, minimal threads");
+                                selected: root.form.scheduler_preset_idx == 0;
+                                clicked => { root.form.scheduler_preset_idx = 0; }
+                            }
+                            PerformanceCard {
+                                title: @tr("Balanced");
+                                desc: @tr("Good default for most machines");
+                                selected: root.form.scheduler_preset_idx == 1;
+                                clicked => { root.form.scheduler_preset_idx = 1; }
+                            }
+                            PerformanceCard {
+                                title: @tr("Max Speed");
+                                desc: @tr("Aggressive threads & parallelism");
+                                selected: root.form.scheduler_preset_idx == 2;
+                                clicked => { root.form.scheduler_preset_idx = 2; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+                            ToggleSwitch {
+                                checked: root.form.chunk_strategy_idx == 0;
+                                toggled => {
+                                    root.form.chunk_strategy_idx = root.form.chunk_strategy_idx == 0 ? 1 : 0;
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: @tr("Intelligent chunk allocation");
+                                    color: Theme.cf3f4f6;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                }
+                                Text {
+                                    text: @tr("Adapt chunk sizes to connection quality instead of fixed sizes");
+                                    color: Theme.c8b95a5;
+                                    font-size: 11px;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current_step == 7 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("System Settings");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+                            ToggleSwitch {
+                                checked: root.form.autostart;
+                                toggled => { root.form.autostart = !root.form.autostart; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: @tr("Start with system");
+                                    color: Theme.cf3f4f6;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                }
+                                Text {
+                                    text: @tr("Launch limedl minimized to tray on login");
+                                    color: Theme.c8b95a5;
+                                    font-size: 11px;
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+                            ToggleSwitch {
+                                checked: root.form.notifications_enabled;
+                                toggled => { root.form.notifications_enabled = !root.form.notifications_enabled; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: @tr("System notifications");
+                                    color: Theme.cf3f4f6;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                }
+                                Text {
+                                    text: @tr("Desktop notification on task completion or failure");
+                                    color: Theme.c8b95a5;
+                                    font-size: 11px;
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: @tr("Proxy");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            SecondaryButton {
+                                text: @tr("Disabled");
+                                active: root.form.proxy_mode_idx == 0;
+                                clicked => { root.form.proxy_mode_idx = 0; }
+                            }
+                            SecondaryButton {
+                                text: @tr("System");
+                                active: root.form.proxy_mode_idx == 1;
+                                clicked => { root.form.proxy_mode_idx = 1; }
+                            }
+                            SecondaryButton {
+                                text: @tr("Manual");
+                                active: root.form.proxy_mode_idx == 2;
+                                clicked => { root.form.proxy_mode_idx = 2; }
+                            }
+                        }
+
+                        if root.form.proxy_mode_idx == 2 : CustomTextInput {
+                            text <=> root.form.proxy_manual_url;
+                            placeholder: "http://127.0.0.1:7890";
+                        }
+                    }
+                }
+
+                if root.current_step == 8 : ScrollView {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 12px;
+                        alignment: start;
+
+                        Text {
+                            text: @tr("Summary");
+                            color: Theme.cf3f4f6;
+                            font-size: 17px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: @tr("Review your choices. Click any row to edit it.");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+
+                        SummaryRow {
+                            label: @tr("Language");
+                            value: root.summary_language();
+                            edit_step: 1;
+                            go => { root.go_to_step(self.edit_step); }
+                        }
+                        SummaryRow {
+                            label: @tr("Appearance");
+                            value: root.summary_appearance();
+                            edit_step: 2;
+                            go => { root.go_to_step(self.edit_step); }
+                        }
+                        SummaryRow {
+                            label: @tr("CDN Acceleration");
+                            value: root.summary_cdn();
+                            edit_step: 3;
+                            go => { root.go_to_step(self.edit_step); }
+                        }
+                        SummaryRow {
+                            label: @tr("Aria2 RPC");
+                            value: root.summary_rpc();
+                            edit_step: 4;
+                            go => { root.go_to_step(self.edit_step); }
+                        }
+                        SummaryRow {
+                            label: @tr("Download Directory");
+                            value: root.form.default_dir != "" ? root.form.default_dir : @tr("System default");
+                            edit_step: 5;
+                            go => { root.go_to_step(self.edit_step); }
+                        }
+                        SummaryRow {
+                            label: @tr("Performance");
+                            value: root.summary_performance();
+                            edit_step: 6;
+                            go => { root.go_to_step(self.edit_step); }
+                        }
+                        SummaryRow {
+                            label: @tr("System");
+                            value: root.summary_system();
+                            edit_step: 7;
+                            go => { root.go_to_step(self.edit_step); }
+                        }
+                    }
+                }
+            }
+
+            // ── Footer navigation ──
+            HorizontalLayout {
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    if root.current_step > 0 : SecondaryButton {
+                        text: @tr("Back");
+                        icon: @image-url("../assets/icons/arrow-up-down-line.svg");
+                        clicked => { root.previous_step(); }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    if root.current_step == 0 : SecondaryButton {
+                        text: @tr("Skip All");
+                        clicked => { root.finish(root.form); }
+                    }
+                    if root.step_skippable(root.current_step) : SecondaryButton {
+                        text: @tr("Skip");
+                        clicked => { root.next_step(); }
+                    }
+                    if root.current_step < 8 : PrimaryButton {
+                        text: @tr("Next");
+                        icon: @image-url("../assets/icons/arrow-down-s-line.svg");
+                        clicked => { root.next_step(); }
+                    }
+                    if root.current_step == 8 : PrimaryButton {
+                        text: @tr("Finish Setup");
+                        icon: @image-url("../assets/icons/checkbox-circle-line.svg");
+                        clicked => { root.finish(root.form); }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Navigation helpers ──
+    function go_to_step(idx: int) {
+        if (idx >= 0 && idx <= 8 && (idx <= root.max_completed || idx <= root.current_step)) {
+            root.current_step = idx;
+        }
+    }
+    function next_step() {
+        if (root.current_step < 8) {
+            root.max_completed = max(root.max_completed, root.current_step);
+            root.current_step += 1;
+        }
+    }
+    function previous_step() {
+        if (root.current_step > 0) {
+            root.current_step -= 1;
+        }
+    }
+    function step_skippable(idx: int) -> bool {
+        idx == 1 || idx == 2 || idx == 3 || idx == 4 || idx == 6 || idx == 7;
+    }
+    function step_label(idx: int) -> string {
+        idx == 0 ? @tr("Setup") :
+        idx == 1 ? @tr("Language") :
+        idx == 2 ? @tr("Appearance") :
+        idx == 3 ? @tr("CDN") :
+        idx == 4 ? @tr("RPC") :
+        idx == 5 ? @tr("Folder") :
+        idx == 6 ? @tr("Performance") :
+        idx == 7 ? @tr("System Options") :
+        @tr("Summary");
+    }
+
+    // ── Summary helpers ──
+    function summary_language() -> string {
+        root.form.language_idx == 0 ? @tr("Chinese (Simplified)") : @tr("English");
+    }
+    function summary_appearance() -> string {
+        root.summary_color_mode() + " · " + root.summary_theme();
+    }
+    function summary_color_mode() -> string {
+        root.form.color_mode_idx == 1 ? @tr("Light") : root.form.color_mode_idx == 2 ? @tr("Dark") : @tr("System");
+    }
+    function summary_theme() -> string {
+        root.form.theme_color_idx == 0 ? @tr("Amber") : root.form.theme_color_idx == 1 ? @tr("Sky") : @tr("Lime");
+    }
+    function summary_cdn() -> string {
+        root.form.cdn_enabled ? @tr("Enabled") : @tr("Disabled");
+    }
+    function summary_rpc() -> string {
+        if (root.form.rpc_enabled) {
+            @tr("Enabled (port {})", root.form.rpc_port);
+        } else {
+            @tr("Disabled");
+        }
+    }
+    function summary_performance() -> string {
+        let preset = root.form.scheduler_preset_idx == 0 ? @tr("Power Saver") : (
+            root.form.scheduler_preset_idx == 1 ? @tr("Balanced") : @tr("Max Speed"));
+        let chunk = root.form.chunk_strategy_idx == 0 ? @tr("Enabled") : @tr("Disabled");
+        @tr("{} · Chunk allocation: {}", preset, chunk);
+    }
+    function summary_system() -> string {
+        let autostart = root.form.autostart ? @tr("Enabled") : @tr("Disabled");
+        let notify = root.form.notifications_enabled ? @tr("Enabled") : @tr("Disabled");
+        let proxy = root.form.proxy_mode_idx == 0 ? @tr("Disabled") : (
+            root.form.proxy_mode_idx == 1 ? @tr("System") : @tr("Manual"));
+        @tr("Autostart: {} · Notifications: {} · {}", autostart, notify, proxy);
+    }
+}
+
