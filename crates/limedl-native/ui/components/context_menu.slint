@@ -13,6 +13,7 @@ export component MenuItem inherits Rectangle {
     height: 32px;
     border-radius: 4px;
     background: ta.has_hover ? (root.danger ? Theme.c3f1518 : Theme.c20252e) : transparent;
+    animate background { duration: 100ms; }
 
     ta := TouchArea {
         clicked => { root.clicked(); }

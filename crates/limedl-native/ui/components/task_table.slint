@@ -229,6 +229,7 @@ export component TaskTable inherits Rectangle {
                 for task[idx] in root.tasks : row_rect := Rectangle {
                     height: 40px;
                     background: task.selected ? Theme.c1c2618 : (ta_row.has_hover ? Theme.c171a20 : (mod(idx, 2) == 0 ? Theme.c111419 : Theme.c0d0f12));
+                    animate background { duration: 120ms; }
 
                     property <bool> shift_click: false;
 
@@ -357,6 +358,7 @@ export component TaskTable inherits Rectangle {
                                         background: task.is_completed ? Theme.c38bdf8
                                                   : task.is_failed ? Theme.cf87171
                                                   : Theme.c84cc16;
+                                        animate width { duration: 250ms; easing: ease-out; }
                                     }
                                 }
                             }

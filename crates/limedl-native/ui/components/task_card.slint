@@ -16,6 +16,7 @@ export component TaskCard inherits Rectangle {
 
     background: root.item.selected ? Theme.c1c2618 : (ta.has_hover ? Theme.c191c22 : Theme.c13161b);
     border-color: root.item.selected ? Theme.c65a30d : (ta.has_hover ? Theme.c323845 : Theme.c22262f);
+    animate background, border-color { duration: 150ms; }
     border-width: 1px;
     border-radius: 8px;
     height: 104px;
@@ -141,6 +142,7 @@ export component TaskCard inherits Rectangle {
                         root.item.state_code == "failed" ? Theme.cef4444 : Theme.c84cc16
                     );
                     border-radius: 3px;
+                    animate width { duration: 250ms; easing: ease-out; }
                 }
             }
 

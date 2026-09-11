@@ -4,6 +4,7 @@ import { Theme } from "../theme.slint";
 import { IconButton, PrimaryButton, SecondaryButton, UnitInput } from "common.slint";
 
 export component SpeedLimitDialog inherits Rectangle {
+    in property <bool> is_open: false;
     in-out property <string> speed_limit_dl_kb: "0";
     in-out property <string> speed_limit_ul_kb: "0";
 
@@ -12,15 +13,21 @@ export component SpeedLimitDialog inherits Rectangle {
 
     width: 100%;
     height: 100%;
+    visible: root.is_open || root.opacity > 0.01;
+    opacity: root.is_open ? 1.0 : 0.0;
+    animate opacity { duration: 160ms; easing: ease-out; }
     background: Theme.c000000bb;
 
-    TouchArea {}
+    TouchArea {
+        enabled: root.is_open;
+    }
 
     Rectangle {
         width: 420px;
         height: 280px;
         x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
+        y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
+        animate y { duration: 160ms; easing: ease-out; }
         background: Theme.c171a20;
         border-color: Theme.c2e3542;
         border-width: 1px;

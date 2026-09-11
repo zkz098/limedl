@@ -1007,7 +1007,8 @@ export component MainWindow inherits Window {
     }
 
     // Dialog: Settings Center
-    if root.show_settings : SettingsDialog {
+    SettingsDialog {
+        is_open: root.show_settings;
         settings_tab: root.settings_tab;
         settings_form <=> root.settings_form;
         update_state <=> root.update_state;
@@ -1028,7 +1029,8 @@ export component MainWindow inherits Window {
     }
 
     // Dialog: Labs (CDN Acceleration & URL Rewrite)
-    if root.show_labs : LabsDialog {
+    LabsDialog {
+        is_open: root.show_labs;
         labs_tab: root.labs_tab;
         labs_form <=> root.labs_form;
         cdn_candidates: root.cdn_candidates;
@@ -1061,7 +1063,8 @@ export component MainWindow inherits Window {
     }
 
     // Dialog: Task Inspector
-    if root.show_inspector : TaskInspector {
+    TaskInspector {
+        is_open: root.show_inspector;
         inspector_info: root.inspector_info;
         inspector_tab: root.inspector_tab;
         inspector_peers: root.inspector_peers;
@@ -1076,7 +1079,8 @@ export component MainWindow inherits Window {
     }
 
     // Dialog: Speed Limit
-    if root.show_speed_limit_dialog : SpeedLimitDialog {
+    SpeedLimitDialog {
+        is_open: root.show_speed_limit_dialog;
         speed_limit_dl_kb <=> root.speed_limit_dl_kb;
         speed_limit_ul_kb <=> root.speed_limit_ul_kb;
         close => { root.close_speed_limit_dialog(); }
@@ -1084,7 +1088,8 @@ export component MainWindow inherits Window {
     }
 
     // Dialog: New Task
-    if root.show_new_task_dialog : NewTaskDialog {
+    NewTaskDialog {
+        is_open: root.show_new_task_dialog;
         new_task_url <=> root.new_task_url;
         new_task_dir <=> root.new_task_dir;
         new_task_filename <=> root.new_task_filename;
@@ -1113,7 +1118,8 @@ export component MainWindow inherits Window {
     }
 
     // First-run setup wizard (modal, above all dialogs)
-    if root.show_setup_wizard : SetupWizard {
+    SetupWizard {
+        is_open: root.show_setup_wizard;
         form <=> root.setup_form;
         start_step: root.setup_start_step;
         close(step) => { root.close_setup_wizard(step); }

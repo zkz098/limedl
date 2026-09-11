@@ -1,9 +1,9 @@
-import { ScrollView, ComboBox } from "std-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
 
 import { Theme } from "../theme.slint";
-import { ScrollView, ComboBox } from "std-widgets.slint";
 import { SettingsFormData, UpdateState } from "../types.slint";
 import {
+    CustomSelect,
     CustomTextInput,
     IconButton,
     PrimaryButton,
@@ -59,17 +59,25 @@ export component SettingsDialog inherits Rectangle {
         : @tr("Portable");
     }
 
+    in property <bool> is_open: false;
+
     width: 100%;
     height: 100%;
+    visible: root.is_open || root.opacity > 0.01;
+    opacity: root.is_open ? 1.0 : 0.0;
+    animate opacity { duration: 160ms; easing: ease-out; }
     background: Theme.c000000bb;
 
-    TouchArea {}
+    TouchArea {
+        enabled: root.is_open;
+    }
 
     Rectangle {
         width: min(parent.width - 60px, 940px);
         height: min(parent.height - 60px, 700px);
         x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
+        y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
+        animate y { duration: 160ms; easing: ease-out; }
         background: Theme.c171a20;
         border-color: Theme.c2e3542;
         border-width: 1px;
@@ -229,7 +237,7 @@ export component SettingsDialog inherits Rectangle {
                                     } }
                                 // Display labels are localized via @tr; option order MUST match
                                 // bridge.rs `combo` canonical value arrays.
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Follow System"), @tr("Light"), @tr("Dark")];
                                     current-index <=> root.settings_form.appearance_color_mode_idx;
                                     height: 36px;
@@ -238,7 +246,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("Theme Color (amber/sky/lime):"); color: Theme.c9ca3af; font-size: 12px; }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Amber"), @tr("Sky Blue"), @tr("Lime")];
                                     current-index <=> root.settings_form.appearance_theme_color_idx;
                                     height: 36px;
@@ -261,7 +269,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("Controls transparency and background blur for app panels and dialogs."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Default"), @tr("Acrylic"), @tr("Frosted")];
                                     current-index <=> root.settings_form.appearance_background_opacity_idx;
                                     height: 36px;
@@ -270,7 +278,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("UI Language (zh-CN/en-US):"); color: Theme.c9ca3af; font-size: 12px; }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("简体中文"), @tr("English")];
                                     current-index <=> root.settings_form.appearance_language_idx;
                                     height: 36px;
@@ -283,7 +291,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 spacing: 4px;
                                 Text { text: @tr("Close Behavior (minimizeToTray/exit):"); color: Theme.c9ca3af; font-size: 12px; }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Minimize to Tray"), @tr("Exit")];
                                     current-index <=> root.settings_form.appearance_close_behavior_idx;
                                     height: 36px;
@@ -374,7 +382,7 @@ export component SettingsDialog inherits Rectangle {
                                         HorizontalLayout { padding: 10px; Text { text: @tr("Action to perform when double-clicking a completed download task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                     }
                                 } }
-                            ComboBox {
+                            CustomSelect {
                                     model: [@tr("No Action"), @tr("Open File"), @tr("Show in Explorer"), @tr("Open Download Directory")];
                                     current-index <=> root.settings_form.double_click_completed_idx;
                                     height: 36px;
@@ -393,7 +401,7 @@ export component SettingsDialog inherits Rectangle {
                                         HorizontalLayout { padding: 10px; Text { text: @tr("Action to perform when double-clicking an uncompleted download task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                     }
                                 } }
-                            ComboBox {
+                            CustomSelect {
                                     model: [@tr("No Action"), @tr("Pause / Resume")];
                                     current-index <=> root.settings_form.double_click_uncompleted_idx;
                                     height: 36px;
@@ -477,7 +485,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("New tasks no longer show checksum mode separately. This setting is used globally."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("BLAKE3"), @tr("SHA-256"), @tr("XXH3-128"), @tr("None (skip)"), @tr("SHA-1")];
                                     current-index <=> root.settings_form.download_checksum_idx;
                                     height: 36px;
@@ -567,7 +575,7 @@ export component SettingsDialog inherits Rectangle {
                                         HorizontalLayout { padding: 10px; Text { text: @tr("Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                     }
                                 } }
-                            ComboBox {
+                            CustomSelect {
                                     model: [@tr("Disabled"), @tr("System Proxy"), @tr("Manual")];
                                     current-index <=> root.settings_form.proxy_mode_idx;
                                     height: 36px;
@@ -598,7 +606,7 @@ export component SettingsDialog inherits Rectangle {
                         VerticalLayout {
                             spacing: 4px;
                             Text { text: @tr("Allocation Mode (automatic/traditional):"); color: Theme.c9ca3af; font-size: 12px; }
-                            ComboBox {
+                            CustomSelect {
                                     model: [@tr("Automatic (adaptive)"), @tr("Traditional (fixed)")];
                                     current-index <=> root.settings_form.scheduler_mode_idx;
                                     height: 36px;
@@ -663,7 +671,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Conservative"), @tr("Balanced"), @tr("Aggressive")];
                                     current-index <=> root.settings_form.scheduler_adaptive_profile_idx;
                                     height: 36px;
@@ -682,7 +690,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("Auto-adjust chunk strategy based on network conditions"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Adaptive"), @tr("Fixed")];
                                     current-index <=> root.settings_form.scheduler_chunk_strategy_idx;
                                     height: 36px;
@@ -871,7 +879,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Enabled"), @tr("Disabled"), @tr("Forced")];
                                     current-index <=> root.settings_form.bt_encryption_mode_idx;
                                     height: 36px;
@@ -890,7 +898,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("None (sparse)"), @tr("Full (zero-fill)")];
                                     current-index <=> root.settings_form.bt_preallocate_mode_idx;
                                     height: 36px;
@@ -904,27 +912,51 @@ export component SettingsDialog inherits Rectangle {
                         // page stays scannable; click the header to expand.
                         Rectangle {
                             background: Theme.c151921;
-                            border-color: Theme.c272f3e;
+                            border-color: root.bt_show_advanced ? Theme.c343c4a : Theme.c272f3e;
+                            animate border-color { duration: 150ms; }
                             border-width: 1px;
                             border-radius: 6px;
 
                             VerticalLayout {
                                 padding: 12px;
-                                spacing: 10px;
+                                spacing: 0px;
 
-                                HorizontalLayout {
-                                    alignment: space-between;
-                                    Text { text: @tr("Advanced BT Settings"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
-                                    IconButton {
-                                        text: root.bt_show_advanced ? @tr("Collapse") : @tr("Expand");
-                                        icon: @image-url("../assets/icons/arrow-down-s-line.svg");
-                                        text_color: Theme.c9ca3af;
+                                Rectangle {
+                                    border-radius: 4px;
+                                    background: header_ta.has_hover ? Theme.c1a1e25 : transparent;
+                                    animate background { duration: 120ms; }
+
+                                    header_ta := TouchArea {
                                         clicked => { root.bt_show_advanced = !root.bt_show_advanced; }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 4px;
+                                        padding-right: 2px;
+                                        padding-top: 2px;
+                                        padding-bottom: 2px;
+                                        alignment: space-between;
+                                        Text { text: @tr("Advanced BT Settings"); color: root.bt_show_advanced ? Theme.cf3f4f6 : Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                        IconButton {
+                                            text: root.bt_show_advanced ? @tr("Collapse") : @tr("Expand");
+                                            icon: @image-url("../assets/icons/arrow-down-s-line.svg");
+                                            icon_rotation: root.bt_show_advanced ? 180deg : 0deg;
+                                            text_color: root.bt_show_advanced ? Theme.c84cc16 : Theme.c9ca3af;
+                                            clicked => { root.bt_show_advanced = !root.bt_show_advanced; }
+                                        }
                                     }
                                 }
 
-                                if root.bt_show_advanced : VerticalLayout {
-                                    spacing: 14px;
+                                adv_content_clip := Rectangle {
+                                    clip: true;
+                                    height: root.bt_show_advanced ? adv_content_layout.preferred-height : 0px;
+                                    opacity: root.bt_show_advanced ? 1.0 : 0.0;
+                                    animate height { duration: 220ms; easing: ease-in-out; }
+                                    animate opacity { duration: 180ms; easing: ease-out; }
+
+                                    adv_content_layout := VerticalLayout {
+                                        spacing: 14px;
+                                        padding-top: 14px;
 
                                     Text { text: @tr("Queuing & Rate Limits"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
                         HorizontalLayout {
@@ -1126,7 +1158,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Ban"), @tr("Limit Upload Slots")];
                                     current-index <=> root.settings_form.bt_anti_leech_action_idx;
                                     height: 36px;
@@ -1252,7 +1284,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Fastest Upload First"), @tr("Round Robin"), @tr("Anti-Leech First")];
                                     current-index <=> root.settings_form.bt_seed_choking_algorithm_idx;
                                     height: 36px;
@@ -1271,7 +1303,7 @@ export component SettingsDialog inherits Rectangle {
                                             HorizontalLayout { padding: 10px; Text { text: @tr("How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
                                         }
                                     } }
-                                ComboBox {
+                                CustomSelect {
                                     model: [@tr("Fixed Slots"), @tr("Rate Based")];
                                     current-index <=> root.settings_form.bt_choking_algorithm_idx;
                                     height: 36px;
@@ -1439,12 +1471,13 @@ export component SettingsDialog inherits Rectangle {
                                 }
                             }
                             Text { text: @tr("Synced trackers update bt.trackerList. Click Save to apply."); color: #6b7280; font-size: 11px; }
-                                }
-                                }
-                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
 
                 // ── Tab 5: IO 实验室 ──
                 if root.settings_tab == 5 : ScrollView {
@@ -1646,7 +1679,7 @@ export component SettingsDialog inherits Rectangle {
                         VerticalLayout {
                             spacing: 4px;
                             Text { text: @tr("Log Level (trace/debug/info/warn/error):"); color: Theme.c9ca3af; font-size: 12px; }
-                            ComboBox {
+                            CustomSelect {
                                     model: [@tr("Trace"), @tr("Debug"), @tr("Info"), @tr("Warn"), @tr("Error")];
                                     current-index <=> root.settings_form.logging_level_idx;
                                     height: 36px;

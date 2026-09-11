@@ -1,4 +1,4 @@
-import { ScrollView, ComboBox } from "std-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import {
     CdnCandidateItem,
@@ -8,6 +8,7 @@ import {
 } from "../types.slint";
 import {
     CodeChip,
+    CustomSelect,
     CustomTextInput,
     DangerButton,
     IconButton,
@@ -55,17 +56,25 @@ export component LabsDialog inherits Rectangle {
     callback toggle_rule_target(int, int);
     callback test_url_changed(string);
 
+    in property <bool> is_open: false;
+
     width: 100%;
     height: 100%;
+    visible: root.is_open || root.opacity > 0.01;
+    opacity: root.is_open ? 1.0 : 0.0;
+    animate opacity { duration: 160ms; easing: ease-out; }
     background: Theme.c000000bb;
 
-    TouchArea {}
+    TouchArea {
+        enabled: root.is_open;
+    }
 
     Rectangle {
         width: min(parent.width - 60px, 940px);
         height: min(parent.height - 60px, 700px);
         x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
+        y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
+        animate y { duration: 160ms; easing: ease-out; }
         background: Theme.c171a20;
         border-color: Theme.c2e3542;
         border-width: 1px;
@@ -184,7 +193,7 @@ export component LabsDialog inherits Rectangle {
                         VerticalLayout {
                             spacing: 4px;
                             Text { text: @tr("Optimization Provider (cloudflare / fastly / custom):"); color: Theme.c9ca3af; font-size: 12px; }
-                            ComboBox {
+                            CustomSelect {
                                 model: ["cloudflare", "fastly", "custom"];
                                 current-value <=> root.labs_form.cdn_provider;
                                 height: 36px;
@@ -651,7 +660,7 @@ export component LabsDialog inherits Rectangle {
                                         VerticalLayout {
                                             spacing: 4px;
                                             Text { text: @tr("Match Type (host / prefix / regex / wildcard):"); color: Theme.c9ca3af; font-size: 12px; }
-                                            ComboBox {
+                                            CustomSelect {
                                                 model: ["host", "prefix", "regex", "wildcard"];
                                                 current-value: rule.match_type;
                                                 selected(val) => { root.update_rule_match_type(r_idx, val); }
@@ -676,7 +685,7 @@ export component LabsDialog inherits Rectangle {
                                         VerticalLayout {
                                             spacing: 4px;
                                             Text { text: @tr("Replacement Mode (prefix_proxy / template):"); color: Theme.c9ca3af; font-size: 12px; }
-                                            ComboBox {
+                                            CustomSelect {
                                                 model: ["prefix_proxy", "template"];
                                                 current-value: rule.replacement_mode;
                                                 selected(val) => { root.update_rule_mode(r_idx, val); }
