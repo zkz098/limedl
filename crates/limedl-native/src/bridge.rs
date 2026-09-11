@@ -1167,6 +1167,7 @@ pub struct TaskStore {
     sort_field: SortField,
     sort_asc: bool,
     selected_ids: HashSet<String>,
+    last_selected_id: Option<String>,
     language: Language,
 }
 
@@ -1184,6 +1185,7 @@ impl TaskStore {
             sort_field: SortField::Created,
             sort_asc: false,
             selected_ids: HashSet::new(),
+            last_selected_id: None,
             language: lang,
         }
     }
@@ -1233,9 +1235,48 @@ impl TaskStore {
     pub fn toggle_select(&mut self, id: &str) {
         if self.selected_ids.contains(id) {
             self.selected_ids.remove(id);
+            if self.last_selected_id.as_deref() == Some(id) {
+                self.last_selected_id = None;
+            }
         } else {
             self.selected_ids.insert(id.to_string());
+            self.last_selected_id = Some(id.to_string());
         }
+    }
+
+    pub fn select_range(&mut self, target_id: &str) {
+        let (start, end) = {
+            let items = self.filtered_items_internal();
+            let target_idx = match items.iter().position(|it| it.id == target_id) {
+                Some(idx) => idx,
+                None => return,
+            };
+
+            let anchor_idx = self
+                .last_selected_id
+                .as_ref()
+                .and_then(|anchor_id| items.iter().position(|it| &it.id == anchor_id))
+                .unwrap_or(target_idx);
+
+            if anchor_idx <= target_idx {
+                (anchor_idx, target_idx)
+            } else {
+                (target_idx, anchor_idx)
+            }
+        };
+
+        let ids_to_add: Vec<String> = self
+            .filtered_items_internal()
+            [start..=end]
+            .iter()
+            .map(|it| it.id.clone())
+            .collect();
+
+        for id in ids_to_add {
+            self.selected_ids.insert(id);
+        }
+
+        self.last_selected_id = Some(target_id.to_string());
     }
 
     pub fn select_all(&mut self) {
@@ -1251,6 +1292,7 @@ impl TaskStore {
 
     pub fn clear_selection(&mut self) {
         self.selected_ids.clear();
+        self.last_selected_id = None;
     }
 
     pub fn selected_count(&self) -> usize {
@@ -2517,6 +2559,54 @@ mod tests {
                 "https://example.com/2.zip".to_string(),
             ])
         );
+    }
+
+    #[test]
+    fn test_select_range() {
+        let mut store = TaskStore::new();
+        for i in 1..=5 {
+            let summary = sample_summary(
+                &format!("http:task-{i}"),
+                &format!("file_{i}.zip"),
+                DownloadState::Downloading,
+                i * 100,
+                Some(1000),
+                100.0,
+                i * 1000,
+            );
+            store.insert_or_update(summary);
+        }
+
+        // Sort by Name asc so order is task-1 .. task-5
+        store.set_sort_field(SortField::Name);
+        if !store.sort_asc() {
+            store.toggle_sort_order();
+        }
+
+        // 1. Initial range selection with no prior anchor -> selects only task-2
+        store.select_range("http:task-2");
+        assert_eq!(store.selected_count(), 1);
+        assert!(store.selected_ids().contains(&"http:task-2".to_string()));
+
+        // 2. Forward range selection from task-2 to task-4 -> selects task-2, task-3, task-4
+        store.select_range("http:task-4");
+        assert_eq!(store.selected_count(), 3);
+        assert!(store.selected_ids().contains(&"http:task-2".to_string()));
+        assert!(store.selected_ids().contains(&"http:task-3".to_string()));
+        assert!(store.selected_ids().contains(&"http:task-4".to_string()));
+
+        // 3. Clear selection resets anchor
+        store.clear_selection();
+        assert_eq!(store.selected_count(), 0);
+
+        // 4. Backward range selection: toggle task-4 first, then range select task-1
+        store.toggle_select("http:task-4");
+        store.select_range("http:task-1");
+        assert_eq!(store.selected_count(), 4);
+        assert!(store.selected_ids().contains(&"http:task-1".to_string()));
+        assert!(store.selected_ids().contains(&"http:task-2".to_string()));
+        assert!(store.selected_ids().contains(&"http:task-3".to_string()));
+        assert!(store.selected_ids().contains(&"http:task-4".to_string()));
     }
 }
 

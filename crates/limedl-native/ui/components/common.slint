@@ -242,6 +242,7 @@ export component TabButton inherits Rectangle {
 export component CustomCheckBox inherits Rectangle {
     in property <bool> checked: false;
     callback toggled();
+    callback shift_toggled();
 
     width: 18px;
     height: 18px;
@@ -250,8 +251,21 @@ export component CustomCheckBox inherits Rectangle {
     border-color: root.checked ? Theme.c84cc16 : Theme.c3f4756;
     border-width: 1px;
 
+    property <bool> shift_held: false;
+
     ta := TouchArea {
-        clicked => { root.toggled(); }
+        pointer-event(event) => {
+            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                shift_held = event.modifiers.shift;
+            }
+        }
+        clicked => {
+            if shift_held {
+                root.shift_toggled();
+            } else {
+                root.toggled();
+            }
+        }
     }
 
     if root.checked : Text {

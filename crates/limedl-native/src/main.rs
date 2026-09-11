@@ -3,7 +3,9 @@ slint::include_modules!();
 mod autostart;
 mod bridge;
 mod i18n;
+mod platform_win;
 mod power;
+mod protocol;
 mod single_instance;
 mod update;
 
@@ -247,6 +249,254 @@ fn build_tray_menu(lang: Language) -> Menu {
     tray_menu
 }
 
+/// Open the new task dialog and pre-fill / trigger actions based on an incoming payload
+/// (e.g. from Drag-and-Drop, secondary instance WM_COPYDATA IPC, or cold CLI argument).
+fn open_new_task_with_payload(
+    raw_payload: &str,
+    ui_weak: &slint::Weak<MainWindow>,
+    dispatcher: &Arc<Dispatcher>,
+    store: &Arc<Mutex<TaskStore>>,
+    entries_cache: &Arc<Mutex<Vec<TorrentFileEntry>>>,
+    included_cache: &Arc<Mutex<Vec<bool>>>,
+) {
+    let payload = raw_payload.trim().trim_matches('"').trim_matches('\'').trim();
+    if payload.is_empty() {
+        return;
+    }
+
+    // Check limedl:// deep link scheme
+    let normalized = if let Some(stripped) = payload.strip_prefix("limedl://") {
+        let after = stripped.trim_start_matches('/');
+        if let Some(url_part) = after.strip_prefix("download?url=") {
+            percent_encoding::percent_decode_str(url_part)
+                .decode_utf8_lossy()
+                .to_string()
+        } else if let Some(magnet_part) = after.strip_prefix("magnet:") {
+            format!("magnet:{magnet_part}")
+        } else {
+            after.to_string()
+        }
+    } else {
+        payload.to_string()
+    };
+
+    let normalized = normalized.trim().to_string();
+
+    // Check if it's a local .torrent file
+    let path_candidate = if let Some(file_url) = normalized.strip_prefix("file:///") {
+        file_url.to_string()
+    } else if let Some(file_url) = normalized.strip_prefix("file://") {
+        file_url.to_string()
+    } else {
+        normalized.clone()
+    };
+
+    let p = std::path::Path::new(&path_candidate);
+    let is_torrent_file = p.is_file()
+        && p.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("torrent"))
+            .unwrap_or(false);
+
+    if is_torrent_file {
+        let full_path = p
+            .canonicalize()
+            .unwrap_or_else(|_| p.to_path_buf())
+            .to_string_lossy()
+            .to_string();
+        let file_name = p
+            .file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        let ui_weak_cl = ui_weak.clone();
+        let lang = store.lock().language();
+        let path_for_ui = full_path.clone();
+
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak_cl.upgrade() {
+                ui.set_new_task_url(SharedString::from(&path_for_ui));
+                if !file_name.is_empty() {
+                    ui.set_new_task_filename(SharedString::from(&file_name));
+                }
+                ui.set_new_task_batch_mode(false);
+                ui.set_new_task_preview_state("loading".into());
+                ui.set_new_task_preview_status_text(SharedString::from(
+                    i18n::format_preview_status("loading", "", lang),
+                ));
+                ui.set_new_task_preview_summary_text(SharedString::default());
+                ui.set_new_task_torrent_files(ModelRc::default());
+                ui.set_show_new_task_dialog(true);
+            }
+        });
+
+        let dispatcher = dispatcher.clone();
+        let ui_weak = ui_weak.clone();
+        let store = store.clone();
+        let entries_cache = entries_cache.clone();
+        let included_cache = included_cache.clone();
+
+        tokio::spawn(async move {
+            let preview = dispatcher.bt_preview_torrent(&full_path).await;
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else {
+                    return;
+                };
+                let lang = store.lock().language();
+                match preview {
+                    Ok(entries) => {
+                        let total_bytes: u64 = entries.iter().map(|e| e.size).sum();
+                        *entries_cache.lock() = entries.clone();
+                        *included_cache.lock() = vec![true; entries.len()];
+                        let items: Vec<NewTaskTorrentFileItem> = entries
+                            .iter()
+                            .map(|e| torrent_entry_to_item(e, true))
+                            .collect();
+                        ui.set_new_task_torrent_files(Rc::new(VecModel::from(items)).into());
+                        ui.set_new_task_preview_state("ready".into());
+                        ui.set_new_task_preview_status_text(SharedString::default());
+                        ui.set_new_task_preview_summary_text(SharedString::from(
+                            i18n::format_preview_summary(
+                                entries.len(),
+                                &bridge::format_bytes(total_bytes),
+                                lang,
+                            ),
+                        ));
+                    }
+                    Err(err) => {
+                        entries_cache.lock().clear();
+                        included_cache.lock().clear();
+                        ui.set_new_task_torrent_files(ModelRc::default());
+                        ui.set_new_task_preview_state("error".into());
+                        ui.set_new_task_preview_status_text(SharedString::from(
+                            i18n::format_preview_status("error", &err.to_string(), lang),
+                        ));
+                    }
+                }
+            });
+        });
+        return;
+    }
+
+    // Check magnet link
+    if normalized.starts_with("magnet:?") {
+        let magnet_url = normalized.clone();
+        let mut display_name = String::new();
+        if let Some(dn_start) = magnet_url.find("dn=") {
+            let slice = &magnet_url[dn_start + 3..];
+            let dn_raw = slice.split('&').next().unwrap_or("");
+            display_name = percent_encoding::percent_decode_str(dn_raw)
+                .decode_utf8_lossy()
+                .to_string();
+        }
+
+        let ui_weak = ui_weak.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_new_task_url(SharedString::from(&magnet_url));
+                if !display_name.is_empty() {
+                    ui.set_new_task_filename(SharedString::from(&display_name));
+                }
+                ui.set_new_task_batch_mode(false);
+                ui.set_new_task_probe_state("idle".into());
+                ui.set_new_task_probe_status_text(SharedString::default());
+                ui.set_new_task_probe_hash(SharedString::default());
+                ui.set_new_task_preview_state("none".into());
+                ui.set_new_task_preview_status_text(SharedString::default());
+                ui.set_new_task_preview_summary_text(SharedString::default());
+                ui.set_new_task_torrent_files(ModelRc::default());
+                ui.set_show_new_task_dialog(true);
+            }
+        });
+        return;
+    }
+
+    // Check multiple lines or URLs via clipboard parser
+    match crate::bridge::parse_clipboard_download_text(&normalized) {
+        crate::bridge::ClipboardPayload::BatchUrls(urls) => {
+            let joined = urls.join("\n");
+            let count = urls.len();
+            let ui_weak = ui_weak.clone();
+            let store = store.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    let lang = store.lock().language();
+                    ui.set_new_task_batch_text(SharedString::from(&joined));
+                    ui.set_new_task_batch_mode(true);
+                    ui.set_new_task_batch_count_text(SharedString::from(
+                        i18n::format_batch_count(count, lang),
+                    ));
+                    ui.set_new_task_batch_submitting(false);
+                    ui.set_new_task_batch_status_text(SharedString::default());
+                    ui.set_show_new_task_dialog(true);
+                }
+            });
+        }
+        crate::bridge::ClipboardPayload::SingleUrl(url) => {
+            let ui_weak_cl = ui_weak.clone();
+            let url_cl = url.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak_cl.upgrade() {
+                    ui.set_new_task_url(SharedString::from(&url_cl));
+                    ui.set_new_task_batch_mode(false);
+                    ui.set_new_task_probe_state("idle".into());
+                    ui.set_new_task_probe_status_text(SharedString::default());
+                    ui.set_new_task_probe_hash(SharedString::default());
+                    ui.set_new_task_preview_state("none".into());
+                    ui.set_new_task_preview_status_text(SharedString::default());
+                    ui.set_new_task_preview_summary_text(SharedString::default());
+                    ui.set_new_task_torrent_files(ModelRc::default());
+                    ui.set_show_new_task_dialog(true);
+                }
+            });
+
+            // If auto-detect sha256 or HTTP, probe checksum
+            if url.starts_with("http://") || url.starts_with("https://") {
+                let dispatcher = dispatcher.clone();
+                let ui_weak = ui_weak.clone();
+                let store = store.clone();
+                tokio::spawn(async move {
+                    let detected = dispatcher
+                        .probe_checksum(&url, None)
+                        .await
+                        .ok()
+                        .flatten();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let lang = store.lock().language();
+                            match detected {
+                                Some(hash) => {
+                                    ui.set_new_task_probe_state("found".into());
+                                    ui.set_new_task_probe_status_text(SharedString::from(
+                                        i18n::format_probe_status("found", &hash, lang),
+                                    ));
+                                    ui.set_new_task_probe_hash(SharedString::from(hash));
+                                }
+                                None => {
+                                    ui.set_new_task_probe_state("missing".into());
+                                    ui.set_new_task_probe_status_text(SharedString::from(
+                                        i18n::format_probe_status("missing", "", lang),
+                                    ));
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+        }
+        crate::bridge::ClipboardPayload::Empty => {
+            let ui_weak = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_new_task_url(SharedString::from(&normalized));
+                    ui.set_new_task_batch_mode(false);
+                    ui.set_show_new_task_dialog(true);
+                }
+            });
+        }
+    }
+}
+
 /// Push the saved appearance (color mode + theme accent) into the Slint Theme
 /// global. 'System' mode resolves at render time against the OS scheme via the
 /// std Palette.
@@ -294,11 +544,13 @@ fn create_default_tray_icon() -> tray_icon::Icon {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let cli_arg = std::env::args().nth(1);
+
     // Single-instance guard: a second launch activates the existing window
     // and exits before any engine/bootstrap work happens.
     let instance_claim = single_instance::InstanceClaim::claim();
     if instance_claim.is_secondary() {
-        instance_claim.notify_primary();
+        instance_claim.notify_primary(cli_arg.as_deref());
         return Ok(());
     }
 
@@ -459,16 +711,167 @@ async fn main() -> anyhow::Result<()> {
     // Pending update info shared between the update callbacks and the background check.
     let available_update: Arc<Mutex<Option<update::AvailableUpdate>>> = Arc::new(Mutex::new(None));
 
-    // Single-instance activate requests from secondary launches: show window.
+    // Single-instance activate requests from secondary launches: show window and open payload.
     {
         let ui_weak = main_window.as_weak();
-        instance_claim.listen_for_activate(move || {
-            let ui_weak = ui_weak.clone();
+        let dispatcher = core.dispatcher.clone();
+        let store = store.clone();
+        let entries_cache = new_task_torrent_entries.clone();
+        let included_cache = new_task_torrent_included.clone();
+        instance_claim.listen_for_activate(move |payload| {
+            let ui_weak_cl = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = ui_weak.upgrade() {
+                if let Some(ui) = ui_weak_cl.upgrade() {
                     let _ = ui.show();
                 }
             });
+            if let Some(p) = payload {
+                open_new_task_with_payload(
+                    &p,
+                    &ui_weak,
+                    &dispatcher,
+                    &store,
+                    &entries_cache,
+                    &included_cache,
+                );
+            }
+        });
+    }
+
+    // Windows native integrations: Drag & Drop + WM_COPYDATA IPC + HKCU protocol association
+    #[cfg(windows)]
+    {
+        let ui_weak = main_window.as_weak();
+        let dispatcher = core.dispatcher.clone();
+        let store = store.clone();
+        let entries_cache = new_task_torrent_entries.clone();
+        let included_cache = new_task_torrent_included.clone();
+
+        let ui_weak_drop = ui_weak.clone();
+        let dispatcher_drop = dispatcher.clone();
+        let store_drop = store.clone();
+        let entries_cache_drop = entries_cache.clone();
+        let included_cache_drop = included_cache.clone();
+
+        let on_drop = move |files: Vec<String>| {
+            if files.len() == 1 {
+                open_new_task_with_payload(
+                    &files[0],
+                    &ui_weak_drop,
+                    &dispatcher_drop,
+                    &store_drop,
+                    &entries_cache_drop,
+                    &included_cache_drop,
+                );
+            } else if !files.is_empty() {
+                let torrent_count = files
+                    .iter()
+                    .filter(|f| f.to_lowercase().ends_with(".torrent"))
+                    .count();
+                if torrent_count == 1
+                    && let Some(tf) = files.iter().find(|f| f.to_lowercase().ends_with(".torrent"))
+                {
+                    open_new_task_with_payload(
+                        tf,
+                        &ui_weak_drop,
+                        &dispatcher_drop,
+                        &store_drop,
+                        &entries_cache_drop,
+                        &included_cache_drop,
+                    );
+                    return;
+                }
+                let joined = files.join("\n");
+                let count = files.len();
+                let ui_weak = ui_weak_drop.clone();
+                let store = store_drop.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        let lang = store.lock().language();
+                        ui.set_new_task_batch_text(SharedString::from(&joined));
+                        ui.set_new_task_batch_mode(true);
+                        ui.set_new_task_batch_count_text(SharedString::from(
+                            i18n::format_batch_count(count, lang),
+                        ));
+                        ui.set_new_task_batch_submitting(false);
+                        ui.set_new_task_batch_status_text(SharedString::default());
+                        ui.set_show_new_task_dialog(true);
+                    }
+                });
+            }
+        };
+
+        let on_copydata = move |text: String| {
+            open_new_task_with_payload(
+                &text,
+                &ui_weak,
+                &dispatcher,
+                &store,
+                &entries_cache,
+                &included_cache,
+            );
+        };
+
+        platform_win::install_window_hooks(main_window.window(), on_drop, on_copydata);
+
+        // Auto-register magnet:? and limedl:// protocols in HKCU (no admin privileges required)
+        let _ = protocol::register_protocols();
+    }
+
+    // Smart background clipboard monitor: detect newly copied download URLs
+    {
+        let ui_weak = main_window.as_weak();
+        let toast_queue_clone = toast_queue.clone();
+        let store_clone = store.clone();
+        tokio::spawn(async move {
+            let mut last_clipboard = String::new();
+            if let Ok(mut cb) = arboard::Clipboard::new()
+                && let Ok(text) = cb.get_text()
+            {
+                last_clipboard = text.trim().to_string();
+            }
+
+            let mut interval = tokio::time::interval(Duration::from_millis(1500));
+            loop {
+                interval.tick().await;
+                let Ok(mut cb) = arboard::Clipboard::new() else {
+                    continue;
+                };
+                let Ok(text) = cb.get_text() else {
+                    continue;
+                };
+                let text = text.trim().to_string();
+                if text.is_empty() || text == last_clipboard {
+                    continue;
+                }
+                last_clipboard = text.clone();
+
+                match crate::bridge::parse_clipboard_download_text(&text) {
+                    crate::bridge::ClipboardPayload::SingleUrl(url) => {
+                        let lang = store_clone.lock().language();
+                        let display_url = if url.len() > 50 {
+                            format!("{}...", &url[..47])
+                        } else {
+                            url
+                        };
+                        let msg = match lang {
+                            Language::ZhCn => format!("检测到下载链接: {display_url}"),
+                            Language::EnUs => format!("Download link detected: {display_url}"),
+                        };
+                        push_toast(&ui_weak, &toast_queue_clone, msg, "info", Duration::from_secs(5));
+                    }
+                    crate::bridge::ClipboardPayload::BatchUrls(urls) => {
+                        let lang = store_clone.lock().language();
+                        let count = urls.len();
+                        let msg = match lang {
+                            Language::ZhCn => format!("检测到 {count} 个批量下载链接"),
+                            Language::EnUs => format!("Detected {count} batch download links"),
+                        };
+                        push_toast(&ui_weak, &toast_queue_clone, msg, "info", Duration::from_secs(5));
+                    }
+                    crate::bridge::ClipboardPayload::Empty => {}
+                }
+            }
         });
     }
 
@@ -968,6 +1371,18 @@ async fn main() -> anyhow::Result<()> {
             if let Some(ui) = ui_weak.upgrade() {
                 let mut store = store_clone.lock();
                 store.toggle_select(&id_str);
+                refresh_ui(&ui, &store);
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_range_select_task(move |id_str| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut store = store_clone.lock();
+                store.select_range(&id_str);
                 refresh_ui(&ui, &store);
             }
         });
@@ -3129,6 +3544,7 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let current_settings_clone = current_settings.clone();
         let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let store_cl = store.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_apply_manual_cdn_ip(move |ip_str| {
@@ -3138,7 +3554,7 @@ async fn main() -> anyhow::Result<()> {
                     let dispatcher = dispatcher.clone();
                     let current_settings_clone = current_settings_clone.clone();
                     let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
-                    let store_clone = store.clone();
+                    let store_clone = store_cl.clone();
                     let toast_queue_clone = toast_queue.clone();
                     let ui_weak = ui_weak.clone();
 
@@ -3700,7 +4116,17 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    tracing::info!("limedl Native UI 启动完毕，进入主事件循环");
+    // Cold start with command line arguments (e.g. magnet link, torrent file, or deep link)
+    if let Some(ref arg) = cli_arg {
+        open_new_task_with_payload(
+            arg,
+            &main_window.as_weak(),
+            &core.dispatcher,
+            &store,
+            &new_task_torrent_entries,
+            &new_task_torrent_included,
+        );
+    }
 
     // Poll for pending tray menu/tooltip updates on the main thread (TrayIcon is !Send)
     let _tray_update_timer = slint::Timer::default();

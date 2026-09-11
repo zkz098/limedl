@@ -221,6 +221,7 @@ export component MainWindow inherits Window {
     callback set_sort_field(int);
     callback toggle_sort_asc();
     callback toggle_select_task(string);
+    callback range_select_task(string);
     callback select_all();
     callback clear_selection();
     callback batch_pause();
@@ -857,6 +858,7 @@ export component MainWindow inherits Window {
                         for task[idx] in root.tasks : task_card := TaskCard {
                             item: task;
                             toggle_select => { root.toggle_select_task(task.id); }
+                            range_select => { root.range_select_task(task.id); }
                             open_inspector => { root.open_inspector(task.id); }
                             pause_task => { root.pause_task(task.id); }
                             resume_task => { root.resume_task(task.id); }
@@ -890,6 +892,7 @@ export component MainWindow inherits Window {
                     sort_asc: root.sort_asc;
                     selected_count: root.selected_count;
                     toggle_select(id) => { root.toggle_select_task(id); }
+                    range_select(id) => { root.range_select_task(id); }
                     open_inspector(id) => { root.open_inspector(id); }
                     pause_task(id) => { root.pause_task(id); }
                     resume_task(id) => { root.resume_task(id); }

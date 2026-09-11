@@ -1,5 +1,3 @@
-import { TaskItem } from "../types.slint";
-
 import { Theme } from "../theme.slint";
 import { TaskItem } from "../types.slint";
 import { CustomCheckBox, IconButton, StatusBadge } from "common.slint";
@@ -7,6 +5,7 @@ import { CustomCheckBox, IconButton, StatusBadge } from "common.slint";
 export component TaskCard inherits Rectangle {
     in property <TaskItem> item;
     callback toggle_select();
+    callback range_select();
     callback open_inspector();
     callback pause_task();
     callback resume_task();
@@ -21,13 +20,22 @@ export component TaskCard inherits Rectangle {
     border-radius: 8px;
     height: 104px;
 
+    property <bool> shift_click: false;
+
     ta := TouchArea {
         pointer-event(event) => {
             if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
                 root.show_menu(self.mouse-x, self.mouse-y);
+            } else if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                shift_click = event.modifiers.shift;
             }
         }
         double-clicked => { root.double_clicked(); }
+        clicked => {
+            if shift_click {
+                root.range_select();
+            }
+        }
     }
 
     HorizontalLayout {
@@ -40,6 +48,7 @@ export component TaskCard inherits Rectangle {
             CustomCheckBox {
                 checked: root.item.selected;
                 toggled => { root.toggle_select(); }
+                shift_toggled => { root.range_select(); }
             }
         }
 

@@ -91,13 +91,16 @@ impl InstanceClaim {
     }
 
     /// Called by a secondary instance right before exiting: activate the
-    /// primary instance's window.
-    pub fn notify_primary(&self) {
+    /// primary instance's window and forward optional argument (e.g. magnet link or torrent file).
+    pub fn notify_primary(&self, payload: Option<&str>) {
         #[cfg(windows)]
         {
             use windows::core::HSTRING;
+            use windows::Win32::Foundation::{LPARAM, WPARAM};
+            use windows::Win32::System::DataExchange::COPYDATASTRUCT;
             use windows::Win32::UI::WindowsAndMessaging::{
-                FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE,
+                FindWindowW, SendMessageW, SetForegroundWindow, ShowWindow,
+                SW_RESTORE, WM_COPYDATA,
             };
 
             unsafe {
@@ -106,6 +109,21 @@ impl InstanceClaim {
                     // restores a minimized one; a normal window stays normal.
                     let _ = ShowWindow(hwnd, SW_RESTORE);
                     let _ = SetForegroundWindow(hwnd);
+
+                    if let Some(text) = payload {
+                        let bytes = text.as_bytes();
+                        let cds = COPYDATASTRUCT {
+                            dwData: crate::platform_win::COPYDATA_MAGIC,
+                            cbData: bytes.len() as u32,
+                            lpData: bytes.as_ptr() as *mut std::ffi::c_void,
+                        };
+                        let _ = SendMessageW(
+                            hwnd,
+                            WM_COPYDATA,
+                            Some(WPARAM(0)),
+                            Some(LPARAM(&cds as *const _ as isize)),
+                        );
+                    }
                 }
             }
         }
@@ -114,7 +132,11 @@ impl InstanceClaim {
         {
             if let Ok(mut stream) = std::net::TcpStream::connect(("127.0.0.1", SHOW_PORT)) {
                 use std::io::Write;
-                let _ = stream.write_all(b"show\n");
+                let msg = match payload {
+                    Some(p) => format!("open:{p}\n"),
+                    None => "show\n".to_string(),
+                };
+                let _ = stream.write_all(msg.as_bytes());
                 let _ = stream.flush();
             }
         }
@@ -122,9 +144,9 @@ impl InstanceClaim {
 
     /// Called by the primary instance: start handling activate requests from
     /// secondary launches (no-op on Windows, where secondary instances focus
-    /// the window directly). `activate` runs on the listener thread and must
+    /// the window directly and send WM_COPYDATA). `activate` runs on the listener thread and must
     /// marshal onto the Slint UI thread via `invoke_from_event_loop`.
-    pub fn listen_for_activate(&self, activate: impl Fn() + Send + 'static) {
+    pub fn listen_for_activate(&self, activate: impl Fn(Option<String>) + Send + 'static) {
         #[cfg(not(windows))]
         if let Self::Primary(PrimaryHandle::Listener(listener)) = self {
             let listener = match listener.try_clone() {
@@ -137,9 +159,13 @@ impl InstanceClaim {
                         Ok(s) => s,
                         Err(_) => continue,
                     };
-                    // Drain the request; any connection means "show window".
-                    let _ = std::io::Read::read_to_end(&mut stream, &mut Vec::new());
-                    activate();
+                    let mut buf = String::new();
+                    let _ = std::io::Read::read_to_string(&mut stream, &mut buf);
+                    let payload = buf
+                        .strip_prefix("open:")
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty());
+                    activate(payload);
                 }
             });
         }

@@ -10,6 +10,7 @@ export component TaskTable inherits Rectangle {
     in property <int> selected_count: 0;
 
     callback toggle_select(string);
+    callback range_select(string);
     callback open_inspector(string);
     callback pause_task(string);
     callback resume_task(string);
@@ -229,15 +230,23 @@ export component TaskTable inherits Rectangle {
                     height: 40px;
                     background: task.selected ? Theme.c1c2618 : (ta_row.has_hover ? Theme.c171a20 : (mod(idx, 2) == 0 ? Theme.c111419 : Theme.c0d0f12));
 
+                    property <bool> shift_click: false;
+
                     ta_row := TouchArea {
                         pointer-event(event) => {
                             if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
                                 root.show_menu(task, row_rect.absolute-position.x + self.mouse-x + 8px, row_rect.absolute-position.y + self.mouse-y + 8px);
+                            } else if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                shift_click = event.modifiers.shift;
                             }
                         }
                         double-clicked => { root.double_clicked(task.id); }
                         clicked => {
-                            root.toggle_select(task.id);
+                            if shift_click {
+                                root.range_select(task.id);
+                            } else {
+                                root.toggle_select(task.id);
+                            }
                         }
                     }
 
@@ -254,6 +263,7 @@ export component TaskTable inherits Rectangle {
                                 CustomCheckBox {
                                     checked: task.selected;
                                     toggled => { root.toggle_select(task.id); }
+                                    shift_toggled => { root.range_select(task.id); }
                                 }
                             }
                         }
