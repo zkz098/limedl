@@ -3,8 +3,13 @@ slint::include_modules!();
 mod autostart;
 mod bridge;
 mod i18n;
+mod power;
 mod single_instance;
 mod update;
+
+use power::PowerGuard;
+
+static POWER_GUARD: std::sync::LazyLock<PowerGuard> = std::sync::LazyLock::new(PowerGuard::new);
 
 use std::collections::HashSet;
 use std::net::IpAddr;
@@ -35,11 +40,11 @@ use limedl_core::types::{
 use crate::bridge::{
     SortField, TaskStore, app_settings_to_form, app_settings_to_labs_form, app_settings_to_setup_form,
     cdn_candidates_to_slint, create_url_rewrite_preset, evaluate_url_rewrite, file_status_to_item,
-    format_disk_types_map, format_io_status_json, format_speed, generate_piece_map_image,
-    peer_info_to_item, str_to_match_type, str_to_replacement_mode, summary_to_inspector_info,
-    torrent_entry_to_item, tracker_info_to_item, update_app_settings_from_form,
-    update_app_settings_from_labs_form, update_app_settings_from_setup_form,
-    url_rewrite_rules_to_slint,
+    format_disk_types_map, format_io_status_json, format_speed, format_timestamp_ms,
+    generate_piece_map_image, peer_info_to_item, str_to_match_type, str_to_replacement_mode,
+    summary_to_inspector_info, torrent_entry_to_item, tracker_info_to_item,
+    update_app_settings_from_form, update_app_settings_from_labs_form,
+    update_app_settings_from_setup_form, url_rewrite_rules_to_slint,
 };
 use crate::i18n::Language;
 
@@ -107,6 +112,7 @@ fn dismiss_toast(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue, id: i32)
 
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     let (all, downloading, paused, completed, failed) = store.counts();
+    POWER_GUARD.update(downloading);
     ui.set_count_all(SharedString::from(all.to_string()));
     ui.set_count_downloading(SharedString::from(downloading.to_string()));
     ui.set_count_paused(SharedString::from(paused.to_string()));
@@ -328,6 +334,9 @@ async fn main() -> anyhow::Result<()> {
     limedl_core::init_logging(&initial_settings.logging, &state_dir)
         .with_context(|| "初始化日志失败")?;
     tracing::info!("启动 limedl Native 桌面客户端 (Skia)...");
+    let cdn_accelerator = core.cdn_service.accelerator().clone();
+    core.download_manager.set_cdn_accelerator(cdn_accelerator);
+    core.cdn_service.init_from_settings(&initial_settings).await;
     let current_settings = Arc::new(Mutex::new(initial_settings.clone()));
     // Sync OS autostart registration with persisted flag (no-op if already consistent)
     autostart::sync_from_settings(initial_settings.autostart);
@@ -486,6 +495,7 @@ async fn main() -> anyhow::Result<()> {
         let store_clone = store.clone();
         let active_inspector_id_clone = active_inspector_id.clone();
         let toast_queue_clone = toast_queue.clone();
+        let current_settings_clone = current_settings.clone();
 
         tokio::spawn(async move {
             while let Ok(event) = rx.recv().await {
@@ -493,6 +503,7 @@ async fn main() -> anyhow::Result<()> {
                 let ui_weak = ui_weak.clone();
                 let active_inspector_id = active_inspector_id_clone.clone();
                 let toast_queue = toast_queue_clone.clone();
+                let current_settings = current_settings_clone.clone();
 
                 match event {
                     DownloadEvent::Updated { summary_json, .. } => {
@@ -500,17 +511,24 @@ async fn main() -> anyhow::Result<()> {
                             serde_json::from_value::<DownloadSummary>(summary_json)
                         {
                             let current_lang = store.lock().language();
+                            let notif_enabled = current_settings.lock().notifications.enabled;
                             // OS notification + in-app toast on completion or failure
                             if matches!(summary.state, DownloadState::Completed) {
-                                let (title, body) = i18n::format_notification_completed(
-                                    &summary.file_name,
-                                    current_lang,
-                                );
-                                let _ = Notification::new()
-                                    .appname("limedl")
-                                    .summary(&title)
-                                    .body(&body)
-                                    .show();
+                                if notif_enabled {
+                                    let (title, body) = i18n::format_notification_completed(
+                                        &summary.file_name,
+                                        current_lang,
+                                    );
+                                    let mut notif = Notification::new();
+                                    notif.appname("limedl")
+                                        .summary(&title)
+                                        .body(&body);
+                                    #[cfg(windows)]
+                                    {
+                                        notif.app_id("limedl");
+                                    }
+                                    let _ = notif.show();
+                                }
                                 push_toast(
                                     &ui_weak,
                                     &toast_queue,
@@ -519,16 +537,22 @@ async fn main() -> anyhow::Result<()> {
                                     Duration::from_secs(5),
                                 );
                             } else if matches!(summary.state, DownloadState::Failed) {
-                                let (title, body) = i18n::format_notification_failed(
-                                    &summary.file_name,
-                                    summary.error.as_deref(),
-                                    current_lang,
-                                );
-                                let _ = Notification::new()
-                                    .appname("limedl")
-                                    .summary(&title)
-                                    .body(&body)
-                                    .show();
+                                if notif_enabled {
+                                    let (title, body) = i18n::format_notification_failed(
+                                        &summary.file_name,
+                                        summary.error.as_deref(),
+                                        current_lang,
+                                    );
+                                    let mut notif = Notification::new();
+                                    notif.appname("limedl")
+                                        .summary(&title)
+                                        .body(&body);
+                                    #[cfg(windows)]
+                                    {
+                                        notif.app_id("limedl");
+                                    }
+                                    let _ = notif.show();
+                                }
                                 push_toast(
                                     &ui_weak,
                                     &toast_queue,
@@ -588,16 +612,29 @@ async fn main() -> anyhow::Result<()> {
                         });
                     }
                     DownloadEvent::CdnProgress { phase, current, total } => {
+                        let current_lang = store_clone.lock().language();
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
                                 let mut form = ui.get_labs_form();
                                 form.cdn_is_testing = true;
                                 form.cdn_status_type = SharedString::from("testing");
-                                form.cdn_status_label = SharedString::from("测速中");
+                                form.cdn_status_label = SharedString::from(match current_lang {
+                                    Language::ZhCn => "测速中",
+                                    Language::EnUs => "Testing",
+                                });
                                 form.cdn_phase_label = SharedString::from(match phase.as_str() {
-                                    "fetchingRanges" => "获取网段",
-                                    "screening" => "延迟初筛",
-                                    "measuringThroughput" => "带宽测速",
+                                    "fetchingRanges" => match current_lang {
+                                        Language::ZhCn => "获取网段",
+                                        Language::EnUs => "Fetching IP ranges",
+                                    },
+                                    "screening" => match current_lang {
+                                        Language::ZhCn => "延迟初筛",
+                                        Language::EnUs => "Screening latency",
+                                    },
+                                    "measuringThroughput" => match current_lang {
+                                        Language::ZhCn => "带宽测速",
+                                        Language::EnUs => "Measuring bandwidth",
+                                    },
                                     other => other,
                                 });
                                 if total > 0 {
@@ -612,17 +649,43 @@ async fn main() -> anyhow::Result<()> {
                         let ui_weak_evt = ui_weak.clone();
                         let state_evt = state.clone();
                         let ip_evt = active_ip.clone();
+                        let current_lang = store_clone.lock().language();
+                        let is_ready = state_evt == "Ready" || state_evt == "ready";
+                        let is_error = state_evt.starts_with("Error") || state_evt == "error";
+                        let err_msg = if is_error {
+                            state_evt.strip_prefix("Error: ").unwrap_or(&state_evt).to_string()
+                        } else {
+                            String::new()
+                        };
+                        let err_msg_ui = err_msg.clone();
+
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_evt.upgrade() {
                                 let mut form = ui.get_labs_form();
                                 form.cdn_is_testing = false;
-                                let (st, sl) = match state_evt.as_str() {
-                                    "ready" => ("ready", "准备就绪"),
-                                    "error" => ("error", "测速失败"),
-                                    _ => ("idle", "未配置"),
+                                let (st, sl) = if is_ready {
+                                    ("ready", match current_lang {
+                                        Language::ZhCn => "准备就绪",
+                                        Language::EnUs => "Ready",
+                                    })
+                                } else if is_error {
+                                    ("error", match current_lang {
+                                        Language::ZhCn => "测速失败",
+                                        Language::EnUs => "Failed",
+                                    })
+                                } else {
+                                    ("idle", match current_lang {
+                                        Language::ZhCn => "未配置",
+                                        Language::EnUs => "Not Configured",
+                                    })
                                 };
                                 form.cdn_status_type = SharedString::from(st);
                                 form.cdn_status_label = SharedString::from(sl);
+                                if is_ready {
+                                    form.cdn_last_error = SharedString::default();
+                                } else if is_error {
+                                    form.cdn_last_error = SharedString::from(&err_msg_ui);
+                                }
                                 if let Some(ip) = ip_evt {
                                     form.cdn_active_ip = SharedString::from(ip);
                                 }
@@ -633,21 +696,21 @@ async fn main() -> anyhow::Result<()> {
                             }
                         });
                         // In-app toast for the async test result.
-                        let lang = store_clone.lock().language();
-                        if state.as_str() == "ready" {
+                        if is_ready {
                             let ip = active_ip.as_deref();
                             push_toast(
                                 &ui_weak,
                                 &toast_queue_clone,
-                                i18n::format_toast_cdn_test_done(ip, lang),
+                                i18n::format_toast_cdn_test_done(ip, current_lang),
                                 "success",
                                 Duration::from_secs(5),
                             );
-                        } else if state.as_str() == "error" {
+                        } else if is_error {
+                            let msg = if err_msg.is_empty() { "测速失败" } else { &err_msg };
                             push_toast(
                                 &ui_weak,
                                 &toast_queue_clone,
-                                i18n::format_toast_cdn_test_failed("测速失败", lang),
+                                i18n::format_toast_cdn_test_failed(msg, current_lang),
                                 "error",
                                 Duration::from_secs(6),
                             );
@@ -814,6 +877,7 @@ async fn main() -> anyhow::Result<()> {
                                 let _ = open_path_in_explorer(&default_dir);
                             }
                             "quit" => {
+                                POWER_GUARD.release();
                                 // Quit through the Slint event loop so the
                                 // runtime teardown (engine shutdown, registry
                                 // shutdown_all) runs; fall back to a hard exit
@@ -1012,6 +1076,130 @@ async fn main() -> anyhow::Result<()> {
                     store.clear_selection();
                     ids
                 };
+
+                for id in &ids {
+                    if let Ok(task_id) = TaskId::from_wire_string(id) {
+                        if delete_files {
+                            let _ = dispatcher.purge(&task_id).await;
+                        } else {
+                            let _ = dispatcher.remove(&task_id).await;
+                        }
+                    }
+                }
+
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        let mut store = store_clone.lock();
+                        for id in ids {
+                            store.remove(&id);
+                        }
+                        refresh_ui(&ui, &store);
+                    }
+                });
+            });
+        });
+    }
+
+    // View mode toggle (Cards <-> Table)
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_toggle_view_mode(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                let current = ui.get_view_mode();
+                ui.set_view_mode(if current == 0 { 1 } else { 0 });
+            }
+        });
+    }
+
+    // Table column header sort clicked
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_table_sort_clicked(move |col_idx| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut store = store_clone.lock();
+                let target_field = SortField::from(col_idx);
+                if store.sort_field() == target_field as i32 {
+                    store.toggle_sort_order();
+                } else {
+                    store.set_sort_field(target_field);
+                }
+                refresh_ui(&ui, &store);
+            }
+        });
+    }
+
+    // Desktop keyboard shortcuts: Space (toggle pause/resume)
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_hotkey_space(move || {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                let (ids, any_downloading) = {
+                    let store = store_clone.lock();
+                    let sel = store.selected_ids();
+                    if !sel.is_empty() {
+                        let downloading = store.filtered_items().iter().any(|item| {
+                            sel.contains(&item.id.to_string()) && item.can_pause
+                        });
+                        (sel, downloading)
+                    } else {
+                        let all_ids: Vec<String> = store
+                            .filtered_items()
+                            .iter()
+                            .map(|it| it.id.to_string())
+                            .collect();
+                        let (_, downloading_count, _, _, _) = store.counts();
+                        (all_ids, downloading_count > 0)
+                    }
+                };
+
+                for id in ids {
+                    if let Ok(task_id) = TaskId::from_wire_string(&id) {
+                        if any_downloading {
+                            let _ = dispatcher.pause(&task_id).await;
+                        } else {
+                            let _ = dispatcher.resume(&task_id).await;
+                        }
+                    }
+                }
+
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        let store = store_clone.lock();
+                        refresh_ui(&ui, &store);
+                    }
+                });
+            });
+        });
+    }
+
+    // Desktop keyboard shortcuts: Delete (delete selected tasks, shift: purge files)
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_hotkey_delete(move |delete_files| {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let ui_weak = ui_weak.clone();
+
+            tokio::spawn(async move {
+                let ids = {
+                    let mut store = store_clone.lock();
+                    let ids = store.selected_ids();
+                    store.clear_selection();
+                    ids
+                };
+
+                if ids.is_empty() {
+                    return;
+                }
 
                 for id in &ids {
                     if let Ok(task_id) = TaskId::from_wire_string(id) {
@@ -1415,6 +1603,8 @@ async fn main() -> anyhow::Result<()> {
                 ui.set_new_task_preview_status_text(SharedString::default());
                 ui.set_new_task_preview_summary_text(SharedString::default());
                 ui.set_new_task_torrent_files(ModelRc::default());
+                ui.set_new_task_batch_mode(false);
+                ui.set_new_task_batch_text(SharedString::default());
                 ui.set_new_task_batch_count_text(
                     SharedString::from(i18n::format_batch_count(0, lang)),
                 );
@@ -1423,10 +1613,10 @@ async fn main() -> anyhow::Result<()> {
                 ui.set_show_new_task_dialog(true);
 
                 // Clipboard auto-fill: if the URL field is still empty, read
-                // the system clipboard and prefill http/https/magnet links
-                // (mirrors the web client's autoFillFromClipboard).
+                // the system clipboard and prefill single link or switch to batch mode.
                 if ui.get_new_task_url().trim().is_empty() {
                     let ui_weak = ui_weak.clone();
+                    let store_clone = store_clone.clone();
                     tokio::spawn(async move {
                         let Ok(mut clipboard) = arboard::Clipboard::new() else {
                             return;
@@ -1434,19 +1624,34 @@ async fn main() -> anyhow::Result<()> {
                         let Ok(text) = clipboard.get_text() else {
                             return;
                         };
-                        let trimmed = text.trim().to_string();
-                        if trimmed.starts_with("magnet:?")
-                            || trimmed.starts_with("http://")
-                            || trimmed.starts_with("https://")
-                        {
-                            let _ = slint::invoke_from_event_loop(move || {
-                                if let Some(ui) = ui_weak.upgrade() {
-                                    // Re-check: the user may have typed already.
-                                    if ui.get_new_task_url().trim().is_empty() {
-                                        ui.set_new_task_url(SharedString::from(&trimmed));
+                        match crate::bridge::parse_clipboard_download_text(&text) {
+                            crate::bridge::ClipboardPayload::SingleUrl(url) => {
+                                let _ = slint::invoke_from_event_loop(move || {
+                                    if let Some(ui) = ui_weak.upgrade()
+                                        && ui.get_new_task_url().trim().is_empty()
+                                    {
+                                        ui.set_new_task_url(SharedString::from(url));
+                                        ui.set_new_task_batch_mode(false);
                                     }
-                                }
-                            });
+                                });
+                            }
+                            crate::bridge::ClipboardPayload::BatchUrls(urls) => {
+                                let joined = urls.join("\n");
+                                let count = urls.len();
+                                let _ = slint::invoke_from_event_loop(move || {
+                                    if let Some(ui) = ui_weak.upgrade()
+                                        && ui.get_new_task_url().trim().is_empty()
+                                    {
+                                        ui.set_new_task_batch_text(SharedString::from(&joined));
+                                        ui.set_new_task_batch_mode(true);
+                                        let lang = store_clone.lock().language();
+                                        ui.set_new_task_batch_count_text(
+                                            SharedString::from(i18n::format_batch_count(count, lang)),
+                                        );
+                                    }
+                                });
+                            }
+                            crate::bridge::ClipboardPayload::Empty => {}
                         }
                     });
                 }
@@ -2601,53 +2806,176 @@ async fn main() -> anyhow::Result<()> {
     // Start CDN Speed Test
     {
         let dispatcher = core.dispatcher.clone();
+        let event_bus = core.event_bus.clone();
         let current_settings_clone = current_settings.clone();
         let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_start_cdn_test(move || {
             let dispatcher = dispatcher.clone();
+            let event_bus = event_bus.clone();
             let current_settings_clone = current_settings_clone.clone();
             let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue_clone = toast_queue_clone.clone();
             let ui_weak = ui_weak.clone();
 
-            tokio::spawn(async move {
-                if let Some(cs) = dispatcher.cdn_service() {
-                    let settings = current_settings_clone.lock().clone();
-                    let cs = cs.clone();
-                    if let Ok(()) = cs.start_test(settings).await {
-                        let _ = slint::invoke_from_event_loop({
-                            let ui_weak = ui_weak.clone();
-                            move || {
-                                if let Some(ui) = ui_weak.upgrade() {
-                                    let mut form = ui.get_labs_form();
-                                    form.cdn_is_testing = true;
-                                    form.cdn_status_type = SharedString::from("testing");
-                                    form.cdn_status_label = SharedString::from("测速中");
-                                    ui.set_labs_form(form);
-                                }
-                            }
-                        });
+            let form = if let Some(ui) = ui_weak.upgrade() {
+                let mut form = ui.get_labs_form();
+                let current_lang = store_clone.lock().language();
+                form.cdn_is_testing = true;
+                form.cdn_status_type = SharedString::from("testing");
+                form.cdn_status_label = SharedString::from(match current_lang {
+                    Language::ZhCn => "测速中",
+                    Language::EnUs => "Testing",
+                });
+                form.cdn_phase_label = SharedString::from(match current_lang {
+                    Language::ZhCn => "获取网段",
+                    Language::EnUs => "Fetching IP ranges",
+                });
+                form.cdn_progress_percent = 0.0;
+                form.cdn_progress_label = SharedString::from("0 / 0");
+                form.cdn_last_error = SharedString::default();
+                ui.set_labs_form(form.clone());
+                form
+            } else {
+                return;
+            };
 
-                        // Poll candidates during speed test run
-                        for _ in 0..60 {
-                            tokio::time::sleep(Duration::from_millis(500)).await;
-                            let cands = cs.candidates().await;
-                            if !cands.is_empty() {
-                                *cdn_candidates_cache_clone.lock() = cands.clone();
-                                let settings = current_settings_clone.lock().clone();
-                                let active_ip = settings.cdn_acceleration.active_ip.unwrap_or_default();
-                                let ui_weak = ui_weak.clone();
-                                let _ = slint::invoke_from_event_loop(move || {
-                                    if let Some(ui) = ui_weak.upgrade() {
-                                        ui.set_cdn_candidates(cdn_candidates_to_slint(&cands, &active_ip));
-                                    }
-                                });
+            let mut settings = current_settings_clone.lock().clone();
+            update_app_settings_from_labs_form(&mut settings, &form);
+
+            tokio::spawn(async move {
+                let Some(cs) = dispatcher.cdn_service() else {
+                    return;
+                };
+                let cs = cs.clone();
+
+                match cs.start_test(settings).await {
+                    Ok(()) => {
+                        let outcome = cs.monitor_test(event_bus).await;
+
+                        let now_ms = limedl_core::now_ms();
+                        if let Ok(mut current) = dispatcher.get_settings().await {
+                            use limedl_core::cdn::accelerator::AccelState;
+                            match &outcome.state {
+                                AccelState::Ready => {
+                                    current.cdn_acceleration.active_ip =
+                                        outcome.active_ip.map(|i| i.to_string());
+                                    current.cdn_acceleration.active_speed_mbps =
+                                        outcome.active_speed_mbps;
+                                    current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+                                    current.cdn_acceleration.last_error = None;
+                                }
+                                AccelState::Error(msg) => {
+                                    current.cdn_acceleration.last_error = Some(msg.clone());
+                                    current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+                                }
+                                _ => {}
                             }
-                            if !matches!(cs.status().await, limedl_core::cdn::accelerator::AccelState::Testing) {
-                                break;
+                            if let Ok(saved) = dispatcher.save_settings(&current).await {
+                                *current_settings_clone.lock() = saved;
                             }
                         }
+
+                        *cdn_candidates_cache_clone.lock() = outcome.candidates.clone();
+                        let active_ip_str = outcome
+                            .active_ip
+                            .map(|i| i.to_string())
+                            .unwrap_or_default();
+                        let cands = outcome.candidates.clone();
+
+                        let default_node_text = outcome.default_node.as_ref().and_then(|dn| {
+                            dn.ip.as_deref().map(|ip| {
+                                if let Some(spd) = dn.throughput_mbps {
+                                    format!("{ip} ({spd:.2} MB/s)")
+                                } else if dn.tcp_latency_ms > 0.0 {
+                                    format!("{ip} ({:.1} ms)", dn.tcp_latency_ms)
+                                } else {
+                                    ip.to_string()
+                                }
+                            })
+                        });
+
+                        let speed_improvement = match (
+                            outcome.active_speed_mbps,
+                            outcome.default_node.as_ref().and_then(|dn| dn.throughput_mbps),
+                        ) {
+                            (Some(act), Some(base)) if base > 0.0 => {
+                                let diff = (act - base) / base * 100.0;
+                                Some(format!("{diff:+.1}%"))
+                            }
+                            _ => None,
+                        };
+
+                        let best_latency = outcome
+                            .candidates
+                            .iter()
+                            .map(|c| c.tcp_latency_ms)
+                            .fold(f64::INFINITY, f64::min);
+                        let latency_improvement = match (
+                            best_latency,
+                            outcome.default_node.as_ref().map(|dn| dn.tcp_latency_ms),
+                        ) {
+                            (act, Some(base)) if act.is_finite() && base > 0.0 => {
+                                let diff = (act - base) / base * 100.0;
+                                Some(format!("{diff:+.1}%"))
+                            }
+                            _ => None,
+                        };
+
+                        let last_test_time = format_timestamp_ms(now_ms);
+                        let is_ready = matches!(outcome.state, limedl_core::cdn::accelerator::AccelState::Ready);
+
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                let mut form = ui.get_labs_form();
+                                if let Some(ref text) = default_node_text {
+                                    form.cdn_default_node_text = SharedString::from(text);
+                                }
+                                if let Some(ref text) = speed_improvement {
+                                    form.cdn_speed_improvement_text = SharedString::from(text);
+                                }
+                                if let Some(ref text) = latency_improvement {
+                                    form.cdn_latency_improvement_text = SharedString::from(text);
+                                }
+                                if is_ready {
+                                    form.cdn_last_test_time = SharedString::from(last_test_time);
+                                }
+                                ui.set_labs_form(form);
+                                ui.set_cdn_candidates(cdn_candidates_to_slint(
+                                    &cands,
+                                    &active_ip_str,
+                                ));
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        tracing::error!("启动 CDN 测速失败: {e:#}");
+                        let err_msg = e.to_string();
+                        let current_lang = store_clone.lock().language();
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue_clone,
+                            i18n::format_toast_cdn_test_failed(&err_msg, current_lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                let mut form = ui.get_labs_form();
+                                form.cdn_is_testing = false;
+                                form.cdn_status_type = SharedString::from("error");
+                                form.cdn_status_label = SharedString::from(match current_lang {
+                                    Language::ZhCn => "测速失败",
+                                    Language::EnUs => "Failed",
+                                });
+                                form.cdn_last_error = SharedString::from(err_msg);
+                                ui.set_labs_form(form);
+                            }
+                        });
                     }
                 }
             });
@@ -2657,15 +2985,20 @@ async fn main() -> anyhow::Result<()> {
     // Cancel CDN Speed Test
     {
         let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
         main_window.on_cancel_cdn_test(move || {
             if let Some(cs) = dispatcher.cdn_service() {
                 cs.cancel_test();
+                let current_lang = store_clone.lock().language();
                 if let Some(ui) = ui_weak.upgrade() {
                     let mut form = ui.get_labs_form();
                     form.cdn_is_testing = false;
                     form.cdn_status_type = SharedString::from("idle");
-                    form.cdn_status_label = SharedString::from("已取消");
+                    form.cdn_status_label = SharedString::from(match current_lang {
+                        Language::ZhCn => "已取消",
+                        Language::EnUs => "Cancelled",
+                    });
                     ui.set_labs_form(form);
                 }
             }
@@ -3326,6 +3659,7 @@ async fn main() -> anyhow::Result<()> {
         let ui_weak = main_window.as_weak();
         let base_dir = base_dir.clone();
         let available = available_update.clone();
+        let current_settings_clone = current_settings.clone();
         let lang = initial_lang;
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(45)).await;
@@ -3347,12 +3681,18 @@ async fn main() -> anyhow::Result<()> {
                             });
                         }
                     });
-                    let (title, body) = i18n::format_notification_update(&version, lang);
-                    let _ = Notification::new()
-                        .appname("limedl")
-                        .summary(&title)
-                        .body(&body)
-                        .show();
+                    if current_settings_clone.lock().notifications.enabled {
+                        let (title, body) = i18n::format_notification_update(&version, lang);
+                        let mut notif = Notification::new();
+                        notif.appname("limedl")
+                            .summary(&title)
+                            .body(&body);
+                        #[cfg(windows)]
+                        {
+                            notif.app_id("limedl");
+                        }
+                        let _ = notif.show();
+                    }
                 }
                 Ok(None) => {}
                 Err(e) => tracing::debug!("background update check failed: {e:#}"),
@@ -3381,6 +3721,7 @@ async fn main() -> anyhow::Result<()> {
     main_window.run()?;
 
     // Graceful shutdown
+    POWER_GUARD.release();
     tracing::info!("Native UI 正在退出，关闭核心引擎...");
     // Stop Aria2 RPC server first
     if let Some(tx) = rpc_shutdown.lock().take() {

@@ -1,0 +1,432 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { TaskItem } from "../types.slint";
+import { CustomCheckBox, IconButton } from "common.slint";
+
+export component TaskTable inherits Rectangle {
+    in property <[TaskItem]> tasks: [];
+    in property <int> sort_field: 0; // 0: Time, 1: Size, 2: Speed, 3: Progress, 4: Name
+    in property <bool> sort_asc: false;
+    in property <int> selected_count: 0;
+
+    callback toggle_select(string);
+    callback open_inspector(string);
+    callback pause_task(string);
+    callback resume_task(string);
+    callback open_explorer(string);
+    callback remove_task(string);
+    callback double_clicked(string);
+    callback show_menu(TaskItem, length, length); // item, absolute_x, absolute_y
+    callback header_sort_clicked(int);
+
+    background: Theme.c0d0f12;
+
+    VerticalLayout {
+        // Table Header
+        Rectangle {
+            height: 38px;
+            background: Theme.c13161b;
+
+            // Bottom border line
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Theme.c22262f;
+            }
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 8px;
+
+                // Checkbox column header
+                Rectangle {
+                    width: 32px;
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "#";
+                            color: #6b7280;
+                            font-size: 11px;
+                            font-weight: 600;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                // File Name Column
+                Rectangle {
+                    horizontal-stretch: 1;
+                    min-width: 200px;
+                    TouchArea {
+                        clicked => { root.header_sort_clicked(4); }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        Text {
+                            text: @tr("File Name");
+                            color: root.sort_field == 4 ? Theme.ca3e635 : #6b7280;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        if root.sort_field == 4 : Image {
+                            source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                            colorize: Theme.ca3e635;
+                            width: 12px;
+                            height: 12px;
+                            image-fit: contain;
+                        }
+                    }
+                }
+
+                // Status Column
+                Rectangle {
+                    width: 80px;
+                    TouchArea {
+                        clicked => { root.header_sort_clicked(3); }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        Text {
+                            text: @tr("Status");
+                            color: #6b7280;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Progress Column
+                Rectangle {
+                    width: 130px;
+                    TouchArea {
+                        clicked => { root.header_sort_clicked(3); }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        Text {
+                            text: @tr("Progress");
+                            color: root.sort_field == 3 ? Theme.ca3e635 : #6b7280;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        if root.sort_field == 3 : Image {
+                            source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                            colorize: Theme.ca3e635;
+                            width: 12px;
+                            height: 12px;
+                            image-fit: contain;
+                        }
+                    }
+                }
+
+                // Size Column
+                Rectangle {
+                    width: 80px;
+                    TouchArea {
+                        clicked => { root.header_sort_clicked(1); }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        Text {
+                            text: @tr("Size");
+                            color: root.sort_field == 1 ? Theme.ca3e635 : #6b7280;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        if root.sort_field == 1 : Image {
+                            source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                            colorize: Theme.ca3e635;
+                            width: 12px;
+                            height: 12px;
+                            image-fit: contain;
+                        }
+                    }
+                }
+
+                // Speed Column
+                Rectangle {
+                    width: 90px;
+                    TouchArea {
+                        clicked => { root.header_sort_clicked(2); }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        Text {
+                            text: @tr("Speed");
+                            color: root.sort_field == 2 ? Theme.ca3e635 : #6b7280;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        if root.sort_field == 2 : Image {
+                            source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                            colorize: Theme.ca3e635;
+                            width: 12px;
+                            height: 12px;
+                            image-fit: contain;
+                        }
+                    }
+                }
+
+                // ETA Column
+                Rectangle {
+                    width: 75px;
+                    TouchArea {
+                        clicked => { root.header_sort_clicked(0); }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        Text {
+                            text: @tr("ETA");
+                            color: root.sort_field == 0 ? Theme.ca3e635 : #6b7280;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        if root.sort_field == 0 : Image {
+                            source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                            colorize: Theme.ca3e635;
+                            width: 12px;
+                            height: 12px;
+                            image-fit: contain;
+                        }
+                    }
+                }
+
+                // Actions Column
+                Rectangle {
+                    width: 110px;
+                    Text {
+                        text: @tr("Actions");
+                        color: #6b7280;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Table Rows
+        ScrollView {
+            VerticalLayout {
+                padding-bottom: root.selected_count > 0 ? 72px : 12px;
+                alignment: start;
+                spacing: 1px;
+
+                for task[idx] in root.tasks : row_rect := Rectangle {
+                    height: 40px;
+                    background: task.selected ? Theme.c1c2618 : (ta_row.has_hover ? Theme.c171a20 : (mod(idx, 2) == 0 ? Theme.c111419 : Theme.c0d0f12));
+
+                    ta_row := TouchArea {
+                        pointer-event(event) => {
+                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                                root.show_menu(task, row_rect.absolute-position.x + self.mouse-x + 8px, row_rect.absolute-position.y + self.mouse-y + 8px);
+                            }
+                        }
+                        double-clicked => { root.double_clicked(task.id); }
+                        clicked => {
+                            root.toggle_select(task.id);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 8px;
+
+                        // Checkbox
+                        Rectangle {
+                            width: 32px;
+                            VerticalLayout {
+                                alignment: center;
+                                CustomCheckBox {
+                                    checked: task.selected;
+                                    toggled => { root.toggle_select(task.id); }
+                                }
+                            }
+                        }
+
+                        // File Name + Kind
+                        HorizontalLayout {
+                            horizontal-stretch: 1;
+                            min-width: 200px;
+                            spacing: 8px;
+                            alignment: start;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    background: task.kind == "bt" ? Theme.c152c42 : Theme.c153920;
+                                    border-color: task.kind == "bt" ? Theme.c255078 : Theme.c276238;
+                                    border-width: 1px;
+                                    border-radius: 3px;
+                                    height: 18px;
+                                    HorizontalLayout {
+                                        padding-left: 4px;
+                                        padding-right: 4px;
+                                        alignment: center;
+                                        Text {
+                                            text: task.kind == "bt" ? "BT" : "HTTP";
+                                            color: task.kind == "bt" ? Theme.c38bdf8 : Theme.c4ade80;
+                                            font-size: 9px;
+                                            font-weight: 700;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: task.file_name;
+                                color: task.selected ? Theme.ca3e635 : Theme.cf3f4f6;
+                                font-size: 13px;
+                                font-weight: 500;
+                                overflow: elide;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Status
+                        Rectangle {
+                            width: 80px;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: task.state_label;
+                                    color: task.state_code == "downloading" ? Theme.c4ade80
+                                         : task.state_code == "paused" ? Theme.cfacc15
+                                         : task.state_code == "completed" ? Theme.c38bdf8
+                                         : task.state_code == "error" ? Theme.cf87171
+                                         : Theme.c9ca3af;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Progress bar + percentage
+                        Rectangle {
+                            width: 130px;
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 3px;
+
+                                HorizontalLayout {
+                                    alignment: space-between;
+                                    Text {
+                                        text: Math.round(task.progress * 100) + "%";
+                                        color: Theme.cf3f4f6;
+                                        font-size: 10px;
+                                        font-weight: 600;
+                                    }
+                                }
+
+                                Rectangle {
+                                    height: 4px;
+                                    background: Theme.c20242d;
+                                    border-radius: 2px;
+                                    Rectangle {
+                                        x: 0;
+                                        y: 0;
+                                        width: parent.width * max(0.0, min(1.0, task.progress));
+                                        height: parent.height;
+                                        border-radius: 2px;
+                                        background: task.is_completed ? Theme.c38bdf8
+                                                  : task.is_failed ? Theme.cf87171
+                                                  : Theme.c84cc16;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Size
+                        Rectangle {
+                            width: 80px;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: task.size_text;
+                                    color: Theme.cd1d5db;
+                                    font-size: 11px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Speed
+                        Rectangle {
+                            width: 90px;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: task.speed_text != "" ? task.speed_text : "-";
+                                    color: task.speed_text != "" && task.speed_text != "0 B/s" ? Theme.c4ade80 : #6b7280;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // ETA
+                        Rectangle {
+                            width: 75px;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: task.eta_text != "" ? task.eta_text : "-";
+                                    color: Theme.cfacc15;
+                                    font-size: 11px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Actions
+                        Rectangle {
+                            width: 110px;
+                            HorizontalLayout {
+                                spacing: 4px;
+                                alignment: start;
+
+                                if task.can_pause : IconButton {
+                                    icon: @image-url("../assets/icons/pause-line.svg");
+                                    clicked => { root.pause_task(task.id); }
+                                }
+                                if task.can_resume : IconButton {
+                                    icon: @image-url("../assets/icons/play-line.svg");
+                                    clicked => { root.resume_task(task.id); }
+                                }
+                                IconButton {
+                                    icon: @image-url("../assets/icons/folder-open-line.svg");
+                                    clicked => { root.open_explorer(task.id); }
+                                }
+                                IconButton {
+                                    icon: @image-url("../assets/icons/information-line.svg");
+                                    clicked => { root.open_inspector(task.id); }
+                                }
+                                IconButton {
+                                    icon: @image-url("../assets/icons/delete-bin-line.svg");
+                                    clicked => { root.remove_task(task.id); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

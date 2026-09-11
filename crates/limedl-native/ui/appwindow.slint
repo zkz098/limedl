@@ -53,6 +53,7 @@ import {
 } from "components/common.slint";
 
 import { TaskCard } from "components/task_card.slint";
+import { TaskTable } from "components/task_table.slint";
 import { ContextMenu } from "components/context_menu.slint";
 import { BackgroundMenu } from "components/background_menu.slint";
 import { ToastStack } from "components/toast_stack.slint";
@@ -74,6 +75,30 @@ export component MainWindow inherits Window {
     // missing from MiSans (emoji, rare Han) still fall back to system fonts.
     default-font-family: "MiSans VF";
     background: Theme.c0d0f12;
+    forward-focus: root_focus;
+
+    public function handle_key_escape() {
+        if root.show_new_task_dialog {
+            root.close_new_task_dialog();
+        } else if root.show_settings {
+            root.close_settings();
+        } else if root.show_labs {
+            root.close_labs();
+        } else if root.show_inspector {
+            root.close_inspector();
+        } else if root.show_speed_limit_dialog {
+            root.close_speed_limit_dialog();
+        } else if root.context_menu_state.visible {
+            root.context_menu_state.visible = false;
+        } else if root.background_menu_visible {
+            root.background_menu_visible = false;
+        } else if root.selected_count > 0 {
+            root.clear_selection();
+        } else if root.search_query != "" {
+            root.search_query = "";
+            root.search_changed("");
+        }
+    }
 
     // State properties
     in property <[TaskItem]> tasks: [];
@@ -92,6 +117,7 @@ export component MainWindow inherits Window {
     in property <int> sort_field: 0; // 0: Created, 1: Size, 2: Speed, 3: Progress, 4: Name
     in property <bool> sort_asc: false;
     in property <int> selected_count: 0;
+    in-out property <int> view_mode: 0; // 0: Cards, 1: Table
 
     // Phase 3: Inspector state
     in property <bool> show_inspector: false;
@@ -161,6 +187,8 @@ export component MainWindow inherits Window {
     in-out property <string> new_task_url: "";
     in-out property <string> new_task_dir: "";
     in-out property <string> new_task_filename: "";
+    in-out property <bool> new_task_batch_mode: false;
+    in-out property <string> new_task_batch_text: "";
     // Checksum probe state: probe_state "idle" | "probing" | "found" | "missing" | "not_http"
     in-out property <string> new_task_probe_state: "idle";
     in-out property <string> new_task_probe_status_text: "";
@@ -198,6 +226,10 @@ export component MainWindow inherits Window {
     callback batch_pause();
     callback batch_resume();
     callback batch_remove(bool);
+    callback toggle_view_mode();
+    callback table_sort_clicked(int);
+    callback hotkey_space();
+    callback hotkey_delete(bool);
 
     // Phase 3 Callbacks
     callback open_inspector(string);
@@ -280,6 +312,38 @@ export component MainWindow inherits Window {
     callback set_all_new_task_files(bool);
     callback new_task_batch_text_changed(string);
     callback submit_new_task_batch(string, string);
+
+    root_focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.handle_key_escape();
+                accept
+            }
+            if root.show_new_task_dialog || root.show_settings || root.show_labs || root.show_setup_wizard || root.show_speed_limit_dialog {
+                reject
+            }
+            if event.modifiers.control && (event.text == "a" || event.text == "A") {
+                root.select_all();
+                accept
+            } else if event.modifiers.control && (event.text == "n" || event.text == "N") {
+                root.open_new_task_dialog();
+                accept
+            } else if event.modifiers.control && (event.text == "f" || event.text == "F") {
+                search_box.focus_input();
+                accept
+            } else if event.modifiers.control && event.text == "," {
+                root.open_settings();
+                accept
+            } else if event.text == " " {
+                root.hotkey_space();
+                accept
+            } else if event.text == Key.Delete {
+                root.hotkey_delete(event.modifiers.shift);
+                accept
+            }
+            reject
+        }
+    }
 
     HorizontalLayout {
         // Left Sidebar
@@ -619,7 +683,7 @@ export component MainWindow inherits Window {
 
                         VerticalLayout {
                             alignment: center;
-                            SearchInput {
+                            search_box := SearchInput {
                                 text <=> root.search_query;
                                 text_changed(q) => { root.search_changed(q); }
                             }
@@ -630,6 +694,23 @@ export component MainWindow inherits Window {
                     HorizontalLayout {
                         spacing: 8px;
                         alignment: end;
+
+                        // View Mode Toggle (Cards / Table)
+                        IconButton {
+                            text: root.view_mode == 0 ? @tr("Table View") : @tr("Cards View");
+                            icon: root.view_mode == 0 ? @image-url("assets/icons/file-list-line.svg") : @image-url("assets/icons/layout-grid-line.svg");
+                            text_color: Theme.ca3e635;
+                            clicked => { root.toggle_view_mode(); }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 1px;
+                                height: 20px;
+                                background: Theme.c242934;
+                            }
+                        }
 
                         // Sort Buttons
                         HorizontalLayout {
@@ -740,7 +821,7 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                if root.tasks.length > 0 : ScrollView {
+                if root.tasks.length > 0 && root.view_mode == 0 : ScrollView {
                     viewport-y: 0;
                     // Background layer: non-layout child, pinned to the full
                     // viewport, declared BEFORE the layout so it sits below the
@@ -800,6 +881,34 @@ export component MainWindow inherits Window {
                                 };
                             }
                         }
+                    }
+                }
+
+                if root.tasks.length > 0 && root.view_mode == 1 : TaskTable {
+                    tasks: root.tasks;
+                    sort_field: root.sort_field;
+                    sort_asc: root.sort_asc;
+                    selected_count: root.selected_count;
+                    toggle_select(id) => { root.toggle_select_task(id); }
+                    open_inspector(id) => { root.open_inspector(id); }
+                    pause_task(id) => { root.pause_task(id); }
+                    resume_task(id) => { root.resume_task(id); }
+                    open_explorer(id) => { root.open_task_explorer(id); }
+                    remove_task(id) => { root.remove_task(id); }
+                    double_clicked(id) => { root.task_double_clicked(id); }
+                    header_sort_clicked(f) => { root.table_sort_clicked(f); }
+                    show_menu(t, mx, my) => {
+                        root.context_menu_state = {
+                            visible: true,
+                            x: mx,
+                            y: my,
+                            task_id: t.id,
+                            task_name: t.file_name,
+                            task_url: t.url,
+                            can_pause: t.can_pause,
+                            can_resume: t.can_resume,
+                            is_bt: t.kind == "bt",
+                        };
                     }
                 }
 
@@ -986,6 +1095,8 @@ export component MainWindow inherits Window {
         batch_count_text: root.new_task_batch_count_text;
         batch_submitting: root.new_task_batch_submitting;
         batch_status_text: root.new_task_batch_status_text;
+        batch_mode <=> root.new_task_batch_mode;
+        batch_text <=> root.new_task_batch_text;
         close => { root.close_new_task_dialog(); }
         submit(url, dir, filename) => { root.submit_new_task(url, dir, filename); }
         pick_torrent_file => { root.pick_torrent_file(); }

@@ -82,6 +82,8 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
 
     // Initialize CDN service
     let cdn_service = Arc::new(CdnService::new());
+    download_manager.set_cdn_accelerator(cdn_service.accelerator().clone());
+    cdn_service.init_from_settings(&settings).await;
 
     let http_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::limited(5))

@@ -1429,6 +1429,23 @@ impl TaskStore {
 
 // ── Labs Bridge Helpers ─────────────────────────────────────────────
 
+pub fn format_timestamp_ms(ts: u64) -> String {
+    let secs = (ts / 1000) as i64;
+    if let Ok(dt) = time::OffsetDateTime::from_unix_timestamp(secs) {
+        format!(
+            "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+            dt.year(),
+            dt.month() as u8,
+            dt.day(),
+            dt.hour(),
+            dt.minute(),
+            dt.second()
+        )
+    } else {
+        format!("{secs}")
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn app_settings_to_labs_form(
     settings: &AppSettings,
@@ -1464,22 +1481,7 @@ pub fn app_settings_to_labs_form(
 
     let last_test_time = cdn
         .last_test_at_ms
-        .map(|ts| {
-            let secs = (ts / 1000) as i64;
-            if let Ok(dt) = time::OffsetDateTime::from_unix_timestamp(secs) {
-                format!(
-                    "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
-                    dt.year(),
-                    dt.month() as u8,
-                    dt.day(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                )
-            } else {
-                format!("{secs}")
-            }
-        })
+        .map(format_timestamp_ms)
         .unwrap_or_default();
 
     LabsFormData {
@@ -1909,6 +1911,45 @@ pub fn update_app_settings_from_setup_form(
     }
 
     Ok(())
+}
+
+/// Result of parsing text copied to the clipboard for download links.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClipboardPayload {
+    Empty,
+    SingleUrl(String),
+    BatchUrls(Vec<String>),
+}
+
+/// Parse clipboard text and determine if it represents a single download URL
+/// or a multi-line batch of download URLs.
+pub fn parse_clipboard_download_text(text: &str) -> ClipboardPayload {
+    let lines: Vec<String> = text
+        .lines()
+        .map(|l| l.trim().trim_matches('"').trim_matches('\'').trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    if lines.is_empty() {
+        return ClipboardPayload::Empty;
+    }
+
+    let is_download_link = |s: &str| {
+        s.starts_with("http://")
+            || s.starts_with("https://")
+            || s.starts_with("magnet:?")
+            || (s.contains('[') && s.contains(']') && (s.contains("http://") || s.contains("https://")))
+    };
+
+    let valid_links: Vec<String> = lines.into_iter().filter(|l| is_download_link(l)).collect();
+
+    if valid_links.is_empty() {
+        ClipboardPayload::Empty
+    } else if valid_links.len() == 1 {
+        ClipboardPayload::SingleUrl(valid_links[0].clone())
+    } else {
+        ClipboardPayload::BatchUrls(valid_links)
+    }
 }
 
 #[cfg(test)]
@@ -2364,6 +2405,118 @@ mod tests {
         );
         assert_eq!(matched_rule, "GitHub 镜像代理");
         assert!(candidates.len() >= 2);
+    }
+
+    #[test]
+    fn test_format_timestamp_ms() {
+        // Unix timestamp 0: 1970-01-01 00:00:00
+        let formatted = format_timestamp_ms(0);
+        assert_eq!(formatted, "1970-01-01 00:00:00");
+
+        // 1_700_000_000_000 ms -> 2023-11-14 22:13:20
+        let formatted2 = format_timestamp_ms(1_700_000_000_000);
+        assert_eq!(formatted2, "2023-11-14 22:13:20");
+    }
+
+    #[test]
+    fn test_update_app_settings_from_labs_form_cdn() {
+        let mut settings = AppSettings::default();
+        let mut form = LabsFormData {
+            cdn_enabled: true,
+            cdn_provider: SharedString::from("custom"),
+            cdn_custom_test_url: SharedString::from("https://example.com/test.bin"),
+            cdn_custom_cidrs: SharedString::from("1.2.3.0/24, 4.5.6.0/24"),
+            ..LabsFormData::default()
+        };
+
+        update_app_settings_from_labs_form(&mut settings, &form);
+        assert!(settings.cdn_acceleration.enabled);
+        assert_eq!(settings.cdn_acceleration.provider, "custom");
+        assert_eq!(
+            settings.cdn_acceleration.custom_test_url.as_deref(),
+            Some("https://example.com/test.bin")
+        );
+        assert_eq!(
+            settings.cdn_acceleration.custom_cidrs.as_deref(),
+            Some("1.2.3.0/24, 4.5.6.0/24")
+        );
+
+        // Empty values should turn into None
+        form.cdn_custom_test_url = SharedString::from("   ");
+        form.cdn_custom_cidrs = SharedString::from("");
+        update_app_settings_from_labs_form(&mut settings, &form);
+        assert_eq!(settings.cdn_acceleration.custom_test_url, None);
+        assert_eq!(settings.cdn_acceleration.custom_cidrs, None);
+    }
+
+    #[test]
+    fn test_cdn_candidates_to_slint_mapping() {
+        let results = vec![
+            SpeedTestResult {
+                ip: "104.16.0.1".parse().unwrap(),
+                tcp_latency_ms: 18.5,
+                throughput_mbps: Some(52.34),
+                error: None,
+            },
+            SpeedTestResult {
+                ip: "104.16.0.2".parse().unwrap(),
+                tcp_latency_ms: 45.0,
+                throughput_mbps: None,
+                error: Some("timeout".to_string()),
+            },
+        ];
+
+        let model = cdn_candidates_to_slint(&results, "104.16.0.1");
+        assert_eq!(model.row_count(), 2);
+
+        let row0 = model.row_data(0).unwrap();
+        assert_eq!(row0.ip.as_str(), "104.16.0.1");
+        assert!(row0.is_active);
+        assert!(!row0.is_failed);
+        assert_eq!(row0.throughput_text.as_str(), "52.34 MB/s");
+
+        let row1 = model.row_data(1).unwrap();
+        assert_eq!(row1.ip.as_str(), "104.16.0.2");
+        assert!(!row1.is_active);
+        assert!(row1.is_failed);
+        assert_eq!(row1.throughput_text.as_str(), "-");
+    }
+
+    #[test]
+    fn test_parse_clipboard_download_text() {
+        assert_eq!(parse_clipboard_download_text(""), ClipboardPayload::Empty);
+        assert_eq!(parse_clipboard_download_text("   \n\t  "), ClipboardPayload::Empty);
+        assert_eq!(
+            parse_clipboard_download_text("Hello world, this is not a link"),
+            ClipboardPayload::Empty
+        );
+        assert_eq!(
+            parse_clipboard_download_text("  \"https://example.com/file.zip\"  "),
+            ClipboardPayload::SingleUrl("https://example.com/file.zip".to_string())
+        );
+        assert_eq!(
+            parse_clipboard_download_text("magnet:?xt=urn:btih:0123456789abcdef"),
+            ClipboardPayload::SingleUrl("magnet:?xt=urn:btih:0123456789abcdef".to_string())
+        );
+
+        let batch = "https://example.com/1.zip\nhttps://example.com/2.zip\nhttps://example.com/3.zip";
+        assert_eq!(
+            parse_clipboard_download_text(batch),
+            ClipboardPayload::BatchUrls(vec![
+                "https://example.com/1.zip".to_string(),
+                "https://example.com/2.zip".to_string(),
+                "https://example.com/3.zip".to_string(),
+            ])
+        );
+
+        let mixed = "Just some text\nhttps://example.com/1.zip\nanother text\nhttps://example.com/2.zip";
+        assert_eq!(
+            parse_clipboard_download_text(mixed),
+            ClipboardPayload::BatchUrls(vec![
+                "https://example.com/1.zip".to_string(),
+                "https://example.com/2.zip".to_string(),
+            ])
+        );
     }
 }
 
