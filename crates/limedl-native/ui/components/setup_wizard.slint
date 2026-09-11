@@ -7,30 +7,41 @@ component StepChip inherits Rectangle {
     in property <bool> clickable: false;
     callback clicked();
 
-    width: 74px;
-    height: 34px;
+    horizontal-stretch: 1;
+    min-width: 60px;
+    height: 40px;
     border-radius: 6px;
-    background: root.active ? Theme.c232b1d : (ta.has_hover ? Theme.c1a1e25 : Theme.c14171d);
+    border-width: 1px;
+    border-color: root.active ? Theme.c84cc16 : (root.done ? (ta.has_hover && root.clickable ? Theme.c3b4352 : Theme.c2e3542) : (ta.has_hover && root.clickable ? Theme.c2e3542 : transparent));
+    background: root.active ? Theme.c232b1d : (root.done ? (ta.has_hover && root.clickable ? Theme.c1e2229 : Theme.c181b22) : (ta.has_hover && root.clickable ? Theme.c1e2229 : transparent));
+
+    animate background { duration: 150ms; }
+    animate border-color { duration: 150ms; }
 
     ta := TouchArea {
         enabled: root.clickable;
         clicked => { root.clicked(); }
+        mouse-cursor: root.clickable ? pointer : default;
     }
 
     VerticalLayout {
         alignment: center;
-        spacing: 1px;
+        spacing: 2px;
+        padding-left: 2px;
+        padding-right: 2px;
+
         Text {
             text: root.done ? "✓" : (root.index + 1);
-            color: root.active ? Theme.c84cc16 : (root.done ? Theme.c38bdf8 : Theme.c626c7d);
-            font-size: 10px;
+            color: root.active ? Theme.c84cc16 : (root.done ? Theme.c84cc16 : (ta.has_hover && root.clickable ? Theme.cf3f4f6 : Theme.c9ca3af));
+            font-size: 11px;
             font-weight: 700;
             horizontal-alignment: center;
         }
         Text {
             text: root.label;
-            color: root.active ? Theme.cf3f4f6 : Theme.c626c7d;
-            font-size: 9px;
+            color: root.active ? Theme.cf3f4f6 : (root.done ? (ta.has_hover && root.clickable ? Theme.cf3f4f6 : Theme.ce5e7eb) : (ta.has_hover && root.clickable ? Theme.cf3f4f6 : Theme.c9ca3af));
+            font-size: 11px;
+            font-weight: root.active ? 700 : 500;
             horizontal-alignment: center;
             overflow: elide;
         }
@@ -293,22 +304,23 @@ export component SetupWizard inherits Rectangle {
 
             // ── Step indicator ──
             Rectangle {
-                height: 8px;
+                height: 4px;
             }
 
             Rectangle {
                 width: 100%;
-                height: 46px;
+                height: 52px;
                 background: Theme.c111418;
                 border-color: Theme.c232832;
                 border-width: 1px;
                 border-radius: 8px;
 
                 HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    padding-top: 5px;
+                    padding-bottom: 5px;
                     spacing: 4px;
-                    alignment: space-between;
 
                     for idx in [0, 1, 2, 3, 4, 5, 6, 7, 8] : StepChip {
                         index: idx;
