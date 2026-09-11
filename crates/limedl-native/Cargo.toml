@@ -63,6 +63,7 @@ tar = "0.4"
 
 [build-dependencies]
 slint-build = { workspace = true }
+winres = "0.1"
 
 [dev-dependencies]
 skia-safe = { version = "0.99", features = ["textlayout"] }

@@ -54,8 +54,8 @@ Var RestartApp         ; "1" when /R was passed
 !include "FileFunc.nsh"
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
-!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+!define MUI_ICON "..\crates\limedl-native\ui\assets\icon.ico"
+!define MUI_UNICON "..\crates\limedl-native\ui\assets\icon.ico"
 
 ; Finish page with a run-after-install checkbox (interactive installs only).
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"

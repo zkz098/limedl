@@ -12,6 +12,19 @@ fn main() {
         );
     }
     println!("cargo:rerun-if-changed=assets/fonts/MiSansVF.ttf");
+    println!("cargo:rerun-if-changed=ui/assets/icon.ico");
+
+    // Windows PE file resources: embed app icon (.ico), product name, description, copyright
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        let mut res = winres::WindowsResource::new();
+        res.set_icon("ui/assets/icon.ico");
+        res.set("ProductName", "limedl");
+        res.set("FileDescription", "limedl - Native High-Performance Download Manager");
+        res.set("LegalCopyright", "Copyright (c) 2026 zkz098");
+        if let Err(e) = res.compile() {
+            eprintln!("cargo:warning=Failed to compile Windows resources: {e}");
+        }
+    }
 
     // slint-build only tracks .slint sources/assets — without this, editing the
     // .po catalogs does not trigger regeneration of the bundled translations.
