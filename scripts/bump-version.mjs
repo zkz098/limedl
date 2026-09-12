@@ -72,7 +72,7 @@ function bumpVersion(current, level) {
  */
 function updateLockVersions(lockContent, newVersion) {
   const updated = lockContent.replace(
-    /^(name = "limedl(?:-core|-server)?"\n)version = "[^"]+"/gm,
+    /^(name = "limedl(?:-core|-server|-native)?"\n)version = "[^"]+"/gm,
     (match, prefix) => `${prefix}version = "${newVersion}"`,
   );
   if (updated === lockContent) {
