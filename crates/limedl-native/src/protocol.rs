@@ -5,6 +5,11 @@
 //!
 //! Because this writes to `HKEY_CURRENT_USER`, no administrative privileges
 //! or UAC elevation are required.
+//!
+//! Registration only makes sense on Windows, where the stubs below are replaced by
+//! the registry implementation — on other platforms the entry points are dead code
+//! by design.
+#![cfg_attr(not(windows), allow(dead_code))]
 
 #[cfg(windows)]
 use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};

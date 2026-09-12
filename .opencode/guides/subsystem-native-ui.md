@@ -63,6 +63,18 @@ UI 事件（callback）
 - 关闭行为由 `Window::on_close_requested` 显式实现：`close_behavior = minimizeToTray` → `hide()`；`exit` → `quit_event_loop()`。
 - 窗口钩子（拖拽/WM_COPYDATA）在窗口首次显示后才可能安装成功，因此采用 250ms 定时重试直到成功（隐藏启动期间会持续重试）。
 
+## 构建依赖：rfd 对话框后端固定为 gtk3
+
+`rfd` 只允许 `gtk3` 与 `xdg-portal` 二选一，两个都打开时其 `build.rs` 直接 panic（`You can't enable both`）。`src-tauri` 的 `tauri-plugin-dialog` 默认打开 `rfd/gtk3`，而 Cargo 在整包构建（`cargo clippy --workspace --all-targets`、`cargo llvm-cov`、`cargo test --workspace`）时统一 feature，所以本 crate **不能**沿用 `rfd` 的默认 feature（默认 = `xdg-portal` + `wayland` + `async-std`），必须显式固定：
+
+```toml
+rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
+```
+
+- 这些 feature 只在 Linux 生效（gtk/ashpd 依赖都声明在 Linux 的 `target.'cfg(...)'.dependencies` 下），Windows/macOS 的依赖图与行为不变。
+- Linux 上因此需要 `libgtk-3-dev`（`gtk-sys` 走 pkg-config；CI 的 Rust 作业已安装）。对话框由 `rfd` 自建的 GTK 线程（`gtk_init_check` + `gtk_main_iteration`）驱动，不要求宿主已有 GTK 主循环，Slint 应用可直接用 `AsyncFileDialog`。
+- 不要写回 `rfd = "0.16"`：workspace 构建会同时启用 `gtk3` 与 `xdg-portal`，Linux 上 build script panic。
+
 ## 测试
 
 ```powershell

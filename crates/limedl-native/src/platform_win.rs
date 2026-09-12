@@ -1,6 +1,11 @@
 //! Windows platform native integrations for limedl-native:
 //! - Window drag-and-drop support (`WM_DROPFILES` via `DragAcceptFiles` + `SetWindowSubclass`).
 //! - Secondary instance inter-process activation & argument passing (`WM_COPYDATA`).
+//!
+//! Only `launched_at_logon` is reachable on other platforms (the MSIX startup-task
+//! probe runs unconditionally); `main.rs` calls the Win32 hooks inside
+//! `#[cfg(windows)]`, so their absence there is expected.
+#![cfg_attr(not(windows), allow(dead_code))]
 
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};

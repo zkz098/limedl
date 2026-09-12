@@ -26,7 +26,17 @@ time = { workspace = true }
 tray-icon = "0.24"
 muda = "0.19"
 notify-rust = "4"
-rfd = "0.16"
+# rfd's build script panics when both of its Linux backends (`gtk3` and
+# `xdg-portal`) are enabled for the same target, and Cargo unifies features
+# across a whole-workspace build: `src-tauri` → `tauri-plugin-dialog` defaults to
+# `gtk3`, so any workspace-wide command (`cargo clippy --workspace`, the
+# `cargo llvm-cov` steps) would otherwise turn on `gtk3` here while rfd's own
+# defaults pulled in `xdg-portal` → "You can't enable both" panic.
+# Pin the one backend the workspace settles on; both flags only affect Linux
+# (their gtk/ashpd dependencies are declared under that target's cfg), so this
+# is a no-op on Windows and macOS.
+# Linux builds therefore need libgtk-3-dev (Debian/Ubuntu) — already installed in CI.
+rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
 arboard = "3.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 sys-locale = "0.3"

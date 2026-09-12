@@ -94,6 +94,11 @@ pub enum InstallOutcome {
     /// Portable replacement done in place; caller should relaunch.
     ReplacedRestartPending,
     /// Installer spawned; caller should exit so it can take over.
+    ///
+    /// Only the Windows NSIS channel (`install_via_installer`) spawns an installer,
+    /// but the variant stays in the shared enum so the UI match is exhaustive on
+    /// every platform.
+    #[cfg_attr(not(windows), allow(dead_code))]
     InstallerLaunched,
 }
 
