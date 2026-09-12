@@ -3,11 +3,57 @@ name: CI
 on:
   push:
     branches: [main]
+    # Docs-only edits do not need seven runners — skip the whole workflow.
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "docs/**"
+      - ".opencode/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "docs/**"
+      - ".opencode/**"
+  # Validate workflow changes on a branch without pushing a commit.
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A superseded run only reports on stale code: cancel it so the newest commit
+# gets the runners (and the cache write slots) instead of queueing behind it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Caching / RUSTFLAGS contract — read before editing a job below.
+#
+# `actions-rust-lang/setup-rust-toolchain` runs swatinem/rust-cache internally
+# (`cache: true` is its default). Every job here therefore passes `cache: false`
+# and runs `swatinem/rust-cache` explicitly exactly once. Doing both stored two
+# ~1-2 GB entries per job (~10 GB in total, GitHub's per-repo ceiling) and the
+# resulting LRU evictions are what turned every tagged release into a cold
+# 16-minute rebuild of Slint/Skia: the release caches never survived.
+#
+# `rustflags: ""` leaves RUSTFLAGS unset so `.cargo/config.toml` stays the single
+# source of truth for codegen/linker flags (x86-64-v3, and rust-lld +
+# /FORCE:MULTIPLE on Windows). The action's old default (`RUSTFLAGS=-D warnings`)
+# *replaced* the config file's flags for every Rust step; the two Windows-only
+# overrides that existed to compensate (`-C linker=lld-link`, then `-D warnings`
+# on the native test step) changed the build fingerprint three times in one job
+# and rebuilt the whole Skia/winit graph on each switch.
+#
+# Warnings are still fatal: `CARGO_BUILD_WARNINGS: deny` (cargo's own
+# `build.warnings`, orthogonal to RUSTFLAGS) plus clippy's `-- -D warnings`. It is
+# set per job, *not* workflow-wide: cargo denies linker warnings too, and linking
+# the Skia-based limedl-native with rust-lld legitimately warns about Skia's
+# duplicate ICU symbols (`ubrk_getLocaleByType`, fixed by /FORCE:MULTIPLE) — so
+# `test-windows-native` keeps its build warnings visible but not fatal, and the
+# workspace clippy in `check-windows` remains the Windows lint gate.
+# ═══════════════════════════════════════════════════════════════════════════
 
 jobs:
   lint-typescript:
@@ -33,6 +79,8 @@ jobs:
   e2e-nas-webui:
     name: E2E (nas-webui Chromium)
     runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -51,10 +99,12 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
+          cache: false
+          rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           key: e2e-nas-webui
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev mold
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev
       - name: Build frontend (NAS mode)
         run: pnpm run build:nas
       - name: Build limedl-server
@@ -95,18 +145,28 @@ jobs:
           path: server.log
           if-no-files-found: warn
 
+  # ═══════════════════════════════════════════════════════════════════════
+  # Windows — two parallel jobs instead of one serial chain.
+  #
+  # Windows is the slowest platform and therefore CI's critical path. clippy is
+  # check-only and cannot share artifacts with the test builds, so running it in
+  # the same job only serialized the wall clock; the two jobs split the measured
+  # step times evenly (clippy + core tests + tls check | server + native tests).
+  # ═══════════════════════════════════════════════════════════════════════
   check-windows:
     name: Check, Clippy & Test (Windows)
     runs-on: windows-latest
+    env:
+      CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
           components: clippy
+          cache: false
+          rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-      - name: Enable lld-link
-        run: echo "RUSTFLAGS=-C linker=lld-link" >> "$env:GITHUB_ENV"
       # limedl-native embeds MiSans VF at compile time; the font is not in git
       # (MiSans font license) — fetch it from the official source first. Cached so
       # a transient CDN hiccup cannot break the job (key = pinned font hash).
@@ -118,32 +178,56 @@ jobs:
       - name: Fetch bundled MiSans VF font
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
+      # Windows-only cfg code (`tray`, updater, winreg, file locking) is linted
+      # here and nowhere else, so this stays a full workspace clippy.
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # Windows tests: core + server are pure Rust logic (no GUI dep).
       - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
-      - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
       # Verify the optional `tls` feature compiles — CI otherwise never exercises it.
       - run: cargo check --manifest-path crates/limedl-server/Cargo.toml --features tls
+
+  test-windows-native:
+    name: "Test (Windows: server + limedl-native)"
+    runs-on: windows-latest
+    # No `CARGO_BUILD_WARNINGS: deny` here (unlike every other Rust job): linking
+    # the Skia-based binary with rust-lld warns about Skia's duplicate ICU
+    # symbols, and cargo's `build.warnings` denies linker warnings as well. The
+    # warnings gate for this job is `check-windows`' workspace clippy.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-${{ runner.os }}-0ddef906
+      - name: Fetch bundled MiSans VF font
+        shell: pwsh
+        run: ./scripts/fetch-misans.ps1
+      - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
       # limedl-native: pure logic tests (UI form mapping, i18n, batching, updater
       # manifest parsing). Only Windows runs them because the crate is currently
       # only released for Windows.
-      # RUSTFLAGS override: Skia's ICU objects live in two static libs, which
-      # lld-link rejects as duplicate symbols while link.exe merges them (the
-      # release build uses link.exe too), so this step drops lld-link.
-      - name: Run limedl-native tests
-        env:
-          RUSTFLAGS: "-D warnings"
-        run: cargo test --manifest-path crates/limedl-native/Cargo.toml
+      - run: cargo test --manifest-path crates/limedl-native/Cargo.toml
 
   check-macos:
     name: Check & Test (macOS)
     runs-on: macos-14
+    env:
+      CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
           components: clippy
+          cache: false
+          rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       # macOS ships WebKit natively — no apt install needed.
       # limedl-native embeds MiSans VF at compile time; the font is not in git
@@ -157,6 +241,9 @@ jobs:
       - name: Fetch bundled MiSans VF font
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
+      # `cfg(target_os = "macos")` code lives in limedl-core (platform, disk
+      # detect, io topology) and limedl-server (config) as well as the UI crate,
+      # so this stays a full workspace clippy.
       # All tests in these crates are pure Rust logic tests that
       # do not require a display server.
       - run: cargo clippy --workspace --all-targets -- -D warnings
@@ -166,14 +253,18 @@ jobs:
   check-rust:
     name: Check, Clippy & Test (Rust)
     runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
           components: clippy
+          cache: false
+          rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev mold
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: cargo-llvm-cov
@@ -208,6 +299,8 @@ jobs:
   bench-rust:
     name: Benchmark (Rust)
     runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_WARNINGS: deny
     permissions:
       contents: read
       actions: write
@@ -216,8 +309,10 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
+          cache: false
+          rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev mold
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev
 
       - name: Restore main baseline
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -271,7 +366,12 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
+          cache: false
+          rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # These tools never compile the workspace — the registry is all they need.
+          cache-targets: false
 
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:

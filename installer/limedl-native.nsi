@@ -30,6 +30,14 @@
   !define OUTFILE "limedl-native-setup.exe"
 !endif
 
+; Payload binary. Relative paths in this script are resolved against the
+; script's own directory (same as MUI_ICON below), so the default looks in the
+; repo-root `dist/` that the release workflow stages; the workflow passes an
+; absolute path via /DAPP_EXE_PATH=<abs>\dist\limedl-native.exe.
+!ifndef APP_EXE_PATH
+  !define APP_EXE_PATH "..\dist\${APP_EXE}"
+!endif
+
 Unicode true
 ManifestDPIAware true
 
@@ -127,7 +135,7 @@ Section "Install"
   Call StopRunningApp
 
   SetOutPath "$INSTDIR"
-  File "${APP_EXE}"
+  File "${APP_EXE_PATH}"
 
   ; Start Menu shortcut (per-user).
   CreateDirectory "$SMPROGRAMS\${APP_NAME}"
