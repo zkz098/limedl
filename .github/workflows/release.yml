@@ -101,6 +101,11 @@ jobs:
           key: release-native-windows-x86_64
 
       # ── MiSans VF (embedded at compile time; not in git) ─────────────
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-${{ runner.os }}-0ddef906
       - name: Fetch MiSans VF font
         shell: pwsh
         run: pwsh scripts/fetch-misans.ps1

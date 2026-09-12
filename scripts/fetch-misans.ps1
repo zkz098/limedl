@@ -10,6 +10,12 @@
 # Usage:
 #   pwsh scripts/fetch-misans.ps1 [-Force]
 #
+# Transport: `curl` when available (GitHub runners and modern Windows ship it),
+# with a .NET `HttpWebRequest` fallback. The range-request path only needs
+# ~15 MB of the 217 MB archive; the fallback downloads the whole zip with
+# resume + retries, because the CDN occasionally drops long connections (that
+# is what broke the Linux CI job when this used `Invoke-WebRequest`).
+#
 # The script is ASCII-only and works on Windows PowerShell 5.1 and pwsh 7+
 # (Linux/macOS CI runners included).
 [CmdletBinding()]
@@ -26,6 +32,7 @@ $ZipUrl         = "https://hyperos.mi.com/font-download/MiSans.zip"
 $EntrySuffix    = "MiSansVF.ttf"            # unique entry name inside the zip
 $ExpectedSize   = 20093424
 $ExpectedSha256 = "0ddef90648998900175cfdca9a6f087a2544c182f130b0ad4f7e94a03a115e79"
+$ZipTotalBytes  = 227880072
 
 $OutDir  = Join-Path $PSScriptRoot "..\crates\limedl-native\assets\fonts"
 $OutFile = Join-Path $OutDir "MiSansVF.ttf"
@@ -46,7 +53,76 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("misans-fetch-" + [System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
+# ── Transport helpers ─────────────────────────────────────────────────────
+
+function Get-CurlPath {
+    # NOTE: in Windows PowerShell `curl` is an alias for Invoke-WebRequest, so
+    # only an actual application (curl.exe / /usr/bin/curl) counts.
+    foreach ($name in @("curl.exe", "curl")) {
+        $cmd = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($cmd -and $cmd.Source) { return $cmd.Source }
+    }
+    return $null
+}
+
+$Curl = Get-CurlPath
+
+function Invoke-CurlToFile {
+    param(
+        [string[]]$Arguments,
+        [string]$OutFile,
+        [int]$TimeoutSec = 300
+    )
+    $curlArgs = @("--silent", "--show-error", "--fail", "--location",
+        "--retry", "5", "--retry-delay", "2", "--retry-all-errors",
+        "--connect-timeout", "20", "--max-time", "$TimeoutSec") + $Arguments + @("-o", $OutFile)
+    & $Curl @curlArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "curl exited with $LASTEXITCODE for $($Arguments[-1])"
+    }
+}
+
+function Invoke-CurlText {
+    param([string[]]$Arguments)
+    # Build the full argument list first: `& $curl @(...) + $args` would splice
+    # only the literal and append the rest to the *result*, dropping the URL.
+    $curlArgs = @("--silent", "--show-error", "--fail", "--location",
+        "--connect-timeout", "20", "--max-time", "60") + $Arguments
+    $raw = & $Curl @curlArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "curl exited with $LASTEXITCODE"
+    }
+    return ($raw -join "`n")
+}
+
+function Get-RemoteLength([string]$Url) {
+    if ($Curl) {
+        try {
+            $headers = Invoke-CurlText @("--head", $Url)
+            $match = [regex]::Matches($headers, "(?im)^content-length:\s*(\d+)\s*$")
+            if ($match.Count -gt 0) {
+                $length = [long]$match[$match.Count - 1].Groups[1].Value
+                if ($length -gt 0) { return $length }
+            }
+        } catch {
+            Write-Verbose "curl HEAD failed: $($_.Exception.Message)"
+        }
+    }
+    $req = [System.Net.HttpWebRequest]::Create($Url)
+    $req.Method = "HEAD"
+    $req.UserAgent = "limedl-build"
+    $resp = $req.GetResponse()
+    try { return $resp.ContentLength } finally { $resp.Close() }
+}
+
 function Get-RangeBytes([string]$Url, [long]$Start, [long]$End) {
+    if ($Curl) {
+        $part = Join-Path $tmp ("range-" + [System.IO.Path]::GetRandomFileName())
+        Invoke-CurlToFile -Arguments @("-r", "$Start-$End", $Url) -OutFile $part
+        try { return ,[System.IO.File]::ReadAllBytes($part) } finally { Remove-Item $part -Force -ErrorAction SilentlyContinue }
+    }
+
     $req = [System.Net.HttpWebRequest]::Create($Url)
     $req.Method = "GET"
     $req.UserAgent = "limedl-build"
@@ -59,13 +135,12 @@ function Get-RangeBytes([string]$Url, [long]$Start, [long]$End) {
     } finally { $resp.Close() }
 }
 
+# ── Extraction paths ──────────────────────────────────────────────────────
+
 function Read-ZipEntryViaRange([string]$Url, [string]$OutPath) {
     # Fast path: HTTP Range requests pull only the needed entry (~15 MB) out of
-    # the 227 MB zip. Reads the central directory, then deflates the entry.
-    $head = [System.Net.HttpWebRequest]::Create($Url)
-    $head.Method = "HEAD"; $head.UserAgent = "limedl-build"
-    $hresp = $head.GetResponse()
-    try { $total = $hresp.ContentLength } finally { $hresp.Close() }
+    # the 217 MB zip. Reads the central directory, then deflates the entry.
+    $total = Get-RemoteLength $Url
     if ($total -le 0) { throw "server did not report content length" }
 
     $tail = Get-RangeBytes $Url ($total - 1048576) ($total - 1)
@@ -118,10 +193,14 @@ function Read-ZipEntryViaRange([string]$Url, [string]$OutPath) {
 }
 
 function Read-ZipEntryViaFullDownload([string]$Url, [string]$OutPath) {
-    # Fallback: download the whole zip and extract via ZipFile.
+    # Fallback: download the whole zip (resumable + retried) and extract via ZipFile.
     $zipPath = Join-Path $tmp "MiSans.zip"
-    Write-Host "Downloading full archive ($([Math]::Round(227880072/1MB)) MB)..."
-    Invoke-WebRequest -Uri $Url -OutFile $zipPath -UseBasicParsing -UserAgent "limedl-build"
+    Write-Host "Downloading full archive ($([Math]::Round($ZipTotalBytes/1MB)) MB)..."
+    if ($Curl) {
+        Invoke-CurlToFile -Arguments @("--continue-at", "-", $Url) -OutFile $zipPath -TimeoutSec 1800
+    } else {
+        Invoke-WebRequest -Uri $Url -OutFile $zipPath -UseBasicParsing -UserAgent "limedl-build"
+    }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {

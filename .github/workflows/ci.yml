@@ -79,8 +79,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
+          # Playwright resolves the HTML report folder relative to the config
+          # file (e2e/), while traces/screenshots go to test-results/ at the
+          # repo root — upload both so a failure is diagnosable.
           name: playwright-report-nas-webui
-          path: playwright-report/
+          path: |
+            e2e/playwright-report/
+            test-results/
           if-no-files-found: warn
       - name: Upload server logs on failure
         if: failure()
@@ -103,7 +108,13 @@ jobs:
       - name: Enable lld-link
         run: echo "RUSTFLAGS=-C linker=lld-link" >> "$env:GITHUB_ENV"
       # limedl-native embeds MiSans VF at compile time; the font is not in git
-      # (MiSans font license) — fetch it from the official source first.
+      # (MiSans font license) — fetch it from the official source first. Cached so
+      # a transient CDN hiccup cannot break the job (key = pinned font hash).
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-${{ runner.os }}-0ddef906
       - name: Fetch bundled MiSans VF font
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
@@ -117,7 +128,13 @@ jobs:
       # limedl-native: pure logic tests (UI form mapping, i18n, batching, updater
       # manifest parsing). Only Windows runs them because the crate is currently
       # only released for Windows.
-      - run: cargo test --manifest-path crates/limedl-native/Cargo.toml
+      # RUSTFLAGS override: Skia's ICU objects live in two static libs, which
+      # lld-link rejects as duplicate symbols while link.exe merges them (the
+      # release build uses link.exe too), so this step drops lld-link.
+      - name: Run limedl-native tests
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo test --manifest-path crates/limedl-native/Cargo.toml
       - run: cargo test --manifest-path src-tauri/Cargo.toml
 
   check-macos:
@@ -132,7 +149,13 @@ jobs:
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       # macOS ships WebKit natively — no apt install needed.
       # limedl-native embeds MiSans VF at compile time; the font is not in git
-      # (MiSans font license) — fetch it from the official source first.
+      # (MiSans font license) — fetch it from the official source first. Cached so
+      # a transient CDN hiccup cannot break the job (key = pinned font hash).
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-${{ runner.os }}-0ddef906
       - name: Fetch bundled MiSans VF font
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
@@ -158,7 +181,13 @@ jobs:
         with:
           tool: cargo-llvm-cov
       # limedl-native embeds MiSans VF at compile time; the font is not in git
-      # (MiSans font license) — fetch it from the official source first.
+      # (MiSans font license) — fetch it from the official source first. Cached so
+      # a transient CDN hiccup cannot break the job (key = pinned font hash).
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-${{ runner.os }}-0ddef906
       - name: Fetch bundled MiSans VF font
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
