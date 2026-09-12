@@ -9,6 +9,15 @@ name: Release
 # Windows is currently the only desktop channel: macOS/Linux users are served by
 # the NAS build (`limedl-server` + the bundled WebUI) until native packaging for
 # those platforms exists.
+#
+# Speed notes:
+# - Caching follows ci.yml's contract (`cache: false` on setup-rust-toolchain
+#   because it caches internally, `rustflags: ""` so `.cargo/config.toml` drives
+#   the build). The desktop job reuses the `release-native-windows-x86_64`
+#   rust-cache entry that `.github/workflows/warm-release-cache.yml` keeps warm on
+#   main; without it this job was a cold 16-minute Slint/Skia rebuild.
+# - The WebUI is built once in `build-frontend` and shared with all four NAS legs
+#   through an artifact instead of being rebuilt on each runner.
 
 on:
   push:
@@ -70,6 +79,41 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   # ═══════════════════════════════════════════════════════════════════════
+  # WebUI — built once (NAS mode) and handed to every NAS leg below. The build
+  # is platform independent, so building it four times only multiplied install
+  # and Vite time by four.
+  # ═══════════════════════════════════════════════════════════════════════
+  build-frontend:
+    name: Build WebUI (NAS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-release-${{ runner.os }}-
+
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build:nas
+
+      - name: Upload built WebUI
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nas-webui-dist
+          path: dist/
+          # Build input, not a release artifact — no point keeping it around.
+          retention-days: 1
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
   # Desktop (Slint) — the only desktop channel: portable zip + NSIS installer
   # + MSIX package. All artifacts are minisign-signed with the shared updater
   # key so the self-updater (latest-native.json) can verify downloads.
@@ -99,10 +143,18 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
+          cache: false
+          rustflags: ""
 
+      # Shared with .github/workflows/warm-release-cache.yml: that workflow keeps
+      # this entry warm on main, this job refreshes it whenever it has to build
+      # more than the cache held (rust-cache keys stay job-independent thanks to
+      # `add-job-id-key: false`, so a version bump only costs the rebuild of the
+      # crates that actually changed).
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           key: release-native-windows-x86_64
+          add-job-id-key: false
 
       # ── MiSans VF (embedded at compile time; not in git) ─────────────
       - name: Cache bundled MiSans VF font
@@ -142,6 +194,9 @@ jobs:
           Write-Host "wrote dist/$out"
 
       # ── NSIS installer ─────────────────────────────────────────────────
+      # makensis resolves `File` relative to the .nsi file's own directory, so
+      # the script takes the staged binary path as an absolute input
+      # (/DAPP_EXE_PATH) instead of looking for it next to itself.
       - name: Package NSIS installer
         shell: pwsh
         run: |
@@ -149,7 +204,12 @@ jobs:
           choco install nsis -y --no-progress
           $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
           if (-not (Test-Path $makensis)) { throw "makensis not found" }
-          & $makensis "/DVERSION=$version" "/DOUTFILE=dist\limedl-native-v$version-windows-x86_64-setup.exe" installer\limedl-native.nsi
+          if (-not (Test-Path dist/limedl-native.exe)) { throw "dist/limedl-native.exe missing" }
+          & $makensis `
+            "/DVERSION=$version" `
+            "/DOUTFILE=$PWD\dist\limedl-native-v$version-windows-x86_64-setup.exe" `
+            "/DAPP_EXE_PATH=$PWD\dist\limedl-native.exe" `
+            installer\limedl-native.nsi
           if ($LASTEXITCODE -ne 0) { throw "makensis failed with $LASTEXITCODE" }
 
       # ── MSIX package ────────────────────────────────────────────────────
@@ -259,7 +319,7 @@ jobs:
   build-nas:
     name: NAS ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    needs: changelog
+    needs: [changelog, build-frontend]
     permissions:
       contents: write
     strategy:
@@ -298,28 +358,20 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
-      # ── Frontend build (NAS mode, identical across platforms) ──────────
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      # ── Frontend (built once by build-frontend, embedded via rust-embed) ──
+      # crates/limedl-server/src/main.rs embeds `../../dist`.
+      - name: Download built WebUI
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          node-version: 24
-
-      - name: Cache pnpm store
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.local/share/pnpm/store
-          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-release-${{ runner.os }}-
-
-      - run: corepack enable
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Build frontend (NAS mode)
-        run: pnpm run build:nas
+          name: nas-webui-dist
+          path: dist
 
       # ── Rust toolchain ─────────────────────────────────────────────────
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
+          cache: false
+          rustflags: ""
 
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
@@ -333,9 +385,11 @@ jobs:
           sudo apt-get update && sudo apt-get install -y musl-tools
 
       # ── Build server binary (NAS: x86-64-v2 for broad HW compat) ──────
+      # `.cargo/config.toml` already targets x86-64-v2 for the musl targets;
+      # the MSVC target is pinned to x86-64-v3 there for the desktop build, so
+      # the NAS binary overrides it back to v2 for older NAS CPUs.
       - name: Build binary
         env:
-          # Desktop targets default to x86-64-v3 in config.toml; NAS overrides to v2
           RUSTFLAGS: ${{ matrix.target == 'x86_64-pc-windows-msvc' && '-C target-cpu=x86-64-v2' || '' }}
         run: cargo build --locked --release --target ${{ matrix.target }} --features embed-frontend --manifest-path crates/limedl-server/Cargo.toml
 

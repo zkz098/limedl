@@ -1,0 +1,77 @@
+name: Warm release cache
+
+# Keeps the *desktop* release build incremental.
+#
+# release.yml's `build-native` job restores the `release-native-windows-x86_64`
+# rust-cache entry. Before this workflow existed that entry could only be written
+# by a release itself, and with the repo's cache usage at GitHub's 10 GB ceiling
+# it was evicted long before the next tag — so every release paid a cold
+# Slint/Skia rebuild (measured: 997 s of `cargo build --release -p limedl-native`,
+# i.e. 16.6 of the job's 18.6 minutes).
+#
+# The cache key must stay byte-identical to release.yml's: same `key`, same
+# `add-job-id-key: false`, and the same pre-cache steps. rust-cache hashes the
+# rust toolchain plus every RUST*/CARGO*/CC*/CFLAGS*/CXX*/CMAKE* env var, so
+# exporting one of those before the cache step (or after it, in release.yml)
+# silently splits the two caches.
+#
+# rust-cache only *writes* a cache entry when the restore was not a full match,
+# which is exactly what a release needs: the tag commit usually bumps versions
+# (new lock hash → prefix fallback onto this entry, then a fresh save).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "xtask/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/**"
+      - "scripts/fetch-misans.ps1"
+      - "installer/**"
+      - ".github/workflows/warm-release-cache.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warm-release-cache
+  cancel-in-progress: true
+
+jobs:
+  warm-native:
+    name: Warm desktop release cache (windows-x86_64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          key: release-native-windows-x86_64
+          add-job-id-key: false
+
+      # limedl-native embeds MiSans VF at compile time; the font is not in git
+      # (MiSans font license) — fetch it from the official source first. Cached so
+      # a transient CDN hiccup cannot break the job (key = pinned font hash).
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-${{ runner.os }}-0ddef906
+      - name: Fetch MiSans VF font
+        shell: pwsh
+        run: pwsh scripts/fetch-misans.ps1
+
+      # Same command release.yml runs. Signing/packaging is skipped on purpose:
+      # only the compiled artifacts are worth caching.
+      - name: Build desktop release binary
+        shell: pwsh
+        run: cargo build --locked --release -p limedl-native
