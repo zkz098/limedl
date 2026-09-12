@@ -21,7 +21,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 percent-encoding = "2"
 regex = "1"
 anyhow = "1"
-time = { version = ">=0.3.57, <0.4", features = ["local-offset"] }
+time = { version = ">=0.3.37, <0.4", features = ["local-offset"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
 axum = { version = "0.8", features = ["ws"] }

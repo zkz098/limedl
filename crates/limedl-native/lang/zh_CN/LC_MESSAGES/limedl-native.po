@@ -1376,7 +1376,7 @@ msgid "Update in Store"
 msgstr "在商店中更新"
 
 msgid "Download & Install"
-msgstr "下载并安装"
+msgstr "下载并更新"
 
 msgid "Restart to Update"
 msgstr "重启以更新"

@@ -4485,6 +4485,7 @@ async fn main() -> anyhow::Result<()> {
         let current_settings_clone = current_settings.clone();
         let cdn_candidates_cache_clone = cdn_candidates_cache.clone();
         let store_cl = store.clone();
+        let toast_queue_cl = toast_queue.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_apply_manual_cdn_ip(move |ip_str| {
@@ -4495,7 +4496,7 @@ async fn main() -> anyhow::Result<()> {
                     let current_settings_clone = current_settings_clone.clone();
                     let cdn_candidates_cache_clone = cdn_candidates_cache_clone.clone();
                     let store_clone = store_cl.clone();
-                    let toast_queue_clone = toast_queue.clone();
+                    let toast_queue_clone = toast_queue_cl.clone();
                     let ui_weak = ui_weak.clone();
 
                     tokio::spawn(async move {
@@ -4843,10 +4844,14 @@ async fn main() -> anyhow::Result<()> {
         let ui_weak = main_window.as_weak();
         let base_dir = base_dir.clone();
         let available = available_update.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let store_clone = store.clone();
         main_window.on_check_for_updates(move || {
             let ui_weak = ui_weak.clone();
             let base_dir = base_dir.clone();
             let available = available.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let lang = store_clone.lock().language();
 
             let ui = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
@@ -4858,15 +4863,44 @@ async fn main() -> anyhow::Result<()> {
 
             if update::detect_install_kind() == update::InstallKind::Store {
                 // StoreContext::GetDefault must run on the UI thread.
+                let toast_queue = toast_queue.clone();
+                let ui_w = ui_weak.clone();
                 let _ = slint::spawn_local(async move {
                     match update::store::check_update_available().await {
                         Ok(available) => {
-                            push_update_state(&ui_weak, |st| {
+                            push_update_state(&ui_w, |st| {
                                 st.phase = if available { "available".into() } else { "up-to-date".into() };
                                 st.error_text = "".into();
                             });
+                            if available {
+                                push_toast(
+                                    &ui_w,
+                                    &toast_queue,
+                                    i18n::format_toast_update_store_triggered(lang).to_string(),
+                                    "info",
+                                    Duration::from_secs(5),
+                                );
+                            } else {
+                                push_toast(
+                                    &ui_w,
+                                    &toast_queue,
+                                    i18n::format_toast_update_up_to_date(lang).to_string(),
+                                    "success",
+                                    Duration::from_secs(4),
+                                );
+                            }
                         }
-                        Err(e) => set_update_error(&ui_weak, &format!("{e:#}")),
+                        Err(e) => {
+                            let msg = format!("{e:#}");
+                            set_update_error(&ui_w, &msg);
+                            push_toast(
+                                &ui_w,
+                                &toast_queue,
+                                i18n::format_toast_update_check_failed(&msg, lang),
+                                "error",
+                                Duration::from_secs(5),
+                            );
+                        }
                     }
                 });
                 return;
@@ -4879,30 +4913,62 @@ async fn main() -> anyhow::Result<()> {
                         let version = upd.version.clone();
                         let notes = upd.notes.clone();
                         *available.lock() = Some(upd);
-                        let _ = slint::invoke_from_event_loop(move || {
-                            push_update_state(&ui_weak, |st| {
-                                st.phase = "available".into();
-                                st.latest_version = version.into();
-                                st.notes = notes.into();
-                                st.error_text = "".into();
-                            });
+                        let _ = slint::invoke_from_event_loop({
+                            let ui_weak = ui_weak.clone();
+                            let version = version.clone();
+                            move || {
+                                push_update_state(&ui_weak, |st| {
+                                    st.phase = "available".into();
+                                    st.latest_version = version.into();
+                                    st.notes = notes.into();
+                                    st.error_text = "".into();
+                                });
+                            }
                         });
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_available(&version, lang),
+                            "info",
+                            Duration::from_secs(5),
+                        );
                     }
                     Ok(None) => {
-                        let _ = slint::invoke_from_event_loop(move || {
-                            push_update_state(&ui_weak, |st| {
-                                st.phase = "up-to-date".into();
-                                st.latest_version = "".into();
-                                st.notes = "".into();
-                                st.error_text = "".into();
-                            });
+                        let _ = slint::invoke_from_event_loop({
+                            let ui_weak = ui_weak.clone();
+                            move || {
+                                push_update_state(&ui_weak, |st| {
+                                    st.phase = "up-to-date".into();
+                                    st.latest_version = "".into();
+                                    st.notes = "".into();
+                                    st.error_text = "".into();
+                                });
+                            }
                         });
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_up_to_date(lang).to_string(),
+                            "success",
+                            Duration::from_secs(4),
+                        );
                     }
                     Err(e) => {
                         let msg = format!("{e:#}");
-                        let _ = slint::invoke_from_event_loop(move || {
-                            set_update_error(&ui_weak, &msg);
+                        let _ = slint::invoke_from_event_loop({
+                            let ui_weak = ui_weak.clone();
+                            let msg = msg.clone();
+                            move || {
+                                set_update_error(&ui_weak, &msg);
+                            }
                         });
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_check_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(5),
+                        );
                     }
                 }
             });
@@ -4913,31 +4979,71 @@ async fn main() -> anyhow::Result<()> {
         let ui_weak = main_window.as_weak();
         let base_dir = base_dir.clone();
         let available = available_update.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let store_clone = store.clone();
         main_window.on_start_update_download(move || {
-            let Some(upd) = available.lock().clone() else {
-                return;
-            };
             let ui_weak = ui_weak.clone();
             let base_dir = base_dir.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let lang = store_clone.lock().language();
+
+            let Some(upd) = available.lock().clone() else {
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_update_not_found(lang).to_string(),
+                    "warning",
+                    Duration::from_secs(4),
+                );
+                return;
+            };
 
             if update::detect_install_kind() == update::InstallKind::Store {
+                let toast_queue = toast_queue.clone();
+                let ui_weak = ui_weak.clone();
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_update_store_triggered(lang).to_string(),
+                    "info",
+                    Duration::from_secs(4),
+                );
                 let _ = slint::spawn_local(async move {
                     if let Err(e) = update::store::trigger_update().await {
-                        set_update_error(&ui_weak, &format!("{e:#}"));
+                        let msg = format!("{e:#}");
+                        set_update_error(&ui_weak, &msg);
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(5),
+                        );
                     }
                     // On success the OS replaces the package and relaunches the app.
                 });
                 return;
             }
 
-            tokio::spawn(async move {
-                push_update_state(&ui_weak, |st| {
-                    st.phase = "downloading".into();
-                    st.progress_percent = 0.0;
-                    st.progress_label = "".into();
-                    st.error_text = "".into();
-                });
+            // Immediately reflect downloading phase on UI thread
+            push_update_state(&ui_weak, |st| {
+                st.phase = "downloading".into();
+                st.progress_percent = 0.0;
+                st.progress_label = "".into();
+                st.error_text = "".into();
+            });
 
+            // Show immediate toast prompt
+            push_toast(
+                &ui_weak,
+                &toast_queue,
+                i18n::format_toast_update_downloading(&upd.version, lang),
+                "info",
+                Duration::from_secs(4),
+            );
+
+            let toast_queue = toast_queue.clone();
+            tokio::spawn(async move {
                 let prog_ui = ui_weak.clone();
                 let last_emit = parking_lot::Mutex::new(
                     std::time::Instant::now() - Duration::from_secs(10),
@@ -4975,29 +5081,67 @@ async fn main() -> anyhow::Result<()> {
                     Ok(file) => file,
                     Err(e) => {
                         let msg = format!("{e:#}");
-                        let _ = slint::invoke_from_event_loop(move || {
-                            set_update_error(&ui_weak, &msg);
+                        let _ = slint::invoke_from_event_loop({
+                            let ui_weak = ui_weak.clone();
+                            let msg = msg.clone();
+                            move || {
+                                set_update_error(&ui_weak, &msg);
+                            }
                         });
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
                         return;
                     }
                 };
 
                 match update::install_verified(&upd, &verified) {
                     Ok(update::InstallOutcome::ReplacedRestartPending) => {
-                        let _ = slint::invoke_from_event_loop(move || {
-                            push_update_state(&ui_weak, |st| st.phase = "ready".into());
+                        let _ = slint::invoke_from_event_loop({
+                            let ui_weak = ui_weak.clone();
+                            move || {
+                                push_update_state(&ui_weak, |st| st.phase = "ready".into());
+                            }
                         });
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_ready(&upd.version, lang),
+                            "success",
+                            Duration::from_secs(6),
+                        );
                     }
                     Ok(update::InstallOutcome::InstallerLaunched) => {
-                        // The NSIS installer takes over: stop this process now
-                        // so it can replace the executable and relaunch us.
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_installer_launched(lang).to_string(),
+                            "info",
+                            Duration::from_secs(4),
+                        );
+                        tokio::time::sleep(Duration::from_millis(800)).await;
                         std::process::exit(0);
                     }
                     Err(e) => {
                         let msg = format!("{e:#}");
-                        let _ = slint::invoke_from_event_loop(move || {
-                            set_update_error(&ui_weak, &msg);
+                        let _ = slint::invoke_from_event_loop({
+                            let ui_weak = ui_weak.clone();
+                            let msg = msg.clone();
+                            move || {
+                                set_update_error(&ui_weak, &msg);
+                            }
                         });
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_update_failed(&msg, lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
                     }
                 }
             });
@@ -5006,10 +5150,21 @@ async fn main() -> anyhow::Result<()> {
 
     {
         let ui_weak = main_window.as_weak();
+        let toast_queue_clone = toast_queue.clone();
+        let store_clone = store.clone();
         main_window.on_restart_after_update(move || {
+            let lang = store_clone.lock().language();
             // On success this never returns (spawns the new binary, exits).
             if let Err(e) = update::restart_application() {
-                set_update_error(&ui_weak, &format!("restart failed: {e:#}"));
+                let msg = format!("restart failed: {e:#}");
+                set_update_error(&ui_weak, &msg);
+                push_toast(
+                    &ui_weak,
+                    &toast_queue_clone,
+                    i18n::format_toast_update_restart_failed(&msg, lang),
+                    "error",
+                    Duration::from_secs(5),
+                );
             }
         });
     }

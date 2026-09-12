@@ -106,10 +106,22 @@ function main() {
     const content = readFileSync(filePath, "utf8");
     // Cargo.lock holds workspace member versions; a plain replaceAll would
     // also rewrite third-party crates that share the version string.
-    const updated =
-      f === "Cargo.lock"
-        ? updateLockVersions(content, newVersion)
-        : content.replaceAll(currentVersion, newVersion);
+    let updated;
+    if (f === "Cargo.lock") {
+      updated = updateLockVersions(content, newVersion);
+    } else if (f === "Cargo.toml") {
+      updated = content.replace(
+        /^version\s*=\s*"[^"]+"/m,
+        `version = "${newVersion}"`,
+      );
+    } else if (f === "package.json") {
+      updated = content.replace(
+        /"version":\s*"[^"]+"/,
+        `"version": "${newVersion}"`,
+      );
+    } else {
+      updated = content.replaceAll(currentVersion, newVersion);
+    }
     writeFileSync(filePath, updated, "utf8");
     console.log(`\x1b[32m  Updated: ${f}\x1b[0m`);
   }

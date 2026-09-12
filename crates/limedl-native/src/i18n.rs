@@ -267,7 +267,7 @@ pub fn format_notification_update(version: &str, lang: Language) -> (String, Str
     match lang {
         Language::ZhCn => (
             format!("limedl 发现新版本 v{version}"),
-            "打开 设置 → 关于 以下载并安装更新。".into(),
+            "打开 设置 → 关于 以下载并更新。".into(),
         ),
         Language::EnUs => (
             format!("limedl v{version} is available"),
@@ -987,6 +987,76 @@ pub fn format_toast_factory_reset_failed(err: &str, lang: Language) -> String {
     match lang {
         Language::ZhCn => format!("恢复出厂设置失败: {err}"),
         Language::EnUs => format!("Factory reset failed: {err}"),
+    }
+}
+
+pub fn format_toast_update_downloading(version: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("正在下载更新 v{version}..."),
+        Language::EnUs => format!("Downloading update v{version}..."),
+    }
+}
+
+pub fn format_toast_update_ready(version: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("v{version} 已下载并验证完成，重启应用后生效。"),
+        Language::EnUs => format!("v{version} downloaded and verified. Restart to apply."),
+    }
+}
+
+pub fn format_toast_update_installer_launched(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "安装程序已启动，即将退出应用以完成更新。",
+        Language::EnUs => "Installer launched. Exiting to complete update.",
+    }
+}
+
+pub fn format_toast_update_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("更新失败: {err}"),
+        Language::EnUs => format!("Update failed: {err}"),
+    }
+}
+
+pub fn format_toast_update_store_triggered(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "正在打开应用商店更新...",
+        Language::EnUs => "Opening Microsoft Store to update...",
+    }
+}
+
+pub fn format_toast_update_not_found(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "未找到可用更新信息，请重新检查更新。",
+        Language::EnUs => "No update information found. Please check for updates again.",
+    }
+}
+
+pub fn format_toast_update_up_to_date(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "当前已是最新版本。",
+        Language::EnUs => "You are already on the latest version.",
+    }
+}
+
+pub fn format_toast_update_available(version: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("发现新版本 v{version}，可在关于页面下载更新。"),
+        Language::EnUs => format!("New version v{version} available. Go to About to update."),
+    }
+}
+
+pub fn format_toast_update_check_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("检查更新失败: {err}"),
+        Language::EnUs => format!("Failed to check for updates: {err}"),
+    }
+}
+
+pub fn format_toast_update_restart_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("重启失败: {err}"),
+        Language::EnUs => format!("Failed to restart: {err}"),
     }
 }
 
