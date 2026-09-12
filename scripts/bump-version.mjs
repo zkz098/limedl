@@ -110,15 +110,9 @@ function main() {
     if (f === "Cargo.lock") {
       updated = updateLockVersions(content, newVersion);
     } else if (f === "Cargo.toml") {
-      updated = content.replace(
-        /^version\s*=\s*"[^"]+"/m,
-        `version = "${newVersion}"`,
-      );
+      updated = content.replace(/^version\s*=\s*"[^"]+"/m, `version = "${newVersion}"`);
     } else if (f === "package.json") {
-      updated = content.replace(
-        /"version":\s*"[^"]+"/,
-        `"version": "${newVersion}"`,
-      );
+      updated = content.replace(/"version":\s*"[^"]+"/, `"version": "${newVersion}"`);
     } else {
       updated = content.replaceAll(currentVersion, newVersion);
     }
