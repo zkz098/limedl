@@ -188,7 +188,7 @@ jobs:
           Push-Location dist
           $sevenZip = "C:\\Program Files\\7-Zip\\7z.exe"
           if (-not (Test-Path $sevenZip)) { throw "7z.exe not found" }
-          & $sevenZip a -tzip -mx9 "..\\$out" limedl-native.exe -bso0 -bsp0
+          & $sevenZip a -tzip -mx9 $out limedl-native.exe -bso0 -bsp0
           if ($LASTEXITCODE -ne 0) { throw "7z failed with $LASTEXITCODE" }
           Pop-Location
           Write-Host "wrote dist/$out"
