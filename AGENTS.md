@@ -12,19 +12,19 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 
 ## Toolchain
 
-| Purpose         | Command                                                       |
-| --------------- | ------------------------------------------------------------- |
-| Install deps    | `pnpm install --frozen-lockfile`                              |
-| Frontend dev    | `pnpm run dev` (Vite dev server; needs a running `limedl daemon`) |
-| Lint            | `pnpm run lint` (oxlint)                                      |
-| Format          | `pnpm run format` (oxfmt)                                     |
-| Type-check      | `pnpm exec vue-tsc --noEmit`                                  |
-| Test (frontend) | `pnpm run test`                                               |
-| Test (Rust)     | `cargo test --workspace`                                      |
-| Build           | `pnpm run build` (vue-tsc → vite build)                       |
-| Version bump    | `node scripts/bump-version.mjs patch`                         |
-| Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C` |
-| Fetch UI font   | `pwsh scripts/fetch-misans.ps1` (one-time, required before building limedl-native; font is not in git due to MiSans license) |
+| Purpose         | Command                                                                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install deps    | `pnpm install --frozen-lockfile`                                                                                                                                       |
+| Frontend dev    | `pnpm run dev` (Vite dev server; needs a running `limedl daemon`)                                                                                                      |
+| Lint            | `pnpm run lint` (oxlint)                                                                                                                                               |
+| Format          | `pnpm run format` (oxfmt)                                                                                                                                              |
+| Type-check      | `pnpm exec vue-tsc --noEmit`                                                                                                                                           |
+| Test (frontend) | `pnpm run test`                                                                                                                                                        |
+| Test (Rust)     | `cargo test --workspace`                                                                                                                                               |
+| Build           | `pnpm run build` (vue-tsc → vite build)                                                                                                                                |
+| Version bump    | `node scripts/bump-version.mjs patch`                                                                                                                                  |
+| Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                          |
+| Fetch UI font   | `pwsh scripts/fetch-misans.ps1` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                           |
 | Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `.opencode/guides/subsystem-self-update.md`) |
 
 ## Releases
@@ -38,10 +38,10 @@ subjects Conventional (with meaningful `scope:`) so release notes stay readable.
 
 Two jobs upload artifacts:
 
-| Job | Artifacts |
-| --- | --- |
-| `build-native` (Windows only) | **Desktop**: `limedl-native-v{V}-windows-x86_64-{setup.exe,portable.zip,msix}` + signatures + `latest-native.json` (self-update manifest) |
-| `build-nas` (4 platforms) | **Headless/NAS**: `limedl-nas-v{V}-{linux-x86_64-musl,linux-aarch64-musl,windows-x86_64,macos-aarch64}` with the WebUI embedded (`--features embed-frontend`) |
+| Job                           | Artifacts                                                                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build-native` (Windows only) | **Desktop**: `limedl-native-v{V}-windows-x86_64-{setup.exe,portable.zip,msix}` + signatures + `latest-native.json` (self-update manifest)                     |
+| `build-nas` (4 platforms)     | **Headless/NAS**: `limedl-nas-v{V}-{linux-x86_64-musl,linux-aarch64-musl,windows-x86_64,macos-aarch64}` with the WebUI embedded (`--features embed-frontend`) |
 
 Desktop releases are the Slint client (`limedl-native`) only: the Tauri shell that
 used to provide the Vue-based desktop app was retired and its code (`src-tauri/`)
@@ -69,11 +69,11 @@ All Rust crates use edition 2024.
 
 ### Multi-platform
 
-| Target        | Frontend               | Backend         | Build                                     |
-| ------------- | ---------------------- | --------------- | ----------------------------------------- |
-| Native Desktop | Slint (Rust)          | `crates/limedl-native/` | `cargo run -p limedl-native` (Windows/macOS/Linux; needs `pwsh scripts/fetch-misans.ps1` once) |
-| NAS WebUI     | Vue 3 via WebSocket    | `limedl-server` | `pnpm run build:nas`                      |
-| CLI           | N/A                    | `limedl-server` | `limedl daemon` / `limedl download <url>` |
+| Target         | Frontend            | Backend                 | Build                                                                                          |
+| -------------- | ------------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| Native Desktop | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (Windows/macOS/Linux; needs `pwsh scripts/fetch-misans.ps1` once) |
+| NAS WebUI      | Vue 3 via WebSocket | `limedl-server`         | `pnpm run build:nas`                                                                           |
+| CLI            | N/A                 | `limedl-server`         | `limedl daemon` / `limedl download <url>`                                                      |
 
 ### Frontend transport
 

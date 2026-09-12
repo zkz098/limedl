@@ -1,11 +1,7 @@
 import { storeToRefs } from "pinia";
 import { defineStore } from "pinia";
 import { listen, type UnlistenFn } from "#event";
-import {
-  openDownloadInExplorer,
-  setBtSpeedLimit,
-  startDownload,
-} from "../../lib/ipc/download-api";
+import { openDownloadInExplorer, setBtSpeedLimit, startDownload } from "../../lib/ipc/download-api";
 import { t } from "../../i18n";
 import { toFriendlyError, toMessage } from "../../composables/downloadHelpers";
 import { useNotificationStore } from "../notification";

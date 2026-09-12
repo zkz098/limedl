@@ -13,7 +13,14 @@
 # /FORCE:MULTIPLE allows the first definition to win (Skia's ICU) and fixes:
 #   duplicate symbol: ubrk_getLocaleByType / ures_getByKey / uloc_getName ...
 # See: slint skia + windows crate ICU clash on Windows.
-rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "linker=rust-lld", "-C", "link-arg=/FORCE:MULTIPLE"]
+rustflags = [
+  "-C",
+  "target-cpu=x86-64-v3",
+  "-C",
+  "linker=rust-lld",
+  "-C",
+  "link-arg=/FORCE:MULTIPLE",
+]
 
 [target.x86_64-unknown-linux-gnu]
 # Desktop / CI tests: x86-64-v3

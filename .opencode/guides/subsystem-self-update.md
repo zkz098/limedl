@@ -17,11 +17,11 @@ updater manifest, produced by `tauri-action`) is gone. Consequences:
   via the Store/MSIX channel). The Slint client imports their data on first run
   (`crates/limedl-native/src/migrate.rs`).
 - `src-tauri/` and its `tauri.conf.json` were **deleted**; nothing in the tree
-  references the old update endpoint. 
+  references the old update endpoint.
 - The minisign keypair is still the same one the Tauri shell used
   (`TAURI_SIGNING_PRIVATE_KEY` CI secret); `cargo xtask guard` now enforces that
   whatever key signs a release matches `PUBKEY_B64` in the client, so the secret
-  can be renamed/rotated freely (see *Rotating the signing key*).
+  can be renamed/rotated freely (see _Rotating the signing key_).
 - `update.rs`'s `PUBKEY_B64` is the single copy of the update public key in the
   tree — the retired Tauri config that used to duplicate it is gone.
 
@@ -30,11 +30,11 @@ contains a migration notice (keeping `latest.json` alive for that one version).
 
 ## Distribution channels
 
-| Channel | Artifact | Update path |
-| --- | --- | --- |
-| **Portable** (zip, single exe) | `limedl-native-v{V}-windows-x86_64-portable.zip` | In-app: download → minisign verify → `self_replace` → relaunch |
-| **Installer** (NSIS, per-user) | `limedl-native-v{V}-windows-x86_64-setup.exe` | In-app: download → verify → spawn `setup.exe /P /R` → app exits |
-| **Microsoft Store** (MSIX) | `limedl-native-v{V}-windows-x86_64.msix` | OS-managed; in-app check via `StoreContext` (`update::store`) |
+| Channel                        | Artifact                                         | Update path                                                     |
+| ------------------------------ | ------------------------------------------------ | --------------------------------------------------------------- |
+| **Portable** (zip, single exe) | `limedl-native-v{V}-windows-x86_64-portable.zip` | In-app: download → minisign verify → `self_replace` → relaunch  |
+| **Installer** (NSIS, per-user) | `limedl-native-v{V}-windows-x86_64-setup.exe`    | In-app: download → verify → spawn `setup.exe /P /R` → app exits |
+| **Microsoft Store** (MSIX)     | `limedl-native-v{V}-windows-x86_64.msix`         | OS-managed; in-app check via `StoreContext` (`update::store`)   |
 
 Channel detection (`update::detect_install_kind`, runs once at startup):
 
@@ -60,8 +60,13 @@ them):
   "notes": "...",
   "pub_date": "...",
   "platforms": {
-    "windows-x86_64":          { "kind": "installer", "url": "...", "signature": "<b64>", "sha256": "..." },
-    "windows-x86_64-portable": { "kind": "portable",  "url": "...", "signature": "<b64>", "sha256": "..." }
+    "windows-x86_64": { "kind": "installer", "url": "...", "signature": "<b64>", "sha256": "..." },
+    "windows-x86_64-portable": {
+      "kind": "portable",
+      "url": "...",
+      "signature": "<b64>",
+      "sha256": "..."
+    }
   }
 }
 ```
@@ -79,23 +84,23 @@ Everything is signed with **minisign** by in-repo tooling (`cargo xtask`,
 source in `xtask/src/main.rs`) — the format is unchanged from the retired Tauri
 pipeline and matches what `minisign_verify` accepts.
 
-| Layer | Signed by | Verified by |
-| --- | --- | --- |
-| `latest-native.json` | `cargo xtask sign` → `latest-native.json.sig` | `update::verify_signature_text` **before** parsing the manifest |
-| each artifact | `cargo xtask sign` → `<file>.sig` (also inlined as `signature`) | `update::verify_signature` over the exact downloaded bytes |
+| Layer                | Signed by                                                       | Verified by                                                     |
+| -------------------- | --------------------------------------------------------------- | --------------------------------------------------------------- |
+| `latest-native.json` | `cargo xtask sign` → `latest-native.json.sig`                   | `update::verify_signature_text` **before** parsing the manifest |
+| each artifact        | `cargo xtask sign` → `<file>.sig` (also inlined as `signature`) | `update::verify_signature` over the exact downloaded bytes      |
 
 - Key: CI secret `LIMEDL_SIGNING_KEY` (base64 of the minisign key file text, or
-a path locally) plus `LIMEDL_SIGNING_KEY_PASSWORD`. `LIMEDL_SIGNING_KEY_PASSWORD`
-and the old `TAURI_SIGNING_PRIVATE_KEY[_PASSWORD]` names are still read as
-fallbacks so an un-rotated CI keeps releasing.
+  a path locally) plus `LIMEDL_SIGNING_KEY_PASSWORD`. `LIMEDL_SIGNING_KEY_PASSWORD`
+  and the old `TAURI_SIGNING_PRIVATE_KEY[_PASSWORD]` names are still read as
+  fallbacks so an un-rotated CI keeps releasing.
 - The client trusts exactly one key: `PUBKEY_B64` in `update.rs`.
 - `cargo xtask guard <artifacts...>` (run by the release job) derives the public
-key from the CI secret and **fails the release** unless it equals `PUBKEY_B64`,
-then re-verifies every signature. This is what makes key rotation safe.
+  key from the CI secret and **fails the release** unless it equals `PUBKEY_B64`,
+  then re-verifies every signature. This is what makes key rotation safe.
 - Downloads are capped (`MAX_UPDATE_BYTES`, 512 MiB) and the manifest signature
-is required: a missing `.sig` aborts the check instead of trusting the JSON.
+  is required: a missing `.sig` aborts the check instead of trusting the JSON.
 - sha256 in the manifest is a secondary integrity check; authenticity always
-comes from minisign.
+  comes from minisign.
 
 ### Rotating the signing key
 
@@ -140,7 +145,7 @@ matches the client, without cutting a release.
   24 h via a stamp file (`update-check.stamp` in the app state dir). Store
   installs skip the silent check (the OS updates them).
 - Phase machine: `idle → checking → up-to-date | available → downloading →
-  ready (portable) | error`. Installer channel ends at `InstallerLaunched` and
+ready (portable) | error`. Installer channel ends at `InstallerLaunched` and
   the process exits so NSIS can replace the binary and relaunch.
 
 ## Windows specifics
@@ -149,7 +154,7 @@ matches the client, without cutting a release.
 - NSIS installer is per-user (`%LOCALAPPDATA%\Programs\limedl`, HKCU only, no
   UAC) with the NSIS flags `/S`, `/P`, `/R`, `/D=`.
   `installer/limedl-native.nsi` must keep `SilentInstall normal`: the directive
-  is *not* "opt in to /S" but a hard default, so `SilentInstall silent`
+  is _not_ "opt in to /S" but a hard default, so `SilentInstall silent`
   installs with no UI even when the user double-clicks the exe (what v0.3.2
   shipped — the wizard, the finish-page "run app" checkbox and the updater's
   progress window were all unreachable). `/S` (updater/silent) and `/P`

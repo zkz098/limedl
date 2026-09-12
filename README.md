@@ -14,11 +14,11 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 
 ## Platforms
 
-| Target        | Frontend                | Backend                 | Build                                     |
-| ------------- | ----------------------- | ----------------------- | ----------------------------------------- |
-| Desktop       | Slint (native, Windows) | `crates/limedl-native/` | `cargo build -p limedl-native` (see below) |
-| NAS / Server  | Vue 3 via WebSocket     | `limedl-server`         | `pnpm run build:nas` + `cargo build -p limedl-server` |
-| CLI           | N/A                     | `limedl-server`         | `limedl download <url>` / `limedl daemon` |
+| Target       | Frontend                | Backend                 | Build                                                 |
+| ------------ | ----------------------- | ----------------------- | ----------------------------------------------------- |
+| Desktop      | Slint (native, Windows) | `crates/limedl-native/` | `cargo build -p limedl-native` (see below)            |
+| NAS / Server | Vue 3 via WebSocket     | `limedl-server`         | `pnpm run build:nas` + `cargo build -p limedl-server` |
+| CLI          | N/A                     | `limedl-server`         | `limedl download <url>` / `limedl daemon`             |
 
 The download engine (`limedl-core`) is pure Rust with zero UI dependencies and powers every
 target. Releases ship the Slint desktop client (Windows) plus the headless NAS build with the

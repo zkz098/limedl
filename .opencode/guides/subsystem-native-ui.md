@@ -10,20 +10,20 @@ Tauri/Vue desktop shell was retired).
 
 ## 涉及文件
 
-| 文件 | 职责 |
-| --- | --- |
-| `src/main.rs` | 应用装配：后台任务、Slint 回调 → `Dispatcher`、托盘、事件循环、外观/视图偏好应用 |
-| `src/bridge.rs` | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
-| `src/i18n.rs` | 语言枚举、`format_*` 本地化辅助（含设置校验错误、托盘文案、优先级标签） |
-| `src/update.rs` | minisign 校验的多通道自更新（见 `subsystem-self-update.md`） |
-| `src/autostart.rs` | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent） |
-| `src/single_instance.rs` | 单实例（Win mutex + WM_COPYDATA；其他平台回环 TCP） |
-| `src/platform_win.rs` | Win32 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ OS 描述文案 |
-| `src/protocol.rs` | `magnet:` / `limedl://` 协议注册（HKCU） |
-| `src/power.rs` | 下载中抑制系统休眠 |
-| `ui/appwindow.slint` | 主窗口：侧边栏、工具栏、卡片/表格、所有弹层 |
-| `ui/components/*.slint` | 各对话框与复用组件（settings/labs/inspector/new_task/priority_menu…） |
-| `ui/theme.slint` | 由 `scripts/generate-theme-slint.ps1` 从主题映射表生成的配色 token |
+| 文件                     | 职责                                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/main.rs`            | 应用装配：后台任务、Slint 回调 → `Dispatcher`、托盘、事件循环、外观/视图偏好应用                                                                       |
+| `src/bridge.rs`          | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
+| `src/i18n.rs`            | 语言枚举、`format_*` 本地化辅助（含设置校验错误、托盘文案、优先级标签）                                                                                |
+| `src/update.rs`          | minisign 校验的多通道自更新（见 `subsystem-self-update.md`）                                                                                           |
+| `src/autostart.rs`       | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent）                                                                                 |
+| `src/single_instance.rs` | 单实例（Win mutex + WM_COPYDATA；其他平台回环 TCP）                                                                                                    |
+| `src/platform_win.rs`    | Win32 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ OS 描述文案                                                                                         |
+| `src/protocol.rs`        | `magnet:` / `limedl://` 协议注册（HKCU）                                                                                                               |
+| `src/power.rs`           | 下载中抑制系统休眠                                                                                                                                     |
+| `ui/appwindow.slint`     | 主窗口：侧边栏、工具栏、卡片/表格、所有弹层                                                                                                            |
+| `ui/components/*.slint`  | 各对话框与复用组件（settings/labs/inspector/new_task/priority_menu…）                                                                                  |
+| `ui/theme.slint`         | 由 `scripts/generate-theme-slint.ps1` 从主题映射表生成的配色 token                                                                                     |
 
 ## 数据流向
 

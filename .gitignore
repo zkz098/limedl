@@ -46,6 +46,8 @@ e2e/storage-state.json
 *.ova
 *.ovf
 *.qcow2
+*.exe
+*.msix
 
 # Deepwork state
 .slim/deepwork/
