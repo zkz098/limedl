@@ -205,7 +205,13 @@ jobs:
           $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
           if (-not (Test-Path $makensis)) { throw "makensis not found" }
           if (-not (Test-Path dist/limedl-native.exe)) { throw "dist/limedl-native.exe missing" }
+          # Force UTF-8: the script's comments contain non-ASCII box-drawing
+          # characters. Without this, makensis decodes the file with the
+          # runner's ANSI code page (CP1252 happens to accept those bytes,
+          # CP936 aborts with "Bad text encoding"), so a BOM-less edit would
+          # pass CI and break local builds.
           & $makensis `
+            /INPUTCHARSET UTF8 `
             "/DVERSION=$version" `
             "/DOUTFILE=$PWD\dist\limedl-native-v$version-windows-x86_64-setup.exe" `
             "/DAPP_EXE_PATH=$PWD\dist\limedl-native.exe" `

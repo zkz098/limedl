@@ -154,6 +154,9 @@ matches the client, without cutting a release.
   shipped — the wizard, the finish-page "run app" checkbox and the updater's
   progress window were all unreachable). `/S` (updater/silent) and `/P`
   (progress-only, page-skipping `SkipInPassive`) still work with `normal`.
+  The script is UTF-8 **with BOM** and the release job also passes
+  `/INPUTCHARSET UTF8`, because its non-ASCII comment characters otherwise
+  decode through the machine's ANSI code page (fails on zh-CN/CP936).
 - MSIX: registry `Run` autostart is virtualized and silently lost — autostart
   forks on `has_package_identity()` to the `windows.startupTask` extension
   (`TaskId = "limedl-native-startup"`, must match

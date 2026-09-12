@@ -1,4 +1,4 @@
-; ═══════════════════════════════════════════════════════════════════════════
+﻿; ═══════════════════════════════════════════════════════════════════════════
 ; limedl-native — per-user NSIS installer (Windows)
 ;
 ; Modeled on the Tauri NSIS template (MIT/Apache-2.0) with the same
