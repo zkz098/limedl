@@ -782,6 +782,11 @@ impl DownloadManager {
             return Ok(());
         }
 
+        if let Some(parent) = destination_path.parent().filter(|p| p.exists()) {
+            crate::platform::open_in_file_manager(parent)?;
+            return Ok(());
+        }
+
         Err(DownloadError::Io(io::Error::new(
             io::ErrorKind::NotFound,
             "download location does not exist",

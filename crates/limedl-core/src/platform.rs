@@ -1,6 +1,17 @@
 use std::io;
 use std::path::Path;
 
+#[cfg(windows)]
+fn normalize_windows_path(path: &Path) -> String {
+    normalize_windows_path_str(&path.to_string_lossy())
+}
+
+#[allow(dead_code)]
+fn normalize_windows_path_str(s: &str) -> String {
+    let s = s.strip_prefix(r"\\?\").unwrap_or(s);
+    s.replace('/', "\\")
+}
+
 /// Open a path in the system file manager.
 /// On Windows, uses `explorer` to open the directory.
 /// On macOS, uses `open`.
@@ -14,7 +25,11 @@ pub fn open_in_file_manager(path: &Path) -> io::Result<()> {
     }
     #[cfg(windows)]
     {
-        std::process::Command::new("explorer").arg(path).spawn()?;
+        use std::os::windows::process::CommandExt;
+        let clean = normalize_windows_path(path);
+        std::process::Command::new("explorer")
+            .raw_arg(format!("\"{clean}\""))
+            .spawn()?;
     }
     #[cfg(target_os = "macos")]
     {
@@ -56,8 +71,10 @@ pub fn reveal_in_file_manager(path: &Path) -> io::Result<()> {
     }
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+        let clean = normalize_windows_path(path);
         std::process::Command::new("explorer")
-            .arg(format!("/select,{}", path.display()))
+            .raw_arg(format!("/select,\"{clean}\""))
             .spawn()?;
     }
     #[cfg(target_os = "macos")]
@@ -71,3 +88,25 @@ pub fn reveal_in_file_manager(path: &Path) -> io::Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_windows_path_str() {
+        assert_eq!(
+            normalize_windows_path_str(r"\\?\C:\Users\test\file.txt"),
+            r"C:\Users\test\file.txt"
+        );
+        assert_eq!(
+            normalize_windows_path_str("C:/Users/test/file.txt"),
+            r"C:\Users\test\file.txt"
+        );
+        assert_eq!(
+            normalize_windows_path_str(r"D:\downloads\foo bar.zip"),
+            r"D:\downloads\foo bar.zip"
+        );
+    }
+}
+

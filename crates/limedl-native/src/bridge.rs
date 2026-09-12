@@ -1629,6 +1629,14 @@ impl TaskStore {
         self.selected_ids.iter().cloned().collect()
     }
 
+    pub fn completed_ids(&self) -> Vec<String> {
+        self.tasks
+            .values()
+            .filter(|t| matches!(t.state, DownloadState::Completed))
+            .map(|t| t.id.clone())
+            .collect()
+    }
+
     pub fn insert_or_update(&mut self, summary: DownloadSummary) {
         self.tasks.insert(summary.id.clone(), summary);
     }

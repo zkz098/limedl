@@ -793,11 +793,12 @@ async fn main() -> anyhow::Result<()> {
 
     let default_download_dir = if !initial_settings.download.default_download_dir.is_empty() {
         initial_settings.download.default_download_dir.clone()
+    } else if let Some(dir) = core.dispatcher.default_download_dir().await {
+        dir
+    } else if let Some(dir) = dirs_download_dir() {
+        dir.to_string_lossy().to_string()
     } else {
-        core.dispatcher
-            .default_download_dir()
-            .await
-            .unwrap_or_else(|| state_dir.to_string_lossy().to_string())
+        state_dir.to_string_lossy().to_string()
     };
 
     let game_mode_active = Arc::new(Mutex::new(core.dispatcher.game_mode()));
@@ -1165,6 +1166,7 @@ async fn main() -> anyhow::Result<()> {
         let active_inspector_id_clone = active_inspector_id.clone();
         let toast_queue_clone = toast_queue.clone();
         let current_settings_clone = current_settings.clone();
+        let dispatcher = core.dispatcher.clone();
 
         tokio::spawn(async move {
             let mut warning_dedup = WarningDedup::new();
@@ -1174,9 +1176,30 @@ async fn main() -> anyhow::Result<()> {
                 let active_inspector_id = active_inspector_id_clone.clone();
                 let toast_queue = toast_queue_clone.clone();
                 let current_settings = current_settings_clone.clone();
+                let dispatcher = dispatcher.clone();
 
                 match event {
-                    DownloadEvent::Updated { summary_json, .. } => {
+                    DownloadEvent::Updated { id, summary_json } => {
+                        // If task no longer exists in backend, it was removed.
+                        if let Ok(task_id) = TaskId::from_wire_string(&id)
+                            && dispatcher.status(&task_id).await.is_err()
+                        {
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    let mut s = store.lock();
+                                    s.remove(&id);
+                                    refresh_ui(&ui, &s);
+
+                                    if let Some(ref current_id) = *active_inspector_id.lock()
+                                        && current_id == &id
+                                    {
+                                        ui.set_show_inspector(false);
+                                    }
+                                }
+                            });
+                            continue;
+                        }
+
                         if let Ok(summary) =
                             serde_json::from_value::<DownloadSummary>(summary_json)
                         {
@@ -1882,19 +1905,38 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
+        let active_inspector_id_clone = active_inspector_id.clone();
         main_window.on_batch_remove(move |delete_files| {
             let dispatcher = dispatcher.clone();
             let store_clone = store_clone.clone();
             let ui_weak = ui_weak.clone();
+            let active_inspector_id = active_inspector_id_clone.clone();
+
+            let ids = {
+                let mut store = store_clone.lock();
+                let ids = store.selected_ids();
+                store.clear_selection();
+                for id in &ids {
+                    store.remove(id);
+                }
+                ids
+            };
+
+            if ids.is_empty() {
+                return;
+            }
+
+            if let Some(ui) = ui_weak.upgrade() {
+                let store = store_clone.lock();
+                refresh_ui(&ui, &store);
+                if let Some(ref current_id) = *active_inspector_id.lock()
+                    && ids.contains(current_id)
+                {
+                    ui.set_show_inspector(false);
+                }
+            }
 
             tokio::spawn(async move {
-                let ids = {
-                    let mut store = store_clone.lock();
-                    let ids = store.selected_ids();
-                    store.clear_selection();
-                    ids
-                };
-
                 for id in &ids {
                     if let Ok(task_id) = TaskId::from_wire_string(id) {
                         if delete_files {
@@ -1905,15 +1947,15 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
 
-                let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(ui) = ui_weak.upgrade() {
-                        let mut store = store_clone.lock();
-                        for id in ids {
-                            store.remove(&id);
+                if let Ok(list) = dispatcher.list().await {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut store = store_clone.lock();
+                            store.replace_all(list);
+                            refresh_ui(&ui, &store);
                         }
-                        refresh_ui(&ui, &store);
-                    }
-                });
+                    });
+                }
             });
         });
     }
@@ -2002,23 +2044,38 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
+        let active_inspector_id_clone = active_inspector_id.clone();
         main_window.on_hotkey_delete(move |delete_files| {
             let dispatcher = dispatcher.clone();
             let store_clone = store_clone.clone();
             let ui_weak = ui_weak.clone();
+            let active_inspector_id = active_inspector_id_clone.clone();
+
+            let ids = {
+                let mut store = store_clone.lock();
+                let ids = store.selected_ids();
+                store.clear_selection();
+                for id in &ids {
+                    store.remove(id);
+                }
+                ids
+            };
+
+            if ids.is_empty() {
+                return;
+            }
+
+            if let Some(ui) = ui_weak.upgrade() {
+                let store = store_clone.lock();
+                refresh_ui(&ui, &store);
+                if let Some(ref current_id) = *active_inspector_id.lock()
+                    && ids.contains(current_id)
+                {
+                    ui.set_show_inspector(false);
+                }
+            }
 
             tokio::spawn(async move {
-                let ids = {
-                    let mut store = store_clone.lock();
-                    let ids = store.selected_ids();
-                    store.clear_selection();
-                    ids
-                };
-
-                if ids.is_empty() {
-                    return;
-                }
-
                 for id in &ids {
                     if let Ok(task_id) = TaskId::from_wire_string(id) {
                         if delete_files {
@@ -2029,15 +2086,15 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
 
-                let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(ui) = ui_weak.upgrade() {
-                        let mut store = store_clone.lock();
-                        for id in ids {
-                            store.remove(&id);
+                if let Ok(list) = dispatcher.list().await {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut store = store_clone.lock();
+                            store.replace_all(list);
+                            refresh_ui(&ui, &store);
                         }
-                        refresh_ui(&ui, &store);
-                    }
-                });
+                    });
+                }
             });
         });
     }
@@ -3142,21 +3199,39 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
+        let active_inspector_id_clone = active_inspector_id.clone();
         main_window.on_remove_task(move |id_str| {
             let dispatcher = dispatcher.clone();
             let store_clone = store_clone.clone();
             let ui_weak = ui_weak.clone();
+            let active_inspector_id = active_inspector_id_clone.clone();
             let id_str = id_str.to_string();
 
+            // 1. Immediate optimistic UI removal
+            {
+                let mut store = store_clone.lock();
+                store.remove(&id_str);
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let store = store_clone.lock();
+                refresh_ui(&ui, &store);
+                if let Some(ref current_id) = *active_inspector_id.lock()
+                    && current_id == &id_str
+                {
+                    ui.set_show_inspector(false);
+                }
+            }
+
             tokio::spawn(async move {
-                if let Ok(task_id) = TaskId::from_wire_string(&id_str) {
-                    if let Err(err) = dispatcher.remove(&task_id).await {
-                        tracing::error!("删除任务失败: {err}");
-                    } else {
+                if let Ok(task_id) = TaskId::from_wire_string(&id_str)
+                    && let Err(err) = dispatcher.remove(&task_id).await
+                {
+                    tracing::error!("删除任务失败: {err}");
+                    if let Ok(list) = dispatcher.list().await {
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
                                 let mut store = store_clone.lock();
-                                store.remove(&id_str);
+                                store.replace_all(list);
                                 refresh_ui(&ui, &store);
                             }
                         });
@@ -3211,29 +3286,49 @@ async fn main() -> anyhow::Result<()> {
         let store_clone = store.clone();
         let toast_queue_clone = toast_queue.clone();
         let ui_weak = main_window.as_weak();
+        let active_inspector_id_clone = active_inspector_id.clone();
         main_window.on_clear_completed(move || {
             let dispatcher = dispatcher.clone();
             let store_clone = store_clone.clone();
             let toast_queue = toast_queue_clone.clone();
             let ui_weak = ui_weak.clone();
+            let active_inspector_id = active_inspector_id_clone.clone();
+
+            let completed_ids = {
+                let mut store = store_clone.lock();
+                let ids = store.completed_ids();
+                for id in &ids {
+                    store.remove(id);
+                }
+                ids
+            };
+
+            let lang = store_clone.lock().language();
+            if completed_ids.is_empty() {
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_clear_completed_none(lang).to_string(),
+                    "info",
+                    Duration::from_secs(4),
+                );
+                return;
+            }
+
+            if let Some(ui) = ui_weak.upgrade() {
+                let store = store_clone.lock();
+                refresh_ui(&ui, &store);
+                if let Some(ref current_id) = *active_inspector_id.lock()
+                    && completed_ids.contains(current_id)
+                {
+                    ui.set_show_inspector(false);
+                }
+            }
+
             tokio::spawn(async move {
-                let lang = store_clone.lock().language();
-                let Ok(list) = dispatcher.list().await else {
-                    push_toast(
-                        &ui_weak,
-                        &toast_queue,
-                        i18n::format_toast_clear_completed_failed(lang).to_string(),
-                        "error",
-                        Duration::from_secs(5),
-                    );
-                    return;
-                };
                 let mut cleared = 0usize;
-                for item in list {
-                    if !matches!(item.state, DownloadState::Completed) {
-                        continue;
-                    }
-                    if let Ok(task_id) = TaskId::from_wire_string(&item.id)
+                for id in &completed_ids {
+                    if let Ok(task_id) = TaskId::from_wire_string(id)
                         && dispatcher.remove(&task_id).await.is_ok()
                     {
                         cleared += 1;
@@ -3243,9 +3338,9 @@ async fn main() -> anyhow::Result<()> {
                     push_toast(
                         &ui_weak,
                         &toast_queue,
-                        i18n::format_toast_clear_completed_none(lang).to_string(),
-                        "info",
-                        Duration::from_secs(4),
+                        i18n::format_toast_clear_completed_failed(lang).to_string(),
+                        "error",
+                        Duration::from_secs(5),
                     );
                     return;
                 }
@@ -3256,6 +3351,16 @@ async fn main() -> anyhow::Result<()> {
                     "success",
                     Duration::from_secs(4),
                 );
+
+                if let Ok(list) = dispatcher.list().await {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            let mut store = store_clone.lock();
+                            store.replace_all(list);
+                            refresh_ui(&ui, &store);
+                        }
+                    });
+                }
             });
         });
     }
@@ -3455,22 +3560,40 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
+        let active_inspector_id_clone = active_inspector_id.clone();
         main_window.on_purge_single_task(move |id_str| {
             let dispatcher = dispatcher.clone();
             let store_clone = store_clone.clone();
             let ui_weak = ui_weak.clone();
+            let active_inspector_id = active_inspector_id_clone.clone();
             let id = id_str.to_string();
 
+            // 1. Immediate optimistic UI removal
+            {
+                let mut store = store_clone.lock();
+                store.remove(&id);
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                let store = store_clone.lock();
+                refresh_ui(&ui, &store);
+                if let Some(ref current_id) = *active_inspector_id.lock()
+                    && current_id == &id
+                {
+                    ui.set_show_inspector(false);
+                }
+            }
+
             tokio::spawn(async move {
-                if let Ok(task_id) = TaskId::from_wire_string(&id) {
-                    if let Err(err) = dispatcher.purge(&task_id).await {
-                        tracing::error!("彻底删除任务失败: {err}");
-                    } else {
+                if let Ok(task_id) = TaskId::from_wire_string(&id)
+                    && let Err(err) = dispatcher.purge(&task_id).await
+                {
+                    tracing::error!("彻底删除任务失败: {err}");
+                    if let Ok(list) = dispatcher.list().await {
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
-                                let mut store = store_clone.lock();
-                                store.remove(&id);
-                                refresh_ui(&ui, &store);
+                                    let mut store = store_clone.lock();
+                                    store.replace_all(list);
+                                    refresh_ui(&ui, &store);
                             }
                         });
                     }
@@ -5060,19 +5183,7 @@ fn announce_migration(
 
 
 fn open_path_in_explorer(path: &str) -> std::io::Result<()> {
-    #[cfg(windows)]
-    {
-        std::process::Command::new("explorer").arg(path).spawn()?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open").arg(path).spawn()?;
-    }
-    #[cfg(not(any(windows, target_os = "macos")))]
-    {
-        std::process::Command::new("xdg-open").arg(path).spawn()?;
-    }
-    Ok(())
+    limedl_core::platform::open_in_file_manager(std::path::Path::new(path))
 }
 
 /// Open a task's downloaded file with the OS default handler (via backend).
@@ -5288,6 +5399,35 @@ fn dirs_local_data_dir() -> Option<PathBuf> {
         std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+    }
+}
+
+fn dirs_download_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        std::env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .map(|p| p.join("Downloads"))
+            .filter(|p| p.exists())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .map(|p| p.join("Downloads"))
+            .filter(|p| p.exists())
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        std::env::var_os("XDG_DOWNLOAD_DIR")
+            .map(PathBuf::from)
+            .filter(|p| p.exists())
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|h| h.join("Downloads"))
+                    .filter(|p| p.exists())
+            })
     }
 }
 
