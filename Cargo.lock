@@ -5110,6 +5110,7 @@ dependencies = [
  "slint-build",
  "sys-locale",
  "tar",
+ "tempfile",
  "time",
  "tokio",
  "tracing",

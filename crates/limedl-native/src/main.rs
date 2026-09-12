@@ -5,6 +5,7 @@ slint::include_modules!();
 mod autostart;
 mod bridge;
 mod i18n;
+mod migrate;
 mod platform_win;
 mod power;
 mod protocol;
@@ -28,7 +29,7 @@ use tokio::sync::watch;
 use muda::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use notify_rust::Notification;
 use parking_lot::Mutex;
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, CloseRequestResponse};
 use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
 use limedl_core::aria2_rpc::Aria2RpcServer;
@@ -36,9 +37,10 @@ use limedl_core::bootstrap::bootstrap;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::{
-    AppSettings, ChecksumMode, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted,
-    DownloadProgress, DownloadState, DownloadSummary, MatchType, ReplacementMode, RewriteTarget,
-    SortDirection, StartDownloadRequest, TaskId, ThemeColor, TorrentFileEntry, UrlRewriteRule,
+    AppSettings, ChecksumMode, CloseBehavior, ColorMode, DoubleClickOnCompleted,
+    DoubleClickOnUncompleted, DownloadProgress, DownloadState, DownloadSummary, MatchType,
+    ReplacementMode, RewriteTarget, SortDirection, StartDownloadRequest, TaskId, ThemeColor,
+    TorrentFileEntry, UrlRewriteRule,
 };
 
 use crate::bridge::{
@@ -663,13 +665,23 @@ fn create_default_tray_icon() -> tray_icon::Icon {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let cli_arg = std::env::args().nth(1);
+    // CLI contract: `limedl-native [--hidden] [<url|magnet|path|limedl://…>]`
+    // `--hidden` is what the autostart registration passes so a login start goes
+    // straight to the tray; it is a flag, never a payload.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let hidden_flag = args
+        .iter()
+        .any(|a| matches!(a.as_str(), "--hidden" | "-hidden" | "--minimized"));
+    let cli_payload = args
+        .iter()
+        .find(|a| !matches!(a.as_str(), "--hidden" | "-hidden" | "--minimized"))
+        .cloned();
 
     // Single-instance guard: a second launch activates the existing window
     // and exits before any engine/bootstrap work happens.
     let instance_claim = single_instance::InstanceClaim::claim();
     if instance_claim.is_secondary() {
-        instance_claim.notify_primary(cli_arg.as_deref());
+        instance_claim.notify_primary(cli_payload.as_deref());
         return Ok(());
     }
 
@@ -685,10 +697,10 @@ async fn main() -> anyhow::Result<()> {
     // Remove stale artifacts from a previous (possibly interrupted) self-update.
     update::clean_update_work_dir(&base_dir);
     std::fs::create_dir_all(&state_dir)?;
-    // ── Settings migration: copy Tauri settings on first Native run ──
-    // If Native settings.json is absent but Tauri's exists (user switched
-    // from Tauri → Native), copy it so the user does not perceive a reset.
-    migrate_tauri_settings_if_needed(&state_dir);
+    // ── First Native run: migrate data from the Tauri edition ──
+    // Copies settings.json, downloads.db (+WAL/SHM), torrents/ and bt_files/ so
+    // a user switching editions keeps their settings and task history.
+    let migration_report = migrate::migrate_tauri_data_if_needed(&base_dir, &state_dir);
 
     let core = bootstrap(state_dir.clone())
         .await
@@ -705,6 +717,16 @@ async fn main() -> anyhow::Result<()> {
     limedl_core::init_logging(&initial_settings.logging, &state_dir)
         .with_context(|| "初始化日志失败")?;
     tracing::info!("启动 limedl Native 桌面客户端 (Skia)...");
+    // The migration runs before `init_logging` (it supplies the settings that
+    // configure logging), so report its outcome here where it is visible.
+    if let Some(report) = migration_report.as_ref() {
+        tracing::info!(
+            "Tauri 数据迁移完成：{} 个文件 / {} 字节（来源 {}）",
+            report.copied_files,
+            report.copied_bytes,
+            report.source.display()
+        );
+    }
     let cdn_accelerator = core.cdn_service.accelerator().clone();
     core.download_manager.set_cdn_accelerator(cdn_accelerator);
     core.cdn_service.init_from_settings(&initial_settings).await;
@@ -777,6 +799,7 @@ async fn main() -> anyhow::Result<()> {
     main_window.set_default_download_dir(SharedString::from(&default_download_dir));
     main_window.set_new_task_dir(SharedString::from(&default_download_dir));
 
+
     let store = Arc::new(Mutex::new(TaskStore::with_language(initial_lang)));
     // Restore the persisted sort order before the first list render.
     {
@@ -788,6 +811,11 @@ async fn main() -> anyhow::Result<()> {
     }
     let active_inspector_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let toast_queue: ToastQueue = Arc::new(Mutex::new(Vec::new()));
+
+    // Tell the user (once) when this run imported data from the Tauri edition.
+    if let Some(report) = migration_report.as_ref() {
+        announce_migration(report, &main_window.as_weak(), &toast_queue, initial_lang);
+    }
 
     let rewrite_rules: Arc<Mutex<Vec<UrlRewriteRule>>> =
         Arc::new(Mutex::new(initial_settings.url_rewrite.rules.clone()));
@@ -940,20 +968,20 @@ async fn main() -> anyhow::Result<()> {
         };
 
         // The native window handle only exists once Slint created the OS window,
-        // which happens when the event loop starts (inside `run()`). Installing
-        // the subclass here used to fail ("获取原生窗口句柄失败") and left
-        // drag-and-drop and the WM_COPYDATA IPC dead, so retry on a short timer
-        // until the handle is available (or give up after ~2 s).
+        // which happens when it is shown. Installing the subclass before that
+        // failed with "获取原生窗口句柄失败" and left drag-and-drop and the
+        // WM_COPYDATA IPC dead, so retry until the handle is available. The
+        // timer keeps running while the app starts hidden (`--hidden`) and stops
+        // as soon as the hooks are in place.
         {
             platform_win::set_callbacks(on_drop, on_copydata);
 
             let ui_weak = main_window.as_weak();
             let hook_timer = Rc::new(slint::Timer::default());
             let timer_for_cb = hook_timer.clone();
-            let mut attempts_left = 40u32;
             hook_timer.start(
                 slint::TimerMode::Repeated,
-                Duration::from_millis(50),
+                Duration::from_millis(250),
                 move || {
                     let Some(ui) = ui_weak.upgrade() else {
                         timer_for_cb.stop();
@@ -961,12 +989,6 @@ async fn main() -> anyhow::Result<()> {
                     };
                     if platform_win::try_install_window_hooks(ui.window()) {
                         timer_for_cb.stop();
-                        return;
-                    }
-                    attempts_left -= 1;
-                    if attempts_left == 0 {
-                        timer_for_cb.stop();
-                        tracing::warn!("未能挂载窗口子类化处理器：拖拽与磁力链接 IPC 不可用");
                     }
                 },
             );
@@ -4809,7 +4831,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Cold start with command line arguments (e.g. magnet link, torrent file, or deep link)
-    if let Some(ref arg) = cli_arg {
+    if let Some(ref arg) = cli_payload {
         open_new_task_with_payload(
             arg,
             &main_window.as_weak(),
@@ -4818,6 +4840,39 @@ async fn main() -> anyhow::Result<()> {
             &new_task_torrent_entries,
             &new_task_torrent_included,
         );
+    }
+
+    // Window close behavior (Settings → Appearance): either minimize to the tray
+    // or exit. Implemented explicitly because the event loop is started with
+    // `run_event_loop_until_quit()` (needed for the tray-only `--hidden` start),
+    // which no longer quits when the last window is closed.
+    {
+        let ui_weak = main_window.as_weak();
+        let current_settings_clone = current_settings.clone();
+        main_window.window().on_close_requested(move || {
+            let minimize_to_tray = matches!(
+                current_settings_clone.lock().appearance.close_behavior,
+                CloseBehavior::MinimizeToTray
+            );
+            if minimize_to_tray {
+                if let Some(ui) = ui_weak.upgrade() {
+                    let _ = ui.hide();
+                }
+                tracing::info!("窗口已最小化到托盘");
+            } else {
+                tracing::info!("窗口关闭，退出应用");
+                let _ = slint::quit_event_loop();
+            }
+            CloseRequestResponse::HideWindow
+        });
+    }
+
+    // Tray-only start: the autostart registration passes `--hidden`, and the
+    // first-run wizard must always be visible so a fresh install cannot end up
+    // in a window-less state.
+    let start_hidden = hidden_flag && initial_settings.setup_completed;
+    if start_hidden {
+        tracing::info!("以静默模式启动（仅托盘，--hidden）");
     }
 
     // Poll for pending tray menu/tooltip updates on the main thread (TrayIcon is !Send)
@@ -4840,7 +4895,16 @@ async fn main() -> anyhow::Result<()> {
         },
     );
 
-    main_window.run()?;
+    // `run_event_loop_until_quit` rather than `MainWindow::run()`: with
+    // `--hidden` no window is ever shown, and the default loop would return
+    // immediately (it counts visible windows, and our tray lives in
+    // `tray-icon`/`muda` rather than Slint's SystemTrayIcon). Exiting is driven
+    // by the tray "Quit" item and the window close handler above, both of which
+    // call `quit_event_loop()`.
+    if !start_hidden {
+        main_window.show()?;
+    }
+    slint::run_event_loop_until_quit()?;
 
     // Graceful shutdown
     POWER_GUARD.release();
@@ -4854,52 +4918,18 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn tauri_settings_path() -> Option<PathBuf> {
-    if cfg!(windows) {
-        std::env::var_os("LOCALAPPDATA")
-            .map(PathBuf::from)
-            .map(|p| p.join("com.zkz20.limedl").join("settings.json"))
-    } else if cfg!(target_os = "macos") {
-        std::env::var_os("HOME")
-            .map(|h| PathBuf::from(h).join("Library/Application Support/com.zkz20.limedl/settings.json"))
-    } else {
-        std::env::var_os("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-            .map(|base| base.join("com.zkz20.limedl/settings.json"))
-    }
+/// Push a one-shot toast telling the user that data was migrated from the
+/// Tauri edition (shown once, right after the window exists).
+fn announce_migration(
+    report: &migrate::MigrationReport,
+    ui_weak: &slint::Weak<MainWindow>,
+    queue: &ToastQueue,
+    lang: Language,
+) {
+    let msg = i18n::format_toast_tauri_migration(report.copied_files, lang);
+    push_toast(ui_weak, queue, msg, "info", Duration::from_secs(8));
 }
 
-fn migrate_tauri_settings_if_needed(native_state_dir: &std::path::Path) {
-    // native settings.json is at <state_dir.parent>/settings.json
-    let Some(native_settings) = native_state_dir
-        .parent()
-        .map(|p| p.join("settings.json"))
-    else {
-        return;
-    };
-    if native_settings.exists() {
-        return;
-    }
-    let Some(tauri_settings) = tauri_settings_path() else {
-        return;
-    };
-    if !tauri_settings.exists() {
-        return;
-    }
-    tracing::info!(
-        "检测到 Tauri 设置文件 {}，但 Native 设置不存在，自动迁移到 {}",
-        tauri_settings.display(),
-        native_settings.display()
-    );
-    if let Some(parent) = native_settings.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    match std::fs::copy(&tauri_settings, &native_settings) {
-        Ok(_) => tracing::info!("设置迁移完成"),
-        Err(e) => tracing::warn!("设置迁移失败: {e:#}"),
-    }
-}
 
 fn open_path_in_explorer(path: &str) -> std::io::Result<()> {
     #[cfg(windows)]

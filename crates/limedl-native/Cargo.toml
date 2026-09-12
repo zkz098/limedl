@@ -66,4 +66,5 @@ slint-build = { workspace = true }
 winres = "0.1"
 
 [dev-dependencies]
+tempfile = { workspace = true }
 skia-safe = { version = "0.99", features = ["textlayout"] }
