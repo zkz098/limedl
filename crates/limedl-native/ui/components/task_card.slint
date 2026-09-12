@@ -4,6 +4,8 @@ import { CustomCheckBox, IconButton, StatusBadge } from "common.slint";
 
 export component TaskCard inherits Rectangle {
     in property <TaskItem> item;
+    // Compact density (Appearance → compact view): tighter paddings, no hint row.
+    in property <bool> compact: false;
     callback toggle_select();
     callback range_select();
     callback open_inspector();
@@ -19,7 +21,15 @@ export component TaskCard inherits Rectangle {
     animate background, border-color { duration: 150ms; }
     border-width: 1px;
     border-radius: 8px;
-    height: 104px;
+    height: root.compact ? 84px : 104px;
+
+    pure function priority_color(code: string) -> color {
+        code == "high" ? Theme.cf87171 : (code == "low" ? Theme.c38bdf8 : Theme.c9ca3af);
+    }
+
+    pure function priority_bg(code: string) -> color {
+        code == "high" ? Theme.c3f1518 : (code == "low" ? Theme.c152c42 : Theme.c1e2229);
+    }
 
     property <bool> shift_click: false;
 
@@ -40,7 +50,7 @@ export component TaskCard inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding: 12px;
+        padding: root.compact ? 8px : 12px;
         spacing: 12px;
 
         // Selection Checkbox
@@ -100,6 +110,31 @@ export component TaskCard inherits Rectangle {
                         overflow: elide;
                         max-width: 440px;
                         vertical-alignment: center;
+                    }
+
+                    // Priority badge (only for non-default priorities to keep
+                    // the card row uncluttered)
+                    if root.item.priority_code != "normal" : VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 18px;
+                            border-radius: 4px;
+                            background: root.priority_bg(root.item.priority_code);
+                            border-color: root.priority_color(root.item.priority_code);
+                            border-width: 1px;
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                alignment: center;
+                                Text {
+                                    text: root.item.priority_label;
+                                    color: root.priority_color(root.item.priority_code);
+                                    font-size: 10px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
                     }
                 }
 

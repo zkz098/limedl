@@ -15,8 +15,8 @@ use slint::{Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, 
 use crate::i18n::{self, Language};
 use crate::{
     CdnCandidateItem, InspectorInfo, LabsFormData, NewTaskTorrentFileItem, PeerItem,
-    SettingsFormData, SetupFormData, TaskItem, TorrentFileItem, TrackerItem, UrlRewriteRuleItem,
-    UrlRewriteTargetItem,
+    SettingsFormData, SetupFormData, SpeedLimitSlotItem, TaskItem, TorrentFileItem, TrackerItem,
+    UrlRewriteRuleItem, UrlRewriteTargetItem,
 };
 
 /// Human-readable byte formatting.
@@ -61,6 +61,7 @@ pub enum SortField {
     Speed = 2,
     Progress = 3,
     Name = 4,
+    State = 5,
 }
 
 impl From<i32> for SortField {
@@ -70,8 +71,83 @@ impl From<i32> for SortField {
             2 => SortField::Speed,
             3 => SortField::Progress,
             4 => SortField::Name,
+            5 => SortField::State,
             _ => SortField::Created,
         }
+    }
+}
+
+/// Map the persisted `AppearanceSettings::sort_key` onto the list's sort field.
+pub fn sort_key_to_field(key: limedl_core::types::SortKey) -> i32 {
+    use limedl_core::types::SortKey;
+    match key {
+        SortKey::Name => SortField::Name as i32,
+        SortKey::Size => SortField::Size as i32,
+        SortKey::Progress => SortField::Progress as i32,
+        SortKey::Speed => SortField::Speed as i32,
+        SortKey::State => SortField::State as i32,
+        SortKey::AddedAt => SortField::Created as i32,
+    }
+}
+
+/// Inverse of [`sort_key_to_field`] — used when persisting a user sort change.
+pub fn field_to_sort_key(field: i32) -> limedl_core::types::SortKey {
+    use limedl_core::types::SortKey;
+    match SortField::from(field) {
+        SortField::Name => SortKey::Name,
+        SortField::Size => SortKey::Size,
+        SortField::Progress => SortKey::Progress,
+        SortField::Speed => SortKey::Speed,
+        SortField::State => SortKey::State,
+        SortField::Created => SortKey::AddedAt,
+    }
+}
+
+/// Ordered list of table column keys the native UI can show/hide. Mirrors the
+/// web client's `VALID_COLUMN_KEYS` (minus the fields the native list does not
+/// render) so a settings file stays portable between both editions.
+pub const COLUMN_KEYS: [&str; 10] = [
+    "file",
+    "size",
+    "downloaded",
+    "status",
+    "progress",
+    "speed",
+    "priority",
+    "uploadSpeed",
+    "seeds",
+    "eta",
+];
+
+/// Column keys shown when `appearance.visible_columns` is empty/unknown.
+pub const DEFAULT_VISIBLE_COLUMNS: [&str; 8] = [
+    "file",
+    "size",
+    "downloaded",
+    "status",
+    "progress",
+    "speed",
+    "priority",
+    "eta",
+];
+
+/// Whether a column key is visible for the given settings list.
+pub fn column_is_visible(visible_columns: &[String], key: &str) -> bool {
+    if visible_columns.is_empty() {
+        return DEFAULT_VISIBLE_COLUMNS.contains(&key);
+    }
+    visible_columns.iter().any(|c| c == key)
+}
+
+/// Sort rank for the "state" sort key: active work first, then paused/queued,
+/// finished, and failures last.
+fn state_rank(task: &DownloadSummary) -> u8 {
+    match task.state {
+        DownloadState::Downloading | DownloadState::Retrying | DownloadState::Verifying => 0,
+        DownloadState::Queued => 1,
+        DownloadState::Paused => 2,
+        DownloadState::Completed => 3,
+        DownloadState::Failed | DownloadState::Canceled => 4,
     }
 }
 
@@ -123,11 +199,43 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Lan
         speed_text: SharedString::from(format_speed(summary.speed_bytes_per_second)),
         size_text: SharedString::from(size_text),
         eta_text: SharedString::from(format_eta(summary.eta_seconds, lang)),
+        downloaded_text: SharedString::from(format_bytes(summary.downloaded_bytes)),
+        upload_speed_text: SharedString::from(format_speed(
+            summary.upload_speed_bytes_per_second,
+        )),
+        seeds_text: SharedString::from(
+            summary
+                .seed_count
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| i18n::format_unknown(lang).to_string()),
+        ),
+        priority_code: SharedString::from(priority_code(summary.priority)),
+        priority_label: SharedString::from(i18n::format_priority_label(summary.priority, lang)),
         can_pause,
         can_resume,
         is_completed,
         is_failed,
         selected,
+    }
+}
+
+/// Stable wire code for a download priority (`high` / `normal` / `low`).
+pub fn priority_code(priority: limedl_core::types::Priority) -> &'static str {
+    use limedl_core::types::Priority;
+    match priority {
+        Priority::High => "high",
+        Priority::Normal => "normal",
+        Priority::Low => "low",
+    }
+}
+
+/// Parse a priority wire code back into the core enum (unknown → Normal).
+pub fn str_to_priority(code: &str) -> limedl_core::types::Priority {
+    use limedl_core::types::Priority;
+    match code.trim().to_ascii_lowercase().as_str() {
+        "high" => Priority::High,
+        "low" => Priority::Low,
+        _ => Priority::Normal,
     }
 }
 
@@ -571,6 +679,38 @@ pub fn app_settings_to_form(
             &close_behavior_to_str(&settings.appearance.close_behavior),
         ),
         appearance_show_detail_info: settings.appearance.show_detail_info,
+        appearance_compact_view: settings.appearance.compact_view,
+        appearance_column_file: column_is_visible(&settings.appearance.visible_columns, "file"),
+        appearance_column_size: column_is_visible(&settings.appearance.visible_columns, "size"),
+        appearance_column_downloaded: column_is_visible(
+            &settings.appearance.visible_columns,
+            "downloaded",
+        ),
+        appearance_column_status: column_is_visible(
+            &settings.appearance.visible_columns,
+            "status",
+        ),
+        appearance_column_progress: column_is_visible(
+            &settings.appearance.visible_columns,
+            "progress",
+        ),
+        appearance_column_speed: column_is_visible(
+            &settings.appearance.visible_columns,
+            "speed",
+        ),
+        appearance_column_priority: column_is_visible(
+            &settings.appearance.visible_columns,
+            "priority",
+        ),
+        appearance_column_upload_speed: column_is_visible(
+            &settings.appearance.visible_columns,
+            "uploadSpeed",
+        ),
+        appearance_column_seeds: column_is_visible(
+            &settings.appearance.visible_columns,
+            "seeds",
+        ),
+        appearance_column_eta: column_is_visible(&settings.appearance.visible_columns, "eta"),
         autostart: settings.autostart,
         notifications_enabled: settings.notifications.enabled,
         double_click_completed_idx: combo::idx_of(
@@ -727,7 +867,11 @@ pub fn app_settings_to_form(
         ),
         app_version: SharedString::from(format!("v{}", env!("CARGO_PKG_VERSION"))),
         engine_version: SharedString::from(format!("limedl-core v{}", env!("CARGO_PKG_VERSION"))),
-        arch_info: SharedString::from(format!("{} / {} (Skia)", std::env::consts::ARCH, std::env::consts::OS)),
+        arch_info: SharedString::from(i18n::format_platform_description(
+            &crate::platform_win::os_description(),
+            std::env::consts::ARCH,
+            "Skia",
+        )),
     }
 }
 
@@ -741,108 +885,137 @@ pub fn app_settings_to_form(
 pub fn update_app_settings_from_form(
     settings: &mut AppSettings,
     form: &SettingsFormData,
+    lang: Language,
 ) -> Result<(), String> {
     // ── 严格校验：非空但无法解析的数值为用户输入错误，必须报错而非静默忽略
     {
-        let check_u64 = |raw: &str, label: &str| -> Result<(), String> {
+        let check_u64 = |raw: &str, field: i18n::SettingsField| -> Result<(), String> {
             let s = raw.trim();
             if s.is_empty() {
                 return Ok(());
             }
             s.parse::<u64>()
                 .map(|_| ())
-                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效数字", label, s))
+                .map_err(|_| i18n::format_validation_number(lang, field, s))
         };
-        let check_usize = |raw: &str, label: &str| -> Result<(), String> {
+        let check_usize = |raw: &str, field: i18n::SettingsField| -> Result<(), String> {
             let s = raw.trim();
             if s.is_empty() {
                 return Ok(());
             }
             s.parse::<usize>()
                 .map(|_| ())
-                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效整数", label, s))
+                .map_err(|_| i18n::format_validation_integer(lang, field, s))
         };
-        let check_u32 = |raw: &str, label: &str| -> Result<(), String> {
+        let check_u32 = |raw: &str, field: i18n::SettingsField| -> Result<(), String> {
             let s = raw.trim();
             if s.is_empty() {
                 return Ok(());
             }
             s.parse::<u32>()
                 .map(|_| ())
-                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效整数", label, s))
+                .map_err(|_| i18n::format_validation_integer(lang, field, s))
         };
-        let check_u16 = |raw: &str, label: &str| -> Result<(), String> {
+        let check_u16 = |raw: &str, field: i18n::SettingsField| -> Result<(), String> {
             let s = raw.trim();
             if s.is_empty() {
                 return Ok(());
             }
             s.parse::<u16>()
                 .map(|_| ())
-                .map_err(|_| format!("{} 格式错误: '{}' 请输入 0-65535 的端口号", label, s))
+                .map_err(|_| i18n::format_validation_port(lang, field, s))
         };
-        let check_f64 = |raw: &str, label: &str| -> Result<(), String> {
+        let check_f64 = |raw: &str, field: i18n::SettingsField| -> Result<(), String> {
             let s = raw.trim();
             if s.is_empty() {
                 return Ok(());
             }
             s.parse::<f64>()
                 .map(|_| ())
-                .map_err(|_| format!("{} 格式错误: '{}' 请输入有效数字", label, s))
+                .map_err(|_| i18n::format_validation_number(lang, field, s))
         };
+        use i18n::SettingsField as F;
         // 下载
-        check_u32(form.download_max_retries.trim(), "最大重试次数")?;
-        check_usize(form.max_parallel_tasks.trim(), "最大并发任务数")?;
-        check_u64(form.global_speed_limit_kb.trim(), "全局限速")?;
+        check_u32(form.download_max_retries.trim(), F::MaxRetries)?;
+        check_usize(form.max_parallel_tasks.trim(), F::MaxParallelTasks)?;
+        check_u64(form.global_speed_limit_kb.trim(), F::GlobalSpeedLimit)?;
         // 调度
-        check_usize(form.scheduler_max_parallel_threads.trim(), "自动调度-最大并行线程")?;
-        check_usize(form.scheduler_max_threads_per_task.trim(), "单任务最大线程")?;
-        check_usize(form.scheduler_min_threads_per_task.trim(), "单任务最小线程")?;
+        check_usize(
+            form.scheduler_max_parallel_threads.trim(),
+            F::SchedulerMaxParallelThreads,
+        )?;
+        check_usize(
+            form.scheduler_max_threads_per_task.trim(),
+            F::SchedulerMaxThreadsPerTask,
+        )?;
+        check_usize(
+            form.scheduler_min_threads_per_task.trim(),
+            F::SchedulerMinThreadsPerTask,
+        )?;
         // BT 基础
-        check_u16(form.listen_port.trim(), "BT 监听端口")?;
-        check_u32(form.max_bt_connections.trim(), "每 Torrent 最大 Peers")?;
+        check_u16(form.listen_port.trim(), F::ListenPort)?;
+        check_u32(form.max_bt_connections.trim(), F::MaxPeersPerTorrent)?;
         // BT 队列与限速
-        check_u32(form.bt_max_downloads.trim(), "BT 最大下载数")?;
-        check_u32(form.bt_max_seeds.trim(), "BT 最大做种数")?;
-        check_u32(form.bt_max_torrents.trim(), "BT 最大 Torrent 数")?;
-        check_u32(form.bt_active_limit.trim(), "BT 活跃限制")?;
-        check_u64(form.bt_global_download_rate_limit_kb.trim(), "BT 全局下载限速")?;
-        check_u64(form.bt_global_upload_rate_limit_kb.trim(), "BT 全局上传限速")?;
-        check_u64(form.bt_upload_limit_kb.trim(), "做种上传限制")?;
-        check_f64(form.bt_upload_ratio_limit.trim(), "分享率限制")?;
-        check_u64(form.bt_anti_leech_grace_secs.trim(), "反吸血宽限期")?;
-        check_f64(form.bt_anti_leech_ratio.trim(), "反吸血分享率阈值")?;
-        check_u64(form.bt_anti_leech_ban_secs.trim(), "反吸血封禁时长")?;
-        check_u32(form.bt_anti_leech_max_upload_slots.trim(), "反吸血限槽模式槽位")?;
-        check_u32(form.bt_max_upload_slots_per_torrent.trim(), "每 Torrent 最大上传槽")?;
-        check_u32(form.bt_smart_ban_max_failures.trim(), "智能封禁阈值")?;
-        check_u64(form.bt_eviction_ban_duration_secs.trim(), "驱逐封禁时长")?;
-        check_u64(form.bt_data_contribution_timeout_secs.trim(), "无贡献超时")?;
+        check_u32(form.bt_max_downloads.trim(), F::BtMaxDownloads)?;
+        check_u32(form.bt_max_seeds.trim(), F::BtMaxSeeds)?;
+        check_u32(form.bt_max_torrents.trim(), F::BtMaxTorrents)?;
+        check_u32(form.bt_active_limit.trim(), F::BtActiveLimit)?;
+        check_u64(
+            form.bt_global_download_rate_limit_kb.trim(),
+            F::BtGlobalDownloadRateLimit,
+        )?;
+        check_u64(
+            form.bt_global_upload_rate_limit_kb.trim(),
+            F::BtGlobalUploadRateLimit,
+        )?;
+        check_u64(form.bt_upload_limit_kb.trim(), F::BtUploadLimit)?;
+        check_f64(form.bt_upload_ratio_limit.trim(), F::BtUploadRatioLimit)?;
+        check_u64(form.bt_anti_leech_grace_secs.trim(), F::BtAntiLeechGraceSecs)?;
+        check_f64(form.bt_anti_leech_ratio.trim(), F::BtAntiLeechRatio)?;
+        check_u64(form.bt_anti_leech_ban_secs.trim(), F::BtAntiLeechBanSecs)?;
+        check_u32(
+            form.bt_anti_leech_max_upload_slots.trim(),
+            F::BtAntiLeechMaxUploadSlots,
+        )?;
+        check_u32(
+            form.bt_max_upload_slots_per_torrent.trim(),
+            F::BtMaxUploadSlotsPerTorrent,
+        )?;
+        check_u32(form.bt_smart_ban_max_failures.trim(), F::BtSmartBanMaxFailures)?;
+        check_u64(
+            form.bt_eviction_ban_duration_secs.trim(),
+            F::BtEvictionBanDurationSecs,
+        )?;
+        check_u64(
+            form.bt_data_contribution_timeout_secs.trim(),
+            F::BtDataContributionTimeoutSecs,
+        )?;
         // IO
-        check_u64(form.io_buffer_limit_mb.trim(), "IO 缓冲上限")?;
-        check_u64(form.io_game_mode_buffer_mb.trim(), "游戏模式缓冲")?;
-        check_u32(form.io_max_parallel_hdd.trim(), "HDD 最大并行")?;
-        check_u32(form.io_game_mode_max_parallel.trim(), "游戏模式最大并行")?;
-        check_u64(form.io_ssd_write_combine_mb.trim(), "SSD 合并缓冲")?;
+        check_u64(form.io_buffer_limit_mb.trim(), F::IoBufferLimitMb)?;
+        check_u64(form.io_game_mode_buffer_mb.trim(), F::IoGameModeBufferMb)?;
+        check_u32(form.io_max_parallel_hdd.trim(), F::IoMaxParallelHdd)?;
+        check_u32(form.io_game_mode_max_parallel.trim(), F::IoGameModeMaxParallel)?;
+        check_u64(form.io_ssd_write_combine_mb.trim(), F::IoSsdWriteCombineMb)?;
         // 日志
         if !form.logging_retention_count.trim().is_empty() {
-            check_u32(form.logging_retention_count.trim(), "日志保留数量")?;
+            check_u32(form.logging_retention_count.trim(), F::LoggingRetentionCount)?;
         }
         if !form.logging_retention_days.trim().is_empty() {
-            check_u32(form.logging_retention_days.trim(), "日志保留天数")?;
+            check_u32(form.logging_retention_days.trim(), F::LoggingRetentionDays)?;
         }
         // Aria2
         if !form.aria2_port.trim().is_empty() {
-            check_u16(form.aria2_port.trim(), "Aria2 端口")?;
+            check_u16(form.aria2_port.trim(), F::Aria2Port)?;
         }
         // 高级
         if !form.max_in_memory_downloads.trim().is_empty() {
-            check_usize(form.max_in_memory_downloads.trim(), "内存保留记录数")?;
+            check_usize(form.max_in_memory_downloads.trim(), F::MaxInMemoryDownloads)?;
         }
         // 代理：若为 manual 则必须提供合法 URL，留空会在 normalize 阶段报错，这里提前给出更友好的提示
         if combo::value_at(combo::PROXY_MODES, form.proxy_mode_idx) == "manual"
             && form.proxy_manual_url.trim().is_empty()
         {
-            return Err("代理模式为 manual 时必须填写代理 URL".to_string());
+            return Err(i18n::format_proxy_url_required(lang));
         }
     }
     // ── 下载 ──
@@ -892,6 +1065,30 @@ pub fn update_app_settings_from_form(
         _ => settings.appearance.close_behavior = CloseBehavior::MinimizeToTray,
     }
     settings.appearance.show_detail_info = form.appearance_show_detail_info;
+    settings.appearance.compact_view = form.appearance_compact_view;
+    // Column visibility: rebuild the persisted key list in canonical order.
+    // An all-false selection would hide every column, so the file column is
+    // always kept (mirroring the web client's guard).
+    let column_enabled = |key: &str| -> bool {
+        match key {
+            "file" => true,
+            "size" => form.appearance_column_size,
+            "downloaded" => form.appearance_column_downloaded,
+            "status" => form.appearance_column_status,
+            "progress" => form.appearance_column_progress,
+            "speed" => form.appearance_column_speed,
+            "priority" => form.appearance_column_priority,
+            "uploadSpeed" => form.appearance_column_upload_speed,
+            "seeds" => form.appearance_column_seeds,
+            "eta" => form.appearance_column_eta,
+            _ => false,
+        }
+    };
+    settings.appearance.visible_columns = COLUMN_KEYS
+        .iter()
+        .filter(|key| column_enabled(key))
+        .map(|key| (*key).to_string())
+        .collect();
     settings.autostart = form.autostart;
     settings.notifications.enabled = form.notifications_enabled;
     match combo::value_at(combo::DOUBLE_CLICK_COMPLETED, form.double_click_completed_idx) {
@@ -1128,34 +1325,137 @@ pub fn update_app_settings_from_form(
     Ok(())
 }
 
+/// Text state of one schedule row as typed by the user (authoritative until
+/// save, so half-typed values survive model rebuilds).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpeedLimitSlotText {
+    pub start_hour: String,
+    pub end_hour: String,
+    pub limit_kb: String,
+}
+
+impl Default for SpeedLimitSlotText {
+    fn default() -> Self {
+        Self {
+            start_hour: "0".to_string(),
+            end_hour: "6".to_string(),
+            limit_kb: "0".to_string(),
+        }
+    }
+}
+
+/// Parse a schedule text field into u32, rejecting empty/garbage input.
+fn parse_schedule_u32(
+    raw: &str,
+    field: i18n::SettingsField,
+    lang: Language,
+) -> Result<u32, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(i18n::format_validation_integer(lang, field, raw));
+    }
+    trimmed
+        .parse::<u32>()
+        .map_err(|_| i18n::format_validation_integer(lang, field, trimmed))
+}
+
+/// Validate + convert the schedule rows into the core type.
+///
+/// Hours must be 0-23 (24-hour clock); the limit may be any u64 KB/s value
+/// (0 = unlimited). Returns a localized message on the first invalid row.
+pub fn parse_speed_limit_slots(
+    rows: &[SpeedLimitSlotText],
+    lang: Language,
+) -> Result<Vec<limedl_core::types::SpeedLimitSlot>, String> {
+    let mut slots = Vec::with_capacity(rows.len());
+    for row in rows {
+        let start = parse_schedule_u32(&row.start_hour, i18n::SettingsField::SpeedLimitStartHour, lang)?;
+        let end = parse_schedule_u32(&row.end_hour, i18n::SettingsField::SpeedLimitEndHour, lang)?;
+        let limit_kb = parse_schedule_u32(&row.limit_kb, i18n::SettingsField::SpeedLimitLimit, lang)?;
+        if start > 23 {
+            return Err(i18n::format_validation_range(
+                lang,
+                i18n::SettingsField::SpeedLimitStartHour,
+                0,
+                23,
+            ));
+        }
+        if end > 23 {
+            return Err(i18n::format_validation_range(
+                lang,
+                i18n::SettingsField::SpeedLimitEndHour,
+                0,
+                23,
+            ));
+        }
+        slots.push(limedl_core::types::SpeedLimitSlot {
+            start_hour: start as u8,
+            end_hour: end as u8,
+            limit_bps: limit_kb as u64 * 1024,
+        });
+    }
+    Ok(slots)
+}
+
+/// Build the Slint model items for the schedule editor.
+pub fn speed_limit_slots_to_slint(
+    rows: &[SpeedLimitSlotText],
+    lang: Language,
+) -> Vec<SpeedLimitSlotItem> {
+    rows.iter()
+        .map(|row| {
+            let start = row.start_hour.trim().parse::<u32>().unwrap_or(0).min(23);
+            let end = row.end_hour.trim().parse::<u32>().unwrap_or(0).min(23);
+            let limit = row.limit_kb.trim().parse::<u64>().unwrap_or(0);
+            SpeedLimitSlotItem {
+                start_hour: SharedString::from(row.start_hour.as_str()),
+                end_hour: SharedString::from(row.end_hour.as_str()),
+                limit_kb: SharedString::from(row.limit_kb.as_str()),
+                wraps: start >= end,
+                summary: SharedString::from(i18n::format_schedule_summary(start, end, limit, lang)),
+            }
+        })
+        .collect()
+}
+
+/// Convert persisted settings into the editor's per-row text state.
+pub fn speed_limit_slots_from_settings(settings: &AppSettings) -> Vec<SpeedLimitSlotText> {
+    settings
+        .speed_limit_schedule
+        .iter()
+        .map(|slot| SpeedLimitSlotText {
+            start_hour: slot.start_hour.to_string(),
+            end_hour: slot.end_hour.to_string(),
+            limit_kb: (slot.limit_bps / 1024).to_string(),
+        })
+        .collect()
+}
+
 /// Format detected disk types into readable summary text.
-pub fn format_disk_types_map(disks: &HashMap<String, DiskType>) -> String {
+pub fn format_disk_types_map(disks: &HashMap<String, DiskType>, lang: Language) -> String {
     if disks.is_empty() {
-        return "未检测到磁盘信息".to_string();
+        return i18n::format_no_disk_detected(lang).to_string();
     }
 
     let mut parts = Vec::new();
     for (path, disk_type) in disks {
-        let type_name = match disk_type {
-            DiskType::Ssd => "SSD 固态硬盘",
-            DiskType::Hdd => "HDD 机械硬盘",
-        };
+        let type_name = i18n::format_disk_type_name(*disk_type, lang);
         parts.push(format!("{path} ({type_name})"));
     }
     parts.join(" | ")
 }
 
 /// Format buffer pool / IO status JSON payload.
-pub fn format_io_status_json(val: &serde_json::Value) -> String {
+pub fn format_io_status_json(val: &serde_json::Value, lang: Language) -> String {
     let allocated = val.get("allocatedBytes").and_then(|v| v.as_u64()).unwrap_or(0);
     let capacity = val.get("capacityBytes").and_then(|v| v.as_u64()).unwrap_or(1024 * 1024 * 1024);
     let active_buffers = val.get("activeBuffers").and_then(|v| v.as_u64()).unwrap_or(0);
 
-    format!(
-        "已用缓存: {} / 上限: {} (活跃缓冲槽: {} 个)",
-        format_bytes(allocated),
-        format_bytes(capacity),
-        active_buffers
+    i18n::format_io_status_line(
+        &format_bytes(allocated),
+        &format_bytes(capacity),
+        active_buffers,
+        lang,
     )
 }
 
@@ -1205,6 +1505,12 @@ impl TaskStore {
     #[allow(dead_code)]
     pub fn category(&self) -> i32 {
         self.current_category
+    }
+
+    /// Overwrite the sort field/direction (used to apply persisted settings).
+    pub fn apply_sort(&mut self, field: i32, asc: bool) {
+        self.sort_field = SortField::from(field);
+        self.sort_asc = asc;
     }
 
     pub fn get_summary(&self, id: &str) -> Option<DownloadSummary> {
@@ -1445,6 +1751,7 @@ impl TaskStore {
                     pa.partial_cmp(&pb).unwrap_or(std::cmp::Ordering::Equal)
                 }
                 SortField::Name => a.file_name.to_lowercase().cmp(&b.file_name.to_lowercase()),
+                SortField::State => state_rank(a).cmp(&state_rank(b)),
             };
 
             if self.sort_asc {
@@ -1726,11 +2033,12 @@ pub fn evaluate_url_rewrite(rules: &[UrlRewriteRule], test_url: &str) -> (String
     (matched_rule_name, candidates)
 }
 
-pub fn create_url_rewrite_preset(preset_key: &str) -> Option<UrlRewriteRule> {
+pub fn create_url_rewrite_preset(preset_key: &str, lang: Language) -> Option<UrlRewriteRule> {
+    let presets = i18n::get_rewrite_preset_names(lang);
     match preset_key {
         "github" => Some(UrlRewriteRule {
             id: format!("preset-gh-{}", uuid::Uuid::new_v4().simple()),
-            name: "GitHub 镜像代理".to_string(),
+            name: presets.github.to_string(),
             enabled: true,
             match_type: MatchType::Host,
             pattern: "*.github.com".to_string(),
@@ -1753,7 +2061,7 @@ pub fn create_url_rewrite_preset(preset_key: &str) -> Option<UrlRewriteRule> {
         }),
         "huggingface" => Some(UrlRewriteRule {
             id: format!("preset-hf-{}", uuid::Uuid::new_v4().simple()),
-            name: "Hugging Face 镜像".to_string(),
+            name: presets.huggingface.to_string(),
             enabled: true,
             match_type: MatchType::Regex,
             pattern: r"^https://huggingface\.co/(.*)$".to_string(),
@@ -1771,7 +2079,7 @@ pub fn create_url_rewrite_preset(preset_key: &str) -> Option<UrlRewriteRule> {
         }),
         "civitai" => Some(UrlRewriteRule {
             id: format!("preset-civitai-{}", uuid::Uuid::new_v4().simple()),
-            name: "Civitai 镜像".to_string(),
+            name: presets.civitai.to_string(),
             enabled: true,
             match_type: MatchType::Host,
             pattern: "*.civitai.com".to_string(),
@@ -1859,6 +2167,7 @@ pub fn app_settings_to_setup_form(settings: &AppSettings, lang: Language) -> Set
 pub fn update_app_settings_from_setup_form(
     settings: &mut AppSettings,
     form: &SetupFormData,
+    lang: Language,
 ) -> Result<(), String> {
     // ── 语言 ──
     // A wizard-run language change is explicit, so always write it (even if it
@@ -1885,11 +2194,14 @@ pub fn update_app_settings_from_setup_form(
     settings.aria2_rpc.enabled = form.rpc_enabled;
     let port_raw = form.rpc_port.trim();
     if !port_raw.is_empty() {
-        let port = port_raw
-            .parse::<u16>()
-            .map_err(|_| format!("Aria2 端口格式错误: '{port_raw}' 请输入 0-65535 的端口号"))?;
+        let port = port_raw.parse::<u16>().map_err(|_| {
+            i18n::format_validation_port(lang, i18n::SettingsField::Aria2Port, port_raw)
+        })?;
         if port == 0 {
-            return Err("Aria2 端口不能为 0".to_string());
+            return Err(i18n::format_validation_port_zero(
+                lang,
+                i18n::SettingsField::Aria2Port,
+            ));
         }
         settings.aria2_rpc.port = port;
     }
@@ -1949,7 +2261,7 @@ pub fn update_app_settings_from_setup_form(
     }
     settings.proxy.manual_url = form.proxy_manual_url.trim().to_string();
     if settings.proxy.mode == ProxyMode::Manual && settings.proxy.manual_url.is_empty() {
-        return Err("代理模式为 manual 时必须填写代理 URL".to_string());
+        return Err(i18n::format_proxy_url_required(lang));
     }
 
     Ok(())
@@ -2030,7 +2342,7 @@ mod tests {
         assert_eq!(form.proxy_manual_url.as_str(), "http://127.0.0.1:7890");
 
         let mut back = AppSettings::default();
-        update_app_settings_from_setup_form(&mut back, &form).unwrap();
+        update_app_settings_from_setup_form(&mut back, &form, Language::ZhCn).unwrap();
         assert_eq!(back.appearance.language, "zh-CN");
         assert_eq!(back.appearance.color_mode, ColorMode::Dark);
         assert_eq!(back.appearance.theme_color, ThemeColor::Sky);
@@ -2074,7 +2386,7 @@ mod tests {
         let mut back = AppSettings::default();
         let mut form = app_settings_to_setup_form(&back, Language::EnUs);
         form.scheduler_preset_idx = 2;
-        update_app_settings_from_setup_form(&mut back, &form).unwrap();
+        update_app_settings_from_setup_form(&mut back, &form, Language::EnUs).unwrap();
         assert_eq!(back.scheduler.mode, SchedulerMode::Automatic);
         assert_eq!(back.scheduler.automatic.max_parallel_threads, 32);
         assert_eq!(back.scheduler.automatic.max_threads_per_task, 16);
@@ -2088,7 +2400,20 @@ mod tests {
         let mut form = app_settings_to_setup_form(&s, Language::ZhCn);
         form.proxy_mode_idx = 2;
         form.proxy_manual_url = SharedString::default();
-        assert!(update_app_settings_from_setup_form(&mut s, &form).is_err());
+        assert!(update_app_settings_from_setup_form(&mut s, &form, Language::ZhCn).is_err());
+        // The English wizard must not surface Chinese text.
+        let err = update_app_settings_from_setup_form(&mut s, &form, Language::EnUs).unwrap_err();
+        assert!(!err.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)));
+
+        // Aria2 port 0 / overflow produce localized errors too.
+        let mut form = app_settings_to_setup_form(&s, Language::EnUs);
+        form.rpc_enabled = true;
+        form.rpc_port = SharedString::from("0");
+        let err = update_app_settings_from_setup_form(&mut s, &form, Language::EnUs).unwrap_err();
+        assert!(err.contains("Aria2 port"));
+        form.rpc_port = SharedString::from("70000");
+        let err = update_app_settings_from_setup_form(&mut s, &form, Language::EnUs).unwrap_err();
+        assert!(err.contains("0-65535"));
     }
 
     fn sample_summary(
@@ -2135,6 +2460,145 @@ mod tests {
             upload_limit_bps: None,
             chunks: Vec::new(),
             mirror_url: None,
+        }
+    }
+
+    #[test]
+    fn test_column_visibility_and_sort_persistence() {
+        // Defaults apply when the settings list is empty.
+        assert!(column_is_visible(&[], "file"));
+        assert!(column_is_visible(&[], "eta"));
+        assert!(!column_is_visible(&[], "seeds"));
+
+        // An explicit list wins (and unknown keys simply never match).
+        let explicit = vec!["file".to_string(), "seeds".to_string()];
+        assert!(column_is_visible(&explicit, "seeds"));
+        assert!(!column_is_visible(&explicit, "eta"));
+
+        // Every default column key must be a known key.
+        for key in DEFAULT_VISIBLE_COLUMNS {
+            assert!(COLUMN_KEYS.contains(&key), "unknown default column {key}");
+        }
+
+        // Sort key <-> list sort field round trip (all variants).
+        for key in [
+            limedl_core::types::SortKey::AddedAt,
+            limedl_core::types::SortKey::Name,
+            limedl_core::types::SortKey::Size,
+            limedl_core::types::SortKey::Progress,
+            limedl_core::types::SortKey::Speed,
+            limedl_core::types::SortKey::State,
+        ] {
+            assert_eq!(field_to_sort_key(sort_key_to_field(key)), key);
+        }
+
+        // Priority wire codes round trip.
+        for code in ["high", "normal", "low"] {
+            assert_eq!(priority_code(str_to_priority(code)), code);
+        }
+        assert_eq!(str_to_priority("bogus"), limedl_core::types::Priority::Normal);
+    }
+
+    #[test]
+    fn test_view_preference_roundtrip_through_form() {
+        let mut settings = AppSettings::default();
+        settings.appearance.compact_view = true;
+        settings.appearance.visible_columns = vec!["file".to_string(), "seeds".to_string()];
+        let form = app_settings_to_form(&settings, false, false, "", "", Language::EnUs);
+        assert!(form.appearance_compact_view);
+        assert!(form.appearance_column_seeds);
+        assert!(!form.appearance_column_eta);
+
+        // Saving from the form round-trips the same selection (canonical order,
+        // file always present).
+        let mut target = AppSettings::default();
+        let mut edited = form;
+        edited.appearance_column_eta = true;
+        edited.appearance_column_seeds = false;
+        update_app_settings_from_form(&mut target, &edited, Language::EnUs).unwrap();
+        assert!(target.appearance.compact_view);
+        assert_eq!(
+            target.appearance.visible_columns,
+            vec!["file".to_string(), "eta".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_speed_limit_schedule_parsing() {
+        let rows = vec![
+            SpeedLimitSlotText {
+                start_hour: "22".into(),
+                end_hour: "6".into(),
+                limit_kb: "512".into(),
+            },
+            SpeedLimitSlotText {
+                start_hour: "9".into(),
+                end_hour: "18".into(),
+                limit_kb: "0".into(),
+            },
+        ];
+        let slots = parse_speed_limit_slots(&rows, Language::EnUs).expect("valid schedule");
+        assert_eq!(slots.len(), 2);
+        assert_eq!(slots[0].start_hour, 22);
+        assert_eq!(slots[0].end_hour, 6);
+        assert_eq!(slots[0].limit_bps, 512 * 1024);
+        assert_eq!(slots[1].limit_bps, 0);
+
+        // Hours above 23 are rejected with a localized message.
+        let bad_hour = vec![SpeedLimitSlotText {
+            start_hour: "24".into(),
+            end_hour: "6".into(),
+            limit_kb: "0".into(),
+        }];
+        let err = parse_speed_limit_slots(&bad_hour, Language::EnUs).unwrap_err();
+        assert!(err.contains("0 and 23"), "unexpected error: {err}");
+
+        // Empty / garbage input is rejected.
+        let garbage = vec![SpeedLimitSlotText {
+            start_hour: "".into(),
+            end_hour: "6".into(),
+            limit_kb: "abc".into(),
+        }];
+        assert!(parse_speed_limit_slots(&garbage, Language::ZhCn).is_err());
+
+        // An empty schedule parses to an empty list (feature disabled).
+        assert!(parse_speed_limit_slots(&[], Language::EnUs).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_speed_limit_schedule_model_roundtrip() {
+        let settings = AppSettings {
+            speed_limit_schedule: vec![
+                limedl_core::types::SpeedLimitSlot {
+                    start_hour: 1,
+                    end_hour: 5,
+                    limit_bps: 1024 * 1024,
+                },
+                limedl_core::types::SpeedLimitSlot {
+                    start_hour: 23,
+                    end_hour: 2,
+                    limit_bps: 0,
+                },
+            ],
+            ..AppSettings::default()
+        };
+
+        let rows = speed_limit_slots_from_settings(&settings);
+        assert_eq!(rows[0].limit_kb, "1024");
+        let items = speed_limit_slots_to_slint(&rows, Language::EnUs);
+        assert_eq!(items.len(), 2);
+        // Second row wraps midnight and is flagged for the warn-colored hint.
+        assert!(items[1].wraps);
+        assert!(!items[0].wraps);
+        assert!(items[0].summary.contains("01:00"));
+
+        // Feeding the model text back in reproduces the same slots.
+        let round_trip = parse_speed_limit_slots(&rows, Language::EnUs).unwrap();
+        assert_eq!(round_trip.len(), settings.speed_limit_schedule.len());
+        for (parsed, original) in round_trip.iter().zip(settings.speed_limit_schedule.iter()) {
+            assert_eq!(parsed.start_hour, original.start_hour);
+            assert_eq!(parsed.end_hour, original.end_hour);
+            assert_eq!(parsed.limit_bps, original.limit_bps);
         }
     }
 
@@ -2277,7 +2741,8 @@ mod tests {
         assert!(!form.overclock_mode);
 
         let mut updated = AppSettings::default();
-        update_app_settings_from_form(&mut updated, &form).expect("valid form should update");
+        update_app_settings_from_form(&mut updated, &form, Language::ZhCn)
+            .expect("valid form should update");
         assert_eq!(updated.download.default_download_dir, "/custom/downloads");
         assert_eq!(updated.scheduler.traditional.max_parallel_tasks, 5);
         assert_eq!(updated.global_speed_limit_bps, 1024 * 500);
@@ -2390,19 +2855,28 @@ mod tests {
         disks.insert("C:\\".to_string(), DiskType::Ssd);
         disks.insert("D:\\".to_string(), DiskType::Hdd);
 
-        let disks_text = format_disk_types_map(&disks);
+        let disks_text = format_disk_types_map(&disks, Language::ZhCn);
         assert!(disks_text.contains("SSD"));
         assert!(disks_text.contains("HDD"));
 
         let empty_disks = HashMap::new();
-        assert_eq!(format_disk_types_map(&empty_disks), "未检测到磁盘信息");
+        assert_eq!(
+            format_disk_types_map(&empty_disks, Language::ZhCn),
+            "未检测到磁盘信息"
+        );
+        assert_eq!(
+            format_disk_types_map(&empty_disks, Language::EnUs),
+            "No disk information detected"
+        );
 
         let io_val = serde_json::json!({
             "allocatedBytes": 1024 * 1024 * 64,
             "capacityBytes": 1024 * 1024 * 1024,
             "activeBuffers": 2
         });
-        let io_text = format_io_status_json(&io_val);
+        let io_text = format_io_status_json(&io_val, Language::ZhCn);
+        let io_text_en = format_io_status_json(&io_val, Language::EnUs);
+        assert!(!io_text_en.contains("已用缓存"));
         assert!(io_text.contains("64.00 MB"));
         assert!(io_text.contains("1.00 GB"));
         assert!(io_text.contains("2 个"));
@@ -2437,7 +2911,7 @@ mod tests {
         assert_eq!(form.cdn_active_ip.as_str(), "104.16.0.1");
         assert_eq!(form.url_rewrite_test_matched_rule.as_str(), "GitHub 镜像");
 
-        let gh_rule = create_url_rewrite_preset("github").expect("gh preset");
+        let gh_rule = create_url_rewrite_preset("github", Language::ZhCn).expect("gh preset");
         assert_eq!(gh_rule.name, "GitHub 镜像代理");
         assert_eq!(gh_rule.targets.len(), 2);
 

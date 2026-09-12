@@ -19,16 +19,16 @@ use std::collections::HashSet;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
 use tokio::sync::watch;
-use muda::{Menu, MenuItem, PredefinedMenuItem};
+use muda::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use notify_rust::Notification;
 use parking_lot::Mutex;
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
 use limedl_core::aria2_rpc::Aria2RpcServer;
@@ -38,16 +38,18 @@ use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::{
     AppSettings, ChecksumMode, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted,
     DownloadProgress, DownloadState, DownloadSummary, MatchType, ReplacementMode, RewriteTarget,
-    StartDownloadRequest, TaskId, ThemeColor, TorrentFileEntry, UrlRewriteRule,
+    SortDirection, StartDownloadRequest, TaskId, ThemeColor, TorrentFileEntry, UrlRewriteRule,
 };
 
 use crate::bridge::{
-    SortField, TaskStore, app_settings_to_form, app_settings_to_labs_form, app_settings_to_setup_form,
-    cdn_candidates_to_slint, create_url_rewrite_preset, evaluate_url_rewrite, file_status_to_item,
+    SortField, SpeedLimitSlotText, TaskStore, app_settings_to_form, app_settings_to_labs_form,
+    app_settings_to_setup_form, cdn_candidates_to_slint, column_is_visible,
+    create_url_rewrite_preset, evaluate_url_rewrite, field_to_sort_key, file_status_to_item,
     format_disk_types_map, format_io_status_json, format_speed, format_timestamp_ms,
-    generate_piece_map_image, peer_info_to_item, str_to_match_type, str_to_replacement_mode,
-    summary_to_inspector_info, torrent_entry_to_item, tracker_info_to_item,
-    update_app_settings_from_form, update_app_settings_from_labs_form,
+    generate_piece_map_image, parse_speed_limit_slots, peer_info_to_item, sort_key_to_field,
+    speed_limit_slots_from_settings, speed_limit_slots_to_slint, str_to_match_type,
+    str_to_priority, str_to_replacement_mode, summary_to_inspector_info, torrent_entry_to_item,
+    tracker_info_to_item, update_app_settings_from_form, update_app_settings_from_labs_form,
     update_app_settings_from_setup_form, url_rewrite_rules_to_slint,
 };
 use crate::i18n::Language;
@@ -114,6 +116,104 @@ fn dismiss_toast(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue, id: i32)
     sync_toasts(ui_weak, queue);
 }
 
+/// Collapse duplicate download warnings into a single toast.
+///
+/// Core emits warnings per peer (anti-leech bans), per mirror failover and per
+/// disk-space check, so an unfiltered feed would flood the toast stack.
+struct WarningDedup {
+    last_key: String,
+    last_at: Option<std::time::Instant>,
+}
+
+impl WarningDedup {
+    const WINDOW: Duration = Duration::from_secs(5);
+
+    fn new() -> Self {
+        Self {
+            last_key: String::new(),
+            last_at: None,
+        }
+    }
+
+    /// Returns `true` when the warning is new enough to be worth surfacing.
+    fn should_show(&mut self, id: &str, message: &str) -> bool {
+        let key = format!("{id}:{message}");
+        let now = std::time::Instant::now();
+        let is_duplicate = key == self.last_key
+            && self
+                .last_at
+                .is_some_and(|prev| now.duration_since(prev) < Self::WINDOW);
+        self.last_key = key;
+        self.last_at = Some(now);
+        !is_duplicate
+    }
+}
+
+/// Push the table-density / column-visibility preferences into the window.
+///
+/// Kept next to `refresh_settings_state` so a settings save immediately
+/// re-layouts the list without waiting for the next task event.
+fn apply_view_preferences(ui: &MainWindow, settings: &AppSettings) {
+    let appearance = &settings.appearance;
+    ui.set_compact_view(appearance.compact_view);
+    // The file-name column is always shown.
+    ui.set_column_file(true);
+    ui.set_column_size(column_is_visible(&appearance.visible_columns, "size"));
+    ui.set_column_downloaded(column_is_visible(&appearance.visible_columns, "downloaded"));
+    ui.set_column_status(column_is_visible(&appearance.visible_columns, "status"));
+    ui.set_column_progress(column_is_visible(&appearance.visible_columns, "progress"));
+    ui.set_column_speed(column_is_visible(&appearance.visible_columns, "speed"));
+    ui.set_column_priority(column_is_visible(&appearance.visible_columns, "priority"));
+    ui.set_column_upload_speed(column_is_visible(&appearance.visible_columns, "uploadSpeed"));
+    ui.set_column_seeds(column_is_visible(&appearance.visible_columns, "seeds"));
+    ui.set_column_eta(column_is_visible(&appearance.visible_columns, "eta"));
+}
+
+/// Persist a user sort change into `appearance.sortKey` / `sortDirection`.
+///
+/// Failures are non-fatal (the in-memory sort already applied) and only logged:
+/// a settings write error must never block list interaction.
+fn persist_sort_preference(
+    dispatcher: &Dispatcher,
+    current_settings: &Arc<Mutex<AppSettings>>,
+    field: i32,
+    asc: bool,
+) {
+    let dispatcher = dispatcher.clone();
+    let current_settings = current_settings.clone();
+    tokio::spawn(async move {
+        let mut settings = current_settings.lock().clone();
+        let key = field_to_sort_key(field);
+        let dir = if asc {
+            SortDirection::Asc
+        } else {
+            SortDirection::Desc
+        };
+        if settings.appearance.sort_key == key && settings.appearance.sort_direction == dir {
+            return;
+        }
+        settings.appearance.sort_key = key;
+        settings.appearance.sort_direction = dir;
+        match dispatcher.save_settings(&settings).await {
+            Ok(saved) => *current_settings.lock() = saved,
+            Err(e) => tracing::debug!("persisting sort preference failed: {e:#}"),
+        }
+    });
+}
+
+/// Read the schedule editor rows out of the UI model (used before rebuilding or
+/// persisting them).
+fn read_schedule_rows(ui: &MainWindow) -> Vec<SpeedLimitSlotText> {
+    ui.get_speed_limit_slots()
+        .iter()
+        .map(|item| SpeedLimitSlotText {
+            start_hour: item.start_hour.to_string(),
+            end_hour: item.end_hour.to_string(),
+            limit_kb: item.limit_kb.to_string(),
+        })
+        .collect()
+}
+
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     let (all, downloading, paused, completed, failed) = store.counts();
     POWER_GUARD.update(downloading);
@@ -147,11 +247,16 @@ fn refresh_settings_state(
     lang: Language,
 ) {
     let io_status_str = match dispatcher.get_io_status() {
-        Ok(v) => format_io_status_json(&v),
+        Ok(v) => format_io_status_json(&v, lang),
         Err(_) => i18n::format_io_status_not_ready(lang).to_string(),
     };
     let disk_types = dispatcher.detect_all_disk_types();
-    let disk_types_str = format_disk_types_map(&disk_types);
+    let disk_types_str = format_disk_types_map(&disk_types, lang);
+    apply_view_preferences(ui, settings);
+    ui.set_speed_limit_slots(ModelRc::new(VecModel::from(speed_limit_slots_to_slint(
+        &speed_limit_slots_from_settings(settings),
+        lang,
+    ))));
 
     let form_data = app_settings_to_form(
         settings,
@@ -226,13 +331,20 @@ fn set_update_error(ui_weak: &slint::Weak<MainWindow>, msg: &str) {
     });
 }
 
-fn build_tray_menu(lang: Language) -> Menu {
+fn build_tray_menu(lang: Language, speed_limit_active: bool) -> Menu {
     let t = i18n::get_tray_strings(lang);
     let tray_menu = Menu::new();
     let menu_show = MenuItem::with_id("show", t.show_window, true, None);
     let sep1 = PredefinedMenuItem::separator();
     let menu_pause_all = MenuItem::with_id("pause_all", t.pause_all, true, None);
     let menu_resume_all = MenuItem::with_id("resume_all", t.resume_all, true, None);
+    let menu_speed_limit = CheckMenuItem::with_id(
+        "speed_limit",
+        t.speed_limit_toggle,
+        true,
+        speed_limit_active,
+        None,
+    );
     let menu_game_mode = MenuItem::with_id("game_mode", t.game_mode_toggle, true, None);
     let menu_open_dir = MenuItem::with_id("open_dir", t.open_download_dir, true, None);
     let sep2 = PredefinedMenuItem::separator();
@@ -243,6 +355,7 @@ fn build_tray_menu(lang: Language) -> Menu {
         &sep1,
         &menu_pause_all,
         &menu_resume_all,
+        &menu_speed_limit,
         &menu_game_mode,
         &menu_open_dir,
         &sep2,
@@ -250,6 +363,10 @@ fn build_tray_menu(lang: Language) -> Menu {
     ]);
     tray_menu
 }
+
+/// Speed applied when the user enables the tray "speed limit" shortcut.
+/// Mirrors the Tauri edition (1 MiB/s) so both shells behave identically.
+const TRAY_SPEED_LIMIT_BPS: u64 = 1_048_576;
 
 /// Open the new task dialog and pre-fill / trigger actions based on an incoming payload
 /// (e.g. from Drag-and-Drop, secondary instance WM_COPYDATA IPC, or cold CLI argument).
@@ -661,6 +778,14 @@ async fn main() -> anyhow::Result<()> {
     main_window.set_new_task_dir(SharedString::from(&default_download_dir));
 
     let store = Arc::new(Mutex::new(TaskStore::with_language(initial_lang)));
+    // Restore the persisted sort order before the first list render.
+    {
+        let mut s = store.lock();
+        s.apply_sort(
+            sort_key_to_field(initial_settings.appearance.sort_key),
+            matches!(initial_settings.appearance.sort_direction, SortDirection::Asc),
+        );
+    }
     let active_inspector_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let toast_queue: ToastQueue = Arc::new(Mutex::new(Vec::new()));
 
@@ -814,7 +939,38 @@ async fn main() -> anyhow::Result<()> {
             );
         };
 
-        platform_win::install_window_hooks(main_window.window(), on_drop, on_copydata);
+        // The native window handle only exists once Slint created the OS window,
+        // which happens when the event loop starts (inside `run()`). Installing
+        // the subclass here used to fail ("获取原生窗口句柄失败") and left
+        // drag-and-drop and the WM_COPYDATA IPC dead, so retry on a short timer
+        // until the handle is available (or give up after ~2 s).
+        {
+            platform_win::set_callbacks(on_drop, on_copydata);
+
+            let ui_weak = main_window.as_weak();
+            let hook_timer = Rc::new(slint::Timer::default());
+            let timer_for_cb = hook_timer.clone();
+            let mut attempts_left = 40u32;
+            hook_timer.start(
+                slint::TimerMode::Repeated,
+                Duration::from_millis(50),
+                move || {
+                    let Some(ui) = ui_weak.upgrade() else {
+                        timer_for_cb.stop();
+                        return;
+                    };
+                    if platform_win::try_install_window_hooks(ui.window()) {
+                        timer_for_cb.stop();
+                        return;
+                    }
+                    attempts_left -= 1;
+                    if attempts_left == 0 {
+                        timer_for_cb.stop();
+                        tracing::warn!("未能挂载窗口子类化处理器：拖拽与磁力链接 IPC 不可用");
+                    }
+                },
+            );
+        }
 
         // Auto-register magnet:? and limedl:// protocols in HKCU (no admin privileges required)
         let _ = protocol::register_protocols();
@@ -856,19 +1012,13 @@ async fn main() -> anyhow::Result<()> {
                         } else {
                             url
                         };
-                        let msg = match lang {
-                            Language::ZhCn => format!("检测到下载链接: {display_url}"),
-                            Language::EnUs => format!("Download link detected: {display_url}"),
-                        };
+                        let msg = i18n::format_detected_link(&display_url, lang);
                         push_toast(&ui_weak, &toast_queue_clone, msg, "info", Duration::from_secs(5));
                     }
                     crate::bridge::ClipboardPayload::BatchUrls(urls) => {
                         let lang = store_clone.lock().language();
                         let count = urls.len();
-                        let msg = match lang {
-                            Language::ZhCn => format!("检测到 {count} 个批量下载链接"),
-                            Language::EnUs => format!("Detected {count} batch download links"),
-                        };
+                        let msg = i18n::format_detected_batch(count, lang);
                         push_toast(&ui_weak, &toast_queue_clone, msg, "info", Duration::from_secs(5));
                     }
                     crate::bridge::ClipboardPayload::Empty => {}
@@ -877,8 +1027,17 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Mirror of the persisted global speed limit, used for the tray checkmark.
+    // Updated on every settings save and by the tray "speed limit" toggle.
+    let tray_speed_limit_active = Arc::new(AtomicBool::new(
+        initial_settings.global_speed_limit_bps > 0,
+    ));
+
     let tray_icon = TrayIconBuilder::new()
-        .with_menu(Box::new(build_tray_menu(initial_lang)))
+        .with_menu(Box::new(build_tray_menu(
+            initial_lang,
+            tray_speed_limit_active.load(Ordering::Relaxed),
+        )))
         .with_tooltip(i18n::get_tray_strings(initial_lang).tooltip)
         .with_icon(create_default_tray_icon())
         .build()?;
@@ -903,6 +1062,7 @@ async fn main() -> anyhow::Result<()> {
         let current_settings_clone = current_settings.clone();
 
         tokio::spawn(async move {
+            let mut warning_dedup = WarningDedup::new();
             while let Ok(event) = rx.recv().await {
                 let store = store_clone.clone();
                 let ui_weak = ui_weak.clone();
@@ -1111,7 +1271,11 @@ async fn main() -> anyhow::Result<()> {
                                 Duration::from_secs(5),
                             );
                         } else if is_error {
-                            let msg = if err_msg.is_empty() { "测速失败" } else { &err_msg };
+                            let msg = if err_msg.is_empty() {
+                                i18n::cdn_test_failed_label(current_lang)
+                            } else {
+                                &err_msg
+                            };
                             push_toast(
                                 &ui_weak,
                                 &toast_queue_clone,
@@ -1121,8 +1285,75 @@ async fn main() -> anyhow::Result<()> {
                             );
                         }
                     }
-                    _ => {}
+                    DownloadEvent::Warning { id, message } => {
+                        // Warnings originate in core (mirror failover, disk full,
+                        // anti-leech bans, …). Surface them the same way the web
+                        // client does: an in-app warning toast. Duplicate messages
+                        // are collapsed within a short window because anti-leech
+                        // bans arrive one per peer.
+                        if !warning_dedup.should_show(&id, &message) {
+                            continue;
+                        }
+                        let file_name = store.lock().get_summary(&id).map(|s| s.file_name);
+                        let text = match file_name {
+                            Some(name) if !name.is_empty() => {
+                                i18n::format_warning_with_file(&name, &message)
+                            }
+                            _ => message,
+                        };
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            text,
+                            "warning",
+                            Duration::from_secs(6),
+                        );
+                    }
+                    DownloadEvent::Aria2Notification { .. } => {
+                        // Aria2 compatibility notifications are pushed by the
+                        // Aria2 RPC server straight to connected aria2 clients
+                        // (AriaNg / Motrix); the native UI has no surface for
+                        // them, so nothing to do here.
+                    }
                 }
+            }
+        });
+    }
+
+    // BT runtime status pills (DHT nodes / upload speed / peers), matching the
+    // web client's toolbar status strip. Polled on a slow interval because the
+    // DHT node count only changes gradually.
+    {
+        let ui_weak = main_window.as_weak();
+        let dispatcher = core.dispatcher.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(2));
+            loop {
+                interval.tick().await;
+                let status = dispatcher.bt_runtime_status();
+                let ui_weak = ui_weak.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else {
+                        return;
+                    };
+                    match status {
+                        Ok(s) if s.connected => {
+                            ui.set_bt_status_visible(true);
+                            ui.set_bt_dht_text(SharedString::from(match s.dht_nodes {
+                                Some(n) if s.dht_enabled => n.to_string(),
+                                _ => "-".to_string(),
+                            }));
+                            ui.set_bt_upload_speed_text(SharedString::from(format_speed(
+                                s.upload_speed_bytes_per_second,
+                            )));
+                            ui.set_bt_peers_text(SharedString::from(s.peer_count.to_string()));
+                        }
+                        // No BT session yet (or the backend is gone): hide the
+                        // pills exactly like the web client does with a null
+                        // status payload.
+                        _ => ui.set_bt_status_visible(false),
+                    }
+                });
             }
         });
     }
@@ -1198,6 +1429,11 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let default_dir = default_download_dir.clone();
         let game_mode_active_clone = game_mode_active.clone();
+        let current_settings_tray = current_settings.clone();
+        let tray_speed_limit_active_clone = tray_speed_limit_active.clone();
+        let pending_tray_lang_tray = pending_tray_lang.clone();
+        let store_tray = store.clone();
+        let toast_queue_tray = toast_queue.clone();
 
         // Dedicated OS threads pump the *blocking* std receivers into
         // cancellable async channels. Never call `recv()` inside
@@ -1278,6 +1514,50 @@ async fn main() -> anyhow::Result<()> {
                                     });
                                 }
                             }
+                            "speed_limit" => {
+                                // Quick global speed limit shortcut: unlimited ↔ 1 MB/s.
+                                let mut settings = current_settings_tray.lock().clone();
+                                let enabling = settings.global_speed_limit_bps == 0;
+                                settings.global_speed_limit_bps = if enabling {
+                                    TRAY_SPEED_LIMIT_BPS
+                                } else {
+                                    0
+                                };
+                                let lang = store_tray.lock().language();
+                                match dispatcher.save_settings(&settings).await {
+                                    Ok(saved) => {
+                                        *current_settings_tray.lock() = saved.clone();
+                                        tray_speed_limit_active_clone.store(
+                                            saved.global_speed_limit_bps > 0,
+                                            Ordering::Relaxed,
+                                        );
+                                        // TrayIcon is !Send, so ask the UI-thread timer to
+                                        // rebuild the menu and refresh the checkmark.
+                                        *pending_tray_lang_tray.lock() = Some(Language::from_code(
+                                            &saved.appearance.language,
+                                        ));
+                                        push_toast(
+                                            &ui_weak,
+                                            &toast_queue_tray,
+                                            i18n::format_toast_speed_limit(enabling, lang),
+                                            "info",
+                                            Duration::from_secs(4),
+                                        );
+                                        let limit_kb =
+                                            (saved.global_speed_limit_bps / 1024).to_string();
+                                        let ui_weak = ui_weak.clone();
+                                        let _ = slint::invoke_from_event_loop(move || {
+                                            if let Some(ui) = ui_weak.upgrade() {
+                                                let mut form = ui.get_settings_form();
+                                                form.global_speed_limit_kb =
+                                                    SharedString::from(limit_kb);
+                                                ui.set_settings_form(form);
+                                            }
+                                        });
+                                    }
+                                    Err(e) => tracing::warn!("托盘限速切换失败: {e:#}"),
+                                }
+                            }
                             "open_dir" => {
                                 let _ = open_path_in_explorer(&default_dir);
                             }
@@ -1344,11 +1624,19 @@ async fn main() -> anyhow::Result<()> {
     {
         let ui_weak = main_window.as_weak();
         let store_clone = store.clone();
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
         main_window.on_set_sort_field(move |field_idx| {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
             if let Some(ui) = ui_weak.upgrade() {
-                let mut store = store_clone.lock();
-                store.set_sort_field(SortField::from(field_idx));
-                refresh_ui(&ui, &store);
+                let (field, asc) = {
+                    let mut store = store_clone.lock();
+                    store.set_sort_field(SortField::from(field_idx));
+                    refresh_ui(&ui, &store);
+                    (store.sort_field(), store.sort_asc())
+                };
+                persist_sort_preference(&dispatcher, &current_settings_clone, field, asc);
             }
         });
     }
@@ -1356,11 +1644,19 @@ async fn main() -> anyhow::Result<()> {
     {
         let ui_weak = main_window.as_weak();
         let store_clone = store.clone();
+        let dispatcher = core.dispatcher.clone();
+        let current_settings_clone = current_settings.clone();
         main_window.on_toggle_sort_asc(move || {
+            let dispatcher = dispatcher.clone();
+            let current_settings_clone = current_settings_clone.clone();
             if let Some(ui) = ui_weak.upgrade() {
-                let mut store = store_clone.lock();
-                store.toggle_sort_order();
-                refresh_ui(&ui, &store);
+                let (field, asc) = {
+                    let mut store = store_clone.lock();
+                    store.toggle_sort_order();
+                    refresh_ui(&ui, &store);
+                    (store.sort_field(), store.sort_asc())
+                };
+                persist_sort_preference(&dispatcher, &current_settings_clone, field, asc);
             }
         });
     }
@@ -1767,6 +2063,7 @@ async fn main() -> anyhow::Result<()> {
         let active_inspector_id_clone = active_inspector_id.clone();
         let rpc_shutdown_clone = rpc_shutdown.clone();
         let toast_queue_clone = toast_queue.clone();
+        let tray_speed_limit_settings = tray_speed_limit_active.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_save_settings(move |form_data| {
@@ -1777,6 +2074,7 @@ async fn main() -> anyhow::Result<()> {
             let active_inspector_id_clone = active_inspector_id_clone.clone();
             let rpc_shutdown = rpc_shutdown_clone.clone();
             let toast_queue = toast_queue_clone.clone();
+            let tray_speed_limit_settings = tray_speed_limit_settings.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
@@ -1787,7 +2085,28 @@ async fn main() -> anyhow::Result<()> {
                 let mut settings = old_settings.clone();
                 let lang = store_clone.lock().language();
 
-                if let Err(msg) = update_app_settings_from_form(&mut settings, &form_data) {
+                // Speed limit schedule rows live in the UI model until Save, so
+                // validate them here (a mistyped hour must not silently disable
+                // the schedule).
+                let schedule_rows = ui_weak
+                    .upgrade()
+                    .map(|ui| read_schedule_rows(&ui))
+                    .unwrap_or_default();
+                let parsed_schedule = match parse_speed_limit_slots(&schedule_rows, lang) {
+                    Ok(slots) => slots,
+                    Err(msg) => {
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_schedule_invalid(&msg, lang),
+                            "error",
+                            Duration::from_secs(8),
+                        );
+                        return;
+                    }
+                };
+
+                if let Err(msg) = update_app_settings_from_form(&mut settings, &form_data, lang) {
                     tracing::error!("设置表单校验失败: {msg}");
                     push_toast(
                         &ui_weak,
@@ -1798,6 +2117,8 @@ async fn main() -> anyhow::Result<()> {
                     );
                     return;
                 }
+
+                settings.speed_limit_schedule = parsed_schedule;
 
                 match dispatcher.save_settings(&settings).await {
                     Ok(saved) => {
@@ -1858,6 +2179,12 @@ async fn main() -> anyhow::Result<()> {
                             }
                         }
                         *current_settings_clone.lock() = saved.clone();
+                        // Keep the tray speed-limit checkmark in sync with the
+                        // limit edited inside the settings dialog.
+                        tray_speed_limit_settings.store(
+                            saved.global_speed_limit_bps > 0,
+                            Ordering::Relaxed,
+                        );
                         let default_dir = saved.download.default_download_dir.clone();
                         let new_lang = Language::from_code(&saved.appearance.language);
                         let new_color_mode = saved.appearance.color_mode;
@@ -1900,7 +2227,7 @@ async fn main() -> anyhow::Result<()> {
                         let msg = format!("{err:#}");
                         let _ = Notification::new()
                             .appname("limedl")
-                            .summary("保存设置失败")
+                            .summary(i18n::format_notification_settings_save_failed(lang))
                             .body(&msg)
                             .show();
                         push_toast(
@@ -2291,10 +2618,15 @@ async fn main() -> anyhow::Result<()> {
                     Ok(task_id) => {
                         tracing::info!("成功添加下载任务: {task_id}");
                         let lang = store_clone.lock().language();
+                        let display_name = if file_name.is_empty() {
+                            i18n::format_unnamed_task(lang)
+                        } else {
+                            file_name.as_str()
+                        };
                         push_toast(
                             &ui_weak,
                             &toast_queue_clone,
-                            i18n::format_toast_task_added(if file_name.is_empty() { "下载任务" } else { &file_name }, lang),
+                            i18n::format_toast_task_added(display_name, lang),
                             "success",
                             Duration::from_secs(4),
                         );
@@ -2421,6 +2753,207 @@ async fn main() -> anyhow::Result<()> {
                     });
                 }
             });
+        });
+    }
+
+    // Set task priority (from the priority popup opened by the table badge or
+    // the task context menu).
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_set_task_priority(move |id_str, priority_code| {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let ui_weak = ui_weak.clone();
+            let id_str = id_str.to_string();
+            let priority_code = priority_code.to_string();
+            tokio::spawn(async move {
+                let lang = store_clone.lock().language();
+                let priority = str_to_priority(&priority_code);
+                let file_name = store_clone
+                    .lock()
+                    .get_summary(&id_str)
+                    .map(|s| s.file_name)
+                    .unwrap_or_default();
+                let Ok(task_id) = TaskId::from_wire_string(&id_str) else {
+                    tracing::warn!("优先级设置失败: 无法解析任务 ID {id_str}");
+                    return;
+                };
+                match dispatcher.set_priority(&task_id, priority).await {
+                    Ok(()) => push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_priority_set(&file_name, priority, lang),
+                        "info",
+                        Duration::from_secs(4),
+                    ),
+                    Err(err) => {
+                        tracing::error!("优先级设置失败: {err:#}");
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_priority_failed(&format!("{err:#}"), lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
+                    }
+                }
+            });
+        });
+    }
+
+    // Toggle BT file inclusion for an existing task (Inspector → Files).
+    // Mirrors the web client: the backend gets the full included index list and
+    // at least one file must stay selected.
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let active_inspector_id_clone = active_inspector_id.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_toggle_inspector_file(move |index, currently_included| {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let active_inspector_id_clone = active_inspector_id_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let ui_weak = ui_weak.clone();
+            if let Some(ui) = ui_weak.upgrade() {
+                let files = ui.get_inspector_files();
+                let mut included: Vec<usize> = Vec::new();
+                for file in files.iter() {
+                    let is_target = file.index == index;
+                    let keep = if is_target {
+                        !currently_included
+                    } else {
+                        file.included
+                    };
+                    if keep {
+                        included.push(file.index as usize);
+                    }
+                }
+                if included.is_empty() {
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_bt_files_keep_one(store_clone.lock().language())
+                            .to_string(),
+                        "warning",
+                        Duration::from_secs(5),
+                    );
+                    return;
+                }
+                let Some(task_id_str) = active_inspector_id_clone.lock().clone() else {
+                    return;
+                };
+                let Ok(task_id) = TaskId::from_wire_string(&task_id_str) else {
+                    return;
+                };
+                tokio::spawn(async move {
+                    let lang = store_clone.lock().language();
+                    if let Err(err) = dispatcher.bt_update_files(&task_id, included).await {
+                        tracing::error!("更新 BT 文件选择失败: {err:#}");
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_bt_files_failed(&format!("{err:#}"), lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
+                    }
+                });
+            }
+        });
+    }
+
+    // ── Speed limit schedule callbacks ───────────────────────────────────
+    // The VecModel behind `speed_limit_slots` is the authoritative editor state;
+    // it is parsed and persisted by the settings Save handler.
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_schedule_set_enabled(move |enabled| {
+            let lang = store_clone.lock().language();
+            if let Some(ui) = ui_weak.upgrade() {
+                let rows: Vec<SpeedLimitSlotText> = if enabled {
+                    vec![SpeedLimitSlotText::default()]
+                } else {
+                    Vec::new()
+                };
+                ui.set_speed_limit_slots(ModelRc::new(VecModel::from(speed_limit_slots_to_slint(
+                    &rows, lang,
+                ))));
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_schedule_add(move || {
+            let lang = store_clone.lock().language();
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut rows = read_schedule_rows(&ui);
+                rows.push(SpeedLimitSlotText::default());
+                ui.set_speed_limit_slots(ModelRc::new(VecModel::from(speed_limit_slots_to_slint(
+                    &rows, lang,
+                ))));
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_schedule_remove(move |idx| {
+            let lang = store_clone.lock().language();
+            if let Some(ui) = ui_weak.upgrade() {
+                let mut rows = read_schedule_rows(&ui);
+                let idx = idx.max(0) as usize;
+                if idx < rows.len() {
+                    rows.remove(idx);
+                }
+                ui.set_speed_limit_slots(ModelRc::new(VecModel::from(speed_limit_slots_to_slint(
+                    &rows, lang,
+                ))));
+            }
+        });
+    }
+
+    {
+        let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
+        main_window.on_schedule_update(move |idx, field, value| {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
+            let lang = store_clone.lock().language();
+            let model = ui.get_speed_limit_slots();
+            let Some(vec_model) = model.as_any().downcast_ref::<VecModel<SpeedLimitSlotItem>>()
+            else {
+                return;
+            };
+            let idx = idx.max(0) as usize;
+            let Some(mut item) = vec_model.row_data(idx) else {
+                return;
+            };
+            match field.as_str() {
+                "start" => item.start_hour = value.clone(),
+                "end" => item.end_hour = value.clone(),
+                "limit" => item.limit_kb = value.clone(),
+                _ => return,
+            }
+            // Refresh the derived row text (range summary + midnight marker)
+            // without rebuilding the model, so the focused input keeps its caret.
+            let start = item.start_hour.trim().parse::<u32>().unwrap_or(0).min(23);
+            let end = item.end_hour.trim().parse::<u32>().unwrap_or(0).min(23);
+            let limit = item.limit_kb.trim().parse::<u64>().unwrap_or(0);
+            item.wraps = start >= end;
+            item.summary =
+                SharedString::from(i18n::format_schedule_summary(start, end, limit, lang));
+            vec_model.set_row_data(idx, item);
         });
     }
 
@@ -2566,6 +3099,62 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Clear Completed: drop the records of every finished task (files stay on
+    // disk, matching the web client's "clear completed" action).
+    {
+        let dispatcher = core.dispatcher.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_clear_completed(move || {
+            let dispatcher = dispatcher.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                let lang = store_clone.lock().language();
+                let Ok(list) = dispatcher.list().await else {
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_clear_completed_failed(lang).to_string(),
+                        "error",
+                        Duration::from_secs(5),
+                    );
+                    return;
+                };
+                let mut cleared = 0usize;
+                for item in list {
+                    if !matches!(item.state, DownloadState::Completed) {
+                        continue;
+                    }
+                    if let Ok(task_id) = TaskId::from_wire_string(&item.id)
+                        && dispatcher.remove(&task_id).await.is_ok()
+                    {
+                        cleared += 1;
+                    }
+                }
+                if cleared == 0 {
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_clear_completed_none(lang).to_string(),
+                        "info",
+                        Duration::from_secs(4),
+                    );
+                    return;
+                }
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_clear_completed(cleared, lang),
+                    "success",
+                    Duration::from_secs(4),
+                );
+            });
+        });
+    }
+
     // Pick Torrent File (Native Dialog) + start file pre-selection preview
     {
         let ui_weak = main_window.as_weak();
@@ -2580,9 +3169,10 @@ async fn main() -> anyhow::Result<()> {
             let entries_cache = entries_cache.clone();
             let included_cache = included_cache.clone();
             tokio::spawn(async move {
+                let lang = store_clone.lock().language();
                 let file = rfd::AsyncFileDialog::new()
                     .add_filter("Torrent Files", &["torrent", "TORRENT"])
-                    .set_title("选择 Torrent 种子文件")
+                    .set_title(i18n::pick_torrent_title(lang))
                     .pick_file()
                     .await;
 
@@ -2654,11 +3244,14 @@ async fn main() -> anyhow::Result<()> {
     // Pick Save Folder (Native Dialog)
     {
         let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
         main_window.on_pick_save_folder(move || {
             let ui_weak = ui_weak.clone();
+            let store_clone = store_clone.clone();
             tokio::spawn(async move {
+                let lang = store_clone.lock().language();
                 let folder = rfd::AsyncFileDialog::new()
-                    .set_title("选择下载保存目录")
+                    .set_title(i18n::pick_download_dir_title(lang))
                     .pick_folder()
                     .await;
 
@@ -2677,11 +3270,14 @@ async fn main() -> anyhow::Result<()> {
     // Pick Default Save Folder in Settings (Native Dialog)
     {
         let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
         main_window.on_pick_default_folder(move || {
             let ui_weak = ui_weak.clone();
+            let store_clone = store_clone.clone();
             tokio::spawn(async move {
+                let lang = store_clone.lock().language();
                 let folder = rfd::AsyncFileDialog::new()
-                    .set_title("选择默认下载保存目录")
+                    .set_title(i18n::pick_download_dir_title(lang))
                     .pick_folder()
                     .await;
 
@@ -2756,11 +3352,14 @@ async fn main() -> anyhow::Result<()> {
     // Pick Log Folder (Native Dialog)
     {
         let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
         main_window.on_pick_log_folder(move || {
             let ui_weak = ui_weak.clone();
+            let store_clone = store_clone.clone();
             tokio::spawn(async move {
+                let lang = store_clone.lock().language();
                 let folder = rfd::AsyncFileDialog::new()
-                    .set_title("选择日志保存目录")
+                    .set_title(i18n::pick_log_dir_title(lang))
                     .pick_folder()
                     .await;
 
@@ -2917,11 +3516,14 @@ async fn main() -> anyhow::Result<()> {
     // Directory picker for the wizard (native dialog).
     {
         let ui_weak = main_window.as_weak();
+        let store_clone = store.clone();
         main_window.on_pick_setup_directory(move || {
             let ui_weak = ui_weak.clone();
+            let store_clone = store_clone.clone();
             tokio::spawn(async move {
+                let lang = store_clone.lock().language();
                 let folder = rfd::AsyncFileDialog::new()
-                    .set_title("选择默认下载保存目录")
+                    .set_title(i18n::pick_download_dir_title(lang))
                     .pick_folder()
                     .await;
                 if let Some(handle) = folder {
@@ -2947,6 +3549,7 @@ async fn main() -> anyhow::Result<()> {
         let pending_tray_lang_clone = pending_tray_lang.clone();
         let rpc_shutdown_clone = rpc_shutdown.clone();
         let toast_queue_clone = toast_queue.clone();
+        let tray_speed_limit_setup = tray_speed_limit_active.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_finish_setup(move |form| {
@@ -2956,6 +3559,7 @@ async fn main() -> anyhow::Result<()> {
             let pending_tray_lang_clone = pending_tray_lang_clone.clone();
             let rpc_shutdown = rpc_shutdown_clone.clone();
             let toast_queue = toast_queue_clone.clone();
+            let tray_speed_limit_setup = tray_speed_limit_setup.clone();
             let ui_weak = ui_weak.clone();
 
             tokio::spawn(async move {
@@ -2966,7 +3570,7 @@ async fn main() -> anyhow::Result<()> {
                 let mut settings = old_settings.clone();
                 let lang = store_clone.lock().language();
 
-                if let Err(msg) = update_app_settings_from_setup_form(&mut settings, &form) {
+                if let Err(msg) = update_app_settings_from_setup_form(&mut settings, &form, lang) {
                     tracing::error!("设置向导表单校验失败: {msg}");
                     push_toast(
                         &ui_weak,
@@ -3036,6 +3640,10 @@ async fn main() -> anyhow::Result<()> {
                         }
 
                         *current_settings_clone.lock() = saved.clone();
+                        tray_speed_limit_setup.store(
+                            saved.global_speed_limit_bps > 0,
+                            Ordering::Relaxed,
+                        );
                         let default_dir = saved.download.default_download_dir.clone();
                         let new_lang = Language::from_code(&saved.appearance.language);
                         let new_color_mode = saved.appearance.color_mode;
@@ -3111,6 +3719,81 @@ async fn main() -> anyhow::Result<()> {
                         ui.set_show_setup_wizard(true);
                     }
                 });
+            });
+        });
+    }
+
+    // Factory reset: shut the backends down, delete the whole data directory
+    // (settings.json + downloads/ incl. the SQLite database) and restart the
+    // process so the first-run wizard comes back. Mirrors the Tauri edition.
+    {
+        let dispatcher = core.dispatcher.clone();
+        let registry = core.registry.clone();
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
+        let data_dir = base_dir.clone();
+        main_window.on_factory_reset(move || {
+            let dispatcher = dispatcher.clone();
+            let registry = registry.clone();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let ui_weak = ui_weak.clone();
+            let data_dir = data_dir.clone();
+            tokio::spawn(async move {
+                let lang = store_clone.lock().language();
+                // 1. Stop every backend so no file handle survives the wipe.
+                registry.shutdown_all().await;
+                // 2. Reset the in-memory settings first (the file is deleted
+                //    afterwards, so a failure here must not leave stale state).
+                let _ = dispatcher.factory_reset().await;
+                // 3. Delete the data directory, retrying briefly for Windows
+                //    file locking before giving up.
+                let mut last_err: Option<std::io::Error> = None;
+                for attempt in 0..3u8 {
+                    match std::fs::remove_dir_all(&data_dir) {
+                        Ok(()) => {
+                            last_err = None;
+                            break;
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                            last_err = None;
+                            break;
+                        }
+                        Err(e) => {
+                            last_err = Some(e);
+                            if attempt < 2 {
+                                tokio::time::sleep(Duration::from_millis(500)).await;
+                            }
+                        }
+                    }
+                }
+                if let Some(e) = last_err {
+                    tracing::error!("工厂重置失败: {e:#}");
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_factory_reset_failed(&format!("{e:#}"), lang),
+                        "error",
+                        Duration::from_secs(8),
+                    );
+                    return;
+                }
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_factory_reset_done(lang).to_string(),
+                    "success",
+                    Duration::from_secs(4),
+                );
+                // 4. Relaunch into a fresh state (spawns a new process and
+                //    exits the current one).
+                POWER_GUARD.release();
+                tokio::time::sleep(Duration::from_millis(600)).await;
+                if let Err(e) = crate::update::restart_application() {
+                    tracing::error!("工厂重置后重启失败: {e:#}");
+                    std::process::exit(0);
+                }
             });
         });
     }
@@ -3443,6 +4126,7 @@ async fn main() -> anyhow::Result<()> {
                 if let Some(cs) = dispatcher.cdn_service() {
                     cs.clear().await;
                     cdn_candidates_cache_clone.lock().clear();
+                    let lang = store_clone.lock().language();
                     let mut settings = current_settings_clone.lock().clone();
                     settings.cdn_acceleration.active_ip = None;
                     settings.cdn_acceleration.active_speed_mbps = None;
@@ -3454,7 +4138,7 @@ async fn main() -> anyhow::Result<()> {
                     push_toast(
                         &ui_weak,
                         &toast_queue,
-                        i18n::format_toast_cdn_cleared(store_clone.lock().language()).to_string(),
+                        i18n::format_toast_cdn_cleared(lang).to_string(),
                         "info",
                         Duration::from_secs(4),
                     );
@@ -3464,7 +4148,7 @@ async fn main() -> anyhow::Result<()> {
                             form.cdn_active_ip = SharedString::default();
                             form.cdn_active_speed_text = SharedString::default();
                             form.cdn_status_type = SharedString::from("idle");
-                            form.cdn_status_label = SharedString::from("未配置");
+                            form.cdn_status_label = SharedString::from(i18n::cdn_idle_label(lang));
                             ui.set_labs_form(form);
                             ui.set_cdn_candidates(cdn_candidates_to_slint(&[], ""));
                         }
@@ -3494,6 +4178,7 @@ async fn main() -> anyhow::Result<()> {
 
             tokio::spawn(async move {
                 if let (Some(cs), Ok(ip)) = (dispatcher.cdn_service(), ip_parsed) {
+                    let lang = store_clone.lock().language();
                     let settings = current_settings_clone.lock().clone();
                     if let Ok(()) = cs.apply_ip(ip, speed_mbps as f64, &settings).await {
                         let mut updated_settings = settings.clone();
@@ -3506,7 +4191,7 @@ async fn main() -> anyhow::Result<()> {
                         push_toast(
                             &ui_weak,
                             &toast_queue,
-                            i18n::format_toast_cdn_applied(&ip.to_string(), store_clone.lock().language()),
+                            i18n::format_toast_cdn_applied(&ip.to_string(), lang),
                             "success",
                             Duration::from_secs(4),
                         );
@@ -3518,7 +4203,7 @@ async fn main() -> anyhow::Result<()> {
                                 form.cdn_active_ip = SharedString::from(ip.to_string());
                                 form.cdn_active_speed_text = SharedString::from(format!("{speed_mbps:.2} MB/s"));
                                 form.cdn_status_type = SharedString::from("ready");
-                                form.cdn_status_label = SharedString::from("准备就绪");
+                                form.cdn_status_label = SharedString::from(i18n::cdn_ready_label(lang));
                                 ui.set_labs_form(form);
                                 ui.set_cdn_candidates(cdn_candidates_to_slint(&cands, &ip.to_string()));
                             }
@@ -3562,6 +4247,7 @@ async fn main() -> anyhow::Result<()> {
 
                     tokio::spawn(async move {
                         if let Some(cs) = dispatcher.cdn_service() {
+                            let lang = store_clone.lock().language();
                             let settings = current_settings_clone.lock().clone();
                             if let Ok(()) = cs.apply_ip(ip, 0.0, &settings).await {
                                 let mut updated_settings = settings.clone();
@@ -3573,7 +4259,7 @@ async fn main() -> anyhow::Result<()> {
                                 push_toast(
                                     &ui_weak,
                                     &toast_queue_clone,
-                                    i18n::format_toast_cdn_applied(&ip.to_string(), store_clone.lock().language()),
+                                    i18n::format_toast_cdn_applied(&ip.to_string(), lang),
                                     "success",
                                     Duration::from_secs(4),
                                 );
@@ -3585,7 +4271,7 @@ async fn main() -> anyhow::Result<()> {
                                         form.cdn_active_ip = SharedString::from(ip.to_string());
                                         form.cdn_manual_ip_error = SharedString::default();
                                         form.cdn_status_type = SharedString::from("ready");
-                                        form.cdn_status_label = SharedString::from("准备就绪");
+                                        form.cdn_status_label = SharedString::from(i18n::cdn_ready_label(lang));
                                         ui.set_labs_form(form);
                                         ui.set_cdn_candidates(cdn_candidates_to_slint(&cands, &ip.to_string()));
                                     }
@@ -3597,7 +4283,8 @@ async fn main() -> anyhow::Result<()> {
                 Err(_) => {
                     if let Some(ui) = ui_weak.upgrade() {
                         let mut form = ui.get_labs_form();
-                        form.cdn_manual_ip_error = SharedString::from("无效的 IP 地址格式");
+                        form.cdn_manual_ip_error =
+                            SharedString::from(i18n::format_invalid_ip(store_cl.lock().language()));
                         ui.set_labs_form(form);
                     }
                 }
@@ -3612,10 +4299,12 @@ async fn main() -> anyhow::Result<()> {
         let rewrite_rules_clone = rewrite_rules.clone();
         let expanded_rule_ids_clone = expanded_rule_ids.clone();
         let sandbox_test_url_clone = sandbox_test_url.clone();
+        let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_import_rewrite_preset(move |preset_key| {
-            if let Some(rule) = create_url_rewrite_preset(&preset_key) {
+            let lang = store_clone.lock().language();
+            if let Some(rule) = create_url_rewrite_preset(&preset_key, lang) {
                 let mut rules = rewrite_rules_clone.lock();
                 rules.retain(|r| r.name != rule.name);
                 rules.push(rule);
@@ -3641,6 +4330,7 @@ async fn main() -> anyhow::Result<()> {
     {
         let rewrite_rules_clone = rewrite_rules.clone();
         let expanded_rule_ids_clone = expanded_rule_ids.clone();
+        let store_clone = store.clone();
         let ui_weak = main_window.as_weak();
 
         main_window.on_add_custom_rule(move || {
@@ -3650,7 +4340,7 @@ async fn main() -> anyhow::Result<()> {
             expanded_rule_ids_clone.lock().insert(id.clone());
             rules.push(UrlRewriteRule {
                 id,
-                name: "新建自定义规则".to_string(),
+                name: i18n::new_rewrite_rule_name(store_clone.lock().language()).to_string(),
                 enabled: true,
                 match_type: MatchType::Host,
                 pattern: "*.example.com".to_string(),
@@ -4137,9 +4827,13 @@ async fn main() -> anyhow::Result<()> {
         std::time::Duration::from_millis(250),
         {
             let pending_tray_lang_clone = pending_tray_lang.clone();
+            let tray_speed_limit_clone = tray_speed_limit_active.clone();
             move || {
                 if let Some(lang) = pending_tray_lang_clone.lock().take() {
-                    tray_icon.set_menu(Some(Box::new(build_tray_menu(lang))));
+                    tray_icon.set_menu(Some(Box::new(build_tray_menu(
+                        lang,
+                        tray_speed_limit_clone.load(Ordering::Relaxed),
+                    ))));
                     let _ = tray_icon.set_tooltip(Some(i18n::get_tray_strings(lang).tooltip));
                 }
             }
@@ -4410,6 +5104,11 @@ fn percent_decode(input: &str) -> String {
 }
 
 fn dirs_or_temp_dir() -> PathBuf {
+    // Explicit override (same env var the headless server honors) — makes it
+    // possible to run a throwaway instance against a temp data dir.
+    if let Some(dir) = std::env::var_os("LIMEDL_DATA_DIR") {
+        return PathBuf::from(dir);
+    }
     if let Some(dir) = dirs_local_data_dir() {
         dir.join("limedl")
     } else {

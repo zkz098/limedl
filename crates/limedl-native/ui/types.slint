@@ -9,6 +9,11 @@ export struct TaskItem {
     speed_text: string,
     size_text: string,
     eta_text: string,
+    downloaded_text: string,
+    upload_speed_text: string,
+    seeds_text: string,
+    priority_code: string, // high / normal / low
+    priority_label: string,
     can_pause: bool,
     can_resume: bool,
     is_completed: bool,
@@ -130,6 +135,16 @@ export struct LabsFormData {
     url_rewrite_test_result_3: string,
 }
 
+/// One speed-limit schedule row (hour range + limit), edited in the Scheduler
+/// tab and persisted as `AppSettings.speedLimitSchedule`.
+export struct SpeedLimitSlotItem {
+    start_hour: string, // "0".."23"
+    end_hour: string, // "0".."23"; end <= start means the range wraps midnight
+    limit_kb: string, // "0" = unlimited
+    wraps: bool,
+    summary: string, // pre-formatted "22:00 → 06:00 · 512 KB/s"
+}
+
 export struct SettingsFormData {
     // ── 常规下载 ──
     default_download_dir: string,
@@ -146,6 +161,18 @@ export struct SettingsFormData {
     appearance_language_idx: int, // index into combo::LANGUAGES (zh-CN/en-US)
     appearance_close_behavior_idx: int, // index into combo::CLOSE_BEHAVIORS (minimizeToTray/exit)
     appearance_show_detail_info: bool,
+    appearance_compact_view: bool,
+    // Table column visibility (mirrors AppSettings.appearance.visibleColumns)
+    appearance_column_file: bool,
+    appearance_column_size: bool,
+    appearance_column_downloaded: bool,
+    appearance_column_status: bool,
+    appearance_column_progress: bool,
+    appearance_column_speed: bool,
+    appearance_column_priority: bool,
+    appearance_column_upload_speed: bool,
+    appearance_column_seeds: bool,
+    appearance_column_eta: bool,
     autostart: bool,
     notifications_enabled: bool,
     double_click_completed_idx: int, // index into combo::DOUBLE_CLICK_COMPLETED
@@ -279,6 +306,7 @@ export struct ContextMenuState {
     can_pause: bool,
     can_resume: bool,
     is_bt: bool,
+    priority_code: string, // current priority of the task (high/normal/low)
 }
 
 /// Self-update state machine, driven from Rust and rendered by the About tab.

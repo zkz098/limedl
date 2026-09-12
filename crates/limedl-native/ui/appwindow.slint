@@ -40,6 +40,7 @@ import {
     UrlRewriteRuleItem,
     LabsFormData,
     SetupFormData,
+    SpeedLimitSlotItem,
     ToastItem,
     UpdateState,
 } from "types.slint";
@@ -51,7 +52,6 @@ import {
     SearchInput,
     SecondaryButton,
 } from "components/common.slint";
-
 import { TaskCard } from "components/task_card.slint";
 import { TaskTable } from "components/task_table.slint";
 import { ContextMenu } from "components/context_menu.slint";
@@ -63,6 +63,45 @@ import { SpeedLimitDialog } from "components/speed_limit_dialog.slint";
 import { SettingsDialog } from "components/settings_dialog.slint";
 import { LabsDialog } from "components/labs_dialog.slint";
 import { SetupWizard } from "components/setup_wizard.slint";
+import { PriorityMenu } from "components/priority_menu.slint";
+
+/// Compact pill showing one BT runtime metric in the top toolbar
+/// (DHT node count / upload speed / connected peers).
+component BtStatPill inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+
+    height: 24px;
+    border-radius: 12px;
+    background: Theme.c181b22;
+    border-color: Theme.c252b36;
+    border-width: 1px;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 4px;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: Theme.c4ade80;
+                width: 12px;
+                height: 12px;
+                image-fit: contain;
+            }
+        }
+
+        Text {
+            text: root.text;
+            color: Theme.c9ca3af;
+            font-size: 11px;
+            vertical-alignment: center;
+        }
+    }
+}
 
 export component MainWindow inherits Window {
     title: "limedl - Native";
@@ -88,6 +127,8 @@ export component MainWindow inherits Window {
             root.close_inspector();
         } else if root.show_speed_limit_dialog {
             root.close_speed_limit_dialog();
+        } else if root.priority_menu_visible {
+            root.priority_menu_visible = false;
         } else if root.context_menu_state.visible {
             root.context_menu_state.visible = false;
         } else if root.background_menu_visible {
@@ -109,6 +150,11 @@ export component MainWindow inherits Window {
     in property <string> count_completed: "0";
     in property <string> count_failed: "0";
     in property <string> global_speed_text: "0 B/s";
+    // BT runtime status pills (hidden while the BT backend is unavailable).
+    in property <bool> bt_status_visible: false;
+    in property <string> bt_dht_text: "0";
+    in property <string> bt_upload_speed_text: "0 B/s";
+    in property <string> bt_peers_text: "0";
     in property <string> default_download_dir: "";
     in property <bool> show_new_task_dialog: false;
 
@@ -131,6 +177,30 @@ export component MainWindow inherits Window {
     in property <bool> show_speed_limit_dialog: false;
     in-out property <string> speed_limit_dl_kb: "0";
     in-out property <string> speed_limit_ul_kb: "0";
+
+    // Table layout / density (Appearance → table columns + compact view)
+    in property <bool> compact_view: false;
+    in property <bool> column_file: true;
+    in property <bool> column_size: true;
+    in property <bool> column_downloaded: true;
+    in property <bool> column_status: true;
+    in property <bool> column_progress: true;
+    in property <bool> column_speed: true;
+    in property <bool> column_priority: true;
+    in property <bool> column_upload_speed: false;
+    in property <bool> column_seeds: false;
+    in property <bool> column_eta: true;
+
+    // Speed limit schedule editor rows (authoritative: the VecModel behind this
+    // property; persisted on Save).
+    in-out property <[SpeedLimitSlotItem]> speed_limit_slots: [];
+
+    // Priority popup menu (opened from the table badge or task context menu)
+    in-out property <bool> priority_menu_visible: false;
+    in-out property <length> priority_menu_x: 0px;
+    in-out property <length> priority_menu_y: 0px;
+    in-out property <string> priority_menu_task_id: "";
+    in-out property <string> priority_menu_current: "normal";
 
     // Phase 4: Settings & Performance Modes state
     in property <bool> show_settings: false;
@@ -210,6 +280,7 @@ export component MainWindow inherits Window {
     callback submit_new_task(string, string, string);
     callback pause_all();
     callback resume_all();
+    callback clear_completed();
     callback pause_task(string);
     callback resume_task(string);
     callback open_task_explorer(string);
@@ -291,6 +362,13 @@ export component MainWindow inherits Window {
     callback open_font_license();
     callback copy_task_url(string);
     callback purge_single_task(string);
+    callback set_task_priority(string, string); // task_id, priority code
+    callback toggle_inspector_file(int, bool); // file index, currently included
+    // Speed limit schedule editing
+    callback schedule_set_enabled(bool);
+    callback schedule_add();
+    callback schedule_remove(int);
+    callback schedule_update(int, string, string); // index, field, value
 
     // Setup wizard callbacks
     callback close_setup_wizard(int);
@@ -299,6 +377,7 @@ export component MainWindow inherits Window {
     callback setup_set_language(int);
     callback setup_set_appearance(int, int);
     callback restart_setup();
+    callback factory_reset();
 
     // In-app toast dismiss (auto-expire also handled in Rust)
     callback dismiss_toast(int);
@@ -704,6 +783,34 @@ export component MainWindow inherits Window {
                             clicked => { root.toggle_view_mode(); }
                         }
 
+                        // BT runtime status pills (DHT nodes / upload speed / peers)
+                        if root.bt_status_visible : HorizontalLayout {
+                            spacing: 6px;
+                            alignment: center;
+
+                            BtStatPill {
+                                icon: @image-url("assets/icons/global-line.svg");
+                                text: root.bt_dht_text;
+                            }
+                            BtStatPill {
+                                icon: @image-url("assets/icons/file-upload-line.svg");
+                                text: root.bt_upload_speed_text;
+                            }
+                            BtStatPill {
+                                icon: @image-url("assets/icons/group-line.svg");
+                                text: root.bt_peers_text;
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 1px;
+                                    height: 20px;
+                                    background: Theme.c242934;
+                                }
+                            }
+                        }
+
                         VerticalLayout {
                             alignment: center;
                             Rectangle {
@@ -773,6 +880,12 @@ export component MainWindow inherits Window {
                             text: @tr("Resume All");
                             icon: @image-url("assets/icons/play-line.svg");
                             clicked => { root.resume_all(); }
+                        }
+
+                        SecondaryButton {
+                            text: @tr("Clear Completed");
+                            icon: @image-url("assets/icons/eraser-line.svg");
+                            clicked => { root.clear_completed(); }
                         }
 
                         PrimaryButton {
@@ -857,6 +970,7 @@ export component MainWindow inherits Window {
 
                         for task[idx] in root.tasks : task_card := TaskCard {
                             item: task;
+                            compact: root.compact_view;
                             toggle_select => { root.toggle_select_task(task.id); }
                             range_select => { root.range_select_task(task.id); }
                             open_inspector => { root.open_inspector(task.id); }
@@ -880,6 +994,7 @@ export component MainWindow inherits Window {
                                     can_pause: task.can_pause,
                                     can_resume: task.can_resume,
                                     is_bt: task.kind == "bt",
+                                    priority_code: task.priority_code,
                                 };
                             }
                         }
@@ -891,6 +1006,17 @@ export component MainWindow inherits Window {
                     sort_field: root.sort_field;
                     sort_asc: root.sort_asc;
                     selected_count: root.selected_count;
+                    compact: root.compact_view;
+                    column_file: root.column_file;
+                    column_size: root.column_size;
+                    column_downloaded: root.column_downloaded;
+                    column_status: root.column_status;
+                    column_progress: root.column_progress;
+                    column_speed: root.column_speed;
+                    column_priority: root.column_priority;
+                    column_upload_speed: root.column_upload_speed;
+                    column_seeds: root.column_seeds;
+                    column_eta: root.column_eta;
                     toggle_select(id) => { root.toggle_select_task(id); }
                     range_select(id) => { root.range_select_task(id); }
                     open_inspector(id) => { root.open_inspector(id); }
@@ -900,6 +1026,13 @@ export component MainWindow inherits Window {
                     remove_task(id) => { root.remove_task(id); }
                     double_clicked(id) => { root.task_double_clicked(id); }
                     header_sort_clicked(f) => { root.table_sort_clicked(f); }
+                    show_priority_menu(t, mx, my) => {
+                        root.priority_menu_task_id = t.id;
+                        root.priority_menu_current = t.priority_code;
+                        root.priority_menu_x = mx;
+                        root.priority_menu_y = my;
+                        root.priority_menu_visible = true;
+                    }
                     show_menu(t, mx, my) => {
                         root.context_menu_state = {
                             visible: true,
@@ -911,6 +1044,7 @@ export component MainWindow inherits Window {
                             can_pause: t.can_pause,
                             can_resume: t.can_resume,
                             is_bt: t.kind == "bt",
+                            priority_code: t.priority_code,
                         };
                     }
                 }
@@ -1002,8 +1136,28 @@ export component MainWindow inherits Window {
         open_explorer(id) => { root.open_task_explorer(id); }
         copy_url(url) => { root.copy_task_url(url); }
         open_speed_limit(id) => { root.open_inspector(id); root.open_speed_limit_dialog(); }
+        set_priority(id) => {
+            // Open the popup anchored under the task's row (the context menu
+            // already knows the row it was opened from).
+            root.priority_menu_task_id = id;
+            root.priority_menu_current = root.context_menu_state.priority_code;
+            root.priority_menu_x = root.context_menu_state.x;
+            root.priority_menu_y = root.context_menu_state.y;
+            root.priority_menu_visible = true;
+        }
         remove_task(id) => { root.remove_task(id); }
         purge_task(id) => { root.purge_single_task(id); }
+    }
+
+    // Priority popup menu (table badge / task context menu)
+    PriorityMenu {
+        is_open: root.priority_menu_visible;
+        menu_x: root.priority_menu_x;
+        menu_y: root.priority_menu_y;
+        task_id: root.priority_menu_task_id;
+        current_priority: root.priority_menu_current;
+        close => { root.priority_menu_visible = false; }
+        pick(id, code) => { root.set_task_priority(id, code); }
     }
 
     // Dialog: Settings Center
@@ -1011,6 +1165,7 @@ export component MainWindow inherits Window {
         is_open: root.show_settings;
         settings_tab: root.settings_tab;
         settings_form <=> root.settings_form;
+        speed_limit_slots <=> root.speed_limit_slots;
         update_state <=> root.update_state;
         close => { root.close_settings(); }
         set_tab(tab) => { root.set_settings_tab(tab); }
@@ -1026,6 +1181,11 @@ export component MainWindow inherits Window {
         start_download => { root.start_update_download(); }
         restart_now => { root.restart_after_update(); }
         restart_setup => { root.restart_setup(); }
+        factory_reset => { root.factory_reset(); }
+        schedule_set_enabled(enabled) => { root.schedule_set_enabled(enabled); }
+        schedule_add => { root.schedule_add(); }
+        schedule_remove(idx) => { root.schedule_remove(idx); }
+        schedule_update(idx, field, value) => { root.schedule_update(idx, field, value); }
     }
 
     // Dialog: Labs (CDN Acceleration & URL Rewrite)
@@ -1076,6 +1236,7 @@ export component MainWindow inherits Window {
         set_tab(tab) => { root.set_inspector_tab(tab); }
         open_speed_limit => { root.open_speed_limit_dialog(); }
         open_explorer(id) => { root.open_task_explorer(id); }
+        toggle_file(idx, included) => { root.toggle_inspector_file(idx, included); }
     }
 
     // Dialog: Speed Limit

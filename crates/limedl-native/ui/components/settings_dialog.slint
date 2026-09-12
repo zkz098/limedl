@@ -1,10 +1,12 @@
 import { ScrollView } from "std-widgets.slint";
 
 import { Theme } from "../theme.slint";
-import { SettingsFormData, UpdateState } from "../types.slint";
+import { SettingsFormData, SpeedLimitSlotItem, UpdateState } from "../types.slint";
 import {
+    CustomCheckBox,
     CustomSelect,
     CustomTextInput,
+    DangerButton,
     IconButton,
     PrimaryButton,
     SecondaryButton,
@@ -13,12 +15,38 @@ import {
     UnitInput,
 } from "common.slint";
 
+/// One table-column visibility checkbox (checkbox + label), used by the
+/// Appearance tab's "Table Columns" block.
+component ColumnCheck inherits HorizontalLayout {
+    in property <string> label;
+    in property <bool> checked: true;
+    callback toggled();
+
+    spacing: 8px;
+    alignment: start;
+
+    CustomCheckBox {
+        checked: root.checked;
+        toggled => { root.toggled(); }
+    }
+
+    Text {
+        text: root.label;
+        color: Theme.cd1d5db;
+        font-size: 12px;
+        vertical-alignment: center;
+    }
+}
+
 export component SettingsDialog inherits Rectangle {
     in property <int> settings_tab: 0;
     // Advanced BT settings section is collapsed by default (not persisted:
     // the dialog is recreated on each open, so this resets to false).
     in-out property <bool> bt_show_advanced: false;
+    // Factory reset asks for an inline second confirmation (full data wipe).
+    in-out property <bool> reset_confirm: false;
     in-out property <SettingsFormData> settings_form;
+    in-out property <[SpeedLimitSlotItem]> speed_limit_slots: [];
     in-out property <UpdateState> update_state;
 
     callback close();
@@ -35,6 +63,12 @@ export component SettingsDialog inherits Rectangle {
     callback start_download();
     callback restart_now();
     callback restart_setup();
+    callback factory_reset();
+    // Speed limit schedule editing (authoritative text state lives in Rust).
+    callback schedule_set_enabled(bool);
+    callback schedule_add();
+    callback schedule_remove(int);
+    callback schedule_update(int, string, string); // index, field("start"/"end"/"limit"), value
 
     pure function update_status_text() -> string {
         root.update_state.phase == "checking" ? @tr("Checking for updates...")
@@ -328,6 +362,45 @@ export component SettingsDialog inherits Rectangle {
                             ToggleSwitch {
                                 checked: root.settings_form.appearance_show_detail_info;
                                 toggled => { root.settings_form.appearance_show_detail_info = !root.settings_form.appearance_show_detail_info; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: @tr("Compact View"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Use denser rows in the download list (table and cards)"); color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.settings_form.appearance_compact_view;
+                                toggled => { root.settings_form.appearance_compact_view = !root.settings_form.appearance_compact_view; }
+                            }
+                        }
+
+                        // ── Table columns ──
+                        VerticalLayout {
+                            spacing: 6px;
+                            Text { text: @tr("Table Columns"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                            Text { text: @tr("Choose which columns the table view shows (the file name column is always visible)."); color: #6b7280; font-size: 11px; }
+
+                            HorizontalLayout {
+                                spacing: 18px;
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    ColumnCheck { label: @tr("Size"); checked: root.settings_form.appearance_column_size; toggled => { root.settings_form.appearance_column_size = !root.settings_form.appearance_column_size; } }
+                                    ColumnCheck { label: @tr("Downloaded"); checked: root.settings_form.appearance_column_downloaded; toggled => { root.settings_form.appearance_column_downloaded = !root.settings_form.appearance_column_downloaded; } }
+                                    ColumnCheck { label: @tr("Status"); checked: root.settings_form.appearance_column_status; toggled => { root.settings_form.appearance_column_status = !root.settings_form.appearance_column_status; } }
+                                    ColumnCheck { label: @tr("Progress"); checked: root.settings_form.appearance_column_progress; toggled => { root.settings_form.appearance_column_progress = !root.settings_form.appearance_column_progress; } }
+                                    ColumnCheck { label: @tr("Speed"); checked: root.settings_form.appearance_column_speed; toggled => { root.settings_form.appearance_column_speed = !root.settings_form.appearance_column_speed; } }
+                                }
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    ColumnCheck { label: @tr("Priority"); checked: root.settings_form.appearance_column_priority; toggled => { root.settings_form.appearance_column_priority = !root.settings_form.appearance_column_priority; } }
+                                    ColumnCheck { label: @tr("Up Speed"); checked: root.settings_form.appearance_column_upload_speed; toggled => { root.settings_form.appearance_column_upload_speed = !root.settings_form.appearance_column_upload_speed; } }
+                                    ColumnCheck { label: @tr("Seeds"); checked: root.settings_form.appearance_column_seeds; toggled => { root.settings_form.appearance_column_seeds = !root.settings_form.appearance_column_seeds; } }
+                                    ColumnCheck { label: @tr("ETA"); checked: root.settings_form.appearance_column_eta; toggled => { root.settings_form.appearance_column_eta = !root.settings_form.appearance_column_eta; } }
+                                }
                             }
                         }
 
@@ -721,6 +794,110 @@ export component SettingsDialog inherits Rectangle {
                             ToggleSwitch {
                                 checked: root.settings_form.scheduler_connection_warmup;
                                 toggled => { root.settings_form.scheduler_connection_warmup = !root.settings_form.scheduler_connection_warmup; }
+                            }
+                        }
+
+                        // ── Speed limit schedule ──
+                        Rectangle { height: 1px; background: Theme.c1f242e; }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: @tr("Speed Limit Schedule"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                                Text { text: @tr("Apply a different global speed limit per time-of-day range (local time). No matching range means the global limit above applies."); color: #6b7280; font-size: 11px; }
+                            }
+                            ToggleSwitch {
+                                checked: root.speed_limit_slots.length > 0;
+                                toggled => { root.schedule_set_enabled(root.speed_limit_slots.length == 0); }
+                            }
+                        }
+
+                        if root.speed_limit_slots.length > 0 : VerticalLayout {
+                            spacing: 6px;
+                            Text { text: @tr("Start / End (0-23 hours) and limit in KB/s (0 = unlimited)."); color: #6b7280; font-size: 11px; }
+
+                            for slot[idx] in root.speed_limit_slots : Rectangle {
+                                background: Theme.c14171d;
+                                border-color: Theme.c232832;
+                                border-width: 1px;
+                                border-radius: 6px;
+                                height: self.preferred-height;
+
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 8px;
+
+                                    HorizontalLayout {
+                                        spacing: 10px;
+                                        alignment: start;
+
+                                        VerticalLayout {
+                                            spacing: 3px;
+                                            Text { text: @tr("Start"); color: Theme.c9ca3af; font-size: 11px; }
+                                            slot_start := UnitInput {
+                                                text: slot.start_hour;
+                                                placeholder: "0";
+                                                unit_text: @tr("h");
+                                                edited(value) => { root.schedule_update(idx, "start", value); }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            spacing: 3px;
+                                            Text { text: @tr("End"); color: Theme.c9ca3af; font-size: 11px; }
+                                            UnitInput {
+                                                text: slot.end_hour;
+                                                placeholder: "6";
+                                                unit_text: @tr("h");
+                                                edited(value) => { root.schedule_update(idx, "end", value); }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            spacing: 3px;
+                                            Text { text: @tr("Limit"); color: Theme.c9ca3af; font-size: 11px; }
+                                            UnitInput {
+                                                text: slot.limit_kb;
+                                                placeholder: "0";
+                                                unit_text: "KB/s";
+                                                edited(value) => { root.schedule_update(idx, "limit", value); }
+                                            }
+                                        }
+                                        Rectangle {}
+                                        IconButton {
+                                            text: @tr("Remove");
+                                            icon: @image-url("../assets/icons/delete-bin-line.svg");
+                                            text_color: Theme.cf87171;
+                                            clicked => { root.schedule_remove(idx); }
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: start;
+                                        Text {
+                                            text: slot.summary;
+                                            color: slot.wraps ? Theme.cfacc15 : Theme.c84cc16;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                            vertical-alignment: center;
+                                        }
+                                        if slot.wraps : Text {
+                                            text: @tr("Wraps to the next day");
+                                            color: Theme.cfacc15;
+                                            font-size: 11px;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                alignment: start;
+                                SecondaryButton {
+                                    text: @tr("Add Time Range");
+                                    icon: @image-url("../assets/icons/add-line.svg");
+                                    clicked => { root.schedule_add(); }
+                                }
                             }
                         }
                     }
@@ -1990,6 +2167,48 @@ export component SettingsDialog inherits Rectangle {
                                         text: @tr("Re-run Setup Wizard");
                                         icon: @image-url("../assets/icons/settings-3-line.svg");
                                         clicked => { root.restart_setup(); }
+                                    }
+                                }
+
+                                Rectangle { height: 1px; background: Theme.c1f242e; }
+
+                                // ── Danger zone: factory reset ──
+                                Text { text: @tr("Danger Zone"); color: Theme.cf87171; font-size: 12px; font-weight: 700; }
+                                Text {
+                                    text: @tr("Factory reset stops all downloads, deletes the download records, the database and the settings file, then restarts limedl.");
+                                    color: Theme.c9ca3af;
+                                    font-size: 11px;
+                                    wrap: word-wrap;
+                                }
+
+                                if !root.reset_confirm : HorizontalLayout {
+                                    alignment: start;
+                                    DangerButton {
+                                        text: @tr("Factory Reset");
+                                        icon: @image-url("../assets/icons/delete-bin-6-line.svg");
+                                        clicked => { root.reset_confirm = true; }
+                                    }
+                                }
+
+                                if root.reset_confirm : VerticalLayout {
+                                    spacing: 8px;
+                                    Text {
+                                        text: @tr("This permanently deletes all local limedl data and cannot be undone. Continue?");
+                                        color: #fca5a5;
+                                        font-size: 11px;
+                                        wrap: word-wrap;
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: start;
+                                        SecondaryButton {
+                                            text: @tr("Cancel");
+                                            clicked => { root.reset_confirm = false; }
+                                        }
+                                        DangerButton {
+                                            text: @tr("Confirm Reset");
+                                            clicked => { root.reset_confirm = false; root.factory_reset(); }
+                                        }
                                     }
                                 }
                             }

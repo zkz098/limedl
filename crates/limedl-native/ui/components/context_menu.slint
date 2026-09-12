@@ -55,6 +55,7 @@ export component ContextMenu inherits Rectangle {
     callback open_explorer(string);
     callback copy_url(string);
     callback open_speed_limit(string);
+    callback set_priority(string); // task_id — opens the priority popup
     callback remove_task(string);
     callback purge_task(string);
 
@@ -119,6 +120,12 @@ export component ContextMenu inherits Rectangle {
                 text: @tr("Copy Download Link");
                 icon: @image-url("../assets/icons/file-copy-line.svg");
                 clicked => { root.copy_url(root.menu_state.task_url); root.close(); }
+            }
+
+            MenuItem {
+                text: @tr("Set Priority");
+                icon: @image-url("../assets/icons/arrow-up-down-line.svg");
+                clicked => { root.set_priority(root.menu_state.task_id); root.close(); }
             }
 
             if root.menu_state.is_bt : MenuItem {

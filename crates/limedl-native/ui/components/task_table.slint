@@ -5,9 +5,23 @@ import { CustomCheckBox, IconButton } from "common.slint";
 
 export component TaskTable inherits Rectangle {
     in property <[TaskItem]> tasks: [];
-    in property <int> sort_field: 0; // 0: Time, 1: Size, 2: Speed, 3: Progress, 4: Name
+    in property <int> sort_field: 0; // 0: Time, 1: Size, 2: Speed, 3: Progress, 4: Name, 5: State
     in property <bool> sort_asc: false;
     in property <int> selected_count: 0;
+    // Compact density (Appearance → compact view): shorter rows, no badge row.
+    in property <bool> compact: false;
+    // Column visibility (Appearance → table columns). The file column is always
+    // shown; `file` is kept as a property so it can be persisted uniformly.
+    in property <bool> column_file: true;
+    in property <bool> column_size: true;
+    in property <bool> column_downloaded: true;
+    in property <bool> column_status: true;
+    in property <bool> column_progress: true;
+    in property <bool> column_speed: true;
+    in property <bool> column_priority: true;
+    in property <bool> column_upload_speed: false;
+    in property <bool> column_seeds: false;
+    in property <bool> column_eta: true;
 
     callback toggle_select(string);
     callback range_select(string);
@@ -18,7 +32,20 @@ export component TaskTable inherits Rectangle {
     callback remove_task(string);
     callback double_clicked(string);
     callback show_menu(TaskItem, length, length); // item, absolute_x, absolute_y
+    callback show_priority_menu(TaskItem, length, length); // item, absolute_x, absolute_y
     callback header_sort_clicked(int);
+
+    pure function row_height() -> length {
+        root.compact ? 30px : 40px;
+    }
+
+    pure function priority_color(code: string) -> color {
+        code == "high" ? Theme.cf87171 : (code == "low" ? Theme.c38bdf8 : Theme.c9ca3af);
+    }
+
+    pure function priority_bg(code: string) -> color {
+        code == "high" ? Theme.c3f1518 : (code == "low" ? Theme.c152c42 : Theme.c1e2229);
+    }
 
     background: Theme.c0d0f12;
 
@@ -83,26 +110,33 @@ export component TaskTable inherits Rectangle {
                 }
 
                 // Status Column
-                Rectangle {
+                if root.column_status : Rectangle {
                     width: 80px;
                     TouchArea {
-                        clicked => { root.header_sort_clicked(3); }
+                        clicked => { root.header_sort_clicked(5); }
                     }
                     HorizontalLayout {
                         spacing: 4px;
                         alignment: start;
                         Text {
                             text: @tr("Status");
-                            color: #6b7280;
+                            color: root.sort_field == 5 ? Theme.ca3e635 : #6b7280;
                             font-size: 11px;
                             font-weight: 600;
                             vertical-alignment: center;
+                        }
+                        if root.sort_field == 5 : Image {
+                            source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                            colorize: Theme.ca3e635;
+                            width: 12px;
+                            height: 12px;
+                            image-fit: contain;
                         }
                     }
                 }
 
                 // Progress Column
-                Rectangle {
+                if root.column_progress : Rectangle {
                     width: 130px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(3); }
@@ -128,7 +162,7 @@ export component TaskTable inherits Rectangle {
                 }
 
                 // Size Column
-                Rectangle {
+                if root.column_size : Rectangle {
                     width: 80px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(1); }
@@ -153,8 +187,20 @@ export component TaskTable inherits Rectangle {
                     }
                 }
 
+                // Downloaded Column
+                if root.column_downloaded : Rectangle {
+                    width: 88px;
+                    Text {
+                        text: @tr("Downloaded");
+                        color: #6b7280;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
                 // Speed Column
-                Rectangle {
+                if root.column_speed : Rectangle {
                     width: 90px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(2); }
@@ -179,8 +225,44 @@ export component TaskTable inherits Rectangle {
                     }
                 }
 
+                // Upload Speed Column (BT only)
+                if root.column_upload_speed : Rectangle {
+                    width: 90px;
+                    Text {
+                        text: @tr("Up Speed");
+                        color: #6b7280;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Seeds Column (BT only)
+                if root.column_seeds : Rectangle {
+                    width: 60px;
+                    Text {
+                        text: @tr("Seeds");
+                        color: #6b7280;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Priority Column
+                if root.column_priority : Rectangle {
+                    width: 70px;
+                    Text {
+                        text: @tr("Priority");
+                        color: #6b7280;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
                 // ETA Column
-                Rectangle {
+                if root.column_eta : Rectangle {
                     width: 75px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(0); }
@@ -227,7 +309,7 @@ export component TaskTable inherits Rectangle {
                 spacing: 1px;
 
                 for task[idx] in root.tasks : row_rect := Rectangle {
-                    height: 40px;
+                    height: root.row_height();
                     background: task.selected ? Theme.c1c2618 : (ta_row.has_hover ? Theme.c171a20 : (mod(idx, 2) == 0 ? Theme.c111419 : Theme.c0d0f12));
                     animate background { duration: 120ms; }
 
@@ -310,7 +392,7 @@ export component TaskTable inherits Rectangle {
                         }
 
                         // Status
-                        Rectangle {
+                        if root.column_status : Rectangle {
                             width: 80px;
                             VerticalLayout {
                                 alignment: center;
@@ -329,7 +411,7 @@ export component TaskTable inherits Rectangle {
                         }
 
                         // Progress bar + percentage
-                        Rectangle {
+                        if root.column_progress : Rectangle {
                             width: 130px;
                             VerticalLayout {
                                 alignment: center;
@@ -365,7 +447,7 @@ export component TaskTable inherits Rectangle {
                         }
 
                         // Size
-                        Rectangle {
+                        if root.column_size : Rectangle {
                             width: 80px;
                             VerticalLayout {
                                 alignment: center;
@@ -378,8 +460,22 @@ export component TaskTable inherits Rectangle {
                             }
                         }
 
+                        // Downloaded
+                        if root.column_downloaded : Rectangle {
+                            width: 88px;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: task.downloaded_text;
+                                    color: Theme.c9ca3af;
+                                    font-size: 11px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
                         // Speed
-                        Rectangle {
+                        if root.column_speed : Rectangle {
                             width: 90px;
                             VerticalLayout {
                                 alignment: center;
@@ -393,8 +489,78 @@ export component TaskTable inherits Rectangle {
                             }
                         }
 
+                        // Upload Speed (BT)
+                        if root.column_upload_speed : Rectangle {
+                            width: 90px;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: task.kind == "bt" && task.upload_speed_text != "" ? task.upload_speed_text : "-";
+                                    color: Theme.c38bdf8;
+                                    font-size: 11px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Seeds (BT)
+                        if root.column_seeds : Rectangle {
+                            width: 60px;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: task.kind == "bt" ? task.seeds_text : "-";
+                                    color: Theme.c9ca3af;
+                                    font-size: 11px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Priority (click opens the priority popup)
+                        if root.column_priority : Rectangle {
+                            width: 70px;
+                            VerticalLayout {
+                                alignment: center;
+                                HorizontalLayout {
+                                    alignment: start;
+                                    prio := Rectangle {
+                                        height: 18px;
+                                        border-radius: 4px;
+                                        background: root.priority_bg(task.priority_code);
+                                        border-color: root.priority_color(task.priority_code);
+                                        border-width: 1px;
+                                        HorizontalLayout {
+                                            padding-left: 6px;
+                                            padding-right: 6px;
+                                            alignment: center;
+                                            Text {
+                                                text: task.priority_label;
+                                                color: root.priority_color(task.priority_code);
+                                                font-size: 10px;
+                                                font-weight: 700;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                        prio_ta := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => {
+                                                // absolute-position is window-relative, which is
+                                                // exactly what the popup overlay expects.
+                                                root.show_priority_menu(
+                                                    task,
+                                                    prio.absolute-position.x,
+                                                    prio.absolute-position.y + prio.height + 4px
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // ETA
-                        Rectangle {
+                        if root.column_eta : Rectangle {
                             width: 75px;
                             VerticalLayout {
                                 alignment: center;

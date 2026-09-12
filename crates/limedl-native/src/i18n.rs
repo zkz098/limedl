@@ -280,6 +280,7 @@ pub struct TrayMenuStrings {
     pub show_window: &'static str,
     pub pause_all: &'static str,
     pub resume_all: &'static str,
+    pub speed_limit_toggle: &'static str,
     pub game_mode_toggle: &'static str,
     pub open_download_dir: &'static str,
     pub quit: &'static str,
@@ -292,6 +293,7 @@ pub fn get_tray_strings(lang: Language) -> TrayMenuStrings {
             show_window: "显示主窗口",
             pause_all: "全部暂停",
             resume_all: "全部继续",
+            speed_limit_toggle: "限速模式 (1 MB/s)",
             game_mode_toggle: "游戏模式开关",
             open_download_dir: "打开下载目录",
             quit: "退出 limedl",
@@ -301,6 +303,7 @@ pub fn get_tray_strings(lang: Language) -> TrayMenuStrings {
             show_window: "Show Main Window",
             pause_all: "Pause All",
             resume_all: "Resume All",
+            speed_limit_toggle: "Speed Limit (1 MB/s)",
             game_mode_toggle: "Toggle Game Mode",
             open_download_dir: "Open Download Directory",
             quit: "Exit limedl",
@@ -553,6 +556,507 @@ pub fn format_toast_autostart_failed(err: &str, lang: Language) -> String {
     }
 }
 
+/// Settings field referenced by a validation error message.
+///
+/// The label is localized so an English UI never surfaces Chinese text from
+/// Rust-side validation (Slint `@tr` only covers strings inside `.slint` files).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettingsField {
+    MaxRetries,
+    MaxParallelTasks,
+    GlobalSpeedLimit,
+    SchedulerMaxParallelThreads,
+    SchedulerMaxThreadsPerTask,
+    SchedulerMinThreadsPerTask,
+    ListenPort,
+    MaxPeersPerTorrent,
+    BtMaxDownloads,
+    BtMaxSeeds,
+    BtMaxTorrents,
+    BtActiveLimit,
+    BtGlobalDownloadRateLimit,
+    BtGlobalUploadRateLimit,
+    BtUploadLimit,
+    BtUploadRatioLimit,
+    BtAntiLeechGraceSecs,
+    BtAntiLeechRatio,
+    BtAntiLeechBanSecs,
+    BtAntiLeechMaxUploadSlots,
+    BtMaxUploadSlotsPerTorrent,
+    BtSmartBanMaxFailures,
+    BtEvictionBanDurationSecs,
+    BtDataContributionTimeoutSecs,
+    IoBufferLimitMb,
+    IoGameModeBufferMb,
+    IoMaxParallelHdd,
+    IoGameModeMaxParallel,
+    IoSsdWriteCombineMb,
+    LoggingRetentionCount,
+    LoggingRetentionDays,
+    Aria2Port,
+    MaxInMemoryDownloads,
+    SpeedLimitStartHour,
+    SpeedLimitEndHour,
+    SpeedLimitLimit,
+}
+
+impl SettingsField {
+    /// Localized field label used as the subject of a validation message.
+    pub fn label(self, lang: Language) -> &'static str {
+        use SettingsField as F;
+        match (self, lang) {
+            (F::MaxRetries, Language::ZhCn) => "最大重试次数",
+            (F::MaxRetries, Language::EnUs) => "Max retries",
+            (F::MaxParallelTasks, Language::ZhCn) => "最大并发任务数",
+            (F::MaxParallelTasks, Language::EnUs) => "Max parallel tasks",
+            (F::GlobalSpeedLimit, Language::ZhCn) => "全局限速",
+            (F::GlobalSpeedLimit, Language::EnUs) => "Global speed limit",
+            (F::SchedulerMaxParallelThreads, Language::ZhCn) => "自动调度-最大并行线程",
+            (F::SchedulerMaxParallelThreads, Language::EnUs) => "Scheduler max parallel threads",
+            (F::SchedulerMaxThreadsPerTask, Language::ZhCn) => "单任务最大线程",
+            (F::SchedulerMaxThreadsPerTask, Language::EnUs) => "Max threads per task",
+            (F::SchedulerMinThreadsPerTask, Language::ZhCn) => "单任务最小线程",
+            (F::SchedulerMinThreadsPerTask, Language::EnUs) => "Min threads per task",
+            (F::ListenPort, Language::ZhCn) => "BT 监听端口",
+            (F::ListenPort, Language::EnUs) => "BT listen port",
+            (F::MaxPeersPerTorrent, Language::ZhCn) => "每 Torrent 最大 Peers",
+            (F::MaxPeersPerTorrent, Language::EnUs) => "Max peers per torrent",
+            (F::BtMaxDownloads, Language::ZhCn) => "BT 最大下载数",
+            (F::BtMaxDownloads, Language::EnUs) => "BT max downloads",
+            (F::BtMaxSeeds, Language::ZhCn) => "BT 最大做种数",
+            (F::BtMaxSeeds, Language::EnUs) => "BT max seeds",
+            (F::BtMaxTorrents, Language::ZhCn) => "BT 最大 Torrent 数",
+            (F::BtMaxTorrents, Language::EnUs) => "BT max torrents",
+            (F::BtActiveLimit, Language::ZhCn) => "BT 活跃限制",
+            (F::BtActiveLimit, Language::EnUs) => "BT active limit",
+            (F::BtGlobalDownloadRateLimit, Language::ZhCn) => "BT 全局下载限速",
+            (F::BtGlobalDownloadRateLimit, Language::EnUs) => "BT global download limit",
+            (F::BtGlobalUploadRateLimit, Language::ZhCn) => "BT 全局上传限速",
+            (F::BtGlobalUploadRateLimit, Language::EnUs) => "BT global upload limit",
+            (F::BtUploadLimit, Language::ZhCn) => "做种上传限制",
+            (F::BtUploadLimit, Language::EnUs) => "Seeding upload limit",
+            (F::BtUploadRatioLimit, Language::ZhCn) => "分享率限制",
+            (F::BtUploadRatioLimit, Language::EnUs) => "Share ratio limit",
+            (F::BtAntiLeechGraceSecs, Language::ZhCn) => "反吸血宽限期",
+            (F::BtAntiLeechGraceSecs, Language::EnUs) => "Anti-leech grace period",
+            (F::BtAntiLeechRatio, Language::ZhCn) => "反吸血分享率阈值",
+            (F::BtAntiLeechRatio, Language::EnUs) => "Anti-leech ratio threshold",
+            (F::BtAntiLeechBanSecs, Language::ZhCn) => "反吸血封禁时长",
+            (F::BtAntiLeechBanSecs, Language::EnUs) => "Anti-leech ban duration",
+            (F::BtAntiLeechMaxUploadSlots, Language::ZhCn) => "反吸血限槽模式槽位",
+            (F::BtAntiLeechMaxUploadSlots, Language::EnUs) => "Anti-leech upload slots",
+            (F::BtMaxUploadSlotsPerTorrent, Language::ZhCn) => "每 Torrent 最大上传槽",
+            (F::BtMaxUploadSlotsPerTorrent, Language::EnUs) => "Max upload slots per torrent",
+            (F::BtSmartBanMaxFailures, Language::ZhCn) => "智能封禁阈值",
+            (F::BtSmartBanMaxFailures, Language::EnUs) => "Smart ban threshold",
+            (F::BtEvictionBanDurationSecs, Language::ZhCn) => "驱逐封禁时长",
+            (F::BtEvictionBanDurationSecs, Language::EnUs) => "Eviction ban duration",
+            (F::BtDataContributionTimeoutSecs, Language::ZhCn) => "无贡献超时",
+            (F::BtDataContributionTimeoutSecs, Language::EnUs) => "No-contribution timeout",
+            (F::IoBufferLimitMb, Language::ZhCn) => "IO 缓冲上限",
+            (F::IoBufferLimitMb, Language::EnUs) => "IO buffer limit",
+            (F::IoGameModeBufferMb, Language::ZhCn) => "游戏模式缓冲",
+            (F::IoGameModeBufferMb, Language::EnUs) => "Game mode buffer",
+            (F::IoMaxParallelHdd, Language::ZhCn) => "HDD 最大并行",
+            (F::IoMaxParallelHdd, Language::EnUs) => "Max parallel HDD transfers",
+            (F::IoGameModeMaxParallel, Language::ZhCn) => "游戏模式最大并行",
+            (F::IoGameModeMaxParallel, Language::EnUs) => "Game mode max parallel",
+            (F::IoSsdWriteCombineMb, Language::ZhCn) => "SSD 合并缓冲",
+            (F::IoSsdWriteCombineMb, Language::EnUs) => "SSD write-combine buffer",
+            (F::LoggingRetentionCount, Language::ZhCn) => "日志保留数量",
+            (F::LoggingRetentionCount, Language::EnUs) => "Log retention count",
+            (F::LoggingRetentionDays, Language::ZhCn) => "日志保留天数",
+            (F::LoggingRetentionDays, Language::EnUs) => "Log retention days",
+            (F::Aria2Port, Language::ZhCn) => "Aria2 端口",
+            (F::Aria2Port, Language::EnUs) => "Aria2 port",
+            (F::MaxInMemoryDownloads, Language::ZhCn) => "内存保留记录数",
+            (F::MaxInMemoryDownloads, Language::EnUs) => "In-memory record limit",
+            (F::SpeedLimitStartHour, Language::ZhCn) => "限速计划-起始小时",
+            (F::SpeedLimitStartHour, Language::EnUs) => "Speed limit schedule start hour",
+            (F::SpeedLimitEndHour, Language::ZhCn) => "限速计划-结束小时",
+            (F::SpeedLimitEndHour, Language::EnUs) => "Speed limit schedule end hour",
+            (F::SpeedLimitLimit, Language::ZhCn) => "限速计划-限速值",
+            (F::SpeedLimitLimit, Language::EnUs) => "Speed limit schedule rate",
+        }
+    }
+}
+
+/// "expected a number" validation error for `field`.
+pub fn format_validation_number(lang: Language, field: SettingsField, value: &str) -> String {
+    match lang {
+        Language::ZhCn => format!(
+            "{} 格式错误: '{}' 请输入有效数字",
+            field.label(lang),
+            value
+        ),
+        Language::EnUs => format!(
+            "Invalid {}: '{}' — please enter a valid number",
+            field.label(lang),
+            value
+        ),
+    }
+}
+
+/// "expected an integer" validation error for `field`.
+pub fn format_validation_integer(lang: Language, field: SettingsField, value: &str) -> String {
+    match lang {
+        Language::ZhCn => format!(
+            "{} 格式错误: '{}' 请输入有效整数",
+            field.label(lang),
+            value
+        ),
+        Language::EnUs => format!(
+            "Invalid {}: '{}' — please enter a valid integer",
+            field.label(lang),
+            value
+        ),
+    }
+}
+
+/// "expected a TCP port" validation error for `field`.
+pub fn format_validation_port(lang: Language, field: SettingsField, value: &str) -> String {
+    match lang {
+        Language::ZhCn => format!(
+            "{} 格式错误: '{}' 请输入 0-65535 的端口号",
+            field.label(lang),
+            value
+        ),
+        Language::EnUs => format!(
+            "Invalid {}: '{}' — please enter a port in 0-65535",
+            field.label(lang),
+            value
+        ),
+    }
+}
+
+/// "value out of range" validation error for `field`.
+pub fn format_validation_range(
+    lang: Language,
+    field: SettingsField,
+    min: u32,
+    max: u32,
+) -> String {
+    match lang {
+        Language::ZhCn => format!("{} 必须在 {min}-{max} 之间", field.label(lang)),
+        Language::EnUs => format!("{} must be between {min} and {max}", field.label(lang)),
+    }
+}
+
+/// Port 0 is rejected because it would let the OS pick an unpredictable port.
+pub fn format_validation_port_zero(lang: Language, field: SettingsField) -> String {
+    match lang {
+        Language::ZhCn => format!("{} 不能为 0", field.label(lang)),
+        Language::EnUs => format!("{} cannot be 0", field.label(lang)),
+    }
+}
+
+/// Manual proxy mode requires a proxy URL.
+pub fn format_proxy_url_required(lang: Language) -> String {
+    match lang {
+        Language::ZhCn => "代理模式为 manual 时必须填写代理 URL".to_string(),
+        Language::EnUs => "A proxy URL is required when the proxy mode is manual".to_string(),
+    }
+}
+
+/// Invalid IP literal typed into the CDN manual override field.
+pub fn format_invalid_ip(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "无效的 IP 地址格式",
+        Language::EnUs => "Invalid IP address format",
+    }
+}
+
+/// CDN status label shown before any speedtest ran / after clearing.
+pub fn cdn_idle_label(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "未配置",
+        Language::EnUs => "Not Configured",
+    }
+}
+
+/// CDN status label shown when a node is applied and ready.
+pub fn cdn_ready_label(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "准备就绪",
+        Language::EnUs => "Ready",
+    }
+}
+
+/// CDN speedtest failure fallback text.
+pub fn cdn_test_failed_label(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "测速失败",
+        Language::EnUs => "Speedtest failed",
+    }
+}
+
+/// Disk probe found no mount point.
+pub fn format_no_disk_detected(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "未检测到磁盘信息",
+        Language::EnUs => "No disk information detected",
+    }
+}
+
+/// Localized disk type name used in the IO baseline summary.
+pub fn format_disk_type_name(disk: limedl_core::types::DiskType, lang: Language) -> &'static str {
+    match (disk, lang) {
+        (limedl_core::types::DiskType::Ssd, Language::ZhCn) => "SSD 固态硬盘",
+        (limedl_core::types::DiskType::Ssd, Language::EnUs) => "SSD",
+        (limedl_core::types::DiskType::Hdd, Language::ZhCn) => "HDD 机械硬盘",
+        (limedl_core::types::DiskType::Hdd, Language::EnUs) => "HDD",
+    }
+}
+
+/// Buffer pool status line shown in the IO settings tab.
+pub fn format_io_status_line(
+    allocated: &str,
+    capacity: &str,
+    active_buffers: u64,
+    lang: Language,
+) -> String {
+    match lang {
+        Language::ZhCn => format!(
+            "已用缓存: {allocated} / 上限: {capacity} (活跃缓冲槽: {active_buffers} 个)"
+        ),
+        Language::EnUs => format!(
+            "Buffer in use: {allocated} / limit: {capacity} ({active_buffers} active slots)"
+        ),
+    }
+}
+
+/// Clipboard monitor toast for a single detected download link.
+pub fn format_detected_link(url: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("检测到下载链接: {url}"),
+        Language::EnUs => format!("Download link detected: {url}"),
+    }
+}
+
+/// Clipboard monitor toast for multiple detected download links.
+pub fn format_detected_batch(count: usize, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("检测到 {count} 个批量下载链接"),
+        Language::EnUs => format!("Detected {count} batch download links"),
+    }
+}
+
+/// Title of the native file picker used to choose a .torrent file.
+pub fn pick_torrent_title(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "选择 Torrent 种子文件",
+        Language::EnUs => "Select Torrent File",
+    }
+}
+
+/// Title of the native file picker used to choose a download directory.
+pub fn pick_download_dir_title(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "选择下载保存目录",
+        Language::EnUs => "Select Download Folder",
+    }
+}
+
+/// Title of the native file picker used to choose the log directory.
+pub fn pick_log_dir_title(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "选择日志保存目录",
+        Language::EnUs => "Select Log Folder",
+    }
+}
+
+/// OS notification title shown when saving settings fails.
+pub fn format_notification_settings_save_failed(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "保存设置失败",
+        Language::EnUs => "Failed to save settings",
+    }
+}
+
+/// Priority label localized (high / normal / low).
+pub fn format_priority_label(priority: limedl_core::types::Priority, lang: Language) -> &'static str {
+    use limedl_core::types::Priority;
+    match (priority, lang) {
+        (Priority::High, Language::ZhCn) => "高",
+        (Priority::High, Language::EnUs) => "High",
+        (Priority::Normal, Language::ZhCn) => "普通",
+        (Priority::Normal, Language::EnUs) => "Normal",
+        (Priority::Low, Language::ZhCn) => "低",
+        (Priority::Low, Language::EnUs) => "Low",
+    }
+}
+
+/// Toast confirming a priority change (used by the priority popup menu).
+pub fn format_toast_priority_set(
+    file_name: &str,
+    priority: limedl_core::types::Priority,
+    lang: Language,
+) -> String {
+    let label = format_priority_label(priority, lang);
+    match lang {
+        Language::ZhCn => format!("已设置优先级: {label} — {file_name}"),
+        Language::EnUs => format!("Priority set to {label} — {file_name}"),
+    }
+}
+
+/// Toast shown when changing the priority failed.
+pub fn format_toast_priority_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("设置优先级失败: {err}"),
+        Language::EnUs => format!("Failed to set priority: {err}"),
+    }
+}
+
+/// Toast shown when the user tries to deselect every BT file.
+pub fn format_toast_bt_files_keep_one(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "至少需要保留一个文件",
+        Language::EnUs => "At least one file must stay selected",
+    }
+}
+
+/// Toast shown when updating the BT file selection failed.
+pub fn format_toast_bt_files_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("更新 torrent 文件选择失败: {err}"),
+        Language::EnUs => format!("Failed to update torrent file selection: {err}"),
+    }
+}
+
+/// Toast shown after the "clear completed" action removed `count` records.
+pub fn format_toast_clear_completed(count: usize, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("已清除 {count} 条已完成记录"),
+        Language::EnUs => format!("Cleared {count} completed record(s)"),
+    }
+}
+
+/// Toast shown when "clear completed" found nothing to remove.
+pub fn format_toast_clear_completed_none(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "没有已完成的记录需要清除",
+        Language::EnUs => "No completed records to clear",
+    }
+}
+
+/// Toast shown when enumerating the task list failed.
+pub fn format_toast_clear_completed_failed(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "清除已完成记录失败",
+        Language::EnUs => "Failed to clear completed records",
+    }
+}
+
+/// Toast shown after a successful factory reset (the app then restarts).
+pub fn format_toast_factory_reset_done(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "已恢复出厂设置，正在重启...",
+        Language::EnUs => "Factory reset complete, restarting…",
+    }
+}
+
+/// Toast shown when the factory reset could not delete the data directory.
+pub fn format_toast_factory_reset_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("恢复出厂设置失败: {err}"),
+        Language::EnUs => format!("Factory reset failed: {err}"),
+    }
+}
+
+/// Display summary for one speed-limit schedule row.
+pub fn format_schedule_summary(
+    start_hour: u32,
+    end_hour: u32,
+    limit_kb: u64,
+    lang: Language,
+) -> String {
+    let wraps_marker = if start_hour >= end_hour { " (+1d)" } else { "" };
+    let range = format!("{start_hour:02}:00 → {end_hour:02}:00{wraps_marker}");
+    let limit = if limit_kb == 0 {
+        match lang {
+            Language::ZhCn => "不限速".to_string(),
+            Language::EnUs => "Unlimited".to_string(),
+        }
+    } else {
+        format!("{limit_kb} KB/s")
+    };
+    format!("{range} · {limit}")
+}
+
+/// Toast shown when a schedule row cannot be parsed on save.
+pub fn format_toast_schedule_invalid(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("限速计划无效: {err}"),
+        Language::EnUs => format!("Invalid speed limit schedule: {err}"),
+    }
+}
+
+/// In-app toast for the tray speed-limit shortcut.
+pub fn format_toast_speed_limit(enabled: bool, lang: Language) -> String {
+    match (enabled, lang) {
+        (true, Language::ZhCn) => "已开启全局限速 (1 MB/s)".to_string(),
+        (true, Language::EnUs) => "Global speed limit enabled (1 MB/s)".to_string(),
+        (false, Language::ZhCn) => "已关闭全局限速".to_string(),
+        (false, Language::EnUs) => "Global speed limit disabled".to_string(),
+    }
+}
+
+/// "%APPDATA%-style" OS description shown in the About tab.
+///
+/// Windows reports a friendly product name + build (registry), other platforms
+/// fall back to the compile-time target description.
+pub fn format_platform_description(os: &str, arch: &str, renderer: &str) -> String {
+    format!("{arch} / {os} ({renderer})")
+}
+
+/// In-app toast for a download warning, prefixed with the affected task name.
+///
+/// The message body comes from core (English identifiers such as "disk full"),
+/// so only the surrounding text is localized.
+pub fn format_warning_with_file(file_name: &str, message: &str) -> String {
+    format!("{file_name}: {message}")
+}
+
+/// Fallback display name for a task started without a resolved file name.
+pub fn format_unnamed_task(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "下载任务",
+        Language::EnUs => "Download Task",
+    }
+}
+
+/// Default name of a freshly added custom URL rewrite rule.
+pub fn new_rewrite_rule_name(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "新建自定义规则",
+        Language::EnUs => "New Custom Rule",
+    }
+}
+
+/// Localized display names for the built-in URL rewrite presets.
+pub struct RewritePresetNames {
+    pub github: &'static str,
+    pub huggingface: &'static str,
+    pub civitai: &'static str,
+}
+
+/// Built-in URL rewrite preset names localized (a preset-created rule keeps
+/// this name until the user renames it).
+pub fn get_rewrite_preset_names(lang: Language) -> RewritePresetNames {
+    match lang {
+        Language::ZhCn => RewritePresetNames {
+            github: "GitHub 镜像代理",
+            huggingface: "Hugging Face 镜像",
+            civitai: "Civitai 镜像",
+        },
+        Language::EnUs => RewritePresetNames {
+            github: "GitHub Mirror Proxy",
+            huggingface: "Hugging Face Mirror",
+            civitai: "Civitai Mirror",
+        },
+    }
+}
+
 /// In-app toast for task terminal events (works alongside the OS notification).
 pub fn format_toast_state(file_name: &str, state: &DownloadState, lang: Language) -> String {
     match (state, lang) {
@@ -599,10 +1103,47 @@ mod tests {
     }
 
     #[test]
+    fn test_settings_field_labels_localized() {
+        assert_eq!(
+            SettingsField::ListenPort.label(Language::ZhCn),
+            "BT 监听端口"
+        );
+        assert_eq!(SettingsField::ListenPort.label(Language::EnUs), "BT listen port");
+        // Every label must be non-empty in both languages.
+        let fields = [
+            SettingsField::MaxRetries,
+            SettingsField::IoBufferLimitMb,
+            SettingsField::Aria2Port,
+        ];
+        for field in fields {
+            assert!(!field.label(Language::ZhCn).is_empty());
+            assert!(!field.label(Language::EnUs).is_empty());
+        }
+    }
+
+    #[test]
+    fn test_validation_messages_localized() {
+        let zh = format_validation_integer(Language::ZhCn, SettingsField::ListenPort, "abc");
+        assert!(zh.contains("BT 监听端口") && zh.contains("'abc'"));
+        let en = format_validation_integer(Language::EnUs, SettingsField::ListenPort, "abc");
+        assert!(en.contains("BT listen port") && en.contains("'abc'"));
+        // No CJK characters may leak into the English message.
+        assert!(!en.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)));
+
+        let port_en = format_validation_port(Language::EnUs, SettingsField::Aria2Port, "70000");
+        assert!(port_en.contains("0-65535"));
+        let required_en = format_proxy_url_required(Language::EnUs);
+        assert!(!required_en.is_empty());
+        assert!(!required_en.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)));
+    }
+
+    #[test]
     fn test_tray_menu_strings() {
         let zh = get_tray_strings(Language::ZhCn);
         assert_eq!(zh.show_window, "显示主窗口");
         let en = get_tray_strings(Language::EnUs);
         assert_eq!(en.show_window, "Show Main Window");
+        assert!(en.speed_limit_toggle.contains("Speed Limit"));
+        assert!(zh.speed_limit_toggle.contains("限速"));
     }
 }

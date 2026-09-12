@@ -1,0 +1,106 @@
+import { Theme } from "../theme.slint";
+
+/// One priority row inside the popup.
+component PriorityOption inherits Rectangle {
+    in property <string> text;
+    in property <string> code;
+    in property <bool> active: false;
+    callback picked(string);
+
+    height: 32px;
+    border-radius: 4px;
+    background: ta.has_hover ? Theme.c20252e : (root.active ? Theme.c1e2229 : transparent);
+    animate background { duration: 100ms; }
+
+    ta := TouchArea {
+        clicked => { root.picked(root.code); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 8px;
+        alignment: space-between;
+
+        Text {
+            text: root.text;
+            color: root.active ? Theme.c84cc16 : Theme.ce5e7eb;
+            font-size: 12px;
+            font-weight: 500;
+            vertical-alignment: center;
+        }
+
+        if root.active : Text {
+            text: "✓";
+            color: Theme.c84cc16;
+            font-size: 11px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+}
+
+/// Compact popup listing the three download priorities, anchored to the row's
+/// priority badge (table view) or opened from the task context menu.
+export component PriorityMenu inherits Rectangle {
+    in property <bool> is_open: false;
+    in property <length> menu_x: 0px;
+    in property <length> menu_y: 0px;
+    in property <string> task_id: "";
+    in property <string> current_priority: "normal";
+
+    callback close();
+    callback pick(string, string); // task_id, priority code
+
+    if root.is_open : Rectangle {
+        // Click outside overlay to dismiss
+        Rectangle {
+            width: 10000px;
+            height: 10000px;
+            x: -5000px;
+            y: -5000px;
+            background: transparent;
+            TouchArea {
+                clicked => { root.close(); }
+            }
+        }
+
+        Rectangle {
+            x: min(root.menu_x, parent.width - self.width - 10px);
+            y: min(root.menu_y, parent.height - self.height - 10px);
+            width: 160px;
+            height: self.preferred-height;
+            clip: true;
+            background: Theme.c181b22;
+            border-color: Theme.c343c4a;
+            border-width: 1px;
+            border-radius: 8px;
+            drop-shadow-blur: 16px;
+            drop-shadow-color: Theme.c000000bb;
+
+            VerticalLayout {
+                padding: 6px;
+                spacing: 2px;
+
+                PriorityOption {
+                    text: @tr("High");
+                    code: "high";
+                    active: root.current_priority == "high";
+                    picked(code) => { root.pick(root.task_id, code); root.close(); }
+                }
+                PriorityOption {
+                    text: @tr("Normal");
+                    code: "normal";
+                    active: root.current_priority == "normal";
+                    picked(code) => { root.pick(root.task_id, code); root.close(); }
+                }
+                PriorityOption {
+                    text: @tr("Low");
+                    code: "low";
+                    active: root.current_priority == "low";
+                    picked(code) => { root.pick(root.task_id, code); root.close(); }
+                }
+            }
+        }
+    }
+}

@@ -29,22 +29,32 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SW_RESTORE, SetForegroundWindow, ShowWindow, WM_COPYDATA, WM_DROPFILES,
 };
 
-/// Install native hooks (drag-and-drop and WM_COPYDATA IPC) on the Slint window.
-pub fn install_window_hooks(
-    window: &slint::Window,
+/// Store the drag-drop / IPC callbacks without touching the OS window.
+///
+/// Safe to call before the native window exists; `try_install_window_hooks`
+/// then performs the Win32 part once the handle is available.
+pub fn set_callbacks(
     on_drop: impl Fn(Vec<String>) + Send + Sync + 'static,
     on_copydata: impl Fn(String) + Send + Sync + 'static,
-) -> bool {
+) {
     *DROP_CALLBACK.lock() = Some(Box::new(on_drop));
     *COPYDATA_CALLBACK.lock() = Some(Box::new(on_copydata));
+}
 
+/// Install the Win32 hooks (drag-and-drop + WM_COPYDATA) on the Slint window.
+///
+/// Returns `false` while the OS window does not exist yet (Slint creates it when
+/// the event loop starts), so callers can retry on a timer instead of silently
+/// losing the integrations. Callbacks are registered separately via
+/// [`set_callbacks`].
+pub fn try_install_window_hooks(window: &slint::Window) -> bool {
     #[cfg(windows)]
     {
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
         let win_handle = window.window_handle();
         let Ok(handle_wrapper) = win_handle.window_handle() else {
-            tracing::warn!("获取原生窗口句柄失败");
+            tracing::debug!("原生窗口句柄尚未就绪，稍后重试挂载");
             return false;
         };
 
@@ -65,18 +75,17 @@ pub fn install_window_hooks(
                 HOOK_INSTALLED.store(true, Ordering::SeqCst);
                 tracing::info!("成功挂载 Windows 窗口子类化处理器 (Drag-and-Drop + WM_COPYDATA)");
                 return true;
-            } else {
-                tracing::warn!("挂载 Windows 窗口子类化处理器失败");
             }
+            tracing::warn!("挂载 Windows 窗口子类化处理器失败");
         }
+        false
     }
 
     #[cfg(not(windows))]
     {
         let _ = window;
+        false
     }
-
-    false
 }
 
 #[cfg(windows)]
@@ -142,6 +151,57 @@ unsafe extern "system" fn subclass_proc(
             unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
         }
         _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
+    }
+}
+
+/// Friendly OS description for the About tab (e.g. "Windows 11 Pro (build 22631)").
+///
+/// Windows keeps the marketing name + build number in the registry; Windows 11
+/// still reports `ProductName = Windows 10 …` in some builds, so the build
+/// number decides. Other platforms fall back to the Rust target OS name.
+pub fn os_description() -> String {
+    #[cfg(windows)]
+    {
+        use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ};
+        use winreg::RegKey;
+
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        if let Ok(key) = hklm
+            .open_subkey_with_flags(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion", KEY_READ)
+        {
+            let product = key
+                .get_value::<String, _>("ProductName")
+                .unwrap_or_else(|_| "Windows".to_string());
+            let build = key
+                .get_value::<String, _>("CurrentBuildNumber")
+                .or_else(|_| key.get_value::<String, _>("CurrentBuild"))
+                .unwrap_or_default();
+            let product = match build.parse::<u32>() {
+                Ok(n) if n >= 22000 => product.replace("Windows 10", "Windows 11"),
+                _ => product,
+            };
+            return if build.is_empty() {
+                product
+            } else {
+                format!("{product} (build {build})")
+            };
+        }
+        "Windows".to_string()
+    }
+
+    #[cfg(not(windows))]
+    {
+        match std::env::consts::OS {
+            "macos" => "macOS".to_string(),
+            "linux" => "Linux".to_string(),
+            other => {
+                let mut chars = other.chars();
+                match chars.next() {
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                    None => other.to_string(),
+                }
+            }
+        }
     }
 }
 
