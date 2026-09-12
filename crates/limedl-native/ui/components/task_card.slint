@@ -18,10 +18,12 @@ export component TaskCard inherits Rectangle {
 
     background: root.item.selected ? Theme.c1c2618 : (ta.has_hover ? Theme.c191c22 : Theme.c13161b);
     border-color: root.item.selected ? Theme.c65a30d : (ta.has_hover ? Theme.c323845 : Theme.c22262f);
-    animate background, border-color { duration: 150ms; }
+    drop-shadow-blur: ta.has_hover ? 8px : 0px;
+    drop-shadow-color: Theme.c000000bb;
+    animate background, border-color, drop-shadow-blur { duration: 150ms; }
     border-width: 1px;
     border-radius: 8px;
-    height: root.compact ? 84px : 104px;
+    height: root.compact ? 86px : 108px;
 
     pure function priority_color(code: string) -> color {
         code == "high" ? Theme.cf87171 : (code == "low" ? Theme.c38bdf8 : Theme.c9ca3af);
@@ -29,6 +31,62 @@ export component TaskCard inherits Rectangle {
 
     pure function priority_bg(code: string) -> color {
         code == "high" ? Theme.c3f1518 : (code == "low" ? Theme.c152c42 : Theme.c1e2229);
+    }
+
+    pure function file_type_icon(t: string) -> image {
+        t == "video" ? @image-url("../assets/icons/film-line.svg") : (
+            t == "audio" ? @image-url("../assets/icons/music-2-line.svg") : (
+                t == "archive" ? @image-url("../assets/icons/file-zip-line.svg") : (
+                    t == "document" ? @image-url("../assets/icons/file-text-line.svg") : (
+                        t == "installer" ? @image-url("../assets/icons/apps-line.svg") : (
+                            t == "image" ? @image-url("../assets/icons/image-line.svg") : @image-url("../assets/icons/file-line.svg")
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    pure function file_type_color(t: string) -> color {
+        t == "video" ? #c084fc : (
+            t == "audio" ? #f472b6 : (
+                t == "archive" ? #fbbf24 : (
+                    t == "document" ? #38bdf8 : (
+                        t == "installer" ? #34d399 : (
+                            t == "image" ? #22d3ee : Theme.c9ca3af
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    pure function file_type_bg(t: string) -> color {
+        t == "video" ? #3b076466 : (
+            t == "audio" ? #50072466 : (
+                t == "archive" ? #451a0366 : (
+                    t == "document" ? #082f4966 : (
+                        t == "installer" ? #022c2266 : (
+                            t == "image" ? #08334466 : Theme.c1e2229
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    pure function file_type_border(t: string) -> color {
+        t == "video" ? #7e22ce80 : (
+            t == "audio" ? #be185d80 : (
+                t == "archive" ? #b4530980 : (
+                    t == "document" ? #0284c780 : (
+                        t == "installer" ? #05966980 : (
+                            t == "image" ? #0e749080 : Theme.c2b313d
+                        )
+                    )
+                )
+            )
+        )
     }
 
     property <bool> shift_click: false;
@@ -50,7 +108,7 @@ export component TaskCard inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding: root.compact ? 8px : 12px;
+        padding: root.compact ? 10px : 14px;
         spacing: 12px;
 
         // Selection Checkbox
@@ -76,6 +134,7 @@ export component TaskCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: start;
+                    horizontal-stretch: 1;
 
                     // Kind badge
                     VerticalLayout {
@@ -101,15 +160,41 @@ export component TaskCard inherits Rectangle {
                         }
                     }
 
-                    // File Name
-                    Text {
-                        text: root.item.file_name;
-                        color: Theme.cf3f4f6;
-                        font-size: 14px;
-                        font-weight: 600;
-                        overflow: elide;
-                        max-width: 440px;
-                        vertical-alignment: center;
+                    // File Type Icon Badge
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            background: root.file_type_bg(root.item.file_type);
+                            border-color: root.file_type_border(root.item.file_type);
+                            border-width: 1px;
+                            border-radius: 4px;
+                            height: 20px;
+                            width: 22px;
+                            Image {
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                source: root.file_type_icon(root.item.file_type);
+                                colorize: root.file_type_color(root.item.file_type);
+                                width: 12px;
+                                height: 12px;
+                                image-fit: contain;
+                            }
+                        }
+                    }
+
+                    // File Name (elastic width, no hardcoded max-width)
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        min-width: 60px;
+                        Text {
+                            text: root.item.file_name;
+                            color: Theme.cf3f4f6;
+                            font-size: 15px;
+                            font-weight: 600;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
                     }
 
                     // Priority badge (only for non-default priorities to keep
@@ -167,6 +252,7 @@ export component TaskCard inherits Rectangle {
                 background: Theme.c1e2229;
                 border-radius: 3px;
                 height: 5px;
+                clip: true;
 
                 Rectangle {
                     x: 0px;
@@ -174,10 +260,22 @@ export component TaskCard inherits Rectangle {
                     width: parent.width * max(0.0, min(1.0, root.item.progress));
                     height: parent.height;
                     background: root.item.state_code == "completed" ? Theme.c38bdf8 : (
-                        root.item.state_code == "failed" ? Theme.cef4444 : Theme.c84cc16
+                        root.item.state_code == "failed" ? Theme.cef4444 : (
+                            root.item.state_code == "verifying" ? Theme.cf59e0b : Theme.c84cc16
+                        )
                     );
                     border-radius: 3px;
                     animate width { duration: 250ms; easing: ease-out; }
+
+                    // Soft highlight at leading edge when actively downloading
+                    if root.item.state_code == "downloading" && root.item.progress > 0.02 && root.item.progress < 0.99 : Rectangle {
+                        x: parent.width - 6px;
+                        y: 0px;
+                        width: 6px;
+                        height: parent.height;
+                        background: #ffffff55;
+                        border-radius: 2px;
+                    }
                 }
             }
 
@@ -186,13 +284,35 @@ export component TaskCard inherits Rectangle {
                 alignment: space-between;
 
                 HorizontalLayout {
-                    spacing: 12px;
+                    spacing: 16px;
                     alignment: start;
 
                     Text {
                         text: root.item.size_text;
                         color: Theme.c9ca3af;
                         font-size: 12px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                    }
+
+                    if root.item.downloaded_text != "" && root.item.state_code != "completed" : Text {
+                        text: root.item.downloaded_text;
+                        color: #6b7280;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    if root.item.upload_speed_text != "" : Text {
+                        text: "↑ " + root.item.upload_speed_text;
+                        color: Theme.c38bdf8;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    if root.item.seeds_text != "" : Text {
+                        text: root.item.seeds_text;
+                        color: #6b7280;
+                        font-size: 11px;
                         vertical-alignment: center;
                     }
 
@@ -205,7 +325,7 @@ export component TaskCard inherits Rectangle {
                 }
 
                 HorizontalLayout {
-                    spacing: 6px;
+                    spacing: 8px;
                     alignment: end;
 
                     IconButton {

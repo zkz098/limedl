@@ -59,8 +59,8 @@ export component NewTaskDialog inherits Rectangle {
     }
 
     Rectangle {
-        width: min(parent.width - 60px, 560px);
-        height: root.batch_mode || root.preview_state == "ready" ? 540px : 430px;
+        width: min(parent.width - 60px, 660px);
+        height: root.batch_mode || root.preview_state == "ready" ? 600px : 470px;
         animate height { duration: 200ms; easing: ease-out; }
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
@@ -184,7 +184,7 @@ export component NewTaskDialog inherits Rectangle {
 
                     Rectangle {
                         clip: true;
-                        height: root.preview_state == "ready" ? 120px : 0px;
+                        height: root.preview_state == "ready" ? 160px : 0px;
                         opacity: root.preview_state == "ready" ? 1.0 : 0.0;
                         animate height { duration: 200ms; easing: ease-out; }
                         animate opacity { duration: 160ms; easing: ease-out; }
@@ -261,7 +261,7 @@ export component NewTaskDialog inherits Rectangle {
                 }
 
                 Rectangle {
-                    height: 150px;
+                    height: 180px;
                     background: Theme.c14161b;
                     border-color: te.has-focus ? Theme.c84cc16 : Theme.c2b313d;
                     border-width: 1px;

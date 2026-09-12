@@ -13,12 +13,15 @@ export component ToastStack inherits Rectangle {
 
     width: 100%;
     height: 100%;
+    visible: root.toasts.length > 0 || stack_box.opacity > 0.01;
 
-    Rectangle {
-        width: 340px;
+    stack_box := Rectangle {
+        width: 380px;
         height: self.preferred-height;
-        x: parent.width - self.width - 16px;
-        y: 16px;
+        x: parent.width - self.width - 24px;
+        y: root.toasts.length > 0 ? 24px : 8px;
+        opacity: root.toasts.length > 0 ? 1.0 : 0.0;
+        animate y, opacity { duration: 180ms; easing: ease-out; }
         clip: true;
 
         VerticalLayout {
@@ -32,49 +35,61 @@ export component ToastStack inherits Rectangle {
                 border-color: root.toast_border(toast.kind);
                 border-width: 1px;
                 border-radius: 8px;
-                drop-shadow-blur: 12px;
+                drop-shadow-blur: 14px;
                 drop-shadow-color: Theme.c000000cc;
+                clip: true;
 
                 HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 8px;
-                    padding-top: 9px;
-                    padding-bottom: 9px;
-                    spacing: 8px;
                     alignment: start;
 
-                    // Kind icon
-                    VerticalLayout {
-                        alignment: center;
-                        width: 18px;
-                        Image {
-                            source: root.toast_icon(toast.kind);
-                            colorize: root.toast_color(toast.kind);
-                            width: 16px;
-                            height: 16px;
-                            image-fit: contain;
-                        }
+                    // Left severity accent strip
+                    Rectangle {
+                        width: 4px;
+                        background: root.toast_color(toast.kind);
                     }
 
-                    // Message
-                    VerticalLayout {
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 8px;
+                        padding-top: 10px;
+                        padding-bottom: 10px;
+                        spacing: 8px;
+                        alignment: start;
                         horizontal-stretch: 1;
-                        alignment: center;
-                        Text {
-                            text: toast.message;
-                            color: root.toast_color(toast.kind);
-                            font-size: 12px;
-                            font-weight: 500;
-                            wrap: word-wrap;
-                            vertical-alignment: center;
-                        }
-                    }
 
-                    // Close button
-                    IconButton {
-                        icon: @image-url("../assets/icons/close-line.svg");
-                        text_color: Theme.c8b95a5;
-                        clicked => { root.dismiss(toast.id); }
+                        // Kind icon
+                        VerticalLayout {
+                            alignment: center;
+                            width: 18px;
+                            Image {
+                                source: root.toast_icon(toast.kind);
+                                colorize: root.toast_color(toast.kind);
+                                width: 16px;
+                                height: 16px;
+                                image-fit: contain;
+                            }
+                        }
+
+                        // Message
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            Text {
+                                text: toast.message;
+                                color: Theme.cf3f4f6;
+                                font-size: 12px;
+                                font-weight: 500;
+                                wrap: word-wrap;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Close button
+                        IconButton {
+                            icon: @image-url("../assets/icons/close-line.svg");
+                            text_color: Theme.c8b95a5;
+                            clicked => { root.dismiss(toast.id); }
+                        }
                     }
                 }
             }
@@ -97,7 +112,7 @@ export component ToastStack inherits Rectangle {
         kind == "success" ? Theme.c4ade80 :
         kind == "error" ? Theme.cf87171 :
         kind == "warning" ? Theme.cfbbf24 :
-        Theme.c9ca3af;
+        Theme.c38bdf8;
     }
     pure function toast_icon(kind: string) -> image {
         kind == "success" ? @image-url("../assets/icons/checkbox-circle-line.svg") :

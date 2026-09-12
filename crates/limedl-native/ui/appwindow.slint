@@ -47,6 +47,7 @@ import {
 
 import {
     CategoryButton,
+    CustomSelect,
     IconButton,
     PrimaryButton,
     SearchInput,
@@ -108,6 +109,8 @@ export component MainWindow inherits Window {
     icon: @image-url("assets/icon.png");
     min-width: 1000px;
     min-height: 660px;
+    preferred-width: 1920px;
+    preferred-height: 1080px;
     // NOTE: font-family in Slint is a SINGLE family name (no CSS fallback
     // stacks). MiSans VF is bundled via the import above, so this resolves on
     // every platform and all UI text renders with the same typeface; glyphs
@@ -361,6 +364,7 @@ export component MainWindow inherits Window {
     callback open_log_folder();
     callback open_font_license();
     callback copy_task_url(string);
+    callback copy_task_name(string);
     callback purge_single_task(string);
     callback set_task_priority(string, string); // task_id, priority code
     callback toggle_inspector_file(int, bool); // file index, currently included
@@ -428,17 +432,17 @@ export component MainWindow inherits Window {
     HorizontalLayout {
         // Left Sidebar
         Rectangle {
-            width: 220px;
+            width: 250px;
             background: Theme.c12151a;
             border-color: Theme.c20242d;
             border-width: 1px;
 
             VerticalLayout {
-                padding-top: 18px;
-                padding-bottom: 16px;
+                padding-top: 20px;
+                padding-bottom: 18px;
                 padding-left: 16px;
                 padding-right: 16px;
-                spacing: 16px;
+                spacing: 18px;
 
                 // App Brand
                 HorizontalLayout {
@@ -473,7 +477,7 @@ export component MainWindow inherits Window {
 
                 // Category List
                 VerticalLayout {
-                    spacing: 4px;
+                    spacing: 6px;
                     CategoryButton {
                         title: @tr("All Tasks");
                         icon_source: @image-url("assets/icons/download-cloud-2-line.svg");
@@ -523,7 +527,7 @@ export component MainWindow inherits Window {
                         border-color: root.game_mode_active ? Theme.cf59e0b : Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
-                        height: 34px;
+                        height: 36px;
 
                         TouchArea {
                             clicked => { root.toggle_game_mode(); }
@@ -569,7 +573,7 @@ export component MainWindow inherits Window {
                         border-color: root.overclock_mode_active ? Theme.cec4899 : Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
-                        height: 34px;
+                        height: 36px;
 
                         TouchArea {
                             clicked => { root.toggle_overclock_mode(); }
@@ -727,21 +731,21 @@ export component MainWindow inherits Window {
         VerticalLayout {
             // Top Toolbar with vertical centering and proper padding
             Rectangle {
-                height: 62px;
+                height: 66px;
                 background: Theme.c111419;
                 border-color: Theme.c20242d;
                 border-width: 1px;
 
                 HorizontalLayout {
-                    padding-left: 20px;
-                    padding-right: 20px;
-                    padding-top: 14px;
-                    padding-bottom: 14px;
+                    padding-left: 24px;
+                    padding-right: 24px;
+                    padding-top: 15px;
+                    padding-bottom: 15px;
                     alignment: space-between;
 
                     // Left Title & Search
                     HorizontalLayout {
-                        spacing: 16px;
+                        spacing: 20px;
                         alignment: start;
 
                         VerticalLayout {
@@ -755,7 +759,7 @@ export component MainWindow inherits Window {
                                     )
                                 );
                                 color: Theme.cf3f4f6;
-                                font-size: 16px;
+                                font-size: 17px;
                                 font-weight: 700;
                                 vertical-alignment: center;
                             }
@@ -820,9 +824,9 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        // Sort Buttons
+                        // Sort Selector
                         HorizontalLayout {
-                            spacing: 4px;
+                            spacing: 6px;
                             alignment: center;
 
                             Text {
@@ -832,30 +836,27 @@ export component MainWindow inherits Window {
                                 vertical-alignment: center;
                             }
 
-                            SecondaryButton {
-                                text: @tr("Time");
-                                active: root.sort_field == 0;
-                                clicked => { root.set_sort_field(0); }
-                            }
-                            SecondaryButton {
-                                text: @tr("Size");
-                                active: root.sort_field == 1;
-                                clicked => { root.set_sort_field(1); }
-                            }
-                            SecondaryButton {
-                                text: @tr("Speed");
-                                active: root.sort_field == 2;
-                                clicked => { root.set_sort_field(2); }
-                            }
-                            SecondaryButton {
-                                text: @tr("Progress");
-                                active: root.sort_field == 3;
-                                clicked => { root.set_sort_field(3); }
+                            CustomSelect {
+                                width: 105px;
+                                select_height: 32px;
+                                font_size: 12px;
+                                model: [
+                                    @tr("Time"),
+                                    @tr("Size"),
+                                    @tr("Speed"),
+                                    @tr("Progress"),
+                                    @tr("File Name"),
+                                    @tr("Status"),
+                                ];
+                                current_index: root.sort_field;
+                                selected_index(idx) => {
+                                    root.set_sort_field(idx);
+                                }
                             }
 
                             IconButton {
-                                text: root.sort_asc ? @tr("Ascending") : @tr("Descending");
-                                icon: @image-url("assets/icons/arrow-up-down-line.svg");
+                                text: root.sort_asc ? @tr("Asc") : @tr("Desc");
+                                icon: root.sort_asc ? @image-url("assets/icons/sort-asc.svg") : @image-url("assets/icons/sort-desc.svg");
                                 text_color: Theme.ca3e635;
                                 clicked => { root.toggle_sort_asc(); }
                             }
@@ -918,19 +919,98 @@ export component MainWindow inherits Window {
 
                     VerticalLayout {
                         alignment: center;
-                        spacing: 12px;
-                        Text {
-                            text: root.search_query != "" ? @tr("No matching download tasks found") : @tr("No download tasks");
-                            color: #6b7280;
-                            font-size: 16px;
-                            font-weight: 500;
-                            horizontal-alignment: center;
+                        spacing: 16px;
+
+                        // Icon badge
+                        HorizontalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 68px;
+                                height: 68px;
+                                border-radius: 34px;
+                                background: root.search_query != "" ? Theme.c14171d : Theme.c181b22;
+                                border-width: 1px;
+                                border-color: root.search_query != "" ? Theme.c272d38 : Theme.c343c4a;
+
+                                Image {
+                                    width: 32px;
+                                    height: 32px;
+                                    source: root.search_query != "" ? @image-url("assets/icons/search-line.svg") : @image-url("assets/icons/download-cloud-2-line.svg");
+                                    colorize: root.search_query != "" ? Theme.c9ca3af : Theme.ca3e635;
+                                    image-fit: contain;
+                                }
+                            }
                         }
-                        Text {
-                            text: root.search_query != "" ? @tr("Try clearing your search keywords") : @tr("Click \"New Task\" in the top-right corner to add HTTP / BT downloads");
-                            color: Theme.c4b5563;
-                            font-size: 13px;
-                            horizontal-alignment: center;
+
+                        // Texts
+                        VerticalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: root.search_query != "" ? @tr("No matching download tasks found") : @tr("No download tasks yet");
+                                color: Theme.ce5e7eb;
+                                font-size: 16px;
+                                font-weight: 600;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: root.search_query != "" ? @tr("Try clearing your search keywords") : @tr("Add a URL or drag & drop files here to begin downloading");
+                                color: Theme.c6b7280;
+                                font-size: 13px;
+                                horizontal-alignment: center;
+                            }
+                        }
+
+                        // Action button & hints
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 10px;
+
+                            if root.search_query != "" : SecondaryButton {
+                                text: @tr("Clear Search");
+                                icon: @image-url("assets/icons/close-line.svg");
+                                clicked => {
+                                    root.search_query = "";
+                                    root.search_changed("");
+                                }
+                            }
+
+                            if root.search_query == "" : PrimaryButton {
+                                text: @tr("Create New Task");
+                                icon: @image-url("assets/icons/add-line.svg");
+                                clicked => { root.open_new_task_dialog(); }
+                            }
+                        }
+
+                        if root.search_query == "" : HorizontalLayout {
+                            alignment: center;
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 13px;
+                                background: Theme.c14171d;
+                                border-width: 1px;
+                                border-color: Theme.c242934;
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Image {
+                                        width: 13px;
+                                        height: 13px;
+                                        source: @image-url("assets/icons/file-upload-line.svg");
+                                        colorize: Theme.c6b7280;
+                                        image-fit: contain;
+                                    }
+                                    Text {
+                                        text: @tr("Drop .torrent or metalink files to start");
+                                        color: Theme.c6b7280;
+                                        font-size: 11px;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -961,11 +1041,11 @@ export component MainWindow inherits Window {
 
                     // Card list: layout child (viewport-stretched, top-aligned)
                     VerticalLayout {
-                        padding-left: 18px;
-                        padding-right: 18px;
+                        padding-left: 24px;
+                        padding-right: 24px;
                         padding-top: 18px;
-                        padding-bottom: root.selected_count > 0 ? 72px : 18px;
-                        spacing: 10px;
+                        padding-bottom: root.selected_count > 0 ? 80px : 20px;
+                        spacing: 12px;
                         alignment: start;
 
                         for task[idx] in root.tasks : task_card := TaskCard {
@@ -1026,6 +1106,8 @@ export component MainWindow inherits Window {
                     remove_task(id) => { root.remove_task(id); }
                     double_clicked(id) => { root.task_double_clicked(id); }
                     header_sort_clicked(f) => { root.table_sort_clicked(f); }
+                    select_all => { root.select_all(); }
+                    clear_selection => { root.clear_selection(); }
                     show_priority_menu(t, mx, my) => {
                         root.priority_menu_task_id = t.id;
                         root.priority_menu_current = t.priority_code;
@@ -1052,9 +1134,9 @@ export component MainWindow inherits Window {
                 // Floating Batch Action Bar
                 if root.selected_count > 0 : Rectangle {
                     x: (parent.width - self.width) / 2;
-                    y: parent.height - self.height - 16px;
-                    width: min(parent.width - 40px, 700px);
-                    height: 52px;
+                    y: parent.height - self.height - 24px;
+                    width: min(parent.width - 80px, 820px);
+                    height: 56px;
                     background: Theme.c181b22;
                     border-color: Theme.c84cc16;
                     border-width: 1px;
@@ -1135,6 +1217,7 @@ export component MainWindow inherits Window {
         resume_task(id) => { root.resume_task(id); }
         open_explorer(id) => { root.open_task_explorer(id); }
         copy_url(url) => { root.copy_task_url(url); }
+        copy_name(name) => { root.copy_task_name(name); }
         open_speed_limit(id) => { root.open_inspector(id); root.open_speed_limit_dialog(); }
         set_priority(id) => {
             // Open the popup anchored under the task's row (the context menu
@@ -1300,8 +1383,8 @@ export component MainWindow inherits Window {
         refresh_list => { root.background_refresh(); }
     }
 
-    // In-app toasts (topmost layer: above dialogs)
-    if root.toasts.length > 0 : ToastStack {
+    // In-app toasts (topmost layer: above dialogs, handles own visibility and animations)
+    ToastStack {
         toasts <=> root.toasts;
         dismiss(id) => { root.dismiss_toast(id); }
     }

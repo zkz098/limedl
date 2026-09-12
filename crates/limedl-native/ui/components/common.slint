@@ -315,6 +315,7 @@ export component ToggleSwitch inherits Rectangle {
 export component SearchInput inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder: @tr("Search downloads...");
+    in property <length> input_width: 300px;
     callback text_changed(string);
 
     background: Theme.c15171c;
@@ -322,8 +323,8 @@ export component SearchInput inherits Rectangle {
     animate border-color { duration: 150ms; }
     border-width: 1px;
     border-radius: 6px;
-    height: 32px;
-    width: 230px;
+    height: 34px;
+    width: root.input_width;
 
     HorizontalLayout {
         padding-left: 10px;
@@ -674,7 +675,7 @@ export component CategoryButton inherits Rectangle {
     background: root.active ? Theme.c232b1d : (ta.has_hover ? Theme.c171b21 : transparent);
     animate background { duration: 150ms; }
     border-radius: 6px;
-    height: 36px;
+    height: 38px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
@@ -743,10 +744,12 @@ export component CustomSelect inherits Rectangle {
     in-out property <int> current_index: 0;
     in-out property <string> current_value: "";
     in property <bool> enabled: true;
+    in property <length> select_height: 36px;
+    in property <length> font_size: 13px;
     callback selected(string);
     callback selected_index(int);
 
-    height: 36px;
+    height: root.select_height;
     background: Theme.c14161b;
     border-color: popup.is-open ? Theme.c84cc16 : (ta.has_hover ? Theme.c3b4352 : Theme.c2b313d);
     animate border-color { duration: 150ms; }
@@ -764,9 +767,11 @@ export component CustomSelect inherits Rectangle {
         alignment: space-between;
 
         Text {
-            text: root.current_value != "" ? root.current_value : root.model[root.current_index];
+            text: root.current_value != "" ? root.current_value : (
+                root.current_index >= 0 && root.current_index < root.model.length ? root.model[root.current_index] : ""
+            );
             color: !root.enabled ? Theme.c4b5563 : Theme.cf3f4f6;
-            font-size: 13px;
+            font-size: root.font_size;
             vertical-alignment: center;
             overflow: elide;
         }
@@ -808,13 +813,17 @@ export component CustomSelect inherits Rectangle {
                 for item[idx] in root.model : Rectangle {
                     height: 32px;
                     border-radius: 4px;
-                    background: item_ta.has_hover ? Theme.c232b1d : ((idx == root.current_index || item == root.current_value) ? Theme.c1e2229 : transparent);
+                    background: item_ta.has_hover ? Theme.c232b1d : (
+                        (root.current_value != "" ? item == root.current_value : idx == root.current_index) ? Theme.c1e2229 : transparent
+                    );
                     animate background { duration: 100ms; }
 
                     item_ta := TouchArea {
                         clicked => {
                             root.current_index = idx;
-                            root.current_value = item;
+                            if root.current_value != "" {
+                                root.current_value = item;
+                            }
                             root.selected(item);
                             root.selected_index(idx);
                         }
@@ -827,11 +836,11 @@ export component CustomSelect inherits Rectangle {
 
                         Text {
                             text: item;
-                            color: (idx == root.current_index || item == root.current_value) ? Theme.c84cc16 : Theme.ce5e7eb;
+                            color: (root.current_value != "" ? item == root.current_value : idx == root.current_index) ? Theme.c84cc16 : Theme.ce5e7eb;
                             font-size: 12px;
                             vertical-alignment: center;
                         }
-                        if (idx == root.current_index || item == root.current_value) : Text {
+                        if (root.current_value != "" ? item == root.current_value : idx == root.current_index) : Text {
                             text: "✓";
                             color: Theme.c84cc16;
                             font-size: 11px;

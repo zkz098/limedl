@@ -34,9 +34,11 @@ export component TaskTable inherits Rectangle {
     callback show_menu(TaskItem, length, length); // item, absolute_x, absolute_y
     callback show_priority_menu(TaskItem, length, length); // item, absolute_x, absolute_y
     callback header_sort_clicked(int);
+    callback select_all();
+    callback clear_selection();
 
     pure function row_height() -> length {
-        root.compact ? 30px : 40px;
+        root.compact ? 34px : 46px;
     }
 
     pure function priority_color(code: string) -> color {
@@ -47,12 +49,40 @@ export component TaskTable inherits Rectangle {
         code == "high" ? Theme.c3f1518 : (code == "low" ? Theme.c152c42 : Theme.c1e2229);
     }
 
+    pure function file_type_icon(t: string) -> image {
+        t == "video" ? @image-url("../assets/icons/film-line.svg") : (
+            t == "audio" ? @image-url("../assets/icons/music-2-line.svg") : (
+                t == "archive" ? @image-url("../assets/icons/file-zip-line.svg") : (
+                    t == "document" ? @image-url("../assets/icons/file-text-line.svg") : (
+                        t == "installer" ? @image-url("../assets/icons/apps-line.svg") : (
+                            t == "image" ? @image-url("../assets/icons/image-line.svg") : @image-url("../assets/icons/file-line.svg")
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    pure function file_type_color(t: string) -> color {
+        t == "video" ? #c084fc : (
+            t == "audio" ? #f472b6 : (
+                t == "archive" ? #fbbf24 : (
+                    t == "document" ? #38bdf8 : (
+                        t == "installer" ? #34d399 : (
+                            t == "image" ? #22d3ee : Theme.c9ca3af
+                        )
+                    )
+                )
+            )
+        )
+    }
+
     background: Theme.c0d0f12;
 
     VerticalLayout {
         // Table Header
         Rectangle {
-            height: 38px;
+            height: 42px;
             background: Theme.c13161b;
 
             // Bottom border line
@@ -63,21 +93,27 @@ export component TaskTable inherits Rectangle {
             }
 
             HorizontalLayout {
-                padding-left: 14px;
-                padding-right: 14px;
-                spacing: 8px;
+                padding-left: 18px;
+                padding-right: 18px;
+                spacing: 10px;
 
                 // Checkbox column header
                 Rectangle {
-                    width: 32px;
+                    width: 36px;
                     VerticalLayout {
                         alignment: center;
-                        Text {
-                            text: "#";
-                            color: #6b7280;
-                            font-size: 11px;
-                            font-weight: 600;
-                            horizontal-alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            CustomCheckBox {
+                                checked: root.tasks.length > 0 && root.selected_count == root.tasks.length;
+                                toggled => {
+                                    if root.tasks.length > 0 && root.selected_count == root.tasks.length {
+                                        root.clear_selection();
+                                    } else {
+                                        root.select_all();
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -85,7 +121,7 @@ export component TaskTable inherits Rectangle {
                 // File Name Column
                 Rectangle {
                     horizontal-stretch: 1;
-                    min-width: 200px;
+                    min-width: 260px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(4); }
                     }
@@ -111,7 +147,7 @@ export component TaskTable inherits Rectangle {
 
                 // Status Column
                 if root.column_status : Rectangle {
-                    width: 80px;
+                    width: 90px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(5); }
                     }
@@ -137,7 +173,7 @@ export component TaskTable inherits Rectangle {
 
                 // Progress Column
                 if root.column_progress : Rectangle {
-                    width: 130px;
+                    width: 160px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(3); }
                     }
@@ -163,7 +199,7 @@ export component TaskTable inherits Rectangle {
 
                 // Size Column
                 if root.column_size : Rectangle {
-                    width: 80px;
+                    width: 90px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(1); }
                     }
@@ -189,7 +225,7 @@ export component TaskTable inherits Rectangle {
 
                 // Downloaded Column
                 if root.column_downloaded : Rectangle {
-                    width: 88px;
+                    width: 100px;
                     Text {
                         text: @tr("Downloaded");
                         color: #6b7280;
@@ -201,7 +237,7 @@ export component TaskTable inherits Rectangle {
 
                 // Speed Column
                 if root.column_speed : Rectangle {
-                    width: 90px;
+                    width: 100px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(2); }
                     }
@@ -227,7 +263,7 @@ export component TaskTable inherits Rectangle {
 
                 // Upload Speed Column (BT only)
                 if root.column_upload_speed : Rectangle {
-                    width: 90px;
+                    width: 100px;
                     Text {
                         text: @tr("Up Speed");
                         color: #6b7280;
@@ -239,7 +275,7 @@ export component TaskTable inherits Rectangle {
 
                 // Seeds Column (BT only)
                 if root.column_seeds : Rectangle {
-                    width: 60px;
+                    width: 70px;
                     Text {
                         text: @tr("Seeds");
                         color: #6b7280;
@@ -251,7 +287,7 @@ export component TaskTable inherits Rectangle {
 
                 // Priority Column
                 if root.column_priority : Rectangle {
-                    width: 70px;
+                    width: 75px;
                     Text {
                         text: @tr("Priority");
                         color: #6b7280;
@@ -263,7 +299,7 @@ export component TaskTable inherits Rectangle {
 
                 // ETA Column
                 if root.column_eta : Rectangle {
-                    width: 75px;
+                    width: 85px;
                     TouchArea {
                         clicked => { root.header_sort_clicked(0); }
                     }
@@ -289,7 +325,7 @@ export component TaskTable inherits Rectangle {
 
                 // Actions Column
                 Rectangle {
-                    width: 110px;
+                    width: 120px;
                     Text {
                         text: @tr("Actions");
                         color: #6b7280;
@@ -334,13 +370,13 @@ export component TaskTable inherits Rectangle {
                     }
 
                     HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        spacing: 8px;
+                        padding-left: 18px;
+                        padding-right: 18px;
+                        spacing: 10px;
 
                         // Checkbox
                         Rectangle {
-                            width: 32px;
+                            width: 36px;
                             VerticalLayout {
                                 alignment: center;
                                 CustomCheckBox {
@@ -354,7 +390,7 @@ export component TaskTable inherits Rectangle {
                         // File Name + Kind
                         HorizontalLayout {
                             horizontal-stretch: 1;
-                            min-width: 200px;
+                            min-width: 260px;
                             spacing: 8px;
                             alignment: start;
 
@@ -381,6 +417,17 @@ export component TaskTable inherits Rectangle {
                                 }
                             }
 
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.file_type_icon(task.file_type);
+                                    colorize: root.file_type_color(task.file_type);
+                                    width: 14px;
+                                    height: 14px;
+                                    image-fit: contain;
+                                }
+                            }
+
                             Text {
                                 text: task.file_name;
                                 color: task.selected ? Theme.ca3e635 : Theme.cf3f4f6;
@@ -393,7 +440,7 @@ export component TaskTable inherits Rectangle {
 
                         // Status
                         if root.column_status : Rectangle {
-                            width: 80px;
+                            width: 90px;
                             VerticalLayout {
                                 alignment: center;
                                 Text {
@@ -412,7 +459,7 @@ export component TaskTable inherits Rectangle {
 
                         // Progress bar + percentage
                         if root.column_progress : Rectangle {
-                            width: 130px;
+                            width: 160px;
                             VerticalLayout {
                                 alignment: center;
                                 spacing: 3px;
@@ -428,7 +475,7 @@ export component TaskTable inherits Rectangle {
                                 }
 
                                 Rectangle {
-                                    height: 4px;
+                                    height: 5px;
                                     background: Theme.c20242d;
                                     border-radius: 2px;
                                     Rectangle {
@@ -439,7 +486,7 @@ export component TaskTable inherits Rectangle {
                                         border-radius: 2px;
                                         background: task.is_completed ? Theme.c38bdf8
                                                   : task.is_failed ? Theme.cf87171
-                                                  : Theme.c84cc16;
+                                                  : (task.state_code == "verifying" ? Theme.cf59e0b : Theme.c84cc16);
                                         animate width { duration: 250ms; easing: ease-out; }
                                     }
                                 }
@@ -448,7 +495,7 @@ export component TaskTable inherits Rectangle {
 
                         // Size
                         if root.column_size : Rectangle {
-                            width: 80px;
+                            width: 90px;
                             VerticalLayout {
                                 alignment: center;
                                 Text {
@@ -462,13 +509,13 @@ export component TaskTable inherits Rectangle {
 
                         // Downloaded
                         if root.column_downloaded : Rectangle {
-                            width: 88px;
+                            width: 100px;
                             VerticalLayout {
                                 alignment: center;
                                 Text {
                                     text: task.downloaded_text;
                                     color: Theme.c9ca3af;
-                                    font-size: 11px;
+                                    font-size: 12px;
                                     vertical-alignment: center;
                                 }
                             }
@@ -476,13 +523,13 @@ export component TaskTable inherits Rectangle {
 
                         // Speed
                         if root.column_speed : Rectangle {
-                            width: 90px;
+                            width: 100px;
                             VerticalLayout {
                                 alignment: center;
                                 Text {
                                     text: task.speed_text != "" ? task.speed_text : "-";
                                     color: task.speed_text != "" && task.speed_text != "0 B/s" ? Theme.c4ade80 : #6b7280;
-                                    font-size: 11px;
+                                    font-size: 12px;
                                     font-weight: 600;
                                     vertical-alignment: center;
                                 }
@@ -491,13 +538,13 @@ export component TaskTable inherits Rectangle {
 
                         // Upload Speed (BT)
                         if root.column_upload_speed : Rectangle {
-                            width: 90px;
+                            width: 100px;
                             VerticalLayout {
                                 alignment: center;
                                 Text {
                                     text: task.kind == "bt" && task.upload_speed_text != "" ? task.upload_speed_text : "-";
                                     color: Theme.c38bdf8;
-                                    font-size: 11px;
+                                    font-size: 12px;
                                     vertical-alignment: center;
                                 }
                             }
@@ -505,13 +552,13 @@ export component TaskTable inherits Rectangle {
 
                         // Seeds (BT)
                         if root.column_seeds : Rectangle {
-                            width: 60px;
+                            width: 70px;
                             VerticalLayout {
                                 alignment: center;
                                 Text {
                                     text: task.kind == "bt" ? task.seeds_text : "-";
                                     color: Theme.c9ca3af;
-                                    font-size: 11px;
+                                    font-size: 12px;
                                     vertical-alignment: center;
                                 }
                             }
@@ -519,13 +566,13 @@ export component TaskTable inherits Rectangle {
 
                         // Priority (click opens the priority popup)
                         if root.column_priority : Rectangle {
-                            width: 70px;
+                            width: 75px;
                             VerticalLayout {
                                 alignment: center;
                                 HorizontalLayout {
                                     alignment: start;
                                     prio := Rectangle {
-                                        height: 18px;
+                                        height: 20px;
                                         border-radius: 4px;
                                         background: root.priority_bg(task.priority_code);
                                         border-color: root.priority_color(task.priority_code);
@@ -537,7 +584,7 @@ export component TaskTable inherits Rectangle {
                                             Text {
                                                 text: task.priority_label;
                                                 color: root.priority_color(task.priority_code);
-                                                font-size: 10px;
+                                                font-size: 11px;
                                                 font-weight: 700;
                                                 vertical-alignment: center;
                                             }
@@ -561,13 +608,13 @@ export component TaskTable inherits Rectangle {
 
                         // ETA
                         if root.column_eta : Rectangle {
-                            width: 75px;
+                            width: 85px;
                             VerticalLayout {
                                 alignment: center;
                                 Text {
                                     text: task.eta_text != "" ? task.eta_text : "-";
                                     color: Theme.cfacc15;
-                                    font-size: 11px;
+                                    font-size: 12px;
                                     vertical-alignment: center;
                                 }
                             }
@@ -575,7 +622,7 @@ export component TaskTable inherits Rectangle {
 
                         // Actions
                         Rectangle {
-                            width: 110px;
+                            width: 120px;
                             HorizontalLayout {
                                 spacing: 4px;
                                 alignment: start;

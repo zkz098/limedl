@@ -33,8 +33,8 @@ export component TaskInspector inherits Rectangle {
     }
 
     Rectangle {
-        width: min(parent.width - 60px, 800px);
-        height: min(parent.height - 60px, 600px);
+        width: min(parent.width - 100px, 1060px);
+        height: min(parent.height - 100px, 780px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
         animate y { duration: 160ms; easing: ease-out; }
@@ -83,7 +83,7 @@ export component TaskInspector inherits Rectangle {
                         font-size: 16px;
                         font-weight: 700;
                         overflow: elide;
-                        max-width: 560px;
+                        max-width: 800px;
                         vertical-alignment: center;
                     }
                 }
@@ -294,7 +294,7 @@ export component TaskInspector inherits Rectangle {
                         border-color: Theme.c252b36;
                         border-width: 1px;
                         border-radius: 6px;
-                        height: 240px;
+                        height: 380px;
 
                         Image {
                             source: root.inspector_piece_map;
@@ -353,7 +353,7 @@ export component TaskInspector inherits Rectangle {
                                 VerticalLayout {
                                     alignment: center;
                                     horizontal-stretch: 1;
-                                    Text { text: file.path; color: file.included ? Theme.cf3f4f6 : Theme.c8b95a5; font-size: 12px; font-weight: 500; overflow: elide; max-width: 380px; }
+                                    Text { text: file.path; color: file.included ? Theme.cf3f4f6 : Theme.c8b95a5; font-size: 12px; font-weight: 500; overflow: elide; max-width: 680px; }
                                     Text { text: file.downloaded_text + " / " + file.size_text; color: Theme.c8b95a5; font-size: 10px; }
                                 }
                                 Text {

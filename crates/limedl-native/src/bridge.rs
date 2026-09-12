@@ -151,6 +151,25 @@ fn state_rank(task: &DownloadSummary) -> u8 {
     }
 }
 
+/// Classify a file into an icon category based on its extension.
+pub fn detect_file_category(filename: &str) -> &'static str {
+    let ext = std::path::Path::new(filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .unwrap_or_default();
+
+    match ext.as_str() {
+        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "rmvb" | "ts" | "m4v" => "video",
+        "mp3" | "flac" | "wav" | "aac" | "ogg" | "m4a" | "wma" | "opus" | "ape" => "audio",
+        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "zst" | "iso" | "dmg" | "img" | "vhd" => "archive",
+        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "txt" | "md" | "epub" | "csv" => "document",
+        "exe" | "msi" | "apk" | "deb" | "rpm" | "appimage" | "pkg" => "installer",
+        "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" | "bmp" | "ico" | "psd" | "tiff" => "image",
+        _ => "default",
+    }
+}
+
 /// Convert a `DownloadSummary` into a Slint `TaskItem`.
 pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Language) -> TaskItem {
     let (state_code, can_pause, can_resume, is_completed, is_failed) = match summary.state {
@@ -216,6 +235,7 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Lan
         is_completed,
         is_failed,
         selected,
+        file_type: SharedString::from(detect_file_category(&summary.file_name)),
     }
 }
 
@@ -3081,6 +3101,24 @@ mod tests {
         assert!(store.selected_ids().contains(&"http:task-2".to_string()));
         assert!(store.selected_ids().contains(&"http:task-3".to_string()));
         assert!(store.selected_ids().contains(&"http:task-4".to_string()));
+    }
+
+    #[test]
+    fn test_detect_file_category() {
+        assert_eq!(detect_file_category("movie.mp4"), "video");
+        assert_eq!(detect_file_category("clip.MKV"), "video");
+        assert_eq!(detect_file_category("song.mp3"), "audio");
+        assert_eq!(detect_file_category("lossless.flac"), "audio");
+        assert_eq!(detect_file_category("archive.7z"), "archive");
+        assert_eq!(detect_file_category("image.iso"), "archive");
+        assert_eq!(detect_file_category("manual.pdf"), "document");
+        assert_eq!(detect_file_category("readme.MD"), "document");
+        assert_eq!(detect_file_category("setup.exe"), "installer");
+        assert_eq!(detect_file_category("package.msi"), "installer");
+        assert_eq!(detect_file_category("photo.png"), "image");
+        assert_eq!(detect_file_category("drawing.webp"), "image");
+        assert_eq!(detect_file_category("unknown.xyz"), "default");
+        assert_eq!(detect_file_category("no_extension"), "default");
     }
 }
 

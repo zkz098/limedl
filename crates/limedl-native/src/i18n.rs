@@ -486,6 +486,13 @@ pub fn format_toast_link_copied(lang: Language) -> &'static str {
     }
 }
 
+pub fn format_toast_filename_copied(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "文件名已复制到剪贴板",
+        Language::EnUs => "File name copied to clipboard",
+    }
+}
+
 pub fn format_toast_labs_saved(lang: Language) -> &'static str {
     match lang {
         Language::ZhCn => "实验室设置已保存",

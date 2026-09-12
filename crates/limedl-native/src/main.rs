@@ -648,6 +648,8 @@ fn apply_appearance(ui: &MainWindow, mode: ColorMode, theme_color: ThemeColor) {
     };
     ui.global::<Theme>().set_mode(pref);
     ui.global::<Theme>().set_accent(accent);
+    let is_dark = ui.global::<Theme>().get_dark();
+    platform_win::sync_window_theme(ui.window(), is_dark);
 }
 
 fn create_default_tray_icon() -> tray_icon::Icon {
@@ -1002,6 +1004,8 @@ async fn main() -> anyhow::Result<()> {
                         return;
                     };
                     if platform_win::try_install_window_hooks(ui.window()) {
+                        let is_dark = ui.global::<Theme>().get_dark();
+                        platform_win::sync_window_theme(ui.window(), is_dark);
                         timer_for_cb.stop();
                     }
                 },
@@ -3348,6 +3352,31 @@ async fn main() -> anyhow::Result<()> {
                         &ui_weak,
                         &toast_queue,
                         i18n::format_toast_link_copied(store_clone.lock().language()).to_string(),
+                        "success",
+                        Duration::from_secs(3),
+                    );
+                }
+            });
+        });
+    }
+
+    // Copy Task Name to Clipboard
+    {
+        let store_clone = store.clone();
+        let toast_queue_clone = toast_queue.clone();
+        let ui_weak = main_window.as_weak();
+        main_window.on_copy_task_name(move |name| {
+            let name_str = name.to_string();
+            let store_clone = store_clone.clone();
+            let toast_queue = toast_queue_clone.clone();
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                    let _ = clipboard.set_text(&name_str);
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_filename_copied(store_clone.lock().language()).to_string(),
                         "success",
                         Duration::from_secs(3),
                     );

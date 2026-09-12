@@ -107,8 +107,8 @@ export component SettingsDialog inherits Rectangle {
     }
 
     Rectangle {
-        width: min(parent.width - 60px, 940px);
-        height: min(parent.height - 60px, 700px);
+        width: min(parent.width - 100px, 1140px);
+        height: min(parent.height - 100px, 820px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
         animate y { duration: 160ms; easing: ease-out; }

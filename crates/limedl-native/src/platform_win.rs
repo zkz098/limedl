@@ -93,6 +93,83 @@ pub fn try_install_window_hooks(window: &slint::Window) -> bool {
     }
 }
 
+/// Synchronize the native Windows title bar appearance with the application theme:
+/// - Sets `DWMWA_USE_IMMERSIVE_DARK_MODE` for Windows 10/11 title bar styling.
+/// - Sets `DWMWA_CAPTION_COLOR` so the title bar matches the window's top toolbar.
+/// - Sets `DWMWA_TEXT_COLOR` for crisp caption text contrast.
+/// - Sets `DWMWA_WINDOW_CORNER_PREFERENCE` to ensure Windows 11 rounded corners.
+pub fn sync_window_theme(window: &slint::Window, is_dark: bool) {
+    #[cfg(windows)]
+    {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        use windows::Win32::Graphics::Dwm::{
+            DwmSetWindowAttribute, DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR,
+            DWMWA_USE_IMMERSIVE_DARK_MODE, DWMWA_WINDOW_CORNER_PREFERENCE,
+            DWMWCP_ROUND,
+        };
+
+        let win_handle = window.window_handle();
+        let Ok(handle_wrapper) = win_handle.window_handle() else {
+            return;
+        };
+
+        let hwnd_raw = match handle_wrapper.as_raw() {
+            RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+            _ => return,
+        };
+
+        let hwnd = HWND(hwnd_raw);
+
+        unsafe {
+            // Immersive dark mode (Windows 10 1809+ / Windows 11; BOOL = i32 1/0)
+            let dark_val: i32 = if is_dark { 1 } else { 0 };
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                &dark_val as *const _ as _,
+                std::mem::size_of::<i32>() as u32,
+            );
+
+            // Caption background color (COLORREF: 0x00BBGGRR)
+            // Dark: #111419 -> R: 0x11, G: 0x14, B: 0x19 -> 0x00191411
+            // Light: #f8f9fa -> R: 0xf8, G: 0xf9, B: 0xfa -> 0x00faf9f8
+            let caption_color: u32 = if is_dark { 0x00191411 } else { 0x00faf9f8 };
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_CAPTION_COLOR,
+                &caption_color as *const _ as _,
+                std::mem::size_of::<u32>() as u32,
+            );
+
+            // Caption text color (COLORREF: 0x00BBGGRR)
+            // Dark: #f3f4f6 -> R: 0xf3, G: 0xf4, B: 0xf6 -> 0x00f6f4f3
+            // Light: #1f2329 -> R: 0x1f, G: 0x23, B: 0x29 -> 0x0029231f
+            let text_color: u32 = if is_dark { 0x00f6f4f3 } else { 0x0029231f };
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_TEXT_COLOR,
+                &text_color as *const _ as _,
+                std::mem::size_of::<u32>() as u32,
+            );
+
+            // Windows 11 round corners
+            let corner_pref = DWMWCP_ROUND.0 as u32;
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                &corner_pref as *const _ as _,
+                std::mem::size_of::<u32>() as u32,
+            );
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+        let _ = is_dark;
+    }
+}
+
 #[cfg(windows)]
 unsafe extern "system" fn subclass_proc(
     hwnd: HWND,

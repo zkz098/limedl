@@ -1,13 +1,12 @@
 import { ContextMenuState } from "../types.slint";
-
 import { Theme } from "../theme.slint";
-import { ContextMenuState } from "../types.slint";
 
 export component MenuItem inherits Rectangle {
     in property <string> text;
     in property <image> icon;
     in property <color> text_color: Theme.cd1d5db;
     in property <bool> danger: false;
+    in property <string> shortcut: "";
     callback clicked();
 
     height: 32px;
@@ -37,11 +36,24 @@ export component MenuItem inherits Rectangle {
         }
 
         Text {
+            horizontal-stretch: 1;
             text: root.text;
             color: root.danger ? Theme.cf87171 : (ta.has_hover ? Theme.cffffff : root.text_color);
             font-size: 12px;
             font-weight: 500;
             vertical-alignment: center;
+            overflow: elide;
+        }
+
+        if root.shortcut != "" : VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.shortcut;
+                color: root.danger ? #fca5a5 : (ta.has_hover ? Theme.cd1d5db : #6b7280);
+                font-size: 11px;
+                font-weight: 500;
+                vertical-alignment: center;
+            }
         }
     }
 }
@@ -54,6 +66,7 @@ export component ContextMenu inherits Rectangle {
     callback resume_task(string);
     callback open_explorer(string);
     callback copy_url(string);
+    callback copy_name(string);
     callback open_speed_limit(string);
     callback set_priority(string); // task_id — opens the priority popup
     callback remove_task(string);
@@ -78,7 +91,7 @@ export component ContextMenu inherits Rectangle {
     Rectangle {
         x: min(root.menu_state.x, parent.width - self.width - 10px);
         y: min(root.menu_state.y, parent.height - self.height - 10px);
-        width: 190px;
+        width: 220px;
         height: self.preferred-height;
         clip: true;
         background: Theme.c181b22;
@@ -101,12 +114,14 @@ export component ContextMenu inherits Rectangle {
             if root.menu_state.can_pause : MenuItem {
                 text: @tr("Pause Task");
                 icon: @image-url("../assets/icons/pause-line.svg");
+                shortcut: "Space";
                 clicked => { root.pause_task(root.menu_state.task_id); root.close(); }
             }
 
             if root.menu_state.can_resume : MenuItem {
                 text: @tr("Resume Task");
                 icon: @image-url("../assets/icons/play-line.svg");
+                shortcut: "Space";
                 clicked => { root.resume_task(root.menu_state.task_id); root.close(); }
             }
 
@@ -120,6 +135,12 @@ export component ContextMenu inherits Rectangle {
                 text: @tr("Copy Download Link");
                 icon: @image-url("../assets/icons/file-copy-line.svg");
                 clicked => { root.copy_url(root.menu_state.task_url); root.close(); }
+            }
+
+            MenuItem {
+                text: @tr("Copy File Name");
+                icon: @image-url("../assets/icons/file-text-line.svg");
+                clicked => { root.copy_name(root.menu_state.task_name); root.close(); }
             }
 
             MenuItem {
@@ -142,6 +163,7 @@ export component ContextMenu inherits Rectangle {
             MenuItem {
                 text: @tr("Remove Record");
                 icon: @image-url("../assets/icons/delete-bin-line.svg");
+                shortcut: "Del";
                 clicked => { root.remove_task(root.menu_state.task_id); root.close(); }
             }
 
@@ -149,6 +171,7 @@ export component ContextMenu inherits Rectangle {
                 text: @tr("Delete File Permanently");
                 icon: @image-url("../assets/icons/delete-bin-6-line.svg");
                 danger: true;
+                shortcut: "Shift+Del";
                 clicked => { root.purge_task(root.menu_state.task_id); root.close(); }
             }
         }

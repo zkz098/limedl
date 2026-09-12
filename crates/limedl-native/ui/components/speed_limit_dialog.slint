@@ -1,7 +1,5 @@
 import { IconButton, PrimaryButton, SecondaryButton, UnitInput } from "common.slint";
-
 import { Theme } from "../theme.slint";
-import { IconButton, PrimaryButton, SecondaryButton, UnitInput } from "common.slint";
 
 export component SpeedLimitDialog inherits Rectangle {
     in property <bool> is_open: false;
@@ -23,8 +21,8 @@ export component SpeedLimitDialog inherits Rectangle {
     }
 
     Rectangle {
-        width: 420px;
-        height: 280px;
+        width: min(parent.width - 60px, 460px);
+        height: 300px;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
         animate y { duration: 160ms; easing: ease-out; }
