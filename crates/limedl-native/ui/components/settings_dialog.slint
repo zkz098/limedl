@@ -258,7 +258,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Theme Mode (system/light/dark):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Theme Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -279,7 +279,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Theme Color (amber/sky/lime):"); color: Theme.c9ca3af; font-size: 12px; }
+                                Text { text: @tr("Theme Color:"); color: Theme.c9ca3af; font-size: 12px; }
                                 CustomSelect {
                                     model: [@tr("Amber"), @tr("Sky Blue"), @tr("Lime")];
                                     current-index <=> root.settings_form.appearance_theme_color_idx;
@@ -292,7 +292,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Background Opacity Preset (default/acrylic/frosted):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Background Opacity Preset:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -311,7 +311,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("UI Language (zh-CN/en-US):"); color: Theme.c9ca3af; font-size: 12px; }
+                                Text { text: @tr("UI Language:"); color: Theme.c9ca3af; font-size: 12px; }
                                 CustomSelect {
                                     model: [@tr("简体中文"), @tr("English")];
                                     current-index <=> root.settings_form.appearance_language_idx;
@@ -324,7 +324,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Close Behavior (minimizeToTray/exit):"); color: Theme.c9ca3af; font-size: 12px; }
+                                Text { text: @tr("Close Behavior:"); color: Theme.c9ca3af; font-size: 12px; }
                                 CustomSelect {
                                     model: [@tr("Minimize to Tray"), @tr("Exit")];
                                     current-index <=> root.settings_form.appearance_close_behavior_idx;
@@ -444,7 +444,7 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Double-click Completed Task (none/open_file/open_in_explorer/open_download_dir):"); color: Theme.c9ca3af; font-size: 12px;
+                            Text { text: @tr("Double-click Completed Task:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
                                     Rectangle {
                                         background: Theme.c111419;
@@ -463,7 +463,7 @@ export component SettingsDialog inherits Rectangle {
                         }
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Double-click Uncompleted Task (none/toggle_pause_resume):"); color: Theme.c9ca3af; font-size: 12px;
+                            Text { text: @tr("Double-click Uncompleted Task:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
                                     Rectangle {
                                         background: Theme.c111419;
@@ -547,7 +547,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Default Checksum (blake3/sha256/xxh3_128/none/sha1):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Default Checksum:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -637,7 +637,7 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Proxy Mode (disabled/system/manual):"); color: Theme.c9ca3af; font-size: 12px;
+                            Text { text: @tr("Proxy Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
                                     Rectangle {
                                         background: Theme.c111419;
@@ -678,7 +678,7 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Allocation Mode (automatic/traditional):"); color: Theme.c9ca3af; font-size: 12px; }
+                            Text { text: @tr("Allocation Mode:"); color: Theme.c9ca3af; font-size: 12px; }
                             CustomSelect {
                                     model: [@tr("Automatic (adaptive)"), @tr("Traditional (fixed)")];
                                     current-index <=> root.settings_form.scheduler_mode_idx;
@@ -733,7 +733,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Adaptive Profile (conservative/balanced/aggressive):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Adaptive Profile:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -752,7 +752,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Chunk Strategy (adaptive/fixed):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Chunk Strategy:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -1045,7 +1045,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Encryption Mode (enabled/disabled/forced):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Encryption Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -1064,7 +1064,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Pre-allocation Mode (none/full):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Pre-allocation Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -1324,7 +1324,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Action (ban/limit_slots):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Action:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -1450,7 +1450,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Seed Choking (fastest_upload/round_robin/anti_leech):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Seed Choking:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -1469,7 +1469,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: @tr("Choking Algorithm (fixed_slots/rate_based):"); color: Theme.c9ca3af; font-size: 12px;
+                                Text { text: @tr("Choking Algorithm:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
                                         Rectangle {
                                             background: Theme.c111419;
@@ -1855,7 +1855,7 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Log Level (trace/debug/info/warn/error):"); color: Theme.c9ca3af; font-size: 12px; }
+                            Text { text: @tr("Log Level:"); color: Theme.c9ca3af; font-size: 12px; }
                             CustomSelect {
                                     model: [@tr("Trace"), @tr("Debug"), @tr("Info"), @tr("Warn"), @tr("Error")];
                                     current-index <=> root.settings_form.logging_level_idx;

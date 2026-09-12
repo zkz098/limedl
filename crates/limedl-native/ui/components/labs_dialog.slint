@@ -192,7 +192,7 @@ export component LabsDialog inherits Rectangle {
                         // Provider Selection
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Optimization Provider (cloudflare / fastly / custom):"); color: Theme.c9ca3af; font-size: 12px; }
+                            Text { text: @tr("Optimization Provider:"); color: Theme.c9ca3af; font-size: 12px; }
                             CustomSelect {
                                 model: ["cloudflare", "fastly", "custom"];
                                 current-value <=> root.labs_form.cdn_provider;
@@ -659,7 +659,7 @@ export component LabsDialog inherits Rectangle {
                                         }
                                         VerticalLayout {
                                             spacing: 4px;
-                                            Text { text: @tr("Match Type (host / prefix / regex / wildcard):"); color: Theme.c9ca3af; font-size: 12px; }
+                                            Text { text: @tr("Match Type:"); color: Theme.c9ca3af; font-size: 12px; }
                                             CustomSelect {
                                                 model: ["host", "prefix", "regex", "wildcard"];
                                                 current-value: rule.match_type;
@@ -684,7 +684,7 @@ export component LabsDialog inherits Rectangle {
                                         }
                                         VerticalLayout {
                                             spacing: 4px;
-                                            Text { text: @tr("Replacement Mode (prefix_proxy / template):"); color: Theme.c9ca3af; font-size: 12px; }
+                                            Text { text: @tr("Replacement Mode:"); color: Theme.c9ca3af; font-size: 12px; }
                                             CustomSelect {
                                                 model: ["prefix_proxy", "template"];
                                                 current-value: rule.replacement_mode;
