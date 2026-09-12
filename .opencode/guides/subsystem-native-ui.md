@@ -47,6 +47,21 @@ UI 事件（callback）
 - **数据目录**：默认 `%LOCALAPPDATA%\limedl`（macOS/Linux 同规范），可用 `LIMEDL_DATA_DIR` 覆盖（与 `limedl-server` 一致，便于隔离测试）。首次启动会从 Tauri 的 `com.zkz20.limedl` 目录迁移 `settings.json`。
 - **窗口钩子安装时机**：Slint 的 OS 窗口在事件循环启动后才存在，`platform_win::try_install_window_hooks` 必须由 UI 线程定时器重试挂载（一次性调用会静默失败，导致拖拽与磁链 IPC 失效）。
 
+## 数据迁移与数据目录
+
+- 默认数据根目录：`%LOCALAPPDATA%\limedl`（macOS/Linux 同规范）；`LIMEDL_DATA_DIR` 可覆盖（与 `limedl-server` 一致）。
+- 启动时 `migrate::migrate_tauri_data_if_needed(base_dir, state_dir)` 会从 Tauri 版数据目录（`com.zkz20.limedl`，可用 `LIMEDL_TAURI_DATA_DIR` 覆盖）一次性导入：`settings.json`、`downloads.db`（含 `-wal`/`-shm`）、`torrents/`、`bt_files/`。
+- 规则：只拷贝不移动；已存在的目标文件绝不覆盖；进度记录在 `<base_dir>/.migrated-from-tauri.json`（部分失败下次重试）。
+- **启动安全网**：拷贝后校验 `settings.json` 可解析、`downloads.db` 可被 `limedl_core::database::Database::open` 打开；不合格的文件会被隔离为 `*.rejected-<ts>` 并以默认值启动，避免迁移反而把应用钉死在启动失败。
+
+## 静默启动与关闭行为
+
+- 自启注册（Windows `Run` / Linux `.desktop` / macOS LaunchAgent）统一附加 `--hidden`；`autostart::sync_from_settings` 会在路径过期时自动重写注册（`registered_for_current_exe`）。
+- 启动参数：`limedl-native [--hidden] [<url|magnet|path|limedl://…>]`。`--hidden` 且已完成首启向导时不调用 `show()`，直接进入托盘模式。
+- 事件循环使用 `slint::run_event_loop_until_quit()`（默认循环以“可见窗口数”为退出条件，而我们的托盘由 `tray-icon`/`muda` 提供，Slint 不感知）。
+- 关闭行为由 `Window::on_close_requested` 显式实现：`close_behavior = minimizeToTray` → `hide()`；`exit` → `quit_event_loop()`。
+- 窗口钩子（拖拽/WM_COPYDATA）在窗口首次显示后才可能安装成功，因此采用 250ms 定时重试直到成功（隐藏启动期间会持续重试）。
+
 ## 测试
 
 ```powershell
