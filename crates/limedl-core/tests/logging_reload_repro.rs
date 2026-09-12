@@ -1,10 +1,12 @@
 //! Reproduction for the "failed to update tracing level filter" error on
 //! repeated settings saves within one process lifetime.
 //!
-//! Scenario 1: clean process — init + repeated applies must all succeed.
-//! Scenario 2: app pre-installs its own global subscriber (like the old
-//! native/server mains did) — saves must degrade gracefully instead of
-//! failing with a dead reload handle.
+//! Scenario: clean process — init + repeated applies must all succeed.
+//!
+//! The companion scenario (an app that pre-installs its own global subscriber)
+//! lives in `logging_preinstalled_subscriber.rs`: it must run in its own test
+//! binary, because it takes the process-wide tracing global slot and `init()`
+//! panics when another test in the same binary got there first.
 
 use limedl_core::logging::{apply_logging_settings, init_logging};
 use limedl_core::types::{LogLevel, LogSettings};
@@ -34,19 +36,6 @@ fn apply_variant(i: usize, dir: &Path) {
 #[test]
 fn apply_logging_settings_repeatedly() {
     let dir = tmp_dir("repeat");
-    init_logging(&LogSettings::default(), &dir).expect("init failed");
-    for i in 1..=5 {
-        apply_variant(i, &dir);
-    }
-}
-
-#[test]
-fn saves_with_preinstalled_subscriber_do_not_fail() {
-    // Mimic the old native/server mains: a plain fmt subscriber takes the
-    // global slot before core's init_logging runs. Every subsequent settings
-    // save used to fail with "failed to update tracing level filter".
-    tracing_subscriber::fmt().init();
-    let dir = tmp_dir("preinstalled");
     init_logging(&LogSettings::default(), &dir).expect("init failed");
     for i in 1..=5 {
         apply_variant(i, &dir);

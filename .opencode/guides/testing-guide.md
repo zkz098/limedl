@@ -41,6 +41,7 @@
 - 单元测试：内联在源码文件底部 `#[cfg(test)] mod tests`。
 - 集成测试：`crates/limedl-core/src/tests/`（manager_tests.rs 等，使用本地 axum HTTP mock 服务器 + tempfile 临时目录）。
 - 每 crate 独立测试命令（core 带 `test-utils,aria2-rpc`，server 无额外 feature，limedl-native 走单独 step 并覆写 `RUSTFLAGS`）。
+- **全局状态必须独占一个测试文件**：cargo 把单个 `tests/*.rs` 当做一个进程跑，而 `tracing_subscriber::fmt().init()` 之类的调用会占用进程级全局槽，同文件内的兄弟测试会与之竞争并 panic（CI 曾因此偶发红）。这类测试放独立文件：`tests/logging_reload_repro.rs`（干净进程）与 `tests/logging_preinstalled_subscriber.rs`（预装全局订阅者）就是例子。
 - Windows 上必须先初始化 MSVC 环境（vcvarsall.bat x64），否则 clippy/test 因链接器失败。
 - 依赖：axum（HTTP mock）、tempfile、ntest（超时注解）。
 
