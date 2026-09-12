@@ -15,7 +15,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Purpose         | Command                                                       |
 | --------------- | ------------------------------------------------------------- |
 | Install deps    | `pnpm install --frozen-lockfile`                              |
-| Frontend dev    | `pnpm run tauri dev`                                          |
+| Frontend dev    | `pnpm run dev` (Vite dev server; needs a running `limedl daemon`) |
 | Lint            | `pnpm run lint` (oxlint)                                      |
 | Format          | `pnpm run format` (oxfmt)                                     |
 | Type-check      | `pnpm exec vue-tsc --noEmit`                                  |
@@ -42,10 +42,13 @@ Two jobs upload artifacts:
 | `build-native` (Windows only) | **Desktop**: `limedl-native-v{V}-windows-x86_64-{setup.exe,portable.zip,msix}` + signatures + `latest-native.json` (self-update manifest) |
 | `build-nas` (4 platforms) | **Headless/NAS**: `limedl-nas-v{V}-{linux-x86_64-musl,linux-aarch64-musl,windows-x86_64,macos-aarch64}` with the WebUI embedded (`--features embed-frontend`) |
 
-The Tauri edition is no longer built or uploaded: desktop releases are the Slint client
-only, and `latest.json` (the Tauri updater manifest) is gone, so existing Tauri installs
-freeze at their last version. macOS/Linux desktop users are served by the NAS build
-(`limedl daemon` + browser WebUI) until native packaging exists for those platforms.
+Desktop releases are the Slint client (`limedl-native`) only: the Tauri shell that
+used to provide the Vue-based desktop app was retired and its code (`src-tauri/`)
+removed, so `latest.json` (the Tauri updater manifest) is gone and existing Tauri
+installs freeze at their last version. macOS/Linux desktop users are served by the
+NAS build (`limedl daemon` + browser WebUI) until native packaging exists for those
+platforms. Existing Tauri installs migrate their data on first run of the Slint
+client (`crates/limedl-native/src/migrate.rs`).
 
 ## Architecture
 
@@ -56,8 +59,8 @@ limedl/
 ├── crates/limedl-core/   # Pure download engine (lib: limedl_core)
 ├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
 ├── crates/limedl-server/ # axum HTTP/WS server + CLI
-├── src-tauri/            # Tauri v2 desktop shell (lib: limedl_lib)
-└── src/                  # Vue 3 frontend (shared across targets)
+├── src/                  # Vue 3 frontend (NAS/desktop WebUI)
+└── e2e/                  # Playwright E2E tests for the WebUI
 ```
 
 All Rust crates use edition 2024.
@@ -66,26 +69,29 @@ All Rust crates use edition 2024.
 
 | Target        | Frontend               | Backend         | Build                                     |
 | ------------- | ---------------------- | --------------- | ----------------------------------------- |
-| Tauri Desktop | Vue 3 via Tauri IPC    | `src-tauri/`    | `pnpm run tauri dev`                      |
 | Native Desktop | Slint (Rust)          | `crates/limedl-native/` | `cargo run -p limedl-native` (Windows/macOS/Linux; needs `pwsh scripts/fetch-misans.ps1` once) |
-| NAS WebUI     | Same Vue via WebSocket | `limedl-server` | `pnpm run build:nas`                      |
+| NAS WebUI     | Vue 3 via WebSocket    | `limedl-server` | `pnpm run build:nas`                      |
 | CLI           | N/A                    | `limedl-server` | `limedl daemon` / `limedl download <url>` |
 
-### Frontend dual-mode
+### Frontend transport
 
-Vue uses import aliases so the same code runs on both Tauri IPC and WebSocket:
+The Vue app is the browser front end for `limedl daemon`; it talks to the server over a
+single WebSocket, wrapped by two import aliases (defined in `vite.config.ts` and
+`vitest.config.ts`):
 
-- `#invoke` → `@tauri-apps/api/core` (Tauri) or `src/lib/ws/ws-invoke.ts` (NAS)
-- `#event` → `@tauri-apps/api/event` (Tauri) or `src/lib/ws/ws-event.ts` (NAS)
+- `#invoke` → `src/lib/ws/ws-invoke.ts` (JSON-RPC 2.0 over the shared socket)
+- `#event` → `src/lib/ws/ws-event.ts` (server-pushed events)
 
-Switched via `vite.config.ts` resolve.alias. **Never call `invoke` directly** — use typed wrappers in `src/lib/tauri/*-api.ts`.
+**Never call `invoke` directly** — use the typed wrappers in `src/lib/ipc/*-api.ts`
+(command names + parameter transforms come from the generated manifest), passing them
+through `commandName()` from `src/lib/ws/command-name.ts` so drifted names fail loudly.
 
 ### Event system
 
 `EventBus` = `tokio::sync::broadcast::channel<DownloadEvent>`. Each adapter subscribes independently:
 
-- Tauri: `src-tauri/src/lib.rs` background task → `app_handle.emit()`
-- NAS: `rpc.rs` per-connection task → WebSocket push
+- NAS/WebUI: `crates/limedl-server/src/rpc.rs` per-connection task → WebSocket push
+- Desktop (Slint): `crates/limedl-native/src/main.rs` subscriber → UI state updates
 - Aria2 RPC: direct `event_bus.subscribe()`
 
 ### Protocol routing
@@ -95,7 +101,8 @@ Switched via `vite.config.ts` resolve.alias. **Never call `invoke` directly** �
 - `http:` → `DownloadManager`
 - `bt:` → `IrontideBtBackend`
 
-Tauri commands and WebSocket RPC both dispatch through the same `Dispatcher` → `BackendRegistry`.
+The WebSocket RPC layer (and the Aria2 RPC server) dispatch through the same
+`Dispatcher` → `BackendRegistry`.
 
 ## Conventions
 
@@ -103,7 +110,7 @@ Tauri commands and WebSocket RPC both dispatch through the same `Dispatcher` →
 - Frontend UI: use `var(--token)` for colors/spacing, `i-ri-*` icons, `<style scoped>` only, `:focus-visible` on all interactive elements. Read `.opencode/guides/ui-design-guide.md` and `ui-component-guide.md` before writing UI code.
 - Native UI (Slint): use `Theme.c<hex>` tokens from `ui/theme.slint` (never hardcoded hex), `@tr(...)` for all user-visible strings in `.slint`, and `i18n::format_*` helpers for Rust-side text. See `.opencode/guides/subsystem-native-ui.md`.
 - Build: `.cargo/config.toml` sets `target-cpu=x86-64-v3`.
-- CSP: explicit CSP is defined in `tauri.conf.json` (Tauri); NAS WebUI applies a strict CSP via server headers.
+- CSP: the NAS WebUI applies a strict CSP via server headers (`nas_csp_header()` in `crates/limedl-server`).
 
 ## Code generation
 

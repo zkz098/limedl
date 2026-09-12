@@ -16,7 +16,7 @@
 - `crates/limedl-core/src/cdn/ip_ranges.rs` — Cloudflare IP 范围抓取/解析
 - `crates/limedl-core/src/cdn/resolver.rs` — DNS 重写 + 加速 HTTP 客户端构建
 - `crates/limedl-core/src/cdn/speed_test.rs` — 速度测试逻辑
-- `src-tauri/src/download/commands_cdn.rs` — Tauri CDN 命令
+- `crates/limedl-native/src/main.rs` — 桌面客户端 CDN 命令接线
 - `crates/limedl-server/src/rpc.rs` (CDN handlers 区) — NAS WebSocket CDN 命令
 
 ## 数据流向
@@ -32,7 +32,7 @@ CdnService::start_test() → CdnAccelerator::start_test()
 
 CdnService::monitor_test() → 轮询 → EventBus::publish(CdnProgress / CdnComplete)
   ↓
-Tauri / WebSocket event relay 将事件转发到前端
+WebSocket event relay 将事件转发到前端（Slint 桌面直接订阅 EventBus）
 
 用户选择 IP → CdnService::apply_ip() → resolver.rs 构建 DNS 重写客户端
   ↓
@@ -45,6 +45,6 @@ DownloadManager 使用 accelerated_client 发起下载请求
 - accelerated_client 是普通的 reqwest::Client，DNS 解析在底层被改写。
 - 测试流程可被 cancel_test() 中断，重置为 Idle。
 - 启动时 `init_from_settings()` 从持久化设置恢复之前选择的 IP。
-- Tauri 和 NAS WebSocket 两种前端都通过 CdnService 调用 CDN 操作，消除了重复实现。
-- CdnService 通过 `CoreSystems` 注入：Tauri 端在 `AppState.cdn_service`，NAS 端在 `RpcState.cdn_service`。
+- 桌面客户端和 NAS WebSocket 两种前端都通过 CdnService 调用 CDN 操作，消除了重复实现。
+- CdnService 通过 `CoreSystems` 注入：桌面端直接用 `core.dispatcher`，NAS 端在 `RpcState.cdn_service`。
 - phase 指示器使用 AtomicU8（而非 RwLock），speed test 回调中直接 atomic store，避免 tokio::spawn 开销。

@@ -22,9 +22,10 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 
 The download engine (`limedl-core`) is pure Rust with zero UI dependencies and powers every
 target. Releases ship the Slint desktop client (Windows) plus the headless NAS build with the
-WebUI embedded; the Tauri desktop shell in `src-tauri/` is kept in-tree but is no longer built
-or released (its updater manifest `latest.json` is gone, so Tauri installs stop updating).
-macOS/Linux users are served by the NAS build (`limedl daemon` + browser) today.
+WebUI embedded. The Tauri desktop shell was retired and its code removed, so `latest.json`
+(its updater manifest) is gone and existing Tauri installs stay on their last version; the
+Slint client imports their settings/history on first run. macOS/Linux users are served by the
+NAS build (`limedl daemon` + browser) today.
 
 ## Quick Start
 

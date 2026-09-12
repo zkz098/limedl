@@ -7,7 +7,7 @@
 ## 涉及文件
 
 - `src/__tests__/` — 前端测试（Vitest + jsdom）
-- `src/__tests__/mocks/tauri-mock.ts` — Tauri IPC mock 系统
+- `src/__tests__/mocks/invoke-mock.ts` — IPC invoke mock 系统（`mockCommand` / `mockCommandValue` / `createMockInvoke`）
 - `src/__tests__/fixtures/downloads.ts` — Mock DownloadSummary 工厂
 - `crates/limedl-core/src/tests/` — Rust 集成测试（manager_tests 等）
 - `e2e/` — Playwright E2E 测试（CI 暂不执行）
@@ -19,10 +19,10 @@
 ```
 代码变更 → CI 触发（6 job 矩阵）:
   ├─ lint-typescript (ubuntu): pnpm install → oxlint → vue-tsc → vitest
-  ├─ check-windows: cargo clippy -D warnings → 3× per-crate test
-  │   (core: test-utils,aria2-rpc / server: 无额外 feature / tauri: test-utils)
+  ├─ check-windows: cargo clippy -D warnings → per-crate test
+  │   (core: test-utils,aria2-rpc / server: 无额外 feature / limedl-native: 单独 step)
   ├─ check-macos: 同 check-windows（macOS-14）
-  ├─ check-rust (ubuntu): clippy → ts-rs freshness check → 3× per-crate test
+  ├─ check-rust (ubuntu): clippy → ts-rs freshness check → per-crate coverage
   ├─ bench-rust: cargo bench (aimd + rate_limiter)
   └─ supply-chain: cargo deny check + cargo audit
 ```
@@ -31,7 +31,7 @@
 
 ### 前端测试（Vitest）
 
-- Tauri IPC 调用通过 `src/__tests__/mocks/tauri-mock.ts` 模拟。核心模式：`vi.mock("@tauri-apps/api/core")` → `mockTauriCommandValue()` 注册返回值 / `mockTauriCommand()` 注册动态 handler。
+- IPC 调用通过 `src/__tests__/mocks/invoke-mock.ts` 模拟。核心模式：`vi.mock("#invoke", () => ({ invoke: vi.fn() }))` → `mockCommandValue()` 注册返回值 / `mockCommand()` 注册动态 handler / `resetInvokeMocks()` 在每个测试前清空。模块级函数（如 `src/lib/ipc/*-api.ts` 里的包装）可直接用 `vi.mock` 替换。
 - i18n 通过 `vi.mock("path/to/i18n")` 模拟，返回原始 key 或带插值。
 - Composables 接受 refs 作为参数（非全局状态），通过 helper factory 创建。
 - 运行：`pnpm run test`，可选 `--watch` 或指定文件。
@@ -40,7 +40,7 @@
 
 - 单元测试：内联在源码文件底部 `#[cfg(test)] mod tests`。
 - 集成测试：`crates/limedl-core/src/tests/`（manager_tests.rs 等，使用本地 axum HTTP mock 服务器 + tempfile 临时目录）。
-- 每 crate 独立测试命令（core 带 `test-utils,aria2-rpc`，server 无额外 feature，tauri 带 `test-utils`）。
+- 每 crate 独立测试命令（core 带 `test-utils,aria2-rpc`，server 无额外 feature，limedl-native 走单独 step 并覆写 `RUSTFLAGS`）。
 - Windows 上必须先初始化 MSVC 环境（vcvarsall.bat x64），否则 clippy/test 因链接器失败。
 - 依赖：axum（HTTP mock）、tempfile、ntest（超时注解）。
 
@@ -59,15 +59,15 @@
 
 ### E2E 测试（Playwright）
 
-- 框架已配置但 CI 暂不执行（需要桌面环境）。
-- 运行前提：`pnpm run tauri dev`（终端 1），然后 `pnpm run test:e2e`（终端 2）。
+- 框架已配置；CI 只跑 `nas-webui` 项目（需要真实或 mock 的 `limedl-server`）。
+- 运行前提：启动 `limedl-server daemon`（如 `cargo run --bin limedl-server daemon -- --user e2e --pass e2epass`），然后 `pnpm run test:e2e:nas`。
 - 配置：Chromium 固定、headless、60 秒超时、失败时截图。
 - 使用 `data-testid` 属性定位元素（当前 smoke 测试使用 CSS class fallback）。
-- 测试需要真实 URL 或本地文件服务器（Tauri webview 不支持 localhost mock）。
+- 需要真实 URL 或本地文件服务器（`e2e/server/test-file-server.ts`，由 global-setup 启动）。
 
 ### CI 已知警告
 
-- Windows release build 的 `LNK4078`（多 `.rsrc` 段）警告——`build.rs` 手工嵌入 ComCtl32 v6 manifest 与 tauri-winres 重复嵌入。**无害**，不要删除 build.rs 的 manifest 代码。
+目前无未解决的警告（详见 `troubleshooting.md`；旧条目均随 Tauri 版退役而消失）。
 
 ### 测试编写优先级
 

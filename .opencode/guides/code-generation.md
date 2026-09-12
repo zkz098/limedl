@@ -48,7 +48,8 @@ Rules:
 
 Source of truth: `crates/limedl-core/src/ws_manifest.rs`
 
-- `WsCommandSpec { tauri_name, rpc_method, param_transform }`
+- `WsCommandSpec { tauri_name, rpc_method, param_transform }` — `tauri_name` is the wire
+  command name (historical naming kept for protocol compatibility; the Tauri shell is gone)
 - `ParamTransform` enum: `Identity`, `Rename`, `UnwrapField`
 - `WS_COMMANDS` array lists all commands (currently 33)
 
@@ -70,16 +71,16 @@ Source of truth: `crates/limedl-core/src/ws_manifest.rs` (same file as commands)
 
 - `WsEventSpec { ws_type, tauri_event_name }`
 - `WS_EVENTS` array — 7 entries covering all `DownloadEvent` variants
-- Generated `ws-events.ts` exports `EVENT_TYPE_MAP` (ws_type → tauri_event_name)
+- Generated `ws-events.ts` exports `EVENT_TYPE_MAP` (ws_type → tauri_event_name; the event
+  field name is historical, it is the wire event name the frontend matches on)
 
 ### Adding a new DownloadEvent variant
 
 1. Add variant to `DownloadEvent` in `crates/limedl-core/src/event_bus/mod.rs`
 2. Add `WsEventSpec` entry to `WS_EVENTS` in `ws_manifest.rs`
-3. Add emit branch in `src-tauri/src/lib.rs` Tauri adapter
-4. Add notification handler in `crates/limedl-server/src/rpc.rs` RPC adapter
+3. Add notification handler in `crates/limedl-server/src/rpc.rs` RPC adapter
+4. If the desktop client needs it, subscribe/handle it in `crates/limedl-native/src/main.rs`
 5. Regenerate
-6. Commit all 5 files
 
-⚠️ Compile-time tests verify ws_type/tauri_event_name appear in both adapters.
-Exception: `aria2Notification` in Tauri uses dynamic event_name (not checked).
+⚠️ Compile-time test `ws_event_types_appear_in_rpc_adapter` verifies every `ws_type`
+appears in the rpc.rs event relay.

@@ -106,7 +106,7 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 ### 设置热重载
 
 - `apply_settings()` 复制 BtSettings 到 `Arc<Mutex<>>`，并通过 `build_engine_settings()` 把引擎调参 + 全局速率限制应用到 irontide session，无需重启 session。
-- 注意：热重载采用 **spawn 到运行时异步应用**（而非 `block_in_place`），因此既能在 Tauri 同步 handler 中使用，也能在 current-thread 测试运行时中安全调用。
+- 注意：热重载采用 **spawn 到运行时异步应用**（而非 `block_in_place`），因此既能在同步 handler 中使用，也能在 current-thread 测试运行时中安全调用。
 
 ### 引擎调参（透传）
 

@@ -27,7 +27,7 @@
   ├─ normalize_settings() → 验证裁剪范围
   └─ 存入 SettingsService (Arc<RwLock<AppSettings>>)
 
-用户修改设置 → settings_save (Tauri IPC / WS RPC)
+用户修改设置 → settings_save (WS RPC / 桌面直调 Dispatcher)
   └─ dispatcher.save_settings(&settings)
        ├─ settings_service.update()
        │   ├─ normalize_settings() 验证

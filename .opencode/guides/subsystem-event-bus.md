@@ -2,14 +2,14 @@
 
 ## 模块职责
 
-统一的事件发布/订阅总线。纯 `tokio::sync::broadcast` 封装，所有下载子系统通过它发布状态变更。EventBus 自身不持有 Tauri AppHandle，不负责前端发射——Tauri 前端的 `app_handle.emit()` 调用由 `src-tauri/src/lib.rs` 中一个独立的后台订阅任务完成。WebSocket 推送则由 `crates/limedl-server/src/rpc.rs` 中另一个独立订阅任务完成。
+统一的事件发布/订阅总线。纯 `tokio::sync::broadcast` 封装，所有下载子系统通过它发布状态变更。EventBus 自身不持有任何 UI 句柄，也不负责 UI 发射：桌面（Slint）客户端在 `crates/limedl-native/src/main.rs` 里用独立订阅任务更新 UI 模型，WebSocket 推送则由 `crates/limedl-server/src/rpc.rs` 中另一个独立订阅任务完成。
 
 核心类型：EventBus（仅含 `broadcast::Sender<DownloadEvent>` 一个字段）、DownloadEvent（7 个 variant：Updated / Progress / Aria2Notification / CdnProgress / CdnComplete / Warning / FullState）。EventBus 可 Clone（Arc 内部的 Sender 句柄）。
 
 ## 涉及文件
 
 - `crates/limedl-core/src/event_bus/mod.rs` — EventBus 结构体 + DownloadEvent 枚举定义
-- `src-tauri/src/lib.rs` — Tauri adapter：后台任务 subscribe → `app_handle.emit()`（约 110–180 行区域）
+- `crates/limedl-native/src/main.rs` — 桌面 adapter：订阅任务 → 更新 Slint 模型
 - `crates/limedl-server/src/rpc.rs` — WebSocket adapter：后台任务 subscribe → 通过 WebSocket 推送
 
 ## 数据流向
@@ -19,8 +19,8 @@
   ↓
 EventBus::publish(event) → broadcast::Sender::send()
   ↓
-                          ┌─ Tauri subscriber (lib.rs):
-                          │     match event → app_handle.emit("download-updated"/"download-progress"/"cdn-test-*"/"download-warning")
+                          ┌─ Slint desktop subscriber (limedl-native/main.rs):
+                          │     match event → 更新列表/详情模型并标记 UI 重绘
                           │
                           ├─ WebSocket subscriber (rpc.rs):
                           │     match event → 通过 WebSocket 向已连接客户端推送

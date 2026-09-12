@@ -14,11 +14,14 @@ updater manifest, produced by `tauri-action`) is gone. Consequences:
 - Existing Tauri installs keep working but their in-app updater now gets a 404
   from `releases/latest/download/latest.json` and reports a check failure.
   There is no in-app migration path; users install the Slint build manually (or
-  via the Store/MSIX channel).
-- `src-tauri/tauri.conf.json` still carries the old update endpoint and the
-  shared `pubkey`; both are unused by the release pipeline now.
+  via the Store/MSIX channel). The Slint client imports their data on first run
+  (`crates/limedl-native/src/migrate.rs`).
+- `src-tauri/` and its `tauri.conf.json` were **deleted**; nothing in the tree
+  references the old update endpoint. 
 - The minisign keypair is still the same one (`TAURI_SIGNING_PRIVATE_KEY` CI
   secret) — the name is a leftover; only the Slint artifacts are signed today.
+- `update.rs`'s `PUBKEY_B64` is now the single copy of that public key in the tree
+  (it must stay in sync with the CI secret's keypair).
 
 If a grace period is ever wanted, publish a final Tauri release that only
 contains a migration notice (keeping `latest.json` alive for that one version).
@@ -70,7 +73,7 @@ channel at check time.
   `TAURI_SIGNING_PRIVATE_KEY` secret the Tauri edition uses).
 - `signature` in the manifest is base64(minisign signature file text), verified
   in-app with `minisign_verify` against the public key embedded in
-  `update.rs` (`PUBKEY_B64` — matches `src-tauri/tauri.conf.json`).
+  `update.rs` (`PUBKEY_B64`).
 - Verification covers the **exact downloaded bytes**; sha256 is a secondary
   integrity check only.
 

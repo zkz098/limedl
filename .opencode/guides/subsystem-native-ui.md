@@ -1,7 +1,8 @@
 # Subsystem: Native UI (limedl-native)
 
 Slint-based lightweight desktop client (`crates/limedl-native`) that talks to the
-same `limedl-core` engine as the Tauri edition, without a webview.
+same `limedl-core` engine, without a webview. It is the only desktop UI (the former
+Tauri/Vue desktop shell was retired).
 
 ## 模块职责
 
@@ -65,15 +66,16 @@ UI 事件（callback）
 
 ## 构建依赖：rfd 对话框后端固定为 gtk3
 
-`rfd` 只允许 `gtk3` 与 `xdg-portal` 二选一，两个都打开时其 `build.rs` 直接 panic（`You can't enable both`）。`src-tauri` 的 `tauri-plugin-dialog` 默认打开 `rfd/gtk3`，而 Cargo 在整包构建（`cargo clippy --workspace --all-targets`、`cargo llvm-cov`、`cargo test --workspace`）时统一 feature，所以本 crate **不能**沿用 `rfd` 的默认 feature（默认 = `xdg-portal` + `wayland` + `async-std`），必须显式固定：
+`rfd` 只允许 `gtk3` 与 `xdg-portal` 二选一，两个都打开时其 `build.rs` 直接 panic（`You can't enable both`）。当前 workspace 固定为：
 
 ```toml
 rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
 ```
 
+- 历史原因：已删除的 `src-tauri` 通过 `tauri-plugin-dialog` 默认打开 `rfd/gtk3`，而 Cargo 在整包构建（`cargo clippy --workspace --all-targets`、`cargo llvm-cov`、`cargo test --workspace`）时统一 feature，所以本 crate 当时必须显式跟随同一个后端，否则会同时启用 `gtk3` 与 `xdg-portal` 而 panic。
+- **该约束已解除**：现在可以把 workspace 里唯一启用 `rfd` 的 crate 改成 `xdg-portal` 后端（`default-features = false, features = ["xdg-portal"]`，需要运行时存在 portal 服务），或者保留 gtk3；两种选择都不要让两个 feature 同时生效。
 - 这些 feature 只在 Linux 生效（gtk/ashpd 依赖都声明在 Linux 的 `target.'cfg(...)'.dependencies` 下），Windows/macOS 的依赖图与行为不变。
-- Linux 上因此需要 `libgtk-3-dev`（`gtk-sys` 走 pkg-config；CI 的 Rust 作业已安装）。对话框由 `rfd` 自建的 GTK 线程（`gtk_init_check` + `gtk_main_iteration`）驱动，不要求宿主已有 GTK 主循环，Slint 应用可直接用 `AsyncFileDialog`。
-- 不要写回 `rfd = "0.16"`：workspace 构建会同时启用 `gtk3` 与 `xdg-portal`，Linux 上 build script panic。
+- `gtk3` 后端在 Linux 上需要 `libgtk-3-dev`（`gtk-sys` 走 pkg-config；CI 的 Rust 作业已安装）。对话框由 `rfd` 自建的 GTK 线程（`gtk_init_check` + `gtk_main_iteration`）驱动，不要求宿主已有 GTK 主循环，Slint 应用可直接用 `AsyncFileDialog`。
 
 ## 测试
 

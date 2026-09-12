@@ -17,7 +17,7 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 - `crates/limedl-core/src/retry.rs` — 指数退避重试
 - `crates/limedl-core/src/checksum/mod.rs` — 校验和（Blake3 / SHA-256 / XXH3-128）
 - `crates/limedl-core/src/rate_limiter/mod.rs` — 全局令牌桶速率限制器
-- 前端入口：`src/lib/tauri/download-api.ts` → `src-tauri/src/download/commands.rs`
+- 前端入口：`src/lib/ipc/download-api.ts` → `crates/limedl-server/src/rpc.rs`（WebSocket RPC；桌面客户端直接调 `crates/limedl-core/src/dispatcher.rs`）
 
 ## 数据流向
 

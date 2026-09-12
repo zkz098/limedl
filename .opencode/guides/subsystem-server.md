@@ -76,7 +76,7 @@ WebSocket 连接 → rpc.rs
 | `nas_csp_header()`          | 动态生成 CSP：`connect-src` 允许当前 WebSocket 源 |
 | `security_headers_layers()` | 返回 4 个 `SetResponseHeaderLayer`                |
 
-> 注意：Tauri desktop 在 `tauri.conf.json` 中定义了显式 CSP（含 `connect-src: ipc:` 等），NAS WebUI 则通过服务端 `nas_csp_header()` 使用严格 CSP。两者通过不同的适配路径处理，不相交。
+> 注意：浏览器端 WebUI 的统一 CSP 由服务端 `nas_csp_header()` 生成（含动态 WebSocket 源）——前端只有这一条链路，不再存在第二套 CSP 配置。
 
 四个安全头：
 
@@ -89,7 +89,7 @@ WebSocket 连接 → rpc.rs
 
 - `RpcState` 持有 `Dispatcher`、`AppSettings`、`EventBus`、`BackendRegistry`、`CdnService` 等。
 - WebSocket JSON-RPC 2.0：支持 ~33 个命令（下载 CRUD + BT 查询 + CDN + 设置 + 应用信息 `app.info` + Aria2 兼容）。
-- `app.info`（`tauri_name: app_get_info`）：返回 `{ name, version, platform, arch }`，双端（Tauri IPC / NAS WS）共用，桌面侧同时注册同名 Tauri command。
+- `app.info`（`tauri_name: app_get_info`）：返回 `{ name, version, platform, arch }`；字段名是历史 wire 名，两边共用。
 - HTTP POST `/jsonrpc` 共用同一套 dispatch 逻辑。
 - 事件转发：每个 WebSocket 连接有一个独立的后台任务订阅 `EventBus`，匹配 `WS_EVENTS` manifest 后作为 JSON-RPC notification 推送到客户端。
 - 编译期一致性测试：`ws_manifest.rs` 验证所有声明的命令都在 rpc.rs 中有 handler 分支。
@@ -102,7 +102,7 @@ WebSocket 连接 → rpc.rs
 ## 设计决策与约定
 
 - **双模式 CLI**：`daemon` 启动持久化服务器，`download` 启动临时会话做单次下载。两者共用 `bootstrap()`。
-- **前端共用**：NAS WebUI 使用与 Tauri 桌面**完全相同的 Vue 3 代码**，仅通信层通过 `#invoke` / `#event` import alias 切换为 WebSocket。
+- **前端共用**：WebUI 是唯一的 Vue 前端（桌面客户端是 Slint），`#invoke` / `#event` alias 固定指向 `src/lib/ws/*`。
 - **认证范围**：仅 WebSocket 升级路径（`/ws`）和 `/api/*` 需要认证；静态文件 `/` 在认证中间件之前已返回（公开访问）。
 - **TLS**：生产环境建议在反向代理（nginx/Caddy）层面配置 TLS，`TlsConfig` 仅用于开发/简单部署场景。
-- **安全头与 Tauri 的 CSP 不存在冲突**——Tauri 桌面不使用 axum 服务，NAS 不使用 Tauri 的 CSP 配置。
+- **安全头只此一处**：浏览器 WebUI 只经 axum 服务，CSP 由 `nas_csp_header()` 统一生成。
