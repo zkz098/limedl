@@ -55,6 +55,7 @@ All Rust crates use edition 2024.
 | Target        | Frontend               | Backend         | Build                                     |
 | ------------- | ---------------------- | --------------- | ----------------------------------------- |
 | Tauri Desktop | Vue 3 via Tauri IPC    | `src-tauri/`    | `pnpm run tauri dev`                      |
+| Native Desktop | Slint (Rust)          | `crates/limedl-native/` | `cargo run -p limedl-native` (Windows/macOS/Linux; needs `pwsh scripts/fetch-misans.ps1` once) |
 | NAS WebUI     | Same Vue via WebSocket | `limedl-server` | `pnpm run build:nas`                      |
 | CLI           | N/A                    | `limedl-server` | `limedl daemon` / `limedl download <url>` |
 
@@ -88,6 +89,7 @@ Tauri commands and WebSocket RPC both dispatch through the same `Dispatcher` →
 
 - Rust structs: `#[serde(rename_all = "camelCase")]`. Enums: `#[serde(rename_all = "snake_case")]`.
 - Frontend UI: use `var(--token)` for colors/spacing, `i-ri-*` icons, `<style scoped>` only, `:focus-visible` on all interactive elements. Read `.opencode/guides/ui-design-guide.md` and `ui-component-guide.md` before writing UI code.
+- Native UI (Slint): use `Theme.c<hex>` tokens from `ui/theme.slint` (never hardcoded hex), `@tr(...)` for all user-visible strings in `.slint`, and `i18n::format_*` helpers for Rust-side text. See `.opencode/guides/subsystem-native-ui.md`.
 - Build: `.cargo/config.toml` sets `target-cpu=x86-64-v3`.
 - CSP: explicit CSP is defined in `tauri.conf.json` (Tauri); NAS WebUI applies a strict CSP via server headers.
 
@@ -118,6 +120,8 @@ Read the relevant guide **before** modifying any subsystem. Update it **after**.
 |                                             | `subsystem-event-bus.md`                                                     |
 |                                             | `subsystem-protocol-registry.md`                                             |
 |                                             | `subsystem-http-client-factory.md`                                           |
+|                                             | `subsystem-self-update.md` (native updater)                                  |
+|                                             | `subsystem-native-ui.md` (Slint desktop client)                              |
 
 ## Pre-commit verification gate (MANDATORY)
 
