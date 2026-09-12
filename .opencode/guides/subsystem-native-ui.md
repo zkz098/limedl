@@ -57,7 +57,8 @@ UI 事件（callback）
 ## 静默启动与关闭行为
 
 - 自启注册（Windows `Run` / Linux `.desktop` / macOS LaunchAgent）统一附加 `--hidden`；`autostart::sync_from_settings` 会在路径过期时自动重写注册（`registered_for_current_exe`）。
-- 启动参数：`limedl-native [--hidden] [<url|magnet|path|limedl://…>]`。`--hidden` 且已完成首启向导时不调用 `show()`，直接进入托盘模式。
+- **MSIX / Store 通道例外**：`AppxManifest.xml` 的 `windows.startupTask` 无法携带参数，因此改由 `platform_win::launched_at_logon(150s)` 推断——比较本进程与 `GetShellWindow()`（explorer）的创建时间，登录后 150s 内、且 `autostart=true`、无命令行载荷、存在包身份时，按登录启动处理并隐藏窗口。（`WTSQuerySessionInformation(WTSLogonTime)` 在现行 Windows 上返回 `ERROR_NOT_SUPPORTED`，不可用。）
+- 启动参数：`limedl-native [--hidden] [<url|magnet|path|limedl://…>]`。首启向导始终可见（`should_start_hidden` 要求 `setup_completed`）。
 - 事件循环使用 `slint::run_event_loop_until_quit()`（默认循环以“可见窗口数”为退出条件，而我们的托盘由 `tray-icon`/`muda` 提供，Slint 不感知）。
 - 关闭行为由 `Window::on_close_requested` 显式实现：`close_behavior = minimizeToTray` → `hide()`；`exit` → `quit_event_loop()`。
 - 窗口钩子（拖拽/WM_COPYDATA）在窗口首次显示后才可能安装成功，因此采用 250ms 定时重试直到成功（隐藏启动期间会持续重试）。

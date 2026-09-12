@@ -216,6 +216,20 @@ fn read_schedule_rows(ui: &MainWindow) -> Vec<SpeedLimitSlotText> {
         .collect()
 }
 
+/// Decide whether the main window must stay hidden for this launch.
+///
+/// `requested_hidden` comes from `--hidden` (registry / `.desktop` /
+/// LaunchAgent autostart) and `login_launch` from the MSIX login-time heuristic,
+/// because `windows.startupTask` cannot pass arguments. The first-run wizard
+/// always wins so a fresh install can never end up window-less.
+fn should_start_hidden(requested_hidden: bool, login_launch: bool, setup_completed: bool) -> bool {
+    (requested_hidden || login_launch) && setup_completed
+}
+
+/// Time window after logon in which an MSIX launch is attributed to the
+/// startup task instead of the user opening the app.
+const MSIX_LOGIN_LAUNCH_WINDOW: Duration = Duration::from_secs(150);
+
 fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     let (all, downloading, paused, completed, failed) = store.counts();
     POWER_GUARD.update(downloading);
@@ -4867,12 +4881,27 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    // Tray-only start: the autostart registration passes `--hidden`, and the
-    // first-run wizard must always be visible so a fresh install cannot end up
-    // in a window-less state.
-    let start_hidden = hidden_flag && initial_settings.setup_completed;
+    // Tray-only start. Two sources:
+    //  - `--hidden`, passed by the registry / `.desktop` / LaunchAgent autostart
+    //    registrations;
+    //  - the MSIX channel, whose `windows.startupTask` entry cannot carry
+    //    arguments, so a launch shortly after logon (with autostart enabled and
+    //    no payload) is attributed to the startup task.
+    let msix_login_launch = !hidden_flag
+        && cli_payload.is_none()
+        && initial_settings.autostart
+        && update::has_package_identity()
+        && platform_win::launched_at_logon(MSIX_LOGIN_LAUNCH_WINDOW);
+    let start_hidden = should_start_hidden(
+        hidden_flag,
+        msix_login_launch,
+        initial_settings.setup_completed,
+    );
     if start_hidden {
-        tracing::info!("以静默模式启动（仅托盘，--hidden）");
+        tracing::info!(
+            "以静默模式启动（仅托盘；来源：{}）",
+            if hidden_flag { "--hidden" } else { "MSIX 登录启动" }
+        );
     }
 
     // Poll for pending tray menu/tooltip updates on the main thread (TrayIcon is !Send)
@@ -5166,6 +5195,18 @@ fn dirs_local_data_dir() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn start_hidden_requires_a_reason_and_a_finished_setup() {
+        // First run always shows the wizard.
+        assert!(!should_start_hidden(true, false, false));
+        assert!(!should_start_hidden(false, true, false));
+        // `--hidden` and the MSIX login heuristic both hide the window.
+        assert!(should_start_hidden(true, false, true));
+        assert!(should_start_hidden(false, true, true));
+        // A plain manual launch stays visible.
+        assert!(!should_start_hidden(false, false, true));
+    }
 
     #[test]
     fn test_expand_url_ranges() {

@@ -205,6 +205,89 @@ pub fn os_description() -> String {
     }
 }
 
+/// Seconds since the current user's shell (`explorer.exe`) started.
+///
+/// Used to recognise a login-time launch of the MSIX build: `startupTask`
+/// entries in `AppxManifest.xml` cannot pass `--hidden` (unlike the registry /
+/// `.desktop` / plist registrations), so the app infers it from "did we start
+/// right after the shell?". (`WTSQuerySessionInformation(WTSLogonTime)` would be
+/// the direct answer but returns `ERROR_NOT_SUPPORTED` on current Windows.)
+/// Returns `None` when the information is unavailable.
+pub fn seconds_since_shell_start() -> Option<u64> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Threading::{
+            GetCurrentProcess, GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
+        use windows::Win32::UI::WindowsAndMessaging::{GetShellWindow, GetWindowThreadProcessId};
+
+        // Our own start time and the shell's, both as FILETIME.
+        let own = process_start_time(unsafe { GetCurrentProcess() }, GetProcessTimes)?;
+        let shell_hwnd = unsafe { GetShellWindow() };
+        if shell_hwnd.is_invalid() {
+            return None;
+        }
+        let mut shell_pid = 0u32;
+        unsafe { GetWindowThreadProcessId(shell_hwnd, Some(&mut shell_pid)) };
+        if shell_pid == 0 {
+            return None;
+        }
+        let shell_handle =
+            unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, shell_pid) }.ok()?;
+        let shell = process_start_time(shell_handle, GetProcessTimes);
+        unsafe {
+            let _ = windows::Win32::Foundation::CloseHandle(shell_handle);
+        }
+        let shell = shell?;
+
+        // Our launch delay relative to the shell start (= logon, normally).
+        own.duration_since(shell).ok().map(|d| d.as_secs())
+    }
+
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
+/// Read a process creation time as a `SystemTime` (FILETIME is 100 ns ticks
+/// since 1601-01-01).
+#[cfg(windows)]
+fn process_start_time(
+    handle: windows::Win32::Foundation::HANDLE,
+    get_process_times: unsafe fn(
+        windows::Win32::Foundation::HANDLE,
+        *mut windows::Win32::Foundation::FILETIME,
+        *mut windows::Win32::Foundation::FILETIME,
+        *mut windows::Win32::Foundation::FILETIME,
+        *mut windows::Win32::Foundation::FILETIME,
+    ) -> windows::core::Result<()>,
+) -> Option<std::time::SystemTime> {
+    use std::time::{Duration, SystemTime};
+    use windows::Win32::Foundation::FILETIME;
+
+    let mut creation = FILETIME::default();
+    let mut exit = FILETIME::default();
+    let mut kernel = FILETIME::default();
+    let mut user = FILETIME::default();
+    unsafe { get_process_times(handle, &mut creation, &mut exit, &mut kernel, &mut user) }.ok()?;
+    let ticks = ((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64;
+
+    const FILETIME_TICKS_PER_SEC: u64 = 10_000_000;
+    // Seconds between 1601-01-01 and the Unix epoch.
+    const WINDOWS_EPOCH_OFFSET_SECS: u64 = 11_644_473_600;
+    let unix_secs = ticks
+        .checked_div(FILETIME_TICKS_PER_SEC)?
+        .checked_sub(WINDOWS_EPOCH_OFFSET_SECS)?;
+    SystemTime::UNIX_EPOCH.checked_add(Duration::from_secs(unix_secs))
+}
+
+/// True when this process was started shortly after the user's shell, i.e. by a
+/// login autostart entry rather than by the user opening the app.
+pub fn launched_at_logon(window: std::time::Duration) -> bool {
+    seconds_since_shell_start().is_some_and(|secs| secs <= window.as_secs())
+}
+
 /// Remove hooks on teardown.
 #[allow(dead_code)]
 pub fn cleanup_window_hooks(window: &slint::Window) {
@@ -230,5 +313,25 @@ pub fn cleanup_window_hooks(window: &slint::Window) {
     #[cfg(not(windows))]
     {
         let _ = window;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn os_description_is_non_empty() {
+        assert!(!os_description().trim().is_empty());
+    }
+
+    #[test]
+    fn logon_time_is_sane_when_available() {
+        // The shell handle may be unavailable in exotic hosts; validate shape.
+        if let Some(secs) = seconds_since_shell_start() {
+            assert!(secs < 60 * 60 * 24 * 365, "implausible shell age: {secs}");
+        }
+        // Only a shell that started "right now" can match a zero window.
+        assert!(!launched_at_logon(std::time::Duration::ZERO));
     }
 }
