@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from "pinia";
 import { setupDownloadStoreMocks } from "../fixtures/download-store-mocks";
 setupDownloadStoreMocks();
 
-import { resetTauriMocks } from "../mocks/tauri-mock";
+import { resetInvokeMocks } from "../mocks/invoke-mock";
 import { useDownloadStore } from "../../stores/download/index";
 import { createMockDownloadSnapshot, DownloadPresets, resetMockIds } from "../fixtures/downloads";
 
@@ -16,7 +16,7 @@ import {
   purgeDownload,
   removeDownload,
   resumeDownload,
-} from "../../lib/tauri/download-api";
+} from "../../lib/ipc/download-api";
 import type { DownloadSnapshot } from "../../types/download";
 
 const mockCancelDownload = vi.mocked(cancelDownload);
@@ -31,7 +31,7 @@ describe("useDownloadStore (actions)", () => {
   let store: ReturnType<typeof useDownloadStore>;
 
   beforeEach(() => {
-    resetTauriMocks();
+    resetInvokeMocks();
     resetMockIds();
     setActivePinia(createPinia());
     store = useDownloadStore();

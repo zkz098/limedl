@@ -1,6 +1,6 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
-import { getIoStatus, toggleGameMode, type IoStatus } from "../lib/tauri/settings-api";
+import { getIoStatus, toggleGameMode, type IoStatus } from "../lib/ipc/settings-api";
 
 export type { IoStatus };
 

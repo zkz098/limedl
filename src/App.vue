@@ -56,13 +56,12 @@ import { useViewNavigation } from "./composables/useViewNavigation";
 import type { PersistablePage } from "./composables/useViewNavigation";
 import { useMultiSelect } from "./composables/useMultiSelect";
 import { useNetworkStatusStore } from "./stores/networkStatus";
-import { useAppUpdateStore } from "./stores/appUpdate";
 import NotificationToast from "./components/ui/NotificationToast.vue";
 import ModalOverlay from "./components/layout/ModalOverlay.vue";
 import type { AppSettings } from "./types/settings";
 import type { ViewOptions, MultiSelectState } from "./types/download";
-import { saveAppSettings } from "./lib/tauri/settings-api";
-import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/tauri/download-api";
+import { saveAppSettings } from "./lib/ipc/settings-api";
+import { openDownloadDir, openDownloadFile, setBtSpeedLimit } from "./lib/ipc/download-api";
 import { toMessage, toErrorMessage } from "./composables/downloadHelpers";
 
 // BT speed limit modal state
@@ -233,11 +232,7 @@ onErrorCaptured((err, _instance, info) => {
   return false;
 });
 
-const appUpdateStore = useAppUpdateStore();
-const { updateAvailable } = storeToRefs(appUpdateStore);
-
 onMounted(() => {
-  appUpdateStore.runStartupCheck();
   mountSetupWizard();
 
   // Initialize Pinia stores (replaces onMounted from composables)
@@ -249,20 +244,18 @@ onMounted(() => {
   const networkStatus = useNetworkStatusStore();
   networkStatus.start();
 
-  // WebSocket reconnection monitoring (NAS mode only)
-  // Shows toast when the WS link drops / reconnects
-  if (import.meta.env.MODE === "nas") {
-    import("./lib/ws/ws-invoke").then(({ connectionStatus }) => {
-      // eslint-disable-next-line vue/no-setup-props-destructure
-      watch(connectionStatus, (status, prev) => {
-        if (status === "reconnecting" && prev !== "reconnecting") {
-          notify.notifyWarning(t("messages.connectionLost"), 10000);
-        } else if (status === "connected" && prev === "reconnecting") {
-          notify.notifySuccess(t("messages.connectionRestored"));
-        }
-      });
+  // WebSocket reconnection monitoring
+  // Shows a toast when the WS link to the daemon drops / reconnects
+  import("./lib/ws/ws-invoke").then(({ connectionStatus }) => {
+    // eslint-disable-next-line vue/no-setup-props-destructure
+    watch(connectionStatus, (status, prev) => {
+      if (status === "reconnecting" && prev !== "reconnecting") {
+        notify.notifyWarning(t("messages.connectionLost"), 10000);
+      } else if (status === "connected" && prev === "reconnecting") {
+        notify.notifySuccess(t("messages.connectionRestored"));
+      }
     });
-  }
+  });
 });
 
 onUnmounted(() => {
@@ -591,7 +584,6 @@ watch(
         :current-view="currentView"
         :counts="categoryCounts as unknown as Record<string, number>"
         :stats="sidebarStats"
-        :update-available="updateAvailable"
         @update:active-category="activeCategory = $event"
         @navigate="navigateTo"
       />

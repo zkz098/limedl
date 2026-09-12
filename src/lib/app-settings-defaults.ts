@@ -6,7 +6,7 @@
  * from `AppSettings::default()` in `crates/limedl-core/src/types.rs`), so Rust
  * is the single source of truth — no hand-maintained TS copy to drift here.
  *
- * When the Tauri backend is reachable, prefer `getAppSettings()` — the backend
- * returns the authoritative (possibly user-modified) settings.
+ * Prefer `getAppSettings()` when the server is reachable — the backend returns
+ * the authoritative (possibly user-modified) settings.
  */
 export { DEFAULT_APP_SETTINGS } from "../types/generated/settings-default";

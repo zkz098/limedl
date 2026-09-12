@@ -5,7 +5,7 @@ import {
   openDownloadInExplorer,
   setBtSpeedLimit,
   startDownload,
-} from "../../lib/tauri/download-api";
+} from "../../lib/ipc/download-api";
 import { t } from "../../i18n";
 import { toFriendlyError, toMessage } from "../../composables/downloadHelpers";
 import { useNotificationStore } from "../notification";

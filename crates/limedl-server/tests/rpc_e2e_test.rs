@@ -61,7 +61,7 @@ async fn start_server() -> RpcE2eServer {
         .await
         .expect("core bootstrap");
 
-    // CDN service setup (same as main.rs / Tauri setup)
+    // CDN service setup (same as limedl-server/src/main.rs)
     let cdn_accelerator = core.cdn_service.accelerator().clone();
     core.download_manager
         .set_cdn_accelerator(cdn_accelerator);

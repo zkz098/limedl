@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 
-vi.mock("../../lib/tauri/download-api", () => ({
+vi.mock("../../lib/ipc/download-api", () => ({
   startDownload: vi.fn().mockResolvedValue({ kind: "http", id: "test-id" }),
   setBtSpeedLimit: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../lib/tauri/dialog-api", () => ({
+vi.mock("../../lib/ipc/dialog-api", () => ({
   pickDirectory: vi.fn(),
   pickTorrentFile: vi.fn(),
 }));
@@ -37,8 +37,8 @@ vi.mock("#event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
 }));
 
-import { startDownload } from "../../lib/tauri/download-api";
-import { pickDirectory, pickTorrentFile } from "../../lib/tauri/dialog-api";
+import { startDownload } from "../../lib/ipc/download-api";
+import { pickDirectory, pickTorrentFile } from "../../lib/ipc/dialog-api";
 import { useDownloadStore } from "../../stores/download/index";
 
 const mockStartDownload = vi.mocked(startDownload);
@@ -92,7 +92,7 @@ describe("useDownloadStore (form)", () => {
 
   // ── pickDirectory ──────────────────────────────────────────────────
 
-  it("calls Tauri dialog and sets destinationDir", async () => {
+  it("calls the directory picker and sets destinationDir", async () => {
     mockPickDirectory.mockResolvedValue("/chosen/path");
 
     await store.pickDestinationDirectory();
@@ -129,7 +129,7 @@ describe("useDownloadStore (form)", () => {
 
   // ── pickTorrentFile ────────────────────────────────────────────────
 
-  it("calls Tauri dialog and sets kind and url", async () => {
+  it("calls the file picker and sets kind and url", async () => {
     mockPickTorrentFile.mockResolvedValue("/torrents/file.torrent");
 
     await store.pickTorrentSourceFile();
@@ -248,7 +248,7 @@ describe("useDownloadStore (form)", () => {
   // ── BT speed limit after start ────────────────────────────────────
 
   it("sets BT speed limits after start when limits are configured", async () => {
-    const { setBtSpeedLimit } = await import("../../lib/tauri/download-api");
+    const { setBtSpeedLimit } = await import("../../lib/ipc/download-api");
     const mockSetBtSpeedLimit = vi.mocked(setBtSpeedLimit);
     mockSetBtSpeedLimit.mockResolvedValue(undefined);
     mockStartDownload.mockResolvedValue({ kind: "bt", id: "test-456" });
@@ -265,7 +265,7 @@ describe("useDownloadStore (form)", () => {
   });
 
   it("does not set BT speed limits when limits are null", async () => {
-    const { setBtSpeedLimit } = await import("../../lib/tauri/download-api");
+    const { setBtSpeedLimit } = await import("../../lib/ipc/download-api");
     const mockSetBtSpeedLimit = vi.mocked(setBtSpeedLimit);
     mockStartDownload.mockResolvedValue({ kind: "bt", id: "test-789" });
 

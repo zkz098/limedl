@@ -1,8 +1,8 @@
 //! Single-instance guard for limedl-native.
 //!
-//! Behaviour mirrors `tauri-plugin-single-instance` as used by the Tauri shell:
-//! a second launch activates (shows + foregrounds) the existing window and
-//! exits immediately instead of starting a second engine instance.
+//! Behaviour mirrors the single-instance semantics of the previous desktop
+//! shell: a second launch activates (shows + foregrounds) the existing window
+//! and exits immediately instead of starting a second engine instance.
 //!
 //! Platform strategies:
 //! - Windows: a session-local named mutex (`Local\...`) claims the instance;

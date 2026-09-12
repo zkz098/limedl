@@ -1,5 +1,9 @@
-//! WebSocket command manifest — single source of truth for Tauri command → JSON-RPC
+//! WebSocket command manifest — single source of truth for command name → JSON-RPC
 //! method mapping and parameter transformation rules.
+//!
+//! Command names are the historical Tauri command names (snake_case), kept as the
+//! wire names the WebSocket protocol and the frontend `#invoke` shim have always
+//! used. The Tauri shell is gone; the names stay for wire compatibility.
 //!
 //! # Adding a new WS command
 //!
@@ -10,7 +14,7 @@
 //!    below.
 //! 3. Run `cargo test --features ts export_typescript_bindings` to regenerate
 //!    `src/lib/ws/generated/ws-commands.ts`.
-//! 4. The frontend typed wrappers in `src/lib/tauri/*-api.ts` can then call the
+//! 4. The frontend typed wrappers in `src/lib/ipc/*-api.ts` can then call the
 //!    new command through `#invoke` without any manual `METHOD_MAP` / `transformParams`
 //!    edits in `ws-invoke.ts`.
 //!
@@ -59,7 +63,8 @@ pub enum SafetyClass {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WsCommandSpec {
-    /// Tauri command name (snake_case), e.g. `"download_pause"`.
+    /// Wire command name (snake_case), e.g. `"download_pause"`. Historically the
+    /// Tauri command name — see the module docs.
     pub tauri_name: &'static str,
     /// JSON-RPC method name (dot-separated), e.g. `"download.pause"`.
     pub rpc_method: &'static str,
@@ -401,26 +406,20 @@ pub fn classify_rpc_safety(rpc_method: &str) -> SafetyClass {
 pub struct WsEventSpec {
     /// WebSocket JSON-RPC notification `type` field value (e.g. `"updated"`).
     pub ws_type: &'static str,
-    /// Tauri event name emitted to the frontend (e.g. `"download-updated"`).
+    /// Tauri event name — the wire name the frontend dispatcher matches.
+    /// Historical naming, kept for wire compatibility.
     pub tauri_event_name: &'static str,
 }
 
 /// Complete list of all WebSocket event notification mappings.
 ///
 /// Each entry maps a `DownloadEvent` variant's WebSocket `type` field (used in
-/// the RPC adapter JSON-RPC notifications in `rpc.rs`) to its corresponding
-/// Tauri event name (used by the Tauri adapter in `lib.rs` and the frontend
-/// event dispatcher in `ws-invoke.ts`).
+/// the RPC adapter JSON-RPC notifications in `rpc.rs`) to the `type` string the
+/// frontend event dispatcher in `ws-event.ts` matches on.
 ///
-/// This is the **single source of truth** for event name mappings across the
-/// Tauri adapter, the RPC adapter, and the frontend. See the consistency tests
-/// below (`ws_event_types_appear_in_rpc_adapter` and
-/// `ws_event_tauri_names_appear_in_lib_rs`) for cross-crate guard.
-///
-/// Note: `aria2Notification` uses a dynamic `event_name` in the Tauri adapter
-/// (not a fixed string), so its `tauri_event_name` is only meaningful for the
-/// NAS WebSocket frontend mapping and is excluded from the lib.rs consistency
-/// check.
+/// This is the **single source of truth** for event names across the RPC adapter
+/// and the frontend. See the consistency test below
+/// (`ws_event_types_appear_in_rpc_adapter`) for the cross-crate guard.
 pub const WS_EVENTS: &[WsEventSpec] = &[
     WsEventSpec {
         ws_type: "updated",
@@ -595,29 +594,5 @@ mod tests {
             );
         }
     }
-
-    /// Cross-crate consistency guard: every `tauri_event_name` in `WS_EVENTS`
-    /// must appear as a string literal in `src-tauri/src/lib.rs` Tauri event
-    /// emission.
-    ///
-    /// Exception: `aria2Notification` uses a dynamic `event_name` in the Tauri
-    /// adapter (passed through directly from the BT backend), not a fixed
-    /// event name string, so it is excluded from this check.
-    #[test]
-    fn ws_event_tauri_names_appear_in_lib_rs() {
-        let lib_source = include_str!("../../../src-tauri/src/lib.rs");
-        for ev in WS_EVENTS {
-            // Aria2Notification uses a dynamic event_name in the Tauri adapter
-            if ev.ws_type == "aria2Notification" {
-                continue;
-            }
-            let quoted = format!("\"{}\"", ev.tauri_event_name);
-            assert!(
-                appears_in_structural_context(lib_source, &quoted),
-                "lib.rs is missing tauri_event_name string '{}' (ws_type: '{}').\n\
-                 Add or fix the emit arm in src-tauri/src/lib.rs.",
-                ev.tauri_event_name, ev.ws_type
-            );
-        }
-    }
 }
+

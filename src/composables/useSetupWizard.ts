@@ -1,5 +1,5 @@
 import { ref, computed, type Ref } from "vue";
-import { saveAppSettings } from "../lib/tauri/settings-api";
+import { saveAppSettings } from "../lib/ipc/settings-api";
 import { DEFAULT_APP_SETTINGS } from "../lib/app-settings-defaults";
 import type { AppSettings } from "../types/settings";
 

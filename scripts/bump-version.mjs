@@ -88,7 +88,7 @@ function main() {
   const currentVersion = readCurrentVersion();
   const newVersion = bumpVersion(currentVersion, args.level);
 
-  const files = ["Cargo.toml", "package.json", "src-tauri/tauri.conf.json", "Cargo.lock"];
+  const files = ["Cargo.toml", "package.json", "Cargo.lock"];
 
   console.log(`\x1b[36m${currentVersion} → ${newVersion} (${args.level})\x1b[0m`);
 

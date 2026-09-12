@@ -6,7 +6,7 @@ import {
   getBtTrackers,
   getBtPieces,
   updateBtFiles,
-} from "../lib/tauri/download-api";
+} from "../lib/ipc/download-api";
 import type { BtFileStatus, BtPeerInfo, BtPieceInfo, BtTrackerInfo } from "../types/download";
 
 export function useBtInspector(taskId: Ref<string | null>) {

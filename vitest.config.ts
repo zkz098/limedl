@@ -8,9 +8,6 @@ export default defineConfig({
     alias: {
       "#invoke": fileURLToPath(new URL("./src/lib/ws/ws-invoke.ts", import.meta.url)),
       "#event": fileURLToPath(new URL("./src/lib/ws/ws-event.ts", import.meta.url)),
-      "@tauri-apps/plugin-notification": fileURLToPath(
-        new URL("./src/lib/ws/ws-notification-mock.ts", import.meta.url),
-      ),
     },
   },
   test: {

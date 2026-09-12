@@ -3,9 +3,9 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
 
 import SetupWizard from "../../components/setup/SetupWizard.vue";
-import { saveAppSettings, getAppSettings } from "../../lib/tauri/settings-api";
+import { saveAppSettings, getAppSettings } from "../../lib/ipc/settings-api";
 import { invoke } from "#invoke";
-import { createMockInvoke, resetTauriMocks } from "../mocks/tauri-mock";
+import { createMockInvoke, resetInvokeMocks } from "../mocks/invoke-mock";
 import type { AppSettings } from "../../types/settings";
 
 // ── Mocks ──────────────────────────────────────────────────────────
@@ -27,18 +27,9 @@ vi.mock("../../i18n", () => ({
   }),
 }));
 
-vi.mock("../../lib/tauri/settings-api", () => ({
+vi.mock("../../lib/ipc/settings-api", () => ({
   getAppSettings: vi.fn(),
   saveAppSettings: vi.fn(),
-}));
-
-vi.mock("@tauri-apps/plugin-dialog", () => ({
-  open: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("@tauri-apps/plugin-autostart", () => ({
-  enable: vi.fn().mockResolvedValue(undefined),
-  disable: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@vueuse/core", () => ({
@@ -282,7 +273,7 @@ describe("SetupWizard", () => {
   const mockGetAppSettings = vi.mocked(getAppSettings);
 
   beforeEach(() => {
-    resetTauriMocks();
+    resetInvokeMocks();
     mockInvoke.mockImplementation(createMockInvoke());
     mockGetAppSettings.mockResolvedValue(createDefaultSettings());
     mockSaveAppSettings.mockResolvedValue(createDefaultSettings());

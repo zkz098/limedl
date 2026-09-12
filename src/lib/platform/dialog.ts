@@ -1,5 +1,3 @@
-import { isTauri } from "./env";
-
 export interface OpenDialogOptions {
   directory?: boolean;
   multiple?: boolean;
@@ -8,10 +6,14 @@ export interface OpenDialogOptions {
   filters?: Array<{ name: string; extensions: string[] }>;
 }
 
+/**
+ * File / directory picker.
+ *
+ * A browser cannot open a native filesystem picker without user-selected file
+ * inputs, so the WebUI always returns `null`; callers fall back to a text field
+ * where one exists. The desktop client picks natively in Rust via `rfd`.
+ */
 export async function openDialog(options?: OpenDialogOptions): Promise<string | string[] | null> {
-  if (isTauri()) {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    return open(options);
-  }
+  void options;
   return null;
 }

@@ -13,7 +13,7 @@ import {
   pauseDownload,
   resumeDownload,
   setPriority,
-} from "../../lib/tauri/download-api";
+} from "../../lib/ipc/download-api";
 import {
   createMockDownloadTask,
   createMockDownloadSnapshot,

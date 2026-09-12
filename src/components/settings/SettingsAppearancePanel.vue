@@ -24,16 +24,8 @@ const props = defineProps<{
   backgroundOpacityOptions: Array<{ label: string; value: BackgroundOpacityPreset }>;
 }>();
 
-// Autostart toggle — syncs with the plugin directly
+// Autostart toggle — persists the setting; the desktop client applies it.
 async function onAutostartChange(value: boolean) {
-  // Dev builds must not register autostart: the .desktop file would point at
-  // the debug binary, which cannot run standalone after reboot (no dev
-  // server) and shows a blank window.
-  if (value && import.meta.env.DEV) {
-    draft.value.autostart = false;
-    console.warn("[autostart] registration is disabled in dev mode");
-    return;
-  }
   draft.value.autostart = value;
   try {
     if (value) {

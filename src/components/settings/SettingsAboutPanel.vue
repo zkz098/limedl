@@ -1,24 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "../../i18n";
 import logoUrl from "../../assets/logo.webp";
-import { useAppUpdateStore } from "../../stores/appUpdate";
 import { useNotificationStore } from "../../stores/notification";
-import { storeToRefs } from "pinia";
-import { saveAppSettings, factoryReset } from "../../lib/tauri/settings-api";
+import { saveAppSettings, factoryReset } from "../../lib/ipc/settings-api";
 import type { AppSettings } from "../../types/settings";
 import {
   relaunchApp as relaunch,
   exitApp as exit,
   getPlatformOsVersion as osVersion,
-  getPlatformTauriVersion as getTauriVersion,
   openUrl,
 } from "../../lib/platform";
-import { getAppInfo } from "../../lib/tauri/app-api";
+import { getAppInfo } from "../../lib/ipc/app-api";
 import SettingsSection from "./SettingsSection.vue";
-import SettingsField from "./SettingsField.vue";
 import UiButton from "../ui/UiButton.vue";
-import UiProgress from "../ui/UiProgress.vue";
 import ConfirmDialog from "../ui/ConfirmDialog.vue";
 
 const GITHUB_REPO_URL = "https://github.com/zkz098/limedl";
@@ -36,36 +31,16 @@ const { t } = useI18n();
 const emit = defineEmits<{
   "restart-setup": [];
 }>();
-const appUpdate = useAppUpdateStore();
-const {
-  status,
-  progressPercent,
-  totalBytes,
-  downloadedBytes,
-  currentVersion,
-  latestVersion,
-  latestBody,
-  latestDate,
-  errorMessage,
-  updateAvailable,
-  channel,
-  isChecking,
-  isDownloading,
-  isInstalling,
-} = storeToRefs(appUpdate);
-const { setChannel, checkForUpdates, downloadAndInstall, acknowledgeUpdate } = appUpdate;
 
 // System info
 const appName = ref("");
 const appVersion = ref("");
-const tauriVer = ref("");
 const osPlatform = ref("");
 const osArch = ref("");
 const osVer = ref("");
 
 onMounted(async () => {
-  // App name / version / platform / arch come from the backend via app.info —
-  // works on both Tauri desktop and NAS WebSocket mode.
+  // App name / version / platform / arch come from the backend via app.info.
   try {
     const info = await getAppInfo();
     appName.value = info.name;
@@ -75,13 +50,11 @@ onMounted(async () => {
   } catch (err) {
     console.error("Failed to get app info:", err);
   }
-  // Tauri-only metadata (Tauri runtime version, OS version): gracefully
-  // degrade on NAS where the Tauri plugins aren't available.
+  // OS version comes from the browser; it degrades to the user agent string.
   try {
-    tauriVer.value = await getTauriVersion();
     osVer.value = await osVersion();
   } catch (err) {
-    console.error("Failed to get Tauri/OS info:", err);
+    console.error("Failed to get OS info:", err);
   }
 });
 
@@ -253,88 +226,6 @@ async function handleFactoryReset() {
     showFactoryResetConfirm.value = false;
   }
 }
-
-const channelOptions = computed(() => [
-  { label: t("settings.aboutChannelStable"), value: "stable" as const },
-  { label: t("settings.aboutChannelBeta"), value: "beta" as const },
-]);
-
-const statusLabel = computed(() => {
-  switch (status.value) {
-    case "checking":
-      return t("settings.aboutChecking");
-    case "up-to-date":
-      return t("settings.aboutUpToDate");
-    case "newer":
-      return t("settings.aboutChannelDowngradeWarning");
-    case "available":
-      return t("settings.aboutUpdateAvailable");
-    case "downloading":
-      return t("settings.aboutDownloading");
-    case "installing":
-      return t("settings.aboutInstalling");
-    case "error":
-      return errorMessage.value || t("settings.aboutCheckingFailed");
-    default:
-      return "";
-  }
-});
-
-const formattedDownloaded = computed(() => {
-  if (downloadedBytes.value === 0) return "";
-  if (downloadedBytes.value < 1024 * 1024) {
-    return `${(downloadedBytes.value / 1024).toFixed(1)} KB`;
-  }
-  return `${(downloadedBytes.value / (1024 * 1024)).toFixed(1)} MB`;
-});
-
-const formattedTotal = computed(() => {
-  if (totalBytes.value === 0) return "";
-  return `${(totalBytes.value / (1024 * 1024)).toFixed(1)} MB`;
-});
-
-const progressLabel = computed(() => {
-  const size = formattedTotal.value
-    ? `${formattedDownloaded.value} / ${formattedTotal.value}`
-    : formattedDownloaded.value;
-  return size ? `${size} · ${progressPercent.value}%` : `${progressPercent.value}%`;
-});
-
-async function handleCheck() {
-  await checkForUpdates(false);
-  // Only clear the red dot if no update was found (updateAvailable is a readonly ref, accessed via .value)
-  if (!updateAvailable) {
-    acknowledgeUpdate();
-  }
-}
-
-function handleChannelChange(value: "stable" | "beta") {
-  setChannel(value);
-}
-
-const changelogLines = computed(() => {
-  const body = latestBody.value;
-  if (!body) return [];
-  return body.split("\n").filter((l) => l.trim().length > 0);
-});
-
-const showVersionBadge = computed(() => {
-  const s = status.value;
-  return s !== "idle" && s !== "checking";
-});
-
-const versionBadgeClass = computed(() => {
-  switch (status.value) {
-    case "available":
-      return "about-version-badge--update";
-    case "error":
-      return "about-version-badge--error";
-    case "newer":
-      return "about-version-badge--warning";
-    default:
-      return "about-version-badge--current";
-  }
-});
 </script>
 
 <template>
@@ -362,11 +253,6 @@ const versionBadgeClass = computed(() => {
                 <span class="about-system__label">{{ t("settings.aboutOsVersion") }}</span>
                 <span class="about-system__value">{{ osVer || "\u2014" }}</span>
               </span>
-              <span class="about-system__sep" aria-hidden="true">·</span>
-              <span class="about-system__item">
-                <span class="about-system__label">{{ t("settings.aboutTauriVersion") }}</span>
-                <span class="about-system__value">{{ tauriVer || "\u2014" }}</span>
-              </span>
             </div>
           </div>
         </div>
@@ -382,107 +268,7 @@ const versionBadgeClass = computed(() => {
         </div>
       </SettingsSection>
 
-      <!-- Card 2: Software Update -->
-      <SettingsSection :title="t('settings.aboutUpdateTitle')" icon="i-ri-download-cloud-line">
-        <div class="update-card">
-          <div class="update-card__header">
-            <div class="about-version-badge" :class="versionBadgeClass">
-              <span class="about-version-badge__text">{{
-                showVersionBadge ? currentVersion || appVersion : "?"
-              }}</span>
-            </div>
-            <div class="update-card__status">
-              <span class="update-card__label">{{ t("settings.aboutVersion") }}</span>
-              <span class="update-card__state">{{ statusLabel }}</span>
-            </div>
-
-            <div v-if="latestVersion && status === 'available'" class="update-card__target">
-              <span class="i-ri-arrow-right-line update-card__target-icon" aria-hidden="true" />
-              <span class="update-card__target-version">v{{ latestVersion }}</span>
-            </div>
-          </div>
-
-          <div class="settings-grid">
-            <SettingsField
-              :wide="true"
-              :label="t('settings.aboutChannel')"
-              :hint="channel === 'beta' ? t('settings.aboutChannelDowngradeWarning') : undefined"
-            >
-              <div class="update-card__channel">
-                <UiButton
-                  v-for="opt in channelOptions"
-                  :key="opt.value"
-                  size="sm"
-                  :variant="channel === opt.value ? 'primary' : 'secondary'"
-                  @click="handleChannelChange(opt.value)"
-                >
-                  {{ opt.label }}
-                </UiButton>
-              </div>
-            </SettingsField>
-          </div>
-
-          <div class="update-card__actions">
-            <UiButton
-              v-if="status !== 'downloading' && status !== 'installing' && status !== 'available'"
-              icon="i-ri-refresh-line"
-              :loading="isChecking"
-              @click="handleCheck"
-            >
-              {{ isChecking ? t("settings.aboutChecking") : t("settings.aboutCheckUpdate") }}
-            </UiButton>
-
-            <UiButton
-              v-if="status === 'available'"
-              variant="primary"
-              icon="i-ri-download-2-line"
-              :loading="isDownloading || isInstalling"
-              @click="downloadAndInstall"
-            >
-              {{ isDownloading ? t("settings.aboutDownloading") : t("settings.aboutUpdateNow") }}
-            </UiButton>
-          </div>
-
-          <div
-            v-if="status === 'downloading' || status === 'installing'"
-            class="update-card__progress"
-          >
-            <UiProgress :value="progressPercent" :show-label="true" :label="progressLabel" />
-            <span v-if="status === 'installing'" class="update-card__hint">
-              {{ t("settings.aboutRelaunchHint") }}
-            </span>
-          </div>
-
-          <div v-if="status === 'error' && errorMessage" class="status-banner status-banner--error">
-            <span class="i-ri-error-warning-line" aria-hidden="true" />
-            <span>{{ errorMessage }}</span>
-          </div>
-        </div>
-      </SettingsSection>
-
-      <!-- Card 3: Changelog -->
-      <SettingsSection
-        v-if="latestBody && changelogLines.length > 0"
-        :title="t('settings.aboutChangelog')"
-        icon="i-ri-file-list-line"
-      >
-        <div class="update-card__changelog">
-          <span v-if="latestDate" class="update-card__changelog-date">
-            {{ t("settings.aboutReleaseDate") }}: {{ latestDate }}
-          </span>
-          <div class="about-changelog">
-            <p
-              v-for="(line, i) in changelogLines"
-              :key="i"
-              :class="{ 'about-changelog__heading': line.startsWith('##') }"
-            >
-              {{ line }}
-            </p>
-          </div>
-        </div>
-      </SettingsSection>
-
-      <!-- Card 4: Links & Actions -->
+      <!-- Card 2: Links & Actions -->
       <SettingsSection :title="t('settings.aboutLinksTitle')" icon="i-ri-links-line">
         <div class="about-links">
           <UiButton
@@ -657,141 +443,6 @@ const versionBadgeClass = computed(() => {
   color: var(--color-text-soft);
 }
 
-.update-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.update-card__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.about-version-badge {
-  width: 3.5rem;
-  height: 3.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-lg);
-  flex-shrink: 0;
-}
-
-.about-version-badge__text {
-  font-size: var(--font-size-metric);
-  font-weight: var(--font-weight-display);
-}
-
-.about-version-badge--update {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
-}
-
-.about-version-badge--current {
-  background: var(--color-surface-muted);
-  color: var(--color-text-muted);
-}
-
-.about-version-badge--error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
-}
-
-.about-version-badge--warning {
-  background: var(--color-warning-bg);
-  color: var(--color-warning-text);
-}
-
-.update-card__status {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.update-card__label {
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
-.update-card__state {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-heading);
-}
-
-.update-card__target {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin-left: auto;
-  color: var(--color-accent-strong);
-}
-
-.update-card__target-icon {
-  font-size: var(--font-size-body);
-}
-
-.update-card__target-version {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-}
-
-.update-card__channel {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.update-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.update-card__progress {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.update-card__hint {
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
-.update-card__changelog {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.update-card__changelog-date {
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
-.about-changelog {
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  font-size: var(--font-size-small);
-  line-height: var(--line-height-tight);
-  color: var(--color-text-main);
-}
-
-.about-changelog p {
-  margin: 0;
-}
-
-.about-changelog__heading {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-heading);
-  margin-top: var(--space-2);
-}
-
 .about-links {
   display: flex;
   flex-wrap: wrap;
@@ -829,11 +480,6 @@ const versionBadgeClass = computed(() => {
   }
 
   .about-identity__meta {
-    width: 100%;
-  }
-
-  .update-card__target {
-    margin-left: 0;
     width: 100%;
   }
 

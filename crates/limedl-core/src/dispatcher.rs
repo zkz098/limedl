@@ -10,7 +10,7 @@
 //! - Overclock mode toggle and query
 //! - Multi-protocol aggregation (active download detection across all backends)
 //!
-//! Both Tauri IPC commands and the NAS WebSocket JSON-RPC handler delegate
+//! Both the desktop client and the NAS WebSocket JSON-RPC handler delegate
 //! to this layer, eliminating duplicated dispatch and `get_typed::<DownloadManager>`
 //! downcasting throughout the codebase.
 

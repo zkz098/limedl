@@ -184,7 +184,7 @@ impl IrontideBtBackend {
 
         // Apply engine tuning + rate limits and reload the blocklist. Scheduled
         // onto the captured runtime without blocking so this works whether we
-        // are called from a sync Tauri handler or from inside a current-thread
+        // are called from a synchronous UI handler or from inside a current-thread
         // runtime (tests).
         let session = self.session.clone();
         let bt_settings = self.bt_settings.clone();

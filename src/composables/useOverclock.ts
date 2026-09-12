@@ -1,5 +1,5 @@
 import { onMounted, ref } from "vue";
-import { getOverclockMode, toggleOverclockMode } from "../lib/tauri/settings-api";
+import { getOverclockMode, toggleOverclockMode } from "../lib/ipc/settings-api";
 
 const overclockMode = ref(false);
 

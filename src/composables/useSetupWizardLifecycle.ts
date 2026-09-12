@@ -1,6 +1,6 @@
 import { ref, computed, watch, type Ref } from "vue";
-import { getAppInfo } from "../lib/tauri/app-api";
-import { getAppSettings, saveAppSettings } from "../lib/tauri/settings-api";
+import { getAppInfo } from "../lib/ipc/app-api";
+import { getAppSettings, saveAppSettings } from "../lib/ipc/settings-api";
 import type { AppSettings } from "../types/settings";
 
 interface UseSetupWizardLifecycleOptions {
@@ -107,7 +107,7 @@ export function useSetupWizardLifecycle(options: UseSetupWizardLifecycleOptions)
   function mountSetupWizard() {
     checkSetupState();
 
-    // Fetch real app version from the backend (Tauri IPC or NAS WebSocket)
+    // Fetch real app version from the backend
     getAppInfo()
       .then((info) => {
         appVersion.value = info.version;

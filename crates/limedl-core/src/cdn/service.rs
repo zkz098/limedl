@@ -1,7 +1,7 @@
-//! `CdnService` — unified CDN accelerator service for Tauri and NAS modes.
+//! `CdnService` — unified CDN accelerator service for the desktop client and NAS.
 //!
 //! Wraps [`CdnAccelerator`] and provides a stable API consumed by both
-//! `commands_cdn.rs` (Tauri desktop) and `rpc.rs` (NAS WebSocket server).
+//! `crates/limedl-native/src/main.rs` (desktop) and `rpc.rs` (WebSocket server).
 //! This replaces direct `state.cdn_accelerator` access with a single
 //! service abstraction.
 
@@ -26,7 +26,7 @@ pub struct CdnTestOutcome {
 }
 
 /// Unified service that wraps [`CdnAccelerator`] and provides a consistent API
-/// for both Tauri desktop and NAS WebSocket frontends.
+/// for both the Slint desktop client and the NAS WebSocket frontend.
 ///
 /// All methods delegate to the inner [`CdnAccelerator`] directly. The
 /// `monitor_test` method additionally publishes progress/completion events
@@ -141,7 +141,7 @@ impl CdnService {
     /// Publishes [`DownloadEvent::CdnProgress`] during testing and
     /// [`DownloadEvent::CdnComplete`] when the test finishes (Ready or Error).
     ///
-    /// This is the shared monitoring loop used by both Tauri and NAS handlers.
+    /// This is the shared monitoring loop used by both the desktop and NAS handlers.
     /// Returns the final [`CdnTestOutcome`] for settings persistence by the caller.
     pub async fn monitor_test(self: &Arc<Self>, event_bus: Arc<EventBus>) -> CdnTestOutcome {
         let mut was_testing = false;

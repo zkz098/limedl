@@ -54,7 +54,7 @@ jobs:
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           key: e2e-nas-webui
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf mold
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev mold
       - name: Build frontend (NAS mode)
         run: pnpm run build:nas
       - name: Build limedl-server
@@ -120,7 +120,6 @@ jobs:
         run: ./scripts/fetch-misans.ps1
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # Windows tests: core + server are pure Rust logic (no GUI dep).
-      # src-tauri tests are also pure logic (no Tauri runtime needed).
       - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
       - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
       # Verify the optional `tls` feature compiles — CI otherwise never exercises it.
@@ -135,7 +134,6 @@ jobs:
         env:
           RUSTFLAGS: "-D warnings"
         run: cargo test --manifest-path crates/limedl-native/Cargo.toml
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
 
   check-macos:
     name: Check & Test (macOS)
@@ -160,11 +158,10 @@ jobs:
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
       # All tests in these crates are pure Rust logic tests that
-      # do not require a running Tauri runtime or system WebView.
+      # do not require a display server.
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
       - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
 
   check-rust:
     name: Check, Clippy & Test (Rust)
@@ -176,7 +173,7 @@ jobs:
           toolchain: stable
           components: clippy
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf mold
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev mold
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: cargo-llvm-cov
@@ -200,7 +197,6 @@ jobs:
         run: |
           cargo llvm-cov --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info
           cargo llvm-cov --manifest-path crates/limedl-server/Cargo.toml --lcov --output-path lcov-server.info
-          cargo llvm-cov --manifest-path src-tauri/Cargo.toml --lcov --output-path lcov-tauri.info
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -221,7 +217,7 @@ jobs:
         with:
           toolchain: stable
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf mold
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev mold
 
       - name: Restore main baseline
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -285,4 +281,4 @@ jobs:
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: cargo-audit
-      - run: cargo audit --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195
+      - run: cargo audit

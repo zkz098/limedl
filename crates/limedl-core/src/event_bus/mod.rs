@@ -1,14 +1,14 @@
 //! EventBus — unified publish/subscribe event bus for all download subsystems.
 //!
-//! Pure broadcast channel. Tauri frontend emission is handled by an independent
-//! subscriber task in the application layer.
+//! Pure broadcast channel. UI emission is handled by independent subscriber
+//! tasks in the application layer (desktop client / WebSocket RPC adapter).
 
 use tokio::sync::broadcast;
 
 // ── Event types ──────────────────────────────────────────────────────────
 
 /// Events published by download subsystems.
-/// All payloads implement Serialize for Tauri IPC compatibility.
+/// All payloads implement Serialize for IPC/wire compatibility.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum DownloadEvent {

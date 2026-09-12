@@ -1,5 +1,5 @@
 /**
- * Tauri IPC mock utility for Vitest tests.
+ * IPC invoke mock utility for Vitest tests.
  *
  * Usage:
  * ```ts
@@ -8,10 +8,10 @@
  * vi.mock("#invoke", () => ({ invoke: vi.fn() }));
  *
  * import { invoke } from "#invoke";
- * import { createMockInvoke, mockTauriCommandValue, resetTauriMocks } from "../mocks/tauri-mock";
+ * import { createMockInvoke, mockCommandValue, resetInvokeMocks } from "../mocks/invoke-mock";
  *
  * beforeEach(() => {
- *   resetTauriMocks();
+ *   resetInvokeMocks();
  *   vi.mocked(invoke).mockImplementation(createMockInvoke());
  * });
  * ```
@@ -25,18 +25,18 @@ type CommandHandler = (args?: Record<string, unknown>) => unknown;
 const handlers = new Map<string, CommandHandler>();
 
 /**
- * Register a handler for a specific Tauri command.
+ * Register a handler for a specific command.
  * The handler receives the args object and returns the mock data.
  */
-export function mockTauriCommand(command: string, handler: CommandHandler) {
+export function mockCommand(command: string, handler: CommandHandler) {
   handlers.set(command, handler);
 }
 
 /**
- * Register a handler that returns a fixed value for a Tauri command.
- * This is a convenience wrapper around `mockTauriCommand`.
+ * Register a handler that returns a fixed value for a command.
+ * This is a convenience wrapper around `mockCommand`.
  */
-export function mockTauriCommandValue(command: string, value: unknown) {
+export function mockCommandValue(command: string, value: unknown) {
   handlers.set(command, () => value);
 }
 
@@ -45,7 +45,7 @@ export function mockTauriCommandValue(command: string, value: unknown) {
  * command handlers. Pass the result to `vi.mocked(invoke).mockImplementation()`.
  *
  * Returns a plain async function (not a vi.fn) to avoid type conflicts with
- * the real `InvokeArgs` type from `@tauri-apps/api/core`.
+ * the real `invoke` signature.
  */
 export function createMockInvoke() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,8 +54,8 @@ export function createMockInvoke() {
 
     if (!handler) {
       throw new Error(
-        `[tauri-mock] No mock handler registered for command: ${command}. ` +
-          `Use mockTauriCommand() or mockTauriCommandValue() to register one.`,
+        `[invoke-mock] No mock handler registered for command: ${command}. ` +
+          `Use mockCommand() or mockCommandValue() to register one.`,
       );
     }
 
@@ -67,6 +67,6 @@ export function createMockInvoke() {
  * Reset all registered command handlers and clear call history.
  * Call in `beforeEach` to ensure clean state between tests.
  */
-export function resetTauriMocks() {
+export function resetInvokeMocks() {
   handlers.clear();
 }

@@ -16,7 +16,7 @@ import {
   getAccelerationDetail,
   fetchCloudflareRanges,
   applyAcceleration,
-} from "../../lib/tauri/cdn-api";
+} from "../../lib/ipc/cdn-api";
 import type {
   CdnDetail,
   SpeedTestCandidate,

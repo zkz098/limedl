@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ref } from "vue";
 
-vi.mock("../../lib/tauri/download-api", () => ({
+vi.mock("../../lib/ipc/download-api", () => ({
   getBtPeers: vi.fn(),
   getBtTrackers: vi.fn(),
   getBtPieces: vi.fn(),
@@ -15,7 +15,7 @@ import {
   getBtPieces,
   getBtFiles,
   updateBtFiles,
-} from "../../lib/tauri/download-api";
+} from "../../lib/ipc/download-api";
 import { useBtInspector } from "../../composables/useBtInspector";
 import type { BtFileStatus, BtPeerInfo, BtPieceInfo, BtTrackerInfo } from "../../types/download";
 

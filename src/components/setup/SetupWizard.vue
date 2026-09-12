@@ -5,7 +5,7 @@ import logoUrl from "../../assets/logo.webp";
 
 import { useI18n } from "../../i18n";
 import { useSetupWizard } from "../../composables/useSetupWizard";
-import { saveAppSettings } from "../../lib/tauri/settings-api";
+import { saveAppSettings } from "../../lib/ipc/settings-api";
 import type { AppSettings } from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
 import SetupStepIndicator from "./SetupStepIndicator.vue";

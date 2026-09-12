@@ -1,5 +1,5 @@
-// WebSocket-based invoke function mirroring @tauri-apps/api/core's invoke<T>()
-// Uses JSON-RPC 2.0 protocol over a single shared WebSocket connection.
+// WebSocket-based invoke function: JSON-RPC 2.0 over a single shared WebSocket
+// connection, shaped like the classic `invoke<T>(cmd, args)` IPC helper.
 // Includes automatic reconnection with exponential backoff.
 //
 // Command names and parameter transforms are auto-generated from the Rust
@@ -212,7 +212,7 @@ function dispatchServerEvent(data: Record<string, unknown>) {
   if (typeof eventType !== "string") {
     return;
   }
-  // Map DownloadEvent types to Tauri event names
+  // Map the server event type to the wire event name the listeners use
   const eventName = mapEventType(eventType, params.payload);
   if (eventName) {
     eventDispatcher(eventName, params.payload);
@@ -221,7 +221,7 @@ function dispatchServerEvent(data: Record<string, unknown>) {
 
 /**
  * Tear down the WebSocket and prevent any further reconnection attempts.
- * Call when the application is shutting down or switching away from NAS mode.
+ * Call when the application is shutting down or tearing down the connection.
  */
 export function disconnect() {
   manualDisconnect = true;

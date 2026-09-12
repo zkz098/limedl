@@ -1,8 +1,8 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
-import { pickDirectory, pickTorrentFile } from "../../lib/tauri/dialog-api";
+import { pickDirectory, pickTorrentFile } from "../../lib/ipc/dialog-api";
 import { readClipboardText } from "../../lib/platform";
-import { probeChecksum, setBtSpeedLimit, startDownload } from "../../lib/tauri/download-api";
+import { probeChecksum, setBtSpeedLimit, startDownload } from "../../lib/ipc/download-api";
 import { t } from "../../i18n";
 import { toMessage } from "../../composables/downloadHelpers";
 import { detectKindFromUrl, extractFileNameFromUrl } from "../../lib/url-utils";

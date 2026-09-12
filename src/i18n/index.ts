@@ -1,7 +1,7 @@
 import i18next, { type ParseKeys } from "i18next";
 import { computed, readonly, ref } from "vue";
 
-import { updateTrayLanguage } from "../lib/tauri/app-api";
+import { updateTrayLanguage } from "../lib/ipc/app-api";
 
 import {
   resources,

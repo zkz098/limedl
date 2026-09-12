@@ -12,7 +12,6 @@ const props = defineProps<{
     completedTasks: number;
     currentSpeed: string;
   };
-  updateAvailable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -93,12 +92,6 @@ function handleNavigate(view: string) {
           @click="handleNavigate(nav.view)"
         >
           <span class="bottom-nav__icon text-xl" :class="nav.icon" aria-hidden="true" />
-          <!-- Red dot badge for update available -->
-          <span
-            v-if="nav.view === 'settings' && updateAvailable"
-            class="bottom-nav__badge absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--color-error)] border-2 border-[var(--color-panel)]"
-            :aria-label="t('sidebar.updateAvailable')"
-          />
         </button>
       </div>
       <div class="bottom-brand flex items-center gap-[0.35rem] text-xs font-semibold opacity-60">

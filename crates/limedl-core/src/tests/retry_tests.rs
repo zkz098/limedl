@@ -384,7 +384,7 @@ async fn retry_respects_transient_vs_permanent_errors() -> TestResult {
 //   `measure_default_node()` (measures direct download speed).  All three
 //   perform real network I/O.
 // - The background task is spawned via `tokio::spawn`, which
-//   requires a running Tauri runtime.
+//   requires a running async runtime.
 // - There is no trait / dependency-injection point for substituting fake
 //   implementations of IP-range fetching or speed testing.
 //

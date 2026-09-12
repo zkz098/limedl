@@ -2,7 +2,7 @@ import { test, expect } from "../fixtures";
 
 test.describe("smoke", () => {
   test("page loads and renders the app root", async ({ page }) => {
-    // Navigate to the Tauri webview URL (Vite dev server)
+    // Navigate to the WebUI root (base URL comes from the Playwright project)
     await page.goto("/");
 
     // Verify the Vue mount point exists

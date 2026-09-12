@@ -8,14 +8,14 @@ vi.mock("../../i18n", () => ({
   t: vi.fn((key: string) => key),
 }));
 
-vi.mock("../../lib/tauri/settings-api", () => ({
+vi.mock("../../lib/ipc/settings-api", () => ({
   getAppSettings: vi.fn(),
   saveAppSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { invoke } from "#invoke";
-import { createMockInvoke, resetTauriMocks } from "../mocks/tauri-mock";
-import { getAppSettings, saveAppSettings } from "../../lib/tauri/settings-api";
+import { createMockInvoke, resetInvokeMocks } from "../mocks/invoke-mock";
+import { getAppSettings, saveAppSettings } from "../../lib/ipc/settings-api";
 import { useAppSettingsStore } from "../../stores/appSettings";
 import { useDownloadStore } from "../../stores/download/index";
 import { DEFAULT_VISIBLE_COLUMNS } from "../../lib/column-defs";
@@ -168,7 +168,7 @@ describe("useAppSettingsStore", () => {
   let matchMediaMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    resetTauriMocks();
+    resetInvokeMocks();
     mockInvoke.mockImplementation(createMockInvoke());
 
     vi.spyOn(console, "error").mockImplementation(() => {});

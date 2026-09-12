@@ -1270,8 +1270,8 @@ async fn github_asset_with_accept_header_downloads_real_bytes() -> TestResult {
             expected_checksum: None,
             selected_file_indices: None,
             start_paused: false,
-            // This is the header the self-update flow must send; it mirrors
-            // tauri-plugin-updater's `Update::download()` behavior.
+            // This is the header the self-update flow must send; it mirrors the
+            // upstream updater's `Update::download()` behavior.
             headers: Some(vec!["Accept: application/octet-stream".to_string()]),
             mirror_urls: None,
             priority: None,

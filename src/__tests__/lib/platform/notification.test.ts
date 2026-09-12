@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  isPermissionGranted,
+  isNotificationPermissionGranted,
   onAction,
-  requestPermission,
+  requestNotificationPermission,
   sendNotification,
   type NotificationPayload,
-} from "../../../lib/ws/ws-notification-mock";
+} from "../../../lib/platform/notification";
 
 // jsdom does not implement the Web Notifications API, so we install a fake
-// Notification class on globalThis to exercise the mock's browser behavior.
+// Notification class on globalThis to exercise the browser behavior.
 
 type FakeClickHandler = () => void;
 
@@ -59,50 +59,50 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("ws-notification-mock", () => {
-  describe("isPermissionGranted", () => {
+describe("platform/notification", () => {
+  describe("isNotificationPermissionGranted", () => {
     it("returns false when permission is not granted", async () => {
       FakeNotification.permission = "denied";
-      expect(await isPermissionGranted()).toBe(false);
+      expect(await isNotificationPermissionGranted()).toBe(false);
 
       FakeNotification.permission = "default";
-      expect(await isPermissionGranted()).toBe(false);
+      expect(await isNotificationPermissionGranted()).toBe(false);
     });
 
     it("returns true when permission is granted", async () => {
       FakeNotification.permission = "granted";
-      expect(await isPermissionGranted()).toBe(true);
+      expect(await isNotificationPermissionGranted()).toBe(true);
     });
 
     it("returns false when the Notification API is unavailable", async () => {
       vi.stubGlobal("Notification", undefined);
-      expect(await isPermissionGranted()).toBe(false);
+      expect(await isNotificationPermissionGranted()).toBe(false);
     });
   });
 
-  describe("requestPermission", () => {
+  describe("requestNotificationPermission", () => {
     it("resolves granted when the browser grants permission", async () => {
       FakeNotification.permission = "granted";
-      expect(await requestPermission()).toBe("granted");
+      expect(await requestNotificationPermission()).toBe("granted");
       expect(FakeNotification.requestPermission).toHaveBeenCalledTimes(1);
     });
 
     it("resolves denied for denied or default", async () => {
       FakeNotification.permission = "denied";
-      expect(await requestPermission()).toBe("denied");
+      expect(await requestNotificationPermission()).toBe("denied");
 
       FakeNotification.permission = "default";
-      expect(await requestPermission()).toBe("denied");
+      expect(await requestNotificationPermission()).toBe("denied");
     });
 
     it("resolves denied when the API is unavailable", async () => {
       vi.stubGlobal("Notification", undefined);
-      expect(await requestPermission()).toBe("denied");
+      expect(await requestNotificationPermission()).toBe("denied");
     });
 
     it("resolves denied when requestPermission rejects", async () => {
       FakeNotification.requestPermission.mockRejectedValueOnce(new Error("insecure"));
-      expect(await requestPermission()).toBe("denied");
+      expect(await requestNotificationPermission()).toBe("denied");
     });
   });
 
@@ -120,9 +120,9 @@ describe("ws-notification-mock", () => {
     it("accepts a plain string as the title", async () => {
       FakeNotification.permission = "granted";
 
-      await sendNotification("Tauri is awesome!");
+      await sendNotification("Download finished!");
 
-      expect(FakeNotification.emitted).toEqual([{ title: "Tauri is awesome!", options: {} }]);
+      expect(FakeNotification.emitted).toEqual([{ title: "Download finished!", options: {} }]);
     });
 
     it("stashes extra on the instance for click handling", async () => {

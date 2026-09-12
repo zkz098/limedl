@@ -1156,7 +1156,7 @@ mod tests {
 
         let core = limedl_core::bootstrap::bootstrap(state_dir).await.unwrap();
 
-        // Initialize CDN service (same as Tauri setup does)
+        // Initialize CDN service (same as the desktop client does)
         let cdn_accelerator = core.cdn_service.accelerator().clone();
         core.download_manager.set_cdn_accelerator(cdn_accelerator);
         core.cdn_service.init_from_settings(&core.settings).await;

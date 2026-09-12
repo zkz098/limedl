@@ -1,7 +1,7 @@
 import { nextTick, ref, watch } from "vue";
 import { defineStore } from "pinia";
 import { debounce } from "../lib/debounce";
-import { getAppSettings, saveAppSettings } from "../lib/tauri/settings-api";
+import { getAppSettings, saveAppSettings } from "../lib/ipc/settings-api";
 import { VALID_COLUMN_KEY_SET, DEFAULT_VISIBLE_COLUMNS } from "../lib/column-defs";
 import type { AppSettings, ColorMode, SortDirection, SortKey } from "../types/settings";
 import { useDownloadStore } from "./download";

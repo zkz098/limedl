@@ -4,8 +4,8 @@ import { computed, ref, toRef, watch } from "vue";
 import { useI18n } from "../../i18n";
 import { useAsyncGuard } from "../../composables/useAsyncGuard";
 import { useNotificationStore } from "../../stores/notification";
-import { pickDirectory } from "../../lib/tauri/dialog-api";
-import { fetchTrackerList, openLogDir, saveAppSettings } from "../../lib/tauri/settings-api";
+import { pickDirectory } from "../../lib/ipc/dialog-api";
+import { fetchTrackerList, openLogDir, saveAppSettings } from "../../lib/ipc/settings-api";
 import type { ChecksumMode } from "../../types/download";
 import type { SupportedLanguage } from "../../i18n/resources";
 import type {

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from "vue";
 
 import { formatBytes } from "../../lib/download-format";
 import type { AppSettings } from "../../types/settings";
-import { detectAllDiskTypes } from "../../lib/tauri/settings-api";
+import { detectAllDiskTypes } from "../../lib/ipc/settings-api";
 import UiSwitch from "../ui/UiSwitch.vue";
 import UiTextField from "../ui/UiTextField.vue";
 import SettingsField from "./SettingsField.vue";

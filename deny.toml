@@ -4,19 +4,7 @@ targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-
 [advisories]
 yanked = "warn"
 unmaintained = "workspace"
-# quick-xml 0.39.4 (pinned by wayland-scanner 0.31.10, the latest published
-# release) carries two high-severity DoS advisories. limedl's exposure is
-# build-only: quick-xml is a proc-macro/build-time dependency of
-# wayland-scanner that parses host-preinstalled Wayland protocol XML at
-# compile time; limedl's runtime never calls `BytesStart::attributes()` or
-# `NsReader` on untrusted input (grep confirms no `quick_xml` imports in
-# limedl source). The advisories describe CPU-exhaustion / OOM vectors
-# triggered by attacker-controlled XML, which cannot reach a build-time
-# Wayland protocol parser. wayland-scanner's `^0.39` constraint forbids a
-# `cargo update` to 0.41 — only an upstream release can fix the path.
-# Revisit when wayland-rs publishes a version that bumps its quick-xml dep
-# (likely 0.31.11 or 0.32.0).
-ignore = ["RUSTSEC-2026-0194", "RUSTSEC-2026-0195"]
+ignore = []
 
 [licenses]
 allow = [

@@ -6,7 +6,7 @@ export type {
   SpeedTestResult,
 } from "./generated/types";
 
-// ── Tauri-layer composite types (defined in src-tauri, not limedl-core) ──
+// ── Composite types assembled by the server RPC layer ──
 
 /** A single candidate IP from the CDN speed test. */
 export type SpeedTestCandidate = import("./generated/types").SpeedTestResult;

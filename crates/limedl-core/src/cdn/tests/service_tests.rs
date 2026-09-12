@@ -2,8 +2,8 @@
 //!
 //! Contract: `CdnService::monitor_test` publishes `DownloadEvent::CdnProgress`
 //! during testing and `DownloadEvent::CdnComplete` when the test finishes
-//! (either Ready or Error). This was migrated from Tauri-only `app_handle.emit`
-//! to an EventBus-driven path in Stage 9.
+//! (either Ready or Error). This was migrated from per-shell direct event
+//! emission to an EventBus-driven path in Stage 9.
 //!
 //! The test sets up a real CdnAccelerator + CdnService, starts a test via
 //! `start_test` (which spawns a background task that sets phase to

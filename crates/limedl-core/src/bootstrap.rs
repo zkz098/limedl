@@ -1,4 +1,4 @@
-//! Shared subsystem initialization used by both Tauri desktop and NAS server.
+//! Shared subsystem initialization used by both the desktop client and NAS server.
 //! Single canonical initialization sequence — add new subsystems here once.
 
 use std::path::PathBuf;
@@ -36,7 +36,7 @@ pub struct CoreSystems {
 
 /// Initialize all core subsystems in the correct order.
 /// This is the SINGLE canonical initialization sequence used by both
-/// Tauri desktop and NAS server targets.
+/// the desktop client and NAS server targets.
 pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     let context = Arc::new(SystemContext::new(state_dir.clone())?);
     let settings = context.settings_service.get_blocking();

@@ -22,7 +22,7 @@ import {
   previewTorrent,
   getBtFiles,
   updateBtFiles,
-} from "../../lib/tauri/download-api";
+} from "../../lib/ipc/download-api";
 
 const mockInvoke = vi.mocked(invoke);
 

@@ -35,12 +35,12 @@ vi.mock("../../stores/notification", () => ({
   }),
 }));
 
-vi.mock("../../lib/tauri/dialog-api", () => ({
+vi.mock("../../lib/ipc/dialog-api", () => ({
   pickDirectory: vi.fn().mockResolvedValue("/default/dir"),
 }));
 
 const mockSaveAppSettings = vi.hoisted(() => vi.fn());
-vi.mock("../../lib/tauri/settings-api", () => ({
+vi.mock("../../lib/ipc/settings-api", () => ({
   saveAppSettings: mockSaveAppSettings,
   fetchTrackerList: vi.fn(),
 }));

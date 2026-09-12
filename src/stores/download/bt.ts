@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
-import { getBtRuntimeStatus, getDownloadStatus } from "../../lib/tauri/download-api";
+import { getBtRuntimeStatus, getDownloadStatus } from "../../lib/ipc/download-api";
 import { t } from "../../i18n";
 import { toMessage, toSummary } from "../../composables/downloadHelpers";
 import { useNotificationStore } from "../notification";

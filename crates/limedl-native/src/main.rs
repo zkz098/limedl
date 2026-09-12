@@ -381,7 +381,7 @@ fn build_tray_menu(lang: Language, speed_limit_active: bool) -> Menu {
 }
 
 /// Speed applied when the user enables the tray "speed limit" shortcut.
-/// Mirrors the Tauri edition (1 MiB/s) so both shells behave identically.
+/// Kept at the historical 1 MiB/s default.
 const TRAY_SPEED_LIMIT_BPS: u64 = 1_048_576;
 
 /// Open the new task dialog and pre-fill / trigger actions based on an incoming payload
@@ -3761,7 +3761,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Factory reset: shut the backends down, delete the whole data directory
     // (settings.json + downloads/ incl. the SQLite database) and restart the
-    // process so the first-run wizard comes back. Mirrors the Tauri edition.
+    // process so the first-run wizard comes back.
     {
         let dispatcher = core.dispatcher.clone();
         let registry = core.registry.clone();
@@ -4978,7 +4978,7 @@ fn open_path_in_explorer(path: &str) -> std::io::Result<()> {
 
 /// Open a task's downloaded file with the OS default handler (via backend).
 /// The `Dispatcher` has no inherent `open_file`/`open_dir`, so route through
-/// the backend registry exactly like the Tauri commands do.
+/// the backend registry exactly like the RPC handlers do.
 async fn open_task_file(dispatcher: &Dispatcher, task_id: &TaskId) -> anyhow::Result<()> {
     let backend = dispatcher.registry().dispatch(task_id)?;
     Ok(backend.open_file(task_id).await?)

@@ -63,7 +63,7 @@ export function toFriendlyError(raw: string, kind?: string | null): string {
 /**
  * Extract a human-readable message from any error value.
  * Handles `Error` instances as well as plain objects rejected by
- * Tauri's IPC layer (e.g. `SerializableError` shaped `{ kind, message }`).
+ * the IPC layer (e.g. `SerializableError` shaped `{ kind, message }`).
  */
 export function toErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;

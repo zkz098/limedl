@@ -2,7 +2,7 @@
 # See AGENTS.md for the MSVC environment setup required before building on Windows.
 #
 # Target CPU strategy:
-#   Desktop targets (Tauri app) → x86-64-v3 (Haswell 2013+)
+#   Desktop (Slint client) → x86-64-v3 (Haswell 2013+)
 #   NAS server targets (musl)    → x86-64-v2 (Nehalem 2008+, broad NAS HW compat)
 
 [target.x86_64-pc-windows-msvc]

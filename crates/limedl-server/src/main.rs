@@ -160,13 +160,13 @@ async fn run_daemon(
     // Initialize logging
     let _ = limedl_core::init_logging(&core.settings.logging, &state_dir);
 
-    // Initialize CDN service (same pattern as Tauri setup)
+    // Initialize CDN service (same pattern as the desktop client)
     let cdn_accelerator = core.cdn_service.accelerator().clone();
     core.download_manager.set_cdn_accelerator(cdn_accelerator);
     core.cdn_service.init_from_settings(&core.settings).await;
 
     // ── Aria2 JSON-RPC server (default enabled) ──────────────────────────
-    // Mirrors the desktop wiring in src-tauri/src/lib.rs. Serves AriaNg /
+    // Mirrors the desktop wiring in crates/limedl-native. Serves AriaNg /
     // Motrix clients on 127.0.0.1:6800 via its own Router; the daemon's own
     // 9090 HTTP/WS server is unrelated and listens on a different port.
     // Startup failure is logged but never blocks daemon startup.

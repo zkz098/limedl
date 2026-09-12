@@ -13,8 +13,6 @@
  */
 import { vi } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-
 vi.mock("../../i18n", () => ({
   t: vi.fn((key: string, options?: Record<string, unknown>) => {
     if (options) {
@@ -25,7 +23,7 @@ vi.mock("../../i18n", () => ({
   }),
 }));
 
-vi.mock("../../lib/tauri/download-api", () => ({
+vi.mock("../../lib/ipc/download-api", () => ({
   cancelDownload: vi.fn(),
   getBtRuntimeStatus: vi.fn(),
   getDownloadStatus: vi.fn(),
@@ -55,13 +53,6 @@ vi.mock("../../stores/notification", () => ({
 
 vi.mock("#event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
-}));
-
-vi.mock("@tauri-apps/plugin-notification", () => ({
-  isPermissionGranted: vi.fn().mockResolvedValue(true),
-  onAction: vi.fn().mockResolvedValue({ unregister: vi.fn() }),
-  requestPermission: vi.fn().mockResolvedValue("granted"),
-  sendNotification: vi.fn(),
 }));
 
 /**

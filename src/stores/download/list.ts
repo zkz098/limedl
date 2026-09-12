@@ -9,7 +9,7 @@ import {
   removeDownload,
   resumeDownload,
   setPriority,
-} from "../../lib/tauri/download-api";
+} from "../../lib/ipc/download-api";
 import { t } from "../../i18n";
 import {
   canPauseState,

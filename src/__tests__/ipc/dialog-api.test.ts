@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
+// The WebUI cannot open a native picker (see src/lib/platform/dialog.ts), so
+// the platform boundary is mocked here to exercise the result normalization in
+// dialog-api itself.
+vi.mock("../../lib/platform/dialog", () => ({ openDialog: vi.fn() }));
 
-import { open } from "@tauri-apps/plugin-dialog";
-import { pickDirectory, pickTorrentFile } from "../../lib/tauri/dialog-api";
+import { openDialog } from "../../lib/platform/dialog";
+import { pickDirectory, pickTorrentFile } from "../../lib/ipc/dialog-api";
 
-const mockOpen = vi.mocked(open);
+const mockOpenDialog = vi.mocked(openDialog);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -13,12 +16,12 @@ beforeEach(() => {
 
 describe("dialog-api", () => {
   describe("pickDirectory", () => {
-    it("calls open with directory=true and multiple=false", async () => {
-      mockOpen.mockResolvedValue("/chosen/directory");
+    it("asks for a single directory", async () => {
+      mockOpenDialog.mockResolvedValue("/chosen/directory");
 
       await pickDirectory();
 
-      expect(mockOpen).toHaveBeenCalledWith({
+      expect(mockOpenDialog).toHaveBeenCalledWith({
         directory: true,
         multiple: false,
         title: "Choose destination folder",
@@ -26,7 +29,7 @@ describe("dialog-api", () => {
     });
 
     it("returns string result directly when result is a string", async () => {
-      mockOpen.mockResolvedValue("/chosen/path");
+      mockOpenDialog.mockResolvedValue("/chosen/path");
 
       const result = await pickDirectory();
 
@@ -34,7 +37,7 @@ describe("dialog-api", () => {
     });
 
     it("returns null when result is null", async () => {
-      mockOpen.mockResolvedValue(null);
+      mockOpenDialog.mockResolvedValue(null);
 
       const result = await pickDirectory();
 
@@ -42,7 +45,7 @@ describe("dialog-api", () => {
     });
 
     it("returns first element when result is a single-element array", async () => {
-      mockOpen.mockResolvedValue(["/array/path"]);
+      mockOpenDialog.mockResolvedValue(["/array/path"]);
 
       const result = await pickDirectory();
 
@@ -50,7 +53,7 @@ describe("dialog-api", () => {
     });
 
     it("returns first element when result is a multi-element array", async () => {
-      mockOpen.mockResolvedValue(["/first/path", "/second/path"]);
+      mockOpenDialog.mockResolvedValue(["/first/path", "/second/path"]);
 
       const result = await pickDirectory();
 
@@ -58,7 +61,7 @@ describe("dialog-api", () => {
     });
 
     it("returns null when result is an empty array", async () => {
-      mockOpen.mockResolvedValue([]);
+      mockOpenDialog.mockResolvedValue([]);
 
       const result = await pickDirectory();
 
@@ -67,12 +70,12 @@ describe("dialog-api", () => {
   });
 
   describe("pickTorrentFile", () => {
-    it("calls open with directory=false, torrent filter, and multiple=false", async () => {
-      mockOpen.mockResolvedValue("/path/to/file.torrent");
+    it("asks for a single .torrent file", async () => {
+      mockOpenDialog.mockResolvedValue("/path/to/file.torrent");
 
       await pickTorrentFile();
 
-      expect(mockOpen).toHaveBeenCalledWith({
+      expect(mockOpenDialog).toHaveBeenCalledWith({
         directory: false,
         multiple: false,
         title: "Choose torrent file",
@@ -81,7 +84,7 @@ describe("dialog-api", () => {
     });
 
     it("returns first element from array result", async () => {
-      mockOpen.mockResolvedValue(["/path/to/file.torrent"]);
+      mockOpenDialog.mockResolvedValue(["/path/to/file.torrent"]);
 
       const result = await pickTorrentFile();
 
@@ -89,7 +92,7 @@ describe("dialog-api", () => {
     });
 
     it("returns string result directly when result is a string", async () => {
-      mockOpen.mockResolvedValue("/direct/path.torrent");
+      mockOpenDialog.mockResolvedValue("/direct/path.torrent");
 
       const result = await pickTorrentFile();
 
@@ -97,7 +100,7 @@ describe("dialog-api", () => {
     });
 
     it("returns null when result is null", async () => {
-      mockOpen.mockResolvedValue(null);
+      mockOpenDialog.mockResolvedValue(null);
 
       const result = await pickTorrentFile();
 
@@ -105,7 +108,7 @@ describe("dialog-api", () => {
     });
 
     it("returns null when result is an empty array", async () => {
-      mockOpen.mockResolvedValue([]);
+      mockOpenDialog.mockResolvedValue([]);
 
       const result = await pickTorrentFile();
 

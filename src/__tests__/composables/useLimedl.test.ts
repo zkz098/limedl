@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 
-// ── Mock Tauri core ─────────────────────────────────────────────────────────
+// ── Mock the IPC layer ─────────────────────────────────────────────────────────
 vi.mock("#invoke", () => ({ invoke: vi.fn() }));
 
-// ── Mock Tauri events ───────────────────────────────────────────────────────
+// ── Mock server events ───────────────────────────────────────────────────────
 // Capture the handler so tests can simulate download-progress/download-updated.
 let onProgress: ((payload: Record<string, unknown>) => void) | null = null;
 let onUpdated: ((payload: Record<string, unknown>) => void) | null = null;
@@ -22,9 +22,9 @@ vi.mock("#event", () => ({
 }));
 
 // ── Mock OS notifications ───────────────────────────────────────────────────
-vi.mock("@tauri-apps/plugin-notification", () => ({
-  isPermissionGranted: vi.fn().mockResolvedValue(false),
-  requestPermission: vi.fn().mockResolvedValue("denied"),
+vi.mock("../../lib/platform/notification", () => ({
+  isNotificationPermissionGranted: vi.fn().mockResolvedValue(false),
+  requestNotificationPermission: vi.fn().mockResolvedValue("denied"),
   sendNotification: vi.fn(),
   onAction: vi.fn().mockResolvedValue({ unregister: vi.fn() }),
 }));
@@ -63,7 +63,7 @@ vi.mock("../../i18n", () => ({
 }));
 
 // ── Mock download API ───────────────────────────────────────────────────────
-vi.mock("../../lib/tauri/download-api", () => ({
+vi.mock("../../lib/ipc/download-api", () => ({
   startDownload: vi.fn(),
   listDownloads: vi.fn(),
   getDownloadStatus: vi.fn(),
@@ -77,7 +77,7 @@ vi.mock("../../lib/tauri/download-api", () => ({
 }));
 
 // ── Imports (all after vi.mock) ─────────────────────────────────────────────
-import { resetTauriMocks } from "../mocks/tauri-mock";
+import { resetInvokeMocks } from "../mocks/invoke-mock";
 import {
   createMockDownloadTask,
   createMockDownloadList,
@@ -92,7 +92,7 @@ import {
   getBtRuntimeStatus,
   pauseDownload,
   resumeDownload,
-} from "../../lib/tauri/download-api";
+} from "../../lib/ipc/download-api";
 
 const mockStartDownload = vi.mocked(startDownload);
 const mockListDownloads = vi.mocked(listDownloads);
@@ -100,10 +100,10 @@ const mockGetDownloadStatus = vi.mocked(getDownloadStatus);
 const mockPauseDownload = vi.mocked(pauseDownload);
 const mockResumeDownload = vi.mocked(resumeDownload);
 
-import { isPermissionGranted, sendNotification } from "@tauri-apps/plugin-notification";
-import { removeDownload } from "../../lib/tauri/download-api";
+import { isNotificationPermissionGranted, sendNotification } from "../../lib/platform/notification";
+import { removeDownload } from "../../lib/ipc/download-api";
 const mockRemoveDownload = vi.mocked(removeDownload);
-const mockIsPermissionGranted = vi.mocked(isPermissionGranted);
+const mockIsNotificationPermissionGranted = vi.mocked(isNotificationPermissionGranted);
 const mockSendNotification = vi.mocked(sendNotification);
 
 // Pinia store under test
@@ -117,7 +117,7 @@ describe("useDownloadStore", () => {
 
   beforeEach(async () => {
     vi.resetModules();
-    resetTauriMocks();
+    resetInvokeMocks();
     resetMockIds();
     onProgress = null;
     onUpdated = null;
@@ -668,7 +668,7 @@ describe("useDownloadStore", () => {
     });
 
     it("sends OS notification when enabled and download completes", async () => {
-      mockIsPermissionGranted.mockResolvedValue(true);
+      mockIsNotificationPermissionGranted.mockResolvedValue(true);
 
       const task = createMockDownloadTask({
         id: "task-1",

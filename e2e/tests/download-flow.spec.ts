@@ -1,17 +1,11 @@
 /**
  * Download flow E2E tests
  *
- * These tests verify the complete user flow through the Tauri limedl UI:
+ * These tests verify the complete user flow through the limedl WebUI:
  * navigation between views, opening the download composer, URL input,
  * form validation, and error handling.
  *
- * IMPORTANT: Full download E2E (start → progress → complete → verify)
- * requires a running test file server. See `src-tauri/src/download/test_harness.rs`
- * for the server (needs Tauri build with test features).
- *
- * Prerequisites:
- *   1. Run `bun run tauri dev` in a separate terminal
- *   2. Run `bun run test:e2e` from another terminal
+ * Prerequisites: a running limedl-server daemon (see e2e/playwright.config.ts).
  *
  * Tests are serial because they share app state (navigation, dialog state).
  */

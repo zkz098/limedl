@@ -3,43 +3,25 @@ import vue from "@vitejs/plugin-vue";
 import UnoCSS from "unocss/vite";
 import { fileURLToPath } from "node:url";
 
-const host = process.env.TAURI_DEV_HOST;
-
-export default defineConfig(async ({ mode }): Promise<UserConfig> => {
-  const isNas = mode === "nas";
-
-  const nasAlias = {
+export default defineConfig(async (): Promise<UserConfig> => {
+  // The Vue app is the browser front end for `limedl daemon` (NAS/desktop WebUI);
+  // it talks to the server over WebSocket. See src/lib/ws/ws-invoke.ts.
+  const wsAlias = {
     "#invoke": fileURLToPath(new URL("./src/lib/ws/ws-invoke.ts", import.meta.url)),
     "#event": fileURLToPath(new URL("./src/lib/ws/ws-event.ts", import.meta.url)),
-    "@tauri-apps/plugin-notification": fileURLToPath(
-      new URL("./src/lib/ws/ws-notification-mock.ts", import.meta.url),
-    ),
-  };
-
-  const tauriAlias = {
-    "#invoke": "@tauri-apps/api/core",
-    "#event": "@tauri-apps/api/event",
   };
 
   return {
     plugins: [vue(), ...UnoCSS()],
     clearScreen: false,
     resolve: {
-      alias: isNas ? nasAlias : tauriAlias,
+      alias: wsAlias,
     },
     server: {
       port: 1420,
       strictPort: true,
-      host: host || false,
-      hmr: host
-        ? {
-            protocol: "ws",
-            host,
-            port: 1421,
-          }
-        : undefined,
       watch: {
-        ignored: ["**/src-tauri/**", "**/target/**"],
+        ignored: ["**/target/**"],
       },
     },
   };

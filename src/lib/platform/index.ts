@@ -1,4 +1,3 @@
-export * from "./env";
 export * from "./dialog";
 export * from "./autostart";
 export * from "./opener";

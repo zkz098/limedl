@@ -3,7 +3,7 @@ import { ref, toRef } from "vue";
 
 import { useI18n } from "../../i18n";
 import { useNotificationStore } from "../../stores/notification";
-import { saveAppSettings } from "../../lib/tauri/settings-api";
+import { saveAppSettings } from "../../lib/ipc/settings-api";
 import type { AppSettings } from "../../types/settings";
 import UiButton from "../ui/UiButton.vue";
 

@@ -879,7 +879,7 @@ pub fn app_settings_to_form(
 /// Returns `Err` with a human-readable message if any field contains
 /// non-empty but unparsable content (e.g. "abc" in a numeric field or
 /// an invalid proxy URL). Empty strings retain the previous value for
-/// numeric fields (mirroring Tauri behaviour) but mandatory string fields
+/// numeric fields (mirroring the previous desktop shell) but mandatory string fields
 /// like proxy manual URL are validated eagerly so the user gets immediate
 /// feedback instead of a silent no-op or a later `normalize_settings` error.
 pub fn update_app_settings_from_form(

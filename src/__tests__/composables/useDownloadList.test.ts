@@ -16,10 +16,10 @@ vi.mock("../../i18n", () => ({
 import { invoke } from "#invoke";
 import {
   createMockInvoke,
-  mockTauriCommand,
-  mockTauriCommandValue,
-  resetTauriMocks,
-} from "../mocks/tauri-mock";
+  mockCommand,
+  mockCommandValue,
+  resetInvokeMocks,
+} from "../mocks/invoke-mock";
 import { useDownloadStore } from "../../stores/download/index";
 import { createMockDownloadTask } from "../fixtures/downloads";
 
@@ -47,7 +47,7 @@ describe("useDownloadStore (refreshList)", () => {
   let store: ReturnType<typeof useDownloadStore>;
 
   beforeEach(() => {
-    resetTauriMocks();
+    resetInvokeMocks();
     mockInvoke.mockImplementation(createMockInvoke());
     setActivePinia(createPinia());
     store = useDownloadStore();
@@ -70,7 +70,7 @@ describe("useDownloadStore (refreshList)", () => {
 
   it("fetches downloads and populates the ref", async () => {
     const mockData = createMockDownloadTask({ id: "task-1", fileName: "test.zip" });
-    mockTauriCommandValue("download_list", [mockData]);
+    mockCommandValue("download_list", [mockData]);
 
     await store.refreshList();
 
@@ -79,9 +79,9 @@ describe("useDownloadStore (refreshList)", () => {
     expect(store.downloads[0].fileName).toBe("test.zip");
   });
 
-  it("calls listDownloads via Tauri invoke", async () => {
+  it("calls listDownloads via the IPC layer", async () => {
     const mockData = createMockDownloadTask();
-    mockTauriCommandValue("download_list", [mockData]);
+    mockCommandValue("download_list", [mockData]);
 
     await store.refreshList();
 
@@ -89,7 +89,7 @@ describe("useDownloadStore (refreshList)", () => {
   });
 
   it("sets a 'no downloads' message when list is empty", async () => {
-    mockTauriCommandValue("download_list", []);
+    mockCommandValue("download_list", []);
 
     await store.refreshList();
 
@@ -102,7 +102,7 @@ describe("useDownloadStore (refreshList)", () => {
   // ── Error handling ─────────────────────────────────────────────────
 
   it("handles error when listDownloads throws", async () => {
-    mockTauriCommand("download_list", () => {
+    mockCommand("download_list", () => {
       throw new Error("Backend unavailable");
     });
 
@@ -122,7 +122,7 @@ describe("useDownloadStore (refreshList)", () => {
       resolvePromise = resolve;
     });
 
-    mockTauriCommandValue("download_list", () => pendingPromise);
+    mockCommandValue("download_list", () => pendingPromise);
 
     const refresh1 = store.refreshList();
     const refresh2 = store.refreshList(); // should be a no-op
@@ -143,7 +143,7 @@ describe("useDownloadStore (refreshList)", () => {
       resolvePromise = resolve;
     });
 
-    mockTauriCommandValue("download_list", () => pendingPromise);
+    mockCommandValue("download_list", () => pendingPromise);
 
     const promise = store.refreshList();
 
@@ -165,7 +165,7 @@ describe("useDownloadStore (refreshList)", () => {
       createMockDownloadTask({ id: "task-2", fileName: "b.zip" }),
       createMockDownloadTask({ id: "task-3", fileName: "c.zip" }),
     ];
-    mockTauriCommandValue("download_list", mockData);
+    mockCommandValue("download_list", mockData);
 
     await store.refreshList();
 
@@ -176,7 +176,7 @@ describe("useDownloadStore (refreshList)", () => {
   // ── Error message serialization ────────────────────────────────────
 
   it("converts non-Error throws gracefully", async () => {
-    mockTauriCommand("download_list", () => {
+    mockCommand("download_list", () => {
       // eslint-disable-next-line no-throw-literal
       throw "String error";
     });

@@ -4,16 +4,14 @@ import { defineConfig } from "@playwright/test";
  * Playwright E2E configuration for limedl.
  *
  * Projects:
- *   1. tauri-desktop   — connects to Vite dev server (port 1420) for Tauri tests
- *   2. nas-webui       — connects to limedl-server (port 9090) for NAS WebUI tests
- *   3. nas-webui-firefox  — same as nas-webui but on Firefox
- *   4. nas-webui-webkit   — same as nas-webui but on WebKit (Safari)
- *   5. real-server     — runs real-server integration tests (chromium only)
+ *   1. nas-webui       — connects to limedl-server (port 9090) for WebUI tests
+ *   2. nas-webui-firefox  — same as nas-webui but on Firefox
+ *   3. nas-webui-webkit   — same as nas-webui but on WebKit (Safari)
+ *   4. real-server     — runs real-server integration tests (chromium only)
  *                        requires a running limedl-server daemon
  *
  * Global setup starts TestFileServer on port 9876 and sets env vars.
  *
- * Tauri desktop tests require a running Tauri app (e.g. `pnpm run tauri dev`).
  * NAS WebUI tests require a running limedl-server (e.g. `cargo run --bin limedl-server daemon`).
  * Real-server tests also require LIMEDL_E2E_REAL_SERVER=1 to be set.
  */
@@ -43,13 +41,6 @@ export default defineConfig({
   },
 
   projects: [
-    {
-      name: "tauri-desktop",
-      use: {
-        browserName: "chromium",
-        baseURL: "http://localhost:1420",
-      },
-    },
     {
       name: "nas-webui",
       testMatch: ["**/*.spec.ts", "!**/integration-real.spec.ts"],

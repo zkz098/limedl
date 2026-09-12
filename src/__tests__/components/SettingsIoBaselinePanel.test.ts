@@ -9,7 +9,7 @@ import type { AppSettings, IoBaselineSettings } from "../../types/settings";
 const mockDetectAllDiskTypes = vi.hoisted(() => vi.fn());
 const mockFormatBytes = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/tauri/settings-api", () => ({
+vi.mock("../../lib/ipc/settings-api", () => ({
   detectAllDiskTypes: mockDetectAllDiskTypes,
 }));
 

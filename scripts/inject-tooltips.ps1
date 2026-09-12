@@ -1,5 +1,5 @@
 # Injects native Slint `Tooltip` elements into settings field labels and
-# emits the matching po translation block. Tooltip copy mirrors the Tauri
+# emits the matching po translation block. Tooltip copy mirrors the WebUI
 # (Vue) edition: en-US text as msgid, zh-CN text as msgstr.
 $ErrorActionPreference = "Stop"
 $m = [ordered]@{

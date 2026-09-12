@@ -10,9 +10,10 @@ const { mockEnable, mockDisable } = vi.hoisted(() => ({
   mockEnable: vi.fn().mockResolvedValue(undefined),
   mockDisable: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("@tauri-apps/plugin-autostart", () => ({
-  enable: mockEnable,
-  disable: mockDisable,
+vi.mock("../../../lib/platform/autostart", () => ({
+  enableAutostart: mockEnable,
+  disableAutostart: mockDisable,
+  isAutostartEnabled: vi.fn().mockResolvedValue(false),
 }));
 
 // ── Stubs ──────────────────────────────────────────────────────────
@@ -211,10 +212,6 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
 describe("SettingsAppearancePanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Autostart registration is disabled when import.meta.env.DEV is set
-    // (the component guards against dev builds registering a debug binary).
-    // Stub DEV=false so the autostart plugin flow is exercised like production.
-    vi.stubEnv("DEV", false);
   });
 
   afterEach(() => {
@@ -412,7 +409,7 @@ describe("SettingsAppearancePanel", () => {
     expect(autoSwitch.element.checked).toBe(draft.autostart);
 
     // The handler (onAutostartChange) updates draft.autostart
-    // and calls the plugin API to sync OS registry.
+    // and calls the platform autostart API to sync the OS registration.
     await autoSwitch.setValue(true);
     await nextTick();
     expect(draft.autostart).toBe(true);
@@ -422,7 +419,7 @@ describe("SettingsAppearancePanel", () => {
     expect(draft.autostart).toBe(false);
   });
 
-  it("toggling autostart ON calls enable() from plugin-autostart", async () => {
+  it("toggling autostart ON calls the platform enableAutostart()", async () => {
     const { wrapper } = mountPanel();
     const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const autoSwitch = switches[2];
@@ -434,7 +431,7 @@ describe("SettingsAppearancePanel", () => {
     expect(mockDisable).not.toHaveBeenCalled();
   });
 
-  it("toggling autostart OFF calls disable() from plugin-autostart", async () => {
+  it("toggling autostart OFF calls the platform disableAutostart()", async () => {
     const { wrapper } = mountPanel();
     const switches = wrapper.findAll<HTMLInputElement>("input.ui-switch-stub[type='checkbox']");
     const autoSwitch = switches[2];

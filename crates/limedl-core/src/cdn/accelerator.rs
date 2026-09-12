@@ -318,7 +318,7 @@ impl CdnAccelerator {
     ///
     /// If no test is active this is a no-op.  Uses [`RwLock::try_write`] so it
     /// is safe to call from within an async runtime (e.g. a `#[tokio::test]` or
-    /// Tauri command).  If the lock cannot be acquired immediately the
+    /// a UI bridge command).  If the lock cannot be acquired immediately the
     /// background task will still observe the cancellation and clean up.
     pub fn cancel_test(&self) {
         if let Ok(mut guard) = self.cancel_token.try_write()
