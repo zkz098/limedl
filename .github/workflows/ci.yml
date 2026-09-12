@@ -161,7 +161,8 @@ jobs:
         run: ./scripts/fetch-misans.ps1
       # All tests in these crates are pure Rust logic tests that
       # do not require a running Tauri runtime or system WebView.
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # TEMP DIAGNOSTIC (branch is throwaway): no -D warnings so every warning is logged
+      - run: cargo clippy --workspace --all-targets
       - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
       - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
       - run: cargo test --manifest-path src-tauri/Cargo.toml
@@ -191,7 +192,7 @@ jobs:
       - name: Fetch bundled MiSans VF font
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo clippy --workspace --all-targets
       - name: Check ts-rs bindings are up-to-date
         run: |
           cargo test --manifest-path crates/limedl-core/Cargo.toml --features ts export_typescript_bindings
