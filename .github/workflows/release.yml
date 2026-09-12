@@ -1,5 +1,15 @@
 name: Release
 
+# Desktop releases ship the Slint client (crates/limedl-native) only — the Tauri
+# edition is no longer built or uploaded. Tauri installs therefore stop receiving
+# updates (`latest.json` is not published anymore) and their updater will report
+# a failure once a newer release exists; see the migration notes in
+# .opencode/guides/subsystem-self-update.md.
+#
+# Windows is currently the only desktop channel: macOS/Linux users are served by
+# the NAS build (`limedl-server` + the bundled WebUI) until native packaging for
+# those platforms exists.
+
 on:
   push:
     tags: ["v*"]
@@ -60,92 +70,12 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Tauri Desktop — platform-specific bundles (MSI, DMG, deb, AppImage)
-  # ═══════════════════════════════════════════════════════════════════════
-  build-tauri:
-    name: Tauri ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
-    needs: changelog
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: windows-x86_64
-            os: windows-latest
-
-          - name: macos-universal
-            os: macos-latest
-            tauri-args: --target universal-apple-darwin
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-      - name: Extract version from tag
-        id: version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-
-      # ── Node.js & frontend deps ────────────────────────────────────────
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 24
-
-      - name: Cache pnpm store
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.local/share/pnpm/store
-          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-release-${{ runner.os }}-
-
-      - run: corepack enable
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-
-      # ── Rust toolchain ─────────────────────────────────────────────────
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          key: release-tauri-${{ matrix.name }}
-
-      # ── Linux system deps (Tauri requires WebKit) ──────────────────────
-      - name: Install Linux system deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      # ── macOS universal: add x86_64 target for cross-compilation ──────
-      - name: Add macOS x86_64 target
-        if: runner.os == 'macOS'
-        run: rustup target add x86_64-apple-darwin
-
-      # ── Build Tauri ────────────────────────────────────────────────────
-      - name: Build Tauri
-        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "v${{ steps.version.outputs.VERSION }}"
-          releaseBody: ${{ needs.changelog.outputs.body }}
-          releaseDraft: false
-          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
-          updaterJsonPreferNsis: true
-          args: ${{ matrix.tauri-args || '' }}
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Native Desktop (Slint) — portable zip + NSIS installer + MSIX package.
-  # All artifacts are minisign-signed with the shared updater key so the
-  # native self-updater (latest-native.json) can verify downloads.
+  # Desktop (Slint) — the only desktop channel: portable zip + NSIS installer
+  # + MSIX package. All artifacts are minisign-signed with the shared updater
+  # key so the self-updater (latest-native.json) can verify downloads.
   # ═══════════════════════════════════════════════════════════════════════
   build-native:
-    name: Native windows-x86_64
+    name: Desktop (Slint) windows-x86_64
     runs-on: windows-latest
     needs: changelog
     permissions:
@@ -179,7 +109,8 @@ jobs:
         shell: pwsh
         run: cargo build --locked --release -p limedl-native
 
-      # ── Node for the tauri CLI (signer) ────────────────────────────────
+      # ── Node for the signer CLI (minisign; the @tauri-apps/cli signer is
+      # reused from the retired Tauri release pipeline) ─────────────────────
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
@@ -259,7 +190,7 @@ jobs:
           MSIX_IDENTITY_NAME: Zkz20.limedl-native
           MSIX_PUBLISHER: "CN=zkz098"
 
-      # ── Sign everything (minisign, shared with the Tauri edition) ──────
+      # ── Sign everything (minisign; legacy Tauri signing secret) ──────
       - name: Sign artifacts
         shell: pwsh
         run: |
@@ -299,108 +230,6 @@ jobs:
             dist/limedl-native-v*-windows-x86_64.msix
             dist/limedl-native-v*-windows-x86_64.msix.sig
             dist/latest-native.json
-          body: ${{ needs.changelog.outputs.body }}
-          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Tauri Desktop — Linux AppImage (with Wayland library pruning)
-  # ═══════════════════════════════════════════════════════════════════════
-  build-tauri-linux:
-    name: Tauri linux-x86_64
-    runs-on: ubuntu-latest
-    needs: changelog
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-      - name: Extract version from tag
-        id: version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-
-      # ── Node.js & frontend deps ────────────────────────────────────────
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 24
-
-      - name: Cache pnpm store
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.local/share/pnpm/store
-          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-release-${{ runner.os }}-
-
-      - run: corepack enable
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-
-      # ── Rust toolchain ─────────────────────────────────────────────────
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          key: release-tauri-linux-x86_64
-
-      # ── Linux system deps ──────────────────────────────────────────────
-      - name: Install Linux system deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      # ── Build Tauri AppImage ───────────────────────────────────────────
-      - name: Build Tauri AppImage
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build --bundles appimage
-
-      # ── Download appimagetool ──────────────────────────────────────────
-      - name: Download appimagetool
-        run: |
-          mkdir -p .tools
-          curl --fail --show-error --location --proto '=https' \
-            -o .tools/appimagetool \
-            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x .tools/appimagetool
-
-      # ── Prune bundled Wayland libraries ────────────────────────────────
-      - name: Prune bundled Wayland libraries from AppImage
-        run: |
-          APPIMAGE=$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
-          if [ -z "$APPIMAGE" ]; then
-            echo "No AppImage artifact found" >&2
-            exit 1
-          fi
-          node scripts/prune-appimage-wayland-libs.mjs \
-            --appimage "$APPIMAGE" \
-            --appimagetool "$PWD/.tools/appimagetool" \
-            --arch x86_64
-          rm -f "${APPIMAGE}.sig"
-
-      # ── Sign pruned AppImage ───────────────────────────────────────────
-      - name: Sign pruned AppImage
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: |
-          APPIMAGE=$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
-          if [ -z "$APPIMAGE" ]; then
-            echo "No AppImage artifact found" >&2
-            exit 1
-          fi
-          pnpm tauri signer sign "$APPIMAGE"
-
-      # ── Upload to release ──────────────────────────────────────────────
-      - name: Upload to release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
-        with:
-          files: |
-            target/release/bundle/appimage/*.AppImage
-            target/release/bundle/appimage/*.AppImage.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:
