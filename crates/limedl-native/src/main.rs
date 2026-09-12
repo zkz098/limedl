@@ -3266,7 +3266,7 @@ async fn main() -> anyhow::Result<()> {
             tokio::spawn(async move {
                 let lang = store_clone.lock().language();
                 let file = rfd::AsyncFileDialog::new()
-                    .add_filter("Torrent Files", &["torrent", "TORRENT"])
+                    .add_filter(i18n::pick_torrent_filter(lang), &["torrent", "TORRENT"])
                     .set_title(i18n::pick_torrent_title(lang))
                     .pick_file()
                     .await;

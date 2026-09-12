@@ -680,6 +680,7 @@ const zhCN = {
         speedupLatency: "延迟降低",
         vsDefault: "相比默认节点",
         defaultNode: "默认节点",
+        loadingRanges: "正在加载 IP 段...",
       },
       urlRewrite: {
         title: "链接模式替换",
@@ -727,6 +728,7 @@ const zhCN = {
         testNoMatch: "未匹配任何已启用的规则（将使用原始链接）",
         testMatchedRule: "命中规则: {name}",
         testCandidatesTitle: "生成的候选 URL 列表 (按尝试顺序):",
+        fallbackBadge: "回退",
       },
       unsetDefaultPath: "未设置默认路径",
       summaries: {

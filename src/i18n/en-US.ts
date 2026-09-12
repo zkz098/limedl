@@ -719,6 +719,7 @@ const enUS = {
         speedupLatency: "Latency Reduction",
         vsDefault: "vs. default node",
         defaultNode: "Default Node",
+        loadingRanges: "Loading ranges...",
       },
       urlRewrite: {
         title: "URL Pattern Rewrite",
@@ -767,6 +768,7 @@ const enUS = {
         testNoMatch: "No enabled rules matched (original URL will be used).",
         testMatchedRule: "Matched Rule: {name}",
         testCandidatesTitle: "Generated Candidate URLs (in priority order):",
+        fallbackBadge: "Fallback",
       },
       unsetDefaultPath: "No default path",
       summaries: {

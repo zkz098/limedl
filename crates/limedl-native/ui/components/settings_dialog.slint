@@ -1583,7 +1583,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "Fast Extension"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: @tr("Fast Extension"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_fast_extension;
                                     toggled => { root.settings_form.bt_enable_fast_extension = !root.settings_form.bt_enable_fast_extension; }
@@ -1592,7 +1592,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "Holepunch"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: @tr("Holepunch"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_holepunch;
                                     toggled => { root.settings_form.bt_enable_holepunch = !root.settings_form.bt_enable_holepunch; }
@@ -1601,7 +1601,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "WebSeed"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: @tr("WebSeed"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_web_seed;
                                     toggled => { root.settings_form.bt_enable_web_seed = !root.settings_form.bt_enable_web_seed; }
@@ -1610,7 +1610,7 @@ export component SettingsDialog inherits Rectangle {
                             VerticalLayout {
                                 alignment: space-between;
                                 spacing: 2px;
-                                Text { text: "SuperSeed"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                                Text { text: @tr("SuperSeed"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                                 ToggleSwitch {
                                     checked: root.settings_form.bt_enable_super_seeding;
                                     toggled => { root.settings_form.bt_enable_super_seeding = !root.settings_form.bt_enable_super_seeding; }
@@ -2011,7 +2011,7 @@ export component SettingsDialog inherits Rectangle {
                             }
                             VerticalLayout {
                                 spacing: 3px;
-                                Text { text: "limedl - Native Edition"; color: Theme.cf3f4f6; font-size: 16px; font-weight: 700; }
+                                Text { text: "limedl - " + @tr("Native Edition"); color: Theme.cf3f4f6; font-size: 16px; font-weight: 700; }
                                 Text { text: @tr("Lightweight high-performance asynchronous multi-protocol download engine"); color: Theme.c84cc16; font-size: 12px; font-weight: 600; }
                                 Text { text: @tr("Cross-platform unified engine supporting HTTP/HTTPS adaptive multi-threading and full BitTorrent protocols."); color: Theme.c9ca3af; font-size: 11px; }
                             }

@@ -1658,3 +1658,159 @@ msgstr "Re-run the first-run wizard to reconfigure language, appearance, CDN, RP
 msgid "Re-run Setup Wizard"
 msgstr "Re-run Setup Wizard"
 
+msgid "Table View"
+msgstr "Table View"
+
+msgid "Cards View"
+msgstr "Cards View"
+
+msgid "Asc"
+msgstr "Asc"
+
+msgid "Desc"
+msgstr "Desc"
+
+msgid "Clear Completed"
+msgstr "Clear Completed"
+
+msgid "No download tasks yet"
+msgstr "No download tasks yet"
+
+msgid "Add a URL or drag & drop files here to begin downloading"
+msgstr "Add a URL or drag & drop files here to begin downloading"
+
+msgid "Clear Search"
+msgstr "Clear Search"
+
+msgid "Create New Task"
+msgstr "Create New Task"
+
+msgid "Drop .torrent or metalink files to start"
+msgstr "Drop .torrent or metalink files to start"
+
+msgid "Copy File Name"
+msgstr "Copy File Name"
+
+msgid "Set Priority"
+msgstr "Set Priority"
+
+msgid "High"
+msgstr "High"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Low"
+msgstr "Low"
+
+msgid "Downloaded"
+msgstr "Downloaded"
+
+msgid "Up Speed"
+msgstr "Up Speed"
+
+msgid "Seeds"
+msgstr "Seeds"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Compact View"
+msgstr "Compact View"
+
+msgid "Use denser rows in the download list (table and cards)"
+msgstr "Use denser rows in the download list (table and cards)"
+
+msgid "Table Columns"
+msgstr "Table Columns"
+
+msgid "Choose which columns the table view shows (the file name column is always visible)."
+msgstr "Choose which columns the table view shows (the file name column is always visible)."
+
+msgid "Speed Limit Schedule"
+msgstr "Speed Limit Schedule"
+
+msgid "Apply a different global speed limit per time-of-day range (local time). No matching range means the global limit above applies."
+msgstr "Apply a different global speed limit per time-of-day range (local time). No matching range means the global limit above applies."
+
+msgid "Start / End (0-23 hours) and limit in KB/s (0 = unlimited)."
+msgstr "Start / End (0-23 hours) and limit in KB/s (0 = unlimited)."
+
+msgid "Start"
+msgstr "Start"
+
+msgid "End"
+msgstr "End"
+
+msgid "h"
+msgstr "h"
+
+msgid "Limit"
+msgstr "Limit"
+
+msgid "Remove"
+msgstr "Remove"
+
+msgid "Wraps to the next day"
+msgstr "Wraps to the next day"
+
+msgid "Add Time Range"
+msgstr "Add Time Range"
+
+msgid "Danger Zone"
+msgstr "Danger Zone"
+
+msgid "Factory reset stops all downloads, deletes the download records, the database and the settings file, then restarts limedl."
+msgstr "Factory reset stops all downloads, deletes the download records, the database and the settings file, then restarts limedl."
+
+msgid "Factory Reset"
+msgstr "Factory Reset"
+
+msgid "This permanently deletes all local limedl data and cannot be undone. Continue?"
+msgstr "This permanently deletes all local limedl data and cannot be undone. Continue?"
+
+msgid "Confirm Reset"
+msgstr "Confirm Reset"
+
+msgid "Uncheck a file to skip it (at least one file must stay selected)."
+msgstr "Uncheck a file to skip it (at least one file must stay selected)."
+
+msgid "Skipped"
+msgstr "Skipped"
+
+msgid "Fallback"
+msgstr "Fallback"
+
+msgid "Port"
+msgstr "Port"
+
+msgid "System notifications"
+msgstr "System notifications"
+
+msgid "CDN"
+msgstr "CDN"
+
+msgid "RPC"
+msgstr "RPC"
+
+msgid "Native Edition"
+msgstr "Native Edition"
+
+msgid "Hugging Face"
+msgstr "Hugging Face"
+
+msgid "Civitai"
+msgstr "Civitai"
+
+msgid "Fast Extension"
+msgstr "Fast Extension"
+
+msgid "Holepunch"
+msgstr "Holepunch"
+
+msgid "WebSeed"
+msgstr "WebSeed"
+
+msgid "SuperSeed"
+msgstr "SuperSeed"
+

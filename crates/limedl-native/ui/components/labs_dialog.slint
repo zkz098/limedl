@@ -553,12 +553,12 @@ export component LabsDialog inherits Rectangle {
                                     clicked => { root.import_rewrite_preset("github"); }
                                 }
                                 SecondaryButton {
-                                    text: "Hugging Face";
+                                    text: @tr("Hugging Face");
                                     icon: @image-url("../assets/icons/cpu-line.svg");
                                     clicked => { root.import_rewrite_preset("huggingface"); }
                                 }
                                 SecondaryButton {
-                                    text: "Civitai";
+                                    text: @tr("Civitai");
                                     icon: @image-url("../assets/icons/layout-grid-line.svg");
                                     clicked => { root.import_rewrite_preset("civitai"); }
                                 }
@@ -824,7 +824,7 @@ export component LabsDialog inherits Rectangle {
                                         spacing: 6px;
                                         Text { text: "3."; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
                                         Text { text: root.labs_form.url_rewrite_test_result_3; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
-                                        ToneBadge { text: "Fallback"; tone: "neutral"; }
+                                        ToneBadge { text: @tr("Fallback"); tone: "neutral"; }
                                     }
 
                                     if root.labs_form.url_rewrite_test_matched_rule == "" : Text {

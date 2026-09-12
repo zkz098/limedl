@@ -664,7 +664,7 @@ onUnmounted(() => {
           </div>
           <p v-else class="cdn-panel__hint mt-2 text-xs">
             <span class="i-ri-loader-4-line cdn-panel__spin" aria-hidden="true" />
-            Loading ranges...
+            {{ t("settings.cdnAcceleration.loadingRanges") }}
           </p>
         </div>
 

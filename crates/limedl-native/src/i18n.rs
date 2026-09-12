@@ -856,6 +856,14 @@ pub fn pick_torrent_title(lang: Language) -> &'static str {
     }
 }
 
+/// Filter label for the native file picker when choosing a .torrent file.
+pub fn pick_torrent_filter(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "种子文件 (*.torrent)",
+        Language::EnUs => "Torrent Files (*.torrent)",
+    }
+}
+
 /// Title of the native file picker used to choose a download directory.
 pub fn pick_download_dir_title(lang: Language) -> &'static str {
     match lang {
@@ -1164,5 +1172,137 @@ mod tests {
         assert_eq!(en.show_window, "Show Main Window");
         assert!(en.speed_limit_toggle.contains("Speed Limit"));
         assert!(zh.speed_limit_toggle.contains("限速"));
+    }
+
+    #[test]
+    fn test_pick_torrent_filter() {
+        assert_eq!(pick_torrent_filter(Language::ZhCn), "种子文件 (*.torrent)");
+        assert_eq!(pick_torrent_filter(Language::EnUs), "Torrent Files (*.torrent)");
+    }
+
+    #[test]
+    fn test_all_slint_tr_strings_in_po_catalogs() {
+        use std::collections::HashMap;
+        use std::path::{Path, PathBuf};
+
+        let base_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let ui_dir = base_dir.join("ui");
+        let zh_po = base_dir.join("lang/zh_CN/LC_MESSAGES/limedl-native.po");
+        let en_po = base_dir.join("lang/en/LC_MESSAGES/limedl-native.po");
+
+        fn parse_po(path: &Path) -> HashMap<String, String> {
+            let content = std::fs::read_to_string(path)
+                .unwrap_or_else(|e| panic!("Failed to read PO file {:?}: {e}", path));
+            let mut entries = HashMap::new();
+            let mut current_id: Option<String> = None;
+            let mut mode = None;
+
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if let Some(rest) = trimmed.strip_prefix("msgid \"") {
+                    if let Some(s) = rest.strip_suffix('"') {
+                        current_id = Some(s.replace("\\\"", "\""));
+                        mode = Some("id");
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("msgstr \"") {
+                    if let Some(s) = rest.strip_suffix('"') {
+                        if let Some(id) = &current_id {
+                            entries.insert(id.clone(), s.replace("\\\"", "\""));
+                        }
+                        mode = Some("str");
+                    }
+                } else if let Some(stripped) = trimmed.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
+                    let val = stripped.replace("\\\"", "\"");
+                    match mode {
+                        Some("id") => {
+                            if let Some(id) = &mut current_id {
+                                id.push_str(&val);
+                            }
+                        }
+                        Some("str") => {
+                            if let Some(str_val) = current_id.as_ref().and_then(|id| entries.get_mut(id)) {
+                                str_val.push_str(&val);
+                            }
+                        }
+                        _ => {}
+                    }
+                } else if trimmed.is_empty() {
+                    current_id = None;
+                    mode = None;
+                }
+            }
+            entries
+        }
+
+        let zh_entries = parse_po(&zh_po);
+        let en_entries = parse_po(&en_po);
+
+        let mut slint_files = Vec::new();
+        fn collect_slint(dir: &Path, list: &mut Vec<PathBuf>) {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() {
+                        collect_slint(&p, list);
+                    } else if p.extension().is_some_and(|ext| ext == "slint") {
+                        list.push(p);
+                    }
+                }
+            }
+        }
+        collect_slint(&ui_dir, &mut slint_files);
+
+        fn extract_tr_strings(text: &str) -> Vec<String> {
+            let mut results = Vec::new();
+            let mut rest = text;
+            while let Some(pos) = rest.find("@tr(") {
+                rest = &rest[pos + 4..];
+                let trimmed = rest.trim_start();
+                if let Some(inner) = trimmed.strip_prefix('"') {
+                    let mut escaped = false;
+                    let mut end_idx = None;
+                    for (idx, ch) in inner.char_indices() {
+                        if escaped {
+                            escaped = false;
+                        } else if ch == '\\' {
+                            escaped = true;
+                        } else if ch == '"' {
+                            end_idx = Some(idx);
+                            break;
+                        }
+                    }
+                    if let Some(idx) = end_idx {
+                        let msg = &inner[..idx];
+                        results.push(msg.replace("\\\"", "\"").replace("\\n", "\n"));
+                        rest = &inner[idx + 1..];
+                    }
+                }
+            }
+            results
+        }
+
+        let mut missing_zh = Vec::new();
+        let mut missing_en = Vec::new();
+
+        for file in &slint_files {
+            let content = std::fs::read_to_string(file).expect("read slint file");
+            for msgid in extract_tr_strings(&content) {
+                if !zh_entries.contains_key(&msgid) {
+                    missing_zh.push((file.clone(), msgid.clone()));
+                }
+                if !en_entries.contains_key(&msgid) {
+                    missing_en.push((file.clone(), msgid));
+                }
+            }
+        }
+
+        assert!(
+            missing_zh.is_empty(),
+            "Missing translations in zh_CN PO catalog: {missing_zh:#?}"
+        );
+        assert!(
+            missing_en.is_empty(),
+            "Missing translations in en PO catalog: {missing_en:#?}"
+        );
     }
 }

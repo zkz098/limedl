@@ -684,7 +684,7 @@ const testResult = computed<{
                   variant="neutral"
                   size="sm"
                 >
-                  Fallback
+                  {{ t("settings.urlRewrite.fallbackBadge") }}
                 </UiBadge>
               </li>
             </ol>

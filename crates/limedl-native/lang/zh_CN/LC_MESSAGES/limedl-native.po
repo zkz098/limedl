@@ -1605,3 +1605,159 @@ msgstr "重新运行首次启动向导，重新配置语言、外观、CDN、RPC
 msgid "Re-run Setup Wizard"
 msgstr "重新运行设置向导"
 
+msgid "Table View"
+msgstr "表格视图"
+
+msgid "Cards View"
+msgstr "卡片视图"
+
+msgid "Asc"
+msgstr "升序"
+
+msgid "Desc"
+msgstr "降序"
+
+msgid "Clear Completed"
+msgstr "清除已完成"
+
+msgid "No download tasks yet"
+msgstr "暂无下载任务"
+
+msgid "Add a URL or drag & drop files here to begin downloading"
+msgstr "添加链接或将文件拖曳到此处开始下载"
+
+msgid "Clear Search"
+msgstr "清除搜索"
+
+msgid "Create New Task"
+msgstr "新建任务"
+
+msgid "Drop .torrent or metalink files to start"
+msgstr "拖入 .torrent 种子或 metalink 文件即可开始"
+
+msgid "Copy File Name"
+msgstr "复制文件名"
+
+msgid "Set Priority"
+msgstr "设置优先级"
+
+msgid "High"
+msgstr "高"
+
+msgid "Normal"
+msgstr "普通"
+
+msgid "Low"
+msgstr "低"
+
+msgid "Downloaded"
+msgstr "已下载"
+
+msgid "Up Speed"
+msgstr "上传速度"
+
+msgid "Seeds"
+msgstr "做种"
+
+msgid "Actions"
+msgstr "操作"
+
+msgid "Compact View"
+msgstr "紧凑视图"
+
+msgid "Use denser rows in the download list (table and cards)"
+msgstr "在下载列表（表格和卡片）中使用更紧密的行高"
+
+msgid "Table Columns"
+msgstr "表格列"
+
+msgid "Choose which columns the table view shows (the file name column is always visible)."
+msgstr "选择表格视图中显示的列（文件名列始终可见）。"
+
+msgid "Speed Limit Schedule"
+msgstr "计划限速"
+
+msgid "Apply a different global speed limit per time-of-day range (local time). No matching range means the global limit above applies."
+msgstr "根据一天中的不同时段（本地时间）应用不同的全局限速。未匹配的时段将沿用上方的全局限速。"
+
+msgid "Start / End (0-23 hours) and limit in KB/s (0 = unlimited)."
+msgstr "起始 / 结束（0-23 小时）及限速值 KB/s（0 表示不限速）。"
+
+msgid "Start"
+msgstr "起始"
+
+msgid "End"
+msgstr "结束"
+
+msgid "h"
+msgstr "时"
+
+msgid "Limit"
+msgstr "限速"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Wraps to the next day"
+msgstr "跨至次日"
+
+msgid "Add Time Range"
+msgstr "添加时段"
+
+msgid "Danger Zone"
+msgstr "危险区域"
+
+msgid "Factory reset stops all downloads, deletes the download records, the database and the settings file, then restarts limedl."
+msgstr "恢复出厂设置将停止所有下载任务，删除下载记录、数据库和配置文件，随后重启 limedl。"
+
+msgid "Factory Reset"
+msgstr "恢复出厂设置"
+
+msgid "This permanently deletes all local limedl data and cannot be undone. Continue?"
+msgstr "这将永久删除所有本地 limedl 数据且无法撤销。是否继续？"
+
+msgid "Confirm Reset"
+msgstr "确认重置"
+
+msgid "Uncheck a file to skip it (at least one file must stay selected)."
+msgstr "取消勾选文件以跳过下载（必须至少保留一个选中的文件）。"
+
+msgid "Skipped"
+msgstr "已跳过"
+
+msgid "Fallback"
+msgstr "回退"
+
+msgid "Port"
+msgstr "端口"
+
+msgid "System notifications"
+msgstr "系统通知"
+
+msgid "CDN"
+msgstr "CDN 加速"
+
+msgid "RPC"
+msgstr "Aria2 RPC"
+
+msgid "Native Edition"
+msgstr "原生桌面版"
+
+msgid "Hugging Face"
+msgstr "Hugging Face 镜像"
+
+msgid "Civitai"
+msgstr "Civitai 镜像"
+
+msgid "Fast Extension"
+msgstr "Fast 扩展"
+
+msgid "Holepunch"
+msgstr "NAT 穿透 (Holepunch)"
+
+msgid "WebSeed"
+msgstr "Web 种子 (WebSeed)"
+
+msgid "SuperSeed"
+msgstr "超级做种 (SuperSeed)"
+
