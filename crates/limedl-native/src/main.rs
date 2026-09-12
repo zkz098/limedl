@@ -727,6 +727,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize core subsystems
     let base_dir = dirs_or_temp_dir();
+    platform_win::set_base_dir(base_dir.clone());
     let state_dir = base_dir.join("downloads");
     // Remove stale artifacts from a previous (possibly interrupted) self-update.
     update::clean_update_work_dir(&base_dir);
@@ -1048,23 +1049,32 @@ async fn main() -> anyhow::Result<()> {
             platform_win::set_callbacks(on_drop, on_copydata, on_show);
 
             let ui_weak = main_window.as_weak();
+            let base_dir_for_hooks = base_dir.clone();
             let hook_timer = Rc::new(slint::Timer::default());
             let timer_for_cb = hook_timer.clone();
-            hook_timer.start(
-                slint::TimerMode::Repeated,
-                Duration::from_millis(250),
-                move || {
-                    let Some(ui) = ui_weak.upgrade() else {
-                        timer_for_cb.stop();
-                        return;
-                    };
-                    if platform_win::try_install_window_hooks(ui.window()) {
-                        let is_dark = ui.global::<Theme>().get_dark();
-                        platform_win::sync_window_theme(ui.window(), is_dark);
-                        timer_for_cb.stop();
-                    }
-                },
-            );
+
+            if platform_win::try_install_window_hooks(main_window.window()) {
+                let is_dark = main_window.global::<Theme>().get_dark();
+                platform_win::sync_window_theme(main_window.window(), is_dark);
+                platform_win::restore_or_center_window(main_window.window(), &base_dir_for_hooks);
+            } else {
+                hook_timer.start(
+                    slint::TimerMode::Repeated,
+                    Duration::from_millis(16),
+                    move || {
+                        let Some(ui) = ui_weak.upgrade() else {
+                            timer_for_cb.stop();
+                            return;
+                        };
+                        if platform_win::try_install_window_hooks(ui.window()) {
+                            let is_dark = ui.global::<Theme>().get_dark();
+                            platform_win::sync_window_theme(ui.window(), is_dark);
+                            platform_win::restore_or_center_window(ui.window(), &base_dir_for_hooks);
+                            timer_for_cb.stop();
+                        }
+                    },
+                );
+            }
         }
 
         // Auto-register magnet:? and limedl:// protocols in HKCU (no admin privileges required)
@@ -4947,7 +4957,11 @@ async fn main() -> anyhow::Result<()> {
     {
         let ui_weak = main_window.as_weak();
         let current_settings_clone = current_settings.clone();
+        let base_dir_for_close = base_dir.clone();
         main_window.window().on_close_requested(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                platform_win::save_current_window_geometry(ui.window(), &base_dir_for_close);
+            }
             let minimize_to_tray = matches!(
                 current_settings_clone.lock().appearance.close_behavior,
                 CloseBehavior::MinimizeToTray
@@ -5020,6 +5034,7 @@ async fn main() -> anyhow::Result<()> {
     slint::run_event_loop_until_quit()?;
 
     // Graceful shutdown
+    platform_win::save_current_window_geometry(main_window.window(), &base_dir);
     POWER_GUARD.release();
     tracing::info!("Native UI 正在退出，关闭核心引擎...");
     // Stop Aria2 RPC server first

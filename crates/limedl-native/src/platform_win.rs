@@ -8,7 +8,52 @@
 #![cfg_attr(not(windows), allow(dead_code))]
 
 use parking_lot::Mutex;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Persisted window geometry (position, size, maximized status).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct WindowGeometry {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub is_maximized: bool,
+}
+
+pub const WINDOW_STATE_FILE: &str = "window_state.json";
+static BASE_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+static LAST_SAVED_GEOMETRY: Mutex<Option<WindowGeometry>> = Mutex::new(None);
+
+/// Configure base directory for persisting window geometry.
+pub fn set_base_dir(dir: PathBuf) {
+    *BASE_DIR.lock() = Some(dir);
+}
+
+/// Load saved window geometry from disk.
+pub fn load_window_geometry(base_dir: &Path) -> Option<WindowGeometry> {
+    let path = base_dir.join(WINDOW_STATE_FILE);
+    let data = std::fs::read_to_string(path).ok()?;
+    let geom: WindowGeometry = serde_json::from_str(&data).ok()?;
+    if geom.width >= 600 && geom.height >= 400 {
+        Some(geom)
+    } else {
+        None
+    }
+}
+
+/// Save window geometry to disk, skipping if unchanged.
+pub fn save_window_geometry(base_dir: &Path, geom: &WindowGeometry) {
+    let mut last = LAST_SAVED_GEOMETRY.lock();
+    if last.as_ref() == Some(geom) {
+        return;
+    }
+    let path = base_dir.join(WINDOW_STATE_FILE);
+    if let Ok(json) = serde_json::to_string_pretty(geom) {
+        let _ = std::fs::write(path, json);
+        *last = Some(geom.clone());
+    }
+}
 
 type DropCallback = Box<dyn Fn(Vec<String>) + Send + Sync + 'static>;
 type CopyDataCallback = Box<dyn Fn(Option<String>) + Send + Sync + 'static>;
@@ -23,7 +68,12 @@ const SUBCLASS_ID: usize = 0x4C494D45; // "LIME"
 pub const COPYDATA_MAGIC: usize = 0x4C494D45;
 
 #[cfg(windows)]
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
+#[cfg(windows)]
+use windows::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, MonitorFromRect, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONULL,
+    MONITOR_DEFAULTTOPRIMARY,
+};
 #[cfg(windows)]
 use windows::Win32::UI::Shell::{
     DefSubclassProc, DragAcceptFiles, DragFinish, DragQueryFileW, HDROP, RemoveWindowSubclass,
@@ -33,7 +83,10 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
-    SW_RESTORE, SetForegroundWindow, ShowWindow, WM_COPYDATA, WM_DROPFILES, WM_SHOWWINDOW,
+    GetWindowPlacement, GetWindowRect, IsZoomed, SetForegroundWindow, SetWindowPos, ShowWindow,
+    SIZE_MAXIMIZED, SIZE_RESTORED, SW_MAXIMIZE, SW_RESTORE, SWP_NOACTIVATE, SWP_NOSIZE,
+    SWP_NOZORDER, WINDOWPLACEMENT, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE, WM_SHOWWINDOW,
+    WM_SIZE,
 };
 
 /// Store the drag-drop / IPC callbacks without touching the OS window.
@@ -253,7 +306,202 @@ unsafe extern "system" fn subclass_proc(
             }
             unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
         }
+        WM_EXITSIZEMOVE => {
+            save_geometry_if_configured(hwnd);
+            unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
+        }
+        WM_SIZE => {
+            let size_type = wparam.0 as u32;
+            if size_type == SIZE_MAXIMIZED || size_type == SIZE_RESTORED {
+                save_geometry_if_configured(hwnd);
+            }
+            unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
+        }
         _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
+    }
+}
+
+#[cfg(windows)]
+fn save_geometry_if_configured(hwnd: HWND) {
+    if let Some(base_dir) = BASE_DIR.lock().clone()
+        && let Some(geom) = capture_window_geometry(hwnd)
+    {
+        save_window_geometry(&base_dir, &geom);
+    }
+}
+
+/// Capture normal (unmaximized) geometry and current maximized state.
+#[cfg(windows)]
+pub fn capture_window_geometry(hwnd: HWND) -> Option<WindowGeometry> {
+    unsafe {
+        let mut wp = WINDOWPLACEMENT {
+            length: std::mem::size_of::<WINDOWPLACEMENT>() as u32,
+            ..Default::default()
+        };
+        if GetWindowPlacement(hwnd, &mut wp).is_ok() {
+            let is_maximized = IsZoomed(hwnd).as_bool();
+            let rect = wp.rcNormalPosition;
+            let width = (rect.right - rect.left).max(0) as u32;
+            let height = (rect.bottom - rect.top).max(0) as u32;
+            if width >= 600 && height >= 400 {
+                return Some(WindowGeometry {
+                    x: rect.left,
+                    y: rect.top,
+                    width,
+                    height,
+                    is_maximized,
+                });
+            }
+        }
+        let mut rect = RECT::default();
+        if GetWindowRect(hwnd, &mut rect).is_ok() {
+            let width = (rect.right - rect.left).max(0) as u32;
+            let height = (rect.bottom - rect.top).max(0) as u32;
+            let is_maximized = IsZoomed(hwnd).as_bool();
+            if width >= 600 && height >= 400 {
+                return Some(WindowGeometry {
+                    x: rect.left,
+                    y: rect.top,
+                    width,
+                    height,
+                    is_maximized,
+                });
+            }
+        }
+        None
+    }
+}
+
+/// Centers the window horizontally and vertically within the monitor's work area (excluding taskbar).
+#[cfg(windows)]
+pub fn center_window_on_monitor(hwnd: HWND) {
+    unsafe {
+        let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+        let mut mi = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if GetMonitorInfoW(hmonitor, &mut mi).as_bool() {
+            let work = mi.rcWork;
+            let mut rect = RECT::default();
+            if GetWindowRect(hwnd, &mut rect).is_ok() {
+                let win_w = rect.right - rect.left;
+                let win_h = rect.bottom - rect.top;
+                let work_w = work.right - work.left;
+                let work_h = work.bottom - work.top;
+                let x = work.left + ((work_w - win_w) / 2).max(0);
+                let y = work.top + ((work_h - win_h) / 2).max(0);
+                let _ = SetWindowPos(
+                    hwnd,
+                    None,
+                    x,
+                    y,
+                    0,
+                    0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                );
+                tracing::info!("窗口已智能居中于显示器工作区: x={x}, y={y} (工作区 {work_w}x{work_h})");
+            }
+        }
+    }
+}
+
+/// Check if a geometry rectangle intersects any connected monitor.
+#[cfg(windows)]
+pub fn is_geometry_visible_on_any_monitor(geom: &WindowGeometry) -> bool {
+    unsafe {
+        let check_w = geom.width.min(100) as i32;
+        let check_h = geom.height.min(40) as i32;
+        let rect = RECT {
+            left: geom.x,
+            top: geom.y,
+            right: geom.x + check_w,
+            bottom: geom.y + check_h,
+        };
+        let hmonitor = MonitorFromRect(&rect, MONITOR_DEFAULTTONULL);
+        !hmonitor.is_invalid()
+    }
+}
+
+/// Restore previously saved window geometry, or center on current monitor if missing/offscreen.
+pub fn restore_or_center_window(window: &slint::Window, base_dir: &Path) {
+    #[cfg(windows)]
+    {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+        let win_handle = window.window_handle();
+        let Ok(handle_wrapper) = win_handle.window_handle() else {
+            return;
+        };
+
+        let hwnd_raw = match handle_wrapper.as_raw() {
+            RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+            _ => return,
+        };
+
+        let hwnd = HWND(hwnd_raw);
+
+        if let Some(geom) = load_window_geometry(base_dir) {
+            if is_geometry_visible_on_any_monitor(&geom) {
+                unsafe {
+                    let _ = SetWindowPos(
+                        hwnd,
+                        None,
+                        geom.x,
+                        geom.y,
+                        geom.width as i32,
+                        geom.height as i32,
+                        SWP_NOZORDER | SWP_NOACTIVATE,
+                    );
+                    if geom.is_maximized {
+                        let _ = ShowWindow(hwnd, SW_MAXIMIZE);
+                    }
+                }
+                tracing::info!(
+                    "已恢复上次窗口位置与尺寸: ({}, {}) {}x{} (最大化: {})",
+                    geom.x, geom.y, geom.width, geom.height, geom.is_maximized
+                );
+                return;
+            }
+            tracing::warn!("已保存的窗口位置不在任何当前显示器中，将自动居中显示");
+        }
+
+        center_window_on_monitor(hwnd);
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+        let _ = base_dir;
+    }
+}
+
+/// Persist current window geometry to disk.
+pub fn save_current_window_geometry(window: &slint::Window, base_dir: &Path) {
+    #[cfg(windows)]
+    {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+        let win_handle = window.window_handle();
+        let Ok(handle_wrapper) = win_handle.window_handle() else {
+            return;
+        };
+
+        let hwnd_raw = match handle_wrapper.as_raw() {
+            RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+            _ => return,
+        };
+
+        let hwnd = HWND(hwnd_raw);
+        if let Some(geom) = capture_window_geometry(hwnd) {
+            save_window_geometry(base_dir, &geom);
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+        let _ = base_dir;
     }
 }
 
@@ -465,5 +713,36 @@ mod tests {
         }
         // Only a shell that started "right now" can match a zero window.
         assert!(!launched_at_logon(std::time::Duration::ZERO));
+    }
+
+    #[test]
+    fn window_geometry_save_and_load_roundtrip() {
+        let temp_dir = std::env::temp_dir().join(format!("limedl_test_win_geom_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let geom = WindowGeometry {
+            x: 250,
+            y: 180,
+            width: 1280,
+            height: 800,
+            is_maximized: false,
+        };
+
+        save_window_geometry(&temp_dir, &geom);
+        let loaded = load_window_geometry(&temp_dir);
+        assert_eq!(loaded, Some(geom));
+
+        // Test invalid/too-small dimensions are rejected
+        let invalid_geom = WindowGeometry {
+            x: 100,
+            y: 100,
+            width: 200, // too small
+            height: 150,
+            is_maximized: false,
+        };
+        save_window_geometry(&temp_dir, &invalid_geom);
+        assert_eq!(load_window_geometry(&temp_dir), None);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
