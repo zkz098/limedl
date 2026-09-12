@@ -114,6 +114,10 @@ jobs:
       - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
       # Verify the optional `tls` feature compiles — CI otherwise never exercises it.
       - run: cargo check --manifest-path crates/limedl-server/Cargo.toml --features tls
+      # limedl-native: pure logic tests (UI form mapping, i18n, batching, updater
+      # manifest parsing). Only Windows runs them because the crate is currently
+      # only released for Windows.
+      - run: cargo test --manifest-path crates/limedl-native/Cargo.toml
       - run: cargo test --manifest-path src-tauri/Cargo.toml
 
   check-macos:
