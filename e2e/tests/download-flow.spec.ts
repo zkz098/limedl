@@ -146,8 +146,17 @@ test.describe("download flow", () => {
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.locator(".settings-page")).toBeVisible();
 
-    // Close the Settings modal overlay first, then navigate via sidebar
+    // Close the Settings modal overlay first, then navigate via sidebar.
+    // The overlay routes through useViewNavigation, which shows the
+    // unsaved-changes confirm dialog whenever the page is dirty — a state the
+    // daemon-backed run can reach right after mount (settings/IO status arrive
+    // asynchronously). Discard explicitly so this navigation test does not
+    // depend on that flag.
     await page.locator("button.overlay-close").click();
+    const discard = page.getByRole("button", { name: "Discard changes" });
+    if (await discard.isVisible().catch(() => false)) {
+      await discard.click();
+    }
     await expect(page.locator(".settings-page")).not.toBeVisible();
 
     // Navigate to home via the "Home" sidebar button
