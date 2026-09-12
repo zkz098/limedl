@@ -14,25 +14,31 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 
 ## Platforms
 
-| Target       | Frontend            | Backend         | Build                                     |
-| ------------ | ------------------- | --------------- | ----------------------------------------- |
-| Desktop      | Vue 3 via Tauri IPC | `src-tauri/`    | `pnpm tauri dev` / `pnpm tauri build`     |
-| NAS / Server | Vue 3 via WebSocket | `limedl-server` | `cargo build -p limedl-server`            |
-| CLI          | N/A                 | `limedl-server` | `limedl download <url>` / `limedl daemon` |
+| Target        | Frontend                | Backend                 | Build                                     |
+| ------------- | ----------------------- | ----------------------- | ----------------------------------------- |
+| Desktop       | Slint (native, Windows) | `crates/limedl-native/` | `cargo build -p limedl-native` (see below) |
+| NAS / Server  | Vue 3 via WebSocket     | `limedl-server`         | `pnpm run build:nas` + `cargo build -p limedl-server` |
+| CLI           | N/A                     | `limedl-server`         | `limedl download <url>` / `limedl daemon` |
 
-The frontend is shared across desktop and NAS targets. The download engine (`limedl-core`) is pure Rust with zero UI dependencies.
+The download engine (`limedl-core`) is pure Rust with zero UI dependencies and powers every
+target. Releases ship the Slint desktop client (Windows) plus the headless NAS build with the
+WebUI embedded; the Tauri desktop shell in `src-tauri/` is kept in-tree but is no longer built
+or released (its updater manifest `latest.json` is gone, so Tauri installs stop updating).
+macOS/Linux users are served by the NAS build (`limedl daemon` + browser) today.
 
 ## Quick Start
 
-### Desktop (Tauri)
+### Desktop (Slint, Windows)
 
-Requires Node.js 24+, pnpm, and Rust.
-
-```bash
-pnpm install --frozen-lockfile
-pnpm tauri dev        # dev mode with hot reload
-pnpm tauri build      # production bundle
+```powershell
+# MiSans VF is embedded at compile time and is not in git (font license)
+pwsh scripts/fetch-misans.ps1
+cargo run -p limedl-native
 ```
+
+The app keeps everything in `%LOCALAPPDATA%\limedl` (override with `LIMEDL_DATA_DIR`), imports
+settings/history from a previous Tauri install on first run, and updates itself in-app
+(portable / NSIS / MSIX channels — see `crates/limedl-native/src/update.rs`).
 
 ### NAS / Headless Server
 
@@ -41,7 +47,9 @@ cargo build --release -p limedl-server
 ./target/release/limedl daemon --addr 0.0.0.0:8080 --data-dir /var/lib/limedl
 ```
 
-Open `http://<server-ip>:8080` in a browser. Use `--auth-user` / `--auth-pass` for HTTP Basic Auth.
+Build the WebUI first (`pnpm run build:nas`) or build the server with `--features embed-frontend`
+to bake `dist/` into the binary. Open `http://<server-ip>:8080` in a browser; use `--auth-user` /
+`--auth-pass` for HTTP Basic Auth.
 
 #### TLS (HTTPS)
 

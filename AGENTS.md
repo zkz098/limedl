@@ -31,9 +31,21 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 Pushing a `v*` tag triggers `.github/workflows/release.yml`. A `changelog` job generates
 the GitHub release body **automatically** from Conventional Commits between the previous
 tag and the released tag using **git-cliff** (`cliff.toml`), then injects it into the release
-via `tauri-action`/`softprops`. Commit types `test:`/`ci:`/`chore:`/`build:`/`style:` are omitted
+via `softprops/action-gh-release`. Commit types `test:`/`ci:`/`chore:`/`build:`/`style:` are omitted
 from the notes; `feat:`/`fix:`/`perf:`/`refactor:`/`docs:` are grouped into sections. Keep commit
 subjects Conventional (with meaningful `scope:`) so release notes stay readable.
+
+Two jobs upload artifacts:
+
+| Job | Artifacts |
+| --- | --- |
+| `build-native` (Windows only) | **Desktop**: `limedl-native-v{V}-windows-x86_64-{setup.exe,portable.zip,msix}` + signatures + `latest-native.json` (self-update manifest) |
+| `build-nas` (4 platforms) | **Headless/NAS**: `limedl-nas-v{V}-{linux-x86_64-musl,linux-aarch64-musl,windows-x86_64,macos-aarch64}` with the WebUI embedded (`--features embed-frontend`) |
+
+The Tauri edition is no longer built or uploaded: desktop releases are the Slint client
+only, and `latest.json` (the Tauri updater manifest) is gone, so existing Tauri installs
+freeze at their last version. macOS/Linux desktop users are served by the NAS build
+(`limedl daemon` + browser WebUI) until native packaging exists for those platforms.
 
 ## Architecture
 

@@ -3,7 +3,25 @@
 How the Slint desktop client updates itself. All code lives in
 `crates/limedl-native/src/update.rs`, the Windows autostart fork in
 `src/autostart.rs`, and the release pipeline in the `build-native` job of
-`.github/workflows/release.yml`.
+`.github/workflows/release.yml` (the only desktop job since the Tauri edition
+was retired from releases).
+
+## Tauri edition退役说明
+
+The Tauri desktop app is no longer built or uploaded, so `latest.json` (its
+updater manifest, produced by `tauri-action`) is gone. Consequences:
+
+- Existing Tauri installs keep working but their in-app updater now gets a 404
+  from `releases/latest/download/latest.json` and reports a check failure.
+  There is no in-app migration path; users install the Slint build manually (or
+  via the Store/MSIX channel).
+- `src-tauri/tauri.conf.json` still carries the old update endpoint and the
+  shared `pubkey`; both are unused by the release pipeline now.
+- The minisign keypair is still the same one (`TAURI_SIGNING_PRIVATE_KEY` CI
+  secret) — the name is a leftover; only the Slint artifacts are signed today.
+
+If a grace period is ever wanted, publish a final Tauri release that only
+contains a migration notice (keeping `latest.json` alive for that one version).
 
 ## Distribution channels
 
@@ -27,7 +45,8 @@ uploaded as a release asset. The app fetches it from the permanently-named URL
 (GitHub excludes draft/prerelease releases there → stable users never see rc
 builds; it also bypasses api.github.com quota).
 
-Manifest shape (subset compatible with the Tauri updater contract):
+Manifest shape (subset compatible with the Tauri updater contract — kept so the
+manifest generator and verifier stay interoperable with `tauri signer`):
 
 ```json
 {
