@@ -673,7 +673,7 @@ mod tests {
 
     #[test]
     fn localhost_ipv4_always_allowed_without_auth() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe {
             std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
@@ -683,7 +683,7 @@ mod tests {
 
     #[test]
     fn localhost_ipv6_always_allowed_without_auth() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe {
             std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
@@ -693,7 +693,7 @@ mod tests {
 
     #[test]
     fn localhost_string_hostname_always_allowed_without_auth() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe {
             std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
@@ -703,7 +703,7 @@ mod tests {
 
     #[test]
     fn auth_enabled_allows_non_localhost_binding() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe {
             std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
@@ -713,7 +713,7 @@ mod tests {
 
     #[test]
     fn private_network_without_auth_rejects_without_opt_out_env() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe {
             std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
@@ -728,7 +728,7 @@ mod tests {
 
     #[test]
     fn private_network_without_auth_allowed_with_opt_out_env() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe {
             std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn public_ip_without_auth_always_rejects() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe {
             std::env::remove_var("LIMEDL_ALLOW_NO_AUTH");
@@ -758,6 +758,7 @@ mod tests {
 
     #[test]
     fn public_ip_with_auth_allowed() {
+        let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: test-only env var mutation, isolated by #[cfg(test)]
         unsafe { std::env::remove_var("LIMEDL_ALLOW_NO_AUTH"); }
         assert!(check_listen_safety("1.1.1.1", 9090, true).is_ok());
