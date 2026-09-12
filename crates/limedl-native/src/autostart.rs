@@ -220,10 +220,8 @@ mod linux_impl {
     }
 
     pub fn disable() -> anyhow::Result<()> {
-        if let Some(p) = autostart_file() {
-            if p.exists() {
-                std::fs::remove_file(p)?;
-            }
+        if let Some(p) = autostart_file() && p.exists() {
+            std::fs::remove_file(p)?;
         }
         Ok(())
     }
@@ -290,10 +288,8 @@ mod macos_impl {
     }
 
     pub fn disable() -> anyhow::Result<()> {
-        if let Some(p) = plist_path() {
-            if p.exists() {
-                std::fs::remove_file(p)?;
-            }
+        if let Some(p) = plist_path() && p.exists() {
+            std::fs::remove_file(p)?;
         }
         Ok(())
     }
