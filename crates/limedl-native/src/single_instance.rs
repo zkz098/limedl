@@ -110,20 +110,25 @@ impl InstanceClaim {
                     let _ = ShowWindow(hwnd, SW_RESTORE);
                     let _ = SetForegroundWindow(hwnd);
 
-                    if let Some(text) = payload {
-                        let bytes = text.as_bytes();
-                        let cds = COPYDATASTRUCT {
-                            dwData: crate::platform_win::COPYDATA_MAGIC,
-                            cbData: bytes.len() as u32,
-                            lpData: bytes.as_ptr() as *mut std::ffi::c_void,
-                        };
-                        let _ = SendMessageW(
-                            hwnd,
-                            WM_COPYDATA,
-                            Some(WPARAM(0)),
-                            Some(LPARAM(&cds as *const _ as isize)),
-                        );
-                    }
+                    // Always send WM_COPYDATA so the primary instance can restore,
+                    // un-minimize and request redraw via Slint's event loop.
+                    let text = payload.unwrap_or("");
+                    let bytes = text.as_bytes();
+                    let cds = COPYDATASTRUCT {
+                        dwData: crate::platform_win::COPYDATA_MAGIC,
+                        cbData: bytes.len() as u32,
+                        lpData: if bytes.is_empty() {
+                            std::ptr::null_mut()
+                        } else {
+                            bytes.as_ptr() as *mut std::ffi::c_void
+                        },
+                    };
+                    let _ = SendMessageW(
+                        hwnd,
+                        WM_COPYDATA,
+                        Some(WPARAM(0)),
+                        Some(LPARAM(&cds as *const _ as isize)),
+                    );
                 }
             }
         }

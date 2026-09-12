@@ -384,6 +384,20 @@ fn build_tray_menu(lang: Language, speed_limit_active: bool) -> Menu {
 /// Kept at the historical 1 MiB/s default.
 const TRAY_SPEED_LIMIT_BPS: u64 = 1_048_576;
 
+/// Restore a hidden, minimized, or inactive window and ensure Slint redraws it.
+///
+/// On Windows, calling Win32 `ShowWindow(SW_RESTORE)` externally does not inform Slint
+/// that the window is now visible, leaving Slint's internal visibility state as `Hidden`
+/// and causing `draw()` to skip rendering (resulting in a blank or transparent window).
+/// This helper coordinates Slint's UI-thread show, un-minimizes the window, requests
+/// an immediate redraw, and brings the window to the foreground.
+fn restore_and_show_window(ui: &MainWindow) {
+    let _ = ui.show();
+    ui.window().set_minimized(false);
+    ui.window().request_redraw();
+    platform_win::bring_to_foreground(ui.window());
+}
+
 /// Open the new task dialog and pre-fill / trigger actions based on an incoming payload
 /// (e.g. from Drag-and-Drop, secondary instance WM_COPYDATA IPC, or cold CLI argument).
 fn open_new_task_with_payload(
@@ -450,6 +464,7 @@ fn open_new_task_with_payload(
 
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak_cl.upgrade() {
+                restore_and_show_window(&ui);
                 ui.set_new_task_url(SharedString::from(&path_for_ui));
                 if !file_name.is_empty() {
                     ui.set_new_task_filename(SharedString::from(&file_name));
@@ -528,6 +543,7 @@ fn open_new_task_with_payload(
         let ui_weak = ui_weak.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak.upgrade() {
+                restore_and_show_window(&ui);
                 ui.set_new_task_url(SharedString::from(&magnet_url));
                 if !display_name.is_empty() {
                     ui.set_new_task_filename(SharedString::from(&display_name));
@@ -555,6 +571,7 @@ fn open_new_task_with_payload(
             let store = store.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
+                    restore_and_show_window(&ui);
                     let lang = store.lock().language();
                     ui.set_new_task_batch_text(SharedString::from(&joined));
                     ui.set_new_task_batch_mode(true);
@@ -572,6 +589,7 @@ fn open_new_task_with_payload(
             let url_cl = url.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak_cl.upgrade() {
+                    restore_and_show_window(&ui);
                     ui.set_new_task_url(SharedString::from(&url_cl));
                     ui.set_new_task_batch_mode(false);
                     ui.set_new_task_probe_state("idle".into());
@@ -893,7 +911,7 @@ async fn main() -> anyhow::Result<()> {
             let ui_weak_cl = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak_cl.upgrade() {
-                    let _ = ui.show();
+                    restore_and_show_window(&ui);
                 }
             });
             if let Some(p) = payload {
@@ -925,6 +943,12 @@ async fn main() -> anyhow::Result<()> {
         let included_cache_drop = included_cache.clone();
 
         let on_drop = move |files: Vec<String>| {
+            let ui_weak = ui_weak_drop.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    restore_and_show_window(&ui);
+                }
+            });
             if files.len() == 1 {
                 open_new_task_with_payload(
                     &files[0],
@@ -972,15 +996,46 @@ async fn main() -> anyhow::Result<()> {
             }
         };
 
-        let on_copydata = move |text: String| {
-            open_new_task_with_payload(
-                &text,
-                &ui_weak,
-                &dispatcher,
-                &store,
-                &entries_cache,
-                &included_cache,
-            );
+        let ui_weak_copydata = ui_weak.clone();
+        let dispatcher_copydata = dispatcher.clone();
+        let store_copydata = store.clone();
+        let entries_cache_copydata = entries_cache.clone();
+        let included_cache_copydata = included_cache.clone();
+
+        let on_copydata = move |payload: Option<String>| {
+            let ui_weak = ui_weak_copydata.clone();
+            let dispatcher = dispatcher_copydata.clone();
+            let store = store_copydata.clone();
+            let entries_cache = entries_cache_copydata.clone();
+            let included_cache = included_cache_copydata.clone();
+
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    restore_and_show_window(&ui);
+                    if let Some(text) = payload {
+                        open_new_task_with_payload(
+                            &text,
+                            &ui_weak,
+                            &dispatcher,
+                            &store,
+                            &entries_cache,
+                            &included_cache,
+                        );
+                    }
+                }
+            });
+        };
+
+        let ui_weak_show = ui_weak.clone();
+        let on_show = move || {
+            let ui_weak = ui_weak_show.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade()
+                    && !ui.window().is_visible()
+                {
+                    restore_and_show_window(&ui);
+                }
+            });
         };
 
         // The native window handle only exists once Slint created the OS window,
@@ -990,7 +1045,7 @@ async fn main() -> anyhow::Result<()> {
         // timer keeps running while the app starts hidden (`--hidden`) and stops
         // as soon as the hooks are in place.
         {
-            platform_win::set_callbacks(on_drop, on_copydata);
+            platform_win::set_callbacks(on_drop, on_copydata, on_show);
 
             let ui_weak = main_window.as_weak();
             let hook_timer = Rc::new(slint::Timer::default());
@@ -1516,7 +1571,7 @@ async fn main() -> anyhow::Result<()> {
                                     let ui_weak = ui_weak.clone();
                                     move || {
                                         if let Some(ui) = ui_weak.upgrade() {
-                                            let _ = ui.show();
+                                            restore_and_show_window(&ui);
                                         }
                                     }
                                 });
@@ -1621,7 +1676,7 @@ async fn main() -> anyhow::Result<()> {
                                 let ui_weak = ui_weak.clone();
                                 move || {
                                     if let Some(ui) = ui_weak.upgrade() {
-                                        let _ = ui.show();
+                                        restore_and_show_window(&ui);
                                     }
                                 }
                             });

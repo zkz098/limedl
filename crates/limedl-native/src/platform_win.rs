@@ -11,10 +11,12 @@ use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 type DropCallback = Box<dyn Fn(Vec<String>) + Send + Sync + 'static>;
-type CopyDataCallback = Box<dyn Fn(String) + Send + Sync + 'static>;
+type CopyDataCallback = Box<dyn Fn(Option<String>) + Send + Sync + 'static>;
+type ShowCallback = Box<dyn Fn() + Send + Sync + 'static>;
 
 static DROP_CALLBACK: Mutex<Option<DropCallback>> = Mutex::new(None);
 static COPYDATA_CALLBACK: Mutex<Option<CopyDataCallback>> = Mutex::new(None);
+static SHOW_CALLBACK: Mutex<Option<ShowCallback>> = Mutex::new(None);
 static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
 
 const SUBCLASS_ID: usize = 0x4C494D45; // "LIME"
@@ -31,7 +33,7 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
-    SW_RESTORE, SetForegroundWindow, ShowWindow, WM_COPYDATA, WM_DROPFILES,
+    SW_RESTORE, SetForegroundWindow, ShowWindow, WM_COPYDATA, WM_DROPFILES, WM_SHOWWINDOW,
 };
 
 /// Store the drag-drop / IPC callbacks without touching the OS window.
@@ -40,10 +42,12 @@ use windows::Win32::UI::WindowsAndMessaging::{
 /// then performs the Win32 part once the handle is available.
 pub fn set_callbacks(
     on_drop: impl Fn(Vec<String>) + Send + Sync + 'static,
-    on_copydata: impl Fn(String) + Send + Sync + 'static,
+    on_copydata: impl Fn(Option<String>) + Send + Sync + 'static,
+    on_show: impl Fn() + Send + Sync + 'static,
 ) {
     *DROP_CALLBACK.lock() = Some(Box::new(on_drop));
     *COPYDATA_CALLBACK.lock() = Some(Box::new(on_copydata));
+    *SHOW_CALLBACK.lock() = Some(Box::new(on_show));
 }
 
 /// Install the Win32 hooks (drag-and-drop + WM_COPYDATA) on the Slint window.
@@ -210,14 +214,31 @@ unsafe extern "system" fn subclass_proc(
 
             LRESULT(0)
         }
+        WM_SHOWWINDOW => {
+            if wparam.0 != 0
+                && let Some(ref cb) = *SHOW_CALLBACK.lock()
+            {
+                cb();
+            }
+            unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
+        }
         WM_COPYDATA => {
             if lparam.0 != 0 {
                 let cds = unsafe { &*(lparam.0 as *const COPYDATASTRUCT) };
-                if cds.dwData == COPYDATA_MAGIC && cds.cbData > 0 && !cds.lpData.is_null() {
-                    let slice = unsafe {
-                        std::slice::from_raw_parts(cds.lpData as *const u8, cds.cbData as usize)
+                if cds.dwData == COPYDATA_MAGIC {
+                    let payload = if cds.cbData > 0 && !cds.lpData.is_null() {
+                        let slice = unsafe {
+                            std::slice::from_raw_parts(cds.lpData as *const u8, cds.cbData as usize)
+                        };
+                        let text = String::from_utf8_lossy(slice).trim().to_string();
+                        if text.is_empty() {
+                            None
+                        } else {
+                            Some(text)
+                        }
+                    } else {
+                        None
                     };
-                    let text = String::from_utf8_lossy(slice).to_string();
 
                     unsafe {
                         let _ = ShowWindow(hwnd, SW_RESTORE);
@@ -225,7 +246,7 @@ unsafe extern "system" fn subclass_proc(
                     }
 
                     if let Some(ref cb) = *COPYDATA_CALLBACK.lock() {
-                        cb(text);
+                        cb(payload);
                     }
                     return LRESULT(1);
                 }
@@ -233,6 +254,35 @@ unsafe extern "system" fn subclass_proc(
             unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
         }
         _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
+    }
+}
+
+/// Restore and bring the window to the foreground via Win32 APIs.
+pub fn bring_to_foreground(window: &slint::Window) {
+    #[cfg(windows)]
+    {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+        let win_handle = window.window_handle();
+        let Ok(handle_wrapper) = win_handle.window_handle() else {
+            return;
+        };
+
+        let hwnd_raw = match handle_wrapper.as_raw() {
+            RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+            _ => return,
+        };
+
+        let hwnd = HWND(hwnd_raw);
+        unsafe {
+            let _ = ShowWindow(hwnd, SW_RESTORE);
+            let _ = SetForegroundWindow(hwnd);
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = window;
     }
 }
 
