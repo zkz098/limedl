@@ -148,6 +148,12 @@ matches the client, without cutting a release.
 - Portable replacement uses `self-replace` (rename-based, no elevation).
 - NSIS installer is per-user (`%LOCALAPPDATA%\Programs\limedl`, HKCU only, no
   UAC) with the NSIS flags `/S`, `/P`, `/R`, `/D=`.
+  `installer/limedl-native.nsi` must keep `SilentInstall normal`: the directive
+  is *not* "opt in to /S" but a hard default, so `SilentInstall silent`
+  installs with no UI even when the user double-clicks the exe (what v0.3.2
+  shipped — the wizard, the finish-page "run app" checkbox and the updater's
+  progress window were all unreachable). `/S` (updater/silent) and `/P`
+  (progress-only, page-skipping `SkipInPassive`) still work with `normal`.
 - MSIX: registry `Run` autostart is virtualized and silently lost — autostart
   forks on `has_package_identity()` to the `windows.startupTask` extension
   (`TaskId = "limedl-native-startup"`, must match

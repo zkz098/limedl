@@ -52,8 +52,13 @@ InstallDir "$LOCALAPPDATA\Programs\limedl"
 ; Reuse the previously chosen install dir on silent upgrades.
 InstallDirRegKey HKCU "${UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel user
-; /S gives full silence; passive is implemented below by skipping pages.
-SilentInstall silent
+; Keep the interactive wizard for plain double-click installs; NSIS itself still
+; turns this into a fully silent install when the updater passes /S, and passive
+; mode (/P) is implemented below by skipping pages.
+; Do NOT change this to `silent` — that silently installs *unconditionally*,
+; showing no UI even without /S (NSIS docs, 4.8.1.41 SilentInstall: the /S switch
+; is what makes a `normal` installer silent, not the other way round).
+SilentInstall normal
 
 Var InstallMode        ; "normal" | "passive" | "silent"
 Var RestartApp         ; "1" when /R was passed
