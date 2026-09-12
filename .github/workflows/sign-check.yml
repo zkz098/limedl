@@ -1,0 +1,41 @@
+name: Signing check
+
+# Proves the update-channel signing secrets work end to end without publishing
+# anything: `sign` decrypts LIMEDL_SIGNING_KEY with its password, and `guard`
+# checks the derived public key against PUBKEY_B64 in the client plus verifies
+# the produced signature. Run it after rotating the key (`cargo xtask
+# generate-key` prints the commands) or any time releases start failing at the
+# "Sign artifacts" step.
+#
+# Nothing secret is printed: xtask reports only the key source and key number.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sign-check:
+    name: Sign + guard a throwaway file
+    runs-on: ubuntu-latest
+    env:
+      # Same fallback as release.yml: the retired Tauri secret names still work
+      # until they are deleted.
+      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          key: sign-check
+
+      - name: Sign and verify a throwaway file
+        run: |
+          cargo xtask sign README.md
+          cargo xtask guard README.md

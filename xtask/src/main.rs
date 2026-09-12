@@ -352,7 +352,13 @@ fn extract_pubkey_b64(source: &str) -> Result<String> {
 fn generate_key(out_dir: &Path, name: &str, password: Option<String>, force: bool) -> Result<()> {
     let sk_path = out_dir.join(format!("{name}.key"));
     let pk_path = out_dir.join(format!("{name}.key.pub"));
-    if !force && (sk_path.exists() || pk_path.exists()) {
+    let sk_b64_path = out_dir.join(format!("{name}.key.b64"));
+    let password_path = out_dir.join(format!("{name}.password"));
+    if !force
+        && [&sk_path, &pk_path, &sk_b64_path, &password_path]
+            .iter()
+            .any(|p| p.exists())
+    {
         bail!(
             "{} already exists — pass --force to overwrite (rotating the key invalidates\n\
              the PUBKEY_B64 currently embedded in {}",
@@ -375,21 +381,38 @@ fn generate_key(out_dir: &Path, name: &str, password: Option<String>, force: boo
     restrict_permissions(&sk_path)?;
 
     let embedded = pubkey_b64(&keypair.pk)?;
-    let key_b64 = BASE64.encode(fs::read(&sk_path)?);
+    // Written without a trailing newline so piping them into `gh secret set`
+    // stores exactly this value — no copying of secrets through the terminal.
+    fs::write(&sk_b64_path, BASE64.encode(fs::read(&sk_path)?))
+        .context("write secret key payload")?;
+    restrict_permissions(&sk_b64_path)?;
+    fs::write(&password_path, &password).context("write password file")?;
+    restrict_permissions(&password_path)?;
 
-    println!("wrote {} and {}", sk_path.display(), pk_path.display());
+    println!("wrote {name}.{{key,key.pub,key.b64,password}} in {}", out_dir.display());
     println!();
-    println!("1. Put this in PUBKEY_B64 in {DEFAULT_UPDATE_RS}:");
+    println!("1. Put this in PUBKEY_B64 in {DEFAULT_UPDATE_RS} (keynum {}):", keynum_hex(&keypair.pk));
     println!();
-    println!("const PUBKEY_B64: &str =");
-    println!("    \"{embedded}\";");
+    println!("const PUBKEY_B64: &str =
+    \"{embedded}\";");
     println!();
-    println!("2. Store the key in CI (the private key never belongs in git):");
+    println!("2. Store the secrets from the files (values never need to be printed):");
     println!();
-    println!("   gh secret set {KEY_ENV} --body \"{key_b64}\"");
-    println!("   gh secret set {KEY_PASSWORD_ENV} --body \"{password}\"");
+    println!(
+        "   Get-Content {} | gh secret set {KEY_ENV}",
+        sk_b64_path.display()
+    );
+    println!(
+        "   Get-Content {} | gh secret set {KEY_PASSWORD_ENV}",
+        password_path.display()
+    );
     println!();
-    println!("3. Keep the generated files out of the repository and delete them once stored.");
+    println!("3. Prove the round-trip without publishing anything:");
+    println!();
+    println!("   gh workflow run sign-check   # decrypts the secret, signs a throwaway");
+    println!("                                # file, verifies it against PUBKEY_B64");
+    println!();
+    println!("4. Delete {} once the check is green and never commit it.", out_dir.display());
     Ok(())
 }
 
@@ -518,6 +541,30 @@ mod tests {
         );
         assert!(extract_pubkey_b64("fn main() {}").is_err());
         assert!(extract_pubkey_b64("const PUBKEY_B64: &str = \"\";").is_err());
+    }
+
+    #[test]
+    fn keygen_writes_files_the_secret_flow_consumes() {
+        let dir = temp_dir("keyfiles");
+        generate_key(&dir, "rot", Some("pw-123".into()), false).unwrap();
+
+        let sk_b64 = fs::read_to_string(dir.join("rot.key.b64")).unwrap();
+        let password = fs::read_to_string(dir.join("rot.password")).unwrap();
+        assert_eq!(password, "pw-123");
+        assert!(!sk_b64.ends_with('\n'), "gh secret set must receive no trailing newline");
+
+        // The file payload is what CI stores, so it has to load back into the
+        // same key pair the public key was printed for.
+        let sk = parse_secret_key(&sk_b64, Some(password)).unwrap();
+        let pk = PublicKey::from_secret_key(&sk).unwrap();
+        let printed = pubkey_b64(&pk).unwrap();
+        let pub_from_file = fs::read_to_string(dir.join("rot.key.pub")).unwrap();
+        assert_eq!(parse_public_key(&printed).unwrap(), pk);
+        assert_eq!(parse_public_key(&pub_from_file).unwrap(), pk);
+
+        // Regenerating without --force must refuse to clobber a live key.
+        assert!(generate_key(&dir, "rot", Some("other".into()), false).is_err());
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -100,21 +100,35 @@ comes from minisign.
 ### Rotating the signing key
 
 ```powershell
-# 1. New keypair (prints the gh secret commands and the PUBKEY_B64 value)
+# 1. New keypair. Writes <name>.{key,key.pub,key.b64,password} and prints the
+#    PUBKEY_B64 value + the exact gh commands (values stay in files, so no
+#    secret has to be copied through the terminal).
 cargo xtask generate-key --out-dir $env:TEMP\limedl-signing
 
 # 2. Paste the printed value into PUBKEY_B64 (crates/limedl-native/src/update.rs)
+#    and store the secrets from the generated files:
+Get-Content $env:TEMP\limedl-signing\limedl-signing.key.b64 | gh secret set LIMEDL_SIGNING_KEY
+Get-Content $env:TEMP\limedl-signing\limedl-signing.password | gh secret set LIMEDL_SIGNING_KEY_PASSWORD
 
-# 3. Store the secrets, then delete the local key files
-gh secret set LIMEDL_SIGNING_KEY --body "<printed>"
-gh secret set LIMEDL_SIGNING_KEY_PASSWORD --body "<printed>"
+# 3. Prove the round-trip without publishing: the workflow decrypts the secret,
+#    signs a throwaway file and verifies it against PUBKEY_B64.
+gh workflow run sign-check
+gh run watch
+
+# 4. Delete the key files (and, once a release has gone through, the retired
+#    TAURI_SIGNING_PRIVATE_KEY[_PASSWORD] secrets).
 ```
 
 Rotate **before** the first release that ships the new `PUBKEY_B64`: clients
 only accept signatures from the key compiled into them, so an installed client
 cannot be re-keyed by a release (there is no key-rollover chain). If the current
 secret is still the one from the Tauri pipeline, rotating now costs nothing —
-no Slint client has been released yet.
+no Slint client has been released yet. A stale constant does not ship silently:
+`cargo xtask guard` fails the release when it does not match the secret.
+
+The `Signing check` workflow (`.github/workflows/sign-check.yml`) is the manual
+counterpart: run it after a rotation to confirm the stored secret decrypts and
+matches the client, without cutting a release.
 
 ## UI wiring
 
