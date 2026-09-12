@@ -68,3 +68,15 @@ winres = "0.1"
 [dev-dependencies]
 tempfile = { workspace = true }
 skia-safe = { version = "0.99", features = ["textlayout"] }
+
+[features]
+# Debug-only Skia hinting/font-rendering repro (tests/skia_hint_repro.rs). It
+# writes comparison PNGs to the temp dir, asserts nothing useful in CI and pulls
+# an extra skia-safe build, so it is opt-in:
+#   cargo test -p limedl-native --features skia-hint-repro
+skia-hint-repro = []
+
+[[test]]
+name = "skia_hint_repro"
+path = "tests/skia_hint_repro.rs"
+required-features = ["skia-hint-repro"]

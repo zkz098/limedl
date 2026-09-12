@@ -185,7 +185,6 @@ mod windows_impl {
 
 #[cfg(target_os = "linux")]
 mod linux_impl {
-    use super::current_exe_string;
     use std::path::PathBuf;
 
     fn autostart_file() -> Option<PathBuf> {
@@ -248,7 +247,6 @@ mod linux_impl {
 
 #[cfg(target_os = "macos")]
 mod macos_impl {
-    use super::current_exe_string;
     use std::path::PathBuf;
 
     fn plist_path() -> Option<PathBuf> {

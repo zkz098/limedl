@@ -332,14 +332,8 @@ fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<
         .join(format!("extracted-{}", update.version));
     std::fs::create_dir_all(&staging).context("create extraction dir")?;
 
-    let name = verified_file
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or_default();
-
     #[cfg(windows)]
     {
-        let _ = name;
         let archive = std::fs::File::open(verified_file).context("open downloaded archive")?;
         let mut zip = zip::ZipArchive::new(std::io::BufReader::new(archive))
             .context("open portable zip archive")?;
@@ -518,15 +512,18 @@ fn parse_version(v: &str) -> Option<((u64, u64, u64), Option<String>)> {
 
 // ── Microsoft Store channel (MSIX) ───────────────────────────────────────────
 
+/// Store-driven updates: the OS owns download, signature and install; we only
+/// surface checks and trigger the (optionally silent) update flow.
+///
+/// The real implementation is Windows-only (`StoreContext` WinRT); the stub at
+/// the end of this section mirrors the same API on macOS/Linux, where the Store
+/// channel does not exist (the calls fail and the UI reports the error).
+///
+/// All calls must run on the UI thread (`slint::spawn_local`) —
+/// `StoreContext::GetDefault` in a desktop app associates with the window and
+/// fails with `ERROR_INVALID_WINDOW_HANDLE` off-thread.
 #[cfg(windows)]
 pub mod store {
-    //! Store-driven updates: the OS owns download, signature and install; we
-    //! only surface checks and trigger the (optionally silent) update flow.
-    //!
-    //! All calls must run on the UI thread (`slint::spawn_local`) —
-    //! `StoreContext::GetDefault` in a desktop app associates with the window
-    //! and fails with `ERROR_INVALID_WINDOW_HANDLE` off-thread.
-
     use anyhow::{Context, Result};
 
     /// Check whether the Store has a package update for this app.
@@ -558,6 +555,22 @@ pub mod store {
             .await
             .context("store package update install failed")?;
         Ok(())
+    }
+}
+
+/// Non-Windows stub: the Microsoft Store channel is Windows-only.
+#[cfg(not(windows))]
+pub mod store {
+    use anyhow::Result;
+
+    /// Always fails on non-Windows platforms.
+    pub async fn check_update_available() -> Result<bool> {
+        anyhow::bail!("the Microsoft Store update channel is only available on Windows")
+    }
+
+    /// Always fails on non-Windows platforms.
+    pub async fn trigger_update() -> Result<()> {
+        anyhow::bail!("the Microsoft Store update channel is only available on Windows")
     }
 }
 
