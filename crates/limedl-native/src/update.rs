@@ -14,10 +14,21 @@
 // All GitHub-channel artifacts are described by `latest-native.json`, hosted
 // as a release asset and reached through the permanently-named
 // `releases/latest/download/...` URL (GitHub excludes draft/prerelease
-// releases there, so stable users never see rc/alpha builds). The manifest is
-// NOT itself signed; every artifact's `signature` field is the base64-encoded
-// minisign signature over the exact downloaded bytes, verified against the
-// public key shared with the Tauri edition below.
+// releases there, so stable users never see rc/alpha builds).
+//
+// Trust chain, each step checked before the next one happens:
+//
+// 1. `latest-native.json.sig` (minisign, written by `cargo xtask sign`) is
+//    verified over the exact manifest bytes, so a tampered manifest cannot even
+//    choose a download URL.
+// 2. Every artifact `url` must be a GitHub release download of this repo for the
+//    version the manifest advertises.
+// 3. The artifact's `signature` field is base64(minisign signature text) over the
+//    exact downloaded bytes, verified against [`PUBKEY_B64`].
+//
+// The signing key lives in the CI secret `LIMEDL_SIGNING_KEY`;
+// `cargo xtask generate-key` creates a new pair and `cargo xtask guard` (run by
+// the release job) keeps that secret and [`PUBKEY_B64`] in sync.
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -30,15 +41,30 @@ use serde::Deserialize;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-/// minisign public key (base64 of the key file text), shared with the Tauri
-/// edition so both UIs verify with the same identity. Public by design — the
-/// corresponding private key only lives in GitHub Actions secrets.
+/// minisign public key (base64 of the key file text). Public by design — the
+/// private key only lives in the CI secret `LIMEDL_SIGNING_KEY`.
+///
+/// `cargo xtask guard` (release job) refuses to ship a build whose constant does
+/// not match the key the artifacts were signed with, so rotating the secret
+/// cannot silently break the update channel.
 const PUBKEY_B64: &str =
     "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2RTVFQzcwMjEyMDYyQTYKUldTbVlpQWhjT3psZHJoTE13aTdHRUhsSkxJSDEyRmtuemVIVXlTMjE1RldpWDZsMlpTcW03aXoK";
 
-/// Permanent URL that always resolves to the newest stable manifest asset.
+/// Repo hosting the release assets; must match `$Repo` in
+/// `scripts/gen-native-manifest.ps1` and the release workflow.
+const RELEASE_REPO: &str = "zkz098/limedl";
+
+/// Permanent URLs that always resolve to the newest stable manifest assets
+/// (GitHub excludes draft/prerelease releases there, so stable users never see
+/// rc/alpha builds).
 const MANIFEST_URL: &str =
     "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json";
+const MANIFEST_SIG_URL: &str =
+    "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json.sig";
+
+/// Upper bound for an update download. Installers and portable archives are
+/// tens of megabytes; anything beyond this is a broken or hostile manifest.
+const MAX_UPDATE_BYTES: u64 = 512 * 1024 * 1024;
 
 /// Subdirectory (under the app state dir) used for update downloads/staging.
 pub const UPDATE_WORK_DIR: &str = "update";
@@ -78,6 +104,42 @@ pub struct UpdateManifest {
     pub notes: String,
     #[serde(default)]
     pub platforms: HashMap<String, PlatformAsset>,
+}
+
+impl UpdateManifest {
+    /// True when the release carries any asset for this OS/arch (any install
+    /// kind). Used to tell "this release simply does not serve your platform"
+    /// apart from "your distribution channel is missing from it".
+    fn has_assets_for(&self, platform_base: &str) -> bool {
+        let prefixed = format!("{platform_base}-");
+        self.platforms
+            .keys()
+            .any(|key| key == platform_base || key.starts_with(&prefixed))
+    }
+}
+
+/// Release artifacts must be this repo's GitHub release downloads for exactly
+/// the advertised version.
+///
+/// The manifest is signed, so this is defence in depth: it keeps a manifest bug
+/// (or a future mirror/fork) from pointing the updater at an arbitrary URL and
+/// making clients download unrelated bytes before the signature check fails.
+fn validate_asset_url(url: &str, version: &str) -> Result<()> {
+    let prefix = format!(
+        "https://github.com/{RELEASE_REPO}/releases/download/v{version}/"
+    );
+    let Some(file_name) = url.strip_prefix(&prefix) else {
+        bail!("artifact URL '{url}' is not under '{prefix}'");
+    };
+    let sane = !file_name.is_empty()
+        && file_name.len() <= 128
+        && file_name.bytes().all(|b| {
+            b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+')
+        });
+    if !sane {
+        bail!("artifact URL '{url}' does not end in a plain file name");
+    }
+    Ok(())
 }
 
 /// A newer release usable for this install kind.
@@ -144,17 +206,22 @@ fn installer_registry_entry_exists() -> bool {
         .is_ok()
 }
 
-/// The manifest key for this platform + install kind.
-///
-/// `windows-x86_64` → installer; `windows-x86_64-portable` → portable zip;
-/// `linux-x86_64-portable` / `darwin-aarch64-portable` → tar.gz.
-fn manifest_key(kind: InstallKind) -> String {
+/// The OS/arch half of a manifest key (`windows-x86_64`, `linux-aarch64`, …).
+fn platform_base() -> String {
     let os = match std::env::consts::OS {
         "windows" => "windows",
         "macos" => "darwin",
         _ => "linux",
     };
-    let base = format!("{}-{}", os, std::env::consts::ARCH);
+    format!("{}-{}", os, std::env::consts::ARCH)
+}
+
+/// The manifest key for this platform + install kind.
+///
+/// `windows-x86_64` → installer; `windows-x86_64-portable` → portable zip;
+/// `linux-x86_64-portable` / `darwin-aarch64-portable` → tar.gz.
+fn manifest_key(kind: InstallKind) -> String {
+    let base = platform_base();
     match kind {
         InstallKind::Installer => base,
         InstallKind::Portable | InstallKind::Store => format!("{base}-portable"),
@@ -178,12 +245,27 @@ pub async fn check_for_update() -> Result<Option<AvailableUpdate>> {
     }
 
     let key = manifest_key(kind);
-    let asset = manifest.platforms.get(&key).cloned().with_context(|| {
-        format!(
-            "release v{} has no '{}' asset for this distribution channel",
-            manifest.version, key
-        )
-    })?;
+    let asset = match manifest.platforms.get(&key) {
+        Some(asset) => asset.clone(),
+        None => {
+            let base = platform_base();
+            if !manifest.has_assets_for(&base) {
+                // The release carries nothing for this OS/arch at all — e.g. the
+                // desktop client is Windows-only today. That is not a failure
+                // the user can act on, so report "no update" instead.
+                tracing::debug!(
+                    "update manifest for v{} has no '{base}' assets; skipping",
+                    manifest.version
+                );
+                return Ok(None);
+            }
+            bail!(
+                "release v{} has no '{key}' asset for this distribution channel (available: {:?})",
+                manifest.version,
+                manifest.platforms.keys().collect::<Vec<_>>()
+            );
+        }
+    };
     let expected_kind = if kind == InstallKind::Installer { "installer" } else { "portable" };
     if asset.kind != expected_kind {
         bail!(
@@ -192,6 +274,12 @@ pub async fn check_for_update() -> Result<Option<AvailableUpdate>> {
             asset.kind
         );
     }
+    validate_asset_url(&asset.url, &manifest.version).with_context(|| {
+        format!(
+            "release v{} declares an unusable artifact URL",
+            manifest.version
+        )
+    })?;
 
     Ok(Some(AvailableUpdate {
         version: manifest.version,
@@ -200,17 +288,49 @@ pub async fn check_for_update() -> Result<Option<AvailableUpdate>> {
     }))
 }
 
+/// Fetch the manifest, verify its signature *before* parsing it, and only then
+/// hand the bytes to serde.
+///
+/// The signature is a separate release asset (`latest-native.json.sig`, written
+/// by `cargo xtask sign`). Verifying it first means a tampered or truncated
+/// manifest is rejected without ever influencing a download URL.
 async fn fetch_manifest() -> Result<UpdateManifest> {
     let client = http_client()?;
+    let bytes = fetch_asset(&client, MANIFEST_URL, "update manifest").await?;
+    let sig_text = fetch_text(&client, MANIFEST_SIG_URL)
+        .await
+        .context("update manifest signature is missing — refusing an unsigned manifest")?;
+    verify_signature_text(&bytes, &sig_text)
+        .context("update manifest signature verification failed")?;
+    serde_json::from_slice(&bytes).context("parse update manifest")
+}
+
+async fn fetch_asset(client: &reqwest::Client, url: &str, what: &str) -> Result<Vec<u8>> {
     let resp = client
-        .get(MANIFEST_URL)
+        .get(url)
         .send()
         .await
-        .context("fetch update manifest")?
+        .with_context(|| format!("fetch {what}"))?
         .error_for_status()
-        .context("update manifest request failed")?;
-    let bytes = resp.bytes().await.context("read update manifest")?;
-    serde_json::from_slice(&bytes).context("parse update manifest")
+        .with_context(|| format!("{what} request failed"))?;
+    if let Some(len) = resp.content_length()
+        && len > MAX_UPDATE_BYTES
+    {
+        bail!("{what} is {len} bytes, above the {MAX_UPDATE_BYTES} byte limit");
+    }
+    let bytes = resp
+        .bytes()
+        .await
+        .with_context(|| format!("read {what}"))?;
+    if bytes.len() as u64 > MAX_UPDATE_BYTES {
+        bail!("{what} exceeded the {MAX_UPDATE_BYTES} byte limit");
+    }
+    Ok(bytes.to_vec())
+}
+
+async fn fetch_text(client: &reqwest::Client, url: &str) -> Result<String> {
+    let bytes = fetch_asset(client, url, "text asset").await?;
+    String::from_utf8(bytes).context("asset is not UTF-8")
 }
 
 fn http_client() -> Result<reqwest::Client> {
@@ -253,6 +373,14 @@ pub async fn download_and_verify(
         .error_for_status()
         .context("update download request failed")?;
     let total = resp.content_length();
+    if let Some(total) = total
+        && total > MAX_UPDATE_BYTES
+    {
+        bail!(
+            "update artifact is {total} bytes, above the {MAX_UPDATE_BYTES} byte limit \
+             (refusing to download)"
+        );
+    }
 
     let mut file = std::fs::File::create(&dest)
         .with_context(|| format!("create {}", dest.display()))?;
@@ -267,6 +395,11 @@ pub async fn download_and_verify(
         file.write_all(&chunk).context("write update download")?;
         hasher.update(&chunk);
         downloaded += chunk.len() as u64;
+        if downloaded > MAX_UPDATE_BYTES {
+            bail!(
+                "update download exceeded the {MAX_UPDATE_BYTES} byte limit — aborting"
+            );
+        }
         progress(downloaded, total);
     }
     file.flush().ok();
@@ -450,6 +583,15 @@ fn unix_now() -> u64 {
 // ── Crypto verification ──────────────────────────────────────────────────────
 
 fn verify_signature(data: &[u8], signature_b64: &str) -> Result<()> {
+    let sig_text = base64::engine::general_purpose::STANDARD
+        .decode(signature_b64.trim())
+        .context("decode artifact signature")?;
+    verify_signature_text(data, std::str::from_utf8(&sig_text)?)
+}
+
+/// Verify a signature given as the plain minisign `.sig` text (what
+/// `cargo xtask sign` writes next to each artifact).
+fn verify_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
     use minisign_verify::{PublicKey, Signature};
 
     let pubkey_text = base64::engine::general_purpose::STANDARD
@@ -458,11 +600,7 @@ fn verify_signature(data: &[u8], signature_b64: &str) -> Result<()> {
     let pubkey = PublicKey::decode(std::str::from_utf8(&pubkey_text)?)
         .context("parse embedded updater public key")?;
 
-    let sig_text = base64::engine::general_purpose::STANDARD
-        .decode(signature_b64.trim())
-        .context("decode artifact signature")?;
-    let sig = Signature::decode(std::str::from_utf8(&sig_text)?)
-        .context("parse artifact signature")?;
+    let sig = Signature::decode(signature_text.trim()).context("parse artifact signature")?;
 
     pubkey
         .verify(data, &sig, false)
@@ -600,7 +738,7 @@ mod tests {
     }
 
     #[test]
-    fn manifest_parses_tauri_shaped_json() {
+    fn manifest_parses_release_json() {
         let json = r#"{
             "version": "0.3.0",
             "notes": "hello",
@@ -629,5 +767,70 @@ mod tests {
     fn manifest_keys_follow_install_kind() {
         assert_eq!(manifest_key(InstallKind::Installer), "windows-x86_64");
         assert_eq!(manifest_key(InstallKind::Portable), "windows-x86_64-portable");
+    }
+
+    #[test]
+    fn asset_urls_must_point_at_this_repos_release() {
+        let good = "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
+                    limedl-native-v0.3.0-windows-x86_64-setup.exe";
+        assert!(validate_asset_url(good, "0.3.0").is_ok());
+
+        // Wrong host / repo / version, or a URL that escapes the release path.
+        for bad in [
+            "https://evil.example/limedl-native-setup.exe",
+            "https://github.com/attacker/limedl/releases/download/v0.3.0/setup.exe",
+            "https://github.com/zkz098/limedl/releases/download/v0.2.9/setup.exe",
+            "http://github.com/zkz098/limedl/releases/download/v0.3.0/setup.exe",
+            "https://github.com/zkz098/limedl/releases/download/v0.3.0/../../other",
+            "https://github.com/zkz098/limedl/releases/download/v0.3.0/",
+            "https://github.com/zkz098/limedl/releases/download/v0.3.0/a/b.exe",
+        ] {
+            assert!(
+                validate_asset_url(bad, "0.3.0").is_err(),
+                "expected '{bad}' to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn platform_support_is_distinguished_from_a_channel_gap() {
+        let json = r#"{
+            "version": "0.3.0",
+            "platforms": {
+                "windows-x86_64": {
+                    "kind": "installer",
+                    "url": "https://github.com/zkz098/limedl/releases/download/v0.3.0/a.exe",
+                    "signature": "c2ln"
+                },
+                "windows-x86_64-portable": {
+                    "kind": "portable",
+                    "url": "https://github.com/zkz098/limedl/releases/download/v0.3.0/a.zip",
+                    "signature": "c2ln"
+                }
+            }
+        }"#;
+        let m: UpdateManifest = serde_json::from_str(json).unwrap();
+        assert!(m.has_assets_for("windows-x86_64"));
+        assert!(!m.has_assets_for("linux-x86_64"));
+        assert!(!m.has_assets_for("darwin-aarch64"));
+    }
+
+    #[test]
+    fn unsigned_manifest_bytes_are_rejected() {
+        // The embedded public key must be well-formed and garbage signatures
+        // must be refused (never fall through to parsing the manifest).
+        for bogus in ["", "not a signature", "untrusted comment: x\nAAAA\n"] {
+            let err = verify_signature_text(b"{}", bogus)
+                .expect_err("bogus signature must be rejected")
+                .to_string();
+            assert!(
+                err.contains("signature"),
+                "expected a signature error, got: {err}"
+            );
+            assert!(
+                !err.contains("public key"),
+                "the embedded PUBKEY_B64 failed to decode: {err}"
+            );
+        }
     }
 }

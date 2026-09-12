@@ -18,10 +18,12 @@ updater manifest, produced by `tauri-action`) is gone. Consequences:
   (`crates/limedl-native/src/migrate.rs`).
 - `src-tauri/` and its `tauri.conf.json` were **deleted**; nothing in the tree
   references the old update endpoint. 
-- The minisign keypair is still the same one (`TAURI_SIGNING_PRIVATE_KEY` CI
-  secret) — the name is a leftover; only the Slint artifacts are signed today.
-- `update.rs`'s `PUBKEY_B64` is now the single copy of that public key in the tree
-  (it must stay in sync with the CI secret's keypair).
+- The minisign keypair is still the same one the Tauri shell used
+  (`TAURI_SIGNING_PRIVATE_KEY` CI secret); `cargo xtask guard` now enforces that
+  whatever key signs a release matches `PUBKEY_B64` in the client, so the secret
+  can be renamed/rotated freely (see *Rotating the signing key*).
+- `update.rs`'s `PUBKEY_B64` is the single copy of the update public key in the
+  tree — the retired Tauri config that used to duplicate it is gone.
 
 If a grace period is ever wanted, publish a final Tauri release that only
 contains a migration notice (keeping `latest.json` alive for that one version).
@@ -48,8 +50,9 @@ uploaded as a release asset. The app fetches it from the permanently-named URL
 (GitHub excludes draft/prerelease releases there → stable users never see rc
 builds; it also bypasses api.github.com quota).
 
-Manifest shape (subset compatible with the Tauri updater contract — kept so the
-manifest generator and verifier stay interoperable with `tauri signer`):
+Manifest shape (JSON; the field names are stable because the generator
+(`scripts/gen-native-manifest.ps1`) and the verifier (`update.rs`) both parse
+them):
 
 ```json
 {
@@ -65,17 +68,53 @@ manifest generator and verifier stay interoperable with `tauri signer`):
 
 Platform key = `{os}-{arch}` (installer) / `{os}-{arch}-portable`; see
 `update::manifest_key`. The asset `kind` is validated against the detected
-channel at check time.
+channel at check time, and every asset `url` must be a GitHub release download
+of this repo for the advertised version (`update::validate_asset_url`) — the
+manifest is signed, so this is a second line of defence against a bad manifest
+making clients download unrelated bytes.
 
 ## Signature chain
 
-- Artifacts are signed with **minisign** via `tauri signer sign` (the same
-  `TAURI_SIGNING_PRIVATE_KEY` secret the Tauri edition uses).
-- `signature` in the manifest is base64(minisign signature file text), verified
-  in-app with `minisign_verify` against the public key embedded in
-  `update.rs` (`PUBKEY_B64`).
-- Verification covers the **exact downloaded bytes**; sha256 is a secondary
-  integrity check only.
+Everything is signed with **minisign** by in-repo tooling (`cargo xtask`,
+source in `xtask/src/main.rs`) — the format is unchanged from the retired Tauri
+pipeline and matches what `minisign_verify` accepts.
+
+| Layer | Signed by | Verified by |
+| --- | --- | --- |
+| `latest-native.json` | `cargo xtask sign` → `latest-native.json.sig` | `update::verify_signature_text` **before** parsing the manifest |
+| each artifact | `cargo xtask sign` → `<file>.sig` (also inlined as `signature`) | `update::verify_signature` over the exact downloaded bytes |
+
+- Key: CI secret `LIMEDL_SIGNING_KEY` (base64 of the minisign key file text, or
+a path locally) plus `LIMEDL_SIGNING_KEY_PASSWORD`. `LIMEDL_SIGNING_KEY_PASSWORD`
+and the old `TAURI_SIGNING_PRIVATE_KEY[_PASSWORD]` names are still read as
+fallbacks so an un-rotated CI keeps releasing.
+- The client trusts exactly one key: `PUBKEY_B64` in `update.rs`.
+- `cargo xtask guard <artifacts...>` (run by the release job) derives the public
+key from the CI secret and **fails the release** unless it equals `PUBKEY_B64`,
+then re-verifies every signature. This is what makes key rotation safe.
+- Downloads are capped (`MAX_UPDATE_BYTES`, 512 MiB) and the manifest signature
+is required: a missing `.sig` aborts the check instead of trusting the JSON.
+- sha256 in the manifest is a secondary integrity check; authenticity always
+comes from minisign.
+
+### Rotating the signing key
+
+```powershell
+# 1. New keypair (prints the gh secret commands and the PUBKEY_B64 value)
+cargo xtask generate-key --out-dir $env:TEMP\limedl-signing
+
+# 2. Paste the printed value into PUBKEY_B64 (crates/limedl-native/src/update.rs)
+
+# 3. Store the secrets, then delete the local key files
+gh secret set LIMEDL_SIGNING_KEY --body "<printed>"
+gh secret set LIMEDL_SIGNING_KEY_PASSWORD --body "<printed>"
+```
+
+Rotate **before** the first release that ships the new `PUBKEY_B64`: clients
+only accept signatures from the key compiled into them, so an installed client
+cannot be re-keyed by a release (there is no key-rollover chain). If the current
+secret is still the one from the Tauri pipeline, rotating now costs nothing —
+no Slint client has been released yet.
 
 ## UI wiring
 
@@ -94,7 +133,7 @@ channel at check time.
 
 - Portable replacement uses `self-replace` (rename-based, no elevation).
 - NSIS installer is per-user (`%LOCALAPPDATA%\Programs\limedl`, HKCU only, no
-  UAC) with the Tauri-compatible flags `/S`, `/P`, `/R`, `/D=`.
+  UAC) with the NSIS flags `/S`, `/P`, `/R`, `/D=`.
 - MSIX: registry `Run` autostart is virtualized and silently lost — autostart
   forks on `has_package_identity()` to the `windows.startupTask` extension
   (`TaskId = "limedl-native-startup"`, must match

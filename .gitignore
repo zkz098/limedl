@@ -54,6 +54,10 @@ e2e/storage-state.json
 # (MiSans font license forbids re-distributing the font file itself)
 crates/limedl-native/assets/fonts/
 
+# minisign signing keys — `cargo xtask generate-key` writes these; the private
+# key belongs in the CI secret LIMEDL_SIGNING_KEY, never in git.
+*.key
+
 # Temporary files
 temp/
 

@@ -1,0 +1,21 @@
+[package]
+name = "xtask"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license.workspace = true
+description = "Repository tooling: minisign key generation, artifact signing, pubkey guards"
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+base64 = { workspace = true }
+clap = { workspace = true }
+minisign = "0.9"
+uuid = { workspace = true }
+
+[dev-dependencies]
+minisign-verify = { workspace = true }

@@ -81,8 +81,12 @@ jobs:
     permissions:
       contents: write
     env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      # minisign keypair for the self-update channel (verified by
+      # crates/limedl-native/src/update.rs). The TAURI_* names are the retired
+      # Tauri pipeline's secrets, still read so releases keep working until the
+      # secrets are renamed: `cargo xtask generate-key` prints the gh commands.
+      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -113,12 +117,6 @@ jobs:
       - name: Build limedl-native
         shell: pwsh
         run: cargo build --locked --release -p limedl-native
-
-      # ── Node for the signer CLI (minisign; the @tauri-apps/cli signer is
-      # reused from the retired Tauri release pipeline) ─────────────────────
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 24
 
       # ── Assemble dist/ ──────────────────────────────────────────────────
       - name: Stage artifacts
@@ -195,21 +193,22 @@ jobs:
           MSIX_IDENTITY_NAME: Zkz20.limedl-native
           MSIX_PUBLISHER: "CN=zkz098"
 
-      # ── Sign everything (minisign; legacy Tauri signing secret) ──────
+      # ── Sign + verify (minisign, in-repo tooling) ──────────────────────
+      # `sign` writes <file>.sig; `guard` re-verifies every signature and
+      # refuses to continue unless LIMEDL_SIGNING_KEY matches the PUBKEY_B64
+      # embedded in the client (a rotated secret with a stale constant would
+      # otherwise ship an app that rejects all future updates).
       - name: Sign artifacts
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          foreach ($file in @(
-            "dist/limedl-native-v$version-windows-x86_64-setup.exe",
-            "dist/limedl-native-v$version-windows-x86_64-portable.zip",
+          cargo xtask sign `
+            "dist/limedl-native-v$version-windows-x86_64-setup.exe" `
+            "dist/limedl-native-v$version-windows-x86_64-portable.zip" `
             "dist/limedl-native-v$version-windows-x86_64.msix"
-          )) {
-            npx --yes @tauri-apps/cli signer sign $file
-            if ($LASTEXITCODE -ne 0) { throw "signing failed for $file" }
-          }
+          if ($LASTEXITCODE -ne 0) { throw "signing failed" }
 
-      # ── Self-update manifest ───────────────────────────────────────────
+      # ── Self-update manifest (signed as well) ──────────────────────────
       - name: Generate latest-native.json
         shell: pwsh
         run: |
@@ -223,6 +222,19 @@ jobs:
           '@ `
             -OutFile dist/latest-native.json
 
+      - name: Sign the manifest and run the release guard
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          cargo xtask sign dist/latest-native.json
+          if ($LASTEXITCODE -ne 0) { throw "signing the manifest failed" }
+          cargo xtask guard `
+            "dist/limedl-native-v$version-windows-x86_64-setup.exe" `
+            "dist/limedl-native-v$version-windows-x86_64-portable.zip" `
+            "dist/limedl-native-v$version-windows-x86_64.msix" `
+            "dist/latest-native.json"
+          if ($LASTEXITCODE -ne 0) { throw "release guard failed" }
+
       # ── Upload to release ──────────────────────────────────────────────
       - name: Upload to release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
@@ -235,6 +247,7 @@ jobs:
             dist/limedl-native-v*-windows-x86_64.msix
             dist/limedl-native-v*-windows-x86_64.msix.sig
             dist/latest-native.json
+            dist/latest-native.json.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:

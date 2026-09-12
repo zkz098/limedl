@@ -25,6 +25,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Version bump    | `node scripts/bump-version.mjs patch`                         |
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C` |
 | Fetch UI font   | `pwsh scripts/fetch-misans.ps1` (one-time, required before building limedl-native; font is not in git due to MiSans license) |
+| Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `.opencode/guides/subsystem-self-update.md`) |
 
 ## Releases
 
@@ -59,6 +60,7 @@ limedl/
 ├── crates/limedl-core/   # Pure download engine (lib: limedl_core)
 ├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
 ├── crates/limedl-server/ # axum HTTP/WS server + CLI
+├── xtask/                # Repo tooling: minisign keygen/sign/guard for the update channel
 ├── src/                  # Vue 3 frontend (NAS/desktop WebUI)
 └── e2e/                  # Playwright E2E tests for the WebUI
 ```

@@ -30,6 +30,11 @@ rustflags = ["-C", "target-cpu=x86-64-v2"]
 # Desktop macOS ARM: apple-m1 baseline
 rustflags = ["-C", "target-cpu=apple-m1"]
 
+[alias]
+# `cargo xtask <command>` — repository tooling (update-channel signing).
+# See xtask/src/main.rs.
+xtask = "run --quiet --package xtask --"
+
 [target.x86_64-apple-darwin]
 # Desktop macOS x86_64: x86-64-v3
 rustflags = ["-C", "target-cpu=x86-64-v3"]

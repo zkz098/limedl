@@ -1,9 +1,11 @@
 # Generates latest-native.json — the self-update manifest for limedl-native.
 #
-# Reads the minisign .sig files produced by `tauri signer sign` next to each
-# artifact, base64-encodes them into the manifest (the Tauri updater contract),
-# computes sha256 digests, and emits asset URLs pointing at the release
-# download endpoints (github.com domain — no api.github.com quota consumed).
+# Reads the minisign .sig files written by `cargo xtask sign` next to each
+# artifact, base64-encodes them into the manifest, computes sha256 digests, and
+# emits asset URLs pointing at the release download endpoints (github.com domain
+# — no api.github.com quota consumed). The manifest itself is signed afterwards
+# (`cargo xtask sign dist/latest-native.json`), because the client verifies
+# latest-native.json.sig before it parses anything.
 #
 # Usage:
 #   pwsh scripts/gen-native-manifest.ps1 -Version 0.2.1 `
@@ -30,10 +32,10 @@ function Get-ArtifactEntry {
     param([string]$Kind, [string]$Path)
     $sigPath = "$Path.sig"
     if (-not (Test-Path $sigPath)) {
-        throw "signature file missing for $Path — run 'tauri signer sign' first"
+        throw "signature file missing for $Path — run 'cargo xtask sign' first"
     }
-    # base64(minisign signature file text), the format tauri-plugin-updater
-    # and minisign_verify::Signature::decode expect.
+    # base64(minisign signature file text) — the form minisign_verify's
+    # Signature::decode expects after the client base64-decodes it.
     $sigText = [System.IO.File]::ReadAllText($sigPath).Trim()
     $sigB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($sigText))
     $sha256 = (Get-FileHash -Path $Path -Algorithm SHA256).Hash.ToLowerInvariant()
