@@ -26,7 +26,7 @@ use crate::{
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshots_batch,
-    types::{AdaptiveProfile, AppSettings, DownloadState, ProxyMode, SchedulerMode, ThreadMode},
+    types::{AdaptiveProfile, AppSettings, DownloadState, SchedulerMode, ThreadMode},
 };
 
 const SCHEDULER_TICK: Duration = Duration::from_secs(2);
@@ -82,13 +82,15 @@ impl Scheduler {
     }
 
     /// Update adaptive (AIMD) thread targets for all active downloads.
+    ///
+    /// Deliberately **not** gated on `settings.proxy.mode`: the tuner used to
+    /// bail out whenever a proxy was configured, a leftover from the removed
+    /// network-learning feature it was coupled to (it also silently disabled
+    /// overclock mode, which lives behind the same guard). Proxied transfers
+    /// must adapt like any other transfer.
     pub async fn update_adaptive_targets(&self, dm: &DownloadManager) -> Result<()> {
         let settings = dm.settings_service.get().await;
         if settings.scheduler.mode != SchedulerMode::Automatic {
-            return Ok(());
-        }
-
-        if settings.proxy.mode != ProxyMode::Disabled {
             return Ok(());
         }
 

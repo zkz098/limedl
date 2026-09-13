@@ -16,9 +16,9 @@ use crate::{
     rate_limiter::RateLimiter,
     test_harness::TestServer,
     types::{
-        AppSettings, AutomaticSchedulerSettings, ChecksumMode, DownloadSnapshot, DownloadState,
-        SchedulerMode, SchedulerSettings, StartDownloadRequest, ThreadMode,
-        TraditionalSchedulerSettings,
+        AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, ChecksumMode, DownloadSnapshot,
+        DownloadState, ProxyMode, ProxySettings, SchedulerMode, SchedulerSettings,
+        StartDownloadRequest, ThreadMode, TraditionalSchedulerSettings,
     },
 };
 
@@ -918,5 +918,151 @@ async fn cancel_one_unblocks_queued() -> TestResult {
     assert_eq!(done2.state, DownloadState::Completed);
 
     let _ = manager.remove(&id2.to_string()).await;
+    Ok(())
+}
+
+// ===========================================================================
+// Test 12: A configured proxy does not disable adaptive tuning
+// ===========================================================================
+
+/// Regression test: `update_adaptive_targets` used to return early whenever
+/// `proxy.mode != Disabled`, freezing AIMD (and, silently, overclock mode,
+/// which lives behind the same guard) for every proxied download.  The bail-out
+/// was a leftover from the removed network-learning feature that the tuner was
+/// originally coupled to.
+///
+/// The proxy is switched on while a transfer is already in flight, so no
+/// request ever traverses a real proxy — only the settings gate that used to
+/// disable the tuner is exercised.
+#[tokio::test]
+#[timeout(180_000)]
+async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
+    let server = TestServer::new(16 * 1024 * 1024).await; // 16 MB (multi-chunk)
+
+    let (_tmp, manager) = create_manager().await;
+
+    let scheduler = SchedulerSettings {
+        mode: SchedulerMode::Automatic,
+        automatic: AutomaticSchedulerSettings {
+            max_parallel_threads: 4,
+            max_threads_per_task: 4,
+            min_threads_per_task: 1,
+            adaptive_profile: AdaptiveProfile::Balanced,
+        },
+        ..SchedulerSettings::default()
+    };
+
+    // 1 MB/s keeps the transfer in flight while the test pokes the scheduler.
+    manager
+        .apply_settings(AppSettings {
+            global_speed_limit_bps: 1_000_000,
+            scheduler: scheduler.clone(),
+            ..AppSettings::default()
+        })
+        .await?;
+
+    let out = _tmp.path().join("out").to_string_lossy().to_string();
+    let id = manager
+        .start(req_adaptive(&server.file_url_range(), &out, "proxied.bin"))
+        .await?;
+
+    // Wait for the transfer to run *and* make progress: the executor's earlier
+    // metadata phase re-applies the profile-derived target and may rebuild the
+    // AIMD state, so only poke the tuner once bytes are actually flowing.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        let status = manager.status(&id.to_string()).await?;
+        if status.state == DownloadState::Downloading
+            && status.downloaded_bytes > 0
+            && status.supports_ranges
+        {
+            assert_eq!(
+                status.desired_thread_count,
+                Some(3),
+                "expected the untuned Balanced initial target"
+            );
+            break;
+        }
+        if tokio::time::Instant::now() > deadline {
+            return Err(format!("download never started: {status:?}").into());
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    // Enable a proxy mid-flight: the running workers keep the client they were
+    // spawned with, so this only changes what the scheduler reads.
+    manager
+        .apply_settings(AppSettings {
+            global_speed_limit_bps: 1_000_000,
+            proxy: ProxySettings {
+                mode: ProxyMode::System,
+                manual_url: String::new(),
+            },
+            scheduler,
+            ..AppSettings::default()
+        })
+        .await?;
+
+    // Make the next sample look like a steep throughput drop: the tuner must
+    // react with a multiplicative decrease (Balanced: 3 → 2).
+    let managed = {
+        let downloads = manager.downloads.read().await;
+        downloads
+            .get(&id.to_string())
+            .cloned()
+            .ok_or("managed download missing")?
+    };
+    {
+        let mut aimd = managed.lock_aimd();
+        aimd.last_throughput = Some(1e12);
+        aimd.cooldown_until = None;
+        aimd.hysteresis_lock_until = None;
+    }
+
+    manager.scheduler.update_adaptive_targets(&manager).await?;
+
+    // The tuner writes the manifest; `rebalance_allocations` (which the
+    // scheduler loop runs right after, in the same tick) propagates it to the
+    // snapshot the API exposes.
+    {
+        let core = managed.lock_core();
+        assert_eq!(
+            core.manifest.desired_thread_count,
+            Some(2),
+            "AIMD must keep tuning while a proxy is configured (Balanced: 3 → 2), got {:?}",
+            core.manifest.desired_thread_count,
+        );
+    }
+
+    manager.scheduler.rebalance_allocations(&manager).await?;
+
+    let tuned = manager.status(&id.to_string()).await?;
+    assert_eq!(
+        tuned.desired_thread_count,
+        Some(2),
+        "the tuned target must reach the exposed snapshot, got {:?}",
+        tuned.desired_thread_count,
+    );
+    assert_eq!(
+        tuned.allocated_thread_count,
+        Some(2),
+        "the allocation must follow the tuned target, got {:?}",
+        tuned.allocated_thread_count,
+    );
+
+    // Overclock shares the same code path and used to be disabled with it.
+    manager.set_overclock_mode(true);
+    manager.scheduler.update_adaptive_targets(&manager).await?;
+
+    let overclocked = manager.status(&id.to_string()).await?;
+    assert_eq!(
+        overclocked.desired_thread_count,
+        Some(4),
+        "overclock must pin the target at max_threads_per_task, got {:?}",
+        overclocked.desired_thread_count,
+    );
+
+    manager.set_overclock_mode(false);
+    let _ = manager.cancel(&id.to_string()).await;
     Ok(())
 }
