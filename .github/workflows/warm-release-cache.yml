@@ -47,6 +47,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
+      # Keep Defender's real-time scanner out of target/ (see ci.yml). Adds no
+      # env vars, so the rust-cache key stays byte-identical to release.yml's.
+      - name: Exclude build paths from Defender real-time scanning
+        shell: pwsh
+        run: |
+          foreach ($path in @($env:GITHUB_WORKSPACE, "$env:USERPROFILE\.cargo", $env:RUNNER_TEMP)) {
+            Add-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
+          }
+          if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
+            Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
+          }
+
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable

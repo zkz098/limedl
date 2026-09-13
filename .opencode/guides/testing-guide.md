@@ -17,20 +17,23 @@
 ## 数据流向
 
 ```
-代码变更 → CI 触发（8 job 矩阵；纯文档改动被 paths-ignore 跳过）:
+代码变更 → CI 触发（9 job 矩阵；纯文档改动被 paths-ignore 跳过）:
   ├─ lint-typescript (ubuntu): pnpm install → oxlint → vue-tsc → vitest
   ├─ e2e-nas-webui (ubuntu): build:nas → release limedl-server → Playwright (nas-webui)
-  ├─ check-windows (windows): clippy --workspace -D warnings → core test → server --features tls
-  ├─ test-windows-native (windows): server test → limedl-native test
-  ├─ check-macos (macOS-14): clippy → core test → server test
+  ├─ check-windows (windows): clippy --workspace -D warnings → server --features tls
+  ├─ test-windows-core (windows): limedl-core 测试（nextest）
+  ├─ test-windows-native (windows): server 测试 → limedl-native 测试（nextest）
+  ├─ check-macos (macOS-14): clippy → core 测试 → server 测试（nextest）
   ├─ check-rust (ubuntu): clippy → ts-rs freshness check → per-crate coverage
   ├─ bench-rust: cargo bench (aimd + rate_limiter)
   └─ supply-chain: cargo deny check + cargo audit
 ```
 
-Windows 拆成两个并行 job 是因为它是最慢的平台（CI 关键路径）：`cargo clippy` 只做
-check、无法与测试构建共享产物，串行只会累加墙钟时间；两组步骤按实测耗时配平
-（clippy+core+tls ≈ server+native）。同一 ref 的旧 run 由 `concurrency` 直接取消。
+Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clippy` 只做 check、无法与测试
+构建共享产物，串行只会累加墙钟时间。实测单步耗时：clippy ≈ 2.7 min、limedl-core 测试
+≈ 2.6 min、server + native 测试 ≈ 5.8 min；拆开后 Windows 关键路径从 ~6.3 min 降到
+~5.8 min，整条流水线的瓶颈随之变成 macOS（≈ 6.9 min）。同一 ref 的旧 run 由
+`concurrency` 直接取消。
 
 ### CI 缓存 / RUSTFLAGS 约定
 
@@ -54,6 +57,25 @@ check、无法与测试构建共享产物，串行只会累加墙钟时间；两
 - 桌面 release 构建的缓存由 `.github/workflows/warm-release-cache.yml` 在 main 上预热，
   与 `release.yml` 的 `build-native` 共用同一 key（`add-job-id-key: false`）；
   NAS 构建的 WebUI 由 `release.yml` 的 `build-frontend` 构建一次后用 artifact 分发。
+
+### CI 测试执行 / 构建速度
+
+- **Rust 测试统一用 `cargo nextest`**（由 `taiki-e/install-action` 安装，版本在 workflow 里
+  pin）：nextest 为每个测试启动独立进程，既并行执行，也消除了 libtest 单进程共享全局状态
+  带来的兄弟测试互扰（历史上需要“一个测试独占一个文件”的 workaround）。注意
+  `cargo nextest run` **不执行 doctest** —— 目前 workspace 没有 doctest；若将来新增，
+  需在 `check-rust` 补一个 `cargo test --doc` 步骤。覆盖率 job 仍走 `cargo llvm-cov`。
+- **`[profile.test] debug = false`**（根 `Cargo.toml`）：CI 每个 job 都要编译并链接测试二进制，
+  而依赖早已通过 `[profile.dev.package."*"]` 跳过 debug info（`cargo test --no-run -v` 可见
+  `-C strip=debuginfo`，且该 override 会被 `test` profile 继承），workspace 自己 crate 的
+  line tables 只剩开销。实测仅重建 `limedl-core` 测试目标：`debug = false` 5.9 s，
+  保留 line tables 15.6 s。本地要断点/行号：`cargo test --profile dev`；覆盖率的
+  `cargo llvm-cov --profile dev` 也是为了 lcov 的行号归属。release 产物用的是独立 profile，
+  不受影响。
+- **Windows job 排除 Defender 实时扫描**（`Add-MpPreference -ExclusionPath`，best-effort、
+  失败不挂 job）：Defender 会逐个扫描 cargo 写入 `target/` 的多 GB 文件，是 Windows 相对
+  Linux 的主要惩罚项。新增 Windows 步骤时不要导出 `RUSTFLAGS`/`CARGO*`/`CC*`/`CMAKE*`
+  环境变量，否则会分裂 rust-cache key（同上文约定）。
 
 ## 设计决策与约定
 

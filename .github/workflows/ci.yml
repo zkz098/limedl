@@ -53,6 +53,21 @@ concurrency:
 # duplicate ICU symbols (`ubrk_getLocaleByType`, fixed by /FORCE:MULTIPLE) — so
 # `test-windows-native` keeps its build warnings visible but not fatal, and the
 # workspace clippy in `check-windows` remains the Windows lint gate.
+#
+# Windows-only steps (every Windows job):
+# - Windows Defender's real-time scanner inspects every file cargo writes into
+#   target/ (multi-GB per run) and is the dominant Windows-vs-Linux penalty we
+#   can remove for free. The exclusions are best-effort — a runner policy change
+#   must not fail the job — so failures are swallowed and only the resulting
+#   protection state is logged.
+#
+# Test execution:
+# - Tests run under `cargo nextest` (pinned through taiki-e/install-action):
+#   nextest executes each test in its own process, which parallelizes execution
+#   and removes the cross-test global-state interference a single libtest
+#   process per binary used to expose (see testing-guide.md). `cargo nextest run`
+#   does not run doctests — the workspace has none today; if a doctest is ever
+#   added, add a `cargo test --doc` step to check-rust.
 # ═══════════════════════════════════════════════════════════════════════════
 
 jobs:
@@ -146,20 +161,35 @@ jobs:
           if-no-files-found: warn
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Windows — two parallel jobs instead of one serial chain.
+  # Windows — three parallel jobs instead of one serial chain.
   #
   # Windows is the slowest platform and therefore CI's critical path. clippy is
   # check-only and cannot share artifacts with the test builds, so running it in
-  # the same job only serialized the wall clock; the two jobs split the measured
-  # step times evenly (clippy + core tests + tls check | server + native tests).
+  # the same job only serialized the wall clock. The jobs are split so that
+  # clippy + the tls check, the limedl-core tests, and the server + native tests
+  # each run in parallel (measured steps: ~2.7 min clippy, ~2.6 min core tests,
+  # ~5.8 min server + native tests).
   # ═══════════════════════════════════════════════════════════════════════
   check-windows:
-    name: Check, Clippy & Test (Windows)
+    name: Check & Clippy (Windows)
     runs-on: windows-latest
     env:
       CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # Windows Defender's real-time scanner inspects every file cargo writes
+      # into target/ (multi-GB per run) — the dominant Windows-vs-Linux penalty
+      # we can remove for free. Best-effort: a runner policy change must not fail
+      # the job, so failures are swallowed and only the resulting state is logged.
+      - name: Exclude build paths from Defender real-time scanning
+        shell: pwsh
+        run: |
+          foreach ($path in @($env:GITHUB_WORKSPACE, "$env:USERPROFILE\.cargo", $env:RUNNER_TEMP)) {
+            Add-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
+          }
+          if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
+            Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
+          }
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
@@ -181,10 +211,42 @@ jobs:
       # Windows-only cfg code (`tray`, updater, winreg, file locking) is linted
       # here and nowhere else, so this stays a full workspace clippy.
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      # Windows tests: core + server are pure Rust logic (no GUI dep).
-      - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
+      # limedl-core tests live in the standalone `test-windows-core` job below:
+      # clippy and test builds share no artifacts, so serializing them only added
+      # the test step's wall clock to this job.
       # Verify the optional `tls` feature compiles — CI otherwise never exercises it.
       - run: cargo check --manifest-path crates/limedl-server/Cargo.toml --features tls
+
+  test-windows-core:
+    name: "Test (Windows: limedl-core)"
+    runs-on: windows-latest
+    env:
+      CARGO_BUILD_WARNINGS: deny
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Exclude build paths from Defender real-time scanning
+        shell: pwsh
+        run: |
+          foreach ($path in @($env:GITHUB_WORKSPACE, "$env:USERPROFILE\.cargo", $env:RUNNER_TEMP)) {
+            Add-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
+          }
+          if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
+            Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
+          }
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: nextest@0.9.144
+      # The Windows branches of limedl-core (platform.rs, settings.rs,
+      # file_ops/{mod,disk_detect}.rs) only run here — check-rust covers the same
+      # test suite on Linux, but compiles the unix branches. Deliberately no
+      # MiSans font step: `-p limedl-core` never builds the UI crate.
+      - run: cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 
   test-windows-native:
     name: "Test (Windows: server + limedl-native)"
@@ -195,12 +257,24 @@ jobs:
     # warnings gate for this job is `check-windows`' workspace clippy.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Exclude build paths from Defender real-time scanning
+        shell: pwsh
+        run: |
+          foreach ($path in @($env:GITHUB_WORKSPACE, "$env:USERPROFILE\.cargo", $env:RUNNER_TEMP)) {
+            Add-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
+          }
+          if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
+            Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
+          }
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: nextest@0.9.144
       - name: Cache bundled MiSans VF font
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -209,11 +283,11 @@ jobs:
       - name: Fetch bundled MiSans VF font
         shell: pwsh
         run: ./scripts/fetch-misans.ps1
-      - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
+      - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
       # limedl-native: pure logic tests (UI form mapping, i18n, batching, updater
       # manifest parsing). Only Windows runs them because the crate is currently
       # only released for Windows.
-      - run: cargo test --manifest-path crates/limedl-native/Cargo.toml
+      - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 
   check-macos:
     name: Check & Test (macOS)
@@ -229,6 +303,9 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: nextest@0.9.144
       # macOS ships WebKit natively — no apt install needed.
       # limedl-native embeds MiSans VF at compile time; the font is not in git
       # (MiSans font license) — fetch it from the official source first. Cached so
@@ -247,8 +324,8 @@ jobs:
       # All tests in these crates are pure Rust logic tests that
       # do not require a display server.
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
-      - run: cargo test --manifest-path crates/limedl-server/Cargo.toml
+      - run: cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
+      - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 
   check-rust:
     name: Check, Clippy & Test (Rust)
@@ -286,8 +363,10 @@ jobs:
           git diff --exit-code src/types/generated/ src/lib/ws/generated/
       - name: Run tests with coverage
         run: |
-          cargo llvm-cov --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info
-          cargo llvm-cov --manifest-path crates/limedl-server/Cargo.toml --lcov --output-path lcov-server.info
+          # `--profile dev` keeps line tables for source attribution: the test
+          # profile drops debug info (see Cargo.toml) to cut CI link time.
+          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info
+          cargo llvm-cov --profile dev --manifest-path crates/limedl-server/Cargo.toml --lcov --output-path lcov-server.info
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

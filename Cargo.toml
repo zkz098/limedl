@@ -93,3 +93,11 @@ debug = false # Skip debug info for dependencies
 
 [profile.test]
 inherits = "dev" # Use dev profile settings
+# CI runs the whole suite on every push (Windows lint/test jobs, macOS, Linux
+# coverage): the workspace crates' own line tables are pure link-time and disk
+# overhead there. Dependencies already skip debug info via
+# `[profile.dev.package."*"]`, which this profile inherits (verified with
+# `cargo test --no-run -v`: dependencies are compiled with
+# `-C strip=debuginfo`). Release artifacts use a separate profile and are
+# unaffected. Local debugging: `cargo test --profile dev` (line tables kept).
+debug = false
