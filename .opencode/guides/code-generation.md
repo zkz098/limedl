@@ -26,6 +26,14 @@ Output:
 
 CI verifies freshness: `git diff --exit-code src/types/generated/ src/lib/ws/generated/`
 
+> ⚠️ The generated files must stay **exactly as the generator wrote them**. They are
+> listed in `oxfmt.config.ts`'s `ignorePatterns`, because `pnpm run format` used to
+> reformat them (commit `d0cb65a`), which silently desynchronised them from the
+> generator output and left the freshness gate red on every run — the committed
+> bytes are what `check-rust` compares against, not their formatted equivalent.
+> If a formatter run touches them anyway, revert those files instead of formatting
+> them again.
+
 ---
 
 ## TS type generation (ts-rs)
