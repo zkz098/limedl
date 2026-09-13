@@ -42,7 +42,7 @@ concurrency:
 
 jobs:
   warm-native:
-    name: Warm desktop release cache (windows-x86_64)
+    name: Warm cache (windows-x86_64)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

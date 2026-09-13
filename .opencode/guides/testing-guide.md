@@ -18,15 +18,15 @@
 
 ```
 代码变更 → CI 触发（9 job 矩阵；纯文档改动被 paths-ignore 跳过）:
-  ├─ lint-typescript (ubuntu): pnpm install → oxlint → vue-tsc → vitest
-  ├─ e2e-nas-webui (ubuntu): build:nas → release limedl-server → Playwright (nas-webui)
-  ├─ check-windows (windows): clippy --workspace -D warnings → server --features tls
-  ├─ test-windows-core (windows): limedl-core 测试（nextest）
-  ├─ test-windows-native (windows): server 测试 → limedl-native 测试（nextest）
-  ├─ check-macos (macOS-14): clippy → core 测试 → server 测试（nextest）
-  ├─ check-rust (ubuntu): clippy → ts-rs freshness check → per-crate coverage
-  ├─ bench-rust: cargo bench (aimd + rate_limiter)
-  └─ supply-chain: cargo deny check + cargo audit
+  ├─ lint-typescript (Linux): pnpm install → oxlint → vue-tsc → vitest（含覆盖率）
+  ├─ e2e-nas-webui (Linux): build:nas → release limedl-server → Playwright (WebUI)
+  ├─ check-windows (Windows): clippy --workspace -D warnings → server --features tls
+  ├─ test-windows-core (Windows): limedl-core 测试（nextest）
+  ├─ test-windows-native (Windows): limedl-server 测试 → limedl-native 测试（nextest）
+  ├─ check-macos (macOS): clippy → core 测试 → server 测试（nextest）
+  ├─ check-rust (Linux): clippy → ts-rs freshness check → per-crate coverage
+  ├─ bench-rust (Linux): cargo bench (aimd + rate_limiter)
+  └─ supply-chain (Linux): cargo deny check + cargo audit
 ```
 
 Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clippy` 只做 check、无法与测试
@@ -34,6 +34,21 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 ≈ 2.6 min、server + native 测试 ≈ 5.8 min；拆开后 Windows 关键路径从 ~6.3 min 降到
 ~5.8 min，整条流水线的瓶颈随之变成 macOS（≈ 6.9 min）。同一 ref 的旧 run 由
 `concurrency` 直接取消。
+
+### CI job 命名规范
+
+`name:`（GitHub UI 与 check 名）统一为 `<范围/动作> (<平台>[, 细节])`：
+
+- 平台永远是最后一个括号里的**第一个 token**，取值限定 `Linux` / `macOS` / `Windows` /
+  `WebUI` / `NAS` / `windows-x86_64`（不要用工具名当平台，例如旧名里的 “Rust” 其实是
+  ubuntu 上的 job）。
+- 动作词汇限定：Lint / Types / Unit tests / E2E / Clippy / Tests / Coverage /
+  Benchmarks / Supply chain / Release notes / Bundle / Warm cache / Sign & guard。
+- **不要在 `name:` 里写 `: `**：YAML 中值里出现 `": "` 必须加引号，历史上已因此解析
+  失败一次；子限定用逗号（`Tests (Windows, limedl-core)`）。
+- 名字要覆盖该 job 的**主要步骤**（多件事就都写进去或拆 job）——`Clippy, codegen &
+  coverage (Linux)` 就是修正旧名 “Check, Clippy & Test (Rust)” 漏报的 ts-rs 校验与覆盖率。
+- **job id 不随显示名变化**，保持稳定，便于 `needs:`、`gh run view` 与文档引用。
 
 ### CI 缓存 / RUSTFLAGS 约定
 

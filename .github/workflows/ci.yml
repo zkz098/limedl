@@ -72,7 +72,7 @@ concurrency:
 
 jobs:
   lint-typescript:
-    name: Lint & Type-check (Frontend)
+    name: Lint, types & unit tests (WebUI)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -92,7 +92,7 @@ jobs:
       - run: pnpm run test:coverage
 
   e2e-nas-webui:
-    name: E2E (nas-webui Chromium)
+    name: E2E (WebUI, Chromium)
     runs-on: ubuntu-latest
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -171,7 +171,7 @@ jobs:
   # ~5.8 min server + native tests).
   # ═══════════════════════════════════════════════════════════════════════
   check-windows:
-    name: Check & Clippy (Windows)
+    name: Clippy (Windows)
     runs-on: windows-latest
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -218,7 +218,7 @@ jobs:
       - run: cargo check --manifest-path crates/limedl-server/Cargo.toml --features tls
 
   test-windows-core:
-    name: "Test (Windows: limedl-core)"
+    name: Tests (Windows, limedl-core)
     runs-on: windows-latest
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -249,7 +249,7 @@ jobs:
       - run: cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 
   test-windows-native:
-    name: "Test (Windows: server + limedl-native)"
+    name: Tests (Windows, limedl-server + limedl-native)
     runs-on: windows-latest
     # No `CARGO_BUILD_WARNINGS: deny` here (unlike every other Rust job): linking
     # the Skia-based binary with rust-lld warns about Skia's duplicate ICU
@@ -290,7 +290,7 @@ jobs:
       - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 
   check-macos:
-    name: Check & Test (macOS)
+    name: Clippy & tests (macOS)
     runs-on: macos-14
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -328,7 +328,7 @@ jobs:
       - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 
   check-rust:
-    name: Check, Clippy & Test (Rust)
+    name: Clippy, codegen & coverage (Linux)
     runs-on: ubuntu-latest
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -376,7 +376,7 @@ jobs:
           if-no-files-found: warn
 
   bench-rust:
-    name: Benchmark (Rust)
+    name: Benchmarks (Linux)
     runs-on: ubuntu-latest
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -438,7 +438,7 @@ jobs:
           path: criterion-baseline/report/
 
   supply-chain:
-    name: Supply Chain (cargo-deny + cargo-audit)
+    name: Supply chain (cargo-deny, cargo-audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

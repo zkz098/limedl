@@ -33,7 +33,7 @@ jobs:
   # The body is exposed as a job output consumed by the upload steps below.
   # ═══════════════════════════════════════════════════════════════════════
   changelog:
-    name: Generate release notes
+    name: Release notes
     runs-on: ubuntu-latest
     outputs:
       body: ${{ steps.changelog.outputs.body }}
@@ -84,7 +84,7 @@ jobs:
   # and Vite time by four.
   # ═══════════════════════════════════════════════════════════════════════
   build-frontend:
-    name: Build WebUI (NAS)
+    name: WebUI bundle (NAS)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -119,7 +119,7 @@ jobs:
   # key so the self-updater (latest-native.json) can verify downloads.
   # ═══════════════════════════════════════════════════════════════════════
   build-native:
-    name: Desktop (Slint) windows-x86_64
+    name: Desktop app (windows-x86_64)
     runs-on: windows-latest
     needs: changelog
     permissions:
@@ -339,7 +339,7 @@ jobs:
   # NAS Server — single binary with embedded frontend
   # ═══════════════════════════════════════════════════════════════════════
   build-nas:
-    name: NAS ${{ matrix.name }}
+    name: NAS binary (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     needs: [changelog, build-frontend]
     permissions:
