@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Info.plist template for the limedl-native macOS app bundle.
+
+  scripts/package-macos.sh substitutes __VERSION__ (the release tag without the
+  leading `v`) and writes the result to <bundle>/Contents/Info.plist.
+
+  Notes that constrain the values below:
+  - CFBundleIdentifier must stay `com.zkz20.limedl`: it is the LaunchAgent label
+    written by crates/limedl-native/src/autostart.rs (macos_impl::plist_path) and
+    the Tauri data directory the first-run migration imports from
+    (crates/limedl-native/src/migrate.rs). Changing it splits user data.
+  - CFBundleExecutable must stay `limedl-native`: the release tarball member is
+    matched by file name in update.rs (extract_executable), and the updater
+    re-signs the bundle containing the running executable after replacing it.
+  - LSUIElement/NSPrincipalClass: the app is a normal windowed app (it has a
+    tray icon AND a main window), not a background-only agent.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>limedl</string>
+    <key>CFBundleExecutable</key>
+    <string>limedl-native</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.zkz20.limedl</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>limedl</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundleVersion</key>
+    <string>__VERSION__</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright (c) 2026 zkz098</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+</dict>
+</plist>

@@ -18,7 +18,7 @@ Tauri/Vue desktop shell was retired).
 | `src/update.rs`          | minisign 校验的多通道自更新（见 `subsystem-self-update.md`）                                                                                           |
 | `src/autostart.rs`       | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent）                                                                                 |
 | `src/single_instance.rs` | 单实例（Win mutex + WM_COPYDATA；其他平台回环 TCP）                                                                                                    |
-| `src/platform_win.rs`    | Win32 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ OS 描述文案                                                                                         |
+| `src/platform_win.rs`    | 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ 窗口几何持久化（全平台）+ OS 描述文案                                                                        |
 | `src/protocol.rs`        | `magnet:` / `limedl://` 协议注册（HKCU）                                                                                                               |
 | `src/power.rs`           | 下载中抑制系统休眠                                                                                                                                     |
 | `ui/appwindow.slint`     | 主窗口：侧边栏、工具栏、卡片/表格、所有弹层                                                                                                            |
@@ -55,6 +55,17 @@ UI 事件（callback）
 - 规则：只拷贝不移动；已存在的目标文件绝不覆盖；进度记录在 `<base_dir>/.migrated-from-tauri.json`（部分失败下次重试）。
 - **启动安全网**：拷贝后校验 `settings.json` 可解析、`downloads.db` 可被 `limedl_core::database::Database::open` 打开；不合格的文件会被隔离为 `*.rejected-<ts>` 并以默认值启动，避免迁移反而把应用钉死在启动失败。
 
+## 窗口几何持久化（全平台）
+
+`platform_win.rs` 承担了 `WindowGeometry`（位置/尺寸/最大化）的存取，两条实现路径：
+
+- **Windows**：`GetWindowPlacement` / `SetWindowPos` + `MonitorFromRect`。选 Win32 是因为它能拿到*未最大化*时的尺寸，并能用真实显示器列表判断保存的矩形是否还在屏内。恢复时若矩形不在任何显示器上，会调用 `center_window_on_monitor` 居中。
+- **macOS / Linux**：走 Slint 自己的 `Window::position` / `set_position` / `size` / `set_size` / `is_maximized` / `set_maximized`（winit 后端）。Slint 不暴露显示器几何，因此无法居中，也没有 `MonitorFromRect` 这类判断——改用 `MAX_PLAUSIBLE_COORD`（±20000 物理像素）启发式：真实多显示器布局不会超出这个范围，而残留在已断开显示器上的坐标会，于是被判定为过期并放弃恢复，交给窗口管理器放置。
+- 单位统一为**物理像素**，与 `Window::position()` 的返回值和 Win32 的 `RECT` 一致。
+- 调用点在 `main.rs` 中**位于 `#[cfg(windows)]` 块之外**，独立于 Win32 窗口钩子：钩子在非 Windows 上永远挂载失败（返回 `false`），早期把恢复逻辑放在钩子成功分支里会导致 macOS/Linux 每次启动都是默认尺寸和位置。
+- **重试**：Slint 的 OS 窗口在事件循环启动后才创建，因此 `apply_restored_window_placement` 返回 `bool`（是否已应用），由 `main.rs` 的 `schedule_window_placement_restore` 用 250ms 定时器重试。Windows 在句柄未就绪时返回 `false`；其他平台在“已请求最大化但窗口还没真的最大化”时返回 `false`（winit 会丢弃窗口显示前发出的请求）。这个定时器也是 `--hidden` 托盘启动能恢复位置的原因——那条路径永远不 `show()`。
+- 已最大化且位置已生效时立即返回 `true`（不再重试），避免与用户手动取消最大化相互打架。
+- 保存时机：Windows 由子类化过程在 `WM_EXITSIZEMOVE` / `WM_SIZE` 触发；其他平台只在正常退出（关闭请求 / 事件循环返回后）调用 `save_current_window_geometry`。
 ## 静默启动与关闭行为
 
 - 自启注册（Windows `Run` / Linux `.desktop` / macOS LaunchAgent）统一附加 `--hidden`；`autostart::sync_from_settings` 会在路径过期时自动重写注册（`registered_for_current_exe`）。
@@ -64,18 +75,30 @@ UI 事件（callback）
 - 关闭行为由 `Window::on_close_requested` 显式实现：`close_behavior = minimizeToTray` → `hide()`；`exit` → `quit_event_loop()`。
 - 窗口钩子（拖拽/WM_COPYDATA）在窗口首次显示后才可能安装成功，因此采用 250ms 定时重试直到成功（隐藏启动期间会持续重试）。
 
-## 构建依赖：rfd 对话框后端固定为 gtk3
+## 构建依赖：rfd 对话框后端为 xdg-portal
 
-`rfd` 只允许 `gtk3` 与 `xdg-portal` 二选一，两个都打开时其 `build.rs` 直接 panic（`You can't enable both`）。当前 workspace 固定为：
+`rfd` 只允许 `gtk3` 与 `xdg-portal` 二选一，两个都打开时其 `build.rs` 直接 panic（`You can't enable both`）。当前固定为：
 
 ```toml
-rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
+rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
 ```
 
-- 历史原因：已删除的 `src-tauri` 通过 `tauri-plugin-dialog` 默认打开 `rfd/gtk3`，而 Cargo 在整包构建（`cargo clippy --workspace --all-targets`、`cargo llvm-cov`、`cargo test --workspace`）时统一 feature，所以本 crate 当时必须显式跟随同一个后端，否则会同时启用 `gtk3` 与 `xdg-portal` 而 panic。
-- **该约束已解除**：现在可以把 workspace 里唯一启用 `rfd` 的 crate 改成 `xdg-portal` 后端（`default-features = false, features = ["xdg-portal"]`，需要运行时存在 portal 服务），或者保留 gtk3；两种选择都不要让两个 feature 同时生效。
+- 历史原因：已删除的 `src-tauri` 通过 `tauri-plugin-dialog` 默认打开 `rfd/gtk3`，Cargo 在整包构建时统一 feature，所以本 crate 当时必须跟随同一后端。**该约束已解除**，现在是主动选择 `xdg-portal`。
+- 选它的理由：去掉**构建期** GTK 依赖。`gtk3` 需要 `libgtk-3-dev` + `pkg-config`（`gtk-sys` 走 pkg-config）；`xdg-portal` 只通过 D-Bus 与 `xdg-desktop-portal` 通信（ashpd/zbus，纯 Rust），并在 Wayland 及 Flatpak/Snap 沙箱里给出正确的原生文件选择器。
+- 运行时特征：需要一个运行中的 portal 服务（GNOME/KDE/XFCE 默认自带 `xdg-desktop-portal-*-gtk`）。裸 X11、无 portal 的环境会直接报 portal 错误——没有 GTK 构建的二进制无法退回 GTK 对话框。
+- **不需要**额外的 runtime feature：rfd 通过 `pollster::block_on` 驱动 ashpd，而 ashpd 的默认 feature 就是 `tokio`。
 - 这些 feature 只在 Linux 生效（gtk/ashpd 依赖都声明在 Linux 的 `target.'cfg(...)'.dependencies` 下），Windows/macOS 的依赖图与行为不变。
-- `gtk3` 后端在 Linux 上需要 `libgtk-3-dev`（`gtk-sys` 走 pkg-config；CI 的 Rust 作业已安装）。对话框由 `rfd` 自建的 GTK 线程（`gtk_init_check` + `gtk_main_iteration`）驱动，不要求宿主已有 GTK 主循环，Slint 应用可直接用 `AsyncFileDialog`。
+
+注意：**托盘**仍需 GTK 构建依赖。`tray-icon` 在 Linux 上默认启用 `gtk` feature（→ `gtk` + `libappindicator`，dlopen 调用 appindicator 库），所以 Linux 构建 / CI 仍需 `libgtk-3-dev`；去掉的是 rfd 带来的那一份，不是全部。
+
+## Linux 桌面版
+
+- 仓库：`x86_64-unknown-linux-gnu`（`.cargo/config.toml` 已把该 target 定为 `x86-64-v3`，与 Windows 桌面一致，需 2013+ CPU）。选 gnu 而非 musl：Slint/Skia 已经链接系统库（GL/X11/Wayland、托盘 appindicator），静态 musl 买不到可移植性。代价是 glibc 下限 —— 构建机是 `ubuntu-latest`，因此二进制需要 glibc >= 2.39（Ubuntu 24.04+）。
+- 发布产物：`limedl-native-v{V}-linux-x86_64-portable.tar.gz`，由 `scripts/package-linux.sh` 生成，含唯一顶层目录 `limedl-native/`（二进制 + README），避免用户解压时把文件撒到当前目录。
+- 运行时托盘依赖：缺失 appindicator 时 `TrayIconBuilder::build()` 会失败，而托盘是唯一常驻 UI（关闭到托盘、`--hidden` 自启都落在它上面），因此不降级而是报错退出，并在 `tray_init_failure_message` 中给出 apt/dnf/pacman 包名。
+- 自启：`~/.config/autostart/limedl-native.desktop`（XDG），带 `--hidden`。
+- 单实例：回环 TCP（`open:`/`show` 协议），文件管理器打开走 `xdg-open`。
+- 休眠抑制仍是空实现（`power.rs` 在非 Windows 不做任何事）—— 即 Linux/macOS 上不会阻止系统休眠。
 
 ## 测试
 

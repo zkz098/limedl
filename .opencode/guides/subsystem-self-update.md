@@ -30,17 +30,19 @@ contains a migration notice (keeping `latest.json` alive for that one version).
 
 ## Distribution channels
 
-| Channel                        | Artifact                                         | Update path                                                     |
-| ------------------------------ | ------------------------------------------------ | --------------------------------------------------------------- |
-| **Portable** (zip, single exe) | `limedl-native-v{V}-windows-x86_64-portable.zip` | In-app: download → minisign verify → `self_replace` → relaunch  |
-| **Installer** (NSIS, per-user) | `limedl-native-v{V}-windows-x86_64-setup.exe`    | In-app: download → verify → spawn `setup.exe /P /R` → app exits |
-| **Microsoft Store** (MSIX)     | `limedl-native-v{V}-windows-x86_64.msix`         | OS-managed; in-app check via `StoreContext` (`update::store`)   |
+| Channel                        | Artifact                                          | Update path                                                    |
+| ------------------------------ | ------------------------------------------------- | -------------------------------------------------------------- |
+| **Portable** (zip, single exe) | `limedl-native-v{V}-windows-x86_64-portable.zip`  | In-app: download → minisign verify → `self_replace` → relaunch  |
+| **Installer** (NSIS, per-user) | `limedl-native-v{V}-windows-x86_64-setup.exe`     | In-app: download → verify → spawn `setup.exe /P /R` → app exits |
+| **Microsoft Store** (MSIX)     | `limedl-native-v{V}-windows-x86_64.msix`          | OS-managed; in-app check via `StoreContext` (`update::store`)   |
+| **macOS bundle** (tar.gz)      | `limedl-native-v{V}-darwin-aarch64-portable.tar.gz` | In-app: download → verify → `self_replace` inside the `.app` → ad-hoc re-sign → relaunch |
+| **Linux** (tar.gz)             | `limedl-native-v{V}-linux-x86_64-portable.tar.gz` | In-app: download → verify → `self_replace` → relaunch. Fails with a readable error when the install directory is not user-writable (e.g. `/usr/local/bin`) |
 
 Channel detection (`update::detect_install_kind`, runs once at startup):
 
 1. `Package::Current()` succeeds → **Store** (package identity present).
 2. `HKCU\...\Uninstall\limedl-native` exists → **Installer** (written by NSIS).
-3. Otherwise → **Portable**.
+3. Otherwise → **Portable** (also what every non-Windows build reports).
 
 ## Update manifest
 
@@ -58,10 +60,21 @@ them):
 {
   "version": "0.3.0",
   "notes": "...",
-  "pub_date": "...",
   "platforms": {
     "windows-x86_64": { "kind": "installer", "url": "...", "signature": "<b64>", "sha256": "..." },
     "windows-x86_64-portable": {
+      "kind": "portable",
+      "url": "...",
+      "signature": "<b64>",
+      "sha256": "..."
+    },
+    "darwin-aarch64-portable": {
+      "kind": "portable",
+      "url": "...",
+      "signature": "<b64>",
+      "sha256": "..."
+    },
+    "linux-x86_64-portable": {
       "kind": "portable",
       "url": "...",
       "signature": "<b64>",
@@ -72,11 +85,20 @@ them):
 ```
 
 Platform key = `{os}-{arch}` (installer) / `{os}-{arch}-portable`; see
-`update::manifest_key`. The asset `kind` is validated against the detected
+`update::manifest_key`. `{os}` is the Rust `std::env::consts::OS` spelling with
+macOS mapped to `darwin` (`update::platform_base`), so the keys are
+`windows-x86_64`, `windows-x86_64-portable`, `darwin-aarch64-portable` and
+`linux-x86_64-portable`. The asset `kind` is validated against the detected
 channel at check time, and every asset `url` must be a GitHub release download
 of this repo for the advertised version (`update::validate_asset_url`) — the
 manifest is signed, so this is a second line of defence against a bad manifest
 making clients download unrelated bytes.
+
+The generator (`scripts/gen-native-manifest.ps1`) is platform-agnostic: it takes
+an `-AssetsJson` map of `key → { kind, path }` and never hardcodes a platform.
+The `native-manifest` job in release.yml builds that map from the artifacts the
+platform legs actually produced, so a skipped leg removes its keys instead of
+advertising a URL that 404s.
 
 ## Signature chain
 
@@ -147,6 +169,46 @@ matches the client, without cutting a release.
 - Phase machine: `idle → checking → up-to-date | available → downloading →
 ready (portable) | error`. Installer channel ends at `InstallerLaunched` and
   the process exits so NSIS can replace the binary and relaunch.
+
+## macOS specifics
+
+- The release artifact is a `.app` bundle in a tar.gz
+  (`scripts/package-macos.sh`), not a bare binary: a loose Mach-O gets no Dock
+  tile, never becomes the active `NSApplication`, and cannot own a status item.
+  The updater therefore finds the *nested* member
+  (`limedl.app/Contents/MacOS/limedl-native`) — `extract_executable` matches by
+  file name, covered by the `targz_member_is_found_inside_an_app_bundle` test.
+- Signing is ad-hoc (`codesign --sign -`). Replacing the executable invalidates
+  the bundle's signature, so `install_via_self_replace` re-runs ad-hoc codesign
+  on the containing `.app` (`resign_macos_bundle_after_replace`) before the
+  relaunch — skipping it leaves an app macOS refuses to start.
+- Not notarized: the release job has no Apple Developer identity. A copy
+  downloaded through a browser carries `com.apple.quarantine` and needs
+  right-click → Open on first launch. Re-signing ad-hoc does **not** clear the
+  quarantine bit, so an in-app update can prompt for the same approval once.
+  Adding a Developer ID identity later means setting `SIGN_IDENTITY`
+  (`scripts/package-macos.sh`) plus a notarytool step; no client change is needed.
+- `/Applications` is not user-writable, so an in-place update there fails. The
+  `self_replace` error is wrapped with that explanation instead of surfacing a
+  bare `PermissionDenied`.
+- The bundle is aarch64 only (`darwin-aarch64-portable`). An Intel leg is a new
+  `darwin-x86_64-portable` key plus a `macos-13` job; the client needs no
+  change because `platform_base()` derives the arch from `consts::ARCH`.
+
+## Linux specifics
+
+- `linux-x86_64-portable` ships a tar.gz with one top-level directory
+  (`limedl-native/limedl-native` + README). The updater matches the member by
+  file name, so the nesting is transparent — same code path as macOS, minus the
+  signing step (ELF binaries carry no code signature to keep valid).
+- The tarball is built for `x86_64-unknown-linux-gnu` with `target-cpu=x86-64-v3`
+  (`.cargo/config.toml`), i.e. glibc >= 2.39 and a 2013+ CPU.
+- An in-place update fails when the binary lives in a root-owned directory
+  (`/usr/local/bin`, `/opt`): `self_replace` renames over the target and needs a
+  writable parent. The error is wrapped with that explanation so the user knows
+  to reinstall under `~/.local/bin` or update manually.
+- No `linux-aarch64` key yet. Adding one is a new matrix leg plus the
+  `linux-aarch64-portable` key; nothing in the client changes.
 
 ## Windows specifics
 

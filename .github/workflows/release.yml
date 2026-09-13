@@ -6,14 +6,18 @@ name: Release
 # a failure once a newer release exists; see the migration notes in
 # .opencode/guides/subsystem-self-update.md.
 #
-# Windows is currently the only desktop channel: macOS/Linux users are served by
-# the NAS build (`limedl-server` + the bundled WebUI) until native packaging for
-# those platforms exists.
+# Desktop channels: Windows (NSIS installer + portable zip + MSIX), macOS
+# (ad-hoc-signed, un-notarized `.app` in a tar.gz) and Linux (binary in a tar.gz).
+# They are handled by `build-native` / `build-native-macos` / `build-native-linux`,
+# which upload their artifacts, and then `native-manifest` merges them into the
+# single signed `latest-native.json` the clients poll. The merge is a separate job
+# because the manifest is one file: letting each platform job generate it would
+# make the last job to finish overwrite the other platforms' entries.
 #
 # Speed notes:
 # - Caching follows ci.yml's contract (`cache: false` on setup-rust-toolchain
 #   because it caches internally, `rustflags: ""` so `.cargo/config.toml` drives
-#   the build). The desktop job reuses the `release-native-windows-x86_64`
+#   the build). The Windows desktop job reuses the `release-native-windows-x86_64`
 #   rust-cache entry that `.github/workflows/warm-release-cache.yml` keeps warm on
 #   main; without it this job was a cold 16-minute Slint/Skia rebuild.
 # - The WebUI is built once in `build-frontend` and shared with all four NAS legs
@@ -114,9 +118,10 @@ jobs:
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Desktop (Slint) — the only desktop channel: portable zip + NSIS installer
-  # + MSIX package. All artifacts are minisign-signed with the shared updater
-  # key so the self-updater (latest-native.json) can verify downloads.
+  # Desktop (Slint) — Windows: portable zip + NSIS installer + MSIX package.
+  # All artifacts are minisign-signed by the `native-manifest` job with the
+  # shared updater key, so the self-updater (latest-native.json) can verify
+  # downloads.
   # ═══════════════════════════════════════════════════════════════════════
   build-native:
     name: Desktop app (windows-x86_64)
@@ -276,62 +281,353 @@ jobs:
           MSIX_PUBLISHER: "CN=zkz098"
 
       # ── Sign + verify (minisign, in-repo tooling) ──────────────────────
-      # `sign` writes <file>.sig; `guard` re-verifies every signature and
-      # refuses to continue unless LIMEDL_SIGNING_KEY matches the PUBKEY_B64
-      # embedded in the client (a rotated secret with a stale constant would
-      # otherwise ship an app that rejects all future updates).
-      - name: Sign artifacts
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          cargo xtask sign `
-            "dist/limedl-native-v$version-windows-x86_64-setup.exe" `
-            "dist/limedl-native-v$version-windows-x86_64-portable.zip" `
-            "dist/limedl-native-v$version-windows-x86_64.msix"
-          if ($LASTEXITCODE -ne 0) { throw "signing failed" }
+      # ── Hand the binaries to `native-manifest` ──────────────────────────
+      # The manifest job can only advertise an artifact it can see, so the
+      # binaries travel between jobs as artifacts (unsigned; the minisign
+      # signatures stay a sidecar produced in the manifest job, where the
+      # signing secret lives).
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-windows-x86_64
+          path: |
+            dist/limedl-native-v*-windows-x86_64-setup.exe
+            dist/limedl-native-v*-windows-x86_64-portable.zip
+            dist/limedl-native-v*-windows-x86_64.msix
+          if-no-files-found: error
 
-      # ── Self-update manifest (signed as well) ──────────────────────────
-      - name: Generate latest-native.json
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          pwsh scripts/gen-native-manifest.ps1 `
-            -Version $version `
-            -SetupExe "dist/limedl-native-v$version-windows-x86_64-setup.exe" `
-            -PortableZip "dist/limedl-native-v$version-windows-x86_64-portable.zip" `
-            -Notes @'
-          ${{ needs.changelog.outputs.body }}
-          '@ `
-            -OutFile dist/latest-native.json
+      # Minisign signing, the self-update manifest and the release guard all run
+      # in the `native-manifest` job below — the manifest is a single file that
+      # must carry every platform's entries, so no per-platform job may write it.
 
-      - name: Sign the manifest and run the release guard
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          cargo xtask sign dist/latest-native.json
-          if ($LASTEXITCODE -ne 0) { throw "signing the manifest failed" }
-          cargo xtask guard `
-            "dist/limedl-native-v$version-windows-x86_64-setup.exe" `
-            "dist/limedl-native-v$version-windows-x86_64-portable.zip" `
-            "dist/limedl-native-v$version-windows-x86_64.msix" `
-            "dist/latest-native.json"
-          if ($LASTEXITCODE -ne 0) { throw "release guard failed" }
-
-      # ── Upload to release ──────────────────────────────────────────────
+      # ── Upload to release (Windows assets only) ────────────────────────
+      # The manifest is deliberately absent: it is produced AFTER this job, by
+      # `native-manifest`. `softprops/action-gh-release` creates the release when
+      # it does not exist yet, which is what lets the parallel desktop jobs
+      # publish their files without a serialization point.
       - name: Upload to release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           files: |
             dist/limedl-native-v*-windows-x86_64-setup.exe
-            dist/limedl-native-v*-windows-x86_64-setup.exe.sig
             dist/limedl-native-v*-windows-x86_64-portable.zip
-            dist/limedl-native-v*-windows-x86_64-portable.zip.sig
             dist/limedl-native-v*-windows-x86_64.msix
-            dist/limedl-native-v*-windows-x86_64.msix.sig
-            dist/latest-native.json
-            dist/latest-native.json.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Desktop (Slint) — macOS: ad-hoc-signed `.app` in a tar.gz.
+  #
+  # aarch64 only: `macos-latest` is an Apple-silicon runner, and the bundle is
+  # built natively there (no cross-compile). An Intel leg (`macos-13`) is a
+  # separate `darwin-x86_64-portable` manifest key when it is wanted.
+  #
+  # Not notarized by design (see scripts/package-macos.sh): no Apple Developer
+  # account is involved yet, so a browser-downloaded copy needs right-click →
+  # Open on first launch. Everything else (bundle identity, Dock tile, status
+  # item, notification attribution) works, and the self-updater re-applies the
+  # ad-hoc signature after replacing the binary (update.rs).
+  # ═══════════════════════════════════════════════════════════════════════
+  build-native-macos:
+    name: Desktop app (darwin-aarch64)
+    runs-on: macos-latest
+    needs: changelog
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      # ── Rust toolchain ─────────────────────────────────────────────────
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+
+      # Keyed per-arch so the arm64 entry never mixes objects with a future
+      # darwin-x86_64 leg (rust-cache keys on the runner arch too, but the
+      # explicit suffix keeps the intent readable).
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          key: release-native-darwin-aarch64
+          add-job-id-key: false
+
+      # ── MiSans VF (embedded at compile time; not in git) ──────────────
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-darwin-aarch64-0ddef906
+      - name: Fetch MiSans VF font
+        shell: pwsh
+        run: pwsh scripts/fetch-misans.ps1
+
+      - name: Build limedl-native
+        shell: bash
+        run: cargo build --locked --release -p limedl-native
+
+      # ── Assemble + ad-hoc sign + archive the .app bundle ───────────────
+      - name: Package app bundle
+        shell: bash
+        run: |
+          bash scripts/package-macos.sh \
+            --version "${{ steps.version.outputs.VERSION }}" \
+            --binary target/release/limedl-native \
+            --out-dir dist \
+            --icon crates/limedl-native/ui/assets/icon.png \
+            --arch aarch64
+
+      # ── Hand the bundle to `native-manifest` ───────────────────────────
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-darwin-aarch64
+          path: dist/limedl-native-v*-darwin-aarch64-portable.tar.gz
+          if-no-files-found: error
+
+      # ── Upload to release (macOS asset only — manifest is built later) ──
+      - name: Upload to release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        with:
+          files: |
+            dist/limedl-native-v*-darwin-aarch64-portable.tar.gz
+            dist/limedl-native-v*-darwin-aarch64-portable.tar.gz.sig
+          body: ${{ needs.changelog.outputs.body }}
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Desktop (Slint) — Linux: plain binary in a tar.gz.
+  #
+  # `x86_64-unknown-linux-gnu`, not musl: the Slint/Skia build already links
+  # system libraries (GL/X11/Wayland via the winit backend) and the tray pulls
+  # `libappindicator`, so a static musl build would not buy portability. The
+  # trade-off is the usual glibc floor — the runner is `ubuntu-latest`, so the
+  # binary needs glibc >= 2.39 (Ubuntu 24.04+).
+  #
+  # This is the one desktop leg that still needs GTK headers at build time: the
+  # *tray* (`tray-icon` → `gtk`/`libappindicator`) is compiled-in, and only the
+  # file dialogs were moved off GTK (`rfd` now uses `xdg-portal`).
+  # ═══════════════════════════════════════════════════════════════════════
+  build-native-linux:
+    name: Desktop app (linux-x86_64)
+    runs-on: ubuntu-latest
+    needs: changelog
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # GTK dev headers are a *build* requirement of the tray icon, not of the
+      # dialogs (rfd is on xdg-portal now). No runtime GTK is needed: the
+      # appindicator libraries are dlopen'd at runtime, per the error message in
+      # `main.rs::tray_init_failure_message`.
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          key: release-native-linux-x86_64
+          add-job-id-key: false
+
+      # ── MiSans VF (embedded at compile time; not in git) ──────────────
+      - name: Cache bundled MiSans VF font
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          key: misans-vf-linux-x86_64-0ddef906
+      - name: Fetch MiSans VF font
+        shell: pwsh
+        run: pwsh scripts/fetch-misans.ps1
+
+      - name: Build limedl-native
+        shell: bash
+        run: cargo build --locked --release -p limedl-native
+
+      - name: Package portable tarball
+        shell: bash
+        run: |
+          bash scripts/package-linux.sh \
+            --version "${{ steps.version.outputs.VERSION }}" \
+            --binary target/release/limedl-native \
+            --out-dir dist \
+            --arch x86_64
+
+      # ── Hand the tarball to `native-manifest` ─────────────────────────
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-linux-x86_64
+          path: dist/limedl-native-v*-linux-x86_64-portable.tar.gz
+          if-no-files-found: error
+
+      # ── Upload to release (Linux asset only — manifest is built later) ──
+      - name: Upload to release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        with:
+          files: |
+            dist/limedl-native-v*-linux-x86_64-portable.tar.gz
+            dist/limedl-native-v*-linux-x86_64-portable.tar.gz.sig
+          body: ${{ needs.changelog.outputs.body }}
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Native update channel — sign every desktop artifact, build the single
+  # `latest-native.json` covering all platforms, sign it, run the guard, and
+  # publish.
+  #
+  # This is the only job that writes the manifest, for the reason in the header:
+  # one file cannot be produced independently by two platform jobs without one
+  # overwriting the other (and desynchronizing it from its .sig).
+  #
+  # It runs even when a platform leg failed: a missing platform key is handled
+  # gracefully by the client (`UpdateManifest::has_assets_for` reports "no update"
+  # instead of an error), whereas skipping the manifest would break updates for
+  # the platforms that DID build. A failed leg surfaces as a red check here.
+  # ═══════════════════════════════════════════════════════════════════════
+  native-manifest:
+    name: Update manifest (native)
+    runs-on: windows-latest
+    needs: [changelog, build-native, build-native-macos, build-native-linux]
+    if: always()
+    permissions:
+      contents: write
+    env:
+      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+
+      - name: Download Windows desktop artifacts
+        if: needs.build-native.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: native-windows-x86_64
+          path: dist
+
+      - name: Download macOS desktop artifacts
+        if: needs.build-native-macos.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: native-darwin-aarch64
+          path: dist
+
+      - name: Download Linux desktop artifacts
+        if: needs.build-native-linux.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: native-linux-x86_64
+          path: dist
+
+      # ── Minisign: the update trust chain ───────────────────────────────
+      # `sign` writes <file>.sig for each artifact; `gen-native-manifest.ps1`
+      # inlines those signatures into the manifest; `guard` then re-verifies
+      # everything AND refuses to continue unless LIMEDL_SIGNING_KEY matches the
+      # PUBKEY_B64 embedded in the client (a rotated secret with a stale
+      # constant would otherwise ship an app that rejects all future updates).
+      - name: Sign artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          # Build the map of manifest key -> artifact from what actually got
+          # built, so a skipped platform leg removes its entries instead of
+          # pointing clients at a URL that 404s.
+          $assets = [ordered]@{}
+          if ($env:HAS_WINDOWS -eq 'true') {
+            $assets['windows-x86_64'] = [ordered]@{ kind = 'installer'; path = 'dist/limedl-native-v${{ steps.version.outputs.VERSION }}-windows-x86_64-setup.exe' }
+            $assets['windows-x86_64-portable'] = [ordered]@{ kind = 'portable'; path = 'dist/limedl-native-v${{ steps.version.outputs.VERSION }}-windows-x86_64-portable.zip' }
+          }
+          if ($env:HAS_MACOS -eq 'true') {
+            $assets['darwin-aarch64-portable'] = [ordered]@{ kind = 'portable'; path = 'dist/limedl-native-v${{ steps.version.outputs.VERSION }}-darwin-aarch64-portable.tar.gz' }
+          }
+          if ($env:HAS_LINUX -eq 'true') {
+            $assets['linux-x86_64-portable'] = [ordered]@{ kind = 'portable'; path = 'dist/limedl-native-v${{ steps.version.outputs.VERSION }}-linux-x86_64-portable.tar.gz' }
+          }
+          if ($assets.Count -eq 0) { throw "no desktop artifacts were downloaded — nothing to sign" }
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $assets | ConvertTo-Json -Depth 4 | Set-Content dist/native-assets.json -Encoding utf8
+          Get-Content dist/native-assets.json
+
+          $files = @($assets.Values | ForEach-Object { $_.path })
+          cargo xtask sign @files
+          if ($LASTEXITCODE -ne 0) { throw "signing failed" }
+
+          pwsh scripts/gen-native-manifest.ps1 `
+            -Version "${{ steps.version.outputs.VERSION }}" `
+            -AssetsJson dist/native-assets.json `
+            -Notes @'
+          ${{ needs.changelog.outputs.body }}
+          '@ `
+            -OutFile dist/latest-native.json
+
+          cargo xtask sign dist/latest-native.json
+          if ($LASTEXITCODE -ne 0) { throw "signing the manifest failed" }
+
+          # The MSIX is not a self-update asset (the Store owns that channel), so
+          # it is signed and republished here but deliberately kept out of
+          # latest-native.json — `manifest_key` maps Store installs to the
+          # -portable key, which release-mode builds never satisfy.
+          $guarded = @() + @($files) + @("dist/latest-native.json")
+          if ($env:HAS_WINDOWS -eq 'true') {
+            $msix = "dist/limedl-native-v${{ steps.version.outputs.VERSION }}-windows-x86_64.msix"
+            cargo xtask sign $msix
+            if ($LASTEXITCODE -ne 0) { throw "signing the MSIX failed" }
+            $guarded += $msix
+          }
+
+          cargo xtask guard @guarded
+          if ($LASTEXITCODE -ne 0) { throw "release guard failed" }
+        env:
+          HAS_WINDOWS: ${{ needs.build-native.result == 'success' }}
+          HAS_MACOS: ${{ needs.build-native-macos.result == 'success' }}
+          HAS_LINUX: ${{ needs.build-native-linux.result == 'success' }}
+
+      # The manifest always exists (it just omits a platform whose leg failed),
+      # so the release flips out of prerelease here — by then every desktop job
+      # has finished and "latest" resolves to a complete set.
+      - name: Upload manifest
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        with:
+          files: |
+            dist/latest-native.json
+            dist/latest-native.json.sig
+            dist/limedl-native-v*-windows-x86_64.msix
+            dist/limedl-native-v*-windows-x86_64.msix.sig
+          body: ${{ needs.changelog.outputs.body }}
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

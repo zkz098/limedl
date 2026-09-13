@@ -450,8 +450,21 @@ fn install_via_self_replace(update: &AvailableUpdate, verified_file: &Path) -> R
             update.version
         );
     };
-    self_replace::self_replace(&new_exe)
-        .context("replace running executable (in-place self-update)")?;
+    self_replace::self_replace(&new_exe).with_context(|| {
+        format!(
+            "replace running executable (in-place self-update) — the app may live in a \
+             location this user cannot write (e.g. /Applications); move it to a user-writable \
+             folder and update again. New binary: {}",
+            new_exe.display()
+        )
+    })?;
+    // macOS bundles are only launchable while their code signature covers the
+    // bytes on disk, and replacing the binary invalidates it (the process is
+    // only alive because the old image is still mapped). Re-sign before anything
+    // can launch the bundle again — a self-update that skips this leaves an app
+    // the OS refuses to start.
+    #[cfg(target_os = "macos")]
+    resign_macos_bundle_after_replace()?;
     if let Some(parent) = new_exe.parent() {
         // Remove leftovers (archive stays behind; safe to ignore errors).
         let _ = std::fs::remove_dir_all(parent);
@@ -459,10 +472,48 @@ fn install_via_self_replace(update: &AvailableUpdate, verified_file: &Path) -> R
     Ok(InstallOutcome::ReplacedRestartPending)
 }
 
+/// Ad-hoc re-sign the `.app` bundle that contains the running executable.
+///
+/// Ad-hoc (`--sign -`) is the same identity the release packaging and local
+/// `cargo build` output use, so this reproduces the signature the running build
+/// had. No-op when the executable is not inside a bundle (plain binary from a
+/// tarball).
+#[cfg(target_os = "macos")]
+fn resign_macos_bundle_after_replace() -> Result<()> {
+    let exe = std::env::current_exe().context("resolve current executable")?;
+    let Some(bundle) = exe
+        .ancestors()
+        .find(|p| p.extension().is_some_and(|ext| ext == "app"))
+    else {
+        // Plain tarball install: no signature to keep valid.
+        return Ok(());
+    };
+
+    let output = std::process::Command::new("codesign")
+        .args(["--force", "--sign", "-"])
+        .arg(bundle)
+        .output()
+        .context("run codesign (ad-hoc re-sign after self-update)")?;
+    if !output.status.success() {
+        bail!(
+            "codesign failed to re-sign {}: {}",
+            bundle.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    tracing::info!(
+        "自更新完成：已为 {} 重新做 ad-hoc 签名",
+        bundle.display()
+    );
+    Ok(())
+}
+
 /// Extract the executable member from the verified archive.
 ///
 /// Windows portable archives are zips containing `limedl-native.exe`;
-/// linux/macOS archives are `.tar.gz` containing `limedl-native`.
+/// linux/macOS archives are `.tar.gz` containing `limedl-native` — the bundle
+/// member when the macOS release ships an `.app` (`<name>.app/Contents/MacOS/limedl-native`)
+/// is matched by file name as well, so the plain-binary member keeps working.
 #[allow(clippy::needless_return)]
 fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<Option<PathBuf>> {
     let staging = verified_file
@@ -770,11 +821,135 @@ mod tests {
         assert_eq!(manifest_key(InstallKind::Portable), "windows-x86_64-portable");
     }
 
+    /// `platform_base()` derives the OS half of the key from `consts::OS`, which
+    /// spells macOS as `macos`, while the manifest key (and the release asset
+    /// name) uses `darwin`. The mapping only ever runs on the platform it names,
+    /// so the concordance with `scripts/gen-native-manifest.ps1` cannot be
+    /// asserted by calling it here — the URL contract is covered by
+    /// `asset_urls_must_point_at_this_repos_release` instead.
+    #[test]
+    fn platform_base_is_os_dash_arch() {
+        // Guards the mapping's shape: a non-Windows base is always `<os>-<arch>`
+        // with a single dash, which is what the generator keys are built from.
+        let base = platform_base();
+        assert_eq!(base.matches('-').count(), 1, "unexpected platform base {base}");
+        let (os, arch) = base.split_once('-').unwrap();
+        assert!(
+            ["windows", "darwin", "linux"].contains(&os),
+            "unexpected OS half in {base}"
+        );
+        assert_eq!(arch, std::env::consts::ARCH);
+    }
+
+    /// The macOS release ships a `.app` bundle, so the binary sits at
+    /// `<name>.app/Contents/MacOS/limedl-native` inside the tarball. The updater
+    /// matches the member by file name, so the nested path must still be found —
+    /// a miss means `install_via_self_replace` reports "no matching executable"
+    /// on every macOS update.
+    #[cfg(not(windows))]
+    #[test]
+    fn targz_member_is_found_inside_an_app_bundle() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive_path = dir.path().join("limedl-native-v9.9.9-darwin-aarch64-portable.tar.gz");
+        let payload = b"fake mach-o payload";
+
+        {
+            let file = std::fs::File::create(&archive_path).unwrap();
+            let enc = flate2::write::GzEncoder::new(file, flate2::Compression::default());
+            let mut tar = tar::Builder::new(enc);
+
+            let mut header = tar::Header::new_gnu();
+            header.set_size(payload.len() as u64);
+            header.set_mode(0o755);
+            header.set_cksum();
+            tar.append_data(
+                &mut header,
+                "limedl.app/Contents/MacOS/limedl-native",
+                &payload[..],
+            )
+            .unwrap();
+            tar.into_inner().unwrap().finish().unwrap();
+        }
+
+        let update = AvailableUpdate {
+            version: "9.9.9".to_string(),
+            notes: String::new(),
+            asset: PlatformAsset {
+                kind: "portable".to_string(),
+                url: "https://example.com/x.tar.gz".to_string(),
+                signature: String::new(),
+                sha256: None,
+            },
+        };
+
+        let extracted = extract_executable(&update, &archive_path)
+            .unwrap()
+            .expect("the bundle member must be extracted");
+        assert_eq!(std::fs::read(&extracted).unwrap(), payload);
+        assert_eq!(extracted.file_name().unwrap(), "limedl-native");
+    }
+
+    /// A plain-binary tarball (a Linux-style archive, or a macOS build made
+    /// without the bundle layout) must keep working.
+    #[cfg(not(windows))]
+    #[test]
+    fn targz_member_is_found_at_the_archive_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive_path = dir.path().join("limedl-native-v9.9.9-linux-x86_64-portable.tar.gz");
+
+        {
+            let file = std::fs::File::create(&archive_path).unwrap();
+            let enc = flate2::write::GzEncoder::new(file, flate2::Compression::default());
+            let mut tar = tar::Builder::new(enc);
+            let mut header = tar::Header::new_gnu();
+            header.set_size(4);
+            header.set_mode(0o755);
+            header.set_cksum();
+            tar.append_data(&mut header, "limedl-native", &b"body"[..])
+                .unwrap();
+            tar.into_inner().unwrap().finish().unwrap();
+        }
+
+        let update = AvailableUpdate {
+            version: "9.9.9".to_string(),
+            notes: String::new(),
+            asset: PlatformAsset {
+                kind: "portable".to_string(),
+                url: "https://example.com/x.tar.gz".to_string(),
+                signature: String::new(),
+                sha256: None,
+            },
+        };
+
+        let extracted = extract_executable(&update, &archive_path).unwrap().unwrap();
+        assert_eq!(std::fs::read(&extracted).unwrap(), b"body");
+        // The extracted copy must stay executable — `self_replace` keeps the
+        // *old* file's mode, so a lost exec bit here would only show up as a
+        // launch failure after the update.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&extracted).unwrap().permissions().mode();
+            assert_eq!(mode & 0o111, 0o111, "extracted binary lost its exec bit");
+        }
+    }
+
     #[test]
     fn asset_urls_must_point_at_this_repos_release() {
-        let good = "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
-                    limedl-native-v0.3.0-windows-x86_64-setup.exe";
-        assert!(validate_asset_url(good, "0.3.0").is_ok());
+        // Each release asset name the pipeline actually produces (see the upload
+        // steps in .github/workflows/release.yml) must satisfy the validator.
+        for good in [
+            "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
+             limedl-native-v0.3.0-windows-x86_64-setup.exe",
+            "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
+             limedl-native-v0.3.0-windows-x86_64-portable.zip",
+            "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
+             limedl-native-v0.3.0-windows-x86_64.msix",
+            "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
+             limedl-native-v0.3.0-darwin-aarch64-portable.tar.gz",
+        ] {
+            assert!(validate_asset_url(good, "0.3.0").is_ok(), "rejected {good}");
+        }
 
         // Wrong host / repo / version, or a URL that escapes the release path.
         for bad in [

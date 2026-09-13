@@ -13,6 +13,11 @@ fn main() {
     }
     println!("cargo:rerun-if-changed=assets/fonts/MiSansVF.ttf");
     println!("cargo:rerun-if-changed=ui/assets/icon.ico");
+    // Not read by this build script, but the macOS release bundle is assembled
+    // from them (`scripts/package-macos.sh` runs post-build), so a change to the
+    // bundle identity or the icon source has to invalidate the cached binary.
+    println!("cargo:rerun-if-changed=ui/assets/icon.png");
+    println!("cargo:rerun-if-changed=../../packaging/macos/Info.plist.in");
 
     // Windows PE file resources: embed app icon (.ico), product name, description, copyright
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {

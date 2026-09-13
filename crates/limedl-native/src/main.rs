@@ -384,6 +384,31 @@ fn build_tray_menu(lang: Language, speed_limit_active: bool) -> Menu {
 /// Kept at the historical 1 MiB/s default.
 const TRAY_SPEED_LIMIT_BPS: u64 = 1_048_576;
 
+/// Explain a tray-icon construction failure.
+///
+/// The tray is the app's only always-available UI (close-to-tray and the
+/// `--hidden` autostart both land there), so a missing tray is fatal rather than
+/// degraded. On Linux the usual cause is a missing runtime appindicator, and
+/// `tray-icon` reports it as a bare `NotSupported`/D-Bus error that says nothing
+/// about which package to install — this wrapper supplies the apt/dnf names.
+fn tray_init_failure_message(err: &tray_icon::Error) -> String {
+    #[cfg(target_os = "linux")]
+    {
+        format!(
+            "failed to create the system tray icon: {err}\n\
+             limedl requires a system tray. Install a StatusNotifier/appindicator host, e.g.\n\
+             \x20 Debian/Ubuntu: sudo apt install libayatana-appindicator3-1 gnome-shell-extension-appindicator\n\
+             \x20 Fedora:        sudo dnf install libappindicator-gtk3\n\
+             \x20 Arch:          sudo pacman -S libappindicator-gtk3\n\
+             On GNOME also enable the AppIndicator extension, then start limedl again."
+        )
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        format!("failed to create the system tray icon: {err}")
+    }
+}
+
 /// Restore a hidden, minimized, or inactive window and ensure Slint redraws it.
 ///
 /// On Windows, calling Win32 `ShowWindow(SW_RESTORE)` externally does not inform Slint
@@ -396,6 +421,51 @@ fn restore_and_show_window(ui: &MainWindow) {
     ui.window().set_minimized(false);
     ui.window().request_redraw();
     platform_win::bring_to_foreground(ui.window());
+}
+
+/// Restore the saved window placement, re-applying it until the OS window exists.
+///
+/// Slint creates the OS window when the event loop starts, so on Windows
+/// `platform_win::restore_or_center_window` silently does nothing before then
+/// (`window.window_handle()` fails) — the Win32 path needs the HWND to
+/// `SetWindowPos`/`ShowWindow` it. Rather than binding the restore to the Win32
+/// subclassing timer (which never succeeds on macOS/Linux, where the restore used
+/// to be skipped entirely), this keeps retrying until the placement reports
+/// applied. A `--hidden` start never shows a window, so the timer is what makes
+/// the first real show come up in the saved position.
+fn schedule_window_placement_restore(ui: &MainWindow, base_dir: &std::path::Path) {
+    if platform_win::apply_restored_window_placement(
+        ui.window(),
+        base_dir,
+        ui.window().is_maximized(),
+    ) {
+        return;
+    }
+
+    // A `Weak` cannot keep the window (or the component) alive from inside a
+    // Slint timer's `'static` callback; the timer owns the only strong handle to
+    // itself while it runs.
+    let weak = ui.as_weak();
+    let base_dir = base_dir.to_path_buf();
+    let timer = Rc::new(slint::Timer::default());
+    let timer_for_cb = timer.clone();
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(250),
+        move || {
+            let Some(ui) = weak.upgrade() else {
+                timer_for_cb.stop();
+                return;
+            };
+            if platform_win::apply_restored_window_placement(
+                ui.window(),
+                &base_dir,
+                ui.window().is_maximized(),
+            ) {
+                timer_for_cb.stop();
+            }
+        },
+    );
 }
 
 /// Open the new task dialog and pre-fill / trigger actions based on an incoming payload
@@ -929,6 +999,18 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Window geometry (position/size/maximized) is restored and persisted on every
+    // platform: `platform_win` resolves the OS window handle through Win32 on
+    // Windows, and through Slint's own `Window::set_position`/`set_size` elsewhere
+    // (winit). It must stay OUTSIDE the `#[cfg(windows)]` block below — the window
+    // hooks there never succeed off Windows, so gating the restore on them left
+    // macOS/Linux users with a default-sized, default-placed window on every start.
+    {
+        let is_dark = main_window.global::<Theme>().get_dark();
+        platform_win::sync_window_theme(main_window.window(), is_dark);
+        schedule_window_placement_restore(&main_window, &base_dir);
+    }
+
     // Windows native integrations: Drag & Drop + WM_COPYDATA IPC + HKCU protocol association
     #[cfg(windows)]
     {
@@ -1050,15 +1132,12 @@ async fn main() -> anyhow::Result<()> {
             platform_win::set_callbacks(on_drop, on_copydata, on_show);
 
             let ui_weak = main_window.as_weak();
-            let base_dir_for_hooks = base_dir.clone();
             let hook_timer = Rc::new(slint::Timer::default());
             let timer_for_cb = hook_timer.clone();
 
-            if platform_win::try_install_window_hooks(main_window.window()) {
-                let is_dark = main_window.global::<Theme>().get_dark();
-                platform_win::sync_window_theme(main_window.window(), is_dark);
-                platform_win::restore_or_center_window(main_window.window(), &base_dir_for_hooks);
-            } else {
+            // Only the Win32 subclassing is retried here; window geometry and the
+            // title-bar theme were already applied by the cross-platform block above.
+            if !platform_win::try_install_window_hooks(main_window.window()) {
                 hook_timer.start(
                     slint::TimerMode::Repeated,
                     Duration::from_millis(16),
@@ -1068,9 +1147,6 @@ async fn main() -> anyhow::Result<()> {
                             return;
                         };
                         if platform_win::try_install_window_hooks(ui.window()) {
-                            let is_dark = ui.global::<Theme>().get_dark();
-                            platform_win::sync_window_theme(ui.window(), is_dark);
-                            platform_win::restore_or_center_window(ui.window(), &base_dir_for_hooks);
                             timer_for_cb.stop();
                         }
                     },
@@ -1146,7 +1222,8 @@ async fn main() -> anyhow::Result<()> {
         )))
         .with_tooltip(i18n::get_tray_strings(initial_lang).tooltip)
         .with_icon(create_default_tray_icon())
-        .build()?;
+        .build()
+        .map_err(|e| anyhow::anyhow!(tray_init_failure_message(&e)))?;
 
     // Channel for signalling tray menu/tooltip updates from async tasks (TrayIcon is !Send)
     let pending_tray_lang: Arc<Mutex<Option<Language>>> = Arc::new(Mutex::new(None));

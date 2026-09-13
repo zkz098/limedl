@@ -1,17 +1,24 @@
-//! Windows platform native integrations for limedl-native:
-//! - Window drag-and-drop support (`WM_DROPFILES` via `DragAcceptFiles` + `SetWindowSubclass`).
-//! - Secondary instance inter-process activation & argument passing (`WM_COPYDATA`).
+//! Platform native integrations for limedl-native.
 //!
-//! Only `launched_at_logon` is reachable on other platforms (the MSIX startup-task
-//! probe runs unconditionally); `main.rs` calls the Win32 hooks inside
-//! `#[cfg(windows)]`, so their absence there is expected.
-#![cfg_attr(not(windows), allow(dead_code))]
+//! Windows (`#[cfg(windows)]`): window drag-and-drop (`WM_DROPFILES` via
+//! `DragAcceptFiles` + `SetWindowSubclass`), secondary-instance activation
+//! (`WM_COPYDATA`), DWM title-bar theming and monitor-aware window placement.
+//!
+//! Every platform: persisted window geometry (position / size / maximized),
+//! [`os_description`] and [`launched_at_logon`]. On Windows the geometry path
+//! talks to Win32 (`GetWindowPlacement`/`SetWindowPos`) because that reports the
+//! *unmaximized* position and detects an off-screen restore rect against the
+//! real monitor list; everywhere else it goes through Slint's own
+//! `Window::position`/`set_position`/`size`/`set_size`/`set_maximized` (winit),
+//! which is what all three backends support uniformly.
 
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Persisted window geometry (position, size, maximized status).
+/// Persisted window geometry (position, size, maximized status), in physical
+/// pixels — the same unit Slint reports from `Window::position`/`Window::size`
+/// and Win32 from `GetWindowPlacement`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WindowGeometry {
     pub x: i32,
@@ -20,6 +27,22 @@ pub struct WindowGeometry {
     pub height: u32,
     pub is_maximized: bool,
 }
+
+/// Upper bound for a plausible saved window coordinate.
+///
+/// Non-Windows platforms cannot enumerate monitors through Slint, so an
+/// off-screen-rect check like the Win32 `MonitorFromRect` one is unavailable.
+/// Instead a saved position is rejected as stale when it falls outside this
+/// bound: no real multi-monitor layout (up to a 6K/8K display chain) reaches
+/// ±20k physical pixels, while a window that lived on a since-disconnected
+/// monitor keeps its old virtual-desktop coordinates and does.
+#[cfg(not(windows))]
+const MAX_PLAUSIBLE_COORD: i32 = 20_000;
+
+/// Smallest restorable window, in physical pixels (mirrors the filter the
+/// Win32 path applies to `GetWindowPlacement`).
+const MIN_WINDOW_WIDTH: u32 = 600;
+const MIN_WINDOW_HEIGHT: u32 = 400;
 
 pub const WINDOW_STATE_FILE: &str = "window_state.json";
 static BASE_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
@@ -35,7 +58,7 @@ pub fn load_window_geometry(base_dir: &Path) -> Option<WindowGeometry> {
     let path = base_dir.join(WINDOW_STATE_FILE);
     let data = std::fs::read_to_string(path).ok()?;
     let geom: WindowGeometry = serde_json::from_str(&data).ok()?;
-    if geom.width >= 600 && geom.height >= 400 {
+    if geom.width >= MIN_WINDOW_WIDTH && geom.height >= MIN_WINDOW_HEIGHT {
         Some(geom)
     } else {
         None
@@ -343,7 +366,7 @@ pub fn capture_window_geometry(hwnd: HWND) -> Option<WindowGeometry> {
             let rect = wp.rcNormalPosition;
             let width = (rect.right - rect.left).max(0) as u32;
             let height = (rect.bottom - rect.top).max(0) as u32;
-            if width >= 600 && height >= 400 {
+            if width >= MIN_WINDOW_WIDTH && height >= MIN_WINDOW_HEIGHT {
                 return Some(WindowGeometry {
                     x: rect.left,
                     y: rect.top,
@@ -358,7 +381,7 @@ pub fn capture_window_geometry(hwnd: HWND) -> Option<WindowGeometry> {
             let width = (rect.right - rect.left).max(0) as u32;
             let height = (rect.bottom - rect.top).max(0) as u32;
             let is_maximized = IsZoomed(hwnd).as_bool();
-            if width >= 600 && height >= 400 {
+            if width >= MIN_WINDOW_WIDTH && height >= MIN_WINDOW_HEIGHT {
                 return Some(WindowGeometry {
                     x: rect.left,
                     y: rect.top,
@@ -406,7 +429,7 @@ pub fn center_window_on_monitor(hwnd: HWND) {
     }
 }
 
-/// Check if a geometry rectangle intersects any connected monitor.
+/// True when a saved geometry is an on-screen rectangle this platform can use.
 #[cfg(windows)]
 pub fn is_geometry_visible_on_any_monitor(geom: &WindowGeometry) -> bool {
     unsafe {
@@ -423,85 +446,153 @@ pub fn is_geometry_visible_on_any_monitor(geom: &WindowGeometry) -> bool {
     }
 }
 
-/// Restore previously saved window geometry, or center on current monitor if missing/offscreen.
-pub fn restore_or_center_window(window: &slint::Window, base_dir: &Path) {
+/// True when a saved geometry is plausible for the current arrangement.
+///
+/// Deliberately weaker than the Win32 variant: see [`MAX_PLAUSIBLE_COORD`].
+#[cfg(not(windows))]
+pub fn is_geometry_visible_on_any_monitor(geom: &WindowGeometry) -> bool {
+    geom.x.abs() <= MAX_PLAUSIBLE_COORD
+        && geom.y.abs() <= MAX_PLAUSIBLE_COORD
+        && geom.width >= MIN_WINDOW_WIDTH
+        && geom.height >= MIN_WINDOW_HEIGHT
+}
+
+/// Apply the saved window placement (position / size / maximized), or leave
+/// placement to the OS when there is nothing usable to restore.
+///
+/// Returns `true` once the placement is applied (or nothing is saved) and the
+/// caller should stop retrying. `main.rs` retries because the OS window does not
+/// exist until Slint starts the event loop: on Windows the HWND is missing, and
+/// on the other platforms the winit backends may drop a `set_position` that
+/// arrives before the window is shown.
+///
+/// `current_maximized` is the window's live maximized state, which decides
+/// whether a missing maximize still needs to be (re-)requested.
+///
+/// On Windows this also centers the window on the monitor work area when the
+/// saved rectangle is off-screen, because Win32 lets us query it. The other
+/// platforms only skip the restore and let the window manager place the window
+/// (Slint exposes no monitor geometry to center against); that is the better
+/// default there anyway — winit/Cocoa/GTK apply their own cascade placement.
+pub fn apply_restored_window_placement(
+    window: &slint::Window,
+    base_dir: &Path,
+    current_maximized: bool,
+) -> bool {
+    let Some(geom) = load_window_geometry(base_dir) else {
+        return true;
+    };
+
+    if !is_geometry_visible_on_any_monitor(&geom) {
+        tracing::warn!("已保存的窗口位置不在当前显示器布局中，交由窗口管理器放置");
+        #[cfg(windows)]
+        if let Some(hwnd) = win32_window_handle(window) {
+            center_window_on_monitor(hwnd);
+        }
+        return true;
+    }
+
     #[cfg(windows)]
     {
-        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-
-        let win_handle = window.window_handle();
-        let Ok(handle_wrapper) = win_handle.window_handle() else {
-            return;
+        let Some(hwnd) = win32_window_handle(window) else {
+            // Slint has not created the OS window yet — the caller retries.
+            tracing::debug!("原生窗口句柄尚未就绪，稍后恢复窗口位置");
+            return false;
         };
-
-        let hwnd_raw = match handle_wrapper.as_raw() {
-            RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
-            _ => return,
-        };
-
-        let hwnd = HWND(hwnd_raw);
-
-        if let Some(geom) = load_window_geometry(base_dir) {
-            if is_geometry_visible_on_any_monitor(&geom) {
-                unsafe {
-                    let _ = SetWindowPos(
-                        hwnd,
-                        None,
-                        geom.x,
-                        geom.y,
-                        geom.width as i32,
-                        geom.height as i32,
-                        SWP_NOZORDER | SWP_NOACTIVATE,
-                    );
-                    if geom.is_maximized {
-                        let _ = ShowWindow(hwnd, SW_MAXIMIZE);
-                    }
-                }
-                tracing::info!(
-                    "已恢复上次窗口位置与尺寸: ({}, {}) {}x{} (最大化: {})",
-                    geom.x, geom.y, geom.width, geom.height, geom.is_maximized
-                );
-                return;
+        unsafe {
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                geom.x,
+                geom.y,
+                geom.width as i32,
+                geom.height as i32,
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            );
+            if geom.is_maximized {
+                let _ = ShowWindow(hwnd, SW_MAXIMIZE);
             }
-            tracing::warn!("已保存的窗口位置不在任何当前显示器中，将自动居中显示");
         }
-
-        center_window_on_monitor(hwnd);
     }
 
     #[cfg(not(windows))]
     {
-        let _ = window;
-        let _ = base_dir;
+        window.set_size(slint::PhysicalSize::new(geom.width, geom.height));
+        window.set_position(slint::PhysicalPosition::new(geom.x, geom.y));
+        if geom.is_maximized {
+            window.set_maximized(true);
+        }
     }
+
+    // On Windows `is_maximized` follows the OS window, so a maximize request that
+    // was dropped before the window existed shows up here and keeps the retry
+    // alive. The `is_visible` half stops the retry once the window is really up,
+    // so it cannot fight a user who restores a maximized window by hand.
+    let still_missing_placement = geom.is_maximized
+        && !current_maximized
+        && (window.is_minimized() || !window.is_visible());
+
+    tracing::info!(
+        "窗口位置已恢复: ({}, {}) {}x{} (最大化: {}, 已应用: {})",
+        geom.x,
+        geom.y,
+        geom.width,
+        geom.height,
+        geom.is_maximized,
+        !still_missing_placement
+    );
+
+    !still_missing_placement
+}
+
+/// The Win32 HWND behind a Slint window, when it exists.
+#[cfg(windows)]
+fn win32_window_handle(window: &slint::Window) -> Option<HWND> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+    // `WindowHandle` owns the wrapper, so bind it before borrowing the raw one.
+    let win_handle = window.window_handle();
+    let handle = win_handle.window_handle().ok()?;
+    // Copy the pointer out: `handle` borrows `win_handle`, which is dropped here.
+    let raw = match handle.as_raw() {
+        RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+        _ => return None,
+    };
+    Some(HWND(raw))
 }
 
 /// Persist current window geometry to disk.
+///
+/// Windows reads it from `GetWindowPlacement` so a maximized window still saves
+/// its *restorable* size; elsewhere Slint's `Window::size`/`is_maximized` are
+/// used, which the winit backends keep at the pre-maximize size.
 pub fn save_current_window_geometry(window: &slint::Window, base_dir: &Path) {
     #[cfg(windows)]
     {
-        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-
-        let win_handle = window.window_handle();
-        let Ok(handle_wrapper) = win_handle.window_handle() else {
-            return;
-        };
-
-        let hwnd_raw = match handle_wrapper.as_raw() {
-            RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
-            _ => return,
-        };
-
-        let hwnd = HWND(hwnd_raw);
-        if let Some(geom) = capture_window_geometry(hwnd) {
+        if let Some(hwnd) = win32_window_handle(window)
+            && let Some(geom) = capture_window_geometry(hwnd)
+        {
             save_window_geometry(base_dir, &geom);
         }
     }
 
     #[cfg(not(windows))]
     {
-        let _ = window;
-        let _ = base_dir;
+        let size = window.size();
+        if size.width < MIN_WINDOW_WIDTH || size.height < MIN_WINDOW_HEIGHT {
+            return;
+        }
+        let position = window.position();
+        save_window_geometry(
+            base_dir,
+            &WindowGeometry {
+                x: position.x,
+                y: position.y,
+                width: size.width,
+                height: size.height,
+                is_maximized: window.is_maximized(),
+            },
+        );
     }
 }
 
@@ -509,22 +600,11 @@ pub fn save_current_window_geometry(window: &slint::Window, base_dir: &Path) {
 pub fn bring_to_foreground(window: &slint::Window) {
     #[cfg(windows)]
     {
-        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-
-        let win_handle = window.window_handle();
-        let Ok(handle_wrapper) = win_handle.window_handle() else {
-            return;
-        };
-
-        let hwnd_raw = match handle_wrapper.as_raw() {
-            RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
-            _ => return,
-        };
-
-        let hwnd = HWND(hwnd_raw);
-        unsafe {
-            let _ = ShowWindow(hwnd, SW_RESTORE);
-            let _ = SetForegroundWindow(hwnd);
+        if let Some(hwnd) = win32_window_handle(window) {
+            unsafe {
+                let _ = ShowWindow(hwnd, SW_RESTORE);
+                let _ = SetForegroundWindow(hwnd);
+            }
         }
     }
 
@@ -744,5 +824,58 @@ mod tests {
         assert_eq!(load_window_geometry(&temp_dir), None);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    /// A geometry saved by an earlier run must survive the round trip through
+    /// both gates: the load-time size filter and the off-screen guard. Only when
+    /// both accept it is the saved window restored instead of the OS default.
+    ///
+    /// Uses (0,0), the one origin that resolves to a monitor in every layout,
+    /// because CI runners are frequently single-display.
+    #[test]
+    fn saved_geometry_passes_the_visibility_guard() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path();
+
+        let saved = WindowGeometry {
+            x: 0,
+            y: 0,
+            width: 1024,
+            height: 720,
+            is_maximized: true,
+        };
+        save_window_geometry(base, &saved);
+        let loaded = load_window_geometry(base).expect("geometry must round trip");
+        assert!(is_geometry_visible_on_any_monitor(&loaded));
+    }
+
+    /// A window that lived on a since-disconnected monitor keeps coordinates no
+    /// current layout can reach; restoring them would place it off-screen.
+    #[test]
+    fn off_screen_geometry_is_rejected_by_the_guard() {
+        let stale = WindowGeometry {
+            x: 40_000,
+            y: 30_000,
+            width: 1024,
+            height: 720,
+            is_maximized: false,
+        };
+        assert!(!is_geometry_visible_on_any_monitor(&stale));
+    }
+
+    /// The load filter drops windows that are too small to be usable, so a
+    /// degenerate saved size can never be restored. Runs on every platform.
+    #[test]
+    fn undersized_geometry_is_rejected_on_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let too_small = WindowGeometry {
+            x: 10,
+            y: 10,
+            width: MIN_WINDOW_WIDTH - 1,
+            height: MIN_WINDOW_HEIGHT,
+            is_maximized: false,
+        };
+        save_window_geometry(dir.path(), &too_small);
+        assert_eq!(load_window_geometry(dir.path()), None);
     }
 }
