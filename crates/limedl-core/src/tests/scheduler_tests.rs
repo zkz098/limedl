@@ -931,6 +931,9 @@ async fn cancel_one_unblocks_queued() -> TestResult {
 /// was a leftover from the removed network-learning feature that the tuner was
 /// originally coupled to.
 ///
+/// Also pins that a tuned target is mirrored into the snapshot right away
+/// instead of waiting for the next `rebalance_allocations`.
+///
 /// The proxy is switched on while a transfer is already in flight, so no
 /// request ever traverses a real proxy — only the settings gate that used to
 /// disable the tuner is exercised.
@@ -1021,9 +1024,8 @@ async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
 
     manager.scheduler.update_adaptive_targets(&manager).await?;
 
-    // The tuner writes the manifest; `rebalance_allocations` (which the
-    // scheduler loop runs right after, in the same tick) propagates it to the
-    // snapshot the API exposes.
+    // The tuner must publish the new target itself — without waiting for the
+    // `rebalance_allocations` call that follows it in the scheduler loop.
     {
         let core = managed.lock_core();
         assert_eq!(
@@ -1034,20 +1036,22 @@ async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
         );
     }
 
-    manager.scheduler.rebalance_allocations(&manager).await?;
-
     let tuned = manager.status(&id.to_string()).await?;
     assert_eq!(
         tuned.desired_thread_count,
         Some(2),
-        "the tuned target must reach the exposed snapshot, got {:?}",
+        "the tuned target must be mirrored into the snapshot immediately, got {:?}",
         tuned.desired_thread_count,
     );
+
+    manager.scheduler.rebalance_allocations(&manager).await?;
+
+    let allocated = manager.status(&id.to_string()).await?;
     assert_eq!(
-        tuned.allocated_thread_count,
+        allocated.allocated_thread_count,
         Some(2),
         "the allocation must follow the tuned target, got {:?}",
-        tuned.allocated_thread_count,
+        allocated.allocated_thread_count,
     );
 
     // Overclock shares the same code path and used to be disabled with it.

@@ -89,6 +89,7 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - 所有事件通过 EventBus::publish() 统一发布，前端发射由 lib.rs 的独立订阅任务完成。
 - AIMD 状态变更在 scheduler.rs 中，worker 只报告下载字节数。
 - AIMD 不依赖 `proxy.mode`：早期版本与已移除的“网络学习”功能耦合，代理启用时会直接跳过 `update_adaptive_targets`（并连带禁用超频模式）；该遗留门槛已移除，回归测试 `tests/scheduler_tests.rs::adaptive_targets_apply_when_proxy_is_enabled`。
+- `update_adaptive_targets` 变更 `desired_thread_count` 时必须同步 snapshot（升/降分支及超频分支均调用 `sync_snapshot_with_manifest`），否则 API/WebUI 的“目标线程数”会滞回到下一次 `rebalance_allocations`。
 
 ### 校验和
 

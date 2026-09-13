@@ -88,6 +88,10 @@ impl Scheduler {
     /// network-learning feature it was coupled to (it also silently disabled
     /// overclock mode, which lives behind the same guard). Proxied transfers
     /// must adapt like any other transfer.
+    ///
+    /// Every target change is mirrored into the task snapshot, so the value the
+    /// API exposes (the WebUI "target thread count") never lags behind the
+    /// manifest.
     pub async fn update_adaptive_targets(&self, dm: &DownloadManager) -> Result<()> {
         let settings = dm.settings_service.get().await;
         if settings.scheduler.mode != SchedulerMode::Automatic {
@@ -199,6 +203,9 @@ impl Scheduler {
                 // ── Oscillation tracking (MD = Down) ──
                 track_direction(&mut aimd, Direction::Down);
                 check_oscillation(&mut aimd, manifest, current, min_threads, now, &cooldown);
+                // `check_oscillation` may override the target with the hysteresis
+                // lock value, so publish it after it ran.
+                sync_snapshot_with_manifest(&mut core);
                 continue;
             }
 
@@ -237,6 +244,7 @@ impl Scheduler {
             if changed_up {
                 track_direction(&mut aimd, Direction::Up);
                 check_oscillation(&mut aimd, manifest, current, min_threads, now, &cooldown);
+                sync_snapshot_with_manifest(&mut core);
             }
         }
 
