@@ -320,12 +320,21 @@ jobs:
         run: ./scripts/fetch-misans.ps1
       # `cfg(target_os = "macos")` code lives in limedl-core (platform, disk
       # detect, io topology) and limedl-server (config) as well as the UI crate,
-      # so this stays a full workspace clippy.
+      # so this stays a full workspace clippy. On top of compiling the
+      # `cfg(not(windows))` branches, clippy runs rfd's build script — the check
+      # that caught a missing `tokio`/`async-std` runtime feature for xdg-portal,
+      # which cannot fire on the Windows legs.
       # All tests in these crates are pure Rust logic tests that
       # do not require a display server.
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
       - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
+      # limedl-native's `cfg(not(windows))` tests (the tar.gz/`.app` member match
+      # and the window-placement guard) only exist here: test-windows-native
+      # compiles the Windows branches, and check-rust's llvm-cov run skips the UI
+      # crate because it needs a display. Without this line those tests were
+      # compiled by the clippy step above but never executed.
+      - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 
   check-rust:
     name: Clippy, codegen & coverage (Linux)

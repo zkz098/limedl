@@ -19,8 +19,27 @@ fn main() {
     println!("cargo:rerun-if-changed=ui/assets/icon.png");
     println!("cargo:rerun-if-changed=../../packaging/macos/Info.plist.in");
 
-    // Windows PE file resources: embed app icon (.ico), product name, description, copyright
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+    // Windows PE file resources: embed app icon (.ico), product name, description,
+    // copyright.
+    //
+    // NOTE the cfg is `windows`, NOT a runtime `CARGO_CFG_TARGET_OS == "windows"`
+    // check. A build script is itself compiled for the host, and `winres` lives in
+    // `[target.'cfg(windows)'.build-dependencies]` — so on macOS/Linux the crate is
+    // simply not linked into the build script, and a runtime check would compile
+    // `winres::WindowsResource` anyway (E0433) while only *skipping* it at run time.
+    // The env var is only correct in cargo's own cfg plumbing; a `#[cfg]` here reads
+    // the same signal at compile time and keeps the dependency graph honest.
+    #[cfg(windows)]
+    {
+        // Guard against the silent breakage this replaced: if cargo ever stops
+        // setting a host cfg that does not match the target, the resources would
+        // stop being embedded without a word.
+        if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+            eprintln!(
+                "cargo:warning=built for a non-Windows target on a Windows host; \
+                 skipping the PE resource embedding"
+            );
+        }
         let mut res = winres::WindowsResource::new();
         res.set_icon("ui/assets/icon.ico");
         res.set("ProductName", "limedl");

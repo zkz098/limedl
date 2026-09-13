@@ -20,7 +20,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Format          | `pnpm run format` (oxfmt)                                                                                                                                              |
 | Type-check      | `pnpm exec vue-tsc --noEmit`                                                                                                                                           |
 | Test (frontend) | `pnpm run test`                                                                                                                                                        |
-| Test (Rust)     | `cargo test --workspace`                                                                                                                                               |
+| Test (Rust)     | `cargo nextest run --manifest-path crates/limedl-<crate>/Cargo.toml` per crate (see the gate below; `cargo test` is only for doctests/ts-rs codegen)                        |
 | Build           | `pnpm run build` (vue-tsc → vite build)                                                                                                                                |
 | Version bump    | `node scripts/bump-version.mjs patch`                                                                                                                                  |
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                          |
@@ -36,20 +36,33 @@ via `softprops/action-gh-release`. Commit types `test:`/`ci:`/`chore:`/`build:`/
 from the notes; `feat:`/`fix:`/`perf:`/`refactor:`/`docs:` are grouped into sections. Keep commit
 subjects Conventional (with meaningful `scope:`) so release notes stay readable.
 
-Two jobs upload artifacts:
+Three jobs upload artifacts:
 
-| Job                           | Artifacts                                                                                                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build-native` (Windows only) | **Desktop**: `limedl-native-v{V}-windows-x86_64-{setup.exe,portable.zip,msix}` + signatures + `latest-native.json` (self-update manifest)                     |
-| `build-nas` (4 platforms)     | **Headless/NAS**: `limedl-nas-v{V}-{linux-x86_64-musl,linux-aarch64-musl,windows-x86_64,macos-aarch64}` with the WebUI embedded (`--features embed-frontend`) |
+| Job                                   | Artifacts                                                                                                                                                                                                                                                 |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build-native` (Windows)              | **Desktop**: `limedl-native-v{V}-windows-x86_64-{setup.exe,portable.zip,msix}`                                                                                                                                                                             |
+| `build-native-macos` (Apple silicon)  | **Desktop**: `limedl-native-v{V}-darwin-aarch64-portable.tar.gz` (ad-hoc-signed, un-notarized `limedl.app`)                                                                                                                                                 |
+| `build-native-linux` (x86_64, glibc)  | **Desktop**: `limedl-native-v{V}-linux-x86_64-portable.tar.gz`                                                                                                                                                                                              |
+| `native-manifest`                     | minisign signatures for every desktop artifact + `latest-native.json` (self-update manifest) + the signed MSIX. Sole writer of the manifest — see below                                                                                                     |
+| `build-nas` (4 platforms)             | **Headless/NAS**: `limedl-nas-v{V}-{linux-x86_64-musl,linux-aarch64-musl,windows-x86_64,macos-aarch64}` with the WebUI embedded (`--features embed-frontend`)                                                                                               |
+
+The desktop manifest is built by `native-manifest`, **not** by the platform jobs: it is a
+single file whose `platforms` map must carry every platform, so if each job generated it
+the last one to finish would drop the other platform's entries (and desynchronize the file
+from its `.sig`). The job runs with `if: always()` and only advertises platforms whose legs
+succeeded — a missing key is reported by the client as "no update" rather than an error.
 
 Desktop releases are the Slint client (`limedl-native`) only: the Tauri shell that
 used to provide the Vue-based desktop app was retired and its code (`src-tauri/`)
 removed, so `latest.json` (the Tauri updater manifest) is gone and existing Tauri
-installs freeze at their last version. macOS/Linux desktop users are served by the
-NAS build (`limedl daemon` + browser WebUI) until native packaging exists for those
-platforms. Existing Tauri installs migrate their data on first run of the Slint
-client (`crates/limedl-native/src/migrate.rs`).
+installs freeze at their last version. Windows, macOS (Apple silicon) and Linux
+x86_64 desktop users get the Slint client; the NAS build (`limedl daemon` +
+browser WebUI) remains the option for other architectures.
+macOS builds are ad-hoc signed and **not notarized** (no Apple Developer account in CI),
+so a browser-downloaded copy needs right-click → Open once. The Linux build targets
+`x86_64-unknown-linux-gnu`, so it needs glibc >= 2.39 (Ubuntu 24.04 / its derivatives).
+Existing Tauri installs migrate their data on first run of the Slint client
+(`crates/limedl-native/src/migrate.rs`).
 
 ## Architecture
 
@@ -69,11 +82,13 @@ All Rust crates use edition 2024.
 
 ### Multi-platform
 
-| Target         | Frontend            | Backend                 | Build                                                                                          |
-| -------------- | ------------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
-| Native Desktop | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (Windows/macOS/Linux; needs `pwsh scripts/fetch-misans.ps1` once) |
-| NAS WebUI      | Vue 3 via WebSocket | `limedl-server`         | `pnpm run build:nas`                                                                           |
-| CLI            | N/A                 | `limedl-server`         | `limedl daemon` / `limedl download <url>`                                                      |
+| Target                | Frontend            | Backend                 | Build                                                                                                          |
+| --------------------- | ------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Native Desktop (Win)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `pwsh scripts/fetch-misans.ps1` once)                                      |
+| Native Desktop (mac)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native`; release bundle via `bash scripts/package-macos.sh` (macOS host required)         |
+| Native Desktop (Linux)| Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `libgtk-3-dev` for the tray); release tarball via `bash scripts/package-linux.sh` |
+| NAS WebUI             | Vue 3 via WebSocket | `limedl-server`         | `pnpm run build:nas`                                                                                            |
+| CLI                   | N/A                 | `limedl-server`         | `limedl daemon` / `limedl download <url>`                                                                        |
 
 ### Frontend transport
 
@@ -154,7 +169,9 @@ Therefore: **fix all failures, warnings, and errors before committing, even if
 they pre-date your change or were not introduced by you.** Leaving a broken test
 or warning "for later" blocks the entire pipeline and hides real regressions.
 
-Run the full gate locally (Windows: init MSVC first):
+Run the full gate locally (Windows: init MSVC first). The Rust commands mirror
+`.github/workflows/ci.yml` **one for one** — same crate list, same features, same
+nextest version — so a green local run means a green CI run:
 
 ```powershell
 # Rust — clippy/build/test under -D warnings
@@ -162,13 +179,28 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 $env:RUSTFLAGS="-D warnings"
 $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 cargo clippy --workspace --all-targets
-cargo test --workspace
+
+# Tests run under nextest, not `cargo test`: each test gets its own process, so
+# the suite runs in parallel and cross-test global-state interference (shared
+# temp dirs, env vars, LazyLock) surfaces locally instead of in CI. Pin the same
+# version CI installs. One-time:
+#   cargo install cargo-nextest --locked --version 0.9.144
+# Per crate, NOT `--workspace`: only limedl-core's tests are meaningful without
+# the `test-utils,aria2-rpc` features, and a workspace-wide run would both lose
+# them and link the Skia UI binary just to check its flags.
+cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
+cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
+cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 
 # Frontend
 pnpm exec vue-tsc --noEmit
 pnpm run lint
 pnpm run test
 ```
+
+`cargo nextest run` does not execute doctests. The workspace has none today; if
+one is ever added, add a `cargo test --doc` step to the gate and to CI's
+`check-rust` job together.
 
 Only commit once every check above is green. If a failure is environmental
 (e.g. a Linux-only script on Windows), fix the code so it is platform-neutral or

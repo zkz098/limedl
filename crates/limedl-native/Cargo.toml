@@ -30,8 +30,23 @@ serde_json = { workspace = true }
 parking_lot = { workspace = true }
 uuid = { workspace = true }
 time = { workspace = true }
-tray-icon = "0.24"
-muda = "0.19"
+# default-features = false drops `libxdo`, which `tray-icon` enables by default on
+# Linux only so `muda`'s predefined `Copy`/`Cut`/`Paste`/`SelectAll` items can
+# synthesize keystrokes through `xdotool` (`muda/src/lib.rs:1187`). limedl never
+# constructs a predefined item — `build_tray_menu` uses `separator()` only — so
+# the feature would cost a `libxdo-dev` build dependency and an `xdotool` runtime
+# dependency for code that is never reached. The `gtk` feature stays: it is what
+# provides the Linux tray itself (via `libappindicator`, needing `libgtk-3-dev` at
+# build time), and it is left implicit through the default set of the *other*
+# features, so only the xdo half is switched off here.
+tray-icon = { version = "0.24", default-features = false, features = ["gtk"] }
+# `muda` is a direct dependency (the tray menu items are built from it) AND a
+# transitive one through `tray-icon`. Features are unified across the whole graph,
+# so `default-features = false, features = ["gtk"]` has to be set on BOTH crates:
+# leaving it off here re-enables `libxdo` for the workspace and the `tray-icon`
+# entry above would have no effect (this is exactly how `libxdo` survived the
+# first attempt). Same reasoning as above — `gtk` is required, `libxdo` is not.
+muda = { version = "0.19", default-features = false, features = ["gtk"] }
 notify-rust = "4"
 # rfd's build script panics when both of its Linux backends (`gtk3` and
 # `xdg-portal`) are enabled for the same target, so exactly one has to be picked.
@@ -48,10 +63,15 @@ notify-rust = "4"
 # also gives the native file chooser on Wayland and inside Flatpak/Snap sandboxes,
 # where GTK dialogs either mismatch the desktop or fail outright.
 #
-# No runtime feature is needed alongside `xdg-portal`: rfd drives ashpd through
-# `pollster::block_on`, and ashpd's own default feature is `tokio`, so the D-Bus
-# calls run on the runtime this app already links. (The `wayland`/`async-std`
-# features in rfd's defaults are for ashpd's raw-handle path and are not used here.)
+# `tokio` is REQUIRED alongside `xdg-portal`, not optional: rfd's `build.rs`
+# panics with "One of the `tokio` or `async-std` features must be enabled to use
+# `xdg-portal`" when neither is set. `default-features = false` drops both, so
+# selecting the backend explicitly means selecting a runtime too. `tokio` is the
+# right one here — the app is already `#[tokio::main]` and bootstraps limedl-core
+# on that runtime, so `async-std` would link a second reactor.
+# (The `.await`-based path is not what runs the dialog: `xdg_desktop_portal.rs`
+# drives ashpd through `pollster::block_on`. The feature only picks ashpd's
+# executor.)
 #
 # Trade-off: a bare X11 session with no portal service running falls back to the
 # portal's own error — `libgtk-3-dev`-free builds cannot show a GTK dialog. Every
@@ -60,7 +80,7 @@ notify-rust = "4"
 #
 # This only affects Linux (gtk/ashpd dependencies live under that target's cfg),
 # so Windows and macOS dependency graphs and behaviour are unchanged.
-rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
+rfd = { version = "0.16", default-features = false, features = ["xdg-portal", "tokio"] }
 arboard = "3.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 sys-locale = "0.3"
