@@ -14,6 +14,9 @@
 
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
+// Windows-only: both are used solely by the Win32 subclassing machinery below
+// (`HOOK_INSTALLED`), which is compiled out everywhere else.
+#[cfg(windows)]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Persisted window geometry (position, size, maximized status), in physical
@@ -78,16 +81,35 @@ pub fn save_window_geometry(base_dir: &Path, geom: &WindowGeometry) {
     }
 }
 
+// ── Windows-only: drag-and-drop + WM_COPYDATA IPC ───────────────────────────
+// Everything from here to the `subclass_proc` handler exists to pass file drops
+// and secondary-launch payloads into the app from the Win32 message loop, and is
+// reachable only through `#[cfg(windows)]` call sites (main.rs, single_instance.rs).
+// The whole set has to be gated, not just the functions: on macOS/Linux the
+// callbacks and ids have no readers, and `-D warnings` turns each unused type
+// alias, static and const into a build failure (the earlier unconditional
+// definitions compiled fine on Windows for exactly that reason).
+#[cfg(windows)]
 type DropCallback = Box<dyn Fn(Vec<String>) + Send + Sync + 'static>;
+#[cfg(windows)]
 type CopyDataCallback = Box<dyn Fn(Option<String>) + Send + Sync + 'static>;
+#[cfg(windows)]
 type ShowCallback = Box<dyn Fn() + Send + Sync + 'static>;
 
+#[cfg(windows)]
 static DROP_CALLBACK: Mutex<Option<DropCallback>> = Mutex::new(None);
+#[cfg(windows)]
 static COPYDATA_CALLBACK: Mutex<Option<CopyDataCallback>> = Mutex::new(None);
+#[cfg(windows)]
 static SHOW_CALLBACK: Mutex<Option<ShowCallback>> = Mutex::new(None);
+#[cfg(windows)]
 static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
 
+#[cfg(windows)]
 const SUBCLASS_ID: usize = 0x4C494D45; // "LIME"
+/// `dwData` magic marking a `WM_COPYDATA` sent by another limedl instance
+/// (read by `single_instance::notify_primary`).
+#[cfg(windows)]
 pub const COPYDATA_MAGIC: usize = 0x4C494D45;
 
 #[cfg(windows)]
@@ -116,6 +138,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
 ///
 /// Safe to call before the native window exists; `try_install_window_hooks`
 /// then performs the Win32 part once the handle is available.
+///
+/// Windows-only, like every other export in this group — the whole drag-drop and
+/// `WM_COPYDATA` path has no non-Windows equivalent (`main.rs` calls it from a
+/// `#[cfg(windows)]` block), so there is nothing to no-op elsewhere.
+#[cfg(windows)]
 pub fn set_callbacks(
     on_drop: impl Fn(Vec<String>) + Send + Sync + 'static,
     on_copydata: impl Fn(Option<String>) + Send + Sync + 'static,
@@ -132,8 +159,8 @@ pub fn set_callbacks(
 /// the event loop starts), so callers can retry on a timer instead of silently
 /// losing the integrations. Callbacks are registered separately via
 /// [`set_callbacks`].
+#[cfg(windows)]
 pub fn try_install_window_hooks(window: &slint::Window) -> bool {
-    #[cfg(windows)]
     {
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
@@ -163,12 +190,6 @@ pub fn try_install_window_hooks(window: &slint::Window) -> bool {
             }
             tracing::warn!("挂载 Windows 窗口子类化处理器失败");
         }
-        false
-    }
-
-    #[cfg(not(windows))]
-    {
-        let _ = window;
         false
     }
 }

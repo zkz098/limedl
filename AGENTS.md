@@ -202,6 +202,38 @@ pnpm run test
 one is ever added, add a `cargo test --doc` step to the gate and to CI's
 `check-rust` job together.
 
+### The gate does not compile non-Windows code on a Windows host
+
+This is the gate's biggest blind spot and it has already shipped two broken
+tagged releases. On Windows, `cfg(not(windows))` items are never compiled, so
+`cargo clippy --workspace --all-targets` cannot see:
+
+- an unused import / type alias / static / const that only macOS and Linux
+  reach (`-D warnings` turns each into a red CI job);
+- a `build.rs` that compiles a dependency the crate only declares for Windows
+  (`winres`), or a dependency feature that is required but not enabled
+  (`rfd`'s `xdg-portal` needs `tokio` or `async-std`, checked by `rfd`'s own
+  build script);
+- a `-l<lib>` that the runner has no `-dev` package for.
+
+Cross-checking locally is not possible without a cross toolchain (`ring`/`cc`
+and the GTK `-sys` crates need a Linux compiler), so:
+
+1. **Prefer `#[cfg]` over runtime checks in `build.rs` and `platform_*.rs`.**
+   `if std::env::var("CARGO_CFG_TARGET_OS") == Ok("windows")` looks equivalent
+   to `#[cfg(windows)]` but is evaluated at run time — the dead code is still
+   compiled on every host. When a runtime decision really is needed, the gate
+   can be exercised on Windows with
+   `$env:CARGO_CFG_TARGET_OS = "macos"; cargo build -p limedl-native --target x86_64-pc-windows-msvc`
+   (compile-only; it will not link the real target).
+2. **Treat a tagged release as the first real platform check** and follow CI to
+   green before publishing, or push the tag only after `check-macos` /
+   `check-rust` are green on that same commit.
+3. When adding a platform-gated module, re-read it asking "what does this file
+   look like with `cfg(windows)` false?" — the file header comment convention in
+   `platform_win.rs` (which exports are shared, which are Windows-only) exists
+   for exactly this review.
+
 Only commit once every check above is green. If a failure is environmental
 (e.g. a Linux-only script on Windows), fix the code so it is platform-neutral or
 otherwise reruns green in CI rather than committing around it.
