@@ -79,9 +79,9 @@ component BtStatPill inherits Rectangle {
     border-width: 1px;
 
     HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
-        spacing: 4px;
+        padding-left: 6px;
+        padding-right: 6px;
+        spacing: 3px;
         alignment: center;
 
         VerticalLayout {
@@ -167,6 +167,7 @@ export component MainWindow inherits Window {
     in property <bool> sort_asc: false;
     in property <int> selected_count: 0;
     in-out property <int> view_mode: 0; // 0: Cards, 1: Table
+
 
     // Phase 3: Inspector state
     in property <bool> show_inspector: false;
@@ -737,15 +738,15 @@ export component MainWindow inherits Window {
                 border-width: 1px;
 
                 HorizontalLayout {
-                    padding-left: 24px;
-                    padding-right: 24px;
+                    padding-left: 16px;
+                    padding-right: 16px;
                     padding-top: 15px;
                     padding-bottom: 15px;
-                    alignment: space-between;
+                    spacing: 10px;
 
                     // Left Title & Search
                     HorizontalLayout {
-                        spacing: 20px;
+                        spacing: 12px;
                         alignment: start;
 
                         VerticalLayout {
@@ -759,7 +760,7 @@ export component MainWindow inherits Window {
                                     )
                                 );
                                 color: Theme.cf3f4f6;
-                                font-size: 17px;
+                                font-size: 16px;
                                 font-weight: 700;
                                 vertical-alignment: center;
                             }
@@ -768,49 +769,52 @@ export component MainWindow inherits Window {
                         VerticalLayout {
                             alignment: center;
                             search_box := SearchInput {
+                                input_width: 170px;
                                 text <=> root.search_query;
                                 text_changed(q) => { root.search_changed(q); }
                             }
                         }
                     }
 
+                    // Flexible Spacer between left and right groups
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        min-width: 8px;
+                    }
+
                     // Middle / Right Actions
                     HorizontalLayout {
-                        spacing: 8px;
-                        alignment: end;
+                        spacing: 5px;
+                        alignment: center;
 
                         // View Mode Toggle (Cards / Table)
-                        IconButton {
-                            text: root.view_mode == 0 ? @tr("Table View") : @tr("Cards View");
-                            icon: root.view_mode == 0 ? @image-url("assets/icons/file-list-line.svg") : @image-url("assets/icons/layout-grid-line.svg");
-                            text_color: Theme.ca3e635;
-                            clicked => { root.toggle_view_mode(); }
+                        VerticalLayout {
+                            alignment: center;
+                            IconButton {
+                                icon: root.view_mode == 0 ? @image-url("assets/icons/file-list-line.svg") : @image-url("assets/icons/layout-grid-line.svg");
+                                text_color: Theme.ca3e635;
+                                clicked => { root.toggle_view_mode(); }
+                            }
                         }
 
                         // BT runtime status pills (DHT nodes / upload speed / peers)
-                        if root.bt_status_visible : HorizontalLayout {
-                            spacing: 6px;
+                        if root.bt_status_visible : VerticalLayout {
                             alignment: center;
-
-                            BtStatPill {
-                                icon: @image-url("assets/icons/global-line.svg");
-                                text: root.bt_dht_text;
-                            }
-                            BtStatPill {
-                                icon: @image-url("assets/icons/file-upload-line.svg");
-                                text: root.bt_upload_speed_text;
-                            }
-                            BtStatPill {
-                                icon: @image-url("assets/icons/group-line.svg");
-                                text: root.bt_peers_text;
-                            }
-
-                            VerticalLayout {
+                            HorizontalLayout {
+                                spacing: 4px;
                                 alignment: center;
-                                Rectangle {
-                                    width: 1px;
-                                    height: 20px;
-                                    background: Theme.c242934;
+
+                                BtStatPill {
+                                    icon: @image-url("assets/icons/global-line.svg");
+                                    text: root.bt_dht_text;
+                                }
+                                BtStatPill {
+                                    icon: @image-url("assets/icons/file-upload-line.svg");
+                                    text: root.bt_upload_speed_text;
+                                }
+                                BtStatPill {
+                                    icon: @image-url("assets/icons/group-line.svg");
+                                    text: root.bt_peers_text;
                                 }
                             }
                         }
@@ -826,7 +830,7 @@ export component MainWindow inherits Window {
 
                         // Sort Selector
                         HorizontalLayout {
-                            spacing: 6px;
+                            spacing: 4px;
                             alignment: center;
 
                             Text {
@@ -837,7 +841,7 @@ export component MainWindow inherits Window {
                             }
 
                             CustomSelect {
-                                width: 105px;
+                                width: 92px;
                                 select_height: 32px;
                                 font_size: 12px;
                                 model: [
@@ -854,11 +858,13 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            IconButton {
-                                text: root.sort_asc ? @tr("Asc") : @tr("Desc");
-                                icon: root.sort_asc ? @image-url("assets/icons/sort-asc.svg") : @image-url("assets/icons/sort-desc.svg");
-                                text_color: Theme.ca3e635;
-                                clicked => { root.toggle_sort_asc(); }
+                            VerticalLayout {
+                                alignment: center;
+                                IconButton {
+                                    icon: root.sort_asc ? @image-url("assets/icons/sort-asc.svg") : @image-url("assets/icons/sort-desc.svg");
+                                    text_color: Theme.ca3e635;
+                                    clicked => { root.toggle_sort_asc(); }
+                                }
                             }
                         }
 
@@ -872,19 +878,16 @@ export component MainWindow inherits Window {
                         }
 
                         SecondaryButton {
-                            text: @tr("Pause All");
                             icon: @image-url("assets/icons/pause-line.svg");
                             clicked => { root.pause_all(); }
                         }
 
                         SecondaryButton {
-                            text: @tr("Resume All");
                             icon: @image-url("assets/icons/play-line.svg");
                             clicked => { root.resume_all(); }
                         }
 
                         SecondaryButton {
-                            text: @tr("Clear Completed");
                             icon: @image-url("assets/icons/eraser-line.svg");
                             clicked => { root.clear_completed(); }
                         }

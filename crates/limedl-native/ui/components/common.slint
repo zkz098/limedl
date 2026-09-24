@@ -29,13 +29,14 @@ export component IconButton inherits Rectangle {
     min-width: 28px;
 
     ta := TouchArea {
+        mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
 
     HorizontalLayout {
         padding-left: root.text != "" ? 8px : 6px;
         padding-right: root.text != "" ? 8px : 6px;
-        spacing: 4px;
+        spacing: root.text != "" && root.icon.width > 0 ? 4px : 0px;
         alignment: center;
 
         if root.icon.width > 0 : VerticalLayout {
@@ -71,17 +72,18 @@ export component PrimaryButton inherits Rectangle {
     animate background { duration: 120ms; }
     border-radius: 6px;
     height: 32px;
-    min-width: 80px;
+    min-width: root.text != "" ? 80px : 32px;
 
     ta := TouchArea {
         enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
         clicked => { root.clicked(); }
     }
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 6px;
+        padding-left: root.text != "" ? 12px : 8px;
+        padding-right: root.text != "" ? 12px : 8px;
+        spacing: root.text != "" && root.icon.width > 0 ? 6px : 0px;
         alignment: center;
 
         if root.icon.width > 0 : VerticalLayout {
@@ -95,7 +97,7 @@ export component PrimaryButton inherits Rectangle {
             }
         }
 
-        Text {
+        if root.text != "" : Text {
             text: root.text;
             color: !root.enabled ? Theme.c4d5c41 : #0b1104;
             font-size: 13px;
@@ -118,17 +120,18 @@ export component SecondaryButton inherits Rectangle {
     border-width: 1px;
     border-radius: 6px;
     height: 32px;
-    min-width: 60px;
+    min-width: root.text != "" ? 60px : 32px;
 
     ta := TouchArea {
         enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
         clicked => { root.clicked(); }
     }
 
     HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        spacing: 5px;
+        padding-left: root.text != "" ? 10px : 8px;
+        padding-right: root.text != "" ? 10px : 8px;
+        spacing: root.text != "" && root.icon.width > 0 ? 5px : 0px;
         alignment: center;
 
         if root.icon.width > 0 : VerticalLayout {
@@ -142,7 +145,7 @@ export component SecondaryButton inherits Rectangle {
             }
         }
 
-        Text {
+        if root.text != "" : Text {
             text: root.text;
             color: !root.enabled ? Theme.c4b5563 : (root.active ? Theme.c84cc16 : (ta.has_hover ? Theme.cffffff : Theme.ce5e7eb));
             font-size: 12px;
@@ -164,17 +167,18 @@ export component DangerButton inherits Rectangle {
     border-width: 1px;
     border-radius: 6px;
     height: 32px;
-    min-width: 60px;
+    min-width: root.text != "" ? 60px : 32px;
 
     ta := TouchArea {
         enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
         clicked => { root.clicked(); }
     }
 
     HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        spacing: 5px;
+        padding-left: root.text != "" ? 10px : 8px;
+        padding-right: root.text != "" ? 10px : 8px;
+        spacing: root.text != "" && root.icon.width > 0 ? 5px : 0px;
         alignment: center;
 
         if root.icon.width > 0 : VerticalLayout {
@@ -188,7 +192,7 @@ export component DangerButton inherits Rectangle {
             }
         }
 
-        Text {
+        if root.text != "" : Text {
             text: root.text;
             color: !root.enabled ? #6b7280 : #fef2f2;
             font-size: 12px;
@@ -315,7 +319,7 @@ export component ToggleSwitch inherits Rectangle {
 export component SearchInput inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder: @tr("Search downloads...");
-    in property <length> input_width: 300px;
+    in property <length> input_width: 220px;
     callback text_changed(string);
 
     background: Theme.c15171c;
