@@ -24,9 +24,9 @@ export default defineConfig({
           lang: 'en',
         },
       },
-      social: {
-        github: 'https://github.com/zkz098/limedl',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/zkz098/limedl' },
+      ],
       sidebar: [
         {
           label: '快速上手',
