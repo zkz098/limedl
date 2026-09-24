@@ -13,19 +13,18 @@ use std::path::Path;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use dashmap::DashMap;
 
 pub use queue::{DeviceMetric, DeviceQueue};
 pub use topology::{DeviceId, DeviceTopology};
 use crate::buffer_pool::SyncMode;
 use crate::error::DownloadError;
-use crate::types::DiskType;
+use crate::types::{DiskType, FastDashMap};
 
 /// Unified global device-level I/O manager.
 #[derive(Clone)]
 pub struct DiskDeviceManager {
     topology: DeviceTopology,
-    queues: Arc<DashMap<DeviceId, Arc<DeviceQueue>>>,
+    queues: Arc<FastDashMap<DeviceId, Arc<DeviceQueue>>>,
 }
 
 impl Default for DiskDeviceManager {
@@ -39,7 +38,7 @@ impl DiskDeviceManager {
     pub fn new() -> Self {
         Self {
             topology: DeviceTopology::new(),
-            queues: Arc::new(DashMap::new()),
+            queues: Arc::new(FastDashMap::default()),
         }
     }
 

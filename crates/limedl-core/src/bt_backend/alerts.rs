@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use dashmap::DashMap;
 use irontide::core::Id20;
 use tokio::sync::broadcast;
+
+use crate::types::FastDashMap;
 
 use super::IrontideBtBackend;
 use super::snapshot::{StateHelpers, estimate_eta, map_state};
@@ -116,7 +117,7 @@ pub(crate) fn extract_info_hash(kind: &irontide::session::AlertKind) -> Option<&
 async fn alert_bridge_loop(
     session: irontide::session::SessionHandle,
     event_bus: Arc<EventBus>,
-    task_map: Arc<DashMap<Id20, Id20>>,
+    task_map: Arc<FastDashMap<Id20, Id20>>,
 ) {
     use irontide::session::AlertKind;
 

@@ -26,14 +26,12 @@ pub fn open_download_file(path: &Path, total_size: Option<u64>) -> Result<File> 
         .open(path)
         .map_err(|e| io_error_with_path(e, path.to_string_lossy()))?;
 
-    let _ = set_sparse_file(&file);
     preallocate_file(&file, total_size)?;
     Ok(file)
 }
 
 pub fn reset_download_file(file: &File, total_size: Option<u64>) -> Result<()> {
     file.set_len(0)?;
-    let _ = set_sparse_file(file);
     preallocate_file(file, total_size)
 }
 
@@ -357,6 +355,118 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], offset: u64) -> Result
     write_all_at(file, &combined, offset)
 }
 
+// ── Windows Fast Preallocation & Sparse File Support ──
+#[cfg(windows)]
+#[repr(C)]
+struct Luid {
+    low_part: u32,
+    high_part: i32,
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct LuidAndAttributes {
+    luid: Luid,
+    attributes: u32,
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct TokenPrivileges {
+    privilege_count: u32,
+    privileges: [LuidAndAttributes; 1],
+}
+
+#[cfg(windows)]
+unsafe extern "system" {
+    fn DeviceIoControl(
+        h_device: isize,
+        dw_io_control_code: u32,
+        lp_in_buffer: *const std::ffi::c_void,
+        n_in_buffer_size: u32,
+        lp_out_buffer: *mut std::ffi::c_void,
+        n_out_buffer_size: u32,
+        lp_bytes_returned: *mut u32,
+        lp_overlapped: *mut std::ffi::c_void,
+    ) -> i32;
+    fn GetLastError() -> u32;
+    fn SetFileValidData(h_file: isize, valid_data_length: i64) -> i32;
+    fn GetCurrentProcess() -> isize;
+    fn OpenProcessToken(process_handle: isize, desired_access: u32, token_handle: *mut isize) -> i32;
+    fn CloseHandle(handle: isize) -> i32;
+    fn LookupPrivilegeValueW(lp_system_name: *const u16, lp_name: *const u16, lp_luid: *mut Luid) -> i32;
+    fn AdjustTokenPrivileges(
+        token_handle: isize,
+        disable_all_privileges: i32,
+        new_state: *const TokenPrivileges,
+        buffer_length: u32,
+        previous_state: *mut std::ffi::c_void,
+        return_length: *mut u32,
+    ) -> i32;
+}
+
+/// Check and acquire `SeManageVolumePrivilege` once per process.
+/// This privilege is required for instant, zero-filling-free `SetFileValidData` allocation.
+#[cfg(windows)]
+static HAS_MANAGE_VOLUME_PRIVILEGE: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+    unsafe {
+        const TOKEN_ADJUST_PRIVILEGES: u32 = 0x0020;
+        const TOKEN_QUERY: u32 = 0x0008;
+        const SE_PRIVILEGE_ENABLED: u32 = 0x00000002;
+
+        let mut token: isize = 0;
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &mut token) == 0 {
+            return false;
+        }
+
+        let name: Vec<u16> = "SeManageVolumePrivilege\0".encode_utf16().collect();
+        let mut luid = Luid { low_part: 0, high_part: 0 };
+        if LookupPrivilegeValueW(std::ptr::null(), name.as_ptr(), &mut luid) == 0 {
+            CloseHandle(token);
+            return false;
+        }
+
+        let tp = TokenPrivileges {
+            privilege_count: 1,
+            privileges: [LuidAndAttributes {
+                luid,
+                attributes: SE_PRIVILEGE_ENABLED,
+            }],
+        };
+
+        let res = AdjustTokenPrivileges(
+            token,
+            0,
+            &tp,
+            std::mem::size_of::<TokenPrivileges>() as u32,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        let err = GetLastError();
+        CloseHandle(token);
+        res != 0 && err == 0
+    }
+});
+
+/// Attempt instantaneous disk preallocation on Windows without zero-filling or fragmentation.
+/// Requires `SeManageVolumePrivilege` (enabled when run as admin or with volume management rights).
+#[cfg(windows)]
+fn try_fast_preallocate_win(file: &File, total_size: u64) -> bool {
+    use std::os::windows::io::AsRawHandle;
+
+    if !*HAS_MANAGE_VOLUME_PRIVILEGE {
+        return false;
+    }
+
+    if file.set_len(total_size).is_err() {
+        return false;
+    }
+
+    let handle = file.as_raw_handle() as isize;
+    let res = unsafe { SetFileValidData(handle, total_size as i64) };
+    res != 0
+}
+
 /// Configure the file as sparse to avoid zero-filling stalls on non-sequential chunk writes.
 #[cfg(windows)]
 pub fn set_sparse_file(file: &File) -> io::Result<()> {
@@ -365,20 +475,6 @@ pub fn set_sparse_file(file: &File) -> io::Result<()> {
     const FSCTL_SET_SPARSE: u32 = 0x000900C4;
     let handle = file.as_raw_handle();
     let mut bytes_returned: u32 = 0;
-
-    unsafe extern "system" {
-        fn DeviceIoControl(
-            h_device: isize,
-            dw_io_control_code: u32,
-            lp_in_buffer: *const std::ffi::c_void,
-            n_in_buffer_size: u32,
-            lp_out_buffer: *mut std::ffi::c_void,
-            n_out_buffer_size: u32,
-            lp_bytes_returned: *mut u32,
-            lp_overlapped: *mut std::ffi::c_void,
-        ) -> i32;
-        fn GetLastError() -> u32;
-    }
 
     let success = unsafe {
         DeviceIoControl(
@@ -432,10 +528,19 @@ fn preallocate_file(file: &File, total_size: Option<u64>) -> Result<()> {
         return Ok(());
     };
 
-    // On Windows, enable sparse attribute first so out-of-order chunk writes
-    // (e.g. BT pieces or multi-connection HTTP chunks) never trigger synchronous zero-filling stalls.
     #[cfg(windows)]
-    let _ = set_sparse_file(file);
+    {
+        // 1. Try instantaneous SetFileValidData (requires SeManageVolumePrivilege).
+        // If permitted, this sets ValidDataLength == EOF in 0 ms without writing
+        // zeroes to disk and without file fragmentation.
+        if try_fast_preallocate_win(file, total_size) {
+            return Ok(());
+        }
+
+        // 2. Fall back to sparse file mode on Windows to avoid synchronous zero-fill stalls
+        // on non-sequential chunk writes.
+        let _ = set_sparse_file(file);
+    }
 
     match file.allocate(total_size) {
         Ok(()) => Ok(()),

@@ -2,9 +2,10 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dashmap::DashMap;
 use irontide::core::Id20;
 use parking_lot::Mutex;
+
+use crate::types::FastDashMap;
 
 use super::IrontideBtBackend;
 use crate::event_bus::{DownloadEvent, EventBus};
@@ -134,10 +135,10 @@ pub(crate) fn peer_is_leecher(
 async fn anti_leech_loop(
     session: irontide::session::SessionHandle,
     bt_settings: Arc<Mutex<BtSettings>>,
-    task_map: Arc<DashMap<Id20, Id20>>,
+    task_map: Arc<FastDashMap<Id20, Id20>>,
     event_bus: Arc<EventBus>,
-    banned_leechers: Arc<DashMap<IpAddr, u64>>,
-    slot_state: Arc<DashMap<Id20, usize>>,
+    banned_leechers: Arc<FastDashMap<IpAddr, u64>>,
+    slot_state: Arc<FastDashMap<Id20, usize>>,
 ) {
     let mut interval = tokio::time::interval(ANTI_LEECH_INTERVAL);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -191,8 +192,8 @@ async fn anti_leech_loop(
 async fn apply_anti_leech_to_torrent(
     session: &irontide::session::SessionHandle,
     event_bus: &Arc<EventBus>,
-    banned_leechers: &Arc<DashMap<IpAddr, u64>>,
-    slot_state: &Arc<DashMap<Id20, usize>>,
+    banned_leechers: &Arc<FastDashMap<IpAddr, u64>>,
+    slot_state: &Arc<FastDashMap<Id20, usize>>,
     cfg: &AntiLeechConfig,
     info_hash: Id20,
 ) {
@@ -272,8 +273,8 @@ async fn apply_anti_leech_to_torrent(
 /// restore any upload-slot caps we applied so the session behaves normally.
 async fn cleanup_disabled(
     session: &irontide::session::SessionHandle,
-    banned_leechers: &Arc<DashMap<IpAddr, u64>>,
-    slot_state: &Arc<DashMap<Id20, usize>>,
+    banned_leechers: &Arc<FastDashMap<IpAddr, u64>>,
+    slot_state: &Arc<FastDashMap<Id20, usize>>,
 ) {
     let ips: Vec<IpAddr> = banned_leechers.iter().map(|e| *e.key()).collect();
     for ip in ips {

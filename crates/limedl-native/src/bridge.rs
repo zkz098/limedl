@@ -1481,12 +1481,12 @@ pub fn format_io_status_json(val: &serde_json::Value, lang: Language) -> String 
 
 /// State store managing task collections, filtering, search, sorting, and multi-selection.
 pub struct TaskStore {
-    tasks: HashMap<String, DownloadSummary>,
+    tasks: foldhash::HashMap<String, DownloadSummary>,
     current_category: i32,
     search_query: String,
     sort_field: SortField,
     sort_asc: bool,
-    selected_ids: HashSet<String>,
+    selected_ids: foldhash::HashSet<String>,
     last_selected_id: Option<String>,
     language: Language,
 }
@@ -1499,12 +1499,12 @@ impl TaskStore {
 
     pub fn with_language(lang: Language) -> Self {
         Self {
-            tasks: HashMap::new(),
+            tasks: foldhash::HashMap::default(),
             current_category: 0,
             search_query: String::new(),
             sort_field: SortField::Created,
             sort_asc: false,
-            selected_ids: HashSet::new(),
+            selected_ids: foldhash::HashSet::default(),
             last_selected_id: None,
             language: lang,
         }

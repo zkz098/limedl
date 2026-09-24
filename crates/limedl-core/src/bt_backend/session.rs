@@ -2,8 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-use dashmap::DashMap;
 use parking_lot::Mutex;
+
+use crate::types::FastDashMap;
 
 use irontide::core::Id20;
 
@@ -103,21 +104,21 @@ impl IrontideBtBackend {
             default_output_dir,
             bt_settings: Arc::new(Mutex::new(bt.clone())),
             event_bus,
-            task_map: Arc::new(DashMap::new()),
+            task_map: Arc::new(FastDashMap::default()),
             alert_task: Arc::new(Mutex::new(None)),
             upload_policy_task: Arc::new(Mutex::new(None)),
             anti_leech_task: Arc::new(Mutex::new(None)),
-            banned_leechers: Arc::new(DashMap::new()),
-            anti_leech_slot_state: Arc::new(DashMap::new()),
+            banned_leechers: Arc::new(FastDashMap::default()),
+            anti_leech_slot_state: Arc::new(FastDashMap::default()),
             applied_blocklist_key: Arc::new(Mutex::new(None)),
             http_client,
             global_speed_limit_bps: settings.global_speed_limit_bps,
-            paused_by_limit: Arc::new(DashMap::new()),
+            paused_by_limit: Arc::new(FastDashMap::default()),
             runtime_handle,
             active_bt_count,
             max_concurrent_bt,
-            bt_slot_guards: Arc::new(DashMap::new()),
-            torrent_created_at: Arc::new(DashMap::new()),
+            bt_slot_guards: Arc::new(FastDashMap::default()),
+            torrent_created_at: Arc::new(FastDashMap::default()),
         };
 
         backend.apply_blocklist().await;

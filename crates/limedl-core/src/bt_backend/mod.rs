@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
 use async_trait::async_trait;
-use dashmap::DashMap;
 use irontide::core::Id20;
 use parking_lot::Mutex;
 
@@ -27,7 +26,9 @@ use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::protocol::DownloadBackend;
 use crate::slot_guard::DownloadSlotGuard;
-use crate::types::{AppSettings, DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId};
+use crate::types::{
+    AppSettings, DownloadSnapshot, DownloadSummary, FastDashMap, StartDownloadRequest, TaskId,
+};
 
 /// Compute an Aria2-compatible GID from an info hash.
 pub(crate) fn internal_id_to_gid(info_hash: &Id20) -> String {
@@ -57,7 +58,7 @@ pub struct IrontideBtBackend {
     /// Central event bus for publishing download events to subscribers and frontend.
     pub(crate) event_bus: Arc<EventBus>,
     /// Map of info hash → info hash (used as a set of active torrents).
-    pub(crate) task_map: Arc<DashMap<Id20, Id20>>,
+    pub(crate) task_map: Arc<FastDashMap<Id20, Id20>>,
     /// Join handle for the alert bridge background task.
     pub(crate) alert_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Join handle for the upload policy background task.
@@ -65,10 +66,10 @@ pub struct IrontideBtBackend {
     /// Join handle for the anti-leech background task.
     pub(crate) anti_leech_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Anti-leech: IP → ban-expiry-ms for peers we banned. (Ban action only.)
-    pub(crate) banned_leechers: Arc<DashMap<IpAddr, u64>>,
+    pub(crate) banned_leechers: Arc<FastDashMap<IpAddr, u64>>,
     /// Anti-leech: info-hash → original upload-slot count before the loop capped
     /// it (LimitSlots action only), used to restore slots once leechers clear.
-    pub(crate) anti_leech_slot_state: Arc<DashMap<Id20, usize>>,
+    pub(crate) anti_leech_slot_state: Arc<FastDashMap<Id20, usize>>,
     /// Blocklist: key (`enabled:path`) of the last successfully applied IP
     /// filter, so we don't reload/rewrite the filter on every settings save.
     pub(crate) applied_blocklist_key: Arc<Mutex<Option<String>>>,
@@ -77,7 +78,7 @@ pub struct IrontideBtBackend {
     /// Global download speed limit (bytes/sec) from AppSettings.
     pub(crate) global_speed_limit_bps: u64,
     /// Set of info-hashes whose upload has been paused by the upload policy loop.
-    pub(crate) paused_by_limit: Arc<DashMap<Id20, ()>>,
+    pub(crate) paused_by_limit: Arc<FastDashMap<Id20, ()>>,
     /// Tokio runtime handle, captured at construction time.
     pub(crate) runtime_handle: tokio::runtime::Handle,
     /// Active BT download counter (shared with DownloadManager for global throttle).
@@ -85,9 +86,9 @@ pub struct IrontideBtBackend {
     /// Maximum concurrent BT downloads allowed.
     pub(crate) max_concurrent_bt: Arc<AtomicUsize>,
     /// Guards holding BT download slots for active torrents.
-    pub(crate) bt_slot_guards: Arc<DashMap<Id20, DownloadSlotGuard>>,
+    pub(crate) bt_slot_guards: Arc<FastDashMap<Id20, DownloadSlotGuard>>,
     /// Creation timestamps for active torrents (populated on start).
-    pub(crate) torrent_created_at: Arc<DashMap<Id20, u64>>,
+    pub(crate) torrent_created_at: Arc<FastDashMap<Id20, u64>>,
 }
 
 impl Clone for IrontideBtBackend {

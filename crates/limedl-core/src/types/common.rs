@@ -1,4 +1,8 @@
 use serde::{Deserialize, Serialize};
+
+/// High-performance DashMap using foldhash's fast RandomState instead of std's SipHash.
+pub type FastDashMap<K, V> = dashmap::DashMap<K, V, foldhash::fast::RandomState>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializableError {

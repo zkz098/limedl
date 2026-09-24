@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use dashmap::DashMap;
 use irontide::core::Id20;
 use parking_lot::Mutex;
+
+use crate::types::FastDashMap;
 
 use super::IrontideBtBackend;
 use crate::event_bus::{DownloadEvent, EventBus};
@@ -42,9 +43,9 @@ impl IrontideBtBackend {
 async fn upload_policy_loop(
     session: irontide::session::SessionHandle,
     bt_settings: Arc<Mutex<crate::types::BtSettings>>,
-    task_map: Arc<DashMap<Id20, Id20>>,
+    task_map: Arc<FastDashMap<Id20, Id20>>,
     event_bus: Arc<EventBus>,
-    paused_by_limit: Arc<DashMap<Id20, ()>>,
+    paused_by_limit: Arc<FastDashMap<Id20, ()>>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
