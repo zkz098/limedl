@@ -1,0 +1,79 @@
+---
+import { Image } from 'astro:assets';
+import heroImage from '../assets/hero-desktop-ui.png';
+import OsDownloadButton from './OsDownloadButton.astro';
+
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+---
+
+<section class="relative pt-12 pb-20 md:pt-20 md:pb-32 overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-4xl mx-auto space-y-6">
+      <!-- Tag / Badge -->
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-lime-500/30 bg-lime-500/10 text-lime-400 text-xs sm:text-sm font-medium">
+        <span class="w-2 h-2 rounded-full bg-lime-400 animate-ping"></span>
+        <span>{isEn ? 'Built with 100% Pure Rust & Native Slint UI' : '纯 Rust 驱动 · Slint 原生轻量渲染'}</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight">
+        {
+          isEn ? (
+            <>
+              Blazing Fast, <span class="text-transparent bg-clip-text bg-gradient-to-r from-lime-400 to-emerald-400">Ultra-Lightweight</span> Multi-Protocol Downloader
+            </>
+          ) : (
+            <>
+              更快、更轻，<br class="hidden sm:inline" />
+              掌控每一次<span class="text-transparent bg-clip-text bg-gradient-to-r from-lime-400 to-emerald-400">极速传输</span>
+            </>
+          )
+        }
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+        {
+          isEn
+            ? 'No Electron bloat. HTTP/HTTPS dynamic AIMD chunking, full BitTorrent engine, and built-in Cloudflare CDN IP optimization. Starts in milliseconds.'
+            : '拒绝臃肿，告别数百兆内存占用。支持 HTTP/HTTPS 动态自适应并发与完整 BitTorrent 协议，内置 Cloudflare 探针智能优选与 Aria2 生态无缝对接。'
+        }
+      </p>
+
+      <!-- CTA Buttons -->
+      <div class="pt-4 flex justify-center">
+        <OsDownloadButton lang={lang} />
+      </div>
+
+      <!-- Quick Platform Support Meta -->
+      <p class="text-xs text-slate-500">
+        {isEn ? 'Available on Windows 10/11 · macOS (Apple Silicon) · Linux x86_64 · Free & Open Source (GPLv3)' : '支持 Windows 10/11 · macOS (Apple Silicon) · Linux x86_64 · 遵循 GPLv3 开源协议'}
+      </p>
+    </div>
+
+    <!-- UI Mockup Window -->
+    <div class="mt-14 sm:mt-20 max-w-5xl mx-auto relative group">
+      <!-- Glow ambient background -->
+      <div class="absolute -inset-1 bg-gradient-to-r from-lime-500/20 to-emerald-500/20 rounded-2xl blur-xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+
+      <!-- App Window Screenshot Container -->
+      <div class="relative rounded-2xl bg-brand-dark border border-brand-border shadow-2xl overflow-hidden text-left font-sans">
+        <Image
+          src={heroImage}
+          alt={isEn ? "limedl Native Desktop App Interface" : "limedl 原生桌面主界面截图"}
+          class="w-full h-auto object-cover rounded-2xl block"
+          widths={[640, 960, 1280, 1920]}
+          sizes="(max-width: 1024px) 100vw, 1280px"
+          quality={92}
+          format="webp"
+          loading="eager"
+        />
+      </div>
+    </div>
+  </div>
+</section>

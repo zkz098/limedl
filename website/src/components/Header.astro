@@ -1,0 +1,90 @@
+---
+import { Image } from 'astro:assets';
+import logoImage from '../assets/logo.png';
+
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+
+const navLinks = isEn
+  ? [
+      { name: 'Features', href: '/en/#features' },
+      { name: 'Download', href: '/en/download' },
+      { name: 'Docs', href: '/en/getting-started/overview/' },
+      { name: 'Ecosystem', href: '/en/ecosystem/browser/' },
+    ]
+  : [
+      { name: '特性', href: '/#features' },
+      { name: '下载', href: '/download' },
+      { name: '文档', href: '/getting-started/overview/' },
+      { name: '生态集成', href: '/ecosystem/browser/' },
+    ];
+
+const langSwitchHref = isEn ? '/' : '/en/';
+const langSwitchText = isEn ? '中文' : 'English';
+---
+
+<header class="sticky top-0 z-50 backdrop-blur-md bg-brand-dark/80 border-b border-brand-border/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <!-- Brand -->
+    <a href={isEn ? '/en/' : '/'} class="flex items-center gap-3 group">
+      <Image
+        src={logoImage}
+        alt="limedl logo"
+        width={64}
+        height={64}
+        class="w-8 h-8 rounded-lg shadow-sm transition-transform duration-200 group-hover:scale-105 object-contain"
+        format="webp"
+        quality={100}
+        loading="eager"
+      />
+      <span class="font-bold text-xl tracking-tight text-white group-hover:text-lime-400 transition-colors">
+        limedl
+      </span>
+      <span class="text-xs px-2 py-0.5 rounded-full bg-lime-500/10 text-lime-400 border border-lime-500/20 font-mono">
+        v0.3.9
+      </span>
+    </a>
+
+    <!-- Nav Links -->
+    <nav class="hidden md:flex items-center gap-8">
+      {
+        navLinks.map((item) => (
+          <a
+            href={item.href}
+            class="text-sm font-medium text-slate-300 hover:text-lime-400 transition-colors"
+          >
+            {item.name}
+          </a>
+        ))
+      }
+    </nav>
+
+    <!-- Right Actions -->
+    <div class="flex items-center gap-3 sm:gap-4">
+      <!-- Language Switch -->
+      <a
+        href={langSwitchHref}
+        class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-brand-border bg-brand-card hover:border-lime-500/40 text-slate-300 hover:text-white transition-all"
+        title={isEn ? '切换为中文' : 'Switch to English'}
+      >
+        <span class="i-ri-translate-2 w-3.5 h-3.5 text-lime-400"></span>
+        <span>{langSwitchText}</span>
+      </a>
+
+      <!-- GitHub Link -->
+      <a
+        href="https://github.com/zkz098/limedl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2 text-sm font-medium px-3.5 py-1.5 rounded-xl border border-brand-border bg-brand-card hover:bg-brand-surface hover:border-lime-500/40 text-white transition-all shadow-sm"
+      >
+        <span class="i-ri-github-fill w-4 h-4"></span>
+        <span class="hidden sm:inline">GitHub</span>
+      </a>
+    </div>
+  </div>
+</header>

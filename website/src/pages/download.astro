@@ -1,0 +1,165 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const version = 'v0.3.9';
+const baseReleaseUrl = 'https://github.com/zkz098/limedl/releases/latest/download';
+
+const downloads = [
+  {
+    platform: 'Windows',
+    icon: 'i-ri-computer-line',
+    arch: 'x86_64 (64位)',
+    osVersion: 'Windows 10 / 11',
+    packages: [
+      {
+        name: '标准安装包 (Setup.exe)',
+        type: '推荐',
+        desc: '带有开始菜单快捷方式、文件关联并支持软件内自动更新。',
+        file: `limedl-native-${version}-windows-x86_64-setup.exe`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-setup.exe`,
+      },
+      {
+        name: '绿色便携版 (Portable .zip)',
+        type: '便携',
+        desc: '无需安装，解压即用。所有数据与配置均存储在当前目录中。',
+        file: `limedl-native-${version}-windows-x86_64-portable.zip`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-portable.zip`,
+      },
+      {
+        name: 'MSIX 现代安全包 (.msix)',
+        type: '沙箱',
+        desc: 'Windows 10/11 现代沙箱应用安装包，具备纯净卸载与权限隔离。',
+        file: `limedl-native-${version}-windows-x86_64.msix`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64.msix`,
+      },
+    ],
+  },
+  {
+    platform: 'macOS',
+    icon: 'i-ri-macbook-line',
+    arch: 'Apple Silicon (aarch64)',
+    osVersion: 'macOS 12+ (M1 / M2 / M3 / M4)',
+    packages: [
+      {
+        name: '便携应用包 (.tar.gz)',
+        type: '原生',
+        desc: '针对 Apple Silicon 原生优化。首次运行请右键点击 limedl.app 选择“打开”。',
+        file: `limedl-native-${version}-darwin-aarch64-portable.tar.gz`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-darwin-aarch64-portable.tar.gz`,
+      },
+    ],
+  },
+  {
+    platform: 'Linux',
+    icon: 'i-ri-terminal-box-line',
+    arch: 'x86_64 (64位)',
+    osVersion: 'glibc ≥ 2.39 (Ubuntu 24.04+, Fedora, Arch)',
+    packages: [
+      {
+        name: '预编译二进制归档 (.tar.gz)',
+        type: '独立',
+        desc: '包含完整 Slint 原生 GUI 与运行时依赖，解压直接执行。',
+        file: `limedl-native-${version}-linux-x86_64-portable.tar.gz`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64-portable.tar.gz`,
+      },
+    ],
+  },
+];
+---
+
+<Layout
+  title="下载 limedl - 全平台桌面客户端"
+  description="获取适用于 Windows、macOS (Apple Silicon) 与 Linux 系统的 limedl 官方安全安装包与便携绿色版，支持 Minisign 密码学验签。"
+  lang="zh-CN"
+>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+    <!-- Header -->
+    <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-lime-500/20 bg-lime-500/10 text-lime-400 text-xs font-mono">
+        <span>当前稳定版：{version}</span>
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+        下载 limedl 桌面客户端
+      </h1>
+      <p class="text-slate-400 text-base">
+        所有安装包均通过 GitHub Actions 自动化构建并由 Minisign 密码学签名，保障零篡改与绝对纯净。
+      </p>
+    </div>
+
+    <!-- Download Platforms Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+      {
+        downloads.map((plat) => (
+          <div class="glass-card flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-lime-500/10 border border-lime-500/20 flex items-center justify-center text-lime-400">
+                    <span class={`${plat.icon} w-5 h-5`}></span>
+                  </div>
+                  <div>
+                    <h2 class="text-xl font-bold text-white">{plat.platform}</h2>
+                    <p class="text-xs text-slate-400 font-mono">{plat.arch}</p>
+                  </div>
+                </div>
+              </div>
+              <p class="text-xs text-slate-500 mb-6">{plat.osVersion}</p>
+
+              <div class="space-y-4">
+                {plat.packages.map((pkg) => (
+                  <div class="p-4 rounded-xl bg-brand-surface border border-brand-border hover:border-lime-500/40 transition-all space-y-2">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-semibold text-slate-200">{pkg.name}</span>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-lime-500/20 text-lime-400 border border-lime-500/30">
+                        {pkg.type}
+                      </span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed">{pkg.desc}</p>
+                    <a
+                      href={pkg.url}
+                      class="mt-2 w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
+                    >
+                      <span class="i-ri-download-2-line w-4 h-4"></span>
+                      <span>下载文件</span>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <!-- Security & Checksums Guide -->
+    <div class="max-w-4xl mx-auto rounded-2xl bg-brand-surface border border-brand-border p-6 sm:p-8 space-y-6">
+      <div class="flex items-center gap-3">
+        <span class="i-ri-shield-check-line w-6 h-6 text-lime-400"></span>
+        <h3 class="text-lg font-bold text-white">安全与哈希校验指南</h3>
+      </div>
+      <p class="text-sm text-slate-400 leading-relaxed">
+        为确保你下载的文件未经第三方篡改，每个版本均在 release 资产中附带 <code class="text-lime-300">.sig</code> 签名与哈希清单。
+      </p>
+
+      <div class="space-y-3">
+        <div class="text-xs font-semibold text-slate-300">PowerShell SHA256 校验指令：</div>
+        <div class="p-3 rounded-xl bg-brand-dark border border-brand-border font-mono text-xs text-lime-400 select-all overflow-x-auto">
+          Get-FileHash -Algorithm SHA256 .\limedl-native-{version}-windows-x86_64-setup.exe
+        </div>
+      </div>
+
+      <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 border-t border-brand-border/60">
+        <span>需要旧版本或完整源码？</span>
+        <a
+          href="https://github.com/zkz098/limedl/releases"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-lime-400 hover:text-lime-300 font-semibold inline-flex items-center gap-1"
+        >
+          <span>查看 GitHub Releases 完整归档</span>
+          <span class="i-ri-external-link-line w-3.5 h-3.5"></span>
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

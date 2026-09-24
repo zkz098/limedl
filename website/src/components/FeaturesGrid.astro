@@ -1,0 +1,113 @@
+---
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+
+const features = isEn
+  ? [
+      {
+        icon: 'i-ri-speed-up-line',
+        title: 'Pure Rust & Native Slint UI',
+        desc: 'Say goodbye to bloated 300MB+ Electron containers. Instant ~250ms launch, a lean ~50MB tray footprint, and zero background daemons.',
+      },
+      {
+        icon: 'i-ri-equalizer-line',
+        title: 'AIMD Adaptive Concurrency',
+        desc: 'Inspired by TCP congestion control, dynamically scales HTTP chunk workers to saturate bandwidth without packet drops or IP bans.',
+      },
+      {
+        icon: 'i-ri-network-line',
+        title: 'Full BitTorrent Suite',
+        desc: 'Powered by the Irontide engine: Mainline DHT, PEX, LSD local discovery, and automatic UPnP port forwarding for top swarm connectivity.',
+      },
+      {
+        icon: 'i-ri-global-line',
+        title: 'CDN Edge IP Acceleration',
+        desc: 'Probes Cloudflare edge IP endpoints in milliseconds, rewriting DNS requests to bypass congested Anycast routes for cross-border downloads.',
+      },
+      {
+        icon: 'i-ri-plug-line',
+        title: '100% Aria2 RPC Compatible',
+        desc: 'Seamlessly connects with existing browser interceptor extensions, Tampermonkey scripts, and AriaNg web dashboards out of the box.',
+      },
+      {
+        icon: 'i-ri-hard-drive-2-line',
+        title: 'Adaptive Disk Buffer Pool',
+        desc: 'Batched write-combining for SSD flash endurance and ordered double-buffering for HDDs to eliminate head thrashing and disk bottlenecks.',
+      },
+    ]
+  : [
+      {
+        icon: 'i-ri-speed-up-line',
+        title: '纯 Rust 驱动 · Slint 原生极致轻量',
+        desc: '彻底告别 Electron 的庞大内存消耗与白屏等待。~250ms 极速拉起，单进程后台常驻仅约 50MB，零常驻守护服务。',
+      },
+      {
+        icon: 'i-ri-equalizer-line',
+        title: 'AIMD 自适应并发拥塞调度',
+        desc: '借鉴现代网络 AIMD 拥塞控制算法，根据链路状态与服务端响应动态增减分块并发，兼顾满速吞吐与防封禁。',
+      },
+      {
+        icon: 'i-ri-network-line',
+        title: 'Irontide 现代 BitTorrent 引擎',
+        desc: '完整支持 Mainline DHT、PEX 对等节点交换、LSD 局域网发现与路由器 UPnP 自动打洞，磁力链秒级解析。',
+      },
+      {
+        icon: 'i-ri-global-line',
+        title: '独创 CDN 探针测速与节点优选',
+        desc: '针对 Cloudflare 等 CDN 覆盖的网络资源发起多 IP 握手测速，重写底层路由，解决跨国与开源镜像源网络拥堵。',
+      },
+      {
+        icon: 'i-ri-plug-line',
+        title: '100% 兼容 Aria2 JSON-RPC 2.0',
+        desc: '无缝平替 Aria2。市面上所有成熟的 Chrome/Edge 网页下载接管插件、油猴网盘助手及 AriaNg 控制端均可直接接入。',
+      },
+      {
+        icon: 'i-ri-hard-drive-2-line',
+        title: '自适应磁盘缓冲与硬件保护',
+        desc: '自动识别固态 SSD 与机械 HDD。针对 SSD 采用写入合并降低磨损，针对 HDD 采用双缓冲顺序刷盘消除磁头寻道瓶颈。',
+      },
+    ];
+---
+
+<section id="features" class="py-20 md:py-28 relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
+      <h2 class="text-xs uppercase tracking-widest text-lime-400 font-bold font-mono">
+        {isEn ? 'Engine Architecture' : '核心架构特性'}
+      </h2>
+      <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        {isEn ? 'Engineered for Performance and Durability' : '为极速传输与硬件健康而精心构建'}
+      </p>
+      <p class="text-slate-400 text-base">
+        {
+          isEn
+            ? 'Every layer from network socket to disk write has been optimized in Rust without compromises.'
+            : '从底层的网络 Socket 并发、DNS 探针路由到磁盘 I/O 刷盘，每一寸性能均经过纯 Rust 精细打磨。'
+        }
+      </p>
+    </div>
+
+    <!-- 3x2 Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+      {
+        features.map((feat) => (
+          <div class="glass-card hover:-translate-y-1 group">
+            <div class="w-12 h-12 rounded-xl bg-lime-500/10 border border-lime-500/20 flex items-center justify-center text-lime-400 mb-5 group-hover:scale-110 group-hover:bg-lime-500/20 transition-all">
+              <span class={`${feat.icon} w-6 h-6`}></span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2 group-hover:text-lime-400 transition-colors">
+              {feat.title}
+            </h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              {feat.desc}
+            </p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

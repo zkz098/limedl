@@ -1,0 +1,22 @@
+{
+  "name": "limedl-website",
+  "version": "0.3.9",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.32.0",
+    "@iconify-json/ri": "^1.2.10",
+    "@unocss/astro": "^66.10.5",
+    "@unocss/reset": "^66.10.5",
+    "astro": "^5.0.0",
+    "sharp": "^0.35.4",
+    "unocss": "^66.10.5"
+  }
+}

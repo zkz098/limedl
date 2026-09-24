@@ -1,0 +1,173 @@
+---
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+
+const rows = isEn
+  ? [
+      {
+        metric: 'Core Tech & UI',
+        limedl: 'Pure Rust Engine + Slint Native UI',
+        commercial: 'Proprietary C++ / Ad Container',
+        legacy: 'C++ CLI (Aria2) or Electron (Motrix)',
+      },
+      {
+        metric: 'Window Launch & IPC',
+        limedl: '~250ms Launch · < 100ms IPC Handover',
+        commercial: '2 - 4s (Slow verification)',
+        legacy: '2 - 5s (Chromium blank loading)',
+      },
+      {
+        metric: 'Memory & Process Model',
+        limedl: '~50MB Tray · Single process (Zero daemons)',
+        commercial: '150MB - 300MB+ (Bundled background services)',
+        legacy: '200MB - 400MB+ (Multi-process Electron tree)',
+      },
+      {
+        metric: 'Disk I/O Throughput',
+        limedl: '> 3.6 GiB/s (Zero-copy double buffer)',
+        commercial: 'Unbuffered, frequent disk thrashing',
+        legacy: 'Basic sequential write / limited buffering',
+      },
+      {
+        metric: 'Algorithm & Scheduling',
+        limedl: 'Nanosecond level (AIMD 1.18ns · Limiter 72ns)',
+        commercial: 'High CPU on multi-gigabit speeds',
+        legacy: 'Single-threaded event loop bottlenecks',
+      },
+      {
+        metric: 'CDN Edge Probing',
+        limedl: 'Sub-millisecond probe (0.46ms fastest edge)',
+        commercial: 'None (Subject to ISP DNS)',
+        legacy: 'None',
+      },
+      {
+        metric: 'Protocols',
+        limedl: 'HTTP/HTTPS + BitTorrent + Magnet',
+        commercial: 'HTTP + BT (Speed paywalled)',
+        legacy: 'Aria2 CLI / Separate apps',
+      },
+      {
+        metric: 'Aria2 RPC Ecosystem',
+        limedl: 'Native 100% Compatible',
+        commercial: 'None',
+        legacy: 'Native',
+      },
+      {
+        metric: 'License & Cleanliness',
+        limedl: 'GPL-3.0 · 100% Free · No Ads / Minisign Verified',
+        commercial: 'Closed-source · Popups & bundled installers',
+        legacy: 'Open Source',
+      },
+    ]
+  : [
+      {
+        metric: '底层架构与界面',
+        limedl: '纯 Rust 内核 + Slint 原生轻量渲染',
+        commercial: '专有闭源 C++ / 广告容器',
+        legacy: '纯命令行 (Aria2) 或 Electron (Motrix)',
+      },
+      {
+        metric: '窗口呈现与拉起耗时',
+        limedl: '~250ms 窗口拉起 · < 100ms 单实例唤醒',
+        commercial: '2 - 4 秒 (云端验证与弹窗加载)',
+        legacy: '2 - 5 秒 (Electron 白屏加载)',
+      },
+      {
+        metric: '常驻内存与进程架构',
+        limedl: '~50MB (托盘后台) · 纯单进程零后台守护',
+        commercial: '150MB - 300MB+ (捆绑常驻后台服务)',
+        legacy: '200MB - 400MB+ (多进程 Chromium 树)',
+      },
+      {
+        metric: '磁盘 I/O 写入吞吐',
+        limedl: '> 3.6 GiB/s (双缓冲零拷贝保护磁盘)',
+        commercial: '碎片直接落盘，高频卡盘伤盘',
+        legacy: '基础单向顺序写入，高并发易阻塞',
+      },
+      {
+        metric: '调度算法与 CPU 开销',
+        limedl: '纳秒级 (AIMD 拥塞控制 1.18ns)',
+        commercial: '未知 / 高带宽下高 CPU 占用',
+        legacy: '单线程轮询易遇性能瓶颈',
+      },
+      {
+        metric: 'CDN 边缘探针优选',
+        limedl: '毫秒级探针 (优选 0.46ms 极速节点)',
+        commercial: '无 (受制于本地运营商 DNS)',
+        legacy: '无',
+      },
+      {
+        metric: '多协议全能整合',
+        limedl: 'HTTP/HTTPS + BitTorrent + 磁力',
+        commercial: '支持 (常伴随限速与特权诱导)',
+        legacy: 'Aria2 需自配 Tracker / 分离式工具',
+      },
+      {
+        metric: 'Aria2 RPC 生态兼容',
+        limedl: '100% 原生兼容 (支持插件/脚本/AriaNg)',
+        commercial: '不支持',
+        legacy: '兼容',
+      },
+      {
+        metric: '纯净度与开源授权',
+        limedl: 'GPL-3.0 · 零广告 · 密码学验签自更新',
+        commercial: '商业闭源 · 弹窗弹流氓捆绑',
+        legacy: '开源',
+      },
+    ];
+---
+
+<section class="py-16 md:py-24 bg-brand-surface/40 border-y border-brand-border">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-14 space-y-3">
+      <h2 class="text-xs uppercase tracking-widest text-lime-400 font-bold font-mono">
+        {isEn ? 'Competitive Benchmark' : '横向对比与技术优势'}
+      </h2>
+      <p class="text-3xl font-extrabold text-white tracking-tight">
+        {isEn ? 'Why Choose limedl?' : '为什么选择 limedl？'}
+      </p>
+      <p class="text-slate-400 text-sm">
+        {
+          isEn
+            ? 'A clear side-by-side breakdown between limedl, commercial clients, and legacy tools.'
+            : '抛弃妥协，兼具商业客户端的开箱即用体验与原生工具的极高效率。'
+        }
+      </p>
+    </div>
+
+    <!-- Table Container -->
+    <div class="overflow-x-auto rounded-2xl border border-brand-border bg-brand-dark/80 backdrop-blur-sm shadow-xl">
+      <table class="w-full text-left text-sm text-slate-300">
+        <thead class="bg-brand-surface border-b border-brand-border text-xs uppercase tracking-wider text-slate-400 font-semibold">
+          <tr>
+            <th class="py-4 px-6">{isEn ? 'Dimension' : '对比维度'}</th>
+            <th class="py-4 px-6 text-lime-400 bg-lime-500/10 border-x border-lime-500/20 font-bold flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-lime-400"></span>
+              limedl
+            </th>
+            <th class="py-4 px-6">{isEn ? 'Commercial (IDM/Thunder)' : '传统商业软件 (迅雷/IDM)'}</th>
+            <th class="py-4 px-6">{isEn ? 'Legacy Open Source (Aria2/Motrix)' : '传统开源工具 (Aria2/Motrix)'}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-brand-border/60">
+          {
+            rows.map((row) => (
+              <tr class="hover:bg-brand-card/40 transition-colors">
+                <td class="py-4 px-6 font-medium text-slate-200">{row.metric}</td>
+                <td class="py-4 px-6 font-semibold text-lime-300 bg-lime-500/5 border-x border-lime-500/20">
+                  {row.limedl}
+                </td>
+                <td class="py-4 px-6 text-slate-400">{row.commercial}</td>
+                <td class="py-4 px-6 text-slate-400">{row.legacy}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

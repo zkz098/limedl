@@ -1,0 +1,97 @@
+---
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+
+const steps = isEn
+  ? [
+      {
+        num: '01',
+        title: 'Native RPC Active',
+        desc: 'limedl starts with Aria2 JSON-RPC enabled on port 6800 out of the box with zero setup.',
+      },
+      {
+        num: '02',
+        title: 'Install Extension',
+        desc: 'Add Aria2 Explorer or Camtd to Chrome, Edge, or Firefox from the store in one click.',
+      },
+      {
+        num: '03',
+        title: 'Seamless Downloads',
+        desc: 'Click any download on the web, and limedl intercepts it instantly with full AIMD speed.',
+      },
+    ]
+  : [
+      {
+        num: '01',
+        title: '开启内置 RPC 服务',
+        desc: 'limedl 内置 Aria2 JSON-RPC 2.0 服务，默认监听 6800 端口，开箱即用无需复杂配置。',
+      },
+      {
+        num: '02',
+        title: '安装浏览器扩展',
+        desc: '在 Chrome、Edge 或 Firefox 商店安装 Aria2 Explorer、Camtd 或各类网盘油猴脚本。',
+      },
+      {
+        num: '03',
+        title: '享受网页极速接管',
+        desc: '网页中点击任何文件链接，扩展自动将下载任务推送至 limedl，跑满宽带极限速度。',
+      },
+    ];
+---
+
+<section class="py-20 md:py-28 relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto text-center mb-16 space-y-3">
+      <h2 class="text-xs uppercase tracking-widest text-lime-400 font-bold font-mono">
+        {isEn ? 'Seamless Ecosystem' : '生态与自动化'}
+      </h2>
+      <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        {isEn ? 'Plug Directly into Your Existing Workflow' : '3 步接入日常浏览器下载流'}
+      </p>
+      <p class="text-slate-400 text-sm sm:text-base">
+        {
+          isEn
+            ? 'Fully compatible with existing browser interceptors and scripts. No habit changes needed.'
+            : '无缝平替原有 Aria2 设施，现有所有浏览器接管插件与脚本均可直接使用。'
+        }
+      </p>
+    </div>
+
+    <!-- 3 Steps -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+      {
+        steps.map((step, idx) => (
+          <div class="glass-card relative overflow-hidden group">
+            <div class="text-5xl font-black font-mono text-lime-500/10 group-hover:text-lime-500/20 transition-colors absolute -top-1 -right-2">
+              {step.num}
+            </div>
+            <div class="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 font-mono font-bold flex items-center justify-center text-sm mb-4 border border-lime-500/20">
+              {idx + 1}
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2 group-hover:text-lime-400 transition-colors">
+              {step.title}
+            </h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              {step.desc}
+            </p>
+          </div>
+        ))
+      }
+    </div>
+
+    <!-- Link to Docs -->
+    <div class="mt-12 text-center">
+      <a
+        href={isEn ? '/en/ecosystem/browser/' : '/ecosystem/browser/'}
+        class="inline-flex items-center gap-2 text-sm font-semibold text-lime-400 hover:text-lime-300 transition-colors group"
+      >
+        <span>{isEn ? 'View Detailed Browser Extension Setup Guide' : '查看完整浏览器接管图文配置教程'}</span>
+        <span class="i-ri-arrow-right-line w-4 h-4 group-hover:translate-x-1 transition-transform"></span>
+      </a>
+    </div>
+  </div>
+</section>

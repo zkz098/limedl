@@ -1,0 +1,40 @@
+/* Starlight custom styling with limedl Lime theme */
+:root {
+  --sl-color-accent-low: #1a2e05;
+  --sl-color-accent: #84cc16;
+  --sl-color-accent-high: #a3e635;
+  --sl-color-text-invert: #0a0c10;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-bg: #0d0f12;
+  --sl-color-bg-nav: #12151a;
+  --sl-color-bg-sidebar: #0d0f12;
+  --sl-color-hairline-shade: #262a33;
+  --sl-color-gray-6: #181b22;
+  --sl-color-gray-5: #262a33;
+  --sl-color-gray-4: #475569;
+  --sl-color-gray-3: #64748b;
+  --sl-color-gray-2: #94a3b8;
+  --sl-color-gray-1: #f1f5f9;
+  --sl-color-text-invert: #0a0c10;
+}
+
+/* High-contrast styling for active sidebar items: black text on lime pill */
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover {
+  background-color: #a3e635 !important;
+  color: #0a0c10 !important;
+  font-weight: 700 !important;
+}
+
+.sidebar-content a[aria-current='page'] span {
+  color: #0a0c10 !important;
+  background-color: transparent !important;
+  font-weight: 700 !important;
+}
+
+/* Inactive sidebar item hover */
+.sidebar-content a:not([aria-current='page']):hover {
+  color: #bef264 !important;
+}

@@ -1,0 +1,51 @@
+---
+import '../styles/main.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  lang?: 'zh-CN' | 'en';
+}
+
+const {
+  title,
+  description = 'limedl - 基于 Rust 与 Slint 的轻量级原生多协议下载管理器，支持 HTTP 自适应并发与 BitTorrent，内置 CDN 智能加速。',
+  lang = 'zh-CN',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang} class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/images/og-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/images/og-preview.png" />
+  </head>
+  <body class="bg-brand-dark text-slate-100 min-h-screen flex flex-col antialiased selection:bg-lime-500 selection:text-black">
+    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      <!-- Glow effect top left -->
+      <div class="absolute -top-40 -left-40 w-96 h-96 bg-lime-500/10 rounded-full blur-[128px]"></div>
+      <!-- Glow effect top right -->
+      <div class="absolute top-20 right-[-10%] w-[500px] h-[500px] bg-lime-500/5 rounded-full blur-[140px]"></div>
+    </div>
+
+    <Header lang={lang} />
+    <main class="flex-1 relative z-10">
+      <slot />
+    </main>
+    <Footer lang={lang} />
+  </body>
+</html>

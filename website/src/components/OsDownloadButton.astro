@@ -1,0 +1,67 @@
+---
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+
+const version = 'v0.3.9';
+const baseReleaseUrl = 'https://github.com/zkz098/limedl/releases/latest/download';
+
+const defaultUrl = `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-setup.exe`;
+---
+
+<div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+  <!-- Primary Auto-Detect CTA Button -->
+  <a
+    id="os-download-btn"
+    href={defaultUrl}
+    class="btn-primary w-full sm:w-auto group shadow-lime-500/20 shadow-xl"
+  >
+    <span id="os-icon" class="i-ri-download-2-line w-5 h-5 transition-transform group-hover:-translate-y-0.5"></span>
+    <div class="text-left">
+      <span id="os-btn-text" class="block font-bold leading-tight">
+        {isEn ? `Download for Windows (${version})` : `下载 Windows 版 (${version})`}
+      </span>
+      <span id="os-btn-sub" class="block text-[11px] opacity-80 font-normal">
+        {isEn ? '64-bit Installer (.exe)' : '64 位安装包 (.exe)'}
+      </span>
+    </div>
+  </a>
+
+  <!-- Secondary All Downloads Button -->
+  <a
+    href={isEn ? '/en/download' : '/download'}
+    class="btn-secondary w-full sm:w-auto group"
+  >
+    <span class="i-ri-stack-line w-4 h-4 text-lime-400 group-hover:scale-110 transition-transform"></span>
+    <span>{isEn ? 'All Platforms & Packages' : '全平台版本与校验'}</span>
+    <span class="i-ri-arrow-right-line w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform"></span>
+  </a>
+</div>
+
+<script define:vars={{ isEn, version, baseReleaseUrl }}>
+  const btn = document.getElementById('os-download-btn');
+  const textEl = document.getElementById('os-btn-text');
+  const subEl = document.getElementById('os-btn-sub');
+  const iconEl = document.getElementById('os-icon');
+
+  if (btn && textEl && subEl) {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('macintosh') || ua.includes('mac os')) {
+      btn.href = `${baseReleaseUrl}/limedl-native-${version}-darwin-aarch64-portable.tar.gz`;
+      textEl.innerText = isEn ? `Download for macOS (${version})` : `下载 macOS 版 (${version})`;
+      subEl.innerText = isEn ? 'Apple Silicon (.tar.gz)' : 'Apple Silicon 芯片 (.tar.gz)';
+    } else if (ua.includes('linux')) {
+      btn.href = `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64-portable.tar.gz`;
+      textEl.innerText = isEn ? `Download for Linux (${version})` : `下载 Linux 版 (${version})`;
+      subEl.innerText = isEn ? 'x86_64 glibc 2.39+ (.tar.gz)' : 'x86_64 便携包 (.tar.gz)';
+    } else {
+      // Windows default
+      btn.href = `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-setup.exe`;
+      textEl.innerText = isEn ? `Download for Windows (${version})` : `下载 Windows 版 (${version})`;
+      subEl.innerText = isEn ? 'Windows 10/11 64-bit (.exe)' : 'Windows 10/11 64 位安装包';
+    }
+  }
+</script>

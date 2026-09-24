@@ -1,0 +1,52 @@
+---
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+---
+
+<section class="py-16 md:py-24 relative overflow-hidden">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="relative rounded-3xl bg-gradient-to-b from-brand-card to-brand-surface border border-lime-500/30 p-8 sm:p-14 text-center overflow-hidden shadow-2xl shadow-lime-500/5">
+      <!-- Glow effect -->
+      <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-lime-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+      <div class="relative z-10 max-w-2xl mx-auto space-y-6">
+        <h2 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+          {
+            isEn
+              ? 'Ready to Experience Blazing Fast Downloads?'
+              : '准备好体验真正纯粹与极速的下载了吗？'
+          }
+        </h2>
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+          {
+            isEn
+              ? 'Download limedl for free. Clean, lightweight, open-source, and backed by a pure Rust engine.'
+              : '即刻免费下载 limedl。告别内存臃肿与流氓弹窗，回归原生的高效下载体验。'
+          }
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+          <a
+            href={isEn ? '/en/download' : '/download'}
+            class="btn-primary w-full sm:w-auto text-base px-8 py-3.5"
+          >
+            <span class="i-ri-download-2-line w-5 h-5"></span>
+            <span>{isEn ? 'Get limedl for Free' : '立即免费下载 limedl'}</span>
+          </a>
+          <a
+            href="https://github.com/zkz098/limedl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-secondary w-full sm:w-auto text-base px-8 py-3.5"
+          >
+            <span class="i-ri-github-fill w-5 h-5"></span>
+            <span>Star on GitHub</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
