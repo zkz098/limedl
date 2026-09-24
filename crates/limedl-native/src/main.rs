@@ -420,6 +420,13 @@ fn restore_and_show_window(ui: &MainWindow) {
     let _ = ui.show();
     ui.window().set_minimized(false);
     ui.window().request_redraw();
+    if let Some(base_dir) = platform_win::get_base_dir() {
+        platform_win::apply_restored_window_placement(
+            ui.window(),
+            &base_dir,
+            ui.window().is_maximized(),
+        );
+    }
     platform_win::bring_to_foreground(ui.window());
 }
 
@@ -5324,6 +5331,7 @@ async fn main() -> anyhow::Result<()> {
             if minimize_to_tray {
                 if let Some(ui) = ui_weak.upgrade() {
                     let _ = ui.hide();
+                    platform_win::hide_window(ui.window());
                 }
                 tracing::info!("窗口已最小化到托盘");
             } else {

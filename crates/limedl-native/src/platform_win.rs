@@ -56,6 +56,11 @@ pub fn set_base_dir(dir: PathBuf) {
     *BASE_DIR.lock() = Some(dir);
 }
 
+/// Get configured base directory for persisting window geometry.
+pub fn get_base_dir() -> Option<PathBuf> {
+    BASE_DIR.lock().clone()
+}
+
 /// Load saved window geometry from disk.
 pub fn load_window_geometry(base_dir: &Path) -> Option<WindowGeometry> {
     let path = base_dir.join(WINDOW_STATE_FILE);
@@ -128,10 +133,10 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowPlacement, GetWindowRect, IsZoomed, SetForegroundWindow, SetWindowPos, ShowWindow,
-    SIZE_MAXIMIZED, SIZE_RESTORED, SW_MAXIMIZE, SW_RESTORE, SWP_NOACTIVATE, SWP_NOSIZE,
-    SWP_NOZORDER, WINDOWPLACEMENT, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE, WM_SHOWWINDOW,
-    WM_SIZE,
+    GetWindowPlacement, GetWindowRect, IsIconic, IsZoomed, SetForegroundWindow, SetWindowPos,
+    ShowWindow, SIZE_MAXIMIZED, SIZE_RESTORED, SW_HIDE, SW_MAXIMIZE, SW_RESTORE, SWP_NOACTIVATE,
+    SWP_NOSIZE, SWP_NOZORDER, WINDOWPLACEMENT, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE,
+    WM_SHOWWINDOW, WM_SIZE,
 };
 
 /// Store the drag-drop / IPC callbacks without touching the OS window.
@@ -530,7 +535,10 @@ pub fn apply_restored_window_placement(
                 geom.height as i32,
                 SWP_NOZORDER | SWP_NOACTIVATE,
             );
-            if geom.is_maximized {
+            // CRITICAL: never call ShowWindow(SW_MAXIMIZE) on a hidden window (e.g. autostart with --hidden).
+            // Calling ShowWindow on a hidden HWND forces it visible to Windows while Slint's internal state
+            // remains Hidden, leaving the window unrendered (transparent) and preventing it from closing.
+            if geom.is_maximized && window.is_visible() {
                 let _ = ShowWindow(hwnd, SW_MAXIMIZE);
             }
         }
@@ -540,9 +548,17 @@ pub fn apply_restored_window_placement(
     {
         window.set_size(slint::PhysicalSize::new(geom.width, geom.height));
         window.set_position(slint::PhysicalPosition::new(geom.x, geom.y));
-        if geom.is_maximized {
+        if geom.is_maximized && window.is_visible() {
             window.set_maximized(true);
         }
+    }
+
+    // If the window is currently hidden, we have already restored the normal unmaximized
+    // position/size via SetWindowPos without displaying it. We intentionally do not
+    // maximize it yet to prevent popping up a window during a silent start. Maximization
+    // will be applied when the window is actually shown (e.g. from the tray).
+    if !window.is_visible() {
+        return true;
     }
 
     // On Windows `is_maximized` follows the OS window, so a maximize request that
@@ -551,7 +567,7 @@ pub fn apply_restored_window_placement(
     // so it cannot fight a user who restores a maximized window by hand.
     let still_missing_placement = geom.is_maximized
         && !current_maximized
-        && (window.is_minimized() || !window.is_visible());
+        && window.is_minimized();
 
     tracing::info!(
         "窗口位置已恢复: ({}, {}) {}x{} (最大化: {}, 已应用: {})",
@@ -568,7 +584,7 @@ pub fn apply_restored_window_placement(
 
 /// The Win32 HWND behind a Slint window, when it exists.
 #[cfg(windows)]
-fn win32_window_handle(window: &slint::Window) -> Option<HWND> {
+pub(crate) fn win32_window_handle(window: &slint::Window) -> Option<HWND> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
     // `WindowHandle` owns the wrapper, so bind it before borrowing the raw one.
@@ -623,8 +639,27 @@ pub fn bring_to_foreground(window: &slint::Window) {
     {
         if let Some(hwnd) = win32_window_handle(window) {
             unsafe {
-                let _ = ShowWindow(hwnd, SW_RESTORE);
+                if IsIconic(hwnd).as_bool() {
+                    let _ = ShowWindow(hwnd, SW_RESTORE);
+                }
                 let _ = SetForegroundWindow(hwnd);
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+    }
+}
+
+/// Explicitly hide the native OS window.
+pub fn hide_window(window: &slint::Window) {
+    #[cfg(windows)]
+    {
+        if let Some(hwnd) = win32_window_handle(window) {
+            unsafe {
+                let _ = ShowWindow(hwnd, SW_HIDE);
             }
         }
     }
@@ -898,5 +933,13 @@ mod tests {
         };
         save_window_geometry(dir.path(), &too_small);
         assert_eq!(load_window_geometry(dir.path()), None);
+    }
+
+    #[test]
+    fn get_base_dir_roundtrip() {
+        let temp = tempfile::tempdir().unwrap();
+        let p = temp.path().to_path_buf();
+        set_base_dir(p.clone());
+        assert_eq!(get_base_dir(), Some(p));
     }
 }
