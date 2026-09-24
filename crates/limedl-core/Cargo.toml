@@ -42,14 +42,12 @@ rand = { workspace = true, optional = true }
 irontide = { workspace = true, optional = true }
 libc = { workspace = true }
 open = { workspace = true }
-ts-rs = { workspace = true, optional = true }
 
 [features]
 bt = ["dep:irontide"]
 default = ["bt"]
 aria2-rpc = ["dep:axum", "dep:tower-http", "bt"]
 test-utils = ["rand", "dep:axum", "dep:tower-http"]
-ts = ["dep:ts-rs"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -7,15 +7,10 @@ use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "ts")]
-use ts_rs::TS;
 
 use super::bt::BtUploadStatus;
 use super::common::{AdaptiveProfile, ChecksumMode, DiskType, Priority, ThreadMode};
 use crate::error::DownloadError;
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Hash, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskKind {
@@ -24,9 +19,6 @@ pub enum TaskKind {
     #[cfg(feature = "bt")]
     Bt,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DownloadState {
@@ -170,9 +162,6 @@ impl std::fmt::Display for TaskId {
         f.write_str(&self.raw_id())
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartDownloadRequest {
@@ -242,9 +231,6 @@ impl StartDownloadRequest {
         Err(DownloadError::UnsupportedScheme)
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChunkInfo {
@@ -256,9 +242,6 @@ pub struct ChunkInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claimed_by: Option<usize>,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSnapshot {
@@ -342,9 +325,6 @@ pub struct DownloadSnapshot {
     #[serde(default)]
     pub flushing: bool,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSummary {
@@ -452,8 +432,6 @@ impl From<&DownloadSnapshot> for DownloadSummary {
 
 /// Lightweight incremental progress update sent every ~300ms during active downloads.
 /// Contains only high-frequency fields. Static/low-frequency fields stay in `DownloadSummary`.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {

@@ -1,13 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "ts")]
-use ts_rs::TS;
 
 use super::common::default_true;
 use super::settings::default_tracker_list_url;
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BtUploadStatus {
@@ -17,9 +12,6 @@ pub enum BtUploadStatus {
     Paused,
     PausedByLimit,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtRuntimeStatus {
@@ -38,9 +30,6 @@ pub struct BtRuntimeStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub leech_count: Option<u64>,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TorrentFileEntry {
@@ -48,9 +37,6 @@ pub struct TorrentFileEntry {
     pub path: String,
     pub size: u64,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPeerInfo {
@@ -61,26 +47,17 @@ pub struct BtPeerInfo {
     pub upload_speed: f64,
     pub progress: f64,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtTrackerInfo {
     pub url: String,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPieceInfo {
     pub index: u64,
     pub completed: bool,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtFileStatus {
@@ -92,8 +69,6 @@ pub struct BtFileStatus {
 }
 
 /// Preallocation strategy for torrent files.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtPreallocateMode {
@@ -105,8 +80,6 @@ pub enum BtPreallocateMode {
 }
 
 /// Protocol encryption (MSE/PE) mode.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtEncryptionMode {
@@ -118,9 +91,6 @@ pub enum BtEncryptionMode {
     /// Require encryption.
     Forced,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPortRange {
@@ -129,8 +99,6 @@ pub struct BtPortRange {
 }
 
 /// Enforcement action taken against peers identified as leechers.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtAntiLeechAction {
@@ -142,8 +110,6 @@ pub enum BtAntiLeechAction {
 }
 
 /// Seed-mode choking algorithm (engine tuning).
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtSeedChokingAlgorithm {
@@ -157,8 +123,6 @@ pub enum BtSeedChokingAlgorithm {
 }
 
 /// Top-level unchoke-slot algorithm (engine tuning).
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtChokingAlgorithm {
@@ -168,9 +132,6 @@ pub enum BtChokingAlgorithm {
     /// Rate-based unchoking (auto-adjusts slots).
     RateBased,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {

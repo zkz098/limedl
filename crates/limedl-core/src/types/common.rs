@@ -1,19 +1,10 @@
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "ts")]
-use ts_rs::TS;
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializableError {
     pub kind: String,
     pub message: String,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ChecksumMode {
@@ -29,8 +20,6 @@ pub enum ChecksumMode {
 
 /// Download priority — affects scheduler ordering.
 /// Stored as INTEGER in SQLite (0=Low, 1=Normal, 2=High).
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
@@ -50,9 +39,6 @@ impl From<u8> for Priority {
         }
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SortKey {
@@ -64,9 +50,6 @@ pub enum SortKey {
     AddedAt,
     State,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SortDirection {
@@ -74,9 +57,6 @@ pub enum SortDirection {
     #[default]
     Desc,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ThreadMode {
@@ -84,9 +64,6 @@ pub enum ThreadMode {
     #[default]
     Adaptive,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AdaptiveProfile {
@@ -95,9 +72,6 @@ pub enum AdaptiveProfile {
     Balanced,
     Aggressive,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProxyMode {
@@ -106,9 +80,6 @@ pub enum ProxyMode {
     System,
     Manual,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SchedulerMode {
@@ -116,9 +87,6 @@ pub enum SchedulerMode {
     #[default]
     Automatic,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LogLevel {
@@ -129,9 +97,6 @@ pub enum LogLevel {
     Warn,
     Error,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ThemeColor {
@@ -140,9 +105,6 @@ pub enum ThemeColor {
     #[default]
     Lime,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BackgroundOpacityPreset {
@@ -151,9 +113,6 @@ pub enum BackgroundOpacityPreset {
     Acrylic,
     Frosted,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ColorMode {
@@ -164,8 +123,6 @@ pub enum ColorMode {
 }
 
 /// Behavior when the user closes the main window.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum CloseBehavior {
@@ -177,8 +134,6 @@ pub enum CloseBehavior {
 }
 
 /// Disk type for I/O optimization decisions.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DiskType {
@@ -188,8 +143,6 @@ pub enum DiskType {
 }
 
 /// Action to perform when double-clicking a completed download task.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DoubleClickOnCompleted {
@@ -205,8 +158,6 @@ pub enum DoubleClickOnCompleted {
 }
 
 /// Action to perform when double-clicking an uncompleted download task.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DoubleClickOnUncompleted {
@@ -218,8 +169,6 @@ pub enum DoubleClickOnUncompleted {
 }
 
 /// Settings for double-click behavior on download tasks.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DoubleClickSettings {
@@ -241,8 +190,6 @@ impl Default for DoubleClickSettings {
 }
 
 /// A time-of-day speed limit slot.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpeedLimitSlot {
@@ -253,9 +200,6 @@ pub struct SpeedLimitSlot {
     /// Speed limit in bytes per second (0 = unlimited)
     pub limit_bps: u64,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MatchType {
@@ -265,9 +209,6 @@ pub enum MatchType {
     Regex,
     Wildcard,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReplacementMode {
@@ -279,9 +220,6 @@ pub enum ReplacementMode {
 pub(crate) fn default_true() -> bool {
     true
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RewriteTarget {
@@ -292,9 +230,6 @@ pub struct RewriteTarget {
     #[serde(default)]
     pub order: u32,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UrlRewriteRule {

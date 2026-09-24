@@ -5,7 +5,7 @@
 #   - CI: .github/workflows/release.yml (generates the GitHub release body on tag push)
 #   - CLI: `git-cliff` (local preview, e.g. `git-cliff --unreleased -o CHANGELOG.md`)
 #
-# Releases are tagged "v<semver>" (see scripts/bump-version.mjs); git-cliff scans
+# Releases are tagged "v<semver>" (see scripts/bump-version.ps1); git-cliff scans
 # tags to derive the previous release range, so a changelog covers everything since
 # the last tag.
 

@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "ts")]
-use ts_rs::TS;
 
 use super::bt::BtSettings;
 use super::common::{
@@ -9,18 +7,12 @@ use super::common::{
     DiskType, DoubleClickSettings, LogLevel, ProxyMode, SchedulerMode, SortDirection, SortKey,
     SpeedLimitSlot, ThemeColor, UrlRewriteRule,
 };
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProxySettings {
     pub mode: ProxyMode,
     pub manual_url: String,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraditionalSchedulerSettings {
@@ -34,9 +26,6 @@ impl Default for TraditionalSchedulerSettings {
         }
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AutomaticSchedulerSettings {
@@ -61,9 +50,6 @@ impl Default for AutomaticSchedulerSettings {
         }
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ChunkSizeStrategy {
@@ -71,9 +57,6 @@ pub enum ChunkSizeStrategy {
     Adaptive,
     Fixed,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerSettings {
@@ -114,9 +97,6 @@ pub fn default_http_user_agent() -> String {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     )
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadDefaultsSettings {
@@ -140,9 +120,6 @@ impl Default for DownloadDefaultsSettings {
         }
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogSettings {
@@ -187,9 +164,6 @@ fn default_visible_columns() -> Vec<String> {
         "eta".into(),
     ]
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSettings {
@@ -236,9 +210,6 @@ impl Default for AppearanceSettings {
         }
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationSettings {
@@ -267,8 +238,6 @@ fn default_hdd_buffer_enabled() -> bool {
 }
 
 /// I/O baseline settings for HDD/SSD intelligent buffer optimization.
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IoBaselineSettings {
@@ -281,7 +250,6 @@ pub struct IoBaselineSettings {
     #[serde(default = "default_game_mode_buffer_mb")]
     pub game_mode_buffer_mb: u64,
     /// Whether game/performance mode is currently active (runtime-only, never persisted).
-    #[cfg_attr(feature = "ts", ts(type = "boolean"))]
     #[serde(default, skip)]
     pub game_mode: bool,
     /// Maximum number of parallel HDD download buffers (slots).
@@ -294,7 +262,6 @@ pub struct IoBaselineSettings {
     pub game_mode_max_parallel: u32,
     /// User-specified disk type overrides keyed by directory path.
     /// e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
-    #[cfg_attr(feature = "ts", ts(type = "Record<string, DiskType>"))]
     #[serde(default)]
     pub disk_type_overrides: foldhash::HashMap<String, DiskType>,
     /// Whether HDD double-buffer optimization is enabled.
@@ -323,9 +290,6 @@ impl Default for IoBaselineSettings {
         }
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UrlRewriteSettings {
@@ -342,9 +306,6 @@ fn default_max_in_memory_downloads() -> usize {
 fn default_aria2_port() -> u16 {
     6800
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Aria2RpcSettings {
@@ -371,9 +332,6 @@ impl Default for Aria2RpcSettings {
         }
     }
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CdnAccelerationSettings {
@@ -394,9 +352,6 @@ pub struct CdnAccelerationSettings {
     #[serde(default)]
     pub last_error: Option<String>,
 }
-
-#[cfg_attr(feature = "ts", derive(TS))]
-#[cfg_attr(feature = "ts", ts(export, export_to = "../../src/types/generated/types.ts"))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {

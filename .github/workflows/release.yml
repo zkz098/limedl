@@ -20,8 +20,6 @@ name: Release
 #   the build). The Windows desktop job reuses the `release-native-windows-x86_64`
 #   rust-cache entry that `.github/workflows/warm-release-cache.yml` keeps warm on
 #   main; without it this job was a cold 16-minute Slint/Skia rebuild.
-# - The WebUI is built once in `build-frontend` and shared with all four NAS legs
-#   through an artifact instead of being rebuilt on each runner.
 
 on:
   push:
@@ -81,41 +79,6 @@ jobs:
             echo "$BODY"
             echo 'GCLIFF_EOF'
           } >> "$GITHUB_OUTPUT"
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # WebUI — built once (NAS mode) and handed to every NAS leg below. The build
-  # is platform independent, so building it four times only multiplied install
-  # and Vite time by four.
-  # ═══════════════════════════════════════════════════════════════════════
-  build-frontend:
-    name: WebUI bundle (NAS)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 24
-
-      - name: Cache pnpm store
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.local/share/pnpm/store
-          key: pnpm-release-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-release-${{ runner.os }}-
-
-      - run: corepack enable
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm run build:nas
-
-      - name: Upload built WebUI
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: nas-webui-dist
-          path: dist/
-          # Build input, not a release artifact — no point keeping it around.
-          retention-days: 1
-          if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════
   # Desktop (Slint) — Windows: portable zip + NSIS installer + MSIX package.
@@ -628,132 +591,5 @@ jobs:
             dist/limedl-native-v*-windows-x86_64.msix.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # NAS Server — single binary with embedded frontend
-  # ═══════════════════════════════════════════════════════════════════════
-  build-nas:
-    name: NAS binary (${{ matrix.name }})
-    runs-on: ${{ matrix.os }}
-    needs: [changelog, build-frontend]
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: linux-x86_64-musl
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            ext: tar.gz
-            binary: limedl
-
-          - name: linux-aarch64-musl
-            os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
-            ext: tar.gz
-            binary: limedl
-
-          - name: windows-x86_64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            ext: zip
-            binary: limedl.exe
-
-          - name: macos-aarch64
-            os: macos-latest
-            target: aarch64-apple-darwin
-            ext: tar.gz
-            binary: limedl
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-      # Windows-only: keep Defender's real-time scanner out of target/ (same
-      # rationale as ci.yml). Best-effort — never fail the build on it.
-      - name: Exclude build paths from Defender real-time scanning
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          foreach ($path in @($env:GITHUB_WORKSPACE, "$env:USERPROFILE\.cargo", $env:RUNNER_TEMP)) {
-            Add-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
-          }
-          if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
-            Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
-          }
-
-      - name: Extract version from tag
-        id: version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-
-      # ── Frontend (built once by build-frontend, embedded via rust-embed) ──
-      # crates/limedl-server/src/main.rs embeds `../../dist`.
-      - name: Download built WebUI
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: nas-webui-dist
-          path: dist
-
-      # ── Rust toolchain ─────────────────────────────────────────────────
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
-        with:
-          toolchain: stable
-          cache: false
-          rustflags: ""
-
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          key: release-nas-${{ matrix.target }}
-
-      # ── musl toolchain (Linux only) ────────────────────────────────────
-      - name: Install musl target
-        if: contains(matrix.target, 'musl')
-        run: |
-          rustup target add ${{ matrix.target }}
-          sudo apt-get update && sudo apt-get install -y musl-tools
-
-      # ── Build server binary (NAS: x86-64-v2 for broad HW compat) ──────
-      # `.cargo/config.toml` already targets x86-64-v2 for the musl targets;
-      # the MSVC target is pinned to x86-64-v3 there for the desktop build, so
-      # the NAS binary overrides it back to v2 for older NAS CPUs.
-      - name: Build binary
-        env:
-          RUSTFLAGS: ${{ matrix.target == 'x86_64-pc-windows-msvc' && '-C target-cpu=x86-64-v2' || '' }}
-        run: cargo build --locked --release --target ${{ matrix.target }} --features embed-frontend --manifest-path crates/limedl-server/Cargo.toml
-
-      # ── Package ────────────────────────────────────────────────────────
-      - name: Package (Linux / macOS)
-        if: matrix.ext == 'tar.gz'
-        shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          NAME="${{ matrix.name }}"
-          BINARY="target/${{ matrix.target }}/release/${{ matrix.binary }}"
-          ASSET="limedl-nas-v${VERSION}-${NAME}.tar.gz"
-          cp "$BINARY" limedl-nas
-          tar -czf "$ASSET" limedl-nas
-          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
-
-      - name: Package (Windows)
-        if: matrix.ext == 'zip'
-        shell: pwsh
-        run: |
-          $VERSION = "${{ steps.version.outputs.VERSION }}"
-          $NAME = "${{ matrix.name }}"
-          $BINARY = "target/${{ matrix.target }}/release/${{ matrix.binary }}"
-          $ASSET = "limedl-nas-v${VERSION}-${NAME}.zip"
-          Compress-Archive -Path $BINARY -DestinationPath $ASSET
-          echo "ASSET=$ASSET" >> $env:GITHUB_ENV
-
-      # ── Upload to release ──────────────────────────────────────────────
-      - name: Upload to release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
-        with:
-          files: ${{ env.ASSET }}
-          body: ${{ needs.changelog.outputs.body }}
-          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
