@@ -16,7 +16,7 @@
     "@iconify-json/ri": "^1.2.10",
     "@unocss/astro": "^66.10.5",
     "@unocss/reset": "^66.10.5",
-    "astro": "^5.0.0",
+    "astro": "^7.2.8",
     "sharp": "^0.35.4",
     "unocss": "^66.10.5"
   }
