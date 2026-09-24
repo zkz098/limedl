@@ -807,12 +807,12 @@ pub fn launched_at_logon(window: std::time::Duration) -> bool {
 /// Remove hooks on teardown.
 #[allow(dead_code)]
 pub fn cleanup_window_hooks(window: &slint::Window) {
-    if !HOOK_INSTALLED.swap(false, Ordering::SeqCst) {
-        return;
-    }
-
     #[cfg(windows)]
     {
+        if !HOOK_INSTALLED.swap(false, Ordering::SeqCst) {
+            return;
+        }
+
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
         let win_handle = window.window_handle();
