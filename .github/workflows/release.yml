@@ -181,13 +181,20 @@ jobs:
       # makensis resolves `File` relative to the .nsi file's own directory, so
       # the script takes the staged binary path as an absolute input
       # (/DAPP_EXE_PATH) instead of looking for it next to itself.
+      - name: Setup NSIS
+        uses: repolevedavaj/install-nsis@65a75ea79c3d1ddde868e98b7f9447e2e623401c # v1.3.0
+        with:
+          nsis-version: '3.10'
+
       - name: Package NSIS installer
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          choco install nsis -y --no-progress
-          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
-          if (-not (Test-Path $makensis)) { throw "makensis not found" }
+          $makensis = (Get-Command makensis -ErrorAction SilentlyContinue)?.Source
+          if (-not $makensis -and (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe")) {
+            $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
+          }
+          if (-not $makensis) { throw "makensis not found" }
           if (-not (Test-Path dist/limedl-native.exe)) { throw "dist/limedl-native.exe missing" }
           # Force UTF-8: the script's comments contain non-ASCII box-drawing
           # characters. Without this, makensis decodes the file with the
