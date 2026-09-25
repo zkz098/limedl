@@ -12,8 +12,10 @@ Tauri/Vue desktop shell was retired).
 
 | 文件                     | 职责                                                                                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/main.rs`            | 应用装配：后台任务、Slint 回调 → `Dispatcher`、托盘、事件循环、外观/视图偏好应用                                                                       |
-| `src/bridge.rs`          | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
+| `src/main.rs`            | 应用装配：上下文初始化、后台任务启动、托盘、事件循环、外观与视图偏好应用                                                                               |
+| `src/platform_adapter.rs`| 平台集成：跨平台单实例激活监听 + Windows 专属拖拽/WM_COPYDATA 窗口子类化与重试挂载                                                                      |
+| `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
+| `src/handlers/`          | 业务事件回调处理器（按 task/settings/inspector/updater/window/labs 等子系统拆分）                                                                      |
 | `src/i18n.rs`            | 语言枚举、`format_*` 本地化辅助（含设置校验错误、托盘文案、优先级标签）                                                                                |
 | `src/update.rs`          | minisign 校验的多通道自更新（见 `subsystem-self-update.md`）                                                                                           |
 | `src/autostart.rs`       | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent）                                                                                 |

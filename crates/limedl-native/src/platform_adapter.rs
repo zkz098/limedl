@@ -1,11 +1,5 @@
-use std::rc::Rc;
-use std::time::Duration;
-use slint::{ComponentHandle, SharedString};
-
 use crate::context::AppContext;
 use crate::handlers::new_task::open_new_task_with_payload;
-use crate::i18n;
-use crate::platform_win;
 use crate::protocol;
 use crate::ui_sync::restore_and_show_window;
 
@@ -13,23 +7,16 @@ pub fn setup_platform_integration(
     ctx: &AppContext,
     instance_claim: &crate::single_instance::InstanceClaim,
 ) {
-    let main_window = &ctx.ui;
-    let ui_weak = ctx.ui_weak.clone();
-    let dispatcher = ctx.dispatcher.clone();
-    let store = ctx.store.clone();
-    let new_task_torrent_entries = ctx.new_task_torrent_entries.clone();
-    let new_task_torrent_included = ctx.new_task_torrent_included.clone();
-
     // Cross-platform single-instance activation listener: on macOS/Linux (and on
     // Windows when the secondary can't find our HWND), the secondary process
     // writes its CLI payload over a local socket to wake us up.
     {
-        let ui_weak = ui_weak.clone();
-        let dispatcher = dispatcher.clone();
-        let store = store.clone();
+        let ui_weak = ctx.ui_weak.clone();
+        let dispatcher = ctx.dispatcher.clone();
+        let store = ctx.store.clone();
         let store_activate = store.clone();
-        let entries_cache = new_task_torrent_entries.clone();
-        let included_cache = new_task_torrent_included.clone();
+        let entries_cache = ctx.new_task_torrent_entries.clone();
+        let included_cache = ctx.new_task_torrent_included.clone();
         instance_claim.listen_for_activate(move |payload| {
             let ui_weak_cl = ui_weak.clone();
             let store_for_show = store_activate.clone();
@@ -51,8 +38,26 @@ pub fn setup_platform_integration(
         });
     }
 
-    let entries_cache = new_task_torrent_entries.clone();
-    let included_cache = new_task_torrent_included.clone();
+    #[cfg(windows)]
+    setup_windows_hooks(ctx);
+
+    let _ = protocol::register_protocols();
+}
+
+#[cfg(windows)]
+fn setup_windows_hooks(ctx: &AppContext) {
+    use std::rc::Rc;
+    use std::time::Duration;
+    use slint::{ComponentHandle, SharedString};
+    use crate::i18n;
+    use crate::platform_win;
+
+    let main_window = &ctx.ui;
+    let ui_weak = ctx.ui_weak.clone();
+    let dispatcher = ctx.dispatcher.clone();
+    let store = ctx.store.clone();
+    let entries_cache = ctx.new_task_torrent_entries.clone();
+    let included_cache = ctx.new_task_torrent_included.clone();
 
     let ui_weak_drop = ui_weak.clone();
     let dispatcher_drop = dispatcher.clone();
@@ -180,6 +185,5 @@ pub fn setup_platform_integration(
             },
         );
     }
-
-    let _ = protocol::register_protocols();
 }
+
