@@ -412,6 +412,20 @@ fn tray_init_failure_message(err: &tray_icon::Error) -> String {
     }
 }
 
+thread_local! {
+    static TRAY_INSTANCE: std::cell::RefCell<Option<tray_icon::TrayIcon>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Update the system tray menu and tooltip on the UI thread without periodic polling timers.
+fn update_tray_menu_and_tooltip(lang: Language, speed_limit_active: bool) {
+    TRAY_INSTANCE.with(|cell| {
+        if let Some(tray) = cell.borrow_mut().as_mut() {
+            tray.set_menu(Some(Box::new(build_tray_menu(lang, speed_limit_active))));
+            let _ = tray.set_tooltip(Some(i18n::get_tray_strings(lang).tooltip));
+        }
+    });
+}
+
 /// Restore a hidden, minimized, or inactive window and ensure Slint redraws it.
 ///
 /// On Windows, calling Win32 `ShowWindow(SW_RESTORE)` externally does not inform Slint
@@ -419,7 +433,8 @@ fn tray_init_failure_message(err: &tray_icon::Error) -> String {
 /// and causing `draw()` to skip rendering (resulting in a blank or transparent window).
 /// This helper coordinates Slint's UI-thread show, un-minimizes the window, requests
 /// an immediate redraw, and brings the window to the foreground.
-fn restore_and_show_window(ui: &MainWindow) {
+fn restore_and_show_window(ui: &MainWindow, store: Option<&TaskStore>) {
+    platform_win::set_window_visible(true);
     let _ = ui.show();
     ui.window().set_minimized(false);
     ui.window().request_redraw();
@@ -429,6 +444,13 @@ fn restore_and_show_window(ui: &MainWindow) {
             &base_dir,
             ui.window().is_maximized(),
         );
+    }
+    #[cfg(windows)]
+    {
+        platform_win::try_install_window_hooks(ui.window());
+    }
+    if let Some(s) = store {
+        refresh_ui(ui, s);
     }
     platform_win::bring_to_foreground(ui.window());
 }
@@ -541,10 +563,11 @@ fn open_new_task_with_payload(
         let ui_weak_cl = ui_weak.clone();
         let lang = store.lock().language();
         let path_for_ui = full_path.clone();
+        let store_open = store.clone();
 
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak_cl.upgrade() {
-                restore_and_show_window(&ui);
+                restore_and_show_window(&ui, Some(&store_open.lock()));
                 ui.set_new_task_url(SharedString::from(&path_for_ui));
                 if !file_name.is_empty() {
                     ui.set_new_task_filename(SharedString::from(&file_name));
@@ -621,9 +644,10 @@ fn open_new_task_with_payload(
         }
 
         let ui_weak = ui_weak.clone();
+        let store_magnet = store.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak.upgrade() {
-                restore_and_show_window(&ui);
+                restore_and_show_window(&ui, Some(&store_magnet.lock()));
                 ui.set_new_task_url(SharedString::from(&magnet_url));
                 if !display_name.is_empty() {
                     ui.set_new_task_filename(SharedString::from(&display_name));
@@ -651,7 +675,7 @@ fn open_new_task_with_payload(
             let store = store.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    restore_and_show_window(&ui);
+                    restore_and_show_window(&ui, Some(&store.lock()));
                     let lang = store.lock().language();
                     ui.set_new_task_batch_text(SharedString::from(&joined));
                     ui.set_new_task_batch_mode(true);
@@ -667,9 +691,10 @@ fn open_new_task_with_payload(
         crate::bridge::ClipboardPayload::SingleUrl(url) => {
             let ui_weak_cl = ui_weak.clone();
             let url_cl = url.clone();
+            let store_single = store.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak_cl.upgrade() {
-                    restore_and_show_window(&ui);
+                    restore_and_show_window(&ui, Some(&store_single.lock()));
                     ui.set_new_task_url(SharedString::from(&url_cl));
                     ui.set_new_task_batch_mode(false);
                     ui.set_new_task_probe_state("idle".into());
@@ -842,9 +867,6 @@ async fn main() -> anyhow::Result<()> {
             report.source.display()
         );
     }
-    let cdn_accelerator = core.cdn_service.accelerator().clone();
-    core.download_manager.set_cdn_accelerator(cdn_accelerator);
-    core.cdn_service.init_from_settings(&initial_settings).await;
     let current_settings = Arc::new(Mutex::new(initial_settings.clone()));
     // Sync OS autostart registration with persisted flag (no-op if already consistent)
     autostart::sync_from_settings(initial_settings.autostart);
@@ -946,15 +968,11 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(Mutex::new(Vec::new()));
     let new_task_torrent_included: Arc<Mutex<Vec<bool>>> = Arc::new(Mutex::new(Vec::new()));
 
-    // Initialize UI settings state
-    refresh_settings_state(
-        &main_window,
-        &core.dispatcher,
-        &initial_settings,
-        *game_mode_active.lock(),
-        *overclock_mode_active.lock(),
-        initial_lang,
-    );
+    // Fast path for initial window appearance: apply view density and toggles without
+    // probing physical disk types or building the full hidden settings form.
+    apply_view_preferences(&main_window, &initial_settings);
+    main_window.set_game_mode_active(*game_mode_active.lock());
+    main_window.set_overclock_mode_active(*overclock_mode_active.lock());
 
     // First-run setup wizard: populate the form and show it if the user has
     // not completed setup yet (or resumes from an interrupted run).
@@ -987,13 +1005,15 @@ async fn main() -> anyhow::Result<()> {
         let ui_weak = main_window.as_weak();
         let dispatcher = core.dispatcher.clone();
         let store = store.clone();
+        let store_activate = store.clone();
         let entries_cache = new_task_torrent_entries.clone();
         let included_cache = new_task_torrent_included.clone();
         instance_claim.listen_for_activate(move |payload| {
             let ui_weak_cl = ui_weak.clone();
+            let store_for_show = store_activate.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak_cl.upgrade() {
-                    restore_and_show_window(&ui);
+                    restore_and_show_window(&ui, Some(&store_for_show.lock()));
                 }
             });
             if let Some(p) = payload {
@@ -1038,9 +1058,10 @@ async fn main() -> anyhow::Result<()> {
 
         let on_drop = move |files: Vec<String>| {
             let ui_weak = ui_weak_drop.clone();
+            let store_for_restore = store_drop.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    restore_and_show_window(&ui);
+                    restore_and_show_window(&ui, Some(&store_for_restore.lock()));
                 }
             });
             if files.len() == 1 {
@@ -1102,10 +1123,11 @@ async fn main() -> anyhow::Result<()> {
             let store = store_copydata.clone();
             let entries_cache = entries_cache_copydata.clone();
             let included_cache = included_cache_copydata.clone();
+            let store_for_restore = store.clone();
 
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    restore_and_show_window(&ui);
+                    restore_and_show_window(&ui, Some(&store_for_restore.lock()));
                     if let Some(text) = payload {
                         open_new_task_with_payload(
                             &text,
@@ -1121,13 +1143,15 @@ async fn main() -> anyhow::Result<()> {
         };
 
         let ui_weak_show = ui_weak.clone();
+        let store_show = store.clone();
         let on_show = move || {
             let ui_weak = ui_weak_show.clone();
+            let store = store_show.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade()
                     && !ui.window().is_visible()
                 {
-                    restore_and_show_window(&ui);
+                    restore_and_show_window(&ui, Some(&store.lock()));
                 }
             });
         };
@@ -1150,7 +1174,7 @@ async fn main() -> anyhow::Result<()> {
             if !platform_win::try_install_window_hooks(main_window.window()) {
                 hook_timer.start(
                     slint::TimerMode::Repeated,
-                    Duration::from_millis(16),
+                    Duration::from_millis(500),
                     move || {
                         let Some(ui) = ui_weak.upgrade() else {
                             timer_for_cb.stop();
@@ -1234,9 +1258,7 @@ async fn main() -> anyhow::Result<()> {
         .with_icon(create_default_tray_icon())
         .build()
         .map_err(|e| anyhow::anyhow!(tray_init_failure_message(&e)))?;
-
-    // Channel for signalling tray menu/tooltip updates from async tasks (TrayIcon is !Send)
-    let pending_tray_lang: Arc<Mutex<Option<Language>>> = Arc::new(Mutex::new(None));
+    TRAY_INSTANCE.with(|cell| *cell.borrow_mut() = Some(tray_icon));
 
     // Load initial tasks from SQLite via Dispatcher
     if let Ok(initial_tasks) = core.dispatcher.list().await {
@@ -1348,6 +1370,11 @@ async fn main() -> anyhow::Result<()> {
                                     let mut s = store.lock();
                                     let lang = s.language();
                                     s.insert_or_update(summary_clone.clone());
+                                    let (_, downloading, _, _, _) = s.counts();
+                                    POWER_GUARD.update(downloading);
+                                    if !platform_win::is_window_visible() {
+                                        return;
+                                    }
                                     refresh_ui(&ui, &s);
 
                                     // Refresh Inspector if this task is currently viewed
@@ -1369,6 +1396,11 @@ async fn main() -> anyhow::Result<()> {
                                     let mut s = store.lock();
                                     let lang = s.language();
                                     s.update_progress(&progress);
+                                    let (_, downloading, _, _, _) = s.counts();
+                                    POWER_GUARD.update(downloading);
+                                    if !platform_win::is_window_visible() {
+                                        return;
+                                    }
                                     refresh_ui(&ui, &s);
 
                                     // Refresh Inspector progress if active
@@ -1387,6 +1419,11 @@ async fn main() -> anyhow::Result<()> {
                             if let Some(ui) = ui_weak.upgrade() {
                                 let mut s = store.lock();
                                 s.replace_all(downloads);
+                                let (_, downloading, _, _, _) = s.counts();
+                                POWER_GUARD.update(downloading);
+                                if !platform_win::is_window_visible() {
+                                    return;
+                                }
                                 refresh_ui(&ui, &s);
                             }
                         });
@@ -1552,6 +1589,9 @@ async fn main() -> anyhow::Result<()> {
             let mut interval = tokio::time::interval(Duration::from_secs(2));
             loop {
                 interval.tick().await;
+                if !platform_win::is_window_visible() {
+                    continue;
+                }
                 let status = dispatcher.bt_runtime_status();
                 let ui_weak = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -1591,6 +1631,9 @@ async fn main() -> anyhow::Result<()> {
             let mut interval = tokio::time::interval(Duration::from_millis(1000));
             loop {
                 interval.tick().await;
+                if !platform_win::is_window_visible() {
+                    continue;
+                }
 
                 let current_id = {
                     let lock = active_inspector_id_clone.lock();
@@ -1653,7 +1696,6 @@ async fn main() -> anyhow::Result<()> {
         let game_mode_active_clone = game_mode_active.clone();
         let current_settings_tray = current_settings.clone();
         let tray_speed_limit_active_clone = tray_speed_limit_active.clone();
-        let pending_tray_lang_tray = pending_tray_lang.clone();
         let store_tray = store.clone();
         let toast_queue_tray = toast_queue.clone();
 
@@ -1696,9 +1738,10 @@ async fn main() -> anyhow::Result<()> {
                             "show" => {
                                 let _ = slint::invoke_from_event_loop({
                                     let ui_weak = ui_weak.clone();
+                                    let store = store_tray.clone();
                                     move || {
                                         if let Some(ui) = ui_weak.upgrade() {
-                                            restore_and_show_window(&ui);
+                                            restore_and_show_window(&ui, Some(&store.lock()));
                                         }
                                     }
                                 });
@@ -1753,11 +1796,6 @@ async fn main() -> anyhow::Result<()> {
                                             saved.global_speed_limit_bps > 0,
                                             Ordering::Relaxed,
                                         );
-                                        // TrayIcon is !Send, so ask the UI-thread timer to
-                                        // rebuild the menu and refresh the checkmark.
-                                        *pending_tray_lang_tray.lock() = Some(Language::from_code(
-                                            &saved.appearance.language,
-                                        ));
                                         push_toast(
                                             &ui_weak,
                                             &toast_queue_tray,
@@ -1768,7 +1806,10 @@ async fn main() -> anyhow::Result<()> {
                                         let limit_kb =
                                             (saved.global_speed_limit_bps / 1024).to_string();
                                         let ui_weak = ui_weak.clone();
+                                        let lang_code = Language::from_code(&saved.appearance.language);
+                                        let spd_active = saved.global_speed_limit_bps > 0;
                                         let _ = slint::invoke_from_event_loop(move || {
+                                            update_tray_menu_and_tooltip(lang_code, spd_active);
                                             if let Some(ui) = ui_weak.upgrade() {
                                                 let mut form = ui.get_settings_form();
                                                 form.global_speed_limit_kb =
@@ -1801,9 +1842,10 @@ async fn main() -> anyhow::Result<()> {
                         if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
                             let _ = slint::invoke_from_event_loop({
                                 let ui_weak = ui_weak.clone();
+                                let store = store_tray.clone();
                                 move || {
                                     if let Some(ui) = ui_weak.upgrade() {
-                                        restore_and_show_window(&ui);
+                                        restore_and_show_window(&ui, Some(&store.lock()));
                                     }
                                 }
                             });
@@ -2315,7 +2357,6 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let current_settings_clone = current_settings.clone();
         let store_clone = store.clone();
-        let pending_tray_lang_clone = pending_tray_lang.clone();
         let active_inspector_id_clone = active_inspector_id.clone();
         let rpc_shutdown_clone = rpc_shutdown.clone();
         let toast_queue_clone = toast_queue.clone();
@@ -2326,7 +2367,6 @@ async fn main() -> anyhow::Result<()> {
             let dispatcher = dispatcher.clone();
             let current_settings_clone = current_settings_clone.clone();
             let store_clone = store_clone.clone();
-            let pending_tray_lang_clone = pending_tray_lang_clone.clone();
             let active_inspector_id_clone = active_inspector_id_clone.clone();
             let rpc_shutdown = rpc_shutdown_clone.clone();
             let toast_queue = toast_queue_clone.clone();
@@ -2437,8 +2477,9 @@ async fn main() -> anyhow::Result<()> {
                         *current_settings_clone.lock() = saved.clone();
                         // Keep the tray speed-limit checkmark in sync with the
                         // limit edited inside the settings dialog.
+                        let speed_limit_active = saved.global_speed_limit_bps > 0;
                         tray_speed_limit_settings.store(
-                            saved.global_speed_limit_bps > 0,
+                            speed_limit_active,
                             Ordering::Relaxed,
                         );
                         let default_dir = saved.download.default_download_dir.clone();
@@ -2455,11 +2496,9 @@ async fn main() -> anyhow::Result<()> {
                             Duration::from_secs(4),
                         );
 
-                        // Signal tray update to main thread (TrayIcon is !Send)
-                        *pending_tray_lang_clone.lock() = Some(new_lang);
-
                         let _ = slint::invoke_from_event_loop(move || {
                             i18n::apply_translation(new_lang);
+                            update_tray_menu_and_tooltip(new_lang, speed_limit_active);
                             if let Some(ui) = ui_weak.upgrade() {
                                 apply_appearance(&ui, new_color_mode, new_theme_color);
                                 let mut s = store_clone.lock();
@@ -3897,7 +3936,6 @@ async fn main() -> anyhow::Result<()> {
         let dispatcher = core.dispatcher.clone();
         let current_settings_clone = current_settings.clone();
         let store_clone = store.clone();
-        let pending_tray_lang_clone = pending_tray_lang.clone();
         let rpc_shutdown_clone = rpc_shutdown.clone();
         let toast_queue_clone = toast_queue.clone();
         let tray_speed_limit_setup = tray_speed_limit_active.clone();
@@ -3907,7 +3945,6 @@ async fn main() -> anyhow::Result<()> {
             let dispatcher = dispatcher.clone();
             let current_settings_clone = current_settings_clone.clone();
             let store_clone = store_clone.clone();
-            let pending_tray_lang_clone = pending_tray_lang_clone.clone();
             let rpc_shutdown = rpc_shutdown_clone.clone();
             let toast_queue = toast_queue_clone.clone();
             let tray_speed_limit_setup = tray_speed_limit_setup.clone();
@@ -3991,15 +4028,15 @@ async fn main() -> anyhow::Result<()> {
                         }
 
                         *current_settings_clone.lock() = saved.clone();
+                        let speed_limit_active = saved.global_speed_limit_bps > 0;
                         tray_speed_limit_setup.store(
-                            saved.global_speed_limit_bps > 0,
+                            speed_limit_active,
                             Ordering::Relaxed,
                         );
                         let default_dir = saved.download.default_download_dir.clone();
                         let new_lang = Language::from_code(&saved.appearance.language);
                         let new_color_mode = saved.appearance.color_mode;
                         let new_theme_color = saved.appearance.theme_color;
-                        *pending_tray_lang_clone.lock() = Some(new_lang);
 
                         push_toast(
                             &ui_weak,
@@ -4011,6 +4048,7 @@ async fn main() -> anyhow::Result<()> {
 
                         let _ = slint::invoke_from_event_loop(move || {
                             i18n::apply_translation(new_lang);
+                            update_tray_menu_and_tooltip(new_lang, speed_limit_active);
                             if let Some(ui) = ui_weak.upgrade() {
                                 apply_appearance(&ui, new_color_mode, new_theme_color);
                                 let mut s = store_clone.lock();
@@ -5381,27 +5419,9 @@ async fn main() -> anyhow::Result<()> {
             "以静默模式启动（仅托盘；来源：{}）",
             if hidden_flag { "--hidden" } else { "MSIX 登录启动" }
         );
+        platform_win::set_window_visible(false);
+        platform_win::trim_working_set();
     }
-
-    // Poll for pending tray menu/tooltip updates on the main thread (TrayIcon is !Send)
-    let _tray_update_timer = slint::Timer::default();
-    _tray_update_timer.start(
-        slint::TimerMode::Repeated,
-        std::time::Duration::from_millis(250),
-        {
-            let pending_tray_lang_clone = pending_tray_lang.clone();
-            let tray_speed_limit_clone = tray_speed_limit_active.clone();
-            move || {
-                if let Some(lang) = pending_tray_lang_clone.lock().take() {
-                    tray_icon.set_menu(Some(Box::new(build_tray_menu(
-                        lang,
-                        tray_speed_limit_clone.load(Ordering::Relaxed),
-                    ))));
-                    let _ = tray_icon.set_tooltip(Some(i18n::get_tray_strings(lang).tooltip));
-                }
-            }
-        },
-    );
 
     // `run_event_loop_until_quit` rather than `MainWindow::run()`: with
     // `--hidden` no window is ever shown, and the default loop would return
@@ -5417,6 +5437,9 @@ async fn main() -> anyhow::Result<()> {
     // Graceful shutdown
     platform_win::save_current_window_geometry(main_window.window(), &base_dir);
     POWER_GUARD.release();
+    TRAY_INSTANCE.with(|cell| {
+        *cell.borrow_mut() = None;
+    });
     tracing::info!("Native UI 正在退出，关闭核心引擎...");
     // Stop Aria2 RPC server first
     if let Some(tx) = rpc_shutdown.lock().take() {

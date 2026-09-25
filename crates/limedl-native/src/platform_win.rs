@@ -14,10 +14,32 @@
 
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
-// Windows-only: both are used solely by the Win32 subclassing machinery below
-// (`HOOK_INSTALLED`), which is compiled out everywhere else.
-#[cfg(windows)]
 use std::sync::atomic::{AtomicBool, Ordering};
+
+static WINDOW_VISIBLE: AtomicBool = AtomicBool::new(true);
+
+/// Track whether the primary window is actively visible and not minimized.
+/// Used to suppress expensive background UI model rebuilds and periodic status polling.
+pub fn is_window_visible() -> bool {
+    WINDOW_VISIBLE.load(Ordering::Relaxed)
+}
+
+/// Update the primary window visibility state.
+pub fn set_window_visible(visible: bool) {
+    WINDOW_VISIBLE.store(visible, Ordering::SeqCst);
+}
+
+/// Trim the process working set to release physical memory back to the OS.
+/// Typically called when the window is minimized or hidden in the tray.
+pub fn trim_working_set() {
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Threading::{GetCurrentProcess, SetProcessWorkingSetSize};
+        unsafe {
+            let _ = SetProcessWorkingSetSize(GetCurrentProcess(), usize::MAX, usize::MAX);
+        }
+    }
+}
 
 /// Persisted window geometry (position, size, maximized status), in physical
 /// pixels — the same unit Slint reports from `Window::position`/`Window::size`
@@ -134,7 +156,8 @@ use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowPlacement, GetWindowRect, IsIconic, IsZoomed, SetForegroundWindow, SetWindowPos,
-    ShowWindow, SIZE_MAXIMIZED, SIZE_RESTORED, SW_HIDE, SW_MAXIMIZE, SW_RESTORE, SWP_NOACTIVATE,
+    ShowWindow, SIZE_MAXIMIZED, SIZE_MINIMIZED, SIZE_RESTORED, SW_HIDE, SW_MAXIMIZE, SW_RESTORE,
+    SWP_NOACTIVATE,
     SWP_NOSIZE, SWP_NOZORDER, WINDOWPLACEMENT, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE,
     WM_SHOWWINDOW, WM_SIZE,
 };
@@ -317,10 +340,14 @@ unsafe extern "system" fn subclass_proc(
             LRESULT(0)
         }
         WM_SHOWWINDOW => {
-            if wparam.0 != 0
-                && let Some(ref cb) = *SHOW_CALLBACK.lock()
-            {
-                cb();
+            if wparam.0 != 0 {
+                set_window_visible(true);
+                if let Some(ref cb) = *SHOW_CALLBACK.lock() {
+                    cb();
+                }
+            } else {
+                set_window_visible(false);
+                trim_working_set();
             }
             unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
         }
@@ -346,6 +373,7 @@ unsafe extern "system" fn subclass_proc(
                         let _ = ShowWindow(hwnd, SW_RESTORE);
                         let _ = SetForegroundWindow(hwnd);
                     }
+                    set_window_visible(true);
 
                     if let Some(ref cb) = *COPYDATA_CALLBACK.lock() {
                         cb(payload);
@@ -362,7 +390,11 @@ unsafe extern "system" fn subclass_proc(
         WM_SIZE => {
             let size_type = wparam.0 as u32;
             if size_type == SIZE_MAXIMIZED || size_type == SIZE_RESTORED {
+                set_window_visible(true);
                 save_geometry_if_configured(hwnd);
+            } else if size_type == SIZE_MINIMIZED {
+                set_window_visible(false);
+                trim_working_set();
             }
             unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
         }
@@ -655,6 +687,8 @@ pub fn bring_to_foreground(window: &slint::Window) {
 
 /// Explicitly hide the native OS window.
 pub fn hide_window(window: &slint::Window) {
+    set_window_visible(false);
+    trim_working_set();
     #[cfg(windows)]
     {
         if let Some(hwnd) = win32_window_handle(window) {
