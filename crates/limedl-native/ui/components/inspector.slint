@@ -19,6 +19,14 @@ export component TaskInspector inherits Rectangle {
     callback open_explorer(string);
     callback toggle_file(int, bool); // file index, currently included
 
+    pure function format_peer_desc(client: string, flags: string) -> string {
+        client != "" ? (
+            flags != "" ? client + " [" + flags + "]" : client
+        ) : (
+            flags != "" ? @tr("Unknown") + " [" + flags + "]" : @tr("Unknown")
+        );
+    }
+
     in property <bool> is_open: false;
 
     width: 100%;
@@ -150,6 +158,7 @@ export component TaskInspector inherits Rectangle {
                 // Tab 0: Overview
                 if root.inspector_tab == 0 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 16px;
                         spacing: 14px;
 
@@ -218,13 +227,18 @@ export component TaskInspector inherits Rectangle {
 
                 // Tab 1: BT Peers
                 if root.inspector_tab == 1 : ScrollView {
-                    if root.inspector_peers.length == 0 : VerticalLayout {
-                        alignment: center;
-                        Text { text: @tr("No connected peers"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                    }
-                    if root.inspector_peers.length > 0 : VerticalLayout {
+                    VerticalLayout {
+                        alignment: start;
                         padding: 12px;
                         spacing: 6px;
+
+                        if root.inspector_peers.length == 0 : VerticalLayout {
+                            alignment: center;
+                            padding-top: 40px;
+                            padding-bottom: 40px;
+                            Text { text: @tr("No connected peers"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                        }
+
                         for peer in root.inspector_peers : Rectangle {
                             background: Theme.c171a21;
                             border-color: Theme.c262c37;
@@ -238,7 +252,11 @@ export component TaskInspector inherits Rectangle {
                                 VerticalLayout {
                                     alignment: center;
                                     Text { text: peer.address; color: Theme.cf3f4f6; font-size: 12px; font-weight: 500; }
-                                    Text { text: peer.client + " [" + peer.flags + "]"; color: Theme.c8b95a5; font-size: 10px; }
+                                    Text {
+                                        text: root.format_peer_desc(peer.client, peer.flags);
+                                        color: Theme.c8b95a5;
+                                        font-size: 10px;
+                                    }
                                 }
                                 HorizontalLayout {
                                     spacing: 12px;
@@ -254,13 +272,18 @@ export component TaskInspector inherits Rectangle {
 
                 // Tab 2: BT Trackers
                 if root.inspector_tab == 2 : ScrollView {
-                    if root.inspector_trackers.length == 0 : VerticalLayout {
-                        alignment: center;
-                        Text { text: @tr("No registered trackers"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                    }
-                    if root.inspector_trackers.length > 0 : VerticalLayout {
+                    VerticalLayout {
+                        alignment: start;
                         padding: 12px;
                         spacing: 6px;
+
+                        if root.inspector_trackers.length == 0 : VerticalLayout {
+                            alignment: center;
+                            padding-top: 40px;
+                            padding-bottom: 40px;
+                            Text { text: @tr("No registered trackers"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                        }
+
                         for tracker in root.inspector_trackers : Rectangle {
                             background: Theme.c171a21;
                             border-color: Theme.c262c37;
@@ -322,14 +345,24 @@ export component TaskInspector inherits Rectangle {
 
                 // Tab 4: BT Files
                 if root.inspector_tab == 4 : ScrollView {
-                    if root.inspector_files.length == 0 : VerticalLayout {
-                        alignment: center;
-                        Text { text: @tr("Single file task or file list not yet parsed"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                    }
-                    if root.inspector_files.length > 0 : VerticalLayout {
+                    VerticalLayout {
+                        alignment: start;
                         padding: 12px;
                         spacing: 6px;
-                        Text { text: @tr("Uncheck a file to skip it (at least one file must stay selected)."); color: #6b7280; font-size: 11px; }
+
+                        if root.inspector_files.length == 0 : VerticalLayout {
+                            alignment: center;
+                            padding-top: 40px;
+                            padding-bottom: 40px;
+                            Text { text: @tr("Single file task or file list not yet parsed"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                        }
+
+                        if root.inspector_files.length > 0 : Text {
+                            text: @tr("Uncheck a file to skip it (at least one file must stay selected).");
+                            color: #6b7280;
+                            font-size: 11px;
+                        }
+
                         for file in root.inspector_files : Rectangle {
                             background: file.included ? Theme.c171a21 : Theme.c12151a;
                             border-color: file.included ? Theme.c262c37 : Theme.c1f242e;

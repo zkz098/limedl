@@ -1,4 +1,4 @@
-﻿use std::collections::BTreeMap;
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -11,6 +11,7 @@ use irontide::core::{Id20, Id32, InfoHashes, InfoDictV2, FileTreeNode};
 use super::alerts::extract_info_hash;
 use super::anti_leech::peer_is_leecher;
 use super::internal_id_to_gid;
+use super::queries::sanitize_peer_client;
 use super::snapshot::{
     build_peer_flags, estimate_eta, map_state, preview_entries_from_meta, v1_file_entries,
     StateHelpers,
@@ -206,6 +207,15 @@ fn test_build_peer_flags_combination() {
     peer.am_choking = true;
     // E + F + c
     assert_eq!(build_peer_flags(&peer), "EFc");
+}
+
+#[test]
+fn test_sanitize_peer_client() {
+    assert_eq!(sanitize_peer_client(""), "");
+    assert_eq!(sanitize_peer_client("  Gopeed dev  "), "Gopeed dev");
+    assert_eq!(sanitize_peer_client("qBittorrent/5.0.0\0"), "qBittorrent/5.0.0");
+    assert_eq!(sanitize_peer_client("Transmission\u{0001}\u{0007}"), "Transmission");
+    assert_eq!(sanitize_peer_client("\0\r\n\t"), "");
 }
 
 // ── peer_is_leecher (anti-leech) ───────────────────────────────────────

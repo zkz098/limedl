@@ -323,10 +323,17 @@ pub fn summary_to_inspector_info(summary: &DownloadSummary, lang: Language) -> I
 
 /// Convert `BtPeerInfo` to Slint `PeerItem`.
 pub fn peer_info_to_item(peer: &BtPeerInfo) -> PeerItem {
+    let sanitized_client: String = peer
+        .client
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect();
+    let trimmed_client = sanitized_client.trim();
+
     PeerItem {
         address: SharedString::from(&peer.address),
-        client: SharedString::from(&peer.client),
-        flags: SharedString::from(&peer.flags),
+        client: SharedString::from(trimmed_client),
+        flags: SharedString::from(peer.flags.trim()),
         download_speed: SharedString::from(format_speed(Some(peer.download_speed))),
         upload_speed: SharedString::from(format_speed(Some(peer.upload_speed))),
         progress: peer.progress.clamp(0.0, 1.0) as f32,
@@ -2734,6 +2741,19 @@ mod tests {
         assert_eq!(p_item.client.as_str(), "qBittorrent/5.0.0");
         assert_eq!(p_item.download_speed.as_str(), "1.50 MB/s");
         assert_eq!(p_item.progress, 0.85);
+
+        // Verify sanitation of control characters and trimming
+        let dirty_peer = BtPeerInfo {
+            address: "1.2.3.4:6881".to_string(),
+            client: "  Transmission\0\u{0007}  ".to_string(),
+            flags: "  uI  ".to_string(),
+            download_speed: 0.0,
+            upload_speed: 0.0,
+            progress: 0.0,
+        };
+        let sanitized_item = peer_info_to_item(&dirty_peer);
+        assert_eq!(sanitized_item.client.as_str(), "Transmission");
+        assert_eq!(sanitized_item.flags.as_str(), "uI");
 
         let file = BtFileStatus {
             index: 0,

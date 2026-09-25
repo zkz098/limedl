@@ -1761,3 +1761,6 @@ msgstr "Web 种子 (WebSeed)"
 msgid "SuperSeed"
 msgstr "超级做种 (SuperSeed)"
 
+msgid "Unknown"
+msgstr "未知"
+

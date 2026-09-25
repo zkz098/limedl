@@ -69,7 +69,7 @@ impl IrontideBtBackend {
             .iter()
             .map(|p| BtPeerInfo {
                 address: p.addr.to_string(),
-                client: p.client.clone(),
+                client: sanitize_peer_client(&p.client),
                 flags: build_peer_flags(p),
                 download_speed: p.download_rate as f64,
                 upload_speed: p.upload_rate as f64,
@@ -285,6 +285,16 @@ impl IrontideBtBackend {
             summary_json,
         });
     }
+}
+
+/// Strip control characters and whitespace from peer client strings.
+pub(crate) fn sanitize_peer_client(client: &str) -> String {
+    client
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 /// Build a queued-state summary for a pending torrent.
