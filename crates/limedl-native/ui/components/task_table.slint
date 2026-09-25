@@ -623,29 +623,32 @@ export component TaskTable inherits Rectangle {
                         // Actions
                         Rectangle {
                             width: 120px;
-                            HorizontalLayout {
-                                spacing: 4px;
-                                alignment: start;
+                            VerticalLayout {
+                                alignment: center;
+                                HorizontalLayout {
+                                    spacing: 4px;
+                                    alignment: start;
 
-                                if task.can_pause : IconButton {
-                                    icon: @image-url("../assets/icons/pause-line.svg");
-                                    clicked => { root.pause_task(task.id); }
-                                }
-                                if task.can_resume : IconButton {
-                                    icon: @image-url("../assets/icons/play-line.svg");
-                                    clicked => { root.resume_task(task.id); }
-                                }
-                                IconButton {
-                                    icon: @image-url("../assets/icons/folder-open-line.svg");
-                                    clicked => { root.open_explorer(task.id); }
-                                }
-                                IconButton {
-                                    icon: @image-url("../assets/icons/information-line.svg");
-                                    clicked => { root.open_inspector(task.id); }
-                                }
-                                IconButton {
-                                    icon: @image-url("../assets/icons/delete-bin-line.svg");
-                                    clicked => { root.remove_task(task.id); }
+                                    if task.can_pause : IconButton {
+                                        icon: @image-url("../assets/icons/pause-line.svg");
+                                        clicked => { root.pause_task(task.id); }
+                                    }
+                                    if task.can_resume : IconButton {
+                                        icon: @image-url("../assets/icons/play-line.svg");
+                                        clicked => { root.resume_task(task.id); }
+                                    }
+                                    IconButton {
+                                        icon: @image-url("../assets/icons/folder-open-line.svg");
+                                        clicked => { root.open_explorer(task.id); }
+                                    }
+                                    IconButton {
+                                        icon: @image-url("../assets/icons/information-line.svg");
+                                        clicked => { root.open_inspector(task.id); }
+                                    }
+                                    IconButton {
+                                        icon: @image-url("../assets/icons/delete-bin-line.svg");
+                                        clicked => { root.remove_task(task.id); }
+                                    }
                                 }
                             }
                         }

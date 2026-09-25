@@ -1156,24 +1156,33 @@ export component MainWindow inherits Window {
                             spacing: 10px;
                             alignment: start;
 
-                            Text {
-                                text: @tr("Selected ") + root.selected_count + @tr(" tasks");
-                                color: Theme.c84cc16;
-                                font-size: 13px;
-                                font-weight: 700;
-                                vertical-alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: @tr("Selected ") + root.selected_count + @tr(" tasks");
+                                    color: Theme.c84cc16;
+                                    font-size: 13px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
                             }
 
-                            IconButton {
-                                text: @tr("Select All");
-                                text_color: Theme.c9ca3af;
-                                clicked => { root.select_all(); }
+                            VerticalLayout {
+                                alignment: center;
+                                IconButton {
+                                    text: @tr("Select All");
+                                    text_color: Theme.c9ca3af;
+                                    clicked => { root.select_all(); }
+                                }
                             }
 
-                            IconButton {
-                                text: @tr("Deselect");
-                                text_color: Theme.c9ca3af;
-                                clicked => { root.clear_selection(); }
+                            VerticalLayout {
+                                alignment: center;
+                                IconButton {
+                                    text: @tr("Deselect");
+                                    text_color: Theme.c9ca3af;
+                                    clicked => { root.clear_selection(); }
+                                }
                             }
                         }
 
@@ -1181,28 +1190,40 @@ export component MainWindow inherits Window {
                             spacing: 8px;
                             alignment: end;
 
-                            SecondaryButton {
-                                text: @tr("Pause Selected");
-                                icon: @image-url("assets/icons/pause-line.svg");
-                                clicked => { root.batch_pause(); }
+                            VerticalLayout {
+                                alignment: center;
+                                SecondaryButton {
+                                    text: @tr("Pause Selected");
+                                    icon: @image-url("assets/icons/pause-line.svg");
+                                    clicked => { root.batch_pause(); }
+                                }
                             }
 
-                            SecondaryButton {
-                                text: @tr("Resume Selected");
-                                icon: @image-url("assets/icons/play-line.svg");
-                                clicked => { root.batch_resume(); }
+                            VerticalLayout {
+                                alignment: center;
+                                SecondaryButton {
+                                    text: @tr("Resume Selected");
+                                    icon: @image-url("assets/icons/play-line.svg");
+                                    clicked => { root.batch_resume(); }
+                                }
                             }
 
-                            SecondaryButton {
-                                text: @tr("Remove Records");
-                                icon: @image-url("assets/icons/delete-bin-line.svg");
-                                clicked => { root.batch_remove(false); }
+                            VerticalLayout {
+                                alignment: center;
+                                SecondaryButton {
+                                    text: @tr("Remove Records");
+                                    icon: @image-url("assets/icons/delete-bin-line.svg");
+                                    clicked => { root.batch_remove(false); }
+                                }
                             }
 
-                            PrimaryButton {
-                                text: @tr("Delete Files");
-                                icon: @image-url("assets/icons/delete-bin-6-line.svg");
-                                clicked => { root.batch_remove(true); }
+                            VerticalLayout {
+                                alignment: center;
+                                PrimaryButton {
+                                    text: @tr("Delete Files");
+                                    icon: @image-url("assets/icons/delete-bin-6-line.svg");
+                                    clicked => { root.batch_remove(true); }
+                                }
                             }
                         }
                     }
