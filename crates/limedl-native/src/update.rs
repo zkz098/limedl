@@ -444,6 +444,14 @@ fn install_via_installer(_file: &Path) -> Result<InstallOutcome> {
 
 /// Portable: extract the executable from the archive and replace in place.
 fn install_via_self_replace(update: &AvailableUpdate, verified_file: &Path) -> Result<InstallOutcome> {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("APPIMAGE").is_some() {
+        bail!(
+            "running inside an AppImage — in-place self-update of the mounted bundle is not \
+             supported; download the new .AppImage release directly"
+        );
+    }
+
     let Some(new_exe) = extract_executable(update, verified_file)? else {
         bail!(
             "portable archive from v{} contains no matching executable",

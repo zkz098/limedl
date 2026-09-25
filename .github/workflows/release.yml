@@ -426,7 +426,7 @@ jobs:
         shell: bash
         run: cargo build --locked --release -p limedl-native
 
-      - name: Package portable tarball
+      - name: Package Linux artifacts
         shell: bash
         run: |
           bash scripts/package-linux.sh \
@@ -435,21 +435,37 @@ jobs:
             --out-dir dist \
             --arch x86_64
 
-      # ── Hand the tarball to `native-manifest` ─────────────────────────
+          bash scripts/package-deb.sh \
+            --version "${{ steps.version.outputs.VERSION }}" \
+            --binary target/release/limedl-native \
+            --out-dir dist \
+            --arch x86_64
+
+          bash scripts/package-appimage.sh \
+            --version "${{ steps.version.outputs.VERSION }}" \
+            --binary target/release/limedl-native \
+            --out-dir dist \
+            --arch x86_64
+
+      # ── Hand the artifacts to `native-manifest` ───────────────────────
       - name: Upload desktop artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: native-linux-x86_64
-          path: dist/limedl-native-v*-linux-x86_64-portable.tar.gz
+          path: |
+            dist/limedl-native-v*-linux-x86_64-portable.tar.gz
+            dist/limedl-native-v*-linux-x86_64.deb
+            dist/limedl-native-v*-linux-x86_64.AppImage
           if-no-files-found: error
 
-      # ── Upload to release (Linux asset only — manifest is built later) ──
+      # ── Upload to release (Linux assets only — manifest is built later) ──
       - name: Upload to release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           files: |
             dist/limedl-native-v*-linux-x86_64-portable.tar.gz
-            dist/limedl-native-v*-linux-x86_64-portable.tar.gz.sig
+            dist/limedl-native-v*-linux-x86_64.deb
+            dist/limedl-native-v*-linux-x86_64.AppImage
           body: ${{ needs.changelog.outputs.body }}
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:
@@ -559,16 +575,28 @@ jobs:
           cargo xtask sign dist/latest-native.json
           if ($LASTEXITCODE -ne 0) { throw "signing the manifest failed" }
 
-          # The MSIX is not a self-update asset (the Store owns that channel), so
-          # it is signed and republished here but deliberately kept out of
-          # latest-native.json — `manifest_key` maps Store installs to the
-          # -portable key, which release-mode builds never satisfy.
+          # MSIX, DEB and AppImage are standalone release assets (not self-update assets in
+          # latest-native.json), so they are signed and guarded here.
           $guarded = @() + @($files) + @("dist/latest-native.json")
           if ($env:HAS_WINDOWS -eq 'true') {
             $msix = "dist/limedl-native-v${{ steps.version.outputs.VERSION }}-windows-x86_64.msix"
             cargo xtask sign $msix
             if ($LASTEXITCODE -ne 0) { throw "signing the MSIX failed" }
             $guarded += $msix
+          }
+          if ($env:HAS_LINUX -eq 'true') {
+            $deb = "dist/limedl-native-v${{ steps.version.outputs.VERSION }}-linux-x86_64.deb"
+            if (Test-Path $deb) {
+              cargo xtask sign $deb
+              if ($LASTEXITCODE -ne 0) { throw "signing the DEB failed" }
+              $guarded += $deb
+            }
+            $appimage = "dist/limedl-native-v${{ steps.version.outputs.VERSION }}-linux-x86_64.AppImage"
+            if (Test-Path $appimage) {
+              cargo xtask sign $appimage
+              if ($LASTEXITCODE -ne 0) { throw "signing the AppImage failed" }
+              $guarded += $appimage
+            }
           }
 
           cargo xtask guard @guarded
@@ -589,6 +617,8 @@ jobs:
             dist/latest-native.json.sig
             dist/limedl-native-v*-windows-x86_64.msix
             dist/limedl-native-v*-windows-x86_64.msix.sig
+            dist/limedl-native-v*-linux-x86_64.deb.sig
+            dist/limedl-native-v*-linux-x86_64.AppImage.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: false
         env:

@@ -56,9 +56,23 @@ const downloads = [
     osVersion: 'glibc ≥ 2.39 (Ubuntu 24.04+, Fedora, Arch)',
     packages: [
       {
-        name: '预编译二进制归档 (.tar.gz)',
-        type: '独立',
-        desc: '包含完整 Slint 原生 GUI 与运行时依赖，解压直接执行。',
+        name: 'AppImage 独立免安装包 (.AppImage)',
+        type: '推荐',
+        desc: '单文件免安装，赋予执行权限后双击即可运行，集成桌面入口与多尺寸图标。',
+        file: `limedl-native-${version}-linux-x86_64.AppImage`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64.AppImage`,
+      },
+      {
+        name: 'Debian / Ubuntu 安装包 (.deb)',
+        type: '原生',
+        desc: '适用于 Debian、Ubuntu、Linux Mint 等，深度集成系统应用菜单、协议关联与托盘。',
+        file: `limedl-native-${version}-linux-x86_64.deb`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64.deb`,
+      },
+      {
+        name: '预编译便携归档 (.tar.gz)',
+        type: '便携',
+        desc: '包含裸二进制文件，解压直接运行或放置在自定义目录（如 ~/.local/bin）。',
         file: `limedl-native-${version}-linux-x86_64-portable.tar.gz`,
         url: `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64-portable.tar.gz`,
       },

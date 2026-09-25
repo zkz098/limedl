@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=limedl
+GenericName=Download Manager
+GenericName[zh_CN]=下载管理器
+Comment=Lightweight native desktop download manager based on Slint
+Comment[zh_CN]=高性能轻量现代下载管理器
+Exec=limedl-native %U
+Icon=limedl-native
+Terminal=false
+Categories=Network;FileTransfer;P2P;
+MimeType=x-scheme-handler/magnet;x-scheme-handler/limedl;application/x-bittorrent;
+StartupWMClass=limedl-native

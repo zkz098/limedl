@@ -94,7 +94,10 @@ rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
 ## Linux 桌面版
 
 - 仓库：`x86_64-unknown-linux-gnu`（`.cargo/config.toml` 已把该 target 定为 `x86-64-v3`，与 Windows 桌面一致，需 2013+ CPU）。选 gnu 而非 musl：Slint/Skia 已经链接系统库（GL/X11/Wayland、托盘 appindicator），静态 musl 买不到可移植性。代价是 glibc 下限 —— 构建机是 `ubuntu-latest`，因此二进制需要 glibc >= 2.39（Ubuntu 24.04+）。
-- 发布产物：`limedl-native-v{V}-linux-x86_64-portable.tar.gz`，由 `scripts/package-linux.sh` 生成，含唯一顶层目录 `limedl-native/`（二进制 + README），避免用户解压时把文件撒到当前目录。
+- 发布产物：
+  - `limedl-native-v{V}-linux-x86_64-portable.tar.gz`：由 `scripts/package-linux.sh` 生成，含唯一顶层目录 `limedl-native/`（二进制 + README），便携解压运行。
+  - `limedl-native-v{V}-linux-x86_64.deb`：由 `scripts/package-deb.sh` 生成，标准 Debian/Ubuntu 安装包，集成 `/usr/bin/limedl-native`、`.desktop` 与多尺寸应用图标。
+  - `limedl-native-v{V}-linux-x86_64.AppImage`：由 `scripts/package-appimage.sh` 生成，跨发行版免安装单文件，内嵌 `AppRun`、桌面项与图标。
 - 运行时托盘依赖：缺失 appindicator 时 `TrayIconBuilder::build()` 会失败，而托盘是唯一常驻 UI（关闭到托盘、`--hidden` 自启都落在它上面），因此不降级而是报错退出，并在 `tray_init_failure_message` 中给出 apt/dnf/pacman 包名。
 - 自启：`~/.config/autostart/limedl-native.desktop`（XDG），带 `--hidden`。
 - 单实例：回环 TCP（`open:`/`show` 协议），文件管理器打开走 `xdg-open`。

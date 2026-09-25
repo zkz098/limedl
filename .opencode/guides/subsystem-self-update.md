@@ -37,6 +37,8 @@ contains a migration notice (keeping `latest.json` alive for that one version).
 | **Microsoft Store** (MSIX)     | `limedl-native-v{V}-windows-x86_64.msix`          | OS-managed; in-app check via `StoreContext` (`update::store`)   |
 | **macOS bundle** (tar.gz)      | `limedl-native-v{V}-darwin-aarch64-portable.tar.gz` | In-app: download → verify → `self_replace` inside the `.app` → ad-hoc re-sign → relaunch |
 | **Linux** (tar.gz)             | `limedl-native-v{V}-linux-x86_64-portable.tar.gz` | In-app: download → verify → `self_replace` → relaunch. Fails with a readable error when the install directory is not user-writable (e.g. `/usr/local/bin`) |
+| **Linux package (deb)**        | `limedl-native-v{V}-linux-x86_64.deb`             | Package-managed. Manual update via `apt` or GitHub release download. |
+| **Linux AppImage**             | `limedl-native-v{V}-linux-x86_64.AppImage`        | Standalone AppImage. Guarded against in-place self-replace; updated by downloading the new `.AppImage`. |
 
 Channel detection (`update::detect_install_kind`, runs once at startup):
 

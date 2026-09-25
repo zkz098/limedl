@@ -56,9 +56,23 @@ const downloads = [
     osVersion: 'glibc ≥ 2.39 (Ubuntu 24.04+, Fedora, Arch)',
     packages: [
       {
+        name: 'AppImage Standalone (.AppImage)',
+        type: 'Recommended',
+        desc: 'Single-file standalone bundle with embedded icons and desktop entry. Make executable and run.',
+        file: `limedl-native-${version}-linux-x86_64.AppImage`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64.AppImage`,
+      },
+      {
+        name: 'Debian / Ubuntu Package (.deb)',
+        type: 'Native',
+        desc: 'Native package for Debian, Ubuntu, Mint, Pop!_OS with system menu, MIME, and tray integration.',
+        file: `limedl-native-${version}-linux-x86_64.deb`,
+        url: `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64.deb`,
+      },
+      {
         name: 'Portable Tarball (.tar.gz)',
-        type: 'Standalone',
-        desc: 'Contains self-contained Slint GUI binary. Extract and run.',
+        type: 'Portable',
+        desc: 'Bare executable archive. Extract and run directly or place in ~/.local/bin.',
         file: `limedl-native-${version}-linux-x86_64-portable.tar.gz`,
         url: `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64-portable.tar.gz`,
       },

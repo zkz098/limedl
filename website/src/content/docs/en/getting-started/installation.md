@@ -39,8 +39,28 @@ Native builds for Apple Silicon (M1/M2/M3/M4):
 
 Supports modern Linux distributions with glibc ≥ 2.39 (e.g. Ubuntu 24.04+, Fedora, Arch):
 
+### Method 1: AppImage Standalone (Recommended)
+
+1. Download `limedl-native-v0.3.9-linux-x86_64.AppImage`.
+2. Make it executable and run:
+
+```bash
+chmod +x limedl-native-v0.3.9-linux-x86_64.AppImage
+./limedl-native-v0.3.9-linux-x86_64.AppImage
+```
+
+### Method 2: Debian / Ubuntu (.deb) Package
+
+For Debian, Ubuntu, Linux Mint, Pop!_OS:
+
+```bash
+sudo apt install ./limedl-native-v0.3.9-linux-x86_64.deb
+```
+
+### Method 3: Portable Tarball (.tar.gz)
+
 ```bash
 tar -xzf limedl-native-v0.3.9-linux-x86_64-portable.tar.gz
-cd limedl
+cd limedl-native
 ./limedl-native
 ```

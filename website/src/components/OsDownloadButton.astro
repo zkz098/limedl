@@ -54,9 +54,9 @@ const defaultUrl = `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-se
       textEl.innerText = isEn ? `Download for macOS (${version})` : `下载 macOS 版 (${version})`;
       subEl.innerText = isEn ? 'Apple Silicon (.tar.gz)' : 'Apple Silicon 芯片 (.tar.gz)';
     } else if (ua.includes('linux')) {
-      btn.href = `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64-portable.tar.gz`;
+      btn.href = `${baseReleaseUrl}/limedl-native-${version}-linux-x86_64.AppImage`;
       textEl.innerText = isEn ? `Download for Linux (${version})` : `下载 Linux 版 (${version})`;
-      subEl.innerText = isEn ? 'x86_64 glibc 2.39+ (.tar.gz)' : 'x86_64 便携包 (.tar.gz)';
+      subEl.innerText = isEn ? 'x86_64 Standalone (.AppImage)' : 'x86_64 免安装独立包 (.AppImage)';
     } else {
       // Windows default
       btn.href = `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-setup.exe`;

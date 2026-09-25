@@ -39,9 +39,28 @@ Get-FileHash -Algorithm SHA256 .\limedl-native-v0.3.9-windows-x86_64-setup.exe
 
 适用于现代 Linux 发行版（glibc ≥ 2.39，如 Ubuntu 24.04+、Fedora、Arch Linux）：
 
+### 方式一：AppImage 免安装（推荐）
+
+1. 下载 `limedl-native-v0.3.9-linux-x86_64.AppImage`。
+2. 赋予执行权限后直接双击或终端运行：
+
 ```bash
-# 解压并运行
+chmod +x limedl-native-v0.3.9-linux-x86_64.AppImage
+./limedl-native-v0.3.9-linux-x86_64.AppImage
+```
+
+### 方式二：Debian / Ubuntu (.deb) 安装包
+
+适用于 Debian、Ubuntu、Linux Mint 等系统，安装后自动加入应用菜单并注册协议关联：
+
+```bash
+sudo apt install ./limedl-native-v0.3.9-linux-x86_64.deb
+```
+
+### 方式三：预编译便携归档 (.tar.gz)
+
+```bash
 tar -xzf limedl-native-v0.3.9-linux-x86_64-portable.tar.gz
-cd limedl
+cd limedl-native
 ./limedl-native
 ```
