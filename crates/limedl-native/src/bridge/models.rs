@@ -165,6 +165,27 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Lan
         TaskKind::Bt => "bt",
     };
 
+    let is_active = matches!(
+        summary.state,
+        DownloadState::Downloading | DownloadState::Retrying | DownloadState::Verifying
+    );
+
+    let speed_text = if is_active {
+        format_speed(summary.speed_bytes_per_second)
+    } else {
+        String::new()
+    };
+    let eta_text = if is_active {
+        format_eta(summary.eta_seconds, lang)
+    } else {
+        String::new()
+    };
+    let upload_speed_text = if is_active {
+        format_speed(summary.upload_speed_bytes_per_second)
+    } else {
+        String::new()
+    };
+
     TaskItem {
         id: SharedString::from(&summary.id),
         kind: SharedString::from(kind_str),
@@ -173,13 +194,11 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Lan
         state_code: SharedString::from(state_code),
         state_label: SharedString::from(state_label),
         progress,
-        speed_text: SharedString::from(format_speed(summary.speed_bytes_per_second)),
+        speed_text: SharedString::from(speed_text),
         size_text: SharedString::from(size_text),
-        eta_text: SharedString::from(format_eta(summary.eta_seconds, lang)),
+        eta_text: SharedString::from(eta_text),
         downloaded_text: SharedString::from(format_bytes(summary.downloaded_bytes)),
-        upload_speed_text: SharedString::from(format_speed(
-            summary.upload_speed_bytes_per_second,
-        )),
+        upload_speed_text: SharedString::from(upload_speed_text),
         seeds_text: SharedString::from(
             summary
                 .seed_count
@@ -257,6 +276,27 @@ pub fn summary_to_inspector_info(summary: &DownloadSummary, lang: Language) -> I
 
     let seed_leech_text = i18n::format_seed_leech(summary.seed_count, summary.leech_count, lang);
 
+    let is_active = matches!(
+        summary.state,
+        DownloadState::Downloading | DownloadState::Retrying | DownloadState::Verifying
+    );
+
+    let speed_text = if is_active {
+        format_speed(summary.speed_bytes_per_second)
+    } else {
+        String::new()
+    };
+    let upload_speed_text = if is_active {
+        format_speed(summary.upload_speed_bytes_per_second)
+    } else {
+        String::new()
+    };
+    let eta_text = if is_active {
+        format_eta(summary.eta_seconds, lang)
+    } else {
+        String::new()
+    };
+
     InspectorInfo {
         id: SharedString::from(&summary.id),
         kind: SharedString::from(kind_str),
@@ -264,12 +304,12 @@ pub fn summary_to_inspector_info(summary: &DownloadSummary, lang: Language) -> I
         url: SharedString::from(&summary.url),
         destination_path: SharedString::from(&summary.destination_path),
         state_label: SharedString::from(state_label),
-        speed_text: SharedString::from(format_speed(summary.speed_bytes_per_second)),
-        upload_speed_text: SharedString::from(format_speed(summary.upload_speed_bytes_per_second)),
+        speed_text: SharedString::from(speed_text),
+        upload_speed_text: SharedString::from(upload_speed_text),
         total_size_text: SharedString::from(total_size_text),
         downloaded_size_text: SharedString::from(downloaded_size_text),
         uploaded_size_text: SharedString::from(uploaded_size_text),
-        eta_text: SharedString::from(format_eta(summary.eta_seconds, lang)),
+        eta_text: SharedString::from(eta_text),
         progress,
         connection_count: summary.connection_count as i32,
         threads_text: SharedString::from(threads_text),

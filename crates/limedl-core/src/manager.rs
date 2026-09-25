@@ -32,6 +32,7 @@ use super::{
     rate_limiter::RateLimiter,
     scheduler::Scheduler,
     slot_guard::DownloadSlotGuard,
+    speed_tracker::SpeedTracker,
     task_lifecycle::TaskLifecycle,
     types::{
         AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadSnapshot,
@@ -182,9 +183,18 @@ impl Clone for DownloadManager {
 pub struct DownloadCore {
     pub snapshot: DownloadSnapshot,
     pub manifest: Manifest,
+    pub speed_tracker: SpeedTracker,
 }
 
 impl DownloadCore {
+    pub fn new(snapshot: DownloadSnapshot, manifest: Manifest) -> Self {
+        Self {
+            snapshot,
+            manifest,
+            speed_tracker: SpeedTracker::default(),
+        }
+    }
+
     /// Sync snapshot fields from manifest.
     /// NOTE: mirror_url is intentionally NOT synced — managed by mirror retry loop.
     pub fn sync_snapshot_from_manifest(&mut self) {
@@ -663,7 +673,7 @@ impl DownloadManager {
 
         let snapshot = snapshot_from_manifest(&manifest);
         let managed = Arc::new(ManagedDownload {
-            core: Mutex::new(DownloadCore { snapshot, manifest }),
+            core: Mutex::new(DownloadCore::new(snapshot, manifest)),
             runtime: Mutex::new(None),
             aimd: Mutex::new(AimdState::initial(adaptive_profile, desired_thread_count)),
             stop_notify: Notify::new(),
@@ -702,6 +712,7 @@ impl DownloadManager {
             core.manifest.connection_count = 0;
             core.manifest.allocated_thread_count = Some(0);
             core.manifest.updated_at_ms = now_ms();
+            core.speed_tracker.reset();
         }
 
         let token = { managed.lock_runtime().clone() };
@@ -1211,6 +1222,7 @@ pub(crate) fn record_progress_on_managed(
 ) {
     let now = now_ms();
     let mut core = managed.lock_core();
+    core.speed_tracker.record_bytes(bytes, std::time::Instant::now());
     core.snapshot.downloaded_bytes = core.snapshot.downloaded_bytes.saturating_add(bytes);
     core.snapshot.error = None;
     core.snapshot.updated_at_ms = now;

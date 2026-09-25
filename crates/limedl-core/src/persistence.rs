@@ -74,10 +74,7 @@ impl DownloadManager {
 
             let snapshot = snapshot_from_manifest(&manifest);
             let managed = Arc::new(ManagedDownload {
-                core: Mutex::new(DownloadCore {
-                    snapshot,
-                    manifest: manifest.clone(),
-                }),
+                core: Mutex::new(DownloadCore::new(snapshot, manifest.clone())),
                 runtime: Mutex::new(None),
                 aimd: Mutex::new(AimdState::initial(
                     manifest.adaptive_profile_snapshot,

@@ -1002,6 +1002,7 @@ async fn mark_chunk_released_respects_worker_id() -> TestResult {
                     dirty: false,
                 }],
             },
+            speed_tracker: Default::default(),
         }),
         runtime: ParkingMutex::new(None),
         aimd: ParkingMutex::new(AimdState::default()),

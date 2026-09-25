@@ -35,7 +35,7 @@ use crate::{
 
 #[cfg(any(test, feature = "test-utils"))]
 #[allow(unused_imports)]
-use crate::types::Priority;
+use crate::{speed_tracker::SpeedTracker, types::Priority};
 
 /// Zero-sized actor type for download lifecycle operations.
 ///
@@ -385,6 +385,7 @@ impl TaskLifecycle {
     ) {
         let now = now_ms();
         let mut core = managed.lock_core();
+        core.speed_tracker.reset();
         core.snapshot.downloaded_bytes = 0;
         core.snapshot.updated_at_ms = now;
         core.manifest.downloaded_bytes = 0;
@@ -472,18 +473,26 @@ impl TaskLifecycle {
             })
             .collect();
         snapshot.chunks = chunks;
-        drop(core);
-        let elapsed = (snapshot
-            .updated_at_ms
-            .saturating_sub(snapshot.created_at_ms))
-        .max(1) as f64
-            / 1000.0;
-        let average_speed = if snapshot.downloaded_bytes == 0 {
+
+        let speed = if is_terminal(snapshot.state) {
             None
+        } else if core.speed_tracker.is_initialized() {
+            core.speed_tracker.current_speed(std::time::Instant::now())
         } else {
-            Some(snapshot.downloaded_bytes as f64 / elapsed)
+            let elapsed = (snapshot
+                .updated_at_ms
+                .saturating_sub(snapshot.created_at_ms))
+            .max(1) as f64
+                / 1000.0;
+            let average_speed = if snapshot.downloaded_bytes == 0 {
+                None
+            } else {
+                Some(snapshot.downloaded_bytes as f64 / elapsed)
+            };
+            managed.aimd.lock().last_throughput.or(average_speed)
         };
-        let speed = managed.aimd.lock().last_throughput.or(average_speed);
+        drop(core);
+
         let eta = match (snapshot.total_bytes, speed) {
             (Some(total), Some(speed)) if speed > 0.0 && total >= snapshot.downloaded_bytes => {
                 Some(((total - snapshot.downloaded_bytes) as f64 / speed).ceil() as u64)
@@ -552,24 +561,7 @@ impl TaskLifecycle {
         chunk_index: Option<usize>,
         bytes: u64,
     ) {
-        let now = now_ms();
-        let mut core = managed.lock_core();
-        core.snapshot.downloaded_bytes = core.snapshot.downloaded_bytes.saturating_add(bytes);
-        core.snapshot.error = None;
-        core.snapshot.updated_at_ms = now;
-        core.manifest.downloaded_bytes = core.manifest.downloaded_bytes.saturating_add(bytes);
-        core.manifest.error = None;
-        core.manifest.updated_at_ms = now;
-        if let Some(index) = chunk_index
-            && let Some(chunk) = core.manifest.chunks.get_mut(index)
-        {
-            chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-            chunk.dirty = true;
-            if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
-                chunk.completed = true;
-                chunk.claimed_by = None;
-            }
-        }
+        crate::manager::record_progress_on_managed(managed, chunk_index, bytes);
     }
 }
 
@@ -716,6 +708,7 @@ mod tests {
                     current_mirror_index: 0,
                     chunks: vec![],
                 },
+                speed_tracker: SpeedTracker::default(),
             }),
             runtime: ParkingMutex::new(None),
             aimd: ParkingMutex::new(AimdState::default()),
@@ -789,21 +782,27 @@ mod tests {
             })
             .collect();
         snapshot.chunks = chunks;
-        drop(core);
 
-        let elapsed = (snapshot
-            .updated_at_ms
-            .saturating_sub(snapshot.created_at_ms))
-        .max(1) as f64
-            / 1000.0;
-
-        let average_speed = if snapshot.downloaded_bytes == 0 {
+        let speed = if is_terminal(snapshot.state) {
             None
+        } else if core.speed_tracker.is_initialized() {
+            core.speed_tracker.current_speed(std::time::Instant::now())
         } else {
-            Some(snapshot.downloaded_bytes as f64 / elapsed)
-        };
+            let elapsed = (snapshot
+                .updated_at_ms
+                .saturating_sub(snapshot.created_at_ms))
+            .max(1) as f64
+                / 1000.0;
 
-        let speed = managed.aimd.lock().last_throughput.or(average_speed);
+            let average_speed = if snapshot.downloaded_bytes == 0 {
+                None
+            } else {
+                Some(snapshot.downloaded_bytes as f64 / elapsed)
+            };
+
+            managed.aimd.lock().last_throughput.or(average_speed)
+        };
+        drop(core);
 
         let eta = match (snapshot.total_bytes, speed) {
             (Some(total), Some(speed)) if speed > 0.0 && total >= snapshot.downloaded_bytes => {
@@ -1265,5 +1264,32 @@ mod tests {
         // Canceled is older → evicted
         assert!(!map.contains_key("a"));
         assert!(map.contains_key("b"));
+    }
+
+    #[test]
+    fn build_snapshot_speed_tracker_overrides_average_speed_for_old_task() {
+        // A task created 10 hours ago (36_000_000 ms ago).
+        // Under the old bug, speed was: downloaded_bytes / (now - created_at)
+        // With 10MB downloaded over 10 hours, old formula gave ~277 B/s.
+        // With SpeedTracker receiving 10MB right now, speed reflects the actual ~10MB/s rate.
+        let dl = Arc::new(make_managed_with_snapshot(
+            "snap-speed-tracker",
+            DownloadState::Downloading,
+            1000,
+            |s| {
+                s.total_bytes = Some(50_000_000);
+                s.updated_at_ms = 36_001_000;
+            },
+        ));
+
+        crate::manager::record_progress_on_managed(&dl, None, 10_000_000);
+
+        let snap = build_snapshot_test(&dl);
+
+        let speed = snap.speed_bytes_per_second.expect("speed should be Some");
+        assert!(
+            speed > 1_000_000.0,
+            "speed should reflect recent throughput, got {speed} B/s (old bug would be ~277 B/s)"
+        );
     }
 }

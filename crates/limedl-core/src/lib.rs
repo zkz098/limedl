@@ -29,6 +29,7 @@ pub mod scheduler;
 pub mod services;
 pub mod settings;
 pub mod slot_guard;
+pub mod speed_tracker;
 pub mod task_lifecycle;
 pub mod types;
 pub mod url_rewrite;
@@ -68,6 +69,7 @@ pub use rate_limiter::RateLimiter;
 pub use services::{ConcurrencyManager, DiskIoService, SettingsService};
 pub use types::CloseBehavior;
 pub use settings::{normalize_tracker_list_lossy, normalize_tracker_list_url};
+pub use speed_tracker::SpeedTracker;
 
 // Aria2 JSON-RPC compatibility layer (enabled by default in the desktop app,
 // available via `--features aria2-rpc` for NAS/server builds).

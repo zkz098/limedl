@@ -140,6 +140,7 @@ fn make_download(id: &str, state: DownloadState) -> Arc<ManagedDownload> {
                 current_mirror_index: 0,
                 chunks: vec![],
             },
+            speed_tracker: Default::default(),
         }),
         runtime: ParkingMutex::new(None),
         aimd: ParkingMutex::new(AimdState::default()),

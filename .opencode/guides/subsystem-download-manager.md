@@ -17,6 +17,7 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 - `crates/limedl-core/src/retry.rs` — 指数退避重试
 - `crates/limedl-core/src/checksum/mod.rs` — 校验和（Blake3 / SHA-256 / XXH3-128）
 - `crates/limedl-core/src/rate_limiter/mod.rs` — 全局令牌桶速率限制器
+- `crates/limedl-core/src/speed_tracker.rs` — 实时下载速度滑动窗口采样器 (SpeedTracker)
 - 前端入口：`src/lib/ipc/download-api.ts` → `crates/limedl-server/src/rpc.rs`（WebSocket RPC；桌面客户端直接调 `crates/limedl-core/src/dispatcher.rs`）
 
 ## 数据流向
@@ -105,6 +106,15 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - `consume()` 异步（tokio::time::sleep），`consume_blocking()` 同步（std::thread::sleep）。
 - 锁仅用于简短算术操作，不跨 await 点持有。
 - AIMD 采样窗口 2s 不受批量消费影响。
+
+### 实时速度追踪 (SpeedTracker)
+
+- 任务即时速度不再使用生命周期平均速度（`downloaded_bytes / (now - created_at)`）作为回退，该回退公式在任务暂停恢复、排队等待或很久之前创建的任务中会导致严重的速度显示偏低异常。
+- `SpeedTracker`（`crates/limedl-core/src/speed_tracker.rs`）维护 2.0s 滑动窗口（10 个 200ms 的环形时间桶），实现零堆分配的实时吞吐量平滑统计。
+- `record_progress_on_managed` 每次收到分块字节时更新 `speed_tracker.record_bytes(bytes, Instant::now())`。
+- `build_snapshot` 优先读取 `speed_tracker.current_speed()` 计算即时速度与 ETA。
+- 任务暂停、重置或停止时重置 tracker；若网络停滞超过窗口时间（>2s 无字节到达），速度自动衰减归零/None。
+- 前端桌面端仅在活跃下载状态（Downloading / Retrying / Verifying）渲染速度与 ETA 文本，避免暂停或排队时残留旧速度。
 
 ### 崩溃恢复 & 错误处理
 
