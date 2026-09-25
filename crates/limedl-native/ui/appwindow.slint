@@ -878,16 +878,19 @@ export component MainWindow inherits Window {
                         }
 
                         SecondaryButton {
+                            text: @tr("Pause All");
                             icon: @image-url("assets/icons/pause-line.svg");
                             clicked => { root.pause_all(); }
                         }
 
                         SecondaryButton {
+                            text: @tr("Resume All");
                             icon: @image-url("assets/icons/play-line.svg");
                             clicked => { root.resume_all(); }
                         }
 
                         SecondaryButton {
+                            text: @tr("Clear Completed");
                             icon: @image-url("assets/icons/eraser-line.svg");
                             clicked => { root.clear_completed(); }
                         }
