@@ -15,6 +15,25 @@ import {
     UnitInput,
 } from "common.slint";
 
+component FormTip inherits Rectangle {
+    in property <string> text;
+    background: Theme.c111419;
+    border-width: 1px;
+    border-color: Theme.c2e3542;
+    border-radius: 8px;
+    max-width: 520px;
+    HorizontalLayout {
+        padding: 10px;
+        Text {
+            text: root.text;
+            wrap: word-wrap;
+            color: Theme.cf3f4f6;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+    }
+}
+
 /// One table-column visibility checkbox (checkbox + label), used by the
 /// Appearance tab's "Table Columns" block.
 component ColumnCheck inherits HorizontalLayout {
@@ -260,15 +279,9 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Theme Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Follow system switches automatically from the current Windows app theme."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
-                                    } }
+                                        FormTip { text: @tr("Follow system switches automatically from the current Windows app theme."); }
+                                    }
+                                }
                                 // Display labels are localized via @tr; option order MUST match
                                 // bridge.rs `combo` canonical value arrays.
                                 CustomSelect {
@@ -294,14 +307,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Background Opacity Preset:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Controls transparency and background blur for app panels and dialogs."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Controls transparency and background blur for app panels and dialogs."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("Default"), @tr("Acrylic"), @tr("Frosted")];
@@ -348,14 +354,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Show Detail Panel"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Show detailed fields like URL, checksum, threads in the download inspector."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Show detailed fields like URL, checksum, threads in the download inspector."); }
                                     } }
                                 Text { text: @tr("Show download inspector and piece heatmap on the right"); color: #6b7280; font-size: 11px; }
                             }
@@ -410,14 +409,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Launch on Startup"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Start Limedl automatically when you log in. The app will start minimized to the system tray."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Start Limedl automatically when you log in. The app will start minimized to the system tray."); }
                                     } }
                                 Text { text: @tr("Automatically launch limedl-native upon user login"); color: #6b7280; font-size: 11px; }
                             }
@@ -446,14 +438,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Double-click Completed Task:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Action to perform when double-clicking a completed download task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Action to perform when double-clicking a completed download task."); }
                                 } }
                             CustomSelect {
                                     model: [@tr("No Action"), @tr("Open File"), @tr("Show in Explorer"), @tr("Open Download Directory")];
@@ -465,14 +450,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Double-click Uncompleted Task:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Action to perform when double-clicking an uncompleted download task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Action to perform when double-clicking an uncompleted download task."); }
                                 } }
                             CustomSelect {
                                     model: [@tr("No Action"), @tr("Pause / Resume")];
@@ -496,14 +474,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Default Download Folder:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("New tasks will prefill this folder, and you can still override it per task."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("New tasks will prefill this folder, and you can still override it per task."); }
                                 } }
                             HorizontalLayout {
                                 spacing: 8px;
@@ -549,14 +520,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Default Checksum:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("New tasks no longer show checksum mode separately. This setting is used globally."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("New tasks no longer show checksum mode separately. This setting is used globally."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("BLAKE3"), @tr("SHA-256"), @tr("XXH3-128"), @tr("None (skip)"), @tr("SHA-1")];
@@ -569,14 +533,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Auto-detect SHA-256"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Automatically probe for matching .sha256 or parent SHA256SUMS files when downloading HTTP links, and verify after completion."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Automatically probe for matching .sha256 or parent SHA256SUMS files when downloading HTTP links, and verify after completion."); }
                                     } }
                                 ToggleSwitch {
                                     checked: root.settings_form.download_auto_detect_sha256;
@@ -589,14 +546,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Default User-Agent (empty for Chrome 124):"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("New HTTP tasks prefill this UA, and each task can override it."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("New HTTP tasks prefill this UA, and each task can override it."); }
                                 } }
                             CustomTextInput {
                                 text <=> root.settings_form.download_user_agent;
@@ -608,14 +558,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Global Bandwidth Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Limit total download speed across all active tasks. 0 means unlimited."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Limit total download speed across all active tasks. 0 means unlimited."); }
                                 } }
                             UnitInput {
                                 text <=> root.settings_form.global_speed_limit_kb;
@@ -639,14 +582,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Proxy Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."); }
                                 } }
                             CustomSelect {
                                     model: [@tr("Disabled"), @tr("System Proxy"), @tr("Manual")];
@@ -713,14 +649,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Min Threads per Task (0-64):"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Set to 0 to use 50% of the max thread count automatically. The adaptive algorithm never goes below this once reached."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Set to 0 to use 50% of the max thread count automatically. The adaptive algorithm never goes below this once reached."); }
                                 } }
                             UnitInput {
                                 text <=> root.settings_form.scheduler_min_threads_per_task;
@@ -735,14 +664,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Adaptive Profile:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("Conservative"), @tr("Balanced"), @tr("Aggressive")];
@@ -754,14 +676,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Chunk Strategy:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Auto-adjust chunk strategy based on network conditions"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Auto-adjust chunk strategy based on network conditions"); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("Adaptive"), @tr("Fixed")];
@@ -919,14 +834,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Enable DHT"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("DHT discovers peers from the distributed network. Changes apply to the BT session after restart."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("DHT discovers peers from the distributed network. Changes apply to the BT session after restart."); }
                                     } }
                                 Text { text: @tr("Discover peers via DHT when no trackers are available"); color: #6b7280; font-size: 11px; }
                             }
@@ -941,14 +849,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Listen Port (empty for random):"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Leave empty for auto-assignment. 1024–65535"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Leave empty for auto-assignment. 1024–65535"); }
                                     } }
                                 UnitInput {
                                     text <=> root.settings_form.listen_port;
@@ -960,14 +861,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Max Peers per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum peer connections per torrent."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum peer connections per torrent."); }
                                     } }
                                 UnitInput {
                                     text <=> root.settings_form.max_bt_connections;
@@ -1047,14 +941,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Encryption Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("Enabled"), @tr("Disabled"), @tr("Forced")];
@@ -1066,14 +953,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Pre-allocation Mode:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("None (sparse)"), @tr("Full (zero-fill)")];
@@ -1124,16 +1004,9 @@ export component SettingsDialog inherits Rectangle {
                                     }
                                 }
 
-                                adv_content_clip := Rectangle {
-                                    clip: true;
-                                    height: root.bt_show_advanced ? adv_content_layout.preferred-height : 0px;
-                                    opacity: root.bt_show_advanced ? 1.0 : 0.0;
-                                    animate height { duration: 220ms; easing: ease-in-out; }
-                                    animate opacity { duration: 180ms; easing: ease-out; }
-
-                                    adv_content_layout := VerticalLayout {
-                                        spacing: 14px;
-                                        padding-top: 14px;
+                                if root.bt_show_advanced : VerticalLayout {
+                                    spacing: 14px;
+                                    padding-top: 14px;
 
                                     Text { text: @tr("Queuing & Rate Limits"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
                         HorizontalLayout {
@@ -1142,14 +1015,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Max Active Downloads:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum number of auto-managed active downloads"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum number of auto-managed active downloads"); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_max_downloads; placeholder: "3"; unit_text: @tr("tasks"); }
                             }
@@ -1157,14 +1023,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Max Active Seeds:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum number of auto-managed active seeds"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum number of auto-managed active seeds"); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_max_seeds; placeholder: "5"; unit_text: @tr("tasks"); }
                             }
@@ -1175,14 +1034,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Max Torrents:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum total number of torrents allowed"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum total number of torrents allowed"); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_max_torrents; placeholder: "100"; unit_text: @tr("tasks"); }
                             }
@@ -1190,14 +1042,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Active Limit:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Hard limit on total active torrents (downloading + seeding + checking)"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Hard limit on total active torrents (downloading + seeding + checking)"); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_active_limit; placeholder: "500"; unit_text: @tr("tasks"); }
                             }
@@ -1208,14 +1053,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Global Download Rate Limit:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("0 = unlimited"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("0 = unlimited"); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_global_download_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
                             }
@@ -1223,14 +1061,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Global Upload Rate Limit:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("0 = unlimited"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("0 = unlimited"); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_global_upload_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
                             }
@@ -1245,14 +1076,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Pause Seeding upon Reaching Limit"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("When either the uploaded amount or share ratio limit is reached, the matching BT task is paused."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("When either the uploaded amount or share ratio limit is reached, the matching BT task is paused."); }
                                     } }
                                 Text { text: @tr("Automatically pause seeding once upload limit or ratio target is reached"); color: #6b7280; font-size: 11px; }
                             }
@@ -1267,14 +1091,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Seeding Upload Limit:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("0 or empty means no limit"); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("0 or empty means no limit"); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_upload_limit_kb; placeholder: "0"; unit_text: "KB"; }
                             }
@@ -1282,14 +1099,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Share Ratio Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit."); }
                                     } }
                                 CustomTextInput { text <=> root.settings_form.bt_upload_ratio_limit; placeholder: "0"; }
                             }
@@ -1304,14 +1114,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Enable Anti-Leech Detection"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Periodically identify peers that download from you without giving data back, then enforce the selected action."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Periodically identify peers that download from you without giving data back, then enforce the selected action."); }
                                     } }
                                 Text { text: @tr("Detect peers that download without uploading"); color: #6b7280; font-size: 11px; }
                             }
@@ -1326,14 +1129,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Action:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("Ban"), @tr("Limit Upload Slots")];
@@ -1345,14 +1141,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Grace Period:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_anti_leech_grace_secs; placeholder: "300"; unit_text: @tr("secs"); }
                             }
@@ -1363,14 +1152,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Share Ratio Threshold (0-1):"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check."); }
                                     } }
                                 CustomTextInput { text <=> root.settings_form.bt_anti_leech_ratio; placeholder: "0.1"; }
                             }
@@ -1378,14 +1160,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Ban Duration:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds a banned peer stays banned before it is unbanned and may reconnect."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Seconds a banned peer stays banned before it is unbanned and may reconnect."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_anti_leech_ban_secs; placeholder: "3600"; unit_text: @tr("secs"); }
                             }
@@ -1394,14 +1169,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Max Upload Slots in Limit Mode (1-64):"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("When a torrent has detected leechers, its concurrent upload slots are capped at this value."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("When a torrent has detected leechers, its concurrent upload slots are capped at this value."); }
                                 } }
                             UnitInput { text <=> root.settings_form.bt_anti_leech_max_upload_slots; placeholder: "4"; unit_text: @tr("slots"); }
                         }
@@ -1411,14 +1179,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Enable IP Blocklist"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."); }
                                     } }
                                 Text { text: @tr("Load local blocklist filter file"); color: #6b7280; font-size: 11px; }
                             }
@@ -1431,14 +1192,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Blocklist Path:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."); }
                                 } }
                             CustomTextInput { text <=> root.settings_form.bt_blocklist_path; placeholder: "C:/path/to/blocklist.dat"; }
                         }
@@ -1452,14 +1206,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Seed Choking:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("Fastest Upload First"), @tr("Round Robin"), @tr("Anti-Leech First")];
@@ -1471,14 +1218,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Choking Algorithm:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."); }
                                     } }
                                 CustomSelect {
                                     model: [@tr("Fixed Slots"), @tr("Rate Based")];
@@ -1493,14 +1233,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Max Upload Slots per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum concurrent unchoke slots per torrent."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum concurrent unchoke slots per torrent."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_max_upload_slots_per_torrent; placeholder: "4"; unit_text: @tr("slots"); }
                             }
@@ -1508,14 +1241,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Smart Ban Threshold (1-100):"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Hash-failure involvements before a peer is automatically banned."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Hash-failure involvements before a peer is automatically banned."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_smart_ban_max_failures; placeholder: "3"; unit_text: @tr("failures"); }
                             }
@@ -1526,14 +1252,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Smart Ban Parole"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Re-download a failed piece from an uninvolved peer to attribute the fault before striking."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Re-download a failed piece from an uninvolved peer to attribute the fault before striking."); }
                                     } }
                                 Text { text: @tr("Isolate suspicious peers before permanent ban to prevent false positives"); color: #6b7280; font-size: 11px; }
                             }
@@ -1548,14 +1267,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Ban Duration after Eviction:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds an evicted (non-contributing) peer is blocked from reconnecting."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Seconds an evicted (non-contributing) peer is blocked from reconnecting."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_eviction_ban_duration_secs; placeholder: "600"; unit_text: @tr("secs"); }
                             }
@@ -1563,14 +1275,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("No Data Contribution Timeout:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.bt_data_contribution_timeout_secs; placeholder: "60"; unit_text: @tr("secs"); }
                             }
@@ -1624,14 +1329,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 6px;
                             Text { text: @tr("Tracker Subscription URL:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."); }
                                 } }
                             HorizontalLayout {
                                 spacing: 8px;
@@ -1654,7 +1352,6 @@ export component SettingsDialog inherits Rectangle {
             }
         }
     }
-}
 
                 // ── Tab 5: IO 实验室 ──
                 if root.settings_tab == 5 : ScrollView {
@@ -1699,14 +1396,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Buffer Pool Limit:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.io_buffer_limit_mb; placeholder: "1024"; unit_text: "MB"; }
                             }
@@ -1714,14 +1404,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Game Mode Buffer:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Buffer limit when game mode is active, reducing impact on gaming performance."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Buffer limit when game mode is active, reducing impact on gaming performance."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.io_game_mode_buffer_mb; placeholder: "128"; unit_text: "MB"; }
                             }
@@ -1733,14 +1416,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("HDD Max Parallel:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum number of HDD downloads that can use the buffer simultaneously. Each gets an equal share of the buffer pool."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum number of HDD downloads that can use the buffer simultaneously. Each gets an equal share of the buffer pool."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.io_max_parallel_hdd; placeholder: "4"; unit_text: @tr("tasks"); }
                             }
@@ -1748,14 +1424,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("Game Mode Max Parallel:"); color: Theme.c9ca3af; font-size: 12px;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Maximum parallel HDD downloads when game mode is active."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Maximum parallel HDD downloads when game mode is active."); }
                                     } }
                                 UnitInput { text <=> root.settings_form.io_game_mode_max_parallel; placeholder: "1"; unit_text: @tr("tasks"); }
                             }
@@ -1768,14 +1437,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("HDD Double-Buffer Optimization"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Enable double-buffer pool optimization for mechanical hard drives to improve write performance. Not needed for SSDs."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Enable double-buffer pool optimization for mechanical hard drives to improve write performance. Not needed for SSDs."); }
                                     } }
                                 ToggleSwitch {
                                     checked: root.settings_form.io_hdd_buffer_enabled;
@@ -1867,14 +1529,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("Log File Path:"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data."); }
                                 } }
                             HorizontalLayout {
                                 spacing: 8px;
@@ -1929,14 +1584,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 2px;
                                 Text { text: @tr("Enable Aria2 RPC Service"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                                     Tooltip {
-                                        Rectangle {
-                                            background: Theme.c111419;
-                                            border-width: 1px;
-        border-color: Theme.c2e3542;
-                                            border-radius: 8px;
-                                            max-width: 520px;
-                                            HorizontalLayout { padding: 10px; Text { text: @tr("Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                        }
+                                        FormTip { text: @tr("Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."); }
                                     } }
                                 Text { text: @tr("Allows browser extensions (such as Aria2 Explorer) to intercept downloads"); color: #6b7280; font-size: 11px; }
                             }
@@ -1950,14 +1598,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("RPC Port (1-65535):"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Default 6800. Make sure the port is available."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Default 6800. Make sure the port is available."); }
                                 } }
                             UnitInput {
                                 text <=> root.settings_form.aria2_port;
@@ -1970,14 +1611,7 @@ export component SettingsDialog inherits Rectangle {
                             spacing: 4px;
                             Text { text: @tr("RPC Secret (empty for no authentication):"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
-                                    Rectangle {
-                                        background: Theme.c111419;
-                                        border-width: 1px;
-        border-color: Theme.c2e3542;
-                                        border-radius: 8px;
-                                        max-width: 520px;
-                                        HorizontalLayout { padding: 10px; Text { text: @tr("Leave empty to allow connections without a secret. If set, configure the same token in your browser extension."); wrap: word-wrap; color: Theme.cf3f4f6; font-size: 12px; vertical-alignment: center; } }
-                                    }
+                                    FormTip { text: @tr("Leave empty to allow connections without a secret. If set, configure the same token in your browser extension."); }
                                 } }
                             CustomTextInput {
                                 text <=> root.settings_form.aria2_secret;
