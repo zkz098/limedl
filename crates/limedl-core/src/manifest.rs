@@ -92,6 +92,7 @@ pub struct RemoteMetadata {
     pub etag: Option<String>,
     pub last_modified: Option<String>,
     pub supports_ranges: bool,
+    pub extra_headers: Vec<String>,
 }
 
 pub fn plan_chunks(

@@ -379,11 +379,13 @@ impl Scheduler {
                         allocations.insert(core.manifest.id.clone(), 0);
                         continue;
                     }
+                    let cap = effective_allocation_cap(&core.manifest, &settings);
                     let start = if remaining_budget >= min_per_task {
                         min_per_task
                     } else {
                         remaining_budget
-                    };
+                    }
+                    .min(cap);
                     // Apply per-host connection cap
                     let start = if let Some(host) = hostname_from_manifest(&core.manifest) {
                         let used = host_threads.get(&host).copied().unwrap_or(0);

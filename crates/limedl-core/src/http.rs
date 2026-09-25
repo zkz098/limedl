@@ -1,4 +1,4 @@
-﻿use reqwest::{
+use reqwest::{
     Client, Response, StatusCode, Url,
     header::{self, HeaderMap, HeaderValue},
 };
@@ -202,6 +202,85 @@ pub fn header_string(headers: &HeaderMap, name: header::HeaderName) -> Option<St
         .get(name)
         .and_then(|value| value.to_str().ok())
         .map(ToOwned::to_owned)
+}
+
+/// Check if a header named `header_name` exists in `headers` (case-insensitive).
+pub fn has_header(headers: &[String], header_name: &str) -> bool {
+    headers.iter().any(|h| {
+        h.split_once(':')
+            .map(|(name, _)| name.trim().eq_ignore_ascii_case(header_name))
+            .unwrap_or(false)
+    })
+}
+
+/// Infer candidate Referer URLs for anti-hotlink protection when a server
+/// returns HTTP 403 Forbidden.
+pub fn infer_candidate_referers(url: &str) -> Vec<String> {
+    let mut candidates = Vec::new();
+    let Ok(parsed) = Url::parse(url) else {
+        return candidates;
+    };
+    let Some(host) = parsed.host_str() else {
+        return candidates;
+    };
+
+    let host_lower = host.to_ascii_lowercase();
+
+    // Specific domain rules for known anti-hotlink servers (e.g. NVIDIA Zen CDN)
+    if host_lower.contains("nvidia.com") {
+        candidates.push("https://www.nvidia.com/".to_string());
+        candidates.push("https://www.nvidia.cn/".to_string());
+    } else if host_lower.contains("nvidia.cn") {
+        candidates.push("https://www.nvidia.cn/".to_string());
+        candidates.push("https://www.nvidia.com/".to_string());
+    }
+
+    // General domain rules:
+    // 1. Same origin: scheme + host + "/"
+    let scheme = parsed.scheme();
+    let origin_referer = format!("{scheme}://{host}/");
+    if !candidates.contains(&origin_referer) {
+        candidates.push(origin_referer);
+    }
+
+    // 2. Base / apex domain (e.g. cn.download.nvidia.com -> www.nvidia.com, nvidia.com)
+    let parts: Vec<&str> = host_lower.split('.').collect();
+    if parts.len() >= 3 {
+        let is_second_level = parts.len() >= 4
+            && (parts[parts.len() - 2] == "com"
+                || parts[parts.len() - 2] == "co"
+                || parts[parts.len() - 2] == "org"
+                || parts[parts.len() - 2] == "net"
+                || parts[parts.len() - 2] == "edu"
+                || parts[parts.len() - 2] == "gov");
+
+        let base_domain = if is_second_level {
+            parts[parts.len() - 3..].join(".")
+        } else {
+            parts[parts.len() - 2..].join(".")
+        };
+
+        let www_referer = format!("{scheme}://www.{base_domain}/");
+        if !candidates.contains(&www_referer) {
+            candidates.push(www_referer);
+        }
+
+        let base_referer = format!("{scheme}://{base_domain}/");
+        if !candidates.contains(&base_referer) {
+            candidates.push(base_referer);
+        }
+    }
+
+    candidates
+}
+
+/// Check if an error was caused by an HTTP 429 Too Many Requests response.
+pub fn is_too_many_requests_error(error: &DownloadError) -> bool {
+    match error {
+        DownloadError::InvalidResponse(msg) => msg.contains("429"),
+        DownloadError::Http(err) => err.status() == Some(StatusCode::TOO_MANY_REQUESTS),
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -752,5 +831,81 @@ mod tests {
             current_mirror_index: 0,
             priority: crate::types::Priority::Normal,
         }
+    }
+
+    // ── has_header ──────────────────────────────────────────
+
+    #[test]
+    fn has_header_case_insensitive() {
+        let headers = vec![
+            "Authorization: Bearer token".to_string(),
+            "Referer: https://example.com/".to_string(),
+        ];
+        assert!(has_header(&headers, "referer"));
+        assert!(has_header(&headers, "Referer"));
+        assert!(has_header(&headers, "REFERER"));
+        assert!(has_header(&headers, "authorization"));
+        assert!(!has_header(&headers, "user-agent"));
+    }
+
+    #[test]
+    fn has_header_empty_list() {
+        assert!(!has_header(&[], "referer"));
+    }
+
+    // ── infer_candidate_referers ────────────────────────────
+
+    #[test]
+    fn infer_nvidia_com_referers() {
+        let url = "https://cn.download.nvidia.com/Windows/617.14/617.14-desktop-win10-win11-64bit-international-dch-whql.exe";
+        let cands = infer_candidate_referers(url);
+        assert!(cands.contains(&"https://www.nvidia.com/".to_string()));
+        assert!(cands.contains(&"https://www.nvidia.cn/".to_string()));
+        assert!(cands.contains(&"https://cn.download.nvidia.com/".to_string()));
+    }
+
+    #[test]
+    fn infer_nvidia_cn_referers() {
+        let url = "https://cn.download.nvidia.cn/Windows/driver.exe";
+        let cands = infer_candidate_referers(url);
+        assert!(cands.contains(&"https://www.nvidia.cn/".to_string()));
+        assert!(cands.contains(&"https://www.nvidia.com/".to_string()));
+    }
+
+    #[test]
+    fn infer_generic_subdomain_referers() {
+        let url = "https://dl.example.com/files/archive.tar.gz";
+        let cands = infer_candidate_referers(url);
+        assert!(cands.contains(&"https://dl.example.com/".to_string()));
+        assert!(cands.contains(&"https://www.example.com/".to_string()));
+        assert!(cands.contains(&"https://example.com/".to_string()));
+    }
+
+    #[test]
+    fn infer_second_level_domain_referers() {
+        let url = "https://cdn.example.com.cn/files/archive.tar.gz";
+        let cands = infer_candidate_referers(url);
+        assert!(cands.contains(&"https://cdn.example.com.cn/".to_string()));
+        assert!(cands.contains(&"https://www.example.com.cn/".to_string()));
+        assert!(cands.contains(&"https://example.com.cn/".to_string()));
+    }
+
+    #[test]
+    fn infer_invalid_url_empty() {
+        assert!(infer_candidate_referers("not-a-url").is_empty());
+    }
+
+    // ── is_too_many_requests_error ──────────────────────────
+
+    #[test]
+    fn detects_429_too_many_requests() {
+        let err1 = DownloadError::InvalidResponse("http status 429 Too Many Requests".to_string());
+        assert!(is_too_many_requests_error(&err1));
+
+        let err2 = DownloadError::InvalidResponse("http status 500 Internal Server Error".to_string());
+        assert!(!is_too_many_requests_error(&err2));
+
+        let err3 = DownloadError::Interrupted;
+        assert!(!is_too_many_requests_error(&err3));
     }
 }

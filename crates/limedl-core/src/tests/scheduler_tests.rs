@@ -1070,3 +1070,67 @@ async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
     let _ = manager.cancel(&id.to_string()).await;
     Ok(())
 }
+
+#[tokio::test]
+#[timeout(30_000)]
+async fn automatic_scheduler_respects_single_thread_cap_when_min_per_task_is_four() -> TestResult {
+    let (_tmp, manager) = create_manager().await;
+
+    apply_settings(
+        &manager,
+        SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                max_parallel_threads: 16,
+                min_threads_per_task: 4,
+                max_threads_per_task: 8,
+                ..AutomaticSchedulerSettings::default()
+            },
+            ..SchedulerSettings::default()
+        },
+    )
+    .await;
+
+    let server = TestServer::new(16 * 1024 * 1024).await;
+    let temp = tempdir()?;
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: server.file_url(),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: None,
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(1),
+            checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: true,
+            headers: None,
+            mirror_urls: None,
+            priority: None,
+        })
+        .await?;
+
+    // Mark as Queued and supports_ranges: true so rebalance_allocations will allocate threads
+    {
+        let managed = manager.downloads.read().await.get(&id.to_string()).unwrap().clone();
+        let mut core = managed.lock_core();
+        core.manifest.state = DownloadState::Queued;
+        core.manifest.supports_ranges = true;
+    }
+
+    manager.scheduler.rebalance_allocations(&manager).await?;
+
+    let status = manager.status(&id.to_string()).await?;
+    assert_eq!(
+        status.allocated_thread_count,
+        Some(1),
+        "task with fixed single thread must NOT be allocated 4 threads even when min_threads_per_task=4"
+    );
+
+    let _ = manager.cancel(&id.to_string()).await;
+    Ok(())
+}

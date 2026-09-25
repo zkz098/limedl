@@ -1,4 +1,4 @@
-﻿//! Retry/backoff logic for HTTP downloads.
+//! Retry/backoff logic for HTTP downloads.
 //!
 //! Extracted from `manager.rs` to reduce the god object. Contains:
 //! - `request_with_retry()` — wraps HTTP requests with retry logic and exponential backoff
@@ -8,7 +8,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use reqwest::Response;
+use reqwest::{Response, StatusCode};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
@@ -49,6 +49,18 @@ where
             Ok(response) => match classify_download_response(response) {
                 ResponseDisposition::Use(response) => return Ok(response),
                 ResponseDisposition::Retryable(status) => {
+                    if status == StatusCode::TOO_MANY_REQUESTS {
+                        let concurrency = managed
+                            .lock_core()
+                            .manifest
+                            .allocated_thread_count
+                            .unwrap_or(1);
+                        if concurrency > 1 {
+                            return Err(DownloadError::InvalidResponse(format!(
+                                "http status {status}"
+                            )));
+                        }
+                    }
                     if attempt >= max_retries {
                         return Err(DownloadError::InvalidResponse(format!(
                             "http status {status}"
@@ -68,6 +80,16 @@ where
                 }
             },
             Err(error) => {
+                if error.status() == Some(StatusCode::TOO_MANY_REQUESTS) {
+                    let concurrency = managed
+                        .lock_core()
+                        .manifest
+                        .allocated_thread_count
+                        .unwrap_or(1);
+                    if concurrency > 1 {
+                        return Err(error.into());
+                    }
+                }
                 if attempt >= max_retries {
                     return Err(error.into());
                 }

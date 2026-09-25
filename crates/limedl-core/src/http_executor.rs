@@ -32,8 +32,8 @@ use crate::{
         reset_download_file, write_all_at,
     },
     http::{
-        apply_extra_headers, build_segment_request, extract_total_bytes, header_string, if_range_header,
-        infer_file_name,
+        apply_extra_headers, build_segment_request, extract_total_bytes, has_header, header_string,
+        if_range_header, infer_candidate_referers, infer_file_name, is_too_many_requests_error,
         supports_ranges, validate_probe_response, validate_segment_response,
     },
     manager::{
@@ -51,7 +51,7 @@ use crate::{
     retry::request_with_retry,
     types::{
         ChecksumMode, DiskType, DownloadState, StartDownloadRequest,
-        TaskKind,
+        TaskKind, ThreadMode,
     },
 };
 
@@ -85,7 +85,7 @@ impl HttpExecutor {
         )
         .send()
         .await;
-        let response = match head {
+        let mut response = match head {
             Ok(response) if response.status().is_success() => response,
             _ => apply_extra_headers(
                 client
@@ -97,6 +97,55 @@ impl HttpExecutor {
             .send()
             .await?,
         };
+
+        let mut effective_extra_headers = extra_headers.to_vec();
+
+        // If probe returned 403 Forbidden and user did not specify Referer,
+        // attempt anti-hotlink resolution using candidate Referer headers.
+        if (response.status() == StatusCode::FORBIDDEN || !response.status().is_success())
+            && !has_header(extra_headers, "referer")
+        {
+            let effective_url = response.url().as_str();
+            let mut candidates = infer_candidate_referers(effective_url);
+            for cand in infer_candidate_referers(url) {
+                if !candidates.contains(&cand) {
+                    candidates.push(cand);
+                }
+            }
+
+            for cand in candidates {
+                let mut test_headers = extra_headers.to_vec();
+                test_headers.push(format!("Referer: {cand}"));
+                let head_cand = apply_extra_headers(
+                    client.head(effective_url).header(header::USER_AGENT, user_agent),
+                    &test_headers,
+                )
+                .send()
+                .await;
+                let cand_resp = match head_cand {
+                    Ok(r) if r.status().is_success() => Some(r),
+                    _ => {
+                        apply_extra_headers(
+                            client
+                                .get(effective_url)
+                                .header(header::USER_AGENT, user_agent)
+                                .header(header::RANGE, "bytes=0-0"),
+                            &test_headers,
+                        )
+                        .send()
+                        .await
+                        .ok()
+                        .filter(|r| r.status().is_success() || r.status() == StatusCode::PARTIAL_CONTENT)
+                    }
+                };
+                if let Some(r) = cand_resp {
+                    tracing::info!("Auto-detected required Referer for anti-hotlink protection: {cand}");
+                    response = r;
+                    effective_extra_headers = test_headers;
+                    break;
+                }
+            }
+        }
 
         validate_probe_response(&response)?;
 
@@ -116,6 +165,7 @@ impl HttpExecutor {
             etag: header_string(&headers, header::ETAG),
             last_modified: header_string(&headers, header::LAST_MODIFIED),
             supports_ranges,
+            extra_headers: effective_extra_headers,
         })
     }
 
@@ -157,7 +207,7 @@ impl HttpExecutor {
             destination_dir: current_manifest.destination_dir.clone(),
             file_name: Some(current_manifest.file_name.clone()),
             user_agent: Some(current_manifest.user_agent.clone()),
-            headers: Some(current_manifest.extra_headers.clone()),
+            headers: Some(metadata.extra_headers.clone()),
             thread_mode: Some(current_manifest.thread_mode),
             thread_count: current_manifest.requested_thread_count,
             max_retries: None,
@@ -209,6 +259,7 @@ impl HttpExecutor {
                 force_single_stream_restart = true;
             }
             manifest.final_url = metadata.final_url.clone();
+            manifest.extra_headers = metadata.extra_headers.clone();
             manifest.supports_ranges = supports_parallel;
             manifest.total_bytes = metadata.total_bytes;
             manifest.etag = metadata.etag.clone();
@@ -222,7 +273,9 @@ impl HttpExecutor {
             }
             manifest.desired_thread_count = desired_thread_count;
             manifest.adaptive_profile_snapshot = adaptive_profile;
-            manifest.thread_note = manager::thread_note(supports_parallel, thread_mode, adaptive_profile);
+            if manifest.thread_note.as_deref() != Some("单线程（429 限流降级）") {
+                manifest.thread_note = manager::thread_note(supports_parallel, thread_mode, adaptive_profile);
+            }
             manifest.updated_at_ms = now_ms();
             manifest.error = None;
             if !supports_parallel {
@@ -1012,6 +1065,35 @@ impl HttpExecutor {
 
             match worker_outcome {
                 ChunkWorkerOutcome::Finished => {}
+                ChunkWorkerOutcome::DowngradeSingleThread => {
+                    tracing::info!("Received HTTP 429 Too Many Requests; downgrading to single-thread mode");
+                    shutdown_chunk_workers(&managed, &mut workers).await;
+                    if let Some(ref buf) = write_buffer
+                        && let Err(e) = buf.flush_all().await
+                    {
+                        tracing::warn!("flush on downgrade failed: {e}");
+                    }
+                    {
+                        let mut core = managed.lock_core();
+                        core.manifest.thread_mode = ThreadMode::Fixed;
+                        core.manifest.requested_thread_count = Some(1);
+                        core.manifest.desired_thread_count = Some(1);
+                        core.manifest.allocated_thread_count = Some(1);
+                        core.manifest.connection_count = 1;
+                        core.manifest.thread_note = Some(String::from("单线程（429 限流降级）"));
+                        core.manifest.error = None;
+                        core.manifest.updated_at_ms = now_ms();
+                        core.sync_snapshot_from_manifest();
+                    }
+                    dm.task_lifecycle.emit_progress(&dm, &managed);
+                    persist_manifest_snapshot(&dm.db, &managed).await?;
+                    dm.controls.rebalance_notify.notify_waiters();
+                    tokio::select! {
+                        _ = token.cancelled() => return Ok(cancellation_outcome(&managed)),
+                        _ = sleep(Duration::from_millis(1500)) => {}
+                    }
+                    continue;
+                }
                 ChunkWorkerOutcome::RestartSingle => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
                     // Data is deliberately discarded (fresh temp file) — clear
@@ -1407,7 +1489,7 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
             )
         };
 
-        let response = request_with_retry(
+        let response = match request_with_retry(
             || {
                 let client = ctx.client.clone();
                 let url = url.clone();
@@ -1432,7 +1514,24 @@ async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
             ctx.max_retries,
             ctx.managed.clone(),
         )
-        .await?;
+        .await {
+            Ok(resp) => resp,
+            Err(err) => {
+                mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
+                if is_too_many_requests_error(&err) {
+                    let concurrency = ctx
+                        .managed
+                        .lock_core()
+                        .manifest
+                        .allocated_thread_count
+                        .unwrap_or(1);
+                    if concurrency > 1 {
+                        return Ok(ChunkWorkerOutcome::DowngradeSingleThread);
+                    }
+                }
+                return Err(err);
+            }
+        };
 
         if response.status() == StatusCode::OK {
             mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);

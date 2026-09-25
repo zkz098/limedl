@@ -277,6 +277,7 @@ pub(crate) enum RunOutcome {
 pub(crate) enum ChunkWorkerOutcome {
     Finished,
     RestartSingle,
+    DowngradeSingleThread,
     Paused,
     Canceled,
 }

@@ -19,9 +19,10 @@ async fn scheduler_respects_max_parallel_tasks() {
     let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
     let dm = &core.download_manager;
 
-    // Set max_parallel_tasks to 2
+    // Set mode to Traditional and max_parallel_tasks to 2
     {
         let mut settings = dm.settings().await.unwrap();
+        settings.scheduler.mode = crate::types::SchedulerMode::Traditional;
         settings.scheduler.traditional.max_parallel_tasks = 2;
         dm.apply_settings(settings).await.unwrap();
     }
