@@ -159,7 +159,7 @@ export struct SettingsFormData {
     appearance_color_mode_idx: int, // index into combo::COLOR_MODES (system/light/dark)
     appearance_theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime)
     appearance_background_opacity_idx: int, // index into combo::OPACITY_PRESETS (default/acrylic/frosted)
-    appearance_language_idx: int, // index into combo::LANGUAGES (zh-CN/en-US)
+    appearance_language_idx: int, // index into combo::LANGUAGES (zh-CN/zh-TW/en-US)
     appearance_close_behavior_idx: int, // index into combo::CLOSE_BEHAVIORS (minimizeToTray/exit)
     appearance_show_detail_info: bool,
     appearance_compact_view: bool,
@@ -273,7 +273,7 @@ export struct ToastItem {
 
 export struct SetupFormData {
     // ── Step 1: 语言 ──
-    language_idx: int, // index into combo::LANGUAGES (zh-CN/en-US)
+    language_idx: int, // index into combo::LANGUAGES (zh-CN/zh-TW/en-US)
     // ── Step 2: 外观 ──
     color_mode_idx: int, // index into combo::COLOR_MODES (system/light/dark)
     theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime)

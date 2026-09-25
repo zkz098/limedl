@@ -1400,19 +1400,23 @@ async fn main() -> anyhow::Result<()> {
                                 form.cdn_status_type = SharedString::from("testing");
                                 form.cdn_status_label = SharedString::from(match current_lang {
                                     Language::ZhCn => "测速中",
+                                    Language::ZhTw => "測速中",
                                     Language::EnUs => "Testing",
                                 });
                                 form.cdn_phase_label = SharedString::from(match phase.as_str() {
                                     "fetchingRanges" => match current_lang {
                                         Language::ZhCn => "获取网段",
+                                        Language::ZhTw => "獲取網段",
                                         Language::EnUs => "Fetching IP ranges",
                                     },
                                     "screening" => match current_lang {
                                         Language::ZhCn => "延迟初筛",
+                                        Language::ZhTw => "延遲初篩",
                                         Language::EnUs => "Screening latency",
                                     },
                                     "measuringThroughput" => match current_lang {
                                         Language::ZhCn => "带宽测速",
+                                        Language::ZhTw => "頻寬測速",
                                         Language::EnUs => "Measuring bandwidth",
                                     },
                                     other => other,
@@ -1446,16 +1450,19 @@ async fn main() -> anyhow::Result<()> {
                                 let (st, sl) = if is_ready {
                                     ("ready", match current_lang {
                                         Language::ZhCn => "准备就绪",
+                                        Language::ZhTw => "準備就緒",
                                         Language::EnUs => "Ready",
                                     })
                                 } else if is_error {
                                     ("error", match current_lang {
                                         Language::ZhCn => "测速失败",
+                                        Language::ZhTw => "測速失敗",
                                         Language::EnUs => "Failed",
                                     })
                                 } else {
                                     ("idle", match current_lang {
                                         Language::ZhCn => "未配置",
+                                        Language::ZhTw => "未配置",
                                         Language::EnUs => "Not Configured",
                                     })
                                 };
@@ -3786,10 +3793,10 @@ async fn main() -> anyhow::Result<()> {
             // so interpolated Rust-side strings stay consistent after closing.
             if let Some(ui) = ui_weak.upgrade() {
                 let form = ui.get_setup_form();
-                let lang = if form.language_idx == 0 {
-                    Language::ZhCn
-                } else {
-                    Language::EnUs
+                let lang = match form.language_idx {
+                    0 => Language::ZhCn,
+                    1 => Language::ZhTw,
+                    _ => Language::EnUs,
                 };
                 store_clone.lock().set_language(lang);
             }
@@ -3823,7 +3830,11 @@ async fn main() -> anyhow::Result<()> {
                 let mut form = ui.get_setup_form();
                 form.language_idx = idx;
                 ui.set_setup_form(form);
-                let lang = if idx == 0 { Language::ZhCn } else { Language::EnUs };
+                let lang = match idx {
+                    0 => Language::ZhCn,
+                    1 => Language::ZhTw,
+                    _ => Language::EnUs,
+                };
                 i18n::apply_translation(lang);
             }
         });
@@ -4269,10 +4280,12 @@ async fn main() -> anyhow::Result<()> {
                 form.cdn_status_type = SharedString::from("testing");
                 form.cdn_status_label = SharedString::from(match current_lang {
                     Language::ZhCn => "测速中",
+                    Language::ZhTw => "測速中",
                     Language::EnUs => "Testing",
                 });
                 form.cdn_phase_label = SharedString::from(match current_lang {
                     Language::ZhCn => "获取网段",
+                    Language::ZhTw => "獲取網段",
                     Language::EnUs => "Fetching IP ranges",
                 });
                 form.cdn_progress_percent = 0.0;
@@ -4410,6 +4423,7 @@ async fn main() -> anyhow::Result<()> {
                                 form.cdn_status_type = SharedString::from("error");
                                 form.cdn_status_label = SharedString::from(match current_lang {
                                     Language::ZhCn => "测速失败",
+                                    Language::ZhTw => "測速失敗",
                                     Language::EnUs => "Failed",
                                 });
                                 form.cdn_last_error = SharedString::from(err_msg);
@@ -4437,6 +4451,7 @@ async fn main() -> anyhow::Result<()> {
                     form.cdn_status_type = SharedString::from("idle");
                     form.cdn_status_label = SharedString::from(match current_lang {
                         Language::ZhCn => "已取消",
+                        Language::ZhTw => "已取消",
                         Language::EnUs => "Cancelled",
                     });
                     ui.set_labs_form(form);

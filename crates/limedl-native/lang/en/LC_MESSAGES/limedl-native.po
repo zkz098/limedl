@@ -1817,3 +1817,8 @@ msgstr "SuperSeed"
 msgid "Unknown"
 msgstr "Unknown"
 
+msgid "繁體中文"
+msgstr "Traditional Chinese"
+
+msgid "Chinese (Traditional)"
+msgstr "Chinese (Traditional)"

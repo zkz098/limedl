@@ -4,384 +4,384 @@ msgstr ""
 "POT-Creation-Date: 2026-08-29 12:00+0800\n"
 "PO-Revision-Date: 2026-08-29 12:00+0800\n"
 "Last-Translator: limedl team\n"
-"Language-Team: Chinese (Simplified)\n"
-"Language: zh_CN\n"
+"Language-Team: Chinese (Traditional)\n"
+"Language: zh_TW\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
 msgid "Search downloads..."
-msgstr "搜索下载任务..."
+msgstr "搜尋下載任務..."
 
 msgid "Details"
-msgstr "详情"
+msgstr "詳情"
 
 msgid "Pause"
-msgstr "暂停"
+msgstr "暫停"
 
 msgid "Resume"
-msgstr "继续"
+msgstr "繼續"
 
 msgid "Folder"
-msgstr "目录"
+msgstr "目錄"
 
 msgid "View Details"
-msgstr "查看任务详情"
+msgstr "檢視任務詳情"
 
 msgid "Pause Task"
-msgstr "暂停下载任务"
+msgstr "暫停下載任務"
 
 msgid "Resume Task"
-msgstr "继续下载任务"
+msgstr "繼續下載任務"
 
 msgid "Open Containing Folder"
-msgstr "打开所在文件夹"
+msgstr "開啟所在資料夾"
 
 msgid "Copy Download Link"
-msgstr "复制下载链接"
+msgstr "複製下載連結"
 
 msgid "Set Speed Limit"
-msgstr "配置单任务限速"
+msgstr "配置單任務限速"
 
 msgid "Remove Record"
-msgstr "从列表中移除"
+msgstr "從列表中移除"
 
 msgid "Delete File Permanently"
-msgstr "彻底删除本地文件"
+msgstr "徹底刪除本地檔案"
 
 msgid "New Download Task"
-msgstr "新建下载任务"
+msgstr "新建下載任務"
 
 msgid "Download URL (HTTP / HTTPS / Magnet / Torrent):"
-msgstr "下载链接 (HTTP / HTTPS / Magnet / Torrent):"
+msgstr "下載連結 (HTTP / HTTPS / Magnet / Torrent):"
 
 msgid "Select Torrent..."
-msgstr "选择种子..."
+msgstr "選擇種子..."
 
 msgid "Save Directory:"
-msgstr "保存目录:"
+msgstr "儲存目錄:"
 
 msgid "Browse..."
-msgstr "浏览..."
+msgstr "瀏覽..."
 
 msgid "Custom Filename (Optional):"
-msgstr "自定义文件名 (可选):"
+msgstr "自定義檔名 (可選):"
 
 msgid "Leave empty to use remote filename automatically"
-msgstr "留空则自动从响应头或 URL 解析"
+msgstr "留空則自動從響應頭或 URL 解析"
 
 msgid "Cancel"
 msgstr "取消"
 
 msgid "Start Download"
-msgstr "立即下载"
+msgstr "立即下載"
 
 msgid "Speed Limit Settings"
-msgstr "限速设置"
+msgstr "限速設定"
 
 msgid "Configure task speed limits (0 for unlimited):"
-msgstr "配置此任务的最大传输带宽 (0 为不限制):"
+msgstr "配置此任務的最大傳輸頻寬 (0 為不限制):"
 
 msgid "Download Limit:"
-msgstr "下载限速:"
+msgstr "下載限速:"
 
 msgid "Upload Limit (BT):"
-msgstr "上传限速 (BT):"
+msgstr "上傳限速 (BT):"
 
 msgid "Save"
-msgstr "保存"
+msgstr "儲存"
 
 msgid "Task Inspector"
-msgstr "任务详情检查器 (Inspector)"
+msgstr "任務詳情檢查器 (Inspector)"
 
 msgid "Overview"
-msgstr "概览"
+msgstr "概覽"
 
 msgid "Pieces Map"
-msgstr "分片分布"
+msgstr "分片分佈"
 
 msgid "Peers"
-msgstr "节点 (Peers)"
+msgstr "節點 (Peers)"
 
 msgid "Trackers"
-msgstr "服务器 (Trackers)"
+msgstr "伺服器 (Trackers)"
 
 msgid "Files"
-msgstr "文件列表"
+msgstr "檔案列表"
 
 msgid "Task ID:"
-msgstr "任务 ID:"
+msgstr "任務 ID:"
 
 msgid "Engine Protocol:"
-msgstr "协议引擎:"
+msgstr "協議引擎:"
 
 msgid "Resource URL:"
-msgstr "资源链接:"
+msgstr "資源連結:"
 
 msgid "Save Path:"
-msgstr "保存路径:"
+msgstr "儲存路徑:"
 
 msgid "Total Size:"
-msgstr "文件总大小:"
+msgstr "檔案總大小:"
 
 msgid "Downloaded:"
-msgstr "已下载数据:"
+msgstr "已下載資料:"
 
 msgid "Uploaded (BT):"
-msgstr "已上传数据:"
+msgstr "已上傳資料:"
 
 msgid "Active Connections:"
-msgstr "活跃连接数:"
+msgstr "活躍連線數:"
 
 msgid "Share Ratio:"
 msgstr "分享率:"
 
 msgid "Active Rate Limits:"
-msgstr "当前限速:"
+msgstr "當前限速:"
 
 msgid "Pieces Progress"
-msgstr "分片完成分布"
+msgstr "分片完成分佈"
 
 msgid "IP Address"
 msgstr "IP 地址"
 
 msgid "Client"
-msgstr "客户端"
+msgstr "客戶端"
 
 msgid "Flags"
-msgstr "标志"
+msgstr "標誌"
 
 msgid "Progress"
-msgstr "进度"
+msgstr "進度"
 
 msgid "Download Speed"
-msgstr "下载速度"
+msgstr "下載速度"
 
 msgid "Upload Speed"
-msgstr "上传速度"
+msgstr "上傳速度"
 
 msgid "Tier"
-msgstr "层级"
+msgstr "層級"
 
 msgid "URL"
 msgstr "URL 地址"
 
 msgid "Status"
-msgstr "状态"
+msgstr "狀態"
 
 msgid "Peers Count"
-msgstr "节点数"
+msgstr "節點數"
 
 msgid "File Name"
-msgstr "文件名"
+msgstr "檔名"
 
 msgid "Size"
 msgstr "大小"
 
 msgid "Priority"
-msgstr "优先级"
+msgstr "優先順序"
 
 msgid "Speed Limit"
-msgstr "限速设置"
+msgstr "限速設定"
 
 msgid "Open Folder"
-msgstr "打开目录"
+msgstr "開啟目錄"
 
 msgid "Close"
-msgstr "关闭"
+msgstr "關閉"
 
 msgid "Pieces bitmap is only available for active BitTorrent tasks."
-msgstr "分片位图可视化仅适用于 BitTorrent 多分片下载任务。"
+msgstr "分片點陣圖視覺化僅適用於 BitTorrent 多分片下載任務。"
 
 msgid "No peers connected yet."
-msgstr "暂无已连接节点数据"
+msgstr "暫無已連線節點資料"
 
 msgid "No tracker servers available."
-msgstr "暂无 Tracker 服务器信息"
+msgstr "暫無 Tracker 伺服器資訊"
 
 msgid "No file information available."
-msgstr "暂无多文件结构信息"
+msgstr "暫無多檔案結構資訊"
 
 msgid "Settings Center"
-msgstr "设置中心"
+msgstr "設定中心"
 
 msgid "General"
-msgstr "常规"
+msgstr "常規"
 
 msgid "Download"
-msgstr "下载"
+msgstr "下載"
 
 msgid "Proxy"
 msgstr "代理"
 
 msgid "Scheduler"
-msgstr "调度"
+msgstr "排程"
 
 msgid "BT Network"
-msgstr "BT 网络"
+msgstr "BT 網路"
 
 msgid "IO Baseline"
-msgstr "IO 实验"
+msgstr "IO 實驗"
 
 msgid "Logging"
-msgstr "日志"
+msgstr "日誌"
 
 msgid "Aria2 RPC"
 msgstr "Aria2"
 
 msgid "About"
-msgstr "关于"
+msgstr "關於"
 
 msgid "Language & Appearance"
-msgstr "语言与外观"
+msgstr "語言與外觀"
 
 msgid "Language:"
-msgstr "界面语言:"
+msgstr "介面語言:"
 
 msgid "Theme Mode (dark/light/system):"
-msgstr "主题模式 (dark/light/system):"
+msgstr "主題模式 (dark/light/system):"
 
 msgid "UI Scale (0.5 - 2.0):"
-msgstr "界面缩放比例 (0.5 - 2.0):"
+msgstr "介面縮放比例 (0.5 - 2.0):"
 
 msgid "Font Family (leave empty for system default):"
-msgstr "自定义字体 (留空使用系统默认):"
+msgstr "自定義字型 (留空使用系統預設):"
 
 msgid "System default font"
-msgstr "系统默认字体"
+msgstr "系統預設字型"
 
 msgid "Close to System Tray"
-msgstr "关闭窗口时最小化到系统托盘"
+msgstr "關閉視窗時最小化到系統托盤"
 
 msgid "Keep background downloads running when window is closed"
-msgstr "窗口关闭后在系统托盘保持后台运行与下载"
+msgstr "視窗關閉後在系統托盤保持後臺執行與下載"
 
 msgid "Auto-start on System Boot"
-msgstr "开机自启动"
+msgstr "開機自啟動"
 
 msgid "Launch limedl quietly in background on system startup"
-msgstr "开机登录后自动启动 limedl 并静默在系统托盘"
+msgstr "開機登入後自動啟動 limedl 並靜默在系統托盤"
 
 msgid "Download & Storage"
-msgstr "下载与存储"
+msgstr "下載與儲存"
 
 msgid "Default Download Directory:"
-msgstr "默认下载保存目录:"
+msgstr "預設下載儲存目錄:"
 
 msgid "Leave empty for system Downloads, e.g. D:\\Downloads"
-msgstr "留空使用系统默认，例如 D:\\Downloads"
+msgstr "留空使用系統預設，例如 D:\\Downloads"
 
 msgid "Select Path..."
-msgstr "选择路径..."
+msgstr "選擇路徑..."
 
 msgid "Auto-create Subdirectory for Multi-file Torrents"
-msgstr "多文件种子自动创建独立子文件夹"
+msgstr "多檔案種子自動建立獨立子資料夾"
 
 msgid "Keep multi-file downloads organized in a dedicated directory"
-msgstr "避免多个文件散落到下载根目录中"
+msgstr "避免多個檔案散落到下載根目錄中"
 
 msgid "Disk Pre-allocation Strategy (none/sparse/falloc/full):"
-msgstr "磁盘空间预分配策略 (none/sparse/falloc/full):"
+msgstr "磁碟空間預分配策略 (none/sparse/falloc/full):"
 
 msgid "sparse: fast; falloc: OS pre-allocated; full: zero-fill to prevent fragmentation"
-msgstr "sparse 速度快；falloc 驱动级预占；full 零填充防碎片"
+msgstr "sparse 速度快；falloc 驅動級預佔；full 零填充防碎片"
 
 msgid "Auto Checksum Verification upon Completion"
-msgstr "下载完成后自动校验 Checksum"
+msgstr "下載完成後自動校驗 Checksum"
 
 msgid "Verify SHA256/MD5 if checksum metadata is provided"
-msgstr "若资源包含散列摘要，完成时自动校验完整性"
+msgstr "若資源包含雜湊摘要，完成時自動校驗完整性"
 
 msgid "Proxy Settings"
-msgstr "代理设置"
+msgstr "代理設定"
 
 msgid "Proxy Mode:"
 msgstr "代理模式:"
 
 msgid "system follows OS proxy; manual requires proxy URL below"
-msgstr "system 跟随系统代理，manual 需填写下游 URL"
+msgstr "system 跟隨系統代理，manual 需填寫下游 URL"
 
 msgid "Manual Proxy URL:"
-msgstr "手动代理 URL:"
+msgstr "手動代理 URL:"
 
 msgid "Scheduler & Performance"
-msgstr "调度与性能"
+msgstr "排程與效能"
 
 msgid "Allocation Mode:"
 msgstr "分配模式:"
 
 msgid "automatic uses adaptive thread pool; traditional uses fixed concurrency"
-msgstr "automatic 为自适应线程池，traditional 为固定并发任务"
+msgstr "automatic 為自適應執行緒池，traditional 為固定併發任務"
 
 msgid "Auto - Max Parallel Threads (1-128):"
-msgstr "自动-最大并行线程 (1-128):"
+msgstr "自動-最大並行執行緒 (1-128):"
 
 msgid "Max Threads per Task (1-64):"
-msgstr "单任务最大线程 (1-64):"
+msgstr "單任務最大執行緒 (1-64):"
 
 msgid "Min Threads per Task (0-64):"
-msgstr "单任务最小线程 (0-64):"
+msgstr "單任務最小執行緒 (0-64):"
 
 msgid "Adaptive Profile:"
-msgstr "自适应档位:"
+msgstr "自適應檔位:"
 
 msgid "Chunk Strategy:"
-msgstr "分块策略:"
+msgstr "分塊策略:"
 
 msgid "Tail Sprint"
-msgstr "尾部冲刺 (Tail Sprint)"
+msgstr "尾部衝刺 (Tail Sprint)"
 
 msgid "Parallelize tail chunks to minimize finishing latency"
-msgstr "末段并行补齐，缩短长尾"
+msgstr "末段並行補齊，縮短長尾"
 
 msgid "Connection Warmup"
-msgstr "连接预热"
+msgstr "連線預熱"
 
 msgid "Pre-establish multiple connections during handshake for faster warmup"
-msgstr "建连阶段预建多个连接加速起步"
+msgstr "建連階段預建多個連線加速起步"
 
 msgid "BitTorrent Network"
-msgstr "BitTorrent 网络"
+msgstr "BitTorrent 網路"
 
 msgid "Enable DHT"
-msgstr "启用 DHT"
+msgstr "啟用 DHT"
 
 msgid "Discover peers via DHT when no trackers are available"
-msgstr "无 Tracker 时通过 DHT 发现节点"
+msgstr "無 Tracker 時透過 DHT 發現節點"
 
 msgid "Listen Port (empty for random):"
-msgstr "监听端口 (空为随机):"
+msgstr "監聽埠 (空為隨機):"
 
 msgid "Random"
-msgstr "随机"
+msgstr "隨機"
 
 msgid "port"
-msgstr "端口"
+msgstr "埠"
 
 msgid "Max Peers per Torrent:"
 msgstr "每 Torrent 最大 peers:"
 
 msgid "peers"
-msgstr "个"
+msgstr "個"
 
 msgid "tasks"
-msgstr "个"
+msgstr "個"
 
 msgid "threads"
-msgstr "线程"
+msgstr "執行緒"
 
 msgid "secs"
 msgstr "秒"
 
 msgid "slots"
-msgstr "个"
+msgstr "個"
 
 msgid "failures"
 msgstr "次"
 
 msgid "files"
-msgstr "个"
+msgstr "個"
 
 msgid "days"
 msgstr "天"
@@ -393,307 +393,307 @@ msgid "Encryption Mode:"
 msgstr "加密模式:"
 
 msgid "Pre-allocation Mode:"
-msgstr "预分配:"
+msgstr "預分配:"
 
 msgid "Advanced BT Settings"
-msgstr "高级 BT 设置"
+msgstr "高階 BT 設定"
 
 msgid "Queuing & Rate Limits"
-msgstr "队列与限速"
+msgstr "佇列與限速"
 
 msgid "Max Active Downloads:"
-msgstr "最大活跃下载:"
+msgstr "最大活躍下載:"
 
 msgid "Max Active Seeds:"
-msgstr "最大做种:"
+msgstr "最大做種:"
 
 msgid "Max Torrents:"
-msgstr "最大 Torrent 数:"
+msgstr "最大 Torrent 數:"
 
 msgid "Active Limit:"
-msgstr "活跃上限:"
+msgstr "活躍上限:"
 
 msgid "Global Download Rate Limit:"
-msgstr "全局下载限速:"
+msgstr "全域性下載限速:"
 
 msgid "Global Upload Rate Limit:"
-msgstr "全局上传限速:"
+msgstr "全域性上傳限速:"
 
 msgid "Seeding & Completion"
-msgstr "做种与完成"
+msgstr "做種與完成"
 
 msgid "Pause Seeding upon Reaching Limit"
-msgstr "达到上限后暂停做种"
+msgstr "達到上限後暫停做種"
 
 msgid "Automatically pause seeding once upload limit or ratio target is reached"
-msgstr "上传量或分享率达标后自动暂停"
+msgstr "上傳量或分享率達標後自動暫停"
 
 msgid "Seeding Upload Limit:"
-msgstr "做种上传上限:"
+msgstr "做種上傳上限:"
 
 msgid "Share Ratio Limit (0 for unlimited):"
 msgstr "分享率上限 (0 不限):"
 
 msgid "Anti-Leech & Peer Banning"
-msgstr "反吸血与屏蔽"
+msgstr "反吸血與遮蔽"
 
 msgid "Enable Anti-Leech Detection"
-msgstr "启用反吸血检测"
+msgstr "啟用反吸血檢測"
 
 msgid "Detect peers that download without uploading"
-msgstr "识别只下载不上传的节点"
+msgstr "識別只下載不上傳的節點"
 
 msgid "Action:"
-msgstr "处置方式:"
+msgstr "處置方式:"
 
 msgid "Grace Period:"
-msgstr "观察宽限时间:"
+msgstr "觀察寬限時間:"
 
 msgid "Share Ratio Threshold (0-1):"
-msgstr "分享率阈值 (0-1):"
+msgstr "分享率閾值 (0-1):"
 
 msgid "Ban Duration:"
-msgstr "封禁时长:"
+msgstr "封禁時長:"
 
 msgid "Max Upload Slots in Limit Mode (1-64):"
-msgstr "限制模式最大上传槽位 (1-64):"
+msgstr "限制模式最大上傳槽位 (1-64):"
 
 msgid "Enable IP Blocklist"
-msgstr "启用 IP 屏蔽列表"
+msgstr "啟用 IP 遮蔽列表"
 
 msgid "Load local blocklist filter file"
-msgstr "加载本地 blocklist 文件"
+msgstr "載入本地 blocklist 檔案"
 
 msgid "Blocklist Path:"
-msgstr "屏蔽列表路径:"
+msgstr "遮蔽列表路徑:"
 
 msgid "Engine Tuning"
-msgstr "引擎调优"
+msgstr "引擎調優"
 
 msgid "Seed Choking:"
-msgstr "做种调度:"
+msgstr "做種排程:"
 
 msgid "Choking Algorithm:"
-msgstr "阻塞算法:"
+msgstr "阻塞演算法:"
 
 msgid "Max Upload Slots per Torrent:"
-msgstr "每 Torrent 最大上传槽位:"
+msgstr "每 Torrent 最大上傳槽位:"
 
 msgid "Smart Ban Threshold (1-100):"
-msgstr "智能封禁阈值 (1-100):"
+msgstr "智慧封禁閾值 (1-100):"
 
 msgid "Smart Ban Parole"
-msgstr "智能封禁假释"
+msgstr "智慧封禁假釋"
 
 msgid "Isolate suspicious peers before permanent ban to prevent false positives"
-msgstr "先隔离再判定，减少误封"
+msgstr "先隔離再判定，減少誤封"
 
 msgid "Ban Duration after Eviction:"
-msgstr "驱逐后禁止重连时长:"
+msgstr "驅逐後禁止重連時長:"
 
 msgid "No Data Contribution Timeout:"
-msgstr "无数据贡献超时:"
+msgstr "無資料貢獻超時:"
 
 msgid "Tracker Subscription URL:"
-msgstr "Tracker 订阅 URL:"
+msgstr "Tracker 訂閱 URL:"
 
 msgid "Sync Now"
 msgstr "立即同步"
 
 msgid "Synced trackers update bt.trackerList. Click Save to apply."
-msgstr "同步后写入 bt.trackerList，需手动保存生效"
+msgstr "同步後寫入 bt.trackerList，需手動儲存生效"
 
 msgid "IO Baseline & Performance Modes"
-msgstr "IO 基线与性能模式"
+msgstr "IO 基線與效能模式"
 
 msgid "Game Mode"
-msgstr "游戏模式"
+msgstr "遊戲模式"
 
 msgid "Reduces buffer and IO frequency to minimize latency interference with 3D games"
-msgstr "动态缩小缓冲并降 IO 频率，降低对 3D 游戏抢占"
+msgstr "動態縮小緩衝並降 IO 頻率，降低對 3D 遊戲搶佔"
 
 msgid "Overclock Mode"
-msgstr "超频模式"
+msgstr "超頻模式"
 
 msgid "Aggressive multi-threading to push bandwidth to the hardware limit"
-msgstr "激进多线程压榨带宽极限"
+msgstr "激進多執行緒壓榨頻寬極限"
 
 msgid "Buffer Pool Limit:"
-msgstr "缓冲池上限:"
+msgstr "緩衝池上限:"
 
 msgid "Game Mode Buffer:"
-msgstr "游戏模式缓冲:"
+msgstr "遊戲模式緩衝:"
 
 msgid "HDD Max Parallel:"
-msgstr "HDD 最大并行:"
+msgstr "HDD 最大並行:"
 
 msgid "Game Mode Max Parallel:"
-msgstr "游戏模式最大并行:"
+msgstr "遊戲模式最大並行:"
 
 msgid "HDD Double-Buffer Optimization"
-msgstr "HDD 双缓冲优化"
+msgstr "HDD 雙緩衝最佳化"
 
 msgid "SSD Write Combining (0=auto):"
-msgstr "SSD 写合并 (0=auto):"
+msgstr "SSD 寫合併 (0=auto):"
 
 msgid "Disk Type Detection (SSD / HDD):"
-msgstr "磁盘类型检测 (SSD / HDD):"
+msgstr "磁碟型別檢測 (SSD / HDD):"
 
 msgid "Buffer Pool Status:"
-msgstr "缓冲池状态:"
+msgstr "緩衝池狀態:"
 
 msgid "Logging"
-msgstr "日志"
+msgstr "日誌"
 
 msgid "Enable File Logging"
-msgstr "启用文件日志"
+msgstr "啟用檔案日誌"
 
 msgid "Write logs to the specified filePath"
-msgstr "写入 filePath 指定的日志文件"
+msgstr "寫入 filePath 指定的日誌檔案"
 
 msgid "Log Level:"
-msgstr "日志级别:"
+msgstr "日誌級別:"
 
 msgid "Log File Path:"
-msgstr "日志文件路径:"
+msgstr "日誌檔案路徑:"
 
 msgid "Leave empty for system default, e.g. D:\\limedl\\logs\\limedl.log"
-msgstr "留空由系统决定，例 D:\\limedl\\logs\\limedl.log"
+msgstr "留空由系統決定，例 D:\\limedl\\logs\\limedl.log"
 
 msgid "Retention Files (empty for unlimited):"
-msgstr "保留文件数 (空=不限):"
+msgstr "保留檔案數 (空=不限):"
 
 msgid "Retention Days (empty for unlimited):"
-msgstr "保留天数 (空=不限):"
+msgstr "保留天數 (空=不限):"
 
 msgid "Aria2 RPC Service"
-msgstr "Aria2 RPC 服务"
+msgstr "Aria2 RPC 服務"
 
 msgid "Enable Aria2 RPC Service"
-msgstr "启用 Aria2 RPC 服务"
+msgstr "啟用 Aria2 RPC 服務"
 
 msgid "Allows browser extensions (such as Aria2 Explorer) to intercept downloads"
-msgstr "供浏览器插件（Aria2 Explorer 等）接管下载"
+msgstr "供瀏覽器外掛（Aria2 Explorer 等）接管下載"
 
 msgid "RPC Port (1-65535):"
-msgstr "RPC 端口 (1-65535):"
+msgstr "RPC 埠 (1-65535):"
 
 msgid "RPC Secret (empty for no authentication):"
-msgstr "RPC Secret (空为无鉴权):"
+msgstr "RPC Secret (空為無鑑權):"
 
 msgid "Leave empty for no secret"
-msgstr "留空表示不设 Secret"
+msgstr "留空表示不設 Secret"
 
 msgid "Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."
-msgstr "提示：Aria2 Explorer 扩展可在 Chrome/Edge/Firefox 商店搜索安装，填入 http://127.0.0.1:{{端口}} 与 Secret 即可接管。"
+msgstr "提示：Aria2 Explorer 擴充套件可在 Chrome/Edge/Firefox 商店搜尋安裝，填入 http://127.0.0.1:{{埠}} 與 Secret 即可接管。"
 
 msgid "Lightweight high-performance asynchronous multi-protocol download engine"
-msgstr "轻量级高性能异步多协议下载引擎"
+msgstr "輕量級高效能非同步多協議下載引擎"
 
 msgid "Cross-platform unified engine supporting HTTP/HTTPS adaptive multi-threading and full BitTorrent protocols."
-msgstr "跨平台多端统一调度内核，支持 HTTP/HTTPS 多线程自适应加速与完整 BitTorrent 协议。"
+msgstr "跨平臺多端統一排程核心，支援 HTTP/HTTPS 多執行緒自適應加速與完整 BitTorrent 協議。"
 
 msgid "System & Environment Info"
-msgstr "系统与环境信息"
+msgstr "系統與環境資訊"
 
 msgid "Client Version:"
-msgstr "客户端版本:"
+msgstr "客戶端版本:"
 
 msgid "Engine Core:"
 msgstr "核心引擎:"
 
 msgid "Target Arch & Graphics:"
-msgstr "目标架构与图形栈:"
+msgstr "目標架構與圖形棧:"
 
 msgid "Core Technology Stack:"
-msgstr "核心技术栈:"
+msgstr "核心技術棧:"
 
 msgid "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
-msgstr "Rust Edition 2024 / Slint Native UI / Skia 硬件加速 / Tokio 异步运行时"
+msgstr "Rust Edition 2024 / Slint Native UI / Skia 硬體加速 / Tokio 非同步執行時"
 
 msgid "License:"
-msgstr "开源协议:"
+msgstr "開源協議:"
 
 msgid "Save Settings"
-msgstr "保存设置"
+msgstr "儲存設定"
 
 msgid "Labs"
-msgstr "实验室 (Labs)"
+msgstr "實驗室 (Labs)"
 
 msgid "Labs features are experimental and may affect stability or performance. Use with caution."
-msgstr "实验室功能处于试验阶段，可能影响下载稳定性或性能，请谨慎调整。"
+msgstr "實驗室功能處於試驗階段，可能影響下載穩定性或效能，請謹慎調整。"
 
 msgid "CDN Optimization"
-msgstr "CDN 网络优选"
+msgstr "CDN 網路優選"
 
 msgid "URL Rewrite"
-msgstr "URL 镜像重写"
+msgstr "URL 映象重寫"
 
 msgid "CDN Smart Optimization"
-msgstr "CDN 智能优选加速"
+msgstr "CDN 智慧優選加速"
 
 msgid "Selects optimal edge IPs to bypass DNS pollution and boost download speeds"
-msgstr "通过测速挑选最佳边缘 IP，绕过 DNS 污染并大幅提升连接速度"
+msgstr "透過測速挑選最佳邊緣 IP，繞過 DNS 汙染並大幅提升連線速度"
 
 msgid "Enable CDN Optimization"
-msgstr "启用 CDN 网络优选"
+msgstr "啟用 CDN 網路優選"
 
 msgid "Automatically applies high-speed edge IPs when initiating HTTP downloads"
-msgstr "在发起 HTTP 下载时自动应用选定的高速边缘 IP"
+msgstr "在發起 HTTP 下載時自動應用選定的高速邊緣 IP"
 
 msgid "Optimization Provider:"
-msgstr "优选提供商:"
+msgstr "優選提供商:"
 
 msgid "Custom Speedtest File URL:"
-msgstr "自定义测速文件 URL:"
+msgstr "自定義測速檔案 URL:"
 
 msgid "Custom CIDR Ranges (comma separated):"
-msgstr "自定义 CIDR 网段 (逗号分隔):"
+msgstr "自定義 CIDR 網段 (逗號分隔):"
 
 msgid "Retest Speed"
-msgstr "重新测速"
+msgstr "重新測速"
 
 msgid "Start Speedtest"
-msgstr "开始测速"
+msgstr "開始測速"
 
 msgid "Stop Speedtest"
-msgstr "停止测速"
+msgstr "停止測速"
 
 msgid "Clear Optimization"
-msgstr "清除优选"
+msgstr "清除優選"
 
 msgid "Tip: Speedtest will consume approx 20-50MB traffic to measure candidate node throughput."
-msgstr "提示：测速过程会消耗约 20-50MB 流量测试各候选节点真实吞吐。"
+msgstr "提示：測速過程會消耗約 20-50MB 流量測試各候選節點真實吞吐。"
 
 msgid "Speedtest Failed: "
-msgstr "测速失败: "
+msgstr "測速失敗: "
 
 msgid "Active Node"
-msgstr "当前生效优选节点"
+msgstr "當前生效優選節點"
 
 msgid "Measured Bandwidth"
-msgstr "实测带宽"
+msgstr "實測頻寬"
 
 msgid "Test Time"
-msgstr "测速时间"
+msgstr "測速時間"
 
 msgid "vs Direct: "
-msgstr "相对直连提速: "
+msgstr "相對直連提速: "
 
 msgid "Latency Diff: "
-msgstr "延迟变化: "
+msgstr "延遲變化: "
 
 msgid "Benchmark: "
-msgstr "基准直连: "
+msgstr "基準直連: "
 
 msgid "Candidate Nodes Details:"
-msgstr "候选节点测速明细:"
+msgstr "候選節點測速明細:"
 
 msgid "TCP Latency"
-msgstr "TCP 延迟"
+msgstr "TCP 延遲"
 
 msgid "Bandwidth"
-msgstr "实测带宽"
+msgstr "實測頻寬"
 
 msgid "Action"
 msgstr "操作"
@@ -702,127 +702,127 @@ msgid "Active"
 msgstr "生效中"
 
 msgid "Failed"
-msgstr "失败"
+msgstr "失敗"
 
 msgid "Standby"
-msgstr "备选"
+msgstr "備選"
 
 msgid "Apply"
-msgstr "应用"
+msgstr "應用"
 
 msgid "Advanced Ranges & Manual IP Override"
-msgstr "高级网段与手动 IP 覆盖"
+msgstr "高階網段與手動 IP 覆蓋"
 
 msgid "Collapse"
 msgstr "收起"
 
 msgid "Expand"
-msgstr "展开"
+msgstr "展開"
 
 msgid "Cloudflare Preset CIDRs:"
-msgstr "Cloudflare 预设网段:"
+msgstr "Cloudflare 預設網段:"
 
 msgid "Manual IP Override (Applies immediately):"
-msgstr "手动指定 IP 地址 (直接生效):"
+msgstr "手動指定 IP 地址 (直接生效):"
 
 msgid "e.g. 104.16.0.1"
 msgstr "例如: 104.16.0.1"
 
 msgid "Apply Now"
-msgstr "立即应用"
+msgstr "立即應用"
 
 msgid "URL Mirror Rewrite & Dispatch"
-msgstr "URL 镜像重写与分发"
+msgstr "URL 映象重寫與分發"
 
 msgid "Automatically redirect GitHub, Hugging Face, etc. downloads to high-speed mirrors based on domains or regex"
-msgstr "根据域名或正则规则将 GitHub、Hugging Face 等下载自动替换为国内高速镜像"
+msgstr "根據域名或正則規則將 GitHub、Hugging Face 等下載自動替換為國內高速映象"
 
 msgid "Import Presets:"
-msgstr "一键导入预设:"
+msgstr "一鍵匯入預設:"
 
 msgid "GitHub Mirrors"
-msgstr "GitHub 镜像"
+msgstr "GitHub 映象"
 
 msgid "Add Rule"
-msgstr "添加规则"
+msgstr "新增規則"
 
 msgid "No rewrite rules configured"
-msgstr "暂无重写规则"
+msgstr "暫無重寫規則"
 
 msgid "Click \"Import Presets\" or \"Add Rule\" above to configure"
-msgstr "点击上方「一键导入预设」或「添加规则」进行配置"
+msgstr "點選上方「一鍵匯入預設」或「新增規則」進行配置"
 
 msgid "Unnamed Rule"
-msgstr "未命名规则"
+msgstr "未命名規則"
 
 msgid "Edit"
-msgstr "编辑"
+msgstr "編輯"
 
 msgid "Rule Name:"
-msgstr "规则名称:"
+msgstr "規則名稱:"
 
 msgid "e.g. GitHub Mirrors"
-msgstr "例如: GitHub 镜像"
+msgstr "例如: GitHub 映象"
 
 msgid "Match Type:"
-msgstr "匹配类型:"
+msgstr "匹配型別:"
 
 msgid "Match Pattern:"
-msgstr "匹配表达式 Pattern:"
+msgstr "匹配表示式 Pattern:"
 
 msgid "Replacement Mode:"
-msgstr "重写模式:"
+msgstr "重寫模式:"
 
 msgid "URL Encode Original (Recommended)"
-msgstr "URL 编码原链接 (推荐)"
+msgstr "URL 編碼原連結 (推薦)"
 
 msgid "Fallback to Original on Failure (Recommended)"
-msgstr "失败后回退原始 URL (推荐)"
+msgstr "失敗後回退原始 URL (推薦)"
 
 msgid "Mirror Targets (top-to-bottom priority):"
-msgstr "重写镜像目标 (按优先级从上至下):"
+msgstr "重寫映象目標 (按優先順序從上至下):"
 
 msgid "Add Target"
-msgstr "添加目标"
+msgstr "新增目標"
 
 msgid "Live Test Sandbox"
-msgstr "在线测试沙盒 (Live Test Sandbox)"
+msgstr "線上測試沙盒 (Live Test Sandbox)"
 
 msgid "Input Test URL:"
-msgstr "输入测试 URL:"
+msgstr "輸入測試 URL:"
 
 msgid "Matched Rule: "
-msgstr "命中规则: "
+msgstr "命中規則: "
 
 msgid "No rewrite rules matched. Original URL will be used."
-msgstr "未命中任何重写规则，将使用原 URL 直连下载。"
+msgstr "未命中任何重寫規則，將使用原 URL 直連下載。"
 
 msgid "Save Config"
-msgstr "保存配置"
+msgstr "儲存配置"
 
 msgid "All Tasks"
-msgstr "全部任务"
+msgstr "全部任務"
 
 msgid "Downloading"
-msgstr "正在下载"
+msgstr "正在下載"
 
 msgid "Paused"
-msgstr "已暂停"
+msgstr "已暫停"
 
 msgid "Completed"
 msgstr "已完成"
 
 msgid "Failed / Error"
-msgstr "失败/错误"
+msgstr "失敗/錯誤"
 
 msgid "Realtime Download Speed"
-msgstr "实时总下载速率"
+msgstr "實時總下載速率"
 
 msgid "Sort:"
 msgstr "排序:"
 
 msgid "Time"
-msgstr "时间"
+msgstr "時間"
 
 msgid "Size"
 msgstr "大小"
@@ -837,88 +837,88 @@ msgid "Descending"
 msgstr "降序"
 
 msgid "Pause All"
-msgstr "全部暂停"
+msgstr "全部暫停"
 
 msgid "Resume All"
-msgstr "全部继续"
+msgstr "全部繼續"
 
 msgid "New Task"
-msgstr "新建任务"
+msgstr "新建任務"
 
 msgid "No matching download tasks found"
-msgstr "未找到匹配的下载任务"
+msgstr "未找到匹配的下載任務"
 
 msgid "No download tasks"
-msgstr "暂无下载任务"
+msgstr "暫無下載任務"
 
 msgid "Try clearing your search keywords"
-msgstr "尝试清除搜索关键词"
+msgstr "嘗試清除搜尋關鍵詞"
 
 msgid "Click \"New Task\" in the top-right corner to add HTTP / BT downloads"
-msgstr "点击右上角「新建任务」添加 HTTP / BT 下载"
+msgstr "點選右上角「新建任務」新增 HTTP / BT 下載"
 
 msgid "Selected "
-msgstr "已选择 "
+msgstr "已選擇 "
 
 msgid " tasks"
-msgstr " 个任务"
+msgstr " 個任務"
 
 msgid "Select All"
-msgstr "全选"
+msgstr "全選"
 
 msgid "Deselect"
-msgstr "取消选择"
+msgstr "取消選擇"
 
 msgid "Pause Selected"
-msgstr "批量暂停"
+msgstr "批次暫停"
 
 msgid "Resume Selected"
-msgstr "批量继续"
+msgstr "批次繼續"
 
 msgid "Remove Records"
-msgstr "移除记录"
+msgstr "移除記錄"
 
 msgid "Delete Files"
-msgstr "彻底删除"
+msgstr "徹底刪除"
 
 msgid "Settings"
-msgstr "设置"
+msgstr "設定"
 
 msgid "Peers ({})"
-msgstr "节点 ({})"
+msgstr "節點 ({})"
 
 msgid "Trackers ({})"
-msgstr "服务器 ({})"
+msgstr "伺服器 ({})"
 
 msgid "Piece Map"
-msgstr "分片分布"
+msgstr "分片分佈"
 
 msgid "Files ({})"
-msgstr "文件列表 ({})"
+msgstr "檔案列表 ({})"
 
 msgid "Downloaded / Total Size"
-msgstr "已下载 / 总大小"
+msgstr "已下載 / 總大小"
 
 msgid "ETA"
-msgstr "剩余时间"
+msgstr "剩餘時間"
 
 msgid "Source URL:"
-msgstr "来源链接:"
+msgstr "來源連結:"
 
 msgid "Thread Mode:"
-msgstr "线程模式:"
+msgstr "執行緒模式:"
 
 msgid "Info Hash:"
 msgstr "Info Hash:"
 
 msgid "Error:"
-msgstr "错误:"
+msgstr "錯誤:"
 
 msgid "No connected peers"
-msgstr "暂无已连接节点"
+msgstr "暫無已連線節點"
 
 msgid "No registered trackers"
-msgstr "暂无注册 Tracker 服务器"
+msgstr "暫無註冊 Tracker 伺服器"
 
 msgid "Piece Map Completion:"
 msgstr "分片完成度:"
@@ -930,124 +930,124 @@ msgid "Pending Pieces"
 msgstr "待完成分片"
 
 msgid "Single file task or file list not yet parsed"
-msgstr "单文件任务或文件列表尚未解析"
+msgstr "單檔案任務或檔案列表尚未解析"
 
 msgid "Download URL / Magnet / Local Torrent Path:"
-msgstr "下载链接 / Magnet / 本地种子路径:"
+msgstr "下載連結 / Magnet / 本地種子路徑:"
 
 msgid "http://, https://, magnet:?xt=, or select a local .torrent file"
-msgstr "支持 http://、https://、magnet:?xt=，或选择本地 .torrent 文件"
+msgstr "支援 http://、https://、magnet:?xt=，或選擇本地 .torrent 檔案"
 
 msgid "Leave empty to auto-detect filename"
-msgstr "留空则自动识别文件名"
+msgstr "留空則自動識別檔名"
 
 msgid "Common:"
-msgstr "常规:"
+msgstr "常規:"
 
 msgid "Appearance"
-msgstr "外观"
+msgstr "外觀"
 
 msgid "Advanced:"
-msgstr "高级:"
+msgstr "高階:"
 
 msgid "IO & Storage"
-msgstr "IO 与存储"
+msgstr "IO 與儲存"
 
 msgid "Aria2"
 msgstr "Aria2"
 
 msgid "Appearance & System Integration"
-msgstr "外观与系统集成"
+msgstr "外觀與系統整合"
 
 msgid "Theme Mode:"
-msgstr "主题模式:"
+msgstr "主題模式:"
 
 msgid "Theme Color:"
-msgstr "主题颜色:"
+msgstr "主題顏色:"
 
 msgid "Background Opacity Preset:"
 msgstr "背景透明度:"
 
 msgid "UI Language:"
-msgstr "界面语言:"
+msgstr "介面語言:"
 
 msgid "Close Behavior:"
-msgstr "关闭行为:"
+msgstr "關閉行為:"
 
 msgid "Max In-Memory Records (10-10000):"
-msgstr "内存中最大记录数 (10-10000):"
+msgstr "記憶體中最大記錄數 (10-10000):"
 
 msgid "items"
-msgstr "条"
+msgstr "條"
 
 msgid "Show Detail Panel"
-msgstr "显示详情面板"
+msgstr "顯示詳情面板"
 
 msgid "Show download inspector and piece heatmap on the right"
-msgstr "在右侧显示任务检查器与分片热力图"
+msgstr "在右側顯示任務檢查器與分片熱力圖"
 
 msgid "Launch on Startup"
-msgstr "开机自启动"
+msgstr "開機自啟動"
 
 msgid "Automatically launch limedl-native upon user login"
-msgstr "用户登录后自动启动 limedl-native"
+msgstr "使用者登入後自動啟動 limedl-native"
 
 msgid "System Notifications"
-msgstr "系统通知"
+msgstr "系統通知"
 
 msgid "Show desktop notification on task completion/failure"
-msgstr "任务完成/失败时显示桌面通知"
+msgstr "任務完成/失敗時顯示桌面通知"
 
 msgid "Double-click Completed Task:"
-msgstr "双击已完成任务:"
+msgstr "雙擊已完成任務:"
 
 msgid "Double-click Uncompleted Task:"
-msgstr "双击未完成任务:"
+msgstr "雙擊未完成任務:"
 
 msgid "Download Defaults"
-msgstr "下载默认设置"
+msgstr "下載預設設定"
 
 msgid "Default Download Folder:"
-msgstr "默认下载目录:"
+msgstr "預設下載目錄:"
 
 msgid "Max Concurrent Tasks (traditional):"
-msgstr "最大并发任务数 (traditional):"
+msgstr "最大併發任務數 (traditional):"
 
 msgid "Max Retries (0-100):"
-msgstr "最大重试次数 (0-100):"
+msgstr "最大重試次數 (0-100):"
 
 msgid "times"
 msgstr "次"
 
 msgid "Default Checksum:"
-msgstr "默认校验算法:"
+msgstr "預設校驗演算法:"
 
 msgid "Auto-detect SHA-256"
-msgstr "自动识别 SHA-256"
+msgstr "自動識別 SHA-256"
 
 msgid "Default User-Agent (empty for Chrome 124):"
-msgstr "默认 User-Agent (留空使用 Chrome 124):"
+msgstr "預設 User-Agent (留空使用 Chrome 124):"
 
 msgid "Global Bandwidth Limit (0 for unlimited):"
-msgstr "全局带宽限制 (0 为不限制):"
+msgstr "全域性頻寬限制 (0 為不限制):"
 
 msgid "Task Speed Limit"
-msgstr "任务限速"
+msgstr "任務限速"
 
 msgid "Download Rate Limit (0 for unlimited):"
-msgstr "下载限速 (0 为不限制):"
+msgstr "下載限速 (0 為不限制):"
 
 msgid "Upload Rate Limit (0 for unlimited):"
-msgstr "上传限速 (0 为不限制):"
+msgstr "上傳限速 (0 為不限制):"
 
 msgid "Apply Speed Limit"
-msgstr "应用限速"
+msgstr "應用限速"
 
 msgid "Follow System"
-msgstr "跟随系统"
+msgstr "跟隨系統"
 
 msgid "Light"
-msgstr "浅色"
+msgstr "淺色"
 
 msgid "Dark"
 msgstr "深色"
@@ -1056,46 +1056,46 @@ msgid "Amber"
 msgstr "琥珀"
 
 msgid "Sky Blue"
-msgstr "天蓝"
+msgstr "天藍"
 
 msgid "Lime"
-msgstr "青柠"
+msgstr "青檸"
 
 msgid "Default"
-msgstr "默认"
+msgstr "預設"
 
 msgid "Acrylic"
-msgstr "亚克力"
+msgstr "亞克力"
 
 msgid "Frosted"
 msgstr "磨砂"
 
 msgid "简体中文"
-msgstr "简体中文"
+msgstr "簡體中文"
 
 msgid "English"
 msgstr "English"
 
 msgid "Minimize to Tray"
-msgstr "最小化到托盘"
+msgstr "最小化到托盤"
 
 msgid "Exit"
-msgstr "退出程序"
+msgstr "退出程式"
 
 msgid "No Action"
-msgstr "无操作"
+msgstr "無操作"
 
 msgid "Open File"
-msgstr "打开文件"
+msgstr "開啟檔案"
 
 msgid "Show in Explorer"
-msgstr "在资源管理器中显示"
+msgstr "在資源管理器中顯示"
 
 msgid "Open Download Directory"
-msgstr "打开下载目录"
+msgstr "開啟下載目錄"
 
 msgid "Pause / Resume"
-msgstr "暂停 / 继续"
+msgstr "暫停 / 繼續"
 
 msgid "BLAKE3"
 msgstr "BLAKE3"
@@ -1107,7 +1107,7 @@ msgid "XXH3-128"
 msgstr "XXH3-128"
 
 msgid "None (skip)"
-msgstr "不校验"
+msgstr "不校驗"
 
 msgid "SHA-1"
 msgstr "SHA-1"
@@ -1116,16 +1116,16 @@ msgid "Disabled"
 msgstr "禁用"
 
 msgid "System Proxy"
-msgstr "跟随系统"
+msgstr "跟隨系統"
 
 msgid "Manual"
-msgstr "手动"
+msgstr "手動"
 
 msgid "Automatic (adaptive)"
-msgstr "自动 (自适应线程)"
+msgstr "自動 (自適應執行緒)"
 
 msgid "Traditional (fixed)"
-msgstr "传统 (固定并发)"
+msgstr "傳統 (固定併發)"
 
 msgid "Conservative"
 msgstr "保守"
@@ -1134,22 +1134,22 @@ msgid "Balanced"
 msgstr "均衡"
 
 msgid "Aggressive"
-msgstr "激进"
+msgstr "激進"
 
 msgid "Adaptive"
-msgstr "自适应"
+msgstr "自適應"
 
 msgid "Fixed"
 msgstr "固定"
 
 msgid "Enabled"
-msgstr "启用"
+msgstr "啟用"
 
 msgid "Forced"
-msgstr "强制"
+msgstr "強制"
 
 msgid "None (sparse)"
-msgstr "无 (sparse)"
+msgstr "無 (sparse)"
 
 msgid "Full (zero-fill)"
 msgstr "完整 (zero-fill)"
@@ -1158,22 +1158,22 @@ msgid "Ban"
 msgstr "封禁"
 
 msgid "Limit Upload Slots"
-msgstr "限制上传槽位"
+msgstr "限制上傳槽位"
 
 msgid "Fastest Upload First"
-msgstr "最快上传优先"
+msgstr "最快上傳優先"
 
 msgid "Round Robin"
-msgstr "轮询调度"
+msgstr "輪詢排程"
 
 msgid "Anti-Leech First"
-msgstr "反吸血优先"
+msgstr "反吸血優先"
 
 msgid "Fixed Slots"
 msgstr "固定槽位"
 
 msgid "Rate Based"
-msgstr "基于速率"
+msgstr "基於速率"
 
 msgid "Trace"
 msgstr "Trace"
@@ -1191,79 +1191,79 @@ msgid "Error"
 msgstr "Error"
 
 msgid "Follow system switches automatically from the current Windows app theme."
-msgstr "跟随系统会根据 Windows 当前的应用主题自动切换。"
+msgstr "跟隨系統會根據 Windows 當前的應用主題自動切換。"
 
 msgid "Controls transparency and background blur for app panels and dialogs."
-msgstr "影响应用面板与模态框的透明度和背景模糊程度。"
+msgstr "影響應用面板與模態框的透明度和背景模糊程度。"
 
 msgid "Show detailed fields like URL, checksum, threads in the download inspector."
-msgstr "在下载检查器中显示 URL、校验和、线程等详细字段。"
+msgstr "在下載檢查器中顯示 URL、校驗和、執行緒等詳細欄位。"
 
 msgid "Start Limedl automatically when you log in. The app will start minimized to the system tray."
-msgstr "登录系统时自动启动 Limedl，启动后将最小化到系统托盘。"
+msgstr "登入系統時自動啟動 Limedl，啟動後將最小化到系統托盤。"
 
 msgid "Action to perform when double-clicking a completed download task."
-msgstr "设置双击已完成下载任务时的行为。"
+msgstr "設定雙擊已完成下載任務時的行為。"
 
 msgid "Action to perform when double-clicking an uncompleted download task."
-msgstr "设置双击未完成下载任务时的行为。"
+msgstr "設定雙擊未完成下載任務時的行為。"
 
 msgid "New tasks will prefill this folder, and you can still override it per task."
-msgstr "新建任务时会自动带入该目录，你仍然可以在任务里临时改掉。"
+msgstr "新建任務時會自動帶入該目錄，你仍然可以在任務裡臨時改掉。"
 
 msgid "New tasks no longer show checksum mode separately. This setting is used globally."
-msgstr "新建任务中不再单独显示校验方式，统一使用这里的设置。"
+msgstr "新建任務中不再單獨顯示校驗方式，統一使用這裡的設定。"
 
 msgid "Automatically probe for matching .sha256 or parent SHA256SUMS files when downloading HTTP links, and verify after completion."
-msgstr "下载 HTTP 链接时自动探测同名 .sha256 或目录下的 SHA256SUMS 校验文件，完成后自动核对。"
+msgstr "下載 HTTP 連結時自動探測同名 .sha256 或目錄下的 SHA256SUMS 校驗檔案，完成後自動核對。"
 
 msgid "New HTTP tasks prefill this UA, and each task can override it."
-msgstr "新建 HTTP 任务会自动带入该 UA，也可以在任务里单独覆盖。"
+msgstr "新建 HTTP 任務會自動帶入該 UA，也可以在任務裡單獨覆蓋。"
 
 msgid "Limit total download speed across all active tasks. 0 means unlimited."
-msgstr "限制所有活跃任务的总下载速度。0 表示不限速。"
+msgstr "限制所有活躍任務的總下載速度。0 表示不限速。"
 
 msgid "Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."
-msgstr "支持常见 HTTP / HTTPS / SOCKS 代理地址，按完整 URL 填写。"
+msgstr "支援常見 HTTP / HTTPS / SOCKS 代理地址，按完整 URL 填寫。"
 
 msgid "Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."
-msgstr "保守更偏节制线程，平衡兼顾开销与速度，激进优先追求下载速度。"
+msgstr "保守更偏節制執行緒，平衡兼顧開銷與速度，激進優先追求下載速度。"
 
 msgid "Auto-adjust chunk strategy based on network conditions"
-msgstr "根据网络状况自动调整分块策略"
+msgstr "根據網路狀況自動調整分塊策略"
 
 msgid "Set to 0 to use 50% of the max thread count automatically. The adaptive algorithm never goes below this once reached."
-msgstr "设为 0 则自动取最大线程数的 50%。到达最低值后自适应算法不会继续减线程。"
+msgstr "設為 0 則自動取最大執行緒數的 50%。到達最低值後自適應演算法不會繼續減執行緒。"
 
 msgid "DHT discovers peers from the distributed network. Changes apply to the BT session after restart."
-msgstr "DHT 会从分布式网络发现 Peer；修改后会在下次启动的 BT 会话中生效。"
+msgstr "DHT 會從分散式網路發現 Peer；修改後會在下次啟動的 BT 會話中生效。"
 
 msgid "Leave empty for auto-assignment. 1024–65535"
-msgstr "留空由系统自动分配。1024–65535"
+msgstr "留空由系統自動分配。1024–65535"
 
 msgid "Maximum peer connections per torrent."
-msgstr "每个 torrent 的最大 peer 连接数。"
+msgstr "每個 torrent 的最大 peer 連線數。"
 
 msgid "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."
-msgstr "从该地址下载 TXT，每行一个 Tracker URL。点击更新只会刷新下方列表，仍需保存设置。"
+msgstr "從該地址下載 TXT，每行一個 Tracker URL。點選更新只會重新整理下方列表，仍需儲存設定。"
 
 msgid "MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."
-msgstr "MSE/PE 协议加密。强制模式可能拒绝未加密连接。仅 irontide。"
+msgstr "MSE/PE 協議加密。強制模式可能拒絕未加密連線。僅 irontide。"
 
 msgid "Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."
-msgstr "完全预分配可减少磁盘碎片，但创建任务较慢。仅 irontide。"
+msgstr "完全預分配可減少磁碟碎片，但建立任務較慢。僅 irontide。"
 
 msgid "Maximum number of auto-managed active downloads"
-msgstr "自动管理的最大活跃下载任务数"
+msgstr "自動管理的最大活躍下載任務數"
 
 msgid "Maximum number of auto-managed active seeds"
-msgstr "自动管理的最大活跃做种任务数"
+msgstr "自動管理的最大活躍做種任務數"
 
 msgid "Maximum total number of torrents allowed"
-msgstr "允许添加的 Torrent 总数上限"
+msgstr "允許新增的 Torrent 總數上限"
 
 msgid "Hard limit on total active torrents (downloading + seeding + checking)"
-msgstr "同时活跃（下载+做种+校验）的硬上限"
+msgstr "同時活躍（下載+做種+校驗）的硬上限"
 
 msgid "0 = unlimited"
 msgstr "0 = 不限制"
@@ -1272,344 +1272,344 @@ msgid "0 = unlimited"
 msgstr "0 = 不限制"
 
 msgid "When either the uploaded amount or share ratio limit is reached, the matching BT task is paused."
-msgstr "满足上传量上限或分享率上限任一条件后，会暂停对应 BT 任务。"
+msgstr "滿足上傳量上限或分享率上限任一條件後，會暫停對應 BT 任務。"
 
 msgid "0 or empty means no limit"
 msgstr "填 0 或留空表示不限速"
 
 msgid "For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit."
-msgstr "例如 2 表示上传量达到已下载量的 2 倍后暂停；填 0 表示不按倍数限制。"
+msgstr "例如 2 表示上傳量達到已下載量的 2 倍後暫停；填 0 表示不按倍數限制。"
 
 msgid "Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers."
-msgstr "对等端需被放开上传这么久后才可能被标记，避免误伤刚接入的慢启动对等端。"
+msgstr "對等端需被放開上傳這麼久後才可能被標記，避免誤傷剛接入的慢啟動對等端。"
 
 msgid "Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check."
-msgstr "回传数据低于其取得数据该比例的 peer 将被视为吸血者；填 0 关闭比例判断。"
+msgstr "回傳資料低於其取得資料該比例的 peer 將被視為吸血者；填 0 關閉比例判斷。"
 
 msgid "Seconds a banned peer stays banned before it is unbanned and may reconnect."
-msgstr "被封禁对等端需等待的秒数，到期后自动解封可重新连接。"
+msgstr "被封禁對等端需等待的秒數，到期後自動解封可重新連線。"
 
 msgid "Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."
-msgstr "封禁：断开并暂时拉黑违规对等端；限制上传槽位：当 torrent 有吸血对等端时限制同时上传的槽位数。"
+msgstr "封禁：斷開並暫時拉黑違規對等端；限制上傳槽位：當 torrent 有吸血對等端時限制同時上傳的槽位數。"
 
 msgid "When a torrent has detected leechers, its concurrent upload slots are capped at this value."
-msgstr "当 torrent 检测到吸血对等端时，其并发上传槽位将限制为该值。"
+msgstr "當 torrent 檢測到吸血對等端時，其併發上傳槽位將限制為該值。"
 
 msgid "Periodically identify peers that download from you without giving data back, then enforce the selected action."
-msgstr "定期识别只下载却不回传数据的对等端，并按所选策略处理。"
+msgstr "定期識別只下載卻不回傳資料的對等端，並按所選策略處理。"
 
 msgid "Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."
-msgstr "将会话的 IP 过滤设为黑名单文件中的网段，被封段的（如已知吸血 IDC/网络）连接将被拒绝。"
+msgstr "將會話的 IP 過濾設為黑名單檔案中的網段，被封段的（如已知吸血 IDC/網路）連線將被拒絕。"
 
 msgid "Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."
-msgstr "填写黑名单文件路径。支持 eMule .dat 或 P2P 明文（每行一个 CIDR）格式，按文件扩展名自动选择解析器。"
+msgstr "填寫黑名單檔案路徑。支援 eMule .dat 或 P2P 明文（每行一個 CIDR）格式，按副檔名自動選擇解析器。"
 
 msgid "How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."
-msgstr "做种时对 peer 的排序方式。反吸血优先回报最高的做种对等端。"
+msgstr "做種時對 peer 的排序方式。反吸血優先回報最高的做種對等端。"
 
 msgid "How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."
-msgstr "每个 torrent 的 unchoke 槽位如何确定：固定槽位数 或 按速率自动调整。"
+msgstr "每個 torrent 的 unchoke 槽位如何確定：固定槽位數 或 按速率自動調整。"
 
 msgid "Maximum concurrent unchoke slots per torrent."
-msgstr "每个 torrent 的最大并发 unchoke 槽位数。"
+msgstr "每個 torrent 的最大併發 unchoke 槽位數。"
 
 msgid "Hash-failure involvements before a peer is automatically banned."
-msgstr "hash 校验失败的涉事次数超过该值后自动封禁该 peer。"
+msgstr "hash 校驗失敗的涉事次數超過該值後自動封禁該 peer。"
 
 msgid "Re-download a failed piece from an uninvolved peer to attribute the fault before striking."
-msgstr "从无关 peer 重新下载失败分片以判定责任，判责前不扣分。"
+msgstr "從無關 peer 重新下載失敗分片以判定責任，判責前不扣分。"
 
 msgid "Seconds an evicted (non-contributing) peer is blocked from reconnecting."
-msgstr "被驱逐（不贡献数据的）peer 需等待的封禁秒数，到期后可重新连接。"
+msgstr "被驅逐（不貢獻資料的）peer 需等待的封禁秒數，到期後可重新連線。"
 
 msgid "Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."
-msgstr "超过该秒数未收到分片数据的 peer 将被断开；填 0 关闭此保护。"
+msgstr "超過該秒數未收到分片資料的 peer 將被斷開；填 0 關閉此保護。"
 
 msgid "Enable double-buffer pool optimization for mechanical hard drives to improve write performance. Not needed for SSDs."
-msgstr "为机械硬盘启用双缓冲池优化，提升写入性能。SSD 不需要此功能。"
+msgstr "為機械硬碟啟用雙緩衝池最佳化，提升寫入效能。SSD 不需要此功能。"
 
 msgid "Maximum memory used to buffer HDD downloads. A larger buffer turns more random writes into sequential writes."
-msgstr "HDD 下载时用于缓冲的内存上限。更大的缓冲区可将更多随机写入转化为顺序写入。"
+msgstr "HDD 下載時用於緩衝的記憶體上限。更大的緩衝區可將更多隨機寫入轉化為順序寫入。"
 
 msgid "Buffer limit when game mode is active, reducing impact on gaming performance."
-msgstr "游戏模式激活时的缓冲区上限，降低对游戏性能的影响。"
+msgstr "遊戲模式啟用時的緩衝區上限，降低對遊戲效能的影響。"
 
 msgid "Maximum number of HDD downloads that can use the buffer simultaneously. Each gets an equal share of the buffer pool."
-msgstr "可同时使用缓冲区的 HDD 下载数量上限。每个下载均分缓冲池。"
+msgstr "可同時使用緩衝區的 HDD 下載數量上限。每個下載均分緩衝池。"
 
 msgid "Maximum parallel HDD downloads when game mode is active."
-msgstr "游戏模式激活时的最大并行 HDD 下载数。"
+msgstr "遊戲模式啟用時的最大並行 HDD 下載數。"
 
 msgid "Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data."
-msgstr "支持绝对路径或相对路径；留空时自动写入应用数据目录下的 logs/limedl.log。"
+msgstr "支援絕對路徑或相對路徑；留空時自動寫入應用資料目錄下的 logs/limedl.log。"
 
 msgid "Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."
-msgstr "在本地启动兼容 Aria2 RPC 的服务端，允许 Chrome 下载插件通过 Aria2 协议发起下载。"
+msgstr "在本地啟動相容 Aria2 RPC 的服務端，允許 Chrome 下載外掛透過 Aria2 協議發起下載。"
 
 msgid "Default 6800. Make sure the port is available."
-msgstr "默认 6800。确保端口未被其他程序占用。"
+msgstr "預設 6800。確保埠未被其他程式佔用。"
 
 msgid "Leave empty to allow connections without a secret. If set, configure the same token in your browser extension."
-msgstr "留空允许无密钥连接。设置后需在插件中配置相同 token。"
+msgstr "留空允許無金鑰連線。設定後需在外掛中配置相同 token。"
 
 msgid "MiSans VF © Beijing Xiaomi Mobile Software Co.,Ltd. Free for commercial use."
-msgstr "MiSans VF © 北京小米移动软件有限公司，免费商用授权。"
+msgstr "MiSans VF © 北京小米移動軟體有限公司，免費商用授權。"
 
 msgid "Font License:"
-msgstr "字体授权:"
+msgstr "字型授權:"
 msgid "Software Update"
-msgstr "软件更新"
+msgstr "軟體更新"
 
 msgid "Update Status:"
-msgstr "更新状态:"
+msgstr "更新狀態:"
 
 msgid "Distribution Channel:"
-msgstr "分发渠道:"
+msgstr "分發渠道:"
 
 msgid "Check for Updates"
-msgstr "检查更新"
+msgstr "檢查更新"
 
 msgid "Checking..."
-msgstr "检查中..."
+msgstr "檢查中..."
 
 msgid "Update in Store"
 msgstr "在商店中更新"
 
 msgid "Download & Install"
-msgstr "下载并更新"
+msgstr "下載並更新"
 
 msgid "Restart to Update"
-msgstr "重启以更新"
+msgstr "重啟以更新"
 
 msgid "Checking for updates..."
-msgstr "正在检查更新..."
+msgstr "正在檢查更新..."
 
 msgid "You are up to date."
 msgstr "已是最新版本。"
 
 msgid "Version {} is available."
-msgstr "发现新版本 {}。"
+msgstr "發現新版本 {}。"
 
 msgid "Downloading update..."
-msgstr "正在下载更新..."
+msgstr "正在下載更新..."
 
 msgid "v{} downloaded and verified. Restart to apply."
-msgstr "v{} 已下载并验证完成，重启后生效。"
+msgstr "v{} 已下載並驗證完成，重啟後生效。"
 
 msgid "Update check failed."
-msgstr "检查更新失败。"
+msgstr "檢查更新失敗。"
 
 msgid "No update checked yet."
-msgstr "尚未检查更新。"
+msgstr "尚未檢查更新。"
 
 msgid "Store (MSIX)"
 msgstr "商店版 (MSIX)"
 
 msgid "Installer"
-msgstr "安装版"
+msgstr "安裝版"
 
 msgid "Portable"
-msgstr "便携版"
+msgstr "便攜版"
 msgid "Single Task"
-msgstr "单个任务"
+msgstr "單個任務"
 
 msgid "Batch Mode"
-msgstr "批量模式"
+msgstr "批次模式"
 
 msgid "Detect Checksum"
-msgstr "探测校验和"
+msgstr "探測校驗和"
 
 msgid "Torrent Contents"
-msgstr "种子文件"
+msgstr "種子檔案"
 
 msgid "Batch URLs (one per line, # comments, [01-20] ranges supported):"
-msgstr "批量链接（每行一个，# 为注释，支持 [01-20] 区间）："
+msgstr "批次連結（每行一個，# 為註釋，支援 [01-20] 區間）："
 
 msgid "Add Batch Tasks"
-msgstr "批量提交"
+msgstr "批次提交"
 
 msgid "limedl Setup"
-msgstr "limedl 初始设置"
+msgstr "limedl 初始設定"
 
 msgid "First-run configuration"
-msgstr "首次运行配置"
+msgstr "首次執行配置"
 
 msgid "Welcome to limedl"
-msgstr "欢迎使用 limedl"
+msgstr "歡迎使用 limedl"
 
 msgid "The lightweight multi-protocol download manager."
-msgstr "轻量级多协议下载管理器。"
+msgstr "輕量級多協議下載管理器。"
 
 msgid "Open source license"
-msgstr "开源许可"
+msgstr "開源許可"
 
 msgid "limedl is released under the GNU General Public License v3.0 or later. The bundled MiSans font is licensed separately and loaded only locally."
-msgstr "limedl 基于 GNU 通用公共许可证 v3.0 或更高版本（GPL-3.0-or-later）发布。随附的 MiSans 字体按独立许可分发，仅在本地加载。"
+msgstr "limedl 基於 GNU 通用公共許可證 v3.0 或更高版本（GPL-3.0-or-later）釋出。隨附的 MiSans 字型按獨立許可分發，僅在本地載入。"
 
 msgid "This quick setup configures the essential options. You can change everything later in Settings or Labs."
-msgstr "此快速设置仅包含核心选项，之后可随时在设置中心或实验室中修改。"
+msgstr "此快速設定僅包含核心選項，之後可隨時在設定中心或實驗室中修改。"
 
 msgid "Language"
-msgstr "语言"
+msgstr "語言"
 
 msgid "Choose the UI language. It applies immediately."
-msgstr "选择界面语言，立即生效。"
+msgstr "選擇介面語言，立即生效。"
 
 msgid "Chinese (Simplified)"
-msgstr "简体中文"
+msgstr "簡體中文"
 
 msgid "Color Mode"
 msgstr "色彩模式"
 
 msgid "System"
-msgstr "跟随系统"
+msgstr "跟隨系統"
 
 msgid "Accent Color"
-msgstr "强调色"
+msgstr "強調色"
 
 msgid "Sky"
-msgstr "天蓝"
+msgstr "天藍"
 
 msgid "CDN Acceleration"
 msgstr "CDN 加速"
 
 msgid "Speed up downloads by routing through the fastest CDN edge node. You can re-test or disable it anytime in Labs."
-msgstr "通过最优 CDN 边缘节点加速下载；可随时在实验室中重新测速或关闭。"
+msgstr "透過最優 CDN 邊緣節點加速下載；可隨時在實驗室中重新測速或關閉。"
 
 msgid "Enable CDN Acceleration"
-msgstr "启用 CDN 加速"
+msgstr "啟用 CDN 加速"
 
 msgid "In mainland China, CDN acceleration typically improves GitHub / GitHub Release downloads the most."
-msgstr "在中国大陆，CDN 加速通常对 GitHub / GitHub Release 下载的提升最明显。"
+msgstr "在中國大陸，CDN 加速通常對 GitHub / GitHub Release 下載的提升最明顯。"
 
 msgid "Active edge node:"
-msgstr "当前边缘节点:"
+msgstr "當前邊緣節點:"
 
 msgid "Expose a JSON-RPC endpoint so browser extensions (Aria2 Explorer) can send downloads to limedl. Disable it if you do not need it."
-msgstr "暴露 JSON-RPC 端点，让浏览器扩展（如 Aria2 Explorer）可以向 limedl 推送下载任务；不需要时可关闭。"
+msgstr "暴露 JSON-RPC 端點，讓瀏覽器擴充套件（如 Aria2 Explorer）可以向 limedl 推送下載任務；不需要時可關閉。"
 
 msgid "Enable Aria2 RPC"
-msgstr "启用 Aria2 RPC"
+msgstr "啟用 Aria2 RPC"
 
 msgid "Secret token"
-msgstr "访问令牌"
+msgstr "訪問令牌"
 
 msgid "Optional"
-msgstr "可选"
+msgstr "可選"
 
 msgid "Tip: install the aria2-explorer extension and point it at this port to push links straight into limedl."
-msgstr "提示：安装 aria2-explorer 扩展并指向该端口，即可将链接直接推送到 limedl。"
+msgstr "提示：安裝 aria2-explorer 擴充套件並指向該埠，即可將連結直接推送到 limedl。"
 
 msgid "Download Directory"
-msgstr "下载目录"
+msgstr "下載目錄"
 
 msgid "New tasks prefill this folder; you can still override it per task."
-msgstr "新任务将预填此目录，每个任务仍可单独覆盖。"
+msgstr "新任務將預填此目錄，每個任務仍可單獨覆蓋。"
 
 msgid "e.g. C:\\Downloads"
 msgstr "例如 C:\\Downloads"
 
 msgid "If left empty, the system default downloads folder is used."
-msgstr "留空则使用系统默认下载目录。"
+msgstr "留空則使用系統預設下載目錄。"
 
 msgid "Performance Preference"
-msgstr "性能偏好"
+msgstr "效能偏好"
 
 msgid "Controls thread allocation and adaptive behavior. Choose the preset that matches your machine, or pick custom values in Settings later."
-msgstr "控制线程分配与自适应行为。请选择适合你机器的预设，之后可在设置中自定义数值。"
+msgstr "控制執行緒分配與自適應行為。請選擇適合你機器的預設，之後可在設定中自定義數值。"
 
 msgid "Power Saver"
-msgstr "省电"
+msgstr "省電"
 
 msgid "Low concurrency, minimal threads"
-msgstr "低并发，最少线程"
+msgstr "低併發，最少執行緒"
 
 msgid "Good default for most machines"
-msgstr "适合大多数机器的默认选择"
+msgstr "適合大多數機器的預設選擇"
 
 msgid "Max Speed"
-msgstr "极速"
+msgstr "極速"
 
 msgid "Aggressive threads & parallelism"
-msgstr "激进的线程与并行度"
+msgstr "激進的執行緒與並行度"
 
 msgid "Intelligent chunk allocation"
-msgstr "智能分块"
+msgstr "智慧分塊"
 
 msgid "Adapt chunk sizes to connection quality instead of fixed sizes"
-msgstr "根据连接质量自适应分块大小，而非固定大小"
+msgstr "根據連線質量自適應分塊大小，而非固定大小"
 
 msgid "System Settings"
-msgstr "系统设置"
+msgstr "系統設定"
 
 msgid "Start with system"
-msgstr "随系统启动"
+msgstr "隨系統啟動"
 
 msgid "Launch limedl minimized to tray on login"
-msgstr "登录时最小化到系统托盘启动"
+msgstr "登入時最小化到系統托盤啟動"
 
 msgid "Desktop notification on task completion or failure"
-msgstr "任务完成或失败时发送桌面通知"
+msgstr "任務完成或失敗時傳送桌面通知"
 
 msgid "Summary"
-msgstr "配置总结"
+msgstr "配置總結"
 
 msgid "Review your choices. Click any row to edit it."
-msgstr "请确认你的选择，点击任意条目即可修改。"
+msgstr "請確認你的選擇，點選任意條目即可修改。"
 
 msgid "System default"
-msgstr "系统默认"
+msgstr "系統預設"
 
 msgid "Setup"
-msgstr "设置"
+msgstr "設定"
 
 msgid "Performance"
-msgstr "性能"
+msgstr "效能"
 
 msgid "System Options"
-msgstr "系统"
+msgstr "系統"
 
 msgid "Enabled (port {})"
-msgstr "已启用（端口 {}）"
+msgstr "已啟用（埠 {}）"
 
 msgid "{} · Chunk allocation: {}"
-msgstr "{} · 智能分块: {}"
+msgstr "{} · 智慧分塊: {}"
 
 msgid "Autostart: {} · Notifications: {} · {}"
-msgstr "自启动: {} · 通知: {} · {}"
+msgstr "自啟動: {} · 通知: {} · {}"
 
 msgid "Back"
 msgstr "上一步"
 
 msgid "Skip All"
-msgstr "全部跳过"
+msgstr "全部跳過"
 
 msgid "Skip"
-msgstr "跳过"
+msgstr "跳過"
 
 msgid "Next"
 msgstr "下一步"
 
 msgid "Finish Setup"
-msgstr "完成设置"
+msgstr "完成設定"
 
 msgid "Refresh Task List"
-msgstr "刷新任务列表"
+msgstr "重新整理任務列表"
 
 msgid "Setup Wizard"
-msgstr "设置向导"
+msgstr "設定嚮導"
 
 msgid "Re-run the first-run wizard to reconfigure language, appearance, CDN, RPC, folder, performance and system options."
-msgstr "重新运行首次启动向导，重新配置语言、外观、CDN、RPC、目录、性能与系统选项。"
+msgstr "重新執行首次啟動向導，重新配置語言、外觀、CDN、RPC、目錄、效能與系統選項。"
 
 msgid "Re-run Setup Wizard"
-msgstr "重新运行设置向导"
+msgstr "重新執行設定嚮導"
 
 msgid "Table View"
-msgstr "表格视图"
+msgstr "表格檢視"
 
 msgid "Cards View"
-msgstr "卡片视图"
+msgstr "卡片檢視"
 
 msgid "Asc"
 msgstr "升序"
@@ -1621,25 +1621,25 @@ msgid "Clear Completed"
 msgstr "清除已完成"
 
 msgid "No download tasks yet"
-msgstr "暂无下载任务"
+msgstr "暫無下載任務"
 
 msgid "Add a URL or drag & drop files here to begin downloading"
-msgstr "添加链接或将文件拖曳到此处开始下载"
+msgstr "新增連結或將檔案拖曳到此處開始下載"
 
 msgid "Clear Search"
-msgstr "清除搜索"
+msgstr "清除搜尋"
 
 msgid "Create New Task"
-msgstr "新建任务"
+msgstr "新建任務"
 
 msgid "Drop .torrent or metalink files to start"
-msgstr "拖入 .torrent 种子或 metalink 文件即可开始"
+msgstr "拖入 .torrent 種子或 metalink 檔案即可開始"
 
 msgid "Copy File Name"
-msgstr "复制文件名"
+msgstr "複製檔名"
 
 msgid "Set Priority"
-msgstr "设置优先级"
+msgstr "設定優先順序"
 
 msgid "High"
 msgstr "高"
@@ -1651,46 +1651,46 @@ msgid "Low"
 msgstr "低"
 
 msgid "Downloaded"
-msgstr "已下载"
+msgstr "已下載"
 
 msgid "Up Speed"
-msgstr "上传速度"
+msgstr "上傳速度"
 
 msgid "Seeds"
-msgstr "做种"
+msgstr "做種"
 
 msgid "Actions"
 msgstr "操作"
 
 msgid "Compact View"
-msgstr "紧凑视图"
+msgstr "緊湊檢視"
 
 msgid "Use denser rows in the download list (table and cards)"
-msgstr "在下载列表（表格和卡片）中使用更紧密的行高"
+msgstr "在下載列表（表格和卡片）中使用更緊密的行高"
 
 msgid "Table Columns"
 msgstr "表格列"
 
 msgid "Choose which columns the table view shows (the file name column is always visible)."
-msgstr "选择表格视图中显示的列（文件名列始终可见）。"
+msgstr "選擇表格檢視中顯示的列（檔名列始終可見）。"
 
 msgid "Speed Limit Schedule"
-msgstr "计划限速"
+msgstr "計劃限速"
 
 msgid "Apply a different global speed limit per time-of-day range (local time). No matching range means the global limit above applies."
-msgstr "根据一天中的不同时段（本地时间）应用不同的全局限速。未匹配的时段将沿用上方的全局限速。"
+msgstr "根據一天中的不同時段（本地時間）應用不同的全侷限速。未匹配的時段將沿用上方的全侷限速。"
 
 msgid "Start / End (0-23 hours) and limit in KB/s (0 = unlimited)."
-msgstr "起始 / 结束（0-23 小时）及限速值 KB/s（0 表示不限速）。"
+msgstr "起始 / 結束（0-23 小時）及限速值 KB/s（0 表示不限速）。"
 
 msgid "Start"
 msgstr "起始"
 
 msgid "End"
-msgstr "结束"
+msgstr "結束"
 
 msgid "h"
-msgstr "时"
+msgstr "時"
 
 msgid "Limit"
 msgstr "限速"
@@ -1702,37 +1702,37 @@ msgid "Wraps to the next day"
 msgstr "跨至次日"
 
 msgid "Add Time Range"
-msgstr "添加时段"
+msgstr "新增時段"
 
 msgid "Danger Zone"
-msgstr "危险区域"
+msgstr "危險區域"
 
 msgid "Factory reset stops all downloads, deletes the download records, the database and the settings file, then restarts limedl."
-msgstr "恢复出厂设置将停止所有下载任务，删除下载记录、数据库和配置文件，随后重启 limedl。"
+msgstr "恢復出廠設定將停止所有下載任務，刪除下載記錄、資料庫和配置檔案，隨後重啟 limedl。"
 
 msgid "Factory Reset"
-msgstr "恢复出厂设置"
+msgstr "恢復出廠設定"
 
 msgid "This permanently deletes all local limedl data and cannot be undone. Continue?"
-msgstr "这将永久删除所有本地 limedl 数据且无法撤销。是否继续？"
+msgstr "這將永久刪除所有本地 limedl 資料且無法撤銷。是否繼續？"
 
 msgid "Confirm Reset"
-msgstr "确认重置"
+msgstr "確認重置"
 
 msgid "Uncheck a file to skip it (at least one file must stay selected)."
-msgstr "取消勾选文件以跳过下载（必须至少保留一个选中的文件）。"
+msgstr "取消勾選檔案以跳過下載（必須至少保留一個選中的檔案）。"
 
 msgid "Skipped"
-msgstr "已跳过"
+msgstr "已跳過"
 
 msgid "Fallback"
 msgstr "回退"
 
 msgid "Port"
-msgstr "端口"
+msgstr "埠"
 
 msgid "System notifications"
-msgstr "系统通知"
+msgstr "系統通知"
 
 msgid "CDN"
 msgstr "CDN 加速"
@@ -1744,28 +1744,29 @@ msgid "Native Edition"
 msgstr "原生桌面版"
 
 msgid "Hugging Face"
-msgstr "Hugging Face 镜像"
+msgstr "Hugging Face 映象"
 
 msgid "Civitai"
-msgstr "Civitai 镜像"
+msgstr "Civitai 映象"
 
 msgid "Fast Extension"
-msgstr "Fast 扩展"
+msgstr "Fast 擴充套件"
 
 msgid "Holepunch"
 msgstr "NAT 穿透 (Holepunch)"
 
 msgid "WebSeed"
-msgstr "Web 种子 (WebSeed)"
+msgstr "Web 種子 (WebSeed)"
 
 msgid "SuperSeed"
-msgstr "超级做种 (SuperSeed)"
+msgstr "超級做種 (SuperSeed)"
 
 msgid "Unknown"
 msgstr "未知"
 
 msgid "繁體中文"
-msgstr "繁体中文"
+msgstr "繁體中文"
 
 msgid "Chinese (Traditional)"
-msgstr "繁体中文"
+msgstr "繁體中文"
+

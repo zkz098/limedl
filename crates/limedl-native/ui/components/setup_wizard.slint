@@ -469,10 +469,16 @@ export component SetupWizard inherits Rectangle {
                                 clicked => { root.set_language(0); root.form.language_idx = 0; }
                             }
                             LanguageCard {
-                                text: "English";
-                                sub_text: @tr("English");
+                                text: "繁體中文";
+                                sub_text: @tr("Chinese (Traditional)");
                                 selected: root.form.language_idx == 1;
                                 clicked => { root.set_language(1); root.form.language_idx = 1; }
+                            }
+                            LanguageCard {
+                                text: "English";
+                                sub_text: @tr("English");
+                                selected: root.form.language_idx == 2;
+                                clicked => { root.set_language(2); root.form.language_idx = 2; }
                             }
                         }
                     }
@@ -1052,7 +1058,8 @@ export component SetupWizard inherits Rectangle {
 
     // ── Summary helpers ──
     function summary_language() -> string {
-        root.form.language_idx == 0 ? @tr("Chinese (Simplified)") : @tr("English");
+        root.form.language_idx == 0 ? @tr("Chinese (Simplified)") :
+        root.form.language_idx == 1 ? @tr("Chinese (Traditional)") : @tr("English");
     }
     function summary_appearance() -> string {
         root.summary_color_mode() + " · " + root.summary_theme();

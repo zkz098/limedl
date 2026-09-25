@@ -319,7 +319,7 @@ export component SettingsDialog inherits Rectangle {
                                 spacing: 4px;
                                 Text { text: @tr("UI Language:"); color: Theme.c9ca3af; font-size: 12px; }
                                 CustomSelect {
-                                    model: [@tr("简体中文"), @tr("English")];
+                                    model: [@tr("简体中文"), @tr("繁體中文"), @tr("English")];
                                     current-index <=> root.settings_form.appearance_language_idx;
                                     height: 36px;
                                 }

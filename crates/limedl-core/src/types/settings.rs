@@ -188,7 +188,7 @@ pub struct AppearanceSettings {
     /// Behavior when closing the main window: exit or minimize to tray.
     #[serde(default)]
     pub close_behavior: CloseBehavior,
-    /// User interface language: e.g. "zh-CN", "en-US", or empty for system default.
+    /// User interface language: e.g. "zh-CN", "zh-TW", "en-US", or empty for system default.
     #[serde(default)]
     pub language: String,
 }

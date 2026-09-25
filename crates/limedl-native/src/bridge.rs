@@ -457,7 +457,7 @@ pub(crate) mod combo {
     pub const COLOR_MODES: [&str; 3] = ["system", "light", "dark"];
     pub const THEME_COLORS: [&str; 3] = ["amber", "sky", "lime"];
     pub const OPACITY_PRESETS: [&str; 3] = ["default", "acrylic", "frosted"];
-    pub const LANGUAGES: [&str; 2] = ["zh-CN", "en-US"];
+    pub const LANGUAGES: [&str; 3] = ["zh-CN", "zh-TW", "en-US"];
     pub const CLOSE_BEHAVIORS: [&str; 2] = ["minimizeToTray", "exit"];
     pub const DOUBLE_CLICK_COMPLETED: [&str; 4] =
         ["none", "open_file", "open_in_explorer", "open_download_dir"];
@@ -1849,13 +1849,13 @@ pub fn app_settings_to_labs_form(
 ) -> LabsFormData {
     let cdn = &settings.cdn_acceleration;
     let (status_type, status_label) = if is_testing {
-        ("testing", match lang { Language::ZhCn => "测速中", Language::EnUs => "Testing" })
+        ("testing", match lang { Language::ZhCn => "测速中", Language::ZhTw => "測速中", Language::EnUs => "Testing" })
     } else if cdn.last_error.is_some() {
-        ("error", match lang { Language::ZhCn => "测速失败", Language::EnUs => "Failed" })
+        ("error", match lang { Language::ZhCn => "测速失败", Language::ZhTw => "測速失敗", Language::EnUs => "Failed" })
     } else if cdn.active_ip.is_some() {
-        ("ready", match lang { Language::ZhCn => "准备就绪", Language::EnUs => "Ready" })
+        ("ready", match lang { Language::ZhCn => "准备就绪", Language::ZhTw => "準備就緒", Language::EnUs => "Ready" })
     } else {
-        ("idle", match lang { Language::ZhCn => "未配置", Language::EnUs => "Not Configured" })
+        ("idle", match lang { Language::ZhCn => "未配置", Language::ZhTw => "未配置", Language::EnUs => "Not Configured" })
     };
 
     let active_speed_text = cdn
