@@ -4215,7 +4215,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-core"
-version = "0.3.11"
+version = "0.3.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4259,7 +4259,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-native"
-version = "0.3.11"
+version = "0.3.12"
 dependencies = [
  "anyhow",
  "arboard",

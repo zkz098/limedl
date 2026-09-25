@@ -20,7 +20,7 @@ Supported on Windows 10 / 11 64-bit:
 In PowerShell:
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\limedl-native-v0.3.11-windows-x86_64-setup.exe
+Get-FileHash -Algorithm SHA256 .\limedl-native-v0.3.12-windows-x86_64-setup.exe
 ```
 
 ---
@@ -29,7 +29,7 @@ Get-FileHash -Algorithm SHA256 .\limedl-native-v0.3.11-windows-x86_64-setup.exe
 
 Native builds for Apple Silicon (M1/M2/M3/M4):
 
-1. Download `limedl-native-v0.3.11-darwin-aarch64-portable.tar.gz` and extract it.
+1. Download `limedl-native-v0.3.12-darwin-aarch64-portable.tar.gz` and extract it.
 2. Drag `limedl.app` into your **Applications** folder.
 3. **First launch**: Because the binary is ad-hoc signed without an Apple Developer ID certificate, right-click (or Control-click) `limedl.app` in Finder and select **Open**.
 
@@ -41,12 +41,12 @@ Supports modern Linux distributions with glibc ≥ 2.39 (e.g. Ubuntu 24.04+, Fed
 
 ### Method 1: AppImage Standalone (Recommended)
 
-1. Download `limedl-native-v0.3.11-linux-x86_64.AppImage`.
+1. Download `limedl-native-v0.3.12-linux-x86_64.AppImage`.
 2. Make it executable and run:
 
 ```bash
-chmod +x limedl-native-v0.3.11-linux-x86_64.AppImage
-./limedl-native-v0.3.11-linux-x86_64.AppImage
+chmod +x limedl-native-v0.3.12-linux-x86_64.AppImage
+./limedl-native-v0.3.12-linux-x86_64.AppImage
 ```
 
 ### Method 2: Debian / Ubuntu (.deb) Package
@@ -54,13 +54,13 @@ chmod +x limedl-native-v0.3.11-linux-x86_64.AppImage
 For Debian, Ubuntu, Linux Mint, Pop!_OS:
 
 ```bash
-sudo apt install ./limedl-native-v0.3.11-linux-x86_64.deb
+sudo apt install ./limedl-native-v0.3.12-linux-x86_64.deb
 ```
 
 ### Method 3: Portable Tarball (.tar.gz)
 
 ```bash
-tar -xzf limedl-native-v0.3.11-linux-x86_64-portable.tar.gz
+tar -xzf limedl-native-v0.3.12-linux-x86_64-portable.tar.gz
 cd limedl-native
 ./limedl-native
 ```
