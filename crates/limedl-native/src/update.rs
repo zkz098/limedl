@@ -825,8 +825,9 @@ mod tests {
 
     #[test]
     fn manifest_keys_follow_install_kind() {
-        assert_eq!(manifest_key(InstallKind::Installer), "windows-x86_64");
-        assert_eq!(manifest_key(InstallKind::Portable), "windows-x86_64-portable");
+        let base = platform_base();
+        assert_eq!(manifest_key(InstallKind::Installer), base);
+        assert_eq!(manifest_key(InstallKind::Portable), format!("{base}-portable"));
     }
 
     /// `platform_base()` derives the OS half of the key from `consts::OS`, which
