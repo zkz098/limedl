@@ -16,7 +16,7 @@ const rows = isEn
       },
       {
         metric: 'Window Launch & IPC',
-        limedl: '~250ms Launch · < 100ms IPC Handover',
+        limedl: '~100ms Launch · < 100ms IPC Handover',
         commercial: '2 - 4s (Slow verification)',
         legacy: '2 - 5s (Chromium blank loading)',
       },
@@ -28,13 +28,13 @@ const rows = isEn
       },
       {
         metric: 'Disk I/O Throughput',
-        limedl: '> 3.6 GiB/s (Zero-copy double buffer)',
+        limedl: '~4.0 GiB/s (Zero-copy double buffer)',
         commercial: 'Unbuffered, frequent disk thrashing',
         legacy: 'Basic sequential write / limited buffering',
       },
       {
         metric: 'Algorithm & Scheduling',
-        limedl: 'Nanosecond level (AIMD 1.18ns · Limiter 72ns)',
+        limedl: 'Nanosecond level (AIMD 1.13ns · Limiter 72ns)',
         commercial: 'High CPU on multi-gigabit speeds',
         legacy: 'Single-threaded event loop bottlenecks',
       },
@@ -72,7 +72,7 @@ const rows = isEn
       },
       {
         metric: '窗口呈现与拉起耗时',
-        limedl: '~250ms 窗口拉起 · < 100ms 单实例唤醒',
+        limedl: '~100ms 窗口拉起 · < 100ms 单实例唤醒',
         commercial: '2 - 4 秒 (云端验证与弹窗加载)',
         legacy: '2 - 5 秒 (Electron 白屏加载)',
       },
@@ -84,13 +84,13 @@ const rows = isEn
       },
       {
         metric: '磁盘 I/O 写入吞吐',
-        limedl: '> 3.6 GiB/s (双缓冲零拷贝保护磁盘)',
+        limedl: '~4.0 GiB/s (双缓冲零拷贝保护磁盘)',
         commercial: '碎片直接落盘，高频卡盘伤盘',
         legacy: '基础单向顺序写入，高并发易阻塞',
       },
       {
         metric: '调度算法与 CPU 开销',
-        limedl: '纳秒级 (AIMD 拥塞控制 1.18ns)',
+        limedl: '纳秒级 (AIMD 拥塞控制 1.13ns)',
         commercial: '未知 / 高带宽下高 CPU 占用',
         legacy: '单线程轮询易遇性能瓶颈',
       },
