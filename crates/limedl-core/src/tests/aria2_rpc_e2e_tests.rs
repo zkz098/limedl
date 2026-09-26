@@ -293,3 +293,142 @@ async fn aria2_global_stat_returns_counters() {
 
     let _ = shutdown_tx.send(true);
 }
+
+/// `aria2.addUri` must forward `header` / `referer` options to the HTTP layer.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn aria2_add_uri_forwards_headers_to_http_requests() {
+    use axum::{
+        Router,
+        extract::State,
+        http::{HeaderMap, StatusCode, header},
+        response::IntoResponse,
+        routing::get,
+    };
+
+    #[derive(Clone)]
+    struct Capture {
+        seen: Arc<tokio::sync::Mutex<Vec<HeaderMap>>>,
+    }
+
+    async fn serve(State(state): State<Capture>, headers: HeaderMap) -> impl IntoResponse {
+        state.seen.lock().await.push(headers);
+        let mut response_headers = HeaderMap::new();
+        response_headers.insert(header::CONTENT_LENGTH, "5".parse().unwrap());
+        response_headers.insert(header::ACCEPT_RANGES, "bytes".parse().unwrap());
+        (StatusCode::OK, response_headers, b"hello".to_vec())
+    }
+
+    let seen = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let app = Router::new()
+        .route("/file", get(serve))
+        .with_state(Capture { seen: seen.clone() });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+
+    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+    let url = format!("http://127.0.0.1:{}/file", addr.port());
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            [url],
+            {
+                "dir": dest_dir.to_string_lossy(),
+                "out": "headers.bin",
+                "header": ["X-Test-Header: abc", "Accept-Language: ja"],
+                "referer": "https://example.com/page"
+            }
+        ]),
+    )
+    .await;
+    assert!(resp["result"].is_string(), "addUri failed: {resp}");
+
+    // Wait until the download actually hits the capture server.
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    loop {
+        if !seen.lock().await.is_empty() {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "no HTTP request reached the capture server"
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    let seen = seen.lock().await;
+    for headers in seen.iter() {
+        assert_eq!(
+            headers.get("x-test-header").and_then(|v| v.to_str().ok()),
+            Some("abc")
+        );
+        assert_eq!(
+            headers.get("accept-language").and_then(|v| v.to_str().ok()),
+            Some("ja")
+        );
+        assert_eq!(
+            headers.get("referer").and_then(|v| v.to_str().ok()),
+            Some("https://example.com/page")
+        );
+    }
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// Multiple URIs are treated as an ordered mirror list (aria2 semantics).
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn aria2_add_uri_multiple_uris_use_mirror_fallback() {
+    let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
+    let mirror_url = test_server.file_url_range();
+
+    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            ["http://127.0.0.1:1/broken", mirror_url],
+            {"dir": dest_dir.to_string_lossy(), "out": "mirror.bin", "split": "1"}
+        ]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .expect("addUri should return GID")
+        .to_string();
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        let status = rpc_call(
+            &client,
+            &rpc_url,
+            "aria2.tellStatus",
+            serde_json::json!([gid]),
+        )
+        .await;
+        match status["result"]["status"].as_str() {
+            Some("complete") => break,
+            Some("error") => panic!("mirror fallback failed: {status}"),
+            _ => {}
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "mirror fallback timed out: {status}"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    let _ = shutdown_tx.send(true);
+}

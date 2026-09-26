@@ -513,6 +513,137 @@ fn extract_option_u32_invalid_value() {
     assert_eq!(result, None);
 }
 
+// ── aria2 request-option passthrough ─────────────────────────────────────
+
+#[test]
+#[timeout(10_000)]
+fn extract_option_headers_array_keeps_valid_and_drops_malformed() {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "header".to_string(),
+        json!(["X-A: 1", "no-colon", "  X-B:  two  ", ""]),
+    );
+    let headers = extract_option_headers(Some(&map), "header");
+    assert_eq!(headers, vec!["X-A: 1", "X-B:  two"]);
+}
+
+#[test]
+#[timeout(10_000)]
+fn extract_option_headers_single_string() {
+    let mut map = serde_json::Map::new();
+    map.insert("header".to_string(), json!("Cookie: a=b"));
+    assert_eq!(
+        extract_option_headers(Some(&map), "header"),
+        vec!["Cookie: a=b"]
+    );
+}
+
+#[test]
+#[timeout(10_000)]
+fn extract_option_headers_missing_or_wrong_type() {
+    let map = serde_json::Map::new();
+    assert!(extract_option_headers(Some(&map), "header").is_empty());
+
+    let mut map = serde_json::Map::new();
+    map.insert("header".to_string(), json!(42));
+    assert!(extract_option_headers(Some(&map), "header").is_empty());
+}
+
+#[test]
+#[timeout(10_000)]
+fn collect_request_headers_appends_referer() {
+    let mut map = serde_json::Map::new();
+    map.insert("referer".to_string(), json!("https://example.com/page"));
+    let headers = collect_request_headers(Some(&map), "https://example.com/file.bin");
+    assert_eq!(headers, vec!["Referer: https://example.com/page"]);
+}
+
+#[test]
+#[timeout(10_000)]
+fn collect_request_headers_referer_star_uses_download_url() {
+    let mut map = serde_json::Map::new();
+    map.insert("referer".to_string(), json!("*"));
+    let url = "https://example.com/file.bin";
+    let headers = collect_request_headers(Some(&map), url);
+    assert_eq!(headers, vec![format!("Referer: {url}")]);
+}
+
+#[test]
+#[timeout(10_000)]
+fn collect_request_headers_explicit_referer_wins() {
+    let mut map = serde_json::Map::new();
+    map.insert("header".to_string(), json!(["Referer: https://explicit.example/"]));
+    map.insert("referer".to_string(), json!("https://option.example/"));
+    let headers = collect_request_headers(Some(&map), "https://example.com/file.bin");
+    assert_eq!(headers, vec!["Referer: https://explicit.example/"]);
+}
+
+#[test]
+#[timeout(10_000)]
+fn collect_request_headers_basic_auth() {
+    let mut map = serde_json::Map::new();
+    map.insert("http-user".to_string(), json!("user"));
+    map.insert("http-passwd".to_string(), json!("pass"));
+    let headers = collect_request_headers(Some(&map), "https://example.com/file.bin");
+    assert_eq!(headers, vec!["Authorization: Basic dXNlcjpwYXNz"]);
+}
+
+#[test]
+#[timeout(10_000)]
+fn collect_request_headers_explicit_authorization_wins() {
+    let mut map = serde_json::Map::new();
+    map.insert("header".to_string(), json!(["Authorization: Bearer tok"]));
+    map.insert("http-user".to_string(), json!("user"));
+    map.insert("http-passwd".to_string(), json!("pass"));
+    let headers = collect_request_headers(Some(&map), "https://example.com/file.bin");
+    assert_eq!(headers, vec!["Authorization: Bearer tok"]);
+}
+
+#[test]
+#[timeout(10_000)]
+fn collect_request_headers_empty_when_no_options() {
+    assert!(collect_request_headers(None, "https://example.com/file.bin").is_empty());
+}
+
+#[test]
+#[timeout(10_000)]
+fn parse_checksum_option_supported_types() {
+    for (raw, expected_mode) in [
+        ("sha-256=ABCDEF", ChecksumMode::Sha256),
+        ("sha256=ABCDEF", ChecksumMode::Sha256),
+        ("sha-1=ABCDEF", ChecksumMode::Sha1),
+        ("blake3=ABCDEF", ChecksumMode::Blake3),
+    ] {
+        let mut map = serde_json::Map::new();
+        map.insert("checksum".to_string(), json!(raw));
+        let (mode, digest) = parse_checksum_option(Some(&map));
+        assert_eq!(mode, Some(expected_mode), "type mismatch for {raw}");
+        assert_eq!(digest, Some("abcdef".to_string()), "digest mismatch for {raw}");
+    }
+}
+
+#[test]
+#[timeout(10_000)]
+fn parse_checksum_option_ignores_unsupported_and_malformed() {
+    for raw in ["md5=abc", "sha-512=abc", "adler32=abc", "no-equals", "sha-256="] {
+        let mut map = serde_json::Map::new();
+        map.insert("checksum".to_string(), json!(raw));
+        assert_eq!(parse_checksum_option(Some(&map)), (None, None), "raw={raw}");
+    }
+    assert_eq!(parse_checksum_option(None), (None, None));
+}
+
+#[test]
+#[timeout(10_000)]
+fn find_header_value_is_case_insensitive() {
+    let headers = vec!["X-A: 1".to_string(), "REFERER: https://example.com/".to_string()];
+    assert_eq!(
+        find_header_value(&headers, "referer"),
+        Some("https://example.com/".to_string())
+    );
+    assert_eq!(find_header_value(&headers, "missing"), None);
+}
+
 // ── strip_token helper ────────────────────────────────────────────────────
 
 #[test]

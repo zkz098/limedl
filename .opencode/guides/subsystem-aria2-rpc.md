@@ -39,3 +39,4 @@ Axum Router → dispatch_method(method, params)
 - 此实现经过 AriaNg / Motrix 实际测试验证兼容性。
 - 辅助函数 `cleanup_old_aria2_temp_files` 清理旧的 aria2 临时文件。
 - 支持约 20 个 aria2 方法（addUri, addTorrent, pause/unpause/remove, tellStatus, tellActive, tellWaiting, tellStopped, getGlobalStat, getGlobalOption, changeGlobalOption, getVersion, getFiles, getUris, getPeers, shutdown, system.listMethods, system.listNotifications 等）。
+- `aria2.addUri` 透传 aria2 请求选项：`header`（字符串数组或单字符串，格式 `Name: value`）、`referer`（`*` 表示使用下载 URL 本身）、`http-user`/`http-passwd`（合成 `Authorization: Basic`）、`checksum`（`TYPE=DIGEST`，仅支持 sha-256/sha-1/blake3）、`user-agent`、`split`、`max-tries`、`out`、`dir`、`pause`。`uris` 数组按 aria2 语义视为有序候选列表：第一个为主 URL，其余作为镜像写入 `mirror_urls`。`aria2.getOption` 返回任务真实的 `user-agent` / `referer` / `header`（从内存中的 manifest 读取）。

@@ -27,10 +27,11 @@ use crate::{
     bt_backend::IrontideBtBackend,
     dispatcher::Dispatcher,
     event_bus::{DownloadEvent, EventBus},
+    http::has_header,
     manager::DownloadManager,
     types::{
-        Aria2RpcSettings, BtPeerInfo, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
-        TaskKind,
+        Aria2RpcSettings, BtPeerInfo, ChecksumMode, DownloadState, DownloadSummary,
+        StartDownloadRequest, TaskId, TaskKind,
     },
 };
 
@@ -309,11 +310,15 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
     }
 
     let options = params.get(1).and_then(|v| v.as_object());
-    // uris was checked for non-empty above; use expect with a message as safety net
+    // aria2 treats `uris` as an ordered candidate list: the first entry is the
+    // primary target and the remaining entries act as mirrors.
     let url = uris
-        .into_iter()
-        .next()
+        .first()
+        .cloned()
         .ok_or_else(|| make_error(ERR_INTERNAL, "uris unexpectedly empty"))?;
+    let mirror_urls = (uris.len() > 1).then(|| uris.clone());
+    let headers = collect_request_headers(options, &url);
+    let (checksum, expected_checksum) = parse_checksum_option(options);
     let destination_dir = options
         .and_then(|o| o.get("dir"))
         .and_then(|v| v.as_str())
@@ -335,12 +340,12 @@ async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, J
         thread_mode: None,
         thread_count: extract_option_usize(options, "split"),
         max_retries: extract_option_u32(options, "max-tries"),
-        checksum: None,
-        expected_checksum: None,
+        checksum,
+        expected_checksum,
         selected_file_indices: None,
-        headers: None,
+        headers: (!headers.is_empty()).then_some(headers),
         start_paused: false,
-        mirror_urls: None,
+        mirror_urls,
         priority: None,
     };
 
@@ -515,6 +520,126 @@ fn extract_option_u32(options: Option<&serde_json::Map<String, Value>>, key: &st
     options
         .and_then(|o| o.get(key))
         .and_then(|v| v.as_str().and_then(|s| s.parse::<u32>().ok()))
+}
+
+/// Collect the aria2 `header` option into `"Name: value"` strings.
+///
+/// aria2 documents `header` as a repeatable option; over JSON-RPC it is an
+/// array of strings (AriaNg, Motrix), but some clients send a single string.
+/// Malformed entries without a colon are dropped.
+fn extract_option_headers(
+    options: Option<&serde_json::Map<String, Value>>,
+    key: &str,
+) -> Vec<String> {
+    let mut headers = Vec::new();
+    match options.and_then(|o| o.get(key)) {
+        Some(Value::Array(items)) => {
+            for item in items {
+                if let Some(raw) = item.as_str() {
+                    push_header(&mut headers, raw);
+                }
+            }
+        }
+        Some(Value::String(raw)) => push_header(&mut headers, raw),
+        _ => {}
+    }
+    headers
+}
+
+fn push_header(headers: &mut Vec<String>, raw: &str) {
+    let trimmed = raw.trim();
+    if !trimmed.is_empty() && trimmed.contains(':') {
+        headers.push(trimmed.to_string());
+    }
+}
+
+/// Build the effective extra-header list from aria2 request options.
+///
+/// Maps `header` (array/string), `referer` (`*` means the download URL
+/// itself) and `http-user`/`http-passwd` (Basic auth) onto the header list
+/// consumed by `StartDownloadRequest::headers`.
+fn collect_request_headers(
+    options: Option<&serde_json::Map<String, Value>>,
+    url: &str,
+) -> Vec<String> {
+    let mut headers = extract_option_headers(options, "header");
+
+    if let Some(referer) = extract_option_str(options, "referer") {
+        let referer = referer.trim();
+        if !referer.is_empty() && !has_header(&headers, "referer") {
+            let value = if referer == "*" { url } else { referer };
+            headers.push(format!("Referer: {value}"));
+        }
+    }
+
+    if let Some(user) = extract_option_str(options, "http-user") {
+        let user = user.trim();
+        if !user.is_empty() && !has_header(&headers, "authorization") {
+            let password = extract_option_str(options, "http-passwd").unwrap_or_default();
+            let encoded =
+                base64::engine::general_purpose::STANDARD.encode(format!("{user}:{password}"));
+            headers.push(format!("Authorization: Basic {encoded}"));
+        }
+    }
+
+    headers
+}
+
+/// Parse the aria2 `checksum` option (`"TYPE=DIGEST"`, e.g.
+/// `sha-256=abcdef…`) into limedl checksum fields.
+///
+/// Unsupported hash types (md5, sha-512, adler32) and malformed values are
+/// ignored, matching aria2's own tolerant behaviour for optional metadata.
+fn parse_checksum_option(
+    options: Option<&serde_json::Map<String, Value>>,
+) -> (Option<ChecksumMode>, Option<String>) {
+    let Some(raw) = extract_option_str(options, "checksum") else {
+        return (None, None);
+    };
+    let Some((hash_type, digest)) = raw.trim().split_once('=') else {
+        return (None, None);
+    };
+    let mode = match hash_type.trim().to_ascii_lowercase().as_str() {
+        "sha-256" | "sha256" => ChecksumMode::Sha256,
+        "sha-1" | "sha1" => ChecksumMode::Sha1,
+        "blake3" => ChecksumMode::Blake3,
+        _ => return (None, None),
+    };
+    let digest = digest.trim().to_ascii_lowercase();
+    if digest.is_empty() {
+        return (None, None);
+    }
+    (Some(mode), Some(digest))
+}
+
+/// Case-insensitive lookup of a `"Name: value"` entry's value.
+fn find_header_value(headers: &[String], name: &str) -> Option<String> {
+    headers.iter().find_map(|header| {
+        let (header_name, value) = header.split_once(':')?;
+        header_name
+            .trim()
+            .eq_ignore_ascii_case(name)
+            .then(|| value.trim().to_string())
+    })
+}
+
+/// Read a task's effective User-Agent and extra headers from the in-memory
+/// download map (all persisted downloads are loaded there at startup).
+async fn task_request_headers(ctx: &RpcContext, id: &str) -> (String, Vec<String>) {
+    let Some(dm) = ctx.registry.get_typed::<DownloadManager>() else {
+        return (String::new(), Vec::new());
+    };
+    let managed = dm.downloads.read().await.get(id).cloned();
+    match managed {
+        Some(managed) => {
+            let core = managed.lock_core();
+            (
+                core.manifest.user_agent.clone(),
+                core.manifest.extra_headers.clone(),
+            )
+        }
+        None => (String::new(), Vec::new()),
+    }
 }
 
 fn broadcast_event(ctx: &RpcContext, method: &str, gid: &str) {
@@ -971,6 +1096,11 @@ async fn handle_get_option(ctx: &RpcContext, params: Vec<Value>) -> Result<Value
     // Convert priority to aria2 position string if available
     let position = (summary.priority as u8).to_string();
 
+    // Effective per-task request metadata (User-Agent, Referer, custom headers).
+    let (user_agent, extra_headers) = task_request_headers(ctx, &raw_id).await;
+    let referer = find_header_value(&extra_headers, "referer").unwrap_or_default();
+    let header_values: Vec<Value> = extra_headers.iter().cloned().map(Value::String).collect();
+
     let mut map = serde_json::Map::new();
     map.insert("dir".to_string(), Value::String(dir));
     map.insert("out".to_string(), Value::String(summary.file_name));
@@ -1126,7 +1256,7 @@ async fn handle_get_option(ctx: &RpcContext, params: Vec<Value>) -> Result<Value
         "realtime-chunk-checksum".to_string(),
         Value::String("true".to_string()),
     );
-    map.insert("referer".to_string(), Value::String("".to_string()));
+    map.insert("referer".to_string(), Value::String(referer));
     map.insert("remote-time".to_string(), Value::String("false".to_string()));
     map.insert(
         "remove-control-file".to_string(),
@@ -1182,7 +1312,8 @@ async fn handle_get_option(ctx: &RpcContext, params: Vec<Value>) -> Result<Value
         Value::String("feedback".to_string()),
     );
     map.insert("use-head".to_string(), Value::String("false".to_string()));
-    map.insert("user-agent".to_string(), Value::String("".to_string()));
+    map.insert("user-agent".to_string(), Value::String(user_agent));
+    map.insert("header".to_string(), Value::Array(header_values));
     map.insert("position".to_string(), Value::String(position));
 
     Ok(Value::Object(map))
