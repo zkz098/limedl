@@ -544,13 +544,13 @@ export component SettingsDialog inherits Rectangle {
 
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: @tr("Default User-Agent (empty for Chrome 124):"); color: Theme.c9ca3af; font-size: 12px;
+                            Text { text: @tr("Default User-Agent (empty for Chrome 154):"); color: Theme.c9ca3af; font-size: 12px;
                                 Tooltip {
                                     FormTip { text: @tr("New HTTP tasks prefill this UA, and each task can override it."); }
                                 } }
                             CustomTextInput {
                                 text <=> root.settings_form.download_user_agent;
-                                placeholder: "Mozilla/5.0 ... Chrome/124.0.0.0";
+                                placeholder: "Mozilla/5.0 ... Chrome/154.0.0.0";
                             }
                         }
 

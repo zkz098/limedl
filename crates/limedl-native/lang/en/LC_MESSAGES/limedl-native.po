@@ -1024,8 +1024,8 @@ msgstr "Default Checksum:"
 msgid "Auto-detect SHA-256"
 msgstr "Auto-detect SHA-256"
 
-msgid "Default User-Agent (empty for Chrome 124):"
-msgstr "Default User-Agent (empty for Chrome 124):"
+msgid "Default User-Agent (empty for Chrome 154):"
+msgstr "Default User-Agent (empty for Chrome 154):"
 
 msgid "Global Bandwidth Limit (0 for unlimited):"
 msgstr "Global Bandwidth Limit (0 for unlimited):"

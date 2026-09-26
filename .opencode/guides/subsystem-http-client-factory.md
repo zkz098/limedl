@@ -27,7 +27,7 @@
 ## 设计决策与约定
 
 - configure_client_builder 返回 ClientBuilder 而非 Client，允许调用方追加额外配置（如 DNS 重写）。
-- User-Agent 从设置读取，空值时回退到 Chrome 内置 UA。
+- User-Agent 从设置读取，空值时回退到内置 UA（`default_http_user_agent()`，当前为 Chrome/154 形态的浏览器 UA）。**该版本号需要随发布周期手动保持新鲜**：部分镜像边缘（如清华 TUNA）会把“声称是浏览器但版本过期/尚未发布”的 UA 判定为伪装软件并返回 403，实测 Chrome/124 被拒、140/141 通过。升级方式：修改 `crates/limedl-core/src/types/settings.rs` 的 `default_http_user_agent()`，并同步 `settings_dialog.slint` 提示文案与 `lang/*/LC_MESSAGES/limedl-native.po`。注意：已存在的 `settings.json` 会保留旧 UA（不做自动迁移）。
 - ProxyMode::System 时 reqwest 自动使用系统代理。
 - 共享配置项：重定向策略 `Policy::limited(10)`、TCP_NODELAY=true、读超时 15 秒。
 - 此模块不依赖任何其他子系统（仅依赖 types.rs 和 error.rs）。

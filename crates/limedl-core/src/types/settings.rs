@@ -92,9 +92,23 @@ pub fn default_tracker_list_url() -> String {
     String::from("https://cf.trackerslist.com/best.txt")
 }
 
+/// Built-in default User-Agent: a browser-shaped UA with a *recent* Chrome
+/// major version.
+///
+/// Keep the major version fresh. Some mirror edges (e.g. TUNA
+/// `mirrors.tuna.tsinghua.edu.cn`) classify a browser-shaped UA whose version
+/// is stale or not yet released as spoofed software and answer `403 Forbidden`
+/// ("software with uncommon characteristics"). Bump this at least every few
+/// releases; verified passing Chrome/154 in 2026-09.
+///
+/// Note: since Chrome 96 the real UA string freezes minor/build to `.0.0.0`,
+/// so only the major needs updating.
+///
+/// Existing users keep whatever `default_user_agent` is stored in their
+/// `settings.json`; a code change here only affects fresh settings.
 pub fn default_http_user_agent() -> String {
     String::from(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
     )
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]

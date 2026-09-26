@@ -1025,8 +1025,8 @@ msgstr "默认校验算法:"
 msgid "Auto-detect SHA-256"
 msgstr "自动识别 SHA-256"
 
-msgid "Default User-Agent (empty for Chrome 124):"
-msgstr "默认 User-Agent (留空使用 Chrome 124):"
+msgid "Default User-Agent (empty for Chrome 154):"
+msgstr "默认 User-Agent (留空使用 Chrome 154):"
 
 msgid "Global Bandwidth Limit (0 for unlimited):"
 msgstr "全局带宽限制 (0 为不限制):"
