@@ -1,9 +1,11 @@
 //! Shared `max_concurrent_bt` `Arc<AtomicUsize>` invariants between
-//! `DownloadManager` and `IrontideBtBackend`.
+//! `DownloadManager` and the BT backend, plus lazy-startup contract tests.
 //!
 //! Tests create both subsystems via `bootstrap()` (matching the real
-//! initialization sequence in bootstrap.rs:48-57) so they share the exact same
-//! `Arc<AtomicUsize>` allocation.
+//! initialization sequence in bootstrap.rs) so they share the exact same
+//! `Arc<AtomicUsize>` allocation. The BT engine itself starts in the
+//! background (see `bt_backend/lazy.rs`) — tests that need the session await
+//! `wait_ready()` first.
 
 #![cfg(feature = "bt")]
 
@@ -13,7 +15,8 @@ use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::bootstrap::bootstrap;
-use crate::types::AppSettings;
+use crate::protocol::DownloadBackend;
+use crate::types::{AppSettings, StartDownloadRequest};
 
 // ---------------------------------------------------------------------------
 // Test 1 – Arc pointer identity (same allocation, not just same value)
@@ -25,6 +28,7 @@ async fn bt_max_concurrent_arc_pointer_identity() {
     let state_dir = tmp.path().join("downloads");
 
     let core = bootstrap(state_dir.clone()).await.unwrap();
+    assert!(core.bt_backend.wait_ready().await, "BT engine must start");
 
     // Both must point to the exact same Arc allocation
     assert!(
@@ -48,6 +52,7 @@ async fn bt_backend_initializes_with_zero_runtime_status() {
     let state_dir = tmp.path().join("downloads");
 
     let core = bootstrap(state_dir.clone()).await.unwrap();
+    assert!(core.bt_backend.wait_ready().await, "BT engine must start");
 
     let status = core.bt_backend.runtime_status();
     assert_eq!(status.torrent_count, 0, "no torrents initially");
@@ -70,10 +75,11 @@ async fn bt_backend_settings_propagate_after_apply_settings() {
     let state_dir = tmp.path().join("downloads");
 
     let core = bootstrap(state_dir.clone()).await.unwrap();
+    assert!(core.bt_backend.wait_ready().await, "BT engine must start");
 
     // Verify default settings
     {
-        let bt = lock(&core.bt_backend.bt_settings);
+        let bt = core.bt_backend.bt_settings();
         assert!(bt.dht_enabled, "DHT enabled by default");
         assert!(bt.enable_pex, "PEX enabled by default");
         assert!(!bt.upnp_enabled, "UPnP disabled by default");
@@ -86,12 +92,18 @@ async fn bt_backend_settings_propagate_after_apply_settings() {
     settings.bt.upnp_enabled = true;
     core.bt_backend.apply_settings(&settings);
 
-    // Verify settings propagated to the shared bt_settings
+    // Verify settings propagated to the backend snapshot and to the running engine
     {
-        let bt = lock(&core.bt_backend.bt_settings);
+        let bt = core.bt_backend.bt_settings();
         assert!(!bt.dht_enabled, "dht_enabled should be false after apply");
         assert!(!bt.enable_pex, "enable_pex should be false after apply");
         assert!(bt.upnp_enabled, "upnp_enabled should be true after apply");
+    }
+    {
+        let engine = core.bt_backend.engine_if_ready().expect("engine is up");
+        let bt = lock(&engine.bt_settings);
+        assert!(!bt.dht_enabled, "engine dht_enabled should be false after apply");
+        assert!(bt.upnp_enabled, "engine upnp_enabled should be true after apply");
     }
 
     core.registry.shutdown_all().await;
@@ -107,10 +119,38 @@ async fn bt_backend_get_torrent_files_returns_error_for_unknown() {
     let state_dir = tmp.path().join("downloads");
 
     let core = bootstrap(state_dir.clone()).await.unwrap();
+    assert!(core.bt_backend.wait_ready().await, "BT engine must start");
 
     let fake_hash = irontide::core::Id20::from([0u8; 20]);
     let result = core.bt_backend.get_torrent_files(fake_hash);
     assert!(result.is_err(), "expected error for unknown info hash");
+
+    core.registry.shutdown_all().await;
+}
+
+// ---------------------------------------------------------------------------
+// Test 6 – task operations wait for the background engine warm-up
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn bt_task_ops_await_the_background_warm_up() {
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+
+    let core = bootstrap(state_dir.clone()).await.unwrap();
+
+    // `bootstrap` returns without the session; a task op must await the warm-up
+    // instead of failing with "engine not ready".
+    let request = StartDownloadRequest {
+        url: "magnet:?xt=urn:btih:invalid&dn=test".into(),
+        ..Default::default()
+    };
+    let result = DownloadBackend::start(core.bt_backend.as_ref(), request).await;
+    assert!(result.is_err(), "invalid magnet must be rejected");
+    assert!(
+        core.bt_backend.is_ready(),
+        "the engine must have been awaited before parsing the magnet"
+    );
 
     core.registry.shutdown_all().await;
 }

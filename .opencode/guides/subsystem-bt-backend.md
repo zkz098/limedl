@@ -4,12 +4,15 @@
 
 通过 irontide 库管理 BitTorrent 下载的完整生命周期：会话管理、torrent 元数据解析、对等节点连接、文件选择、上传策略、进度/状态查询。bt 任务使用 TaskId::Bt(Id20)，ID 为原始 info_hash hex 字符串。
 
-核心类型：IrontideBtBackend（持有 session handle、task_map、alert_task、upload_policy_task、anti_leech_task、banned_leechers、anti_leech_slot_state、applied_blocklist_key、torrent_created_at、bt_slot_guards 等字段）。
+核心类型：LazyBtBackend（懒启动包装，注册在 BackendRegistry 里作为 BT 后端）+ IrontideBtBackend（持有 session handle、task_map、alert_task、upload_policy_task、anti_leech_task、banned_leechers、anti_leech_slot_state、applied_blocklist_key、torrent_created_at、bt_slot_guards 等字段）。
+
+`LazyBtBackend` 只保存启动配置（settings 快照、目录、EventBus、并发计数器），irontide session 由 `spawn_startup()` 起的后台任务创建；需要引擎的操作 await `engine()`，只读查询/`list` 不阻塞。
 
 自身有 `active_bt_count` 原子槽位（与 DownloadManager 的 DownloadSlotGuard 独立）。`max_concurrent_bt` 由 DownloadManager 和 IrontideBtBackend 共享，通过 `DownloadSlotGuard` 协调。
 
 ## 涉及文件
 
+- `crates/limedl-core/src/bt_backend/lazy.rs` — LazyBtBackend：懒启动包装、就绪状态、DownloadBackend 转发、BT 专属方法转发
 - `crates/limedl-core/src/bt_backend/mod.rs` — IrontideBtBackend 结构体定义 + DownloadBackend trait 实现 + Clone impl
 - `crates/limedl-core/src/bt_backend/lifecycle.rs` — 生命周期方法（start/pause/resume/cancel/remove/purge） + `build_canceled_snapshot()`
 - `crates/limedl-core/src/bt_backend/session.rs` — irontide Session 初始化/关闭/设置热重载
@@ -25,7 +28,19 @@
 ```
 用户提交 BT 任务（magnet link 或 .torrent 文件）
   ↓
-commands / rpc → Dispatcher → BackendRegistry → IrontideBtBackend::start()
+bootstrap()（不再等待 irontide session）
+  └─ LazyBtBackend::new()（仅记录配置） + spawn_startup() → 后台 warm-up 任务
+
+后台 warm-up（LazyBtBackend::engine → IrontideBtBackend::new）
+  ├─ builder.start().await（TCP/uTP 监听、DHT/LSD、磁盘后端）
+  ├─ load_resume_state().await（恢复上次会话的 torrent）
+  │    └─ 把恢复的 info_hash 写入 task_map / torrent_created_at（它们的 TorrentAdded 告警早于 alert bridge 订阅）
+  ├─ 应用引擎调参 + 限速（build_engine_settings）
+  ├─ apply_blocklist().await
+  └─ spawn_upload_policy_loop() / spawn_anti_leech_loop() / setup_alert_bridge()
+  ↓
+commands / rpc → Dispatcher → BackendRegistry → LazyBtBackend::start()
+  ├─ engine()：若 warm-up 未完成则等待；失败则返回缓存的启动错误
   ├─ 解析 URL → 获取 .torrent 元数据（magnet link 通过 DHT 获取，文件直接下载）
   ├─ 获取并发槽位（try_acquire_bt_slot → DownloadSlotGuard）
   ├─ SessionHandle::add_torrent() → 加入 irontide 会话
@@ -58,6 +73,15 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 ```
 
 ## 设计决策与约定
+
+### 懒启动（异步启动）
+
+- `bootstrap()` 不再等待 irontide session：`LazyBtBackend::new()` 只记录配置，`spawn_startup()` 把 session 创建（socket 绑定、DHT/LSD、resume 加载、黑名单解析）放到后台任务，桌面窗口不再被 BT 引擎启动阻塞。
+- 就绪策略：任务操作（start/pause/resume/cancel/remove/purge/status/open_*）与 `preview_torrent`/`update_torrent_files` 会 await `engine()`；`list()` 和 peers/trackers/pieces/files/runtime_status 查询在未就绪时返回空/未连接，**不阻塞**（启动时的任务列表加载不能被 session 拖住）。
+- `update_settings` 未就绪时只更新内存中的启动配置，warm-up 建立 session 时会用最新快照；已就绪则转发给引擎热重载。
+- 启动失败的信息缓存在 `startup_error`，后续调用快速失败并发送 `DownloadEvent::Warning`（空 id → 桌面端显示纯文本 toast），不会偷偷重试（session 占用监听端口等独占资源）。
+- 关闭：`LazyBtBackend::shutdown()` 先置 shutting_down 标志，等在途 warm-up 结束（20s 上限），再一次性关闭已建好的引擎；warm-up 中途完成时若发现标志已置位会立即自我拆除，因此“启动中退出”不会泄漏 session。
+- resume 恢复的 torrent 在引擎创建时被写入 `task_map`/`torrent_created_at`，这样 2s 周期进度 tick、上传策略与反吸血循环都能覆盖它们。桌面端在 `wait_ready()` 后重新拉一次列表并按 `Updated` 事件补发 BT 任务行（`limedl-native/src/main.rs`），保证恢复的 torrent 在 UI 中立即可见。
 
 ### 事件发射策略
 
@@ -127,6 +151,7 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 
 ### 关闭流程
 
+0. 若引擎尚未创建（warm-up 未完成）→ 置标志并等待 warm-up 自行退出，无需关闭 session
 1. 保存 session state（`save_session_state`）
 2. Abort 所有后台任务（upload_policy_task、alert_task）
 3. 逐个保存每个活跃 torrent 的 resume data

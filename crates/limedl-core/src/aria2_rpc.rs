@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use crate::{
     backend_registry::BackendRegistry,
-    bt_backend::IrontideBtBackend,
+    bt_backend::LazyBtBackend,
     dispatcher::Dispatcher,
     event_bus::{DownloadEvent, EventBus},
     http::has_header,
@@ -919,7 +919,7 @@ async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Value,
 
     let peers = ctx
         .registry
-        .get_typed::<IrontideBtBackend>()
+        .get_typed::<LazyBtBackend>()
         .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?
         .get_peers(*info_hash)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;

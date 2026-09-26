@@ -31,7 +31,7 @@ limedl 的整体架构描述：工作空间布局、目标平台（Slint 桌面�
 
 ```
 Slint 桌面（limedl-native）:
-  Slint UI → main.rs 回调 → Dispatcher → BackendRegistry → DownloadManager / IrontideBtBackend
+  Slint UI → main.rs 回调 → Dispatcher → BackendRegistry → DownloadManager / LazyBtBackend（→ IrontideBtBackend）
     → EventBus::publish() → broadcast
     → main.rs 订阅任务 → 更新 Slint 模型 → UI 重绘
 

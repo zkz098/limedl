@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-use crate::bt_backend::IrontideBtBackend;
+use crate::bt_backend::LazyBtBackend;
 use crate::cdn::CdnService;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
@@ -412,9 +412,9 @@ impl Dispatcher {
     // ── BT-specific operations ───────────────────────────────────────
 
     #[cfg(feature = "bt")]
-    fn bt_backend(&self) -> std::result::Result<&IrontideBtBackend, DownloadError> {
+    fn bt_backend(&self) -> std::result::Result<&LazyBtBackend, DownloadError> {
         self.registry
-            .get_typed::<IrontideBtBackend>()
+            .get_typed::<LazyBtBackend>()
             .ok_or_else(|| DownloadError::Internal("BT backend not registered".into()))
     }
 

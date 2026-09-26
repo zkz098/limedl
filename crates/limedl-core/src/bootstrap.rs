@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-use crate::bt_backend::IrontideBtBackend;
+use crate::bt_backend::LazyBtBackend;
 use crate::cdn::CdnService;
 use crate::context::SystemContext;
 use crate::dispatcher::Dispatcher;
@@ -22,7 +22,7 @@ pub struct CoreSystems {
     pub context: Arc<SystemContext>,
     pub download_manager: Arc<DownloadManager>,
     #[cfg(feature = "bt")]
-    pub bt_backend: Arc<IrontideBtBackend>,
+    pub bt_backend: Arc<LazyBtBackend>,
     pub registry: Arc<BackendRegistry>,
     pub dispatcher: Arc<Dispatcher>,
     pub event_bus: Arc<EventBus>,
@@ -48,27 +48,24 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
         .clone()
         .start_scheduler_loop(download_manager.clone());
 
-    // Initialize BT backend using ConcurrencyManager slots
+    // Initialize BT backend using ConcurrencyManager slots. This is lazy: the
+    // irontide session (socket binds, DHT/LSD, resume-state load, blocklist
+    // parse) starts in the background so app startup does not wait for it.
     #[cfg(feature = "bt")]
     let bt_backend = {
         let bt_state_dir = state_dir.join("torrents");
         let bt_output_dir = state_dir.join("bt_files");
         std::fs::create_dir_all(&bt_state_dir)?;
         std::fs::create_dir_all(&bt_output_dir)?;
-        let bt = Arc::new(
-            IrontideBtBackend::new(
-                &settings,
-                bt_state_dir,
-                bt_output_dir,
-                context.event_bus.clone(),
-                context.concurrency.active_bt_count.clone(),
-                context.concurrency.max_concurrent_bt.clone(),
-            )
-            .await?,
-        );
-        bt.clone().spawn_upload_policy_loop();
-        bt.clone().spawn_anti_leech_loop();
-        bt.clone().setup_alert_bridge().await;
+        let bt = Arc::new(LazyBtBackend::new(
+            &settings,
+            bt_state_dir,
+            bt_output_dir,
+            context.event_bus.clone(),
+            context.concurrency.active_bt_count.clone(),
+            context.concurrency.max_concurrent_bt.clone(),
+        ));
+        bt.spawn_startup();
         bt
     };
 

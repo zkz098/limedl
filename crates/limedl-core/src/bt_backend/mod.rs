@@ -4,6 +4,7 @@
 
 pub(crate) mod alerts;
 pub(crate) mod anti_leech;
+pub(crate) mod lazy;
 pub(crate) mod lifecycle;
 pub(crate) mod queries;
 pub(crate) mod session;
@@ -11,6 +12,8 @@ pub(crate) mod snapshot;
 #[cfg(test)]
 pub(crate) mod tests;
 pub(crate) mod uploads;
+
+pub use lazy::LazyBtBackend;
 
 use std::net::IpAddr;
 use std::path::PathBuf;

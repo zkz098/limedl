@@ -41,6 +41,7 @@ use tray_icon::TrayIconBuilder;
 
 use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::bootstrap::bootstrap;
+use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::SortDirection;
 
 use crate::bridge::TaskStore;
@@ -243,6 +244,33 @@ async fn main() -> anyhow::Result<()> {
     event_stream::start_event_bus_listener(&ctx, core.event_bus.subscribe());
     event_stream::start_status_pollers(&ctx);
     event_stream::start_tray_event_loop(&ctx);
+
+    // The BT engine starts in the background: `bootstrap()` no longer waits for
+    // the irontide session, so the initial task list above ran before the
+    // session existed and the torrents restored from resume data only become
+    // visible once it is up. Re-publish them as `Updated` events (insert or
+    // update, so a row added by a callback in the meantime is never dropped).
+    {
+        let bt_backend = core.bt_backend.clone();
+        let dispatcher = core.dispatcher.clone();
+        let event_bus = core.event_bus.clone();
+        tokio::spawn(async move {
+            bt_backend.wait_ready().await;
+            let Ok(downloads) = dispatcher.list().await else {
+                return;
+            };
+            for summary in downloads {
+                if !matches!(summary.kind, limedl_core::types::TaskKind::Bt) {
+                    continue;
+                }
+                let summary_json = serde_json::to_value(&summary).unwrap_or_default();
+                event_bus.publish(DownloadEvent::Updated {
+                    id: summary.id.clone(),
+                    summary_json,
+                });
+            }
+        });
+    }
 
     // Cold start with command line arguments
     if let Some(ref arg) = cli_payload {

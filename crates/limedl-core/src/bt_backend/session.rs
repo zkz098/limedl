@@ -98,13 +98,34 @@ impl IrontideBtBackend {
         let runtime_handle = tokio::runtime::Handle::try_current()
             .map_err(|e| crate::error::DownloadError::Torrent(format!("no tokio runtime: {e}")))?;
 
+        // Seed the task map from resume state. Torrents restored by
+        // `load_resume_state` fired their `TorrentAdded` alerts before the alert
+        // bridge subscribed (it is started right after this constructor), so
+        // without this they would be missing from the periodic 2s progress tick
+        // and from the upload/anti-leech loops. Use a single timestamp so their
+        // `created_at_ms` stays stable instead of tracking "now" on every poll.
+        let task_map: Arc<FastDashMap<Id20, Id20>> = Arc::new(FastDashMap::default());
+        let torrent_created_at: Arc<FastDashMap<Id20, u64>> = Arc::new(FastDashMap::default());
+        let restored = session.list_torrents().await.unwrap_or_default();
+        if !restored.is_empty() {
+            let created_at = crate::now_ms();
+            for info_hash in restored {
+                task_map.insert(info_hash, info_hash);
+                torrent_created_at.insert(info_hash, created_at);
+            }
+            tracing::info!(
+                "irontide: {} torrent(s) restored from resume state",
+                task_map.len()
+            );
+        }
+
         let backend = Self {
             session,
             state_dir,
             default_output_dir,
             bt_settings: Arc::new(Mutex::new(bt.clone())),
             event_bus,
-            task_map: Arc::new(FastDashMap::default()),
+            task_map,
             alert_task: Arc::new(Mutex::new(None)),
             upload_policy_task: Arc::new(Mutex::new(None)),
             anti_leech_task: Arc::new(Mutex::new(None)),
@@ -118,7 +139,7 @@ impl IrontideBtBackend {
             active_bt_count,
             max_concurrent_bt,
             bt_slot_guards: Arc::new(FastDashMap::default()),
-            torrent_created_at: Arc::new(FastDashMap::default()),
+            torrent_created_at,
         };
 
         backend.apply_blocklist().await;

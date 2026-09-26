@@ -54,7 +54,7 @@ pub mod test_harness;
 
 pub use backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-pub use bt_backend::IrontideBtBackend;
+pub use bt_backend::{IrontideBtBackend, LazyBtBackend};
 pub use cdn::{CdnAccelerator, CdnService, CdnTestOutcome};
 pub use checksum::calculate_checksum;
 pub use context::SystemContext;
