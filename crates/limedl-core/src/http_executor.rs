@@ -32,9 +32,11 @@ use crate::{
         reset_download_file, write_all_at,
     },
     http::{
-        apply_extra_headers, build_segment_request, extract_total_bytes, has_header, header_string,
-        if_range_header, infer_candidate_referers, infer_file_name, is_too_many_requests_error,
-        supports_ranges, validate_probe_response, validate_segment_response,
+        ANTI_ABUSE_SNIFF_LIMIT, anti_abuse_forbidden_error, apply_extra_headers,
+        build_segment_request, extract_total_bytes, has_header, header_string, if_range_header,
+        infer_candidate_referers, infer_file_name, is_too_many_requests_error,
+        looks_like_anti_abuse_page, read_body_prefix, supports_ranges, validate_probe_response,
+        validate_segment_response,
     },
     manager::{
         self, cancellation_chunk_outcome, cancellation_outcome,
@@ -100,11 +102,20 @@ impl HttpExecutor {
 
         let mut effective_extra_headers = extra_headers.to_vec();
 
+        // A 403 can mean two very different things: an anti-abuse / WAF block
+        // (no Referer can fix it — probing candidates only adds more
+        // suspicious requests) or anti-hotlink protection (a Referer does fix
+        // it). Sniff the small denial body to tell them apart.
+        if response.status() == StatusCode::FORBIDDEN {
+            let prefix = read_body_prefix(&mut response, ANTI_ABUSE_SNIFF_LIMIT).await;
+            if looks_like_anti_abuse_page(&prefix) {
+                return Err(anti_abuse_forbidden_error());
+            }
+        }
+
         // If probe returned 403 Forbidden and user did not specify Referer,
         // attempt anti-hotlink resolution using candidate Referer headers.
-        if (response.status() == StatusCode::FORBIDDEN || !response.status().is_success())
-            && !has_header(extra_headers, "referer")
-        {
+        if response.status() == StatusCode::FORBIDDEN && !has_header(extra_headers, "referer") {
             let effective_url = response.url().as_str();
             let mut candidates = infer_candidate_referers(effective_url);
             for cand in infer_candidate_referers(url) {

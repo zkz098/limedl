@@ -1504,6 +1504,199 @@ async fn anti_hotlink_403_auto_detects_candidate_referer_and_succeeds() -> TestR
     Ok(())
 }
 
+/// TUNA-style anti-abuse 403: HEAD succeeds (the edge exempts it) but the real
+/// GET is rejected with an HTML "uncommon characteristics" page. The download
+/// must fail with an actionable hint and must NOT fan out Referer probes.
+#[tokio::test]
+#[timeout(30_000)]
+async fn anti_abuse_403_surfaces_actionable_error_without_referer_probes() -> TestResult {
+    use axum::{
+        Router,
+        extract::State,
+        http::{HeaderMap, HeaderValue, StatusCode, header},
+        response::IntoResponse,
+        routing::get,
+    };
+    use std::sync::Arc as StdArc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    const ANTI_ABUSE_BODY: &str = "<html><body><h1>Sorry, you've been denied access to this page</h1>\
+        <ul><li>The software that you are using is with uncommon characteristics;</li>\
+        <li>您访问使用的软件带有非常用软件的特征；</li></ul></body></html>";
+
+    #[derive(Clone)]
+    struct AntiAbuseState {
+        requests: StdArc<AtomicUsize>,
+    }
+
+    async fn abuse_head(State(state): State<AntiAbuseState>) -> impl IntoResponse {
+        state.requests.fetch_add(1, Ordering::SeqCst);
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_LENGTH, HeaderValue::from_static("1024"));
+        headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+        headers.insert(
+            header::CONTENT_DISPOSITION,
+            HeaderValue::from_static("attachment; filename=blocked.bin"),
+        );
+        (StatusCode::OK, headers).into_response()
+    }
+
+    async fn abuse_get(State(state): State<AntiAbuseState>) -> impl IntoResponse {
+        state.requests.fetch_add(1, Ordering::SeqCst);
+        (
+            StatusCode::FORBIDDEN,
+            [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+            ANTI_ABUSE_BODY,
+        )
+            .into_response()
+    }
+
+    let requests = StdArc::new(AtomicUsize::new(0));
+    let app = Router::new()
+        .route("/blocked.bin", get(abuse_get).head(abuse_head))
+        .with_state(AntiAbuseState {
+            requests: requests.clone(),
+        });
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = StdArc::new(DownloadManager::new_with_components(
+        temp.path().join("state"),
+        StdArc::new(RateLimiter::default()),
+        StdArc::new(EventBus::new(1024)),
+    )?);
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: format!("http://{address}/blocked.bin"),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: None,
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(2),
+            checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            headers: None,
+            mirror_urls: None,
+            priority: None,
+        })
+        .await?;
+
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
+    assert_eq!(status.state, DownloadState::Failed);
+    let error = status.error.unwrap_or_default();
+    assert!(
+        error.contains("anti-abuse"),
+        "403 from an anti-abuse page must carry an actionable hint, got: {error}"
+    );
+    assert!(
+        error.contains("User-Agent"),
+        "hint should mention the User-Agent workaround, got: {error}"
+    );
+    // HEAD probe + one GET; candidate-Referer probing must be skipped.
+    let seen = requests.load(Ordering::SeqCst);
+    assert!(seen <= 3, "no Referer fan-out expected, saw {seen} requests");
+
+    let _ = manager.remove(&id.to_string()).await;
+    Ok(())
+}
+
+/// A plain 403 (empty body, no WAF markers) must keep the generic message and
+/// must not be misreported as an anti-abuse block.
+#[tokio::test]
+#[timeout(30_000)]
+async fn plain_403_keeps_generic_error_message() -> TestResult {
+    use axum::{
+        Router,
+        extract::State,
+        http::{HeaderMap, HeaderValue, StatusCode, header},
+        response::IntoResponse,
+        routing::get,
+    };
+    use std::sync::Arc as StdArc;
+
+    #[derive(Clone)]
+    struct PlainForbiddenState;
+
+    async fn plain_head() -> impl IntoResponse {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_LENGTH, HeaderValue::from_static("1024"));
+        headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+        headers.insert(
+            header::CONTENT_DISPOSITION,
+            HeaderValue::from_static("attachment; filename=denied.bin"),
+        );
+        (StatusCode::OK, headers).into_response()
+    }
+
+    async fn plain_get(State(_state): State<PlainForbiddenState>) -> impl IntoResponse {
+        StatusCode::FORBIDDEN.into_response()
+    }
+
+    let app = Router::new()
+        .route("/denied.bin", get(plain_get).head(plain_head))
+        .with_state(PlainForbiddenState);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+    let manager = StdArc::new(DownloadManager::new_with_components(
+        temp.path().join("state"),
+        StdArc::new(RateLimiter::default()),
+        StdArc::new(EventBus::new(1024)),
+    )?);
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: format!("http://{address}/denied.bin"),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: None,
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(2),
+            checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            headers: None,
+            mirror_urls: None,
+            priority: None,
+        })
+        .await?;
+
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
+    assert_eq!(status.state, DownloadState::Failed);
+    let error = status.error.unwrap_or_default();
+    assert!(
+        error.contains("403"),
+        "plain 403 should keep the status message, got: {error}"
+    );
+    assert!(
+        !error.contains("anti-abuse"),
+        "plain 403 must not be misreported, got: {error}"
+    );
+
+    let _ = manager.remove(&id.to_string()).await;
+    Ok(())
+}
+
 #[tokio::test]
 #[timeout(30_000)]
 async fn too_many_requests_429_downgrades_to_single_thread_and_succeeds() -> TestResult {

@@ -13,7 +13,10 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 use super::error::{DownloadError, Result};
-use super::http::{ResponseDisposition, classify_download_response};
+use super::http::{
+    ANTI_ABUSE_SNIFF_LIMIT, ResponseDisposition, anti_abuse_forbidden_error,
+    classify_download_response, looks_like_anti_abuse_page, read_body_prefix,
+};
 use super::manager::ManagedDownload;
 use super::now_ms;
 use super::types::DownloadState;
@@ -46,39 +49,51 @@ where
         };
 
         match response {
-            Ok(response) => match classify_download_response(response) {
-                ResponseDisposition::Use(response) => return Ok(response),
-                ResponseDisposition::Retryable(status) => {
-                    if status == StatusCode::TOO_MANY_REQUESTS {
-                        let concurrency = managed
-                            .lock_core()
-                            .manifest
-                            .allocated_thread_count
-                            .unwrap_or(1);
-                        if concurrency > 1 {
+            Ok(mut response) => {
+                // A 403 from a WAF / mirror anti-abuse page is terminal and no
+                // Referer can fix it. Sniff the (small) body once so the user
+                // gets an actionable error instead of a bare status code.
+                if response.status() == StatusCode::FORBIDDEN {
+                    let prefix =
+                        read_body_prefix(&mut response, ANTI_ABUSE_SNIFF_LIMIT).await;
+                    if looks_like_anti_abuse_page(&prefix) {
+                        return Err(anti_abuse_forbidden_error());
+                    }
+                }
+                match classify_download_response(response) {
+                    ResponseDisposition::Use(response) => return Ok(response),
+                    ResponseDisposition::Retryable(status) => {
+                        if status == StatusCode::TOO_MANY_REQUESTS {
+                            let concurrency = managed
+                                .lock_core()
+                                .manifest
+                                .allocated_thread_count
+                                .unwrap_or(1);
+                            if concurrency > 1 {
+                                return Err(DownloadError::InvalidResponse(format!(
+                                    "http status {status}"
+                                )));
+                            }
+                        }
+                        if attempt >= max_retries {
                             return Err(DownloadError::InvalidResponse(format!(
                                 "http status {status}"
                             )));
                         }
+                        attempt += 1;
+                        register_retry_penalty(&managed, format!("http status {status}"));
+                        tokio::select! {
+                            _ = token.cancelled() => return Err(DownloadError::Interrupted),
+                            _ = sleep(backoff_delay(attempt)) => {}
+                        }
                     }
-                    if attempt >= max_retries {
+                    ResponseDisposition::Invalid(status) => {
                         return Err(DownloadError::InvalidResponse(format!(
                             "http status {status}"
                         )));
                     }
-                    attempt += 1;
-                    register_retry_penalty(&managed, format!("http status {status}"));
-                    tokio::select! {
-                        _ = token.cancelled() => return Err(DownloadError::Interrupted),
-                        _ = sleep(backoff_delay(attempt)) => {}
-                    }
                 }
-                ResponseDisposition::Invalid(status) => {
-                    return Err(DownloadError::InvalidResponse(format!(
-                        "http status {status}"
-                    )));
-                }
-            },
+            }
             Err(error) => {
                 if error.status() == Some(StatusCode::TOO_MANY_REQUESTS) {
                     let concurrency = managed

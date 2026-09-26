@@ -120,7 +120,8 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 
 - 重启时 `load_downloads_from_db()` 从 SQLite 重建 ManagedDownload，最后持久化的 chunk 状态续传。
 - 瞬态故障指数退避重试（max_retries 限制）；checksum 不匹配仅重下受影响 chunk。
-- 防盗链自动探测（HTTP 403）：探测阶段若服务器返回 403 Forbidden 且用户未提供 Referer，系统通过 `infer_candidate_referers()` 推断候选 Referer 并在探测成功时写入 `Manifest.extra_headers`，所有分块 worker 均继承该 Referer（例如 NVIDIA Zen CDN）。
+- 403 双路径处理（防盗链 vs 反滥用）：探测阶段收到 403 Forbidden 时先读取响应体前 16 KiB（`looks_like_anti_abuse_page()`）判断是否为 WAF/镜像站反滥用页（TUNA "uncommon characteristics"、Cloudflare 拦截页、中文"访问被拒绝"等标记）。若是反滥用页，直接返回带提示的错误（`anti_abuse_forbidden_error()`：建议更新 User-Agent 或更换镜像），**不再**做 Referer 探测——那只会向已被判定异常的网段追加更多可疑请求。仅当 403 看起来是普通防盗链（无标记）且用户未提供 Referer 时，才通过 `infer_candidate_referers()` 推断候选 Referer 并在探测成功时写入 `Manifest.extra_headers`，所有分块 worker 均继承该 Referer（例如 NVIDIA Zen CDN）。
+- 反滥用 403 同样覆盖下载阶段：`request_with_retry` 在 `classify_download_response` 之前对 403 做同样的 16 KiB 体积嗅探，命中标记即返回同一提示，用户不会只看到裸的 `http status 403`。403 属终止性错误（`ResponseDisposition::Invalid`）不重试，只有 429/5xx 进入退避重试。
 - 429 限流单线程降级：对多线程下载收到 HTTP 429 Too Many Requests 时，`request_with_retry` 立即快错，`download_chunk` 返回 `ChunkWorkerOutcome::DowngradeSingleThread`；调度与执行器安全关闭其余 worker、写缓冲刷盘、将任务固定为单线程（`ThreadMode::Fixed`，`requested_thread_count = Some(1)`），更新提示为`"单线程（429 限流降级）"`，经 1500ms 限流冷却后继续由单 worker 顺序完成各分块下载，不会丢失任何已下载进度。同时调度器 `rebalance_allocations()` 对任务初始分配限制为不超过任务上限（`.min(cap)`），避免单线程任务被强行拉升到 `min_threads_per_task`。
 - 磁盘空间检查在 Phase 2 进行，预留 10% buffer。
 - Progress 事件在周期性 persist 路径有 500ms 节流（终态立即发送）。

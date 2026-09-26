@@ -29,6 +29,71 @@ pub fn classify_download_response(response: Response) -> ResponseDisposition {
     ResponseDisposition::Invalid(status)
 }
 
+/// Maximum number of bytes read from a 403 body when looking for anti-abuse
+/// markers. Denial pages are small; the cap keeps the sniff bounded.
+pub const ANTI_ABUSE_SNIFF_LIMIT: usize = 16 * 1024;
+
+/// Lower-case markers that identify a WAF / mirror anti-abuse denial page.
+///
+/// These pages answer 403 like anti-hotlink protection does, but no `Referer`
+/// can fix them — the edge has rejected the client itself.
+const ANTI_ABUSE_MARKERS: &[&str] = &[
+    // TUNA (mirrors.tuna.tsinghua.edu.cn)
+    "uncommon characteristics",
+    "非常用软件的特征",
+    "you have been denied access",
+    "无法访问此页面",
+    // Cloudflare / generic WAF interstitials
+    "cf-error-details",
+    "cf-chl-",
+    "attention required! | cloudflare",
+    "sorry, you have been blocked",
+    // Generic Chinese WAF denials
+    "访问被拒绝",
+    "请求被拦截",
+];
+
+/// Returns `true` when `body` looks like a WAF / anti-abuse denial page.
+pub fn looks_like_anti_abuse_page(body: &[u8]) -> bool {
+    if body.is_empty() {
+        return false;
+    }
+    let text = String::from_utf8_lossy(body).to_ascii_lowercase();
+    ANTI_ABUSE_MARKERS.iter().any(|marker| text.contains(marker))
+}
+
+/// Read at most `limit` bytes from the start of `response`'s body.
+///
+/// Used for best-effort 403 classification only: EOF and transport errors end
+/// the read early and are not propagated.
+pub async fn read_body_prefix(response: &mut Response, limit: usize) -> Vec<u8> {
+    let mut buffer = Vec::with_capacity(limit.min(8 * 1024));
+    while buffer.len() < limit {
+        match response.chunk().await {
+            Ok(Some(chunk)) => {
+                let take = chunk.len().min(limit - buffer.len());
+                buffer.extend_from_slice(&chunk[..take]);
+                if take < chunk.len() {
+                    break;
+                }
+            }
+            Ok(None) | Err(_) => break,
+        }
+    }
+    buffer
+}
+
+/// Error for a 403 whose body indicates an anti-abuse/WAF block.
+///
+/// Keeps the historical `http status …` prefix so existing error handling and
+/// status parsing continue to work, and appends an actionable hint.
+pub fn anti_abuse_forbidden_error() -> DownloadError {
+    DownloadError::InvalidResponse(String::from(
+        "http status 403 Forbidden (server anti-abuse check rejected this client; \
+         update the default User-Agent in Settings or try another mirror)",
+    ))
+}
+
 pub fn validate_probe_response(response: &Response) -> Result<()> {
     let status = response.status();
     if status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT {
@@ -394,6 +459,40 @@ mod tests {
             ResponseDisposition::Invalid(s) => assert_eq!(s, StatusCode::FORBIDDEN),
             _ => panic!("expected Invalid"),
         }
+    }
+
+    // ── looks_like_anti_abuse_page ──────────────────────────
+
+    #[test]
+    fn detects_tuna_anti_abuse_page_english() {
+        let body = br#"<html><body><h1>Sorry, you've been denied access to this page</h1>
+            <li>The software that you are using is with uncommon characteristics;</li>
+            <li>Your subnet has sent abnormal requests to our site recently</li></body></html>"#;
+        assert!(looks_like_anti_abuse_page(body));
+    }
+
+    #[test]
+    fn detects_tuna_anti_abuse_page_chinese() {
+        let body = "<html><body><h1>抱歉，您目前无法访问此页面</h1>\
+            <li>您访问使用的软件带有非常用软件的特征；</li></body></html>"
+            .as_bytes();
+        assert!(looks_like_anti_abuse_page(body));
+    }
+
+    #[test]
+    fn detects_cloudflare_block_page() {
+        let body = br#"<html><head><title>Attention Required! | Cloudflare</title></head>
+            <body><div class="cf-error-details">Sorry, you have been blocked</div></body></html>"#;
+        assert!(looks_like_anti_abuse_page(body));
+    }
+
+    #[test]
+    fn plain_forbidden_body_is_not_anti_abuse() {
+        assert!(!looks_like_anti_abuse_page(b""));
+        assert!(!looks_like_anti_abuse_page(
+            b"<html><head><title>403 Forbidden</title></head><body><center><h1>403 Forbidden</h1></center></body></html>"
+        ));
+        assert!(!looks_like_anti_abuse_page(b"Access to this resource is forbidden"));
     }
 
     // ── validate_probe_response ─────────────────────────────
