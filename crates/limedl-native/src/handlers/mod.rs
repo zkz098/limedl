@@ -1,3 +1,4 @@
+pub mod common;
 pub mod inspector;
 pub mod labs;
 pub mod new_task;

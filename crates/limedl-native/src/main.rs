@@ -17,6 +17,7 @@ mod platform_adapter;
 mod platform_win;
 mod power;
 mod protocol;
+mod settings_sync;
 mod single_instance;
 mod task_ops;
 mod toast;

@@ -955,6 +955,45 @@ pub fn cdn_test_failed_label(lang: Language) -> &'static str {
     }
 }
 
+/// CDN phase shown while the IP ranges are being fetched.
+pub fn cdn_phase_fetching_label(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "获取网段",
+        Language::ZhTw => "獲取網段",
+        Language::EnUs => "Fetching IP ranges",
+    }
+}
+
+/// CDN phase label for a phase key emitted by the accelerator, falling back to
+/// the raw key for phases this client does not know yet.
+pub fn cdn_phase_label(phase: &str, lang: Language) -> String {
+    match phase {
+        "fetchingRanges" => cdn_phase_fetching_label(lang).to_string(),
+        "screening" => match lang {
+            Language::ZhCn => "延迟初筛",
+            Language::ZhTw => "延遲初篩",
+            Language::EnUs => "Screening latency",
+        }
+        .to_string(),
+        "measuringThroughput" => match lang {
+            Language::ZhCn => "带宽测速",
+            Language::ZhTw => "頻寬測速",
+            Language::EnUs => "Measuring bandwidth",
+        }
+        .to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// CDN status label shown after the user cancels a running speedtest.
+pub fn cdn_cancelled_label(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "已取消",
+        Language::ZhTw => "已取消",
+        Language::EnUs => "Cancelled",
+    }
+}
+
 /// Disk probe found no mount point.
 pub fn format_no_disk_detected(lang: Language) -> &'static str {
     match lang {

@@ -15,7 +15,9 @@ Tauri/Vue desktop shell was retired).
 | `src/main.rs`            | 应用装配：上下文初始化、后台任务启动、托盘、事件循环、外观与视图偏好应用                                                                               |
 | `src/platform_adapter.rs`| 平台集成：跨平台单实例激活监听 + Windows 专属拖拽/WM_COPYDATA 窗口子类化与重试挂载                                                                      |
 | `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
-| `src/handlers/`          | 业务事件回调处理器（按 task/settings/inspector/updater/window/labs 等子系统拆分）                                                                      |
+| `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs` |
+| `src/event_stream/`      | 后台监听：`bus.rs`（`DownloadEvent` 每个变体一个函数）、`pollers.rs`（剪贴板 + BT 状态 + Inspector 轮询）、`tray.rs`（托盘菜单/左键激活）                                                      |
+| `src/settings_sync.rs`   | 保存设置后的共享副作用：OS 自启同步、Aria2 RPC 热重载、把设置推入 UI（设置对话框与首启向导共用）                                                                                     |
 | `src/i18n.rs`            | 语言枚举、`format_*` 本地化辅助（含设置校验错误、托盘文案、优先级标签）                                                                                |
 | `src/update.rs`          | minisign 校验的多通道自更新（见 `subsystem-self-update.md`）                                                                                           |
 | `src/autostart.rs`       | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent）                                                                                 |
@@ -31,7 +33,7 @@ Tauri/Vue desktop shell was retired).
 
 ```
 UI 事件（callback）
-  → main.rs 的 on_* 处理器
+  → handlers/ 的 on_* 处理器（绑定样板统一走 `handlers::common`）
   → limedl_core::Dispatcher / Aria2RpcServer
   → EventBus::publish()
   → main.rs 的 EventBus 订阅任务（DownloadEvent 全覆盖，无 catch-all）
@@ -44,7 +46,10 @@ UI 事件（callback）
 ## 关键约定
 
 - **i18n 双轨**：`.slint` 内文案用 `@tr(...)`（`lang/{en,zh_CN,zh_TW}/LC_MESSAGES`）；Rust 侧动态文案必须走 `i18n::format_*`，禁止硬编码中文——否则英文界面会泄漏中文（设置校验、托盘、通知首当其冲）。
-- **EventBus 事件必须显式处理**：`DownloadEvent` 匹配是穷尽的（无 `_ => {}`），新增变体会在编译期报错。`Warning` → 警告 toast（5s 去重窗口，因为反吸血按 peer 触发）。
+- **EventBus 事件必须显式处理**：`DownloadEvent` 匹配是穷尽的（无 `_ => {}`），新增变体会在编译期报错。`Warning` → 警告 toast（5s 去重窗口，因为反吸血按 peer 触发）。新增事件变体时在 `event_stream/bus.rs` 里加一个 `on_*` 函数，不要在 match 里内联长逻辑。
+- **回调绑定样板走 `handlers/common.rs`**：不要再写 `main_window.as_weak()` + `if let Some(ui) = ui_weak.upgrade()`；用 `with_ui` / `read_ui`（需读值）/ `mutate_store` / `reload_tasks` / `refresh_after_removal` / `spawn_action` / `spawn_batch_action`。每个子系统模块只负责“这个回调做什么”，样板不进业务代码。
+- **一个回调一个函数**：`register()` 只做编排（各子模块的 `register` 列表）；跨回调共享的流程（如批量删除、torrent 预览、校验和探测、CDN 应用节点）必须提成命名函数，历史上它们曾以 2–4 份拷贝散在同一个 800 行函数里。
+- **保存设置的副作用走 `settings_sync.rs`**：自启同步、Aria2 RPC 热重载、推设置到 UI（语言/托盘/外观/默认目录）只有一份实现，设置对话框与首启向导共用；新增“保存后要做的事”请加在这里，不要在两处各写一遍。
 - **新属性/新列**：视图偏好（`compactView`、`visibleColumns`、`sortKey`、`sortDirection`）持久化在 `AppSettings.appearance`；列 key 使用 Web 端同一套字符串（`file/size/downloaded/status/progress/speed/priority/uploadSpeed/seeds/eta`），保证 settings.json 两端互通。`file` 列始终可见。
 - **任务优先级**：`Priority::{High,Normal,Low}` ↔ `"high"/"normal"/"low"`；表格徽标点击或右键菜单“Set Priority”打开 `PriorityMenu`，经 `Dispatcher::set_priority` 落库。
 - **数据目录**：默认 `%LOCALAPPDATA%\limedl`（macOS/Linux 同规范），可用 `LIMEDL_DATA_DIR` 覆盖（与 `limedl-server` 一致，便于隔离测试）。首次启动会从 Tauri 的 `com.zkz20.limedl` 目录迁移 `settings.json`。
