@@ -34,9 +34,7 @@ impl SpeedTracker {
         self.first_sample_at = None;
         self.last_sample_at = None;
         let now = Instant::now();
-        for b in &mut self.buckets {
-            *b = (now, 0);
-        }
+        self.buckets.fill((now, 0));
     }
 
     /// Returns true if at least one transfer sample was recorded in this session.
@@ -57,9 +55,7 @@ impl SpeedTracker {
                 .last_sample_at
                 .is_some_and(|last| now.saturating_duration_since(last) >= Self::TOTAL_WINDOW)
         {
-            for b in &mut self.buckets {
-                *b = (now, 0);
-            }
+            self.buckets.fill((now, 0));
             self.buckets[0] = (now, bytes);
             self.current_index = 0;
             self.first_sample_at = Some(now);
@@ -83,9 +79,7 @@ impl SpeedTracker {
         } else {
             let steps = (elapsed.as_millis() / Self::BUCKET_DURATION.as_millis()) as usize;
             if steps >= Self::BUCKET_COUNT {
-                for b in &mut self.buckets {
-                    *b = (now, 0);
-                }
+                self.buckets.fill((now, 0));
                 self.current_index = 0;
                 self.buckets[0] = (now, bytes);
                 self.first_sample_at = Some(now);
