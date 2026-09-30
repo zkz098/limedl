@@ -12,6 +12,25 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 - **Rate limiting** — configurable global speed limits
 - **Multi-platform** — same engine powers all targets
 
+### BitTorrent engine status
+
+limedl's BT backend is built on **irontide**, pinned to one exact release (`irontide = "=1.7.0"`)
+and locked by `Cargo.lock`.
+
+- Upstream's git repository (`codeberg.org/alan090/irontide`) was **removed in 2026** and no public
+git copy survives (Software Heritage has no origin for it), so crates.io is the only remaining
+source of truth: the published 1.7.0 tarballs, checksummed in `Cargo.lock`.
+- The author's current forge (`git.alangaudet.dev`) does not host it. His project page says the
+engine was "reopened for a 2.0 correctness recovery" and that fixes on the recovery branch are
+**unpublished**; the defects listed there that touch limedl are pure-v2 torrent identity, v2-swarm
+handshakes on hybrid torrents, pad-file accounting and resume.
+- The pin is exact so an unreviewed 1.8/2.0 cannot arrive through `cargo update`: the BT backend in
+`crates/limedl-core/src/bt_backend/` depends on a wide slice of the engine API (session methods,
+session settings, alert stream), and moving off 1.7.0 is a migration, not a version bump.
+- **Status: no fork.** We build the published 1.7.0 as-is. Vendoring a source snapshot, patching the
+engine locally, or replacing it wholesale (e.g. librqbit) are separate decisions to be taken
+deliberately — the engine is frozen, so those options stay open rather than decay.
+
 ## Platforms
 
 | Target       | Frontend                | Backend                 | Build                                                 |

@@ -5,9 +5,11 @@ This product includes software developed by third parties:
 
 ---
 
-irontide (https://codeberg.org/alan090/irontide)
+irontide 1.7.0 (https://alangaudet.dev/projects/irontide)
 License: GNU General Public License v3.0 or later (GPL-3.0-or-later)
-A BitTorrent engine library used as the BT backend for limedl.
+A BitTorrent engine library used as the BT backend for limedl. Upstream's git
+repository (codeberg.org/alan090/irontide) was removed in 2026; the version this
+project links against is pinned to the crates.io release (see README.md).
 
 The full text of the GPL-3.0 license can be found in the LICENSE file
 at the root of this repository.
