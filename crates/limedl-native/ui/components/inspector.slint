@@ -40,7 +40,7 @@ export component TaskInspector inherits Rectangle {
         enabled: root.is_open;
     }
 
-    Rectangle {
+    panel := Rectangle {
         width: min(parent.width - 100px, 1060px);
         height: min(parent.height - 100px, 780px);
         x: (parent.width - self.width) / 2;
@@ -420,7 +420,7 @@ export component TaskInspector inherits Rectangle {
                     }
                 }
 
-                PrimaryButton {
+                close_btn := PrimaryButton {
                     text: @tr("Close");
                     clicked => { root.close(); }
                 }

@@ -100,7 +100,9 @@ pub fn register(ctx: &AppContext) {
                 if store.sort_field() == target_field as i32 {
                     store.toggle_sort_order();
                 } else {
-                    store.set_sort_field(target_field);
+                    // `set_sort_field` alone would keep the previous direction,
+                    // so clicking a new column could silently sort it descending.
+                    store.apply_sort(target_field as i32, true);
                 }
             });
         });

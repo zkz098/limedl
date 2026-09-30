@@ -88,7 +88,7 @@ export component ContextMenu inherits Rectangle {
     // NOTE: height must be pinned to the content's preferred height. Without
     // it a Rectangle carrying a layout and no explicit `height` inherits the
     // parent (window) height, so the menu would fill the whole screen.
-    Rectangle {
+    menu_box := Rectangle {
         x: min(root.menu_state.x, parent.width - self.width - 10px);
         y: min(root.menu_state.y, parent.height - self.height - 10px);
         width: 220px;
@@ -105,51 +105,51 @@ export component ContextMenu inherits Rectangle {
             padding: 6px;
             spacing: 2px;
 
-            MenuItem {
+            mi_details := MenuItem {
                 text: @tr("View Details");
                 icon: @image-url("../assets/icons/information-line.svg");
                 clicked => { root.open_inspector(root.menu_state.task_id); root.close(); }
             }
 
-            if root.menu_state.can_pause : MenuItem {
+            if root.menu_state.can_pause : mi_pause := MenuItem {
                 text: @tr("Pause Task");
                 icon: @image-url("../assets/icons/pause-line.svg");
                 shortcut: "Space";
                 clicked => { root.pause_task(root.menu_state.task_id); root.close(); }
             }
 
-            if root.menu_state.can_resume : MenuItem {
+            if root.menu_state.can_resume : mi_resume := MenuItem {
                 text: @tr("Resume Task");
                 icon: @image-url("../assets/icons/play-line.svg");
                 shortcut: "Space";
                 clicked => { root.resume_task(root.menu_state.task_id); root.close(); }
             }
 
-            MenuItem {
+            mi_folder := MenuItem {
                 text: @tr("Open Containing Folder");
                 icon: @image-url("../assets/icons/folder-open-line.svg");
                 clicked => { root.open_explorer(root.menu_state.task_id); root.close(); }
             }
 
-            MenuItem {
+            mi_copy_url := MenuItem {
                 text: @tr("Copy Download Link");
                 icon: @image-url("../assets/icons/file-copy-line.svg");
                 clicked => { root.copy_url(root.menu_state.task_url); root.close(); }
             }
 
-            MenuItem {
+            mi_copy_name := MenuItem {
                 text: @tr("Copy File Name");
                 icon: @image-url("../assets/icons/file-text-line.svg");
                 clicked => { root.copy_name(root.menu_state.task_name); root.close(); }
             }
 
-            MenuItem {
+            mi_priority := MenuItem {
                 text: @tr("Set Priority");
                 icon: @image-url("../assets/icons/arrow-up-down-line.svg");
                 clicked => { root.set_priority(root.menu_state.task_id); root.close(); }
             }
 
-            if root.menu_state.is_bt : MenuItem {
+            if root.menu_state.is_bt : mi_speed_limit := MenuItem {
                 text: @tr("Set Speed Limit");
                 icon: @image-url("../assets/icons/speed-up-line.svg");
                 clicked => { root.open_speed_limit(root.menu_state.task_id); root.close(); }
@@ -160,14 +160,14 @@ export component ContextMenu inherits Rectangle {
                 background: Theme.c272d38;
             }
 
-            MenuItem {
+            mi_remove := MenuItem {
                 text: @tr("Remove Record");
                 icon: @image-url("../assets/icons/delete-bin-line.svg");
                 shortcut: "Del";
                 clicked => { root.remove_task(root.menu_state.task_id); root.close(); }
             }
 
-            MenuItem {
+            mi_purge := MenuItem {
                 text: @tr("Delete File Permanently");
                 icon: @image-url("../assets/icons/delete-bin-6-line.svg");
                 danger: true;

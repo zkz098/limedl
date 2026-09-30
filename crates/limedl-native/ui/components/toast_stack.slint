@@ -84,8 +84,10 @@ export component ToastStack inherits Rectangle {
                             }
                         }
 
-                        // Close button
-                        IconButton {
+                        // Close button. The id addresses one row of the toast
+                        // stack, so the UI tests can click the real control
+                        // instead of calling the dismiss handler.
+                        toast_close := IconButton {
                             icon: @image-url("../assets/icons/close-line.svg");
                             text_color: Theme.c8b95a5;
                             clicked => { root.dismiss(toast.id); }

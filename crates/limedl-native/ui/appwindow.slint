@@ -403,11 +403,15 @@ export component MainWindow inherits Window {
             if event.text == Key.Escape {
                 root.handle_key_escape();
                 accept
-            }
-            if root.show_new_task_dialog || root.show_settings || root.show_labs || root.show_setup_wizard || root.show_speed_limit_dialog {
-                reject
-            }
-            if event.modifiers.control && (event.text == "a" || event.text == "A") {
+            } else if root.show_new_task_dialog || root.show_settings || root.show_labs || root.show_setup_wizard || root.show_speed_limit_dialog {
+                // A dialog owns the keyboard: swallow the global shortcuts.
+                //
+                // This branch has to be part of the `else if` chain below — as a
+                // bare `if … { reject }` before it, the value is discarded and the
+                // chain still ran, so Ctrl+A / Space / Delete kept acting on the
+                // list *behind* the modal (Delete removed the selection).
+                accept
+            } else if event.modifiers.control && (event.text == "a" || event.text == "A") {
                 root.select_all();
                 accept
             } else if event.modifiers.control && (event.text == "n" || event.text == "N") {
@@ -425,8 +429,9 @@ export component MainWindow inherits Window {
             } else if event.text == Key.Delete {
                 root.hotkey_delete(event.modifiers.shift);
                 accept
+            } else {
+                reject
             }
-            reject
         }
     }
 
@@ -1147,7 +1152,10 @@ export component MainWindow inherits Window {
                 }
 
                 // Floating Batch Action Bar
-                if root.selected_count > 0 : Rectangle {
+                // The batch action bar. Its ids are the handles the UI tests use to
+                // separate the safe actions from the two destructive ones —
+                // "Remove Records" must never delete files on disk.
+                if root.selected_count > 0 : batch_bar := Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - self.height - 24px;
                     width: min(parent.width - 80px, 820px);
@@ -1181,7 +1189,7 @@ export component MainWindow inherits Window {
 
                             VerticalLayout {
                                 alignment: center;
-                                IconButton {
+                                batch_select_all := IconButton {
                                     text: @tr("Select All");
                                     text_color: Theme.c9ca3af;
                                     clicked => { root.select_all(); }
@@ -1190,7 +1198,7 @@ export component MainWindow inherits Window {
 
                             VerticalLayout {
                                 alignment: center;
-                                IconButton {
+                                batch_deselect := IconButton {
                                     text: @tr("Deselect");
                                     text_color: Theme.c9ca3af;
                                     clicked => { root.clear_selection(); }
@@ -1204,7 +1212,7 @@ export component MainWindow inherits Window {
 
                             VerticalLayout {
                                 alignment: center;
-                                SecondaryButton {
+                                batch_pause_btn := SecondaryButton {
                                     text: @tr("Pause Selected");
                                     icon: @image-url("assets/icons/pause-line.svg");
                                     clicked => { root.batch_pause(); }
@@ -1213,7 +1221,7 @@ export component MainWindow inherits Window {
 
                             VerticalLayout {
                                 alignment: center;
-                                SecondaryButton {
+                                batch_resume_btn := SecondaryButton {
                                     text: @tr("Resume Selected");
                                     icon: @image-url("assets/icons/play-line.svg");
                                     clicked => { root.batch_resume(); }
@@ -1222,7 +1230,7 @@ export component MainWindow inherits Window {
 
                             VerticalLayout {
                                 alignment: center;
-                                SecondaryButton {
+                                batch_remove_btn := SecondaryButton {
                                     text: @tr("Remove Records");
                                     icon: @image-url("assets/icons/delete-bin-line.svg");
                                     clicked => { root.batch_remove(false); }
@@ -1231,7 +1239,7 @@ export component MainWindow inherits Window {
 
                             VerticalLayout {
                                 alignment: center;
-                                PrimaryButton {
+                                batch_purge_btn := PrimaryButton {
                                     text: @tr("Delete Files");
                                     icon: @image-url("assets/icons/delete-bin-6-line.svg");
                                     clicked => { root.batch_remove(true); }

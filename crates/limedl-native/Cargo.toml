@@ -132,9 +132,20 @@ slint-build = { workspace = true }
 tempfile = { workspace = true }
 skia-safe = { version = "0.99", features = ["textlayout"] }
 # In-process UI testing: drives the real `MainWindow` (element queries, simulated
-# clicks, accessibility actions) with no window and no event loop. Version-pinned
-# with `slint`/`slint-build` in the workspace table — see the comment there.
+# clicks and keystrokes, accessibility actions) with no window and no event loop.
+#
+# Note there is no `internal`/`renderer-skia` feature here on purpose: the
+# published crate's `internal` feature cannot compile (its `configure_test_fonts`
+# does `include_dir!` on a path that only exists inside the Slint workspace), and
+# the input helpers it would provide are two lines over the public
+# `Window::dispatch_event` — see `src/ui_tests/mod.rs`. In-process *screenshots*
+# would need it, so pixels stay on the L2/MCP path.
+#
+# Version-pinned with `slint`/`slint-build` in the workspace table.
 i-slint-backend-testing = { workspace = true }
+# The recording `DownloadBackend` in `src/ui_tests/` implements the core trait,
+# which is `#[async_trait]`.
+async-trait = { workspace = true }
 
 [features]
 # Debug-only Skia hinting/font-rendering repro (tests/skia_hint_repro.rs). It

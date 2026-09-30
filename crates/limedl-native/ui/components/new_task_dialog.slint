@@ -58,7 +58,7 @@ export component NewTaskDialog inherits Rectangle {
         enabled: root.is_open;
     }
 
-    Rectangle {
+    modal := Rectangle {
         width: min(parent.width - 60px, 660px);
         height: root.batch_mode || root.preview_state == "ready" ? 600px : 470px;
         animate height { duration: 200ms; easing: ease-out; }
@@ -349,7 +349,7 @@ export component NewTaskDialog inherits Rectangle {
                     clicked => { root.close(); }
                 }
 
-                if !root.batch_mode : PrimaryButton {
+                if !root.batch_mode : submit_btn := PrimaryButton {
                     text: @tr("Start Download");
                     icon: @image-url("../assets/icons/download-line.svg");
                     enabled: root.new_task_url != "";
@@ -362,7 +362,7 @@ export component NewTaskDialog inherits Rectangle {
                     }
                 }
 
-                if root.batch_mode : PrimaryButton {
+                if root.batch_mode : submit_batch_btn := PrimaryButton {
                     text: @tr("Add Batch Tasks");
                     icon: @image-url("../assets/icons/download-line.svg");
                     enabled: !root.batch_submitting;

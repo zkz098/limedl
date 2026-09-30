@@ -64,7 +64,7 @@ export component SettingsDialog inherits Rectangle {
         enabled: root.is_open;
     }
 
-    Rectangle {
+    modal := Rectangle {
         width: min(parent.width - 100px, 1140px);
         height: min(parent.height - 100px, 820px);
         x: (parent.width - self.width) / 2;
@@ -280,7 +280,9 @@ export component SettingsDialog inherits Rectangle {
                     clicked => { root.close(); }
                 }
 
-                PrimaryButton {
+                // Primary action, named so the layout tests can assert it stays
+                // inside the modal when the labels grow (English locales).
+                save_btn := PrimaryButton {
                     text: @tr("Save Settings");
                     icon: @image-url("../assets/icons/save-line.svg");
                     clicked => { root.save(root.settings_form); }

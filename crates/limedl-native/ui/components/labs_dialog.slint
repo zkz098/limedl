@@ -69,7 +69,7 @@ export component LabsDialog inherits Rectangle {
         enabled: root.is_open;
     }
 
-    Rectangle {
+    modal := Rectangle {
         width: min(parent.width - 100px, 1140px);
         height: min(parent.height - 100px, 820px);
         x: (parent.width - self.width) / 2;
@@ -851,7 +851,7 @@ export component LabsDialog inherits Rectangle {
                     clicked => { root.close(); }
                 }
 
-                PrimaryButton {
+                save_labs_btn := PrimaryButton {
                     text: @tr("Save Config");
                     icon: @image-url("../assets/icons/save-line.svg");
                     clicked => { root.save_labs(root.labs_form); }

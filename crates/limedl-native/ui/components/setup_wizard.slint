@@ -259,7 +259,7 @@ export component SetupWizard inherits Rectangle {
         enabled: root.is_open;
     }
 
-    Rectangle {
+    modal := Rectangle {
         width: min(parent.width - 100px, 920px);
         height: min(parent.height - 100px, 720px);
         x: (parent.width - self.width) / 2;
@@ -1009,12 +1009,12 @@ export component SetupWizard inherits Rectangle {
                         text: @tr("Skip");
                         clicked => { root.next_step(); }
                     }
-                    if root.current_step < 8 : PrimaryButton {
+                    if root.current_step < 8 : next_btn := PrimaryButton {
                         text: @tr("Next");
                         icon: @image-url("../assets/icons/arrow-down-s-line.svg");
                         clicked => { root.next_step(); }
                     }
-                    if root.current_step == 8 : PrimaryButton {
+                    if root.current_step == 8 : finish_btn := PrimaryButton {
                         text: @tr("Finish Setup");
                         icon: @image-url("../assets/icons/checkbox-circle-line.svg");
                         clicked => { root.finish(root.form); }

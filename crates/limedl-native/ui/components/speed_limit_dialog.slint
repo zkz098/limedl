@@ -20,7 +20,7 @@ export component SpeedLimitDialog inherits Rectangle {
         enabled: root.is_open;
     }
 
-    Rectangle {
+    modal := Rectangle {
         width: min(parent.width - 60px, 460px);
         height: 300px;
         x: (parent.width - self.width) / 2;
@@ -81,7 +81,7 @@ export component SpeedLimitDialog inherits Rectangle {
                     text: @tr("Cancel");
                     clicked => { root.close(); }
                 }
-                PrimaryButton {
+                submit_btn := PrimaryButton {
                     text: @tr("Apply Speed Limit");
                     icon: @image-url("../assets/icons/speed-up-line.svg");
                     clicked => {

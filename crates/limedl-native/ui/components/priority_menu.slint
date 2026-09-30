@@ -65,7 +65,7 @@ export component PriorityMenu inherits Rectangle {
             }
         }
 
-        Rectangle {
+        menu_box := Rectangle {
             x: min(root.menu_x, parent.width - self.width - 10px);
             y: min(root.menu_y, parent.height - self.height - 10px);
             width: 160px;
@@ -82,19 +82,19 @@ export component PriorityMenu inherits Rectangle {
                 padding: 6px;
                 spacing: 2px;
 
-                PriorityOption {
+                prio_high := PriorityOption {
                     text: @tr("High");
                     code: "high";
                     active: root.current_priority == "high";
                     picked(code) => { root.pick(root.task_id, code); root.close(); }
                 }
-                PriorityOption {
+                prio_normal := PriorityOption {
                     text: @tr("Normal");
                     code: "normal";
                     active: root.current_priority == "normal";
                     picked(code) => { root.pick(root.task_id, code); root.close(); }
                 }
-                PriorityOption {
+                prio_low := PriorityOption {
                     text: @tr("Low");
                     code: "low";
                     active: root.current_priority == "low";

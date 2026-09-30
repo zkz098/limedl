@@ -1,12 +1,12 @@
-//! Task list: which shell the list area shows, and how the store's filters and
-//! sort state reach the window.
+//! Task list: which shell the list area shows, how the store's filters reach the
+//! window, and how the two views route a click — including the destructive
+//! actions, which is where a wiring mistake costs data.
 //!
-//! The list itself is a `for` loop, so a single element id matches every row.
-//! Row-level interactions are therefore driven through the callbacks the rows
-//! invoke (`invoke_select_category`, `invoke_search_changed`, …) rather than by
-//! clicking a row: those callbacks *are* the wiring under test, and the real
-//! control that triggers them is a `CategoryButton`/`SearchInput` covered by
-//! `shell.rs`.
+//! The list is a `for` loop, so a single id matches every row:
+//! `click_nth`/`right_click_nth` address them in model order. Callbacks the
+//! view's own widgets emit (category buttons, the search box, the columns) are
+//! driven both ways — by clicking the real control where it is unique, and by
+//! `invoke_*` where the value under test is the Rust-side bookkeeping.
 
 use limedl_core::types::DownloadState;
 
@@ -29,8 +29,8 @@ fn the_list_area_swaps_between_the_empty_state_and_the_populated_shell() {
             "the empty state offers its own create button"
         );
 
-        ui.seed(vec![task(
-            "http:one",
+        ui.seed(vec![http_task(
+            1,
             "one.bin",
             DownloadState::Downloading,
             512,
@@ -61,10 +61,10 @@ fn the_list_area_swaps_between_the_empty_state_and_the_populated_shell() {
 fn category_counts_and_the_visible_rows_follow_the_task_states() {
     with_ui(|ui| {
         ui.seed(vec![
-            task("http:a", "alpha.bin", DownloadState::Downloading, 10, 100),
-            task("http:b", "bravo.bin", DownloadState::Downloading, 20, 100),
-            task("http:c", "charlie.bin", DownloadState::Paused, 30, 100),
-            task("http:d", "delta.bin", DownloadState::Completed, 100, 100),
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(2, "bravo.bin", DownloadState::Downloading, 20, 100),
+            http_task(3, "charlie.bin", DownloadState::Paused, 30, 100),
+            http_task(4, "delta.bin", DownloadState::Completed, 100, 100),
         ]);
 
         assert_eq!(ui.window.get_count_all().as_str(), "4");
@@ -98,12 +98,15 @@ fn category_counts_and_the_visible_rows_follow_the_task_states() {
 fn the_search_query_filters_rows_and_the_empty_state_returns_when_nothing_matches() {
     with_ui(|ui| {
         ui.seed(vec![
-            task("http:a", "alpha.bin", DownloadState::Downloading, 10, 100),
-            task("http:b", "beta.bin", DownloadState::Downloading, 10, 100),
-            task("http:c", "gamma.bin", DownloadState::Completed, 100, 100),
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(2, "beta.bin", DownloadState::Downloading, 10, 100),
+            http_task(3, "gamma.bin", DownloadState::Completed, 100, 100),
         ]);
         assert_eq!(ui.visible_rows(), 3);
 
+        // Typed into the real field: the widget owns `text` and the callback
+        // consumes it, and the empty state's create button reads the property,
+        // so only the full path proves the wiring.
         ui.search("beta");
         assert_eq!(ui.visible_rows(), 1, "the query must narrow the rows");
 
@@ -149,5 +152,191 @@ fn the_sort_order_toggle_reaches_both_the_store_and_the_window() {
         assert_eq!(ui.window.get_sort_asc(), initial);
         // Persisting the change happens on a spawned task which this layer never
         // polls — see the module docs in `ui_tests/mod.rs`.
+    });
+}
+
+#[test]
+fn a_card_body_click_does_not_select_but_its_checkbox_does() {
+    with_ui(|ui| {
+        ui.seed(vec![
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(2, "bravo.bin", DownloadState::Paused, 20, 100),
+        ]);
+
+        // The card body only handles the shift-click range gesture: a plain
+        // click on a card is *not* a selection. Batch actions hang off the
+        // selection, so a card that selected on any click would make an
+        // accidental click dangerous.
+        ui.click_nth("TaskCard::ta", 0);
+        assert_eq!(
+            ui.window.get_selected_count(),
+            0,
+            "a card body click must not select"
+        );
+        assert!(
+            !ui.has("MainWindow::batch_bar"),
+            "…and must not raise the batch bar"
+        );
+
+        ui.click_nth("TaskCard::card_check", 0);
+        assert_eq!(
+            ui.window.get_selected_count(),
+            1,
+            "the card checkbox selects"
+        );
+        assert!(ui.has("MainWindow::batch_bar"));
+
+        ui.click_nth("TaskCard::card_check", 0);
+        assert_eq!(ui.window.get_selected_count(), 0);
+    });
+}
+
+#[test]
+fn a_table_row_click_toggles_the_selection() {
+    with_ui(|ui| {
+        ui.seed(
+            (1..=3)
+                .map(|n| http_task(n, "alpha.bin", DownloadState::Downloading, 10, 100))
+                .collect(),
+        );
+        ui.click("MainWindow::btn_view_mode");
+
+        ui.click_nth("TaskTable::ta_row", 1);
+        assert_eq!(ui.window.get_selected_count(), 1);
+        assert_eq!(
+            ui.ctx.store.lock().selected_ids(),
+            vec![http_wire(2)],
+            "the clicked row is the selected one, not the first"
+        );
+
+        ui.click_nth("TaskTable::ta_row", 1);
+        assert_eq!(
+            ui.window.get_selected_count(),
+            0,
+            "clicking the row again deselects"
+        );
+    });
+}
+
+#[test]
+fn the_table_header_checkbox_reflects_the_selection_state() {
+    with_ui(|ui| {
+        ui.seed(
+            (1..=3)
+                .map(|n| http_task(n, "alpha.bin", DownloadState::Downloading, 10, 100))
+                .collect(),
+        );
+        ui.click("MainWindow::btn_view_mode");
+
+        assert_eq!(
+            ui.find("TaskTable::hdr_select_all").accessible_checked(),
+            Some(false),
+            "nothing selected yet"
+        );
+
+        ui.click_nth("TaskTable::ta_row", 0);
+        assert_eq!(
+            ui.find("TaskTable::hdr_select_all").accessible_checked(),
+            Some(false),
+            "a partial selection must not look like select-all"
+        );
+
+        ui.click("TaskTable::hdr_select_all");
+        assert_eq!(
+            ui.window.get_selected_count(),
+            3,
+            "partial selection → select all"
+        );
+        assert_eq!(
+            ui.find("TaskTable::hdr_select_all").accessible_checked(),
+            Some(true)
+        );
+
+        ui.click("TaskTable::hdr_select_all");
+        assert_eq!(ui.window.get_selected_count(), 0, "select-all → clear");
+    });
+}
+
+#[test]
+fn column_visibility_reaches_the_table_headers() {
+    let mut settings = AppSettings::default();
+    settings.appearance.visible_columns = vec!["size".into()];
+
+    with_settings(settings, |ui| {
+        ui.seed(vec![http_task(
+            1,
+            "alpha.bin",
+            DownloadState::Downloading,
+            10,
+            100,
+        )]);
+        ui.click("MainWindow::btn_view_mode");
+
+        // The file name column is documented as always visible.
+        assert!(ui.has("TaskTable::hdr_file"));
+        assert!(ui.has("TaskTable::hdr_size"));
+        assert!(!ui.has("TaskTable::hdr_status"));
+        assert!(!ui.has("TaskTable::hdr_progress"));
+        assert!(!ui.has("TaskTable::hdr_speed"));
+        assert!(!ui.has("TaskTable::hdr_eta"));
+        assert!(!ui.has("TaskTable::hdr_priority_col"));
+    });
+}
+
+#[test]
+fn sorting_from_a_column_header_applies_immediately_and_toggles_on_repeat() {
+    with_ui(|ui| {
+        ui.seed(
+            (1..=3)
+                .map(|n| http_task(n, "alpha.bin", DownloadState::Downloading, 10, 100))
+                .collect(),
+        );
+        ui.click("MainWindow::btn_view_mode");
+
+        // A new column sorts ascending; the same column again flips the order.
+        ui.click("TaskTable::hdr_size");
+        assert_eq!(
+            ui.window.get_sort_field(),
+            1,
+            "the size column sorts by size"
+        );
+        assert!(ui.window.get_sort_asc());
+
+        ui.click("TaskTable::hdr_size");
+        assert!(!ui.window.get_sort_asc());
+
+        ui.click("TaskTable::hdr_file");
+        assert_eq!(ui.window.get_sort_field(), 4);
+        assert!(
+            ui.window.get_sort_asc(),
+            "switching columns restarts ascending"
+        );
+        assert_eq!(
+            ui.ctx.store.lock().sort_field(),
+            ui.window.get_sort_field(),
+            "the store follows the header click"
+        );
+    });
+}
+
+#[test]
+fn right_clicking_the_empty_list_opens_the_background_menu() {
+    with_ui(|ui| {
+        assert!(
+            ui.has("MainWindow::empty_menu_ta"),
+            "the empty state covers the list area"
+        );
+        ui.right_click("MainWindow::empty_menu_ta");
+        assert!(
+            ui.window.get_background_menu_visible(),
+            "right-click opens the menu"
+        );
+
+        ui.click("BackgroundMenu::bg_new_task");
+        assert!(
+            !ui.window.get_background_menu_visible(),
+            "picking an item closes it"
+        );
+        assert!(ui.window.get_show_new_task_dialog());
     });
 }

@@ -41,13 +41,13 @@ export component BackgroundMenu inherits Rectangle {
             padding: 6px;
             spacing: 2px;
 
-            MenuItem {
+            bg_new_task := MenuItem {
                 text: @tr("New Task");
                 icon: @image-url("../assets/icons/add-line.svg");
                 clicked => { root.new_task(); root.close(); }
             }
 
-            MenuItem {
+            bg_refresh := MenuItem {
                 text: @tr("Refresh Task List");
                 icon: @image-url("../assets/icons/refresh-line.svg");
                 clicked => { root.refresh_list(); root.close(); }

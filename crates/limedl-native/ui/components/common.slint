@@ -256,6 +256,12 @@ export component CustomCheckBox inherits Rectangle {
     callback toggled();
     callback shift_toggled();
 
+    // The check mark below is hand-drawn, so neither a screen reader nor the UI
+    // tests can read the state back without this: the accessibility tree is the
+    // only place a drawn checkbox exposes "am I checked".
+    accessible-role: checkbox;
+    accessible-checked: root.checked;
+
     width: 18px;
     height: 18px;
     border-radius: 4px;
@@ -281,7 +287,7 @@ export component CustomCheckBox inherits Rectangle {
         }
     }
 
-    if root.checked : Text {
+    if root.checked : check_mark := Text {
         text: "✓";
         color: #0b1104;
         font-size: 12px;

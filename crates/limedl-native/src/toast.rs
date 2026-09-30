@@ -100,3 +100,27 @@ impl WarningDedup {
         !is_duplicate
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The anti-flood rule, and the reason the queue is not simply a list: one
+    /// torrent can emit the same warning per peer within milliseconds.
+    #[test]
+    fn repeated_warnings_are_collapsed_and_new_ones_are_not() {
+        let mut dedup = WarningDedup::new();
+
+        assert!(dedup.should_show("http:1", "peer banned"), "the first warning is shown");
+        assert!(
+            !dedup.should_show("http:1", "peer banned"),
+            "the same warning again within the window is dropped"
+        );
+        assert!(dedup.should_show("http:1", "disk full"), "a different message is news");
+        assert!(dedup.should_show("http:2", "peer banned"), "a different task is news");
+        assert!(
+            dedup.should_show("http:1", "peer banned"),
+            "only the *most recent* key is remembered, so alternating messages all show"
+        );
+    }
+}

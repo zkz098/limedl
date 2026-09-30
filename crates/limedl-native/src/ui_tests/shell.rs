@@ -1,8 +1,11 @@
-//! Window shell: toolbar controls, dialog visibility and the view-mode toggle.
+//! Window shell: toolbar controls, dialog visibility, the view-mode toggle and
+//! the Escape unwinding order.
 //!
 //! These are the tests that catch the failure modes nothing else can see — a
 //! toolbar button wired to the wrong callback, a dialog whose `is_open` property
 //! nobody sets, a close button that calls the wrong handler.
+
+use limedl_core::types::DownloadState;
 
 use super::*;
 
@@ -160,5 +163,118 @@ fn an_unset_download_directory_still_leaves_the_dialog_somewhere_to_put_files() 
             ui.window.get_default_download_dir(),
             "the new-task directory starts out at the default download directory"
         );
+    });
+}
+
+/// Open every overlay that `handle_key_escape` knows about, bottom-up. The
+/// toolbar buttons cannot do this one at a time — the first dialog covers them —
+/// so the window callbacks stand in for the *openers*; the Escape path itself is
+/// the thing under test.
+fn open_every_overlay(ui: &TestUi) {
+    ui.seed(vec![http_task(
+        1,
+        "alpha.bin",
+        DownloadState::Downloading,
+        10,
+        100,
+    )]);
+    ui.window.invoke_open_new_task_dialog();
+    ui.window.invoke_open_settings();
+    ui.window.invoke_open_labs();
+    ui.window.invoke_open_inspector(http_wire(1).into());
+    ui.window.invoke_open_speed_limit_dialog();
+    ui.window.set_priority_menu_visible(true);
+    let mut menu = ui.window.get_context_menu_state();
+    menu.visible = true;
+    menu.task_id = http_wire(1).into();
+    ui.window.set_context_menu_state(menu);
+}
+
+/// One overlay of the Escape chain: its name (for the assertion message) and a
+/// probe for whether it is currently open.
+type LayerProbe = (&'static str, fn(&TestUi) -> bool);
+
+#[test]
+fn escape_unwinds_the_overlays_one_layer_at_a_time() {
+    with_ui(|ui| {
+        open_every_overlay(ui);
+
+        // Ordered exactly like the chain in `handle_key_escape`: the topmost
+        // overlay closes and everything below it stays open. A chain that closes
+        // two layers at once (or the wrong one) reads to the user as "Escape is
+        // broken" — and there is no other test for it, because the chain lives in
+        // `.slint`.
+        let layers: [LayerProbe; 7] = [
+            ("new task dialog", |ui| ui.window.get_show_new_task_dialog()),
+            ("settings", |ui| ui.window.get_show_settings()),
+            ("labs", |ui| ui.window.get_show_labs()),
+            ("inspector", |ui| ui.window.get_show_inspector()),
+            ("speed limit dialog", |ui| {
+                ui.window.get_show_speed_limit_dialog()
+            }),
+            ("priority menu", |ui| ui.window.get_priority_menu_visible()),
+            ("context menu", |ui| {
+                ui.window.get_context_menu_state().visible
+            }),
+        ];
+
+        for (index, (name, is_open)) in layers.iter().enumerate() {
+            for (still_name, still_open) in &layers[index..] {
+                assert!(
+                    still_open(ui),
+                    "{still_name} should be open before {name} is closed"
+                );
+            }
+            ui.window.invoke_handle_key_escape();
+            assert!(!is_open(ui), "Escape must have closed {name}");
+            for (untouched_name, untouched) in &layers[index + 1..] {
+                assert!(untouched(ui), "Escape also closed {untouched_name}");
+            }
+        }
+
+        // Nothing left to close: Escape must be a no-op, not a window close.
+        ui.window.invoke_handle_key_escape();
+        assert!(
+            ui.has("MainWindow::ta_set"),
+            "the main window is still there"
+        );
+    });
+}
+
+#[test]
+fn escape_leaves_the_first_run_wizard_alone() {
+    with_ui(|ui| {
+        ui.window.set_show_setup_wizard(true);
+        ui.window.invoke_handle_key_escape();
+        assert!(
+            ui.window.get_show_setup_wizard(),
+            "the wizard is modal until it is finished: Escape must not dismiss it"
+        );
+    });
+}
+
+#[test]
+fn keyboard_shortcuts_reach_the_window_and_are_swallowed_by_an_open_dialog() {
+    with_ui(|ui| {
+        // Shortcuts live in the root `FocusScope`, which the window forwards
+        // focus to. Clicking a text field first would move focus there and the
+        // field would consume the key — so this test deliberately does not click
+        // anything before pressing the shortcut.
+        ui.press_keys(&[Key::Control.into(), 'n']);
+        assert!(
+            ui.window.get_show_new_task_dialog(),
+            "Ctrl+N must open the new-task dialog"
+        );
+        ui.window.invoke_close_new_task_dialog();
+
+        // The chain rejects keys while a dialog is open, before reaching the
+        // shortcut branch: a global shortcut must not stack a second modal.
+        ui.window.invoke_open_settings();
+        ui.press_keys(&[Key::Control.into(), 'n']);
+        assert!(
+            !ui.window.get_show_new_task_dialog(),
+            "an open dialog must swallow the new-task shortcut"
+        );
+        assert!(ui.window.get_show_settings());
     });
 }

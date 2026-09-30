@@ -114,7 +114,7 @@ export component TaskCard inherits Rectangle {
         // Selection Checkbox
         VerticalLayout {
             alignment: center;
-            CustomCheckBox {
+            card_check := CustomCheckBox {
                 checked: root.item.selected;
                 toggled => { root.toggle_select(); }
                 shift_toggled => { root.range_select(); }
@@ -328,28 +328,28 @@ export component TaskCard inherits Rectangle {
                     spacing: 8px;
                     alignment: end;
 
-                    IconButton {
+                    card_details := IconButton {
                         text: @tr("Details");
                         icon: @image-url("../assets/icons/information-line.svg");
                         text_color: Theme.c38bdf8;
                         clicked => { root.open_inspector(); }
                     }
 
-                    if root.item.can_pause : IconButton {
+                    if root.item.can_pause : card_pause := IconButton {
                         text: @tr("Pause");
                         icon: @image-url("../assets/icons/pause-line.svg");
                         text_color: Theme.cfacc15;
                         clicked => { root.pause_task(); }
                     }
 
-                    if root.item.can_resume : IconButton {
+                    if root.item.can_resume : card_resume := IconButton {
                         text: @tr("Resume");
                         icon: @image-url("../assets/icons/play-line.svg");
                         text_color: Theme.c4ade80;
                         clicked => { root.resume_task(); }
                     }
 
-                    IconButton {
+                    card_explorer := IconButton {
                         text: @tr("Folder");
                         icon: @image-url("../assets/icons/folder-open-line.svg");
                         text_color: Theme.c9ca3af;
