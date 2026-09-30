@@ -102,29 +102,59 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 
 **L1 —— 进程内 UI 测试**（`crates/limedl-native/src/ui_tests/`，跟着 `cargo nextest run -p limedl-native` 一起跑）。
 通过 `src/ui_boot.rs::build_ui` 构造**真实**的 `MainWindow` 与**真实**的回调接线，然后用
-`i-slint-backend-testing` 的 testing backend 按 `.slint` 的 `id:` 找元素、模拟点击。无窗口、无
-display、无事件循环，因此没有字体/DPI 平台的 flaky。覆盖的是 `bridge/` 单测看不到的那一段：
-按钮接错回调、对话框的 `is_open` 没人写、属性绑定写错。
+`i-slint-backend-testing` 的 testing backend 按 `.slint` 的 `id:` 找元素、模拟点击与按键。无窗口、
+无 display，因此没有字体/DPI 平台的 flaky。覆盖的是 `bridge/` 单测看不到的那一段：按钮接错回调、
+对话框的 `is_open` 没人写、属性绑定写错，以及**操作的爆炸半径**（删记录还是连文件一起删）。
+
+场景文件：`shell.rs`（工具栏/对话框/Esc 层级/快捷键）、`list.rs`（列表、选择、批量栏、右键菜单、
+表格列）、`labs.rs`（重写规则编辑器、CDN 内联校验）、`settings.rs`（限速计划、设置对话框）、
+`new_task.rs`（重置契约、批量计数、torrent 预选）、`inspector.rs`、`toast.rs`、`layout.rs`（几何
+不变量）、`async_contracts.rs`（需要事件循环的那一批）。
+
+两种 fixture，选错会直接报错：
+
+- `with_ui` / `with_settings`：**默认**。每线程装一次 `init_no_event_loop()`（mock 时间、无线程队列），
+  因此一个进程里可以跑任意多个测试（`cargo test` 和 nextest 都可）。**断言必须同步**：timers 不触发、
+  `invoke_from_event_loop` 不投递。fixture 会 `enter()` 一个 current-thread runtime 让回调里的
+  `tokio::spawn` 不 panic，但从不驱动它。
+- `with_ui_async` + `TestUi::pump_until` / `pump`：需要“回调里 spawn 的后台结果”时用。Slint 的
+event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_mock_time()` 一个进程只能装一次
+  —— 所有这类场景必须在**同一个** `#[test]`（`async_contracts::event_loop_contracts`）里，每个场景用
+  `new_window()` 拿自己的窗口。新增场景就加个 `async fn scenario_*(…)` 并列进去，不要新开 `#[test]`。
+  一次 pump 轮次 = 推进 mock 时钟 → 让 tokio 跑 spawned 任务 → 跑 Slint 事件循环排空队列；`pump_until`
+  有轮次上限，不收敛就失败（不会挂死 CI）。
 
 写新测试时：
 
-- **每个测试独立线程**：Slint 的全局 context 是 thread-local，`with_ui` 会**每线程**装一次 backend。
-  不要改成进程级 `Once`：那样只会让第一个线程有 platform，其余测试的 `MainWindow::new()` 会
-  “platform not initialized”。
+- **每个测试独立线程**：Slint 的 context 是 thread-local，mock backend 必须**每线程**装一次。不要改成
+  进程级 `Once`：那样只会让第一个线程有 platform，其余测试的 `MainWindow::new()` 会“platform not
+  initialized”。
 - **元素查找依赖 debug info**：`build.rs` 在 `PROFILE=debug` 时自动打开
-  （`slint_build::CompilerConfiguration::with_debug_info`），所以测试无需额外环境变量；release 不带
-  （省体积）。缺失时不会报错，只会打印 warning 并“找不到元素”，表现为 `no element with id …` 后跟
-  实际存在的 id 列表。
-- **新测试通常要顺手给 `.slint` 元素加 `id:`**，命名用 snake_case（`ta_set`、`close_btn`、`cat_downloading`）。
-  改这些 id 等于改测试契约，必须同步改测试。
-- **断言必须同步**：timers 不会触发，`slint::invoke_from_event_loop` 不会投递。回调里 `tokio::spawn`
-  的后台结果（持久化排序、剪贴板预填、toast 过期、dispatcher 调用）不在这一层断言。fixture 会
-  `enter()` 一个 current-thread runtime 让 `tokio::spawn` 不 panic，但从不驱动它，所以后台任务
-  不会与断言赛跑。
-- **输入框类控件不能用 `set_accessible_value`**：`accessible-action-set-value` 是需要在 `.slint` 里
-  显式声明的回调，app 自写的 `SearchInput` 没声明（只有 std-widgets 的 `LineEdit` 有）。因此
-  `TestUi::search()` 按控件真实行为同时写属性 + 调回调；L2/MCP 侧输入文字走的是按键事件
-  （MCP-only 的 `dispatch_key_event`），不依赖该 action。
+  （`slint_build::CompilerConfiguration::with_debug_info`）；release 不带（省体积）。缺失时不会报错，
+  只会打印 warning 并“找不到元素”，表现为 `no element with id …` 后跟实际存在的 id 列表。
+- **`id:` 是测试契约**：新测试通常要顺手给 `.slint` 元素加 `id:`（snake_case：`ta_set`、`close_btn`、
+  `cat_downloading`、`batch_purge_btn`…）。`for` 循环里的 id（`TaskTable::ta_row`）用 `find_all()`
+  按模型顺序取第 N 个：`click_nth` / `right_click_nth`。
+- **优先点真控件**（`click`），`invoke_*` 只用于两种情况：一个 id 对应多个元素而不关心具体哪个，
+  或者被测价值在 Rust 侧的状态机（如重写规则的索引维护）。
+- **断言爆炸半径**，不只看属性：`TestUi::core`（`RecordingBackend`）记录了 UI 对引擎的每一次调用，
+  `assert_eq!(ui.core.purges(), vec![…])` 才能区分“删了记录”与“删了文件”。它注册在 `TaskKind::Http`
+  上，种子任务必须用 `http_task(n, …)`（合法 UUID，否则 `TaskAction` 静默跳过）。
+- **断言助手**：`assert_inside_window`（附带 `id_tree()` 便于定位失败）、`assert_min_size`、
+  `assert_no_overlap`、`assert_toast`/`toasts`/`dismiss_toast`、`bounds`/`window_logical_size`。
+- **窗口与 DPI**：`set_window_size` 用逻辑像素；逻辑窗口尺寸要读**根元素**（`window_logical_size()` 内部
+  用 `ElementQuery::from_root`）而不能拿 `Window::size()/scale_factor()` 除——testing backend 的
+  `set_size` 固定按 scale 1.0 换算，而 `scale_factor()` 报的是宿主机 DPI（CI 与笔记本不一致）。
+- **键盘**：`click` 到文本框会把焦点交给它，上行到不了根 `FocusScope`；快捷键测试要在**不点击**的前提下
+  `press_keys(&[Key::Control.into(), 'n'])`（此时焦点在 `root_focus` 上）。`type_text` 往当前焦点输入。
+  这两个 helper 是自己用公开的 `Window::dispatch_event` 实现的：crate 的 `internal` feature **无法编译**
+  （`configure_test_fonts` 用 `include_dir!` 引了一个只存在于 Slint 源码仓库的路径），所以进程内
+  **没有**截图 / `take_debug_log` / `set_locale`——像素与调试日志继续走 L2/MCP。
+- **输入框类控件不能用 `set_accessible_value`**：`accessible-action-set-value` 是需要 .slint 显式声明的
+  回调，app 自写的 `SearchInput` 没声明（只有 std-widgets 的 `LineEdit` 有），所以 `TestUi::search()`
+  是“点入焦点 + `type_text`”。
+- **排序/种子顺序**：列表默认按创建时间**降序**，`http_task(n, …)` 故意让 `created_at_ms` 随 n 递减，
+  这样第 n 个任务的显示行号就是 n；批量操作作用在 `HashSet` 选择集上，断言要**排序后再比**。
 - 依赖版本：`i-slint-backend-testing` **不遵守 semver**，在根 `Cargo.toml` 里与 `slint`/`slint-build`
   用 `=x.y.z` 钉死，升级时三者一起改。
 

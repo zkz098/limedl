@@ -97,25 +97,42 @@ you want to catch.
 
 **L1 — in-process UI tests** (`src/ui_tests/`, part of the normal gate). They build the
 real `MainWindow` through `src/ui_boot.rs::build_ui` and drive it with Slint's testing
-backend: element queries by `.slint` id, simulated clicks, no window, no event loop.
-The rules below are load-bearing — each one cost a debugging session:
+backend: element queries by `.slint` id, simulated clicks and key presses, no window, no
+`SLINT_BACKEND`. Two entry points, and picking the wrong one panics:
 
-- Run them with the gate's `cargo nextest run -p limedl-native`; `cargo test -p limedl-native`
-  also works, but never `--test-threads=1` **plus** a `Once`-guarded platform init — the
-  Slint context is per *thread*, so `ui_tests::with_ui` installs the backend per thread
-  and a process-wide `Once` would leave later tests without a platform.
-- Element lookup needs Slint debug info. `build.rs` turns it on automatically when
-  `PROFILE=debug`, so nothing to export; a lookup that finds nothing prints a warning
-  instead of failing, which shows up as "no element with id …" listing the ids that do
-  exist. `SLINT_EMIT_DEBUG_INFO=1` in the environment also works (it forces a rebuild).
+- `with_ui` / `with_settings` (default): one mock platform per *thread* with mock time,
+  so many tests share a process. Assertions must be **synchronous** — timers never fire
+  and `invoke_from_event_loop` is dropped.
+- `with_ui_async` + `TestUi::pump_until` / `pump`: for contracts that finish on a spawned
+  task (batch actions, the engine calls behind the destructive buttons, a rejected save).
+  Slint's event-loop proxy is process-global, so **every** pump-based scenario has to live
+  inside the single `async_contracts::event_loop_contracts` test, each with its own
+  `new_window()`; add an `async fn scenario_*` there instead of a new `#[test]`.
+
+Rules that are load-bearing — each one cost a debugging session:
+
+- Element lookup needs Slint debug info. `build.rs` turns it on when `PROFILE=debug`, so
+  nothing to export; a lookup that finds nothing prints a warning listing the ids that do
+  exist, which is where the missing `id:` shows up.
 - Adding a test usually means adding an `id:` to the `.slint` element you want to click
-  (`MainWindow::ta_set`, `SettingsDialog::close_btn`, …). Renaming one of those ids is a
-  breaking change for the test that clicks it — that coupling is deliberate.
-- Assertions must be synchronous. Timers never fire and `slint::invoke_from_event_loop`
-  delivers nothing, so anything that finishes on a spawned task is out of scope here.
-  `i-slint-backend-testing` is version-pinned to `slint` in the root `Cargo.toml` and does
-  not follow semver: bump the two together, or the testing backend installs a platform
-  for a different `i-slint-core` than the generated components use.
+  (`MainWindow::ta_set`, `SettingsDialog::close_btn`, `TaskTable::ta_row` for rows in a
+  `for` loop, addressed with `click_nth`). Renaming one of those ids is a breaking change
+  for the test that clicks it — that coupling is deliberate.
+- Assert the **blast radius**, not just the property: `TestUi::core` is a recording
+  `DownloadBackend`, so `assert_eq!(ui.core.purges(), vec![…])` is what separates “dropped
+  the row” from “deleted the file”. Seed tasks with `http_task(n, …)` (valid uuids, and
+  `created_at_ms` chosen so row `n` is task `n` under the default newest-first sort).
+- Helpers worth knowing: `assert_inside_window` (dumps the id tree on failure),
+  `assert_min_size`, `assert_no_overlap`, `assert_toast`, `window_logical_size` (read from
+  the root element — see the method's doc for why `Window::size()/scale_factor()` is wrong).
+- Key presses come from the fixture, not from the crate: the published
+  `i-slint-backend-testing` cannot compile its `internal` feature (its font path only
+  exists in the Slint workspace), which also means no in-process screenshots — pixels stay
+  on the L2/MCP path. Shortcut tests must **not** click first, because clicking a text
+  field moves focus away from the root `FocusScope` the shortcuts live in.
+- `i-slint-backend-testing` is version-pinned to `slint` in the root `Cargo.toml` and does
+  not follow semver: bump the two together, or the testing backend installs a platform for
+  a different `i-slint-core` than the generated components use.
 
 **L2 — MCP server** (no test code; for agents and manual inspection of a running app):
 

@@ -14,7 +14,7 @@ Tauri/Vue desktop shell was retired).
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/main.rs`            | 应用装配：上下文初始化、后台任务启动、托盘、事件循环、外观与视图偏好应用                                                                               |
 | `src/ui_boot.rs`         | UI 装配：窗口构造、初始外观/视图偏好、`AppContext` 组装与回调注册；由 `main()` 与进程内 UI 测试共用（OS/事件循环相关的部分留在 `main()`）              |
-| `src/ui_tests/`          | 进程内 UI 测试（L1）：`mod.rs` fixture（建窗口/按 `id:` 找元素/模拟点击），`shell.rs`（窗口外壳与对话框）、`list.rs`（任务列表）两个场景文件              |
+| `src/ui_tests/`          | 进程内 UI 测试（L1）：`mod.rs` fixture（建窗口/找元素/点击/按键/断言助手/录制式 backend），`shell.rs`、`list.rs`、`labs.rs`、`settings.rs`、`new_task.rs`、`inspector.rs`、`toast.rs`、`layout.rs`，以及需要事件循环的 `async_contracts.rs`（详见 `.opencode/guides/testing-guide.md`） |
 | `src/platform_adapter.rs`| 平台集成：跨平台单实例激活监听 + Windows 专属拖拽/WM_COPYDATA 窗口子类化与重试挂载                                                                      |
 | `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`（`forms/` 按设置分区拆分：`combo`/`enums`/`to_form`/`from_form`/`speed_limit`）、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
 | `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs`；每个 `register()` 只做绑定编排，回调体（超过 ~25 行的一律）提取为同模块的命名 `fn`（如 `submit_single`、`finish_setup`、`factory_reset`） |
@@ -123,9 +123,12 @@ cargo clippy -p limedl-native --all-targets -- -D warnings
 ```
 
 - **Slint 编译期校验**（`build.rs` → `slint-build`）捕获 `.slint` 语法/类型/图标路径错误。
-- **进程内 UI 测试**（`src/ui_tests/`）用真实窗口驱动真实回调：工具栏按钮开/关对话框、视图模式切换、列表筛选/搜索/排序与空态切换。它们按 `.slint` 的 `id:` 找元素，**所以 `.slint` 的 `id:` 是测试契约的一部分**（重命名要同步改测试）：新增交互控件时顺手给个 snake_case 的 `id:`。
-- 断言必须同步（无事件循环：timers 不触发、`invoke_from_event_loop` 不投递）；后台任务结果、动画结束态、截图对比都不在这一层。让 agent/人工驱动真实运行的窗口走 `slint/mcp` 的 MCP server，完整规则见 `.opencode/guides/testing-guide.md`。
-- **没有 UI 快照/黄金图回归测试**：字体（内嵌 MiSans）与 `with_scale_factor(2.0)` 已固定，但成本（Skia 软件光栅化 + 基线维护）仍高于当前收益；真要抓视觉回归时再按 testing-guide 的 L2/headless 方案评估。
+- **进程内 UI 测试**（`src/ui_tests/`，详见 `.opencode/guides/testing-guide.md`）：真实窗口 + 真实回调，覆盖工具栏/对话框开关、Esc 层级、快捷键守卫、列表选择与批量栏、右键菜单、表格列、重写规则编辑器、限速计划、新建任务重置契约、toast 队列、几何不变量，以及“删除记录 vs 删除文件”这类爆炸半径断言。它们按 `.slint` 的 `id:` 找元素，**所以 `id:` 是测试契约的一部分**（重命名要同步改测试）：新增交互控件时顺手给个 snake_case 的 `id:`。
+- **测试抓到过的真实 bug**（新增用例时就往这些方向看）：
+  - `handle_key_escape` 所在 `FocusScope` 的“对话框打开就拦下快捷键”是裸 `if … { reject }`，值被丢弃 ⇒ Ctrl+A / Space / Delete 会作用到模态**背后**的列表（Delete 会删选中项）。现在它是 `else if` 链的一环。
+  - 表格列头点击调用 `set_sort_field`，它不重置方向 ⇒ 换列可能变成降序，与注释承诺的“新列升序”不符。现在用 `apply_sort(field, true)`。
+  - 已知遗留：窗口在 `min-width`（1000px）下工具栏溢出行右边界，`ta_new_task` 被裁掉约 18px（中文标签；英文更宽）。`layout.rs` 里有一条 characterization 断言钉住了它——修好（抬 `min-width` 或让该行换行/滚动）会让那条断言失败，提醒同步契约。
+- 断言可以读到的几何来自布局（无渲染器也是真实字体度量），但**没有进程内截图**：testing crate 的 `internal` feature 在 crates.io 上无法编译（见 testing-guide）。像素与视觉回归仍走 L2/MCP 的 `take_screenshot`。
 
 ## 手动冒烟
 
