@@ -572,7 +572,10 @@ fn collect_request_headers_referer_star_uses_download_url() {
 #[timeout(10_000)]
 fn collect_request_headers_explicit_referer_wins() {
     let mut map = serde_json::Map::new();
-    map.insert("header".to_string(), json!(["Referer: https://explicit.example/"]));
+    map.insert(
+        "header".to_string(),
+        json!(["Referer: https://explicit.example/"]),
+    );
     map.insert("referer".to_string(), json!("https://option.example/"));
     let headers = collect_request_headers(Some(&map), "https://example.com/file.bin");
     assert_eq!(headers, vec!["Referer: https://explicit.example/"]);
@@ -618,14 +621,24 @@ fn parse_checksum_option_supported_types() {
         map.insert("checksum".to_string(), json!(raw));
         let (mode, digest) = parse_checksum_option(Some(&map));
         assert_eq!(mode, Some(expected_mode), "type mismatch for {raw}");
-        assert_eq!(digest, Some("abcdef".to_string()), "digest mismatch for {raw}");
+        assert_eq!(
+            digest,
+            Some("abcdef".to_string()),
+            "digest mismatch for {raw}"
+        );
     }
 }
 
 #[test]
 #[timeout(10_000)]
 fn parse_checksum_option_ignores_unsupported_and_malformed() {
-    for raw in ["md5=abc", "sha-512=abc", "adler32=abc", "no-equals", "sha-256="] {
+    for raw in [
+        "md5=abc",
+        "sha-512=abc",
+        "adler32=abc",
+        "no-equals",
+        "sha-256=",
+    ] {
         let mut map = serde_json::Map::new();
         map.insert("checksum".to_string(), json!(raw));
         assert_eq!(parse_checksum_option(Some(&map)), (None, None), "raw={raw}");
@@ -636,7 +649,10 @@ fn parse_checksum_option_ignores_unsupported_and_malformed() {
 #[test]
 #[timeout(10_000)]
 fn find_header_value_is_case_insensitive() {
-    let headers = vec!["X-A: 1".to_string(), "REFERER: https://example.com/".to_string()];
+    let headers = vec![
+        "X-A: 1".to_string(),
+        "REFERER: https://example.com/".to_string(),
+    ];
     assert_eq!(
         find_header_value(&headers, "referer"),
         Some("https://example.com/".to_string())
