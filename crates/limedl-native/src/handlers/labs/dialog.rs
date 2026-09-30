@@ -2,12 +2,20 @@
 
 use std::time::Duration;
 
+use crate::LabsFormData;
+use crate::MainWindow;
+use crate::bridge::TaskStore;
 use crate::bridge::update_app_settings_from_labs_form;
 use crate::context::AppContext;
 use crate::handlers::common::with_ui;
 use crate::i18n;
+use crate::toast::ToastQueue;
 use crate::toast::push_toast;
 use crate::ui_sync::refresh_labs_state;
+use limedl_core::dispatcher::Dispatcher;
+use limedl_core::types::{AppSettings, UrlRewriteRule};
+use parking_lot::Mutex;
+use std::sync::Arc;
 
 pub fn register(ctx: &AppContext) {
     let ui = &ctx.ui;
@@ -68,47 +76,68 @@ pub fn register(ctx: &AppContext) {
         let toast_queue = ctx.toast_queue.clone();
         let ui_weak = ctx.ui_weak.clone();
         ui.on_save_labs(move |form_data| {
-            let dispatcher = dispatcher.clone();
-            let current_settings = current_settings.clone();
-            let rewrite_rules = rewrite_rules.clone();
-            let store = store.clone();
-            let toast_queue = toast_queue.clone();
-            let ui_weak = ui_weak.clone();
-
-            tokio::spawn(async move {
-                let mut settings = current_settings.lock().clone();
-                let lang = store.lock().language();
-
-                update_app_settings_from_labs_form(&mut settings, &form_data);
-                settings.url_rewrite.rules = rewrite_rules.lock().clone();
-
-                match dispatcher.save_settings(&settings).await {
-                    Ok(saved) => {
-                        *current_settings.lock() = saved;
-                        push_toast(
-                            &ui_weak,
-                            &toast_queue,
-                            i18n::format_toast_labs_saved(lang).to_string(),
-                            "success",
-                            Duration::from_secs(4),
-                        );
-                        let _ = slint::invoke_from_event_loop(move || {
-                            with_ui(&ui_weak, |ui| ui.set_show_labs(false));
-                        });
-                    }
-                    Err(err) => {
-                        tracing::error!("保存实验室设置失败: {err:#}");
-                        let msg = format!("{err:#}");
-                        push_toast(
-                            &ui_weak,
-                            &toast_queue,
-                            i18n::format_toast_labs_save_failed(&msg, lang),
-                            "error",
-                            Duration::from_secs(6),
-                        );
-                    }
-                }
-            });
+            save_labs(
+                ui_weak.clone(),
+                dispatcher.clone(),
+                current_settings.clone(),
+                rewrite_rules.clone(),
+                store.clone(),
+                toast_queue.clone(),
+                form_data,
+            );
         });
     }
+}
+
+/// Merge the labs form into the cached settings, persist and close on success.
+fn save_labs(
+    ui_weak: slint::Weak<MainWindow>,
+    dispatcher: Arc<Dispatcher>,
+    current_settings: Arc<Mutex<AppSettings>>,
+    rewrite_rules: Arc<Mutex<Vec<UrlRewriteRule>>>,
+    store: Arc<Mutex<TaskStore>>,
+    toast_queue: ToastQueue,
+    form_data: LabsFormData,
+) {
+    let dispatcher = dispatcher.clone();
+    let current_settings = current_settings.clone();
+    let rewrite_rules = rewrite_rules.clone();
+    let store = store.clone();
+    let toast_queue = toast_queue.clone();
+    let ui_weak = ui_weak.clone();
+
+    tokio::spawn(async move {
+        let mut settings = current_settings.lock().clone();
+        let lang = store.lock().language();
+
+        update_app_settings_from_labs_form(&mut settings, &form_data);
+        settings.url_rewrite.rules = rewrite_rules.lock().clone();
+
+        match dispatcher.save_settings(&settings).await {
+            Ok(saved) => {
+                *current_settings.lock() = saved;
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_labs_saved(lang).to_string(),
+                    "success",
+                    Duration::from_secs(4),
+                );
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ui(&ui_weak, |ui| ui.set_show_labs(false));
+                });
+            }
+            Err(err) => {
+                tracing::error!("保存实验室设置失败: {err:#}");
+                let msg = format!("{err:#}");
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_labs_save_failed(&msg, lang),
+                    "error",
+                    Duration::from_secs(6),
+                );
+            }
+        }
+    });
 }

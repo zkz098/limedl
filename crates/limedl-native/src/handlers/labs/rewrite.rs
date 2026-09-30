@@ -8,6 +8,8 @@ use parking_lot::Mutex;
 
 use limedl_core::types::{MatchType, ReplacementMode, RewriteTarget, UrlRewriteRule};
 
+use crate::MainWindow;
+use crate::bridge::TaskStore;
 use crate::bridge::{
     create_url_rewrite_preset, str_to_match_type, str_to_replacement_mode,
     url_rewrite_rules_to_slint,
@@ -16,7 +18,6 @@ use crate::context::AppContext;
 use crate::handlers::common::with_ui;
 use crate::handlers::labs::{push_rewrite_state, push_sandbox_result};
 use crate::i18n;
-use crate::MainWindow;
 
 /// Run `f` with the rule list locked and the window upgraded.
 fn with_rules(
@@ -102,29 +103,12 @@ pub fn register(ctx: &AppContext) {
         let store = store.clone();
         let ui_weak = ctx.ui_weak.clone();
         ui.on_add_custom_rule(move || {
-            {
-                let mut guard = rules.lock();
-                let id = format!("rule-{}", uuid::Uuid::new_v4().simple());
-                let order = guard.len() as u32;
-                expanded.lock().insert(id.clone());
-                guard.push(UrlRewriteRule {
-                    id,
-                    name: i18n::new_rewrite_rule_name(store.lock().language()).to_string(),
-                    enabled: true,
-                    match_type: MatchType::Host,
-                    pattern: "*.example.com".to_string(),
-                    replacement_mode: ReplacementMode::PrefixProxy,
-                    encode_url: true,
-                    fallback_to_original: true,
-                    order,
-                    targets: vec![RewriteTarget {
-                        url_template: "https://mirror.example.com".to_string(),
-                        enabled: true,
-                        order: 0,
-                    }],
-                });
-            }
-            repaint_rules(&ui_weak, &rules, &expanded);
+            add_custom_rule(
+                ui_weak.clone(),
+                rules.clone(),
+                expanded.clone(),
+                store.clone(),
+            );
         });
     }
 
@@ -295,4 +279,36 @@ pub fn register(ctx: &AppContext) {
             });
         });
     }
+}
+
+/// Append a new custom rewrite rule and repaint the list.
+fn add_custom_rule(
+    ui_weak: slint::Weak<MainWindow>,
+    rules: Arc<Mutex<Vec<UrlRewriteRule>>>,
+    expanded: Arc<Mutex<HashSet<String>>>,
+    store: Arc<Mutex<TaskStore>>,
+) {
+    {
+        let mut guard = rules.lock();
+        let id = format!("rule-{}", uuid::Uuid::new_v4().simple());
+        let order = guard.len() as u32;
+        expanded.lock().insert(id.clone());
+        guard.push(UrlRewriteRule {
+            id,
+            name: i18n::new_rewrite_rule_name(store.lock().language()).to_string(),
+            enabled: true,
+            match_type: MatchType::Host,
+            pattern: "*.example.com".to_string(),
+            replacement_mode: ReplacementMode::PrefixProxy,
+            encode_url: true,
+            fallback_to_original: true,
+            order,
+            targets: vec![RewriteTarget {
+                url_template: "https://mirror.example.com".to_string(),
+                enabled: true,
+                order: 0,
+            }],
+        });
+    }
+    repaint_rules(&ui_weak, &rules, &expanded);
 }

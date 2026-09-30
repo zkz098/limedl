@@ -15,6 +15,7 @@ use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::EventBus;
 use limedl_core::types::AppSettings;
 
+use crate::MainWindow;
 use crate::bridge::{
     TaskStore, cdn_candidates_to_slint, format_timestamp_ms, update_app_settings_from_labs_form,
 };
@@ -22,7 +23,6 @@ use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
 use crate::i18n::{self, Language};
 use crate::toast::{ToastQueue, push_toast};
-use crate::MainWindow;
 
 /// Handles shared by the CDN tab. Cloned once per callback so each closure
 /// captures one cheap handle instead of six.
@@ -56,7 +56,10 @@ fn default_node_text(outcome: &CdnTestOutcome) -> Option<String> {
 fn speed_improvement_text(outcome: &CdnTestOutcome) -> Option<String> {
     match (
         outcome.active_speed_mbps,
-        outcome.default_node.as_ref().and_then(|node| node.throughput_mbps),
+        outcome
+            .default_node
+            .as_ref()
+            .and_then(|node| node.throughput_mbps),
     ) {
         (Some(active), Some(base)) if base > 0.0 => {
             Some(format!("{:+.1}%", (active - base) / base * 100.0))
@@ -74,7 +77,10 @@ fn latency_improvement_text(outcome: &CdnTestOutcome) -> Option<String> {
         .fold(f64::INFINITY, f64::min);
     match (
         best,
-        outcome.default_node.as_ref().map(|node| node.tcp_latency_ms),
+        outcome
+            .default_node
+            .as_ref()
+            .map(|node| node.tcp_latency_ms),
     ) {
         (active, Some(base)) if active.is_finite() && base > 0.0 => {
             Some(format!("{:+.1}%", (active - base) / base * 100.0))
@@ -147,8 +153,7 @@ impl Cdn {
                 form.cdn_active_ip = SharedString::from(ip_text.clone());
                 match speed {
                     Some(speed) => {
-                        form.cdn_active_speed_text =
-                            SharedString::from(format!("{speed:.2} MB/s"));
+                        form.cdn_active_speed_text = SharedString::from(format!("{speed:.2} MB/s"));
                     }
                     None => form.cdn_manual_ip_error = SharedString::default(),
                 }
@@ -227,64 +232,7 @@ pub fn register(ctx: &AppContext) {
     {
         let cdn = cdn.clone();
         ui.on_start_cdn_test(move || {
-            let Some(settings) = read_ui(&cdn.ui_weak, |ui| {
-                let lang = cdn.lang();
-                let mut form = ui.get_labs_form();
-                form.cdn_is_testing = true;
-                form.cdn_status_type = SharedString::from("testing");
-                form.cdn_status_label =
-                    SharedString::from(i18n::format_cdn_status_label(true, lang));
-                form.cdn_phase_label = SharedString::from(i18n::cdn_phase_fetching_label(lang));
-                form.cdn_progress_percent = 0.0;
-                form.cdn_progress_label = SharedString::from("0 / 0");
-                form.cdn_last_error = SharedString::default();
-                ui.set_labs_form(form.clone());
-
-                let mut settings = cdn.current_settings.lock().clone();
-                update_app_settings_from_labs_form(&mut settings, &form);
-                settings
-            }) else {
-                return;
-            };
-
-            let cdn = cdn.clone();
-            tokio::spawn(async move {
-                let Some(service) = cdn.dispatcher.cdn_service() else {
-                    return;
-                };
-                let service = service.clone();
-
-                match service.start_test(settings).await {
-                    Ok(()) => {
-                        let outcome = service.monitor_test(cdn.event_bus.clone()).await;
-                        cdn.finish_test(outcome).await;
-                    }
-                    Err(err) => {
-                        tracing::error!("启动 CDN 测速失败: {err:#}");
-                        let err_msg = err.to_string();
-                        let lang = cdn.lang();
-                        push_toast(
-                            &cdn.ui_weak,
-                            &cdn.toast_queue,
-                            i18n::format_toast_cdn_test_failed(&err_msg, lang),
-                            "error",
-                            Duration::from_secs(6),
-                        );
-                        let ui_weak = cdn.ui_weak.clone();
-                        let _ = slint::invoke_from_event_loop(move || {
-                            with_ui(&ui_weak, |ui| {
-                                let mut form = ui.get_labs_form();
-                                form.cdn_is_testing = false;
-                                form.cdn_status_type = SharedString::from("error");
-                                form.cdn_status_label =
-                                    SharedString::from(i18n::cdn_test_failed_label(lang));
-                                form.cdn_last_error = SharedString::from(err_msg);
-                                ui.set_labs_form(form);
-                            });
-                        });
-                    }
-                }
-            });
+            start_cdn_test(cdn.clone());
         });
     }
 
@@ -311,45 +259,7 @@ pub fn register(ctx: &AppContext) {
     {
         let cdn = cdn.clone();
         ui.on_clear_cdn_test(move || {
-            let cdn = cdn.clone();
-            tokio::spawn(async move {
-                let Some(service) = cdn.dispatcher.cdn_service() else {
-                    return;
-                };
-                service.clear().await;
-                cdn.candidates.lock().clear();
-
-                let lang = cdn.lang();
-                let mut settings = cdn.current_settings.lock().clone();
-                settings.cdn_acceleration.active_ip = None;
-                settings.cdn_acceleration.active_speed_mbps = None;
-                settings.cdn_acceleration.last_test_at_ms = None;
-                settings.cdn_acceleration.last_error = None;
-                if let Ok(saved) = cdn.dispatcher.save_settings(&settings).await {
-                    *cdn.current_settings.lock() = saved;
-                }
-
-                push_toast(
-                    &cdn.ui_weak,
-                    &cdn.toast_queue,
-                    i18n::format_toast_cdn_cleared(lang).to_string(),
-                    "info",
-                    Duration::from_secs(4),
-                );
-
-                let ui_weak = cdn.ui_weak.clone();
-                let _ = slint::invoke_from_event_loop(move || {
-                    with_ui(&ui_weak, |ui| {
-                        let mut form = ui.get_labs_form();
-                        form.cdn_active_ip = SharedString::default();
-                        form.cdn_active_speed_text = SharedString::default();
-                        form.cdn_status_type = SharedString::from("idle");
-                        form.cdn_status_label = SharedString::from(i18n::cdn_idle_label(lang));
-                        ui.set_labs_form(form);
-                        ui.set_cdn_candidates(cdn_candidates_to_slint(&[], ""));
-                    });
-                });
-            });
+            clear_cdn_test(cdn.clone());
         });
     }
 
@@ -370,22 +280,20 @@ pub fn register(ctx: &AppContext) {
     // Manual IP override, with inline validation.
     {
         let cdn = cdn.clone();
-        ui.on_apply_manual_cdn_ip(move |ip_str| {
-            match ip_str.trim().parse::<IpAddr>() {
-                Ok(ip) => {
-                    let cdn = cdn.clone();
-                    tokio::spawn(async move {
-                        cdn.apply_ip(ip, None).await;
-                    });
-                }
-                Err(_) => {
-                    let lang = cdn.lang();
-                    with_ui(&cdn.ui_weak, |ui| {
-                        let mut form = ui.get_labs_form();
-                        form.cdn_manual_ip_error = SharedString::from(i18n::format_invalid_ip(lang));
-                        ui.set_labs_form(form);
-                    });
-                }
+        ui.on_apply_manual_cdn_ip(move |ip_str| match ip_str.trim().parse::<IpAddr>() {
+            Ok(ip) => {
+                let cdn = cdn.clone();
+                tokio::spawn(async move {
+                    cdn.apply_ip(ip, None).await;
+                });
+            }
+            Err(_) => {
+                let lang = cdn.lang();
+                with_ui(&cdn.ui_weak, |ui| {
+                    let mut form = ui.get_labs_form();
+                    form.cdn_manual_ip_error = SharedString::from(i18n::format_invalid_ip(lang));
+                    ui.set_labs_form(form);
+                });
             }
         });
     }
@@ -400,4 +308,108 @@ pub fn register(ctx: &AppContext) {
             });
         });
     }
+}
+
+/// Flip the CDN tab into "testing", run the speedtest and repaint the outcome.
+fn start_cdn_test(cdn: Cdn) {
+    let Some(settings) = read_ui(&cdn.ui_weak, |ui| {
+        let lang = cdn.lang();
+        let mut form = ui.get_labs_form();
+        form.cdn_is_testing = true;
+        form.cdn_status_type = SharedString::from("testing");
+        form.cdn_status_label = SharedString::from(i18n::format_cdn_status_label(true, lang));
+        form.cdn_phase_label = SharedString::from(i18n::cdn_phase_fetching_label(lang));
+        form.cdn_progress_percent = 0.0;
+        form.cdn_progress_label = SharedString::from("0 / 0");
+        form.cdn_last_error = SharedString::default();
+        ui.set_labs_form(form.clone());
+
+        let mut settings = cdn.current_settings.lock().clone();
+        update_app_settings_from_labs_form(&mut settings, &form);
+        settings
+    }) else {
+        return;
+    };
+
+    let cdn = cdn.clone();
+    tokio::spawn(async move {
+        let Some(service) = cdn.dispatcher.cdn_service() else {
+            return;
+        };
+        let service = service.clone();
+
+        match service.start_test(settings).await {
+            Ok(()) => {
+                let outcome = service.monitor_test(cdn.event_bus.clone()).await;
+                cdn.finish_test(outcome).await;
+            }
+            Err(err) => {
+                tracing::error!("启动 CDN 测速失败: {err:#}");
+                let err_msg = err.to_string();
+                let lang = cdn.lang();
+                push_toast(
+                    &cdn.ui_weak,
+                    &cdn.toast_queue,
+                    i18n::format_toast_cdn_test_failed(&err_msg, lang),
+                    "error",
+                    Duration::from_secs(6),
+                );
+                let ui_weak = cdn.ui_weak.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ui(&ui_weak, |ui| {
+                        let mut form = ui.get_labs_form();
+                        form.cdn_is_testing = false;
+                        form.cdn_status_type = SharedString::from("error");
+                        form.cdn_status_label =
+                            SharedString::from(i18n::cdn_test_failed_label(lang));
+                        form.cdn_last_error = SharedString::from(err_msg);
+                        ui.set_labs_form(form);
+                    });
+                });
+            }
+        }
+    });
+}
+
+/// Clear the active node, its candidates and the persisted CDN state.
+fn clear_cdn_test(cdn: Cdn) {
+    let cdn = cdn.clone();
+    tokio::spawn(async move {
+        let Some(service) = cdn.dispatcher.cdn_service() else {
+            return;
+        };
+        service.clear().await;
+        cdn.candidates.lock().clear();
+
+        let lang = cdn.lang();
+        let mut settings = cdn.current_settings.lock().clone();
+        settings.cdn_acceleration.active_ip = None;
+        settings.cdn_acceleration.active_speed_mbps = None;
+        settings.cdn_acceleration.last_test_at_ms = None;
+        settings.cdn_acceleration.last_error = None;
+        if let Ok(saved) = cdn.dispatcher.save_settings(&settings).await {
+            *cdn.current_settings.lock() = saved;
+        }
+
+        push_toast(
+            &cdn.ui_weak,
+            &cdn.toast_queue,
+            i18n::format_toast_cdn_cleared(lang).to_string(),
+            "info",
+            Duration::from_secs(4),
+        );
+
+        let ui_weak = cdn.ui_weak.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            with_ui(&ui_weak, |ui| {
+                let mut form = ui.get_labs_form();
+                form.cdn_active_ip = SharedString::default();
+                form.cdn_active_speed_text = SharedString::default();
+                form.cdn_status_type = SharedString::from("idle");
+                form.cdn_status_label = SharedString::from(i18n::cdn_idle_label(lang));
+                ui.set_labs_form(form);
+                ui.set_cdn_candidates(cdn_candidates_to_slint(&[], ""));
+            });
+        });
+    });
 }

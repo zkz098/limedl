@@ -14,8 +14,8 @@ Tauri/Vue desktop shell was retired).
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/main.rs`            | 应用装配：上下文初始化、后台任务启动、托盘、事件循环、外观与视图偏好应用                                                                               |
 | `src/platform_adapter.rs`| 平台集成：跨平台单实例激活监听 + Windows 专属拖拽/WM_COPYDATA 窗口子类化与重试挂载                                                                      |
-| `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
-| `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs` |
+| `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`（`forms/` 按设置分区拆分：`combo`/`enums`/`to_form`/`from_form`/`speed_limit`）、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
+| `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs`；每个 `register()` 只做绑定编排，回调体（超过 ~25 行的一律）提取为同模块的命名 `fn`（如 `submit_single`、`finish_setup`、`factory_reset`） |
 | `src/event_stream/`      | 后台监听：`bus.rs`（`DownloadEvent` 每个变体一个函数）、`pollers.rs`（剪贴板 + BT 状态 + Inspector 轮询）、`tray.rs`（托盘菜单/左键激活）                                                      |
 | `src/settings_sync.rs`   | 保存设置后的共享副作用：OS 自启同步、Aria2 RPC 热重载、把设置推入 UI（设置对话框与首启向导共用）                                                                                     |
 | `src/i18n/`             | 语言枚举（`language.rs`）与 `format_*` 本地化辅助，按域拆分：`task.rs`（列表/状态）、`dialogs.rs`（新建任务/批量）、`tray.rs`（托盘/通知）、`toast.rs`（全部 toast）、`validation.rs`（设置校验）、`cdn.rs`、`rewrite.rs`、`schedule.rs`；全部在 `mod.rs` 重新导出，调用点仍是 `i18n::format_*` |

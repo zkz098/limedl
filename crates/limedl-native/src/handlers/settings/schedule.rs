@@ -1,11 +1,14 @@
 //! Speed limit callbacks: the per-task limit dialog and the global schedule
 //! editor (rows live in the UI model until Save).
 
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 use slint::{Model, ModelRc, SharedString, VecModel};
 
 use limedl_core::types::TaskId;
 
-use crate::bridge::{SpeedLimitSlotText, speed_limit_slots_to_slint};
+use crate::bridge::{SpeedLimitSlotText, TaskStore, speed_limit_slots_to_slint};
 use crate::context::AppContext;
 use crate::handlers::common::with_ui;
 use crate::i18n;
@@ -118,34 +121,46 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
         ui.on_schedule_update(move |idx, field, value| {
-            let lang = store.lock().language();
-            with_ui(&ui_weak, |ui| {
-                let model = ui.get_speed_limit_slots();
-                let Some(vec_model) = model.as_any().downcast_ref::<VecModel<SpeedLimitSlotItem>>()
-                else {
-                    return;
-                };
-                let idx = idx.max(0) as usize;
-                let Some(mut item) = vec_model.row_data(idx) else {
-                    return;
-                };
-                match field.as_str() {
-                    "start" => item.start_hour = value.clone(),
-                    "end" => item.end_hour = value.clone(),
-                    "limit" => item.limit_kb = value.clone(),
-                    _ => return,
-                }
-                // Refresh the derived row text (range summary + midnight
-                // marker) without rebuilding the model, so the focused input
-                // keeps its caret.
-                let start = item.start_hour.trim().parse::<u32>().unwrap_or(0).min(23);
-                let end = item.end_hour.trim().parse::<u32>().unwrap_or(0).min(23);
-                let limit = item.limit_kb.trim().parse::<u64>().unwrap_or(0);
-                item.wraps = start >= end;
-                item.summary =
-                    SharedString::from(i18n::format_schedule_summary(start, end, limit, lang));
-                vec_model.set_row_data(idx, item);
-            });
+            update_schedule_row(ui_weak.clone(), store.clone(), idx, field, value);
         });
     }
+}
+
+/// Edit one schedule row in place and refresh its derived summary.
+fn update_schedule_row(
+    ui_weak: slint::Weak<MainWindow>,
+    store: Arc<Mutex<TaskStore>>,
+    idx: i32,
+    field: SharedString,
+    value: SharedString,
+) {
+    let lang = store.lock().language();
+    with_ui(&ui_weak, |ui| {
+        let model = ui.get_speed_limit_slots();
+        let Some(vec_model) = model
+            .as_any()
+            .downcast_ref::<VecModel<SpeedLimitSlotItem>>()
+        else {
+            return;
+        };
+        let idx = idx.max(0) as usize;
+        let Some(mut item) = vec_model.row_data(idx) else {
+            return;
+        };
+        match field.as_str() {
+            "start" => item.start_hour = value.clone(),
+            "end" => item.end_hour = value.clone(),
+            "limit" => item.limit_kb = value.clone(),
+            _ => return,
+        }
+        // Refresh the derived row text (range summary + midnight
+        // marker) without rebuilding the model, so the focused input
+        // keeps its caret.
+        let start = item.start_hour.trim().parse::<u32>().unwrap_or(0).min(23);
+        let end = item.end_hour.trim().parse::<u32>().unwrap_or(0).min(23);
+        let limit = item.limit_kb.trim().parse::<u64>().unwrap_or(0);
+        item.wraps = start >= end;
+        item.summary = SharedString::from(i18n::format_schedule_summary(start, end, limit, lang));
+        vec_model.set_row_data(idx, item);
+    });
 }

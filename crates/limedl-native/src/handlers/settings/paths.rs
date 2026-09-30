@@ -8,14 +8,17 @@ use std::time::Duration;
 use parking_lot::Mutex;
 use slint::SharedString;
 
+use crate::MainWindow;
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
 use crate::handlers::common::with_ui;
 use crate::i18n::{self, Language};
 use crate::paths::dirs_or_temp_dir;
 use crate::task_ops::open_path_in_explorer;
+use crate::toast::ToastQueue;
 use crate::toast::push_toast;
-use crate::{MainWindow, SettingsFormData};
+use crate::SettingsFormData;
+use limedl_core::dispatcher::Dispatcher;
 
 /// Ask for a folder and store it in one settings-form field.
 ///
@@ -66,45 +69,13 @@ pub fn register(ctx: &AppContext) {
         let toast_queue = ctx.toast_queue.clone();
         let ui_weak = ui_weak.clone();
         ui.on_fetch_trackers_remote(move |url_str| {
-            let dispatcher = dispatcher.clone();
-            let store = store.clone();
-            let url = url_str.to_string();
-            let toast_queue = toast_queue.clone();
-            let ui_weak = ui_weak.clone();
-
-            tokio::spawn(async move {
-                let lang = store.lock().language();
-                match dispatcher.fetch_tracker_list(&url).await {
-                    Ok(trackers) => {
-                        tracing::info!("成功同步远程 Tracker 列表: {} 个", trackers.len());
-                        push_toast(
-                            &ui_weak,
-                            &toast_queue,
-                            i18n::format_toast_tracker_synced(trackers.len(), lang),
-                            "success",
-                            Duration::from_secs(4),
-                        );
-                        let _ = slint::invoke_from_event_loop(move || {
-                            with_ui(&ui_weak, |ui| {
-                                let mut form = ui.get_settings_form();
-                                form.tracker_url = SharedString::from(&url);
-                                ui.set_settings_form(form);
-                            });
-                        });
-                    }
-                    Err(err) => {
-                        tracing::error!("同步 Tracker 列表失败: {err:#}");
-                        let msg = format!("{err:#}");
-                        push_toast(
-                            &ui_weak,
-                            &toast_queue,
-                            i18n::format_toast_tracker_sync_failed(&msg, lang),
-                            "error",
-                            Duration::from_secs(6),
-                        );
-                    }
-                }
-            });
+            fetch_trackers_remote(
+                ui_weak.clone(),
+                dispatcher.clone(),
+                store.clone(),
+                toast_queue.clone(),
+                url_str,
+            );
         });
     }
 
@@ -154,4 +125,53 @@ pub fn register(ctx: &AppContext) {
             let _ = open_path_in_explorer(&parent_dir.to_string_lossy());
         });
     }
+}
+
+/// Sync the BT tracker list from a remote URL and report the result.
+fn fetch_trackers_remote(
+    ui_weak: slint::Weak<MainWindow>,
+    dispatcher: Arc<Dispatcher>,
+    store: Arc<Mutex<TaskStore>>,
+    toast_queue: ToastQueue,
+    url_str: SharedString,
+) {
+    let dispatcher = dispatcher.clone();
+    let store = store.clone();
+    let url = url_str.to_string();
+    let toast_queue = toast_queue.clone();
+    let ui_weak = ui_weak.clone();
+
+    tokio::spawn(async move {
+        let lang = store.lock().language();
+        match dispatcher.fetch_tracker_list(&url).await {
+            Ok(trackers) => {
+                tracing::info!("成功同步远程 Tracker 列表: {} 个", trackers.len());
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_tracker_synced(trackers.len(), lang),
+                    "success",
+                    Duration::from_secs(4),
+                );
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ui(&ui_weak, |ui| {
+                        let mut form = ui.get_settings_form();
+                        form.tracker_url = SharedString::from(&url);
+                        ui.set_settings_form(form);
+                    });
+                });
+            }
+            Err(err) => {
+                tracing::error!("同步 Tracker 列表失败: {err:#}");
+                let msg = format!("{err:#}");
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_tracker_sync_failed(&msg, lang),
+                    "error",
+                    Duration::from_secs(6),
+                );
+            }
+        }
+    });
 }

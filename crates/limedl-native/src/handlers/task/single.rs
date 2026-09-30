@@ -9,13 +9,14 @@ use parking_lot::Mutex;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::TaskId;
 
+use crate::MainWindow;
 use crate::bridge::{TaskStore, str_to_priority};
 use crate::context::AppContext;
 use crate::handlers::common::{TaskAction, drop_locally, reload_tasks, spawn_action};
 use crate::i18n;
 use crate::task_ops::handle_task_double_click;
-use crate::toast::push_toast;
-use crate::MainWindow;
+use crate::toast::{ToastQueue, push_toast};
+use slint::SharedString;
 
 /// Remove (or purge) one task: the row disappears immediately, the backend call
 /// runs in the background and the list is reloaded if it fails.
@@ -129,44 +130,63 @@ pub fn register(ctx: &AppContext) {
         let dispatcher = ctx.dispatcher.clone();
         let toast_queue = ctx.toast_queue.clone();
         ui.on_set_task_priority(move |id_str, priority_code| {
-            let id_str = id_str.to_string();
-            let priority_code = priority_code.to_string();
-            let ui_weak = ui_weak.clone();
-            let store = store.clone();
-            let dispatcher = dispatcher.clone();
-            let toast_queue = toast_queue.clone();
-            tokio::spawn(async move {
-                let lang = store.lock().language();
-                let priority = str_to_priority(&priority_code);
-                let file_name = store
-                    .lock()
-                    .get_summary(&id_str)
-                    .map(|summary| summary.file_name)
-                    .unwrap_or_default();
-                let Ok(task_id) = TaskId::from_wire_string(&id_str) else {
-                    tracing::warn!("优先级设置失败: 无法解析任务 ID {id_str}");
-                    return;
-                };
-                match dispatcher.set_priority(&task_id, priority).await {
-                    Ok(()) => push_toast(
-                        &ui_weak,
-                        &toast_queue,
-                        i18n::format_toast_priority_set(&file_name, priority, lang),
-                        "info",
-                        Duration::from_secs(4),
-                    ),
-                    Err(err) => {
-                        tracing::error!("优先级设置失败: {err:#}");
-                        push_toast(
-                            &ui_weak,
-                            &toast_queue,
-                            i18n::format_toast_priority_failed(&format!("{err:#}"), lang),
-                            "error",
-                            Duration::from_secs(6),
-                        );
-                    }
-                }
-            });
+            set_task_priority(
+                ui_weak.clone(),
+                store.clone(),
+                dispatcher.clone(),
+                toast_queue.clone(),
+                id_str,
+                priority_code,
+            );
         });
     }
+}
+
+/// Change one task's priority and toast the result.
+fn set_task_priority(
+    ui_weak: slint::Weak<MainWindow>,
+    store: Arc<Mutex<TaskStore>>,
+    dispatcher: Arc<Dispatcher>,
+    toast_queue: ToastQueue,
+    id_str: SharedString,
+    priority_code: SharedString,
+) {
+    let id_str = id_str.to_string();
+    let priority_code = priority_code.to_string();
+    let ui_weak = ui_weak.clone();
+    let store = store.clone();
+    let dispatcher = dispatcher.clone();
+    let toast_queue = toast_queue.clone();
+    tokio::spawn(async move {
+        let lang = store.lock().language();
+        let priority = str_to_priority(&priority_code);
+        let file_name = store
+            .lock()
+            .get_summary(&id_str)
+            .map(|summary| summary.file_name)
+            .unwrap_or_default();
+        let Ok(task_id) = TaskId::from_wire_string(&id_str) else {
+            tracing::warn!("优先级设置失败: 无法解析任务 ID {id_str}");
+            return;
+        };
+        match dispatcher.set_priority(&task_id, priority).await {
+            Ok(()) => push_toast(
+                &ui_weak,
+                &toast_queue,
+                i18n::format_toast_priority_set(&file_name, priority, lang),
+                "info",
+                Duration::from_secs(4),
+            ),
+            Err(err) => {
+                tracing::error!("优先级设置失败: {err:#}");
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_priority_failed(&format!("{err:#}"), lang),
+                    "error",
+                    Duration::from_secs(6),
+                );
+            }
+        }
+    });
 }

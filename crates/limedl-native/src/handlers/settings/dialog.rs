@@ -1,16 +1,19 @@
 //! Settings dialog lifecycle, the save flow, performance modes and the
 //! destructive actions (restart wizard / factory reset).
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use notify_rust::Notification;
 use parking_lot::Mutex;
 
+use limedl_core::backend_registry::BackendRegistry;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::error::Result as CoreResult;
 use limedl_core::types::AppSettings;
 
+use crate::bridge::TaskStore;
 use crate::bridge::{
     app_settings_to_setup_form, parse_speed_limit_slots, update_app_settings_from_form,
 };
@@ -19,7 +22,7 @@ use crate::handlers::common::{read_ui, with_ui};
 use crate::i18n::{self, Language};
 use crate::settings_sync::{PushOptions, SettingsSync};
 use crate::task_ops::open_url_in_browser;
-use crate::toast::push_toast;
+use crate::toast::{ToastQueue, push_toast};
 use crate::ui_sync::{read_schedule_rows, refresh_settings_state};
 use crate::{MainWindow, POWER_GUARD, SettingsFormData};
 
@@ -37,7 +40,11 @@ struct SaveCtx {
 impl SaveCtx {
     /// Validate the schedule rows and the form, and produce the settings to
     /// save. `None` means a validation error was already surfaced as a toast.
-    fn collect_settings(&self, form_data: &SettingsFormData, lang: Language) -> Option<AppSettings> {
+    fn collect_settings(
+        &self,
+        form_data: &SettingsFormData,
+        lang: Language,
+    ) -> Option<AppSettings> {
         let mut settings = self.current_settings.lock().clone();
 
         // Speed limit schedule rows live in the UI model until Save, so
@@ -78,8 +85,11 @@ async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData) {
             ctx.sync.sync_autostart(&saved, &old_settings, lang);
             ctx.sync.sync_aria2_rpc(&saved, &old_settings, lang);
             ctx.sync.commit(&saved);
-            ctx.sync
-                .toast(i18n::format_toast_settings_saved(lang).to_string(), "success", 4);
+            ctx.sync.toast(
+                i18n::format_toast_settings_saved(lang).to_string(),
+                "success",
+                4,
+            );
             ctx.sync.push_ui(
                 &saved,
                 PushOptions {
@@ -97,8 +107,11 @@ async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData) {
                 .summary(i18n::format_notification_settings_save_failed(lang))
                 .body(&msg)
                 .show();
-            ctx.sync
-                .toast(i18n::format_toast_settings_save_failed(&msg, lang), "error", 6);
+            ctx.sync.toast(
+                i18n::format_toast_settings_save_failed(&msg, lang),
+                "error",
+                6,
+            );
         }
     }
 }
@@ -226,29 +239,12 @@ pub fn register(ctx: &AppContext) {
         let current_settings = current_settings.clone();
         let store = store.clone();
         ui.on_restart_setup(move || {
-            let dispatcher = dispatcher.clone();
-            let current_settings = current_settings.clone();
-            let store = store.clone();
-            let ui_weak = ui_weak.clone();
-            tokio::spawn(async move {
-                let mut settings = current_settings.lock().clone();
-                settings.setup_completed = false;
-                settings.last_setup_step = None;
-                let lang = store.lock().language();
-                let form = app_settings_to_setup_form(&settings, lang);
-                match dispatcher.save_settings(&settings).await {
-                    Ok(saved) => *current_settings.lock() = saved,
-                    Err(err) => tracing::warn!("保存设置向导重置状态失败: {err:#}"),
-                }
-                let _ = slint::invoke_from_event_loop(move || {
-                    with_ui(&ui_weak, |ui| {
-                        ui.set_setup_form(form);
-                        ui.set_setup_start_step(0);
-                        ui.set_show_settings(false);
-                        ui.set_show_setup_wizard(true);
-                    });
-                });
-            });
+            restart_setup(
+                ui_weak.clone(),
+                dispatcher.clone(),
+                current_settings.clone(),
+                store.clone(),
+            );
         });
     }
 
@@ -263,48 +259,14 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ui_weak.clone();
         let data_dir = ctx.base_dir.clone();
         ui.on_factory_reset(move || {
-            let dispatcher = dispatcher.clone();
-            let registry = registry.clone();
-            let store = store.clone();
-            let toast_queue = toast_queue.clone();
-            let ui_weak = ui_weak.clone();
-            let data_dir = data_dir.clone();
-            tokio::spawn(async move {
-                let lang = store.lock().language();
-                // 1. Stop every backend so no file handle survives the wipe.
-                registry.shutdown_all().await;
-                // 2. Reset the in-memory settings first (the file is deleted
-                //    afterwards, so a failure here must not leave stale state).
-                let _ = dispatcher.factory_reset().await;
-                // 3. Delete the data directory, retrying briefly for Windows
-                //    file locking before giving up.
-                if let Some(err) = remove_data_dir(&data_dir).await {
-                    tracing::error!("工厂重置失败: {err:#}");
-                    push_toast(
-                        &ui_weak,
-                        &toast_queue,
-                        i18n::format_toast_factory_reset_failed(&format!("{err:#}"), lang),
-                        "error",
-                        Duration::from_secs(8),
-                    );
-                    return;
-                }
-                push_toast(
-                    &ui_weak,
-                    &toast_queue,
-                    i18n::format_toast_factory_reset_done(lang).to_string(),
-                    "success",
-                    Duration::from_secs(4),
-                );
-                // 4. Relaunch into a fresh state (spawns a new process and
-                //    exits the current one).
-                POWER_GUARD.release();
-                tokio::time::sleep(Duration::from_millis(600)).await;
-                if let Err(err) = crate::update::restart_application() {
-                    tracing::error!("工厂重置后重启失败: {err:#}");
-                    std::process::exit(0);
-                }
-            });
+            factory_reset(
+                ui_weak.clone(),
+                dispatcher.clone(),
+                registry.clone(),
+                store.clone(),
+                toast_queue.clone(),
+                data_dir.clone(),
+            );
         });
     }
 }
@@ -326,4 +288,90 @@ async fn remove_data_dir(data_dir: &std::path::Path) -> Option<std::io::Error> {
         }
     }
     last_err
+}
+
+/// Reset the wizard flags and reopen the first-run wizard.
+fn restart_setup(
+    ui_weak: slint::Weak<MainWindow>,
+    dispatcher: Arc<Dispatcher>,
+    current_settings: Arc<Mutex<AppSettings>>,
+    store: Arc<Mutex<TaskStore>>,
+) {
+    let dispatcher = dispatcher.clone();
+    let current_settings = current_settings.clone();
+    let store = store.clone();
+    let ui_weak = ui_weak.clone();
+    tokio::spawn(async move {
+        let mut settings = current_settings.lock().clone();
+        settings.setup_completed = false;
+        settings.last_setup_step = None;
+        let lang = store.lock().language();
+        let form = app_settings_to_setup_form(&settings, lang);
+        match dispatcher.save_settings(&settings).await {
+            Ok(saved) => *current_settings.lock() = saved,
+            Err(err) => tracing::warn!("保存设置向导重置状态失败: {err:#}"),
+        }
+        let _ = slint::invoke_from_event_loop(move || {
+            with_ui(&ui_weak, |ui| {
+                ui.set_setup_form(form);
+                ui.set_setup_start_step(0);
+                ui.set_show_settings(false);
+                ui.set_show_setup_wizard(true);
+            });
+        });
+    });
+}
+
+/// Shut the backends down, wipe the data directory and relaunch.
+#[allow(clippy::too_many_arguments)]
+fn factory_reset(
+    ui_weak: slint::Weak<MainWindow>,
+    dispatcher: Arc<Dispatcher>,
+    registry: Arc<BackendRegistry>,
+    store: Arc<Mutex<TaskStore>>,
+    toast_queue: ToastQueue,
+    data_dir: PathBuf,
+) {
+    let dispatcher = dispatcher.clone();
+    let registry = registry.clone();
+    let store = store.clone();
+    let toast_queue = toast_queue.clone();
+    let ui_weak = ui_weak.clone();
+    let data_dir = data_dir.clone();
+    tokio::spawn(async move {
+        let lang = store.lock().language();
+        // 1. Stop every backend so no file handle survives the wipe.
+        registry.shutdown_all().await;
+        // 2. Reset the in-memory settings first (the file is deleted
+        //    afterwards, so a failure here must not leave stale state).
+        let _ = dispatcher.factory_reset().await;
+        // 3. Delete the data directory, retrying briefly for Windows
+        //    file locking before giving up.
+        if let Some(err) = remove_data_dir(&data_dir).await {
+            tracing::error!("工厂重置失败: {err:#}");
+            push_toast(
+                &ui_weak,
+                &toast_queue,
+                i18n::format_toast_factory_reset_failed(&format!("{err:#}"), lang),
+                "error",
+                Duration::from_secs(8),
+            );
+            return;
+        }
+        push_toast(
+            &ui_weak,
+            &toast_queue,
+            i18n::format_toast_factory_reset_done(lang).to_string(),
+            "success",
+            Duration::from_secs(4),
+        );
+        // 4. Relaunch into a fresh state (spawns a new process and
+        //    exits the current one).
+        POWER_GUARD.release();
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        if let Err(err) = crate::update::restart_application() {
+            tracing::error!("工厂重置后重启失败: {err:#}");
+            std::process::exit(0);
+        }
+    });
 }

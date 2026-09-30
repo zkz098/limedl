@@ -1,15 +1,21 @@
 //! Task inspector callbacks (open / close / tab / BT file selection).
 
+use std::sync::Arc;
 use std::time::Duration;
 
+use parking_lot::Mutex;
+
+use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::TaskId;
 use slint::Model;
 
+use crate::MainWindow;
+use crate::bridge::TaskStore;
 use crate::bridge::summary_to_inspector_info;
 use crate::context::AppContext;
 use crate::handlers::common::with_ui;
 use crate::i18n;
-use crate::toast::push_toast;
+use crate::toast::{ToastQueue, push_toast};
 
 pub fn register(ctx: &AppContext) {
     let ui = &ctx.ui;
@@ -60,58 +66,79 @@ pub fn register(ctx: &AppContext) {
         let active_inspector_id = ctx.active_inspector_id.clone();
         let toast_queue = ctx.toast_queue.clone();
         ui.on_toggle_inspector_file(move |index, currently_included| {
-            let ui_weak = ui_weak.clone();
-            let dispatcher = dispatcher.clone();
-            let store = store.clone();
-            let active_inspector_id = active_inspector_id.clone();
-            let toast_queue = toast_queue.clone();
-
-            with_ui(&ui_weak, |ui| {
-                let files = ui.get_inspector_files();
-                let included: Vec<usize> = files
-                    .iter()
-                    .filter(|file| {
-                        if file.index == index {
-                            !currently_included
-                        } else {
-                            file.included
-                        }
-                    })
-                    .map(|file| file.index as usize)
-                    .collect();
-
-                if included.is_empty() {
-                    push_toast(
-                        &ui_weak,
-                        &toast_queue,
-                        i18n::format_toast_bt_files_keep_one(store.lock().language()).to_string(),
-                        "warning",
-                        Duration::from_secs(5),
-                    );
-                    return;
-                }
-                let Some(task_id_str) = active_inspector_id.lock().clone() else {
-                    return;
-                };
-                let Ok(task_id) = TaskId::from_wire_string(&task_id_str) else {
-                    return;
-                };
-
-                let ui_weak = ui_weak.clone();
-                tokio::spawn(async move {
-                    let lang = store.lock().language();
-                    if let Err(err) = dispatcher.bt_update_files(&task_id, included).await {
-                        tracing::error!("更新 BT 文件选择失败: {err:#}");
-                        push_toast(
-                            &ui_weak,
-                            &toast_queue,
-                            i18n::format_toast_bt_files_failed(&format!("{err:#}"), lang),
-                            "error",
-                            Duration::from_secs(6),
-                        );
-                    }
-                });
-            });
+            toggle_inspector_file(
+                ui_weak.clone(),
+                dispatcher.clone(),
+                store.clone(),
+                active_inspector_id.clone(),
+                toast_queue.clone(),
+                index,
+                currently_included,
+            );
         });
     }
+}
+
+/// Persist a BT file-selection change, keeping at least one file selected.
+fn toggle_inspector_file(
+    ui_weak: slint::Weak<MainWindow>,
+    dispatcher: Arc<Dispatcher>,
+    store: Arc<Mutex<TaskStore>>,
+    active_inspector_id: Arc<Mutex<Option<String>>>,
+    toast_queue: ToastQueue,
+    index: i32,
+    currently_included: bool,
+) {
+    let ui_weak = ui_weak.clone();
+    let dispatcher = dispatcher.clone();
+    let store = store.clone();
+    let active_inspector_id = active_inspector_id.clone();
+    let toast_queue = toast_queue.clone();
+
+    with_ui(&ui_weak, |ui| {
+        let files = ui.get_inspector_files();
+        let included: Vec<usize> = files
+            .iter()
+            .filter(|file| {
+                if file.index == index {
+                    !currently_included
+                } else {
+                    file.included
+                }
+            })
+            .map(|file| file.index as usize)
+            .collect();
+
+        if included.is_empty() {
+            push_toast(
+                &ui_weak,
+                &toast_queue,
+                i18n::format_toast_bt_files_keep_one(store.lock().language()).to_string(),
+                "warning",
+                Duration::from_secs(5),
+            );
+            return;
+        }
+        let Some(task_id_str) = active_inspector_id.lock().clone() else {
+            return;
+        };
+        let Ok(task_id) = TaskId::from_wire_string(&task_id_str) else {
+            return;
+        };
+
+        let ui_weak = ui_weak.clone();
+        tokio::spawn(async move {
+            let lang = store.lock().language();
+            if let Err(err) = dispatcher.bt_update_files(&task_id, included).await {
+                tracing::error!("更新 BT 文件选择失败: {err:#}");
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_bt_files_failed(&format!("{err:#}"), lang),
+                    "error",
+                    Duration::from_secs(6),
+                );
+            }
+        });
+    });
 }
