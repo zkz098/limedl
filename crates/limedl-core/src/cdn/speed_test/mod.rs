@@ -1,0 +1,557 @@
+#![allow(dead_code)]
+
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+
+use futures_util::StreamExt;
+use reqwest::{Client, Url};
+use tokio::net::TcpStream;
+use tokio::task::JoinSet;
+use tokio::time::timeout;
+
+use crate::cdn::resolver::is_private_ip;
+use crate::error::{DownloadError, Result};
+use crate::http_client_factory::configure_client_builder;
+use crate::types::{AppSettings, default_http_user_agent};
+
+
+/// Cloudflare CDN speed test endpoint (~100MB file).
+/// Cloudflare rejects requests for files larger than 99_999_999 bytes with HTTP 403.
+pub const SPEED_TEST_URL: &str = "https://speed.cloudflare.com/__down?bytes=99999999";
+
+/// Maximum duration for a single IP's throughput test.
+pub const SPEED_TEST_DURATION: Duration = Duration::from_secs(10);
+
+// ── Progress reporting types ──────────────────────────────────
+
+/// Phases of the CDN speed test. Frontend consumes these as camelCase strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+#[repr(u8)]
+pub enum CdnTestPhase {
+    FetchingRanges,
+    Screening,
+    MeasuringThroughput,
+}
+
+/// Progress snapshot emitted to the frontend during a CDN speed test.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CdnTestProgress {
+    pub phase: CdnTestPhase,
+    pub current: u64,
+    pub total: u64,
+}
+
+/// Erased progress callback for reporting phase transitions and per-IP progress.
+pub type ProgressFn = Box<dyn Fn(CdnTestPhase, u64, u64) + Send + Sync>;
+
+// ── Orchestrator types ────────────────────────────────────────
+
+/// Configuration for the two-phase speed test orchestrator.
+#[derive(Debug, Clone)]
+pub struct SpeedTestConfig {
+    /// Max concurrent TCP connections during screening.
+    pub concurrency: usize,
+    /// Per-IP TCP connect timeout.
+    pub tcp_timeout: Duration,
+    /// Max duration for a single IP's throughput test.
+    pub throughput_duration: Duration,
+    /// Number of fastest IPs (by TCP latency) to advance to Phase 2.
+    pub top_n_candidates: usize,
+    /// Test URL for throughput measurement.
+    pub test_url: String,
+}
+
+impl Default for SpeedTestConfig {
+    fn default() -> Self {
+        Self {
+            concurrency: 50,
+            tcp_timeout: Duration::from_secs(3),
+            throughput_duration: Duration::from_secs(10),
+            top_n_candidates: 5,
+            test_url: SPEED_TEST_URL.to_string(),
+        }
+    }
+}
+
+/// Result for a single IP after the two-phase speed test.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpeedTestResult {
+    pub ip: IpAddr,
+    /// TCP connect latency in milliseconds.
+    pub tcp_latency_ms: f64,
+    /// Throughput in MB/s (bytes / seconds / 1_000_000), or None if Phase 2 failed.
+    pub throughput_mbps: Option<f64>,
+    /// Error message from Phase 2, if any.
+    pub error: Option<String>,
+}
+
+impl Default for SpeedTestResult {
+    fn default() -> Self {
+        Self {
+            ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            tcp_latency_ms: 0.0,
+            throughput_mbps: None,
+            error: None,
+        }
+    }
+}
+
+/// Baseline measurement of the default DNS-resolved node (no IP override).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DefaultNodeResult {
+    pub ip: Option<String>,
+    pub tcp_latency_ms: f64,
+    pub throughput_mbps: Option<f64>,
+    pub error: Option<String>,
+}
+
+/// Measure the default DNS-resolved node for `speed.cloudflare.com`.
+///
+/// Resolves the hostname via standard DNS (no IP override), measures TCP latency
+/// to the first resolved IP (IPv4 or IPv6), then measures download throughput with
+/// a normal client. This provides the "unoptimized" baseline for comparison.
+pub async fn measure_default_node(settings: &AppSettings) -> DefaultNodeResult {
+    const HOSTNAME: &str = "speed.cloudflare.com";
+
+    tracing::info!("default node: measuring baseline for {HOSTNAME}");
+
+    let resolved_addr = match tokio::net::lookup_host(format!("{HOSTNAME}:443")).await {
+        Ok(addrs) => addrs.into_iter().next(),
+        Err(e) => {
+            tracing::warn!("default node: DNS resolution failed: {e}");
+            return DefaultNodeResult {
+                ip: None,
+                tcp_latency_ms: 0.0,
+                throughput_mbps: None,
+                error: Some(format!("DNS resolution failed: {e}")),
+            };
+        }
+    };
+
+    let addr = match resolved_addr {
+        Some(a) => a,
+        None => {
+            tracing::warn!("default node: no address resolved");
+            return DefaultNodeResult {
+                ip: None,
+                tcp_latency_ms: 0.0,
+                throughput_mbps: None,
+                error: Some("no address resolved".into()),
+            };
+        }
+    };
+
+    let ip = addr.ip();
+    tracing::info!("default node: DNS resolved to {ip}");
+
+    // Detect private IP — indicates TUN proxy / VPN intercepting DNS.
+    if is_private_ip(&ip) {
+        tracing::warn!(
+            "default node: DNS resolved {HOSTNAME} to private IP {ip}. \
+             CDN acceleration may be disrupted by a TUN proxy, VPN, or similar tool."
+        );
+        let warning = format!(
+            "DNS resolved {HOSTNAME} to private IP {ip}. \
+             CDN acceleration may be interfered with by a TUN proxy or similar tool."
+        );
+        return DefaultNodeResult {
+            ip: Some(ip.to_string()),
+            tcp_latency_ms: 0.0,
+            throughput_mbps: None,
+            error: Some(warning),
+        };
+    }
+
+    let latency = measure_tcp_latency(addr, Duration::from_secs(5)).await;
+
+    let tcp_latency_ms = latency.map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0);
+
+    let throughput_result = measure_throughput(ip, HOSTNAME, SPEED_TEST_URL, settings).await;
+
+    let (throughput_mbps, error) = match throughput_result {
+        Ok((bytes, elapsed_ms)) => {
+            let elapsed_secs = elapsed_ms as f64 / 1000.0;
+            let mbps = if elapsed_secs > 0.0 {
+                Some((bytes / elapsed_secs) / 1_000_000.0)
+            } else {
+                None
+            };
+            tracing::info!(
+                "default node: throughput={:.2} MB/s latency={tcp_latency_ms:.1}ms ip={ip}",
+                mbps.unwrap_or(0.0),
+            );
+            (mbps, None)
+        }
+        Err(e) => {
+            tracing::warn!("default node: throughput test failed: {e}");
+            (None, Some(e.to_string()))
+        }
+    };
+
+    DefaultNodeResult {
+        ip: Some(ip.to_string()),
+        tcp_latency_ms,
+        throughput_mbps,
+        error,
+    }
+}
+
+/// Build a throwaway `reqwest::Client` with DNS-override and settings mirrored
+/// from the main `build_http_client`.
+fn build_throughput_client(
+    hostname: &str,
+    addr: SocketAddr,
+    settings: &AppSettings,
+) -> Result<Client> {
+    let user_agent = settings.download.default_user_agent.trim();
+    let user_agent = if user_agent.is_empty() {
+        default_http_user_agent()
+    } else {
+        user_agent.to_string()
+    };
+
+    let builder = Client::builder()
+        .resolve_to_addrs(hostname, &[addr])
+        .connect_timeout(Duration::from_secs(5))
+        .default_headers(reqwest::header::HeaderMap::from_iter([
+            (
+                reqwest::header::ACCEPT,
+                reqwest::header::HeaderValue::from_static("*/*"),
+            ),
+            (
+                reqwest::header::ACCEPT_LANGUAGE,
+                reqwest::header::HeaderValue::from_static("en-US,en;q=0.9"),
+            ),
+        ]));
+
+    let mut builder = configure_client_builder(builder, settings)?;
+    // Override user_agent with our custom fallback logic
+    builder = builder.user_agent(user_agent);
+
+    builder.build().map_err(DownloadError::from)
+}
+
+/// Measure HTTPS download throughput to a candidate IP address.
+///
+/// Builds a throwaway `reqwest::Client` that resolves `hostname` to `ip`,
+/// then streams `url` for up to `SPEED_TEST_DURATION`. Returns
+/// `(bytes_downloaded, elapsed_ms)`. On timeout the partial bytes
+/// accumulated so far are returned instead of an error.
+/// Accepts both IPv4 and IPv6 addresses.
+pub async fn measure_throughput(
+    ip: IpAddr,
+    hostname: &str,
+    url: &str,
+    settings: &AppSettings,
+) -> Result<(f64, u64)> {
+    tracing::info!("throughput test start: ip={ip} host={hostname}");
+
+    let parsed = Url::parse(url)
+        .map_err(|e| DownloadError::InvalidResponse(format!("invalid speed-test URL: {e}")))?;
+    let port = parsed
+        .port()
+        .unwrap_or_else(|| if parsed.scheme() == "https" { 443 } else { 80 });
+
+    let addr = SocketAddr::new(ip, port);
+    let client = build_throughput_client(hostname, addr, settings)?;
+
+    let start = Instant::now();
+
+    // Wrap send() in a timeout — it covers TCP connect + TLS handshake + request + response headers.
+    // Without this, a host that passes TCP screening but hangs on TLS will block forever.
+    let response = match timeout(Duration::from_secs(15), client.get(url).send()).await {
+        Ok(Ok(resp)) => resp,
+        Ok(Err(e)) => {
+            tracing::warn!(
+                "throughput test send failed: ip={ip} elapsed={}ms err={e}",
+                start.elapsed().as_millis()
+            );
+            return Err(e.into());
+        }
+        Err(_) => {
+            tracing::warn!(
+                "throughput test send timed out: ip={ip} after 15s (connect+TLS+headers)"
+            );
+            return Err(DownloadError::InvalidResponse(
+                "send timed out after 15s (connect/TLS/headers)".into(),
+            ));
+        }
+    };
+
+    let status = response.status();
+    tracing::debug!(
+        "throughput test response: ip={ip} status={status} elapsed={}ms",
+        start.elapsed().as_millis()
+    );
+
+    if !status.is_success() {
+        tracing::warn!(
+            "throughput test rejected: ip={ip} status={status} (non-2xx, skipping body stream)"
+        );
+        return Err(DownloadError::InvalidResponse(format!(
+            "HTTP {status} from speed test endpoint",
+        )));
+    }
+
+    let bytes = Arc::new(AtomicU64::new(0));
+    let bytes_ref = Arc::clone(&bytes);
+
+    let download = async move {
+        let mut stream = response.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(data) => {
+                    bytes_ref.fetch_add(data.len() as u64, Ordering::Relaxed);
+                }
+                Err(e) => {
+                    tracing::warn!("throughput test stream error: ip={ip} err={e}");
+                    break;
+                }
+            }
+        }
+    };
+
+    let _ = timeout(SPEED_TEST_DURATION, download).await;
+
+    let elapsed_ms = start.elapsed().as_millis() as u64;
+    let total_bytes = bytes.load(Ordering::Relaxed) as f64;
+
+    tracing::info!(
+        "throughput test done: ip={ip} bytes={total_bytes:.0} elapsed={elapsed_ms}ms throughput={:.2} MB/s",
+        if elapsed_ms > 0 {
+            total_bytes / (elapsed_ms as f64 / 1000.0) / 1_000_000.0
+        } else {
+            0.0
+        }
+    );
+
+    Ok((total_bytes, elapsed_ms))
+}
+
+/// Measure TCP connect latency to a single address.
+///
+/// Wraps `TcpStream::connect` with a timeout. Returns `Some(elapsed)` on
+/// successful connect or `None` if the connection times out or is refused.
+pub async fn measure_tcp_latency(addr: SocketAddr, connect_timeout: Duration) -> Option<Duration> {
+    let start = Instant::now();
+    match timeout(connect_timeout, TcpStream::connect(addr)).await {
+        Ok(Ok(stream)) => {
+            drop(stream);
+            Some(start.elapsed())
+        }
+        _ => None,
+    }
+}
+
+/// Screen a list of candidate IP addresses (IPv4 or IPv6) by TCP connect latency.
+///
+/// Tests up to `concurrency` IPs simultaneously on port 443 (HTTPS).
+/// Returns reachable IPs sorted by latency ascending (fastest first).
+pub async fn screen_candidates(
+    ips: &[IpAddr],
+    concurrency: usize,
+    connect_timeout: Duration,
+) -> Vec<(IpAddr, Duration)> {
+    tracing::info!(
+        "screening start: {} IPs, concurrency={concurrency}",
+        ips.len()
+    );
+    let mut join_set = JoinSet::new();
+    let mut results = Vec::with_capacity(ips.len());
+    let mut ip_iter = ips.iter().copied();
+
+    for _ in 0..concurrency {
+        let Some(ip) = ip_iter.next() else {
+            break;
+        };
+        join_set.spawn(async move {
+            let addr = SocketAddr::new(ip, 443);
+            (ip, measure_tcp_latency(addr, connect_timeout).await)
+        });
+    }
+
+    while let Some(result) = join_set.join_next().await {
+        if let Ok((ip, Some(latency))) = result {
+            results.push((ip, latency));
+        }
+        if let Some(ip) = ip_iter.next() {
+            join_set.spawn(async move {
+                let addr = SocketAddr::new(ip, 443);
+                (ip, measure_tcp_latency(addr, connect_timeout).await)
+            });
+        }
+    }
+
+    results.sort_by_key(|a| a.1);
+
+    tracing::info!(
+        "screening done: {}/{} IPs reachable, top latency={}ms",
+        results.len(),
+        ips.len(),
+        results.first().map(|d| d.1.as_millis()).unwrap_or(0),
+    );
+
+    results
+}
+
+/// Run the two-phase speed test orchestrator.
+///
+/// Phase 1 — TCP connect-latency screening of all `ips` (both IPv4 and IPv6).
+/// Phase 2 — HTTPS throughput measurement for the top N candidates
+/// (concurrent via `JoinSet`). Results are sorted by throughput
+/// descending (None sorts last), tie-broken by TCP latency ascending.
+///
+/// If `progress` is provided, it is called at phase transitions
+/// and as each candidate completes Phase 2 throughput testing.
+pub async fn run_speed_test(
+    ips: &[IpAddr],
+    config: &SpeedTestConfig,
+    settings: &AppSettings,
+    progress: Option<ProgressFn>,
+) -> Vec<SpeedTestResult> {
+    let total_ips = ips.len() as u64;
+
+    tracing::info!("speed test orchestrator: {total_ips} candidate IPs");
+
+    // ── Phase 1: TCP screening ─────────────────────────────────
+    if let Some(ref p) = progress {
+        p(CdnTestPhase::Screening, 0, total_ips);
+    }
+
+    let candidates = screen_candidates(ips, config.concurrency, config.tcp_timeout).await;
+
+    if let Some(ref p) = progress {
+        p(CdnTestPhase::Screening, total_ips, total_ips);
+    }
+
+    let top_n: Vec<(IpAddr, Duration)> = candidates
+        .into_iter()
+        .take(config.top_n_candidates)
+        .collect();
+
+    if top_n.is_empty() {
+        tracing::warn!("speed test: no reachable IPs after screening, aborting");
+        return Vec::new();
+    }
+
+    let top_count = top_n.len() as u64;
+
+    tracing::info!(
+        "speed test: top {top_count} IPs advancing to throughput testing: {}",
+        top_n
+            .iter()
+            .map(|(ip, d)| format!("{ip}({}ms", d.as_millis()))
+            .collect::<Vec<_>>()
+            .join(", "),
+    );
+
+    // ── Phase 2: Concurrent throughput testing ─────────────────
+    if let Some(ref p) = progress {
+        p(CdnTestPhase::MeasuringThroughput, 0, top_count);
+    }
+
+    let test_url = config.test_url.clone();
+    let hostname = Url::parse(&test_url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h.to_string()))
+        .unwrap_or_else(|| "speed.cloudflare.com".to_string());
+
+    let mut join_set = JoinSet::new();
+    for (ip, latency) in &top_n {
+        let ip = *ip;
+        let latency = *latency;
+        let s = settings.clone();
+        let host_clone = hostname.clone();
+        let url_clone = test_url.clone();
+        join_set.spawn(async move {
+            let result = measure_throughput(ip, &host_clone, &url_clone, &s).await;
+            (ip, latency, result)
+        });
+    }
+
+    let mut results = Vec::with_capacity(top_n.len());
+    let mut completed: u64 = 0;
+
+    while let Some(task_result) = join_set.join_next().await {
+        completed += 1;
+        match task_result {
+            Ok((ip, latency, throughput_result)) => {
+                let tcp_latency_ms = latency.as_secs_f64() * 1000.0;
+                match throughput_result {
+                    Ok((bytes, elapsed_ms)) => {
+                        let elapsed_secs = elapsed_ms as f64 / 1000.0;
+                        let throughput_mbps = if elapsed_secs > 0.0 {
+                            Some((bytes / elapsed_secs) / 1_000_000.0)
+                        } else {
+                            None
+                        };
+                        tracing::info!(
+                            "throughput candidate {completed}/{top_count}: ip={ip} {}bytes {elapsed_ms}ms {:.2}MB/s",
+                            if bytes > 1_000_000.0 {
+                                format!("{:.1}MB ", bytes / 1_000_000.0)
+                            } else {
+                                format!("{}B ", bytes as u64)
+                            },
+                            throughput_mbps.unwrap_or(0.0),
+                        );
+                        results.push(SpeedTestResult {
+                            ip,
+                            tcp_latency_ms,
+                            throughput_mbps,
+                            error: None,
+                        });
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "throughput candidate {completed}/{top_count}: ip={ip} FAILED: {e}",
+                        );
+                        results.push(SpeedTestResult {
+                            ip,
+                            tcp_latency_ms,
+                            throughput_mbps: None,
+                            error: Some(e.to_string()),
+                        });
+                    }
+                }
+            }
+            Err(join_err) => {
+                tracing::error!("throughput task panicked (JoinError): {join_err}");
+            }
+        }
+        if let Some(ref p) = progress {
+            p(CdnTestPhase::MeasuringThroughput, completed, top_count);
+        }
+    }
+
+    tracing::info!(
+        "speed test orchestrator done: {}/{} throughput tests completed, {} with valid throughput",
+        results.len(),
+        top_count,
+        results
+            .iter()
+            .filter(|r| r.throughput_mbps.is_some())
+            .count(),
+    );
+
+    results.sort_by(|a, b| {
+        b.throughput_mbps
+            .partial_cmp(&a.throughput_mbps)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(
+                a.tcp_latency_ms
+                    .partial_cmp(&b.tcp_latency_ms)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
+    });
+
+    results
+}
+
+#[cfg(test)]
+mod tests;

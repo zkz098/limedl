@@ -1,0 +1,623 @@
+//! Scheduler and rebalance logic — extracted from manager.rs
+//! (Phase 5 of the manager.rs split).
+//!
+//! Contains the background scheduler loop and adaptive AIMD thread rebalancing.
+//!
+//! `Scheduler` is an independent actor type.  All its methods receive a
+//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
+//! state, avoiding any ownership cycle with `DownloadManager` (which holds
+//! `Arc<Scheduler>`).
+
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
+
+use foldhash::HashMap;
+use reqwest::Url;
+
+use crate::{
+    aimd::{self, AimdState, Direction},
+    error::Result,
+    manager::{
+        DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS, log_background_error,
+        sync_snapshot_with_manifest,
+    },
+    manifest::Manifest,
+    now_ms,
+    persistence::persist_manifest_snapshots_batch,
+    types::{AdaptiveProfile, AppSettings, DownloadState, SchedulerMode, ThreadMode},
+};
+
+const SCHEDULER_TICK: Duration = Duration::from_secs(2);
+
+/// Maximum concurrent connections (threads) allowed to a single hostname.
+const MAX_CONNECTIONS_PER_HOST: usize = 6;
+
+/// Zero-sized actor type for scheduler and rebalance logic.
+///
+/// All methods receive `&DownloadManager` to access shared state.
+/// `DownloadManager` holds `Arc<Scheduler>` for delegation.
+pub struct Scheduler;
+
+impl Scheduler {
+    /// Start the background scheduler loop (750ms tick or rebalance_notify).
+    /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
+    /// `dm: Arc<DownloadManager>` for the spawned task.
+    pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<DownloadManager>) {
+        tokio::spawn(async move {
+            let mut consecutive_rebalance_failures: u32 = 0;
+            loop {
+                tokio::select! {
+                    _ = tokio::time::sleep(SCHEDULER_TICK) => {}
+                    _ = dm.controls.rebalance_notify.notified() => {}
+                    _ = dm.controls.shutdown_token.cancelled() => {
+                        tracing::info!("Scheduler loop shutting down");
+                        break;
+                    }
+                }
+
+                self.apply_speed_limit_schedule(&dm).await;
+
+                if let Err(error) = self.update_adaptive_targets(&dm).await {
+                    log_background_error("update adaptive targets", &error);
+                }
+                match self.rebalance_allocations(&dm).await {
+                    Ok(()) => {
+                        consecutive_rebalance_failures = 0;
+                    }
+                    Err(error) => {
+                        consecutive_rebalance_failures += 1;
+                        if consecutive_rebalance_failures >= 3 {
+                            tracing::error!(
+                                "rebalance_allocations failed {consecutive_rebalance_failures} consecutive times: {error:#}"
+                            );
+                        } else {
+                            log_background_error("rebalance allocations", &error);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /// Update adaptive (AIMD) thread targets for all active downloads.
+    ///
+    /// Deliberately **not** gated on `settings.proxy.mode`: the tuner used to
+    /// bail out whenever a proxy was configured, a leftover from the removed
+    /// network-learning feature it was coupled to (it also silently disabled
+    /// overclock mode, which lives behind the same guard). Proxied transfers
+    /// must adapt like any other transfer.
+    ///
+    /// Every target change is mirrored into the task snapshot, so the value the
+    /// API exposes (the WebUI "target thread count") never lags behind the
+    /// manifest.
+    pub async fn update_adaptive_targets(&self, dm: &DownloadManager) -> Result<()> {
+        let settings = dm.settings_service.get().await;
+        if settings.scheduler.mode != SchedulerMode::Automatic {
+            return Ok(());
+        }
+
+        let adaptive_cap = settings.scheduler.automatic.max_threads_per_task.max(1);
+        let min_threads = settings.scheduler.automatic.min_threads_per_task.max(1);
+
+        let downloads = dm.downloads.read().await;
+
+        // ── Overclock mode: pin all adaptive tasks at max threads ──────────
+        if dm.concurrency.overclock_mode() {
+            for managed in downloads.values() {
+                let mut core = managed.lock_core();
+                let manifest = &mut core.manifest;
+                if manifest.thread_mode == ThreadMode::Adaptive
+                    && manifest.state == DownloadState::Downloading
+                    && manifest.supports_ranges
+                {
+                    manifest.desired_thread_count = Some(adaptive_cap);
+                    manifest.updated_at_ms = now_ms();
+                    sync_snapshot_with_manifest(&mut core);
+                }
+            }
+            return Ok(());
+        }
+
+        for managed in downloads.values() {
+            let mut core = managed.lock_core();
+            let manifest = &mut core.manifest;
+            if manifest.thread_mode != ThreadMode::Adaptive
+                || manifest.state != DownloadState::Downloading
+                || !manifest.supports_ranges
+            {
+                continue;
+            }
+
+            let mut aimd = managed.lock_aimd();
+            let now = Instant::now();
+            let throughput = aimd
+                .sample_throughput(manifest.downloaded_bytes, now)
+                .unwrap_or_else(|| {
+                    manifest
+                        .allocated_thread_count
+                        .unwrap_or(0)
+                        .saturating_mul(1) as f64
+                });
+
+            let current = manifest.desired_thread_count.unwrap_or(1).max(1);
+            let allocated = manifest.allocated_thread_count.unwrap_or(0);
+            let profile = manifest
+                .adaptive_profile_snapshot
+                .unwrap_or(settings.scheduler.automatic.adaptive_profile);
+
+            if let Some(cooldown_until) = aimd.cooldown_until
+                && now < cooldown_until
+            {
+                aimd.recent_penalty = false;
+                continue;
+            }
+
+            // ── Hysteresis lock: suspend AIMD decisions during oscillation recovery ──
+            if let Some(lock_until) = aimd.hysteresis_lock_until {
+                if now < lock_until {
+                    aimd.last_throughput = Some(throughput);
+                    aimd.record_sample(throughput);
+                    continue;
+                }
+                aimd.hysteresis_lock_until = None;
+                aimd.oscillation_count = 0;
+            }
+
+            let degrade_threshold: f64 = match profile {
+                AdaptiveProfile::Conservative => 0.18,
+                AdaptiveProfile::Balanced => 0.16,
+                AdaptiveProfile::Aggressive => 0.20,
+            };
+            let increase_threshold: f64 = match profile {
+                AdaptiveProfile::Conservative => 0.08,
+                AdaptiveProfile::Balanced => 0.04,
+                AdaptiveProfile::Aggressive => 0.03,
+            };
+            let samples_needed: u32 = match profile {
+                AdaptiveProfile::Conservative => 2,
+                AdaptiveProfile::Balanced => 1,
+                AdaptiveProfile::Aggressive => 1,
+            };
+            let cooldown = aimd::cooldown_for_profile(profile);
+
+            let throughput_drop = aimd
+                .last_throughput
+                .is_some_and(|last| last > 0.0 && throughput < last * (1.0 - degrade_threshold));
+            let should_decrease = current > 1
+                && match profile {
+                    AdaptiveProfile::Conservative => aimd.recent_penalty || throughput_drop,
+                    AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => throughput_drop,
+                };
+
+            if should_decrease {
+                manifest.desired_thread_count =
+                    Some(aimd::reduce_threads(current, profile, min_threads));
+                manifest.updated_at_ms = now_ms();
+                aimd.cooldown_until = Some(now + cooldown);
+                aimd.consecutive_good_samples = 0;
+                aimd.consecutive_bad_samples = aimd.consecutive_bad_samples.saturating_add(1);
+                aimd.recent_penalty = false;
+                aimd.record_sample(throughput);
+                // ── Oscillation tracking (MD = Down) ──
+                track_direction(&mut aimd, Direction::Down);
+                check_oscillation(&mut aimd, manifest, current, min_threads, now, &cooldown);
+                // `check_oscillation` may override the target with the hysteresis
+                // lock value, so publish it after it ran.
+                sync_snapshot_with_manifest(&mut core);
+                continue;
+            }
+
+            let mut changed_up = false;
+            if allocated == current {
+                let improved = match aimd.last_throughput {
+                    Some(last) if last > 0.0 => throughput >= last * (1.0 + increase_threshold),
+                    _ => true,
+                };
+
+                if improved {
+                    aimd.consecutive_good_samples = aimd.consecutive_good_samples.saturating_add(1);
+                    aimd.consecutive_bad_samples = 0;
+                    if aimd.consecutive_good_samples >= samples_needed {
+                        let step = match profile {
+                            AdaptiveProfile::Conservative => 2usize,
+                            AdaptiveProfile::Balanced => (current / 4).max(1),
+                            AdaptiveProfile::Aggressive => (current / 3).max(2),
+                        };
+                        let next = (current + step).min(adaptive_cap.max(1));
+                        if next > current {
+                            manifest.desired_thread_count = Some(next);
+                            manifest.updated_at_ms = now_ms();
+                            changed_up = true;
+                        }
+                        aimd.consecutive_good_samples = 0;
+                    }
+                }
+            }
+
+            aimd.last_throughput = Some(throughput);
+            aimd.recent_penalty = false;
+            aimd.record_sample(throughput);
+
+            // ── Oscillation tracking (AI = Up) ──
+            if changed_up {
+                track_direction(&mut aimd, Direction::Up);
+                check_oscillation(&mut aimd, manifest, current, min_threads, now, &cooldown);
+                sync_snapshot_with_manifest(&mut core);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Rebalance thread allocations across all active downloads.
+    pub async fn rebalance_allocations(&self, dm: &DownloadManager) -> Result<()> {
+        let settings = dm.settings_service.get().await;
+
+        // Phase 1: collect all Arc references under the read lock, then drop it
+        let (mut entries, all_downloads) = {
+            let guard = dm.downloads.read().await;
+            let entries: Vec<_> = guard.values().cloned().collect();
+            let all_downloads = entries.clone();
+            (entries, all_downloads)
+        };
+
+        match settings.scheduler.mode {
+            SchedulerMode::Traditional => {
+                entries.sort_by(|a, b| {
+                    let priority_a = a.lock_core().manifest.priority as u8;
+                    let priority_b = b.lock_core().manifest.priority as u8;
+                    // Sort by priority descending (higher priority first), then by created_at_ms ascending
+                    priority_b.cmp(&priority_a).then_with(|| {
+                        a.lock_core().manifest.created_at_ms
+                            .cmp(&b.lock_core().manifest.created_at_ms)
+                    })
+                });
+
+                let mut running = 0usize;
+                let mut host_threads: HashMap<String, usize> = HashMap::default();
+                for managed in entries {
+                    let mut core = managed.lock_core();
+                    let manifest = &mut core.manifest;
+                    let terminal = matches!(
+                        manifest.state,
+                        DownloadState::Paused
+                            | DownloadState::Completed
+                            | DownloadState::Failed
+                            | DownloadState::Canceled
+                            | DownloadState::Verifying
+                    );
+                    if terminal {
+                        manifest.allocated_thread_count = Some(0);
+                        manifest.connection_count = 0;
+                        sync_snapshot_with_manifest(&mut core);
+                        continue;
+                    }
+
+                    if running < settings.scheduler.traditional.max_parallel_tasks {
+                        let allocation = effective_allocation_cap(manifest, &settings).max(1);
+                        // Apply per-host connection cap
+                        let allocation = if let Some(host) = hostname_from_manifest(manifest) {
+                            let used = host_threads.get(&host).copied().unwrap_or(0);
+                            let remaining = MAX_CONNECTIONS_PER_HOST.saturating_sub(used);
+                            let capped = allocation.min(remaining);
+                            if capped > 0 {
+                                host_threads.insert(host, used + capped);
+                            }
+                            capped
+                        } else {
+                            allocation
+                        };
+
+                        if allocation > 0 {
+                            manifest.allocated_thread_count = Some(allocation);
+                            manifest.connection_count = allocation;
+                            manifest.state = DownloadState::Downloading;
+                            running = running.saturating_add(1);
+                        } else {
+                            manifest.allocated_thread_count = Some(0);
+                            manifest.connection_count = 0;
+                            manifest.state = DownloadState::Queued;
+                        }
+                    } else {
+                        manifest.allocated_thread_count = Some(0);
+                        manifest.connection_count = 0;
+                        manifest.state = DownloadState::Queued;
+                    }
+                    manifest.updated_at_ms = now_ms();
+                    sync_snapshot_with_manifest(&mut core);
+                }
+            }
+            SchedulerMode::Automatic => {
+                let candidates = entries
+                    .into_iter()
+                    .filter(|managed| {
+                        let core = managed.lock_core();
+                        !matches!(
+                            core.manifest.state,
+                            DownloadState::Paused
+                                | DownloadState::Completed
+                                | DownloadState::Failed
+                                | DownloadState::Canceled
+                                | DownloadState::Verifying
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                // Pre-snapshot remaining bytes and priority to avoid repeated lock
+                // acquisitions during sort. Snapshot inside a block so the MutexGuard
+                // is dropped before `m` moves.
+                let mut with_priority_and_remaining: Vec<(u8, u64, _)> = candidates
+                    .into_iter()
+                    .map(|m| {
+                        let (remaining, priority) = {
+                            let core = m.lock_core();
+                            (remaining_bytes(&core.manifest), core.manifest.priority as u8)
+                        };
+                        (priority, remaining, m)
+                    })
+                    .collect();
+                // Sort by priority descending first, then by remaining bytes descending
+                with_priority_and_remaining.sort_by(|(pa, ra, _), (pb, rb, _)| {
+                    pb.cmp(pa).then_with(|| rb.cmp(ra))
+                });
+                let candidates = with_priority_and_remaining
+                    .into_iter()
+                    .map(|(_, _, m)| m)
+                    .collect::<Vec<_>>();
+
+                let mut remaining_budget = settings.scheduler.automatic.max_parallel_threads;
+                let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
+                let mut allocations: HashMap<String, usize> = HashMap::default();
+                let mut host_threads: HashMap<String, usize> = HashMap::default();
+
+                // Initial minimum allocation with per-host cap
+                for managed in &candidates {
+                    let core = managed.lock_core();
+                    if remaining_budget == 0 {
+                        allocations.insert(core.manifest.id.clone(), 0);
+                        continue;
+                    }
+                    let cap = effective_allocation_cap(&core.manifest, &settings);
+                    let start = if remaining_budget >= min_per_task {
+                        min_per_task
+                    } else {
+                        remaining_budget
+                    }
+                    .min(cap);
+                    // Apply per-host connection cap
+                    let start = if let Some(host) = hostname_from_manifest(&core.manifest) {
+                        let used = host_threads.get(&host).copied().unwrap_or(0);
+                        let remaining = MAX_CONNECTIONS_PER_HOST.saturating_sub(used);
+                        let capped = start.min(remaining);
+                        if capped > 0 {
+                            host_threads.insert(host, used + capped);
+                        }
+                        capped
+                    } else {
+                        start
+                    };
+                    allocations.insert(core.manifest.id.clone(), start);
+                    remaining_budget = remaining_budget.saturating_sub(start);
+                }
+
+                // Round-robin additional allocation with per-host cap
+                while remaining_budget > 0 {
+                    let mut granted = false;
+                    for managed in &candidates {
+                        let core = managed.lock_core();
+                        let entry = allocations.entry(core.manifest.id.clone()).or_insert(0);
+                        let cap = effective_allocation_cap(&core.manifest, &settings);
+
+                        // Check per-host cap
+                        let host = hostname_from_manifest(&core.manifest);
+                        let host_at_cap = host.as_ref().is_some_and(|h| {
+                            host_threads.get(h).copied().unwrap_or(0) >= MAX_CONNECTIONS_PER_HOST
+                        });
+
+                        if *entry < cap && !host_at_cap {
+                            *entry += 1;
+                            remaining_budget -= 1;
+                            if let Some(ref h) = host {
+                                *host_threads.entry(h.clone()).or_insert(0) += 1;
+                            }
+                            granted = true;
+                            if remaining_budget == 0 {
+                                break;
+                            }
+                        }
+                    }
+
+                    if !granted {
+                        break;
+                    }
+                }
+
+                for managed in &all_downloads {
+                    let mut core = managed.lock_core();
+                    let manifest = &mut core.manifest;
+                    let allocation = allocations.get(&manifest.id).copied().unwrap_or(0);
+                    if matches!(
+                        manifest.state,
+                        DownloadState::Paused
+                            | DownloadState::Completed
+                            | DownloadState::Failed
+                            | DownloadState::Canceled
+                            | DownloadState::Verifying
+                    ) {
+                        manifest.allocated_thread_count = Some(0);
+                        manifest.connection_count = 0;
+                    } else if allocation == 0 {
+                        manifest.allocated_thread_count = Some(0);
+                        manifest.connection_count = 0;
+                        manifest.state = DownloadState::Queued;
+                    } else {
+                        manifest.allocated_thread_count = Some(allocation);
+                        manifest.connection_count = allocation;
+                        if manifest.state != DownloadState::Retrying {
+                            manifest.state = DownloadState::Downloading;
+                        }
+                    }
+                    manifest.updated_at_ms = now_ms();
+                    sync_snapshot_with_manifest(&mut core);
+                }
+            }
+        }
+
+        // ── Batch persist all active (non-terminal) downloads ────
+        let active_list: Vec<_> = all_downloads
+            .iter()
+            .filter(|managed| {
+                let state = managed.lock_core().manifest.state;
+                state != DownloadState::Completed
+                    && state != DownloadState::Failed
+                    && state != DownloadState::Canceled
+            })
+            .cloned()
+            .collect();
+
+        if !active_list.is_empty()
+            && let Err(error) = persist_manifest_snapshots_batch(&dm.db, &active_list).await
+        {
+            log_background_error("persist rebalanced manifest batch", &error);
+            tracing::warn!(
+                "batch persist failed for {} active download(s): {}",
+                active_list.len(),
+                error
+            );
+        }
+        Ok(())
+    }
+
+    /// Check the speed limit schedule and apply the matching limit (or revert to global default).
+    async fn apply_speed_limit_schedule(&self, dm: &DownloadManager) {
+        let settings = dm.settings_service.get().await;
+        let schedule = &settings.speed_limit_schedule;
+        if schedule.is_empty() {
+            return;
+        }
+
+        // Get current local hour using the `time` crate
+        let current_hour = match time::OffsetDateTime::now_local() {
+            Ok(now) => now.hour(),
+            Err(e) => {
+                tracing::warn!("Failed to determine local time, falling back to global speed limit: {e}");
+                dm.rate_limiter.set_rate(settings.global_speed_limit_bps);
+                return;
+            }
+        };
+
+        // Find matching slot
+        let limit = schedule.iter().find_map(|slot| {
+            if slot.start_hour <= slot.end_hour {
+                // Normal range: e.g. 8-18
+                if current_hour >= slot.start_hour && current_hour < slot.end_hour {
+                    Some(slot.limit_bps)
+                } else {
+                    None
+                }
+            } else {
+                // Wraps midnight: e.g. 22-6
+                if current_hour >= slot.start_hour || current_hour < slot.end_hour {
+                    Some(slot.limit_bps)
+                } else {
+                    None
+                }
+            }
+        });
+
+        match limit {
+            Some(bps) => dm.rate_limiter.set_rate(bps),
+            None => {
+                // Re-read settings to get global_speed_limit_bps (schedule may have changed)
+                let settings = dm.settings_service.get().await;
+                dm.rate_limiter.set_rate(settings.global_speed_limit_bps);
+            }
+        }
+    }
+}
+
+// ── Scheduler helper functions ───────────────────────────────────────────────
+
+/// Extract the hostname from a download's final_url for per-host connection limiting.
+fn hostname_from_manifest(manifest: &Manifest) -> Option<String> {
+    Url::parse(&manifest.final_url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h.to_string()))
+}
+
+/// Returns the number of bytes remaining to download.
+fn remaining_bytes(manifest: &Manifest) -> u64 {
+    manifest
+        .total_bytes
+        .unwrap_or(manifest.downloaded_bytes)
+        .saturating_sub(manifest.downloaded_bytes)
+}
+
+/// Computes the effective thread allocation cap for a given manifest and settings.
+fn effective_allocation_cap(manifest: &Manifest, settings: &AppSettings) -> usize {
+    if !manifest.supports_ranges {
+        return 1;
+    }
+
+    match settings.scheduler.mode {
+        SchedulerMode::Traditional => manifest
+            .requested_thread_count
+            .or(manifest.desired_thread_count)
+            .unwrap_or(DEFAULT_FIXED_THREADS)
+            .clamp(1, MAX_TRADITIONAL_THREADS),
+        SchedulerMode::Automatic => {
+            let desired = match manifest.thread_mode {
+                ThreadMode::Fixed => manifest.requested_thread_count.unwrap_or(1),
+                ThreadMode::Adaptive => manifest.desired_thread_count.unwrap_or(1),
+            };
+            desired.clamp(1, effective_automatic_task_cap(settings))
+        }
+    }
+}
+
+fn effective_automatic_task_cap(settings: &AppSettings) -> usize {
+    settings.scheduler.automatic.max_threads_per_task.max(1)
+}
+
+/// Track thread-count direction changes for oscillation detection.
+/// An oscillation is detected when the direction flips ≥3 consecutive times.
+fn track_direction(aimd: &mut AimdState, dir: Direction) {
+    match aimd.last_direction {
+        Some(prev) if prev != dir => {
+            aimd.oscillation_count = aimd.oscillation_count.saturating_add(1);
+        }
+        Some(_) => {
+            aimd.oscillation_count = 0;
+        }
+        None => {
+            // First direction — not a flip, just record it
+        }
+    }
+    aimd.last_direction = Some(dir);
+}
+
+/// Check for oscillation (≥3 consecutive direction flips) and apply hysteresis lock.
+fn check_oscillation(
+    aimd: &mut AimdState,
+    manifest: &mut crate::manifest::Manifest,
+    current: usize,
+    min_threads: usize,
+    now: Instant,
+    cooldown: &Duration,
+) {
+    const OSCILLATION_THRESHOLD: u32 = 3;
+    if aimd.oscillation_count >= OSCILLATION_THRESHOLD {
+        let lock_target = ((current as f64) * 0.7).ceil() as usize;
+        manifest.desired_thread_count = Some(lock_target.max(min_threads));
+        manifest.updated_at_ms = now_ms();
+        aimd.hysteresis_lock_until = Some(now + *cooldown * 4);
+        aimd.consecutive_good_samples = 0;
+        aimd.consecutive_bad_samples = 0;
+        aimd.oscillation_count = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests;
