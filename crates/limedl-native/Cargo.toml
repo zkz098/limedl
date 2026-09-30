@@ -131,6 +131,10 @@ slint-build = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 skia-safe = { version = "0.99", features = ["textlayout"] }
+# In-process UI testing: drives the real `MainWindow` (element queries, simulated
+# clicks, accessibility actions) with no window and no event loop. Version-pinned
+# with `slint`/`slint-build` in the workspace table — see the comment there.
+i-slint-backend-testing = { workspace = true }
 
 [features]
 # Debug-only Skia hinting/font-rendering repro (tests/skia_hint_repro.rs). It

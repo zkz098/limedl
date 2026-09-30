@@ -110,7 +110,9 @@ export component LabsDialog inherits Rectangle {
                         vertical-alignment: center;
                     }
                 }
-                IconButton {
+                // Header close button; the id is the handle used by the UI tests
+                // (src/ui_tests/) and by element introspection (L2/MCP).
+                close_btn := IconButton {
                     icon: @image-url("../assets/icons/close-line.svg");
                     clicked => { root.close(); }
                 }

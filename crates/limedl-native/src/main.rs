@@ -22,32 +22,32 @@ mod single_instance;
 mod task_ops;
 mod toast;
 mod tray;
+mod ui_boot;
 mod ui_sync;
+#[cfg(test)]
+mod ui_tests;
 mod update;
 mod url_utils;
 
 use power::PowerGuard;
 pub static POWER_GUARD: std::sync::LazyLock<PowerGuard> = std::sync::LazyLock::new(PowerGuard::new);
 
-use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use anyhow::Context;
 use parking_lot::Mutex;
-use slint::{ComponentHandle, SharedString};
+use slint::ComponentHandle;
 use tokio::sync::watch;
 use tray_icon::TrayIconBuilder;
 
 use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::bootstrap::bootstrap;
 use limedl_core::event_bus::DownloadEvent;
-use limedl_core::types::SortDirection;
 
-use crate::bridge::TaskStore;
-use crate::context::AppContext;
 use crate::i18n::Language;
 use crate::tray::TRAY_INSTANCE;
+use crate::ui_boot::UiState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -102,7 +102,6 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
-    let current_settings = Arc::new(Mutex::new(initial_settings.clone()));
     autostart::sync_from_settings(initial_settings.autostart);
 
     // Aria2 RPC
@@ -128,73 +127,46 @@ async fn main() -> anyhow::Result<()> {
         "zh-TW" => Language::ZhTw,
         _ => Language::ZhCn,
     };
-    let store = Arc::new(Mutex::new(TaskStore::with_language(initial_lang)));
-    {
-        let mut s = store.lock();
-        s.apply_sort(
-            bridge::sort_key_to_field(initial_settings.appearance.sort_key),
-            matches!(initial_settings.appearance.sort_direction, SortDirection::Asc),
-        );
-    }
-
-    let default_download_dir = if !initial_settings.download.default_download_dir.is_empty() {
-        initial_settings.download.default_download_dir.clone()
-    } else if let Some(dir) = core.dispatcher.default_download_dir().await {
-        dir
-    } else if let Some(dir) = paths::dirs_download_dir() {
-        dir.to_string_lossy().to_string()
+    // Only ask the core when the user has not pinned a directory: the lookup
+    // walks the service layer and is skipped entirely in the configured case.
+    let core_dir = if initial_settings.download.default_download_dir.is_empty() {
+        core.dispatcher.default_download_dir().await
     } else {
-        state_dir.to_string_lossy().to_string()
+        None
     };
+    let default_download_dir =
+        ui_boot::default_download_dir(&initial_settings, core_dir, &state_dir);
 
-    let main_window = MainWindow::new()?;
-    i18n::apply_translation(initial_lang);
-    let ui_weak = main_window.as_weak();
+    let ui = ui_boot::build_ui(ui_boot::UiBootInputs {
+        dispatcher: core.dispatcher.clone(),
+        event_bus: core.event_bus.clone(),
+        settings: initial_settings.clone(),
+        language: initial_lang,
+        default_download_dir,
+        base_dir: base_dir.clone(),
+        rpc_shutdown: rpc_shutdown.clone(),
+        install_kind: update::detect_install_kind(),
+    })?;
+    let UiState { window: main_window, ctx } = ui;
 
-    let install_kind = update::detect_install_kind();
-    main_window.set_update_state(UpdateState {
-        phase: "idle".into(),
-        latest_version: "".into(),
-        notes: "".into(),
-        progress_percent: 0.0,
-        progress_label: "".into(),
-        error_text: "".into(),
-        install_kind: match install_kind {
-            update::InstallKind::Store => "store".into(),
-            update::InstallKind::Installer => "installer".into(),
-            update::InstallKind::Portable => "portable".into(),
-        },
-    });
-
-    let is_dark = initial_settings.appearance.color_mode == limedl_core::types::ColorMode::Dark;
-    ui_sync::apply_appearance(
-        &main_window,
-        initial_settings.appearance.color_mode.clone(),
-        initial_settings.appearance.theme_color.clone(),
+    // Everything from here on needs the operating system: the real window
+    // handle only exists once the event loop runs, and theme/geometry talk to
+    // the windowing system. Keeping them out of `ui_boot::build_ui` is what
+    // lets the UI tests build the very same window headlessly.
+    platform_win::sync_window_theme(
+        main_window.window(),
+        initial_settings.appearance.color_mode == limedl_core::types::ColorMode::Dark,
     );
-    main_window.set_default_download_dir(SharedString::from(&default_download_dir));
-    main_window.set_new_task_dir(SharedString::from(&default_download_dir));
-
-    platform_win::sync_window_theme(main_window.window(), is_dark);
     ui_sync::schedule_window_placement_restore(&main_window, &base_dir);
-    ui_sync::apply_view_preferences(&main_window, &initial_settings);
-
-    let toast_queue = Arc::new(Mutex::new(Vec::new()));
     if let Some(report) = migration_report.as_ref() {
-        ui_sync::announce_migration(report, &ui_weak, &toast_queue, initial_lang);
+        ui_sync::announce_migration(report, &ctx.ui_weak, &ctx.toast_queue, initial_lang);
     }
-
-    let game_mode_active = Arc::new(Mutex::new(core.dispatcher.game_mode()));
-    let is_overclock_mode = Arc::new(Mutex::new(core.dispatcher.get_overclock_mode()));
-    let tray_speed_limit_active = Arc::new(AtomicBool::new(
-        initial_settings.global_speed_limit_bps > 0,
-    ));
 
     // System Tray Icon
     let tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(tray::build_tray_menu(
             initial_lang,
-            tray_speed_limit_active.load(Ordering::Relaxed),
+            ctx.tray_speed_limit_active.load(Ordering::Relaxed),
         )))
         .with_tooltip(i18n::get_tray_strings(initial_lang).tooltip)
         .with_icon(tray::create_default_tray_icon())
@@ -204,40 +176,13 @@ async fn main() -> anyhow::Result<()> {
 
     // Load initial tasks from SQLite via Dispatcher
     if let Ok(initial_tasks) = core.dispatcher.list().await {
-        let mut s = store.lock();
+        let mut s = ctx.store.lock();
         s.replace_all(initial_tasks);
         ui_sync::refresh_ui(&main_window, &s);
     }
 
-    let ctx = AppContext {
-        ui: main_window.clone_strong(),
-        ui_weak: ui_weak.clone(),
-        dispatcher: core.dispatcher.clone(),
-        event_bus: core.event_bus.clone(),
-        store: store.clone(),
-        current_settings: current_settings.clone(),
-        toast_queue: toast_queue.clone(),
-        rpc_shutdown: rpc_shutdown.clone(),
-        new_task_torrent_entries: Arc::new(Mutex::new(Vec::new())),
-        new_task_torrent_included: Arc::new(Mutex::new(Vec::new())),
-        active_inspector_id: Arc::new(Mutex::new(None)),
-        labs_expanded_ids: Arc::new(Mutex::new(HashSet::new())),
-        labs_candidates: Arc::new(Mutex::new(Vec::new())),
-        rewrite_rules: Arc::new(Mutex::new(initial_settings.url_rewrite.rules.clone())),
-        sandbox_test_url: Arc::new(Mutex::new(
-            "https://raw.github.com/user/repo/master/README.md".to_string(),
-        )),
-        game_mode_active: game_mode_active.clone(),
-        is_overclock_mode: is_overclock_mode.clone(),
-        tray_speed_limit_active: tray_speed_limit_active.clone(),
-        base_dir: base_dir.clone(),
-    };
-
     // Platform hooks (drag-and-drop, WM_COPYDATA, protocol registration, activation)
     platform_adapter::setup_platform_integration(&ctx, &instance_claim);
-
-    // Register all UI callbacks
-    handlers::register_all(&ctx);
 
     // Background listeners
     event_stream::start_clipboard_monitor(&ctx);
@@ -276,7 +221,7 @@ async fn main() -> anyhow::Result<()> {
     if let Some(ref arg) = cli_payload {
         handlers::new_task::open_new_task_with_payload(
             arg,
-            &ui_weak,
+            &ctx.ui_weak,
             &ctx.dispatcher,
             &ctx.store,
             &ctx.new_task_torrent_entries,

@@ -477,37 +477,42 @@ export component MainWindow inherits Window {
                 }
 
                 // Category List
+                //
+                // The `cat_*` ids are the stable handles for the in-process UI
+                // tests (src/ui_tests/) and for element introspection (L2/MCP):
+                // a click on the real control is what proves the wiring, so
+                // renaming one of these must be reflected in the tests.
                 VerticalLayout {
                     spacing: 6px;
-                    CategoryButton {
+                    cat_all := CategoryButton {
                         title: @tr("All Tasks");
                         icon_source: @image-url("assets/icons/download-cloud-2-line.svg");
                         count_text: root.count_all;
                         active: root.active_category == 0;
                         clicked => { root.select_category(0); }
                     }
-                    CategoryButton {
+                    cat_downloading := CategoryButton {
                         title: @tr("Downloading");
                         icon_source: @image-url("assets/icons/download-line.svg");
                         count_text: root.count_downloading;
                         active: root.active_category == 1;
                         clicked => { root.select_category(1); }
                     }
-                    CategoryButton {
+                    cat_paused := CategoryButton {
                         title: @tr("Paused");
                         icon_source: @image-url("assets/icons/pause-circle-line.svg");
                         count_text: root.count_paused;
                         active: root.active_category == 2;
                         clicked => { root.select_category(2); }
                     }
-                    CategoryButton {
+                    cat_completed := CategoryButton {
                         title: @tr("Completed");
                         icon_source: @image-url("assets/icons/checkbox-circle-line.svg");
                         count_text: root.count_completed;
                         active: root.active_category == 3;
                         clicked => { root.select_category(3); }
                     }
-                    CategoryButton {
+                    cat_failed := CategoryButton {
                         title: @tr("Failed / Error");
                         icon_source: @image-url("assets/icons/error-warning-line.svg");
                         count_text: root.count_failed;
@@ -790,7 +795,7 @@ export component MainWindow inherits Window {
                         // View Mode Toggle (Cards / Table)
                         VerticalLayout {
                             alignment: center;
-                            IconButton {
+                            btn_view_mode := IconButton {
                                 icon: root.view_mode == 0 ? @image-url("assets/icons/file-list-line.svg") : @image-url("assets/icons/layout-grid-line.svg");
                                 text_color: Theme.ca3e635;
                                 clicked => { root.toggle_view_mode(); }
@@ -860,7 +865,7 @@ export component MainWindow inherits Window {
 
                             VerticalLayout {
                                 alignment: center;
-                                IconButton {
+                                btn_sort_order := IconButton {
                                     icon: root.sort_asc ? @image-url("assets/icons/sort-asc.svg") : @image-url("assets/icons/sort-desc.svg");
                                     text_color: Theme.ca3e635;
                                     clicked => { root.toggle_sort_asc(); }
@@ -895,7 +900,11 @@ export component MainWindow inherits Window {
                             clicked => { root.clear_completed(); }
                         }
 
-                        PrimaryButton {
+                        // Always visible, next to the pause/resume/clear buttons.
+                        // The empty state has its own `ta_create_task` button
+                        // instead; only that one is conditional, and the UI tests
+                        // assert the difference (see `src/ui_tests/list.rs`).
+                        ta_new_task := PrimaryButton {
                             text: @tr("New Task");
                             icon: @image-url("assets/icons/add-line.svg");
                             clicked => { root.open_new_task_dialog(); }
@@ -980,7 +989,7 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            if root.search_query == "" : PrimaryButton {
+                            if root.search_query == "" : ta_create_task := PrimaryButton {
                                 text: @tr("Create New Task");
                                 icon: @image-url("assets/icons/add-line.svg");
                                 clicked => { root.open_new_task_dialog(); }

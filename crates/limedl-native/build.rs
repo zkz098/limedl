@@ -54,7 +54,31 @@ fn main() {
     // .po catalogs does not trigger regeneration of the bundled translations.
     println!("cargo:rerun-if-changed=lang");
 
-    let config = slint_build::CompilerConfiguration::new()
+    // Element introspection needs the debug metadata the compiler only embeds on
+    // request: without it `ElementHandle::find_by_element_id` (the in-process UI
+    // tests) and every id lookup over the MCP server silently match nothing and
+    // print a warning instead of failing.
+    //
+    // Two ways in, deliberately:
+    //   * debug builds always get it — `PROFILE` is the profile of the crate
+    //     being built (not of this build script), so `cargo test`/`cargo run`
+    //     work with no setup;
+    //   * an explicit `SLINT_EMIT_DEBUG_INFO=1` is left alone. It is already read
+    //     by `CompilerConfiguration::new()` (which forwards to the compiler's
+    //     env-reading constructor), so *not* calling `with_debug_info` here is
+    //     what keeps `cargo run --release` drivable by the MCP server. Passing
+    //     `false` for release profiles instead would silently override the very
+    //     variable the tool documents.
+    //
+    // The shipped release binary therefore carries no metadata unless someone
+    // asks for it.
+    println!("cargo:rerun-if-env-changed=PROFILE");
+    let mut config = slint_build::CompilerConfiguration::new();
+    if std::env::var("PROFILE").is_ok_and(|profile| profile == "debug") {
+        config = config.with_debug_info(true);
+    }
+
+    let config = config
         // Rasterize @image-url SVG assets at 2x: the compiler embeds SVGs as
         // bitmaps rasterized at this scale factor. Without it they render at
         // 1x and look blurry when the window scale factor is > 1.

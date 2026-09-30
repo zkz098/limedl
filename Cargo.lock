@@ -4266,6 +4266,7 @@ dependencies = [
  "base64 0.23.1",
  "flate2",
  "foldhash",
+ "i-slint-backend-testing",
  "image",
  "limedl-core",
  "mimalloc",

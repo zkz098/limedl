@@ -105,7 +105,10 @@ export component SettingsDialog inherits Rectangle {
                         vertical-alignment: center;
                     }
                 }
-                IconButton {
+                // Header close button. The id is what the in-process UI tests
+                // (src/ui_tests/) click, and what element introspection (L2/MCP)
+                // can address — keep it stable.
+                close_btn := IconButton {
                     icon: @image-url("../assets/icons/close-line.svg");
                     clicked => { root.close(); }
                 }
