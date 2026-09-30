@@ -19,7 +19,8 @@ use crate::aimd::AimdState;
 use crate::backend_registry::BackendRegistry;
 use crate::dispatcher::Dispatcher;
 use crate::event_bus::{DownloadEvent, EventBus};
-use crate::manager::{DownloadCore, DownloadManager, ManagedDownload};
+use crate::download::{DownloadCore, ManagedDownload};
+use crate::manager::DownloadManager;
 use crate::manifest::{Manifest, CHUNK_SIZE};
 use crate::rate_limiter::RateLimiter;
 use crate::types::{

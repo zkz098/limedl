@@ -24,10 +24,10 @@ use crate::{
     error::{DownloadError, Result, io_error_with_path},
     event_bus::DownloadEvent,
     file_ops::open_download_file,
-    manager::{
-        DownloadManager,
+    download::{
         ManagedDownload, WaitState,
     },
+    manager::DownloadManager,
     now_ms,
     types::{ChunkInfo, DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary},
     slot_guard::DownloadSlotGuard,
@@ -561,7 +561,7 @@ impl TaskLifecycle {
         chunk_index: Option<usize>,
         bytes: u64,
     ) {
-        crate::manager::record_progress_on_managed(managed, chunk_index, bytes);
+        crate::download::record_progress_on_managed(managed, chunk_index, bytes);
     }
 }
 

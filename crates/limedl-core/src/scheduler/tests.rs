@@ -1,4 +1,4 @@
-use crate::manager::{DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS};
+use crate::download::{DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS};
 use crate::manifest::Manifest;
 use crate::types::{
     AppSettings, AutomaticSchedulerSettings, DownloadState, Priority, SchedulerMode,

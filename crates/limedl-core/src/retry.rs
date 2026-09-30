@@ -17,7 +17,7 @@ use super::http::{
     ANTI_ABUSE_SNIFF_LIMIT, ResponseDisposition, anti_abuse_forbidden_error,
     classify_download_response, looks_like_anti_abuse_page, read_body_prefix,
 };
-use super::manager::ManagedDownload;
+use super::download::ManagedDownload;
 use super::now_ms;
 use super::types::DownloadState;
 

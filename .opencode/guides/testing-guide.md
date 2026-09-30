@@ -15,6 +15,7 @@
 1. **默认内联**：小的 `#[cfg(test)] mod tests { ... }` 直接放在生产文件尾部（< ~150 行），测试就近于实现。
 2. **大了就外移**：超过 ~150 行的内联测试块必须移到同级 `tests.rs`（模块目录内），生产文件只保留 `#[cfg(test)] mod tests;`。例：`settings/tests.rs`、`http_executor/tests.rs`、`scheduler/tests.rs`、`task_lifecycle/tests.rs`。测试通过 `use super::*;` 仍能访问私有项，模块路径（如 `settings::tests::*`）保持不变。
 3. **跨模块 E2E 放 crate 级**：需要真实 mock server / 多个子系统协作的测试放 `crates/limedl-core/src/tests/`（由 `lib.rs` 的 `mod tests` 引入）。
+4. **巨型测试文件按场景拆分**：单文件超过 ~800 行或 ~30 个测试时，拆成同名目录（`mod.rs` 放导入与共享 fixture，`<场景>.rs` 放测试，每个文件 `use super::*;`）。已拆：`tests/manager_tests/`、`tests/http_executor_tests/`、`tests/scheduler_tests/`、`bt_backend/tests/`、`buffer_pool/tests/`、`database/tests/`。拆分类时注意把 `#[test]`/`#[tokio::test]` 属性与函数一起搬走。
 
 ## 数据流向
 

@@ -8,7 +8,8 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 
 ## 涉及文件
 
-- `crates/limedl-core/src/manager.rs` — DownloadManager 主结构体、CRUD 方法
+- `crates/limedl-core/src/manager.rs` — DownloadManager 主结构体、CRUD 方法（门面）
+- `crates/limedl-core/src/download/` — 下载编排的**共享内核**：`managed.rs`（ManagedDownload / DownloadCore / RunOutcome / ChunkWorkerOutcome / WaitState / 进度与取消辅助）与 `shared.rs`（线程模式解析、thread_note、目标路径去重、后台错误日志）。actor（executor/lifecycle/scheduler/persistence）从这里取共享状态与策略，不再从 `manager.rs` 取，避免“门面 + 共享内核”耦合
 - `crates/limedl-core/src/http_executor/` — HTTP 探测、单流/多流执行（`mod.rs` 装配，`run.rs` 探测+顶层循环，`single.rs`/`chunked.rs` 两条下载路径，`worker.rs` 分块认领与 worker，`finalize.rs` 校验与最终化）
 - `crates/limedl-core/src/scheduler/mod.rs` — 后台调度循环 + AIMD 线程重分配（测试在 `scheduler/tests.rs`）
 - `crates/limedl-core/src/task_lifecycle/mod.rs` — 状态转换、文件清理、进度记录、事件发射（测试在 `task_lifecycle/tests.rs`）

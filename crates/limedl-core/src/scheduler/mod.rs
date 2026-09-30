@@ -19,10 +19,11 @@ use reqwest::Url;
 use crate::{
     aimd::{self, AimdState, Direction},
     error::Result,
-    manager::{
-        DEFAULT_FIXED_THREADS, DownloadManager, MAX_TRADITIONAL_THREADS, log_background_error,
+    download::{
+        DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS, log_background_error,
         sync_snapshot_with_manifest,
     },
+    manager::DownloadManager,
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshots_batch,

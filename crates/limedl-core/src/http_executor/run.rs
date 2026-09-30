@@ -168,7 +168,7 @@ impl HttpExecutor {
             priority: None,
         };
         let (thread_mode, requested_thread_count, desired_thread_count, adaptive_profile) =
-            manager::resolve_thread_settings(&settings, &request, supports_parallel);
+            crate::download::resolve_thread_settings(&settings, &request, supports_parallel);
         let mut reset_progress = false;
         let mut force_single_stream_restart = false;
         let mut refresh_aimd = false;
@@ -181,7 +181,7 @@ impl HttpExecutor {
                     let destination_dir = PathBuf::from(&manifest.destination_dir);
                     manifest.file_name = safe_name.clone();
                     manifest.destination_path =
-                        manager::unique_destination_path(&destination_dir, &safe_name)
+                        crate::download::unique_destination_path(&destination_dir, &safe_name)
                             .to_string_lossy()
                             .to_string();
                 }
@@ -224,7 +224,7 @@ impl HttpExecutor {
             manifest.adaptive_profile_snapshot = adaptive_profile;
             if manifest.thread_note.as_deref() != Some("单线程（429 限流降级）") {
                 manifest.thread_note =
-                    manager::thread_note(supports_parallel, thread_mode, adaptive_profile);
+                    crate::download::thread_note(supports_parallel, thread_mode, adaptive_profile);
             }
             manifest.updated_at_ms = now_ms();
             manifest.error = None;

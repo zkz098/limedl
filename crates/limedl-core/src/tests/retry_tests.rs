@@ -27,7 +27,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::aimd::AimdState;
 use crate::error::DownloadError;
-use crate::manager::DownloadCore;
+use crate::download::DownloadCore;
 use crate::manifest::Manifest;
 use crate::retry::{backoff_delay, request_with_retry};
 use crate::test_harness::TestServer;
@@ -60,8 +60,8 @@ fn make_response(status: u16) -> reqwest::Response {
 ///
 /// All fields are initialised to sensible zero / default values.  The download
 /// starts in [`DownloadState::Downloading`] with zero progress.
-fn make_managed() -> Arc<crate::manager::ManagedDownload> {
-    Arc::new(crate::manager::ManagedDownload {
+fn make_managed() -> Arc<crate::download::ManagedDownload> {
+    Arc::new(crate::download::ManagedDownload {
         core: ParkingMutex::new(DownloadCore {
             snapshot: DownloadSnapshot {
                 id: String::new(),

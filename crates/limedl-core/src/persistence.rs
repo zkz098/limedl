@@ -13,7 +13,8 @@ use anyhow::{Context, Result};
 use super::{
     aimd::AimdState,
     database::{self, Database},
-    manager::{DownloadCore, DownloadManager, ManagedDownload},
+    download::{DownloadCore, ManagedDownload},
+    manager::DownloadManager,
     manifest::{ChunkManifest, snapshot_from_manifest},
     now_ms,
     types::DownloadState,

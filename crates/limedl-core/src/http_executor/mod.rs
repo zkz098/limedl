@@ -37,11 +37,12 @@ use crate::{
         looks_like_anti_abuse_page, read_body_prefix, supports_ranges, validate_probe_response,
         validate_segment_response,
     },
-    manager::{
-        self, ChunkWorkerOutcome, DownloadManager, ManagedDownload, PERSIST_INTERVAL, RunOutcome,
+    download::{
+        ChunkWorkerOutcome, ManagedDownload, PERSIST_INTERVAL, RunOutcome,
         cancellation_chunk_outcome, cancellation_outcome, record_progress_on_managed,
         supports_parallelism,
     },
+    manager::DownloadManager,
     manifest::{
         ChunkManifest, RemoteMetadata, contiguous_prefix_end, has_partial_chunk_progress,
         plan_chunks, resolve_chunk_size, validators_changed,

@@ -87,8 +87,8 @@ impl HttpExecutor {
                 .wait_until_active(&dm, &managed, &token)
                 .await
             {
-                manager::WaitState::Running => {}
-                manager::WaitState::Paused => {
+                crate::download::WaitState::Running => {}
+                crate::download::WaitState::Paused => {
                     if let Some(ref buf) = write_buffer
                         && let Err(e) = buf.flush_all().await
                     {
@@ -96,7 +96,7 @@ impl HttpExecutor {
                     }
                     return Ok(RunOutcome::Paused);
                 }
-                manager::WaitState::Canceled => {
+                crate::download::WaitState::Canceled => {
                     if let Some(ref buf) = write_buffer
                         && let Err(e) = buf.flush_all().await
                     {

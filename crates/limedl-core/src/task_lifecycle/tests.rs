@@ -7,7 +7,7 @@ use super::*;
 use crate::{
     aimd::AimdState,
     error::DownloadError,
-    manager::{DownloadCore, ManagedDownload},
+    download::{DownloadCore, ManagedDownload},
     manifest::Manifest,
     types::*,
 };
@@ -723,7 +723,7 @@ fn build_snapshot_speed_tracker_overrides_average_speed_for_old_task() {
         },
     ));
 
-    crate::manager::record_progress_on_managed(&dl, None, 10_000_000);
+    crate::download::record_progress_on_managed(&dl, None, 10_000_000);
 
     let snap = build_snapshot_test(&dl);
 

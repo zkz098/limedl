@@ -3,41 +3,35 @@ use std::{
     net::IpAddr,
     path::{Path, PathBuf},
     sync::Arc,
-    time::Duration,
 };
 
 use foldhash::HashMap;
-use parking_lot::{Mutex, MutexGuard, RwLock as ParkingRwLock};
+use parking_lot::{Mutex, RwLock as ParkingRwLock};
 
 use anyhow::Context;
 use async_trait::async_trait;
 use reqwest::{Client, Url};
-use tokio::{
-    sync::{Notify, RwLock},
-};
+use tokio::sync::{Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use super::{
-    aimd::{self, AimdState},
+    aimd::AimdState,
     buffer_pool::{BufferPool, IoWorker},
     database::Database,
     error::{DownloadError, Result, io_error_with_path},
     event_bus::{DownloadEvent, EventBus},
     http_executor::HttpExecutor,
-    lock,
     logging::apply_logging_settings,
     manifest::{CHUNK_SIZE, Manifest, snapshot_from_manifest},
     protocol::DownloadBackend,
     rate_limiter::RateLimiter,
     scheduler::Scheduler,
     slot_guard::DownloadSlotGuard,
-    speed_tracker::SpeedTracker,
     task_lifecycle::TaskLifecycle,
     types::{
-        AdaptiveProfile, AppSettings, ChecksumMode, ChunkInfo, DiskType, DownloadSnapshot,
-        DownloadState, DownloadSummary, Priority, SchedulerMode, StartDownloadRequest, TaskId,
-        ThreadMode,
+        AppSettings, ChecksumMode, DiskType, DownloadSnapshot, DownloadState, DownloadSummary,
+        Priority, StartDownloadRequest, TaskId, ThreadMode,
     },
 };
 
@@ -46,10 +40,10 @@ use super::now_ms;
 use super::settings::resolve_user_agent;
 use super::url_rewrite::rewrite_url;
 
-pub const DEFAULT_FIXED_THREADS: usize = 8;
-pub(crate) const DEFAULT_RETRIES: u32 = 4;
-pub(crate) const PERSIST_INTERVAL: Duration = Duration::from_millis(300);
-pub const MAX_TRADITIONAL_THREADS: usize = 32;
+use crate::download::{
+    DEFAULT_RETRIES, initial_file_name_from_url, resolve_thread_settings, unique_destination_path,
+};
+pub use crate::download::{DownloadCore, ManagedDownload};
 
 /// Maximum number of cached CDN clients before eviction.
 const MAX_CDN_CLIENT_CACHE_SIZE: usize = 50;
@@ -178,120 +172,6 @@ impl Clone for DownloadManager {
     }
 }
 
-/// Merged core of snapshot + manifest, protected by a single Mutex.
-/// This eliminates double-lock ordering in hot paths like record_progress().
-pub struct DownloadCore {
-    pub snapshot: DownloadSnapshot,
-    pub manifest: Manifest,
-    pub speed_tracker: SpeedTracker,
-}
-
-impl DownloadCore {
-    pub fn new(snapshot: DownloadSnapshot, manifest: Manifest) -> Self {
-        Self {
-            snapshot,
-            manifest,
-            speed_tracker: SpeedTracker::default(),
-        }
-    }
-
-    /// Sync snapshot fields from manifest.
-    /// NOTE: mirror_url is intentionally NOT synced — managed by mirror retry loop.
-    pub fn sync_snapshot_from_manifest(&mut self) {
-        let m = &self.manifest;
-        self.snapshot.state = m.state;
-        self.snapshot.final_url = m.final_url.clone();
-        self.snapshot.file_name = m.file_name.clone();
-        self.snapshot.destination_path = m.destination_path.clone();
-        self.snapshot.total_bytes = m.total_bytes;
-        self.snapshot.downloaded_bytes = m.downloaded_bytes;
-        self.snapshot.supports_ranges = m.supports_ranges;
-        self.snapshot.connection_count = m.connection_count;
-        self.snapshot.thread_mode = m.thread_mode;
-        self.snapshot.requested_thread_count = m.requested_thread_count;
-        self.snapshot.desired_thread_count = m.desired_thread_count;
-        self.snapshot.allocated_thread_count = m.allocated_thread_count;
-        self.snapshot.adaptive_profile = m.adaptive_profile_snapshot;
-        self.snapshot.thread_note = m.thread_note.clone();
-        self.snapshot.etag = m.etag.clone();
-        self.snapshot.last_modified = m.last_modified.clone();
-        self.snapshot.error = m.error.clone();
-        self.snapshot.updated_at_ms = m.updated_at_ms;
-        // COW optimization: only rebuild Vec<ChunkInfo> when chunk structure
-        // (count + offset boundaries) changes; otherwise update state fields
-        // in-place to avoid per-tick allocation churn.
-        // Guard: skip the fast path when snapshot has no chunks yet (initial state);
-        // both empty or structure-mismatch → full rebuild.
-        if !self.snapshot.chunks.is_empty()
-            && self.snapshot.chunks.len() == m.chunks.len()
-            && self
-                .snapshot
-                .chunks
-                .iter()
-                .zip(m.chunks.iter())
-                .all(|(sc, mc)| sc.index == mc.index && sc.start == mc.start && sc.end == mc.end)
-        {
-            // Structure unchanged — update only state fields in-place
-            for (sc, mc) in self.snapshot.chunks.iter_mut().zip(m.chunks.iter()) {
-                sc.downloaded = mc.downloaded;
-                sc.completed = mc.completed;
-                sc.claimed_by = mc.claimed_by;
-            }
-        } else {
-            // Structure changed or empty — full rebuild
-            self.snapshot.chunks = m
-                .chunks
-                .iter()
-                .map(|c| ChunkInfo {
-                    index: c.index,
-                    start: c.start,
-                    end: c.end,
-                    downloaded: c.downloaded,
-                    completed: c.completed,
-                    claimed_by: c.claimed_by,
-                })
-                .collect();
-        }
-    }
-}
-
-pub struct ManagedDownload {
-    pub core: Mutex<DownloadCore>,
-    pub runtime: Mutex<Option<CancellationToken>>,
-    pub aimd: Mutex<AimdState>,
-    pub stop_notify: Notify,
-}
-
-impl ManagedDownload {
-    pub fn lock_core(&self) -> MutexGuard<'_, DownloadCore> {
-        lock(&self.core)
-    }
-
-    pub fn lock_runtime(&self) -> MutexGuard<'_, Option<CancellationToken>> {
-        self.runtime.lock()
-    }
-
-    pub fn lock_aimd(&self) -> MutexGuard<'_, AimdState> {
-        self.aimd.lock()
-    }
-}
-
-#[derive(Debug)]
-pub(crate) enum RunOutcome {
-    Finished,
-    Paused,
-    Canceled,
-}
-
-#[derive(Debug)]
-pub(crate) enum ChunkWorkerOutcome {
-    Finished,
-    RestartSingle,
-    DowngradeSingleThread,
-    Paused,
-    Canceled,
-}
-
 impl DownloadManager {
     /// Construct a DownloadManager reusing the shared infrastructure from SystemContext.
     pub fn new(context: &Arc<crate::context::SystemContext>) -> Result<Self> {
@@ -371,7 +251,11 @@ impl DownloadManager {
     }
 
     pub fn settings_default_download_dir(&self) -> Option<String> {
-        let dir = self.settings_service.get_blocking().download.default_download_dir;
+        let dir = self
+            .settings_service
+            .get_blocking()
+            .download
+            .default_download_dir;
         if dir.is_empty() { None } else { Some(dir) }
     }
 
@@ -464,7 +348,9 @@ impl DownloadManager {
                         let mut cache = self.http.cdn_client_cache.write();
                         if cache.len() >= MAX_CDN_CLIENT_CACHE_SIZE {
                             let count = cache.len();
-                            tracing::info!("Cleared {count} CDN client cache entries (exceeded limit of {MAX_CDN_CLIENT_CACHE_SIZE})");
+                            tracing::info!(
+                                "Cleared {count} CDN client cache entries (exceeded limit of {MAX_CDN_CLIENT_CACHE_SIZE})"
+                            );
                             cache.clear();
                         }
                         cache.insert(cache_key, accelerated.clone());
@@ -686,7 +572,13 @@ impl DownloadManager {
             .insert(download_id.to_string(), managed.clone());
 
         let dm = self.clone();
-        self.task_lifecycle.spawn_download(dm, managed, request.max_retries.unwrap_or(DEFAULT_RETRIES), slot)
+        self.task_lifecycle
+            .spawn_download(
+                dm,
+                managed,
+                request.max_retries.unwrap_or(DEFAULT_RETRIES),
+                slot,
+            )
             .await?;
         self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
@@ -771,11 +663,15 @@ impl DownloadManager {
     }
 
     pub async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        self.task_lifecycle.remove_internal(self, download_id, false).await
+        self.task_lifecycle
+            .remove_internal(self, download_id, false)
+            .await
     }
 
     pub async fn purge(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        self.task_lifecycle.remove_internal(self, download_id, true).await
+        self.task_lifecycle
+            .remove_internal(self, download_id, true)
+            .await
     }
 
     pub async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
@@ -826,8 +722,8 @@ impl DownloadManager {
         let managed = self.task_lifecycle.get(self, download_id).await?;
         let manifest = managed.lock_core().manifest.clone();
         let directory_path = PathBuf::from(&manifest.destination_dir);
-        crate::platform::open_in_file_manager(&directory_path)
-            .map_err(DownloadError::Io)?;        Ok(())
+        crate::platform::open_in_file_manager(&directory_path).map_err(DownloadError::Io)?;
+        Ok(())
     }
 
     pub async fn resume(self: &Arc<Self>, download_id: &str) -> Result<DownloadSnapshot> {
@@ -900,7 +796,8 @@ impl DownloadManager {
         let slot = self.try_acquire_http()?;
 
         let dm = self.clone();
-        self.task_lifecycle.spawn_download(dm, managed.clone(), DEFAULT_RETRIES, slot)
+        self.task_lifecycle
+            .spawn_download(dm, managed.clone(), DEFAULT_RETRIES, slot)
             .await?;
         self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
@@ -917,7 +814,9 @@ impl DownloadManager {
         let mut items = downloads
             .values()
             .cloned()
-            .map(|managed| DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed)))
+            .map(|managed| {
+                DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed))
+            })
             .collect::<Vec<_>>();
         items.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(items)
@@ -926,9 +825,9 @@ impl DownloadManager {
     /// Get a single download summary by internal ID.
     pub async fn get_summary(&self, download_id: &str) -> Option<DownloadSummary> {
         let downloads = self.downloads.read().await;
-        downloads
-            .get(download_id)
-            .map(|managed| DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed.clone())))
+        downloads.get(download_id).map(|managed| {
+            DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed.clone()))
+        })
     }
 
     /// Find a non-terminal download by URL. Returns the internal download ID if found.
@@ -1114,7 +1013,9 @@ impl DownloadBackend for DownloadManager {
         }
         let remaining = self.buffer_pool.active_slots();
         if remaining > 0 {
-            tracing::warn!("Buffer pool drain timed out after 15s, {remaining} slots still active; data may be lost");
+            tracing::warn!(
+                "Buffer pool drain timed out after 15s, {remaining} slots still active; data may be lost"
+            );
         } else {
             tracing::info!("Buffer pool drained successfully");
         }
@@ -1123,179 +1024,5 @@ impl DownloadBackend for DownloadManager {
         if let Err(e) = self.db.shutdown() {
             tracing::warn!("Failed to checkpoint database WAL on shutdown: {:#}", e);
         }
-    }
-}
-
-/// Result of `wait_until_active()` — used by HttpExecutor.
-#[derive(Debug)]
-pub(crate) enum WaitState {
-    Running,
-    Paused,
-    Canceled,
-}
-
-pub(crate) fn supports_parallelism(total: Option<u64>, supports_ranges: bool, chunk_size: u64) -> bool {
-    supports_ranges && total.map(|value| value >= chunk_size * 2).unwrap_or(false)
-}
-
-pub(crate) fn resolve_thread_settings(
-    settings: &AppSettings,
-    request: &StartDownloadRequest,
-    supports_parallel: bool,
-) -> (
-    ThreadMode,
-    Option<usize>,
-    Option<usize>,
-    Option<AdaptiveProfile>,
-) {
-    if !supports_parallel {
-        return (ThreadMode::Fixed, Some(1), Some(1), None);
-    }
-
-    match settings.scheduler.mode {
-        SchedulerMode::Traditional => {
-            let requested = request
-                .thread_count
-                .unwrap_or(DEFAULT_FIXED_THREADS)
-                .clamp(1, MAX_TRADITIONAL_THREADS);
-            (ThreadMode::Fixed, Some(requested), Some(requested), None)
-        }
-        SchedulerMode::Automatic => match request.thread_mode.unwrap_or(ThreadMode::Adaptive) {
-            ThreadMode::Adaptive => {
-                let profile = settings.scheduler.automatic.adaptive_profile;
-                let max_threads = settings.scheduler.automatic.max_threads_per_task.max(1);
-                let desired = aimd::initial_desired_threads(profile, max_threads);
-                (
-                    ThreadMode::Adaptive,
-                    None,
-                    Some(desired.max(1)),
-                    Some(profile),
-                )
-            }
-            ThreadMode::Fixed => {
-                let requested = request
-                    .thread_count
-                    .unwrap_or(DEFAULT_FIXED_THREADS)
-                    .clamp(1, settings.scheduler.automatic.max_threads_per_task.max(1));
-                (ThreadMode::Fixed, Some(requested), Some(requested), None)
-            }
-        },
-    }
-}
-
-pub(crate) fn thread_note(
-    supports_parallel: bool,
-    thread_mode: ThreadMode,
-    adaptive_profile: Option<AdaptiveProfile>,
-) -> Option<String> {
-    if !supports_parallel {
-        return Some(String::from("单线程（服务器不支持分段）"));
-    }
-
-    match thread_mode {
-        ThreadMode::Fixed => Some(String::from("固定线程")),
-        ThreadMode::Adaptive => adaptive_profile.map(|profile| match profile {
-            AdaptiveProfile::Conservative => String::from("自适应 / 保守"),
-            AdaptiveProfile::Balanced => String::from("自适应 / 平衡"),
-            AdaptiveProfile::Aggressive => String::from("自适应 / 激进"),
-        }),
-    }
-}
-
-pub(crate) fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
-    core.sync_snapshot_from_manifest();
-}
-
-/// Records download progress directly on a [`ManagedDownload`].
-///
-/// # Design note (duplication with [`TaskLifecycle::record_progress`])
-/// This free helper exists because chunk workers in [`http_executor`] hold
-/// only an `&Arc<ManagedDownload>` reference and do **not** have access to
-/// a `&DownloadManager` to call through `TaskLifecycle::record_progress`.
-///
-/// The body is **identical** to [`TaskLifecycle::record_progress`] in
-/// `task_lifecycle.rs`. If you modify one, you **must** update the other.
-pub(crate) fn record_progress_on_managed(
-    managed: &Arc<ManagedDownload>,
-    chunk_index: Option<usize>,
-    bytes: u64,
-) {
-    let now = now_ms();
-    let mut core = managed.lock_core();
-    core.speed_tracker.record_bytes(bytes, std::time::Instant::now());
-    core.snapshot.downloaded_bytes = core.snapshot.downloaded_bytes.saturating_add(bytes);
-    core.snapshot.error = None;
-    core.snapshot.updated_at_ms = now;
-    core.manifest.downloaded_bytes = core.manifest.downloaded_bytes.saturating_add(bytes);
-    core.manifest.error = None;
-    core.manifest.updated_at_ms = now;
-    if let Some(index) = chunk_index
-        && let Some(chunk) = core
-            .manifest
-            .chunks
-            .get_mut(index)
-    {
-        chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-        chunk.dirty = true;
-        if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
-            chunk.completed = true;
-            chunk.claimed_by = None;
-        }
-    }
-}
-
-pub(crate) fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
-    let base = destination_dir.join(file_name);
-    if !base.exists() {
-        return base;
-    }
-
-    let stem = Path::new(file_name)
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("download");
-    let extension = Path::new(file_name)
-        .extension()
-        .and_then(|value| value.to_str())
-        .map(|value| format!(".{value}"))
-        .unwrap_or_default();
-
-    for index in 1..10_000 {
-        let candidate = destination_dir.join(format!("{stem} ({index}){extension}"));
-        if !candidate.exists() {
-            return candidate;
-        }
-    }
-
-    destination_dir.join(format!("{}-{}{}", stem, Uuid::new_v4(), extension))
-}
-
-fn initial_file_name_from_url(url: &str) -> String {
-    Url::parse(url)
-        .ok()
-        .and_then(|url| {
-            url.path_segments()
-                .and_then(|mut segments| segments.next_back().map(ToOwned::to_owned))
-        })
-        .map(sanitize_filename::sanitize)
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| String::from("download"))
-}
-
-pub(crate) fn log_background_error(context: &str, error: impl std::fmt::Display) {
-    tracing::warn!(context, %error, "background error");
-}
-
-pub(crate) fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
-    match managed.lock_core().snapshot.state {
-        DownloadState::Canceled => RunOutcome::Canceled,
-        _ => RunOutcome::Paused,
-    }
-}
-
-pub(crate) fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutcome {
-    match managed.lock_core().snapshot.state {
-        DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
-        _ => ChunkWorkerOutcome::Paused,
     }
 }

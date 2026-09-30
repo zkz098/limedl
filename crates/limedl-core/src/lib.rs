@@ -9,6 +9,7 @@ pub mod checksum;
 pub mod context;
 pub mod database;
 pub mod dispatcher;
+pub mod download;
 pub mod error;
 pub mod event_bus;
 pub mod file_ops;
