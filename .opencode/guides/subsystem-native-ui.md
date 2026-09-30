@@ -13,6 +13,8 @@ Tauri/Vue desktop shell was retired).
 | 文件                     | 职责                                                                                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/main.rs`            | 应用装配：上下文初始化、后台任务启动、托盘、事件循环、外观与视图偏好应用                                                                               |
+| `src/ui_boot.rs`         | UI 装配：窗口构造、初始外观/视图偏好、`AppContext` 组装与回调注册；由 `main()` 与进程内 UI 测试共用（OS/事件循环相关的部分留在 `main()`）              |
+| `src/ui_tests/`          | 进程内 UI 测试（L1）：`mod.rs` fixture（建窗口/按 `id:` 找元素/模拟点击），`shell.rs`（窗口外壳与对话框）、`list.rs`（任务列表）两个场景文件              |
 | `src/platform_adapter.rs`| 平台集成：跨平台单实例激活监听 + Windows 专属拖拽/WM_COPYDATA 窗口子类化与重试挂载                                                                      |
 | `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`（`forms/` 按设置分区拆分：`combo`/`enums`/`to_form`/`from_form`/`speed_limit`）、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
 | `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs`；每个 `register()` 只做绑定编排，回调体（超过 ~25 行的一律）提取为同模块的命名 `fn`（如 `submit_single`、`finish_setup`、`factory_reset`） |
@@ -116,11 +118,14 @@ rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
 ## 测试
 
 ```powershell
-cargo test -p limedl-native      # bridge/i18n/update/power 纯逻辑测试（CI: check-windows 已执行）
+cargo nextest run -p limedl-native   # CI 的口径；含 UI 测试，cargo test -p limedl-native 同样可跑
 cargo clippy -p limedl-native --all-targets -- -D warnings
 ```
 
-Slint 编译期校验（`build.rs` → `slint-build`）会捕获 `.slint` 语法/类型/图标路径错误，因此没有单独的 UI 快照测试；交互行为靠 `bridge.rs` 的映射与状态机测试覆盖。
+- **Slint 编译期校验**（`build.rs` → `slint-build`）捕获 `.slint` 语法/类型/图标路径错误。
+- **进程内 UI 测试**（`src/ui_tests/`）用真实窗口驱动真实回调：工具栏按钮开/关对话框、视图模式切换、列表筛选/搜索/排序与空态切换。它们按 `.slint` 的 `id:` 找元素，**所以 `.slint` 的 `id:` 是测试契约的一部分**（重命名要同步改测试）：新增交互控件时顺手给个 snake_case 的 `id:`。
+- 断言必须同步（无事件循环：timers 不触发、`invoke_from_event_loop` 不投递）；后台任务结果、动画结束态、截图对比都不在这一层。让 agent/人工驱动真实运行的窗口走 `slint/mcp` 的 MCP server，完整规则见 `.opencode/guides/testing-guide.md`。
+- **没有 UI 快照/黄金图回归测试**：字体（内嵌 MiSans）与 `with_scale_factor(2.0)` 已固定，但成本（Skia 软件光栅化 + 基线维护）仍高于当前收益；真要抓视觉回归时再按 testing-guide 的 L2/headless 方案评估。
 
 ## 手动冒烟
 
@@ -130,3 +135,11 @@ cargo run -p limedl-native
 ```
 
 日志在 `<data_dir>\downloads\logs\limedl.log`（级别由 `settings.logging.level` 控制；调试时设为 `info`）。
+
+需要让 agent（或脚本）自己点开真实窗口看状态时，改用 MCP server（详见`.opencode/guides/testing-guide.md`的 L2 节）：
+
+```cmd
+set SLINT_EMIT_DEBUG_INFO=1
+set SLINT_MCP_PORT=8080
+cargo run -p limedl-native --features slint/mcp
+```

@@ -18,6 +18,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Version bump    | `pwsh scripts/bump-version.ps1 patch`                                                                                                                                  |
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                          |
 | Fetch UI font   | `pwsh scripts/fetch-misans.ps1` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                           |
+| Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (MCP server — see “UI testing” below)              |
 | Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `.opencode/guides/subsystem-self-update.md`) |
 
 ## Releases
@@ -88,6 +89,67 @@ All Rust crates use edition 2024.
 - `bt:` → `IrontideBtBackend`
 
 `Dispatcher` routes operations to `BackendRegistry`.
+
+### UI testing (Slint)
+
+Two layers, both in `crates/limedl-native`. Pick the cheaper one that can fail the way
+you want to catch.
+
+**L1 — in-process UI tests** (`src/ui_tests/`, part of the normal gate). They build the
+real `MainWindow` through `src/ui_boot.rs::build_ui` and drive it with Slint's testing
+backend: element queries by `.slint` id, simulated clicks, no window, no event loop.
+The rules below are load-bearing — each one cost a debugging session:
+
+- Run them with the gate's `cargo nextest run -p limedl-native`; `cargo test -p limedl-native`
+  also works, but never `--test-threads=1` **plus** a `Once`-guarded platform init — the
+  Slint context is per *thread*, so `ui_tests::with_ui` installs the backend per thread
+  and a process-wide `Once` would leave later tests without a platform.
+- Element lookup needs Slint debug info. `build.rs` turns it on automatically when
+  `PROFILE=debug`, so nothing to export; a lookup that finds nothing prints a warning
+  instead of failing, which shows up as "no element with id …" listing the ids that do
+  exist. `SLINT_EMIT_DEBUG_INFO=1` in the environment also works (it forces a rebuild).
+- Adding a test usually means adding an `id:` to the `.slint` element you want to click
+  (`MainWindow::ta_set`, `SettingsDialog::close_btn`, …). Renaming one of those ids is a
+  breaking change for the test that clicks it — that coupling is deliberate.
+- Assertions must be synchronous. Timers never fire and `slint::invoke_from_event_loop`
+  delivers nothing, so anything that finishes on a spawned task is out of scope here.
+  `i-slint-backend-testing` is version-pinned to `slint` in the root `Cargo.toml` and does
+  not follow semver: bump the two together, or the testing backend installs a platform
+  for a different `i-slint-core` than the generated components use.
+
+**L2 — MCP server** (no test code; for agents and manual inspection of a running app):
+
+```cmd
+set SLINT_EMIT_DEBUG_INFO=1
+set SLINT_MCP_PORT=8080
+cargo run -p limedl-native --features slint/mcp
+```
+
+Get the tool list and drive it with `curl` against `http://127.0.0.1:8080/mcp` (MCP
+Streamable HTTP, JSON-RPC): element tree, `take_screenshot`, click, drag, type, key events.
+
+- Pass `--features slint/mcp` on the command line only. Never add it to a `[features]`
+  table: it pulls in `prost`/`protox` and would land in release builds.
+- **Quit a running limedl first.** The app claims a single-instance slot at startup; a
+  second process notifies the primary and exits immediately (status 0, no error), so the
+  port never opens and it looks like the server is broken. Check with
+  `Get-Process limedl-native`.
+- **Never pass `--hidden` for this.** The server starts from the "first window shown"
+  hook, and `--hidden` deliberately never shows the window (with `setup_completed`
+  true), so no MCP server comes up. Same for the MSIX logon path.
+- Isolate the session with `set LIMEDL_DATA_DIR=%TEMP%\limedl-mcp` unless you specifically
+  want to poke at the real settings/database.
+- `SLINT_EMIT_DEBUG_INFO=1` must be set when the app is **built** (the compiler embeds the
+  element metadata). Without it every id lookup silently returns nothing. Debug builds get
+  it from `build.rs`, so this line only matters for `--release` runs.
+- No display (CI, container, sandbox): add `SLINT_BACKEND=headless`. That value only exists
+  when the `mcp` feature is compiled in, and Slint documents it as unstable — automation
+  only, never product code.
+- The MCP server binds `127.0.0.1`, has no authentication and validates the `Origin`
+  header, so it is a local development tool: do not expose the port.
+- `slint/mcp` is part of the open-source `slint` crate. The Python `slint_testing` client
+  (the "GUI Test Framework" at `testing.slint.dev`) is the **commercial** product and needs
+  a licence — do not assume it is available.
 
 ## Conventions
 

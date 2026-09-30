@@ -8,6 +8,7 @@
 
 - `crates/limedl-core/src/tests/` — 核心下载引擎集成测试（manager_tests 等）
 - `crates/limedl-native/src/` — 桌面 UI 桥接与逻辑单测
+- `crates/limedl-native/src/ui_tests/` — Slint 进程内 UI 测试（L1，见下）
 - `.github/workflows/ci.yml` — CI 配置文件
 
 ### 测试布局约定
@@ -16,6 +17,7 @@
 2. **大了就外移**：超过 ~150 行的内联测试块必须移到同级 `tests.rs`（模块目录内），生产文件只保留 `#[cfg(test)] mod tests;`。例：`settings/tests.rs`、`http_executor/tests.rs`、`scheduler/tests.rs`、`task_lifecycle/tests.rs`。测试通过 `use super::*;` 仍能访问私有项，模块路径（如 `settings::tests::*`）保持不变。
 3. **跨模块 E2E 放 crate 级**：需要真实 mock server / 多个子系统协作的测试放 `crates/limedl-core/src/tests/`（由 `lib.rs` 的 `mod tests` 引入）。
 4. **巨型测试文件按场景拆分**：单文件超过 ~800 行或 ~30 个测试时，拆成同名目录（`mod.rs` 放导入与共享 fixture，`<场景>.rs` 放测试，每个文件 `use super::*;`）。已拆：`tests/manager_tests/`、`tests/http_executor_tests/`、`tests/scheduler_tests/`、`bt_backend/tests/`、`buffer_pool/tests/`、`database/tests/`。拆分类时注意把 `#[test]`/`#[tokio::test]` 属性与函数一起搬走。
+5. **需要真实窗口的 UI 测试放 `crates/limedl-native/src/ui_tests/`**：`mod.rs` 是 fixture（建窗口 + 按 id 找元素 + 点击），场景按 `shell.rs`（窗口外壳/对话框）、`list.rs`（任务列表）拆分。规格与约束见下节。
 
 ## 数据流向
 
@@ -93,6 +95,69 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 - **全局状态必须独占一个测试文件**：cargo 把单个 `tests/*.rs` 当做一个进程跑，而 `tracing_subscriber::fmt().init()` 之类的调用会占用进程级全局槽，同文件内的兄弟测试会与之竞争并 panic。这类测试放独立文件：`tests/logging_reload_repro.rs`（干净进程）与 `tests/logging_preinstalled_subscriber.rs`（预装全局订阅者）就是例子。
 - Windows 上必须先初始化 MSVC 环境（vcvarsall.bat x64），否则 clippy/test 因链接器失败。
 - 依赖：axum（HTTP mock）、tempfile、ntest（超时注解）。
+
+### Slint UI 测试（L1 进程内 / L2 MCP）
+
+两层，按“能不能只花更小的代价就抓住你想抓的回归”选：
+
+**L1 —— 进程内 UI 测试**（`crates/limedl-native/src/ui_tests/`，跟着 `cargo nextest run -p limedl-native` 一起跑）。
+通过 `src/ui_boot.rs::build_ui` 构造**真实**的 `MainWindow` 与**真实**的回调接线，然后用
+`i-slint-backend-testing` 的 testing backend 按 `.slint` 的 `id:` 找元素、模拟点击。无窗口、无
+display、无事件循环，因此没有字体/DPI 平台的 flaky。覆盖的是 `bridge/` 单测看不到的那一段：
+按钮接错回调、对话框的 `is_open` 没人写、属性绑定写错。
+
+写新测试时：
+
+- **每个测试独立线程**：Slint 的全局 context 是 thread-local，`with_ui` 会**每线程**装一次 backend。
+  不要改成进程级 `Once`：那样只会让第一个线程有 platform，其余测试的 `MainWindow::new()` 会
+  “platform not initialized”。
+- **元素查找依赖 debug info**：`build.rs` 在 `PROFILE=debug` 时自动打开
+  （`slint_build::CompilerConfiguration::with_debug_info`），所以测试无需额外环境变量；release 不带
+  （省体积）。缺失时不会报错，只会打印 warning 并“找不到元素”，表现为 `no element with id …` 后跟
+  实际存在的 id 列表。
+- **新测试通常要顺手给 `.slint` 元素加 `id:`**，命名用 snake_case（`ta_set`、`close_btn`、`cat_downloading`）。
+  改这些 id 等于改测试契约，必须同步改测试。
+- **断言必须同步**：timers 不会触发，`slint::invoke_from_event_loop` 不会投递。回调里 `tokio::spawn`
+  的后台结果（持久化排序、剪贴板预填、toast 过期、dispatcher 调用）不在这一层断言。fixture 会
+  `enter()` 一个 current-thread runtime 让 `tokio::spawn` 不 panic，但从不驱动它，所以后台任务
+  不会与断言赛跑。
+- **输入框类控件不能用 `set_accessible_value`**：`accessible-action-set-value` 是需要在 `.slint` 里
+  显式声明的回调，app 自写的 `SearchInput` 没声明（只有 std-widgets 的 `LineEdit` 有）。因此
+  `TestUi::search()` 按控件真实行为同时写属性 + 调回调；L2/MCP 侧输入文字走的是按键事件
+  （MCP-only 的 `dispatch_key_event`），不依赖该 action。
+- 依赖版本：`i-slint-backend-testing` **不遵守 semver**，在根 `Cargo.toml` 里与 `slint`/`slint-build`
+  用 `=x.y.z` 钉死，升级时三者一起改。
+
+**L2 —— MCP server**（无测试代码；给 agent 和人工观察真实运行的窗口）：
+
+```cmd
+set "SLINT_EMIT_DEBUG_INFO=1"
+set "SLINT_MCP_PORT=8080"
+cargo run -p limedl-native --features slint/mcp
+```
+
+（`set "V=值"` 的引号写法是必需的：写成 `set V=值 && …` 时 cmd 会把 `&&` 前的空格算进值里，
+`SLINT_MCP_PORT` 会变成 `"8080 "`，端口解析失败后 server 静默不启动。）
+
+`http://127.0.0.1:8080/mcp` 是 MCP Streamable HTTP（JSON-RPC），用 `curl` 就能调：元素树、
+`take_screenshot`、click、drag、type、按键事件。它不是 CI 断言手段（端口、时序、unstable API），
+而是“让 agent 自己点开 UI 看状态”：
+
+- `--features slint/mcp` **只走命令行**，不要写进 `[features]` 表：它会把 `prost`/`protox` 拖进 release 依赖。
+- **元素内省需要编译器嵌入的 debug 元数据**：`build.rs` 在 `PROFILE=debug` 时自动打开，所以 `cargo run` /
+  `cargo test` 免配置；release 需要在**构建时**设 `SLINT_EMIT_DEBUG_INFO=1`（`CompilerConfiguration::new()`
+  会读它，`build.rs` 只在 debug 下强制打开、不会把 release 的显式设置覆盖掉）。没有元数据时所有 id
+  查找静默返回空，只打一条 warning。
+- **先退出正在运行的 limedl**：单实例守卫会让第二个进程通知主实例后立即退出（exit 0、无报错），
+  端口永远不会打开 —— 看起来像 server 挂了。用 `Get-Process limedl-native` 确认。
+- **不要加 `--hidden`**：MCP server 由“首个窗口 shown”的钩子启动，而 `--hidden`（在 `setup_completed`
+  为真时）根本不会 `show()` 窗口，所以 server 不会起来；MSIX 登录启动同理。
+- 建议用 `LIMEDL_DATA_DIR=%TEMP%\limedl-mcp` 隔离会话，不必动真实 settings/数据库。
+- 无 display（CI/容器）加 `SLINT_BACKEND=headless`；该取值只在 `mcp` feature 编译进来时存在，
+  Slint 自标 unstable，只给自动化用。
+- server 只绑 `127.0.0.1`、无鉴权、会校验 `Origin`，是本地开发工具，不要外暴。
+- `slint/mcp` 属于开源 `slint` crate；Python 的 `slint_testing`（`testing.slint.dev` 的
+  “GUI Test Framework”）是**商业**授权产品，不要假设可用。
 
 ### 下载完整性 / 损坏检测测试（Rust 集成 E2E）
 
