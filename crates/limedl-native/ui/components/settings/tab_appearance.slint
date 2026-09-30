@@ -1,0 +1,210 @@
+import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../../theme.slint";
+import { SettingsFormData } from "../../types.slint";
+import {
+    CustomSelect,
+    ToggleSwitch,
+    UnitInput,
+} from "../common.slint";
+import { ColumnCheck, FormTip } from "shared.slint";
+
+export component SettingsTabAppearance inherits ScrollView {
+    in-out property <SettingsFormData> settings_form;
+
+    VerticalLayout {
+        // Top-align content: ScrollView stretches short content to fill
+        // the viewport, which would otherwise spread rows far apart.
+        alignment: start;
+        padding: 16px;
+        spacing: 14px;
+
+        Text { text: @tr("Appearance & System Integration"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Theme Mode:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Follow system switches automatically from the current Windows app theme."); }
+                    }
+                }
+                // Display labels are localized via @tr; option order MUST match
+                // bridge.rs `combo` canonical value arrays.
+                CustomSelect {
+                    model: [@tr("Follow System"), @tr("Light"), @tr("Dark")];
+                    current-index <=> root.settings_form.appearance_color_mode_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Theme Color:"); color: Theme.c9ca3af; font-size: 12px; }
+                CustomSelect {
+                    model: [@tr("Amber"), @tr("Sky Blue"), @tr("Lime")];
+                    current-index <=> root.settings_form.appearance_theme_color_idx;
+                    height: 36px;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Background Opacity Preset:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Controls transparency and background blur for app panels and dialogs."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("Default"), @tr("Acrylic"), @tr("Frosted")];
+                    current-index <=> root.settings_form.appearance_background_opacity_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("UI Language:"); color: Theme.c9ca3af; font-size: 12px; }
+                CustomSelect {
+                    model: [@tr("简体中文"), @tr("繁體中文"), @tr("English")];
+                    current-index <=> root.settings_form.appearance_language_idx;
+                    height: 36px;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Close Behavior:"); color: Theme.c9ca3af; font-size: 12px; }
+                CustomSelect {
+                    model: [@tr("Minimize to Tray"), @tr("Exit")];
+                    current-index <=> root.settings_form.appearance_close_behavior_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max In-Memory Records (10-10000):"); color: Theme.c9ca3af; font-size: 12px; }
+                UnitInput {
+                    text <=> root.settings_form.max_in_memory_downloads;
+                    placeholder: "200";
+                    unit_text: @tr("items");
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Show Detail Panel"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Show detailed fields like URL, checksum, threads in the download inspector."); }
+                    } }
+                Text { text: @tr("Show download inspector and piece heatmap on the right"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.appearance_show_detail_info;
+                toggled => { root.settings_form.appearance_show_detail_info = !root.settings_form.appearance_show_detail_info; }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Compact View"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                Text { text: @tr("Use denser rows in the download list (table and cards)"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.appearance_compact_view;
+                toggled => { root.settings_form.appearance_compact_view = !root.settings_form.appearance_compact_view; }
+            }
+        }
+
+        // ── Table columns ──
+        VerticalLayout {
+            spacing: 6px;
+            Text { text: @tr("Table Columns"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+            Text { text: @tr("Choose which columns the table view shows (the file name column is always visible)."); color: #6b7280; font-size: 11px; }
+
+            HorizontalLayout {
+                spacing: 18px;
+                VerticalLayout {
+                    spacing: 6px;
+                    ColumnCheck { label: @tr("Size"); checked: root.settings_form.appearance_column_size; toggled => { root.settings_form.appearance_column_size = !root.settings_form.appearance_column_size; } }
+                    ColumnCheck { label: @tr("Downloaded"); checked: root.settings_form.appearance_column_downloaded; toggled => { root.settings_form.appearance_column_downloaded = !root.settings_form.appearance_column_downloaded; } }
+                    ColumnCheck { label: @tr("Status"); checked: root.settings_form.appearance_column_status; toggled => { root.settings_form.appearance_column_status = !root.settings_form.appearance_column_status; } }
+                    ColumnCheck { label: @tr("Progress"); checked: root.settings_form.appearance_column_progress; toggled => { root.settings_form.appearance_column_progress = !root.settings_form.appearance_column_progress; } }
+                    ColumnCheck { label: @tr("Speed"); checked: root.settings_form.appearance_column_speed; toggled => { root.settings_form.appearance_column_speed = !root.settings_form.appearance_column_speed; } }
+                }
+                VerticalLayout {
+                    spacing: 6px;
+                    ColumnCheck { label: @tr("Priority"); checked: root.settings_form.appearance_column_priority; toggled => { root.settings_form.appearance_column_priority = !root.settings_form.appearance_column_priority; } }
+                    ColumnCheck { label: @tr("Up Speed"); checked: root.settings_form.appearance_column_upload_speed; toggled => { root.settings_form.appearance_column_upload_speed = !root.settings_form.appearance_column_upload_speed; } }
+                    ColumnCheck { label: @tr("Seeds"); checked: root.settings_form.appearance_column_seeds; toggled => { root.settings_form.appearance_column_seeds = !root.settings_form.appearance_column_seeds; } }
+                    ColumnCheck { label: @tr("ETA"); checked: root.settings_form.appearance_column_eta; toggled => { root.settings_form.appearance_column_eta = !root.settings_form.appearance_column_eta; } }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Launch on Startup"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Start Limedl automatically when you log in. The app will start minimized to the system tray."); }
+                    } }
+                Text { text: @tr("Automatically launch limedl-native upon user login"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.autostart;
+                toggled => { root.settings_form.autostart = !root.settings_form.autostart; }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("System Notifications"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                Text { text: @tr("Show desktop notification on task completion/failure"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.notifications_enabled;
+                toggled => { root.settings_form.notifications_enabled = !root.settings_form.notifications_enabled; }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Double-click Completed Task:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Action to perform when double-clicking a completed download task."); }
+                } }
+            CustomSelect {
+                    model: [@tr("No Action"), @tr("Open File"), @tr("Show in Explorer"), @tr("Open Download Directory")];
+                    current-index <=> root.settings_form.double_click_completed_idx;
+                    height: 36px;
+                }
+        }
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Double-click Uncompleted Task:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Action to perform when double-clicking an uncompleted download task."); }
+                } }
+            CustomSelect {
+                    model: [@tr("No Action"), @tr("Pause / Resume")];
+                    current-index <=> root.settings_form.double_click_uncompleted_idx;
+                    height: 36px;
+                }
+        }
+    }
+}

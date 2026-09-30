@@ -1,0 +1,44 @@
+import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../../theme.slint";
+import { SettingsFormData } from "../../types.slint";
+import {
+    CustomSelect,
+    CustomTextInput,
+} from "../common.slint";
+import { FormTip } from "shared.slint";
+
+export component SettingsTabProxy inherits ScrollView {
+    in-out property <SettingsFormData> settings_form;
+
+    VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 14px;
+
+        Text { text: @tr("Proxy Settings"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Proxy Mode:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Supports common HTTP / HTTPS / SOCKS proxy URLs. Enter a full URL."); }
+                } }
+            CustomSelect {
+                    model: [@tr("Disabled"), @tr("System Proxy"), @tr("Manual")];
+                    current-index <=> root.settings_form.proxy_mode_idx;
+                    height: 36px;
+                }
+            Text { text: @tr("system follows OS proxy; manual requires proxy URL below"); color: #6b7280; font-size: 11px; }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Manual Proxy URL:"); color: Theme.c9ca3af; font-size: 12px; }
+            CustomTextInput {
+                text <=> root.settings_form.proxy_manual_url;
+                placeholder: "http://127.0.0.1:7890";
+            }
+        }
+    }
+}

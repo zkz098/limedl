@@ -1,0 +1,46 @@
+//! Widgets shared by the settings tabs (tooltip bubble and column checkbox).
+
+import { Theme } from "../../theme.slint";
+import { CustomCheckBox } from "../common.slint";
+
+export component FormTip inherits Rectangle {
+    in property <string> text;
+    background: Theme.c111419;
+    border-width: 1px;
+    border-color: Theme.c2e3542;
+    border-radius: 8px;
+    max-width: 520px;
+    HorizontalLayout {
+        padding: 10px;
+        Text {
+            text: root.text;
+            wrap: word-wrap;
+            color: Theme.cf3f4f6;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+    }
+}
+
+/// One table-column visibility checkbox (checkbox + label), used by the
+/// Appearance tab's "Table Columns" block.
+export component ColumnCheck inherits HorizontalLayout {
+    in property <string> label;
+    in property <bool> checked: true;
+    callback toggled();
+
+    spacing: 8px;
+    alignment: start;
+
+    CustomCheckBox {
+        checked: root.checked;
+        toggled => { root.toggled(); }
+    }
+
+    Text {
+        text: root.label;
+        color: Theme.cd1d5db;
+        font-size: 12px;
+        vertical-alignment: center;
+    }
+}

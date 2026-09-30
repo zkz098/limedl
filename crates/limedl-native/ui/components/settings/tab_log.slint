@@ -1,0 +1,91 @@
+import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../../theme.slint";
+import { SettingsFormData } from "../../types.slint";
+import {
+    CustomSelect,
+    CustomTextInput,
+    SecondaryButton,
+    ToggleSwitch,
+    UnitInput,
+} from "../common.slint";
+import { FormTip } from "shared.slint";
+
+export component SettingsTabLog inherits ScrollView {
+    in-out property <SettingsFormData> settings_form;
+    callback pick_log_folder();
+    callback open_log_folder();
+
+    VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 14px;
+
+        Text { text: @tr("Logging"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Enable File Logging"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                Text { text: @tr("Write logs to the specified filePath"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.logging_enabled;
+                toggled => { root.settings_form.logging_enabled = !root.settings_form.logging_enabled; }
+            }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Log Level:"); color: Theme.c9ca3af; font-size: 12px; }
+            CustomSelect {
+                    model: [@tr("Trace"), @tr("Debug"), @tr("Info"), @tr("Warn"), @tr("Error")];
+                    current-index <=> root.settings_form.logging_level_idx;
+                    height: 36px;
+                }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Log File Path:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Supports absolute or relative paths. Leave empty to write to logs/limedl.log under app data."); }
+                } }
+            HorizontalLayout {
+                spacing: 8px;
+                CustomTextInput {
+                    horizontal-stretch: 1;
+                    text <=> root.settings_form.logging_file_path;
+                    placeholder: @tr("Leave empty for system default, e.g. D:\\limedl\\logs\\limedl.log");
+                }
+                SecondaryButton {
+                    horizontal-stretch: 0;
+                    text: @tr("Select Path...");
+                    icon: @image-url("../../assets/icons/folder-open-line.svg");
+                    clicked => { root.pick_log_folder(); }
+                }
+                SecondaryButton {
+                    horizontal-stretch: 0;
+                    text: @tr("Open Folder");
+                    icon: @image-url("../../assets/icons/folder-open-line.svg");
+                    clicked => { root.open_log_folder(); }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Retention Files (empty for unlimited):"); color: Theme.c9ca3af; font-size: 12px; }
+                UnitInput { text <=> root.settings_form.logging_retention_count; placeholder: @tr("Unlimited"); unit_text: @tr("files"); }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Retention Days (empty for unlimited):"); color: Theme.c9ca3af; font-size: 12px; }
+                UnitInput { text <=> root.settings_form.logging_retention_days; placeholder: @tr("Unlimited"); unit_text: @tr("days"); }
+            }
+        }
+    }
+}

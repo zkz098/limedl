@@ -1,0 +1,122 @@
+import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../../theme.slint";
+import { SettingsFormData } from "../../types.slint";
+import {
+    CustomSelect,
+    CustomTextInput,
+    SecondaryButton,
+    ToggleSwitch,
+    UnitInput,
+} from "../common.slint";
+import { FormTip } from "shared.slint";
+
+export component SettingsTabDownload inherits ScrollView {
+    in-out property <SettingsFormData> settings_form;
+    callback pick_default_folder;
+
+    VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 14px;
+
+        Text { text: @tr("Download Defaults"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Default Download Folder:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("New tasks will prefill this folder, and you can still override it per task."); }
+                } }
+            HorizontalLayout {
+                spacing: 8px;
+                CustomTextInput {
+                    horizontal-stretch: 1;
+                    text <=> root.settings_form.default_download_dir;
+                    placeholder: "/downloads";
+                }
+                SecondaryButton {
+                    horizontal-stretch: 0;
+                    text: @tr("Browse...");
+                    icon: @image-url("../../assets/icons/folder-open-line.svg");
+                    clicked => { root.pick_default_folder(); }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Concurrent Tasks (traditional):"); color: Theme.c9ca3af; font-size: 12px; }
+                UnitInput {
+                    text <=> root.settings_form.max_parallel_tasks;
+                    placeholder: "3";
+                    unit_text: @tr("tasks");
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Retries (0-100):"); color: Theme.c9ca3af; font-size: 12px; }
+                UnitInput {
+                    text <=> root.settings_form.download_max_retries;
+                    placeholder: "5";
+                    unit_text: @tr("times");
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Default Checksum:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("New tasks no longer show checksum mode separately. This setting is used globally."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("BLAKE3"), @tr("SHA-256"), @tr("XXH3-128"), @tr("None (skip)"), @tr("SHA-1")];
+                    current-index <=> root.settings_form.download_checksum_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: @tr("Auto-detect SHA-256"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Automatically probe for matching .sha256 or parent SHA256SUMS files when downloading HTTP links, and verify after completion."); }
+                    } }
+                ToggleSwitch {
+                    checked: root.settings_form.download_auto_detect_sha256;
+                    toggled => { root.settings_form.download_auto_detect_sha256 = !root.settings_form.download_auto_detect_sha256; }
+                }
+            }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Default User-Agent (empty for Chrome 154):"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("New HTTP tasks prefill this UA, and each task can override it."); }
+                } }
+            CustomTextInput {
+                text <=> root.settings_form.download_user_agent;
+                placeholder: "Mozilla/5.0 ... Chrome/154.0.0.0";
+            }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Global Bandwidth Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Limit total download speed across all active tasks. 0 means unlimited."); }
+                } }
+            UnitInput {
+                text <=> root.settings_form.global_speed_limit_kb;
+                placeholder: "0";
+                unit_text: "KB/s";
+            }
+        }
+    }
+}

@@ -1,0 +1,66 @@
+import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../../theme.slint";
+import { SettingsFormData } from "../../types.slint";
+import {
+    CustomTextInput,
+    ToggleSwitch,
+    UnitInput,
+} from "../common.slint";
+import { FormTip } from "shared.slint";
+
+export component SettingsTabAria2 inherits ScrollView {
+    in-out property <SettingsFormData> settings_form;
+
+    VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 14px;
+
+        Text { text: @tr("Aria2 RPC Service"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Enable Aria2 RPC Service"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."); }
+                    } }
+                Text { text: @tr("Allows browser extensions (such as Aria2 Explorer) to intercept downloads"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.aria2_enabled;
+                toggled => { root.settings_form.aria2_enabled = !root.settings_form.aria2_enabled; }
+            }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("RPC Port (1-65535):"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Default 6800. Make sure the port is available."); }
+                } }
+            UnitInput {
+                text <=> root.settings_form.aria2_port;
+                placeholder: "6800";
+                unit_text: @tr("port");
+            }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("RPC Secret (empty for no authentication):"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Leave empty to allow connections without a secret. If set, configure the same token in your browser extension."); }
+                } }
+            CustomTextInput {
+                text <=> root.settings_form.aria2_secret;
+                placeholder: @tr("Leave empty for no secret");
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+        Text { text: @tr("Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."); color: #6b7280; font-size: 11px; wrap: word-wrap; }
+    }
+}

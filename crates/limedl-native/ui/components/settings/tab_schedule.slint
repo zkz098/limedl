@@ -1,0 +1,233 @@
+import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../../theme.slint";
+import { SettingsFormData, SpeedLimitSlotItem } from "../../types.slint";
+import {
+    CustomSelect,
+    IconButton,
+    SecondaryButton,
+    ToggleSwitch,
+    UnitInput,
+} from "../common.slint";
+import { FormTip } from "shared.slint";
+
+export component SettingsTabSchedule inherits ScrollView {
+    in-out property <SettingsFormData> settings_form;
+    in-out property <[SpeedLimitSlotItem]> speed_limit_slots;
+    callback schedule_set_enabled(bool);
+    callback schedule_add();
+    callback schedule_remove(int);
+    callback schedule_update(int, string, string);
+
+    VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 14px;
+
+        Text { text: @tr("Scheduler & Performance"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Allocation Mode:"); color: Theme.c9ca3af; font-size: 12px; }
+            CustomSelect {
+                    model: [@tr("Automatic (adaptive)"), @tr("Traditional (fixed)")];
+                    current-index <=> root.settings_form.scheduler_mode_idx;
+                    height: 36px;
+                }
+            Text { text: @tr("automatic uses adaptive thread pool; traditional uses fixed concurrency"); color: #6b7280; font-size: 11px; }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Auto - Max Parallel Threads (1-128):"); color: Theme.c9ca3af; font-size: 12px; }
+                UnitInput {
+                    text <=> root.settings_form.scheduler_max_parallel_threads;
+                    placeholder: "16";
+                    unit_text: @tr("threads");
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Threads per Task (1-64):"); color: Theme.c9ca3af; font-size: 12px; }
+                UnitInput {
+                    text <=> root.settings_form.scheduler_max_threads_per_task;
+                    placeholder: "8";
+                    unit_text: @tr("threads");
+                }
+            }
+        }
+
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Min Threads per Task (0-64):"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Set to 0 to use 50% of the max thread count automatically. The adaptive algorithm never goes below this once reached."); }
+                } }
+            UnitInput {
+                text <=> root.settings_form.scheduler_min_threads_per_task;
+                placeholder: "0";
+                unit_text: @tr("threads");
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Adaptive Profile:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Conservative limits thread growth, Balanced trades overhead for speed, and Aggressive prioritizes download speed."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("Conservative"), @tr("Balanced"), @tr("Aggressive")];
+                    current-index <=> root.settings_form.scheduler_adaptive_profile_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Chunk Strategy:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Auto-adjust chunk strategy based on network conditions"); }
+                    } }
+                CustomSelect {
+                    model: [@tr("Adaptive"), @tr("Fixed")];
+                    current-index <=> root.settings_form.scheduler_chunk_strategy_idx;
+                    height: 36px;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Tail Sprint"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                Text { text: @tr("Parallelize tail chunks to minimize finishing latency"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.scheduler_tail_sprint;
+                toggled => { root.settings_form.scheduler_tail_sprint = !root.settings_form.scheduler_tail_sprint; }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Connection Warmup"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                Text { text: @tr("Pre-establish multiple connections during handshake for faster warmup"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.scheduler_connection_warmup;
+                toggled => { root.settings_form.scheduler_connection_warmup = !root.settings_form.scheduler_connection_warmup; }
+            }
+        }
+
+        // ── Speed limit schedule ──
+        Rectangle { height: 1px; background: Theme.c1f242e; }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Speed Limit Schedule"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                Text { text: @tr("Apply a different global speed limit per time-of-day range (local time). No matching range means the global limit above applies."); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.speed_limit_slots.length > 0;
+                toggled => { root.schedule_set_enabled(root.speed_limit_slots.length == 0); }
+            }
+        }
+
+        if root.speed_limit_slots.length > 0 : VerticalLayout {
+            spacing: 6px;
+            Text { text: @tr("Start / End (0-23 hours) and limit in KB/s (0 = unlimited)."); color: #6b7280; font-size: 11px; }
+
+            for slot[idx] in root.speed_limit_slots : Rectangle {
+                background: Theme.c14171d;
+                border-color: Theme.c232832;
+                border-width: 1px;
+                border-radius: 6px;
+                height: self.preferred-height;
+
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+
+                        VerticalLayout {
+                            spacing: 3px;
+                            Text { text: @tr("Start"); color: Theme.c9ca3af; font-size: 11px; }
+                            slot_start := UnitInput {
+                                text: slot.start_hour;
+                                placeholder: "0";
+                                unit_text: @tr("h");
+                                edited(value) => { root.schedule_update(idx, "start", value); }
+                            }
+                        }
+                        VerticalLayout {
+                            spacing: 3px;
+                            Text { text: @tr("End"); color: Theme.c9ca3af; font-size: 11px; }
+                            UnitInput {
+                                text: slot.end_hour;
+                                placeholder: "6";
+                                unit_text: @tr("h");
+                                edited(value) => { root.schedule_update(idx, "end", value); }
+                            }
+                        }
+                        VerticalLayout {
+                            spacing: 3px;
+                            Text { text: @tr("Limit"); color: Theme.c9ca3af; font-size: 11px; }
+                            UnitInput {
+                                text: slot.limit_kb;
+                                placeholder: "0";
+                                unit_text: "KB/s";
+                                edited(value) => { root.schedule_update(idx, "limit", value); }
+                            }
+                        }
+                        Rectangle {}
+                        IconButton {
+                            text: @tr("Remove");
+                            icon: @image-url("../../assets/icons/delete-bin-line.svg");
+                            text_color: Theme.cf87171;
+                            clicked => { root.schedule_remove(idx); }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        Text {
+                            text: slot.summary;
+                            color: slot.wraps ? Theme.cfacc15 : Theme.c84cc16;
+                            font-size: 11px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        if slot.wraps : Text {
+                            text: @tr("Wraps to the next day");
+                            color: Theme.cfacc15;
+                            font-size: 11px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: start;
+                SecondaryButton {
+                    text: @tr("Add Time Range");
+                    icon: @image-url("../../assets/icons/add-line.svg");
+                    clicked => { root.schedule_add(); }
+                }
+            }
+        }
+    }
+}

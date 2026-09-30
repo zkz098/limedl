@@ -1,0 +1,551 @@
+import { ScrollView } from "std-widgets.slint";
+
+import { Theme } from "../../theme.slint";
+import { SettingsFormData } from "../../types.slint";
+import {
+    CustomSelect,
+    CustomTextInput,
+    IconButton,
+    SecondaryButton,
+    ToggleSwitch,
+    UnitInput,
+} from "../common.slint";
+import { FormTip } from "shared.slint";
+
+export component SettingsTabBt inherits ScrollView {
+    in-out property <SettingsFormData> settings_form;
+    in-out property <bool> bt_show_advanced: false;
+    callback fetch_trackers(string);
+
+    VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 12px;
+
+        Text { text: @tr("BitTorrent Network"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
+
+        // 基础
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Enable DHT"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("DHT discovers peers from the distributed network. Changes apply to the BT session after restart."); }
+                    } }
+                Text { text: @tr("Discover peers via DHT when no trackers are available"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.dht_enabled;
+                toggled => { root.settings_form.dht_enabled = !root.settings_form.dht_enabled; }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Listen Port (empty for random):"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Leave empty for auto-assignment. 1024–65535"); }
+                    } }
+                UnitInput {
+                    text <=> root.settings_form.listen_port;
+                    placeholder: @tr("Random");
+                    unit_text: @tr("port");
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Peers per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Maximum peer connections per torrent."); }
+                    } }
+                UnitInput {
+                    text <=> root.settings_form.max_bt_connections;
+                    placeholder: "128";
+                    unit_text: @tr("peers");
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: "UPnP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_upnp_enabled;
+                    toggled => { root.settings_form.bt_upnp_enabled = !root.settings_form.bt_upnp_enabled; }
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: "NAT-PMP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_natpmp_enabled;
+                    toggled => { root.settings_form.bt_natpmp_enabled = !root.settings_form.bt_natpmp_enabled; }
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: "IPv6"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_ipv6_enabled;
+                    toggled => { root.settings_form.bt_ipv6_enabled = !root.settings_form.bt_ipv6_enabled; }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: "PEX"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_pex_enabled;
+                    toggled => { root.settings_form.bt_pex_enabled = !root.settings_form.bt_pex_enabled; }
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: "LSD"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_lsd_enabled;
+                    toggled => { root.settings_form.bt_lsd_enabled = !root.settings_form.bt_lsd_enabled; }
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: "uTP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_utp_enabled;
+                    toggled => { root.settings_form.bt_utp_enabled = !root.settings_form.bt_utp_enabled; }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Encryption Mode:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("Enabled"), @tr("Disabled"), @tr("Forced")];
+                    current-index <=> root.settings_form.bt_encryption_mode_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Pre-allocation Mode:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("None (sparse)"), @tr("Full (zero-fill)")];
+                    current-index <=> root.settings_form.bt_preallocate_mode_idx;
+                    height: 36px;
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        // Advanced BT settings — collapsed by default so the
+        // page stays scannable; click the header to expand.
+        Rectangle {
+            background: Theme.c151921;
+            border-color: root.bt_show_advanced ? Theme.c343c4a : Theme.c272f3e;
+            animate border-color { duration: 150ms; }
+            border-width: 1px;
+            border-radius: 6px;
+
+            VerticalLayout {
+                padding: 12px;
+                spacing: 0px;
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: header_ta.has_hover ? Theme.c1a1e25 : transparent;
+                    animate background { duration: 120ms; }
+
+                    header_ta := TouchArea {
+                        clicked => { root.bt_show_advanced = !root.bt_show_advanced; }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 4px;
+                        padding-right: 2px;
+                        padding-top: 2px;
+                        padding-bottom: 2px;
+                        alignment: space-between;
+                        Text { text: @tr("Advanced BT Settings"); color: root.bt_show_advanced ? Theme.cf3f4f6 : Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                        IconButton {
+                            text: root.bt_show_advanced ? @tr("Collapse") : @tr("Expand");
+                            icon: @image-url("../../assets/icons/arrow-down-s-line.svg");
+                            icon_rotation: root.bt_show_advanced ? 180deg : 0deg;
+                            text_color: root.bt_show_advanced ? Theme.c84cc16 : Theme.c9ca3af;
+                            clicked => { root.bt_show_advanced = !root.bt_show_advanced; }
+                        }
+                    }
+                }
+
+                if root.bt_show_advanced : VerticalLayout {
+                    spacing: 14px;
+                    padding-top: 14px;
+
+                    Text { text: @tr("Queuing & Rate Limits"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Active Downloads:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Maximum number of auto-managed active downloads"); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_max_downloads; placeholder: "3"; unit_text: @tr("tasks"); }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Active Seeds:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Maximum number of auto-managed active seeds"); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_max_seeds; placeholder: "5"; unit_text: @tr("tasks"); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Torrents:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Maximum total number of torrents allowed"); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_max_torrents; placeholder: "100"; unit_text: @tr("tasks"); }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Active Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Hard limit on total active torrents (downloading + seeding + checking)"); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_active_limit; placeholder: "500"; unit_text: @tr("tasks"); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Global Download Rate Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("0 = unlimited"); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_global_download_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Global Upload Rate Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("0 = unlimited"); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_global_upload_rate_limit_kb; placeholder: "0"; unit_text: "KB/s"; }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        Text { text: @tr("Seeding & Completion"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Pause Seeding upon Reaching Limit"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("When either the uploaded amount or share ratio limit is reached, the matching BT task is paused."); }
+                    } }
+                Text { text: @tr("Automatically pause seeding once upload limit or ratio target is reached"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.bt_pause_upload_when_limit;
+                toggled => { root.settings_form.bt_pause_upload_when_limit = !root.settings_form.bt_pause_upload_when_limit; }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Seeding Upload Limit:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("0 or empty means no limit"); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_upload_limit_kb; placeholder: "0"; unit_text: "KB"; }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Share Ratio Limit (0 for unlimited):"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("For example, 2 pauses after uploaded bytes reach 2x downloaded bytes. Use 0 to disable the ratio limit."); }
+                    } }
+                CustomTextInput { text <=> root.settings_form.bt_upload_ratio_limit; placeholder: "0"; }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        Text { text: @tr("Anti-Leech & Peer Banning"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Enable Anti-Leech Detection"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Periodically identify peers that download from you without giving data back, then enforce the selected action."); }
+                    } }
+                Text { text: @tr("Detect peers that download without uploading"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.bt_anti_leech_enabled;
+                toggled => { root.settings_form.bt_anti_leech_enabled = !root.settings_form.bt_anti_leech_enabled; }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Action:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Ban disconnects and blacklists offending peers for a while; Limit Slots caps how many peers a torrent uploads to at once."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("Ban"), @tr("Limit Upload Slots")];
+                    current-index <=> root.settings_form.bt_anti_leech_action_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Grace Period:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Seconds a peer must be unchoked before it can be flagged, avoiding penalising slow-start peers."); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_anti_leech_grace_secs; placeholder: "300"; unit_text: @tr("secs"); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Share Ratio Threshold (0-1):"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Peers sending back less than this share of what they take are treated as leechers. 0 disables the ratio check."); }
+                    } }
+                CustomTextInput { text <=> root.settings_form.bt_anti_leech_ratio; placeholder: "0.1"; }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Ban Duration:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Seconds a banned peer stays banned before it is unbanned and may reconnect."); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_anti_leech_ban_secs; placeholder: "3600"; unit_text: @tr("secs"); }
+            }
+        }
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Max Upload Slots in Limit Mode (1-64):"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("When a torrent has detected leechers, its concurrent upload slots are capped at this value."); }
+                } }
+            UnitInput { text <=> root.settings_form.bt_anti_leech_max_upload_slots; placeholder: "4"; unit_text: @tr("slots"); }
+        }
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Enable IP Blocklist"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."); }
+                    } }
+                Text { text: @tr("Load local blocklist filter file"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.bt_blocklist_enabled;
+                toggled => { root.settings_form.bt_blocklist_enabled = !root.settings_form.bt_blocklist_enabled; }
+            }
+        }
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Blocklist Path:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."); }
+                } }
+            CustomTextInput { text <=> root.settings_form.bt_blocklist_path; placeholder: "C:/path/to/blocklist.dat"; }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        Text { text: @tr("Engine Tuning"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Seed Choking:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("Fastest Upload First"), @tr("Round Robin"), @tr("Anti-Leech First")];
+                    current-index <=> root.settings_form.bt_seed_choking_algorithm_idx;
+                    height: 36px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Choking Algorithm:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."); }
+                    } }
+                CustomSelect {
+                    model: [@tr("Fixed Slots"), @tr("Rate Based")];
+                    current-index <=> root.settings_form.bt_choking_algorithm_idx;
+                    height: 36px;
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Upload Slots per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Maximum concurrent unchoke slots per torrent."); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_max_upload_slots_per_torrent; placeholder: "4"; unit_text: @tr("slots"); }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Smart Ban Threshold (1-100):"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Hash-failure involvements before a peer is automatically banned."); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_smart_ban_max_failures; placeholder: "3"; unit_text: @tr("failures"); }
+            }
+        }
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Smart Ban Parole"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Re-download a failed piece from an uninvolved peer to attribute the fault before striking."); }
+                    } }
+                Text { text: @tr("Isolate suspicious peers before permanent ban to prevent false positives"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.bt_smart_ban_parole;
+                toggled => { root.settings_form.bt_smart_ban_parole = !root.settings_form.bt_smart_ban_parole; }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Ban Duration after Eviction:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Seconds an evicted (non-contributing) peer is blocked from reconnecting."); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_eviction_ban_duration_secs; placeholder: "600"; unit_text: @tr("secs"); }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("No Data Contribution Timeout:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."); }
+                    } }
+                UnitInput { text <=> root.settings_form.bt_data_contribution_timeout_secs; placeholder: "60"; unit_text: @tr("secs"); }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: @tr("Fast Extension"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_enable_fast_extension;
+                    toggled => { root.settings_form.bt_enable_fast_extension = !root.settings_form.bt_enable_fast_extension; }
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: @tr("Holepunch"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_enable_holepunch;
+                    toggled => { root.settings_form.bt_enable_holepunch = !root.settings_form.bt_enable_holepunch; }
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: @tr("WebSeed"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_enable_web_seed;
+                    toggled => { root.settings_form.bt_enable_web_seed = !root.settings_form.bt_enable_web_seed; }
+                }
+            }
+            VerticalLayout {
+                alignment: space-between;
+                spacing: 2px;
+                Text { text: @tr("SuperSeed"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                ToggleSwitch {
+                    checked: root.settings_form.bt_enable_super_seeding;
+                    toggled => { root.settings_form.bt_enable_super_seeding = !root.settings_form.bt_enable_super_seeding; }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        VerticalLayout {
+            spacing: 6px;
+            Text { text: @tr("Tracker Subscription URL:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."); }
+                } }
+            HorizontalLayout {
+                spacing: 8px;
+                CustomTextInput {
+                    horizontal-stretch: 1;
+                    text <=> root.settings_form.tracker_url;
+                    placeholder: "https://cf.trackerslist.com/best.txt";
+                }
+                SecondaryButton {
+                    horizontal-stretch: 0;
+                    text: @tr("Sync Now");
+                    icon: @image-url("../../assets/icons/refresh-line.svg");
+                    clicked => { root.fetch_trackers(root.settings_form.tracker_url); }
+                }
+            }
+            Text { text: @tr("Synced trackers update bt.trackerList. Click Save to apply."); color: #6b7280; font-size: 11px; }
+        }
+    }
+}
+}
+}
+}
