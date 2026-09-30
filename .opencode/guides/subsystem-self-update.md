@@ -1,7 +1,7 @@
 # Subsystem: Self-Update (limedl-native)
 
 How the Slint desktop client updates itself. All code lives in
-`crates/limedl-native/src/update.rs`, the Windows autostart fork in
+`crates/limedl-native/src/update/mod.rs`, the Windows autostart fork in
 `src/autostart.rs`, and the release pipeline in the `build-native` job of
 `.github/workflows/release.yml` (the only desktop job since the Tauri edition
 was retired from releases).
@@ -15,7 +15,7 @@ updater manifest, produced by `tauri-action`) is gone. Consequences:
   from `releases/latest/download/latest.json` and reports a check failure.
   There is no in-app migration path; users install the Slint build manually (or
   via the Store/MSIX channel). The Slint client imports their data on first run
-  (`crates/limedl-native/src/migrate.rs`).
+  (`crates/limedl-native/src/migrate/mod.rs`).
 - `src-tauri/` and its `tauri.conf.json` were **deleted**; nothing in the tree
   references the old update endpoint.
 - The minisign keypair is still the same one the Tauri shell used
@@ -117,7 +117,7 @@ pipeline and matches what `minisign_verify` accepts.
   a path locally) plus `LIMEDL_SIGNING_KEY_PASSWORD`. `LIMEDL_SIGNING_KEY_PASSWORD`
   and the old `TAURI_SIGNING_PRIVATE_KEY[_PASSWORD]` names are still read as
   fallbacks so an un-rotated CI keeps releasing.
-- The client trusts exactly one key: `PUBKEY_B64` in `update.rs`.
+- The client trusts exactly one key: `PUBKEY_B64` in `update/mod.rs`.
 - `cargo xtask guard <artifacts...>` (run by the release job) derives the public
   key from the CI secret and **fails the release** unless it equals `PUBKEY_B64`,
   then re-verifies every signature. This is what makes key rotation safe.
@@ -134,7 +134,7 @@ pipeline and matches what `minisign_verify` accepts.
 #    secret has to be copied through the terminal).
 cargo xtask generate-key --out-dir $env:TEMP\limedl-signing
 
-# 2. Paste the printed value into PUBKEY_B64 (crates/limedl-native/src/update.rs)
+# 2. Paste the printed value into PUBKEY_B64 (crates/limedl-native/src/update/mod.rs)
 #    and store the secrets from the generated files:
 Get-Content $env:TEMP\limedl-signing\limedl-signing.key.b64 | gh secret set LIMEDL_SIGNING_KEY
 Get-Content $env:TEMP\limedl-signing\limedl-signing.password | gh secret set LIMEDL_SIGNING_KEY_PASSWORD
@@ -162,7 +162,7 @@ matches the client, without cutting a release.
 ## UI wiring
 
 - State struct `UpdateState` in `ui/types.slint`; rendered as the "Software
-  Update" card in the About tab of `settings_dialog.slint`.
+  Update" card in the About tab of `settings_dialog.slint` (`ui/components/settings/tab_about.slint`).
 - Callbacks: `check_for_updates` / `start_update_download` /
   `restart_after_update` (implemented at the bottom of `main()` in `main.rs`).
 - A silent background check runs 45 s after startup, throttled to once per

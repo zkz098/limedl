@@ -16,7 +16,7 @@ Dispatcher 作为统一调度门面（Unified Facade），封装了 BackendRegis
 ## 涉及文件
 
 - `crates/limedl-core/src/protocol.rs` — DownloadBackend trait
-- `crates/limedl-core/src/backend_registry.rs` — BackendRegistry 路由表
+- `crates/limedl-core/src/backend_registry/mod.rs` — BackendRegistry 路由表
 - `crates/limedl-core/src/dispatcher.rs` — Dispatcher 统一调度层
 - `crates/limedl-core/src/context.rs` — SystemContext 基础容器
 - `crates/limedl-core/src/services/` — ConcurrencyManager, SettingsService, DiskIoService

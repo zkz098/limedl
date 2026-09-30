@@ -14,7 +14,7 @@
 ## 涉及文件
 
 - `crates/limedl-core/src/services/settings_service.rs` — SettingsService 单一事实源服务
-- `crates/limedl-core/src/settings.rs` — load_settings / normalize_settings / persist_settings / resolve_user_agent
+- `crates/limedl-core/src/settings/mod.rs` — load_settings / normalize_settings / persist_settings / resolve_user_agent
 - `crates/limedl-core/src/types.rs` — AppSettings 及所有子设置结构体定义
 
 ## 数据流向

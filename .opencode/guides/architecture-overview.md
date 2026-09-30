@@ -12,15 +12,16 @@ limedl 的整体架构描述：工作空间布局、目标平台（Slint 桌面�
 
 ** 核心库 **：
 
-- `crates/limedl-core/src/` — 核心下载引擎模块：event_bus、types、protocol、manager、http_executor、scheduler、task_lifecycle、bt_backend/、cdn/、database、buffer_pool、rate_limiter/、checksum/、file_ops/、settings、http_client_factory/、backend_registry、dispatcher、manifest、retry、aria2_rpc
+- `crates/limedl-core/src/` — 核心下载引擎模块：event_bus/、types/、protocol、manager、http_executor/、scheduler/、task_lifecycle/、bt_backend/、cdn/、database/、buffer_pool/、rate_limiter/、checksum/、file_ops/、settings/、http_client_factory/、backend_registry/、dispatcher、manifest、retry、aria2_rpc/
+- 模块目录约定：生产代码放 `mod.rs`，超过 ~150 行的内联测试块外移到同级 `tests.rs`；`crates/limedl-core/src/tests/` 只放跨模块 E2E/集成测试
 - lib 名称：`limedl_core`
 
 ** 桌面客户端（Slint）**：
 
 - `crates/limedl-native/src/main.rs` — 进程入口：`bootstrap()` → `Dispatcher`、托盘/窗口/单实例、EventBus 订阅循环
-- `crates/limedl-native/src/bridge.rs` — Rust 数据 → Slint 模型的纯函数映射（可单测）
-- `crates/limedl-native/src/update.rs` / `autostart.rs` / `migrate.rs` — 自更新、自启、数据迁移
-- `crates/limedl-core/src/aria2_rpc.rs` — Aria2 RPC 集成（经 `limedl-core` 的 `aria2-rpc` feature；桌面在 bootstrap 后根据设置启动，用于接收浏览器插件下载拦截）
+- `crates/limedl-native/src/bridge/` — Rust 数据 → Slint 模型的纯函数映射（可单测）
+- `crates/limedl-native/src/update/` / `autostart.rs` / `migrate/` — 自更新、自启、数据迁移
+- `crates/limedl-core/src/aria2_rpc/` — Aria2 RPC 集成（经 `limedl-core` 的 `aria2-rpc` feature；桌面在 bootstrap 后根据设置启动，用于接收浏览器插件下载拦截）
 
 ** 构建与工具 **：
 

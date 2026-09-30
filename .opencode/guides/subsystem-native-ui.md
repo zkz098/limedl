@@ -18,15 +18,18 @@ Tauri/Vue desktop shell was retired).
 | `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs` |
 | `src/event_stream/`      | 后台监听：`bus.rs`（`DownloadEvent` 每个变体一个函数）、`pollers.rs`（剪贴板 + BT 状态 + Inspector 轮询）、`tray.rs`（托盘菜单/左键激活）                                                      |
 | `src/settings_sync.rs`   | 保存设置后的共享副作用：OS 自启同步、Aria2 RPC 热重载、把设置推入 UI（设置对话框与首启向导共用）                                                                                     |
-| `src/i18n.rs`            | 语言枚举、`format_*` 本地化辅助（含设置校验错误、托盘文案、优先级标签）                                                                                |
-| `src/update.rs`          | minisign 校验的多通道自更新（见 `subsystem-self-update.md`）                                                                                           |
+| `src/i18n/`             | 语言枚举（`language.rs`）与 `format_*` 本地化辅助，按域拆分：`task.rs`（列表/状态）、`dialogs.rs`（新建任务/批量）、`tray.rs`（托盘/通知）、`toast.rs`（全部 toast）、`validation.rs`（设置校验）、`cdn.rs`、`rewrite.rs`、`schedule.rs`；全部在 `mod.rs` 重新导出，调用点仍是 `i18n::format_*` |
+| `src/update/`            | minisign 校验的多通道自更新（见 `subsystem-self-update.md`；`mod.rs` + `tests.rs`）                                                                                           |
+| `src/migrate/`           | Tauri → Native 数据迁移（`mod.rs` + `tests.rs`）                                                                                                       |
 | `src/autostart.rs`       | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent）                                                                                 |
 | `src/single_instance.rs` | 单实例（Win mutex + WM_COPYDATA；其他平台回环 TCP）                                                                                                    |
 | `src/platform_win.rs`    | 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ 窗口几何持久化（全平台）+ OS 描述文案                                                                        |
 | `src/protocol.rs`        | `magnet:` / `limedl://` 协议注册（HKCU）                                                                                                               |
 | `src/power.rs`           | 下载中抑制系统休眠                                                                                                                                     |
 | `ui/appwindow.slint`     | 主窗口：侧边栏、工具栏、卡片/表格、所有弹层                                                                                                            |
-| `ui/components/*.slint`  | 各对话框与复用组件（settings/labs/inspector/new_task/priority_menu…）                                                                                  |
+| `ui/components/settings_dialog.slint` | 设置中心外壳：属性/回调、页签栏、页脚与各页签的装配（`settings/tab_*.slint`）                                                              |
+| `ui/components/settings/` | 设置页签组件：`tab_{appearance,download,proxy,schedule,bt,io,log,aria2,about}.slint` + `shared.slint`（FormTip / ColumnCheck）              |
+| `ui/components/*.slint`  | 各对话框与复用组件（labs/inspector/new_task/priority_menu…）                                                                                  |
 | `ui/theme.slint`         | 由 `scripts/generate-theme-slint.ps1` 从主题映射表生成的配色 token                                                                                     |
 
 ## 数据流向

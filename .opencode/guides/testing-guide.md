@@ -10,6 +10,12 @@
 - `crates/limedl-native/src/` — 桌面 UI 桥接与逻辑单测
 - `.github/workflows/ci.yml` — CI 配置文件
 
+### 测试布局约定
+
+1. **默认内联**：小的 `#[cfg(test)] mod tests { ... }` 直接放在生产文件尾部（< ~150 行），测试就近于实现。
+2. **大了就外移**：超过 ~150 行的内联测试块必须移到同级 `tests.rs`（模块目录内），生产文件只保留 `#[cfg(test)] mod tests;`。例：`settings/tests.rs`、`http_executor/tests.rs`、`scheduler/tests.rs`、`task_lifecycle/tests.rs`。测试通过 `use super::*;` 仍能访问私有项，模块路径（如 `settings::tests::*`）保持不变。
+3. **跨模块 E2E 放 crate 级**：需要真实 mock server / 多个子系统协作的测试放 `crates/limedl-core/src/tests/`（由 `lib.rs` 的 `mod tests` 引入）。
+
 ## 数据流向
 
 ```

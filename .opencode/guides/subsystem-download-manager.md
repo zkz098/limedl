@@ -9,10 +9,10 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 ## 涉及文件
 
 - `crates/limedl-core/src/manager.rs` — DownloadManager 主结构体、CRUD 方法
-- `crates/limedl-core/src/http_executor.rs` — HTTP 探测、单流/多流执行
-- `crates/limedl-core/src/scheduler.rs` — 后台调度循环 + AIMD 线程重分配
-- `crates/limedl-core/src/task_lifecycle.rs` — 状态转换、文件清理、进度记录、事件发射
-- `crates/limedl-core/src/aimd.rs` — AIMD 吞吐量状态机
+- `crates/limedl-core/src/http_executor/` — HTTP 探测、单流/多流执行（`mod.rs` 装配，`run.rs` 探测+顶层循环，`single.rs`/`chunked.rs` 两条下载路径，`worker.rs` 分块认领与 worker，`finalize.rs` 校验与最终化）
+- `crates/limedl-core/src/scheduler/mod.rs` — 后台调度循环 + AIMD 线程重分配（测试在 `scheduler/tests.rs`）
+- `crates/limedl-core/src/task_lifecycle/mod.rs` — 状态转换、文件清理、进度记录、事件发射（测试在 `task_lifecycle/tests.rs`）
+- `crates/limedl-core/src/aimd/mod.rs` — AIMD 吞吐量状态机（测试在 `aimd/tests.rs`）
 - `crates/limedl-core/src/manifest.rs` — Manifest / ChunkManifest
 - `crates/limedl-core/src/retry.rs` — 指数退避重试
 - `crates/limedl-core/src/checksum/mod.rs` — 校验和（Blake3 / SHA-256 / XXH3-128）

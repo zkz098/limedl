@@ -10,7 +10,7 @@
 
 - `crates/limedl-core/src/database.rs` — Database 结构体、CRUD 方法、建表/迁移、PRAGMA 配置
 - `crates/limedl-core/src/manifest.rs` — Manifest / ChunkManifest 类型定义
-- `crates/limedl-core/src/migration.rs` — 旧 JSON 文件 → SQLite 迁移逻辑（新安装不触发）
+- `crates/limedl-core/src/migration/mod.rs` — 旧 JSON 文件 → SQLite 迁移逻辑（新安装不触发）
 - `crates/limedl-core/src/persistence.rs` — 从 SQLite 加载下载任务到内存（`load_downloads_from_db`）
 
 ## 数据流向

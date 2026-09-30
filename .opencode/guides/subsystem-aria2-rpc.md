@@ -10,7 +10,7 @@
 
 ## 涉及文件
 
-- `crates/limedl-core/src/aria2_rpc.rs` — Aria2RpcServer 完整实现（构造 + serve + dispatch_method + 各个 handler）
+- `crates/limedl-core/src/aria2_rpc/` — Aria2RpcServer 完整实现，按职责拆分：`mod.rs`（装配 + `pub use` 导出）、`protocol.rs`（JSON-RPC 线格式与 aria2 状态映射）、`context.rs`（RpcContext / token / gid 缓存 / 事件广播）、`dispatch.rs`（方法路由）、`download.rs`（addUri/addTorrent/pause/unpause/remove/purge）、`query.rs`（tellStatus/tellActive/getFiles/getPeers/session）、`options.rs`（getOption/changeGlobalOption + aria2 option 解析）、`system.rs`（shutdown/multicall/listMethods/临时文件清理）、`transport.rs`（HTTP + WebSocket）、`server.rs`（Router 与生命周期）；单测 `tests.rs`，E2E `e2e_tests.rs`
 - `crates/limedl-native/src/main.rs` — 桌面接线：`settings.aria2_rpc.enabled` → `Aria2RpcServer::new(core.registry, &settings.aria2_rpc, event_bus)` → `serve(rx, vec![])`；启动失败仅 log 不阻塞。
 - `crates/limedl-server/src/main.rs` — NAS/守护进程接线（`run_daemon`，bootstrap 之后）：与桌面相同的模式，CORS 传 `settings.aria2_rpc.cors_allowed_origins`（NAS 需要真实 CORS 源），watch Sender 接入 shutdown_signal 实现优雅停机。limedl-server 通过 `limedl-core` 的 `aria2-rpc` feature 编译。
 
