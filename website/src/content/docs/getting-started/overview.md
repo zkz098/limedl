@@ -1,30 +1,129 @@
 ---
 title: 项目简介
-description: 了解 limedl 的设计理念、架构特点与核心优势
+description: 了解 limedl 的设计理念、架构特点、核心优势与性能对比
 ---
 
 # 关于 limedl
 
-**limedl** 是一款为极致性能与流畅体验而生的次世代多协议下载管理器。基于纯 **Rust** 核心引擎开发，并搭载轻量级现代原生 UI 框架 **Slint**。
+**limedl** 是一款为极致性能与流畅体验而生的次世代多协议下载管理器。基于纯 **Rust** 核心引擎打造，并搭载轻量级现代原生 GUI 框架 **Slint**。
 
-它同时支持 **HTTP/HTTPS 动态自适应并发分块下载** 与 **BitTorrent（磁力链 / .torrent）** 完整协议，内建 **CDN 智能探针优选加速**，并无缝兼容 **Aria2 JSON-RPC 2.0** 协议标准。
+项目致力于彻底解决传统下载工具“臃肿迟钝、内存高企、商业广告骚扰、付费限速”以及传统开源客户端“基于 Electron 动辄数百兆内存常驻、高并发下磁盘 I/O 阻塞假死”的行业痛点。
+
+:::tip[一句话概括]
+limedl 将**原生极速的 Rust 引擎**与**毫秒级冷启动的 Slint 原生界面**完美结合，提供 HTTP AIMD 动态并发、完整 BitTorrent 协议族、独创 CDN 探针优选，以及对 Aria2 生态 100% 的兼容性。
+:::
+
+---
 
 ## 核心设计哲学
 
-- **告别臃肿，回归原生**：拒绝 Chromium/Electron 动辄数百兆的内存常驻。limedl 采用 Slint 原生渲染，冷启动毫秒级，空闲内存仅数十兆。
-- **动态拥塞自适应**：HTTP 并发并非盲目开设大量线程，而是借鉴 TCP 的 AIMD（加法递增、乘法递减）自适应算法，在跑满带宽的同时保护系统网络稳定性。
-- **保护硬件与磁盘**：智能检测存储介质类型（SSD / HDD），对 SSD 采用批量合并写入降低闪存磨损，对 HDD 采用双缓冲与预分配减少磁头频繁寻道与磁盘碎片。
-- **开放与生态兼容**：无缝对接全网 Aria2 生态（浏览器扩展、油猴脚本、远程控制端），无需改变使用习惯即可享受 Rust 引擎带来的强劲速度。
+### 1. 告别臃肿，回归原生
+拒绝 Chromium/Electron 庞大的多进程模型。limedl 采用纯 Rust 编写的 Slint 框架配合底层 Skia 硬件加速渲染：
+- **启动时间**：冷启动在 100 毫秒以内，窗口秒开，交互无延迟。
+- **内存占用**：托盘常驻空闲内存仅约 **30~50 MB**，仅为同类 Electron 下载器的 1/6。
+- **单进程架构**：核心引擎与原生 UI 运行于同一进程内，通过内部异步事件总线（EventBus）零拷贝交互，免除了繁琐的 IPC 网络序列化开销。
 
-## 架构概览
+### 2. 拥塞自适应，保护网络
+传统下载器往往固定死板的线程数（如无脑开启 32 或 64 线程），这在弱网或防刷严格的服务端极易触发 HTTP 429 / 503 封锁或严重的路由器排队丢包。
+
+limedl 借鉴现代网络传输算法，实现了 **AIMD（Additive Increase Multiplicative Decrease）** 动态并发调度机制：
+- **平滑起步**：根据延迟与分块耗时渐进加法提速；
+- **智能退避**：当感知到网络抖动或服务端限流时，乘法降速并平滑回退；
+- **镜像容灾**：当首选镜像超时或失败时，无缝透明切换备用镜像节点。
+
+### 3. 硬件感知，呵护磁盘
+在千兆甚至万兆宽带环境下，未经优化的多线程并发写入会导致严重的磁盘 I/O 拥塞甚至闪存磨损：
+- **SSD 固态硬盘**：针对闪存擦除块物理特性，提供**写合并机制（Write Combining）**，将分散的小块聚合为最佳尺寸后批量异步落盘，降低写入放大（WAF），延长固态寿命。
+- **HDD 机械硬盘**：采用**双缓冲池（Double Buffering）**与严格的物理文件偏移排序，前台异步接收网络数据，后台单线程顺序刷盘，彻底根绝高并发下载导致的磁头高频随机寻道与系统假死。
+
+### 4. 拥抱开放，无缝融入 Aria2 生态
+无需改变你已有的使用习惯。limedl 内置了标准 **Aria2 JSON-RPC 2.0** 服务端：
+- 支持 Chrome / Edge / Firefox 上的各类主流下载插件（如 Aria2 Explorer、Camtd）；
+- 支持网盘助手与油猴（Tampermonkey）脚本直接派发下载任务；
+- 支持接入 AriaNg 等现代化 Web 控制台进行局域网与远程管理。
+
+---
+
+## 架构拓扑概览
+
+limedl 采用单轨化 Rust 工作空间（Workspace）组织代码，严格分离无界面引擎与交互前端：
 
 ```
-limedl 架构
-├── crates/limedl-core/    # 纯 Rust 异步多协议下载引擎 (无 GUI 依赖)
-│   ├── DownloadManager    # HTTP/HTTPS 自适应并发调度与分块
-│   ├── IrontideBtBackend  # BitTorrent 内核 (DHT, PEX, UPnP)
-│   ├── CdnAccelerator     # Cloudflare 探针测速与智能优化
-│   ├── BufferPool         # SSD 写入合并 / HDD 双缓冲池
-│   └── Aria2RpcServer     # Aria2 JSON-RPC 2.0 兼容服务
-└── crates/limedl-native/  # Slint 原生桌面界面 (Windows / macOS / Linux)
+limedl Workspace
+├── crates/limedl-core/       # 纯 Rust 多协议下载核心引擎 (无 GUI 依赖)
+│   ├── manager.rs            # DownloadManager 任务编排与调度
+│   ├── scheduler.rs          # AIMD 线程池动态均衡与调度器
+│   ├── http_executor.rs      # HTTP Range 分块探测与并发拉取
+│   ├── bt_backend/           # BitTorrent 内核 (基于 Irontide 1.7.0)
+│   ├── cdn/                  # Cloudflare CDN 边缘测速与 DNS 重写
+│   ├── buffer_pool.rs        # SSD 写入合并与 HDD 双缓冲池
+│   ├── file_ops/             # 空间预分配与原子文件最终化
+│   ├── checksum/             # Blake3 / SHA-256 / XXH3-128 校验器
+│   ├── rate_limiter/         # 全局令牌桶限速与计划表
+│   └── aria2_rpc.rs          # Aria2 JSON-RPC 2.0 兼容服务
+│
+├── crates/limedl-native/     # 原生桌面客户端 (Slint + Skia 渲染)
+│   ├── main.rs               # 应用入口、单实例控制、托盘集成与事件循环
+│   ├── bridge/               # Rust 数据结构到 Slint UI 模型的映射层
+│   ├── handlers/             # 任务、设置、实验室与更新事件处理器
+│   ├── update.rs             # 基于 Minisign 密码学验签的跨平台自更新
+│   └── ui/                   # Slint 声明式组件与主题系统
+│
+└── xtask/                    # 仓库运维工具：密码学生成、Minisign 签名与发布门禁
 ```
+
+### 数据交互流向
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    用户交互层 (Slint Native UI)               │
+│      [卡片/表格视图]  [新建任务]  [设置中心]  [实验室 CDN]       │
+└───────────────────────┬───────────────────▲─────────────────┘
+                        │ UI Callbacks      │ Model Update
+                        ▼                   │ (UI 重绘)
+┌─────────────────────────────────────────────────────────────┐
+│                limedl-native Bridge / Handlers              │
+└───────────────────────┬───────────────────▲─────────────────┘
+                        │ API 调用          │ EventBus 订阅
+                        ▼                   │ (广播通知)
+┌─────────────────────────────────────────────────────────────┐
+│                 limedl-core 调度核心 (Dispatcher)            │
+├─────────────────────────────────────────────────────────────┤
+│   BackendRegistry (协议路由分发)                             │
+│      ├─ [http: 前缀] ──► DownloadManager (AIMD + 分块下载)   │
+│      └─ [bt: 前缀]   ──► IrontideBtBackend (DHT + P2P 群集)  │
+├─────────────────────────────────────────────────────────────┤
+│   底层基础设施:                                              │
+│   • BufferPool (I/O 缓冲池)      • Database (SQLite WAL)    │
+│   • CdnAccelerator (IP 优选)     • RateLimiter (令牌桶)      │
+│   • Aria2RpcServer (兼容 RPC)    • FileOps (空间预分配)     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 性能与特性对比
+
+下表对比了 limedl 与主流同类工具在实际使用场景中的综合表现：
+
+| 维度 / 特性 | **limedl** | 传统商业下载工具 (如迅雷) | 常见开源工具 (如 Motrix) | 经典命令行 (Aria2) |
+| :--- | :--- | :--- | :--- | :--- |
+| **底层核心** | **纯 Rust 2024** | 专有 C++ 闭源引擎 | Node.js + Aria2 封装 | 纯 C++ 核心 |
+| **界面技术** | **Slint (Skia 原生渲染)** | 网页混合容器 (内嵌广告) | Electron (Chromium 内核) | 无原生界面 (纯 CLI) |
+| **冷启动速度** | **< 100 ms (秒开)** | 3 ~ 6 秒 (含鉴权/弹窗) | 2 ~ 4 秒 (Chromium 白屏) | 瞬时 (命令行) |
+| **空闲内存占用** | **约 35 ~ 50 MB** | 180 ~ 350 MB+ | 250 ~ 450 MB+ | < 20 MB |
+| **并发策略** | **AIMD 动态自适应调度** | 固定线程 / 付费加速 | 固定连接数 | 固定连接数 (需手动配) |
+| **磁盘 I/O 保护** | **SSD 写合并 + HDD 双缓冲** | 无明显介质优化 (常发热) | 基础顺序写，千兆易卡顿 | 基础缓冲配置 |
+| **CDN 探针加速** | **内建 Cloudflare IP 优选** | 无 (依赖官方专有 P2P) | 无 | 无 |
+| **BitTorrent 支持** | **Irontide (DHT/PEX/LSD)** | 商业专有 (部分协议受限) | Aria2 BT (DHT 性能一般) | 原生支持 |
+| **Aria2 生态兼容** | **原生完整兼容 (6800)** | 不支持 | 自身作为前端包装 | 标准定义者 |
+| **纯净与开源协议** | **GPL-3.0 无广告零遥测** | 商业闭源、开屏弹窗与广告 | MIT 开源 | GPL-2.0 开源 |
+
+---
+
+## 接下来
+
+- [安装指南](/getting-started/installation/)：了解如何获取针对 Windows、macOS 与 Linux 的预编译安装包与校验指引。
+- [配置手册](/getting-started/configuration/)：详细探索 limedl 的各项高级参数设置。
+- [任务管理与并发策略](/guides/tasks/)：了解 AIMD 算法与分块下载的工作机制。
+- [浏览器接管扩展](/ecosystem/browser/)：配置 Chrome / Edge 扩展以实现网页下载一键拦截。

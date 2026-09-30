@@ -34,6 +34,7 @@ export default defineConfig({
           items: [
             { label: '项目简介', translations: { en: 'Overview' }, slug: 'getting-started/overview' },
             { label: '安装指南', translations: { en: 'Installation' }, slug: 'getting-started/installation' },
+            { label: '配置手册', translations: { en: 'Configuration' }, slug: 'getting-started/configuration' },
           ],
         },
         {
@@ -43,6 +44,8 @@ export default defineConfig({
             { label: '任务管理与并发', translations: { en: 'Tasks & Concurrency' }, slug: 'guides/tasks' },
             { label: 'CDN 探针加速', translations: { en: 'CDN Acceleration' }, slug: 'guides/cdn' },
             { label: 'BitTorrent 调优', translations: { en: 'BitTorrent Tuning' }, slug: 'guides/bittorrent' },
+            { label: '命令行与协议', translations: { en: 'CLI & Protocol' }, slug: 'guides/cli' },
+            { label: '常见问题与排错', translations: { en: 'Troubleshooting' }, slug: 'guides/troubleshooting' },
           ],
         },
         {
@@ -54,11 +57,12 @@ export default defineConfig({
           ],
         },
         {
-          label: '进阶与开发',
-          translations: { en: 'Advanced & Dev' },
+          label: '进阶与内幕',
+          translations: { en: 'Advanced & Internals' },
           items: [
+            { label: '系统架构与技术内幕', translations: { en: 'System Architecture' }, slug: 'advanced/architecture' },
             { label: '磁盘缓冲池机制', translations: { en: 'Disk Buffer Pool' }, slug: 'advanced/buffer-pool' },
-            { label: '源码编译与架构', translations: { en: 'Build from Source' }, slug: 'advanced/development' },
+            { label: '源码编译与开发', translations: { en: 'Build & Contributing' }, slug: 'advanced/development' },
           ],
         },
       ],
