@@ -174,6 +174,9 @@ impl SettingsSync {
                     ui.set_inspector_info(summary_to_inspector_info(&summary, new_lang));
                 }
                 if opts.close_settings {
+                    // Disarm the About tab's "Factory Reset" gate on every close
+                    // path (the Save button closes the dialog directly).
+                    ui.set_reset_confirm(false);
                     ui.set_show_settings(false);
                 }
                 if opts.close_wizard {

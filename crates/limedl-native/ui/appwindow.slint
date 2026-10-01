@@ -213,6 +213,12 @@ export component MainWindow inherits Window {
     in property <bool> game_mode_active: false;
     in property <bool> overclock_mode_active: false;
 
+    // Two-step confirmation of the destructive "Factory Reset" in the About tab.
+    // It lives on the window (not on the dialog) so closing the dialog can
+    // disarm it: leaving it armed would put the data-destroying button one click
+    // away on the *next* visit.
+    in-out property <bool> reset_confirm: false;
+
     // Self-update state (rendered in Settings → About)
     in-out property <UpdateState> update_state: {
         phase: "idle",
@@ -1294,6 +1300,7 @@ export component MainWindow inherits Window {
         settings_form <=> root.settings_form;
         speed_limit_slots <=> root.speed_limit_slots;
         update_state <=> root.update_state;
+        reset_confirm <=> root.reset_confirm;
         close => { root.close_settings(); }
         set_tab(tab) => { root.set_settings_tab(tab); }
         save(form) => { root.save_settings(form); }

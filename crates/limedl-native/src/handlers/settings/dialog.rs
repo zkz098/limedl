@@ -161,6 +161,7 @@ pub fn register(ctx: &AppContext) {
                 let overclock = *overclock_mode.lock();
                 let lang = store.lock().language();
                 refresh_settings_state(&ui, &dispatcher, &settings, game_mode, overclock, lang);
+                ui.set_reset_confirm(false);
                 ui.set_show_settings(true);
             });
         });
@@ -169,7 +170,13 @@ pub fn register(ctx: &AppContext) {
     {
         let ui_weak = ui_weak.clone();
         ui.on_close_settings(move || {
-            with_ui(&ui_weak, |ui| ui.set_show_settings(false));
+            with_ui(&ui_weak, |ui| {
+                // The About tab's "Factory Reset" is a two-click gate. Disarm it
+                // while closing, or the next visit opens with "Confirm Reset"
+                // already showing and the data directory one click away.
+                ui.set_reset_confirm(false);
+                ui.set_show_settings(false);
+            });
         });
     }
 
