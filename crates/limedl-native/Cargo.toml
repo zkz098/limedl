@@ -155,7 +155,7 @@ i-slint-backend-testing = { workspace = true }
 async-trait = { workspace = true }
 
 [features]
-# ── Graphics renderer: exactly one ──────────────────────────────────────────
+# ── Graphics renderer: exactly one primary, plus an optional fallback ───────
 # Slint's renderer is a compile-time choice — the backend selector can only use
 # a renderer that was compiled in, so "which renderer" is a Cargo feature here,
 # not an env var. `renderer-femtovg` is the shipped default: on a 1000-task list it
@@ -182,7 +182,10 @@ async-trait = { workspace = true }
 # FemtoVG/GL), and the About tab's renderer label is derived from the single
 # enabled feature, so a second one would make the label describe a rasterizer that
 # may not be the active one.
-default = ["renderer-femtovg"]
+#
+# `renderer-software-fallback` is deliberately NOT in that exclusive set: it is
+# additive, and pairing it with a primary renderer is the only supported use.
+default = ["renderer-femtovg", "renderer-software-fallback"]
 # Skia on the Softbuffer/CPU surface on Windows (see above). No longer the default:
 # it is the slowest of the four here and rasterizes on the CPU.
 renderer-skia = ["slint/renderer-skia"]
@@ -192,14 +195,27 @@ renderer-skia = ["slint/renderer-skia"]
 renderer-skia-opengl = ["slint/renderer-skia-opengl"]
 # FemtoVG on OpenGL (glutin) — the shipped default.
 #
-# It needs a working GL driver, and nothing falls back if there isn't one: Slint's
-# `try_create_window_with_fallback_renderer` only chains the renderers that were
-# compiled in, and this crate compiles exactly one. An RDP/VM session or a machine
-# with a broken GL stack therefore cannot start the app at all. Adding
-# `slint/renderer-software` alongside this feature would restore that fallback
-# (Slint would then prefer FemtoVG and degrade to its software rasterizer on GL
-# init failure); it is deliberately not enabled today.
+# It needs a working GL driver, so it ships next to `renderer-software-fallback`
+# below: without that, a machine whose GL stack fails to initialize has no
+# renderer left to draw with.
+#
+# It lands on the same OpenGL API as `renderer-skia-opengl`, which is what makes
+# a Skia-vs-FemtoVG comparison a rasterizer comparison rather than a CPU-vs-GPU
+# one; that pairing is how the default was chosen.
 renderer-femtovg = ["slint/renderer-femtovg"]
+# Additive, not part of the exclusive set above: Slint's
+# `try_create_window_with_fallback_renderer` chains every renderer that was
+# compiled in ([Skia, FemtoVG/wgpu, FemtoVG/GL, software], filtered by features)
+# and keeps the first whose init succeeds. So this one is only ever reached when
+# the primary renderer fails — on the happy path it costs nothing but size.
+#
+# Keeping it is what preserves "the app always starts": 0.4.0 shipped
+# `renderer-femtovg` alone, so an RDP/VM session or a broken GL stack could not
+# open a window at all, which no user can work around. Measured against
+# FemtoVG/GL on a 1000-task list: 39 fps at 20.4 ms CPU per frame (vs 108 / 8.0),
+# but it starts faster (341 vs 593 ms) and uses less memory (171 vs 236 MB).
+# Cost: +0.47 MB on the exe, ~+0.2 MB on the installers.
+renderer-software-fallback = ["slint/renderer-software"]
 # FemtoVG on wgpu (D3D12/Metal/Vulkan). `unstable-wgpu-29` is what pins the wgpu
 # version Slint 1.17 accepts; the FemtoVG renderer wires up 29 only, so 28 is
 # not an option here.

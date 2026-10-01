@@ -12,6 +12,17 @@
 //! FemtoVG/GL), and a single label would then describe a rasterizer that may not
 //! be the active one. Failing the build is the honest option for a build option
 //! that exists to compare the two.
+//!
+//! The default build pairs FemtoVG/GL with the **additive**
+//! `renderer-software-fallback` feature, which the assertion deliberately does
+//! not count. That makes [`NAME`] the *preferred* renderer rather than a runtime
+//! fact: if GL init fails, Slint silently drops to its software rasterizer (the
+//! startup log's own `Slint: ... Backend:` line, printed only under
+//! `SLINT_DEBUG_PERFORMANCE`, is the authoritative record) and the About tab will
+//! still name FemtoVG. Slint re-exports no accessor for the renderer that
+//! actually got created (`slint::platform` exposes only `WinitWindowAccessor`),
+//! so there is nothing to query — do not read this constant as a guarantee that
+//! the GPU path was taken, only that it was requested.
 
 const _: () = assert!(
     (cfg!(feature = "renderer-skia") as u8
