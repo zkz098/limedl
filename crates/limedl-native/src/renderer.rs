@@ -19,7 +19,7 @@ const _: () = assert!(
         + cfg!(feature = "renderer-femtovg") as u8
         + cfg!(feature = "renderer-femtovg-wgpu") as u8)
         == 1,
-    "enable exactly one renderer feature: renderer-skia (default), renderer-skia-opengl, renderer-femtovg or renderer-femtovg-wgpu"
+    "enable exactly one renderer feature: renderer-femtovg (default), renderer-femtovg-wgpu, renderer-skia or renderer-skia-opengl"
 );
 
 /// Renderer name shown in the About tab (`arch_info` / the core-tech line) and

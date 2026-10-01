@@ -158,11 +158,13 @@ async-trait = { workspace = true }
 # ── Graphics renderer: exactly one ──────────────────────────────────────────
 # Slint's renderer is a compile-time choice — the backend selector can only use
 # a renderer that was compiled in, so "which renderer" is a Cargo feature here,
-# not an env var. `renderer-skia` is the shipped default; the other three
-# variants exist to A/B the rasterizer against it:
+# not an env var. `renderer-femtovg` is the shipped default: on a 1000-task list it
+# rendered 97 fps at 9.55 ms CPU/frame against the CPU-rasterized Skia build it
+# replaced (57 fps / 14.93 ms), and at the lowest memory of the four. The other
+# three variants exist to compare against it:
 #
+#   cargo run -p limedl-native --no-default-features --features renderer-skia
 #   cargo run -p limedl-native --no-default-features --features renderer-skia-opengl
-#   cargo run -p limedl-native --no-default-features --features renderer-femtovg
 #   cargo run -p limedl-native --no-default-features --features renderer-femtovg-wgpu
 #
 # `renderer-skia` is NOT the GPU one on Windows. `i-slint-renderer-skia` picks its
@@ -176,18 +178,27 @@ async-trait = { workspace = true }
 # GL init logs "Falling back to software rendering" rather than aborting.
 
 # `src/renderer.rs` fails the build when zero or several are enabled: compiled
-# together they are not a runtime choice (Slint silently prefers Skia >
-# FemtoVG/wgpu > FemtoVG/GL), and the About tab's renderer label is derived from
-# the single enabled feature, so a second one would make the label describe a
-# rasterizer that may not be the active one.
-default = ["renderer-skia"]
-# Skia on the Softbuffer/CPU surface on Windows (see above) — the shipped build.
+# together they are not a runtime choice (Slint prefers Skia > FemtoVG/wgpu >
+# FemtoVG/GL), and the About tab's renderer label is derived from the single
+# enabled feature, so a second one would make the label describe a rasterizer that
+# may not be the active one.
+default = ["renderer-femtovg"]
+# Skia on the Softbuffer/CPU surface on Windows (see above). No longer the default:
+# it is the slowest of the four here and rasterizes on the CPU.
 renderer-skia = ["slint/renderer-skia"]
-# Skia on OpenGL, i.e. the GPU rasterizer, and the only variant that makes a
-# Skia-vs-FemtoVG comparison meaningful rather than CPU-vs-GPU.
+# Skia on OpenGL, i.e. the GPU rasterizer. This and `renderer-femtovg` both land on
+# GL, which is what makes a Skia-vs-FemtoVG comparison a rasterizer comparison
+# rather than a CPU-vs-GPU one.
 renderer-skia-opengl = ["slint/renderer-skia-opengl"]
-# FemtoVG on OpenGL (glutin). No extra build-time dependency; at runtime it needs
-# a working GL driver (a bare RDP/VM session without one fails at startup).
+# FemtoVG on OpenGL (glutin) — the shipped default.
+#
+# It needs a working GL driver, and nothing falls back if there isn't one: Slint's
+# `try_create_window_with_fallback_renderer` only chains the renderers that were
+# compiled in, and this crate compiles exactly one. An RDP/VM session or a machine
+# with a broken GL stack therefore cannot start the app at all. Adding
+# `slint/renderer-software` alongside this feature would restore that fallback
+# (Slint would then prefer FemtoVG and degrade to its software rasterizer on GL
+# init failure); it is deliberately not enabled today.
 renderer-femtovg = ["slint/renderer-femtovg"]
 # FemtoVG on wgpu (D3D12/Metal/Vulkan). `unstable-wgpu-29` is what pins the wgpu
 # version Slint 1.17 accepts; the FemtoVG renderer wires up 29 only, so 28 is
