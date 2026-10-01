@@ -2,7 +2,7 @@
 //!
 //! This replaces the `npx --yes @tauri-apps/cli signer sign` step the retired
 //! Tauri pipeline left behind. The signature format is unchanged (minisign,
-//! prehashed BLAKE2b — what `crates/limedl-native/src/update.rs` verifies with
+//! prehashed BLAKE2b — what `crates/limedl-native/src/update/mod.rs` verifies with
 //! `minisign-verify`), but the tool now lives next to the verifier and shares
 //! its key handling instead of pulling a Node CLI that belongs to a project we
 //! no longer use.
@@ -53,7 +53,14 @@ const LEGACY_KEY_ENV: &str = "TAURI_SIGNING_PRIVATE_KEY";
 const LEGACY_KEY_PASSWORD_ENV: &str = "TAURI_SIGNING_PRIVATE_KEY_PASSWORD";
 
 /// Where the client's embedded public key lives.
-const DEFAULT_UPDATE_RS: &str = "crates/limedl-native/src/update.rs";
+///
+/// `release.yml` runs `cargo xtask guard <files>` with no `--update-rs`, so this
+/// default is the path the release actually reads — and it points into the split
+/// module (`update/mod.rs`, not `update.rs`).
+/// `default_update_path_declares_the_embedded_pubkey` fails at test time when
+/// the file moves again, instead of failing the `Update manifest` job after the
+/// platform artifacts are already uploaded.
+const DEFAULT_UPDATE_RS: &str = "crates/limedl-native/src/update/mod.rs";
 
 #[derive(Parser)]
 #[command(
@@ -105,7 +112,7 @@ enum Command {
     Guard {
         #[arg(required = true)]
         files: Vec<PathBuf>,
-        /// Path to the client's `update.rs` holding `PUBKEY_B64`.
+        /// Path to the client's `update` module source holding `PUBKEY_B64`.
         #[arg(long, default_value = DEFAULT_UPDATE_RS)]
         update_rs: PathBuf,
     },

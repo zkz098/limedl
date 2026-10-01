@@ -58,7 +58,7 @@ cargo run -p limedl-native
 
 The app keeps everything in `%LOCALAPPDATA%\limedl` (override with `LIMEDL_DATA_DIR`), imports
 settings/history from a previous Tauri install on first run, and updates itself in-app
-(portable / NSIS / MSIX channels — see `crates/limedl-native/src/update.rs`).
+(portable / NSIS / MSIX channels — see `crates/limedl-native/src/update/mod.rs`).
 
 ### NAS / Headless Server
 

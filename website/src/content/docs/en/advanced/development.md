@@ -111,7 +111,7 @@ Rectangle {
       text: @tr("Start Download");
   }
   ```
-- **Dynamic Rust Strings**: Tray titles, error toasts, and validation errors must use the `i18n::format_*` helper functions provided in `crates/limedl-native/src/i18n.rs`. Never hardcode raw strings.
+- **Dynamic Rust Strings**: Tray titles, error toasts, and validation errors must use the `i18n::format_*` helper functions provided in `crates/limedl-native/src/i18n/mod.rs`. Never hardcode raw strings.
 
 ### 3. Handlers and UI Bridge Separation
 Slint callbacks should be encapsulated in their respective `handlers/` submodules and interact with the UI through `handlers/common.rs` helper wrappers (`with_ui`, `mutate_store`).

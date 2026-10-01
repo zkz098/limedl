@@ -9,7 +9,7 @@
   - CFBundleIdentifier must stay `com.zkz20.limedl`: it is the LaunchAgent label
     written by crates/limedl-native/src/autostart.rs (macos_impl::plist_path) and
     the Tauri data directory the first-run migration imports from
-    (crates/limedl-native/src/migrate.rs). Changing it splits user data.
+    (crates/limedl-native/src/migrate/mod.rs). Changing it splits user data.
   - CFBundleExecutable must stay `limedl-native`: the release tarball member is
     matched by file name in update.rs (extract_executable), and the updater
     re-signs the bundle containing the running executable after replacing it.

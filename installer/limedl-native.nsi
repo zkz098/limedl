@@ -11,7 +11,7 @@
 ; Per-user by design: installs to %LOCALAPPDATA%\Programs\limedl, writes only
 ; to HKCU, and never triggers UAC — so the self-updater can run silently.
 ; The Uninstall registry key below (HKCU\...\Uninstall\limedl-native) is the
-; marker crates/limedl-native/src/update.rs uses to detect the "installer"
+; marker crates/limedl-native/src/update/mod.rs uses to detect the "installer"
 ; distribution channel.
 ; ═══════════════════════════════════════════════════════════════════════════
 

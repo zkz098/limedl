@@ -104,7 +104,7 @@ jobs:
   # Windows is the slowest platform and therefore CI's critical path. clippy is
   # check-only and cannot share artifacts with the test builds, so running it in
   # the same job only serialized the wall clock. The jobs are split so that
-  # clippy, the limedl-core tests, and the native tests each run in
+  # clippy, the limedl-core + xtask tests, and the native tests each run in
   # parallel (measured steps: ~2.7 min clippy, ~2.6 min core tests, ~3 min
   # native tests).
   # ═══════════════════════════════════════════════════════════════════════
@@ -149,7 +149,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   test-windows-core:
-    name: Tests (Windows, limedl-core)
+    name: Tests (Windows, limedl-core + xtask)
     runs-on: windows-latest
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -178,6 +178,12 @@ jobs:
       # test suite on Linux, but compiles the unix branches. Deliberately no
       # MiSans font step: `-p limedl-core` never builds the UI crate.
       - run: cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
+      # xtask rides along: it needs neither the font nor the UI crate, and its
+      # tests are the only coverage of the release guard's default `--update-rs`
+      # path. `release.yml` calls `cargo xtask guard <files>` with no flag, so a
+      # module split that moves that file used to break the release instead of a
+      # test (v0.3.15: the manifest job failed after the platform builds).
+      - run: cargo nextest run --manifest-path xtask/Cargo.toml
 
   test-windows-native:
     name: Tests (Windows, limedl-native)

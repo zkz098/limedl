@@ -59,7 +59,7 @@ macOS builds are ad-hoc signed and **not notarized** (no Apple Developer account
 so a browser-downloaded copy needs right-click → Open once. The Linux build targets
 `x86_64-unknown-linux-gnu`, so it needs glibc >= 2.39 (Ubuntu 24.04 / its derivatives).
 Existing legacy installs migrate their data on first run of the Slint client
-(`crates/limedl-native/src/migrate.rs`).
+(`crates/limedl-native/src/migrate/mod.rs`).
 
 ## Architecture
 
@@ -216,11 +216,15 @@ Run the full gate locally (Windows: init MSVC first). The Rust commands mirror
 nextest version — so a green local run means a green CI run:
 
 ```powershell
-# Rust — clippy/build/test under -D warnings
+# Rust — warnings fatal the way CI makes them fatal: cargo's own `build.warnings`
+# (`CARGO_BUILD_WARNINGS`) plus clippy's `-- -D warnings`. Deliberately NOT
+# `RUSTFLAGS="-D warnings"`: that env var overrides `.cargo/config.toml`'s
+# per-target rustflags (target-cpu, rust-lld, /FORCE:MULTIPLE), which CI keeps
+# authoritative with `rustflags: ""`.
 cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
-$env:RUSTFLAGS="-D warnings"
+$env:CARGO_BUILD_WARNINGS="deny"
 $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
-cargo clippy --workspace --all-targets
+cargo clippy --workspace --all-targets -- -D warnings
 
 # Tests run under nextest, not `cargo test`: each test gets its own process, so
 # the suite runs in parallel and cross-test global-state interference (shared
@@ -228,9 +232,16 @@ cargo clippy --workspace --all-targets
 # version CI installs. One-time:
 #   cargo install cargo-nextest --locked --version 0.9.144
 # Per crate, NOT `--workspace`: only limedl-core's tests are meaningful without
-# the `test-utils,aria2-rpc` features, and a workspace-wide run would both lose
-# them and link the Skia UI binary just to check its flags.
+# the `test-utils,aria2-rpc` features, a workspace-wide run would lose them, and
+# it would link the Skia UI binary just to check its flags. xtask is in the gate
+# because it holds the release-guard tests (`cargo xtask guard` runs in
+# `release.yml`, and its default `--update-rs` path broke a release once).
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
+cargo nextest run --manifest-path xtask/Cargo.toml
+
+# limedl-native links Skia with rust-lld, whose duplicate-ICU-symbol warning
+# trips `build.warnings = deny`; CI drops the variable for this job only.
+Remove-Item Env:CARGO_BUILD_WARNINGS
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 ```
 

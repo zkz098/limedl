@@ -111,7 +111,7 @@ Rectangle {
       text: @tr("开始下载");
   }
   ```
-- **Rust 侧动态文案**：例如系统托盘菜单、错误通知 Toast、设置校验失败提示等，**严禁硬编码中文字符串**，必须通过 `crates/limedl-native/src/i18n.rs` 提供的 `i18n::format_*` 格式化辅助函数产出，确保中英双语无缝切换。
+- **Rust 侧动态文案**：例如系统托盘菜单、错误通知 Toast、设置校验失败提示等，**严禁硬编码中文字符串**，必须通过 `crates/limedl-native/src/i18n/mod.rs` 提供的 `i18n::format_*` 格式化辅助函数产出，确保中英双语无缝切换。
 
 ### 3. Handlers 业务解耦
 Slint 的回调函数必须统一定义于 `handlers/` 对应子模块中，并通过 `handlers/common.rs` 暴露的辅助函数（`with_ui`、`mutate_store` 等）安全读写 UI 模型，严禁在单个回调内编写数百行混乱的业务状态。

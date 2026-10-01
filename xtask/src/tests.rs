@@ -164,3 +164,28 @@ fn keygen_and_guard_agree_on_the_embedded_value() {
 
     fs::remove_dir_all(&dir).ok();
 }
+
+/// The guard's default path is the one the release uses: `release.yml` calls
+/// `cargo xtask guard <files>` with no `--update-rs`, so a module split that
+/// moves the file would otherwise surface only in the `Update manifest` job —
+/// after every platform artifact has been uploaded and with no manifest
+/// published for installed clients. Failing here keeps it in the gate.
+#[test]
+fn default_update_path_declares_the_embedded_pubkey() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask sits one level below the repo root");
+    let update_src = repo_root.join(DEFAULT_UPDATE_RS);
+    let src = fs::read_to_string(&update_src)
+        .unwrap_or_else(|e| panic!("read {}: {e}", update_src.display()));
+    let embedded = extract_pubkey_b64(&src)
+        .unwrap_or_else(|e| panic!("find PUBKEY_B64 in {}: {e}", update_src.display()));
+    // A minisign public key box always starts with `untrusted comment:`; the
+    // guard compares this literal against the CI key, so reading some other
+    // constant must not pass silently.
+    assert!(
+        embedded.starts_with("dW50cnVzdGVkIGNvbW1lbnQ6"),
+        "unexpected PUBKEY_B64 value in {}",
+        update_src.display()
+    );
+}
