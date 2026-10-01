@@ -278,3 +278,33 @@ fn keyboard_shortcuts_reach_the_window_and_are_swallowed_by_an_open_dialog() {
         assert!(ui.window.get_show_settings());
     });
 }
+
+#[test]
+fn ctrl_a_and_ctrl_f_reach_the_list_and_the_search_box() {
+    with_ui(|ui| {
+        ui.seed(vec![
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(2, "beta.bin", DownloadState::Downloading, 10, 100),
+        ]);
+
+        // Neither shortcut may be preceded by a click: it would hand the focus to
+        // a field and the key would never reach the root `FocusScope` (see the
+        // module docs).
+        ui.press_keys(&[Key::Control.into(), 'a']);
+        assert_eq!(
+            ui.window.get_selected_count(),
+            2,
+            "Ctrl+A must select the rows the current filter shows"
+        );
+
+        ui.window.invoke_clear_selection();
+        assert_eq!(ui.window.get_selected_count(), 0);
+
+        // Ctrl+F focuses the search box; what is typed next has to land there and
+        // go through `search_changed`, or the list would silently ignore it.
+        ui.press_keys(&[Key::Control.into(), 'f']);
+        ui.type_text("beta");
+        assert_eq!(ui.window.get_search_query().as_str(), "beta");
+        assert_eq!(ui.visible_rows(), 1, "the focused search box filters");
+    });
+}

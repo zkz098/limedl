@@ -109,7 +109,8 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 场景文件：`shell.rs`（工具栏/对话框/Esc 层级/快捷键）、`list.rs`（列表、选择、批量栏、右键菜单、
 表格列）、`labs.rs`（重写规则编辑器、CDN 内联校验）、`settings.rs`（限速计划、设置对话框）、
 `new_task.rs`（重置契约、批量计数、torrent 预选）、`inspector.rs`、`toast.rs`、`layout.rs`（几何
-不变量）、`async_contracts.rs`（需要事件循环的那一批）。
+不变量，含两条已知缺陷的 characterization）、`async_contracts.rs`（需要事件循环的那一批：爆炸半径、
+破坏性热键 `Delete`/`Shift+Delete`/`Space`、失败回滚、新建任务的提交载荷）。
 
 两种 fixture，选错会直接报错：
 
@@ -140,6 +141,12 @@ event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_m
 - **断言爆炸半径**，不只看属性：`TestUi::core`（`RecordingBackend`）记录了 UI 对引擎的每一次调用，
   `assert_eq!(ui.core.purges(), vec![…])` 才能区分“删了记录”与“删了文件”。它注册在 `TaskKind::Http`
   上，种子任务必须用 `http_task(n, …)`（合法 UUID，否则 `TaskAction` 静默跳过）。
+- **提交载荷断言 `ui.core.starts()`**：`CoreCall::Start` 带一份 `StartCall`（url/dir/file_name/
+  checksum/expected_checksum/selected_file_indices），是“表单收集到的东西真的变成了
+  `StartDownloadRequest`”的唯一抓手。两点注意：`start()` 返回**合成的 Ok id**（成功路径要关对话框、清
+  URL、弹 toast），而其余 mutation 故意返回 `NotFound`（失败回滚靠它）；`.torrent` / `magnet:` 会被
+  `Dispatcher::start` 归类为 BT、送到未注册的后端，载荷测试要用 http URL（选文件列表是由
+  `preview_state` + ctx 缓存驱动的，与 URL 无关）。
 - **断言助手**：`assert_inside_window`（附带 `id_tree()` 便于定位失败）、`assert_min_size`、
   `assert_no_overlap`、`assert_toast`/`toasts`/`dismiss_toast`、`bounds`/`window_logical_size`。
 - **窗口与 DPI**：`set_window_size` 用逻辑像素；逻辑窗口尺寸要读**根元素**（`window_logical_size()` 内部
@@ -150,6 +157,10 @@ event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_m
   这两个 helper 是自己用公开的 `Window::dispatch_event` 实现的：crate 的 `internal` feature **无法编译**
   （`configure_test_fonts` 用 `include_dir!` 引了一个只存在于 Slint 源码仓库的路径），所以进程内
   **没有**截图 / `take_debug_log` / `set_locale`——像素与调试日志继续走 L2/MCP。
+- **点对话框里的控件有两个坑**：打开新建任务对话框会 spawn 一个系统剪贴板预填（它只填空的 URL 字段，
+  但宿主机剪贴板内容不可控）——先在断言前 `pump` 排空它；`NewTaskDialog::modal` 的高度有 200ms 动画
+  （470 ↔ 600px），状态翻转后立刻点击底部按钮会因按压/抬起的坐标跨越移动中的页脚而被丢弃，需先
+  `pump` 到动画结束。
 - **输入框类控件不能用 `set_accessible_value`**：`accessible-action-set-value` 是需要 .slint 显式声明的
   回调，app 自写的 `SearchInput` 没声明（只有 std-widgets 的 `LineEdit` 有），所以 `TestUi::search()`
   是“点入焦点 + `type_text`”。

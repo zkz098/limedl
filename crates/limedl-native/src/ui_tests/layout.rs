@@ -130,6 +130,22 @@ fn dialogs_fit_the_window_at_the_minimum_size() {
         ui.window.set_show_setup_wizard(true);
         assert_dialog_fits(ui, "SetupWizard::modal", "SetupWizard::next_btn");
         ui.window.set_show_setup_wizard(false);
+
+        // Known issue, found by the submit-payload test in `async_contracts.rs`:
+        // the expanded torrent list makes this dialog taller than the declared
+        // minimum height, which pushes its footer out of the window — the dialog
+        // has no ScrollView, so "Start Download" becomes unreachable. Pinned as a
+        // characterization so the fix (a scroll area, or a shorter list) fails
+        // here and gets this contract updated with it.
+        ui.click("MainWindow::ta_new_task");
+        ui.window.set_new_task_preview_state("ready".into());
+        let (_, button_y, _, button_height) = ui.bounds("NewTaskDialog::submit_btn");
+        assert!(
+            button_y + button_height > 660.0,
+            "the new-task dialog now fits the minimum height with the torrent list open — \
+             drop this characterization and assert its footer inside the window like the rest"
+        );
+        ui.click("NewTaskDialog::close_btn");
     });
 }
 

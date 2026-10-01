@@ -123,11 +123,12 @@ cargo clippy -p limedl-native --all-targets -- -D warnings
 ```
 
 - **Slint 编译期校验**（`build.rs` → `slint-build`）捕获 `.slint` 语法/类型/图标路径错误。
-- **进程内 UI 测试**（`src/ui_tests/`，详见 `.opencode/guides/testing-guide.md`）：真实窗口 + 真实回调，覆盖工具栏/对话框开关、Esc 层级、快捷键守卫、列表选择与批量栏、右键菜单、表格列、重写规则编辑器、限速计划、新建任务重置契约、toast 队列、几何不变量，以及“删除记录 vs 删除文件”这类爆炸半径断言。它们按 `.slint` 的 `id:` 找元素，**所以 `id:` 是测试契约的一部分**（重命名要同步改测试）：新增交互控件时顺手给个 snake_case 的 `id:`。
+- **进程内 UI 测试**（`src/ui_tests/`，详见 `.opencode/guides/testing-guide.md`）：真实窗口 + 真实回调，覆盖工具栏/对话框开关、Esc 层级、快捷键（Ctrl+N/A/F）与快捷键守卫、列表选择与批量栏、右键菜单、表格列、重写规则编辑器、限速计划、新建任务重置契约与**提交载荷**、toast 队列、几何不变量，以及“删除记录 vs 删除文件”这类爆炸半径断言（含 `Delete`/`Shift+Delete`/`Space` 热键与失败回滚）。它们按 `.slint` 的 `id:` 找元素，**所以 `id:` 是测试契约的一部分**（重命名要同步改测试）：新增交互控件时顺手给个 snake_case 的 `id:`。
 - **测试抓到过的真实 bug**（新增用例时就往这些方向看）：
   - `handle_key_escape` 所在 `FocusScope` 的“对话框打开就拦下快捷键”是裸 `if … { reject }`，值被丢弃 ⇒ Ctrl+A / Space / Delete 会作用到模态**背后**的列表（Delete 会删选中项）。现在它是 `else if` 链的一环。
   - 表格列头点击调用 `set_sort_field`，它不重置方向 ⇒ 换列可能变成降序，与注释承诺的“新列升序”不符。现在用 `apply_sort(field, true)`。
   - 已知遗留：窗口在 `min-width`（1000px）下工具栏溢出行右边界，`ta_new_task` 被裁掉约 18px（中文标签；英文更宽）。`layout.rs` 里有一条 characterization 断言钉住了它——修好（抬 `min-width` 或让该行换行/滚动）会让那条断言失败，提醒同步契约。
+  - 已知遗留：新建任务对话框的 modal 高度是**固定**的（`preview_state == "ready"` 时 600px），而展开 torrent 文件列表后的内容高约 656px，页脚被推出 modal（且对话框没有 ScrollView）⇒ 选中 torrent 文件后“Start Download”可能点不到。同样是 `layout.rs` 的 characterization；写提交载荷测试时需把窗口调高并等动画结束才能点到按钮。
 - 断言可以读到的几何来自布局（无渲染器也是真实字体度量），但**没有进程内截图**：testing crate 的 `internal` feature 在 crates.io 上无法编译（见 testing-guide）。像素与视觉回归仍走 L2/MCP 的 `take_screenshot`。
 
 ## 手动冒烟
