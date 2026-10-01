@@ -94,7 +94,15 @@ async fn rpc_call(
 #[timeout(60_000)]
 async fn aria2_add_uri_lifecycle_and_dedup() {
     let test_server = crate::test_harness::TestServer::new(1024 * 1024).await;
-    let file_url = test_server.file_url();
+    // Throttled on purpose. `aria2.addUri` only dedups against a *non-terminal*
+    // download (`find_active_by_url`, manager.rs), and this test relies on the
+    // task it just added still being around several RPC round-trips later: test 4
+    // expects it in tellActive/tellWaiting, test 6 expects the same GID back.
+    // Over the plain `/file` endpoint the 1 MiB loopback transfer finished in
+    // milliseconds — i.e. between two of those calls — so the test raced its own
+    // fixture and failed on whichever assertion happened to land after the
+    // download completed. 16 KiB/s leaves ~65s of headroom for the whole body.
+    let file_url = test_server.file_url_bandwidth(16 * 1024);
 
     let (rpc_url, shutdown_tx, _tmp, _event_bus) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -215,6 +223,23 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
     );
 
     // ── Test 6: Dedup — same URL twice returns same GID ──
+    // Spell the fixture invariant out rather than assuming it: if the download
+    // ever reaches a terminal state before this point, dedup is *supposed* to
+    // hand back a new GID, and the failure below would blame the product instead
+    // of the fixture.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid]),
+    )
+    .await;
+    let state = resp["result"]["status"].as_str().unwrap_or("<missing>");
+    assert!(
+        matches!(state, "active" | "waiting" | "paused"),
+        "fixture must keep the download non-terminal for the dedup check, got status={state}"
+    );
+
     let resp2 = rpc_call(
         &client,
         &rpc_url,
