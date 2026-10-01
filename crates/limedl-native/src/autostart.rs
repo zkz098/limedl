@@ -121,7 +121,11 @@ mod windows_impl {
 
     fn get_startup_task() -> anyhow::Result<windows::ApplicationModel::StartupTask> {
         use windows::ApplicationModel::StartupTask;
-        let tasks = StartupTask::GetForCurrentPackageAsync()?.get()?;
+        // `join()` is windows-future 0.3's blocking wait; 0.2's `get()` is gone
+        // (the trait method it wrapped is no longer exported). Both WinRT calls
+        // below are package-scoped lookups that complete immediately in
+        // practice, so blocking here stays as cheap as it was.
+        let tasks = StartupTask::GetForCurrentPackageAsync()?.join()?;
         let count = tasks.Size()?;
         for i in 0..count {
             let task = tasks.GetAt(i)?;
@@ -150,7 +154,7 @@ mod windows_impl {
                 "startup was disabled by the user in Task Manager; re-enable it from system settings"
             ),
             _ => {
-                let new_state = task.RequestEnableAsync()?.get()?;
+                let new_state = task.RequestEnableAsync()?.join()?;
                 if matches!(
                     new_state,
                     StartupTaskState::Enabled | StartupTaskState::EnabledByPolicy

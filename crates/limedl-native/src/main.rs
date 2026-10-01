@@ -17,6 +17,7 @@ mod platform_adapter;
 mod platform_win;
 mod power;
 mod protocol;
+mod renderer;
 mod settings_sync;
 mod single_instance;
 mod task_ops;
@@ -91,7 +92,10 @@ async fn main() -> anyhow::Result<()> {
 
     limedl_core::init_logging(&initial_settings.logging, &state_dir)
         .with_context(|| "初始化日志失败")?;
-    tracing::info!("启动 limedl Native 桌面客户端 (Skia)...");
+    tracing::info!(
+        "启动 limedl Native 桌面客户端 ({})...",
+        renderer::NAME
+    );
 
     if let Some(report) = migration_report.as_ref() {
         tracing::info!(

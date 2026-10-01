@@ -608,8 +608,8 @@ msgstr "Target Arch & Graphics:"
 msgid "Core Technology Stack:"
 msgstr "Core Technology Stack:"
 
-msgid "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
-msgstr "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
+msgid "Rust Edition 2024 / Slint Native UI / {} HW Acceleration / Tokio Async Runtime"
+msgstr "Rust Edition 2024 / Slint Native UI / {} HW Acceleration / Tokio Async Runtime"
 
 msgid "License:"
 msgstr "License:"

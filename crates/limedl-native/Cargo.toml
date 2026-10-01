@@ -15,7 +15,6 @@ limedl-core = { path = "../limedl-core", features = ["aria2-rpc"] }
 slint = { workspace = true, features = [
   "std",
   "backend-default",
-  "renderer-skia",
   "accessibility",
   "compat-1-2",
   "raw-window-handle-06",
@@ -102,7 +101,7 @@ winres = "0.1"
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
 zip = { version = "8", default-features = false, features = ["deflate"] }
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
   "Foundation",
   "ApplicationModel",
   "Services_Store",
@@ -116,10 +115,18 @@ windows = { version = "0.61", features = [
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
-# windows 0.61 disables windows-future's `std` feature, which is where the
-# Future/IntoFuture impls for IAsyncOperation live — re-enable it so the Store
-# updater can await async WinRT calls instead of blocking the UI thread.
-windows-future = { version = "0.2", default-features = false, features = ["std"] }
+# The `windows` crate disables windows-future's `std` feature, which is where
+# the Future/IntoFuture impls for IAsyncOperation live — re-enable it so the
+# Store updater can await async WinRT calls instead of blocking the UI thread.
+#
+# 0.62 / windows-future 0.3 is not a refresh for its own sake: `wgpu-hal` (the
+# `renderer-femtovg-wgpu` build) requires `windows` 0.62, while `gpu-allocator`
+# accepts `>=0.53, <=0.62` and Cargo reuses whichever copy is already in the
+# graph. Pinning 0.61 here made that reuse pick 0.61 for `gpu-allocator` too, so
+# its `ID3D12Device` was a *different type* from the one wgpu-hal passes in
+# (E0308 inside wgpu-hal). One `windows` version for the whole graph is what
+# fixes it.
+windows-future = { version = "0.3", default-features = false, features = ["std"] }
 
 [target.'cfg(not(windows))'.dependencies]
 flate2 = "1"
@@ -148,6 +155,30 @@ i-slint-backend-testing = { workspace = true }
 async-trait = { workspace = true }
 
 [features]
+# ── Graphics renderer: exactly one ──────────────────────────────────────────
+# Slint's renderer is a compile-time choice — the backend selector can only use
+# a renderer that was compiled in, so "which renderer" is a Cargo feature here,
+# not an env var. `renderer-skia` is the shipped default; the two FemtoVG
+# variants exist to A/B the rasterizer against it:
+#
+#   cargo run -p limedl-native --no-default-features --features renderer-femtovg
+#   cargo run -p limedl-native --no-default-features --features renderer-femtovg-wgpu
+#
+# `src/renderer.rs` fails the build when zero or several are enabled: compiled
+# together they are not a runtime choice (Slint silently prefers Skia >
+# FemtoVG/wgpu > FemtoVG/GL), and the About tab's renderer label is derived from
+# the single enabled feature, so a second one would make the label describe a
+# rasterizer that may not be the active one.
+default = ["renderer-skia"]
+renderer-skia = ["slint/renderer-skia"]
+# FemtoVG on OpenGL (glutin). No extra build-time dependency; at runtime it needs
+# a working GL driver (a bare RDP/VM session without one fails at startup).
+renderer-femtovg = ["slint/renderer-femtovg"]
+# FemtoVG on wgpu (D3D12/Metal/Vulkan). `unstable-wgpu-29` is what pins the wgpu
+# version Slint 1.17 accepts; the FemtoVG renderer wires up 29 only, so 28 is
+# not an option here.
+renderer-femtovg-wgpu = ["slint/renderer-femtovg-wgpu", "slint/unstable-wgpu-29"]
+
 # Debug-only Skia hinting/font-rendering repro (tests/skia_hint_repro.rs). It
 # writes comparison PNGs to the temp dir, asserts nothing useful in CI and pulls
 # an extra skia-safe build, so it is opt-in:

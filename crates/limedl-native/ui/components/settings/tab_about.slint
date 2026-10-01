@@ -94,7 +94,7 @@ export component SettingsTabAbout inherits ScrollView {
                 }
                 HorizontalLayout {
                     Text { width: 140px; text: @tr("Core Technology Stack:"); color: #6b7280; font-size: 12px; }
-                    Text { text: @tr("Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"); color: Theme.c9ca3af; font-size: 12px; }
+                    Text { text: @tr("Rust Edition 2024 / Slint Native UI / {} HW Acceleration / Tokio Async Runtime", root.settings_form.graphics_renderer); color: Theme.c9ca3af; font-size: 12px; }
                 }
                 HorizontalLayout {
                     Text { width: 140px; text: @tr("License:"); color: #6b7280; font-size: 12px; }

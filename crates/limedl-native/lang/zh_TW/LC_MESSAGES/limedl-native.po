@@ -608,8 +608,8 @@ msgstr "目標架構與圖形棧:"
 msgid "Core Technology Stack:"
 msgstr "核心技術棧:"
 
-msgid "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
-msgstr "Rust Edition 2024 / Slint Native UI / Skia 硬體加速 / Tokio 非同步執行時"
+msgid "Rust Edition 2024 / Slint Native UI / {} HW Acceleration / Tokio Async Runtime"
+msgstr "Rust Edition 2024 / Slint Native UI / {} 硬體加速 / Tokio 非同步執行時"
 
 msgid "License:"
 msgstr "開源協議:"

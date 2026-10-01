@@ -287,7 +287,10 @@ pub fn app_settings_to_form(
         arch_info: SharedString::from(i18n::format_platform_description(
             &crate::platform_win::os_description(),
             std::env::consts::ARCH,
-            "Skia",
+            crate::renderer::NAME,
         )),
+        // Interpolated into the `@tr` core-tech line, so the label follows the
+        // `renderer-*` feature this binary was built with (`src/renderer.rs`).
+        graphics_renderer: SharedString::from(crate::renderer::NAME),
     }
 }

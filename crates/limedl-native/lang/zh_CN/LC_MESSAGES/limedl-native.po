@@ -608,8 +608,8 @@ msgstr "目标架构与图形栈:"
 msgid "Core Technology Stack:"
 msgstr "核心技术栈:"
 
-msgid "Rust Edition 2024 / Slint Native UI / Skia HW Acceleration / Tokio Async Runtime"
-msgstr "Rust Edition 2024 / Slint Native UI / Skia 硬件加速 / Tokio 异步运行时"
+msgid "Rust Edition 2024 / Slint Native UI / {} HW Acceleration / Tokio Async Runtime"
+msgstr "Rust Edition 2024 / Slint Native UI / {} 硬件加速 / Tokio 异步运行时"
 
 msgid "License:"
 msgstr "开源协议:"
