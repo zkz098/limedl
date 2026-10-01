@@ -56,6 +56,8 @@ UI 事件（callback）
 - **一个回调一个函数**：`register()` 只做编排（各子模块的 `register` 列表）；跨回调共享的流程（如批量删除、torrent 预览、校验和探测、CDN 应用节点）必须提成命名函数，历史上它们曾以 2–4 份拷贝散在同一个 800 行函数里。
 - **保存设置的副作用走 `settings_sync.rs`**：自启同步、Aria2 RPC 热重载、推设置到 UI（语言/托盘/外观/默认目录）只有一份实现，设置对话框与首启向导共用；新增“保存后要做的事”请加在这里，不要在两处各写一遍。
 - **新属性/新列**：视图偏好（`compactView`、`visibleColumns`、`sortKey`、`sortDirection`）持久化在 `AppSettings.appearance`；列 key 使用 Web 端同一套字符串（`file/size/downloaded/status/progress/speed/priority/uploadSpeed/seeds/eta`），保证 settings.json 两端互通。`file` 列始终可见。
+- **破坏性动作两段式，且关闭对话框就解除武装**：关于页的 “Factory Reset” 用 `reset_confirm` 做二次确认，该属性挂在 `MainWindow`（不是对话框）上，并在 `on_close_settings` 与 `settings_sync::push_ui(close_settings)` 里重置。只靠 Cancel/Confirm 清除的话，Escape 关掉再打开会直接停在 “Confirm Reset” 上，离清空数据目录只差一次点击（`ui_tests/async_contracts/dialogs.rs` 钉住这个生命周期）。
+- **自定义控件声明 a11y**：`ToggleSwitch`、`PrimaryButton`/`SecondaryButton`/`DangerButton` 都写了 `accessible-role` + `accessible-label`/`accessible-enabled`（`Text` 的 `accessible-label` 默认就是它的 `text`）。这既是屏幕阅读器需要的，也是 L1 测试读“用户看到什么”（文案、禁用态）的唯一抓手。
 - **任务优先级**：`Priority::{High,Normal,Low}` ↔ `"high"/"normal"/"low"`；表格徽标点击或右键菜单“Set Priority”打开 `PriorityMenu`，经 `Dispatcher::set_priority` 落库。
 - **数据目录**：默认 `%LOCALAPPDATA%\limedl`（macOS/Linux 同规范），可用 `LIMEDL_DATA_DIR` 覆盖（与 `limedl-server` 一致，便于隔离测试）。首次启动会从 Tauri 的 `com.zkz20.limedl` 目录迁移 `settings.json`。
 - **窗口钩子安装时机**：Slint 的 OS 窗口在事件循环启动后才存在，`platform_win::try_install_window_hooks` 必须由 UI 线程定时器重试挂载（一次性调用会静默失败，导致拖拽与磁链 IPC 失效）。

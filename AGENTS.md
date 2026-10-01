@@ -112,10 +112,12 @@ backend: element queries by `.slint` id, simulated clicks and key presses, no wi
   so many tests share a process. Assertions must be **synchronous** — timers never fire
   and `invoke_from_event_loop` is dropped.
 - `with_ui_async` + `TestUi::pump_until` / `pump`: for contracts that finish on a spawned
-  task (batch actions, the engine calls behind the destructive buttons, a rejected save).
-  Slint's event-loop proxy is process-global, so **every** pump-based scenario has to live
-  inside the single `async_contracts::event_loop_contracts` test, each with its own
-  `new_window()`; add an `async fn scenario_*` there instead of a new `#[test]`.
+  task (batch actions, the engine calls behind the destructive buttons, a rejected save, the
+  `DownloadEvent` subscriber). Slint's event-loop proxy is process-global, so **every**
+  pump-based scenario has to live inside the single `async_contracts::event_loop_contracts`
+  test, each with its own `new_window()`. Add a `pub(super) async fn` to the matching
+  `src/ui_tests/async_contracts/<group>.rs` (`bus`, `selection`, `hotkeys`, `rows`,
+  `new_task`, `toolbar`, `dialogs`) and call it from that test — never a new `#[test]`.
 
 Rules that are load-bearing — each one cost a debugging session:
 
@@ -132,7 +134,17 @@ Rules that are load-bearing — each one cost a debugging session:
   `created_at_ms` chosen so row `n` is task `n` under the default newest-first sort).
 - Helpers worth knowing: `assert_inside_window` (dumps the id tree on failure),
   `assert_min_size`, `assert_no_overlap`, `assert_toast`, `window_logical_size` (read from
-  the root element — see the method's doc for why `Window::size()/scale_factor()` is wrong).
+  the root element — see the method's doc for why `Window::size()/scale_factor()` is wrong),
+  `shift_click_nth` (pointer events take their modifiers from the held modifier keys, so
+  this is the real range gesture).
+- **Clipped means absent**: an element whose geometry falls outside its clip rect is not
+  visible, and queries skip it — so a control below the fold of a scrolling tab (the About
+  tab's danger zone) has to be scrolled into view first (`WindowEvent::PointerScrolled` +
+  `pump`, the Flickable animates). The testing window is 800x600 by default.
+- Text and enabled state are readable through the accessibility properties: `Text` already
+  announces its `text`, and the shared `PrimaryButton`/`SecondaryButton`/`DangerButton`
+  declare `accessible-role` + label/enabled, so `accessible_label()` /
+  `accessible_enabled()` assert what the user actually sees.
 - Key presses come from the fixture, not from the crate: the published
   `i-slint-backend-testing` cannot compile its `internal` feature (its font path only
   exists in the Slint workspace), which also means no in-process screenshots — pixels stay

@@ -106,13 +106,16 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 无 display，因此没有字体/DPI 平台的 flaky。覆盖的是 `bridge/` 单测看不到的那一段：按钮接错回调、
 对话框的 `is_open` 没人写、属性绑定写错，以及**操作的爆炸半径**（删记录还是连文件一起删）。
 
-场景文件：`shell.rs`（工具栏/对话框/Esc 层级/快捷键）、`list.rs`（列表、选择、批量栏、右键菜单、
-表格列）、`labs.rs`（重写规则编辑器、CDN 内联校验）、`settings.rs`（限速计划、设置对话框）、
-`new_task.rs`（重置契约、批量计数、torrent 预选）、`inspector.rs`、`toast.rs`、`layout.rs`（几何
-不变量 + 英文标签下的同一套）、`async_contracts.rs`（需要
-事件循环的那一批：爆炸半径、破坏性热键 `Delete`/`Shift+Delete`/`Space`、失败回滚、新建任务提交载荷、
-筛选下的全选与批量删除、表格/卡片行内按钮、`Pause All`/`Resume All`/`Clear Completed`、双击行为、
-设置与实验室的保存成功路径、首次运行向导）。
+场景文件：`shell.rs`（工具栏/对话框/Esc 层级/快捷键/向导外观实时预览）、`list.rs`（列表、选择、
+shift 范围选择、批量栏、右键菜单、表格列）、`labs.rs`（重写规则编辑器、CDN 内联校验）、
+`settings.rs`（限速计划、设置对话框）、`new_task.rs`（重置契约、批量计数、torrent 预选）、
+`inspector.rs`、`toast.rs`、`layout.rs`（几何不变量 + 英文标签下的同一套）、`updater.rs`（关于页的
+更新相位/安装渠道渲染）。需要事件循环的那一批在 `async_contracts/` 目录里按界面分组：
+`bus.rs`（引擎 → 窗口：`DownloadEvent` 订阅者 + 周期重同步）、`selection.rs`（爆炸半径、批量、
+remove/purge、失败回滚）、`hotkeys.rs`（`Delete`/`Shift+Delete`/`Space` + 模态吞键）、`rows.rs`
+（卡片/表格行内按钮、双击行为）、`new_task.rs`（提交载荷 + 深链/magnet/拖入/批量等外部入口）、
+`toolbar.rs`（`Pause All`/`Resume All`/`Clear Completed`）、`dialogs.rs`（设置/实验室/向导保存成功与
+拒绝、工厂重置确认门）。
 
 两种 fixture，选错会直接报错：
 
@@ -127,7 +130,8 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 - `with_ui_async` + `TestUi::pump_until` / `pump`：需要“回调里 spawn 的后台结果”时用。Slint 的
 event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_mock_time()` 一个进程只能装一次
   —— 所有这类场景必须在**同一个** `#[test]`（`async_contracts::event_loop_contracts`）里，每个场景用
-  `new_window()` 拿自己的窗口。新增场景就加个 `async fn scenario_*(…)` 并列进去，不要新开 `#[test]`。
+  `new_window()` 拿自己的窗口。新增场景 = 在 `async_contracts/` 对应的分组文件加一个 `pub(super) async fn`，
+  再在 `mod.rs` 的 `event_loop_contracts` 调用列表里加一行；不要新开 `#[test]`。
   一次 pump 轮次 = 推进 mock 时钟 → 让 tokio 跑 spawned 任务 → 跑 Slint 事件循环排空队列；`pump_until`
   有轮次上限，不收敛就失败（不会挂死 CI）。
 
@@ -164,6 +168,18 @@ event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_m
   这两个 helper 是自己用公开的 `Window::dispatch_event` 实现的：crate 的 `internal` feature **无法编译**
   （`configure_test_fonts` 用 `include_dir!` 引了一个只存在于 Slint 源码仓库的路径），所以进程内
   **没有**截图 / `take_debug_log` / `set_locale`——像素与调试日志继续走 L2/MCP。
+- **裁剪 = 不在元素树里**：`is_visible()` 在元素几何完全落在裁剪矩形外时为 false，元素查询会跳过它。
+  所以靠下的控件要先滚进视野（关于页是 `ScrollView`，危险区在最底部）：往 `SettingsDialog::modal`
+  中间派发 `WindowEvent::PointerScrolled`（`delta_y` 负值向下）再 `pump`（Flickable 的滚轮滚动是动画）
+  ——见 `async_contracts/dialogs.rs` 的 `scroll_danger_zone_into_view`。同一原因：testing backend 的窗口
+  默认 **800x600**，要整页可见先 `set_window_size(1100, 1600)`（设置对话框最高 820px）。
+- **读文本/启用态用 a11y**：`Text` 默认带 `accessible-role: text` + `accessible-label: text`，共享的
+  `PrimaryButton`/`SecondaryButton`/`DangerButton` 也声明了 `accessible-role`/label/enabled，所以
+  `ui.find(id).accessible_label()/accessible_enabled()` 是“用户看到什么”的断言口（`updater.rs` 用它钉住
+  相位 → 文案/按钮矩阵）。`accessible-action-set-value` 仍不可用（见下）。
+- **修饰键点击**：指针事件本身不带 modifiers，core 用**当前按住的修饰键**填 `PointerEvent.modifiers`，
+  所以 `TestUi::shift_click_nth`（按下 Shift → 点击 → 抬起）就是真实的 shift 范围选择，
+  `mock_single_click` 表达不了。
 - **点对话框里的控件有两个坑**：打开新建任务对话框会 spawn 一个系统剪贴板预填（它只填空的 URL 字段，
   但宿主机剪贴板内容不可控）——先在断言前 `pump` 排空它；`NewTaskDialog::modal` 的高度有 200ms 动画
   （470 ↔ 600px），状态翻转后立刻点击底部按钮会因按压/抬起的坐标跨越移动中的页脚而被丢弃，需先
