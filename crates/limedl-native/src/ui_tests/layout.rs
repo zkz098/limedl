@@ -72,6 +72,72 @@ fn the_chrome_fits_the_window_at_the_default_and_the_minimum_size() {
     });
 }
 
+/// The same invariants under English, which is where the labels actually grow.
+///
+/// Every other test runs under the fixture's zh-CN, so the wider English catalogs
+/// — the reason this file pins geometry at all ("the settings tab row already
+/// overflowed once") — were never laid out. `select_bundled_translation` is
+/// process-global, so the language is put back before returning for the sibling
+/// tests that share the process.
+#[test]
+fn the_layout_survives_the_english_labels() {
+    with_language(Language::EnUs, |ui| {
+        ui.set_window_size(1280.0, 800.0);
+        for id in CHROME {
+            ui.assert_inside_window(id);
+        }
+        ui.assert_min_size(CHROME, 16.0);
+
+        ui.click("MainWindow::ta_set");
+        assert_dialog_fits(ui, "SettingsDialog::modal", "SettingsDialog::save_btn");
+        ui.click("SettingsDialog::close_btn");
+
+        ui.click("MainWindow::ta_lab");
+        assert_dialog_fits(ui, "LabsDialog::modal", "LabsDialog::save_labs_btn");
+        ui.click("LabsDialog::close_btn");
+
+        ui.click("MainWindow::ta_new_task");
+        assert_dialog_fits(ui, "NewTaskDialog::modal", "NewTaskDialog::submit_btn");
+        ui.click("NewTaskDialog::close_btn");
+
+        ui.seed(vec![http_task(
+            1,
+            "alpha.bin",
+            DownloadState::Downloading,
+            10,
+            100,
+        )]);
+        ui.window.invoke_open_inspector(http_wire(1).into());
+        assert_dialog_fits(ui, "TaskInspector::panel", "TaskInspector::close_btn");
+        ui.window.invoke_close_inspector();
+
+        ui.window.invoke_open_speed_limit_dialog();
+        assert_dialog_fits(
+            ui,
+            "SpeedLimitDialog::modal",
+            "SpeedLimitDialog::submit_btn",
+        );
+        ui.window.invoke_close_speed_limit_dialog();
+
+        // The table's columns are label-driven too, and a longer English header
+        // must not push a column past the window edge.
+        ui.set_window_size(1600.0, 900.0);
+        ui.click("MainWindow::btn_view_mode");
+        for id in [
+            "TaskTable::hdr_file",
+            "TaskTable::hdr_size",
+            "TaskTable::hdr_status",
+            "TaskTable::hdr_progress",
+            "TaskTable::hdr_speed",
+            "TaskTable::hdr_eta",
+        ] {
+            ui.assert_inside_window(id);
+        }
+
+        crate::i18n::apply_translation(Language::ZhCn);
+    });
+}
+
 /// A dialog fits when its modal box fits *and* its primary action is inside the
 /// modal: the footer is where a long label overflows first.
 fn assert_dialog_fits(ui: &TestUi, modal: &str, primary: &str) {
@@ -146,6 +212,29 @@ fn dialogs_fit_the_window_at_the_minimum_size() {
              drop this characterization and assert its footer inside the window like the rest"
         );
         ui.click("NewTaskDialog::close_btn");
+
+        // Known issue, found while testing the wizard's language cards: three
+        // 50%-wide cards in one row need 150% of the modal, so the `en-US` card —
+        // the one that switches the whole UI to English — always overflows it and
+        // cannot be clicked at any window size. Pinned as a characterization so the
+        // fix (wrapping the row, or a narrower card) fails here and gets the
+        // contract updated with it.
+        ui.window.set_setup_start_step(1);
+        ui.window.set_show_setup_wizard(true);
+        let english = ui
+            .find_all("LanguageCard::ta")
+            .pop()
+            .expect("three language cards");
+        let card_left = english.absolute_position().x;
+        let card_width = english.size().width;
+        let (modal_x, _, modal_width, _) = ui.bounds("SetupWizard::modal");
+        assert!(
+            card_left + card_width > modal_x + modal_width,
+            "the wizard's language cards now fit the modal — drop this characterization and click \
+             the en-US card in the wizard scenario of `async_contracts.rs`"
+        );
+        ui.window.set_show_setup_wizard(false);
+        ui.window.set_setup_start_step(0);
     });
 }
 

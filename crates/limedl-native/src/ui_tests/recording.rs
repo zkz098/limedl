@@ -48,6 +48,13 @@ pub(crate) enum CoreCall {
     /// Drops the task **and** deletes the file on disk.
     Purge(String),
     OpenInExplorer(String),
+    /// Open the downloaded file with the OS default handler. Separate from
+    /// [`CoreCall::OpenInExplorer`] only because the double-click behavior picks
+    /// between them (the trait's default `open_file` would fall back to the
+    /// explorer and hide the difference).
+    OpenFile(String),
+    /// Open the download directory in the file manager.
+    OpenDir(String),
     Status(String),
     SetPriority(String, Priority),
     UpdateSettings,
@@ -107,6 +114,16 @@ impl RecordingBackend {
             .collect()
     }
 
+    /// How many times the UI pushed settings to the engine. The settings *and*
+    /// labs dialogs both save through `Dispatcher::save_settings`, so this is the
+    /// shared evidence that a save really reached the backends.
+    pub fn settings_pushes(&self) -> usize {
+        self.calls()
+            .iter()
+            .filter(|call| matches!(call, CoreCall::UpdateSettings))
+            .count()
+    }
+
     /// Forget the calls recorded so far, so a test can assert on one interaction.
     pub fn clear(&self) {
         self.calls.lock().clear();
@@ -152,6 +169,22 @@ impl RecordingBackend {
     pub fn explorer(&self) -> Vec<String> {
         Self::named(&self.calls(), |call| match call {
             CoreCall::OpenInExplorer(id) => Some(id),
+            _ => None,
+        })
+    }
+
+    /// Files opened with the OS default handler (only `open_file` records this).
+    pub fn files_opened(&self) -> Vec<String> {
+        Self::named(&self.calls(), |call| match call {
+            CoreCall::OpenFile(id) => Some(id),
+            _ => None,
+        })
+    }
+
+    /// Download directories opened in the file manager (only `open_dir` does).
+    pub fn dirs_opened(&self) -> Vec<String> {
+        Self::named(&self.calls(), |call| match call {
+            CoreCall::OpenDir(id) => Some(id),
             _ => None,
         })
     }
@@ -220,6 +253,16 @@ impl DownloadBackend for RecordingBackend {
         self.calls
             .lock()
             .push(CoreCall::OpenInExplorer(wire(task_id)));
+        Ok(())
+    }
+
+    async fn open_file(&self, task_id: &TaskId) -> CoreResult<()> {
+        self.calls.lock().push(CoreCall::OpenFile(wire(task_id)));
+        Ok(())
+    }
+
+    async fn open_dir(&self, task_id: &TaskId) -> CoreResult<()> {
+        self.calls.lock().push(CoreCall::OpenDir(wire(task_id)));
         Ok(())
     }
 

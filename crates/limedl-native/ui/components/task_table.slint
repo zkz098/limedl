@@ -629,23 +629,23 @@ export component TaskTable inherits Rectangle {
                                     spacing: 4px;
                                     alignment: start;
 
-                                    if task.can_pause : IconButton {
+                                    if task.can_pause : ta_pause := IconButton {
                                         icon: @image-url("../assets/icons/pause-line.svg");
                                         clicked => { root.pause_task(task.id); }
                                     }
-                                    if task.can_resume : IconButton {
+                                    if task.can_resume : ta_resume := IconButton {
                                         icon: @image-url("../assets/icons/play-line.svg");
                                         clicked => { root.resume_task(task.id); }
                                     }
-                                    IconButton {
+                                    ta_explorer := IconButton {
                                         icon: @image-url("../assets/icons/folder-open-line.svg");
                                         clicked => { root.open_explorer(task.id); }
                                     }
-                                    IconButton {
+                                    ta_details := IconButton {
                                         icon: @image-url("../assets/icons/information-line.svg");
                                         clicked => { root.open_inspector(task.id); }
                                     }
-                                    IconButton {
+                                    ta_remove := IconButton {
                                         icon: @image-url("../assets/icons/delete-bin-line.svg");
                                         clicked => { root.remove_task(task.id); }
                                     }

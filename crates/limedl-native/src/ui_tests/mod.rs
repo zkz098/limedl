@@ -125,8 +125,29 @@ pub(crate) fn with_ui(body: impl FnOnce(&mut TestUi)) {
 }
 
 /// Build a window whose startup state comes from `settings` — used to assert
-/// that persisted preferences actually reach the UI.
+/// that persisted preferences actually reach the UI. The UI language stays at the
+/// fixture's zh-CN; see [`with_language`].
 pub(crate) fn with_settings(settings: AppSettings, body: impl FnOnce(&mut TestUi)) {
+    with_language_settings(settings, Language::ZhCn, body);
+}
+
+/// Build a window with `language` as the UI language.
+///
+/// `build_ui` applies it through `slint::select_bundled_translation`, i.e. the
+/// `.slint` `@tr` strings really switch — which is the only way to exercise the
+/// layouts with the wider English labels (`layout.rs`). That selection is
+/// **process-global**: every window created after this one re-applies its own
+/// language, and a test that flips it mid-flight must put it back, because
+/// `cargo test` runs sibling tests in one process (nextest does not).
+pub(crate) fn with_language(language: Language, body: impl FnOnce(&mut TestUi)) {
+    with_language_settings(AppSettings::default(), language, body);
+}
+
+fn with_language_settings(
+    settings: AppSettings,
+    language: Language,
+    body: impl FnOnce(&mut TestUi),
+) {
     init_platform();
     // Current-thread runtime: `enter()` makes `tokio::spawn` legal without ever
     // polling the task, so handlers may fire and forget and the assertions stay
@@ -134,7 +155,7 @@ pub(crate) fn with_settings(settings: AppSettings, body: impl FnOnce(&mut TestUi
     let runtime = current_thread_runtime();
     {
         let _entered = runtime.enter();
-        let mut ui = TestUi::new(settings);
+        let mut ui = TestUi::new(settings, language);
         body(&mut ui);
     }
     drop(runtime);
@@ -152,7 +173,7 @@ pub(crate) fn with_ui_async(body: impl AsyncFnOnce(&mut TestUi)) {
     runtime.block_on(async {
         // No `enter()`: `block_on` already provides the runtime context, and
         // entering here would forbid `pump_until` from driving it.
-        let mut ui = TestUi::new(AppSettings::default());
+        let mut ui = TestUi::new(AppSettings::default(), Language::ZhCn);
         body(&mut ui).await;
     });
 }
@@ -160,9 +181,10 @@ pub(crate) fn with_ui_async(body: impl AsyncFnOnce(&mut TestUi)) {
 /// Build another window on the platform this thread already installed.
 ///
 /// The pump-based scenarios share one event loop (one test per process), so they
-/// each ask for their own window to stay independent.
+/// each ask for their own window to stay independent. The language is the
+/// fixture's default, which also restores it for everything that runs afterwards.
 pub(crate) fn new_window() -> TestUi {
-    TestUi::new(AppSettings::default())
+    TestUi::new(AppSettings::default(), Language::ZhCn)
 }
 
 fn current_thread_runtime() -> Runtime {
@@ -188,7 +210,7 @@ pub(crate) struct TestUi {
 }
 
 impl TestUi {
-    fn new(settings: AppSettings) -> Self {
+    fn new(settings: AppSettings, language: Language) -> Self {
         let data_dir = tempfile::tempdir().expect("temp data dir");
         let base_dir = data_dir.path().to_path_buf();
         // Mirrors `main()`: the state directory is `<root>/downloads` and the
@@ -215,7 +237,7 @@ impl TestUi {
             dispatcher,
             event_bus,
             settings,
-            language: Language::ZhCn,
+            language,
             default_download_dir,
             base_dir,
             rpc_shutdown: Arc::new(Mutex::new(None)),

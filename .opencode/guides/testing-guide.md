@@ -109,8 +109,10 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 场景文件：`shell.rs`（工具栏/对话框/Esc 层级/快捷键）、`list.rs`（列表、选择、批量栏、右键菜单、
 表格列）、`labs.rs`（重写规则编辑器、CDN 内联校验）、`settings.rs`（限速计划、设置对话框）、
 `new_task.rs`（重置契约、批量计数、torrent 预选）、`inspector.rs`、`toast.rs`、`layout.rs`（几何
-不变量，含两条已知缺陷的 characterization）、`async_contracts.rs`（需要事件循环的那一批：爆炸半径、
-破坏性热键 `Delete`/`Shift+Delete`/`Space`、失败回滚、新建任务的提交载荷）。
+不变量 + 四条已知缺陷的 characterization + 英文标签下的同一套不变量）、`async_contracts.rs`（需要
+事件循环的那一批：爆炸半径、破坏性热键 `Delete`/`Shift+Delete`/`Space`、失败回滚、新建任务提交载荷、
+筛选下的全选与批量删除、表格/卡片行内按钮、`Pause All`/`Resume All`/`Clear Completed`、双击行为、
+设置与实验室的保存成功路径、首次运行向导）。
 
 两种 fixture，选错会直接报错：
 
@@ -118,6 +120,10 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
   因此一个进程里可以跑任意多个测试（`cargo test` 和 nextest 都可）。**断言必须同步**：timers 不触发、
   `invoke_from_event_loop` 不投递。fixture 会 `enter()` 一个 current-thread runtime 让回调里的
   `tokio::spawn` 不 panic，但从不驱动它。
+- `with_language(Language::EnUs, …)`：同一套窗口，但用英文目录。`build_ui` 通过
+  `slint::select_bundled_translation` 应用它，所以 `@tr` 字符串真的会切换（`layout.rs` 靠这个看英文
+  标签的布局）。该选择是**进程级**的：之后每个新窗口都会重新应用自己的语言，而中途切语言的测试
+  （向导的语言卡片）必须自己切回去——`cargo test` 同进程跑兄弟测试，nextest 不会。
 - `with_ui_async` + `TestUi::pump_until` / `pump`：需要“回调里 spawn 的后台结果”时用。Slint 的
 event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_mock_time()` 一个进程只能装一次
   —— 所有这类场景必须在**同一个** `#[test]`（`async_contracts::event_loop_contracts`）里，每个场景用
@@ -146,7 +152,8 @@ event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_m
   `StartDownloadRequest`”的唯一抓手。两点注意：`start()` 返回**合成的 Ok id**（成功路径要关对话框、清
   URL、弹 toast），而其余 mutation 故意返回 `NotFound`（失败回滚靠它）；`.torrent` / `magnet:` 会被
   `Dispatcher::start` 归类为 BT、送到未注册的后端，载荷测试要用 http URL（选文件列表是由
-  `preview_state` + ctx 缓存驱动的，与 URL 无关）。
+  `preview_state` + ctx 缓存驱动的，与 URL 无关）。设置/实验室/向导的保存走的是同一个
+  `Dispatcher::save_settings`，用 `ui.core.settings_pushes()` 计数。
 - **断言助手**：`assert_inside_window`（附带 `id_tree()` 便于定位失败）、`assert_min_size`、
   `assert_no_overlap`、`assert_toast`/`toasts`/`dismiss_toast`、`bounds`/`window_logical_size`。
 - **窗口与 DPI**：`set_window_size` 用逻辑像素；逻辑窗口尺寸要读**根元素**（`window_logical_size()` 内部
@@ -161,6 +168,9 @@ event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_m
   但宿主机剪贴板内容不可控）——先在断言前 `pump` 排空它；`NewTaskDialog::modal` 的高度有 200ms 动画
   （470 ↔ 600px），状态翻转后立刻点击底部按钮会因按压/抬起的坐标跨越移动中的页脚而被丢弃，需先
   `pump` 到动画结束。
+- **`assert_toast` 要求“恰好一条”**，只适合确定性的单条通知：向导 `finish_setup` 会在路上额外触发
+  `sync_aria2_rpc` 之类的副作用 toast，那里要改成在 `ui.toasts()` 里找那一条 success（见
+  `the_setup_wizard_persists_its_form_and_remembers_where_it_was`）。
 - **输入框类控件不能用 `set_accessible_value`**：`accessible-action-set-value` 是需要 .slint 显式声明的
   回调，app 自写的 `SearchInput` 没声明（只有 std-widgets 的 `LineEdit` 有），所以 `TestUi::search()`
   是“点入焦点 + `type_text`”。
