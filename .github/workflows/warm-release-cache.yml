@@ -70,17 +70,11 @@ jobs:
           key: release-native-windows-x86_64
           add-job-id-key: false
 
-      # limedl-native embeds MiSans VF at compile time; the font is not in git
-      # (MiSans font license) — fetch it from the official source first. Cached so
-      # a transient CDN hiccup cannot break the job (key = pinned font hash).
-      - name: Cache bundled MiSans VF font
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
-          key: misans-vf-${{ runner.os }}-0ddef906
-      - name: Fetch MiSans VF font
-        shell: pwsh
-        run: pwsh scripts/fetch-misans.ps1
+      # limedl-native embeds MiSans VF at compile time and the font is not in
+      # git (MiSans font license) — the shared composite action restores it from
+      # the pinned-hash cache or downloads it. It adds no env vars, so the
+      # rust-cache key above stays byte-identical to release.yml's.
+      - uses: ./.github/actions/fetch-misans
 
       # Same command release.yml runs. Signing/packaging is skipped on purpose:
       # only the compiled artifacts are worth caching.

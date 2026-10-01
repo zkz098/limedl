@@ -30,6 +30,30 @@ permissions:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
+  # MiSans VF font — one fetcher for the whole release.
+  #
+  # The font is embedded at compile time and cannot be committed (MiSans
+  # license). Each platform job used to run its own cache+download pair, so a
+  # cold cache meant three runners hitting Xiaomi's CDN at once and a CDN outage
+  # could fail a tagged release three times over. Fetch once (on the cheapest
+  # runner — the artifact is a plain .ttf, the OS does not matter), then hand it
+  # to the platform jobs.
+  # ═══════════════════════════════════════════════════════════════════════
+  font:
+    name: MiSans VF font
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/fetch-misans
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: misans-vf
+          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
+          retention-days: 1
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
   # Changelog — generate GitHub release notes from Conventional Commits
   # between the previous tag and the released tag (via git-cliff + cliff.toml).
   # The body is exposed as a job output consumed by the upload steps below.
@@ -89,7 +113,7 @@ jobs:
   build-native:
     name: Desktop app (windows-x86_64)
     runs-on: windows-latest
-    needs: changelog
+    needs: [changelog, font]
     permissions:
       contents: write
     env:
@@ -141,14 +165,14 @@ jobs:
           add-job-id-key: false
 
       # ── MiSans VF (embedded at compile time; not in git) ─────────────
-      - name: Cache bundled MiSans VF font
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Restore bundled MiSans VF font
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
-          key: misans-vf-${{ runner.os }}-0ddef906
-      - name: Fetch MiSans VF font
-        shell: pwsh
-        run: pwsh scripts/fetch-misans.ps1
+          name: misans-vf
+          path: crates/limedl-native/assets/fonts/
+      - uses: ./.github/actions/fetch-misans
+        with:
+          mode: verify
 
       - name: Build limedl-native
         shell: pwsh
@@ -303,7 +327,7 @@ jobs:
   build-native-macos:
     name: Desktop app (darwin-aarch64)
     runs-on: macos-latest
-    needs: changelog
+    needs: [changelog, font]
     permissions:
       contents: write
     steps:
@@ -330,14 +354,14 @@ jobs:
           add-job-id-key: false
 
       # ── MiSans VF (embedded at compile time; not in git) ──────────────
-      - name: Cache bundled MiSans VF font
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Restore bundled MiSans VF font
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
-          key: misans-vf-darwin-aarch64-0ddef906
-      - name: Fetch MiSans VF font
-        shell: pwsh
-        run: pwsh scripts/fetch-misans.ps1
+          name: misans-vf
+          path: crates/limedl-native/assets/fonts/
+      - uses: ./.github/actions/fetch-misans
+        with:
+          mode: verify
 
       - name: Build limedl-native
         shell: bash
@@ -390,7 +414,7 @@ jobs:
   build-native-linux:
     name: Desktop app (linux-x86_64)
     runs-on: ubuntu-latest
-    needs: changelog
+    needs: [changelog, font]
     permissions:
       contents: write
     steps:
@@ -420,14 +444,14 @@ jobs:
           add-job-id-key: false
 
       # ── MiSans VF (embedded at compile time; not in git) ──────────────
-      - name: Cache bundled MiSans VF font
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Restore bundled MiSans VF font
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          path: crates/limedl-native/assets/fonts/MiSansVF.ttf
-          key: misans-vf-linux-x86_64-0ddef906
-      - name: Fetch MiSans VF font
-        shell: pwsh
-        run: pwsh scripts/fetch-misans.ps1
+          name: misans-vf
+          path: crates/limedl-native/assets/fonts/
+      - uses: ./.github/actions/fetch-misans
+        with:
+          mode: verify
 
       - name: Build limedl-native
         shell: bash
