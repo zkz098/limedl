@@ -262,6 +262,13 @@ and the GTK `-sys` crates need a Linux compiler), so:
    `platform_win.rs` (which exports are shared, which are Windows-only) exists
    for exactly this review.
 
+One macOS-only diagnostic is exempted rather than fixed: Apple's `ld` notes
+`__eh_frame section too large (max 16MB)` for the Skia-sized `limedl-native`
+test binaries, so `.cargo/config.toml` passes `-A linker_messages` on both Apple
+targets and cargo's `build.warnings = deny` no longer fails on that one note.
+Every rustc/clippy warning stays fatal; a *real* macOS linker warning is now
+only printed, so read the `check-macos` log when a link looks suspicious.
+
 Only commit once every check above is green. If a failure is environmental
 (e.g. a Linux-only script on Windows), fix the code so it is platform-neutral or
 otherwise reruns green in CI rather than committing around it.
