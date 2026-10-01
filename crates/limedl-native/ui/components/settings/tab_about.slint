@@ -108,7 +108,7 @@ export component SettingsTabAbout inherits ScrollView {
 
                 HorizontalLayout {
                     Text { width: 140px; text: @tr("Update Status:"); color: #6b7280; font-size: 12px; }
-                    Text {
+                    update_status_text := Text {
                         text: root.update_status_text();
                         color: root.update_status_color();
                         font-size: 12px;
@@ -120,7 +120,7 @@ export component SettingsTabAbout inherits ScrollView {
 
                 HorizontalLayout {
                     Text { width: 140px; text: @tr("Distribution Channel:"); color: #6b7280; font-size: 12px; }
-                    Text {
+                    install_kind_text := Text {
                         text: root.install_kind_label();
                         color: Theme.c9ca3af;
                         font-size: 12px;
@@ -135,7 +135,7 @@ export component SettingsTabAbout inherits ScrollView {
                     wrap: word-wrap;
                 }
 
-                if root.update_state.phase == "downloading" : VerticalLayout {
+                if root.update_state.phase == "downloading" : update_progress_row := VerticalLayout {
                     spacing: 5px;
                     Rectangle {
                         height: 6px;
@@ -150,14 +150,14 @@ export component SettingsTabAbout inherits ScrollView {
                             background: Theme.c84cc16;
                         }
                     }
-                    Text {
+                    update_progress_label := Text {
                         text: root.update_state.progress_label;
                         color: #6b7280;
                         font-size: 11px;
                     }
                 }
 
-                if root.update_state.phase == "error" && root.update_state.error_text != "" : Text {
+                if root.update_state.phase == "error" && root.update_state.error_text != "" : update_error_text := Text {
                     text: root.update_state.error_text;
                     color: Theme.cf87171;
                     font-size: 11px;
@@ -168,18 +168,18 @@ export component SettingsTabAbout inherits ScrollView {
                     spacing: 10px;
                     alignment: start;
 
-                    if root.update_state.phase != "downloading" && root.update_state.phase != "ready" : SecondaryButton {
+                    if root.update_state.phase != "downloading" && root.update_state.phase != "ready" : check_btn := SecondaryButton {
                         text: root.update_state.phase == "checking" ? @tr("Checking...") : @tr("Check for Updates");
                         enabled: root.update_state.phase != "checking";
                         clicked => { root.check_updates(); }
                     }
 
-                    if root.update_state.phase == "available" : PrimaryButton {
+                    if root.update_state.phase == "available" : download_btn := PrimaryButton {
                         text: root.update_state.install_kind == "store" ? @tr("Update in Store") : @tr("Download & Install");
                         clicked => { root.start_download(); }
                     }
 
-                    if root.update_state.phase == "ready" : PrimaryButton {
+                    if root.update_state.phase == "ready" : restart_btn := PrimaryButton {
                         text: @tr("Restart to Update");
                         clicked => { root.restart_now(); }
                     }
@@ -233,7 +233,7 @@ export component SettingsTabAbout inherits ScrollView {
 
                 if !root.reset_confirm : HorizontalLayout {
                     alignment: start;
-                    DangerButton {
+                    reset_arm_btn := DangerButton {
                         text: @tr("Factory Reset");
                         icon: @image-url("../../assets/icons/delete-bin-6-line.svg");
                         clicked => { root.reset_confirm = true; }
@@ -251,11 +251,11 @@ export component SettingsTabAbout inherits ScrollView {
                     HorizontalLayout {
                         spacing: 8px;
                         alignment: start;
-                        SecondaryButton {
+                        reset_cancel_btn := SecondaryButton {
                             text: @tr("Cancel");
                             clicked => { root.reset_confirm = false; }
                         }
-                        DangerButton {
+                        reset_confirm_btn := DangerButton {
                             text: @tr("Confirm Reset");
                             clicked => { root.reset_confirm = false; root.factory_reset(); }
                         }

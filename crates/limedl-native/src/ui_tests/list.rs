@@ -340,3 +340,57 @@ fn right_clicking_the_empty_list_opens_the_background_menu() {
         assert!(ui.window.get_show_new_task_dialog());
     });
 }
+
+/// The selection as the store holds it, sorted (a `HashSet` has no order).
+fn selection(ui: &TestUi) -> Vec<String> {
+    let mut ids = ui.ctx.store.lock().selected_ids();
+    ids.sort();
+    ids
+}
+
+/// Shift-click selects the range between the last clicked row and the clicked
+/// one. The gesture is `.slint`-only (`pointer-event` → `shift_click` →
+/// `range_select`); the store sees just the resulting id, which is why the
+/// `select_range` unit test cannot cover it.
+#[test]
+fn a_shift_click_selects_the_range_between_the_anchor_and_the_row() {
+    with_ui(|ui| {
+        ui.seed(vec![
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(2, "bravo.bin", DownloadState::Downloading, 10, 100),
+            http_task(3, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(4, "bravo.bin", DownloadState::Downloading, 10, 100),
+        ]);
+        ui.click("MainWindow::btn_view_mode");
+
+        // A plain click is the anchor; the shift-click extends from it.
+        ui.click_nth("TaskTable::ta_row", 0);
+        ui.shift_click_nth("TaskTable::ta_row", 2);
+        assert_eq!(ui.window.get_selected_count(), 3, "rows 0..=2");
+        assert_eq!(
+            selection(ui),
+            vec![http_wire(1), http_wire(2), http_wire(3)],
+            "the range has to cover the rows between the anchor and the click"
+        );
+        for row in 0..3 {
+            assert!(
+                ui.window.get_tasks().row_data(row).unwrap().selected,
+                "row {row} must be painted as selected, not just counted"
+            );
+        }
+
+        // The range is measured in the *visible* order: with a filter on, the
+        // rows in between are the filtered ones. A range taken from the raw list
+        // would drag `bravo.bin` in here.
+        ui.window.invoke_clear_selection();
+        ui.search("alpha");
+        assert_eq!(ui.visible_rows(), 2, "only the two alpha rows are shown");
+        ui.click_nth("TaskTable::ta_row", 0);
+        ui.shift_click_nth("TaskTable::ta_row", 1);
+        assert_eq!(
+            selection(ui),
+            vec![http_wire(1), http_wire(3)],
+            "the range follows the filtered list, not the unfiltered one"
+        );
+    });
+}

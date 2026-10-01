@@ -1,11 +1,13 @@
-//! Window shell: toolbar controls, dialog visibility, the view-mode toggle and
-//! the Escape unwinding order.
+//! Window shell: toolbar controls, dialog visibility, the view-mode toggle, the
+//! Escape unwinding order and the first-run wizard's live appearance preview.
 //!
 //! These are the tests that catch the failure modes nothing else can see — a
 //! toolbar button wired to the wrong callback, a dialog whose `is_open` property
 //! nobody sets, a close button that calls the wrong handler.
 
 use limedl_core::types::DownloadState;
+
+use crate::{ColorModePref, Theme, ThemeAccent};
 
 use super::*;
 
@@ -306,5 +308,51 @@ fn ctrl_a_and_ctrl_f_reach_the_list_and_the_search_box() {
         ui.type_text("beta");
         assert_eq!(ui.window.get_search_query().as_str(), "beta");
         assert_eq!(ui.visible_rows(), 1, "the focused search box filters");
+    });
+}
+
+/// The wizard's appearance cards are the only place the theme changes *before* a
+/// save (a live preview), and the index → enum mapping behind them is a
+/// hand-written match with a fallback: a swapped index paints the wrong theme for
+/// the whole session without a single error.
+#[test]
+fn the_wizard_appearance_cards_preview_the_theme_live() {
+    with_ui(|ui| {
+        // `ui_boot` applies the persisted settings, and the default is
+        // system + lime.
+        assert_eq!(
+            ui.window.global::<Theme>().get_mode(),
+            ColorModePref::System
+        );
+        assert_eq!(ui.window.global::<Theme>().get_accent(), ThemeAccent::Lime);
+
+        // `appearance_from_idx`: 0/1/2 = system/light/dark and 0/1/2 = amber/sky/lime.
+        ui.window.invoke_setup_set_appearance(2, 0);
+        {
+            let theme = ui.window.global::<Theme>();
+            assert_eq!(theme.get_mode(), ColorModePref::Dark);
+            assert_eq!(theme.get_accent(), ThemeAccent::Amber);
+            assert!(theme.get_dark(), "every colour token switches on this flag");
+        }
+        let form = ui.window.get_setup_form();
+        assert_eq!(form.color_mode_idx, 2, "the form follows the card");
+        assert_eq!(form.theme_color_idx, 0);
+
+        ui.window.invoke_setup_set_appearance(1, 1);
+        {
+            let theme = ui.window.global::<Theme>();
+            assert_eq!(theme.get_mode(), ColorModePref::Light);
+            assert_eq!(theme.get_accent(), ThemeAccent::Sky);
+            assert!(!theme.get_dark(), "light mode has to clear the flag");
+        }
+
+        // An index no card offers falls back to the first variant instead of
+        // panicking (the same fail-open shape as the other combo mappings).
+        ui.window.invoke_setup_set_appearance(9, 9);
+        assert_eq!(
+            ui.window.global::<Theme>().get_mode(),
+            ColorModePref::System
+        );
+        assert_eq!(ui.window.global::<Theme>().get_accent(), ThemeAccent::Lime);
     });
 }

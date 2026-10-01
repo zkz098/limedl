@@ -13,7 +13,7 @@
 //! assertions below read `ctx.rewrite_rules` for field values and
 //! `get_rewrite_rules()` for row presence, expansion and enabled state.
 
-use limedl_core::types::UrlRewriteRule;
+use limedl_core::types::{MatchType, ReplacementMode, UrlRewriteRule};
 
 use super::*;
 
@@ -256,5 +256,62 @@ fn an_invalid_manual_cdn_ip_reports_inline_and_reopening_labs_clears_it() {
             ui.window.get_labs_form().cdn_show_advanced,
             !advanced_before
         );
+    });
+}
+
+/// The four select/switch callbacks the index tests above never touch.
+///
+/// They only mutate the Rust rule — the widget owns the view until Save — and
+/// `str_to_match_type` / `str_to_replacement_mode` fall back to the first enum
+/// variant for a string they do not know, so a renamed `.slint` option value
+/// would quietly change what a rule means. The strings asserted here are the ones
+/// the dialog's `CustomSelect` models carry.
+#[test]
+fn the_rule_selects_and_switches_reach_the_rust_rule() {
+    with_ui(|ui| {
+        ui.window.invoke_open_labs();
+        ui.window.invoke_add_custom_rule();
+        let before = rust_rules(ui)[0].clone();
+        assert_eq!(
+            before.match_type,
+            MatchType::Host,
+            "a new rule matches hosts"
+        );
+        assert_eq!(before.replacement_mode, ReplacementMode::PrefixProxy);
+        assert!(before.encode_url);
+        assert!(before.fallback_to_original);
+
+        ui.window.invoke_update_rule_match_type(0, "regex".into());
+        ui.window.invoke_update_rule_mode(0, "template".into());
+        ui.window.invoke_toggle_rule_encode(0);
+        ui.window.invoke_toggle_rule_fallback(0);
+
+        let rule = rust_rules(ui)[0].clone();
+        assert_eq!(rule.match_type, MatchType::Regex);
+        assert_eq!(rule.replacement_mode, ReplacementMode::Template);
+        assert_eq!(rule.encode_url, !before.encode_url, "the switch flips");
+        assert_eq!(rule.fallback_to_original, !before.fallback_to_original);
+
+        // The remaining values of both selects, so every option the dialog
+        // offers has been mapped at least once.
+        for (value, expected) in [
+            ("prefix", MatchType::Prefix),
+            ("wildcard", MatchType::Wildcard),
+            ("host", MatchType::Host),
+        ] {
+            ui.window.invoke_update_rule_match_type(0, value.into());
+            assert_eq!(rust_rules(ui)[0].match_type, expected, "{value}");
+        }
+        ui.window.invoke_update_rule_mode(0, "prefix_proxy".into());
+        assert_eq!(
+            rust_rules(ui)[0].replacement_mode,
+            ReplacementMode::PrefixProxy
+        );
+
+        // A value no select offers must not invent a mode (it lands on the first
+        // variant, which is the documented fail-open behavior).
+        ui.window
+            .invoke_update_rule_match_type(0, "nonsense".into());
+        assert_eq!(rust_rules(ui)[0].match_type, MatchType::Host);
     });
 }

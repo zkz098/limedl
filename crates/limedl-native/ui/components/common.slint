@@ -68,6 +68,12 @@ export component PrimaryButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
+    // Same convention as `ToggleSwitch` below: the custom controls announce
+    // themselves, so assistive tech (and the UI tests) can read the label.
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+
     background: !root.enabled ? Theme.c2a3322 : (ta.has_hover ? (ta.pressed ? Theme.c65a30d : Theme.ca3e635) : Theme.c84cc16);
     animate background { duration: 120ms; }
     border-radius: 6px;
@@ -113,6 +119,10 @@ export component SecondaryButton inherits Rectangle {
     in property <bool> active: false;
     in property <bool> enabled: true;
     callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
 
     background: !root.enabled ? Theme.c15181e : (root.active ? Theme.c26331a : (ta.has_hover ? (ta.pressed ? Theme.c20242c : Theme.c252b34) : Theme.c1a1d23));
     border-color: !root.enabled ? Theme.c252a34 : (root.active ? Theme.c84cc16 : Theme.c323844);
@@ -160,6 +170,10 @@ export component DangerButton inherits Rectangle {
     in property <image> icon;
     in property <bool> enabled: true;
     callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
 
     background: !root.enabled ? Theme.c201315 : (ta.has_hover ? (ta.pressed ? Theme.c7f1d1d : #b91c1c) : Theme.c991b1b);
     border-color: #dc2626;

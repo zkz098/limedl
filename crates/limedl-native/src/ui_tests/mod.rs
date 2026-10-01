@@ -65,6 +65,7 @@ mod recording;
 mod settings;
 mod shell;
 mod toast;
+mod updater;
 
 // Install the testing backend for the calling thread (`init_platform` below).
 //
@@ -109,7 +110,7 @@ fn init_platform_with_event_loop() {
         panic!(
             "the testing backend's event loop is process-global and can only be installed once; \
              keep every pump-based scenario inside the single `event_loop_contracts` test \
-             (src/ui_tests/async_contracts.rs)"
+             (src/ui_tests/async_contracts/)"
         );
     }
     i_slint_backend_testing::init_integration_test_with_mock_time();
@@ -333,6 +334,20 @@ impl TestUi {
             all.len()
         );
         all[n].mock_single_click(PointerEventButton::Right);
+    }
+
+    /// Shift-click the `n`-th instance of `id` (0-based, model order) — the
+    /// range gesture.
+    ///
+    /// A pointer event carries no modifiers of its own: the core fills
+    /// `PointerEvent.modifiers` from the modifier keys the window currently sees
+    /// held down. Pressing Shift around a plain click is therefore exactly what a
+    /// real shift-click delivers (and what `press_keys` already relies on for
+    /// Ctrl+A), while `mock_single_click` cannot express it.
+    pub fn shift_click_nth(&self, id: &str, n: usize) {
+        self.send_key(Key::Shift.into(), true);
+        self.click_nth(id, n);
+        self.send_key(Key::Shift.into(), false);
     }
 
     /// Type `text` into whatever currently has focus. Click the field first —

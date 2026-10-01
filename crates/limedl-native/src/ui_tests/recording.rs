@@ -69,7 +69,8 @@ pub(crate) enum CoreCall {
 /// keeping the mutation failing means no `DownloadEvent::Updated` is published
 /// behind the test's back. It also makes the *failure* path reachable — the row
 /// is dropped optimistically, the backend rejects the action, and the list has
-/// to be resynchronized (see the rollback scenario in `async_contracts.rs`).
+/// to be resynchronized (see the rollback scenario in
+/// `async_contracts/selection.rs`).
 ///
 /// [`RecordingBackend::start`] is the exception: it answers `Ok` with a
 /// synthetic id, because the success path is what clears the URL and closes the
@@ -197,6 +198,16 @@ impl RecordingBackend {
                 _ => None,
             })
             .collect()
+    }
+
+    /// Task ids the UI asked the engine about. `status()` answers `NotFound`
+    /// here, which is what the event listener uses to tell "still alive" from
+    /// "removed elsewhere" (see `async_contracts/bus.rs`).
+    pub fn statuses(&self) -> Vec<String> {
+        Self::named(&self.calls(), |call| match call {
+            CoreCall::Status(id) => Some(id),
+            _ => None,
+        })
     }
 }
 
