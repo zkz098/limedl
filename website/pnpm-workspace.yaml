@@ -1,5 +1,18 @@
+# pnpm 11 reads its settings from this file; the `pnpm` field in package.json has
+# been ignored since v10.
+#
+# The override is a security fix: `hast-util-select` (reached through the
+# Starlight docs chain) still resolved `nth-check@2.0.0`, which has a ReDoS
+# advisory (GHSA-rp65-9cf3-cjxr). 2.1.1 was already in the graph for
+# `css-select`, and `hast-util-select`'s range (`^2.0.0`) allows it — pnpm just
+# never deduplicated it, so the override pins it.
+overrides:
+  nth-check@<2.0.1: 2.1.1
+
+# `pnpm install` fails with ERR_PNPM_IGNORED_BUILDS unless the packages that run
+# install scripts are named. Both are legitimate build-time deps of the Astro
+# toolchain: `esbuild` downloads its platform binary, `sharp` builds/loads its
+# native image codec.
 allowBuilds:
   esbuild: true
   sharp: true
-minimumReleaseAgeExclude:
-  - '@astrojs/starlight@0.42.4'
