@@ -563,11 +563,6 @@ async fn submitting_a_url_passes_the_dialog_state_to_the_engine() {
 /// routing fact covered by `limedl-core`'s own tests), so the URL here stays HTTP.
 async fn submitting_a_torrent_leaves_out_the_unchecked_files() {
     let ui = new_window();
-    // The expanded torrent list makes this dialog taller than the default 800x600
-    // test window, and the dialog itself does not scroll: at that size the footer
-    // (and with it the submit button a click has to reach) sits below the window
-    // edge. `layout.rs` pins the same overflow as a characterization.
-    ui.set_window_size(1280.0, 900.0);
     open_new_task_dialog_without_the_clipboard_race(&ui).await;
     ui.click("NewTaskDialog::nt_url_input");
     ui.type_text("https://example.invalid/pack.zip");
@@ -750,11 +745,14 @@ async fn table_row_buttons_act_on_their_own_task() {
         http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
         http_task(2, "bravo.bin", DownloadState::Paused, 20, 100),
     ]);
-    // The table is wider than the default 800x600 test window, and without one
-    // the action column is clipped away (see the characterization in
-    // `layout.rs`), i.e. a click could not reach it.
-    ui.set_window_size(1600.0, 900.0);
+    // The table's columns are wider than any supported window, so the action column
+    // is pinned to the right edge and the data columns are clipped behind it. At
+    // the declared minimum size the row buttons must be on screen — that is the
+    // whole point of pinning them — and the header stays above its columns.
+    ui.set_window_size(1100.0, 660.0);
     ui.click("MainWindow::btn_view_mode");
+    ui.assert_inside_window("TaskTable::ta_explorer");
+    ui.assert_inside_window("TaskTable::hdr_file");
 
     ui.click_nth("TaskTable::ta_explorer", 1);
     ui.pump_until("the explorer call", || !ui.core.explorer().is_empty())
@@ -1091,17 +1089,10 @@ async fn the_setup_wizard_persists_its_form_and_remembers_where_it_was() {
     let ui = new_window();
     ui.window.set_setup_start_step(1);
     ui.window.set_show_setup_wizard(true);
-    // The three language cards are three 50%-wide cards in one row — 150% of the
-    // modal before the gaps — so the `en-US` card always overflows the modal and
-    // cannot be clicked (pinned in `layout.rs`): no window size moves it back in,
-    // because its left edge already sits at the modal's right edge. That leaves
-    // the handler the card calls as the testable contract.
-    assert_eq!(
-        ui.find_all("LanguageCard::ta").len(),
-        3,
-        "all three languages render"
-    );
-    ui.window.invoke_setup_set_language(2); // zh-CN / zh-TW / en-US, in that order
+    // The three language cards share their row, so the `en-US` card is clickable
+    // like the others (it used to overflow the modal at every window size).
+    assert_eq!(ui.find_all("LanguageCard::ta").len(), 3);
+    ui.click_nth("LanguageCard::ta", 2); // zh-CN / zh-TW / en-US, in that order
     assert_eq!(ui.window.get_setup_form().language_idx, 2);
     // `select_bundled_translation` is process-global, so put it back before the
     // assertions below — the fixture's other windows expect zh-CN (`cargo test`

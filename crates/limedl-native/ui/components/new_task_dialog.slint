@@ -110,237 +110,249 @@ export component NewTaskDialog inherits Rectangle {
                 }
             }
 
-            // ── Single mode content ──
-            if !root.batch_mode : VerticalLayout {
-                spacing: 6px;
+            // The body scrolls: the modal has a fixed height and the torrent file
+            // list makes its content taller than that, which used to push the footer
+            // (and the Start Download button) out of the modal. Keeping the footer
+            // outside the scroll area means it stays reachable at every window size.
+            ScrollView {
+                vertical-stretch: 1;
 
-                // URL & Torrent Picker
-                HorizontalLayout {
-                    alignment: space-between;
-                    Text {
-                        text: @tr("Download URL / Magnet / Local Torrent Path:");
-                        color: Theme.c9ca3af;
-                        font-size: 12px;
-                        vertical-alignment: center;
-                    }
-                    SecondaryButton {
-                        text: @tr("Select Torrent...");
-                        icon: @image-url("../assets/icons/file-upload-line.svg");
-                        clicked => { root.pick_torrent_file(); }
-                    }
-                }
+                VerticalLayout {
+                    spacing: 12px;
 
-                // The ids are the handles the UI tests type into
-                // (src/ui_tests/): clicking one focuses its inner `TextInput`.
-                nt_url_input := CustomTextInput {
-                    text <=> root.new_task_url;
-                    placeholder: @tr("http://, https://, magnet:?xt=, or select a local .torrent file");
-                }
+                    // ── Single mode content ──
+                    if !root.batch_mode : VerticalLayout {
+                        spacing: 6px;
 
-                // Checksum probe row (HTTP only, enforced by the Rust handler)
-                HorizontalLayout {
-                    spacing: 8px;
-                    VerticalLayout {
-                        alignment: center;
-                        horizontal-stretch: 1;
-                        Text {
-                            text: root.probe_status_text;
-                            color: root.probe_state == "found" ? Theme.c84cc16 : (
-                                root.probe_state == "missing" || root.probe_state == "not_http" ? Theme.cf59e0b : Theme.c9ca3af);
-                            font-size: root.probe_state == "found" ? 11px : 12px;
-                            font-family: root.probe_state == "found" ? "Consolas" : "MiSans VF";
-                            overflow: elide;
-                            vertical-alignment: center;
-                        }
-                    }
-                    SecondaryButton {
-                        text: @tr("Detect Checksum");
-                        enabled: root.new_task_url != "" && root.probe_state != "probing";
-                        clicked => { root.probe_checksum(); }
-                    }
-                }
-
-                // Torrent file pre-selection (shown after a torrent is previewed)
-                if root.preview_state != "none" : VerticalLayout {
-                    spacing: 6px;
-                    HorizontalLayout {
-                        alignment: space-between;
-                        Text {
-                            text: @tr("Torrent Contents");
-                            color: Theme.ca3e635;
-                            font-size: 12px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
+                        // URL & Torrent Picker
                         HorizontalLayout {
-                            spacing: 4px;
-                            if root.preview_state == "ready" : IconButton {
-                                text: @tr("Select All");
-                                text_color: Theme.c9ca3af;
-                                clicked => { root.set_all_torrent_files(true); }
+                            alignment: space-between;
+                            Text {
+                                text: @tr("Download URL / Magnet / Local Torrent Path:");
+                                color: Theme.c9ca3af;
+                                font-size: 12px;
+                                vertical-alignment: center;
                             }
-                            if root.preview_state == "ready" : IconButton {
-                                text: @tr("Deselect");
-                                text_color: Theme.c9ca3af;
-                                clicked => { root.set_all_torrent_files(false); }
+                            SecondaryButton {
+                                text: @tr("Select Torrent...");
+                                icon: @image-url("../assets/icons/file-upload-line.svg");
+                                clicked => { root.pick_torrent_file(); }
                             }
                         }
-                    }
 
-                    Rectangle {
-                        clip: true;
-                        height: root.preview_state == "ready" ? 160px : 0px;
-                        opacity: root.preview_state == "ready" ? 1.0 : 0.0;
-                        animate height { duration: 200ms; easing: ease-out; }
-                        animate opacity { duration: 160ms; easing: ease-out; }
-                        background: Theme.c14171d;
-                        border-color: Theme.c2b313d;
-                        border-width: root.preview_state == "ready" ? 1px : 0px;
-                        border-radius: 6px;
+                        // The ids are the handles the UI tests type into
+                        // (src/ui_tests/): clicking one focuses its inner `TextInput`.
+                        nt_url_input := CustomTextInput {
+                            text <=> root.new_task_url;
+                            placeholder: @tr("http://, https://, magnet:?xt=, or select a local .torrent file");
+                        }
 
-                        ScrollView {
+                        // Checksum probe row (HTTP only, enforced by the Rust handler)
+                        HorizontalLayout {
+                            spacing: 8px;
                             VerticalLayout {
-                                padding-left: 10px;
-                                padding-right: 10px;
-                                padding-top: 6px;
-                                padding-bottom: 6px;
-                                spacing: 4px;
-                                alignment: start;
+                                alignment: center;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: root.probe_status_text;
+                                    color: root.probe_state == "found" ? Theme.c84cc16 : (
+                                        root.probe_state == "missing" || root.probe_state == "not_http" ? Theme.cf59e0b : Theme.c9ca3af);
+                                    font-size: root.probe_state == "found" ? 11px : 12px;
+                                    font-family: root.probe_state == "found" ? "Consolas" : "MiSans VF";
+                                    overflow: elide;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            SecondaryButton {
+                                text: @tr("Detect Checksum");
+                                enabled: root.new_task_url != "" && root.probe_state != "probing";
+                                clicked => { root.probe_checksum(); }
+                            }
+                        }
 
-                                for f in root.torrent_files : HorizontalLayout {
-                                    spacing: 8px;
-                                    height: 24px;
-                                    VerticalLayout {
-                                        alignment: center;
-                                        CustomCheckBox {
-                                            checked: f.included;
-                                            toggled => { root.toggle_torrent_file(f.index); }
-                                        }
+                        // Torrent file pre-selection (shown after a torrent is previewed)
+                        if root.preview_state != "none" : VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text {
+                                    text: @tr("Torrent Contents");
+                                    color: Theme.ca3e635;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    vertical-alignment: center;
+                                }
+                                HorizontalLayout {
+                                    spacing: 4px;
+                                    if root.preview_state == "ready" : IconButton {
+                                        text: @tr("Select All");
+                                        text_color: Theme.c9ca3af;
+                                        clicked => { root.set_all_torrent_files(true); }
                                     }
-                                    VerticalLayout {
-                                        alignment: center;
-                                        horizontal-stretch: 1;
-                                        Text {
-                                            text: f.path;
-                                            color: Theme.cd1d5db;
-                                            font-size: 12px;
-                                            overflow: elide;
-                                            vertical-alignment: center;
-                                        }
+                                    if root.preview_state == "ready" : IconButton {
+                                        text: @tr("Deselect");
+                                        text_color: Theme.c9ca3af;
+                                        clicked => { root.set_all_torrent_files(false); }
                                     }
+                                }
+                            }
+
+                            Rectangle {
+                                clip: true;
+                                height: root.preview_state == "ready" ? 160px : 0px;
+                                opacity: root.preview_state == "ready" ? 1.0 : 0.0;
+                                animate height { duration: 200ms; easing: ease-out; }
+                                animate opacity { duration: 160ms; easing: ease-out; }
+                                background: Theme.c14171d;
+                                border-color: Theme.c2b313d;
+                                border-width: root.preview_state == "ready" ? 1px : 0px;
+                                border-radius: 6px;
+
+                                ScrollView {
                                     VerticalLayout {
-                                        alignment: center;
-                                        Text {
-                                            text: f.size_text;
-                                            color: Theme.c8b95a5;
-                                            font-size: 11px;
-                                            vertical-alignment: center;
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        padding-top: 6px;
+                                        padding-bottom: 6px;
+                                        spacing: 4px;
+                                        alignment: start;
+
+                                        for f in root.torrent_files : HorizontalLayout {
+                                            spacing: 8px;
+                                            height: 24px;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                CustomCheckBox {
+                                                    checked: f.included;
+                                                    toggled => { root.toggle_torrent_file(f.index); }
+                                                }
+                                            }
+                                            VerticalLayout {
+                                                alignment: center;
+                                                horizontal-stretch: 1;
+                                                Text {
+                                                    text: f.path;
+                                                    color: Theme.cd1d5db;
+                                                    font-size: 12px;
+                                                    overflow: elide;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Text {
+                                                    text: f.size_text;
+                                                    color: Theme.c8b95a5;
+                                                    font-size: 11px;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
+
+                            // Preview status line: loading / error / summary
+                            Text {
+                                text: root.preview_state == "ready"
+                                    ? root.preview_summary_text
+                                    : root.preview_status_text;
+                                color: root.preview_state == "error" ? Theme.cf87171 : Theme.c9ca3af;
+                                font-size: 12px;
+                                overflow: elide;
+                                vertical-alignment: center;
+                            }
                         }
                     }
 
-                    // Preview status line: loading / error / summary
-                    Text {
-                        text: root.preview_state == "ready"
-                            ? root.preview_summary_text
-                            : root.preview_status_text;
-                        color: root.preview_state == "error" ? Theme.cf87171 : Theme.c9ca3af;
-                        font-size: 12px;
-                        overflow: elide;
-                        vertical-alignment: center;
+                    // ── Batch mode content ──
+                    if root.batch_mode : VerticalLayout {
+                        spacing: 6px;
+
+                        Text {
+                            text: @tr("Batch URLs (one per line, # comments, [01-20] ranges supported):");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+
+                        Rectangle {
+                            height: 180px;
+                            background: Theme.c14161b;
+                            border-color: te.has-focus ? Theme.c84cc16 : Theme.c2b313d;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            clip: true;
+
+                            te := TextEdit {
+                                x: 10px;
+                                width: parent.width - 20px;
+                                y: 8px;
+                                height: parent.height - 16px;
+                                wrap: word-wrap;
+                                font-size: 13px;
+                                text <=> root.batch_text;
+                                edited => { root.batch_text_changed(root.batch_text); }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: root.batch_count_text;
+                                color: Theme.c9ca3af;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+                            Rectangle {}
+                            Text {
+                                text: root.batch_status_text;
+                                color: Theme.cf59e0b;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+                        }
                     }
-                }
-            }
 
-            // ── Batch mode content ──
-            if root.batch_mode : VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: @tr("Batch URLs (one per line, # comments, [01-20] ranges supported):");
-                    color: Theme.c9ca3af;
-                    font-size: 12px;
-                }
-
-                Rectangle {
-                    height: 180px;
-                    background: Theme.c14161b;
-                    border-color: te.has-focus ? Theme.c84cc16 : Theme.c2b313d;
-                    border-width: 1px;
-                    border-radius: 6px;
-                    clip: true;
-
-                    te := TextEdit {
-                        x: 10px;
-                        width: parent.width - 20px;
-                        y: 8px;
-                        height: parent.height - 16px;
-                        wrap: word-wrap;
-                        font-size: 13px;
-                        text <=> root.batch_text;
-                        edited => { root.batch_text_changed(root.batch_text); }
+                    // ── Shared: Save Directory ──
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: @tr("Save Directory:");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            nt_dir_input := CustomTextInput {
+                                text <=> root.new_task_dir;
+                                placeholder: root.default_download_dir;
+                            }
+                            SecondaryButton {
+                                text: @tr("Browse...");
+                                icon: @image-url("../assets/icons/folder-open-line.svg");
+                                clicked => { root.pick_save_folder(); }
+                            }
+                        }
                     }
-                }
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: root.batch_count_text;
-                        color: Theme.c9ca3af;
-                        font-size: 12px;
-                        vertical-alignment: center;
+                    // ── Single mode: Custom Filename ──
+                    if !root.batch_mode : VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: @tr("Custom Filename (Optional):");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        nt_filename_input := CustomTextInput {
+                            text <=> root.new_task_filename;
+                            placeholder: @tr("Leave empty to auto-detect filename");
+                        }
                     }
+
+                    // Spacer
                     Rectangle {}
-                    Text {
-                        text: root.batch_status_text;
-                        color: Theme.cf59e0b;
-                        font-size: 12px;
-                        vertical-alignment: center;
-                    }
                 }
             }
-
-            // ── Shared: Save Directory ──
-            VerticalLayout {
-                spacing: 6px;
-                Text {
-                    text: @tr("Save Directory:");
-                    color: Theme.c9ca3af;
-                    font-size: 12px;
-                }
-                HorizontalLayout {
-                    spacing: 8px;
-                    nt_dir_input := CustomTextInput {
-                        text <=> root.new_task_dir;
-                        placeholder: root.default_download_dir;
-                    }
-                    SecondaryButton {
-                        text: @tr("Browse...");
-                        icon: @image-url("../assets/icons/folder-open-line.svg");
-                        clicked => { root.pick_save_folder(); }
-                    }
-                }
-            }
-
-            // ── Single mode: Custom Filename ──
-            if !root.batch_mode : VerticalLayout {
-                spacing: 4px;
-                Text {
-                    text: @tr("Custom Filename (Optional):");
-                    color: Theme.c9ca3af;
-                    font-size: 12px;
-                }
-                nt_filename_input := CustomTextInput {
-                    text <=> root.new_task_filename;
-                    placeholder: @tr("Leave empty to auto-detect filename");
-                }
-            }
-
-            // Spacer
-            Rectangle {}
 
             // Actions
             HorizontalLayout {

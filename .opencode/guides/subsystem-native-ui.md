@@ -127,10 +127,11 @@ cargo clippy -p limedl-native --all-targets -- -D warnings
 - **测试抓到过的真实 bug**（新增用例时就往这些方向看）：
   - `handle_key_escape` 所在 `FocusScope` 的“对话框打开就拦下快捷键”是裸 `if … { reject }`，值被丢弃 ⇒ Ctrl+A / Space / Delete 会作用到模态**背后**的列表（Delete 会删选中项）。现在它是 `else if` 链的一环。
   - 表格列头点击调用 `set_sort_field`，它不重置方向 ⇒ 换列可能变成降序，与注释承诺的“新列升序”不符。现在用 `apply_sort(field, true)`。
-  - 已知遗留：窗口在 `min-width`（1000px）下工具栏溢出行右边界，`ta_new_task` 被裁掉约 18px（中文标签；英文更宽）。`layout.rs` 里有一条 characterization 断言钉住了它——修好（抬 `min-width` 或让该行换行/滚动）会让那条断言失败，提醒同步契约。
-  - 已知遗留：新建任务对话框的 modal 高度是**固定**的（`preview_state == "ready"` 时 600px），而展开 torrent 文件列表后的内容高约 656px，页脚被推出 modal（且对话框没有 ScrollView）⇒ 选中 torrent 文件后“Start Download”可能点不到。同样是 `layout.rs` 的 characterization；写提交载荷测试时需把窗口调高并等动画结束才能点到按钮。
-  - 已知遗留：表格视图的行内操作列（暂停/恢复/文件夹/详情/删除）在默认与最小窗口宽度下被裁出可视区（表格没有横向滚动）⇒ 窄窗口下只能靠右键菜单操作。`layout.rs` 的 characterization 钉住了它；行内按钮的测试因此把窗口设到 1600px 宽。
-  - 已知遗留：向导第 2 步的三个 `LanguageCard` 是同一行里三个 `width: 50%` 的卡片（共 150% + 间距），第三张 `en-US` **在任何窗口宽度下都溢出 modal** ⇒ 鼠标点不到英语（而这是切换英文的唯一入口）。`layout.rs` 的 characterization 钉住了它，向导测试改用卡片调用的那个回调 `setup_set_language(2)`。
+  - 窗口在 `min-width`（1000px）下工具栏溢出行右边界，`ta_new_task` 被裁掉约 18px ⇒ 已修：`min-width` 抬到 1100px，英文标签下也在 `layout.rs` 里钉住。
+  - 新建任务对话框的 modal 高度是固定的（`preview_state == "ready"` 时 600px），而展开 torrent 文件列表后的内容更高 ⇒ 已修：对话框主体放进 ScrollView，页脚（“Start Download”）永远留在 modal 里。
+  - 表格视图的行内操作列在默认与最小窗口宽度下被裁出可视区（表格没有横向滚动）⇒ 已修：操作列固定到右边缘（`root.width - 138px`），数据列在它后面被裁；文件列 `min-width` 从 260px 收到 140px，使默认列集在最小窗口下也能露出前几列。
+  - 向导第 2 步的三个 `LanguageCard` 原本是同一行里三个 `width: 50%`（共 150% + 间距）⇒ `en-US` 卡片在任何窗口宽度下都溢出 modal，鼠标点不到英语。已修：三张卡改为 `horizontal-stretch: 1` 均分。
+- **仍然接受的限制**：表格列比窗口宽时，右侧的数据列会被裁掉（操作列永远可见）。这里没有横向滚动，因为 Slint 1.17 的 `ScrollView` 无法为 `for` 循环内容推导 `viewport-width`（flickable pass 会跳过 repeated 元素，见 `passes/flickable.rs` 里的 #407），而显式绑定会被编译器生成的默认绑定覆盖——所以需要更多数据列时请把窗口拉宽或在设置里关掉几列。
 - 断言可以读到的几何来自布局（无渲染器也是真实字体度量），但**没有进程内截图**：testing crate 的 `internal` feature 在 crates.io 上无法编译（见 testing-guide）。像素与视觉回归仍走 L2/MCP 的 `take_screenshot`。
 
 ## 手动冒烟

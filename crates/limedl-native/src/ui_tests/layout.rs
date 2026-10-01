@@ -24,49 +24,43 @@ const CHROME: &[&str] = &[
     "MainWindow::search_box",
 ];
 
-/// Everything above except the button the known minimum-width overflow clips
-/// (see `the_chrome_fits_the_window_at_the_default_and_the_minimum_size`).
-fn assert_narrow_chrome_fits(ui: &TestUi) {
-    for id in CHROME.iter().filter(|id| **id != "MainWindow::ta_new_task") {
-        ui.assert_inside_window(id);
-    }
-}
+/// The declared `min-width`/`min-height` from `appwindow.slint`. The toolbar used
+/// to clip its last button at 1000px, which is why the minimum is 1100px now.
+const MIN_SIZE: (f32, f32) = (1100.0, 660.0);
+
+/// The `preferred-width`/`preferred-height` from `appwindow.slint`.
+const PREFERRED_SIZE: (f32, f32) = (1280.0, 800.0);
 
 #[test]
 fn the_chrome_fits_the_window_at_the_default_and_the_minimum_size() {
     with_ui(|ui| {
-        // 1280x800 is `preferred-width`/`preferred-height`, 1000x660 is
-        // `min-width`/`min-height` as declared in `appwindow.slint`.
-        ui.set_window_size(1280.0, 800.0);
+        ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
         for id in CHROME {
             ui.assert_inside_window(id);
         }
         ui.assert_min_size(CHROME, 16.0);
 
-        ui.set_window_size(1000.0, 660.0);
-        assert_narrow_chrome_fits(ui);
-
-        // Known issue, found by this test: at the declared minimum width the
-        // toolbar overflows and clips the New Task button (its left 62px are on
-        // screen, the rest is past the right edge) — with Chinese labels, and
-        // English ones are wider. Pinned as a characterization so the fix (raise
-        // `min-width`, or let that row wrap/scroll) fails here and gets the
-        // contract updated with it.
-        let (button_x, _, button_width, _) = ui.bounds("MainWindow::ta_new_task");
-        assert!(
-            button_x + button_width > 1000.0,
-            "the toolbar now fits the minimum width — drop this characterization and \
-             assert `ta_new_task` inside the window like the rest of the chrome"
-        );
+        // Every control, including the last toolbar button: the minimum width was
+        // raised to 1100px precisely because the toolbar clipped it at 1000px.
+        ui.set_window_size(MIN_SIZE.0, MIN_SIZE.1);
+        for id in CHROME {
+            ui.assert_inside_window(id);
+        }
 
         // Device pixel ratios: the assertions are logical, so this pins that the
         // layout never mixes the two units up. Both 100% and 200% are covered
         // explicitly because the host is not the same in CI as on a laptop.
         for scale in [1.0, 2.0] {
             ui.set_scale_factor(scale);
-            ui.set_window_size(1000.0, 660.0);
-            assert_eq!(ui.window_logical_size(), (1000.0, 660.0), "scale {scale}");
-            assert_narrow_chrome_fits(ui);
+            ui.set_window_size(MIN_SIZE.0, MIN_SIZE.1);
+            assert_eq!(
+                ui.window_logical_size(),
+                (MIN_SIZE.0, MIN_SIZE.1),
+                "scale {scale}"
+            );
+            for id in CHROME {
+                ui.assert_inside_window(id);
+            }
         }
         ui.set_scale_factor(1.0);
     });
@@ -82,11 +76,19 @@ fn the_chrome_fits_the_window_at_the_default_and_the_minimum_size() {
 #[test]
 fn the_layout_survives_the_english_labels() {
     with_language(Language::EnUs, |ui| {
-        ui.set_window_size(1280.0, 800.0);
+        ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
         for id in CHROME {
             ui.assert_inside_window(id);
         }
         ui.assert_min_size(CHROME, 16.0);
+
+        // The reason the minimum width is 1100px: the English toolbar labels are the
+        // widest ones, and at the minimum size they still have to fit.
+        ui.set_window_size(MIN_SIZE.0, MIN_SIZE.1);
+        for id in CHROME {
+            ui.assert_inside_window(id);
+        }
+        ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
 
         ui.click("MainWindow::ta_set");
         assert_dialog_fits(ui, "SettingsDialog::modal", "SettingsDialog::save_btn");
@@ -157,7 +159,7 @@ fn assert_dialog_fits(ui: &TestUi, modal: &str, primary: &str) {
 #[test]
 fn dialogs_fit_the_window_at_the_minimum_size() {
     with_ui(|ui| {
-        ui.set_window_size(1000.0, 660.0);
+        ui.set_window_size(MIN_SIZE.0, MIN_SIZE.1);
 
         ui.click("MainWindow::ta_set");
         assert_dialog_fits(ui, "SettingsDialog::modal", "SettingsDialog::save_btn");
@@ -197,28 +199,17 @@ fn dialogs_fit_the_window_at_the_minimum_size() {
         assert_dialog_fits(ui, "SetupWizard::modal", "SetupWizard::next_btn");
         ui.window.set_show_setup_wizard(false);
 
-        // Known issue, found by the submit-payload test in `async_contracts.rs`:
-        // the expanded torrent list makes this dialog taller than the declared
-        // minimum height, which pushes its footer out of the window — the dialog
-        // has no ScrollView, so "Start Download" becomes unreachable. Pinned as a
-        // characterization so the fix (a scroll area, or a shorter list) fails
-        // here and gets this contract updated with it.
+        // With the torrent file list expanded the dialog needs more room than its
+        // fixed modal height; the list is what gives way (`preferred-height` /
+        // `min-height` in `new_task_dialog.slint`), so the footer stays reachable.
         ui.click("MainWindow::ta_new_task");
         ui.window.set_new_task_preview_state("ready".into());
-        let (_, button_y, _, button_height) = ui.bounds("NewTaskDialog::submit_btn");
-        assert!(
-            button_y + button_height > 660.0,
-            "the new-task dialog now fits the minimum height with the torrent list open — \
-             drop this characterization and assert its footer inside the window like the rest"
-        );
+        assert_dialog_fits(ui, "NewTaskDialog::modal", "NewTaskDialog::submit_btn");
         ui.click("NewTaskDialog::close_btn");
 
-        // Known issue, found while testing the wizard's language cards: three
-        // 50%-wide cards in one row need 150% of the modal, so the `en-US` card —
-        // the one that switches the whole UI to English — always overflows it and
-        // cannot be clicked at any window size. Pinned as a characterization so the
-        // fix (wrapping the row, or a narrower card) fails here and gets the
-        // contract updated with it.
+        // The wizard's three language cards share their row (`horizontal-stretch`),
+        // so all three — including the `en-US` one that switches the UI to English
+        // — are inside the modal and clickable.
         ui.window.set_setup_start_step(1);
         ui.window.set_show_setup_wizard(true);
         let english = ui
@@ -229,9 +220,11 @@ fn dialogs_fit_the_window_at_the_minimum_size() {
         let card_width = english.size().width;
         let (modal_x, _, modal_width, _) = ui.bounds("SetupWizard::modal");
         assert!(
-            card_left + card_width > modal_x + modal_width,
-            "the wizard's language cards now fit the modal — drop this characterization and click \
-             the en-US card in the wizard scenario of `async_contracts.rs`"
+            card_width > 0.0 && card_left + card_width <= modal_x + modal_width + 0.5,
+            "the en-US card must sit inside the wizard modal (left {card_left}, width {card_width}, \
+             modal {}..{})",
+            modal_x,
+            modal_x + modal_width
         );
         ui.window.set_show_setup_wizard(false);
         ui.window.set_setup_start_step(0);
@@ -263,7 +256,7 @@ fn the_context_and_priority_menus_are_clamped_into_the_window() {
 #[test]
 fn the_batch_bar_stays_inside_the_window_and_its_actions_do_not_overlap() {
     with_ui(|ui| {
-        ui.set_window_size(1000.0, 660.0);
+        ui.set_window_size(MIN_SIZE.0, MIN_SIZE.1);
         ui.seed(
             (1..=3)
                 .map(|n| http_task(n, "alpha.bin", DownloadState::Downloading, 10, 100))

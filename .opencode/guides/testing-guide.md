@@ -109,7 +109,7 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 场景文件：`shell.rs`（工具栏/对话框/Esc 层级/快捷键）、`list.rs`（列表、选择、批量栏、右键菜单、
 表格列）、`labs.rs`（重写规则编辑器、CDN 内联校验）、`settings.rs`（限速计划、设置对话框）、
 `new_task.rs`（重置契约、批量计数、torrent 预选）、`inspector.rs`、`toast.rs`、`layout.rs`（几何
-不变量 + 四条已知缺陷的 characterization + 英文标签下的同一套不变量）、`async_contracts.rs`（需要
+不变量 + 英文标签下的同一套）、`async_contracts.rs`（需要
 事件循环的那一批：爆炸半径、破坏性热键 `Delete`/`Shift+Delete`/`Space`、失败回滚、新建任务提交载荷、
 筛选下的全选与批量删除、表格/卡片行内按钮、`Pause All`/`Resume All`/`Clear Completed`、双击行为、
 设置与实验室的保存成功路径、首次运行向导）。
@@ -168,6 +168,9 @@ event-loop proxy 是**全局** `OnceCell`，所以 `init_integration_test_with_m
   但宿主机剪贴板内容不可控）——先在断言前 `pump` 排空它；`NewTaskDialog::modal` 的高度有 200ms 动画
   （470 ↔ 600px），状态翻转后立刻点击底部按钮会因按压/抬起的坐标跨越移动中的页脚而被丢弃，需先
   `pump` 到动画结束。
+- **表格是横向裁切的，不是横向滚动的**：列比窗口宽时右侧数据列被裁，操作列固定在右边缘
+  （`root.width - 138px`）。所以表格相关断言要在声明的最小窗口（1100x660）下写：`assert_inside_window
+  ("TaskTable::ta_explorer")` 必须通过，而右侧数据列不在元素树里（被裁）。
 - **`assert_toast` 要求“恰好一条”**，只适合确定性的单条通知：向导 `finish_setup` 会在路上额外触发
   `sync_aria2_rpc` 之类的副作用 toast，那里要改成在 `ui.toasts()` 里找那一条 success（见
   `the_setup_wizard_persists_its_form_and_remembers_where_it_was`）。
