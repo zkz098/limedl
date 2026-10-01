@@ -58,7 +58,7 @@ cargo run -p limedl-native -- --hidden
 # 3. 编译发布包 (Release Profile，体积优先优化)
 cargo build --release -p limedl-native
 
-# 4. 编译极限性能版 (Native-Release Profile，针对 Skia 渲染深度内联优化)
+# 4. 编译极限性能版 (Native-Release Profile，针对 FemtoVG 渲染深度内联优化)
 cargo build -p limedl-native --profile native-release
 ```
 

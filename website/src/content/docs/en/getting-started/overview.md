@@ -18,7 +18,7 @@ limedl combines an **uncompromising pure Rust engine** with a **sub-100ms cold s
 ## Core Design Philosophy
 
 ### 1. Say Goodbye to Bloatware, Return to Native
-limedl completely rejects Chromium/Electron multi-process overhead. Built with Slint and rendered natively via hardware-accelerated Skia:
+limedl completely rejects Chromium/Electron multi-process overhead. Built with Slint and rendered natively via hardware-accelerated FemtoVG:
 - **Instant Launch**: Cold startup completes in **under 100 milliseconds** with immediate responsiveness.
 - **Minimal Footprint**: Idle memory in system tray sits comfortably at **~35 to 50 MB**—roughly 1/6th of typical Electron downloaders.
 - **Single-Process Model**: The engine and user interface reside within the same binary process, communicating via internal asynchronous channels (EventBus) with zero network serialization overhead.
@@ -62,7 +62,7 @@ limedl Workspace
 │   ├── rate_limiter/         # Token bucket global speed limiter & schedule
 │   └── aria2_rpc.rs          # Aria2 JSON-RPC 2.0 compatible server
 │
-├── crates/limedl-native/     # Native desktop client (Slint + Skia rendering)
+├── crates/limedl-native/     # Native desktop client (Slint + FemtoVG rendering)
 │   ├── main.rs               # Application bootstrapping & event loop
 │   ├── bridge/               # Rust model to Slint UI property mapper
 │   ├── handlers/             # UI callback dispatchers
@@ -107,7 +107,7 @@ limedl Workspace
 | Metric / Dimension | **limedl** | Commercial (e.g. Xunlei) | Electron (e.g. Motrix) | Classic CLI (Aria2) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Core Engine** | **Pure Rust 2024** | Proprietary C++ | Node.js + Aria2 bundle | Pure C++ |
-| **User Interface** | **Slint (Native Skia)** | Webview wrapper (ads/popups) | Electron (Chromium) | Headless CLI |
+| **User Interface** | **Slint (Native FemtoVG)** | Webview wrapper (ads/popups) | Electron (Chromium) | Headless CLI |
 | **Cold Startup Time** | **< 100 ms** | 3 ~ 6 s (auth & banners) | 2 ~ 4 s (blank window) | Instantaneous |
 | **Idle Memory Footprint** | **~35 to 50 MB** | 180 ~ 350 MB+ | 250 ~ 450 MB+ | < 20 MB |
 | **Concurrency Strategy** | **AIMD Dynamic Adaptive** | Fixed threads / paywalled | Fixed thread count | Fixed thread count |

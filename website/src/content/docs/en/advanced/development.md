@@ -58,7 +58,7 @@ cargo run -p limedl-native -- --hidden
 # 3. Compile optimized release binary (optimized for distribution size)
 cargo build --release -p limedl-native
 
-# 4. Compile high-performance native profile (opt-level 3 + codegen-units 1 for Skia rendering)
+# 4. Compile high-performance native profile (opt-level 3 + codegen-units 1 for FemtoVG rendering)
 cargo build -p limedl-native --profile native-release
 ```
 

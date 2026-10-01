@@ -16,7 +16,7 @@ The repository is structured as a tightly focused Rust workspace:
 ```
 limedl/
 ├── crates/limedl-core/     # Headless pure Rust multi-protocol engine (no UI dependencies)
-├── crates/limedl-native/   # Slint-based native desktop client (Skia hardware backend)
+├── crates/limedl-native/   # Slint-based native desktop client (FemtoVG hardware backend)
 └── xtask/                  # Repository maintenance tooling (Minisign signing & release gates)
 ```
 
@@ -25,7 +25,7 @@ limedl/
 - **Characteristics**: Built purely on Tokio's asynchronous runtime with zero UI dependencies.
 
 ### 2. `limedl-native` (Native Slint Client)
-- **Responsibilities**: Native declarative UI built with **Slint** on top of Skia rendering. Handles window geometry persistence, single-instance mutexes, system tray menus, power locks (preventing sleep during active downloads), desktop notifications, and cryptographic in-app updates.
+- **Responsibilities**: Native declarative UI built with **Slint** on top of FemtoVG rendering. Handles window geometry persistence, single-instance mutexes, system tray menus, power locks (preventing sleep during active downloads), desktop notifications, and cryptographic in-app updates.
 - **In-Memory IPC**: The client and core engine reside in the **same OS process**. All interactions occur via direct Rust function invocations, eliminating cross-process network serialization.
 
 ### 3. `xtask` (Security & Release Guard)

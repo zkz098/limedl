@@ -18,7 +18,7 @@ limedl 将**原生极速的 Rust 引擎**与**毫秒级冷启动的 Slint 原生
 ## 核心设计哲学
 
 ### 1. 告别臃肿，回归原生
-拒绝 Chromium/Electron 庞大的多进程模型。limedl 采用纯 Rust 编写的 Slint 框架配合底层 Skia 硬件加速渲染：
+拒绝 Chromium/Electron 庞大的多进程模型。limedl 采用纯 Rust 编写的 Slint 框架配合底层 FemtoVG 硬件加速渲染：
 - **启动时间**：冷启动在 100 毫秒以内，窗口秒开，交互无延迟。
 - **内存占用**：托盘常驻空闲内存仅约 **30~50 MB**，仅为同类 Electron 下载器的 1/6。
 - **单进程架构**：核心引擎与原生 UI 运行于同一进程内，通过内部异步事件总线（EventBus）零拷贝交互，免除了繁琐的 IPC 网络序列化开销。
@@ -62,7 +62,7 @@ limedl Workspace
 │   ├── rate_limiter/         # 全局令牌桶限速与计划表
 │   └── aria2_rpc.rs          # Aria2 JSON-RPC 2.0 兼容服务
 │
-├── crates/limedl-native/     # 原生桌面客户端 (Slint + Skia 渲染)
+├── crates/limedl-native/     # 原生桌面客户端 (Slint + FemtoVG 渲染)
 │   ├── main.rs               # 应用入口、单实例控制、托盘集成与事件循环
 │   ├── bridge/               # Rust 数据结构到 Slint UI 模型的映射层
 │   ├── handlers/             # 任务、设置、实验室与更新事件处理器
@@ -109,7 +109,7 @@ limedl Workspace
 | 维度 / 特性 | **limedl** | 传统商业下载工具 (如迅雷) | 常见开源工具 (如 Motrix) | 经典命令行 (Aria2) |
 | :--- | :--- | :--- | :--- | :--- |
 | **底层核心** | **纯 Rust 2024** | 专有 C++ 闭源引擎 | Node.js + Aria2 封装 | 纯 C++ 核心 |
-| **界面技术** | **Slint (Skia 原生渲染)** | 网页混合容器 (内嵌广告) | Electron (Chromium 内核) | 无原生界面 (纯 CLI) |
+| **界面技术** | **Slint (FemtoVG 原生渲染)** | 网页混合容器 (内嵌广告) | Electron (Chromium 内核) | 无原生界面 (纯 CLI) |
 | **冷启动速度** | **< 100 ms (秒开)** | 3 ~ 6 秒 (含鉴权/弹窗) | 2 ~ 4 秒 (Chromium 白屏) | 瞬时 (命令行) |
 | **空闲内存占用** | **约 35 ~ 50 MB** | 180 ~ 350 MB+ | 250 ~ 450 MB+ | < 20 MB |
 | **并发策略** | **AIMD 动态自适应调度** | 固定线程 / 付费加速 | 固定连接数 | 固定连接数 (需手动配) |
