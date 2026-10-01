@@ -158,19 +158,34 @@ async-trait = { workspace = true }
 # ── Graphics renderer: exactly one ──────────────────────────────────────────
 # Slint's renderer is a compile-time choice — the backend selector can only use
 # a renderer that was compiled in, so "which renderer" is a Cargo feature here,
-# not an env var. `renderer-skia` is the shipped default; the two FemtoVG
+# not an env var. `renderer-skia` is the shipped default; the other three
 # variants exist to A/B the rasterizer against it:
 #
+#   cargo run -p limedl-native --no-default-features --features renderer-skia-opengl
 #   cargo run -p limedl-native --no-default-features --features renderer-femtovg
 #   cargo run -p limedl-native --no-default-features --features renderer-femtovg-wgpu
 #
+# `renderer-skia` is NOT the GPU one on Windows. `i-slint-renderer-skia` picks its
+# surface in this order (see its `lib.rs`): vulkan > opengl > metal > softbuffer,
+# and `skia_backend_opengl` there is
+# `any(feature = "opengl", not(any(apple, windows, wasm32)))` — so on Windows the
+# default lands on `skia_backend_softbuffer` and rasterizes on the CPU (`skia
+# backend software` in the startup log), presenting through Softbuffer. Skia's
+# GPU surface needs `slint/renderer-skia-opengl` explicitly, which is what that
+# variant is for; it is a plain GL surface with a software fallback, so a failed
+# GL init logs "Falling back to software rendering" rather than aborting.
+
 # `src/renderer.rs` fails the build when zero or several are enabled: compiled
 # together they are not a runtime choice (Slint silently prefers Skia >
 # FemtoVG/wgpu > FemtoVG/GL), and the About tab's renderer label is derived from
 # the single enabled feature, so a second one would make the label describe a
 # rasterizer that may not be the active one.
 default = ["renderer-skia"]
+# Skia on the Softbuffer/CPU surface on Windows (see above) — the shipped build.
 renderer-skia = ["slint/renderer-skia"]
+# Skia on OpenGL, i.e. the GPU rasterizer, and the only variant that makes a
+# Skia-vs-FemtoVG comparison meaningful rather than CPU-vs-GPU.
+renderer-skia-opengl = ["slint/renderer-skia-opengl"]
 # FemtoVG on OpenGL (glutin). No extra build-time dependency; at runtime it needs
 # a working GL driver (a bare RDP/VM session without one fails at startup).
 renderer-femtovg = ["slint/renderer-femtovg"]

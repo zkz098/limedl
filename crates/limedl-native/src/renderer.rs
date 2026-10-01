@@ -15,10 +15,11 @@
 
 const _: () = assert!(
     (cfg!(feature = "renderer-skia") as u8
+        + cfg!(feature = "renderer-skia-opengl") as u8
         + cfg!(feature = "renderer-femtovg") as u8
         + cfg!(feature = "renderer-femtovg-wgpu") as u8)
         == 1,
-    "enable exactly one renderer feature: renderer-skia (default), renderer-femtovg or renderer-femtovg-wgpu"
+    "enable exactly one renderer feature: renderer-skia (default), renderer-skia-opengl, renderer-femtovg or renderer-femtovg-wgpu"
 );
 
 /// Renderer name shown in the About tab (`arch_info` / the core-tech line) and
@@ -30,6 +31,8 @@ const _: () = assert!(
 /// renderer Slint would actually have picked.
 pub const NAME: &str = if cfg!(feature = "renderer-skia") {
     "Skia"
+} else if cfg!(feature = "renderer-skia-opengl") {
+    "Skia/OpenGL"
 } else if cfg!(feature = "renderer-femtovg-wgpu") {
     "FemtoVG/wgpu"
 } else {
