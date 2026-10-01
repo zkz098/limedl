@@ -103,6 +103,8 @@ rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
 
 注意：**托盘**仍需 GTK 构建依赖。`tray-icon` 在 Linux 上默认启用 `gtk` feature（→ `gtk` + `libappindicator`，dlopen 调用 appindicator 库），所以 Linux 构建 / CI 仍需 `libgtk-3-dev`；去掉的是 rfd 带来的那一份，不是全部。
 
+- **已接受的上游告警（TODO：上游迁到 gtk-rs 0.20 后复查）**：这条 `gtk 0.18` 链会把 `glib 0.18.x` 带进来，而它带着一条 unsoundness 告警（GHSA-wrw7-89jp-8q8g / RUSTSEC-2024-0429：`glib::VariantStrIter` 的迭代器实现可能解引用 NULL ⇒ 崩溃）。已在 GitHub 上以 “Vulnerable code is not actually used” dismiss：limedl 从不直接调用 glib，触发它需要迭代 `VariantStrIter`，影响是崩溃而不是可控输入；`cargo audit` 对 unsound 类只 warn、`cargo deny` 的 `unsound` lint 默认也是 warn，所以 supply-chain job 一直是绿的。钉住它的是 `libappindicator 0.9.0`（2023-10，最后一个版本，硬依赖 `glib ^0.18`）：今天最新的 `tray-icon 0.26.0` / `muda 0.21.0` 仍要求 `gtk ^0.18`，`cargo update -p glib` 无可达版本。复查时机：`libappindicator` 发版，或改用 `tray-icon` 的可选 `ksni` 后端（会整条去掉 gtk/libappindicator，但托盘菜单要改写，且只能在 Linux 桌面上验证）。
+
 ## Linux 桌面版
 
 - 仓库：`x86_64-unknown-linux-gnu`（`.cargo/config.toml` 已把该 target 定为 `x86-64-v3`，与 Windows 桌面一致，需 2013+ CPU）。选 gnu 而非 musl：Slint/Skia 已经链接系统库（GL/X11/Wayland、托盘 appindicator），静态 musl 买不到可移植性。代价是 glibc 下限 —— 构建机是 `ubuntu-latest`，因此二进制需要 glibc >= 2.39（Ubuntu 24.04+）。
