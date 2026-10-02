@@ -160,14 +160,19 @@ fn targz_member_is_found_at_the_archive_root() {
 
     let extracted = extract_executable(&update, &archive_path).unwrap().unwrap();
     assert_eq!(std::fs::read(&extracted).unwrap(), b"body");
-    // The extracted copy must stay executable — `self_replace` keeps the
+    // The extracted copy must stay owner-only executable (0o700, see the
+    // rust:S2612 hardening on the staging write) — `self_replace` keeps the
     // *old* file's mode, so a lost exec bit here would only show up as a
     // launch failure after the update.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let mode = std::fs::metadata(&extracted).unwrap().permissions().mode();
-        assert_eq!(mode & 0o111, 0o111, "extracted binary lost its exec bit");
+        assert_eq!(
+            mode & 0o777,
+            0o700,
+            "extracted binary must stay owner-only executable"
+        );
     }
 }
 
