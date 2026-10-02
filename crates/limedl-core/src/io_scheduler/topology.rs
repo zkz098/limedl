@@ -12,7 +12,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use crate::file_ops::detect_disk_type;
+use crate::file_ops::{MediaOverrides, detect_disk_type};
 use crate::types::DiskType;
 
 /// Unique identifier for a physical or logical storage device.
@@ -50,6 +50,9 @@ impl fmt::Display for DeviceId {
 #[derive(Clone)]
 pub struct DeviceTopology {
     cache: Arc<RwLock<HashMap<String, (DeviceId, DiskType)>>>,
+    /// Per-directory media overrides from settings, which outrank detection for
+    /// the paths they cover.
+    overrides: Arc<RwLock<MediaOverrides>>,
 }
 
 impl Default for DeviceTopology {
@@ -63,7 +66,26 @@ impl DeviceTopology {
     pub fn new() -> Self {
         Self {
             cache: Arc::new(RwLock::new(HashMap::new())),
+            overrides: Arc::new(RwLock::new(MediaOverrides::default())),
         }
+    }
+
+    /// Replace the per-directory media overrides; returns `true` when the
+    /// snapshot actually changed.
+    ///
+    /// The resolution cache is dropped on a change because it stores the
+    /// *resolved* media per path: entries computed before an override existed
+    /// would keep the old answer for the rest of the process. That staleness is
+    /// why a saved override used to need a restart to reach the device queues —
+    /// the buffer-pool side re-reads settings on every download start, the queue
+    /// side never did.
+    pub fn set_overrides(&self, overrides: MediaOverrides) -> bool {
+        if *self.overrides.read() == overrides {
+            return false;
+        }
+        *self.overrides.write() = overrides;
+        self.cache.write().clear();
+        true
     }
 
     /// Resolve the underlying physical device ID and disk type for a path.
@@ -78,7 +100,11 @@ impl DeviceTopology {
             }
         }
 
-        let disk_type = detect_disk_type(path);
+        // An override outranks detection: it is the user telling us what the
+        // local heuristics cannot know (a NAS backed by spindles, a virtual
+        // disk). The guard is released before detection, which does I/O.
+        let forced = { self.overrides.read().lookup(path) };
+        let disk_type = forced.unwrap_or_else(|| detect_disk_type(path));
         let device_id = imp::detect_device_id(path);
 
         let mut cache = self.cache.write();

@@ -388,6 +388,12 @@ impl DownloadManager {
         // exclusively via DiskIoService::toggle_game_mode() by the desktop UI
         // and would otherwise reset to `false` on every settings save.
 
+        // Disk media overrides reach two places: the buffer mode (re-read per
+        // download start) and the device queues (built once per device), so they
+        // have to be pushed into the scheduler on every save too.
+        self.disk_io
+            .apply_overrides(&normalized.io_baseline.disk_type_overrides);
+
         // Only rebuild client when proxy or user-agent actually changed
         let client_changed = current.proxy.mode != normalized.proxy.mode
             || current.proxy.manual_url != normalized.proxy.manual_url

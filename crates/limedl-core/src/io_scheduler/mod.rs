@@ -8,7 +8,9 @@ pub mod topology;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
 use std::fs::File;
+use std::hash::BuildHasher;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -18,6 +20,7 @@ pub use queue::{DeviceMetric, DeviceQueue};
 pub use topology::{DeviceId, DeviceTopology};
 use crate::buffer_pool::SyncMode;
 use crate::error::DownloadError;
+use crate::file_ops::MediaOverrides;
 use crate::types::{DiskType, FastDashMap};
 
 /// Unified global device-level I/O manager.
@@ -45,6 +48,25 @@ impl DiskDeviceManager {
     /// Resolve the underlying device identifier and media type for a given path.
     pub fn resolve_device(&self, path: &Path) -> (DeviceId, DiskType) {
         self.topology.resolve_device(path)
+    }
+
+    /// Apply the per-directory media overrides from settings.
+    ///
+    /// A [`DeviceQueue`]'s writer-thread count is fixed when the queue is
+    /// created, so a queue built under the previous policy cannot adopt a new
+    /// one. Changing the overrides therefore drops the queue map: in-flight
+    /// writers keep the `Arc` they already hold and their submissions still
+    /// complete, and the next lookup creates a queue that matches the new
+    /// policy. The alternative — leaving the old queues in place — is the reason
+    /// a saved override used to need an app restart to change how many writer
+    /// threads a device got.
+    pub fn set_overrides<S: BuildHasher>(&self, overrides: &HashMap<String, DiskType, S>) {
+        if !self.topology.set_overrides(MediaOverrides::new(overrides)) {
+            return;
+        }
+        let rebuilt = self.queues.len();
+        self.queues.clear();
+        tracing::debug!("io_scheduler: media overrides changed, dropped {rebuilt} device queues");
     }
 
     /// Get or create the dedicated I/O queue for a given path.

@@ -38,6 +38,26 @@ mod windows {
         assert!(matches!(result, DiskType::Hdd | DiskType::Ssd));
         eprintln!("C: drive detected as: {result:?}");
     }
+
+    /// A UNC share is a remote location: the seek-penalty query has nothing to
+    /// say about it, and reporting a local SSD for it (as the detector used to)
+    /// hid the one case a media override exists for.
+    ///
+    /// No share has to exist — the classification must not depend on reaching
+    /// the server, and the name is chosen not to resolve anywhere.
+    #[test]
+    fn unc_share_is_reported_as_network() {
+        let share = Path::new(r"\\limedl-test-nonexistent\share\file.bin");
+        assert_eq!(detect_disk_type(share), DiskType::Network);
+    }
+
+    /// The WSL transport reports the media of the distro's host volume when the
+    /// distro resolves, and `Network` when it does not — never a local SSD.
+    #[test]
+    fn unresolvable_wsl_transport_is_reported_as_network() {
+        let path = Path::new(r"\\wsl$\limedl-nonexistent-distro\home\me");
+        assert_eq!(detect_disk_type(path), DiskType::Network);
+    }
 }
 
 #[cfg(target_os = "linux")]

@@ -6,7 +6,7 @@ mod imp {
     use std::ffi::OsStr;
     use std::mem;
     use std::os::windows::ffi::OsStrExt;
-    use std::path::Path;
+    use std::path::{Component, Path, Prefix};
     use std::sync::OnceLock;
 
     use parking_lot::Mutex;
@@ -74,13 +74,73 @@ mod imp {
         fn GetDriveTypeW(lp_root_path_name: *const u16) -> u32;
     }
 
+    // WSL distro lookup. `HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss`
+    // is the only place that maps a distro name to its virtual disk; the share
+    // name in `\\wsl$\<distro>` is not a filesystem path the volume APIs can
+    // open, so there is nothing to query without the registry.
+    unsafe extern "system" {
+        fn RegOpenKeyExW(
+            h_key: isize,
+            lp_sub_key: *const u16,
+            ul_options: u32,
+            sam_desired: u32,
+            phk_result: *mut isize,
+        ) -> i32;
+
+        fn RegEnumKeyExW(
+            h_key: isize,
+            dw_index: u32,
+            lp_name: *mut u16,
+            lpcch_name: *mut u32,
+            lp_reserved: *mut u32,
+            lp_class: *mut u16,
+            lpcch_class: *mut u32,
+            lpft_last_write_time: *mut std::ffi::c_void,
+        ) -> i32;
+
+        fn RegQueryValueExW(
+            h_key: isize,
+            lp_value_name: *const u16,
+            lp_reserved: *mut u32,
+            lp_type: *mut u32,
+            lp_data: *mut u8,
+            lpcb_data: *mut u32,
+        ) -> i32;
+
+        fn RegCloseKey(h_key: isize) -> i32;
+    }
+
+    // Network redirector: `Z:` → the UNC target it is mapped to.
+    #[link(name = "mpr")]
+    unsafe extern "system" {
+        fn WNetGetConnectionW(
+            lp_local_name: *const u16,
+            lp_remote_name: *mut u16,
+            lpn_length: *mut u32,
+        ) -> u32;
+    }
+
     const DRIVE_FIXED: u32 = 3;
     const DRIVE_REMOVABLE: u32 = 2;
+    const DRIVE_REMOTE: u32 = 4;
 
     const INVALID_HANDLE_VALUE: isize = -1;
     const FILE_SHARE_READ: u32 = 1;
     const FILE_SHARE_WRITE: u32 = 2;
     const OPEN_EXISTING: u32 = 3;
+
+    // `HKEY_CURRENT_USER` is the sign-extended pseudo-handle 0x80000001.
+    const HKEY_CURRENT_USER: isize = 0x8000_0001u32 as i32 as isize;
+    /// `KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS` plus the standard read rights.
+    const KEY_READ: u32 = 0x0002_0019;
+    const REG_SZ: u32 = 1;
+    /// The registry APIs return `LONG`.
+    const ERROR_SUCCESS: i32 = 0;
+    /// The shell/redirector APIs return `DWORD`.
+    const NO_ERROR: u32 = 0;
+    const ERROR_MORE_DATA: u32 = 234;
+    /// Key holding one GUID-named subkey per registered WSL distribution.
+    const LXSS_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Lxss";
 
     /// Convert a string to a null-terminated wide string (UTF-16).
     fn to_wide_null(s: &str) -> Vec<u16> {
@@ -149,38 +209,302 @@ mod imp {
         CACHE.get_or_init(|| Mutex::new(HashMap::new()))
     }
 
-    pub fn detect_disk_type(path: &Path) -> DiskType {
-        // Get the drive letter or mount point root
-        let drive_letter = match path.components().next() {
-            Some(std::path::Component::Prefix(prefix)) => {
-                match prefix.kind() {
-                    std::path::Prefix::Disk(byte) | std::path::Prefix::VerbatimDisk(byte) => {
-                        format!("{}:", byte as char)
-                    }
-                    _ => {
-                        tracing::warn!("disk_detect: unsupported path prefix, defaulting to SSD");
-                        return DiskType::Ssd; // UNC paths, device namespace — fallback
-                    }
+    /// The drive-letter root a Win32 volume API can open, if `path` has one.
+    ///
+    /// `None` means "not a lettered local volume": UNC shares, device
+    /// namespaces and ordinary relative paths have no volume to query.
+    fn drive_letter_for(path: &Path) -> Option<String> {
+        match path.components().next()? {
+            Component::Prefix(prefix) => drive_letter_from_prefix(prefix.kind()),
+            // A relative-but-rooted path (`\downloads`) belongs to the drive the
+            // process runs on.
+            Component::RootDir => {
+                let cwd = std::env::current_dir().ok()?;
+                match cwd.components().next()? {
+                    Component::Prefix(prefix) => drive_letter_from_prefix(prefix.kind()),
+                    _ => None,
                 }
             }
-            Some(std::path::Component::RootDir) => {
-                // Relative root — use the current drive
-                match std::env::current_dir() {
-                    Ok(cwd) => match cwd.components().next() {
-                        Some(std::path::Component::Prefix(p)) => match p.kind() {
-                            std::path::Prefix::Disk(byte)
-                            | std::path::Prefix::VerbatimDisk(byte) => {
-                                format!("{}:", byte as char)
-                            }
-                            _ => return DiskType::Ssd,
-                        },
-                        _ => return DiskType::Ssd,
-                    },
-                    Err(_) => return DiskType::Ssd,
-                }
+            _ => None,
+        }
+    }
+
+    /// `C:` for a disk prefix, `None` for UNC / device / verbatim-UNC prefixes.
+    fn drive_letter_from_prefix(prefix: Prefix<'_>) -> Option<String> {
+        match prefix {
+            Prefix::Disk(byte) | Prefix::VerbatimDisk(byte) => {
+                Some(format!("{}:", (byte as char).to_ascii_uppercase()))
             }
-            _ => return DiskType::Ssd,
+            _ => None,
+        }
+    }
+
+    /// `GetDriveTypeW("Z:\\")`.
+    fn root_drive_type(drive_letter: &str) -> u32 {
+        let root = to_wide_null(&format!("{drive_letter}\\"));
+        unsafe { GetDriveTypeW(root.as_ptr()) }
+    }
+
+    /// Resolve a mapped drive letter to its UNC target (`Z:` → `\\server\share`),
+    /// or `None` for a disconnected mapping.
+    fn network_path_for_drive(drive_letter: &str) -> Option<String> {
+        let local = to_wide_null(drive_letter);
+        let mut length: u32 = 260; // MAX_PATH, the documented starting size
+        for _ in 0..2 {
+            let mut buffer = vec![0u16; length as usize];
+            let status =
+                unsafe { WNetGetConnectionW(local.as_ptr(), buffer.as_mut_ptr(), &mut length) };
+            if status == NO_ERROR {
+                let end = buffer.iter().position(|unit| *unit == 0).unwrap_or(buffer.len());
+                return String::from_utf16(&buffer[..end]).ok();
+            }
+            // ERROR_MORE_DATA updates `length` with the size that is needed.
+            if status != ERROR_MORE_DATA {
+                tracing::debug!(
+                    "disk_detect: WNetGetConnectionW({drive_letter}) failed, status={status}"
+                );
+                return None;
+            }
+        }
+        None
+    }
+
+    /// `\\wsl$\Ubuntu\home\me` / `\\wsl.localhost\Ubuntu\...` → `Some("Ubuntu")`.
+    fn wsl_distro_from_path(path: &Path) -> Option<String> {
+        let Some(Component::Prefix(prefix)) = path.components().next() else {
+            return None;
         };
+        let (server, share) = match prefix.kind() {
+            Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => (server, share),
+            _ => return None,
+        };
+        let server = server.to_string_lossy().to_ascii_lowercase();
+        if server != "wsl$" && server != "wsl.localhost" {
+            return None;
+        }
+        let share = share.to_string_lossy().to_string();
+        // `\\wsl$\` on its own addresses no distro.
+        (!share.is_empty()).then_some(share)
+    }
+
+    /// Distro name → host media, resolved once per process: the Lxss → VHDX
+    /// mapping does not change while limedl runs, and resolving it walks the
+    /// registry (several syscalls) on every download start otherwise.
+    fn wsl_media_cache() -> &'static Mutex<HashMap<String, DiskType>> {
+        static CACHE: OnceLock<Mutex<HashMap<String, DiskType>>> = OnceLock::new();
+        CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+
+    fn resolve_wsl_media(distro: &str) -> DiskType {
+        let cache_key = distro.to_ascii_lowercase();
+        if let Some(&cached) = wsl_media_cache().lock().get(&cache_key) {
+            return cached;
+        }
+        let Some(base_path) = wsl_base_path(distro) else {
+            // Unknown distro (never registered, or the registry is unreadable).
+            // The path is still a remote transport, so report it as one — and do
+            // not cache the miss, because the distro may exist by the next
+            // download.
+            tracing::warn!(
+                "disk_detect: no Lxss registry entry for WSL distro {distro}, reporting network"
+            );
+            return DiskType::Network;
+        };
+        let media = wsl_media_for_base_path(Some(&base_path));
+        wsl_media_cache().lock().insert(cache_key, media);
+        tracing::debug!("disk_detect: \\wsl$\\{distro} media={media:?} (base_path={base_path})");
+        media
+    }
+
+    /// The `BasePath` of a registered distro.
+    fn wsl_base_path(distro: &str) -> Option<String> {
+        let lxss = reg_open(LXSS_KEY)?;
+        let base_path = reg_subkeys(lxss).into_iter().find_map(|subkey| {
+            let entry = reg_open(&format!("{LXSS_KEY}\\{subkey}"))?;
+            let name = reg_read_string(entry, "DistributionName");
+            let base = reg_read_string(entry, "BasePath");
+            unsafe { RegCloseKey(entry) };
+            if name.is_some_and(|name| name.eq_ignore_ascii_case(distro)) {
+                return base;
+            }
+            None
+        });
+        unsafe { RegCloseKey(lxss) };
+        base_path
+    }
+
+    /// Every registered distro with the media of the volume backing it.
+    fn wsl_distros() -> Vec<(String, DiskType)> {
+        let Some(lxss) = reg_open(LXSS_KEY) else {
+            return Vec::new();
+        };
+        let mut distros = Vec::new();
+        for subkey in reg_subkeys(lxss) {
+            let Some(entry) = reg_open(&format!("{LXSS_KEY}\\{subkey}")) else {
+                continue;
+            };
+            let name = reg_read_string(entry, "DistributionName");
+            let base_path = reg_read_string(entry, "BasePath");
+            unsafe { RegCloseKey(entry) };
+            let Some(name) = name else { continue };
+            let media = wsl_media_for_base_path(base_path.as_deref());
+            // Feed the per-distro cache so a subsequent download to the same
+            // distro does not walk the registry again.
+            wsl_media_cache().lock().insert(name.to_ascii_lowercase(), media);
+            distros.push((name, media));
+        }
+        unsafe { RegCloseKey(lxss) };
+        distros
+    }
+
+    /// Media of the local volume that stores a distro's files.
+    ///
+    /// WSL2 keeps the root filesystem in `<BasePath>\ext4.vhdx` — a plain file
+    /// on a Windows volume, so the ordinary seek-penalty query answers
+    /// correctly. A `wsl --import --vhd` layout has no `ext4.vhdx`, and a WSL1
+    /// distro has no virtual disk at all; both keep their files directly on the
+    /// host volume, which is `BasePath` itself. A missing `BasePath` means the
+    /// distro could not be resolved.
+    fn wsl_media_for_base_path(base_path: Option<&str>) -> DiskType {
+        let Some(base_path) = base_path else {
+            return DiskType::Network;
+        };
+        let base = Path::new(base_path);
+        // `BasePath` is stored with a trailing separator; `join` copes with both
+        // spellings.
+        let vhdx = base.join("ext4.vhdx");
+        if vhdx.is_file() {
+            detect_disk_type(&vhdx)
+        } else {
+            detect_disk_type(base)
+        }
+    }
+
+    /// Open a `HKCU` subkey for reading.
+    fn reg_open(subkey: &str) -> Option<isize> {
+        let wide = to_wide_null(subkey);
+        let mut key: isize = 0;
+        let status =
+            unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, wide.as_ptr(), 0, KEY_READ, &mut key) };
+        if status == ERROR_SUCCESS {
+            Some(key)
+        } else {
+            tracing::debug!("disk_detect: RegOpenKeyExW({subkey}) status={status}");
+            None
+        }
+    }
+
+    /// Read a `REG_SZ` value; `None` for missing values and for other types.
+    fn reg_read_string(key: isize, name: &str) -> Option<String> {
+        let wide = to_wide_null(name);
+        // Probe for the size first: `BasePath` is longer than any buffer worth
+        // guessing with, and the probe keeps the read exact.
+        let mut size: u32 = 0;
+        let mut value_type: u32 = 0;
+        let status = unsafe {
+            RegQueryValueExW(
+                key,
+                wide.as_ptr(),
+                std::ptr::null_mut(),
+                &mut value_type,
+                std::ptr::null_mut(),
+                &mut size,
+            )
+        };
+        // A `REG_SZ` is at least the two bytes of its terminator.
+        if status != ERROR_SUCCESS || value_type != REG_SZ || size < 2 {
+            return None;
+        }
+        let mut buffer = vec![0u16; (size as usize).div_ceil(2) + 1];
+        let status = unsafe {
+            RegQueryValueExW(
+                key,
+                wide.as_ptr(),
+                std::ptr::null_mut(),
+                &mut value_type,
+                buffer.as_mut_ptr() as *mut u8,
+                &mut size,
+            )
+        };
+        if status != ERROR_SUCCESS {
+            return None;
+        }
+        let end = buffer.iter().position(|unit| *unit == 0).unwrap_or(buffer.len());
+        String::from_utf16(&buffer[..end]).ok()
+    }
+
+    /// Subkey names of `key` (the Lxss children are per-distro GUIDs).
+    fn reg_subkeys(key: isize) -> Vec<String> {
+        let mut names = Vec::new();
+        for index in 0.. {
+            let mut buffer = [0u16; 256];
+            let mut length = buffer.len() as u32;
+            let status = unsafe {
+                RegEnumKeyExW(
+                    key,
+                    index,
+                    buffer.as_mut_ptr(),
+                    &mut length,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
+            };
+            // ERROR_NO_MORE_ITEMS (and any other failure) ends the walk.
+            if status != ERROR_SUCCESS {
+                break;
+            }
+            if let Ok(name) = String::from_utf16(&buffer[..length as usize]) {
+                names.push(name);
+            }
+        }
+        names
+    }
+
+    pub fn detect_disk_type(path: &Path) -> DiskType {
+        // ── WSL transports ────────────────────────────────────────────────
+        // `\\wsl$\Ubuntu\...` is not remote storage: the 9p/virtiofs server
+        // inside the utility VM serves a *local* `ext4.vhdx`, so the media
+        // question has a real answer here, unlike for a NAS share. Resolve the
+        // distro and detect the volume that stores its virtual disk.
+        if let Some(distro) = wsl_distro_from_path(path) {
+            return resolve_wsl_media(&distro);
+        }
+
+        let Some(drive_letter) = drive_letter_for(path) else {
+            return match path.components().next() {
+                // A share (`\\server\share`), a device namespace or a verbatim
+                // UNC path: a remote location, which is a better answer than the
+                // "SSD" this used to report silently.
+                Some(Component::Prefix(_)) => {
+                    tracing::debug!(
+                        "disk_detect: {path:?} is not a local volume, reporting network"
+                    );
+                    DiskType::Network
+                }
+                // An ordinary relative path: no volume to key off, so keep the
+                // historical default.
+                _ => DiskType::Ssd,
+            };
+        };
+
+        // Mapped network drives: the redirector exposes no seek-penalty property
+        // and `\\.\Z:` cannot be opened as a volume at all, so classify by what
+        // the letter points at. A drive mapped to `\\wsl$\...` still resolves to
+        // the media of the distro's host volume.
+        if root_drive_type(&drive_letter) == DRIVE_REMOTE {
+            let media = network_path_for_drive(&drive_letter)
+                .and_then(|target| {
+                    wsl_distro_from_path(Path::new(&target))
+                        .map(|distro| resolve_wsl_media(&distro))
+                })
+                .unwrap_or(DiskType::Network);
+            // Deliberately not cached: a letter can be remapped to different
+            // storage, and this answer is cheap to recompute.
+            tracing::debug!("disk_detect: {drive_letter} is a network drive, media={media:?}");
+            return media;
+        }
 
         // Fast path: this volume was already detected this session.
         if let Some(&cached) = disk_type_cache().lock().get(&drive_letter) {
@@ -209,6 +533,8 @@ mod imp {
         match result {
             DiskType::Hdd => tracing::debug!("disk_detect: {drive_letter} is HDD (seek penalty)"),
             DiskType::Ssd => tracing::debug!("disk_detect: {drive_letter} is SSD (no seek penalty)"),
+            // Unreachable: `query_seek_penalty` only answers Hdd/Ssd.
+            DiskType::Network => {}
         }
         result
     }
@@ -257,23 +583,131 @@ mod imp {
         }
     }
 
-    /// Enumerate all fixed/removable drives and detect disk type for each.
+    /// Enumerate every local, removable and *remote* volume plus each WSL
+    /// distro, and detect the media type for each.
+    ///
+    /// Mapped network drives and the WSL transports used to be filtered out of
+    /// this list, which left the settings panel claiming a machine had no
+    /// network storage at all — the locations most in need of a manual override
+    /// were the ones the panel could not name.
     pub fn detect_all_disk_types() -> HashMap<String, DiskType> {
         let drives_mask = unsafe { GetLogicalDrives() };
         let mut result = HashMap::new();
         for i in 0..26u32 {
-            if drives_mask & (1 << i) != 0 {
-                let letter = (b'A' + i as u8) as char;
-                let drive_root = format!("{letter}:\\");
-                let root_wide = to_wide_null(&drive_root);
-                let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
-                if drive_type == DRIVE_FIXED || drive_type == DRIVE_REMOVABLE {
-                    let disk_type = detect_disk_type(Path::new(&drive_root));
-                    result.insert(format!("{letter}:"), disk_type);
+            if drives_mask & (1 << i) == 0 {
+                continue;
+            }
+            let letter = (b'A' + i as u8) as char;
+            let drive_root = format!("{letter}:\\");
+            let root_wide = to_wide_null(&drive_root);
+            let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
+            if matches!(drive_type, DRIVE_FIXED | DRIVE_REMOVABLE | DRIVE_REMOTE) {
+                result.insert(format!("{letter}:"), detect_disk_type(Path::new(&drive_root)));
+            }
+        }
+        for (distro, media) in wsl_distros() {
+            result.insert(format!("\\\\wsl$\\{distro}"), media);
+        }
+        result
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn wsl_transports_are_recognised_by_share_name() {
+            assert_eq!(
+                wsl_distro_from_path(Path::new(r"\\wsl$\Ubuntu\home\me")),
+                Some("Ubuntu".to_string())
+            );
+            // The Windows 11 spelling of the same transport. Both are UNC, so
+            // they must not fall into the generic "network share" bucket.
+            assert_eq!(
+                wsl_distro_from_path(Path::new(r"\\wsl.localhost\Ubuntu\home")),
+                Some("Ubuntu".to_string())
+            );
+            // The server component is case-insensitive.
+            assert_eq!(
+                wsl_distro_from_path(Path::new(r"\\WSL$\Debian")),
+                Some("Debian".to_string())
+            );
+            // No distro named at all.
+            assert_eq!(wsl_distro_from_path(Path::new(r"\\wsl$")), None);
+
+            // Everything else stays a plain location.
+            for path in [r"\\nas\downloads\file.bin", r"C:\downloads", r"D:", "relative"] {
+                assert_eq!(wsl_distro_from_path(Path::new(path)), None, "{path}");
+            }
+        }
+
+        #[test]
+        fn drive_letters_are_read_from_local_paths_only() {
+            assert_eq!(drive_letter_for(Path::new(r"d:\downloads")), Some("D:".to_string()));
+            assert_eq!(drive_letter_for(Path::new(r"\\?\D:\x")), Some("D:".to_string()));
+            // Rooted-but-relative paths resolve against the current drive.
+            let current = std::env::current_dir().expect("cwd");
+            assert_eq!(
+                drive_letter_for(Path::new(r"\downloads")),
+                drive_letter_for(&current)
+            );
+            // Share and relative paths have no volume to open.
+            assert_eq!(drive_letter_for(Path::new(r"\\wsl$\Ubuntu\home")), None);
+            assert_eq!(drive_letter_for(Path::new(r"\\nas\share")), None);
+            assert_eq!(drive_letter_for(Path::new("relative")), None);
+        }
+
+        #[test]
+        fn unresolvable_wsl_base_path_reports_network() {
+            // A missing registry value must not invent a media type — and a
+            // `--import --vhd` distro without `ext4.vhdx` falls back to the
+            // volume holding the distro itself, which is still a local answer.
+            assert_eq!(wsl_media_for_base_path(None), DiskType::Network);
+            assert!(matches!(
+                wsl_media_for_base_path(Some(r"C:\")),
+                DiskType::Ssd | DiskType::Hdd
+            ));
+        }
+
+        /// End-to-end: a registered distro resolves through its `BasePath` to the
+        /// local volume holding its `ext4.vhdx` — that is the whole point of the
+        /// WSL branch, since a `\\wsl$` path is *not* remote storage.
+        ///
+        /// Vacuous on a machine with no distros (every CI runner): it earns its
+        /// keep on a developer machine, where the shares may be stopped and
+        /// nothing but the registry can answer. The two lookups below go through
+        /// different code paths on purpose, so this is a real comparison rather
+        /// than a restatement.
+        #[test]
+        fn registered_wsl_distros_resolve_to_their_host_volume() {
+            let distros = wsl_distros();
+            for (distro, media) in &distros {
+                eprintln!("wsl distro {distro} => {media:?}");
+            }
+            for (distro, _) in &distros {
+                assert_eq!(
+                    resolve_wsl_media(distro),
+                    wsl_media_for_base_path(wsl_base_path(distro).as_deref()),
+                    "{distro}"
+                );
+            }
+        }
+
+        #[test]
+        fn unknown_distro_falls_back_to_network_without_a_registry_entry() {
+            assert_eq!(resolve_wsl_media("limedl-nonexistent-distro"), DiskType::Network);
+        }
+
+        #[test]
+        fn network_path_lookup_returns_a_unc_path_or_nothing() {            // The letters are (almost certainly) unmapped, but the assertion has
+            // to hold either way: this is the redirector round-trip, not a
+            // predicate we control.
+            for letter in ["Q:", "q:", "1:"] {
+                if let Some(target) = network_path_for_drive(letter) {
+                    assert!(target.starts_with(r"\\"), "{letter} resolved to {target}");
                 }
             }
         }
-        result
     }
 }
 
@@ -282,9 +716,18 @@ mod imp {
     use std::fs;
     use std::path::Path;
 
+    use crate::file_ops::{is_network_filesystem, parse_mountinfo, path_is_within};
     use crate::types::DiskType;
 
     pub fn detect_disk_type(path: &Path) -> DiskType {
+        // Network and host-brokered mounts have no local block device to
+        // inspect, so every check below would answer "SSD" for an NFS share —
+        // and for WSL's `/mnt/c`, which is a 9p transport over a VHDX whose
+        // media the guest cannot see. Classify those first.
+        if let Some(media) = network_mount_media(path) {
+            return media;
+        }
+
         let Ok(meta) = fs::metadata(path) else {
             return DiskType::Ssd;
         };
@@ -317,6 +760,28 @@ mod imp {
 
     use std::collections::HashMap;
 
+    /// Media for `path` when it lives on a network or host-brokered mount.
+    fn network_mount_media(path: &Path) -> Option<DiskType> {
+        let absolute = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let mountinfo = fs::read_to_string("/proc/self/mountinfo").ok()?;
+
+        let mut best: Option<usize> = None;
+        let mut is_network = false;
+        for (mount_point, fstype) in parse_mountinfo(&mountinfo) {
+            if !path_is_within(&absolute, Path::new(&mount_point)) {
+                continue;
+            }
+            // The longest matching mount point wins: `/mnt/nas/sub` is a
+            // different filesystem from `/mnt`.
+            if best.is_none_or(|length| mount_point.len() > length) {
+                best = Some(mount_point.len());
+                is_network = is_network_filesystem(&fstype);
+            }
+        }
+
+        (best.is_some() && is_network).then_some(DiskType::Network)
+    }
+
     pub fn detect_all_disk_types() -> HashMap<String, DiskType> {
         let mut result = HashMap::new();
         let Ok(entries) = fs::read_dir("/sys/block") else {
@@ -330,7 +795,33 @@ mod imp {
                 result.insert(name, disk_type);
             }
         }
+        // Block devices cannot describe a network mount, but they are exactly
+        // the locations a user needs to be able to name before pinning one with
+        // a media override.
+        if let Ok(mountinfo) = fs::read_to_string("/proc/self/mountinfo") {
+            for (mount_point, fstype) in parse_mountinfo(&mountinfo) {
+                if is_network_filesystem(&fstype) {
+                    result.insert(mount_point, DiskType::Network);
+                }
+            }
+        }
         result
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        /// The mountinfo parser and the component-boundary match are tested in
+        /// `file_ops::media` — they are platform-independent, and that is where
+        /// the Windows gate can actually compile them. This pins the Linux
+        /// wiring only: a local path must not be classified as remote, and a
+        /// local filesystem must still be probed from its block device.
+        #[test]
+        fn local_paths_are_not_network_mounts() {
+            assert_eq!(network_mount_media(Path::new("/tmp")), None);
+            assert_ne!(detect_disk_type(Path::new("/")), DiskType::Network);
+        }
     }
 }
 
@@ -453,6 +944,14 @@ mod imp {
         let mut fsbuf: libc::statfs = unsafe { std::mem::zeroed() };
         if unsafe { libc::statfs(path_c.as_ptr(), &mut fsbuf) } != 0 {
             return DiskType::Ssd;
+        }
+
+        // A network mount has no IOKit media of its own: the "Rotational" probe
+        // below would either find nothing or describe unrelated hardware, so
+        // classify the mount by its filesystem type instead.
+        let fstype = unsafe { CStr::from_ptr(fsbuf.f_fstypename.as_ptr()) };
+        if crate::file_ops::is_network_filesystem(&fstype.to_string_lossy()) {
+            return DiskType::Network;
         }
 
         let mntfrom = unsafe { CStr::from_ptr(fsbuf.f_mntfromname.as_ptr()) };

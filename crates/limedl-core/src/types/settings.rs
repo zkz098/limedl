@@ -276,6 +276,9 @@ pub struct IoBaselineSettings {
     pub game_mode_max_parallel: u32,
     /// User-specified disk type overrides keyed by directory path.
     /// e.g. {"D:\\downloads": "hdd"} forces that directory to be treated as HDD.
+    ///
+    /// A key covers its whole subtree: the lookup normalizes both sides and
+    /// matches on component boundaries, so the most specific (longest) key wins.
     #[serde(default)]
     pub disk_type_overrides: foldhash::HashMap<String, DiskType>,
     /// Whether HDD double-buffer optimization is enabled.

@@ -54,7 +54,10 @@ impl DeviceQueue {
     pub fn new(device_id: DeviceId, disk_type: DiskType) -> Self {
         let channel_count = match disk_type {
             DiskType::Hdd => 1, // Single serialized writer thread for HDD to eliminate seek storm
-            DiskType::Ssd => 4, // Multi-channel parallel writer threads for SSD/NVMe
+            // SSD/NVMe, and remote locations: a network transport already
+            // reorders its writes on the far side, so parallel channels help and
+            // a single serialized writer would only add latency.
+            DiskType::Ssd | DiskType::Network => 4,
         };
 
         let bytes_written = Arc::new(AtomicU64::new(0));

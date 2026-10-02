@@ -68,6 +68,10 @@ impl SystemContext {
             io.game_mode_max_parallel,
         ));
         let device_manager = Arc::new(DiskDeviceManager::new());
+        // Seed the scheduler with the persisted overrides: a device queue built
+        // for a path the user pinned to HDD must not start out as a 4-channel
+        // SSD queue just because no settings save happened yet.
+        device_manager.set_overrides(&initial_settings.io_baseline.disk_type_overrides);
         let io_worker = IoWorker::spawn_pool_with_device_manager(
             std::thread::available_parallelism()
                 .map(|n| n.get())

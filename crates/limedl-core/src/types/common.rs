@@ -144,6 +144,17 @@ pub enum DiskType {
     #[default]
     Ssd,
     Hdd,
+    /// Remote or otherwise unresolvable location: a UNC/SMB share, a mapped
+    /// network drive, a network mount on Linux/macOS, or a WSL path whose
+    /// distro could not be resolved.
+    ///
+    /// Scheduled like [`DiskType::Ssd`] (write combining, parallel channels) —
+    /// not because the bytes land on flash, but because the local seek-penalty
+    /// heuristics say nothing here and the transport, not the platter, is the
+    /// bottleneck. It exists so the mode is *visible* instead of being reported
+    /// as SSD: a share backed by spindles can be pinned with
+    /// `io_baseline.disk_type_overrides` now that the device queue honours it.
+    Network,
 }
 
 /// Action to perform when double-clicking a completed download task.

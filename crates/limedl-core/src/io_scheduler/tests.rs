@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
 
@@ -6,6 +7,13 @@ use tempfile::tempdir;
 
 use super::*;
 use crate::buffer_pool::SyncMode;
+
+fn override_map(entries: &[(&str, DiskType)]) -> HashMap<String, DiskType> {
+    entries
+        .iter()
+        .map(|(key, media)| (key.to_string(), *media))
+        .collect()
+}
 
 #[tokio::test]
 async fn test_device_topology_and_queue_creation() {
@@ -50,4 +58,67 @@ async fn test_disk_device_manager_write_batch() {
     assert!(!all_metrics.is_empty());
     let total_written: u64 = all_metrics.iter().map(|m| m.bytes_written).sum();
     assert_eq!(total_written, 26);
+}
+
+/// The queue records the media it was built for, and that media is what picks
+/// the writer-thread count in `DeviceQueue::new` — so this asserts the policy
+/// the queue runs under, not just a label.
+#[tokio::test]
+async fn media_overrides_reach_device_resolution_and_queues() {
+    let manager = DiskDeviceManager::new();
+    let temp = tempdir().expect("tempdir");
+    let dir = temp.path().to_string_lossy().to_string();
+    let file_path = temp.path().join("payload.bin");
+
+    // Whatever the local heuristics say — SSD on a CI runner, HDD on a spinning
+    // disk — the override has to be the opposite, so the assertions cannot pass
+    // by accident on either kind of host.
+    let detected = manager.resolve_device(&file_path).1;
+    let forced = if detected == DiskType::Hdd {
+        DiskType::Ssd
+    } else {
+        DiskType::Hdd
+    };
+
+    let before = manager.get_or_create_queue(&file_path);
+    assert_eq!(before.metrics().disk_type, detected);
+
+    manager.set_overrides(&override_map(&[(&dir, forced)]));
+    assert_eq!(
+        manager.resolve_device(&file_path).1,
+        forced,
+        "an override must outrank detection"
+    );
+    // A queue built before the override cannot adopt the new policy, so it is
+    // replaced rather than reused (this is what used to require a restart).
+    assert_eq!(manager.get_or_create_queue(&file_path).metrics().disk_type, forced);
+
+    // Clearing the overrides restores the detected answer.
+    manager.set_overrides(&override_map(&[]));
+    assert_eq!(manager.resolve_device(&file_path).1, detected);
+    assert_eq!(manager.get_or_create_queue(&file_path).metrics().disk_type, detected);
+}
+
+#[tokio::test]
+async fn unchanged_overrides_keep_the_existing_device_queues() {
+    let manager = DiskDeviceManager::new();
+    let temp = tempdir().expect("tempdir");
+    let dir = temp.path().to_string_lossy().to_string();
+
+    manager.record_write(1024);
+    assert_eq!(manager.get_device_metrics().len(), 1);
+
+    manager.set_overrides(&override_map(&[(&dir, DiskType::Hdd)]));
+    assert!(
+        manager.get_device_metrics().is_empty(),
+        "a changed policy drops the queues, and with them their live metrics"
+    );
+
+    manager.record_write(1);
+    manager.set_overrides(&override_map(&[(&dir, DiskType::Hdd)]));
+    assert_eq!(
+        manager.get_device_metrics().len(),
+        1,
+        "an identical policy must not rebuild anything"
+    );
 }

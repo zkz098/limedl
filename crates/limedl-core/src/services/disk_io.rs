@@ -5,7 +5,7 @@ use foldhash::HashMap;
 use parking_lot::Mutex;
 
 use crate::buffer_pool::BufferPool;
-use crate::file_ops::{detect_all_disk_types, detect_disk_type};
+use crate::file_ops::{detect_all_disk_types, detect_disk_type, lookup_media_override};
 use crate::io_scheduler::DiskDeviceManager;
 use crate::services::SettingsService;
 use crate::types::DiskType;
@@ -58,13 +58,26 @@ impl DiskIoService {
         detect_all_disk_types()
     }
 
+    /// Push the per-directory media overrides into the device scheduler.
+    ///
+    /// The buffer mode is decided per download start (so it picks up a saved
+    /// override by itself), but the device queues are built once per device —
+    /// without this they would keep resolving media the way they did at startup.
+    pub fn apply_overrides<S: std::hash::BuildHasher>(
+        &self,
+        overrides: &std::collections::HashMap<String, DiskType, S>,
+    ) {
+        self.device_manager.set_overrides(overrides);
+    }
+
     /// Resolve the disk type for a directory, checking settings overrides,
     /// per-device cache (on Unix), and finally performing OS detection.
     pub async fn resolve_disk_type(&self, dir: &Path) -> DiskType {
         let settings = self.settings_service.get().await;
-        let dir_str = dir.to_string_lossy().to_string();
-        if let Some(disk_type) = settings.io_baseline.disk_type_overrides.get(&dir_str) {
-            return *disk_type;
+        // Overrides are keyed by directory and the query is a destination inside
+        // it, so the lookup is a path-prefix match, not a map lookup.
+        if let Some(media) = lookup_media_override(&settings.io_baseline.disk_type_overrides, dir) {
+            return media;
         }
         drop(settings);
 

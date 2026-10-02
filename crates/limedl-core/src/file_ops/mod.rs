@@ -570,8 +570,16 @@ fn write_once_at(file: &File, buffer: &[u8], offset: u64) -> std::io::Result<usi
 }
 
 mod disk_detect;
-pub use disk_detect::detect_disk_type;
+mod media;
 pub use disk_detect::detect_all_disk_types;
+pub use disk_detect::detect_disk_type;
+pub use media::MediaOverrides;
+pub use media::is_network_filesystem;
+pub use media::is_usable_override_key;
+pub use media::lookup_media_override;
+pub use media::normalize_media_path;
+pub use media::parse_mountinfo;
+pub use media::path_is_within;
 
 // ── Tests ─────────────────────────────────────────────
 
