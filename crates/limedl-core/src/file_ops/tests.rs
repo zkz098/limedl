@@ -305,6 +305,126 @@ fn finalize_temp_file_cross_device_copy() -> TestResult {
     Ok(())
 }
 
+// ── finalize_temp_file cross-device (Unix) ────────
+
+/// A pair of temp directories on two different filesystems, or `None` when
+/// the host has only one writable volume (macOS CI, single-mount containers).
+///
+/// The drive-letter test above only ever runs on Windows; Linux CI has
+/// `/dev/shm` (tmpfs) next to `/tmp` (ext4), so the copy fallback that
+/// `std::fs::rename` cannot handle is exercised there.
+#[cfg(unix)]
+fn cross_device_dirs() -> Option<(tempfile::TempDir, tempfile::TempDir)> {
+    use std::os::unix::fs::MetadataExt;
+
+    let primary = tempfile::tempdir().ok()?;
+    let primary_device = fs::metadata(primary.path()).ok()?.dev();
+    for mount in ["/dev/shm", "/run/shm", "/var/tmp"] {
+        let Ok(other) = tempfile::tempdir_in(mount) else {
+            continue;
+        };
+        if fs::metadata(other.path()).ok()?.dev() != primary_device {
+            return Some((primary, other));
+        }
+    }
+    None
+}
+
+/// No `.finalizing.*` staging file may be left next to the published file.
+#[cfg(unix)]
+fn assert_no_staging_files(dir: &Path, destination_name: &str) {
+    let prefix = format!("{destination_name}.finalizing.");
+    let leftovers: Vec<String> = fs::read_dir(dir)
+        .expect("read destination dir")
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with(&prefix))
+        .collect();
+    assert!(
+        leftovers.is_empty(),
+        "staging residue left behind: {leftovers:?}"
+    );
+}
+
+/// Cross-device finalize must copy the whole file and only then publish it:
+/// the destination is byte-identical, the temp source is gone, and no staging
+/// file is left behind. On a same-device rename this is trivial; on the copy
+/// fallback a short write or an early rename would leave a truncated file
+/// behind the user's final name.
+#[timeout(60_000)]
+#[cfg(unix)]
+#[test]
+fn finalize_temp_file_cross_device_copy_is_byte_identical() -> TestResult {
+    let Some((primary, secondary)) = cross_device_dirs() else {
+        return Ok(());
+    };
+
+    let source = secondary.path().join("download.part");
+    let destination = primary.path().join("download.bin");
+    // Larger than the 1 MiB copy buffer so the read/write loop takes several
+    // passes and leaves a ragged tail.
+    let content: Vec<u8> = (0..(3 * 1024 * 1024 + 123u32))
+        .map(|i| (i % 251) as u8)
+        .collect();
+    fs::write(&source, &content)?;
+
+    finalize_temp_file(&source, &destination)?;
+
+    assert!(
+        !source.exists(),
+        "source must be removed once the copy is published"
+    );
+    assert_eq!(
+        fs::read(&destination)?,
+        content,
+        "destination must be byte-identical"
+    );
+    assert_no_staging_files(primary.path(), "download.bin");
+    Ok(())
+}
+
+/// When the cross-device fallback cannot even create its staging file, the
+/// finalize must fail without touching the source or the destination: a failed
+/// publish may never lose the only copy of the data.
+#[timeout(60_000)]
+#[cfg(unix)]
+#[test]
+fn finalize_temp_file_cross_device_keeps_source_when_staging_is_exhausted() -> TestResult {
+    let Some((primary, secondary)) = cross_device_dirs() else {
+        return Ok(());
+    };
+
+    let source = secondary.path().join("download.part");
+    let destination = primary.path().join("download.bin");
+    let content = b"content that must survive a failed finalize";
+    fs::write(&source, content)?;
+
+    // Occupy every candidate staging slot so `unique_finalizing_path` gives up
+    // before the copy starts (deterministic, unlike a permissions race).
+    let process_id = std::process::id();
+    for attempt in 0..1000u16 {
+        let name = format!("download.bin.finalizing.{process_id}.{attempt}.tmp");
+        fs::write(primary.path().join(name), b"")?;
+    }
+
+    let result = finalize_temp_file(&source, &destination);
+
+    assert!(
+        result.is_err(),
+        "an exhausted staging pool must fail the finalize"
+    );
+    assert_eq!(
+        fs::read(&source)?,
+        content,
+        "source must survive a failed finalize"
+    );
+    assert!(
+        !destination.exists(),
+        "no destination may be published from a failed copy"
+    );
+    Ok(())
+}
+
 // ── files_have_same_content ───────────────────────
 
 #[timeout(30_000)]

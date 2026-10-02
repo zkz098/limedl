@@ -71,6 +71,16 @@ impl DownloadManager {
             );
             if needs_chunks {
                 manifest.chunks = self.db.load_chunks(&manifest.id).unwrap_or_default();
+                // A freshly loaded manager owns no chunk workers yet, so every
+                // persisted claim belongs to a process that is gone. A stale
+                // claim would make `claim_next_chunk` skip the chunk while
+                // `chunks` still reports work to do — the resumed run could
+                // stall on a range no worker is allowed to take. Only an
+                // actual shutdown releases claims before persisting; clearing
+                // them here is the crash-recovery equivalent.
+                for chunk in &mut manifest.chunks {
+                    chunk.claimed_by = None;
+                }
             }
 
             let snapshot = snapshot_from_manifest(&manifest);

@@ -409,3 +409,92 @@ async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
     let _ = manager.remove("chunks-test").await;
     Ok(())
 }
+
+// ===========================================================================
+// Test 5 — Crash while Downloading: progress survives, stale claims do not
+// ===========================================================================
+
+/// A process killed mid-download can never write `Paused`: its last persisted
+/// row is `Downloading` with live connection counters *and* live chunk claims.
+/// Recovery must keep the task runnable with its progress, but the claims
+/// belong to workers that no longer exist — leaving them in place would make
+/// the resumed run skip those chunks forever.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn downloading_survives_restart_without_stale_claims() -> TestResult {
+    let temp = tempdir()?;
+    let state_dir = temp.path().join("state");
+    std::fs::create_dir_all(&state_dir)?;
+    std::fs::create_dir_all(state_dir.join("logs")).ok();
+
+    let db_path = state_dir.join("downloads.db");
+    let db = Database::open(&db_path)?;
+
+    let mut manifest = make_test_manifest("crash-downloading", DownloadState::Downloading);
+    manifest.total_bytes = Some(8 * 1024 * 1024);
+    manifest.downloaded_bytes = 3 * 1024 * 1024;
+    manifest.connection_count = 4;
+    manifest.allocated_thread_count = Some(4);
+    manifest.chunks = vec![
+        ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 4 * 1024 * 1024 - 1,
+            downloaded: 3 * 1024 * 1024,
+            completed: false,
+            claimed_by: Some(2),
+            dirty: false,
+        },
+        ChunkManifest {
+            index: 1,
+            start: 4 * 1024 * 1024,
+            end: 8 * 1024 * 1024 - 1,
+            downloaded: 0,
+            completed: false,
+            claimed_by: Some(3),
+            dirty: false,
+        },
+    ];
+    db.insert_download(&manifest)?;
+    drop(db);
+
+    let manager = Arc::new(DownloadManager::new_with_components(
+        state_dir,
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let status = manager.status("crash-downloading").await?;
+    assert_eq!(
+        status.state,
+        DownloadState::Downloading,
+        "a crash must leave the task runnable, not silently Paused"
+    );
+    assert_eq!(
+        status.connection_count, 0,
+        "stale connections from the dead process must be cleared"
+    );
+    assert_eq!(
+        status.allocated_thread_count,
+        Some(0),
+        "stale thread allocations must be cleared"
+    );
+    assert_eq!(
+        status.downloaded_bytes,
+        3 * 1024 * 1024,
+        "downloaded progress must survive the restart"
+    );
+    assert_eq!(status.chunks.len(), 2, "chunk map must be reloaded");
+    assert_eq!(
+        status.chunks[0].downloaded,
+        3 * 1024 * 1024,
+        "chunk progress must survive the restart"
+    );
+    assert!(
+        status.chunks.iter().all(|chunk| chunk.claimed_by.is_none()),
+        "claims from the dead process must not survive the restart"
+    );
+
+    let _ = manager.remove("crash-downloading").await;
+    Ok(())
+}

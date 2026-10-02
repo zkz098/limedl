@@ -77,7 +77,8 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
   → DownloadBuffer::drain_background() + flush_all()
   → calculate_checksum() → Blake3 / SHA-256 / SHA-512（spawn_blocking, 1MiB 缓冲）
   → 校验和不匹配 → 仅重下受影响 chunk（非整个文件）
-  → finalize_temp_file(): 原子 rename → 跨设备回退到 hard_link（256KB 缓冲区复制）
+  → finalize_temp_file(): 原子 rename → 跨设备回退到「复制到 staging + 同卷 rename」（1 MiB
+    复制缓冲；失败清理 staging 并保留源文件）
   → Database: state=completed
   → EventBus::publish(Updated) → app_handle.emit("download-updated")
 ```
@@ -155,7 +156,7 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 
 ### 崩溃恢复 & 错误处理
 
-- 重启时 `load_downloads_from_db()` 从 SQLite 重建 ManagedDownload，最后持久化的 chunk 状态续传。
+- 重启时 `load_downloads_from_db()` 从 SQLite 重建 ManagedDownload，最后持久化的 chunk 状态续传。加载时**清空每块的 `claimed_by`**：新建 manager 没有任何 chunk worker，库里残留的 claim 属于已经消失的进程，留着它会让 `claim_next_chunk` 永远跳过该块、重启后的续传卡死（真实关闭会先 `release_all_chunk_claims` 再持久化，崩溃则不会）。
 - 瞬态故障指数退避重试（max_retries 限制）；checksum 不匹配仅重下受影响 chunk。
 - 403 双路径处理（防盗链 vs 反滥用）：探测阶段收到 403 Forbidden 时先读取响应体前 16 KiB（`looks_like_anti_abuse_page()`）判断是否为 WAF/镜像站反滥用页（TUNA "uncommon characteristics"、Cloudflare 拦截页、中文"访问被拒绝"等标记）。若是反滥用页，直接返回带提示的错误（`anti_abuse_forbidden_error()`：建议更新 User-Agent 或更换镜像），**不再**做 Referer 探测——那只会向已被判定异常的网段追加更多可疑请求。仅当 403 看起来是普通防盗链（无标记）且用户未提供 Referer 时，才通过 `infer_candidate_referers()` 推断候选 Referer 并在探测成功时写入 `Manifest.extra_headers`，所有分块 worker 均继承该 Referer（例如 NVIDIA Zen CDN）。
 - 反滥用 403 同样覆盖下载阶段：`request_with_retry` 在 `classify_download_response` 之前对 403 做同样的 16 KiB 体积嗅探，命中标记即返回同一提示，用户不会只看到裸的 `http status 403`。403 属终止性错误（`ResponseDisposition::Invalid`）不重试，只有 429/5xx 进入退避重试。

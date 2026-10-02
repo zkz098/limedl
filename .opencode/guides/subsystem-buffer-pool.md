@@ -62,7 +62,8 @@ Worker 下载数据块 → buffer_chunk(offset, data)
 
 最终化 → finalize_temp_file(temp_path, destination_path)
   ├─ 主路径：原子 rename（同文件系统）
-  └─ 回退：跨设备复制（CrossesDevices）→ staging path → hard_link（256KB 缓冲）
+  └─ 回退：跨设备（CrossesDevices）→ 复制到 staging path（1 MiB 缓冲、失败即清理并保留源文件）
+         → 同目录 rename 到目标（保证同卷原子性）→ 删除源文件
 ```
 
 ## 设计决策与约定
@@ -83,7 +84,7 @@ Worker 下载数据块 → buffer_chunk(offset, data)
 - `preallocate_file()` 返回原始 `io::Result`：只有调用方知道目标目录，因此只有它能拿到可用空间做上述判定。`reset_download_file()` 手上只有 `File`（拿不到路径），只按 `ErrorKind` 判定。
 - `write_all_at` 为 `pub(super)` 可见——仅 buffer_pool 和 manager 使用。
 - 同名文件冲突：内容相同接受（幂等重试），不同报 AlreadyExists。
-- 跨设备复制使用 256KB 栈分配缓冲区（vs stdlib 默认 8KB）。
+- 跨设备复制使用 1 MiB 堆缓冲区，先写 staging 再同目录 rename；失败时清理 staging 并保留源文件（`finalize_temp_file` 绝不能因为一次失败的发布而丢掉唯一一份数据）。
 - 磁盘检测失败静默回退 `DiskType::Ssd`（未知 ≠ 远程，见下）。
 - Windows 磁盘检测通过 `CreateFileW(\\.\C:)` + `DeviceIoControl(IOCTL_STORAGE_QUERY_PROPERTY)` + `STORAGE_DEVICE_SEEK_PENALTY_PROPERTY`。
 

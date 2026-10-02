@@ -30,7 +30,8 @@
   └─ UPDATE downloads + UPDATE chunks
 
 崩溃恢复 → Database::list_download_headers() + load_chunks()
-  └─ 重建 ManagedDownload，从最后持久化的 chunk 状态恢复
+  └─ 重建 ManagedDownload，从最后持久化的 chunk 状态恢复；加载时清空 chunk 的
+     `claimed_by`（残留 claim 属于已消失的进程，见 persistence.rs）
 
 删除任务 → Database::delete_download(id) → ON DELETE CASCADE 自动删除 chunks
 ```
