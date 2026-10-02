@@ -289,8 +289,8 @@ pub fn app_settings_to_form(
             std::env::consts::ARCH,
             crate::renderer::NAME,
         )),
-        // Interpolated into the `@tr` core-tech line, so the label follows the
-        // `renderer-*` feature this binary was built with (`src/renderer.rs`).
+        // Interpolated into the `@tr` core-tech line; the label comes from the one
+        // place that names the renderer (`src/renderer.rs`).
         graphics_renderer: SharedString::from(crate::renderer::NAME),
     }
 }

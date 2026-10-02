@@ -12,12 +12,22 @@ path = "src/main.rs"
 
 [dependencies]
 limedl-core = { path = "../limedl-core", features = ["aria2-rpc"] }
+# Slint's renderer is a compile-time choice, and this crate pins the shipped pair
+# here instead of exposing it as crate features: FemtoVG/OpenGL as the primary,
+# plus Slint's software rasterizer, which `try_create_window_with_fallback_renderer`
+# reaches only when GL init fails (RDP sessions, VMs, broken drivers). The
+# comparison variants that used to be selectable — Skia on softbuffer/OpenGL and
+# FemtoVG/wgpu — are gone: Skia pulled its entire C++ library into every test
+# build, and Cargo cannot make a dev-dependency optional to keep that out of the
+# test graph.
 slint = { workspace = true, features = [
   "std",
   "backend-default",
   "accessibility",
   "compat-1-2",
   "raw-window-handle-06",
+  "renderer-femtovg",
+  "renderer-software",
 ] }
 raw-window-handle = "0.6"
 tokio = { workspace = true }
@@ -119,13 +129,13 @@ windows = { version = "0.62", features = [
 # the Future/IntoFuture impls for IAsyncOperation live — re-enable it so the
 # Store updater can await async WinRT calls instead of blocking the UI thread.
 #
-# 0.62 / windows-future 0.3 is not a refresh for its own sake: `wgpu-hal` (the
-# `renderer-femtovg-wgpu` build) requires `windows` 0.62, while `gpu-allocator`
-# accepts `>=0.53, <=0.62` and Cargo reuses whichever copy is already in the
-# graph. Pinning 0.61 here made that reuse pick 0.61 for `gpu-allocator` too, so
-# its `ID3D12Device` was a *different type* from the one wgpu-hal passes in
-# (E0308 inside wgpu-hal). One `windows` version for the whole graph is what
-# fixes it.
+# The 0.62 pin originally came from `wgpu-hal`, which required it while
+# `gpu-allocator` accepted `>=0.53, <=0.62`: Cargo reuses whichever copy is
+# already in the graph, so pinning 0.61 made `gpu-allocator`'s `ID3D12Device` a
+# *different type* from the one wgpu-hal passed in (E0308 inside wgpu-hal). wgpu
+# left the graph together with the FemtoVG/wgpu renderer variant, but 0.62 is what
+# the rest of the graph already resolves to (`accesskit_windows`, `fontique`, …),
+# so the pin stands until a dependency refresh has a reason to move it.
 windows-future = { version = "0.3", default-features = false, features = ["std"] }
 
 [target.'cfg(not(windows))'.dependencies]
@@ -152,70 +162,3 @@ i-slint-backend-testing = { workspace = true }
 # The recording `DownloadBackend` in `src/ui_tests/` implements the core trait,
 # which is `#[async_trait]`.
 async-trait = { workspace = true }
-
-[features]
-# ── Graphics renderer: exactly one primary, plus an optional fallback ───────
-# Slint's renderer is a compile-time choice — the backend selector can only use
-# a renderer that was compiled in, so "which renderer" is a Cargo feature here,
-# not an env var. `renderer-femtovg` is the shipped default: on a 1000-task list it
-# rendered 97 fps at 9.55 ms CPU/frame against the CPU-rasterized Skia build it
-# replaced (57 fps / 14.93 ms), and at the lowest memory of the four. The other
-# three variants exist to compare against it:
-#
-#   cargo run -p limedl-native --no-default-features --features renderer-skia
-#   cargo run -p limedl-native --no-default-features --features renderer-skia-opengl
-#   cargo run -p limedl-native --no-default-features --features renderer-femtovg-wgpu
-#
-# `renderer-skia` is NOT the GPU one on Windows. `i-slint-renderer-skia` picks its
-# surface in this order (see its `lib.rs`): vulkan > opengl > metal > softbuffer,
-# and `skia_backend_opengl` there is
-# `any(feature = "opengl", not(any(apple, windows, wasm32)))` — so on Windows the
-# default lands on `skia_backend_softbuffer` and rasterizes on the CPU (`skia
-# backend software` in the startup log), presenting through Softbuffer. Skia's
-# GPU surface needs `slint/renderer-skia-opengl` explicitly, which is what that
-# variant is for; it is a plain GL surface with a software fallback, so a failed
-# GL init logs "Falling back to software rendering" rather than aborting.
-
-# `src/renderer.rs` fails the build when zero or several are enabled: compiled
-# together they are not a runtime choice (Slint prefers Skia > FemtoVG/wgpu >
-# FemtoVG/GL), and the About tab's renderer label is derived from the single
-# enabled feature, so a second one would make the label describe a rasterizer that
-# may not be the active one.
-#
-# `renderer-software-fallback` is deliberately NOT in that exclusive set: it is
-# additive, and pairing it with a primary renderer is the only supported use.
-default = ["renderer-femtovg", "renderer-software-fallback"]
-# Skia on the Softbuffer/CPU surface on Windows (see above). No longer the default:
-# it is the slowest of the four here and rasterizes on the CPU.
-renderer-skia = ["slint/renderer-skia"]
-# Skia on OpenGL, i.e. the GPU rasterizer. This and `renderer-femtovg` both land on
-# GL, which is what makes a Skia-vs-FemtoVG comparison a rasterizer comparison
-# rather than a CPU-vs-GPU one.
-renderer-skia-opengl = ["slint/renderer-skia-opengl"]
-# FemtoVG on OpenGL (glutin) — the shipped default.
-#
-# It needs a working GL driver, so it ships next to `renderer-software-fallback`
-# below: without that, a machine whose GL stack fails to initialize has no
-# renderer left to draw with.
-#
-# It lands on the same OpenGL API as `renderer-skia-opengl`, which is what makes
-# a Skia-vs-FemtoVG comparison a rasterizer comparison rather than a CPU-vs-GPU
-# one; that pairing is how the default was chosen.
-renderer-femtovg = ["slint/renderer-femtovg"]
-# Additive, not part of the exclusive set above: Slint's
-# `try_create_window_with_fallback_renderer` chains every renderer that was
-# compiled in ([Skia, FemtoVG/wgpu, FemtoVG/GL, software], filtered by features)
-# and keeps the first whose init succeeds. So this one is only ever reached when
-# the primary renderer fails — on the happy path it costs nothing but size.
-#
-# Keeping it is what preserves "the app always starts": 0.4.0 shipped
-# `renderer-femtovg` alone, so an RDP/VM session or a broken GL stack could not
-# open a window at all, which no user can work around. Measured against
-# FemtoVG/GL on a 1000-task list: 39 fps at 20.4 ms CPU per frame (vs 108 / 8.0),
-# but it starts faster (341 vs 593 ms) and uses less memory (171 vs 236 MB).
-# Cost: +0.47 MB on the exe, ~+0.2 MB on the installers.
-renderer-software-fallback = ["slint/renderer-software"]
-# FemtoVG on wgpu (D3D12/Metal/Vulkan). `unstable-wgpu-29` is what pins the wgpu
-# version Slint 1.17 accepts; the FemtoVG renderer wires up 29 only, so 28 is
-# not an option here.
-renderer-femtovg-wgpu = ["slint/renderer-femtovg-wgpu", "slint/unstable-wgpu-29"]
