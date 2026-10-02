@@ -1,5 +1,8 @@
 use super::*;
 
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
 #[test]
 fn test_language_parsing() {
     assert_eq!(Language::from_code("zh"), Language::ZhCn);
@@ -129,142 +132,139 @@ fn test_pick_torrent_filter() {
     );
 }
 
-#[test]
-fn test_all_slint_tr_strings_in_po_catalogs() {
-    use std::collections::HashMap;
-    use std::path::{Path, PathBuf};
+/// Parse a gettext `.po` catalog into `msgid -> msgstr` entries.
+fn parse_po(path: &Path) -> HashMap<String, String> {
+    let content = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("Failed to read PO file {:?}: {e}", path));
+    let mut entries = HashMap::new();
+    let mut current_id: Option<String> = None;
+    let mut mode = None;
 
-    let base_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let ui_dir = base_dir.join("ui");
-    let zh_po = base_dir.join("lang/zh_CN/LC_MESSAGES/limedl-native.po");
-    let zh_tw_po = base_dir.join("lang/zh_TW/LC_MESSAGES/limedl-native.po");
-    let en_po = base_dir.join("lang/en/LC_MESSAGES/limedl-native.po");
-
-    fn parse_po(path: &Path) -> HashMap<String, String> {
-        let content = std::fs::read_to_string(path)
-            .unwrap_or_else(|e| panic!("Failed to read PO file {:?}: {e}", path));
-        let mut entries = HashMap::new();
-        let mut current_id: Option<String> = None;
-        let mut mode = None;
-
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if let Some(rest) = trimmed.strip_prefix("msgid \"") {
-                if let Some(s) = rest.strip_suffix('"') {
-                    current_id = Some(s.replace("\\\"", "\""));
-                    mode = Some("id");
-                }
-            } else if let Some(rest) = trimmed.strip_prefix("msgstr \"") {
-                if let Some(s) = rest.strip_suffix('"') {
-                    if let Some(id) = &current_id {
-                        entries.insert(id.clone(), s.replace("\\\"", "\""));
-                    }
-                    mode = Some("str");
-                }
-            } else if let Some(stripped) =
-                trimmed.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
-            {
-                let val = stripped.replace("\\\"", "\"");
-                match mode {
-                    Some("id") => {
-                        if let Some(id) = &mut current_id {
-                            id.push_str(&val);
-                        }
-                    }
-                    Some("str") => {
-                        if let Some(str_val) =
-                            current_id.as_ref().and_then(|id| entries.get_mut(id))
-                        {
-                            str_val.push_str(&val);
-                        }
-                    }
-                    _ => {}
-                }
-            } else if trimmed.is_empty() {
-                current_id = None;
-                mode = None;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("msgid \"") {
+            if let Some(s) = rest.strip_suffix('"') {
+                current_id = Some(s.replace("\\\"", "\""));
+                mode = Some("id");
             }
-        }
-        entries
-    }
-
-    let zh_entries = parse_po(&zh_po);
-    let zh_tw_entries = parse_po(&zh_tw_po);
-    let en_entries = parse_po(&en_po);
-
-    let mut slint_files = Vec::new();
-    fn collect_slint(dir: &Path, list: &mut Vec<PathBuf>) {
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.is_dir() {
-                    collect_slint(&p, list);
-                } else if p.extension().is_some_and(|ext| ext == "slint") {
-                    list.push(p);
+        } else if let Some(rest) = trimmed.strip_prefix("msgstr \"") {
+            if let Some(s) = rest.strip_suffix('"') {
+                if let Some(id) = &current_id {
+                    entries.insert(id.clone(), s.replace("\\\"", "\""));
                 }
+                mode = Some("str");
+            }
+        } else if let Some(stripped) =
+            trimmed.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
+        {
+            let val = stripped.replace("\\\"", "\"");
+            match mode {
+                Some("id") => {
+                    if let Some(id) = &mut current_id {
+                        id.push_str(&val);
+                    }
+                }
+                Some("str") => {
+                    if let Some(str_val) =
+                        current_id.as_ref().and_then(|id| entries.get_mut(id))
+                    {
+                        str_val.push_str(&val);
+                    }
+                }
+                _ => {}
+            }
+        } else if trimmed.is_empty() {
+            current_id = None;
+            mode = None;
+        }
+    }
+    entries
+}
+
+/// Recursively collect `.slint` files below `dir`.
+fn collect_slint_files(dir: &Path, list: &mut Vec<PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                collect_slint_files(&p, list);
+            } else if p.extension().is_some_and(|ext| ext == "slint") {
+                list.push(p);
             }
         }
     }
-    collect_slint(&ui_dir, &mut slint_files);
+}
 
-    fn extract_tr_strings(text: &str) -> Vec<String> {
-        let mut results = Vec::new();
-        let mut rest = text;
-        while let Some(pos) = rest.find("@tr(") {
-            rest = &rest[pos + 4..];
-            let trimmed = rest.trim_start();
-            if let Some(inner) = trimmed.strip_prefix('"') {
-                let mut escaped = false;
-                let mut end_idx = None;
-                for (idx, ch) in inner.char_indices() {
-                    if escaped {
-                        escaped = false;
-                    } else if ch == '\\' {
-                        escaped = true;
-                    } else if ch == '"' {
-                        end_idx = Some(idx);
-                        break;
-                    }
-                }
-                if let Some(idx) = end_idx {
-                    let msg = &inner[..idx];
-                    results.push(msg.replace("\\\"", "\"").replace("\\n", "\n"));
-                    rest = &inner[idx + 1..];
+/// Extract every literal passed to `@tr(...)` in a `.slint` source.
+fn extract_tr_strings(text: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    let mut rest = text;
+    while let Some(pos) = rest.find("@tr(") {
+        rest = &rest[pos + 4..];
+        let trimmed = rest.trim_start();
+        if let Some(inner) = trimmed.strip_prefix('"') {
+            let mut escaped = false;
+            let mut end_idx = None;
+            for (idx, ch) in inner.char_indices() {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    end_idx = Some(idx);
+                    break;
                 }
             }
+            if let Some(idx) = end_idx {
+                let msg = &inner[..idx];
+                results.push(msg.replace("\\\"", "\"").replace("\\n", "\n"));
+                rest = &inner[idx + 1..];
+            }
         }
-        results
     }
+    results
+}
 
-    let mut missing_zh = Vec::new();
-    let mut missing_zh_tw = Vec::new();
-    let mut missing_en = Vec::new();
-
-    for file in &slint_files {
+/// `(file, msgid)` pairs from `files` whose `msgid` is missing from `catalog`.
+fn missing_translations(
+    catalog: &HashMap<String, String>,
+    files: &[PathBuf],
+) -> Vec<(PathBuf, String)> {
+    let mut missing = Vec::new();
+    for file in files {
         let content = std::fs::read_to_string(file).expect("read slint file");
         for msgid in extract_tr_strings(&content) {
-            if !zh_entries.contains_key(&msgid) {
-                missing_zh.push((file.clone(), msgid.clone()));
-            }
-            if !zh_tw_entries.contains_key(&msgid) {
-                missing_zh_tw.push((file.clone(), msgid.clone()));
-            }
-            if !en_entries.contains_key(&msgid) {
-                missing_en.push((file.clone(), msgid));
+            if !catalog.contains_key(&msgid) {
+                missing.push((file.clone(), msgid));
             }
         }
     }
+    missing
+}
 
-    assert!(
-        missing_zh.is_empty(),
-        "Missing translations in zh_CN PO catalog: {missing_zh:#?}"
-    );
-    assert!(
-        missing_zh_tw.is_empty(),
-        "Missing translations in zh_TW PO catalog: {missing_zh_tw:#?}"
-    );
-    assert!(
-        missing_en.is_empty(),
-        "Missing translations in en PO catalog: {missing_en:#?}"
-    );
+#[test]
+fn test_all_slint_tr_strings_in_po_catalogs() {
+    let base_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let catalogs = [
+        (
+            "zh_CN",
+            base_dir.join("lang/zh_CN/LC_MESSAGES/limedl-native.po"),
+        ),
+        (
+            "zh_TW",
+            base_dir.join("lang/zh_TW/LC_MESSAGES/limedl-native.po"),
+        ),
+        ("en", base_dir.join("lang/en/LC_MESSAGES/limedl-native.po")),
+    ];
+
+    let mut slint_files = Vec::new();
+    collect_slint_files(&base_dir.join("ui"), &mut slint_files);
+
+    for (name, path) in &catalogs {
+        let missing = missing_translations(&parse_po(path), &slint_files);
+        assert!(
+            missing.is_empty(),
+            "Missing translations in {name} PO catalog: {missing:#?}"
+        );
+    }
 }
