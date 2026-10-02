@@ -29,25 +29,16 @@ rustflags = ["-C", "target-cpu=x86-64-v2"]
 [target.aarch64-apple-darwin]
 # Desktop macOS ARM: apple-m1 baseline
 #
-# `-A linker_messages` is deliberate, not a leftover: rustc surfaces linker stderr
-# through the `linker_messages` lint (Rust 1.97+), which is exempt from
-# `-D warnings` but *not* from cargo's `build.warnings = deny` — `CARGO_BUILD_WARNINGS:
-# deny` in ci.yml counts any warning rustc emits. Apple's ld notes large binaries:
+# No `-A linker_messages` any more. It existed to keep Apple's ld note
 #   ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in
 #       compact unwind table, performance of exception handling might be affected
-# That note was observed on the Skia-linked test binaries this repository no longer
-# builds, so it may not appear at all any more; dropping the flag needs a macOS run
-# to confirm, and it is harmless while it stays.
-# The compact-unwind encoding only reserves a 24-bit hint for an FDE's offset in
-# `__eh_frame`, so past 16 MB the linker falls back to plain DWARF unwinding: a
-# performance note, not a defect (lld-macho encodes the hint as 0 and never reports
-# it at all). Upstream keeps `-A linker_messages` working for exactly this case —
-# see rust-lang/rust commit ad72d55, "We need to allow linker messages so that they
-# aren't caught by cargo's `build.warnings = deny`".
-#
-# Trade-off: a genuinely broken macOS linker warning is now only printed, never
-# fatally gated; every rustc/clippy warning stays fatal.
-rustflags = ["-C", "target-cpu=apple-m1", "-A", "linker_messages"]
+# out of cargo's fatal `build.warnings = deny`: rustc reports linker stderr through
+# the `linker_messages` lint, which `-D warnings` exempts but `build.warnings = deny`
+# does not. That note came from the Skia-linked test binaries this repository no
+# longer builds (see the renderer note in crates/limedl-native/Cargo.toml), and
+# `check-macos` runs with the fatal-warnings gate, so a reappearance fails that job
+# instead of going unnoticed.
+rustflags = ["-C", "target-cpu=apple-m1"]
 
 [alias]
 # `cargo xtask <command>` — repository tooling (update-channel signing).
@@ -56,8 +47,7 @@ xtask = "run --quiet --package xtask --"
 
 [target.x86_64-apple-darwin]
 # Desktop macOS x86_64: x86-64-v3
-# `-A linker_messages` for the same reason as `aarch64-apple-darwin` above (Apple
-# ld's `__eh_frame section too large` note vs cargo's fatal `build.warnings = deny`).
-# No macOS leg builds this target today; keeping both entries in sync avoids
-# rediscovering this on the first x86_64 release.
-rustflags = ["-C", "target-cpu=x86-64-v3", "-A", "linker_messages"]
+# Kept in sync with aarch64-apple-darwin above: no macOS leg builds this target
+# today, and identical flag lists avoid rediscovering the difference on the first
+# x86_64 release.
+rustflags = ["-C", "target-cpu=x86-64-v3"]
