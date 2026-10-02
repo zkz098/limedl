@@ -278,4 +278,5 @@ cargo run -p limedl-native --features slint/mcp
 
 - `tests/dispatcher_tests.rs` — 门面矩阵：生命周期事件的发射（pause/resume/cancel/remove/purge/set_priority）、`status/list/has_active_downloads` 聚合、无服务时的降级分支、`save_settings` 对 ConcurrencyManager / BufferPool / 持久化设置的同步（Traditional vs Automatic 两种线程上限）、CDN 禁用时 `clear()` 真的执行、`resolve_mirror_urls` 重写规则、`fetch_tracker_list` 归一化、`probe_checksum` 从 URL 推导文件名。辅助函数 `make_manager`/`inject_download` 为 `pub(crate)`：aria2 测试复用它们覆盖 `resolve_gid` 与 GID 缓存逐出（避免复制 ManagedDownload fixture）。
 - `aria2_rpc/tests.rs` — 纯函数 + `process_jsonrpc_message` 的解析错误/版本错误/未知方法/成功四条分支，以及 `resolve_gid` 的扫描→缓存→`aria2.remove` 逐出链路。
-- `aria2_rpc/e2e_tests.rs` — 真实 HTTP 服务器：handler 矩阵、multicall 响应形状、secret 全方法门控、CORS 白名单与不可解析配置的 localhost 回退、端口冲突报错。
+- `aria2_rpc/e2e_tests.rs` — 真实 HTTP 服务器：handler 矩阵、multicall 响应形状、secret 全方法门控、CORS 白名单与不可解析配置的 localhost 回退、端口冲突报错；magnet 经 addUri 路由到 BT、addTorrent 非法 base64 拒绝；changeOption 的 pause/拒绝矩阵；keys 字段过滤；getUris 镜像列表；removeDownloadResult 单条删除；以及“内存淘汰后终态任务回查 DB”的 11 任务场景。
+- `aria2_rpc/tests.rs` 另有：URI 分类、`parse_select_file` 1→0 基转换、`filter_status_keys`、`BtFileStatus → aria2 files` 映射，以及“每个生命周期转换只发一次 aria2 通知”的契约测试（HTTP 真实下载驱动 pause/unpause/remove）。

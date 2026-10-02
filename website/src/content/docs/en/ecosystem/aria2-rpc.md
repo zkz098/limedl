@@ -17,16 +17,16 @@ limedl listens on port `6800` by default, providing both HTTP POST and WebSocket
 - **WebSocket**: `ws://127.0.0.1:6800/jsonrpc`
 
 ### Authentication Mechanisms
-When a **Secret Token** is enabled in settings, pass credentials via either:
-1. **Positional Parameter (Recommended)**: As the first element in the RPC `params` array: `"token:<YOUR_SECRET>"`;
-2. **HTTP Authorization Header**: Via `Authorization: Bearer <YOUR_SECRET>`.
+When a **Secret Token** is enabled in settings, pass it as the first element of the RPC `params` array: `"token:<YOUR_SECRET>"`. Every method requires it (including each layer of `system.multicall`; nested calls may repeat it).
+
+> limedl does **not** support RPC authentication through the HTTP `Authorization` header (neither does aria2); an `Authorization` entry in the `header` download option only applies to the download request itself.
 
 ---
 
 ## Supported JSON-RPC 2.0 Methods
 
 ### 1. `aria2.addUri` — Add HTTP/HTTPS Download
-Queues a new HTTP, HTTPS, or magnet task.
+Queues a new HTTP, HTTPS, or BitTorrent magnet task. Magnet links are routed to the BT backend; a `.torrent` URL is still downloaded as a plain file (use `aria2.addTorrent` for the parsed form).
 
 **Sample Request**:
 ```json
@@ -51,10 +51,10 @@ Queues a new HTTP, HTTPS, or magnet task.
 {
   "jsonrpc": "2.0",
   "id": "req-001",
-  "result": "http:550e8400-e29b-41d4-a716-446655440000"
+  "result": "a1b2c3d4e5f60718"
 }
 ```
-*(The returned string is the unique TaskId / GID inside limedl)*
+*(A 16-character hex GID computed as XXH3(TaskId); it survives restarts)*
 
 ---
 
@@ -100,11 +100,12 @@ Queries progress, downloaded byte count, and chunk bitfields.
   "method": "aria2.tellStatus",
   "params": [
     "token:my_secret_token",
-    "http:550e8400-e29b-41d4-a716-446655440000",
+    "a1b2c3d4e5f60718",
     ["gid", "status", "totalLength", "completedLength", "downloadSpeed", "files"]
   ]
 }
 ```
+The optional third parameter `keys` restricts the returned fields (supported; BT task `files` contain the real file list, indices start at 1).
 
 ---
 
@@ -117,7 +118,9 @@ Queries progress, downloaded byte count, and chunk bitfields.
 | `aria2.remove` | `([secret], gid)` | Cancels and removes the task. |
 | `aria2.tellActive` | `([secret], [keys])` | Returns a list of currently active downloads. |
 | `aria2.tellWaiting`| `([secret], offset, num, [keys])` | Returns tasks waiting in the queue. |
-| `aria2.tellStopped`| `([secret], offset, num, [keys])` | Returns completed or stopped tasks. |
+| `aria2.tellStopped`| `([secret], offset, num, [keys])` | Returns completed or stopped tasks (including results evicted from memory). |
+| `aria2.changeOption` | `([secret], gid, options)` | Changes live task options: `pause`; BT `select-file` / `max-download-limit` / `max-upload-limit`. Other options fail with a clear error. |
+| `aria2.removeDownloadResult` | `([secret], gid)` | Removes a single stopped (complete/error/removed) result, keeping its files. |
 | `aria2.purgeDownloadResult`| `([secret])` | Clears finished tasks from history. |
 | `aria2.getVersion` | `([secret])` | Returns limedl engine version and enabled features. |
 

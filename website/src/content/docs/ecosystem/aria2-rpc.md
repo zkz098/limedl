@@ -17,16 +17,16 @@ limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSo
 - **WebSocket 端点**：`ws://127.0.0.1:6800/jsonrpc`
 
 ### 身份鉴权机制
-如果启用了 **RPC 密钥 (Secret Token)**，limedl 支持两种标准的鉴权传递方式：
-1. **参数前缀法（推荐）**：在 RPC 调用的 `params` 数组第一个元素传入字符串 `token:<你的密钥>`；
-2. **HTTP 标头法**：在 HTTP 请求头中携带 `Authorization: Bearer <你的密钥>`。
+如果启用了 **RPC 密钥 (Secret Token)**，limedl 按 aria2 标准要求在 `params` 数组第一个元素传入字符串 `token:<你的密钥>`（所有方法都必须携带，包括 `system.multicall` 的每一层；嵌套调用可重复携带）。
+
+> limedl 不支持通过 HTTP `Authorization` 标头做 RPC 鉴权（aria2 本身也不支持）；`header` 选项中的 `Authorization` 只作用于**下载请求**本身。
 
 ---
 
 ## 核心方法 API 参考列表
 
 ### 1. `aria2.addUri` — 添加网络下载任务
-向引擎添加 HTTP/HTTPS 或磁力链接下载任务。
+向引擎添加 HTTP/HTTPS 或磁力链接（BitTorrent Magnet）下载任务。磁力链接会被路由到 BT 后端；`.torrent` URL 按 aria2 语义仍作为普通文件下载（解析型种子请用 `aria2.addTorrent`）。
 
 **请求示例**：
 ```json
@@ -51,10 +51,10 @@ limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSo
 {
   "jsonrpc": "2.0",
   "id": "req-001",
-  "result": "http:550e8400-e29b-41d4-a716-446655440000"
+  "result": "a1b2c3d4e5f60718"
 }
 ```
-*(返回字符串为该任务在 limedl 内唯一的 TaskId / GID)*
+*(返回 16 位十六进制 GID，由 XXH3(TaskId) 计算得出，重启后保持不变)*
 
 ---
 
@@ -64,8 +64,7 @@ limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSo
 **请求参数**：
 - `params[0]`: 鉴权 Token（可选）
 - `params[1]`: Base64 编码的种子内容字符串
-- `params[2]`: 附加 Web-Seeding 镜像 URL 列表（可选）
-- `params[3]`: 任务定制选项（可选）
+- `params[2]`: 任务定制选项（可选）：`dir`、`out`、`pause`、`select-file`（1 起始的逗号分隔文件索引）
 
 ---
 
@@ -100,11 +99,12 @@ limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSo
   "method": "aria2.tellStatus",
   "params": [
     "token:my_secret_token",
-    "http:550e8400-e29b-41d4-a716-446655440000",
+    "a1b2c3d4e5f60718",
     ["gid", "status", "totalLength", "completedLength", "downloadSpeed", "files"]
   ]
 }
 ```
+可选第三个参数 `keys` 用于只返回指定字段（limedl 已支持；BT 任务的 `files` 为真实文件列表，索引从 1 开始）。
 
 ---
 
@@ -117,7 +117,9 @@ limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSo
 | `aria2.remove` | `([secret], gid)` | 取消并移除任务。 |
 | `aria2.tellActive` | `([secret], [keys])` | 分页返回当前所有处于活跃传输状态的任务列表。 |
 | `aria2.tellWaiting`| `([secret], offset, num, [keys])` | 分页查询等待队列中的任务。 |
-| `aria2.tellStopped`| `([secret], offset, num, [keys])` | 分页查询已完成或已停止的历史任务。 |
+| `aria2.tellStopped`| `([secret], offset, num, [keys])` | 分页查询已完成或已停止的历史任务（含被内存淘汰的任务）。 |
+| `aria2.changeOption` | `([secret], gid, options)` | 运行期修改单个任务的选项：`pause`、BT 的 `select-file` / `max-download-limit` / `max-upload-limit`；其它选项会明确报错。 |
+| `aria2.removeDownloadResult` | `([secret], gid)` | 删除单条已停止（完成/失败/已移除）的任务记录（保留文件）。 |
 | `aria2.purgeDownloadResult`| `([secret])` | 清空所有已停止/已完成的任务历史记录。 |
 | `aria2.getVersion` | `([secret])` | 查询 limedl 引擎版本号与已启用的功能列表。 |
 
