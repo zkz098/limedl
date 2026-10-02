@@ -185,18 +185,20 @@ impl DownloadBuffer {
                 ..
             } => {
                 self.buffer_chunk_double(
-                    half_a,
-                    half_b,
-                    active_is_a,
-                    usage_a,
-                    usage_b,
-                    *half_size,
-                    flush_handle,
-                    notify,
-                    error_flag,
-                    flip_token,
+                    PingPongRefs {
+                        half_a,
+                        half_b,
+                        active_is_a,
+                        usage_a,
+                        usage_b,
+                        half_size: *half_size,
+                        flush_handle,
+                        notify,
+                        error_flag,
+                        flip_token,
+                        file,
+                    },
                     pool,
-                    file,
                     offset,
                     data,
                 )
@@ -217,17 +219,19 @@ impl DownloadBuffer {
                 ..
             } => {
                 self.buffer_chunk_local_pingpong(
-                    half_a,
-                    half_b,
-                    active_is_a,
-                    usage_a,
-                    usage_b,
-                    *half_size,
-                    flush_handle,
-                    notify,
-                    error_flag,
-                    flip_token,
-                    file,
+                    PingPongRefs {
+                        half_a,
+                        half_b,
+                        active_is_a,
+                        usage_a,
+                        usage_b,
+                        half_size: *half_size,
+                        flush_handle,
+                        notify,
+                        error_flag,
+                        flip_token,
+                        file,
+                    },
                     offset,
                     data,
                 )
@@ -238,33 +242,18 @@ impl DownloadBuffer {
 
     /// Unified ping-pong flip logic shared by HDD double-buffer and SSD local
     /// ping-pong modes. Parameterised via [`PingPongCfg`].
-    #[allow(clippy::too_many_arguments)]
     async fn buffer_chunk_pingpong_impl(
         &self,
         cfg: PingPongCfg<'_>,
-        half_a: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        half_b: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        active_is_a: &AtomicBool,
-        usage_a: &AtomicU64,
-        usage_b: &AtomicU64,
-        half_size: u64,
-        flush_handle: &Mutex<Option<JoinHandle<()>>>,
-        notify: &Arc<Notify>,
-        error_flag: &Arc<AtomicBool>,
-        flip_token: &AtomicBool,
-        file: &Arc<File>,
+        halves: PingPongRefs<'_>,
         offset: u64,
         data: Bytes,
     ) -> Result<(), DownloadError> {
         let len = data.len() as u64;
 
         // Single chunk larger than a half — write directly via spawn_blocking.
-        if len > half_size {
-            let f = file.clone();
-            tokio::task::spawn_blocking(move || write_all_at(&f, &data, offset))
-                .await
-                .map_err(|e| DownloadError::Internal(format!("background write failed: {e}")))??;
-            return Ok(());
+        if len > halves.half_size {
+            return write_oversized_direct(halves.file, data, offset).await;
         }
 
         loop {
@@ -272,29 +261,25 @@ impl DownloadBuffer {
             // flip, bail out immediately so the caller can fall back to direct
             // I/O. Without this check, the chunk worker would keep downloading
             // data that will ultimately fail checksum — wasted bandwidth.
-            if error_flag.load(Ordering::Acquire) {
+            if halves.error_flag.load(Ordering::Acquire) {
                 return Err(DownloadError::Internal(
                     "background buffer flush failed".into(),
                 ));
             }
 
-            let is_a = active_is_a.load(Ordering::Acquire);
-            let (active_map, active_usage, inactive_map, inactive_usage) = if is_a {
-                (half_a, usage_a, half_b, usage_b)
-            } else {
-                (half_b, usage_b, half_a, usage_a)
-            };
+            let is_a = halves.active_is_a.load(Ordering::Acquire);
+            let selected = halves.select(is_a);
 
             // Fast path — room available in the active half.
-            let current = active_usage.load(Ordering::Acquire);
-            if current + len <= half_size {
-                let mut active_guard = active_map.lock();
-                if active_is_a.load(Ordering::Acquire) != is_a {
+            let current = selected.active_usage.load(Ordering::Acquire);
+            if current + len <= halves.half_size {
+                let mut active_guard = selected.active_map.lock();
+                if halves.active_is_a.load(Ordering::Acquire) != is_a {
                     // The active half switched while we awaited the lock — retry.
                     continue;
                 }
                 active_guard.insert(offset, data);
-                active_usage.fetch_add(len, Ordering::Release);
+                selected.active_usage.fetch_add(len, Ordering::Release);
                 if let Some(p) = cfg.pool {
                     p.add_usage(len);
                 }
@@ -303,23 +288,23 @@ impl DownloadBuffer {
 
             // Active half is full → need to flip.
             // Acquire the flip token to serialise flips.
-            if flip_token.swap(true, Ordering::Acquire) {
+            if halves.flip_token.swap(true, Ordering::Acquire) {
                 // Someone else is flipping — wait for room.
-                notify.notified().await;
+                halves.notify.notified().await;
                 continue;
             }
 
             // Guard releases the flip token on drop (even if the section panics).
             let _guard = FlipTokenGuard {
-                token: flip_token,
-                notify,
+                token: halves.flip_token,
+                notify: halves.notify,
             };
 
             // We hold the flip token. Check if a background flush is still running.
-            let prev_handle = flush_handle.lock().take();
+            let prev_handle = halves.flush_handle.lock().take();
             if let Some(h) = prev_handle {
                 let _ = h.await;
-                if error_flag.load(Ordering::Acquire) {
+                if halves.error_flag.load(Ordering::Acquire) {
                     return Err(DownloadError::Internal(
                         "background buffer flush failed".into(),
                     ));
@@ -327,176 +312,70 @@ impl DownloadBuffer {
                 continue;
             }
 
-            // Sanity: fold leftovers of previous inactive half if any.
-            let folded: Vec<(u64, Bytes)> = {
-                let mut map = inactive_map.lock();
-                if map.is_empty() {
-                    Vec::new()
-                } else {
-                    std::mem::take(&mut *map).into_iter().collect()
-                }
-            };
-            let folded_bytes: u64 = folded.iter().map(|(_, d)| d.len() as u64).sum();
-            if folded_bytes > 0 {
-                inactive_usage.store(0, Ordering::Release);
-                if let Some(p) = cfg.pool {
-                    p.sub_usage(folded_bytes);
-                }
-                tracing::warn!(
-                    "buffer_chunk: inactive half had {} bytes without flush handle — folded into flush ({} mode)",
-                    folded_bytes,
-                    cfg.label,
-                );
-            }
+            let folded = fold_leftovers(selected.inactive_map, selected.inactive_usage, &cfg);
 
             // ---- FLIP ----
-            let old_entries: Vec<(u64, Bytes)> = {
-                let mut map = active_map.lock();
-                let mut merged = std::mem::take(&mut *map);
-                merged.extend(folded);
-                merged.into_iter().collect()
-            };
+            let old_entries = take_entries_with(selected.active_map, folded);
             let old_bytes: u64 = old_entries.iter().map(|(_, d)| d.len() as u64).sum();
-            active_usage.store(0, Ordering::Release);
+            selected.active_usage.store(0, Ordering::Release);
             if let Some(p) = cfg.pool {
                 p.sub_usage(old_bytes);
             }
 
             // Spawn background flush for the old active half's data.
-            let bg_file = file.clone();
-            let bg_error = Arc::clone(error_flag);
-            let bg_notify = notify.clone();
-            let bg_handle: JoinHandle<()> = if let Some(ref worker) = self.io_worker {
-                let worker = worker.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = worker.write_batch(bg_file, old_entries, cfg.bg_sync).await {
-                        bg_error.store(true, Ordering::Release);
-                        tracing::error!("background {} buffer flush failed (IoWorker): {e}", cfg.label);
-                    }
-                    bg_notify.notify_waiters();
-                })
-            } else {
-                tokio::task::spawn_blocking(move || {
-                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        for (off, chunk) in &old_entries {
-                            write_all_at(&bg_file, chunk, *off)?;
-                        }
-                        Ok::<_, DownloadError>(())
-                    }));
-                    match result {
-                        Ok(Ok(())) => {
-                            if cfg.bg_fsync
-                                && let Err(e) = bg_file.sync_data()
-                            {
-                                bg_error.store(true, Ordering::Release);
-                                tracing::error!(
-                                    "background {} buffer flush fsync failed: {e}",
-                                    cfg.label,
-                                );
-                            }
-                        }
-                        Ok(Err(e)) => {
-                            bg_error.store(true, Ordering::Release);
-                            tracing::error!("background {} buffer flush failed: {e}", cfg.label);
-                        }
-                        Err(payload) => {
-                            bg_error.store(true, Ordering::Release);
-                            let msg = payload
-                                .downcast_ref::<String>()
-                                .map(String::as_str)
-                                .or_else(|| payload.downcast_ref::<&'static str>().copied())
-                                .unwrap_or("<non-string panic payload>");
-                            tracing::error!("background {} flush task panicked: {msg}", cfg.label);
-                        }
-                    }
-                    bg_notify.notify_waiters();
-                })
-            };
+            let bg_handle = spawn_background_flush(
+                self.io_worker.as_ref(),
+                &cfg,
+                halves.file,
+                halves.error_flag,
+                halves.notify,
+                old_entries,
+            );
 
-            *flush_handle.lock() = Some(bg_handle);
+            *halves.flush_handle.lock() = Some(bg_handle);
 
             // Atomically flip the active half.
-            active_is_a.store(!is_a, Ordering::Release);
+            halves.active_is_a.store(!is_a, Ordering::Release);
 
             // Insert the current chunk into the new active half.
-            let new_is_a = active_is_a.load(Ordering::Acquire);
-            let (new_map, new_usage) = if new_is_a {
-                (half_a, usage_a)
-            } else {
-                (half_b, usage_b)
-            };
-            new_map.lock().insert(offset, data);
-            new_usage.fetch_add(len, Ordering::Release);
-            if let Some(p) = cfg.pool {
-                p.add_usage(len);
-            }
+            insert_new_active(&halves, &cfg, offset, data, len);
 
             return Ok(());
         }
     }
 
     /// Double-buffer mode implementation.
-    #[allow(clippy::too_many_arguments)]
     async fn buffer_chunk_double(
         &self,
-        half_a: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        half_b: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        active_is_a: &AtomicBool,
-        usage_a: &AtomicU64,
-        usage_b: &AtomicU64,
-        half_size: u64,
-        flush_handle: &Mutex<Option<JoinHandle<()>>>,
-        notify: &Arc<Notify>,
-        error_flag: &Arc<AtomicBool>,
-        flip_token: &AtomicBool,
+        halves: PingPongRefs<'_>,
         pool: &Arc<BufferPool>,
-        file: &Arc<File>,
         offset: u64,
         data: Bytes,
     ) -> Result<(), DownloadError> {
-        self.buffer_chunk_pingpong_impl(
-            PingPongCfg {
-                pool: Some(pool),
-                bg_sync: SyncMode::Adaptive,
-                bg_fsync: false,
-                label: "HDD",
-            },
-            half_a, half_b, active_is_a, usage_a, usage_b,
-            half_size, flush_handle, notify, error_flag, flip_token,
-            file, offset, data,
-        ).await
+        let cfg = PingPongCfg {
+            pool: Some(pool),
+            bg_sync: SyncMode::Adaptive,
+            bg_fsync: false,
+            label: "HDD",
+        };
+        self.buffer_chunk_pingpong_impl(cfg, halves, offset, data).await
     }
 
     /// Local ping-pong mode: same double-buffer flip logic as HDD but without
     /// global pool/slot management.
-    #[allow(clippy::too_many_arguments)]
     async fn buffer_chunk_local_pingpong(
         &self,
-        half_a: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        half_b: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        active_is_a: &AtomicBool,
-        usage_a: &AtomicU64,
-        usage_b: &AtomicU64,
-        half_size: u64,
-        flush_handle: &Mutex<Option<JoinHandle<()>>>,
-        notify: &Arc<Notify>,
-        error_flag: &Arc<AtomicBool>,
-        flip_token: &AtomicBool,
-        file: &Arc<File>,
+        halves: PingPongRefs<'_>,
         offset: u64,
         data: Bytes,
     ) -> Result<(), DownloadError> {
-        self.buffer_chunk_pingpong_impl(
-            PingPongCfg {
-                pool: None,
-                bg_sync: SyncMode::None,
-                bg_fsync: false,
-                label: "SSD ping-pong",
-            },
-            half_a, half_b, active_is_a, usage_a, usage_b,
-            half_size, flush_handle, notify, error_flag, flip_token,
-            file, offset, data,
-        ).await
+        let cfg = PingPongCfg {
+            pool: None,
+            bg_sync: SyncMode::None,
+            bg_fsync: false,
+            label: "SSD ping-pong",
+        };
+        self.buffer_chunk_pingpong_impl(cfg, halves, offset, data).await
     }
 
     /// Flush a single half's buffer to disk without pool tracking.
@@ -767,6 +646,197 @@ impl DownloadBuffer {
             BufferMode::Double { error_flag, .. } => error_flag.load(Ordering::Relaxed),
             BufferMode::LocalPingPong { error_flag, .. } => error_flag.load(Ordering::Relaxed),
         }
+    }
+}
+
+// ── Ping-pong helpers ────────────────────────────────────────────────────────
+
+/// Borrowed state of one ping-pong buffer, shared by both buffer modes.
+struct PingPongRefs<'a> {
+    half_a: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
+    half_b: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
+    active_is_a: &'a AtomicBool,
+    usage_a: &'a AtomicU64,
+    usage_b: &'a AtomicU64,
+    half_size: u64,
+    flush_handle: &'a Mutex<Option<JoinHandle<()>>>,
+    notify: &'a Arc<Notify>,
+    error_flag: &'a Arc<AtomicBool>,
+    flip_token: &'a AtomicBool,
+    file: &'a Arc<File>,
+}
+
+/// Maps/atomics of the selected active and inactive halves.
+struct Halves<'a> {
+    active_map: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
+    active_usage: &'a AtomicU64,
+    inactive_map: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
+    inactive_usage: &'a AtomicU64,
+}
+
+impl<'a> PingPongRefs<'a> {
+    /// Active/inactive pair for the current `is_a` value.
+    fn select(&self, is_a: bool) -> Halves<'a> {
+        if is_a {
+            Halves {
+                active_map: self.half_a,
+                active_usage: self.usage_a,
+                inactive_map: self.half_b,
+                inactive_usage: self.usage_b,
+            }
+        } else {
+            Halves {
+                active_map: self.half_b,
+                active_usage: self.usage_b,
+                inactive_map: self.half_a,
+                inactive_usage: self.usage_a,
+            }
+        }
+    }
+}
+
+/// A single chunk larger than a half bypasses the buffer entirely.
+async fn write_oversized_direct(
+    file: &Arc<File>,
+    data: Bytes,
+    offset: u64,
+) -> Result<(), DownloadError> {
+    let f = file.clone();
+    tokio::task::spawn_blocking(move || write_all_at(&f, &data, offset))
+        .await
+        .map_err(|e| DownloadError::Internal(format!("background write failed: {e}")))??;
+    Ok(())
+}
+
+/// Fold (and account) leftovers of the previous inactive half, if any.
+fn fold_leftovers(
+    inactive_map: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+    inactive_usage: &AtomicU64,
+    cfg: &PingPongCfg<'_>,
+) -> Vec<(u64, Bytes)> {
+    let folded = take_entries(inactive_map);
+    let folded_bytes: u64 = folded.iter().map(|(_, d)| d.len() as u64).sum();
+    if folded_bytes > 0 {
+        inactive_usage.store(0, Ordering::Release);
+        if let Some(p) = cfg.pool {
+            p.sub_usage(folded_bytes);
+        }
+        tracing::warn!(
+            "buffer_chunk: inactive half had {} bytes without flush handle — folded into flush ({} mode)",
+            folded_bytes,
+            cfg.label,
+        );
+    }
+    folded
+}
+
+/// Drain an offset map into offset-sorted entries.
+fn take_entries(map: &Arc<Mutex<BTreeMap<u64, Bytes>>>) -> Vec<(u64, Bytes)> {
+    let mut guard = map.lock();
+    std::mem::take(&mut *guard).into_iter().collect()
+}
+
+/// Drain an offset map and append `extra` entries (folded leftovers).
+fn take_entries_with(
+    map: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
+    extra: Vec<(u64, Bytes)>,
+) -> Vec<(u64, Bytes)> {
+    let mut guard = map.lock();
+    let mut merged = std::mem::take(&mut *guard);
+    merged.extend(extra);
+    merged.into_iter().collect()
+}
+
+/// Spawn the background flush for a half that was just rotated out.
+///
+/// Prefers the dedicated `IoWorker`; otherwise falls back to `spawn_blocking`
+/// with a panic guard. Both paths set `error_flag` on failure and notify
+/// waiters when done.
+fn spawn_background_flush(
+    io_worker: Option<&IoWorker>,
+    cfg: &PingPongCfg<'_>,
+    file: &Arc<File>,
+    error_flag: &Arc<AtomicBool>,
+    notify: &Arc<Notify>,
+    entries: Vec<(u64, Bytes)>,
+) -> JoinHandle<()> {
+    let bg_file = file.clone();
+    let bg_error = Arc::clone(error_flag);
+    let bg_notify = notify.clone();
+    let bg_sync = cfg.bg_sync;
+    let bg_fsync = cfg.bg_fsync;
+    let label = cfg.label;
+
+    if let Some(worker) = io_worker {
+        let worker = worker.clone();
+        tokio::spawn(async move {
+            if let Err(e) = worker.write_batch(bg_file, entries, bg_sync).await {
+                bg_error.store(true, Ordering::Release);
+                tracing::error!("background {label} buffer flush failed (IoWorker): {e}");
+            }
+            bg_notify.notify_waiters();
+        })
+    } else {
+        tokio::task::spawn_blocking(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                write_all_entries(&bg_file, &entries)
+            }));
+            match result {
+                Ok(Ok(())) => {
+                    if bg_fsync && let Err(e) = bg_file.sync_data() {
+                        bg_error.store(true, Ordering::Release);
+                        tracing::error!("background {label} buffer flush fsync failed: {e}");
+                    }
+                }
+                Ok(Err(e)) => {
+                    bg_error.store(true, Ordering::Release);
+                    tracing::error!("background {label} buffer flush failed: {e}");
+                }
+                Err(payload) => {
+                    bg_error.store(true, Ordering::Release);
+                    let msg = panic_payload_message(payload.as_ref());
+                    tracing::error!("background {label} flush task panicked: {msg}");
+                }
+            }
+            bg_notify.notify_waiters();
+        })
+    }
+}
+
+/// Write a batch of entries sequentially.
+fn write_all_entries(file: &File, entries: &[(u64, Bytes)]) -> Result<(), DownloadError> {
+    for (off, chunk) in entries {
+        write_all_at(file, chunk, *off)?;
+    }
+    Ok(())
+}
+
+/// Message from a `catch_unwind` payload, for the flush-failure log.
+fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> &str {
+    payload
+        .downcast_ref::<String>()
+        .map(String::as_str)
+        .or_else(|| payload.downcast_ref::<&'static str>().copied())
+        .unwrap_or("<non-string panic payload>")
+}
+
+/// After a flip, insert the pending chunk into the new active half.
+fn insert_new_active(
+    halves: &PingPongRefs<'_>,
+    cfg: &PingPongCfg<'_>,
+    offset: u64,
+    data: Bytes,
+    len: u64,
+) {
+    let (new_map, new_usage) = if halves.active_is_a.load(Ordering::Acquire) {
+        (halves.half_a, halves.usage_a)
+    } else {
+        (halves.half_b, halves.usage_b)
+    };
+    new_map.lock().insert(offset, data);
+    new_usage.fetch_add(len, Ordering::Release);
+    if let Some(p) = cfg.pool {
+        p.add_usage(len);
     }
 }
 

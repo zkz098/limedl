@@ -72,6 +72,7 @@ Worker 下载数据块 → buffer_chunk(offset, data)
 - HDD 半缓冲大小 = effective_limit / effective_max_parallel / 2，最小 64 KiB。
 - 游戏模式仅影响 HDD 池（缩减内存和并发），SSD 不受影响。
 - 所有 flush 提交到专用 IoWorker 线程（单线程串行化），`spawn_blocking` 仅作 fallback。
+- ping-pong 翻转的不变量（`buffer_chunk_pingpong_impl`）：先把新后台 flush 的 handle 存进 `flush_handle`，再 `active_is_a.store(!is_a)`，最后把当前 chunk 插入新活动半区；顺序反了会让并发等待者看到“已翻转但无 handle”的中间态。重构时保持这个顺序与原子 Ordering 不变。
 - HDD 双缓冲内用 `Mutex<BTreeMap<u64, Bytes>>`（替代 DashMap），BTreeMap 天然按 offset 升序，移除了 sort_by_key 调用。
 - Crash recovery 不依赖缓冲池状态——仅从 SQLite 已持久化 chunks 恢复。
 
