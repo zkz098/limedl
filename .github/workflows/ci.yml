@@ -323,15 +323,24 @@ jobs:
       - uses: ./.github/actions/fetch-misans
         with:
           mode: verify
+      # Coverage runs before the lint step, and that order is a contract with the
+      # scan further down: llvm-cov instruments the build (RUSTFLAGS), so the
+      # report has to be produced before something rebuilds the workspace
+      # uninstrumented. The other way round the scan costs a third full build of
+      # the Skia-linked workspace, and it needs the report to already exist.
+      - name: Run tests with coverage
+        run: |
+          # `--profile dev` keeps line tables for source attribution: the test
+          # profile drops debug info (see Cargo.toml) to cut CI link time.
+          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # ── SonarQube Cloud ────────────────────────────────────────────────
       # Rust is not available in Automatic Analysis, so the analysis runs from
       # here (configuration: sonar-project.properties). It sits directly after
       # the lint step on purpose: the Rust analyzer spawns `cargo clippy` itself,
       # so it reuses the artifacts that step has just built and runs against a
-      # tree that already passed `- D warnings`. Placed after the llvm-cov step
-      # below it would flip RUSTFLAGS back and rebuild the whole Skia-linked
-      # workspace a second time.
+      # tree that already passed `- D warnings`. It also imports the llvm-cov
+      # report produced above, which is why that step had to move up here.
       - name: Cache SonarQube packages
         if: env.SONAR_ENABLED == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -359,11 +368,6 @@ jobs:
       # job's 242 s is nowhere near the critical path (test-windows-native,
       # ~1012 s) — see the Windows section above.
       - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
-      - name: Run tests with coverage
-        run: |
-          # `--profile dev` keeps line tables for source attribution: the test
-          # profile drops debug info (see Cargo.toml) to cut CI link time.
-          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
