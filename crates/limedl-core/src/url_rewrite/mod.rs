@@ -2,7 +2,7 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use regex::Regex;
 use reqwest::Url;
 
-use super::types::{MatchType, ReplacementMode, UrlRewriteRule, UrlRewriteSettings};
+use super::types::{MatchType, ReplacementMode, RewriteTarget, UrlRewriteRule, UrlRewriteSettings};
 
 /// Percent-encode every byte except RFC 3986 unreserved characters
 /// (alphanumerics and `-`, `_`, `.`, `~`).
@@ -93,75 +93,95 @@ pub fn rewrite_url(url: &str, settings: &UrlRewriteSettings) -> Vec<String> {
         return vec![url.to_string()];
     }
 
-    let mut rules: Vec<&UrlRewriteRule> = settings.rules.iter().filter(|r| r.enabled).collect();
-    rules.sort_by_key(|r| r.order);
-
-    for rule in rules {
-        if matches_rule(url, rule) {
-            let mut active_targets: Vec<_> = rule
-                .targets
-                .iter()
-                .filter(|t| t.enabled && !t.url_template.trim().is_empty())
-                .collect();
-            active_targets.sort_by_key(|t| t.order);
-
-            if active_targets.is_empty() {
-                continue;
-            }
-
-            let encoded_url = if rule.encode_url {
-                utf8_percent_encode(url, URL_ENCODE_SET).to_string()
-            } else {
-                url.to_string()
-            };
-
-            let mut candidates: Vec<String> = Vec::new();
-
-            for target in active_targets {
-                let generated = match rule.replacement_mode {
-                    ReplacementMode::PrefixProxy => {
-                        let base = target.url_template.trim().trim_end_matches('/');
-                        let target_url = if rule.encode_url {
-                            &encoded_url
-                        } else {
-                            url
-                        };
-                        format!("{base}/{target_url}")
-                    }
-                    ReplacementMode::Template => {
-                        let template = target.url_template.trim();
-                        if rule.match_type == MatchType::Regex {
-                            if let Ok(re) = Regex::new(rule.pattern.trim()) {
-                                re.replace_all(url, template).to_string()
-                            } else {
-                                template
-                                    .replace("{url}", &encoded_url)
-                                    .replace("{raw_url}", url)
-                            }
-                        } else {
-                            template
-                                .replace("{url}", &encoded_url)
-                                .replace("{raw_url}", url)
-                        }
-                    }
-                };
-
-                if !generated.is_empty() && !candidates.contains(&generated) {
-                    candidates.push(generated);
-                }
-            }
-
-            if rule.fallback_to_original && !candidates.iter().any(|c| c == url) {
-                candidates.push(url.to_string());
-            }
-
-            if !candidates.is_empty() {
-                return candidates;
-            }
+    for rule in enabled_rules_sorted(settings) {
+        if !matches_rule(url, rule) {
+            continue;
+        }
+        if let Some(candidates) = candidates_for_rule(url, rule) {
+            return candidates;
         }
     }
 
     vec![url.to_string()]
+}
+
+/// Enabled rules, in evaluation order.
+fn enabled_rules_sorted(settings: &UrlRewriteSettings) -> Vec<&UrlRewriteRule> {
+    let mut rules: Vec<&UrlRewriteRule> = settings.rules.iter().filter(|r| r.enabled).collect();
+    rules.sort_by_key(|r| r.order);
+    rules
+}
+
+/// Candidate URLs for one matching rule, or `None` when the rule yields nothing.
+fn candidates_for_rule(url: &str, rule: &UrlRewriteRule) -> Option<Vec<String>> {
+    let targets = active_targets_sorted(rule);
+    if targets.is_empty() {
+        return None;
+    }
+
+    let encoded_url = if rule.encode_url {
+        utf8_percent_encode(url, URL_ENCODE_SET).to_string()
+    } else {
+        url.to_string()
+    };
+
+    let mut candidates: Vec<String> = Vec::new();
+    for target in targets {
+        let generated = render_target(url, rule, target, &encoded_url);
+        if !generated.is_empty() && !candidates.contains(&generated) {
+            candidates.push(generated);
+        }
+    }
+
+    if rule.fallback_to_original && !candidates.iter().any(|c| c == url) {
+        candidates.push(url.to_string());
+    }
+
+    (!candidates.is_empty()).then_some(candidates)
+}
+
+/// Enabled targets of `rule`, in priority order.
+fn active_targets_sorted(rule: &UrlRewriteRule) -> Vec<&RewriteTarget> {
+    let mut targets: Vec<&RewriteTarget> = rule
+        .targets
+        .iter()
+        .filter(|t| t.enabled && !t.url_template.trim().is_empty())
+        .collect();
+    targets.sort_by_key(|t| t.order);
+    targets
+}
+
+/// Render one target into a candidate URL.
+fn render_target(
+    url: &str,
+    rule: &UrlRewriteRule,
+    target: &RewriteTarget,
+    encoded_url: &str,
+) -> String {
+    match rule.replacement_mode {
+        ReplacementMode::PrefixProxy => {
+            let base = target.url_template.trim().trim_end_matches('/');
+            let target_url = if rule.encode_url { encoded_url } else { url };
+            format!("{base}/{target_url}")
+        }
+        ReplacementMode::Template => {
+            let template = target.url_template.trim();
+            if rule.match_type == MatchType::Regex
+                && let Ok(re) = Regex::new(rule.pattern.trim())
+            {
+                re.replace_all(url, template).to_string()
+            } else {
+                apply_template(template, encoded_url, url)
+            }
+        }
+    }
+}
+
+/// Substitute `{url}` / `{raw_url}` placeholders in a template.
+fn apply_template(template: &str, encoded_url: &str, url: &str) -> String {
+    template
+        .replace("{url}", encoded_url)
+        .replace("{raw_url}", url)
 }
 
 #[cfg(test)]

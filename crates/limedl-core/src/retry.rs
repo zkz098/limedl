@@ -49,73 +49,105 @@ where
         };
 
         match response {
-            Ok(mut response) => {
-                // A 403 from a WAF / mirror anti-abuse page is terminal and no
-                // Referer can fix it. Sniff the (small) body once so the user
-                // gets an actionable error instead of a bare status code.
-                if response.status() == StatusCode::FORBIDDEN {
-                    let prefix =
-                        read_body_prefix(&mut response, ANTI_ABUSE_SNIFF_LIMIT).await;
-                    if looks_like_anti_abuse_page(&prefix) {
-                        return Err(anti_abuse_forbidden_error());
-                    }
-                }
-                match classify_download_response(response) {
-                    ResponseDisposition::Use(response) => return Ok(response),
-                    ResponseDisposition::Retryable(status) => {
-                        if status == StatusCode::TOO_MANY_REQUESTS {
-                            let concurrency = managed
-                                .lock_core()
-                                .manifest
-                                .allocated_thread_count
-                                .unwrap_or(1);
-                            if concurrency > 1 {
-                                return Err(DownloadError::InvalidResponse(format!(
-                                    "http status {status}"
-                                )));
-                            }
-                        }
-                        if attempt >= max_retries {
-                            return Err(DownloadError::InvalidResponse(format!(
-                                "http status {status}"
-                            )));
-                        }
-                        attempt += 1;
-                        register_retry_penalty(&managed, format!("http status {status}"));
-                        tokio::select! {
-                            _ = token.cancelled() => return Err(DownloadError::Interrupted),
-                            _ = sleep(backoff_delay(attempt)) => {}
-                        }
-                    }
-                    ResponseDisposition::Invalid(status) => {
-                        return Err(DownloadError::InvalidResponse(format!(
-                            "http status {status}"
-                        )));
-                    }
+            Ok(response) => {
+                if let Some(response) =
+                    process_response_attempt(response, &token, max_retries, &managed, &mut attempt)
+                        .await?
+                {
+                    return Ok(response);
                 }
             }
             Err(error) => {
-                if error.status() == Some(StatusCode::TOO_MANY_REQUESTS) {
-                    let concurrency = managed
-                        .lock_core()
-                        .manifest
-                        .allocated_thread_count
-                        .unwrap_or(1);
-                    if concurrency > 1 {
-                        return Err(error.into());
-                    }
-                }
-                if attempt >= max_retries {
-                    return Err(error.into());
-                }
-                attempt += 1;
-                register_retry_penalty(&managed, error.to_string());
-                tokio::select! {
-                    _ = token.cancelled() => return Err(DownloadError::Interrupted),
-                    _ = sleep(backoff_delay(attempt)) => {}
-                }
+                retry_transport_error(&token, max_retries, &managed, &mut attempt, error).await?;
             }
         }
+    }
+}
+
+/// Classify one successful request exchange.
+///
+/// Returns `Some(response)` when the caller should hand it back, `None` after
+/// a retryable response was penalised and backed off, or `Err` for terminal
+/// failures (anti-abuse 403, invalid status, exhausted retries, cancellation).
+async fn process_response_attempt(
+    mut response: Response,
+    token: &CancellationToken,
+    max_retries: u32,
+    managed: &Arc<ManagedDownload>,
+    attempt: &mut u32,
+) -> Result<Option<Response>> {
+    // A 403 from a WAF / mirror anti-abuse page is terminal and no
+    // Referer can fix it. Sniff the (small) body once so the user
+    // gets an actionable error instead of a bare status code.
+    if response.status() == StatusCode::FORBIDDEN {
+        let prefix = read_body_prefix(&mut response, ANTI_ABUSE_SNIFF_LIMIT).await;
+        if looks_like_anti_abuse_page(&prefix) {
+            return Err(anti_abuse_forbidden_error());
+        }
+    }
+
+    match classify_download_response(response) {
+        ResponseDisposition::Use(response) => Ok(Some(response)),
+        ResponseDisposition::Retryable(status) => {
+            if rate_limit_aborts(managed, Some(status)) {
+                return Err(DownloadError::InvalidResponse(format!(
+                    "http status {status}"
+                )));
+            }
+            if *attempt >= max_retries {
+                return Err(DownloadError::InvalidResponse(format!(
+                    "http status {status}"
+                )));
+            }
+            *attempt += 1;
+            register_retry_penalty(managed, format!("http status {status}"));
+            backoff_or_cancel(token, *attempt).await?;
+            Ok(None)
+        }
+        ResponseDisposition::Invalid(status) => {
+            Err(DownloadError::InvalidResponse(format!(
+                "http status {status}"
+            )))
+        }
+    }
+}
+
+/// Register a transport error's penalty and back off, or fail terminally.
+async fn retry_transport_error(
+    token: &CancellationToken,
+    max_retries: u32,
+    managed: &Arc<ManagedDownload>,
+    attempt: &mut u32,
+    error: reqwest::Error,
+) -> Result<()> {
+    if rate_limit_aborts(managed, error.status()) {
+        return Err(error.into());
+    }
+    if *attempt >= max_retries {
+        return Err(error.into());
+    }
+    *attempt += 1;
+    register_retry_penalty(managed, error.to_string());
+    backoff_or_cancel(token, *attempt).await
+}
+
+/// `true` when a 429 must abort instead of retrying: concurrency above one
+/// triggers the chunked path's downgrade-to-single-thread instead.
+fn rate_limit_aborts(managed: &Arc<ManagedDownload>, status: Option<StatusCode>) -> bool {
+    status == Some(StatusCode::TOO_MANY_REQUESTS)
+        && managed
+            .lock_core()
+            .manifest
+            .allocated_thread_count
+            .unwrap_or(1)
+            > 1
+}
+
+/// Sleep the exponential backoff for `attempt`, aborting on cancellation.
+async fn backoff_or_cancel(token: &CancellationToken, attempt: u32) -> Result<()> {
+    tokio::select! {
+        _ = token.cancelled() => Err(DownloadError::Interrupted),
+        _ = sleep(backoff_delay(attempt)) => Ok(()),
     }
 }
 

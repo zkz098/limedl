@@ -235,6 +235,86 @@ pub fn write_all_at(file: &File, mut buffer: &[u8], mut offset: u64) -> Result<(
     Ok(())
 }
 
+/// Cap a single `pwritev` call at the POSIX `UIO_MAXIOV` limit (1024).
+#[cfg(unix)]
+const MAX_IOV_BATCH: usize = 1024;
+
+/// Cursor over the not-yet-written tail of a slice-of-slices buffer.
+///
+/// `skip` is the number of already-written bytes inside the first remaining slice.
+#[cfg(unix)]
+struct VectoredCursor<'a> {
+    slices: &'a [&'a [u8]],
+    skip: usize,
+}
+
+#[cfg(unix)]
+impl<'a> VectoredCursor<'a> {
+    fn new(slices: &'a [&'a [u8]]) -> Self {
+        Self { slices, skip: 0 }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.slices.is_empty()
+    }
+
+    /// Drop leading slices that are fully written.
+    fn skip_consumed(&mut self) {
+        while let Some(first) = self.slices.first() {
+            if first.len() <= self.skip {
+                self.slices = &self.slices[1..];
+                self.skip = 0;
+            } else {
+                break;
+            }
+        }
+    }
+
+    /// Number of slices the next batch covers.
+    fn batch_len(&self) -> usize {
+        self.slices.len().min(MAX_IOV_BATCH)
+    }
+
+    /// Build the iovec batch for the next `pwritev` call.
+    fn iov_batch(&self) -> Vec<libc::iovec> {
+        let batch_len = self.batch_len();
+        let mut iov: Vec<libc::iovec> = Vec::with_capacity(batch_len);
+        for (i, slice) in self.slices[..batch_len].iter().enumerate() {
+            let data = if i == 0 { &slice[self.skip..] } else { *slice };
+            if !data.is_empty() {
+                iov.push(libc::iovec {
+                    iov_base: data.as_ptr() as *mut libc::c_void,
+                    iov_len: data.len(),
+                });
+            }
+        }
+        iov
+    }
+
+    /// Skip a batch that produced no non-empty iovec entries.
+    fn skip_batch(&mut self) {
+        self.slices = &self.slices[self.batch_len()..];
+        self.skip = 0;
+    }
+
+    /// Advance past `written` bytes and return the number of bytes consumed.
+    fn advance(&mut self, mut written: usize) -> usize {
+        let consumed = written;
+        while written > 0 && !self.slices.is_empty() {
+            let current_len = self.slices[0].len() - self.skip;
+            if written >= current_len {
+                written -= current_len;
+                self.slices = &self.slices[1..];
+                self.skip = 0;
+            } else {
+                self.skip += written;
+                written = 0;
+            }
+        }
+        consumed
+    }
+}
+
 /// Write a sequence of buffer slices to `file` at `offset`, using vectored I/O (`pwritev`)
 /// on Unix platforms to eliminate memory allocations and copies, with single-syscall
 /// coalescing fallback on other platforms.
@@ -250,44 +330,17 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Re
     }
 
     let fd = file.as_raw_fd();
-    let mut slices = bufs;
-    let mut first_slice_offset = 0usize;
+    let mut cursor = VectoredCursor::new(bufs);
 
-    while !slices.is_empty() {
-        // Skip leading empty slices
-        while let Some(first) = slices.first() {
-            if first.len() <= first_slice_offset {
-                slices = &slices[1..];
-                first_slice_offset = 0;
-            } else {
-                break;
-            }
-        }
-        if slices.is_empty() {
+    while !cursor.is_empty() {
+        cursor.skip_consumed();
+        if cursor.is_empty() {
             break;
         }
 
-        // Limit the batch to 1024 (POSIX UIO_MAXIOV limit)
-        let batch_len = slices.len().min(1024);
-        let mut iov: Vec<libc::iovec> = Vec::with_capacity(batch_len);
-
-        for (i, slice) in slices[..batch_len].iter().enumerate() {
-            let data = if i == 0 {
-                &slice[first_slice_offset..]
-            } else {
-                *slice
-            };
-            if !data.is_empty() {
-                iov.push(libc::iovec {
-                    iov_base: data.as_ptr() as *mut libc::c_void,
-                    iov_len: data.len(),
-                });
-            }
-        }
-
+        let iov = cursor.iov_batch();
         if iov.is_empty() {
-            slices = &slices[batch_len..];
-            first_slice_offset = 0;
+            cursor.skip_batch();
             continue;
         }
 
@@ -314,21 +367,7 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Re
             )));
         }
 
-        let mut written = res as usize;
-        offset += written as u64;
-
-        // Advance through written slices
-        while written > 0 && !slices.is_empty() {
-            let current_len = slices[0].len() - first_slice_offset;
-            if written >= current_len {
-                written -= current_len;
-                slices = &slices[1..];
-                first_slice_offset = 0;
-            } else {
-                first_slice_offset += written;
-                written = 0;
-            }
-        }
+        offset += cursor.advance(res as usize) as u64;
     }
     Ok(())
 }
