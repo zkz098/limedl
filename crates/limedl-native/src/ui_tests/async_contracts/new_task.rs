@@ -313,7 +313,9 @@ pub(super) async fn a_payload_nothing_can_parse_still_opens_the_dialog() {
 pub(super) async fn a_dropped_torrent_file_previews_and_survives_a_failed_parse() {
     let ui = new_window();
     let path = ui.ctx.base_dir.join("Sample.torrent");
-    std::fs::write(&path, b"d4:infod4:name4:teste").expect("write the dropped file");
+    tokio::fs::write(&path, b"d4:infod4:name4:teste")
+        .await
+        .expect("write the dropped file");
 
     deliver_payload(&ui, &path.to_string_lossy()).await;
 

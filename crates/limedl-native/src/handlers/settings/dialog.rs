@@ -300,7 +300,7 @@ pub fn register(ctx: &AppContext) {
 async fn remove_data_dir(data_dir: &std::path::Path) -> Option<std::io::Error> {
     let mut last_err: Option<std::io::Error> = None;
     for attempt in 0..3u8 {
-        match std::fs::remove_dir_all(data_dir) {
+        match tokio::fs::remove_dir_all(data_dir).await {
             Ok(()) => return None,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
             Err(err) => {

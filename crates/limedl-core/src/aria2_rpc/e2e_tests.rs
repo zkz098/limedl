@@ -24,7 +24,7 @@ async fn start_rpc_server() -> (
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
     let dest_dir = tmp.path().join("output");
-    std::fs::create_dir_all(&dest_dir).unwrap();
+    tokio::fs::create_dir_all(&dest_dir).await.unwrap();
 
     let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
 

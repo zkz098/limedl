@@ -31,7 +31,6 @@
 // the release job) keeps that secret and [`PUBKEY_B64`] in sync.
 
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -353,7 +352,8 @@ pub async fn download_and_verify(
     progress: &(dyn Fn(u64, Option<u64>) + Send + Sync),
 ) -> Result<PathBuf> {
     let work_dir = update_work_dir(state_dir);
-    std::fs::create_dir_all(&work_dir)
+    tokio::fs::create_dir_all(&work_dir)
+        .await
         .with_context(|| format!("create update work dir {}", work_dir.display()))?;
 
     let file_name = update
@@ -383,9 +383,11 @@ pub async fn download_and_verify(
         );
     }
 
-    let mut file = std::fs::File::create(&dest)
+    let mut file = tokio::fs::File::create(&dest)
+        .await
         .with_context(|| format!("create {}", dest.display()))?;
     use sha2::Digest;
+    use tokio::io::AsyncWriteExt;
     let mut hasher = sha2::Sha256::new();
     let mut downloaded: u64 = 0;
     while let Some(chunk) = resp
@@ -393,7 +395,9 @@ pub async fn download_and_verify(
         .await
         .context("read update download stream")?
     {
-        file.write_all(&chunk).context("write update download")?;
+        file.write_all(&chunk)
+            .await
+            .context("write update download")?;
         hasher.update(&chunk);
         downloaded += chunk.len() as u64;
         if downloaded > MAX_UPDATE_BYTES {
@@ -403,11 +407,12 @@ pub async fn download_and_verify(
         }
         progress(downloaded, total);
     }
-    file.flush().ok();
+    file.flush().await.ok();
     drop(file);
 
-    let bytes =
-        std::fs::read(&dest).with_context(|| format!("re-read {}", dest.display()))?;
+    let bytes = tokio::fs::read(&dest)
+        .await
+        .with_context(|| format!("re-read {}", dest.display()))?;
     if let Some(expected) = update.asset.sha256.as_deref() {
         verify_sha256(&bytes, expected)
             .context("sha256 mismatch (update download corrupted?)")?;

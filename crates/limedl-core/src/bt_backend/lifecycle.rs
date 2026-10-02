@@ -86,7 +86,9 @@ impl IrontideBtBackend {
                     "download destination directory must be an absolute path".into(),
                 ));
             }
-            std::fs::create_dir_all(&p).map_err(|e| io_error_with_path(e, p.to_string_lossy()))?;
+            tokio::fs::create_dir_all(&p)
+                .await
+                .map_err(|e| io_error_with_path(e, p.to_string_lossy()))?;
             p
         };
 

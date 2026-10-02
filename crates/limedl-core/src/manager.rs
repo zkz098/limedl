@@ -474,7 +474,8 @@ impl DownloadManager {
                 )));
             }
         }
-        fs::create_dir_all(&destination_dir)
+        tokio::fs::create_dir_all(&destination_dir)
+            .await
             .map_err(|e| io_error_with_path(e, destination_dir.to_string_lossy()))?;
 
         let chosen_name = request

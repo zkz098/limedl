@@ -123,9 +123,10 @@ pub(crate) async fn handle_add_torrent(
     cleanup_old_aria2_temp_files();
 
     let temp_dir = std::env::temp_dir().join("limedl_aria2");
-    std::fs::create_dir_all(&temp_dir).ok();
+    tokio::fs::create_dir_all(&temp_dir).await.ok();
     let torrent_path = temp_dir.join(format!("{}.torrent", uuid::Uuid::new_v4()));
-    std::fs::write(&torrent_path, &torrent_bytes)
+    tokio::fs::write(&torrent_path, &torrent_bytes)
+        .await
         .map_err(|e| make_error(ERR_INTERNAL, format!("Failed to write torrent file: {e}")))?;
 
     let options = params.get(1).and_then(|v| v.as_object());

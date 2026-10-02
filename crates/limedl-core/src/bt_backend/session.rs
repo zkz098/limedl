@@ -29,7 +29,7 @@ impl IrontideBtBackend {
         let bt = &settings.bt;
 
         let resume_dir = state_dir.join("resume");
-        std::fs::create_dir_all(&resume_dir).ok();
+        tokio::fs::create_dir_all(&resume_dir).await.ok();
         let irontide_settings = irontide::session::Settings {
             resume_data_dir: Some(resume_dir),
             ..Default::default()

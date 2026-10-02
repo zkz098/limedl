@@ -84,7 +84,7 @@ impl DiskIoService {
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;
-            if let Ok(meta) = std::fs::metadata(dir) {
+            if let Ok(meta) = tokio::fs::metadata(dir).await {
                 let dev = meta.dev();
                 let mut cache = self.disk_type_cache.lock();
                 if let Some(cached) = cache.get(&dev) {

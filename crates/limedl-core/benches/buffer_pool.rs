@@ -53,6 +53,24 @@ fn unique_temp_name(prefix: &str) -> String {
     format!("{path}/limedl_bench_{prefix}_{id}.tmp")
 }
 
+/// Create the benchmark temp file off the runtime.
+///
+/// `File::create` is a blocking syscall and every benchmark body below runs
+/// inside `rt.block_on`, so it goes to the blocking pool the same way the
+/// direct-write path hands over its writes.
+async fn create_temp_file(path: &str) -> File {
+    let path = path.to_owned();
+    tokio::task::spawn_blocking(move || File::create(&path).expect("create temp file"))
+        .await
+        .expect("spawn_blocking failed")
+}
+
+/// Remove the benchmark temp file, ignoring the outcome like the call site it
+/// replaced (Windows may still hold the handle for a moment).
+async fn remove_temp_file(path: &str) {
+    let path = path.to_owned();
+    let _ = tokio::task::spawn_blocking(move || fs::remove_file(&path)).await;
+}
 // 鈹€鈹€ HDD double-buffer benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 //
 // Creates a new `BufferPool`, acquires a slot, writes 100 MB via the
@@ -74,7 +92,7 @@ fn bench_double_hdd(c: &mut Criterion) {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
                     let file_path = unique_temp_name("hdd");
-                    let file = Arc::new(File::create(&file_path).unwrap());
+                    let file = Arc::new(create_temp_file(&file_path).await);
                     let buffer = DownloadBuffer::new(pool.clone(), slot, file.clone());
 
                     for i in 0..CHUNK_COUNT {
@@ -88,7 +106,7 @@ fn bench_double_hdd(c: &mut Criterion) {
                     // Drop buffer first so the file handle is closed before we
                     // try to remove the file (Windows sharing semantics).
                     drop(buffer);
-                    let _ = fs::remove_file(&file_path);
+                    remove_temp_file(&file_path).await;
                 }
                 start.elapsed()
             })
@@ -120,7 +138,7 @@ fn bench_local_ssd(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("ssd");
-                    let file = Arc::new(File::create(&file_path).unwrap());
+                    let file = Arc::new(create_temp_file(&file_path).await);
                     let buffer = DownloadBuffer::new_local_pingpong_with_worker(
                         4 * 1024 * 1024,
                         file.clone(),
@@ -136,7 +154,7 @@ fn bench_local_ssd(c: &mut Criterion) {
                     buffer.flush_all().await.unwrap();
 
                     drop(buffer);
-                    let _ = fs::remove_file(&file_path);
+                    remove_temp_file(&file_path).await;
                 }
                 start.elapsed()
             })
@@ -165,7 +183,7 @@ fn bench_direct_write(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("direct");
-                    let mut file = File::create(&file_path).unwrap();
+                    let mut file = create_temp_file(&file_path).await;
 
                     for i in 0..CHUNK_COUNT {
                         let offset = i * CHUNK_SIZE as u64;
@@ -184,7 +202,7 @@ fn bench_direct_write(c: &mut Criterion) {
                     }
 
                     drop(file);
-                    let _ = fs::remove_file(&file_path);
+                    remove_temp_file(&file_path).await;
                 }
                 start.elapsed()
             })
@@ -227,7 +245,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
                     let slot = pool.acquire_slot().await;
                     let file_path = unique_temp_name("mshdd");
-                    let file = Arc::new(File::create(&file_path).unwrap());
+                    let file = Arc::new(create_temp_file(&file_path).await);
                     let buffer = Arc::new(DownloadBuffer::new(pool.clone(), slot, file.clone()));
 
                     const STREAMS: usize = 4;
@@ -250,7 +268,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                     buffer.flush_all().await.unwrap();
 
                     drop(buffer);
-                    let _ = fs::remove_file(&file_path);
+                    remove_temp_file(&file_path).await;
                 }
                 start.elapsed()
             })
@@ -265,7 +283,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("msssd");
-                    let file = Arc::new(File::create(&file_path).unwrap());
+                    let file = Arc::new(create_temp_file(&file_path).await);
                     let buffer = Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
                         4 * 1024 * 1024,
                         file.clone(),
@@ -292,7 +310,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                     buffer.flush_all().await.unwrap();
 
                     drop(buffer);
-                    let _ = fs::remove_file(&file_path);
+                    remove_temp_file(&file_path).await;
                 }
                 start.elapsed()
             })
@@ -306,7 +324,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("msdirect");
-                    let file = Arc::new(File::create(&file_path).unwrap());
+                    let file = Arc::new(create_temp_file(&file_path).await);
 
                     const STREAMS: usize = 4;
                     let per_stream = offsets.len() / STREAMS;
@@ -330,7 +348,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
                     }
 
                     drop(file);
-                    let _ = fs::remove_file(&file_path);
+                    remove_temp_file(&file_path).await;
                 }
                 start.elapsed()
             })

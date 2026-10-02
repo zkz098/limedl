@@ -55,8 +55,8 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     let bt_backend = {
         let bt_state_dir = state_dir.join("torrents");
         let bt_output_dir = state_dir.join("bt_files");
-        std::fs::create_dir_all(&bt_state_dir)?;
-        std::fs::create_dir_all(&bt_output_dir)?;
+        tokio::fs::create_dir_all(&bt_state_dir).await?;
+        tokio::fs::create_dir_all(&bt_output_dir).await?;
         let bt = Arc::new(LazyBtBackend::new(
             &settings,
             bt_state_dir,

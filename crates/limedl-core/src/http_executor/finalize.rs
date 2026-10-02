@@ -61,7 +61,7 @@ impl HttpExecutor {
             // removes the original temp path (which no longer exists after the
             // rename).
             let corrupt_path = temp_path.with_extension("part.corrupt");
-            match std::fs::rename(&temp_path, &corrupt_path) {
+            match tokio::fs::rename(&temp_path, &corrupt_path).await {
                 Ok(_) => tracing::warn!(
                     "checksum mismatch; preserved corrupt temp file at {}",
                     corrupt_path.display()

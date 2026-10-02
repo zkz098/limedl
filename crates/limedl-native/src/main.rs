@@ -74,7 +74,7 @@ async fn main() -> anyhow::Result<()> {
     platform_win::set_base_dir(base_dir.clone());
     let state_dir = base_dir.join("downloads");
     update::clean_update_work_dir(&base_dir);
-    std::fs::create_dir_all(&state_dir)?;
+    tokio::fs::create_dir_all(&state_dir).await?;
 
     // First Native run: migrate data from Tauri
     let migration_report = migrate::migrate_tauri_data_if_needed(&base_dir, &state_dir);
