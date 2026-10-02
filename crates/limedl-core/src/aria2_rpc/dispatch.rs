@@ -1,8 +1,31 @@
 //! Method dispatch table for JSON-RPC requests.
 
 use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
+use super::{check_token, strip_token};
 
+/// Dispatch a JSON-RPC method, enforcing the secret token first.
+///
+/// The check lives here rather than in each handler. When every handler owned
+/// a copy, a bulk method could silently skip it (`pauseAll` did), and the
+/// `strip_token`/`check_token` order was easy to invert — inverted, the check
+/// ran on parameters the token had already been removed from, so a configured
+/// secret rejected every request that carried it. `strip_token` then removes
+/// the `"token:<secret>"` element so handlers see only their real arguments.
 pub(crate) async fn dispatch_method(
+    ctx: &RpcContext,
+    method: &str,
+    params: Vec<Value>,
+) -> Result<Value, JsonRpcError> {
+    check_token(ctx, &params)?;
+    dispatch_authorized(ctx, method, strip_token(params)).await
+}
+
+/// Route a method whose caller has already been authenticated.
+///
+/// `system.multicall` uses this for its nested calls: the outer request is
+/// checked once, and each nested call is dispatched with its own parameters
+/// (the token element, if the client repeats it there, stripped).
+pub(crate) async fn dispatch_authorized(
     ctx: &RpcContext,
     method: &str,
     params: Vec<Value>,

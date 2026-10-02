@@ -8,7 +8,9 @@ mod corruption_oracle_tests;
 mod adversarial_interception_tests;
 mod resume_corruption_tests;
 mod buffer_integrity_tests;
-mod dispatcher_tests;
+// `pub(crate)`: the aria2 RPC tests reuse `make_manager`/`inject_download` from
+// here to cover `resolve_gid` and the GID cache against a real DownloadManager.
+pub(crate) mod dispatcher_tests;
 mod disk_detect_test;
 mod http_executor_tests;
 mod manager_tests;

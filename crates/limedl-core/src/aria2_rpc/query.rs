@@ -1,13 +1,11 @@
 //! Read-only query methods: tellStatus/tellActive/getFiles/getPeers/session listing.
 
-use super::{BtPeerInfo, DownloadManager, DownloadState, DownloadSummary, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, LazyBtBackend, RpcContext, TaskId, Value, build_file_list, check_token, make_error, resolve_gid, strip_token, summary_to_aria2_status};
+use super::{BtPeerInfo, DownloadManager, DownloadState, DownloadSummary, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, LazyBtBackend, RpcContext, TaskId, Value, build_file_list, make_error, resolve_gid, summary_to_aria2_status};
 
 pub(crate) async fn handle_tell_status(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -56,8 +54,6 @@ pub(crate) async fn handle_tell_waiting(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let offset: usize = parse_int_param(&params, 0).unwrap_or(0);
     let num: usize = parse_int_param(&params, 1).unwrap_or(1000);
 
@@ -76,8 +72,6 @@ pub(crate) async fn handle_tell_stopped(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let offset: usize = parse_int_param(&params, 0).unwrap_or(0);
     let num: usize = parse_int_param(&params, 1).unwrap_or(1000);
 
@@ -151,8 +145,6 @@ pub(crate) async fn handle_get_files(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -172,8 +164,6 @@ pub(crate) async fn handle_get_uris(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -196,8 +186,6 @@ pub(crate) async fn handle_get_peers(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await

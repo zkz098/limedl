@@ -6,12 +6,11 @@
 //!   - Stateless handlers: handle_version, handle_list_methods, handle_list_notifications
 //!   - ID conversion: internal_id_to_gid
 //!   - Request deserialization: JsonRpcRequest
+//!   - process_jsonrpc_message (the WebSocket transport path) and RpcContext
+//!     GID resolution / cache eviction
 //!
-//! What requires E2E / full backends (not tested here):
-//!   - dispatch_method() — depends on RpcContext with Arc<BackendRegistry>
-//!   - process_jsonrpc_message() — depends on RpcContext
-//!   - All handle_* functions that call ctx.manager or ctx.bt_backend
-//!   - WebSocket and HTTP server integration
+//! What requires E2E (see `e2e_tests.rs`): dispatch over a live server, the
+//! handler matrix, `system.multicall` and secret-token auth.
 
 use super::*;
 use ntest::timeout;
@@ -791,4 +790,102 @@ fn peer_info_to_aria2_peer_no_port() {
     let result = peer_info_to_aria2_peer(&peer);
     assert_eq!(result["ip"], "192.168.1.1");
     assert_eq!(result["port"], 0);
+}
+
+// ── RpcContext-dependent units ───────────────────────────────────────
+
+/// A minimal context with an empty registry — enough for the WebSocket message
+/// transport and for cache-hit GID resolution.
+fn make_ctx() -> RpcContext {
+    let registry = Arc::new(BackendRegistry::new());
+    let event_bus = Arc::new(EventBus::new(64));
+    let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
+    RpcContext {
+        registry,
+        dispatcher,
+        secret: None,
+        event_bus,
+        gid_cache: Mutex::new(HashMap::default()),
+        session_id: "test-session".to_string(),
+    }
+}
+
+/// `process_jsonrpc_message` is the WebSocket transport path: parse errors,
+/// wrong protocol versions, unknown methods and successes must all be wrapped
+/// in a JSON-RPC response rather than dropped.
+#[tokio::test]
+#[timeout(10_000)]
+async fn process_jsonrpc_message_covers_errors_and_success() {
+    let ctx = make_ctx();
+
+    let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, "{ not json").await)
+        .expect("transport must always answer valid JSON");
+    assert_eq!(resp["error"]["code"], -32700, "malformed JSON: {resp}");
+
+    let body = json!({"jsonrpc": "1.0", "id": 7, "method": "aria2.getVersion", "params": []});
+    let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body.to_string()).await)
+        .expect("valid JSON response");
+    assert_eq!(resp["error"]["code"], -32600, "wrong version: {resp}");
+    assert_eq!(resp["id"], 7, "the request id must be echoed: {resp}");
+
+    let body = json!({"jsonrpc": "2.0", "id": 8, "method": "no.such.method", "params": []});
+    let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body.to_string()).await)
+        .expect("valid JSON response");
+    assert_eq!(resp["error"]["code"], -32601, "unknown method: {resp}");
+
+    let body = json!({"jsonrpc": "2.0", "id": 9, "method": "aria2.getVersion", "params": []});
+    let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body.to_string()).await)
+        .expect("valid JSON response");
+    assert_eq!(resp["result"]["version"], "0.1.0", "success: {resp}");
+    assert_eq!(resp["id"], 9);
+}
+
+/// `resolve_gid` scans the registered backends on a cache miss and caches the
+/// result; `aria2.remove` must evict that entry so the cache cannot grow for
+/// the lifetime of the RPC server.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
+    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let uuid = uuid::Uuid::from_u128(0xC0FFEE);
+    let id = uuid.to_string();
+    crate::tests::dispatcher_tests::inject_download(&dm, &id, DownloadState::Completed).await;
+
+    let mut registry = BackendRegistry::new();
+    registry.register_arc(TaskKind::Http, dm.clone());
+    let registry = Arc::new(registry);
+    let event_bus = Arc::new(EventBus::new(64));
+    let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
+    let ctx = RpcContext {
+        registry,
+        dispatcher,
+        secret: None,
+        event_bus,
+        gid_cache: Mutex::new(HashMap::default()),
+        session_id: "test-session".to_string(),
+    };
+
+    let gid = internal_id_to_gid(&id);
+    // Cache miss → backend scan → hit cached for the next call.
+    assert_eq!(resolve_gid(&ctx, &gid).await, Some(TaskId::Http(uuid)));
+    assert!(
+        ctx.gid_cache.lock().await.contains_key(&gid),
+        "the scan result must be cached"
+    );
+    assert_eq!(resolve_gid(&ctx, &gid).await, Some(TaskId::Http(uuid)));
+
+    // Unknown GIDs resolve to None instead of panicking.
+    assert!(resolve_gid(&ctx, "0000000000000000").await.is_none());
+
+    handle_remove(&ctx, vec![json!(gid.clone())])
+        .await
+        .expect("remove");
+    assert!(
+        !ctx.gid_cache.lock().await.contains_key(&gid),
+        "aria2.remove must evict the cached gid"
+    );
+    assert!(
+        resolve_gid(&ctx, &gid).await.is_none(),
+        "a removed task must not resolve any more"
+    );
 }

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use base64::Engine;
 
-use super::{ChecksumMode, DownloadManager, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, Value, check_token, extract_gid, get_all_summaries, has_header, make_error, resolve_gid, strip_token};
+use super::{ChecksumMode, DownloadManager, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, Value, extract_gid, get_all_summaries, has_header, make_error, resolve_gid};
 
 pub(crate) fn extract_option_str(
     options: Option<&serde_json::Map<String, Value>>,
@@ -180,9 +180,6 @@ pub(crate) async fn handle_change_global_option(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
-
     let options = params
         .first()
         .and_then(|v| v.as_object())
@@ -236,8 +233,6 @@ pub(crate) async fn handle_get_option(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await

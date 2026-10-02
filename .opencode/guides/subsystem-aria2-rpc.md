@@ -10,7 +10,7 @@
 
 ## 涉及文件
 
-- `crates/limedl-core/src/aria2_rpc/` — Aria2RpcServer 完整实现，按职责拆分：`mod.rs`（装配 + `pub use` 导出）、`protocol.rs`（JSON-RPC 线格式与 aria2 状态映射）、`context.rs`（RpcContext / token / gid 缓存 / 事件广播）、`dispatch.rs`（方法路由）、`download.rs`（addUri/addTorrent/pause/unpause/remove/purge）、`query.rs`（tellStatus/tellActive/getFiles/getPeers/session）、`options.rs`（getOption/changeGlobalOption + aria2 option 解析）、`system.rs`（shutdown/multicall/listMethods/临时文件清理）、`transport.rs`（HTTP + WebSocket）、`server.rs`（Router 与生命周期）；单测 `tests.rs`，E2E `e2e_tests.rs`
+- `crates/limedl-core/src/aria2_rpc/` — Aria2RpcServer 完整实现，按职责拆分：`mod.rs`（装配 + `pub use` 导出）、`protocol.rs`（JSON-RPC 线格式与 aria2 状态映射）、`context.rs`（RpcContext / token / gid 缓存 / 事件广播）、`dispatch.rs`（方法路由 + 集中的 token 校验）、`download.rs`（addUri/addTorrent/pause/unpause/remove/purge）、`query.rs`（tellStatus/tellActive/getFiles/getPeers/session）、`options.rs`（getOption/changeGlobalOption + aria2 option 解析）、`system.rs`（shutdown/multicall/listMethods/临时文件清理）、`transport.rs`（HTTP + WebSocket）、`server.rs`（Router 与生命周期）；单测 `tests.rs`，E2E `e2e_tests.rs`（handler 矩阵、system.multicall、secret 鉴权）
 - `crates/limedl-native/src/main.rs` — 桌面接线：`settings.aria2_rpc.enabled` → `Aria2RpcServer::new(core.registry, &settings.aria2_rpc, event_bus)` → `serve(rx, vec![])`；启动失败仅 log 不阻塞。
 - `crates/limedl-server/src/main.rs` — NAS/守护进程接线（`run_daemon`，bootstrap 之后）：与桌面相同的模式，CORS 传 `settings.aria2_rpc.cors_allowed_origins`（NAS 需要真实 CORS 源），watch Sender 接入 shutdown_signal 实现优雅停机。limedl-server 通过 `limedl-core` 的 `aria2-rpc` feature 编译。
 
@@ -33,10 +33,11 @@ Axum Router → dispatch_method(method, params)
 
 ## 设计决策与约定
 
-- GID 由 XXH3(TaskId) 计算得出。HTTP 下载的 TaskId 为 UUID（持久化在 SQLite 中），BT 下载的 TaskId 为 info hash（从种子/磁力链接提取，确定性）。两者重启后均保持稳定，因此 GID 在重启后不变。`gid_cache` 仅作为反向查找缓存优化性能，重启后通过扫描所有任务重建。
-- secret 令牌若配置，客户端请求必须包含 `token:` 前缀的参数。
+- GID 由 XXH3(TaskId) 计算得出。HTTP 下载的 TaskId 为 UUID（持久化在 SQLite 中），BT 下载的 TaskId 为 info hash（从种子/磁力链接提取，确定性）。两者重启后均保持稳定，因此 GID 在重启后不变。`gid_cache` 仅作为反向查找缓存优化性能，重启后通过扫描所有任务重建。**生命周期**：`addUri` 与 `resolve_gid` 的扫描路径写入缓存，`aria2.remove` 与 `purgeDownloadResult` 必须删除对应条目——否则长会话里缓存只增不减。新增删除类 handler 时同步清理缓存。
+- secret 令牌若配置，**所有**方法都必须携带 `token:` 参数。校验集中在 `dispatch.rs::dispatch_method`（先 `check_token` 再 `strip_token`），handler 只拿剥完的参数；新增方法自动受保护。`system.multicall` 的嵌套调用走 `dispatch_authorized`（外层已验证，只剥离不复查）。历史 bug 有两个：每个 handler 各写一份且顺序写反（先 strip 后 check，secret 一配就拒绝所有合法请求），而 `pauseAll`/`getVersion` 等根本不检查（匿名可调用）——所以校验必须留在路由层，不要下放回 handler。
+- `system.multicall` 每个结果按 aria2 规范包成**单元素数组**：成功 `[value]`，失败 `[{"code","message"}]`。AriaNg/Motrix 取 `entry[0]`，写成 `[null, value]` 会被当成失败。
 - WebSocket 和 HTTP POST 共用同一套 handler 逻辑。
 - 此实现经过 AriaNg / Motrix 实际测试验证兼容性。
 - 辅助函数 `cleanup_old_aria2_temp_files` 清理旧的 aria2 临时文件。
 - 支持约 20 个 aria2 方法（addUri, addTorrent, pause/unpause/remove, tellStatus, tellActive, tellWaiting, tellStopped, getGlobalStat, getGlobalOption, changeGlobalOption, getVersion, getFiles, getUris, getPeers, shutdown, system.listMethods, system.listNotifications 等）。
-- `aria2.addUri` 透传 aria2 请求选项：`header`（字符串数组或单字符串，格式 `Name: value`）、`referer`（`*` 表示使用下载 URL 本身）、`http-user`/`http-passwd`（合成 `Authorization: Basic`）、`checksum`（`TYPE=DIGEST`，仅支持 sha-256/sha-512/blake3；sha-1 及其它类型被忽略）、`user-agent`、`split`、`max-tries`、`out`、`dir`、`pause`。`uris` 数组按 aria2 语义视为有序候选列表：第一个为主 URL，其余作为镜像写入 `mirror_urls`。`aria2.getOption` 返回任务真实的 `user-agent` / `referer` / `header`（从内存中的 manifest 读取）。
+- `aria2.addUri` 透传 aria2 请求选项：`header`（字符串数组或单字符串，格式 `Name: value`）、`referer`（`*` 表示使用下载 URL 本身）、`http-user`/`http-passwd`（合成 `Authorization: Basic`）、`checksum`（`TYPE=DIGEST`，仅支持 sha-256/sha-512/blake3；sha-1 及其它类型被忽略）、`user-agent`、`split`、`max-tries`、`out`、`dir`、`pause`。aria2 在 JSON-RPC 中把**所有选项都序列化为字符串**，所以 `pause` 同时接受 `"true"`（客户端实际发送形态）与布尔 `true`。`uris` 数组按 aria2 语义视为有序候选列表：第一个为主 URL，其余作为镜像写入 `mirror_urls`。`aria2.getOption` 返回任务真实的 `user-agent` / `referer` / `header`（从内存中的 manifest 读取）。

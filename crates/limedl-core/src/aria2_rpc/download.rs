@@ -2,15 +2,12 @@
 
 use base64::Engine;
 
-use super::{DownloadManager, DownloadState, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, RpcContext, StartDownloadRequest, TaskId, TaskKind, Uuid, Value, broadcast_event, check_token, cleanup_old_aria2_temp_files, collect_request_headers, extract_gid, extract_option_str, extract_option_u32, extract_option_usize, get_all_summaries, internal_id_to_gid, make_error, parse_checksum_option, resolve_gid, strip_token};
+use super::{DownloadManager, DownloadState, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, RpcContext, StartDownloadRequest, TaskId, TaskKind, Uuid, Value, broadcast_event, cleanup_old_aria2_temp_files, collect_request_headers, extract_gid, extract_option_str, extract_option_u32, extract_option_usize, get_all_summaries, internal_id_to_gid, make_error, parse_checksum_option, resolve_gid};
 
 pub(crate) async fn handle_add_uri(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
-
     let uris: Vec<String> = params
         .first()
         .and_then(|v| v.as_array())
@@ -89,8 +86,13 @@ pub(crate) async fn handle_add_uri(
 
     let start_paused = options
         .and_then(|o| o.get("pause"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+        .is_some_and(|v| {
+            // aria2 serialises every option as a string over JSON-RPC, so
+            // `"pause": "true"` is the shape AriaNg/Motrix actually send;
+            // accept the raw boolean too.
+            v.as_bool()
+                .unwrap_or_else(|| v.as_str().is_some_and(|s| s.eq_ignore_ascii_case("true")))
+        });
     if start_paused {
         let _ = ctx.dispatcher.pause(&task_id).await;
     }
@@ -110,9 +112,6 @@ pub(crate) async fn handle_add_torrent(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
-
     let torrent_b64 = params
         .first()
         .and_then(|v| v.as_str())
@@ -179,8 +178,6 @@ pub(crate) async fn handle_pause(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -198,8 +195,6 @@ pub(crate) async fn handle_unpause(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -252,8 +247,6 @@ pub(crate) async fn handle_remove(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -263,6 +256,10 @@ pub(crate) async fn handle_remove(
         .remove(&task_id)
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+    // Drop the cache entry with the task. `addUri` and the scan in `resolve_gid`
+    // insert entries that nothing else removes except `purgeDownloadResult`, so
+    // without this the map grows for the whole lifetime of the RPC server.
+    ctx.gid_cache.lock().await.remove(&gid);
     broadcast_event(ctx, "aria2.onDownloadStop", &gid);
     Ok(Value::String(gid))
 }

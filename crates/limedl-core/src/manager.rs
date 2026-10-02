@@ -1002,6 +1002,11 @@ impl DownloadBackend for DownloadManager {
         {
             let mut core = managed.lock_core();
             core.manifest.priority = priority;
+            // Keep the snapshot in step: the `Updated` event the dispatcher
+            // emits right after this call carries the snapshot, so leaving it
+            // stale keeps the UI priority badge on the previous value until a
+            // restart rebuilds the snapshot.
+            core.snapshot.priority = priority;
         }
         // Persist to DB
         self.db.set_priority(&download_id, priority as u8)?;

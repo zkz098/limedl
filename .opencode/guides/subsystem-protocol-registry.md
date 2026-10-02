@@ -43,4 +43,4 @@ limedl-native (Slint desktop) / rpc.rs (WebSocket JSON-RPC)
 - 边界层零 Downcast 约定：`crates/limedl-server/src/rpc.rs` 和 `crates/limedl-native` 严禁调用 `get_typed::<DownloadManager>()`，所有操作全部经由 `dispatcher` 统一分发。
 - 单一真实源（SSOT）：设置读取与变更统一由 `SettingsService` 维护并持久化，消除了各后端与 UI 状态的分裂与漂移。
 - 托盘与多协议聚合：托盘状态检查使用 `dispatcher.has_active_downloads()` 跨 HTTP/BT 全局聚合，避免遗漏 BT 任务。
-- 自动事件发射：Dispatcher 对 pause/resume/cancel/remove/purge 以及 start 后状态自动触发事件，确保前后端实时同步。
+- 自动事件发射：Dispatcher 对 pause/resume/cancel/remove/purge 以及 start 后状态自动触发事件，确保前后端实时同步。`set_priority` 也必须同时更新 `snapshot.priority`（不能只改 manifest）：`Updated` 事件携带的是快照，只改 manifest 会让 UI 优先级一直在旧值上停留到重启。

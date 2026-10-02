@@ -2,7 +2,7 @@
 
 use std::ffi::OsStr;
 
-use super::{DownloadEvent, ERR_INVALID_PARAMS, JsonRpcError, RpcContext, Value, check_token, dispatch_method, make_error, strip_token};
+use super::{DownloadEvent, ERR_INVALID_PARAMS, JsonRpcError, RpcContext, Value, dispatch_authorized, make_error, strip_token};
 
 /// Removes `.torrent` files in the aria2 temp directory that are older than 1 hour.
 /// This is a best-effort cleanup — all errors are silently ignored.
@@ -52,9 +52,9 @@ pub(crate) async fn handle_multicall(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
-    let params = strip_token(params);
-    check_token(ctx, &params)?;
-
+    // `dispatch_method` already validated and stripped the outer token, so the
+    // nested calls must not re-check it — they were authenticated as part of
+    // this request. Only strip the copy some clients repeat in each entry.
     let calls = params
         .first()
         .and_then(|v| v.as_array())
@@ -72,12 +72,16 @@ pub(crate) async fn handle_multicall(
             .cloned()
             .unwrap_or_default();
 
-        match Box::pin(dispatch_method(ctx, method, call_params)).await {
-            Ok(result) => results.push(Value::Array(vec![Value::Null, result])),
-            Err(e) => results.push(Value::Array(vec![
-                serde_json::json!({ "code": e.code, "message": e.message }),
-                Value::Null,
-            ])),
+        // aria2's response shape is a single-element array per call:
+        // `[value]` on success, `[{"code":…,"message":…}]` on failure.
+        // AriaNg/Motrix index into element 0, so a two-element
+        // `[null, value]` wrapper would read as a failed call.
+        match Box::pin(dispatch_authorized(ctx, method, strip_token(call_params))).await {
+            Ok(result) => results.push(Value::Array(vec![result])),
+            Err(e) => results.push(Value::Array(vec![serde_json::json!({
+                "code": e.code,
+                "message": e.message,
+            })])),
         }
     }
     Ok(Value::Array(results))
