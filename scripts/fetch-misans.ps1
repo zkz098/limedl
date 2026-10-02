@@ -111,10 +111,19 @@ function Format-FontState([string]$Path) {
     return "{0} bytes, sha256={1}" -f (New-Object System.IO.FileInfo($Path)).Length, (Get-FileSha256 $Path)
 }
 
-function Write-FailureAnnotation([string]$Message) {
+function Show-Status([string]$Message) {
+    # The script's only Write-Host. Progress has to reach the console GitHub
+    # parses (annotations included), which rules out Write-Output: that lands on
+    # the success stream and would vanish the moment a caller captures it. S8677
+    # wants host writers named Show-*, hence the wrapper instead of a bare
+    # Write-Host at every call site.
+    Write-Host $Message
+}
+
+function Show-FailureAnnotation([string]$Message) {
     # GitHub only parses the rest of the line as the annotation text, so this
     # stays short and single-line; the caller's exception carries the detail.
-    if ($env:GITHUB_ACTIONS -eq "true") { Write-Host "::error::$Message" }
+    if ($env:GITHUB_ACTIONS -eq "true") { Show-Status "::error::$Message" }
 }
 
 # ── Early exits: nothing to do, or nothing to do but check ────────────────
@@ -123,15 +132,15 @@ $fontOk = Test-FontHash $OutFile
 
 if ($Verify) {
     if (-not $fontOk) {
-        Write-FailureAnnotation "MiSans VF is missing or is not the pinned build (see the log)"
+        Show-FailureAnnotation "MiSans VF is missing or is not the pinned build (see the log)"
         throw "MiSans VF missing or not the pinned build at $OutFile`n  expected: $ExpectedSize bytes, sha256=$ExpectedSha256`n  actual:   $(Format-FontState $OutFile)`nRun: pwsh scripts/fetch-misans.ps1"
     }
-    Write-Host "MiSans VF present and verified: $OutFile"
+    Show-Status "MiSans VF present and verified: $OutFile"
     return
 }
 
 if (-not $Force -and $fontOk) {
-    Write-Host "MiSans VF already present and up to date: $OutFile"
+    Show-Status "MiSans VF already present and up to date: $OutFile"
     return
 }
 
@@ -355,58 +364,50 @@ function Get-RangeToFile([string]$Url, [long]$Start, [long]$End, [string]$OutPat
 
 # ── Extraction paths ──────────────────────────────────────────────────────
 
-function Read-ZipEntryViaRange([string]$Url, [string]$OutPath) {
-    # Fast path: HTTP Range requests pull only the needed entry (~16 MB) out of
-    # the 217 MB zip. Reads the central directory, then the entry's chunks.
-    $total = Get-RemoteLength $Url
-    if ($total -le 0) { throw "server did not report content length" }
-
-    $tail = Get-RangeBytes $Url ($total - 1048576) ($total - 1)
+function Get-ZipEntryFromTail([byte[]]$Tail, [long]$Total) {
+    # Parses the end-of-central-directory record out of the fetched 1 MiB tail
+    # and walks the central directory for our entry. Returns the entry (method,
+    # compressed size, local header offset) or $null when it is not there.
     $eocd = -1
-    for ($i = $tail.Length - 22; $i -ge 0; $i--) {
-        if ($tail[$i] -eq 0x50 -and $tail[$i+1] -eq 0x4b -and $tail[$i+2] -eq 0x05 -and $tail[$i+3] -eq 0x06) { $eocd = $i; break }
+    for ($i = $Tail.Length - 22; $i -ge 0; $i--) {
+        if ($Tail[$i] -eq 0x50 -and $Tail[$i+1] -eq 0x4b -and $Tail[$i+2] -eq 0x05 -and $Tail[$i+3] -eq 0x06) { $eocd = $i; break }
     }
     if ($eocd -lt 0) { throw "zip end-of-central-directory not found" }
-    $count  = [BitConverter]::ToUInt16($tail, $eocd + 10)
-    $cdSize = [BitConverter]::ToUInt32($tail, $eocd + 12)
-    $cdOff  = [BitConverter]::ToUInt32($tail, $eocd + 16)
-    if ($cdSize -gt $tail.Length) { throw "central directory larger than fetched tail" }
+    $count  = [BitConverter]::ToUInt16($Tail, $eocd + 10)
+    $cdSize = [BitConverter]::ToUInt32($Tail, $eocd + 12)
+    $cdOff  = [BitConverter]::ToUInt32($Tail, $eocd + 16)
+    if ($cdSize -gt $Tail.Length) { throw "central directory larger than fetched tail" }
 
     # locate the entry inside the central directory buffer
-    $pos = $tail.Length - [int]($total - $cdOff)
-    $entry = $null
-    for ($n = 0; $n -lt $count -and $pos -lt $tail.Length - 46; $n++) {
-        $nameLen    = [BitConverter]::ToUInt16($tail, $pos + 28)
-        $extraLen   = [BitConverter]::ToUInt16($tail, $pos + 30)
-        $commentLen = [BitConverter]::ToUInt16($tail, $pos + 32)
-        $name = [System.Text.Encoding]::UTF8.GetString($tail, $pos + 46, $nameLen)
+    $pos = $Tail.Length - [int]($Total - $cdOff)
+    for ($n = 0; $n -lt $count -and $pos -lt $Tail.Length - 46; $n++) {
+        $nameLen    = [BitConverter]::ToUInt16($Tail, $pos + 28)
+        $extraLen   = [BitConverter]::ToUInt16($Tail, $pos + 30)
+        $commentLen = [BitConverter]::ToUInt16($Tail, $pos + 32)
+        $name = [System.Text.Encoding]::UTF8.GetString($Tail, $pos + 46, $nameLen)
         if ($name.EndsWith($EntrySuffix)) {
-            $entry = @{
-                Method = [BitConverter]::ToUInt16($tail, $pos + 10)
-                CSize  = [BitConverter]::ToUInt32($tail, $pos + 20)
-                USize  = [BitConverter]::ToUInt32($tail, $pos + 24)
-                Lho    = [BitConverter]::ToUInt32($tail, $pos + 42)
+            return @{
+                Method = [BitConverter]::ToUInt16($Tail, $pos + 10)
+                CSize  = [BitConverter]::ToUInt32($Tail, $pos + 20)
+                USize  = [BitConverter]::ToUInt32($Tail, $pos + 24)
+                Lho    = [BitConverter]::ToUInt32($Tail, $pos + 42)
             }
-            break
         }
         $pos += 46 + $nameLen + $extraLen + $commentLen
     }
-    if (-not $entry) { throw "entry $EntrySuffix not found in zip" }
+    return $null
+}
 
-    $lh = Get-RangeBytes $Url $entry.Lho ($entry.Lho + 511)
-    if ([BitConverter]::ToUInt32($lh, 0) -ne 0x04034b50) { throw "bad local file header" }
-    $dataStart = $entry.Lho + 30 + [BitConverter]::ToUInt16($lh, 26) + [BitConverter]::ToUInt16($lh, 28)
-
+function Get-ZipEntryRaw([string]$Url, [long]$DataStart, [long]$EntrySize) {
     # Chunked so that a dropped connection only costs one chunk. The parts are
-    # concatenated into a temp file first: the compressed entry is only the raw
+    # concatenated into a temp file: the compressed entry is only the raw
     # material for the deflate step below.
-    $entrySize = [long]$entry.CSize
     $parts = New-Object System.Collections.Generic.List[string]
     $offset = 0
-    while ($offset -lt $entrySize) {
-        $end = [Math]::Min($offset + $ChunkSize - 1, $entrySize - 1)
+    while ($offset -lt $EntrySize) {
+        $end = [Math]::Min($offset + $ChunkSize - 1, $EntrySize - 1)
         $part = Join-Path $tmp ("entry-{0}.bin" -f $offset)
-        Get-RangeToFile -Url $Url -Start ($dataStart + $offset) -End ($dataStart + $end) -OutPath $part
+        Get-RangeToFile -Url $Url -Start ($DataStart + $offset) -End ($DataStart + $end) -OutPath $part
         [void]$parts.Add($part)
         $offset = $end + 1
     }
@@ -419,23 +420,44 @@ function Read-ZipEntryViaRange([string]$Url, [string]$OutPath) {
             try { $src.CopyTo($dst) } finally { $src.Dispose() }
         }
     } finally { $dst.Dispose() }
+    return $raw
+}
 
-    if ($entry.Method -eq 8) {
-        $in = [System.IO.File]::OpenRead($raw)
+function Expand-ZipEntry([string]$RawPath, [string]$OutPath, [int]$Method) {
+    if ($Method -eq 8) {
+        $in = [System.IO.File]::OpenRead($RawPath)
         $ds = New-Object System.IO.Compression.DeflateStream($in, [System.IO.Compression.CompressionMode]::Decompress)
         $fo = [System.IO.File]::Create($OutPath)
         try { $ds.CopyTo($fo) } finally { $fo.Dispose(); $ds.Dispose(); $in.Dispose() }
-    } elseif ($entry.Method -eq 0) {
-        [System.IO.File]::Copy($raw, $OutPath, $true)
+    } elseif ($Method -eq 0) {
+        [System.IO.File]::Copy($RawPath, $OutPath, $true)
     } else {
-        throw "unsupported zip compression method $($entry.Method)"
+        throw "unsupported zip compression method $Method"
     }
+}
+
+function Read-ZipEntryViaRange([string]$Url, [string]$OutPath) {
+    # Fast path: HTTP Range requests pull only the needed entry (~16 MB) out of
+    # the 217 MB zip. Reads the central directory, then the entry's chunks.
+    $total = Get-RemoteLength $Url
+    if ($total -le 0) { throw "server did not report content length" }
+
+    $tail = Get-RangeBytes $Url ($total - 1048576) ($total - 1)
+    $entry = Get-ZipEntryFromTail $tail $total
+    if (-not $entry) { throw "entry $EntrySuffix not found in zip" }
+
+    $lh = Get-RangeBytes $Url $entry.Lho ($entry.Lho + 511)
+    if ([BitConverter]::ToUInt32($lh, 0) -ne 0x04034b50) { throw "bad local file header" }
+    $dataStart = $entry.Lho + 30 + [BitConverter]::ToUInt16($lh, 26) + [BitConverter]::ToUInt16($lh, 28)
+
+    $raw = Get-ZipEntryRaw -Url $Url -DataStart $dataStart -EntrySize ([long]$entry.CSize)
+    Expand-ZipEntry -RawPath $raw -OutPath $OutPath -Method $entry.Method
 }
 
 function Read-ZipEntryViaFullDownload([string]$Url, [string]$OutPath) {
     # Fallback: download the whole zip (resumable + retried) and extract via ZipFile.
     $zipPath = Join-Path $tmp "MiSans.zip"
-    Write-Host "Downloading full archive ($([Math]::Round($ZipTotalBytes/1MB)) MB)..."
+    Show-Status "Downloading full archive ($([Math]::Round($ZipTotalBytes/1MB)) MB)..."
     if ($Curl) {
         Invoke-CurlRequest -Arguments @("--continue-at", "-", $Url) -OutFile $zipPath `
             -TimeoutSec $FullDownloadTimeoutSec -Retries $FullRetryCount -RetryDelay $FullRetryDelaySec
@@ -456,7 +478,7 @@ function Import-FontFromSource([string]$Source, [string]$OutPath) {
     # -FromPath / LIMEDL_MISANS_TTF: take an already-extracted MiSansVF.ttf from
     # a local file or an alternate URL. The pinned hash check below still runs.
     if ($Source -match "^(?i)https?://") {
-        Write-Host "Fetching MiSans VF from $Source ..."
+        Show-Status "Fetching MiSans VF from $Source ..."
         if ($Curl) {
             Invoke-CurlRequest -Arguments @($Source) -OutFile $OutPath -TimeoutSec 300
         } else {
@@ -465,7 +487,7 @@ function Import-FontFromSource([string]$Source, [string]$OutPath) {
         return
     }
     $resolved = (Resolve-Path -LiteralPath $Source -ErrorAction Stop).Path
-    Write-Host "Using MiSans VF from $resolved ..."
+    Show-Status "Using MiSans VF from $resolved ..."
     Copy-Item -LiteralPath $resolved -Destination $OutPath -Force
 }
 
@@ -486,9 +508,9 @@ try {
     } else {
         $fetched = $false
         for ($pass = 1; $pass -le $Passes -and -not $fetched; $pass++) {
-            if ($pass -gt 1) { Write-Host "Pass $pass of $Passes" }
+            if ($pass -gt 1) { Show-Status "Pass $pass of $Passes" }
             try {
-                Write-Host "Fetching MiSans VF via HTTP range requests (about 16 MB)..."
+                Show-Status "Fetching MiSans VF via HTTP range requests (about 16 MB)..."
                 Read-ZipEntryViaRange $ZipUrl $staging
                 $fetched = $true
             } catch {
@@ -515,18 +537,18 @@ try {
         }
         if (-not $fetched) {
             $details = "MiSans VF could not be fetched: $ZipUrl is unreachable or serving broken responses (see the warnings above)."
-            Write-FailureAnnotation "MiSans VF could not be fetched from the CDN ($ZipUrl) - rerun this job once it recovers"
+            Show-FailureAnnotation "MiSans VF could not be fetched from the CDN ($ZipUrl) - rerun this job once it recovers"
             throw "$details`nRerun the job once the CDN recovers, or point -FromPath / LIMEDL_MISANS_TTF at a copy of MiSansVF.ttf you already have."
         }
     }
 
     if (-not (Test-FontHash $staging)) {
-        Write-FailureAnnotation "MiSans VF failed the pinned size/sha256 check (did Xiaomi change the font build?)"
+        Show-FailureAnnotation "MiSans VF failed the pinned size/sha256 check (did Xiaomi change the font build?)"
         throw "Downloaded font failed verification.`n  expected: $ExpectedSize bytes, sha256=$ExpectedSha256`n  actual:   $(Format-FontState $staging)`nIf Xiaomi published a new font build, update the constants at the top of this script."
     }
 
     Move-Item -Force $staging $OutFile
-    Write-Host "MiSans VF fetched OK: $OutFile"
+    Show-Status "MiSans VF fetched OK: $OutFile"
 } finally {
     Remove-Item $staging -Force -ErrorAction SilentlyContinue
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
