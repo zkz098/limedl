@@ -49,6 +49,7 @@ HDD 使用全局共享双缓冲池减少磁盘寻道，SSD 使用本地写合并
 下载文件创建 → open_download_file(path, total_size)
   ├─ 创建父目录 → 打开文件
   ├─ 预分配空间（file.allocate → set_len 回退 on errno 38/45/95/524）
+  │    └─ 失败 → reservation_error()：卷装不下这个文件 / 盘真的满 / 其他
   └─ check_disk_space(dir, total) + 10% buffer
 
 Worker 下载数据块 → buffer_chunk(offset, data)
@@ -77,6 +78,8 @@ Worker 下载数据块 → buffer_chunk(offset, data)
 ### FileOps
 
 - 文件预分配优先 `file.allocate()`，OS 不支持时回退 `file.set_len()`。
+- 预分配失败必须**翻译**，不能透出裸 OS 错误码：`check_disk_space` 只比剩余空间，所以「空间够但单文件上限不够」（FAT32 的 4 GiB、FAT16 的 2 GiB）只会在预分配这一步暴露。`reservation_error()` 把 `ErrorKind::FileTooLarge`（EFBIG / ERROR_FILE_TOO_LARGE）判为 `DownloadError::FileTooLarge`，并在「报 ENOSPC / ERROR_DISK_FULL 但卷明明放得下整个文件」时给出同一结论（部分卷就是这样回答超限预留的）；空间不足仍是 `InsufficientDiskSpace`，其余错误保持原始 io 错误——**不猜文件系统**：按文件大小猜出来的 FAT32 提示曾经在 NTFS/ext4/APFS 上刷屏，那就是这次修掉的 bug。
+- `preallocate_file()` 返回原始 `io::Result`：只有调用方知道目标目录，因此只有它能拿到可用空间做上述判定。`reset_download_file()` 手上只有 `File`（拿不到路径），只按 `ErrorKind` 判定。
 - `write_all_at` 为 `pub(super)` 可见——仅 buffer_pool 和 manager 使用。
 - 同名文件冲突：内容相同接受（幂等重试），不同报 AlreadyExists。
 - 跨设备复制使用 256KB 栈分配缓冲区（vs stdlib 默认 8KB）。

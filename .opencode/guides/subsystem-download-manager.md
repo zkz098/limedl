@@ -125,6 +125,8 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - 反滥用 403 同样覆盖下载阶段：`request_with_retry` 在 `classify_download_response` 之前对 403 做同样的 16 KiB 体积嗅探，命中标记即返回同一提示，用户不会只看到裸的 `http status 403`。403 属终止性错误（`ResponseDisposition::Invalid`）不重试，只有 429/5xx 进入退避重试。
 - 429 限流单线程降级：对多线程下载收到 HTTP 429 Too Many Requests 时，`request_with_retry` 立即快错，`download_chunk` 返回 `ChunkWorkerOutcome::DowngradeSingleThread`；调度与执行器安全关闭其余 worker、写缓冲刷盘、将任务固定为单线程（`ThreadMode::Fixed`，`requested_thread_count = Some(1)`），更新提示为`"单线程（429 限流降级）"`，经 1500ms 限流冷却后继续由单 worker 顺序完成各分块下载，不会丢失任何已下载进度。同时调度器 `rebalance_allocations()` 对任务初始分配限制为不超过任务上限（`.min(cap)`），避免单线程任务被强行拉升到 `min_threads_per_task`。
 - 磁盘空间检查在 Phase 2 进行，预留 10% buffer。
+- **不要按文件大小猜文件系统**：这里曾经对 `total_bytes > 4 GiB` 的下载无条件发一条 `DownloadEvent::Warning`（“FAT32 存不下 4 GB 以上”），在 NTFS/ext4/APFS 上纯属噪音，且与目标盘无关——目标盘信息在探测阶段根本不存在。单文件上限只有预分配失败时才能由 `reservation_error()` 判定（见 `subsystem-buffer-pool.md` 的 FileOps），结论是 `DownloadError::FileTooLarge`：任务失败 + 一条明确文案，而不是一条可以忽略的 toast。
+- 反过来说，服务端不给 Content-Length（`total_bytes = None`）时不做任何预分配，单文件上限只会在写入阶段以裸 EFBIG/ERROR_FILE_TOO_LARGE 的形式出现（未翻译，已知残留缺口）。
 - Progress 事件在周期性 persist 路径有 500ms 节流（终态立即发送）。
 
 ### 链接模式替换与镜像重写 (`url_rewrite.rs` / `mirror.rs`)

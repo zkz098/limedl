@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, ErrorKind};
 use std::path::Path;
 
 use ntest::timeout;
@@ -6,7 +7,7 @@ use tempfile::tempdir;
 
 use super::{
     check_disk_space, cleanup_finalizing_paths, files_have_same_content, finalize_temp_file,
-    open_download_file, preallocate_file, reset_download_file, set_sparse_file,
+    open_download_file, preallocate_file, reservation_error, reset_download_file, set_sparse_file,
     unique_finalizing_path, write_all_at, write_all_vectored_at,
 };
 use crate::error::DownloadError;
@@ -183,6 +184,60 @@ fn preallocate_file_fails_on_readonly_fd() -> TestResult {
     let result = preallocate_file(&file, Some(4096));
     assert!(result.is_err());
     Ok(())
+}
+
+// ── reservation_error ─────────────────────────────
+
+/// 4 GiB in bytes — a FAT32 volume's per-file cap.
+const GIB: u64 = 1024 * 1024 * 1024;
+
+/// A volume that refuses the file itself has to read differently from one that
+/// is merely full: "free up space" is useless advice against a size limit that
+/// does not move no matter how much is deleted.
+#[timeout(30_000)]
+#[test]
+fn reservation_error_reports_a_per_file_size_limit() {
+    let too_large = io::Error::from(ErrorKind::FileTooLarge);
+    assert_eq!(
+        reservation_error(too_large, 5 * GIB, None).kind(),
+        "file_too_large",
+        "EFBIG / ERROR_FILE_TOO_LARGE names the limit directly"
+    );
+
+    // Some volumes answer an over-limit reservation with "disk full" even though
+    // they have room; the free-space reading is what tells the two apart.
+    let disk_full = io::Error::from(ErrorKind::StorageFull);
+    assert_eq!(
+        reservation_error(disk_full, 5 * GIB, Some(64 * GIB)).kind(),
+        "file_too_large",
+        "a volume with room for the whole file is refusing the size, not the space"
+    );
+}
+
+/// The two neighbours of that case keep their own error, and nothing is claimed
+/// about a volume whose free space could not be read at all.
+#[timeout(30_000)]
+#[test]
+fn reservation_error_keeps_space_shortage_and_unrelated_failures() {
+    let disk_full = io::Error::from(ErrorKind::StorageFull);
+    match reservation_error(disk_full, 5 * GIB, Some(GIB)) {
+        DownloadError::InsufficientDiskSpace {
+            available,
+            required,
+        } => assert_eq!((available, required), (GIB, 5 * GIB)),
+        other => panic!("expected InsufficientDiskSpace, got {other:?}"),
+    }
+
+    // No free-space reading means no verdict on the volume.
+    let unknown_space = io::Error::from(ErrorKind::StorageFull);
+    assert_eq!(reservation_error(unknown_space, 5 * GIB, None).kind(), "io");
+
+    // A read-only volume is not a size limit, however much room it has.
+    let read_only = io::Error::from(ErrorKind::ReadOnlyFilesystem);
+    assert_eq!(
+        reservation_error(read_only, 5 * GIB, Some(64 * GIB)).kind(),
+        "io"
+    );
 }
 
 // ── write_all_at ──────────────────────────────────

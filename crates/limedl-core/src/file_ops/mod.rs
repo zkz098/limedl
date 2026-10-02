@@ -26,13 +26,13 @@ pub fn open_download_file(path: &Path, total_size: Option<u64>) -> Result<File> 
         .open(path)
         .map_err(|e| io_error_with_path(e, path.to_string_lossy()))?;
 
-    preallocate_file(&file, total_size)?;
+    reserve_download_space(&file, total_size, path.parent())?;
     Ok(file)
 }
 
 pub fn reset_download_file(file: &File, total_size: Option<u64>) -> Result<()> {
     file.set_len(0)?;
-    preallocate_file(file, total_size)
+    reserve_download_space(file, total_size, None)
 }
 
 pub fn finalize_temp_file(temp_path: &Path, destination_path: &Path) -> Result<()> {
@@ -523,7 +523,63 @@ pub fn check_disk_space(destination_dir: &Path, required_bytes: u64) -> Result<(
     Ok(())
 }
 
-fn preallocate_file(file: &File, total_size: Option<u64>) -> Result<()> {
+/// Reserve the download's full size on `file` before the first byte arrives.
+///
+/// `dir` is the destination directory whenever the caller can still name it:
+/// the volume's free space is re-read *after* a failure, which is what tells
+/// "the disk is full" apart from "the disk cannot hold a file this large" —
+/// see [`reservation_error`].
+fn reserve_download_space(file: &File, total_size: Option<u64>, dir: Option<&Path>) -> Result<()> {
+    let Some(size) = total_size else {
+        return Ok(());
+    };
+    preallocate_file(file, total_size).map_err(|error| {
+        let available = dir.and_then(|dir| fs4::available_space(dir).ok());
+        reservation_error(error, size, available)
+    })
+}
+
+/// Which error a failed reservation of `size` bytes deserves.
+///
+/// Nothing earlier in the pipeline can catch a per-file size limit:
+/// [`check_disk_space`] only compares free space against the download size, so a
+/// volume with terabytes free and a 4 GiB cap per file (FAT32) passes that check
+/// and only fails when the file is extended to its final size. The refusal
+/// arrives as `ErrorKind::FileTooLarge` (EFBIG on Unix, ERROR_FILE_TOO_LARGE on
+/// Windows) — or, on some volumes, as a plain "disk full" while the volume
+/// demonstrably has room, which is the same answer in disguise.
+///
+/// Anything else keeps its raw I/O error: guessing a filesystem limit from an
+/// unrelated failure is exactly the mistake this replaces.
+fn reservation_error(error: io::Error, size: u64, available: Option<u64>) -> DownloadError {
+    match error.kind() {
+        ErrorKind::FileTooLarge => DownloadError::FileTooLarge {
+            size,
+            source: error,
+        },
+        ErrorKind::StorageFull if available.is_some_and(|free| free >= size) => {
+            DownloadError::FileTooLarge {
+                size,
+                source: error,
+            }
+        }
+        ErrorKind::StorageFull => match available {
+            Some(available) => DownloadError::InsufficientDiskSpace {
+                available,
+                required: size,
+            },
+            None => DownloadError::Io(error),
+        },
+        _ => DownloadError::Io(error),
+    }
+}
+
+/// Extend `file` to `total_size` and reserve its disk space.
+///
+/// Returns raw I/O errors: only the caller knows the destination directory, and
+/// with it whether a refusal means "no room" or "no file this large"
+/// ([`reservation_error`]).
+fn preallocate_file(file: &File, total_size: Option<u64>) -> io::Result<()> {
     let Some(total_size) = total_size else {
         return Ok(());
     };
@@ -550,7 +606,7 @@ fn preallocate_file(file: &File, total_size: Option<u64>) -> Result<()> {
                 file.set_len(total_size)?;
                 Ok(())
             }
-            _ => Err(error.into()),
+            _ => Err(error),
         },
     }
 }

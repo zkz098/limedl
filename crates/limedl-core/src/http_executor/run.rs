@@ -266,21 +266,6 @@ impl HttpExecutor {
             }
         }
 
-        // Emit a frontend-visible warning for files exceeding 4 GB (FAT32 limitation).
-        if let Some(total) = metadata.total_bytes
-            && total > 4_294_967_295
-        {
-            let msg = String::from(
-                "Download exceeds 4 GB. FAT32 and some older filesystems cannot store files larger than 4 GB. \
-                 Ensure the destination drive is formatted as NTFS, exFAT, ext4, or APFS.",
-            );
-            tracing::warn!("{msg}");
-            dm.event_bus.publish(DownloadEvent::Warning {
-                id: managed.lock_core().manifest.id.clone(),
-                message: msg,
-            });
-        }
-
         if refresh_aimd {
             let mut aimd = managed.lock_aimd();
             *aimd = AimdState::initial(adaptive_profile, desired_thread_count);

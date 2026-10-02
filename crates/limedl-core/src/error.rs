@@ -47,6 +47,10 @@ pub enum DownloadError {
         "insufficient disk space: {available} bytes available, {required} bytes required (incl. 10% buffer)"
     )]
     InsufficientDiskSpace { available: u64, required: u64 },
+    #[error(
+        "destination filesystem cannot store a {size} byte file (FAT32 caps a single file at 4 GiB)"
+    )]
+    FileTooLarge { size: u64, source: std::io::Error },
     #[error("database initialization error: {0}")]
     DatabaseInit(String),
     #[error("internal error: {0}")]
@@ -77,6 +81,7 @@ impl DownloadError {
             Self::TorrentInvalidData(_) => "torrent_invalid_data",
             Self::TorrentIo(_) => "torrent_io",
             Self::InsufficientDiskSpace { .. } => "insufficient_disk_space",
+            Self::FileTooLarge { .. } => "file_too_large",
             Self::DatabaseInit(_) => "database_init",
             Self::TooManyConcurrentDownloads => "too_many_concurrent_downloads",
             Self::Internal(_) => "internal",
@@ -237,6 +242,14 @@ mod tests {
             }
             .kind(),
             "insufficient_disk_space",
+        );
+        assert_eq!(
+            DownloadError::FileTooLarge {
+                size: 5 * 1024 * 1024 * 1024,
+                source: std::io::Error::new(std::io::ErrorKind::FileTooLarge, "too large"),
+            }
+            .kind(),
+            "file_too_large",
         );
     }
 }
