@@ -21,7 +21,7 @@ use std::env;
 use std::fs::{self, File};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use common::BenchHarness;
@@ -33,6 +33,8 @@ use limedl_core::buffer_pool::{BufferPool, DownloadBuffer, IoWorker};
 const TOTAL_DATA: u64 = 100 * 1024 * 1024;
 const CHUNK_SIZE: usize = 1024 * 1024; // 1 MB
 const CHUNK_COUNT: u64 = TOTAL_DATA / CHUNK_SIZE as u64;
+/// Number of concurrent streams in the multi-stream benchmark.
+const STREAMS: usize = 4;
 
 /// Resolve the target disk path from `BENCH_DISK` or fall back to temp dir.
 fn disk_path() -> String {
@@ -70,6 +72,110 @@ async fn create_temp_file(path: &str) -> File {
 async fn remove_temp_file(path: &str) {
     let path = path.to_owned();
     let _ = tokio::task::spawn_blocking(move || fs::remove_file(&path)).await;
+}
+
+/// Drive `streams` tasks that each write their slice of `offsets` through `buffer`.
+///
+/// Shared by the HDD double-buffer and SSD ping-pong legs of the multi-stream
+/// benchmark so both exercise the identical write pattern.
+async fn drive_streams(
+    buffer: &Arc<DownloadBuffer>,
+    chunk: &Bytes,
+    offsets: &[u64],
+    streams: usize,
+) {
+    let per_stream = offsets.len() / streams;
+    let mut handles = Vec::with_capacity(streams);
+    for s in 0..streams {
+        let buf = Arc::clone(buffer);
+        let c = chunk.clone();
+        let slice: Vec<u64> = offsets[s * per_stream..(s + 1) * per_stream].to_vec();
+        handles.push(tokio::spawn(async move {
+            for offset in slice {
+                buf.buffer_chunk(offset, c.clone()).await.unwrap();
+            }
+        }));
+    }
+    for h in handles {
+        h.await.unwrap();
+    }
+}
+
+/// One `iter_custom` body: `iters` rounds of the multi-stream HDD double-buffer path.
+async fn run_multi_stream_hdd(iters: u64, chunk: &Bytes, offsets: &[u64]) -> Duration {
+    let start = Instant::now();
+    for _ in 0..iters {
+        let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
+        let slot = pool.acquire_slot().await;
+        let file_path = unique_temp_name("mshdd");
+        let file = Arc::new(create_temp_file(&file_path).await);
+        let buffer = Arc::new(DownloadBuffer::new(pool.clone(), slot, file.clone()));
+
+        drive_streams(&buffer, chunk, offsets, STREAMS).await;
+        buffer.flush_all().await.unwrap();
+
+        drop(buffer);
+        remove_temp_file(&file_path).await;
+    }
+    start.elapsed()
+}
+
+/// One `iter_custom` body: `iters` rounds of the multi-stream SSD ping-pong path.
+async fn run_multi_stream_ssd(
+    iters: u64,
+    chunk: &Bytes,
+    offsets: &[u64],
+    worker: &IoWorker,
+) -> Duration {
+    let start = Instant::now();
+    for _ in 0..iters {
+        let file_path = unique_temp_name("msssd");
+        let file = Arc::new(create_temp_file(&file_path).await);
+        let buffer = Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
+            4 * 1024 * 1024,
+            file.clone(),
+            worker.clone(),
+        ));
+
+        drive_streams(&buffer, chunk, offsets, STREAMS).await;
+        buffer.flush_all().await.unwrap();
+
+        drop(buffer);
+        remove_temp_file(&file_path).await;
+    }
+    start.elapsed()
+}
+
+/// One `iter_custom` body: `iters` rounds of unbuffered direct writes (baseline).
+async fn run_multi_stream_direct(iters: u64, chunk: &Bytes, offsets: &[u64]) -> Duration {
+    let start = Instant::now();
+    for _ in 0..iters {
+        let file_path = unique_temp_name("msdirect");
+        let file = Arc::new(create_temp_file(&file_path).await);
+
+        let per_stream = offsets.len() / STREAMS;
+        let mut handles = Vec::with_capacity(STREAMS);
+        for s in 0..STREAMS {
+            let f = file.clone();
+            let c = chunk.clone();
+            let slice: Vec<u64> = offsets[s * per_stream..(s + 1) * per_stream].to_vec();
+            handles.push(tokio::task::spawn_blocking(move || {
+                use std::io::{Seek, SeekFrom, Write};
+                let mut f = f.as_ref().try_clone().expect("try_clone");
+                for offset in slice {
+                    f.seek(SeekFrom::Start(offset)).expect("seek");
+                    f.write_all(&c).expect("write_all");
+                }
+            }));
+        }
+        for h in handles {
+            h.await.unwrap();
+        }
+
+        drop(file);
+        remove_temp_file(&file_path).await;
+    }
+    start.elapsed()
 }
 // 鈹€鈹€ HDD double-buffer benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 //
@@ -239,39 +345,9 @@ fn bench_multi_stream_random(c: &mut Criterion) {
     // 鈹€鈹€ Multi-stream through double-buffer (HDD) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     group.bench_function("double_hdd", |b| {
         b.iter_custom(|iters| {
-            harness.rt.block_on(async {
-                let start = Instant::now();
-                for _ in 0..iters {
-                    let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
-                    let slot = pool.acquire_slot().await;
-                    let file_path = unique_temp_name("mshdd");
-                    let file = Arc::new(create_temp_file(&file_path).await);
-                    let buffer = Arc::new(DownloadBuffer::new(pool.clone(), slot, file.clone()));
-
-                    const STREAMS: usize = 4;
-                    let per_stream = offsets.len() / STREAMS;
-                    let mut handles = Vec::with_capacity(STREAMS);
-                    for s in 0..STREAMS {
-                        let buf = buffer.clone();
-                        let c = chunk.clone();
-                        let slice: Vec<u64> =
-                            offsets[s * per_stream..(s + 1) * per_stream].to_vec();
-                        handles.push(tokio::spawn(async move {
-                            for offset in slice {
-                                buf.buffer_chunk(offset, c.clone()).await.unwrap();
-                            }
-                        }));
-                    }
-                    for h in handles {
-                        h.await.unwrap();
-                    }
-                    buffer.flush_all().await.unwrap();
-
-                    drop(buffer);
-                    remove_temp_file(&file_path).await;
-                }
-                start.elapsed()
-            })
+            harness
+                .rt
+                .block_on(run_multi_stream_hdd(iters, &chunk, &offsets))
         });
     });
 
@@ -279,79 +355,18 @@ fn bench_multi_stream_random(c: &mut Criterion) {
     let worker = IoWorker::spawn_pool(1);
     group.bench_function("ssd_pingpong", |b| {
         b.iter_custom(|iters| {
-            harness.rt.block_on(async {
-                let start = Instant::now();
-                for _ in 0..iters {
-                    let file_path = unique_temp_name("msssd");
-                    let file = Arc::new(create_temp_file(&file_path).await);
-                    let buffer = Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
-                        4 * 1024 * 1024,
-                        file.clone(),
-                        worker.clone(),
-                    ));
-
-                    const STREAMS: usize = 4;
-                    let per_stream = offsets.len() / STREAMS;
-                    let mut handles = Vec::with_capacity(STREAMS);
-                    for s in 0..STREAMS {
-                        let buf = buffer.clone();
-                        let c = chunk.clone();
-                        let slice: Vec<u64> =
-                            offsets[s * per_stream..(s + 1) * per_stream].to_vec();
-                        handles.push(tokio::spawn(async move {
-                            for offset in slice {
-                                buf.buffer_chunk(offset, c.clone()).await.unwrap();
-                            }
-                        }));
-                    }
-                    for h in handles {
-                        h.await.unwrap();
-                    }
-                    buffer.flush_all().await.unwrap();
-
-                    drop(buffer);
-                    remove_temp_file(&file_path).await;
-                }
-                start.elapsed()
-            })
+            harness
+                .rt
+                .block_on(run_multi_stream_ssd(iters, &chunk, &offsets, &worker))
         });
     });
 
     // 鈹€鈹€ Multi-stream direct write (baseline) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     group.bench_function("direct_write", |b| {
         b.iter_custom(|iters| {
-            harness.rt.block_on(async {
-                let start = Instant::now();
-                for _ in 0..iters {
-                    let file_path = unique_temp_name("msdirect");
-                    let file = Arc::new(create_temp_file(&file_path).await);
-
-                    const STREAMS: usize = 4;
-                    let per_stream = offsets.len() / STREAMS;
-                    let mut handles = Vec::with_capacity(STREAMS);
-                    for s in 0..STREAMS {
-                        let f = file.clone();
-                        let c = chunk.clone();
-                        let slice: Vec<u64> =
-                            offsets[s * per_stream..(s + 1) * per_stream].to_vec();
-                        handles.push(tokio::task::spawn_blocking(move || {
-                            use std::io::{Seek, SeekFrom, Write};
-                            let mut f = f.as_ref().try_clone().expect("try_clone");
-                            for offset in slice {
-                                f.seek(SeekFrom::Start(offset)).expect("seek");
-                                f.write_all(&c).expect("write_all");
-                            }
-                        }));
-                    }
-                    for h in handles {
-                        h.await.unwrap();
-                    }
-
-                    drop(file);
-                    remove_temp_file(&file_path).await;
-                }
-                start.elapsed()
-            })
+            harness
+                .rt
+                .block_on(run_multi_stream_direct(iters, &chunk, &offsets))
         });
     });
 
