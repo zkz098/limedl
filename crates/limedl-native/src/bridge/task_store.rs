@@ -234,78 +234,15 @@ impl TaskStore {
     }
 
     fn filtered_items_internal(&self) -> Vec<&DownloadSummary> {
-        let query = &self.search_query;
         let mut list: Vec<&DownloadSummary> = self
             .tasks
             .values()
-            .filter(|task| {
-                // Category filter
-                let cat_match = match self.current_category {
-                    1 => matches!(
-                        task.state,
-                        DownloadState::Downloading
-                            | DownloadState::Retrying
-                            | DownloadState::Verifying
-                    ),
-                    2 => matches!(task.state, DownloadState::Paused | DownloadState::Queued),
-                    3 => matches!(task.state, DownloadState::Completed),
-                    4 => matches!(task.state, DownloadState::Failed | DownloadState::Canceled),
-                    _ => true, // 0: All
-                };
-                if !cat_match {
-                    return false;
-                }
-
-                // Search filter
-                if !query.is_empty() {
-                    let name_match = task.file_name.to_lowercase().contains(query);
-                    let url_match = task.url.to_lowercase().contains(query);
-                    if !name_match && !url_match {
-                        return false;
-                    }
-                }
-
-                true
-            })
+            .filter(|task| self.task_matches(task))
             .collect();
 
         // Sort items
         list.sort_by(|a, b| {
-            let ordering = match self.sort_field {
-                SortField::Created => a.created_at_ms.cmp(&b.created_at_ms),
-                SortField::Size => a.total_bytes.unwrap_or(0).cmp(&b.total_bytes.unwrap_or(0)),
-                SortField::Speed => {
-                    let sa = a.speed_bytes_per_second.unwrap_or(0.0);
-                    let sb = b.speed_bytes_per_second.unwrap_or(0.0);
-                    sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
-                }
-                SortField::Progress => {
-                    let pa = match a.total_bytes {
-                        Some(t) if t > 0 => a.downloaded_bytes as f64 / t as f64,
-                        _ => {
-                            if matches!(a.state, DownloadState::Completed) {
-                                1.0
-                            } else {
-                                0.0
-                            }
-                        }
-                    };
-                    let pb = match b.total_bytes {
-                        Some(t) if t > 0 => b.downloaded_bytes as f64 / t as f64,
-                        _ => {
-                            if matches!(b.state, DownloadState::Completed) {
-                                1.0
-                            } else {
-                                0.0
-                            }
-                        }
-                    };
-                    pa.partial_cmp(&pb).unwrap_or(std::cmp::Ordering::Equal)
-                }
-                SortField::Name => a.file_name.to_lowercase().cmp(&b.file_name.to_lowercase()),
-                SortField::State => state_rank(a).cmp(&state_rank(b)),
-            };
-
+            let ordering = compare_tasks(a, b, self.sort_field);
             if self.sort_asc {
                 ordering
             } else {
@@ -314,6 +251,12 @@ impl TaskStore {
         });
 
         list
+    }
+
+    /// Category + search-query filter for a single task.
+    fn task_matches(&self, task: &DownloadSummary) -> bool {
+        task_matches_category(task, self.current_category)
+            && (self.search_query.is_empty() || task_matches_query(task, &self.search_query))
     }
 
     /// Return filtered and sorted task items for Slint view.
@@ -326,5 +269,60 @@ impl TaskStore {
             })
             .collect()
     }
+}
+
+/// Category filter tag: 0 = all, 1 = active, 2 = paused/queued, 3 = completed,
+/// 4 = failed/canceled.
+fn task_matches_category(task: &DownloadSummary, category: i32) -> bool {
+    match category {
+        1 => matches!(
+            task.state,
+            DownloadState::Downloading | DownloadState::Retrying | DownloadState::Verifying
+        ),
+        2 => matches!(task.state, DownloadState::Paused | DownloadState::Queued),
+        3 => matches!(task.state, DownloadState::Completed),
+        4 => matches!(task.state, DownloadState::Failed | DownloadState::Canceled),
+        _ => true,
+    }
+}
+
+/// Case-insensitive substring match against the file name or URL.
+fn task_matches_query(task: &DownloadSummary, query: &str) -> bool {
+    task.file_name.to_lowercase().contains(query) || task.url.to_lowercase().contains(query)
+}
+
+/// Compare two tasks by `field` (ascending; the caller reverses if needed).
+fn compare_tasks(a: &DownloadSummary, b: &DownloadSummary, field: SortField) -> std::cmp::Ordering {
+    match field {
+        SortField::Created => a.created_at_ms.cmp(&b.created_at_ms),
+        SortField::Size => a.total_bytes.unwrap_or(0).cmp(&b.total_bytes.unwrap_or(0)),
+        SortField::Speed => cmp_f64(
+            a.speed_bytes_per_second.unwrap_or(0.0),
+            b.speed_bytes_per_second.unwrap_or(0.0),
+        ),
+        SortField::Progress => cmp_f64(progress_ratio(a), progress_ratio(b)),
+        SortField::Name => a.file_name.to_lowercase().cmp(&b.file_name.to_lowercase()),
+        SortField::State => state_rank(a).cmp(&state_rank(b)),
+    }
+}
+
+/// Fraction of the task that is downloaded; unknown totals count as complete
+/// only for completed tasks.
+fn progress_ratio(task: &DownloadSummary) -> f64 {
+    match task.total_bytes {
+        Some(t) if t > 0 => task.downloaded_bytes as f64 / t as f64,
+        _ => {
+            if matches!(task.state, DownloadState::Completed) {
+                1.0
+            } else {
+                0.0
+            }
+        }
+    }
+}
+
+/// `f64` ordering that treats `NaN` as equal.
+fn cmp_f64(a: f64, b: f64) -> std::cmp::Ordering {
+    a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)
 }
 
