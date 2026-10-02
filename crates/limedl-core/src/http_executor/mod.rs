@@ -50,7 +50,7 @@ use crate::{
     persistence::persist_manifest_snapshot,
     rate_limiter::RateLimiter,
     retry::request_with_retry,
-    types::{ChecksumMode, DiskType, DownloadState, StartDownloadRequest, TaskKind, ThreadMode},
+    types::{AdaptiveProfile, ChecksumMode, DiskType, DownloadState, StartDownloadRequest, TaskKind, ThreadMode},
 };
 
 /// Zero-sized actor type for HTTP download execution.
@@ -114,6 +114,54 @@ async fn flush_write_buffer(write_buffer: &Option<Arc<DownloadBuffer>>, reason: 
     {
         tracing::warn!("flush on {reason} failed: {e}");
     }
+}
+
+/// Wait until the task is runnable; `Some(outcome)` means the caller must stop.
+async fn wait_or_stop(
+    dm: &DownloadManager,
+    managed: &Arc<ManagedDownload>,
+    token: &CancellationToken,
+    write_buffer: &Option<Arc<DownloadBuffer>>,
+) -> Option<RunOutcome> {
+    match dm.task_lifecycle.wait_until_active(dm, managed, token).await {
+        crate::download::WaitState::Running => None,
+        crate::download::WaitState::Paused => {
+            flush_write_buffer(write_buffer, "pause").await;
+            Some(RunOutcome::Paused)
+        }
+        crate::download::WaitState::Canceled => {
+            flush_write_buffer(write_buffer, "cancel").await;
+            Some(RunOutcome::Canceled)
+        }
+    }
+}
+
+/// Flush the write buffer after the download finished, keeping the UI
+/// "flushing" flag set around the flush.
+async fn finish_buffer_flush(
+    dm: &DownloadManager,
+    managed: &Arc<ManagedDownload>,
+    write_buffer: &Option<Arc<DownloadBuffer>>,
+) -> Result<()> {
+    if let Some(buf) = write_buffer {
+        // Signal frontend that we're flushing to disk
+        {
+            let mut core = managed.lock_core();
+            core.snapshot.flushing = true;
+        }
+        dm.task_lifecycle.emit_progress(dm, managed);
+
+        let flush_result = buf.flush_all().await;
+
+        // Always clear the flag, even on error
+        {
+            let mut core = managed.lock_core();
+            core.snapshot.flushing = false;
+        }
+        dm.task_lifecycle.emit_progress(dm, managed);
+        flush_result?;
+    }
+    Ok(())
 }
 
 /// Re-check free space every 30 s while downloading; fail the task when the

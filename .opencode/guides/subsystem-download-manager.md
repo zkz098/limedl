@@ -103,6 +103,9 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - `check_disk_space_periodically()` — 30s 周期空间检查，不足时置 `Failed` + 发 `Warning("disk full")` 并返回 `InsufficientDiskSpace`。
 - `BatchLimiter` — 限速令牌的 256 KiB / 8 chunk 批量消费；退出前必须 `flush()` 未消费字节。
 - `ProgressThrottle` — `PERSIST_INTERVAL` 持久化 + 500ms 进度事件节流。
+- `wait_or_stop()` / `finish_buffer_flush()` — 等激活态与完成刷盘（含 UI `flushing` 标记）的唯一实现。
+
+各路径内部也已按阶段拆分：`worker.rs` 是 `ChunkWorkerCtx::run()` + `fetch_segment`/`consume_segment`/`write_bytes`；`single.rs` 是 `open_single_target` + `single_request`/`single_start_offset` + `write_chunk_bytes`；`chunked.rs` 由 `WorkerPool`、`tail_sprint_step`、`WorkerJoin`/`SupervisorStep` 组成监督状态机，RestartSingle 的 `drop(file)` 留在主循环里；`run.rs` 用 `ThreadPlan`/`RunPlan` 传递探测结果。
 
 ### 校验和
 

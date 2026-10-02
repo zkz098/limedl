@@ -1,6 +1,8 @@
 //! Chunk claim/steal bookkeeping and the per-chunk worker task.
 
+use bytes::Bytes;
 use futures_util::StreamExt;
+use reqwest::Response;
 
 use super::{Arc, BatchLimiter, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, JoinSet, ManagedDownload, ProgressThrottle, RateLimiter, Result, StatusCode, WORK_STEAL_MIN_SPLIT_SIZE, build_segment_request, cancellation_chunk_outcome, if_range_header, is_too_many_requests_error, now_ms, record_progress_on_managed, request_with_retry, validate_segment_response, write_all_at};
 
@@ -181,37 +183,83 @@ pub(super) struct ChunkWorkerCtx {
     pub(super) worker_id: usize,
 }
 
-pub(super) async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
-    let mut current = ctx.chunk.start + ctx.chunk.downloaded;
-    let end = ctx.chunk.end;
-    if current > end {
-        mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
-        return Ok(ChunkWorkerOutcome::Finished);
-    }
+/// Why a segment fetch did not produce a usable response.
+enum FetchSegmentError {
+    /// 429 while multiple threads are allocated — the supervisor downgrades.
+    DowngradeSingleThread,
+    /// Transport/other error to propagate.
+    Fatal(DownloadError),
+}
 
-    let mut throttle = ProgressThrottle::new();
-    let mut batch = BatchLimiter::new();
-    while current <= end {
-        if ctx.token.is_cancelled() {
-            mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
-            return Ok(match ctx.managed.lock_core().snapshot.state {
-                DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
-                _ => ChunkWorkerOutcome::Paused,
-            });
+/// How draining one segment body ended.
+enum SegmentBody {
+    /// The server closed the body (or the dynamic end was reached).
+    Exhausted,
+    /// The worker must stop with this outcome.
+    Stop(ChunkWorkerOutcome),
+}
+
+impl ChunkWorkerCtx {
+    /// Run this chunk to completion, a pause/cancel, or a restart request.
+    async fn run(self) -> Result<ChunkWorkerOutcome> {
+        let mut current = self.chunk.start + self.chunk.downloaded;
+        let end = self.chunk.end;
+        if current > end {
+            self.release();
+            return Ok(ChunkWorkerOutcome::Finished);
         }
 
-        // Check if tail sprint released our chunk claim
-        {
-            let core = ctx.managed.lock_core();
-            if let Some(chunk) = core.manifest.chunks.get(ctx.chunk.index)
-                && chunk.claimed_by != Some(ctx.worker_id)
-            {
+        let mut throttle = ProgressThrottle::new();
+        let mut batch = BatchLimiter::new();
+        while current <= end {
+            if self.token.is_cancelled() {
+                return Ok(self.pause_or_cancel());
+            }
+
+            // Check if tail sprint released our chunk claim
+            if self.claim_released() {
                 return Ok(ChunkWorkerOutcome::Finished);
+            }
+
+            let response = match self.fetch_segment(current, end).await {
+                Ok(response) => response,
+                Err(FetchSegmentError::DowngradeSingleThread) => {
+                    return Ok(ChunkWorkerOutcome::DowngradeSingleThread);
+                }
+                Err(FetchSegmentError::Fatal(error)) => return Err(error),
+            };
+
+            if response.status() == StatusCode::OK {
+                self.release();
+                return Ok(ChunkWorkerOutcome::RestartSingle);
+            }
+
+            validate_segment_response(&response, current, end)?;
+
+            match self
+                .consume_segment(response, &mut current, end, &mut batch, &mut throttle)
+                .await?
+            {
+                SegmentBody::Exhausted => {}
+                SegmentBody::Stop(outcome) => return Ok(outcome),
             }
         }
 
+        // Flush remaining rate limiter bytes after chunk completes
+        batch.flush(&self.rate_limiter).await;
+        self.mark_complete();
+        Ok(ChunkWorkerOutcome::Finished)
+    }
+
+    /// Fetch the next segment, mapping the downgrade-triggering 429 to its own
+    /// error so the caller does not have to inspect the transport error.
+    async fn fetch_segment(
+        &self,
+        current: u64,
+        end: u64,
+    ) -> std::result::Result<Response, FetchSegmentError> {
         let (url, user_agent, extra_headers, validator) = {
-            let core = ctx.managed.lock_core();
+            let core = self.managed.lock_core();
             (
                 core.manifest.final_url.clone(),
                 core.manifest.user_agent.clone(),
@@ -220,9 +268,9 @@ pub(super) async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOut
             )
         };
 
-        let response = match request_with_retry(
+        let response = request_with_retry(
             || {
-                let client = ctx.client.clone();
+                let client = self.client.clone();
                 let url = url.clone();
                 let user_agent = user_agent.clone();
                 let extra_headers = extra_headers.clone();
@@ -241,132 +289,166 @@ pub(super) async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOut
                     .await
                 }
             },
-            ctx.token.clone(),
-            ctx.max_retries,
-            ctx.managed.clone(),
+            self.token.clone(),
+            self.max_retries,
+            self.managed.clone(),
         )
-        .await
-        {
-            Ok(resp) => resp,
-            Err(err) => {
-                mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
-                if is_too_many_requests_error(&err) {
-                    let concurrency = ctx
+        .await;
+
+        match response {
+            Ok(response) => Ok(response),
+            Err(error) => {
+                self.release();
+                if is_too_many_requests_error(&error) {
+                    let concurrency = self
                         .managed
                         .lock_core()
                         .manifest
                         .allocated_thread_count
                         .unwrap_or(1);
                     if concurrency > 1 {
-                        return Ok(ChunkWorkerOutcome::DowngradeSingleThread);
+                        return Err(FetchSegmentError::DowngradeSingleThread);
                     }
                 }
-                return Err(err);
+                Err(FetchSegmentError::Fatal(error))
             }
-        };
-
-        if response.status() == StatusCode::OK {
-            mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
-            return Ok(ChunkWorkerOutcome::RestartSingle);
         }
+    }
 
-        validate_segment_response(&response, current, end)?;
-
+    /// Drain one segment body into the buffer/direct-write path.
+    async fn consume_segment(
+        &self,
+        response: Response,
+        current: &mut u64,
+        end: u64,
+        batch: &mut BatchLimiter,
+        throttle: &mut ProgressThrottle,
+    ) -> Result<SegmentBody> {
         let mut stream = response.bytes_stream();
         while let Some(bytes) = tokio::select! {
-            _ = ctx.token.cancelled() => {
+            _ = self.token.cancelled() => {
                 // Flush remaining rate limiter bytes before exiting
-                batch.flush(&ctx.rate_limiter).await;
-                mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
-                return Ok(cancellation_chunk_outcome(&ctx.managed));
+                batch.flush(&self.rate_limiter).await;
+                self.release();
+                return Ok(SegmentBody::Stop(cancellation_chunk_outcome(&self.managed)));
             }
             next = stream.next() => next,
         } {
             let bytes = bytes?;
-            batch.account(&ctx.rate_limiter, bytes.len()).await;
+            batch.account(&self.rate_limiter, bytes.len()).await;
 
             // Check dynamic chunk end (which may have been shortened if work was stolen)
-            let dynamic_end = {
-                let core = ctx.managed.lock_core();
-                core.manifest
-                    .chunks
-                    .get(ctx.chunk.index)
-                    .map(|c| c.end)
-                    .unwrap_or(end)
-            };
-
-            if current > dynamic_end {
+            let dynamic_end = self.dynamic_end(end);
+            if *current > dynamic_end {
                 break;
             }
 
-            if current + bytes.len() as u64 - 1 > end {
-                mark_chunk_released(&ctx.managed, ctx.chunk.index, ctx.worker_id);
+            if *current + bytes.len() as u64 - 1 > end {
+                self.release();
                 return Err(DownloadError::InvalidResponse(String::from(
                     "segment body exceeded requested range",
                 )));
             }
 
-            let (to_write, reached_dynamic_end) = if current + bytes.len() as u64 - 1 > dynamic_end
-            {
-                let allowed = (dynamic_end.saturating_sub(current) + 1) as usize;
-                (bytes.slice(..allowed.min(bytes.len())), true)
-            } else {
-                (bytes.clone(), false)
-            };
+            let (to_write, reached_dynamic_end) =
+                if *current + bytes.len() as u64 - 1 > dynamic_end {
+                    let allowed = (dynamic_end.saturating_sub(*current) + 1) as usize;
+                    (bytes.slice(..allowed.min(bytes.len())), true)
+                } else {
+                    (bytes.clone(), false)
+                };
 
-            if let Some(ref buf) = ctx.write_buffer {
-                if buf.buffer_chunk(current, to_write.clone()).await.is_err() {
-                    // Background flush failed — fall back to direct write.
-                    write_all_at(&ctx.file, &to_write, current)?;
-                    if ctx.disk_type == DiskType::Hdd {
-                        let mut core = ctx.managed.lock_core();
-                        core.snapshot.degraded = true;
-                    }
-                }
-            } else {
-                write_all_at(&ctx.file, &to_write, current)?;
-            }
-
-            current += to_write.len() as u64;
-            {
-                record_progress_on_managed(
-                    &ctx.managed,
-                    Some(ctx.chunk.index),
-                    to_write.len() as u64,
-                );
-            }
+            self.write_bytes(*current, &to_write).await?;
+            *current += to_write.len() as u64;
+            record_progress_on_managed(
+                &self.managed,
+                Some(self.chunk.index),
+                to_write.len() as u64,
+            );
 
             if reached_dynamic_end {
                 break;
             }
             // Check if tail sprint released our chunk claim — exit early to avoid
             // wasting bandwidth competing with a new worker on the same chunk.
-            {
-                let claimed_by = {
-                    let core = ctx.managed.lock_core();
-                    core.manifest
-                        .chunks
-                        .get(ctx.chunk.index)
-                        .and_then(|c| c.claimed_by)
-                };
-                if claimed_by != Some(ctx.worker_id) {
-                    // Flush remaining rate limiter bytes before exiting
-                    batch.flush(&ctx.rate_limiter).await;
-                    return Ok(ChunkWorkerOutcome::Finished);
+            if !self.owns_claim() {
+                // Flush remaining rate limiter bytes before exiting
+                batch.flush(&self.rate_limiter).await;
+                return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
+            }
+            throttle.tick(&self.db, &self.manager, &self.managed).await?;
+        }
+        Ok(SegmentBody::Exhausted)
+    }
+
+    /// Write one stream chunk to the buffer, falling back to a direct write
+    /// when a background flush has failed.
+    async fn write_bytes(&self, offset: u64, bytes: &Bytes) -> Result<()> {
+        if let Some(ref buf) = self.write_buffer {
+            if buf.buffer_chunk(offset, bytes.clone()).await.is_err() {
+                // Background flush failed — fall back to direct write.
+                write_all_at(&self.file, bytes, offset)?;
+                if self.disk_type == DiskType::Hdd {
+                    let mut core = self.managed.lock_core();
+                    core.snapshot.degraded = true;
                 }
             }
-            throttle.tick(&ctx.db, &ctx.manager, &ctx.managed).await?;
+        } else {
+            write_all_at(&self.file, bytes, offset)?;
+        }
+        Ok(())
+    }
+
+    /// Current end for our chunk (tail sprint may have shortened it).
+    fn dynamic_end(&self, fallback: u64) -> u64 {
+        let core = self.managed.lock_core();
+        core.manifest
+            .chunks
+            .get(self.chunk.index)
+            .map(|c| c.end)
+            .unwrap_or(fallback)
+    }
+
+    /// `true` when tail sprint released our claim while the entry still exists.
+    fn claim_released(&self) -> bool {
+        let core = self.managed.lock_core();
+        core.manifest
+            .chunks
+            .get(self.chunk.index)
+            .is_some_and(|chunk| chunk.claimed_by != Some(self.worker_id))
+    }
+
+    /// `true` when we still own the claim (a missing entry counts as lost).
+    fn owns_claim(&self) -> bool {
+        let core = self.managed.lock_core();
+        core.manifest
+            .chunks
+            .get(self.chunk.index)
+            .and_then(|c| c.claimed_by)
+            == Some(self.worker_id)
+    }
+
+    /// Mark the claim released (no-op when we already lost it).
+    fn release(&self) {
+        mark_chunk_released(&self.managed, self.chunk.index, self.worker_id);
+    }
+
+    /// Release the claim and map the current state to pause/cancel.
+    fn pause_or_cancel(&self) -> ChunkWorkerOutcome {
+        self.release();
+        if self.managed.lock_core().snapshot.state == DownloadState::Canceled {
+            ChunkWorkerOutcome::Canceled
+        } else {
+            ChunkWorkerOutcome::Paused
         }
     }
 
-    // Flush remaining rate limiter bytes after chunk completes
-    batch.flush(&ctx.rate_limiter).await;
-
-    {
-        let mut core = ctx.managed.lock_core();
-        if let Some(target) = core.manifest.chunks.get_mut(ctx.chunk.index) {
+    /// Mark the chunk completed if we still own the claim.
+    fn mark_complete(&self) {
+        let mut core = self.managed.lock_core();
+        if let Some(target) = core.manifest.chunks.get_mut(self.chunk.index) {
             // Only mark completed if we still own the claim
-            if target.claimed_by == Some(ctx.worker_id) {
+            if target.claimed_by == Some(self.worker_id) {
                 target.completed = true;
                 target.downloaded = target.end.saturating_sub(target.start) + 1;
                 target.claimed_by = None;
@@ -375,5 +457,8 @@ pub(super) async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOut
         }
         core.manifest.updated_at_ms = now_ms();
     }
-    Ok(ChunkWorkerOutcome::Finished)
+}
+
+pub(super) async fn download_chunk(ctx: ChunkWorkerCtx) -> Result<ChunkWorkerOutcome> {
+    ctx.run().await
 }
