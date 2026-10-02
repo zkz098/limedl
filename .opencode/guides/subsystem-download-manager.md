@@ -16,7 +16,7 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 - `crates/limedl-core/src/aimd/mod.rs` — AIMD 吞吐量状态机（测试在 `aimd/tests.rs`）
 - `crates/limedl-core/src/manifest.rs` — Manifest / ChunkManifest
 - `crates/limedl-core/src/retry.rs` — 指数退避重试
-- `crates/limedl-core/src/checksum/mod.rs` — 校验和（Blake3 / SHA-256 / XXH3-128）
+- `crates/limedl-core/src/checksum/mod.rs` — 校验和（Blake3 / SHA-256 / SHA-512）
 - `crates/limedl-core/src/rate_limiter/mod.rs` — 全局令牌桶速率限制器
 - `crates/limedl-core/src/speed_tracker.rs` — 实时下载速度滑动窗口采样器 (SpeedTracker)
 - 前端入口：`src/lib/ipc/download-api.ts` → `crates/limedl-server/src/rpc.rs`（WebSocket RPC；桌面客户端直接调 `crates/limedl-core/src/dispatcher.rs`）
@@ -75,7 +75,7 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 ```
 所有 chunk 完成 → finalize_download()
   → DownloadBuffer::drain_background() + flush_all()
-  → calculate_checksum() → Blake3 / SHA-256 / XXH3-128（spawn_blocking, 1MiB 缓冲）
+  → calculate_checksum() → Blake3 / SHA-256 / SHA-512（spawn_blocking, 1MiB 缓冲）
   → 校验和不匹配 → 仅重下受影响 chunk（非整个文件）
   → finalize_temp_file(): 原子 rename → 跨设备回退到 hard_link（256KB 缓冲区复制）
   → Database: state=completed
@@ -95,10 +95,32 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 
 ### 校验和
 
-- ChecksumHasher 枚举封装三种算法（Blake3 / SHA256 / XXH3-128）。mode 为 None 时不调用（直接返回 Err）。
-- 使用 `spawn_blocking` 避免阻塞 tokio 运行时。
-- 输出格式：Blake3 用 `to_hex()`，SHA-256 用 `format!("{:x}")`，XXH3-128 用 `format!("{:032x}")`。
+- 支持集刻意收窄为三种：Blake3（默认）/ SHA-256 / SHA-512，即 `ChecksumMode` 的全部取值范围（外加表示“不校验”的 `None`）。
+  弱哈希与非密码学哈希（SHA-1、XXH3-128）已移除：校验失败会触发受影响 chunk 的重下，一个可构造碰撞的摘要会让这套自愈机制形同虚设。
+  注意 `xxhash-rust` 仍然保留为依赖，但它只服务内部 ID 派生（aria2 GID、`download_id`），与校验和无关。
+- ChecksumHasher 枚举封装这三种算法。mode 为 `None` 时不调用（直接返回 Err）。
+- 输出格式：Blake3 用 `to_hex()`；两个 SHA-2 变体共用模块私有的 `hex_lower()`（64/128 个小写十六进制字符）。
 - `hash_slices()` 为同步函数，用于内存缓冲场景的快速校验。
+
+新增算法时改动面是固定的（否则会漏一处而静默不校验）：`types/common.rs` 的枚举、`checksum/mod.rs` 的 hasher/`hash_slices`、
+`database/manifest_repo.rs` 的文本映射、`aria2_rpc/options.rs` 的 `TYPE=DIGEST` 解析、以及桌面端的
+`bridge/forms/enums.rs` + `combo::CHECKSUMS`（与 `tab_download.slint` 的 `@tr` 列表按下标一一对应）和三个 `.po` 目录。
+
+**向后兼容（升级路径，别删）**：
+
+- 数据库里 `sha1` / `xxh3_128` 的历史行由 `text_to_checksum_mode` 映射为 `None` 并打一条 warn —— 行里存的摘要是旧算法的，
+  映到新算法只会让每次重新校验都失败；映成 `None` 才能让任务正常收尾。未知值仍然报错。
+- settings.json 里遗留的 `defaultChecksum`（`load_settings` 里那段就地重写）会被改回 `blake3`，否则一个枚举值会让整份配置反序列化失败、回退到默认值。
+
+### 异步路径上的文件 IO
+
+- 引擎的 async fn / async 块里不直接调 `std::fs`：这就是 SonarQube 的 rust:S7493（“blocking file operation”），
+  历史上 14 处散落在 bootstrap / manager / disk_io / bt_backend / http_executor::finalize / aria2_rpc / 桌面端的 update&
+  settings dialog 里。统一用 `tokio::fs`（`create_dir_all` / `metadata` / `rename` / `write` / `read` / `remove_dir_all`），
+  或者 `spawn_blocking` 包住真正同步的部分。
+- 例外只在**同步函数**里：`update/mod.rs` 的 tar 解包、`clean_update_work_dir` 等本来就是同步流程，动它们反而要引入运行时。
+- 自更新落盘的可执行文件权限是 `0o700` 而非 `0o755`（SonarQube rust:S2612）：文件在用户自己的更新工作目录里、只由该用户执行，
+  group/other 的读写执行位没有必要，而这个文件随后会替换正在运行的进程。
 
 ### 速率限制
 
