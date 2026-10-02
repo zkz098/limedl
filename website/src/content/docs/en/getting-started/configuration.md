@@ -44,7 +44,7 @@ To open the settings panel in the desktop application, click the **Settings** ge
 | **Max Concurrent Tasks** | 1 ~ 32 | 5 tasks | Maximum number of downloads permitted in active state simultaneously. |
 | **Global Max Threads** | 4 ~ 128 | 32 threads | Upper bound for all active chunk worker threads across all running downloads. |
 | **AIMD Profile** | Conservative / Balanced / Aggressive | Balanced | **Conservative**: Slow ramp-up and sharp backoff for sensitive hosts.<br>**Balanced**: Smooth additive increase and multiplicative decrease.<br>**Aggressive**: Rapid bandwidth acquisition for dedicated high-speed pipelines. |
-| **Checksum Mode** | None / Blake3 / SHA-256 / XXH3-128 | Blake3 (when provided) | Automatically verifies data integrity post-download, re-fetching only damaged chunks on mismatches. |
+| **Checksum Mode** | None / Blake3 / SHA-256 / SHA-512 | Blake3 (when provided) | Automatically verifies data integrity post-download, re-fetching only damaged chunks on mismatches. |
 
 ---
 

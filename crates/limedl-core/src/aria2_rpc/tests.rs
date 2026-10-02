@@ -614,7 +614,7 @@ fn parse_checksum_option_supported_types() {
     for (raw, expected_mode) in [
         ("sha-256=ABCDEF", ChecksumMode::Sha256),
         ("sha256=ABCDEF", ChecksumMode::Sha256),
-        ("sha-1=ABCDEF", ChecksumMode::Sha1),
+        ("sha-512=ABCDEF", ChecksumMode::Sha512),
         ("blake3=ABCDEF", ChecksumMode::Blake3),
     ] {
         let mut map = serde_json::Map::new();
@@ -634,7 +634,7 @@ fn parse_checksum_option_supported_types() {
 fn parse_checksum_option_ignores_unsupported_and_malformed() {
     for raw in [
         "md5=abc",
-        "sha-512=abc",
+        "sha-1=abc",
         "adler32=abc",
         "no-equals",
         "sha-256=",

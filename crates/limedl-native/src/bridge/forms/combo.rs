@@ -8,7 +8,7 @@ pub const CLOSE_BEHAVIORS: [&str; 2] = ["minimizeToTray", "exit"];
 pub const DOUBLE_CLICK_COMPLETED: [&str; 4] =
     ["none", "open_file", "open_in_explorer", "open_download_dir"];
 pub const DOUBLE_CLICK_UNCOMPLETED: [&str; 2] = ["none", "toggle_pause_resume"];
-pub const CHECKSUMS: [&str; 5] = ["blake3", "sha256", "xxh3_128", "none", "sha1"];
+pub const CHECKSUMS: [&str; 4] = ["blake3", "sha256", "sha512", "none"];
 pub const PROXY_MODES: [&str; 3] = ["disabled", "system", "manual"];
 pub const SCHEDULER_MODES: [&str; 2] = ["automatic", "traditional"];
 pub const ADAPTIVE_PROFILES: [&str; 3] = ["conservative", "balanced", "aggressive"];

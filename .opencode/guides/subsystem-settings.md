@@ -9,7 +9,7 @@
 - `SettingsService`：提供 `get()`、`get_blocking()`、`update(&AppSettings)`、`factory_reset()`、`default_download_dir()`。
 - `AppSettings`（根结构体，含 appearance / proxy / scheduler / download / bt / logging / aria2_rpc / cdn_acceleration / github_mirror / url_rewrite / global_speed_limit_bps / notifications / io_baseline / autostart / setup_completed 等字段）。各子设置结构体定义在 `types.rs`。
 
-关键枚举：ThreadMode（Fixed / Adaptive）、AdaptiveProfile（Conservative / Balanced / Aggressive）、ChecksumMode（None / Blake3 / Sha256 / Xxh3128）、SchedulerMode（Traditional / Automatic）、ProxyMode（Disabled / System / Manual）、DiskType（Ssd / Hdd / Network）、ColorMode（Light / Dark / System）。
+关键枚举：ThreadMode（Fixed / Adaptive）、AdaptiveProfile（Conservative / Balanced / Aggressive）、ChecksumMode（None / Blake3 / Sha256 / Sha512）、SchedulerMode（Traditional / Automatic）、ProxyMode（Disabled / System / Manual）、DiskType（Ssd / Hdd / Network）、ColorMode（Light / Dark / System）。
 
 ## 涉及文件
 

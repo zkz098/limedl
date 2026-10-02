@@ -30,14 +30,9 @@ async fn checksums_match_computed_content() -> TestResult {
         "SHA-256 checksum mismatch",
     );
     assert_eq!(
-        hash_slices(ChecksumMode::Xxh3128, slices),
-        server.xxh3_hash,
-        "XXH3-128 checksum mismatch",
-    );
-    assert_eq!(
-        hash_slices(ChecksumMode::Sha1, slices),
-        server.sha1_hash,
-        "SHA-1 checksum mismatch",
+        hash_slices(ChecksumMode::Sha512, slices),
+        server.sha512_hash,
+        "SHA-512 checksum mismatch",
     );
     Ok(())
 }

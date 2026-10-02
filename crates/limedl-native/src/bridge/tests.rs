@@ -326,7 +326,7 @@ use crate::LabsFormData;
             (&combo::CLOSE_BEHAVIORS, "minimizeToTray"),
             (&combo::DOUBLE_CLICK_COMPLETED, "open_in_explorer"),
             (&combo::DOUBLE_CLICK_UNCOMPLETED, "toggle_pause_resume"),
-            (&combo::CHECKSUMS, "xxh3_128"),
+            (&combo::CHECKSUMS, "sha512"),
             (&combo::PROXY_MODES, "manual"),
             (&combo::SCHEDULER_MODES, "traditional"),
             (&combo::ADAPTIVE_PROFILES, "balanced"),

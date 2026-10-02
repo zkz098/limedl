@@ -1,6 +1,7 @@
 use super::*;
 use crate::types::{
-    BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, MatchType, ReplacementMode,
+    BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, ChecksumMode, MatchType,
+    ReplacementMode,
 };
 use std::io::Write;
 use tempfile::tempdir;
@@ -568,6 +569,37 @@ fn test_load_settings_legacy_proxy_only() {
     let result = load_settings(&path).unwrap();
     assert_eq!(result.proxy.mode, ProxyMode::Manual);
     assert_eq!(result.proxy.manual_url, "http://legacy-proxy:3128");
+}
+
+#[test]
+fn test_load_settings_legacy_checksum_mode_falls_back_to_default() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("legacy-checksum.json");
+
+    let write_with_mode = |mode: &str| {
+        let mut value = serde_json::to_value(AppSettings::default()).unwrap();
+        value["download"]["defaultChecksum"] = serde_json::json!(mode);
+        let mut file = fs::File::create(&path).unwrap();
+        file.write_all(value.to_string().as_bytes()).unwrap();
+        drop(file);
+    };
+
+    // Modes dropped from the enum must not take the whole document down with
+    // them — they fall back to the default algorithm instead.
+    for legacy in ["sha1", "xxh3_128"] {
+        write_with_mode(legacy);
+        let result = load_settings(&path).unwrap();
+        assert_eq!(
+            result.download.default_checksum,
+            ChecksumMode::Blake3,
+            "legacy mode {legacy} should fall back to the default"
+        );
+    }
+
+    // Supported values are still honoured.
+    write_with_mode("sha512");
+    let result = load_settings(&path).unwrap();
+    assert_eq!(result.download.default_checksum, ChecksumMode::Sha512);
 }
 
 // -----------------------------------------------------------------------

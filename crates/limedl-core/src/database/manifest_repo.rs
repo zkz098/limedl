@@ -70,8 +70,7 @@ pub(crate) fn checksum_mode_to_text(mode: ChecksumMode) -> &'static str {
         ChecksumMode::None => "none",
         ChecksumMode::Blake3 => "blake3",
         ChecksumMode::Sha256 => "sha256",
-        ChecksumMode::Sha1 => "sha1",
-        ChecksumMode::Xxh3128 => "xxh3_128",
+        ChecksumMode::Sha512 => "sha512",
     }
 }
 
@@ -80,8 +79,20 @@ pub(crate) fn text_to_checksum_mode(s: &str) -> RusqliteResult<ChecksumMode> {
         "none" => Ok(ChecksumMode::None),
         "blake3" => Ok(ChecksumMode::Blake3),
         "sha256" => Ok(ChecksumMode::Sha256),
-        "sha1" => Ok(ChecksumMode::Sha1),
-        "xxh3_128" => Ok(ChecksumMode::Xxh3128),
+        "sha512" => Ok(ChecksumMode::Sha512),
+        // Rows written before the algorithm set narrowed to
+        // blake3/sha256/sha512 keep a digest produced by a dropped algorithm,
+        // so there is nothing to compare against any more. Loading them as
+        // "verification disabled" is the only non-destructive option: mapping
+        // them onto a live algorithm would compare a SHA-1 digest against a
+        // SHA-256 one and fail every re-check for the life of the row.
+        "sha1" | "xxh3_128" => {
+            tracing::warn!(
+                stored = s,
+                "legacy checksum mode is no longer supported; checksum verification disabled for this task"
+            );
+            Ok(ChecksumMode::None)
+        }
         other => Err(rusqlite::Error::InvalidParameterName(format!(
             "unknown checksum mode: {other}"
         ))),
@@ -520,5 +531,46 @@ impl Database {
         )
         .with_context(|| format!("failed to set priority for download {download_id}"))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn checksum_mode_text_roundtrip() {
+        for mode in [
+            ChecksumMode::None,
+            ChecksumMode::Blake3,
+            ChecksumMode::Sha256,
+            ChecksumMode::Sha512,
+        ] {
+            let text = checksum_mode_to_text(mode);
+            assert_eq!(
+                text_to_checksum_mode(text).expect("known mode"),
+                mode,
+                "roundtrip through {text}"
+            );
+        }
+    }
+
+    /// Rows written before SHA-1 / XXH3-128 were dropped must still load — with
+    /// verification disabled, never with a digest compared against the wrong
+    /// algorithm.
+    #[test]
+    fn legacy_checksum_mode_text_loads_as_none() {
+        for legacy in ["sha1", "xxh3_128"] {
+            assert_eq!(
+                text_to_checksum_mode(legacy).expect("legacy mode tolerated"),
+                ChecksumMode::None,
+                "{legacy}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_checksum_mode_text_is_an_error() {
+        assert!(text_to_checksum_mode("md5").is_err());
     }
 }

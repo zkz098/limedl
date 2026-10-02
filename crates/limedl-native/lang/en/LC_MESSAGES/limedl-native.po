@@ -1103,14 +1103,11 @@ msgstr "BLAKE3"
 msgid "SHA-256"
 msgstr "SHA-256"
 
-msgid "XXH3-128"
-msgstr "XXH3-128"
+msgid "SHA-512"
+msgstr "SHA-512"
 
 msgid "None (skip)"
 msgstr "None (skip)"
-
-msgid "SHA-1"
-msgstr "SHA-1"
 
 msgid "Disabled"
 msgstr "Disabled"

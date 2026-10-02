@@ -11,15 +11,20 @@ pub struct SerializableError {
 }
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+/// Hash algorithm used to verify a downloaded file.
+///
+/// The supported set is deliberately narrow: BLAKE3 (the default), SHA-256 and
+/// SHA-512. Weak or non-cryptographic digests (SHA-1, XXH3-128) are not
+/// accepted — a checksum mismatch costs a re-download
+/// of the affected chunks, so a collision-prone digest defeats the purpose.
+///
+/// [`ChecksumMode::None`] is not an algorithm: it means "no verification".
 pub enum ChecksumMode {
     None,
     #[default]
     Blake3,
     Sha256,
-    #[serde(rename = "sha1")]
-    Sha1,
-    #[serde(rename = "xxh3_128")]
-    Xxh3128,
+    Sha512,
 }
 
 /// Download priority — affects scheduler ordering.

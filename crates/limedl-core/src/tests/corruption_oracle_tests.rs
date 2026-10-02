@@ -175,8 +175,7 @@ async fn oracle_all_checksum_modes_byte_identical() -> TestResult {
         ChecksumMode::None,
         ChecksumMode::Blake3,
         ChecksumMode::Sha256,
-        ChecksumMode::Xxh3128,
-        ChecksumMode::Sha1,
+        ChecksumMode::Sha512,
     ] {
         let server = TestServer::new(SIZE).await;
         run_oracle_round(&server, THREADS, mode).await?;

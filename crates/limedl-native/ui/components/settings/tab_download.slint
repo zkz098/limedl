@@ -75,7 +75,7 @@ export component SettingsTabDownload inherits ScrollView {
                         FormTip { text: @tr("New tasks no longer show checksum mode separately. This setting is used globally."); }
                     } }
                 CustomSelect {
-                    model: [@tr("BLAKE3"), @tr("SHA-256"), @tr("XXH3-128"), @tr("None (skip)"), @tr("SHA-1")];
+                    model: [@tr("BLAKE3"), @tr("SHA-256"), @tr("SHA-512"), @tr("None (skip)")];
                     current-index <=> root.settings_form.download_checksum_idx;
                     height: 36px;
                 }

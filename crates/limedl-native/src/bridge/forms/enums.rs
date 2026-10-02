@@ -46,18 +46,16 @@ pub(crate) fn checksum_to_str(c: ChecksumMode) -> SharedString {
     SharedString::from(match c {
         ChecksumMode::Blake3 => "blake3",
         ChecksumMode::Sha256 => "sha256",
-        ChecksumMode::Xxh3128 => "xxh3_128",
+        ChecksumMode::Sha512 => "sha512",
         ChecksumMode::None => "none",
-        ChecksumMode::Sha1 => "sha1",
     })
 }
 pub(crate) fn str_to_checksum(s: &str) -> Option<ChecksumMode> {
     match s.trim() {
         "blake3" => Some(ChecksumMode::Blake3),
         "sha256" => Some(ChecksumMode::Sha256),
-        "xxh3_128" => Some(ChecksumMode::Xxh3128),
+        "sha512" => Some(ChecksumMode::Sha512),
         "none" => Some(ChecksumMode::None),
-        "sha1" => Some(ChecksumMode::Sha1),
         _ => None,
     }
 }

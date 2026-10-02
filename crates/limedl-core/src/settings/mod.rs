@@ -435,6 +435,22 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             }
         }
 
+        // Older builds could persist a checksum mode that no longer exists
+        // (`sha1`, `xxh3_128`). Rewriting the single unknown value keeps the
+        // rest of the document loadable instead of failing the whole
+        // deserialization — and the app-config fallback — over one enum.
+        if let Some(checksum) = value
+            .get_mut("download")
+            .and_then(|download| download.get_mut("defaultChecksum"))
+        {
+            let supported = checksum
+                .as_str()
+                .is_some_and(|s| matches!(s, "none" | "blake3" | "sha256" | "sha512"));
+            if !supported {
+                *checksum = serde_json::Value::String(String::from("blake3"));
+            }
+        }
+
         let parsed = serde_json::from_value::<AppSettings>(value)?;
         return normalize_settings(parsed);
     }

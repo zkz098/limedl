@@ -58,7 +58,7 @@ limedl Workspace
 │   ├── cdn/                  # Cloudflare edge screening & DNS rewrite
 │   ├── buffer_pool.rs        # SSD write-combining & HDD double buffering
 │   ├── file_ops/             # Disk space pre-allocation & atomic finalization
-│   ├── checksum/             # Blake3 / SHA-256 / XXH3-128 validation
+│   ├── checksum/             # Blake3 / SHA-256 / SHA-512 validation
 │   ├── rate_limiter/         # Token bucket global speed limiter & schedule
 │   └── aria2_rpc.rs          # Aria2 JSON-RPC 2.0 compatible server
 │

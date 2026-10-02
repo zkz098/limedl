@@ -96,8 +96,10 @@ pub(crate) fn collect_request_headers(
 /// Parse the aria2 `checksum` option (`"TYPE=DIGEST"`, e.g.
 /// `sha-256=abcdef…`) into limedl checksum fields.
 ///
-/// Unsupported hash types (md5, sha-512, adler32) and malformed values are
+/// Unsupported hash types (md5, sha-1, adler32, …) and malformed values are
 /// ignored, matching aria2's own tolerant behaviour for optional metadata.
+/// sha-512 is accepted because it is part of limedl's supported set, even
+/// though aria2 itself only knows sha-1/md5/sha-256.
 pub(crate) fn parse_checksum_option(
     options: Option<&serde_json::Map<String, Value>>,
 ) -> (Option<ChecksumMode>, Option<String>) {
@@ -109,7 +111,7 @@ pub(crate) fn parse_checksum_option(
     };
     let mode = match hash_type.trim().to_ascii_lowercase().as_str() {
         "sha-256" | "sha256" => ChecksumMode::Sha256,
-        "sha-1" | "sha1" => ChecksumMode::Sha1,
+        "sha-512" | "sha512" => ChecksumMode::Sha512,
         "blake3" => ChecksumMode::Blake3,
         _ => return (None, None),
     };

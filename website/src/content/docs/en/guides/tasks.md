@@ -120,7 +120,7 @@ limedl tracks transfer rates using a sliding-window time sampler (`SpeedTracker`
 Supported cryptographic and non-cryptographic hashing algorithms:
 - **Blake3**: Cryptographic hash with extraordinary multi-core hashing throughput.
 - **SHA-256**: Universal industry-standard digest.
-- **XXH3-128**: High-speed hash ideal for fast local integrity sweeps.
+- **SHA-512**: Stronger standard digest for sources that need collision and forgery resistance.
 
 ### Chunk-Level Self-Healing
 With conventional downloaders, a checksum failure at the end of a 20GB download necessitates redownloading the entire 20GB file.

@@ -160,7 +160,7 @@ export struct SettingsFormData {
     max_parallel_tasks: string,
     global_speed_limit_kb: string,
     download_max_retries: string,
-    download_checksum_idx: int, // index into bridge.rs combo::CHECKSUMS (blake3/sha256/xxh3_128/none/sha1)
+    download_checksum_idx: int, // index into bridge.rs combo::CHECKSUMS (blake3/sha256/sha512/none)
     download_auto_detect_sha256: bool,
     download_user_agent: string,
     // ── 外观 / 启动 ──

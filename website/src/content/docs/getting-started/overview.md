@@ -58,7 +58,7 @@ limedl Workspace
 │   ├── cdn/                  # Cloudflare CDN 边缘测速与 DNS 重写
 │   ├── buffer_pool.rs        # SSD 写入合并与 HDD 双缓冲池
 │   ├── file_ops/             # 空间预分配与原子文件最终化
-│   ├── checksum/             # Blake3 / SHA-256 / XXH3-128 校验器
+│   ├── checksum/             # Blake3 / SHA-256 / SHA-512 校验器
 │   ├── rate_limiter/         # 全局令牌桶限速与计划表
 │   └── aria2_rpc.rs          # Aria2 JSON-RPC 2.0 兼容服务
 │
