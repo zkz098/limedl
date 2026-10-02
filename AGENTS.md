@@ -290,12 +290,20 @@ and the GTK `-sys` crates need a Linux compiler), so:
    `platform_win.rs` (which exports are shared, which are Windows-only) exists
    for exactly this review.
 
-The macOS linker-note exemption is gone: `.cargo/config.toml` no longer passes
-`-A linker_messages`, because the note it swallowed
-(`__eh_frame section too large (max 16MB)`) came from the Skia-linked test binaries
-this repository no longer builds. `check-macos` runs with `CARGO_BUILD_WARNINGS: deny`,
-so if Apple's `ld` emits that note again the job fails instead of printing it — the
-intended behaviour, since every rustc, clippy and linker warning stays fatal.
+One macOS-only diagnostic is exempted rather than fixed: Apple's `ld` notes
+`__eh_frame section too large (max 16MB)` for the `limedl-native` test binary.
+Compact unwind only reserves a 24-bit hint for an FDE's offset in `__eh_frame`, so
+past 16 MB the linker falls back to plain DWARF unwinding — a performance note, not
+a defect. `.cargo/config.toml` therefore passes `-A linker_messages` on both Apple
+targets, which keeps that one note out of cargo's `build.warnings = deny`.
+
+It is about the size of the test binary, not about a dependency: dropping the flag
+after the Skia removal (run 36972236669) failed the macOS native test step with
+`error: warnings are denied by build.warnings configuration`, with nothing linking
+Skia. `cargo clippy` never links, which is why only the test step trips it.
+
+Every rustc/clippy warning stays fatal; a *real* macOS linker warning is now
+only printed, so read the `check-macos` log when a link looks suspicious.
 
 Only commit once every check above is green. If a failure is environmental
 (e.g. a Linux-only script on Windows), fix the code so it is platform-neutral or
