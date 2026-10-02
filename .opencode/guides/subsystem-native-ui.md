@@ -109,7 +109,7 @@ rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
 
 ## Linux 桌面版
 
-- 仓库：`x86_64-unknown-linux-gnu`（`.cargo/config.toml` 已把该 target 定为 `x86-64-v3`，与 Windows 桌面一致，需 2013+ CPU）。选 gnu 而非 musl：Slint/Skia 已经链接系统库（GL/X11/Wayland、托盘 appindicator），静态 musl 买不到可移植性。代价是 glibc 下限 —— 构建机是 `ubuntu-latest`，因此二进制需要 glibc >= 2.39（Ubuntu 24.04+）。
+- 仓库：`x86_64-unknown-linux-gnu`（`.cargo/config.toml` 已把该 target 定为 `x86-64-v3`，与 Windows 桌面一致，需 2013+ CPU）。选 gnu 而非 musl：Slint 已经链接系统库（GL/X11/Wayland、托盘 appindicator），静态 musl 买不到可移植性。代价是 glibc 下限 —— 构建机是 `ubuntu-latest`，因此二进制需要 glibc >= 2.39（Ubuntu 24.04+）。
 - 发布产物：
   - `limedl-native-v{V}-linux-x86_64-portable.tar.gz`：由 `scripts/package-linux.sh` 生成，含唯一顶层目录 `limedl-native/`（二进制 + README），便携解压运行。
   - `limedl-native-v{V}-linux-x86_64.deb`：由 `scripts/package-deb.sh` 生成，标准 Debian/Ubuntu 安装包，集成 `/usr/bin/limedl-native`、`.desktop` 与多尺寸应用图标。

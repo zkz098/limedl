@@ -245,15 +245,12 @@ cargo clippy --workspace --all-targets -- -D warnings
 #   cargo install cargo-nextest --locked --version 0.9.144
 # Per crate, NOT `--workspace`: only limedl-core's tests are meaningful without
 # the `test-utils,aria2-rpc` features, a workspace-wide run would lose them, and
-# it would link the Skia UI binary just to check its flags. xtask is in the gate
+# it would build the UI crate just to check its flags. xtask is in the gate
 # because it holds the release-guard tests (`cargo xtask guard` runs in
 # `release.yml`, and its default `--update-rs` path broke a release once).
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 cargo nextest run --manifest-path xtask/Cargo.toml
 
-# limedl-native links Skia with rust-lld, whose duplicate-ICU-symbol warning
-# trips `build.warnings = deny`; CI drops the variable for this job only.
-Remove-Item Env:CARGO_BUILD_WARNINGS
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 ```
 
@@ -294,9 +291,11 @@ and the GTK `-sys` crates need a Linux compiler), so:
    for exactly this review.
 
 One macOS-only diagnostic is exempted rather than fixed: Apple's `ld` notes
-`__eh_frame section too large (max 16MB)` for the Skia-sized `limedl-native`
-test binaries, so `.cargo/config.toml` passes `-A linker_messages` on both Apple
-targets and cargo's `build.warnings = deny` no longer fails on that one note.
+`__eh_frame section too large (max 16MB)` for large binaries, so
+`.cargo/config.toml` passes `-A linker_messages` on both Apple targets and cargo's
+`build.warnings = deny` no longer fails on that one note. The note came from the
+large test binaries this repository used to build, so it may not appear at all any
+more; the exemption stays until a macOS run says otherwise.
 Every rustc/clippy warning stays fatal; a *real* macOS linker warning is now
 only printed, so read the `check-macos` log when a link looks suspicious.
 

@@ -77,7 +77,7 @@ panic = "abort" # Strip unwinding machinery → smaller binary
 strip = true # Strip debug symbols
 
 # ── Native UI 独立优化 ─────────────────────────────────────────
-# Slint/Skia 渲染为 CPU/GPU 密集型，需速度优先；覆盖 workspace 的体积优先。
+# Slint/FemtoVG 渲染为 CPU/GPU 密集型，需速度优先；覆盖 workspace 的体积优先。
 # 仅 limedl-native crate 用 opt-level 3，其余 crate 仍保持 "s" 以控制分发体积。
 [profile.release.package.limedl-native]
 opt-level = 3
@@ -87,7 +87,7 @@ opt-level = 3
 [profile.native-release]
 inherits = "release"
 opt-level = 3
-codegen-units = 1 # 更激进的单单元优化，利于 Skia 内联
+codegen-units = 1 # 更激进的单单元优化，利于渲染热路径内联
 lto = "thin"
 
 # ── CI-optimized dev profile ────────────────────────────────────

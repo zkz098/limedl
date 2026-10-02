@@ -197,10 +197,8 @@ jobs:
     name: Tests (Windows, limedl-native)
     runs-on: windows-latest
     needs: font
-    # No `CARGO_BUILD_WARNINGS: deny` here (unlike every other Rust job): linking
-    # the Skia-based binary with rust-lld warns about Skia's duplicate ICU
-    # symbols, and cargo's `build.warnings` denies linker warnings as well. The
-    # warnings gate for this job is `check-windows`' workspace clippy.
+    env:
+      CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Exclude build paths from Defender real-time scanning

@@ -7,7 +7,7 @@ name: Warm release cache
 # entries. Before this workflow existed those entries could only be written by a
 # release itself, and with the repo's cache usage at GitHub's 10 GB ceiling they
 # were evicted long before the next tag (an entry not accessed for 7 days is
-# deleted outright) — so every release paid a cold Slint/Skia rebuild (measured:
+# deleted outright) — so every release paid a cold Slint rebuild (measured:
 # 997 s of `cargo build --release -p limedl-native` on Windows, 16.6 of the job's
 # 18.6 minutes; 1481 s on macOS, whose 1588 s job was the release's critical path).
 #

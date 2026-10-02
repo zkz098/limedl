@@ -43,7 +43,7 @@ Aria2 RPC（本地 6800 端口，可选）:
 
 ## 设计决策与约定
 
-- 架构单轨化：纯 Rust 实现，消除了前端 Web/Node.js 生态。桌面客户端使用 Slint（Skia 渲染），直接在进程内与 `limedl-core` 的 `Dispatcher` 交互，零网络开销与跨语言序列化。
+- 架构单轨化：纯 Rust 实现，消除了前端 Web/Node.js 生态。桌面客户端使用 Slint（FemtoVG/OpenGL 渲染，GL 初始化失败时回退到 Slint 的软件光栅化器），直接在进程内与 `limedl-core` 的 `Dispatcher` 交互，零网络开销与跨语言序列化。
 - 协议路由：BackendRegistry 按 TaskId 前缀（`http:` / `bt:`）将操作分派到对应的 DownloadBackend 实现。
 - 事件系统：EventBus 是纯 broadcast channel。Slint 桌面在 `limedl-native/src/main.rs` 的订阅任务中更新 UI 模型。
 - 序列化约定：Rust struct 用 `#[serde(rename_all = "camelCase")]`，enum 用 `#[serde(rename_all = "snake_case")]`。

@@ -19,7 +19,7 @@ name: Release
 #   because it caches internally, `rustflags: ""` so `.cargo/config.toml` drives
 #   the build). The desktop jobs reuse the `release-native-*` rust-cache entries
 #   that `.github/workflows/warm-release-cache.yml` keeps warm on main; without
-#   them the Windows leg was a cold 16-minute Slint/Skia rebuild and the macOS leg
+#   them the Windows leg was a cold 16-minute Slint rebuild and the macOS leg
 #   a 24-minute one (measured: 1481 s of `cargo build --release -p limedl-native`
 #   in the v0.4.0 release, which made it that release's critical path).
 # - Every leg restores its entry but none of them writes it (`save-if:` below):
@@ -414,7 +414,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   # Desktop (Slint) — Linux: plain binary in a tar.gz.
   #
-  # `x86_64-unknown-linux-gnu`, not musl: the Slint/Skia build already links
+  # `x86_64-unknown-linux-gnu`, not musl: the Slint build already links
   # system libraries (GL/X11/Wayland via the winit backend) and the tray pulls
   # `libappindicator`, so a static musl build would not buy portability. The
   # trade-off is the usual glibc floor — the runner is `ubuntu-latest`, so the
