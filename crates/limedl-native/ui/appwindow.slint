@@ -40,6 +40,7 @@ import {
     UrlRewriteRuleItem,
     LabsFormData,
     SetupFormData,
+    DiskTypeOverrideItem,
     SpeedLimitSlotItem,
     ToastItem,
     UpdateState,
@@ -198,6 +199,9 @@ export component MainWindow inherits Window {
     // Speed limit schedule editor rows (authoritative: the VecModel behind this
     // property; persisted on Save).
     in-out property <[SpeedLimitSlotItem]> speed_limit_slots: [];
+
+    // Per-directory media override rows (same contract as the schedule rows).
+    in-out property <[DiskTypeOverrideItem]> disk_type_overrides: [];
 
     // Priority popup menu (opened from the table badge or task context menu)
     in-out property <bool> priority_menu_visible: false;
@@ -380,6 +384,11 @@ export component MainWindow inherits Window {
     callback schedule_add();
     callback schedule_remove(int);
     callback schedule_update(int, string, string); // index, field, value
+    // Per-directory media override editing
+    callback disk_override_add();
+    callback disk_override_remove(int);
+    callback disk_override_path_edited(int, string); // index, typed path
+    callback disk_override_media_selected(int, int); // index, media combo index
 
     // Setup wizard callbacks
     callback close_setup_wizard(int);
@@ -1299,6 +1308,7 @@ export component MainWindow inherits Window {
         settings_tab: root.settings_tab;
         settings_form <=> root.settings_form;
         speed_limit_slots <=> root.speed_limit_slots;
+        disk_type_overrides <=> root.disk_type_overrides;
         update_state <=> root.update_state;
         reset_confirm <=> root.reset_confirm;
         close => { root.close_settings(); }
@@ -1320,6 +1330,10 @@ export component MainWindow inherits Window {
         schedule_add => { root.schedule_add(); }
         schedule_remove(idx) => { root.schedule_remove(idx); }
         schedule_update(idx, field, value) => { root.schedule_update(idx, field, value); }
+        disk_override_add => { root.disk_override_add(); }
+        disk_override_remove(idx) => { root.disk_override_remove(idx); }
+        disk_override_path_edited(idx, path) => { root.disk_override_path_edited(idx, path); }
+        disk_override_media_selected(idx, media) => { root.disk_override_media_selected(idx, media); }
     }
 
     // Dialog: Labs (CDN Acceleration & URL Rewrite)

@@ -1769,3 +1769,27 @@ msgstr "繁体中文"
 
 msgid "Chinese (Traditional)"
 msgstr "繁体中文"
+
+msgid "Directory Media Overrides"
+msgstr "目录介质覆盖"
+
+msgid "Force the buffer mode for one directory: a NAS share, a WSL path or a virtual disk. Everything inside it follows the longest matching entry."
+msgstr "为指定目录强制缓冲模式：NAS 共享、WSL 路径或虚拟磁盘。该目录内的所有内容都按最长的匹配条目生效。"
+
+msgid "Add Directory"
+msgstr "添加目录"
+
+msgid "Directory"
+msgstr "目录"
+
+msgid "Absolute directory path"
+msgstr "绝对目录路径"
+
+msgid "Treat as"
+msgstr "视为"
+
+msgid "SSD"
+msgstr "SSD"
+
+msgid "HDD"
+msgstr "HDD"

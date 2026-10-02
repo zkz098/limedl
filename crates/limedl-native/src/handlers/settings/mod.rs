@@ -4,6 +4,7 @@
 //! contents over the modules below.
 
 mod dialog;
+mod disk_overrides;
 mod paths;
 mod schedule;
 
@@ -13,5 +14,6 @@ use crate::context::AppContext;
 pub fn register(ctx: &AppContext) {
     dialog::register(ctx);
     schedule::register(ctx);
+    disk_overrides::register(ctx);
     paths::register(ctx);
 }

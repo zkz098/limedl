@@ -341,6 +341,142 @@ use crate::LabsFormData;
     }
 
     #[test]
+    fn test_disk_type_override_parsing() {
+        let rows = vec![
+            DiskTypeOverrideText {
+                path: "  D:\\limedl-nas  ".into(),
+                is_hdd: true,
+            },
+            DiskTypeOverrideText {
+                path: "Z:\\limedl-vhd".into(),
+                is_hdd: false,
+            },
+        ];
+        let parsed = parse_disk_type_overrides(&rows, Language::EnUs).expect("valid rows");
+        assert_eq!(parsed.len(), 2);
+        // The key is the trimmed spelling, not the normalized one: what gets
+        // written back to settings.json is what the user typed (minus padding).
+        assert_eq!(parsed.get("D:\\limedl-nas"), Some(&DiskType::Hdd));
+        assert_eq!(parsed.get("Z:\\limedl-vhd"), Some(&DiskType::Ssd));
+
+        // No rows is the "no overrides" state, not an error.
+        assert!(
+            parse_disk_type_overrides(&[], Language::EnUs)
+                .expect("empty")
+                .is_empty()
+        );
+
+        // A relative or blank path can never match a download destination — the
+        // engine's lookup compares absolute paths, and Windows detection answers
+        // "SSD" for one — so it is rejected with a localized message.
+        for path in ["relative/downloads", "", "   "] {
+            let bad = vec![DiskTypeOverrideText {
+                path: path.into(),
+                is_hdd: true,
+            }];
+            let err = parse_disk_type_overrides(&bad, Language::EnUs).unwrap_err();
+            assert!(err.contains("absolute"), "unexpected error for {path:?}: {err}");
+            assert!(
+                parse_disk_type_overrides(&bad, Language::ZhCn).is_err(),
+                "the rejection must be localized, not English-only"
+            );
+        }
+
+        // The same directory twice would be two rows fighting over one lookup.
+        let duplicate = vec![
+            DiskTypeOverrideText {
+                path: "D:\\dl".into(),
+                is_hdd: true,
+            },
+            DiskTypeOverrideText {
+                path: "D:\\dl".into(),
+                is_hdd: false,
+            },
+        ];
+        let err = parse_disk_type_overrides(&duplicate, Language::EnUs).unwrap_err();
+        assert!(err.to_lowercase().contains("duplicate"), "unexpected error: {err}");
+    }
+
+    /// Windows folds case and trailing separators when it compares overrides, so
+    /// two spellings of one directory must not become two keys there.
+    #[cfg(windows)]
+    #[test]
+    fn test_disk_type_override_duplicates_ignore_windows_spellings() {
+        let duplicate = vec![
+            DiskTypeOverrideText {
+                path: "D:\\dl".into(),
+                is_hdd: true,
+            },
+            DiskTypeOverrideText {
+                path: "d:\\dl\\".into(),
+                is_hdd: false,
+            },
+        ];
+        assert!(parse_disk_type_overrides(&duplicate, Language::EnUs).is_err());
+    }
+
+    #[test]
+    fn test_disk_type_override_rows_roundtrip_through_settings() {
+        let settings = AppSettings {
+            io_baseline: limedl_core::types::IoBaselineSettings {
+                disk_type_overrides: [
+                    ("Z:\\vhd".to_string(), DiskType::Ssd),
+                    ("D:\\nas".to_string(), DiskType::Hdd),
+                ]
+                .into_iter()
+                .collect(),
+                ..Default::default()
+            },
+            ..AppSettings::default()
+        };
+
+        let rows = disk_override_rows_from_settings(&settings);
+        assert_eq!(rows.len(), 2);
+        // Sorted, so the list does not reshuffle between visits (a `HashMap`
+        // iterates in an arbitrary order).
+        assert_eq!(rows[0].path, "D:\\nas");
+        assert!(rows[0].is_hdd);
+        assert_eq!(rows[1].path, "Z:\\vhd");
+        assert!(!rows[1].is_hdd);
+
+        // The model keeps the picker index and a detected-media hint per row.
+        let items = disk_override_rows_to_slint(&rows, Language::EnUs);
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].media_idx, MEDIA_HDD_INDEX);
+        assert_eq!(items[1].media_idx, MEDIA_SSD_INDEX);
+        assert!(
+            items.iter().all(|item| !item.detected_text.is_empty()),
+            "every row explains what auto-detection currently says"
+        );
+
+        // Feeding the rows back in reproduces the same map.
+        let round_trip = parse_disk_type_overrides(&rows, Language::EnUs).expect("roundtrip");
+        assert_eq!(round_trip.len(), settings.io_baseline.disk_type_overrides.len());
+        for (path, media) in &settings.io_baseline.disk_type_overrides {
+            assert_eq!(round_trip.get(path), Some(media), "{path}");
+        }
+    }
+
+    #[test]
+    fn test_disk_types_map_is_sorted_and_names_remote_locations() {
+        let mut disks = HashMap::new();
+        disks.insert("Z:".to_string(), DiskType::Network);
+        disks.insert("C:".to_string(), DiskType::Ssd);
+        disks.insert("D:".to_string(), DiskType::Hdd);
+
+        let text = format_disk_types_map(&disks, Language::EnUs);
+        assert_eq!(
+            text,
+            "C: (SSD) | D: (HDD) | Z: (Network share — media unknown)",
+            "sorted, and a remote location says so instead of claiming SSD"
+        );
+
+        let zh = format_disk_types_map(&disks, Language::ZhCn);
+        assert!(zh.contains("C: (SSD 固态硬盘)"), "{zh}");
+        assert!(zh.contains("网络"), "{zh}");
+    }
+
+    #[test]
     fn test_format_speed() {
         assert_eq!(format_speed(Some(1024.0 * 1024.0 * 2.5)), "2.50 MB/s");
         assert_eq!(format_speed(None), "");

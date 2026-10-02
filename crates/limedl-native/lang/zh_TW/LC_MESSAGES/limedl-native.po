@@ -1770,3 +1770,27 @@ msgstr "繁體中文"
 msgid "Chinese (Traditional)"
 msgstr "繁體中文"
 
+msgid "Directory Media Overrides"
+msgstr "目錄介質覆蓋"
+
+msgid "Force the buffer mode for one directory: a NAS share, a WSL path or a virtual disk. Everything inside it follows the longest matching entry."
+msgstr "為指定目錄強制緩衝模式：NAS 共享、WSL 路徑或虛擬磁碟。該目錄內的所有內容都依最長的符合項目生效。"
+
+msgid "Add Directory"
+msgstr "新增目錄"
+
+msgid "Directory"
+msgstr "目錄"
+
+msgid "Absolute directory path"
+msgstr "絕對目錄路徑"
+
+msgid "Treat as"
+msgstr "視為"
+
+msgid "SSD"
+msgstr "SSD"
+
+msgid "HDD"
+msgstr "HDD"
+

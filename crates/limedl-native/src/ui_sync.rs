@@ -12,9 +12,10 @@ use limedl_core::types::{
 };
 
 use crate::bridge::{
-    SpeedLimitSlotText, TaskStore, app_settings_to_form, app_settings_to_labs_form,
-    cdn_candidates_to_slint, column_is_visible, evaluate_url_rewrite, field_to_sort_key,
-    format_disk_types_map, format_io_status_json, format_speed,
+    DiskTypeOverrideText, SpeedLimitSlotText, TaskStore, app_settings_to_form,
+    app_settings_to_labs_form, cdn_candidates_to_slint, column_is_visible,
+    disk_override_rows_from_settings, disk_override_rows_to_slint, evaluate_url_rewrite,
+    field_to_sort_key, format_disk_types_map, format_io_status_json, format_speed, index_is_hdd,
     speed_limit_slots_from_settings, speed_limit_slots_to_slint, url_rewrite_rules_to_slint,
 };
 use crate::i18n::{self, Language};
@@ -83,6 +84,25 @@ pub fn read_schedule_rows(ui: &MainWindow) -> Vec<SpeedLimitSlotText> {
         .collect()
 }
 
+/// Read the media-override rows out of the UI model (same contract as the
+/// schedule rows: the model is authoritative until Save).
+pub fn read_disk_override_rows(ui: &MainWindow) -> Vec<DiskTypeOverrideText> {
+    ui.get_disk_type_overrides()
+        .iter()
+        .map(|item| DiskTypeOverrideText {
+            path: item.path.to_string(),
+            is_hdd: index_is_hdd(item.media_idx),
+        })
+        .collect()
+}
+
+/// Push media-override rows into the UI model.
+pub fn push_disk_override_rows(ui: &MainWindow, rows: &[DiskTypeOverrideText], lang: Language) {
+    ui.set_disk_type_overrides(ModelRc::new(VecModel::from(disk_override_rows_to_slint(
+        rows, lang,
+    ))));
+}
+
 /// Decide whether the main window must stay hidden for this launch.
 pub fn should_start_hidden(requested_hidden: bool, login_launch: bool, setup_completed: bool) -> bool {
     (requested_hidden || login_launch) && setup_completed
@@ -135,6 +155,7 @@ pub fn refresh_settings_state(
         &speed_limit_slots_from_settings(settings),
         lang,
     ))));
+    push_disk_override_rows(ui, &disk_override_rows_from_settings(settings), lang);
 
     let form_data = app_settings_to_form(
         settings,

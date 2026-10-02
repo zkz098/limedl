@@ -1,8 +1,12 @@
 import { ScrollView } from "std-widgets.slint";
 
 import { Theme } from "../../theme.slint";
-import { SettingsFormData } from "../../types.slint";
+import { SettingsFormData, DiskTypeOverrideItem } from "../../types.slint";
 import {
+    CustomSelect,
+    CustomTextInput,
+    IconButton,
+    SecondaryButton,
     ToggleSwitch,
     UnitInput,
 } from "../common.slint";
@@ -10,8 +14,13 @@ import { FormTip } from "shared.slint";
 
 export component SettingsTabIo inherits ScrollView {
     in-out property <SettingsFormData> settings_form;
+    in-out property <[DiskTypeOverrideItem]> disk_type_overrides: [];
     callback toggle_game_mode();
     callback toggle_overclock_mode();
+    callback disk_override_add();
+    callback disk_override_remove(int);
+    callback disk_override_path_edited(int, string);
+    callback disk_override_media_selected(int, int);
 
     VerticalLayout {
         alignment: start;
@@ -111,6 +120,90 @@ export component SettingsTabIo inherits ScrollView {
 
         Rectangle { height: 1px; background: Theme.c1a1e26; }
 
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        // ── Per-directory media overrides ──
+        VerticalLayout {
+            spacing: 6px;
+
+            HorizontalLayout {
+                alignment: space-between;
+                VerticalLayout {
+                    spacing: 2px;
+                    Text { text: @tr("Directory Media Overrides"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                    Text {
+                        text: @tr("Force the buffer mode for one directory: a NAS share, a WSL path or a virtual disk. Everything inside it follows the longest matching entry.");
+                        color: #6b7280;
+                        font-size: 11px;
+                        wrap: word-wrap;
+                    }
+                }
+                io_override_add := SecondaryButton {
+                    text: @tr("Add Directory");
+                    icon: @image-url("../../assets/icons/add-line.svg");
+                    clicked => { root.disk_override_add(); }
+                }
+            }
+
+            for row[idx] in root.disk_type_overrides : io_override_row := Rectangle {
+                background: Theme.c14171d;
+                border-color: Theme.c232832;
+                border-width: 1px;
+                border-radius: 6px;
+                height: self.preferred-height;
+
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 6px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            spacing: 3px;
+                            horizontal-stretch: 4;
+                            Text { text: @tr("Directory"); color: Theme.c9ca3af; font-size: 11px; }
+                            io_override_path := CustomTextInput {
+                                text: row.path;
+                                placeholder: @tr("Absolute directory path");
+                                edited(value) => { root.disk_override_path_edited(idx, value); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 3px;
+                            horizontal-stretch: 1;
+                            Text { text: @tr("Treat as"); color: Theme.c9ca3af; font-size: 11px; }
+                            io_override_media := CustomSelect {
+                                model: [@tr("SSD"), @tr("HDD")];
+                                current-index: row.media_idx;
+                                selected_index(index) => { root.disk_override_media_selected(idx, index); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: end;
+                            IconButton {
+                                text: @tr("Remove");
+                                icon: @image-url("../../assets/icons/delete-bin-line.svg");
+                                text_color: Theme.cf87171;
+                                clicked => { root.disk_override_remove(idx); }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: row.detected_text;
+                        color: Theme.c38bdf8;
+                        font-size: 11px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
         VerticalLayout {
             spacing: 4px;
             HorizontalLayout {
@@ -127,7 +220,7 @@ export component SettingsTabIo inherits ScrollView {
                 }
                 Text { text: @tr("Disk Type Detection (SSD / HDD):"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
             }
-            Text { text: root.settings_form.disk_type_text; color: Theme.c38bdf8; font-size: 12px; }
+            Text { text: root.settings_form.disk_type_text; color: Theme.c38bdf8; font-size: 12px; wrap: word-wrap; }
         }
 
         VerticalLayout {

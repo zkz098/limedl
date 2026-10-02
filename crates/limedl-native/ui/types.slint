@@ -146,6 +146,14 @@ export struct SpeedLimitSlotItem {
     summary: string, // pre-formatted "22:00 → 06:00 · 512 KB/s"
 }
 
+/// One per-directory media override row (`io_baseline.disk_type_overrides`).
+/// Rows live in the UI model until Save, like the speed-limit schedule.
+export struct DiskTypeOverrideItem {
+    path: string,
+    media_idx: int, // 0 = force SSD, 1 = force HDD (editor combo order)
+    detected_text: string, // what auto-detection currently says for `path`
+}
+
 export struct SettingsFormData {
     // ── 常规下载 ──
     default_download_dir: string,

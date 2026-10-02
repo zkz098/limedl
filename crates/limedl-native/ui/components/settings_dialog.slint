@@ -2,7 +2,7 @@
 //! Each tab lives in `settings/tab_*.slint`.
 
 import { Theme } from "../theme.slint";
-import { SettingsFormData, SpeedLimitSlotItem, UpdateState } from "../types.slint";
+import { SettingsFormData, DiskTypeOverrideItem, SpeedLimitSlotItem, UpdateState } from "../types.slint";
 import {
     IconButton,
     PrimaryButton,
@@ -28,6 +28,7 @@ export component SettingsDialog inherits Rectangle {
     in-out property <bool> reset_confirm: false;
     in-out property <SettingsFormData> settings_form;
     in-out property <[SpeedLimitSlotItem]> speed_limit_slots: [];
+    in-out property <[DiskTypeOverrideItem]> disk_type_overrides: [];
     in-out property <UpdateState> update_state;
 
     callback close();
@@ -50,6 +51,11 @@ export component SettingsDialog inherits Rectangle {
     callback schedule_add();
     callback schedule_remove(int);
     callback schedule_update(int, string, string); // index, field("start"/"end"/"limit"), value
+    // Per-directory media override editing (authoritative text state lives in Rust).
+    callback disk_override_add();
+    callback disk_override_remove(int);
+    callback disk_override_path_edited(int, string); // index, typed path
+    callback disk_override_media_selected(int, int); // index, media combo index
 
     in property <bool> is_open: false;
 
@@ -239,8 +245,13 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 5: IO 实验室 ──
                 if root.settings_tab == 5 : SettingsTabIo {
                     settings_form <=> root.settings_form;
+                    disk_type_overrides <=> root.disk_type_overrides;
                     toggle_game_mode => { root.toggle_game_mode(); }
                     toggle_overclock_mode => { root.toggle_overclock_mode(); }
+                    disk_override_add => { root.disk_override_add(); }
+                    disk_override_remove(index) => { root.disk_override_remove(index); }
+                    disk_override_path_edited(index, path) => { root.disk_override_path_edited(index, path); }
+                    disk_override_media_selected(index, media) => { root.disk_override_media_selected(index, media); }
                 }
 
                 // ── Tab 6: 日志 ──

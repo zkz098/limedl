@@ -1822,3 +1822,27 @@ msgstr "Traditional Chinese"
 
 msgid "Chinese (Traditional)"
 msgstr "Chinese (Traditional)"
+
+msgid "Directory Media Overrides"
+msgstr "Directory Media Overrides"
+
+msgid "Force the buffer mode for one directory: a NAS share, a WSL path or a virtual disk. Everything inside it follows the longest matching entry."
+msgstr "Force the buffer mode for one directory: a NAS share, a WSL path or a virtual disk. Everything inside it follows the longest matching entry."
+
+msgid "Add Directory"
+msgstr "Add Directory"
+
+msgid "Directory"
+msgstr "Directory"
+
+msgid "Absolute directory path"
+msgstr "Absolute directory path"
+
+msgid "Treat as"
+msgstr "Treat as"
+
+msgid "SSD"
+msgstr "SSD"
+
+msgid "HDD"
+msgstr "HDD"

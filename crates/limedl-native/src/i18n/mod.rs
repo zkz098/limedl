@@ -9,6 +9,7 @@ use limedl_core::types::DownloadState;
 
 mod cdn;
 mod dialogs;
+mod disk;
 mod language;
 mod rewrite;
 mod schedule;
@@ -19,6 +20,7 @@ mod validation;
 
 pub use cdn::*;
 pub use dialogs::*;
+pub use disk::*;
 pub use language::*;
 pub use rewrite::*;
 pub use schedule::*;

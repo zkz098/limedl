@@ -44,6 +44,7 @@ pub enum SettingsField {
     SpeedLimitStartHour,
     SpeedLimitEndHour,
     SpeedLimitLimit,
+    DiskOverridePath,
 }
 
 impl SettingsField {
@@ -159,6 +160,9 @@ impl SettingsField {
             (F::SpeedLimitLimit, Language::ZhCn) => "限速计划-限速值",
             (F::SpeedLimitLimit, Language::ZhTw) => "限速排程-限速值",
             (F::SpeedLimitLimit, Language::EnUs) => "Speed limit schedule rate",
+            (F::DiskOverridePath, Language::ZhCn) => "目录介质覆盖-路径",
+            (F::DiskOverridePath, Language::ZhTw) => "目錄介質覆蓋-路徑",
+            (F::DiskOverridePath, Language::EnUs) => "Media override directory",
         }
     }
 }
@@ -234,6 +238,37 @@ pub fn format_proxy_url_required(lang: Language) -> String {
         Language::ZhCn => "代理模式为 manual 时必须填写代理 URL".to_string(),
         Language::ZhTw => "代理模式為 manual 時必須填寫代理 URL".to_string(),
         Language::EnUs => "A proxy URL is required when the proxy mode is manual".to_string(),
+    }
+}
+
+/// "expected an absolute path" validation error for `field`.
+///
+/// A relative key can never match a download destination — the engine's lookup
+/// compares normalized absolute paths — and Windows detection silently answers
+/// "SSD" for one, so the editor must not persist it.
+pub fn format_validation_absolute_path(lang: Language, field: SettingsField, value: &str) -> String {
+    match lang {
+        Language::ZhCn => format!(
+            "{} 必须是绝对路径: '{value}'（例如 D:\\Downloads 或 \\\\NAS\\share）",
+            field.label(lang)
+        ),
+        Language::ZhTw => format!(
+            "{} 必須是絕對路徑: '{value}'（例如 D:\\Downloads 或 \\\\NAS\\share）",
+            field.label(lang)
+        ),
+        Language::EnUs => format!(
+            "{} must be an absolute path: '{value}' (e.g. D:\\Downloads or \\\\NAS\\share)",
+            field.label(lang)
+        ),
+    }
+}
+
+/// Two rows of a list editor point at the same path.
+pub fn format_validation_duplicate_path(lang: Language, value: &str) -> String {
+    match lang {
+        Language::ZhCn => format!("重复的路径: '{value}' — 同一目录只能配置一次"),
+        Language::ZhTw => format!("重複的路徑: '{value}' — 同一目錄只能設定一次"),
+        Language::EnUs => format!("Duplicate path: '{value}' — one entry per directory"),
     }
 }
 

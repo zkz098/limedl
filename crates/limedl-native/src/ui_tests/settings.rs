@@ -6,12 +6,20 @@
 //! schedule editor itself is fully synchronous and needs no pumping.
 
 use crate::SpeedLimitSlotItem;
+use crate::DiskTypeOverrideItem;
 use slint::Model;
 
 use super::*;
 
 fn slots(ui: &TestUi) -> Vec<SpeedLimitSlotItem> {
     let model = ui.window.get_speed_limit_slots();
+    (0..model.row_count())
+        .filter_map(|i| model.row_data(i))
+        .collect()
+}
+
+fn override_rows(ui: &TestUi) -> Vec<DiskTypeOverrideItem> {
+    let model = ui.window.get_disk_type_overrides();
     (0..model.row_count())
         .filter_map(|i| model.row_data(i))
         .collect()
@@ -96,6 +104,79 @@ fn the_schedule_rows_keep_what_was_typed_and_clamp_only_the_derived_text() {
         assert_eq!(rows[0].end_hour.as_str(), "abc");
         assert!(rows[0].wraps, "99 >= 0 after… the clamped values wrap");
         assert!(!rows[0].summary.is_empty());
+    });
+}
+
+#[test]
+fn the_media_override_editor_edits_rows_in_place_and_removes_only_the_one_asked_for() {
+    with_ui(|ui| {
+        ui.window.invoke_open_settings();
+        assert!(
+            override_rows(ui).is_empty(),
+            "nothing is pinned until the user adds a row"
+        );
+
+        ui.window.invoke_disk_override_add();
+        let rows = override_rows(ui);
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].path.is_empty());
+        assert_eq!(
+            rows[0].media_idx, 1,
+            "a new row defaults to HDD — the usual reason to add one"
+        );
+        assert!(
+            !rows[0].detected_text.is_empty(),
+            "an empty row explains what to type instead of claiming a media type"
+        );
+
+        ui.window
+            .invoke_disk_override_path_edited(0, "C:\\limedl-override".into());
+        let rows = override_rows(ui);
+        assert_eq!(rows[0].path.as_str(), "C:\\limedl-override");
+        assert!(
+            !rows[0].detected_text.is_empty(),
+            "an absolute path gets a detected-media hint"
+        );
+
+        // The picker index is the editor's combo order: 0 = SSD, 1 = HDD.
+        ui.window.invoke_disk_override_media_selected(0, 0);
+        assert_eq!(override_rows(ui)[0].media_idx, 0);
+
+        // A second row, so removal can be checked for "only this one".
+        ui.window.invoke_disk_override_add();
+        ui.window
+            .invoke_disk_override_path_edited(1, "C:\\limedl-second".into());
+        assert_eq!(override_rows(ui).len(), 2);
+
+        ui.window.invoke_disk_override_remove(0);
+        let rows = override_rows(ui);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].path.as_str(),
+            "C:\\limedl-second",
+            "the other row survives"
+        );
+        assert_eq!(rows[0].media_idx, 1, "...with its own picker position");
+
+        // Out-of-range indices are no-ops, not panics: the model and the store
+        // can briefly disagree while the list is rebuilt.
+        ui.window.invoke_disk_override_remove(9);
+        ui.window
+            .invoke_disk_override_path_edited(9, "C:\\nowhere".into());
+        ui.window.invoke_disk_override_media_selected(9, 0);
+        assert_eq!(override_rows(ui).len(), 1);
+
+        // A blank path is not usable as a key, so the hint goes back to
+        // "type an absolute path" rather than describing a media type.
+        ui.window
+            .invoke_disk_override_path_edited(0, "   ".into());
+        let rows = override_rows(ui);
+        assert_eq!(
+            rows[0].path.as_str(),
+            "   ",
+            "the editor keeps what the user typed"
+        );
+        assert!(rows[0].detected_text.contains("NAS"));
     });
 }
 

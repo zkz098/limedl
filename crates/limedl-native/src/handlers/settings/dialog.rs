@@ -15,7 +15,8 @@ use limedl_core::types::AppSettings;
 
 use crate::bridge::TaskStore;
 use crate::bridge::{
-    app_settings_to_setup_form, parse_speed_limit_slots, update_app_settings_from_form,
+    app_settings_to_setup_form, parse_disk_type_overrides, parse_speed_limit_slots,
+    update_app_settings_from_form,
 };
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
@@ -23,7 +24,7 @@ use crate::i18n::{self, Language};
 use crate::settings_sync::{PushOptions, SettingsSync};
 use crate::task_ops::open_url_in_browser;
 use crate::toast::{ToastQueue, push_toast};
-use crate::ui_sync::{read_schedule_rows, refresh_settings_state};
+use crate::ui_sync::{read_disk_override_rows, read_schedule_rows, refresh_settings_state};
 use crate::{MainWindow, POWER_GUARD, SettingsFormData};
 
 /// Validation + persistence of the settings form. Everything that has to happen
@@ -60,6 +61,19 @@ impl SaveCtx {
             }
         };
 
+        // Media override rows live in the UI model for the same reason, so a
+        // half-typed or relative path has to be caught here instead of being
+        // persisted as a key that can never match a download destination.
+        let override_rows = read_ui(&self.ui_weak, read_disk_override_rows).unwrap_or_default();
+        let parsed_overrides = match parse_disk_type_overrides(&override_rows, lang) {
+            Ok(overrides) => overrides,
+            Err(msg) => {
+                self.sync
+                    .toast(i18n::format_toast_disk_override_invalid(&msg, lang), "error", 8);
+                return None;
+            }
+        };
+
         if let Err(msg) = update_app_settings_from_form(&mut settings, form_data, lang) {
             tracing::error!("设置表单校验失败: {msg}");
             self.sync
@@ -68,6 +82,9 @@ impl SaveCtx {
         }
 
         settings.speed_limit_schedule = parsed_schedule;
+        // The engine's map is declared with foldhash's hasher, so convert here
+        // rather than naming that hasher in the UI crate.
+        settings.io_baseline.disk_type_overrides = parsed_overrides.into_iter().collect();
         Some(settings)
     }
 }

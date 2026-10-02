@@ -43,8 +43,14 @@ pub fn format_disk_types_map(disks: &HashMap<String, DiskType>, lang: Language) 
         return i18n::format_no_disk_detected(lang).to_string();
     }
 
-    let mut parts = Vec::new();
-    for (path, disk_type) in disks {
+    // `HashMap` iteration order is arbitrary, and this string is what the panel
+    // (and its tests) compare across refreshes — two scans of one machine must
+    // not reshuffle the list.
+    let mut entries: Vec<(&String, &DiskType)> = disks.iter().collect();
+    entries.sort_by_key(|(path, _)| path.as_str());
+
+    let mut parts = Vec::with_capacity(entries.len());
+    for (path, disk_type) in entries {
         let type_name = i18n::format_disk_type_name(*disk_type, lang);
         parts.push(format!("{path} ({type_name})"));
     }

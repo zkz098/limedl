@@ -174,6 +174,13 @@ pub fn format_disk_type_name(disk: limedl_core::types::DiskType, lang: Language)
         (limedl_core::types::DiskType::Hdd, Language::ZhCn) => "HDD 机械硬盘",
         (limedl_core::types::DiskType::Hdd, Language::ZhTw) => "HDD 機械硬碟",
         (limedl_core::types::DiskType::Hdd, Language::EnUs) => "HDD",
+        // Remote locations: the media is unknown, which is different from
+        // "detected as SSD". WSL paths resolve to their host volume and only
+        // land here when that resolution failed. No parentheses, because the
+        // settings panel wraps this name in its own (`Z: (…)`).
+        (limedl_core::types::DiskType::Network, Language::ZhCn) => "网络位置·介质未知",
+        (limedl_core::types::DiskType::Network, Language::ZhTw) => "網路位置·介質未知",
+        (limedl_core::types::DiskType::Network, Language::EnUs) => "Network share — media unknown",
     }
 }
 

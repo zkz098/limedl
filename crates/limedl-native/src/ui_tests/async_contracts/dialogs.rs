@@ -3,7 +3,7 @@
 //! wizard and the factory-reset gate that guards the About tab's one destructive
 //! action.
 
-use limedl_core::types::{MatchType, ReplacementMode};
+use limedl_core::types::{DiskType, MatchType, ReplacementMode};
 
 use crate::{ColorModePref, Theme, ThemeAccent};
 
@@ -53,6 +53,77 @@ pub(super) async fn an_invalid_schedule_row_is_reported() {
         ui.window.get_show_settings(),
         "the row the user has to fix must stay reachable"
     );
+}
+
+/// The override rows are the second list editor whose text lives in the UI model
+/// until Save, and a relative path is the one input the engine can never match
+/// (its lookup compares absolute paths, and Windows detection silently answers
+/// "SSD" for one).
+pub(super) async fn an_invalid_media_override_row_is_reported() {
+    let ui = new_window();
+    ui.click("MainWindow::ta_set");
+    ui.window.invoke_disk_override_add();
+    ui.window
+        .invoke_disk_override_path_edited(0, "relative/downloads".into());
+
+    ui.window
+        .invoke_save_settings(ui.window.get_settings_form());
+    ui.pump_until("the override validation to surface a toast", || {
+        !ui.toasts().is_empty()
+    })
+    .await;
+
+    assert_eq!(ui.toasts()[0].0, "error");
+    assert!(
+        ui.window.get_show_settings(),
+        "the row the user has to fix must stay reachable"
+    );
+}
+
+/// Saving persisted override rows: the editor's model is the only source of the
+/// typed paths, so a successful save is the one place where a row becomes a key
+/// the engine can look a download destination up against — and the merge has to
+/// keep the user's spelling while mapping the picker back to a media type.
+pub(super) async fn saving_media_overrides_persists_the_rows() {
+    let ui = new_window();
+    ui.click("MainWindow::ta_set");
+
+    // Row 0 keeps the editor's default (HDD — the usual reason to add a row).
+    ui.window.invoke_disk_override_add();
+    ui.window
+        .invoke_disk_override_path_edited(0, "D:\\limedl-nas".into());
+    // Row 1 is pinned to SSD, so both directions of the combo mapping are hit.
+    ui.window.invoke_disk_override_add();
+    ui.window
+        .invoke_disk_override_path_edited(1, "Z:\\limedl-vhd".into());
+    ui.window.invoke_disk_override_media_selected(1, 0);
+
+    ui.click("SettingsDialog::save_btn");
+    ui.pump_until("the save to reach the engine", || {
+        ui.core.settings_pushes() == 1
+    })
+    .await;
+
+    {
+        let settings = ui.ctx.current_settings.lock();
+        let overrides = &settings.io_baseline.disk_type_overrides;
+        assert_eq!(overrides.len(), 2, "both rows must be persisted");
+        assert_eq!(
+            overrides.get("D:\\limedl-nas"),
+            Some(&DiskType::Hdd),
+            "the default picker position forces HDD"
+        );
+        assert_eq!(overrides.get("Z:\\limedl-vhd"), Some(&DiskType::Ssd));
+    }
+
+    // Rebuilding the rows from the saved settings is what the next visit shows.
+    ui.pump_until("the dialog to close", || !ui.window.get_show_settings())
+        .await;
+    ui.click("MainWindow::ta_set");
+    let rows = ui.window.get_disk_type_overrides();
+    assert_eq!(rows.row_count(), 2);
+    assert_eq!(rows.row_data(0).expect("row 0").path.as_str(), "D:\\limedl-nas");
+    assert_eq!(rows.row_data(1).expect("row 1").media_idx, 0);
 }
 
 /// Saving the settings dialog: the edited form has to reach `AppSettings`, the
