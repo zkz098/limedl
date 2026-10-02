@@ -1,6 +1,6 @@
 //! Speed limit schedule summaries and toasts.
 
-use super::*;
+use super::Language;
 
 /// Display summary for one speed-limit schedule row.
 pub fn format_schedule_summary(

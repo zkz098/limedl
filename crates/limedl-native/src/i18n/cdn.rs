@@ -1,6 +1,6 @@
 //! CDN acceleration labels.
 
-use super::*;
+use super::Language;
 
 /// CDN status label localized.
 pub fn format_cdn_status_label(is_testing: bool, lang: Language) -> &'static str {

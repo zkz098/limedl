@@ -15,7 +15,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use futures_util::StreamExt;
 use reqwest::{Client, StatusCode, header};
 use tokio::{task::JoinSet, time::sleep};
 use tokio_util::sync::CancellationToken;

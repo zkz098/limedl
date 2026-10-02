@@ -1,6 +1,6 @@
 //! Method dispatch table for JSON-RPC requests.
 
-use super::*;
+use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
 
 pub(crate) async fn dispatch_method(
     ctx: &RpcContext,

@@ -1,6 +1,7 @@
 //! Entry point for "open with" payloads: CLI argument, `limedl://` deep link,
 //! `magnet:` link, dropped `.torrent` file or a pasted list of URLs.
 
+use std::ffi::OsStr;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -59,7 +60,7 @@ pub fn open_new_task_with_payload(
     let is_torrent_file = path.is_file()
         && path
             .extension()
-            .and_then(|ext| ext.to_str())
+            .and_then(OsStr::to_str)
             .map(|ext| ext.eq_ignore_ascii_case("torrent"))
             .unwrap_or(false);
 

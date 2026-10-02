@@ -1,6 +1,6 @@
 //! Task list and status formatting (eta, state, threads, priority, io status).
 
-use super::*;
+use super::{DownloadState, Language};
 
 /// Format ETA seconds localized.
 pub fn format_eta(eta: Option<u64>, lang: Language) -> String {

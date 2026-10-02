@@ -13,7 +13,9 @@ use std::time::Duration;
 
 use crate::toast::push_toast;
 
-use super::*;
+use slint::ComponentHandle;
+
+use super::with_ui;
 
 #[test]
 fn toasts_are_pushed_in_order_and_dismissed_individually() {

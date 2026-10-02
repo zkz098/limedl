@@ -3,6 +3,7 @@
 //! `manager.rs` so the executor, scheduler and lifecycle do not have to depend
 //! on the `DownloadManager` facade for them.
 
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -93,11 +94,11 @@ pub(crate) fn unique_destination_path(destination_dir: &Path, file_name: &str) -
 
     let stem = Path::new(file_name)
         .file_stem()
-        .and_then(|value| value.to_str())
+        .and_then(OsStr::to_str)
         .unwrap_or("download");
     let extension = Path::new(file_name)
         .extension()
-        .and_then(|value| value.to_str())
+        .and_then(OsStr::to_str)
         .map(|value| format!(".{value}"))
         .unwrap_or_default();
 

@@ -1,6 +1,10 @@
 //! Per-task and global option methods plus aria2 option parsing helpers.
 
-use super::*;
+use std::path::Path;
+
+use base64::Engine;
+
+use super::{ChecksumMode, DownloadManager, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, Value, check_token, extract_gid, get_all_summaries, has_header, make_error, resolve_gid, strip_token};
 
 pub(crate) fn extract_option_str(
     options: Option<&serde_json::Map<String, Value>>,
@@ -247,9 +251,9 @@ pub(crate) async fn handle_get_option(
         .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
 
     // Extract parent directory from destination_path
-    let dir = std::path::Path::new(&summary.destination_path)
+    let dir = Path::new(&summary.destination_path)
         .parent()
-        .and_then(|p| p.to_str())
+        .and_then(Path::to_str)
         .unwrap_or(&summary.destination_path)
         .to_string();
 

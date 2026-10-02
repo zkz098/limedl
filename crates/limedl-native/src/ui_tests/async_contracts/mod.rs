@@ -26,7 +26,7 @@
 
 use limedl_core::types::TorrentFileEntry;
 
-use super::*;
+use super::{TestUi, with_ui_async};
 
 mod bus;
 mod dialogs;

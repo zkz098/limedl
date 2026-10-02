@@ -9,7 +9,7 @@ use crate::SpeedLimitSlotItem;
 use crate::DiskTypeOverrideItem;
 use slint::Model;
 
-use super::*;
+use super::{TestUi, absolute_dir, with_ui};
 
 fn slots(ui: &TestUi) -> Vec<SpeedLimitSlotItem> {
     let model = ui.window.get_speed_limit_slots();

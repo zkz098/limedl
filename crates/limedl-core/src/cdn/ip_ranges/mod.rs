@@ -219,8 +219,8 @@ pub async fn fetch_cloudflare_ips(
     let ipv4_cidrs = api_resp.result.ipv4_cidrs.clone();
     let ipv6_cidrs = api_resp.result.ipv6_cidrs.clone();
 
-    let ipv4_cidr_strs: Vec<&str> = ipv4_cidrs.iter().map(|s| s.as_str()).collect();
-    let ipv6_cidr_strs: Vec<&str> = ipv6_cidrs.iter().map(|s| s.as_str()).collect();
+    let ipv4_cidr_strs: Vec<&str> = ipv4_cidrs.iter().map(String::as_str).collect();
+    let ipv6_cidr_strs: Vec<&str> = ipv6_cidrs.iter().map(String::as_str).collect();
 
     let ipv4_addrs = expand_ipv4_cidrs(&ipv4_cidr_strs, 3);
     let ipv6_addrs = expand_ipv6_cidrs(&ipv6_cidr_strs, 3);
@@ -263,8 +263,8 @@ impl CdnIpCache {
 
     /// Create a cache populated from static fallback CIDR ranges.
     pub fn from_fallback() -> Self {
-        let ipv4_cidrs: Vec<String> = CLOUDFLARE_IPV4_RANGES.iter().map(|s| s.to_string()).collect();
-        let ipv6_cidrs: Vec<String> = CLOUDFLARE_IPV6_RANGES.iter().map(|s| s.to_string()).collect();
+        let ipv4_cidrs: Vec<String> = CLOUDFLARE_IPV4_RANGES.iter().map(ToString::to_string).collect();
+        let ipv6_cidrs: Vec<String> = CLOUDFLARE_IPV6_RANGES.iter().map(ToString::to_string).collect();
         let ipv4_addrs = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
         let ipv6_addrs = expand_ipv6_cidrs(CLOUDFLARE_IPV6_RANGES, 3);
         Self {

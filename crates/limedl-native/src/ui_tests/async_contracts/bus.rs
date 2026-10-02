@@ -13,7 +13,9 @@
 use limedl_core::event_bus::DownloadEvent;
 use limedl_core::types::{DownloadState, DownloadSummary};
 
-use super::*;
+use slint::Model;
+
+use super::super::{Language, TestUi, http_task, http_wire, new_window};
 
 /// The row's progress bar, as the list model reports it (0.0 – 1.0).
 fn row_progress(ui: &TestUi, row: usize) -> f32 {

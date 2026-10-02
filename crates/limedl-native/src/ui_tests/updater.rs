@@ -17,7 +17,7 @@
 
 use crate::i18n::Language;
 
-use super::*;
+use super::{TestUi, with_language};
 
 /// Put the window into one update phase, exactly like the updater handlers do.
 fn set_phase(ui: &TestUi, phase: &str) {

@@ -6,7 +6,7 @@
 
 use limedl_core::types::DownloadState;
 
-use super::*;
+use super::super::{Priority, http_task, http_wire, new_window};
 
 pub(super) async fn batch_actions_reach_the_selection_only() {
     let ui = new_window();

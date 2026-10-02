@@ -15,7 +15,9 @@
 
 use limedl_core::types::{MatchType, ReplacementMode, UrlRewriteRule};
 
-use super::*;
+use slint::Model;
+
+use super::{TestUi, with_ui};
 
 fn rust_rules(ui: &TestUi) -> Vec<UrlRewriteRule> {
     ui.ctx.rewrite_rules.lock().clone()

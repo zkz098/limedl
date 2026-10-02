@@ -3,7 +3,7 @@
 
 use limedl_core::types::{DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadState};
 
-use super::*;
+use super::super::{http_task, http_wire, new_window};
 
 pub(super) async fn card_buttons_act_on_their_own_task() {
     let ui = new_window();

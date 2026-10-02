@@ -244,6 +244,7 @@ mod imp {
 
 #[cfg(target_os = "linux")]
 mod imp {
+    use std::ffi::OsStr;
     use std::fs;
     use std::path::Path;
 
@@ -264,7 +265,7 @@ mod imp {
             return DeviceId::Volume(format!("dev_{major}_{minor}"));
         };
 
-        if let Some(device_name) = link.file_name().and_then(|n| n.to_str()) {
+        if let Some(device_name) = link.file_name().and_then(OsStr::to_str) {
             // Strip partition numbers to find the base physical disk (e.g. sda1 -> sda, nvme0n1p1 -> nvme0n1)
             let base_name = strip_partition(device_name);
             DeviceId::UnixBlock(base_name.to_string())

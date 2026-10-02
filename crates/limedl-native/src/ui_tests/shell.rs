@@ -9,7 +9,9 @@ use limedl_core::types::DownloadState;
 
 use crate::{ColorModePref, Theme, ThemeAccent};
 
-use super::*;
+use slint::ComponentHandle;
+
+use super::{AppSettings, Key, TestUi, http_task, http_wire, with_settings, with_ui};
 
 #[test]
 fn settings_dialog_opens_from_the_toolbar_and_closes_from_its_header() {

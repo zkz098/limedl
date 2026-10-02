@@ -403,7 +403,7 @@ impl DownloadBuffer {
                             bg_error.store(true, Ordering::Release);
                             let msg = payload
                                 .downcast_ref::<String>()
-                                .map(|s| s.as_str())
+                                .map(String::as_str)
                                 .or_else(|| payload.downcast_ref::<&'static str>().copied())
                                 .unwrap_or("<non-string panic payload>");
                             tracing::error!("background {} flush task panicked: {msg}", cfg.label);

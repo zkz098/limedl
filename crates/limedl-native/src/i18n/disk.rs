@@ -1,6 +1,6 @@
 //! Disk media reporting and the per-directory override editor.
 
-use super::*;
+use super::{Language, format_disk_type_name};
 
 /// How one override row's path is currently auto-detected.
 ///

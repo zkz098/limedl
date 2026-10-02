@@ -713,6 +713,7 @@ mod imp {
 
 #[cfg(target_os = "linux")]
 mod imp {
+    use std::ffi::OsStr;
     use std::fs;
     use std::path::Path;
 
@@ -744,10 +745,7 @@ mod imp {
         // Use file_name() directly — handles both partition (sda1) and
         // whole-disk (sda) cases, since modern Linux creates sysfs entries
         // for partition devices under /sys/block/ as well.
-        let Some(device_name) = link
-            .file_name()
-            .and_then(|n| n.to_str())
-        else {
+        let Some(device_name) = link.file_name().and_then(OsStr::to_str) else {
             return DiskType::Ssd;
         };
 

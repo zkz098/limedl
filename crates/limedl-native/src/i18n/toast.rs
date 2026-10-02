@@ -1,6 +1,6 @@
 //! In-app toast text for every feature area.
 
-use super::*;
+use super::{Language, format_priority_label};
 
 pub fn format_toast_task_added(file_name: &str, lang: Language) -> String {
     match lang {

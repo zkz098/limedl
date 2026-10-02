@@ -1,7 +1,7 @@
 //! Chunked (parallel) download path, tail sprint and worker supervision.
 
-use super::worker::*;
-use super::*;
+use super::worker::{ChunkWorkerCtx, all_chunks_completed, claim_or_steal_chunk, current_allocation, download_chunk, shutdown_chunk_workers};
+use super::{Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError, DownloadEvent, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, cancellation_outcome, check_disk_space, now_ms, open_download_file, persist_manifest_snapshot, sleep};
 
 impl HttpExecutor {
     pub(super) async fn download_chunked(

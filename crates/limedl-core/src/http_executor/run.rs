@@ -1,6 +1,6 @@
 //! Remote probe and the top-level run loop (single-stream vs chunked).
 
-use super::*;
+use super::{ANTI_ABUSE_SNIFF_LIMIT, AimdState, Arc, CancellationToken, ChecksumMode, Client, DownloadError, DownloadManager, DownloadState, HttpExecutor, ManagedDownload, Path, PathBuf, RemoteMetadata, Result, RunOutcome, StartDownloadRequest, StatusCode, TaskKind, anti_abuse_forbidden_error, apply_extra_headers, check_disk_space, extract_total_bytes, has_header, has_partial_chunk_progress, header, header_string, infer_candidate_referers, infer_file_name, looks_like_anti_abuse_page, now_ms, plan_chunks, read_body_prefix, resolve_chunk_size, supports_parallelism, supports_ranges, validate_probe_response, validators_changed};
 
 impl HttpExecutor {
     /// Probe a remote URL to obtain file metadata (final URL, file name,

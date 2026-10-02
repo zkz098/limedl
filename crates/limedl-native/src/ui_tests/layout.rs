@@ -10,7 +10,7 @@
 //! These tests pin the geometry that the UI tests can see (`absolute_position`,
 //! `size`) instead of pixels, so they stay meaningful without a renderer.
 
-use super::*;
+use super::{DownloadState, Language, TestUi, http_task, http_wire, with_language, with_ui};
 
 /// Controls that are on screen whenever the main view is.
 const CHROME: &[&str] = &[

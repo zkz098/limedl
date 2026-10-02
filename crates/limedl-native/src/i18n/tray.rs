@@ -1,6 +1,6 @@
 //! Tray menu strings and desktop notifications.
 
-use super::*;
+use super::Language;
 
 /// Notification texts for task completion.
 pub fn format_notification_completed(file_name: &str, lang: Language) -> (String, String) {

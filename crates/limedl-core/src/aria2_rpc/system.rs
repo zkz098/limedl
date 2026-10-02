@@ -1,6 +1,8 @@
 //! Server-wide methods: shutdown, multicall, listMethods and temp-file cleanup.
 
-use super::*;
+use std::ffi::OsStr;
+
+use super::{DownloadEvent, ERR_INVALID_PARAMS, JsonRpcError, RpcContext, Value, check_token, dispatch_method, make_error, strip_token};
 
 /// Removes `.torrent` files in the aria2 temp directory that are older than 1 hour.
 /// This is a best-effort cleanup — all errors are silently ignored.
@@ -16,7 +18,7 @@ pub fn cleanup_old_aria2_temp_files() {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("torrent") {
+        if path.extension().and_then(OsStr::to_str) != Some("torrent") {
             continue;
         }
         let age = match std::fs::metadata(&path).and_then(|m| m.modified().or_else(|_| m.created()))

@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -74,7 +75,7 @@ impl SystemContext {
         device_manager.set_overrides(&initial_settings.io_baseline.disk_type_overrides);
         let io_worker = IoWorker::spawn_pool_with_device_manager(
             std::thread::available_parallelism()
-                .map(|n| n.get())
+                .map(NonZeroUsize::get)
                 .unwrap_or(4)
                 .min(4),
             Some(device_manager.clone()),

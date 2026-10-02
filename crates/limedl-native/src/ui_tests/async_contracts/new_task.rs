@@ -4,7 +4,10 @@
 
 use limedl_core::types::ChecksumMode;
 
-use super::*;
+use slint::Model;
+
+use super::{open_new_task_dialog_without_the_clipboard_race, seed_torrent_files, settle_dialog_animation};
+use super::super::{Language, TestUi, new_window};
 
 /// The submit path is where the dialog's collected state becomes a
 /// `StartDownloadRequest`. Nothing else sees it: `bridge/`'s unit tests stop at

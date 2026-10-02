@@ -1,7 +1,7 @@
 //! Finalization: checksum verification, atomic rename and completion events.
 
-use super::worker::*;
-use super::*;
+use super::worker::{finalize_was_canceled};
+use super::{Arc, CancellationToken, ChecksumMode, DownloadEvent, DownloadManager, DownloadState, HttpExecutor, ManagedDownload, PathBuf, Result, RunOutcome, calculate_checksum, finalize_temp_file, fs, io_error_with_path, now_ms};
 
 impl HttpExecutor {
     pub(super) async fn finalize_download(

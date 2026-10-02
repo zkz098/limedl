@@ -4,7 +4,7 @@
 use limedl_core::types::TorrentFileEntry;
 use slint::Model;
 
-use super::*;
+use super::{Language, TestUi, with_ui};
 
 fn torrent_rows(ui: &TestUi) -> Vec<crate::NewTaskTorrentFileItem> {
     let model = ui.window.get_new_task_torrent_files();

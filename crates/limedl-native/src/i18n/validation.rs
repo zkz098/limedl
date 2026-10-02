@@ -1,6 +1,6 @@
 //! Settings field labels and validation error messages.
 
-use super::*;
+use super::Language;
 
 /// Settings field referenced by a validation error message.
 ///

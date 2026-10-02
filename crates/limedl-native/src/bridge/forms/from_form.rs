@@ -9,7 +9,7 @@ use crate::bridge::models::COLUMN_KEYS;
 use crate::i18n::{self, Language};
 
 use super::combo;
-use super::enums::*;
+use super::enums::{str_to_background_opacity, str_to_checksum, str_to_log_level, str_to_proxy_mode};
 
 /// Update `AppSettings` from `SettingsFormData`.
 /// Returns `Err` with a human-readable message if any field contains

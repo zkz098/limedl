@@ -1,7 +1,6 @@
 ﻿use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::sync::LazyLock;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use reqwest::Client;
@@ -128,7 +127,7 @@ pub async fn is_cloudflare_domain(url: &str, cache: Option<&CdnIpCache>) -> bool
 
     // Check cache first.
     {
-        let dns_cache = DNS_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        let dns_cache = DNS_CACHE.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some((result, cached_at)) = dns_cache.get(hostname)
             && cached_at.elapsed() < DNS_CACHE_TTL
         {
@@ -176,7 +175,7 @@ pub async fn is_cloudflare_domain(url: &str, cache: Option<&CdnIpCache>) -> bool
 
     // Cache the result (both true and false from a successful DNS lookup).
     {
-        let mut dns_cache = DNS_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        let mut dns_cache = DNS_CACHE.lock().unwrap_or_else(PoisonError::into_inner);
         dns_cache.insert(hostname.to_string(), (is_cf, Instant::now()));
     }
 

@@ -7,9 +7,9 @@
 //! files are all unchecked would download nothing.
 
 use limedl_core::types::DownloadState;
-use slint::{ModelRc, VecModel};
+use slint::{Model, ModelRc, VecModel};
 
-use super::*;
+use super::{Language, TestUi, http_task, http_wire, with_ui};
 
 fn inspector_file(index: i32, path: &str, included: bool) -> crate::TorrentFileItem {
     crate::TorrentFileItem {

@@ -1,6 +1,6 @@
 //! JSON-RPC wire types, response factories and aria2 status mapping.
 
-use super::*;
+use super::{Deserialize, DownloadState, DownloadSummary, Id20, RpcContext, Serialize, TaskId, TaskKind, Uuid, Value};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct JsonRpcRequest {

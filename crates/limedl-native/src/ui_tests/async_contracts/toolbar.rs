@@ -3,7 +3,7 @@
 
 use limedl_core::types::DownloadState;
 
-use super::*;
+use super::super::{Language, http_task, http_wire, new_window};
 
 /// The two toolbar actions walk the *list state*, not the selection: Pause All
 /// only names downloading tasks, Resume All only paused ones — a selection must

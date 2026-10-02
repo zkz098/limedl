@@ -1,6 +1,8 @@
 //! Chunk claim/steal bookkeeping and the per-chunk worker task.
 
-use super::*;
+use futures_util::StreamExt;
+
+use super::{Arc, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, Duration, Instant, JoinSet, ManagedDownload, PERSIST_INTERVAL, RateLimiter, Result, StatusCode, WORK_STEAL_MIN_SPLIT_SIZE, build_segment_request, cancellation_chunk_outcome, if_range_header, is_too_many_requests_error, now_ms, persist_manifest_snapshot, record_progress_on_managed, request_with_retry, validate_segment_response, write_all_at};
 
 // ── Free helper functions ─────────────────────────────────────────────────────
 

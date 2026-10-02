@@ -1,3 +1,6 @@
+use std::ffi::OsStr;
+use std::path::Path;
+
 use limedl_core::types::{
     BtFileStatus, BtPeerInfo, BtTrackerInfo, DownloadState, DownloadSummary,
     TaskKind, TorrentFileEntry,
@@ -111,10 +114,10 @@ pub(crate) fn state_rank(task: &DownloadSummary) -> u8 {
 
 /// Classify a file into an icon category based on its extension.
 pub fn detect_file_category(filename: &str) -> &'static str {
-    let ext = std::path::Path::new(filename)
+    let ext = Path::new(filename)
         .extension()
-        .and_then(|e| e.to_str())
-        .map(|e| e.to_ascii_lowercase())
+        .and_then(OsStr::to_str)
+        .map(str::to_ascii_lowercase)
         .unwrap_or_default();
 
     match ext.as_str() {

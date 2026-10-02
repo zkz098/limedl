@@ -1,6 +1,8 @@
 //! Single-stream download path.
 
-use super::*;
+use futures_util::StreamExt;
+
+use super::{Arc, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError, DownloadEvent, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, ManagedDownload, PERSIST_INTERVAL, Path, PathBuf, Result, RunOutcome, StatusCode, apply_extra_headers, cancellation_outcome, check_disk_space, contiguous_prefix_end, fs, header, if_range_header, io_error_with_path, now_ms, open_download_file, persist_manifest_snapshot, request_with_retry, reset_download_file, write_all_at};
 
 impl HttpExecutor {
     pub(super) async fn download_single(

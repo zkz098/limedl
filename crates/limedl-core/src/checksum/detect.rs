@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::Path;
 use reqwest::header::{self, HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, Url};
@@ -176,7 +177,7 @@ pub fn generate_candidate_urls(target_url: &str) -> Vec<CandidateUrl> {
     let path_without_trailing_slash = path.trim_end_matches('/');
     let filename = Path::new(path_without_trailing_slash)
         .file_name()
-        .and_then(|n| n.to_str())
+        .and_then(OsStr::to_str)
         .unwrap_or("");
 
     if filename.is_empty() {

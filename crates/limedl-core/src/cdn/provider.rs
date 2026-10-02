@@ -57,12 +57,12 @@ pub trait CdnProvider: Send + Sync + 'static {
         let ipv4_cidrs: Vec<String> = self
             .fallback_ipv4_cidrs()
             .iter()
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .collect();
         let ipv6_cidrs: Vec<String> = self
             .fallback_ipv6_cidrs()
             .iter()
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .collect();
         let ipv4_addrs = ip_ranges::expand_ipv4_cidrs(self.fallback_ipv4_cidrs(), 3);
         let ipv6_addrs = ip_ranges::expand_ipv6_cidrs(self.fallback_ipv6_cidrs(), 3);
@@ -199,8 +199,8 @@ impl CdnProvider for CustomCdnProvider {
     }
 
     fn fallback_cache(&self) -> CdnIpCache {
-        let ipv4_strs: Vec<&str> = self.ipv4_cidrs.iter().map(|s| s.as_str()).collect();
-        let ipv6_strs: Vec<&str> = self.ipv6_cidrs.iter().map(|s| s.as_str()).collect();
+        let ipv4_strs: Vec<&str> = self.ipv4_cidrs.iter().map(String::as_str).collect();
+        let ipv6_strs: Vec<&str> = self.ipv6_cidrs.iter().map(String::as_str).collect();
         let ipv4_addrs = ip_ranges::expand_ipv4_cidrs(&ipv4_strs, 3);
         let ipv6_addrs = ip_ranges::expand_ipv6_cidrs(&ipv6_strs, 3);
         CdnIpCache {

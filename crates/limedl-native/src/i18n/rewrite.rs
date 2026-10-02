@@ -1,6 +1,6 @@
 //! URL rewrite rule names and presets.
 
-use super::*;
+use super::Language;
 
 /// Default name of a freshly added custom URL rewrite rule.
 pub fn new_rewrite_rule_name(lang: Language) -> &'static str {

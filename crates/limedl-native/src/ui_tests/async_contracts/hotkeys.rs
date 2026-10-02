@@ -3,7 +3,7 @@
 
 use limedl_core::types::DownloadState;
 
-use super::*;
+use super::super::{Key, http_task, http_wire, new_window};
 
 /// `Delete` is the *non*-destructive shortcut: the row goes, the file stays.
 ///

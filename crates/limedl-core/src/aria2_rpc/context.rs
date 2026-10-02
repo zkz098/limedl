@@ -1,6 +1,6 @@
 //! Shared RPC context: token checks, gid resolution and event broadcast.
 
-use super::*;
+use super::{Arc, BackendRegistry, Dispatcher, DownloadEvent, DownloadManager, EventBus, HashMap, JsonRpcError, Mutex, PathBuf, TaskId, Value, make_error};
 
 pub(crate) struct RpcContext {
     pub(crate) registry: Arc<BackendRegistry>,

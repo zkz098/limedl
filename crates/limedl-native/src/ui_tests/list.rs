@@ -10,7 +10,9 @@
 
 use limedl_core::types::DownloadState;
 
-use super::*;
+use slint::Model;
+
+use super::{AppSettings, TestUi, http_task, http_wire, with_settings, with_ui};
 
 #[test]
 fn the_list_area_swaps_between_the_empty_state_and_the_populated_shell() {

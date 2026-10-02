@@ -1,6 +1,6 @@
 //! New-task dialog, batch and detected-link strings.
 
-use super::*;
+use super::Language;
 
 /// Checksum probe status line for the new-task dialog.
 /// state: "probing" | "found" | "missing" | "not_http"

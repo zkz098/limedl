@@ -6,7 +6,7 @@ use crate::bridge::models::column_is_visible;
 use crate::i18n::{self, Language};
 
 use super::combo;
-use super::enums::*;
+use super::enums::{adaptive_profile_to_str, anti_leech_action_to_str, background_opacity_to_str, checksum_to_str, choking_to_str, chunk_strategy_to_str, close_behavior_to_str, color_mode_to_str, double_click_completed_to_str, double_click_uncompleted_to_str, encryption_to_str, log_level_to_str, preallocate_to_str, proxy_mode_to_str, scheduler_mode_to_str, seed_choking_to_str, theme_color_to_str};
 
 /// Convert `AppSettings` and runtime modes to `SettingsFormData`.
 pub fn app_settings_to_form(

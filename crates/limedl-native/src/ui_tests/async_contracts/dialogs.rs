@@ -7,7 +7,9 @@ use limedl_core::types::{DiskType, MatchType, ReplacementMode};
 
 use crate::{ColorModePref, Theme, ThemeAccent};
 
-use super::*;
+use slint::{ComponentHandle, Model};
+
+use super::super::{Language, TestUi, WindowEvent, absolute_dir, new_window};
 
 pub(super) async fn a_rejected_save_keeps_the_dialog_open() {
     let ui = new_window();

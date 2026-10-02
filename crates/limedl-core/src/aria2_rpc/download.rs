@@ -1,6 +1,8 @@
 //! Download lifecycle methods: addUri/addTorrent/pause/unpause/remove/purge.
 
-use super::*;
+use base64::Engine;
+
+use super::{DownloadManager, DownloadState, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, RpcContext, StartDownloadRequest, TaskId, TaskKind, Uuid, Value, broadcast_event, check_token, cleanup_old_aria2_temp_files, collect_request_headers, extract_gid, extract_option_str, extract_option_u32, extract_option_usize, get_all_summaries, internal_id_to_gid, make_error, parse_checksum_option, resolve_gid, strip_token};
 
 pub(crate) async fn handle_add_uri(
     ctx: &RpcContext,

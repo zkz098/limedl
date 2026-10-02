@@ -503,7 +503,7 @@ impl Dispatcher {
     pub async fn probe_checksum(&self, url: &str, file_name: Option<&str>) -> Result<Option<String>> {
         let client = self.http_client.clone().unwrap_or_default();
         let target_file_name = file_name
-            .map(|s| s.to_string())
+            .map(str::to_string)
             .unwrap_or_else(|| {
                 reqwest::Url::parse(url)
                     .ok()
