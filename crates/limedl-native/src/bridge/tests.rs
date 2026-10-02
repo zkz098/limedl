@@ -5,6 +5,15 @@ use limedl_core::types::*;
 use slint::{Model, SharedString};
 
 use super::*;
+
+/// An absolute directory path that is valid on this platform.
+///
+/// The override editor rejects relative keys, and `D:\downloads` is relative on
+/// Unix — a test that hardcodes one passes on Windows and fails on macOS and
+/// Linux, where the suite also runs.
+fn absolute_dir(name: &str) -> String {
+    std::env::temp_dir().join(name).to_string_lossy().to_string()
+}
 use crate::i18n::Language;
 use crate::LabsFormData;
 
@@ -342,13 +351,15 @@ use crate::LabsFormData;
 
     #[test]
     fn test_disk_type_override_parsing() {
+        let nas = absolute_dir("limedl-nas");
+        let vhd = absolute_dir("limedl-vhd");
         let rows = vec![
             DiskTypeOverrideText {
-                path: "  D:\\limedl-nas  ".into(),
+                path: format!("  {nas}  "),
                 is_hdd: true,
             },
             DiskTypeOverrideText {
-                path: "Z:\\limedl-vhd".into(),
+                path: vhd.clone(),
                 is_hdd: false,
             },
         ];
@@ -356,8 +367,8 @@ use crate::LabsFormData;
         assert_eq!(parsed.len(), 2);
         // The key is the trimmed spelling, not the normalized one: what gets
         // written back to settings.json is what the user typed (minus padding).
-        assert_eq!(parsed.get("D:\\limedl-nas"), Some(&DiskType::Hdd));
-        assert_eq!(parsed.get("Z:\\limedl-vhd"), Some(&DiskType::Ssd));
+        assert_eq!(parsed.get(&nas), Some(&DiskType::Hdd));
+        assert_eq!(parsed.get(&vhd), Some(&DiskType::Ssd));
 
         // No rows is the "no overrides" state, not an error.
         assert!(
@@ -385,11 +396,11 @@ use crate::LabsFormData;
         // The same directory twice would be two rows fighting over one lookup.
         let duplicate = vec![
             DiskTypeOverrideText {
-                path: "D:\\dl".into(),
+                path: nas.clone(),
                 is_hdd: true,
             },
             DiskTypeOverrideText {
-                path: "D:\\dl".into(),
+                path: nas.clone(),
                 is_hdd: false,
             },
         ];
@@ -417,14 +428,15 @@ use crate::LabsFormData;
 
     #[test]
     fn test_disk_type_override_rows_roundtrip_through_settings() {
+        // Alphabetical on both platforms, so the sorted order below is
+        // deterministic: "…limedl-nas" < "…limedl-vhd".
+        let nas = absolute_dir("limedl-nas");
+        let vhd = absolute_dir("limedl-vhd");
         let settings = AppSettings {
             io_baseline: limedl_core::types::IoBaselineSettings {
-                disk_type_overrides: [
-                    ("Z:\\vhd".to_string(), DiskType::Ssd),
-                    ("D:\\nas".to_string(), DiskType::Hdd),
-                ]
-                .into_iter()
-                .collect(),
+                disk_type_overrides: [(vhd.clone(), DiskType::Ssd), (nas.clone(), DiskType::Hdd)]
+                    .into_iter()
+                    .collect(),
                 ..Default::default()
             },
             ..AppSettings::default()
@@ -434,9 +446,9 @@ use crate::LabsFormData;
         assert_eq!(rows.len(), 2);
         // Sorted, so the list does not reshuffle between visits (a `HashMap`
         // iterates in an arbitrary order).
-        assert_eq!(rows[0].path, "D:\\nas");
+        assert_eq!(rows[0].path, nas);
         assert!(rows[0].is_hdd);
-        assert_eq!(rows[1].path, "Z:\\vhd");
+        assert_eq!(rows[1].path, vhd);
         assert!(!rows[1].is_hdd);
 
         // The model keeps the picker index and a detected-media hint per row.

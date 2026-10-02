@@ -89,13 +89,15 @@ pub(super) async fn saving_media_overrides_persists_the_rows() {
     ui.click("MainWindow::ta_set");
 
     // Row 0 keeps the editor's default (HDD — the usual reason to add a row).
+    let nas = absolute_dir("limedl-nas");
+    let vhd = absolute_dir("limedl-vhd");
     ui.window.invoke_disk_override_add();
     ui.window
-        .invoke_disk_override_path_edited(0, "D:\\limedl-nas".into());
+        .invoke_disk_override_path_edited(0, nas.clone().into());
     // Row 1 is pinned to SSD, so both directions of the combo mapping are hit.
     ui.window.invoke_disk_override_add();
     ui.window
-        .invoke_disk_override_path_edited(1, "Z:\\limedl-vhd".into());
+        .invoke_disk_override_path_edited(1, vhd.clone().into());
     ui.window.invoke_disk_override_media_selected(1, 0);
 
     ui.click("SettingsDialog::save_btn");
@@ -109,11 +111,11 @@ pub(super) async fn saving_media_overrides_persists_the_rows() {
         let overrides = &settings.io_baseline.disk_type_overrides;
         assert_eq!(overrides.len(), 2, "both rows must be persisted");
         assert_eq!(
-            overrides.get("D:\\limedl-nas"),
+            overrides.get(&nas),
             Some(&DiskType::Hdd),
             "the default picker position forces HDD"
         );
-        assert_eq!(overrides.get("Z:\\limedl-vhd"), Some(&DiskType::Ssd));
+        assert_eq!(overrides.get(&vhd), Some(&DiskType::Ssd));
     }
 
     // Rebuilding the rows from the saved settings is what the next visit shows.
@@ -122,7 +124,7 @@ pub(super) async fn saving_media_overrides_persists_the_rows() {
     ui.click("MainWindow::ta_set");
     let rows = ui.window.get_disk_type_overrides();
     assert_eq!(rows.row_count(), 2);
-    assert_eq!(rows.row_data(0).expect("row 0").path.as_str(), "D:\\limedl-nas");
+    assert_eq!(rows.row_data(0).expect("row 0").path.as_str(), nas.as_str());
     assert_eq!(rows.row_data(1).expect("row 1").media_idx, 0);
 }
 

@@ -124,18 +124,20 @@ fn the_media_override_editor_edits_rows_in_place_and_removes_only_the_one_asked_
             rows[0].media_idx, 1,
             "a new row defaults to HDD — the usual reason to add one"
         );
+        let guidance = rows[0].detected_text.clone();
         assert!(
-            !rows[0].detected_text.is_empty(),
+            !guidance.is_empty(),
             "an empty row explains what to type instead of claiming a media type"
         );
 
+        let first = absolute_dir("limedl-override");
         ui.window
-            .invoke_disk_override_path_edited(0, "C:\\limedl-override".into());
+            .invoke_disk_override_path_edited(0, first.clone().into());
         let rows = override_rows(ui);
-        assert_eq!(rows[0].path.as_str(), "C:\\limedl-override");
-        assert!(
-            !rows[0].detected_text.is_empty(),
-            "an absolute path gets a detected-media hint"
+        assert_eq!(rows[0].path.as_str(), first.as_str());
+        assert_ne!(
+            rows[0].detected_text, guidance,
+            "a usable path gets a detection instead of the typing guidance"
         );
 
         // The picker index is the editor's combo order: 0 = SSD, 1 = HDD.
@@ -143,9 +145,10 @@ fn the_media_override_editor_edits_rows_in_place_and_removes_only_the_one_asked_
         assert_eq!(override_rows(ui)[0].media_idx, 0);
 
         // A second row, so removal can be checked for "only this one".
+        let second = absolute_dir("limedl-second");
         ui.window.invoke_disk_override_add();
         ui.window
-            .invoke_disk_override_path_edited(1, "C:\\limedl-second".into());
+            .invoke_disk_override_path_edited(1, second.clone().into());
         assert_eq!(override_rows(ui).len(), 2);
 
         ui.window.invoke_disk_override_remove(0);
@@ -153,7 +156,7 @@ fn the_media_override_editor_edits_rows_in_place_and_removes_only_the_one_asked_
         assert_eq!(rows.len(), 1);
         assert_eq!(
             rows[0].path.as_str(),
-            "C:\\limedl-second",
+            second.as_str(),
             "the other row survives"
         );
         assert_eq!(rows[0].media_idx, 1, "...with its own picker position");

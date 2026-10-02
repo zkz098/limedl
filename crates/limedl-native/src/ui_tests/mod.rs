@@ -125,6 +125,15 @@ pub(crate) fn with_ui(body: impl FnOnce(&mut TestUi)) {
     with_settings(AppSettings::default(), body);
 }
 
+/// An absolute directory path that is valid on this platform.
+///
+/// The override editor rejects relative keys, and `D:\downloads` is relative on
+/// Unix — a test that hardcodes one passes on Windows and fails on macOS and
+/// Linux, where the suite also runs.
+pub(crate) fn absolute_dir(name: &str) -> String {
+    std::env::temp_dir().join(name).to_string_lossy().to_string()
+}
+
 /// Build a window whose startup state comes from `settings` — used to assert
 /// that persisted preferences actually reach the UI. The UI language stays at the
 /// fixture's zh-CN; see [`with_language`].
