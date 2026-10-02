@@ -21,7 +21,7 @@
 - `crates/limedl-core/src/bt_backend/alerts.rs` — irontide 告警事件桥接（唯一 Aria2 事件发射源） + `extract_info_hash`
 - `crates/limedl-core/src/bt_backend/uploads.rs` — 上传策略循环（按上传量和分享率限制）
 - `crates/limedl-core/src/bt_backend/anti_leech.rs` — 反吸血策略循环（识别并处理只下载不回报的对等端）
-- `crates/limedl-core/src/bt_backend/tests.rs`
+- `crates/limedl-core/src/bt_backend/tests/` — 按场景拆分（`queries.rs`、`alerts.rs`、`anti_leech.rs`、`uploads.rs`、`session.rs` 等），共享 fixture 在 `mod.rs`
 
 ## 数据流向
 
@@ -88,7 +88,8 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 - **Alert bridge 是 Aria2 事件的唯一发射源**。lifecycle 的 `pause()`/`resume()`/`start()` 不直接发射 Aria2 事件，确保不会产生重复通知。
 - lifecycle 的 `cancel()`/`remove()`/`purge()` 的 `Updated` 事件由 Dispatcher 层统一发射（`dispatcher.rs`）。
 - `MetadataReceived` 告警仅记录日志，前端在下一次 2 秒周期性 Progress tick 时获取元数据更新。
-- 事件发射映射表见 `alerts.rs` 中 `alert_bridge_loop` 的 doc comment。
+- 事件发射映射表见 `alerts.rs` 中 `handle_alert()` 的 doc comment：映射本体从 `alert_bridge_loop` 抽成了 `handle_alert()`（`pub(super)`），循环只剩 select + 2s tick 的 `emit_progress_for_all_torrents()`，因此可以用合成 `AlertKind` 单测每一行映射，不需要真引擎去触发每种告警。
+- `setup_alert_bridge()` 在 spawn 前就 `session.subscribe()`：广播通道对“还不存在的接收者”没有历史，若订阅在 spawned task 里做，setup 返回到任务首次 poll 之间到达的 `TorrentAdded` 会被丢掉。
 
 ### 任务标识与状态
 
@@ -157,3 +158,10 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 3. 逐个保存每个活跃 torrent 的 resume data
 4. 按比例宽限期（每 torrent 500ms，1-5s 区间），等待磁盘写入完成
 5. 调用 `session.shutdown()` 关闭 irontide session
+
+## 测试
+
+测试布局与技巧见 `.opencode/guides/testing-guide.md` 的“BT backend 测试”。这里只记与实现强相关的两点：
+
+- `handle_alert()` 与 `emit_progress_for_all_torrents()` 是为了可测性抽出的 `pub(super)` 函数；只打日志、不发布事件的告警分支也必须有一条断言（`drain_events()` 为空），防止以后误把日志改成事件。
+- 离线 session 无法制造真实 peer，因此 anti-leech 的 “ban leecher / cap upload slots” 与 upload policy 的 “pause by limit” 分支没有覆盖；改这些分支时不能指望现有测试兜底。

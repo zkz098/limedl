@@ -9,7 +9,7 @@ use std::time::Duration;
 use irontide::core::{FileTreeNode, Id20, Id32, InfoDictV2, InfoHashes};
 
 use super::IrontideBtBackend;
-use super::alerts::extract_info_hash;
+use super::alerts::{emit_progress_for_all_torrents, extract_info_hash, handle_alert};
 use super::anti_leech::peer_is_leecher;
 use super::internal_id_to_gid;
 use super::queries::sanitize_peer_client;
@@ -232,6 +232,32 @@ async fn make_network_backend() -> (tempfile::TempDir, IrontideBtBackend) {
     (tmp, backend)
 }
 
+// ── torrent fixture ────────────────────────────────────────────────────
+
+/// Raw bencode for a minimal multi-file v1 torrent: `a.txt` (10 bytes) and
+/// `b.txt` (20 bytes) behind a single 256-byte piece.
+///
+/// The 20-byte piece hash is all zeros on purpose: parsing only needs the
+/// shape. Nothing in these tests verifies payload hashes — the files are never
+/// downloaded — and this mirrors the minimal fixture irontide's own tests use.
+pub(crate) fn multi_file_torrent_bytes() -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"d4:infod5:filesl");
+    bytes.extend_from_slice(b"d6:lengthi10e4:pathl5:a.txtee");
+    bytes.extend_from_slice(b"d6:lengthi20e4:pathl5:b.txtee");
+    bytes.extend_from_slice(b"e4:name4:test12:piece lengthi256e6:pieces20:");
+    bytes.extend_from_slice(&[0u8; 20]);
+    bytes.extend_from_slice(b"ee");
+    bytes
+}
+
+/// Write [`multi_file_torrent_bytes`] into `dir` and return the file path.
+pub(crate) fn write_torrent_fixture(dir: &std::path::Path) -> PathBuf {
+    let path = dir.join("fixture.torrent");
+    std::fs::write(&path, multi_file_torrent_bytes()).expect("write torrent fixture");
+    path
+}
+
 // ── No-network tests (always run) ──────────────────────────────────────
 
 // ── Network tests (marked #[ignore], not run in CI) ────────────────────
@@ -246,7 +272,9 @@ mod backend_api;
 mod eta;
 mod id_gid;
 mod peer_flags;
+mod queries;
 mod session;
 mod settings_builder;
 mod state_mapping;
 mod torrent_meta;
+mod uploads;

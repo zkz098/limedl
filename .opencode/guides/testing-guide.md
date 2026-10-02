@@ -280,3 +280,12 @@ cargo run -p limedl-native --features slint/mcp
 - `aria2_rpc/tests.rs` — 纯函数 + `process_jsonrpc_message` 的解析错误/版本错误/未知方法/成功四条分支，以及 `resolve_gid` 的扫描→缓存→`aria2.remove` 逐出链路。
 - `aria2_rpc/e2e_tests.rs` — 真实 HTTP 服务器：handler 矩阵、multicall 响应形状、secret 全方法门控、CORS 白名单与不可解析配置的 localhost 回退、端口冲突报错；magnet 经 addUri 路由到 BT、addTorrent 非法 base64 拒绝；changeOption 的 pause/拒绝矩阵；keys 字段过滤；getUris 镜像列表；removeDownloadResult 单条删除；以及“内存淘汰后终态任务回查 DB”的 11 任务场景。
 - `aria2_rpc/tests.rs` 另有：URI 分类、`parse_select_file` 1→0 基转换、`filter_status_keys`、`BtFileStatus → aria2 files` 映射，以及“每个生命周期转换只发一次 aria2 通知”的契约测试（HTTP 真实下载驱动 pause/unpause/remove）。
+
+### BT backend 测试
+
+`bt_backend/tests/` 用 `make_backend()`（关掉 DHT/LSD/UPnP/PEX/uTP，端口 0）起真实 irontide session，按场景拆文件：
+
+- `queries.rs` — 预览/peers/trackers/pieces/file 列表、文件选择、限速、runtime status、pending summary。所有走 `block_in_place` 的用例必须用 `#[tokio::test(flavor = "multi_thread")]`（current-thread 下 `block_in_place` panic）。torrent fixture 是 `tests/mod.rs` 里手写的 bencode（`multi_file_torrent_bytes()`，piece hash 全零：解析只需要结构），用来覆盖“有 metadata”那条路；magnet 覆盖“没 metadata”那条路。
+- `alerts.rs` — `handle_alert`（从 `alert_bridge_loop` 抽出的映射本体，`pub(super)`）直接喂合成 `AlertKind`，逐条断言映射表（aria2 通知名、gid、Updated/Progress 形状）；只打日志的告警必须不发事件。`setup_alert_bridge()` 在 return 前就 `session.subscribe()`，所以“setup 后立刻 start torrent”不会丢 `TorrentAdded`——最后一个用例就靠这个顺序做端到端断言。
+- `anti_leech.rs` / `uploads.rs` — 后台循环用 `spawn_*_loop()` + “interval 第一次 tick 立即触发”跑一轮 sweep：断言 ban/slot-state 的清理、过期 ban 的 sweep、限制清零后的 unpause；需要真实上传量才能命中的 pause/ban-leecher 分支离线覆盖不到（`get_peer_info` 为空时循环提前 return）。
+- 循环类测试的同步方式：能等事件就等事件（`rx.recv()` + timeout），否则 `wait_until()` 轮询状态；不要靠 sleep 猜时长。
