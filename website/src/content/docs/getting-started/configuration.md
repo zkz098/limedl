@@ -97,8 +97,13 @@ limedl 内置了与标准 Aria2 完全兼容的 JSON-RPC 2.0 服务端，默认�
   Windows 下 limedl 会自动通过底层 Win32 API（`IOCTL_STORAGE_QUERY_PROPERTY` 查询寻道延迟特征）识别目标驱动器是固态硬盘（SSD）还是机械硬盘（HDD），并自动启用对应的优化模式：
   - **SSD 模式**：启用写入合并（Write Combining），批量落盘；
   - **HDD 模式**：启用双缓冲池（Double Buffering），单线程顺序落盘。
+- **网络位置与 WSL**：
+  UNC 网络共享、映射网络盘以及 Linux/macOS 上的网络挂载会被识别为**网络位置（介质未知）**，按 SSD 方式调度并在设置面板中列出——本地寻道探测对它们本来就没有意义。
+  `\\wsl$\<发行版>` 不是网络存储：它背后的 9p/virtiofs 服务的是宿主卷上的 `ext4.vhdx`，limedl 会从注册表 `HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss` 解析出该虚拟盘路径，按宿主卷的真实介质（HDD/SSD）调度。
 - **目录介质手动覆盖 (`disk_type_overrides`)**：
-  若由于使用虚拟磁盘、网络驱动器或 Linux/macOS 环境未能识别准确介质类型，可在设置中显式指定某路径强制按 SSD 或 HDD 模式调度。
+  在 **设置 → IO 实验室 → 目录介质覆盖** 中添加目录并指定 SSD/HDD。
+  匹配是**规范化路径的前缀匹配**（Windows 下不区分大小写、忽略尾部分隔符），因此 `D:\Downloads` 同时覆盖其下所有子目录；嵌套条目最长者胜出。每一行都会显示该路径当前被探测到的介质，方便判断是否真的需要覆盖。
+  保存后立即生效：不仅缓冲模式改变，该设备 I/O 队列的写线程数也会立即按新介质重建（HDD 单线程串行、SSD/网络 4 通道），无需重启。
 
 ---
 

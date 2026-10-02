@@ -14,20 +14,37 @@ HDD 使用全局共享双缓冲池减少磁盘寻道，SSD 使用本地写合并
 
 跨平台文件系统操作基础设施：open_download_file（创建+预分配）、write_all_at（分块写入）、finalize_temp_file（原子最终化，跨设备回退）、check_disk_space（空间验证）、resolve_disk_type（磁盘类型检测）。
 
-核心类型：DiskType 枚举（Ssd / Hdd，定义在 types.rs）。非 Windows 默认 Ssd。
+核心类型：DiskType 枚举（Ssd / Hdd / Network，定义在 types.rs）、MediaOverrides（`disk_type_overrides` 的规范化快照，在 file_ops/media.rs）。非 Windows 默认 Ssd。
+
+### 介质判定（disk_detect.rs + media.rs）
+
+- **本地卷**：Windows 走 `IOCTL_STORAGE_QUERY_PROPERTY` + `STORAGE_DEVICE_SEEK_PENALTY_PROPERTY`；Linux 走 `/sys/block/<dev>/queue/rotational`；macOS 走 IOKit `IOMedia` 的 `Rotational`。
+- **`DiskType::Network`**：UNC/映射网络盘（Windows）、网络或宿主转发文件系统（Linux/macOS 查 fstype）。本地探测对它们无意义，之前会静默报成 SSD。
+- **WSL（`\\wsl$\<distro>` / `\\wsl.localhost\<distro>`）不是网络存储**：它背后的 9p/virtiofs 服务的是本地 `ext4.vhdx`，所以查 `HKCU\...\Lxss` 的 `BasePath` 并对 `<BasePath>\ext4.vhdx`（不存在时退回 `BasePath` 本身）做普通本地探测，得到宿主卷的真实介质。
 
 ## 涉及文件
 
 - `crates/limedl-core/src/buffer_pool.rs` — BufferPool + IoWorker + DownloadBuffer + SlotGuard
 - `crates/limedl-core/src/file_ops/mod.rs` — 文件操作 + 磁盘检测完整实现
+- `crates/limedl-core/src/file_ops/disk_detect.rs` — 三个平台的介质探测（含 WSL 注册表解析）
+- `crates/limedl-core/src/file_ops/media.rs` — `disk_type_overrides` 路径匹配 + 网络文件系统分类
 
 ## 数据流向
 
 ```
 下载开始 → resolve_disk_type(destination_dir)
-  ├─ 检查 disk_type_overrides（settings）
-  └─ detect_disk_type(dir) → DiskType::Ssd / Hdd (Win32 IOCTL_STORAGE_QUERY_PROPERTY)
+  ├─ 检查 disk_type_overrides（settings；路径前缀匹配，最长键优先）
+  └─ detect_disk_type(dir)
+       ├─ WSL 传输 → 解析发行版 VHDX → 宿主卷介质
+       ├─ UNC / 映射网络盘 / 网络挂载 → DiskType::Network
+       └─ 本地卷 → DiskType::Ssd / Hdd
        ↓ 决定 BufferPool 模式
+
+设置保存 → DownloadManager::apply_settings
+  ├─ BufferPool::update_limits()
+  └─ DiskIoService::apply_overrides() → DiskDeviceManager::set_overrides()
+       ├─ 覆盖集变化时清空 resolution cache（否则旧路径永远拿旧答案）
+       └─ 并清空 device queue（写线程数在构造时固定，只能重建）
 
 下载文件创建 → open_download_file(path, total_size)
   ├─ 创建父目录 → 打开文件
@@ -63,5 +80,20 @@ Worker 下载数据块 → buffer_chunk(offset, data)
 - `write_all_at` 为 `pub(super)` 可见——仅 buffer_pool 和 manager 使用。
 - 同名文件冲突：内容相同接受（幂等重试），不同报 AlreadyExists。
 - 跨设备复制使用 256KB 栈分配缓冲区（vs stdlib 默认 8KB）。
-- 磁盘检测失败静默回退 DiskType::Ssd。
+- 磁盘检测失败静默回退 `DiskType::Ssd`（未知 ≠ 远程，见下）。
 - Windows 磁盘检测通过 `CreateFileW(\\.\C:)` + `DeviceIoControl(IOCTL_STORAGE_QUERY_PROPERTY)` + `STORAGE_DEVICE_SEEK_PENALTY_PROPERTY`。
+
+### 介质覆盖与远程判定
+
+- `disk_type_overrides` 的键是用户填的**目录**，查询值是下载目标（通常是其子孙），所以查找是
+  **规范化路径的组件边界前缀匹配**，不是 `HashMap::get`：`D:\downloads` 命中 `D:\downloads\a.bin`，
+  但不命中 `D:\downloads-old`；嵌套规则最长键优先。规范化规则（大小写、分隔符、尾部分隔符、
+  `\\?\` 前缀）在 `media.rs::normalize_media_path`，是键与查询共用的唯一实现。
+- 覆盖只在**两处**生效，缺一不可：`DiskIoService::resolve_disk_type`（决定缓冲模式，每次下载开始读）
+  与 `DeviceTopology::resolve_device`（决定 `DeviceQueue` 的写线程数，每设备构造一次）。
+- `DeviceQueue` 的通道数在构造时确定（HDD 1 条串行、SSD/Network 4 条并行），所以覆盖集变化时
+  `DiskDeviceManager::set_overrides` 会丢弃整个 queue 表：在途写请求持有旧 `Arc` 并正常完成，
+  下一次查找按新策略建队列。**不这样做就等于要重启才能生效**（历史 bug）。
+- `DiskType::Network` 按 SSD 方式调度（写合并 + 多通道）：瓶颈在传输而非寻道，远端本来就会重排写入。
+  它存在的意义是**可见**（设置面板会列出网络盘与 WSL 发行版），以及让「被误判成 SSD」这件事
+  可以被 `disk_type_overrides` 修掉 —— 这才是这条路径真正的用途。

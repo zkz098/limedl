@@ -17,7 +17,7 @@ Tauri/Vue desktop shell was retired).
 | `src/ui_tests/`          | 进程内 UI 测试（L1）：`mod.rs` fixture（建窗口/找元素/点击/按键/断言助手/录制式 backend），`shell.rs`、`list.rs`、`labs.rs`、`settings.rs`、`new_task.rs`、`inspector.rs`、`toast.rs`、`layout.rs`，以及需要事件循环的 `async_contracts.rs`（详见 `.opencode/guides/testing-guide.md`） |
 | `src/platform_adapter.rs`| 平台集成：跨平台单实例激活监听 + Windows 专属拖拽/WM_COPYDATA 窗口子类化与重试挂载                                                                      |
 | `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`（`forms/` 按设置分区拆分：`combo`/`enums`/`to_form`/`from_form`/`speed_limit`）、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
-| `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs`；每个 `register()` 只做绑定编排，回调体（超过 ~25 行的一律）提取为同模块的命名 `fn`（如 `submit_single`、`finish_setup`、`factory_reset`） |
+| `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/目录介质覆盖/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs`；每个 `register()` 只做绑定编排，回调体（超过 ~25 行的一律）提取为同模块的命名 `fn`（如 `submit_single`、`finish_setup`、`factory_reset`） |
 | `src/event_stream/`      | 后台监听：`bus.rs`（`DownloadEvent` 每个变体一个函数）、`pollers.rs`（剪贴板 + BT 状态 + Inspector 轮询）、`tray.rs`（托盘菜单/左键激活）                                                      |
 | `src/settings_sync.rs`   | 保存设置后的共享副作用：OS 自启同步、Aria2 RPC 热重载、把设置推入 UI（设置对话框与首启向导共用）                                                                                     |
 | `src/i18n/`             | 语言枚举（`language.rs`）与 `format_*` 本地化辅助，按域拆分：`task.rs`（列表/状态）、`dialogs.rs`（新建任务/批量）、`tray.rs`（托盘/通知）、`toast.rs`（全部 toast）、`validation.rs`（设置校验）、`cdn.rs`、`rewrite.rs`、`schedule.rs`；全部在 `mod.rs` 重新导出，调用点仍是 `i18n::format_*` |
@@ -30,7 +30,7 @@ Tauri/Vue desktop shell was retired).
 | `src/power.rs`           | 下载中抑制系统休眠                                                                                                                                     |
 | `ui/appwindow.slint`     | 主窗口：侧边栏、工具栏、卡片/表格、所有弹层                                                                                                            |
 | `ui/components/settings_dialog.slint` | 设置中心外壳：属性/回调、页签栏、页脚与各页签的装配（`settings/tab_*.slint`）                                                              |
-| `ui/components/settings/` | 设置页签组件：`tab_{appearance,download,proxy,schedule,bt,io,log,aria2,about}.slint` + `shared.slint`（FormTip / ColumnCheck）              |
+| `ui/components/settings/` | 设置页签组件：`tab_{appearance,download,proxy,schedule,bt,io,log,aria2,about}.slint` + `shared.slint`（FormTip / ColumnCheck）。`tab_io` 的目录介质覆盖编辑器与 `tab_schedule` 的限速计划同构：行存在 UI model 里，Save 时由 `bridge/forms/{disk_override,speed_limit}.rs` 解析              |
 | `ui/components/*.slint`  | 各对话框与复用组件（labs/inspector/new_task/priority_menu…）                                                                                  |
 | `ui/theme.slint`         | 由 `scripts/generate-theme-slint.ps1` 从主题映射表生成的配色 token                                                                                     |
 
@@ -46,7 +46,7 @@ UI 事件（callback）
 ```
 
 - 列表状态由 `bridge::TaskStore` 持有；`refresh_ui()` 把计数/排序/筛选后的行推给 `MainWindow.tasks`。
-- 设置对话框的权威数据是 `SettingsFormData`；**列表类编辑器**（Labs 重写规则、限速计划）把上行文本保存在 UI model 中，保存时再由 Rust 解析（`parse_speed_limit_slots`、`slint_to_url_rewrite_rules`）。
+- 设置对话框的权威数据是 `SettingsFormData`；**列表类编辑器**（Labs 重写规则、限速计划、IO 页签的目录介质覆盖）把上行文本保存在 UI model 中，保存时再由 Rust 解析（`parse_speed_limit_slots`、`slint_to_url_rewrite_rules`、`parse_disk_type_overrides`）。行内编辑通过 `set_row_data` 就地更新，不重建整个模型，否则正在输入的输入框会丢光标。
 
 ## 关键约定
 

@@ -93,8 +93,13 @@ limedl embeds a compliant Aria2 JSON-RPC 2.0 server running by default on startu
   On Windows, limedl queries `DeviceIoControl` with `IOCTL_STORAGE_QUERY_PROPERTY` to check seek penalties, identifying whether a target directory is on an SSD or an HDD:
   - **SSD Mode**: Enables Write Combining, bundling small chunk writes into aligned bulk writes.
   - **HDD Mode**: Enables the Double-Buffering Pool, using a dedicated background thread to flush sequentially.
+- **Network Locations and WSL**:
+  UNC shares, mapped network drives and network mounts on Linux/macOS are reported as **Network share — media unknown**: scheduled like an SSD and listed in the settings panel instead of being silently claimed as an SSD (the local seek-penalty probe says nothing about them).
+  `\\wsl$\<distro>` is *not* network storage: the 9p/virtiofs server behind it serves a local `ext4.vhdx`, so limedl resolves the distro's virtual disk through the registry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss`) and schedules by the media of the host volume that actually stores it.
 - **Manual Overrides (`disk_type_overrides`)**:
-  Override auto-detection for mapped network drives, virtual disks, or non-Windows hosts.
+  Add a directory under **Settings → IO Lab → Directory Media Overrides** and pin it to SSD or HDD.
+  Matching is a **normalized path-prefix match** (case-insensitive and trailing-separator-insensitive on Windows), so `D:\Downloads` also covers everything inside it; the longest matching entry wins. Each row shows the media auto-detection currently reports for that path, so you can see whether the override is still needed.
+  Changes take effect on save: not only the buffering mode but also the device I/O queue's writer-thread count is rebuilt for the new media (one serialized thread for HDD, four parallel channels for SSD/network) — no restart required.
 
 ---
 

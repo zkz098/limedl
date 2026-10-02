@@ -41,10 +41,14 @@ limedl 引入了**介质感知自适应缓冲池（Buffer Pool）**，根据存�
   引擎通过调用底层 Win32 API 句柄（`CreateFileW` 打开驱动器盘符），并发送设备控制码 `IOCTL_STORAGE_QUERY_PROPERTY` 查询存储属性 `STORAGE_DEVICE_SEEK_PENALTY_PROPERTY`：
   - 若系统返回设备存在寻道惩罚（Seek Penalty），判定为机械硬盘（HDD）；
   - 若不存在寻道惩罚，判定为固态硬盘（SSD）。
+- **网络位置（`DiskType::Network`）**：
+  UNC 共享、映射网络盘（`DRIVE_REMOTE`）、以及 Linux/macOS 上的网络或宿主转发文件系统（如 NFS/CIFS/9p/virtiofs）没有任何本地块设备可供探测——以前它们会被静默当成 SSD。现在它们被单独标记为**网络位置（介质未知）**，按 SSD 方式调度（瓶颈在传输而非寻道，远端本来就会重排写入），并在 **设置 → IO 实验室** 的磁盘类型列表中列出——这正是最需要手动覆盖的那类位置。
+- **WSL 发行版（`\\wsl$\<distro>` / `\\wsl.localhost\<distro>`）**：
+  它不是网络存储。该 UNC 传输背后的 9p/virtiofs 服务的是**本地**虚拟磁盘 `ext4.vhdx`，因此 limedl 会从 `HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss` 中按发行版名找到 `BasePath`，对 `<BasePath>\ext4.vhdx`（`wsl --import --vhd` 布局或 WSL1 发行版没有该文件时，退回 `BasePath` 本身）执行普通本地探测，从而得到**宿主卷的真实介质**。映射成盘符的 WSL 共享（`net use Z: \\wsl$\Ubuntu`）也会先解析回 UNC 目标再走同一路径；发行版解析失败时才回退为网络位置。
 - **macOS / Linux 平台**：
-  默认启用高性能 SSD 模式，若挂载了外部机械阵列，用户可在配置中针对特定文件夹手动覆盖介质类型。
+  本地盘通过 `/sys/block/<dev>/queue/rotational`（Linux）或 IOKit `IOMedia` 的 `Rotational`（macOS）探测；网络挂载按 fstype 归类为网络位置，其余默认 SSD 模式。
 - **自定义介质覆盖 (`disk_type_overrides`)**：
-  高级用户可在 **设置 -> 存储与缓冲池** 中显式指定某目录（如 NAS 挂载的 SMB 卷）强制按 HDD 模式调度。
+  在 **设置 → IO 实验室 → 目录介质覆盖** 中显式指定某目录（如 NAS 挂载的 SMB 卷、WSL 路径、虚拟磁盘）强制按 SSD 或 HDD 调度。键是目录，匹配为规范化路径的**组件边界前缀匹配**（最长键优先）：`D:\Downloads` 覆盖其下所有内容，但不会误命中 `D:\Downloads-old`；Windows 下大小写与尾部分隔符不影响匹配。每行都会显示当前自动探测到的介质。
 
 ![磁盘缓冲池设置界面](../../../assets/settings-buffer-pool.png)
 

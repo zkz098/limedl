@@ -9,7 +9,7 @@
 - `SettingsService`：提供 `get()`、`get_blocking()`、`update(&AppSettings)`、`factory_reset()`、`default_download_dir()`。
 - `AppSettings`（根结构体，含 appearance / proxy / scheduler / download / bt / logging / aria2_rpc / cdn_acceleration / github_mirror / url_rewrite / global_speed_limit_bps / notifications / io_baseline / autostart / setup_completed 等字段）。各子设置结构体定义在 `types.rs`。
 
-关键枚举：ThreadMode（Fixed / Adaptive）、AdaptiveProfile（Conservative / Balanced / Aggressive）、ChecksumMode（None / Blake3 / Sha256 / Xxh3128）、SchedulerMode（Traditional / Automatic）、ProxyMode（Disabled / System / Manual）、DiskType（Ssd / Hdd）、ColorMode（Light / Dark / System）。
+关键枚举：ThreadMode（Fixed / Adaptive）、AdaptiveProfile（Conservative / Balanced / Aggressive）、ChecksumMode（None / Blake3 / Sha256 / Xxh3128）、SchedulerMode（Traditional / Automatic）、ProxyMode（Disabled / System / Manual）、DiskType（Ssd / Hdd / Network）、ColorMode（Light / Dark / System）。
 
 ## 涉及文件
 
@@ -49,5 +49,6 @@
 - `normalize_settings` 是关键验证点，所有从外部进入的设置必须经过此函数。
 - load_settings 有一条 legacy proxy 回退分支：当 JSON 仅含 ProxySettings 旧格式字段时，自动构造完整 AppSettings 并注入 proxy 设置。
 - HTTP 客户端在设置变更时需要重建（代理、UA 变更由 HttpClientFactory 负责）。
-- disk_type_overrides 允许用户强制指定某个目录的磁盘类型，覆盖自动检测结果。
+- disk_type_overrides 允许用户强制指定某个目录的磁盘类型，覆盖自动检测结果。键是目录，查找是规范化路径的**前缀**匹配（最长键优先），所以 `D:\dl` 也会命中 `D:\dl\sub\a.bin`；匹配规则与分类器在 `file_ops/media.rs`（`normalize_media_path` / `MediaOverrides` / `is_network_filesystem`）。
+- 编辑器在 **设置 → IO 实验室 → 目录介质覆盖**（`tab_io.slint`，行状态与限速计划同构：保存在 UI model，Save 时由 `parse_disk_type_overrides` 解析），校验拒绝空、非绝对与重复路径；保存后 `DownloadManager::apply_settings` 把覆盖推给 `DiskDeviceManager`，所以设备队列的写线程数也会跟着变。
 - 序列化约定：所有 struct 用 `#[serde(rename_all = "camelCase")]`，枚举用 `#[serde(rename_all = "snake_case")]`。

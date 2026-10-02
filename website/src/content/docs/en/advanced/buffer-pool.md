@@ -43,10 +43,14 @@ Before creating files on disk, limedl queries the physical storage subsystem:
   The engine opens a volume handle via `CreateFileW` and issues a `DeviceIoControl` call with `IOCTL_STORAGE_QUERY_PROPERTY` to check `STORAGE_DEVICE_SEEK_PENALTY_PROPERTY`:
   - If a seek penalty is reported, the drive is treated as a mechanical **HDD**.
   - If no seek penalty is reported, the drive is treated as an **SSD**.
+- **Network Locations (`DiskType::Network`)**:
+  UNC shares, mapped network drives (`DRIVE_REMOTE`) and network or host-brokered filesystems on Linux/macOS (NFS, CIFS, 9p, virtiofs, …) have no local block device to probe — they used to be silently reported as SSDs. They are now marked as **network share, media unknown**, scheduled like an SSD (the transport, not the platter, is the bottleneck — the far side reorders writes anyway) and listed in **Settings → IO Lab**, which is exactly the set of locations that need a manual override.
+- **WSL distributions (`\\wsl$\<distro>` / `\\wsl.localhost\<distro>`)**:
+  Not network storage. The 9p/virtiofs server behind that UNC transport serves a **local** `ext4.vhdx`, so limedl looks the distro up by name under `HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss`, takes its `BasePath`, and runs the ordinary local probe on `<BasePath>\ext4.vhdx` (falling back to `BasePath` itself for `wsl --import --vhd` layouts and WSL1 distros). The answer is therefore the **real media of the host volume**. A drive mapped to `\\wsl$\Ubuntu` is resolved back to that UNC target first; only a distro that cannot be resolved falls back to "network".
 - **macOS / Linux**:
-  Defaults to SSD mode. If working with external mechanical disk arrays or NAS shares, users can configure manual overrides per directory.
+  Local disks are probed through `/sys/block/<dev>/queue/rotational` (Linux) or the IOKit `IOMedia` `Rotational` property (macOS); network mounts are classified by filesystem type, and everything else keeps SSD mode.
 - **Manual Overrides (`disk_type_overrides`)**:
-  Under **Settings -> Storage & Buffer Pool**, users can explicitly map directories (such as SMB or NFS network shares) to HDD mode.
+  Under **Settings → IO Lab → Directory Media Overrides**, users can pin a directory (an SMB share, a WSL path, a virtual disk) to SSD or HDD mode. Keys are directories and matching is a **component-boundary prefix match** over normalized paths (longest key wins): `D:\Downloads` covers everything inside it without catching `D:\Downloads-old`, and on Windows case and trailing separators do not affect the match. Every row shows the media auto-detection currently reports for that path.
 
 ![Buffer Pool Settings Screenshot](../../../../assets/settings-buffer-pool.png)
 
