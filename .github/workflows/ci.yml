@@ -287,8 +287,18 @@ jobs:
     needs: font
     env:
       CARGO_BUILD_WARNINGS: deny
+      # Guard for the two SonarQube steps below: GitHub withholds secrets from
+      # Dependabot and fork pull requests, so the scan is skipped there instead
+      # of failing the leg. Kept as a separate flag so the token itself stays
+      # scoped to the steps that use it rather than the whole job.
+      SONAR_ENABLED: ${{ secrets.SONAR_TOKEN != '' }}
     steps:
+      # Full history: the scanner attributes new lines to commits through SCM
+      # blame, and a shallow clone degrades the relevance of `new code`. The
+      # repository is 13 MB, so the deeper clone costs nothing measurable.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
@@ -314,6 +324,31 @@ jobs:
         with:
           mode: verify
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      # ── SonarQube Cloud ────────────────────────────────────────────────
+      # Rust is not available in Automatic Analysis, so the analysis runs from
+      # here (configuration: sonar-project.properties). It sits directly after
+      # the lint step on purpose: the Rust analyzer spawns `cargo clippy` itself,
+      # so it reuses the artifacts that step has just built and runs against a
+      # tree that already passed `- D warnings`. Placed after the llvm-cov step
+      # below it would flip RUSTFLAGS back and rebuild the whole Skia-linked
+      # workspace a second time.
+      - name: Cache SonarQube packages
+        if: env.SONAR_ENABLED == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      # `build.warnings = deny` stays job-wide (it is what makes the lint step
+      # fatal). The analyzer treats a clippy failure as a warning and would then
+      # publish metrics without clippy issues, so it is relaxed for this step
+      # only: anything that matters already failed the step above.
+      - name: SonarCloud scan
+        if: env.SONAR_ENABLED == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          CARGO_BUILD_WARNINGS: warn
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
       # limedl-native runs here as well: its suite is platform-agnostic logic
       # plus the in-process UI tests (Slint's testing backend needs no display),
       # and this is the only leg that *executes* the `cfg(target_os = "linux")`
