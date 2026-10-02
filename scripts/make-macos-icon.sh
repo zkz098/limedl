@@ -12,7 +12,7 @@
 # Usage: make-macos-icon.sh <source.png> <out.icns>
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
+if [[ "$#" -ne 2 ]]; then
   echo "usage: $0 <source.png> <out.icns>" >&2
   exit 2
 fi
@@ -20,7 +20,7 @@ fi
 SRC="$1"
 OUT="$2"
 
-if [ ! -f "$SRC" ]; then
+if [[ ! -f "$SRC" ]]; then
   echo "error: source image not found: $SRC" >&2
   exit 1
 fi

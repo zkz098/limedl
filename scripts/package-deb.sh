@@ -18,7 +18,7 @@ OUT_DIR="dist"
 ARCH_LABEL=""
 ICON=""
 
-while [ "$#" -gt 0 ]; do
+while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --version)  VERSION="$2";    shift 2 ;;
     --binary)   BINARY="$2";     shift 2 ;;
@@ -34,11 +34,11 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$VERSION" ] || [ -z "$BINARY" ]; then
+if [[ -z "$VERSION" || -z "$BINARY" ]]; then
   echo "error: --version and --binary are required" >&2
   exit 2
 fi
-if [ ! -f "$BINARY" ]; then
+if [[ ! -f "$BINARY" ]]; then
   echo "error: built binary not found: $BINARY" >&2
   exit 1
 fi
@@ -46,11 +46,11 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-if [ -z "$ICON" ]; then
+if [[ -z "$ICON" ]]; then
   ICON="$REPO_ROOT/crates/limedl-native/ui/assets/icon.png"
 fi
 
-if [ -z "$ARCH_LABEL" ]; then
+if [[ -z "$ARCH_LABEL" ]]; then
   case "$(uname -m)" in
     x86_64 | amd64) ARCH_LABEL="x86_64" ;;
     aarch64 | arm64) ARCH_LABEL="aarch64" ;;
@@ -77,7 +77,7 @@ ln -sf "limedl-native" "$STAGE/usr/bin/limedl"
 
 # ── 2. Desktop Entry ─────────────────────────────────────────────────────────
 DESKTOP_SRC="$REPO_ROOT/packaging/linux/limedl-native.desktop"
-if [ ! -f "$DESKTOP_SRC" ]; then
+if [[ ! -f "$DESKTOP_SRC" ]]; then
   echo "error: desktop file template not found: $DESKTOP_SRC" >&2
   exit 1
 fi
@@ -92,7 +92,7 @@ mkdir -p "$STAGE/usr/share/icons/hicolor/512x512/apps"
 install -m 0644 "$ICON" "$STAGE/usr/share/icons/hicolor/512x512/apps/limedl-native.png"
 
 ICON_32="$REPO_ROOT/crates/limedl-native/ui/assets/32x32.png"
-if [ -f "$ICON_32" ]; then
+if [[ -f "$ICON_32" ]]; then
   mkdir -p "$STAGE/usr/share/icons/hicolor/32x32/apps"
   install -m 0644 "$ICON_32" "$STAGE/usr/share/icons/hicolor/32x32/apps/limedl-native.png"
 fi

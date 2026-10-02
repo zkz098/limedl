@@ -20,7 +20,7 @@ BINARY=""
 OUT_DIR="dist"
 ARCH_LABEL=""
 
-while [ "$#" -gt 0 ]; do
+while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --version)  VERSION="$2";    shift 2 ;;
     --binary)   BINARY="$2";     shift 2 ;;
@@ -35,16 +35,16 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$VERSION" ] || [ -z "$BINARY" ]; then
+if [[ -z "$VERSION" || -z "$BINARY" ]]; then
   echo "error: --version and --binary are required" >&2
   exit 2
 fi
-if [ ! -f "$BINARY" ]; then
+if [[ ! -f "$BINARY" ]]; then
   echo "error: built binary not found: $BINARY" >&2
   exit 1
 fi
 
-if [ -z "$ARCH_LABEL" ]; then
+if [[ -z "$ARCH_LABEL" ]]; then
   case "$(uname -m)" in
     x86_64 | amd64) ARCH_LABEL="x86_64" ;;
     aarch64 | arm64) ARCH_LABEL="aarch64" ;;

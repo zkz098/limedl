@@ -31,7 +31,7 @@ OUT_DIR="dist"
 ICON=""
 ARCH_LABEL=""
 
-while [ "$#" -gt 0 ]; do
+while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --version)  VERSION="$2";    shift 2 ;;
     --binary)   BINARY="$2";     shift 2 ;;
@@ -47,11 +47,11 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$VERSION" ] || [ -z "$BINARY" ]; then
+if [[ -z "$VERSION" || -z "$BINARY" ]]; then
   echo "error: --version and --binary are required" >&2
   exit 2
 fi
-if [ ! -f "$BINARY" ]; then
+if [[ ! -f "$BINARY" ]]; then
   echo "error: built binary not found: $BINARY" >&2
   exit 1
 fi
@@ -59,12 +59,12 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE="$REPO_ROOT/packaging/macos/Info.plist.in"
-if [ ! -f "$TEMPLATE" ]; then
+if [[ ! -f "$TEMPLATE" ]]; then
   echo "error: Info.plist template not found: $TEMPLATE" >&2
   exit 1
 fi
 
-if [ -z "$ARCH_LABEL" ]; then
+if [[ -z "$ARCH_LABEL" ]]; then
   # `cputype` is the macOS equivalent of `file -b` and reports arm64/x86_64 for
   # a Mach-O; `uname -m` does the same for native builds.
   ARCH_LABEL="$(uname -m)"
@@ -89,7 +89,7 @@ plutil -lint "$BUNDLE/Contents/Info.plist"
 
 # ── Icon ────────────────────────────────────────────────────────────────────
 # Optional: without --icon the bundle keeps the generic app icon.
-if [ -n "$ICON" ]; then
+if [[ -n "$ICON" ]]; then
   bash "$SCRIPT_DIR/make-macos-icon.sh" "$ICON" "$BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
