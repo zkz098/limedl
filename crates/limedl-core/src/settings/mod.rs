@@ -361,6 +361,27 @@ fn normalize_url_rewrite_settings(settings: UrlRewriteSettings) -> UrlRewriteSet
     }
 }
 
+/// Rewrite a `download.defaultChecksum` that names a mode the enum no longer
+/// has (`sha1`, `xxh3_128`) to the default.
+///
+/// Serde would otherwise reject the whole document — and every setting in it —
+/// over one unknown enum value. Kept out of [`load_settings`] so that function
+/// stays under the analyzer's cognitive-complexity threshold (rust:S3776).
+fn migrate_legacy_checksum_setting(value: &mut serde_json::Value) {
+    let Some(checksum) = value
+        .get_mut("download")
+        .and_then(|download| download.get_mut("defaultChecksum"))
+    else {
+        return;
+    };
+    let supported = checksum
+        .as_str()
+        .is_some_and(|s| matches!(s, "none" | "blake3" | "sha256" | "sha512"));
+    if !supported {
+        *checksum = serde_json::Value::String(String::from("blake3"));
+    }
+}
+
 pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     let content = match fs::read_to_string(settings_path) {
         Ok(content) => content,
@@ -435,21 +456,7 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
             }
         }
 
-        // Older builds could persist a checksum mode that no longer exists
-        // (`sha1`, `xxh3_128`). Rewriting the single unknown value keeps the
-        // rest of the document loadable instead of failing the whole
-        // deserialization — and the app-config fallback — over one enum.
-        if let Some(checksum) = value
-            .get_mut("download")
-            .and_then(|download| download.get_mut("defaultChecksum"))
-        {
-            let supported = checksum
-                .as_str()
-                .is_some_and(|s| matches!(s, "none" | "blake3" | "sha256" | "sha512"));
-            if !supported {
-                *checksum = serde_json::Value::String(String::from("blake3"));
-            }
-        }
+        migrate_legacy_checksum_setting(&mut value);
 
         let parsed = serde_json::from_value::<AppSettings>(value)?;
         return normalize_settings(parsed);
