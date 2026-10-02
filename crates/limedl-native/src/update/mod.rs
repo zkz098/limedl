@@ -579,7 +579,11 @@ fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                let _ = std::fs::set_permissions(&out_path, std::fs::Permissions::from_mode(0o755));
+                // Owner-only: the binary lives in the per-user update work dir
+                // and is executed by this same user, so group/other access is
+                // unnecessary surface on a file that later replaces the
+                // running executable.
+                let _ = std::fs::set_permissions(&out_path, std::fs::Permissions::from_mode(0o700));
             }
             return Ok(Some(out_path));
         }
