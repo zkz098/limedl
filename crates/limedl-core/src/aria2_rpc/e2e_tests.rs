@@ -2,6 +2,10 @@
 //!
 //! Starts a real Aria2RpcServer backed by live subsystems, then sends
 //! HTTP POST requests via reqwest to validate protocol compatibility.
+//!
+//! The harness returns the whole [`crate::bootstrap::CoreSystems`] so tests can
+//! reach engine internals (e.g. lower `max_in_memory_downloads` to force
+//! terminal-task eviction) without bootstrapping a second engine.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,7 +18,7 @@ use crate::event_bus::EventBus;
 use crate::types::Aria2RpcSettings;
 
 /// Bootstrap subsystems, start an Aria2RpcServer on a random port, and return
-/// the HTTP base URL and shutdown channel.
+/// the HTTP base URL, shutdown channel and live core systems.
 async fn start_rpc_server_with(
     secret: Option<&str>,
     cors_allowed_origins: Vec<String>,
@@ -22,7 +26,7 @@ async fn start_rpc_server_with(
     String,
     tokio::sync::watch::Sender<bool>,
     TempDir,
-    Arc<EventBus>,
+    crate::bootstrap::CoreSystems,
 ) {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -61,7 +65,7 @@ async fn start_rpc_server_with(
     }
 
     let base_url = format!("http://127.0.0.1:{port}/jsonrpc");
-    (base_url, shutdown_tx, tmp, core.event_bus)
+    (base_url, shutdown_tx, tmp, core)
 }
 
 /// Start an RPC server without a secret (the settings a desktop install uses
@@ -70,7 +74,7 @@ async fn start_rpc_server() -> (
     String,
     tokio::sync::watch::Sender<bool>,
     TempDir,
-    Arc<EventBus>,
+    crate::bootstrap::CoreSystems,
 ) {
     start_rpc_server_with(None, vec![]).await
 }
@@ -80,7 +84,7 @@ async fn start_rpc_server_with_secret(secret: Option<&str>) -> (
     String,
     tokio::sync::watch::Sender<bool>,
     TempDir,
-    Arc<EventBus>,
+    crate::bootstrap::CoreSystems,
 ) {
     start_rpc_server_with(secret, vec![]).await
 }
@@ -166,7 +170,7 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
     // download completed. 16 KiB/s leaves ~65s of headroom for the whole body.
     let file_url = test_server.file_url_bandwidth(16 * 1024);
 
-    let (rpc_url, shutdown_tx, _tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
     let dest_dir = _tmp.path().join("output");
 
@@ -345,7 +349,7 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn aria2_add_uri_missing_uris_returns_error() {
-    let (rpc_url, shutdown_tx, _tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
 
     let resp = rpc_call(&client, &rpc_url, "aria2.addUri", serde_json::json!([])).await;
@@ -360,7 +364,7 @@ async fn aria2_add_uri_missing_uris_returns_error() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn aria2_global_stat_returns_counters() {
-    let (rpc_url, shutdown_tx, _tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
 
     let resp = rpc_call(
@@ -416,7 +420,7 @@ async fn aria2_add_uri_forwards_headers_to_http_requests() {
         let _ = axum::serve(listener, app).await;
     });
 
-    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
     let url = format!("http://127.0.0.1:{}/file", addr.port());
@@ -477,7 +481,7 @@ async fn aria2_add_uri_multiple_uris_use_mirror_fallback() {
     let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
     let mirror_url = test_server.file_url_range();
 
-    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
 
@@ -528,7 +532,7 @@ async fn aria2_pause_unpause_bulk_and_remove_lifecycle() {
     // Throttled so the task cannot reach a terminal state between two RPC calls.
     let file_url = test_server.file_url_bandwidth(32 * 1024);
 
-    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
 
@@ -604,7 +608,7 @@ async fn aria2_query_methods_return_aria2_shapes() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
 
-    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
     let dest = dest_dir.to_string_lossy().to_string();
@@ -750,7 +754,7 @@ async fn aria2_purge_download_result_clears_tell_stopped() {
     let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
     let file_url = test_server.file_url_range();
 
-    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
 
@@ -823,7 +827,7 @@ async fn aria2_multicall_batches_calls_and_wraps_errors() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
 
-    let (rpc_url, shutdown_tx, tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
 
@@ -891,7 +895,7 @@ async fn aria2_secret_token_gates_every_method() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
 
-    let (rpc_url, shutdown_tx, tmp, _event_bus) =
+    let (rpc_url, shutdown_tx, tmp, _core) =
         start_rpc_server_with_secret(Some("s3cr3t")).await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
@@ -987,7 +991,7 @@ async fn aria2_secret_token_gates_every_method() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn aria2_transport_rejects_malformed_and_wrong_version_requests() {
-    let (rpc_url, shutdown_tx, _tmp, _event_bus) = start_rpc_server().await;
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
 
     let resp = rpc_post_raw(&client, &rpc_url, "{ not json").await;
@@ -1026,7 +1030,7 @@ async fn aria2_server_cors_follows_configured_origins() {
     let client = reqwest::Client::new();
 
     // A configured origin is allowed; an unknown one is not.
-    let (rpc_url, shutdown_tx, _tmp, _event_bus) =
+    let (rpc_url, shutdown_tx, _tmp, _core) =
         start_rpc_server_with(None, vec!["http://app.example".into()]).await;
     let resp = client
         .request(reqwest::Method::OPTIONS, &rpc_url)
@@ -1056,7 +1060,7 @@ async fn aria2_server_cors_follows_configured_origins() {
     let _ = shutdown_tx.send(true);
 
     // Unparsable origins fall back to localhost-only, never to `*`.
-    let (rpc_url, shutdown_tx, _tmp, _event_bus) =
+    let (rpc_url, shutdown_tx, _tmp, _core) =
         start_rpc_server_with(None, vec!["bad\norigin".into()]).await;
     let resp = client
         .request(reqwest::Method::OPTIONS, &rpc_url)
@@ -1115,4 +1119,447 @@ async fn aria2_server_reports_a_port_conflict() {
         "binding an occupied port must be reported as an error"
     );
     drop(blocker);
+}
+
+/// `aria2.removeDownloadResult` drops one stopped result, and rejects tasks
+/// that are still active (aria2 semantics).
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_remove_download_result_deletes_one_stopped_task() {
+    let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
+    let file_url = test_server.file_url_range();
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            [file_url],
+            {"dir": dest_dir.to_string_lossy(), "out": "stopped.bin"}
+        ]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+        .to_string();
+    wait_for_status(&client, &rpc_url, &gid, &["complete"]).await;
+
+    let stopped_contains = |resp: &serde_json::Value| {
+        resp["result"]
+            .as_array()
+            .expect("tellStopped array")
+            .iter()
+            .any(|entry| entry["gid"].as_str() == Some(gid.as_str()))
+    };
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStopped",
+        serde_json::json!([0, 100]),
+    )
+    .await;
+    assert!(stopped_contains(&resp), "completed task must be listed: {resp}");
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.removeDownloadResult",
+        serde_json::json!([gid]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "removeDownloadResult: {resp}");
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStopped",
+        serde_json::json!([0, 100]),
+    )
+    .await;
+    assert!(!stopped_contains(&resp), "removed result must be gone: {resp}");
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid]),
+    )
+    .await;
+    assert!(resp["error"].is_object(), "removed GID must not resolve: {resp}");
+
+    // A still-running task is not a "stopped result".
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            [test_server.file_url_bandwidth(16 * 1024)],
+            {"dir": dest_dir.to_string_lossy(), "out": "active.bin"}
+        ]),
+    )
+    .await;
+    let active_gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+        .to_string();
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.removeDownloadResult",
+        serde_json::json!([active_gid]),
+    )
+    .await;
+    assert_eq!(
+        resp["error"]["code"], 1,
+        "an active task must be rejected: {resp}"
+    );
+    let _ = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.remove",
+        serde_json::json!([active_gid]),
+    )
+    .await;
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// `aria2.changeOption` drives the live task (pause) and fails loudly for
+/// options the engine cannot change at runtime.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_change_option_pause_and_rejections() {
+    let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
+    let file_url = test_server.file_url_bandwidth(32 * 1024);
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            [file_url],
+            {"dir": dest_dir.to_string_lossy(), "out": "options.bin"}
+        ]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+        .to_string();
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"pause": "true"}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "pause via changeOption: {resp}");
+    wait_for_status(&client, &rpc_url, &gid, &["paused"]).await;
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"pause": "false"}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "resume via changeOption: {resp}");
+    wait_for_status(&client, &rpc_url, &gid, &["active", "waiting"]).await;
+
+    // `split` cannot be changed after the task started — the error names it.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"split": "4"}]),
+    )
+    .await;
+    assert_eq!(resp["error"]["code"], -32602, "unsupported option: {resp}");
+    assert!(
+        resp["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("split")),
+        "the error must name the option: {resp}"
+    );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// aria2's `keys` parameter filters the status object per entry.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_keys_filter_status_fields() {
+    let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
+    let file_url = test_server.file_url_bandwidth(32 * 1024);
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            [file_url],
+            {"dir": dest_dir.to_string_lossy(), "out": "keys.bin", "pause": "true"}
+        ]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+        .to_string();
+    wait_for_status(&client, &rpc_url, &gid, &["paused"]).await;
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid, ["gid", "status"]]),
+    )
+    .await;
+    let object = resp["result"].as_object().expect("status object");
+    assert_eq!(object.len(), 2, "only requested keys: {resp}");
+    assert_eq!(object["gid"].as_str(), Some(gid.as_str()));
+    assert_eq!(object["status"], "paused");
+
+    // Waiting list entries honour the third parameter.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellWaiting",
+        serde_json::json!([0, 100, ["gid"]]),
+    )
+    .await;
+    let waiting = resp["result"].as_array().expect("waiting array");
+    assert!(!waiting.is_empty(), "paused task must be waiting: {resp}");
+    assert!(
+        waiting.iter().all(|entry| entry.as_object().is_some_and(|o| o.len() == 1)),
+        "each entry must contain only gid: {resp}"
+    );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// `aria2.getUris` must list every candidate (primary + mirrors), not just the
+/// URL currently in use.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_get_uris_lists_all_candidates() {
+    let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
+    let mirror_url = test_server.file_url_range();
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+    let primary = "http://127.0.0.1:1/broken".to_string();
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            [primary, mirror_url],
+            {"dir": dest_dir.to_string_lossy(), "out": "uris.bin", "split": "1"}
+        ]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+        .to_string();
+
+    let resp = rpc_call(&client, &rpc_url, "aria2.getUris", serde_json::json!([gid])).await;
+    let uris = resp["result"].as_array().expect("getUris array");
+    assert_eq!(uris.len(), 2, "primary plus mirror: {resp}");
+    let listed: Vec<&str> = uris.iter().filter_map(|u| u["uri"].as_str()).collect();
+    assert!(listed.contains(&"http://127.0.0.1:1/broken"), "{resp}");
+    assert!(listed.contains(&mirror_url.as_str()), "{resp}");
+    assert_eq!(
+        uris.iter()
+            .filter(|u| u["status"] == "used")
+            .count(),
+        1,
+        "exactly one URI is in use: {resp}"
+    );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// Terminal downloads evicted from the in-memory map must stay visible through
+/// the database until they are purged or individually removed.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(180_000)]
+async fn aria2_evicted_terminal_downloads_stay_queryable() {
+    let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
+
+    let (rpc_url, shutdown_tx, tmp, core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    // `max_in_memory_downloads` normalises to at least 10, so eleven completed
+    // tasks force the oldest one out of memory while it stays in the database.
+    let mut settings = core.dispatcher.get_settings().await.expect("settings");
+    settings.max_in_memory_downloads = 10;
+    core.dispatcher
+        .save_settings(&settings)
+        .await
+        .expect("save settings");
+
+    let mut gids = Vec::new();
+    for index in 0..11 {
+        let resp = rpc_call(
+            &client,
+            &rpc_url,
+            "aria2.addUri",
+            serde_json::json!([
+                [test_server.file_url_range()],
+                {
+                    "dir": dest_dir.to_string_lossy(),
+                    "out": format!("evict-{index}.bin")
+                }
+            ]),
+        )
+        .await;
+        let gid = resp["result"]
+            .as_str()
+            .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+            .to_string();
+        wait_for_status(&client, &rpc_url, &gid, &["complete"]).await;
+        gids.push(gid);
+    }
+
+    // All stopped results are listed even though at least one was evicted.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStopped",
+        serde_json::json!([0, 100]),
+    )
+    .await;
+    let stopped = resp["result"].as_array().expect("tellStopped array");
+    for gid in &gids {
+        assert!(
+            stopped.iter().any(|entry| entry["gid"].as_str() == Some(gid.as_str())),
+            "evicted GID {gid} must stay visible: {resp}"
+        );
+    }
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getGlobalStat",
+        serde_json::Value::Array(vec![]),
+    )
+    .await;
+    assert_eq!(resp["result"]["numStopped"], "11", "{resp}");
+
+    // Detail lookup and per-result removal work for evicted entries too.
+    for gid in &gids {
+        let resp = rpc_call(
+            &client,
+            &rpc_url,
+            "aria2.tellStatus",
+            serde_json::json!([gid]),
+        )
+        .await;
+        assert_eq!(resp["result"]["status"], "complete", "{resp}");
+
+        let resp = rpc_call(
+            &client,
+            &rpc_url,
+            "aria2.removeDownloadResult",
+            serde_json::json!([gid]),
+        )
+        .await;
+        assert_eq!(resp["result"], "OK", "{resp}");
+    }
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStopped",
+        serde_json::json!([0, 100]),
+    )
+    .await;
+    assert!(
+        resp["result"]
+            .as_array()
+            .expect("tellStopped array")
+            .is_empty(),
+        "all results were removed: {resp}"
+    );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// A magnet link added through `aria2.addUri` must be routed to the BT backend.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_add_uri_accepts_magnet_as_bt() {
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let info_hash = "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d";
+    let magnet = format!("magnet:?xt=urn:btih:{info_hash}&dn=test");
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([[magnet], {"dir": dest_dir.to_string_lossy() }]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("magnet addUri failed: {resp}"))
+        .to_string();
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid]),
+    )
+    .await;
+    let reported = resp["result"]["bittorrent"]["infoHash"]
+        .as_str()
+        .unwrap_or_else(|| panic!("BT status must carry an infoHash: {resp}"));
+    assert_eq!(reported.to_ascii_lowercase(), info_hash);
+    assert_eq!(resp["result"]["files"], serde_json::json!([]));
+
+    // Cleanup: stop the torrent before the fake DHT lookup goes anywhere.
+    let resp = rpc_call(&client, &rpc_url, "aria2.remove", serde_json::json!([gid])).await;
+    assert_eq!(resp["result"].as_str(), Some(gid.as_str()), "{resp}");
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// `aria2.addTorrent` validates the payload before touching the engine.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn aria2_add_torrent_rejects_invalid_base64() {
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addTorrent",
+        serde_json::json!(["not base64 !!!"]),
+    )
+    .await;
+    assert_eq!(resp["error"]["code"], -32602, "{resp}");
+
+    let _ = shutdown_tx.send(true);
 }

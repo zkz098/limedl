@@ -4,7 +4,7 @@ use std::path::Path;
 
 use base64::Engine;
 
-use super::{ChecksumMode, DownloadManager, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, Value, extract_gid, get_all_summaries, has_header, make_error, resolve_gid};
+use super::{ChecksumMode, DownloadManager, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, TaskId, Value, extract_gid, get_all_summaries, has_header, make_error, resolve_gid};
 
 pub(crate) fn extract_option_str(
     options: Option<&serde_json::Map<String, Value>>,
@@ -63,6 +63,74 @@ pub(crate) fn push_header(headers: &mut Vec<String>, raw: &str) {
     if !trimmed.is_empty() && trimmed.contains(':') {
         headers.push(trimmed.to_string());
     }
+}
+
+/// aria2 serialises every boolean option as a string over JSON-RPC
+/// (`"pause": "true"`); accept raw booleans too.
+pub(crate) fn aria2_bool(value: &Value) -> bool {
+    value
+        .as_bool()
+        .unwrap_or_else(|| value.as_str().is_some_and(|s| s.eq_ignore_ascii_case("true") || s == "1"))
+}
+
+/// Read a boolean option from an aria2 options object.
+pub(crate) fn option_is_true(
+    options: Option<&serde_json::Map<String, Value>>,
+    key: &str,
+) -> bool {
+    options.and_then(|o| o.get(key)).is_some_and(aria2_bool)
+}
+
+/// Parse aria2's `select-file`: a 1-based comma-separated index list, into the
+/// engine's 0-based file indices.
+pub(crate) fn parse_select_file(
+    value: &Value,
+) -> std::result::Result<Vec<usize>, JsonRpcError> {
+    let raw = value.as_str().ok_or_else(|| {
+        make_error(
+            ERR_INVALID_PARAMS,
+            "select-file must be a comma-separated string",
+        )
+    })?;
+
+    let mut indices = Vec::new();
+    for part in raw.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+        let index: usize = part.parse().map_err(|_| {
+            make_error(ERR_INVALID_PARAMS, format!("invalid select-file index: {part}"))
+        })?;
+        if index == 0 {
+            return Err(make_error(
+                ERR_INVALID_PARAMS,
+                "select-file indices are 1-based",
+            ));
+        }
+        indices.push(index - 1);
+    }
+    Ok(indices)
+}
+
+/// Parse an aria2 byte-rate limit. `""` and `"0"` mean "unlimited".
+fn parse_aria2_limit(value: &Value) -> std::result::Result<Option<u64>, JsonRpcError> {
+    let raw = match value {
+        Value::String(s) => s.trim().to_string(),
+        Value::Number(n) => n.to_string(),
+        _ => {
+            return Err(make_error(
+                ERR_INVALID_PARAMS,
+                "limit must be a number or a string",
+            ));
+        }
+    };
+    if raw.is_empty() || raw == "0" {
+        return Ok(None);
+    }
+    raw.parse::<u64>()
+        .map(Some)
+        .map_err(|_| make_error(ERR_INVALID_PARAMS, format!("invalid limit: {raw}")))
 }
 
 /// Build the effective extra-header list from aria2 request options.
@@ -229,6 +297,93 @@ pub(crate) async fn handle_change_global_option(
 
     Ok(Value::String("OK".to_string()))
 }
+
+/// `aria2.changeOption` — apply options to a single existing task.
+///
+/// Only options the engine can actually change at runtime are accepted;
+/// anything else fails with a clear error instead of pretending to apply.
+/// Supported today:
+///
+/// - `pause` (both protocols)
+/// - `select-file` (BitTorrent, 1-based aria2 indices)
+/// - `max-download-limit` / `max-upload-limit` (BitTorrent)
+///
+pub(crate) async fn handle_change_option(
+    ctx: &RpcContext,
+    params: Vec<Value>,
+) -> Result<Value, JsonRpcError> {
+    let gid = extract_gid(&params)?;
+    let options = params
+        .get(1)
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing options object"))?;
+    let task_id = resolve_gid(ctx, &gid)
+        .await
+        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+
+    for (key, value) in options {
+        match key.as_str() {
+            "select-file" => {
+                if !matches!(task_id, TaskId::Bt(_)) {
+                    return Err(make_error(
+                        ERR_INVALID_PARAMS,
+                        "select-file is only supported for BitTorrent tasks",
+                    ));
+                }
+                let selected = parse_select_file(value)?;
+                ctx.dispatcher
+                    .bt_update_files(&task_id, selected)
+                    .await
+                    .map_err(|e| make_error(ERR_INTERNAL, format!("select-file failed: {e}")))?;
+            }
+            "pause" => {
+                if aria2_bool(value) {
+                    ctx.dispatcher
+                        .pause(&task_id)
+                        .await
+                        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+                } else {
+                    ctx.dispatcher
+                        .resume(&task_id)
+                        .await
+                        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+                }
+            }
+            "max-download-limit" | "max-upload-limit" => {
+                if !matches!(task_id, TaskId::Bt(_)) {
+                    return Err(make_error(
+                        ERR_INVALID_PARAMS,
+                        format!("{key} is only supported for BitTorrent tasks"),
+                    ));
+                }
+                let limit = parse_aria2_limit(value)?;
+                // Preserve the other direction: the API sets both at once.
+                let snapshot = ctx
+                    .dispatcher
+                    .status(&task_id)
+                    .await
+                    .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+                let (download, upload) = if key == "max-download-limit" {
+                    (limit, snapshot.upload_limit_bps)
+                } else {
+                    (snapshot.download_limit_bps, limit)
+                };
+                ctx.dispatcher
+                    .bt_set_speed_limit(&task_id, download, upload)
+                    .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+            }
+            other => {
+                return Err(make_error(
+                    ERR_INVALID_PARAMS,
+                    format!("option '{other}' cannot be changed at runtime"),
+                ));
+            }
+        }
+    }
+
+    Ok(Value::String("OK".to_string()))
+}
+
 pub(crate) async fn handle_get_option(
     ctx: &RpcContext,
     params: Vec<Value>,

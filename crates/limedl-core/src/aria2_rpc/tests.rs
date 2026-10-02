@@ -242,6 +242,8 @@ fn handle_list_methods_returns_array() {
     assert!(methods.contains(&json!("aria2.getGlobalStat")));
     assert!(methods.contains(&json!("aria2.getGlobalOption")));
     assert!(methods.contains(&json!("aria2.changeGlobalOption")));
+    assert!(methods.contains(&json!("aria2.changeOption")));
+    assert!(methods.contains(&json!("aria2.removeDownloadResult")));
     assert!(methods.contains(&json!("aria2.getVersion")));
     assert!(methods.contains(&json!("aria2.getFiles")));
     assert!(methods.contains(&json!("aria2.getUris")));
@@ -251,7 +253,7 @@ fn handle_list_methods_returns_array() {
     assert!(methods.contains(&json!("system.listNotifications")));
 
     // Verify the exact count
-    assert_eq!(methods.len(), 30);
+    assert_eq!(methods.len(), 32);
 }
 
 #[test]
@@ -794,11 +796,8 @@ fn peer_info_to_aria2_peer_no_port() {
 
 // ── RpcContext-dependent units ───────────────────────────────────────
 
-/// A minimal context with an empty registry — enough for the WebSocket message
-/// transport and for cache-hit GID resolution.
-fn make_ctx() -> RpcContext {
-    let registry = Arc::new(BackendRegistry::new());
-    let event_bus = Arc::new(EventBus::new(64));
+/// A context over the given registry/event bus.
+fn make_ctx_with(registry: Arc<BackendRegistry>, event_bus: Arc<EventBus>) -> RpcContext {
     let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
     RpcContext {
         registry,
@@ -808,6 +807,12 @@ fn make_ctx() -> RpcContext {
         gid_cache: Mutex::new(HashMap::default()),
         session_id: "test-session".to_string(),
     }
+}
+
+/// A minimal context with an empty registry — enough for the WebSocket message
+/// transport and for cache-hit GID resolution.
+fn make_ctx() -> RpcContext {
+    make_ctx_with(Arc::new(BackendRegistry::new()), Arc::new(EventBus::new(64)))
 }
 
 /// `process_jsonrpc_message` is the WebSocket transport path: parse errors,
@@ -888,4 +893,210 @@ async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
         resolve_gid(&ctx, &gid).await.is_none(),
         "a removed task must not resolve any more"
     );
+}
+
+// ── aria2 option/uri helpers ─────────────────────────────────────────
+
+#[test]
+#[timeout(10_000)]
+fn classify_aria2_uri_routes_magnets_to_bt() {
+    assert_eq!(classify_aria2_uri("magnet:?xt=urn:btih:abc"), TaskKind::Bt);
+    assert_eq!(
+        classify_aria2_uri("  MAGNET:?xt=urn:btih:abc"),
+        TaskKind::Bt
+    );
+    // aria2 downloads `.torrent` URLs as plain files via addUri.
+    assert_eq!(
+        classify_aria2_uri("https://example.com/file.torrent"),
+        TaskKind::Http
+    );
+    assert_eq!(classify_aria2_uri("https://example.com/a"), TaskKind::Http);
+}
+
+#[test]
+#[timeout(10_000)]
+fn parse_select_file_converts_one_based_indices() {
+    assert_eq!(parse_select_file(&json!("1,3")).unwrap(), vec![0, 2]);
+    assert_eq!(parse_select_file(&json!(" 2 , 4 ")).unwrap(), vec![1, 3]);
+    assert_eq!(parse_select_file(&json!("")).unwrap(), Vec::<usize>::new());
+    assert_eq!(parse_select_file(&json!("1,,2")).unwrap(), vec![0, 1]);
+
+    assert!(parse_select_file(&json!("0")).is_err(), "indices are 1-based");
+    assert!(parse_select_file(&json!("abc")).is_err());
+    assert!(parse_select_file(&json!(1)).is_err(), "must be a string");
+}
+
+#[test]
+#[timeout(10_000)]
+fn filter_status_keys_keeps_only_requested_fields() {
+    let status = json!({
+        "gid": "abc",
+        "status": "active",
+        "totalLength": "5",
+    });
+    let filtered = filter_status_keys(status, &["gid".into(), "totalLength".into()]);
+    let object = filtered.as_object().expect("object");
+    assert_eq!(object.len(), 2);
+    assert!(object.contains_key("gid"));
+    assert!(object.contains_key("totalLength"));
+    assert!(!object.contains_key("status"));
+}
+
+#[test]
+#[timeout(10_000)]
+fn bt_files_to_aria2_uses_one_based_indices_and_selection() {
+    let files = vec![
+        BtFileStatus {
+            index: 0,
+            path: "a.bin".into(),
+            size: 10,
+            downloaded_bytes: 4,
+            included: true,
+        },
+        BtFileStatus {
+            index: 1,
+            path: "b.bin".into(),
+            size: 20,
+            downloaded_bytes: 0,
+            included: false,
+        },
+    ];
+
+    let value = bt_files_to_aria2(&files);
+    let entries = value.as_array().expect("array");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0]["index"], "1");
+    assert_eq!(entries[0]["path"], "a.bin");
+    assert_eq!(entries[0]["length"], "10");
+    assert_eq!(entries[0]["completedLength"], "4");
+    assert_eq!(entries[0]["selected"], "true");
+    assert_eq!(entries[1]["index"], "2");
+    assert_eq!(entries[1]["selected"], "false");
+    assert_eq!(entries[1]["uris"], json!([]));
+}
+
+/// `aria2.changeOption` must apply what the engine can change and fail loudly
+/// for everything else instead of silently pretending.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn change_option_applies_pause_and_rejects_unsupported_keys() {
+    let (tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let uuid = uuid::Uuid::from_u128(0xCAFE);
+    let id = uuid.to_string();
+    crate::tests::dispatcher_tests::inject_download(&dm, &id, DownloadState::Queued).await;
+
+    let mut registry = BackendRegistry::new();
+    registry.register_arc(TaskKind::Http, dm.clone());
+    let ctx = make_ctx_with(Arc::new(registry), Arc::new(EventBus::new(64)));
+    let gid = internal_id_to_gid(&id);
+
+    // Unsupported at runtime: the error names the key.
+    let error = handle_change_option(&ctx, vec![json!(gid.clone()), json!({"split": "4"})])
+        .await
+        .expect_err("split cannot be changed at runtime");
+    assert!(error.message.contains("split"), "{}", error.message);
+
+    // `pause` maps onto the lifecycle for HTTP tasks.
+    handle_change_option(&ctx, vec![json!(gid.clone()), json!({"pause": "true"})])
+        .await
+        .expect("pause option");
+    let state = ctx
+        .dispatcher
+        .status(&TaskId::Http(uuid))
+        .await
+        .expect("status")
+        .state;
+    assert_eq!(state, DownloadState::Paused);
+
+    // BitTorrent-only options are rejected early for HTTP tasks.
+    for options in [json!({"select-file": "1"}), json!({"max-download-limit": "1024"})] {
+        let error = handle_change_option(&ctx, vec![json!(gid.clone()), options])
+            .await
+            .expect_err("BT-only option");
+        assert!(error.message.contains("BitTorrent"), "{}", error.message);
+    }
+
+    let _ = tmp;
+}
+
+/// Every aria2 lifecycle notification must be published exactly once per
+/// transition — engine and RPC handler must not both emit the same event.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn http_lifecycle_notifications_are_emitted_exactly_once() {
+    let server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
+    let (tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let out_dir = tmp.path().join("out");
+    std::fs::create_dir_all(&out_dir).expect("create out dir");
+
+    let mut registry = BackendRegistry::new();
+    registry.register_arc(TaskKind::Http, dm.clone());
+    let event_bus = Arc::new(EventBus::new(256));
+    let ctx = make_ctx_with(Arc::new(registry), event_bus.clone());
+
+    // A throttled real download: resume stays active instead of racing into a
+    // probe failure, which keeps the notification set deterministic.
+    let task_id = ctx
+        .dispatcher
+        .start(StartDownloadRequest {
+            kind: Some(TaskKind::Http),
+            url: server.file_url_bandwidth(32 * 1024),
+            destination_dir: out_dir.to_string_lossy().to_string(),
+            file_name: Some("notify.bin".into()),
+            user_agent: None,
+            thread_mode: Some(crate::types::ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(1),
+            checksum: Some(crate::types::ChecksumMode::None),
+            expected_checksum: None,
+            selected_file_indices: None,
+            headers: None,
+            start_paused: false,
+            mirror_urls: None,
+            priority: None,
+        })
+        .await
+        .expect("start download");
+    let gid = internal_id_to_gid(&task_id.raw_id());
+    let mut rx = event_bus.subscribe();
+
+    handle_pause(&ctx, vec![json!(gid.clone())])
+        .await
+        .expect("pause");
+    assert_eq!(
+        take_aria2_events(&mut rx),
+        vec!["aria2.onDownloadPause"],
+        "pause must publish exactly one notification"
+    );
+
+    handle_unpause(&ctx, vec![json!(gid.clone())])
+        .await
+        .expect("unpause");
+    assert_eq!(
+        take_aria2_events(&mut rx),
+        vec!["aria2.onDownloadStart"],
+        "unpause must publish exactly one notification"
+    );
+
+    handle_remove(&ctx, vec![json!(gid.clone())])
+        .await
+        .expect("remove");
+    assert_eq!(
+        take_aria2_events(&mut rx),
+        vec!["aria2.onDownloadStop"],
+        "remove must publish exactly one notification"
+    );
+}
+
+/// Drain the bus and keep only the aria2 notification names.
+fn take_aria2_events(
+    rx: &mut tokio::sync::broadcast::Receiver<DownloadEvent>,
+) -> Vec<String> {
+    let mut names = Vec::new();
+    while let Ok(event) = rx.try_recv() {
+        if let DownloadEvent::Aria2Notification { event_name, .. } = event {
+            names.push(event_name);
+        }
+    }
+    names
 }

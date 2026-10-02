@@ -1,6 +1,6 @@
 //! Method dispatch table for JSON-RPC requests.
 
-use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
+use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_change_option, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_remove_download_result, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
 use super::{check_token, strip_token};
 
 /// Dispatch a JSON-RPC method, enforcing the secret token first.
@@ -40,6 +40,7 @@ pub(crate) async fn dispatch_authorized(
         "aria2.purgeDownloadResult" => handle_purge_download_result(ctx).await,
         "aria2.unpauseAll" => handle_unpause_all(ctx).await,
         "aria2.remove" | "aria2.forceRemove" => handle_remove(ctx, params).await,
+        "aria2.removeDownloadResult" => handle_remove_download_result(ctx, params).await,
         "aria2.tellStatus" => handle_tell_status(ctx, params).await,
         "aria2.tellActive" => handle_tell_active(ctx, params).await,
         "aria2.tellWaiting" => handle_tell_waiting(ctx, params).await,
@@ -47,6 +48,7 @@ pub(crate) async fn dispatch_authorized(
         "aria2.getGlobalStat" => handle_global_stat(ctx).await,
         "aria2.getGlobalOption" => handle_get_global_option(ctx).await,
         "aria2.changeGlobalOption" => handle_change_global_option(ctx, params).await,
+        "aria2.changeOption" => handle_change_option(ctx, params).await,
         "aria2.getVersion" => Ok(handle_version()),
         "aria2.getFiles" => handle_get_files(ctx, params).await,
         "aria2.getOption" => handle_get_option(ctx, params).await,

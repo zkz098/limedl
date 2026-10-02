@@ -28,7 +28,7 @@ use crate::{
     http::has_header,
     manager::DownloadManager,
     types::{
-        Aria2RpcSettings, BtPeerInfo, ChecksumMode, DownloadState, DownloadSummary,
+        Aria2RpcSettings, BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState, DownloadSummary,
         StartDownloadRequest, TaskId, TaskKind,
     },
 };

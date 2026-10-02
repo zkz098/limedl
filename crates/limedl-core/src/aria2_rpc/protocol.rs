@@ -1,6 +1,6 @@
 //! JSON-RPC wire types, response factories and aria2 status mapping.
 
-use super::{Deserialize, DownloadState, DownloadSummary, Id20, RpcContext, Serialize, TaskId, TaskKind, Uuid, Value};
+use super::{BtFileStatus, Deserialize, DownloadState, DownloadSummary, Id20, RpcContext, Serialize, TaskId, TaskKind, Uuid, Value};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct JsonRpcRequest {
@@ -178,4 +178,39 @@ pub(crate) fn build_file_list(summary: &DownloadSummary) -> Value {
         "selected": "true",
         "uris": [{"uri": summary.url, "status": "used"}]
     })])
+}
+
+/// Convert the BT engine's file statuses into aria2's `files` array.
+///
+/// aria2 file indices are **1-based strings**; the engine's
+/// [`BtFileStatus::index`] is 0-based. A magnet whose metadata has not arrived
+/// has no files yet — callers pass an empty slice and get an empty array
+/// instead of a synthetic entry.
+pub(crate) fn bt_files_to_aria2(files: &[BtFileStatus]) -> Value {
+    Value::Array(
+        files
+            .iter()
+            .map(|file| {
+                serde_json::json!({
+                    "index": (file.index + 1).to_string(),
+                    "path": file.path,
+                    "length": file.size.to_string(),
+                    "completedLength": file.downloaded_bytes.to_string(),
+                    "selected": if file.included { "true" } else { "false" },
+                    "uris": [],
+                })
+            })
+            .collect(),
+    )
+}
+
+/// Keep only the requested status fields, matching aria2's `keys` parameter.
+pub(crate) fn filter_status_keys(value: Value, keys: &[String]) -> Value {
+    match value {
+        Value::Object(mut map) => {
+            map.retain(|key, _| keys.iter().any(|wanted| wanted == key));
+            Value::Object(map)
+        }
+        other => other,
+    }
 }

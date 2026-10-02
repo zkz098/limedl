@@ -429,6 +429,38 @@ impl Database {
         Ok(())
     }
 
+    /// Fetch a single download's metadata row without its chunks.
+    ///
+    /// The aria2 RPC layer needs this for terminal downloads that were evicted
+    /// from the in-memory map by `max_in_memory_downloads`: they still exist in
+    /// the database and must stay queryable.
+    pub fn get_download_header(&self, id: &str) -> Result<Option<Manifest>> {
+        let conn = self.lock_read();
+
+        let mut stmt = conn
+            .prepare_cached("SELECT * FROM downloads WHERE id = ?1")
+            .context("failed to prepare get download header query")?;
+
+        match stmt.query_row(params![id], row_to_manifest) {
+            Ok(manifest) => Ok(Some(manifest)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(error) => Err(error).context("failed to query download header"),
+        }
+    }
+
+    /// Number of downloads in a terminal state (completed / failed / canceled).
+    pub fn count_terminal_downloads(&self) -> Result<usize> {
+        let conn = self.lock_read();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM downloads WHERE state IN ('completed', 'failed', 'canceled')",
+                [],
+                |row| row.get(0),
+            )
+            .context("failed to count terminal downloads")?;
+        Ok(count as usize)
+    }
+
     /// Fetch a single download with its chunks.
     #[cfg(test)]
     pub fn get_download(&self, id: &str) -> Result<Option<Manifest>> {
