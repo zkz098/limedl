@@ -2,7 +2,7 @@
 
 use futures_util::StreamExt;
 
-use super::{Arc, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError, DownloadEvent, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, ManagedDownload, PERSIST_INTERVAL, Path, PathBuf, Result, RunOutcome, StatusCode, apply_extra_headers, cancellation_outcome, check_disk_space, contiguous_prefix_end, fs, header, if_range_header, io_error_with_path, now_ms, open_download_file, persist_manifest_snapshot, request_with_retry, reset_download_file, write_all_at};
+use super::{Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadError, DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf, ProgressThrottle, Result, RunOutcome, StatusCode, apply_extra_headers, build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end, flush_write_buffer, fs, header, if_range_header, io_error_with_path, now_ms, open_download_file, request_with_retry, reset_download_file, write_all_at};
 
 impl HttpExecutor {
     pub(super) async fn download_single(
@@ -38,36 +38,17 @@ impl HttpExecutor {
         let ssd_write_combine_mb = settings.io_baseline.ssd_write_combine_mb;
         drop(settings);
         let disk_type = dm.resolve_disk_type(Path::new(&destination_dir)).await;
-        let write_buffer: Option<Arc<DownloadBuffer>> =
-            if disk_type == DiskType::Hdd && hdd_buffering {
-                let slot = dm.buffer_pool.acquire_slot().await;
-                Some(Arc::new(DownloadBuffer::new_with_worker(
-                    dm.buffer_pool.clone(),
-                    slot,
-                    file.clone(),
-                    dm.io_worker.clone(),
-                )))
-            } else {
-                let chunk_size = {
-                    let core = managed.lock_core();
-                    core.manifest.chunk_size
-                };
-                let ssd_limit_bytes = if ssd_write_combine_mb == 0 {
-                    chunk_size // auto: use the download's chunk size
-                } else {
-                    ssd_write_combine_mb * 1024 * 1024
-                };
-                // half_size = ssd_limit_bytes / 2, minimum 64 KiB, capped at 8 MiB.
-                // Note: for large auto-sized buffers (chunk_size up to 128 MiB),
-                // this means at most 8 MiB per download — the ping-pong double-buffer
-                // caps peak untracked memory at 16 MiB per download regardless of N.
-                let ssd_half_size = (ssd_limit_bytes / 2).clamp(64 * 1024, 8 * 1024 * 1024);
-                Some(Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
-                    ssd_half_size,
-                    file.clone(),
-                    dm.io_worker.clone(),
-                )))
-            }; // always Some — SSD uses ping-pong buffer for write combining
+        let write_buffer = Some(
+            build_write_buffer(
+                &dm,
+                &managed,
+                &file,
+                disk_type,
+                hdd_buffering,
+                ssd_write_combine_mb,
+            )
+            .await,
+        ); // always Some — SSD uses ping-pong buffer for write combining
 
         // Set disk_type on snapshot for frontend badge display
         {
@@ -75,13 +56,9 @@ impl HttpExecutor {
             core.snapshot.disk_type = Some(disk_type);
         }
 
-        let mut last_persist = Instant::now();
         let mut last_disk_check = Instant::now();
-        // ── progress throttling ──
-        let mut last_progress_emit = Instant::now();
-        // ── rate limiter batch consume ──
-        let mut bytes_since_consume: usize = 0;
-        let mut chunks_since_consume: usize = 0;
+        let mut throttle = ProgressThrottle::new();
+        let mut batch = BatchLimiter::new();
 
         loop {
             match dm
@@ -91,19 +68,11 @@ impl HttpExecutor {
             {
                 crate::download::WaitState::Running => {}
                 crate::download::WaitState::Paused => {
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on pause failed: {e}");
-                    }
+                    flush_write_buffer(&write_buffer, "pause").await;
                     return Ok(RunOutcome::Paused);
                 }
                 crate::download::WaitState::Canceled => {
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on cancel failed: {e}");
-                    }
+                    flush_write_buffer(&write_buffer, "cancel").await;
                     return Ok(RunOutcome::Canceled);
                 }
             }
@@ -119,11 +88,7 @@ impl HttpExecutor {
                 )
             };
             if state == DownloadState::Canceled {
-                if let Some(ref buf) = write_buffer
-                    && let Err(e) = buf.flush_all().await
-                {
-                    tracing::warn!("flush on cancel failed: {e}");
-                }
+                flush_write_buffer(&write_buffer, "cancel").await;
                 return Ok(RunOutcome::Canceled);
             }
             if token.is_cancelled() {
@@ -191,32 +156,17 @@ impl HttpExecutor {
             while let Some(chunk) = tokio::select! {
                 _ = token.cancelled() => {
                     // Flush remaining rate limiter bytes before exiting
-                    if bytes_since_consume > 0 {
-                        dm.rate_limiter.consume(bytes_since_consume).await;
-                    }
+                    batch.flush(&dm.rate_limiter).await;
                     // Persist buffered data before exit: `downloaded_bytes` was
                     // already credited for these chunks, so discarding them here
                     // would leave a hole on resume and misfire the Drop canary.
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on cancel failed: {e}");
-                    }
+                    flush_write_buffer(&write_buffer, "cancel").await;
                     return Ok(cancellation_outcome(&managed));
                 }
                 chunk = stream.next() => chunk,
             } {
                 let chunk = chunk?;
-                // ── batch rate limiter consume ──
-                const BATCH_BYTES: usize = 256 * 1024; // 256 KB
-                const BATCH_CHUNKS: usize = 8;
-                bytes_since_consume += chunk.len();
-                chunks_since_consume += 1;
-                if bytes_since_consume >= BATCH_BYTES || chunks_since_consume >= BATCH_CHUNKS {
-                    dm.rate_limiter.consume(bytes_since_consume).await;
-                    bytes_since_consume = 0;
-                    chunks_since_consume = 0;
-                }
+                batch.account(&dm.rate_limiter, chunk.len()).await;
                 // Guard against server sending more data than Content-Length
                 if let Some(total) = total_bytes {
                     let len = chunk.len() as u64;
@@ -246,60 +196,12 @@ impl HttpExecutor {
                 absolute_offset += chunk.len() as u64;
                 dm.task_lifecycle
                     .record_progress(&dm, &managed, None, chunk.len() as u64);
-                if last_persist.elapsed() >= PERSIST_INTERVAL {
-                    persist_manifest_snapshot(&dm.db, &managed).await?;
-                    last_persist = Instant::now();
-                    // Throttle progress events: at most once per 500ms
-                    if last_progress_emit.elapsed() >= Duration::from_millis(500) {
-                        dm.task_lifecycle.emit_progress(&dm, &managed);
-                        last_progress_emit = Instant::now();
-                    }
-                }
-                if last_disk_check.elapsed() >= Duration::from_secs(30) {
-                    let (total_bytes, downloaded_bytes, destination_dir) = {
-                        let core = managed.lock_core();
-                        (
-                            core.manifest.total_bytes,
-                            core.manifest.downloaded_bytes,
-                            core.manifest.destination_dir.clone(),
-                        )
-                    };
-                    if let Some(total) = total_bytes {
-                        let remaining = total.saturating_sub(downloaded_bytes);
-                        if remaining > 0
-                            && check_disk_space(Path::new(&destination_dir), remaining).is_err()
-                        {
-                            let msg =
-                                format!("Insufficient disk space: {remaining} bytes remaining");
-                            {
-                                let mut core = managed.lock_core();
-                                core.snapshot.state = DownloadState::Failed;
-                                core.snapshot.error = Some(msg.clone());
-                                core.snapshot.connection_count = 0;
-                                core.snapshot.updated_at_ms = now_ms();
-                                core.manifest.state = DownloadState::Failed;
-                                core.manifest.error = Some(msg);
-                                core.manifest.connection_count = 0;
-                                core.manifest.updated_at_ms = now_ms();
-                            }
-                            dm.event_bus.publish(DownloadEvent::Warning {
-                                id: managed.lock_core().manifest.id.clone(),
-                                message: "disk full".into(),
-                            });
-                            return Err(DownloadError::InsufficientDiskSpace {
-                                available: 0,
-                                required: remaining,
-                            });
-                        }
-                    }
-                    last_disk_check = Instant::now();
-                }
+                throttle.tick(&dm.db, &dm, &managed).await?;
+                check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
             }
 
             // Flush remaining rate limiter bytes after stream ends
-            if bytes_since_consume > 0 {
-                dm.rate_limiter.consume(bytes_since_consume).await;
-            }
+            batch.flush(&dm.rate_limiter).await;
 
             let finished = {
                 let core = managed.lock_core();

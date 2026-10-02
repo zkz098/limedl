@@ -93,6 +93,16 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 - AIMD 不依赖 `proxy.mode`：早期版本与已移除的“网络学习”功能耦合，代理启用时会直接跳过 `update_adaptive_targets`（并连带禁用超频模式）；该遗留门槛已移除，回归测试 `tests/scheduler_tests.rs::adaptive_targets_apply_when_proxy_is_enabled`。
 - `update_adaptive_targets` 变更 `desired_thread_count` 时必须同步 snapshot（升/降分支及超频分支均调用 `sync_snapshot_with_manifest`），否则 API/WebUI 的“目标线程数”会滞回到下一次 `rebalance_allocations`。
 
+### http_executor 公共件
+
+单流/分块/worker 三条路径共用的辅助件集中在 `http_executor/mod.rs`，修改时不得再各写一份：
+
+- `build_write_buffer()` — HDD 共享双缓冲池 / SSD 本地 ping-pong 的构造（含 `ssd_half_size` 的 64 KiB–8 MiB 钳制）。
+- `flush_write_buffer()` — 退出路径（pause/cancel/downgrade/完成）刷盘，失败只记 warn、不上抛，避免掩盖真正的退出原因。
+- `check_disk_space_periodically()` — 30s 周期空间检查，不足时置 `Failed` + 发 `Warning("disk full")` 并返回 `InsufficientDiskSpace`。
+- `BatchLimiter` — 限速令牌的 256 KiB / 8 chunk 批量消费；退出前必须 `flush()` 未消费字节。
+- `ProgressThrottle` — `PERSIST_INTERVAL` 持久化 + 500ms 进度事件节流。
+
 ### 校验和
 
 - 支持集刻意收窄为三种：Blake3（默认）/ SHA-256 / SHA-512，即 `ChecksumMode` 的全部取值范围（外加表示“不校验”的 `None`）。

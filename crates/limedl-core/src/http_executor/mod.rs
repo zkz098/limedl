@@ -66,6 +66,175 @@ const TAIL_SPRINT_MIN_SPLIT_SIZE: u64 = 1024 * 1024;
 /// Work Stealing: minimum remaining bytes of an active chunk to qualify for splitting (2 MiB).
 const WORK_STEAL_MIN_SPLIT_SIZE: u64 = 2 * 1024 * 1024;
 
+/// Build the write buffer for a download: the shared HDD double-buffer pool,
+/// or the local SSD/Network ping-pong write-combining buffer.
+async fn build_write_buffer(
+    dm: &DownloadManager,
+    managed: &Arc<ManagedDownload>,
+    file: &Arc<fs::File>,
+    disk_type: DiskType,
+    hdd_buffering: bool,
+    ssd_write_combine_mb: u64,
+) -> Arc<DownloadBuffer> {
+    if disk_type == DiskType::Hdd && hdd_buffering {
+        let slot = dm.buffer_pool.acquire_slot().await;
+        return Arc::new(DownloadBuffer::new_with_worker(
+            dm.buffer_pool.clone(),
+            slot,
+            file.clone(),
+            dm.io_worker.clone(),
+        ));
+    }
+
+    let chunk_size = managed.lock_core().manifest.chunk_size;
+    let ssd_limit_bytes = if ssd_write_combine_mb == 0 {
+        chunk_size // auto: use the download's chunk size
+    } else {
+        ssd_write_combine_mb * 1024 * 1024
+    };
+    // half_size = ssd_limit_bytes / 2, minimum 64 KiB, capped at 8 MiB.
+    // Note: for large auto-sized buffers (chunk_size up to 128 MiB),
+    // this means at most 8 MiB per download — the ping-pong double-buffer
+    // caps peak untracked memory at 16 MiB per download regardless of N.
+    let ssd_half_size = (ssd_limit_bytes / 2).clamp(64 * 1024, 8 * 1024 * 1024);
+    Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
+        ssd_half_size,
+        file.clone(),
+        dm.io_worker.clone(),
+    ))
+}
+
+/// Flush a download's write buffer if one exists.
+///
+/// Failures are logged, not propagated: every caller is on an exit path where a
+/// failed flush must not mask the real outcome.
+async fn flush_write_buffer(write_buffer: &Option<Arc<DownloadBuffer>>, reason: &str) {
+    if let Some(buf) = write_buffer
+        && let Err(e) = buf.flush_all().await
+    {
+        tracing::warn!("flush on {reason} failed: {e}");
+    }
+}
+
+/// Re-check free space every 30 s while downloading; fail the task when the
+/// remaining bytes no longer fit.
+async fn check_disk_space_periodically(
+    dm: &DownloadManager,
+    managed: &Arc<ManagedDownload>,
+    last_check: &mut Instant,
+) -> Result<()> {
+    if last_check.elapsed() < Duration::from_secs(30) {
+        return Ok(());
+    }
+
+    let (total_bytes, downloaded_bytes, destination_dir) = {
+        let core = managed.lock_core();
+        (
+            core.manifest.total_bytes,
+            core.manifest.downloaded_bytes,
+            core.manifest.destination_dir.clone(),
+        )
+    };
+    if let Some(total) = total_bytes {
+        let remaining = total.saturating_sub(downloaded_bytes);
+        if remaining > 0 && check_disk_space(Path::new(&destination_dir), remaining).is_err() {
+            let msg = format!("Insufficient disk space: {remaining} bytes remaining");
+            {
+                let mut core = managed.lock_core();
+                core.snapshot.state = DownloadState::Failed;
+                core.snapshot.error = Some(msg.clone());
+                core.snapshot.connection_count = 0;
+                core.snapshot.updated_at_ms = now_ms();
+                core.manifest.state = DownloadState::Failed;
+                core.manifest.error = Some(msg);
+                core.manifest.connection_count = 0;
+                core.manifest.updated_at_ms = now_ms();
+            }
+            dm.event_bus.publish(DownloadEvent::Warning {
+                id: managed.lock_core().manifest.id.clone(),
+                message: "disk full".into(),
+            });
+            return Err(DownloadError::InsufficientDiskSpace {
+                available: 0,
+                required: remaining,
+            });
+        }
+    }
+    *last_check = Instant::now();
+    Ok(())
+}
+
+/// Byte/chunk accumulator that amortises rate-limiter consumption over a
+/// 256 KiB / 8 chunk batch instead of consuming per received chunk.
+struct BatchLimiter {
+    bytes: usize,
+    chunks: usize,
+}
+
+impl BatchLimiter {
+    fn new() -> Self {
+        Self { bytes: 0, chunks: 0 }
+    }
+
+    /// Account one received chunk; consume when the batch is full.
+    async fn account(&mut self, limiter: &RateLimiter, len: usize) {
+        const BATCH_BYTES: usize = 256 * 1024;
+        const BATCH_CHUNKS: usize = 8;
+        self.bytes += len;
+        self.chunks += 1;
+        if self.bytes >= BATCH_BYTES || self.chunks >= BATCH_CHUNKS {
+            limiter.consume(self.bytes).await;
+            self.bytes = 0;
+            self.chunks = 0;
+        }
+    }
+
+    /// Consume any accounted-but-unconsumed bytes.
+    async fn flush(&mut self, limiter: &RateLimiter) {
+        if self.bytes > 0 {
+            limiter.consume(self.bytes).await;
+            self.bytes = 0;
+            self.chunks = 0;
+        }
+    }
+}
+
+/// Persist + progress-emit throttle shared by the single-stream loop and the
+/// chunk workers.
+struct ProgressThrottle {
+    last_persist: Instant,
+    last_emit: Instant,
+}
+
+impl ProgressThrottle {
+    fn new() -> Self {
+        Self {
+            last_persist: Instant::now(),
+            last_emit: Instant::now(),
+        }
+    }
+
+    /// Persist the manifest and (at most every 500 ms) emit progress.
+    async fn tick(
+        &mut self,
+        db: &Arc<Database>,
+        dm: &DownloadManager,
+        managed: &Arc<ManagedDownload>,
+    ) -> Result<()> {
+        if self.last_persist.elapsed() < PERSIST_INTERVAL {
+            return Ok(());
+        }
+        persist_manifest_snapshot(db, managed).await?;
+        self.last_persist = Instant::now();
+        // Throttle progress events: at most once per 500ms
+        if self.last_emit.elapsed() >= Duration::from_millis(500) {
+            dm.task_lifecycle.emit_progress(dm, managed);
+            self.last_emit = Instant::now();
+        }
+        Ok(())
+    }
+}
+
 mod chunked;
 mod finalize;
 mod run;

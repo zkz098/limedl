@@ -1,7 +1,7 @@
 //! Chunked (parallel) download path, tail sprint and worker supervision.
 
 use super::worker::{ChunkWorkerCtx, all_chunks_completed, claim_or_steal_chunk, current_allocation, download_chunk, shutdown_chunk_workers};
-use super::{Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError, DownloadEvent, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, cancellation_outcome, check_disk_space, now_ms, open_download_file, persist_manifest_snapshot, sleep};
+use super::{Arc, CancellationToken, ChunkWorkerOutcome, Client, DownloadError, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, build_write_buffer, cancellation_outcome, check_disk_space_periodically, flush_write_buffer, now_ms, open_download_file, persist_manifest_snapshot, sleep};
 
 impl HttpExecutor {
     pub(super) async fn download_chunked(
@@ -45,33 +45,17 @@ impl HttpExecutor {
             let destination_dir = managed.lock_core().manifest.destination_dir.clone();
             dm.resolve_disk_type(Path::new(&destination_dir)).await
         };
-        let write_buffer: Option<Arc<DownloadBuffer>> =
-            if disk_type == DiskType::Hdd && hdd_buffering {
-                let slot = dm.buffer_pool.acquire_slot().await;
-                Some(Arc::new(DownloadBuffer::new_with_worker(
-                    dm.buffer_pool.clone(),
-                    slot,
-                    file.clone(),
-                    dm.io_worker.clone(),
-                )))
-            } else {
-                let chunk_size = managed.lock_core().manifest.chunk_size;
-                let ssd_limit_bytes = if ssd_write_combine_mb == 0 {
-                    chunk_size // auto: use the download's chunk size
-                } else {
-                    ssd_write_combine_mb * 1024 * 1024
-                };
-                // half_size = ssd_limit_bytes / 2, minimum 64 KiB, capped at 8 MiB.
-                // Note: for large auto-sized buffers (chunk_size up to 128 MiB),
-                // this means at most 8 MiB per download — the ping-pong double-buffer
-                // caps peak untracked memory at 16 MiB per download regardless of N.
-                let ssd_half_size = (ssd_limit_bytes / 2).clamp(64 * 1024, 8 * 1024 * 1024);
-                Some(Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
-                    ssd_half_size,
-                    file.clone(),
-                    dm.io_worker.clone(),
-                )))
-            };
+        let write_buffer = Some(
+            build_write_buffer(
+                &dm,
+                &managed,
+                &file,
+                disk_type,
+                hdd_buffering,
+                ssd_write_combine_mb,
+            )
+            .await,
+        );
 
         // Set disk_type on snapshot for frontend badge display
         {
@@ -91,52 +75,11 @@ impl HttpExecutor {
                 shutdown_chunk_workers(&managed, &mut workers).await;
                 // Persist buffered chunks before exit so resume continues from a
                 // consistent point and the buffer is never dropped with data.
-                if let Some(ref buf) = write_buffer
-                    && let Err(e) = buf.flush_all().await
-                {
-                    tracing::warn!("flush on cancel failed: {e}");
-                }
+                flush_write_buffer(&write_buffer, "cancel").await;
                 return Ok(cancellation_outcome(&managed));
             }
 
-            if last_disk_check.elapsed() >= Duration::from_secs(30) {
-                let (total_bytes, downloaded_bytes, destination_dir) = {
-                    let core = managed.lock_core();
-                    (
-                        core.manifest.total_bytes,
-                        core.manifest.downloaded_bytes,
-                        core.manifest.destination_dir.clone(),
-                    )
-                };
-                if let Some(total) = total_bytes {
-                    let remaining = total.saturating_sub(downloaded_bytes);
-                    if remaining > 0
-                        && check_disk_space(Path::new(&destination_dir), remaining).is_err()
-                    {
-                        let msg = format!("Insufficient disk space: {remaining} bytes remaining");
-                        {
-                            let mut core = managed.lock_core();
-                            core.snapshot.state = DownloadState::Failed;
-                            core.snapshot.error = Some(msg.clone());
-                            core.snapshot.connection_count = 0;
-                            core.snapshot.updated_at_ms = now_ms();
-                            core.manifest.state = DownloadState::Failed;
-                            core.manifest.error = Some(msg);
-                            core.manifest.connection_count = 0;
-                            core.manifest.updated_at_ms = now_ms();
-                        }
-                        dm.event_bus.publish(DownloadEvent::Warning {
-                            id: managed.lock_core().manifest.id.clone(),
-                            message: "disk full".into(),
-                        });
-                        return Err(DownloadError::InsufficientDiskSpace {
-                            available: 0,
-                            required: remaining,
-                        });
-                    }
-                }
-                last_disk_check = Instant::now();
-            }
+            check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
 
             if all_chunks_completed(&managed) {
                 shutdown_chunk_workers(&managed, &mut workers).await;
@@ -170,19 +113,11 @@ impl HttpExecutor {
                 {
                     crate::download::WaitState::Running => {}
                     crate::download::WaitState::Paused => {
-                        if let Some(ref buf) = write_buffer
-                            && let Err(e) = buf.flush_all().await
-                        {
-                            tracing::warn!("flush on pause failed: {e}");
-                        }
+                        flush_write_buffer(&write_buffer, "pause").await;
                         return Ok(RunOutcome::Paused);
                     }
                     crate::download::WaitState::Canceled => {
-                        if let Some(ref buf) = write_buffer
-                            && let Err(e) = buf.flush_all().await
-                        {
-                            tracing::warn!("flush on cancel failed: {e}");
-                        }
+                        flush_write_buffer(&write_buffer, "cancel").await;
                         return Ok(RunOutcome::Canceled);
                     }
                 }
@@ -346,11 +281,7 @@ impl HttpExecutor {
             let join_result = tokio::select! {
                 _ = token.cancelled() => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on cancel failed: {e}");
-                    }
+                    flush_write_buffer(&write_buffer, "cancel").await;
                     return Ok(cancellation_outcome(&managed));
                 }
                 joined = workers.join_next() => joined,
@@ -378,11 +309,7 @@ impl HttpExecutor {
                         "Received HTTP 429 Too Many Requests; downgrading to single-thread mode"
                     );
                     shutdown_chunk_workers(&managed, &mut workers).await;
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on downgrade failed: {e}");
-                    }
+                    flush_write_buffer(&write_buffer, "downgrade").await;
                     {
                         let mut core = managed.lock_core();
                         core.manifest.thread_mode = ThreadMode::Fixed;
@@ -421,20 +348,12 @@ impl HttpExecutor {
                 }
                 ChunkWorkerOutcome::Paused => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on pause failed: {e}");
-                    }
+                    flush_write_buffer(&write_buffer, "pause").await;
                     return Ok(RunOutcome::Paused);
                 }
                 ChunkWorkerOutcome::Canceled => {
                     shutdown_chunk_workers(&managed, &mut workers).await;
-                    if let Some(ref buf) = write_buffer
-                        && let Err(e) = buf.flush_all().await
-                    {
-                        tracing::warn!("flush on cancel failed: {e}");
-                    }
+                    flush_write_buffer(&write_buffer, "cancel").await;
                     return Ok(RunOutcome::Canceled);
                 }
             }
