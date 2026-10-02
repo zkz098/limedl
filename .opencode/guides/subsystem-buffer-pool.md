@@ -18,7 +18,7 @@ HDD 使用全局共享双缓冲池减少磁盘寻道，SSD 使用本地写合并
 
 ### 介质判定（disk_detect.rs + media.rs）
 
-- **本地卷**：Windows 走 `IOCTL_STORAGE_QUERY_PROPERTY` + `STORAGE_DEVICE_SEEK_PENALTY_PROPERTY`；Linux 走 `/sys/block/<dev>/queue/rotational`；macOS 走 IOKit `IOMedia` 的 `Rotational`。
+- **本地卷**：Windows 走 `IOCTL_STORAGE_QUERY_PROPERTY` + `STORAGE_DEVICE_SEEK_PENALTY_PROPERTY`；Linux 走 `/sys/block/<dev>/queue/rotational`；macOS 走 IOKit `IOMedia` 的 `Rotational`（`detect_disk_type` = `statfs_for` + `mounted_bsd_name` + `disk_type_via_iokit`/`rotational_of_entry`；挪动时保持 CFRelease/IOObjectRelease 语义，只能靠 `check-macos` 验证）。
 - **`DiskType::Network`**：UNC/映射网络盘（Windows）、网络或宿主转发文件系统（Linux/macOS 查 fstype）。本地探测对它们无意义，之前会静默报成 SSD。
 - **WSL（`\\wsl$\<distro>` / `\\wsl.localhost\<distro>`）不是网络存储**：它背后的 9p/virtiofs 服务的是本地 `ext4.vhdx`，所以查 `HKCU\...\Lxss` 的 `BasePath` 并对 `<BasePath>\ext4.vhdx`（不存在时退回 `BasePath` 本身）做普通本地探测，得到宿主卷的真实介质。
 

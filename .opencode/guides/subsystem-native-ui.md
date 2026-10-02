@@ -25,7 +25,7 @@ Tauri/Vue desktop shell was retired).
 | `src/migrate/`           | Tauri → Native 数据迁移（`mod.rs` + `tests.rs`）                                                                                                       |
 | `src/autostart.rs`       | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent）                                                                                 |
 | `src/single_instance.rs` | 单实例（Win mutex + WM_COPYDATA；其他平台回环 TCP）                                                                                                    |
-| `src/platform_win.rs`    | 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ 窗口几何持久化（全平台）+ OS 描述文案                                                                        |
+| `src/platform_win.rs`    | 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ 窗口几何持久化（全平台）+ OS 描述文案；`subclass_proc` 只做消息分发，处理体在 `on_dropfiles` / `on_showwindow` / `on_copydata` / `on_size`（仅 Windows 编译，改完靠 `check-windows` 验证） |
 | `src/protocol.rs`        | `magnet:` / `limedl://` 协议注册（HKCU）                                                                                                               |
 | `src/power.rs`           | 下载中抑制系统休眠                                                                                                                                     |
 | `ui/appwindow.slint`     | 主窗口：侧边栏、工具栏、卡片/表格、所有弹层                                                                                                            |

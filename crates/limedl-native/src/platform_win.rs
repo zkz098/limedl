@@ -309,97 +309,115 @@ unsafe extern "system" fn subclass_proc(
     _dwrefdata: usize,
 ) -> LRESULT {
     match msg {
-        WM_DROPFILES => {
-            let hdrop = HDROP(wparam.0 as *mut std::ffi::c_void);
-            let count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, None) };
-            let mut files = Vec::with_capacity(count as usize);
-
-            for i in 0..count {
-                let mut buf = [0u16; 1024];
-                let len = unsafe { DragQueryFileW(hdrop, i, Some(&mut buf)) };
-                if len > 0 {
-                    let path = String::from_utf16_lossy(&buf[..len as usize]);
-                    files.push(path);
-                }
-            }
-
-            unsafe {
-                DragFinish(hdrop);
-            }
-
-            if !files.is_empty() {
-                unsafe {
-                    let _ = ShowWindow(hwnd, SW_RESTORE);
-                    let _ = SetForegroundWindow(hwnd);
-                }
-                if let Some(ref cb) = *DROP_CALLBACK.lock() {
-                    cb(files);
-                }
-            }
-
-            LRESULT(0)
-        }
-        WM_SHOWWINDOW => {
-            if wparam.0 != 0 {
-                set_window_visible(true);
-                if let Some(ref cb) = *SHOW_CALLBACK.lock() {
-                    cb();
-                }
-            } else {
-                set_window_visible(false);
-                trim_working_set();
-            }
-            unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
-        }
-        WM_COPYDATA => {
-            if lparam.0 != 0 {
-                let cds = unsafe { &*(lparam.0 as *const COPYDATASTRUCT) };
-                if cds.dwData == COPYDATA_MAGIC {
-                    let payload = if cds.cbData > 0 && !cds.lpData.is_null() {
-                        let slice = unsafe {
-                            std::slice::from_raw_parts(cds.lpData as *const u8, cds.cbData as usize)
-                        };
-                        let text = String::from_utf8_lossy(slice).trim().to_string();
-                        if text.is_empty() {
-                            None
-                        } else {
-                            Some(text)
-                        }
-                    } else {
-                        None
-                    };
-
-                    unsafe {
-                        let _ = ShowWindow(hwnd, SW_RESTORE);
-                        let _ = SetForegroundWindow(hwnd);
-                    }
-                    set_window_visible(true);
-
-                    if let Some(ref cb) = *COPYDATA_CALLBACK.lock() {
-                        cb(payload);
-                    }
-                    return LRESULT(1);
-                }
-            }
-            unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
-        }
+        WM_DROPFILES => on_dropfiles(hwnd, wparam),
+        WM_SHOWWINDOW => on_showwindow(hwnd, msg, wparam, lparam),
+        WM_COPYDATA => on_copydata(hwnd, msg, wparam, lparam),
         WM_EXITSIZEMOVE => {
             save_geometry_if_configured(hwnd);
             unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
         }
-        WM_SIZE => {
-            let size_type = wparam.0 as u32;
-            if size_type == SIZE_MAXIMIZED || size_type == SIZE_RESTORED {
-                set_window_visible(true);
-                save_geometry_if_configured(hwnd);
-            } else if size_type == SIZE_MINIMIZED {
-                set_window_visible(false);
-                trim_working_set();
-            }
-            unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
-        }
+        WM_SIZE => on_size(hwnd, msg, wparam, lparam),
         _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
     }
+}
+
+/// `WM_DROPFILES`: collect the dropped paths and hand them to the callback.
+#[cfg(windows)]
+fn on_dropfiles(hwnd: HWND, wparam: WPARAM) -> LRESULT {
+    let hdrop = HDROP(wparam.0 as *mut std::ffi::c_void);
+    let count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, None) };
+    let mut files = Vec::with_capacity(count as usize);
+
+    for i in 0..count {
+        let mut buf = [0u16; 1024];
+        let len = unsafe { DragQueryFileW(hdrop, i, Some(&mut buf)) };
+        if len > 0 {
+            let path = String::from_utf16_lossy(&buf[..len as usize]);
+            files.push(path);
+        }
+    }
+
+    unsafe { DragFinish(hdrop) };
+
+    if !files.is_empty() {
+        unsafe {
+            let _ = ShowWindow(hwnd, SW_RESTORE);
+            let _ = SetForegroundWindow(hwnd);
+        }
+        if let Some(ref cb) = *DROP_CALLBACK.lock() {
+            cb(files);
+        }
+    }
+
+    LRESULT(0)
+}
+
+/// `WM_SHOWWINDOW`: track visibility and run the show callback.
+#[cfg(windows)]
+fn on_showwindow(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if wparam.0 != 0 {
+        set_window_visible(true);
+        if let Some(ref cb) = *SHOW_CALLBACK.lock() {
+            cb();
+        }
+    } else {
+        set_window_visible(false);
+        trim_working_set();
+    }
+    unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
+}
+
+/// `WM_COPYDATA`: decode the single-instance payload and run the callback.
+///
+/// Returns `LRESULT(1)` when the payload was consumed, otherwise falls through
+/// to `DefSubclassProc`.
+#[cfg(windows)]
+fn on_copydata(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if lparam.0 != 0 {
+        let cds = unsafe { &*(lparam.0 as *const COPYDATASTRUCT) };
+        if cds.dwData == COPYDATA_MAGIC {
+            let payload = read_copydata_payload(cds);
+
+            unsafe {
+                let _ = ShowWindow(hwnd, SW_RESTORE);
+                let _ = SetForegroundWindow(hwnd);
+            }
+            set_window_visible(true);
+
+            if let Some(ref cb) = *COPYDATA_CALLBACK.lock() {
+                cb(payload);
+            }
+            return LRESULT(1);
+        }
+    }
+    unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
+}
+
+/// Decode a `WM_COPYDATA` payload as UTF-8 text (empty payload → `None`).
+#[cfg(windows)]
+fn read_copydata_payload(cds: &COPYDATASTRUCT) -> Option<String> {
+    if cds.cbData == 0 || cds.lpData.is_null() {
+        return None;
+    }
+    let slice = unsafe {
+        std::slice::from_raw_parts(cds.lpData as *const u8, cds.cbData as usize)
+    };
+    let text = String::from_utf8_lossy(slice).trim().to_string();
+    if text.is_empty() { None } else { Some(text) }
+}
+
+/// `WM_SIZE`: visibility and geometry updates for a size change.
+#[cfg(windows)]
+fn on_size(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    let size_type = wparam.0 as u32;
+    if size_type == SIZE_MAXIMIZED || size_type == SIZE_RESTORED {
+        set_window_visible(true);
+        save_geometry_if_configured(hwnd);
+    } else if size_type == SIZE_MINIMIZED {
+        set_window_visible(false);
+        trim_working_set();
+    }
+    unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
 }
 
 #[cfg(windows)]
