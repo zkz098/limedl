@@ -259,5 +259,23 @@ cargo run -p limedl-native --features slint/mcp
 - `tests/adversarial_interception_tests.rs` — 用坏服务器（range 错位 / 每段首字节翻转）验证：提供了 `expected_checksum` 时必须 `Failed` 拦截，且失败时保留 `.corrupt` 临时文件供取证。
 - `tests/resume_corruption_tests.rs` — pause→resume 后仍字节级一致（多线程半途打断 + 带宽限速下的中/尾段暂停）。
 - `tests/buffer_integrity_tests.rs` — SSD/HDD 写合并缓冲在**写入异常**下的完整性：通过 `buffer_pool::fault`（仅 test-utils 编译）对后台 flush 批量写注入确定性 I/O 失败，验证缓冲把失败标记为 degraded、`flush_all` 报错、已写入字节不损坏。
+- `file_ops::tests::finalize_temp_file_cross_device_*` — 跨文件系统最终化的完整性（Linux 用 `/dev/shm` 与 `tempdir()` 两个设备，macOS 单卷时跳过）：目标文件逐字节一致、无 `.finalizing.*` 残留；staging 无法分配时 finalize 必须失败且源文件原封不动。
+- `tests/persistence_tests.rs::downloading_survives_restart_without_stale_claims` — 进程被杀（状态仍是 `Downloading`）后的恢复：进度与 chunk 图保留、连接/分配计数归零、**陈旧 chunk claim 被清空**（否则重启后续传会跳过这些块）。
+- `checksum::detect` 的解析单测 — 恶意/畸形 checksum 文档不得产生错误的 `expected_checksum`：注释/PGP 噪声行、GNU/BSD 变体、名字不匹配、畸形行全部拒绝；HTTP 探测忽略 HTML 404 页面，并可从目录清单（`SHA256SUMS`）中取出匹配项。
 
 > 引擎未显式传 `expected_checksum` 时不做自动比对（产品行为，测试仅快照该现状并由 oracle 独立标记坏文件）——不要为了让这些测试全绿而绕过损坏检测。
+
+### 日志轮转 / 保留测试
+
+`logging.rs` 的 `#[cfg(test)] mod tests` 只测文件系统层，不碰进程级 `LOGGER_CONTROL`（`init_logging` 只能成功一次），所以可与其它 lib 测试同进程安全运行：
+
+- `rotate_startup_logs_shifts_without_losing_content` — 右移轮转必须从**最大编号降序** rename，测试逐文件断言内容映射；升序会先把 `.1` 覆写到 `.2`，静默丢掉最旧的日志。
+- `perform_startup_rotation_skips_while_lock_is_held` — 用 `File::try_lock` 模拟第二个实例持锁，断言轮转被跳过、释放后才执行（桌面 + NAS 同机并发的安全网）。
+- `cleanup_by_count_keeps_exactly_the_limit`（边界 `num > count`，`Some(0)` 清空）与 `cleanup_by_age_removes_only_old_files`（用 `File::set_modified` 造 10 天前的 mtime，当前日志也参与）。
+- `dynamic_file_writer_honors_enabled_and_survives_open_failure` — 禁用时写入即丢弃、启用时创建父目录、打开失败（路径是目录）降级为 sink 而非 panic（失败只走 stderr，这是日志模块的约定）。
+
+### Dispatcher / Aria2 RPC 测试
+
+- `tests/dispatcher_tests.rs` — 门面矩阵：生命周期事件的发射（pause/resume/cancel/remove/purge/set_priority）、`status/list/has_active_downloads` 聚合、无服务时的降级分支、`save_settings` 对 ConcurrencyManager / BufferPool / 持久化设置的同步（Traditional vs Automatic 两种线程上限）、CDN 禁用时 `clear()` 真的执行、`resolve_mirror_urls` 重写规则、`fetch_tracker_list` 归一化、`probe_checksum` 从 URL 推导文件名。辅助函数 `make_manager`/`inject_download` 为 `pub(crate)`：aria2 测试复用它们覆盖 `resolve_gid` 与 GID 缓存逐出（避免复制 ManagedDownload fixture）。
+- `aria2_rpc/tests.rs` — 纯函数 + `process_jsonrpc_message` 的解析错误/版本错误/未知方法/成功四条分支，以及 `resolve_gid` 的扫描→缓存→`aria2.remove` 逐出链路。
+- `aria2_rpc/e2e_tests.rs` — 真实 HTTP 服务器：handler 矩阵、multicall 响应形状、secret 全方法门控、CORS 白名单与不可解析配置的 localhost 回退、端口冲突报错。
