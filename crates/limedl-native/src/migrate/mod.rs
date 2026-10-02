@@ -111,148 +111,9 @@ pub fn migrate_tauri_data_if_needed(base_dir: &Path, state_dir: &Path) -> Option
         ..MigrationReport::default()
     };
 
-    // ── settings.json ──
-    let native_settings = base_dir.join("settings.json");
-    let tauri_settings = source.join("settings.json");
-    if !stamp.settings && !native_settings.exists() && tauri_settings.is_file() {
-        match copy_file(&tauri_settings, &native_settings) {
-            Ok(bytes) => {
-                if settings_json_parses(&native_settings) {
-                    stamp.settings = true;
-                    report.settings = true;
-                    report.copied_files += 1;
-                    report.copied_bytes += bytes;
-                } else {
-                    // A settings file the current engine cannot read would abort
-                    // bootstrap, so quarantine it and start from defaults.
-                    tracing::warn!(
-                        "迁移的 settings.json 无法解析，已隔离并改以默认设置启动（原文件：{}）",
-                        tauri_settings.display()
-                    );
-                    quarantine_file(&native_settings, "settings.json.rejected");
-                    stamp.settings = true;
-                }
-            }
-            Err(e) => tracing::warn!(
-                "迁移 settings.json 失败 ({} -> {}): {e:#}",
-                tauri_settings.display(),
-                native_settings.display()
-            ),
-        }
-    } else if !stamp.settings {
-        // Either the native settings already exist (never overwrite) or the
-        // Tauri profile has none: nothing left to do for this artifact.
-        stamp.settings = true;
-    }
-
-    // ── downloads.db (+ WAL/SHM side-cars) ──
-    let native_db = state_dir.join(DB_FILE);
-    let tauri_db = source.join("downloads").join(DB_FILE);
-    if !stamp.database {
-        if native_db.exists() || !tauri_db.is_file() {
-            // Native history already exists (never overwrite) or the Tauri
-            // profile has none: nothing to migrate for this artifact.
-            stamp.database = true;
-        } else if !looks_like_sqlite(&tauri_db) {
-            // The source is not a SQLite database (leftover/HTML rewrite): leave
-            // it alone and never copy it, or the engine would refuse to boot.
-            tracing::warn!(
-                "跳过数据库迁移：{} 不是有效的 SQLite 文件",
-                tauri_db.display()
-            );
-            stamp.database = true;
-        } else {
-            match copy_file(&tauri_db, &native_db) {
-                Ok(bytes) => {
-                    let mut ok = true;
-                    for sidecar in DB_SIDECARS {
-                        let from = tauri_db.with_file_name(sidecar);
-                        if from.is_file() {
-                            match copy_file(&from, &native_db.with_file_name(sidecar)) {
-                                Ok(extra) => report.copied_bytes += extra,
-                                Err(e) => {
-                                    ok = false;
-                                    tracing::warn!("迁移 {sidecar} 失败: {e:#}");
-                                }
-                            }
-                        }
-                    }
-                    report.copied_files += 1;
-                    report.copied_bytes += bytes;
-                    if ok && database_opens(&native_db) {
-                        stamp.database = true;
-                        report.database = true;
-                    } else {
-                        // Torn/unreadable copy (e.g. the Tauri app was writing
-                        // while we copied): quarantine it instead of letting
-                        // bootstrap fail forever, and keep the side-cars with it.
-                        quarantine_database(&native_db);
-                        tracing::warn!(
-                            "迁移的数据库无法打开，已隔离并改以空历史启动（原文件：{}）",
-                            tauri_db.display()
-                        );
-                        stamp.database = true;
-                    }
-                }
-                Err(e) => tracing::warn!(
-                    "迁移 {} 失败 ({} -> {}): {e:#}",
-                    DB_FILE,
-                    tauri_db.display(),
-                    native_db.display()
-                ),
-            }
-        }
-    }
-
-    // ── torrents/ and bt_files/ trees ──
-    for (index, name) in STATE_SUBDIRS.iter().enumerate() {
-        let already_done = if index == 0 {
-            stamp.torrents
-        } else {
-            stamp.bt_files
-        };
-        if already_done {
-            continue;
-        }
-        let from = source.join("downloads").join(name);
-        let to = state_dir.join(name);
-        if !from.is_dir() {
-            // Nothing to migrate (the Tauri install never used BT, or the folder
-            // was already consumed) — mark it so we stop checking.
-            if index == 0 {
-                stamp.torrents = true;
-            } else {
-                stamp.bt_files = true;
-            }
-            continue;
-        }
-        if dir_has_entries(&to) {
-            if index == 0 {
-                stamp.torrents = true;
-            } else {
-                stamp.bt_files = true;
-            }
-            continue;
-        }
-        match copy_dir_recursive(&from, &to) {
-            Ok((files, bytes)) => {
-                report.copied_files += files;
-                report.copied_bytes += bytes;
-                if index == 0 {
-                    stamp.torrents = true;
-                    report.torrents = true;
-                } else {
-                    stamp.bt_files = true;
-                    report.bt_files = true;
-                }
-            }
-            Err(e) => tracing::warn!(
-                "迁移 {name} 目录失败 ({} -> {}): {e:#}",
-                from.display(),
-                to.display()
-            ),
-        }
-    }
+    migrate_settings(base_dir, &source, &mut stamp, &mut report);
+    migrate_database(state_dir, &source, &mut stamp, &mut report);
+    migrate_state_subdirs(state_dir, &source, &mut stamp, &mut report);
 
     let all_handled = stamp.settings && stamp.database && stamp.torrents && stamp.bt_files;
     if all_handled || report.moved_anything() {
@@ -269,6 +130,205 @@ pub fn migrate_tauri_data_if_needed(base_dir: &Path, state_dir: &Path) -> Option
         Some(report)
     } else {
         None
+    }
+}
+
+/// ── settings.json ──
+///
+/// Never overwrites an existing native settings file; a copied file the
+/// current engine cannot read is quarantined so bootstrap still starts from
+/// defaults.
+fn migrate_settings(
+    base_dir: &Path,
+    source: &Path,
+    stamp: &mut MigrationStamp,
+    report: &mut MigrationReport,
+) {
+    if stamp.settings {
+        return;
+    }
+
+    let native_settings = base_dir.join("settings.json");
+    let tauri_settings = source.join("settings.json");
+    if native_settings.exists() || !tauri_settings.is_file() {
+        // Either the native settings already exist (never overwrite) or the
+        // Tauri profile has none: nothing left to do for this artifact.
+        stamp.settings = true;
+        return;
+    }
+
+    match copy_file(&tauri_settings, &native_settings) {
+        Ok(bytes) => {
+            if settings_json_parses(&native_settings) {
+                stamp.settings = true;
+                report.settings = true;
+                report.copied_files += 1;
+                report.copied_bytes += bytes;
+            } else {
+                // A settings file the current engine cannot read would abort
+                // bootstrap, so quarantine it and start from defaults.
+                tracing::warn!(
+                    "迁移的 settings.json 无法解析，已隔离并改以默认设置启动（原文件：{}）",
+                    tauri_settings.display()
+                );
+                quarantine_file(&native_settings, "settings.json.rejected");
+                stamp.settings = true;
+            }
+        }
+        Err(e) => tracing::warn!(
+            "迁移 settings.json 失败 ({} -> {}): {e:#}",
+            tauri_settings.display(),
+            native_settings.display()
+        ),
+    }
+}
+
+/// ── downloads.db (+ WAL/SHM side-cars) ──
+///
+/// Never overwrites existing native history; a copy that cannot be opened is
+/// quarantined instead of letting bootstrap fail forever.
+fn migrate_database(
+    state_dir: &Path,
+    source: &Path,
+    stamp: &mut MigrationStamp,
+    report: &mut MigrationReport,
+) {
+    if stamp.database {
+        return;
+    }
+
+    let native_db = state_dir.join(DB_FILE);
+    let tauri_db = source.join("downloads").join(DB_FILE);
+    if native_db.exists() || !tauri_db.is_file() {
+        // Native history already exists (never overwrite) or the Tauri
+        // profile has none: nothing to migrate for this artifact.
+        stamp.database = true;
+        return;
+    }
+    if !looks_like_sqlite(&tauri_db) {
+        // The source is not a SQLite database (leftover/HTML rewrite): leave
+        // it alone and never copy it, or the engine would refuse to boot.
+        tracing::warn!(
+            "跳过数据库迁移：{} 不是有效的 SQLite 文件",
+            tauri_db.display()
+        );
+        stamp.database = true;
+        return;
+    }
+
+    match copy_file(&tauri_db, &native_db) {
+        Ok(bytes) => {
+            let sidecars_ok = copy_db_sidecars(&tauri_db, &native_db, report);
+            report.copied_files += 1;
+            report.copied_bytes += bytes;
+            if sidecars_ok && database_opens(&native_db) {
+                stamp.database = true;
+                report.database = true;
+            } else {
+                // Torn/unreadable copy (e.g. the Tauri app was writing
+                // while we copied): quarantine it instead of letting
+                // bootstrap fail forever, and keep the side-cars with it.
+                quarantine_database(&native_db);
+                tracing::warn!(
+                    "迁移的数据库无法打开，已隔离并改以空历史启动（原文件：{}）",
+                    tauri_db.display()
+                );
+                stamp.database = true;
+            }
+        }
+        Err(e) => tracing::warn!(
+            "迁移 {} 失败 ({} -> {}): {e:#}",
+            DB_FILE,
+            tauri_db.display(),
+            native_db.display()
+        ),
+    }
+}
+
+/// Copy the WAL/SHM side-cars next to `native_db`.
+///
+/// Returns `false` when any side-car failed, so the caller can quarantine the
+/// whole database instead of booting from a torn copy.
+fn copy_db_sidecars(tauri_db: &Path, native_db: &Path, report: &mut MigrationReport) -> bool {
+    let mut ok = true;
+    for sidecar in DB_SIDECARS {
+        let from = tauri_db.with_file_name(sidecar);
+        if from.is_file() {
+            match copy_file(&from, &native_db.with_file_name(sidecar)) {
+                Ok(extra) => report.copied_bytes += extra,
+                Err(e) => {
+                    ok = false;
+                    tracing::warn!("迁移 {sidecar} 失败: {e:#}");
+                }
+            }
+        }
+    }
+    ok
+}
+
+/// One of the two state trees imported from the Tauri profile.
+#[derive(Clone, Copy)]
+enum StateSubdir {
+    Torrents,
+    BtFiles,
+}
+
+impl StateSubdir {
+    /// Both trees, paired with their directory name, in migration order.
+    const ALL: [(StateSubdir, &'static str); 2] = [
+        (StateSubdir::Torrents, STATE_SUBDIRS[0]),
+        (StateSubdir::BtFiles, STATE_SUBDIRS[1]),
+    ];
+
+    /// Completion flag for this tree inside the persisted stamp.
+    fn done(self, stamp: &mut MigrationStamp) -> &mut bool {
+        match self {
+            StateSubdir::Torrents => &mut stamp.torrents,
+            StateSubdir::BtFiles => &mut stamp.bt_files,
+        }
+    }
+
+    /// Record a successful copy in the report.
+    fn mark_copied(self, report: &mut MigrationReport) {
+        match self {
+            StateSubdir::Torrents => report.torrents = true,
+            StateSubdir::BtFiles => report.bt_files = true,
+        }
+    }
+}
+
+/// ── torrents/ and bt_files/ trees ──
+fn migrate_state_subdirs(
+    state_dir: &Path,
+    source: &Path,
+    stamp: &mut MigrationStamp,
+    report: &mut MigrationReport,
+) {
+    for (subdir, name) in StateSubdir::ALL {
+        if *subdir.done(stamp) {
+            continue;
+        }
+        let from = source.join("downloads").join(name);
+        let to = state_dir.join(name);
+        if !from.is_dir() || dir_has_entries(&to) {
+            // Nothing to migrate (the Tauri install never used BT, or the folder
+            // was already consumed) — mark it so we stop checking.
+            *subdir.done(stamp) = true;
+            continue;
+        }
+        match copy_dir_recursive(&from, &to) {
+            Ok((files, bytes)) => {
+                report.copied_files += files;
+                report.copied_bytes += bytes;
+                *subdir.done(stamp) = true;
+                subdir.mark_copied(report);
+            }
+            Err(e) => tracing::warn!(
+                "迁移 {name} 目录失败 ({} -> {}): {e:#}",
+                from.display(),
+                to.display()
+            ),
+        }
     }
 }
 
