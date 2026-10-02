@@ -137,7 +137,6 @@ slint-build = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-skia-safe = { version = "0.99", features = ["textlayout"] }
 # In-process UI testing: drives the real `MainWindow` (element queries, simulated
 # clicks and keystrokes, accessibility actions) with no window and no event loop.
 #
@@ -220,14 +219,3 @@ renderer-software-fallback = ["slint/renderer-software"]
 # version Slint 1.17 accepts; the FemtoVG renderer wires up 29 only, so 28 is
 # not an option here.
 renderer-femtovg-wgpu = ["slint/renderer-femtovg-wgpu", "slint/unstable-wgpu-29"]
-
-# Debug-only Skia hinting/font-rendering repro (tests/skia_hint_repro.rs). It
-# writes comparison PNGs to the temp dir, asserts nothing useful in CI and pulls
-# an extra skia-safe build, so it is opt-in:
-#   cargo test -p limedl-native --features skia-hint-repro
-skia-hint-repro = []
-
-[[test]]
-name = "skia_hint_repro"
-path = "tests/skia_hint_repro.rs"
-required-features = ["skia-hint-repro"]

@@ -4476,7 +4476,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
- "skia-safe",
  "slint",
  "slint-build",
  "sys-locale",
