@@ -328,11 +328,17 @@ jobs:
       # report has to be produced before something rebuilds the workspace
       # uninstrumented. The other way round the scan costs a third full build of
       # the Skia-linked workspace, and it needs the report to already exist.
+      #
+      # The report lands inside the crate it describes: the Rust analyzer splits
+      # the workspace into one module per Cargo manifest and resolves
+      # sonar.rust.lcov.reportPaths relative to each module's base dir, so a copy
+      # at the repository root is never found (verified in the 2026-10-02 run:
+      # "No LCOV report files found" for all three crates).
       - name: Run tests with coverage
         run: |
           # `--profile dev` keeps line tables for source attribution: the test
           # profile drops debug info (see Cargo.toml) to cut CI link time.
-          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path lcov-core.info
+          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # ── SonarQube Cloud ────────────────────────────────────────────────
       # Rust is not available in Automatic Analysis, so the analysis runs from
@@ -373,7 +379,8 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: rust-coverage-lcov
-          path: lcov-*.info
+          # Recursive: the report is written next to the crate it covers.
+          path: '**/lcov-*.info'
           if-no-files-found: warn
 
   bench-rust:
