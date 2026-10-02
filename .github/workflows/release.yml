@@ -17,9 +17,19 @@ name: Release
 # Speed notes:
 # - Caching follows ci.yml's contract (`cache: false` on setup-rust-toolchain
 #   because it caches internally, `rustflags: ""` so `.cargo/config.toml` drives
-#   the build). The Windows desktop job reuses the `release-native-windows-x86_64`
-#   rust-cache entry that `.github/workflows/warm-release-cache.yml` keeps warm on
-#   main; without it this job was a cold 16-minute Slint/Skia rebuild.
+#   the build). The desktop jobs reuse the `release-native-*` rust-cache entries
+#   that `.github/workflows/warm-release-cache.yml` keeps warm on main; without
+#   them the Windows leg was a cold 16-minute Slint/Skia rebuild and the macOS leg
+#   a 24-minute one (measured: 1481 s of `cargo build --release -p limedl-native`
+#   in the v0.4.0 release, which made it that release's critical path).
+# - Every leg restores its entry but none of them writes it (`save-if:` below):
+#   a run can only restore caches from its own ref or the default branch, so an
+#   entry saved here is scoped to `refs/heads/refs/tags/v<N>` and only a re-run of
+#   that same tag could ever read it back — 2.3 GB per release (measured: Windows
+#   770 MB + Linux 817 MB + darwin 723 MB) spent out of the same 10 GB repository
+#   ceiling as the entries the *next* release restores. The cost is a cold re-run
+#   of the same tag, which is the rarer case; warm-release-cache.yml covers the
+#   first (and expensive) run of every tag.
 
 on:
   push:
@@ -154,15 +164,16 @@ jobs:
           cache: false
           rustflags: ""
 
-      # Shared with .github/workflows/warm-release-cache.yml: that workflow keeps
-      # this entry warm on main, this job refreshes it whenever it has to build
-      # more than the cache held (rust-cache keys stay job-independent thanks to
+      # Shared with .github/workflows/warm-release-cache.yml, which is the *only*
+      # writer of this key: a tag run restores it and never saves (see `save-if`
+      # below and the header). rust-cache keys stay job-independent thanks to
       # `add-job-id-key: false`, so a version bump only costs the rebuild of the
-      # crates that actually changed).
+      # crates that actually changed.
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           key: release-native-windows-x86_64
           add-job-id-key: false
+          save-if: ${{ github.ref_type == 'branch' }}
 
       # ── MiSans VF (embedded at compile time; not in git) ─────────────
       - name: Restore bundled MiSans VF font
@@ -347,11 +358,13 @@ jobs:
 
       # Keyed per-arch so the arm64 entry never mixes objects with a future
       # darwin-x86_64 leg (rust-cache keys on the runner arch too, but the
-      # explicit suffix keeps the intent readable).
+      # explicit suffix keeps the intent readable). Pre-warmed on main by
+      # warm-release-cache.yml's darwin leg, which is this key's only writer.
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           key: release-native-darwin-aarch64
           add-job-id-key: false
+          save-if: ${{ github.ref_type == 'branch' }}
 
       # ── MiSans VF (embedded at compile time; not in git) ──────────────
       - name: Restore bundled MiSans VF font
@@ -438,10 +451,14 @@ jobs:
           cache: false
           rustflags: ""
 
+      # No main-side warm job for this key yet (see the header): the Linux leg is
+      # cheap enough to stay a cold build, and it must not write a tag-scoped
+      # entry either.
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           key: release-native-linux-x86_64
           add-job-id-key: false
+          save-if: ${{ github.ref_type == 'branch' }}
 
       # ── MiSans VF (embedded at compile time; not in git) ──────────────
       - name: Restore bundled MiSans VF font

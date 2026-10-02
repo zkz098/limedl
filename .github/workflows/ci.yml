@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    # Docs-only edits do not need seven runners — skip the whole workflow.
+    # Docs-only edits do not need any runners — skip the whole workflow.
     paths-ignore:
       - "**.md"
       - "LICENSE"
@@ -105,8 +105,16 @@ jobs:
   # check-only and cannot share artifacts with the test builds, so running it in
   # the same job only serialized the wall clock. The jobs are split so that
   # clippy, the limedl-core + xtask tests, and the native tests each run in
-  # parallel (measured steps: ~2.7 min clippy, ~2.6 min core tests, ~3 min
-  # native tests).
+  # parallel (measured job times on warm caches: 272 s / 298 s / 1012 s).
+  #
+  # That 1012 s is *not* test execution: the 114 tests run in ~3 s (measured on
+  # a 16-core dev box, where compile + link is 115 s of the same wall clock).
+  # It is the build plus the rust-cache *save* step — 514 s for that job's
+  # 846 MB entry, against 35 s for limedl-core's 451 MB one. Shrinking what gets
+  # written (or not re-writing it when nothing but the lockfile hash moved)
+  # buys more here than moving tests between platforms: `cargo nextest run -p
+  # limedl-native` is exactly what `check-rust` (Linux) now runs too, and the
+  # suite is just as cheap there.
   # ═══════════════════════════════════════════════════════════════════════
   check-windows:
     name: Clippy (Windows)
@@ -222,8 +230,13 @@ jobs:
         with:
           mode: verify
       # limedl-native: pure logic tests (UI form mapping, i18n, batching, updater
-      # manifest parsing). Only Windows runs them because the crate is currently
-      # only released for Windows.
+      # manifest parsing) plus the in-process UI suite. All three platforms run
+      # this suite (check-macos and check-rust included) and that is the point —
+      # the same assertions on another OS catch path, file-locking and temp-dir
+      # differences. This job is the only place the `cfg(windows)` branches
+      # (registry autostart, named-mutex single instance, DWM, PE resources)
+      # execute, so it stays a full test run and the suite is never pruned to
+      # "Windows-only tests": execution is 3 s of the step, the build is the rest.
       - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 
   check-macos:
@@ -262,15 +275,14 @@ jobs:
       # that do not require a display server.
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
-      # limedl-native's `cfg(not(windows))` tests (the tar.gz/`.app` member match
-      # and the window-placement guard) only exist here: test-windows-native
-      # compiles the Windows branches, and check-rust's llvm-cov run skips the UI
-      # crate because it needs a display. Without this line those tests were
-      # compiled by the clippy step above but never executed.
+      # limedl-native's `cfg(target_os = "macos")` tests (the tar.gz/`.app` member
+      # match and the window-placement guard) exist only here: test-windows-native
+      # compiles the Windows branches and check-rust the Linux ones, so without
+      # this line macOS-specific code would be linted but never executed.
       - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 
   check-rust:
-    name: Clippy & coverage (Linux)
+    name: Clippy, tests & coverage (Linux)
     runs-on: ubuntu-latest
     needs: font
     env:
@@ -288,6 +300,9 @@ jobs:
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: cargo-llvm-cov
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: nextest@0.9.144
       # limedl-native embeds MiSans VF at compile time; the font arrives as an
       # artifact from the `font` job (see its comment).
       - name: Restore bundled MiSans VF font
@@ -299,6 +314,16 @@ jobs:
         with:
           mode: verify
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      # limedl-native runs here as well: its suite is platform-agnostic logic
+      # plus the in-process UI tests (Slint's testing backend needs no display),
+      # and this is the only leg that *executes* the `cfg(target_os = "linux")`
+      # branches (`.desktop` autostart, the tray failure message, xdg-open, the
+      # AppImage self-update guard). It deliberately rides in this job instead of
+      # getting its own: a separate job would add another rust-cache entry
+      # (~0.6-0.9 GB) to a 10 GB ceiling this repo already sits at, while this
+      # job's 242 s is nowhere near the critical path (test-windows-native,
+      # ~1012 s) — see the Windows section above.
+      - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
       - name: Run tests with coverage
         run: |
           # `--profile dev` keeps line tables for source attribution: the test

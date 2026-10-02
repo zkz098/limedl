@@ -27,15 +27,28 @@
   ├─ test-windows-core (Windows): limedl-core 测试（nextest）
   ├─ test-windows-native (Windows): limedl-native 测试（nextest）
   ├─ check-macos (macOS): clippy → core 测试 → native 测试（nextest）
-  ├─ check-rust (Linux): clippy → per-crate coverage
+  ├─ check-rust (Linux): clippy → limedl-native 测试（nextest）→ per-crate coverage
   ├─ bench-rust (Linux): cargo bench (aimd + rate_limiter)
   └─ supply-chain (Linux): cargo deny check + cargo audit
 ```
 
 Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clippy` 只做 check、无法与测试
-构建共享产物，串行只会累加墙钟时间。实测单步耗时：clippy ≈ 2.7 min、limedl-core 测试
-≈ 2.6 min、native 测试 ≈ 3 min；拆开后整条流水线的瓶颈在 macOS（≈ 6.9 min）。同一 ref 的旧 run 由
-`concurrency` 直接取消。
+构建共享产物，串行只会累加墙钟时间。实测（热缓存）job 墙钟：clippy ≈ 272 s、limedl-core 测试
+≈ 298 s、native 测试 ≈ 1012 s（macOS ≈ 879 s），瓶颈就是 Windows 的 native 测试 job。
+
+那 1012 s 里**测试执行只占 ~3 s**（本地 16 核实测：114 个测试 3.06 s，编译+链接 115 s）：
+大头是构建加 rust-cache 的**回写**（该 job 846 MB 的条目耗时 514 s，而 limedl-core 451 MB 的
+只要 35 s）。所以“把测试搬到别的平台”并不能缩短 Windows 的时间，能省的是缓存条目本身——
+见下面的缓存约定。同一 ref 的旧 run 由 `concurrency` 直接取消。
+
+**limedl-native 的测试在三个平台都跑**：`test-windows-native`、`check-macos`，以及 Linux 的
+`check-rust`（在原 job 里多加一步 `cargo nextest run -p limedl-native`，不另开 job）。测试本身
+是平台无关逻辑 + `i-slint-backend-testing` 的进程内 UI 测试（无窗口、无 display），三个平台跑
+同一套断言就是覆盖（路径分隔符、文件锁、临时目录）；而各平台的 `cfg(target_os = ...)` 分支只有
+对应平台会**执行** —— Linux 那批（`.desktop` 自启、tray 失败文案、xdg-open、AppImage 自更新
+守卫）只在这条腿上跑，所以它不能退化成只做 clippy。并进 `check-rust` 而不是单开 job 是缓存账：
+仓库已贴着 GitHub 10 GB 上限，新 job = 新 rust-cache key = 再多 0.6-0.9 GB 条目，而
+`check-rust` 的 242 s 远低于关键路径（1012 s）。
 
 ### CI job 命名规范
 
@@ -66,8 +79,18 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 - rust-cache 的 key 由 rust 工具链 + 上述 RUST*/CARGO*/CC*/CFLAGS*/CXX*/CMAKE* 环境变量
   + `.cargo/config.toml` + 外部依赖 hash 组成，**不含源码**；只有恢复不完整（key 不
     完全匹配）时才会回写缓存，完整命中时不会覆盖。
-- 桌面 release 构建的缓存由 `.github/workflows/warm-release-cache.yml` 在 main 上预热，
-  与 `release.yml` 的 `build-native` 共用同一 key（`add-job-id-key: false`）。
+- 桌面 release 构建的缓存由 `.github/workflows/warm-release-cache.yml` 在 main 上预热
+  （`windows-x86_64` 与 `darwin-aarch64` 两条腿），与 `release.yml` 的 `build-native` /
+  `build-native-macos` 共用同一 key（`add-job-id-key: false`）。**预热 job 是这些 key 唯一的写入者**：
+  `release.yml` 三条腿都带 `save-if: ${{ github.ref_type == 'branch' }}`，tag run 只恢复不写——
+  tag 作用域的条目（`refs/heads/refs/tags/vX.Y.Z`）只有同一 tag 重跑才读得到，等于每次发版白写
+  2.3 GB 进 10 GB 的仓库上限（GitHub 按 last access 淘汰，7 天未访问直接删）。代价：同一 tag 的
+  **重跑**会冷启动，首次发版由 main 的预热条目覆盖。
+- **job 级 env 会分裂 rust-cache 的 envHash**：`CARGO_BUILD_WARNINGS: deny` 这类 job 级变量
+  （前缀命中上面那份列表）会让两个 job 无法共享同一 key（实测：`check-rust`/`bench-rust` 是
+  `357705c9`，`supply-chain`/`release-native-linux-x86_64` 是 `df9a423c`）。要合并 key
+  （`shared-key` 或 `add-job-id-key: false`）时，把这类变量挂到具体 step 的 `env:` 上，cache 步骤
+  就看不到它了。
 
 ### CI 测试执行 / 构建速度
 
