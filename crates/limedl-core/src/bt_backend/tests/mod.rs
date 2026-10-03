@@ -258,6 +258,30 @@ pub(crate) fn write_torrent_fixture(dir: &std::path::Path) -> PathBuf {
     path
 }
 
+/// Raw bencode for a minimal single-file v1 torrent: `single.bin` (30 bytes)
+/// behind a single 256-byte piece.
+///
+/// `length`/`name` replace the `files` list on purpose: this is the shape
+/// that has no per-file entries to enumerate, so file-list code must
+/// synthesize the one entry itself. The piece hash is all zeros for the same
+/// reason as [`multi_file_torrent_bytes`].
+pub(crate) fn single_file_torrent_bytes() -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(
+        b"d4:infod6:lengthi30e4:name10:single.bin12:piece lengthi256e6:pieces20:",
+    );
+    bytes.extend_from_slice(&[0u8; 20]);
+    bytes.extend_from_slice(b"ee");
+    bytes
+}
+
+/// Write [`single_file_torrent_bytes`] into `dir` and return the file path.
+pub(crate) fn write_single_file_torrent_fixture(dir: &std::path::Path) -> PathBuf {
+    let path = dir.join("single.torrent");
+    std::fs::write(&path, single_file_torrent_bytes()).expect("write single-file torrent fixture");
+    path
+}
+
 // ── No-network tests (always run) ──────────────────────────────────────
 
 // ── Network tests (marked #[ignore], not run in CI) ────────────────────

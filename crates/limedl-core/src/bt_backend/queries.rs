@@ -152,12 +152,24 @@ impl IrontideBtBackend {
 
         match meta_result {
             Ok(Some(meta)) => {
-                let files = meta.info.files.unwrap_or_default();
-                Ok(files
+                // Single-file torrents carry `name`/`length` instead of a
+                // `files` list. Synthesize the one entry exactly like the
+                // preview path (`v1_file_entries`) so `getFiles` and the
+                // inspector do not report an empty list for them.
+                let entries: Vec<(PathBuf, u64)> = match &meta.info.files {
+                    Some(files) => files
+                        .iter()
+                        .map(|f| (f.path.iter().collect(), f.length))
+                        .collect(),
+                    None => vec![(
+                        PathBuf::from(&meta.info.name),
+                        meta.info.length.unwrap_or(0),
+                    )],
+                };
+                Ok(entries
                     .iter()
                     .enumerate()
-                    .map(|(i, f)| {
-                        let path: PathBuf = f.path.iter().collect();
+                    .map(|(i, (path, size))| {
                         // Unknown priorities (engine not reporting them yet)
                         // keep files selected rather than silently hiding them.
                         let included = priorities.as_ref().is_none_or(|priorities| {
@@ -168,7 +180,7 @@ impl IrontideBtBackend {
                         BtFileStatus {
                             index: i,
                             path: path.to_string_lossy().to_string(),
-                            size: f.length,
+                            size: *size,
                             downloaded_bytes: file_progress.get(i).copied().unwrap_or(0),
                             included,
                         }

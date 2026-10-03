@@ -1614,21 +1614,23 @@ async fn wait_for_bt_files(
     }
 }
 
-/// Poll `aria2.getFiles` until the two fixture files carry `expected`
-/// selection flags ("true"/"false" as aria2 serialises them).
+/// Poll `aria2.getFiles` until the files carry `expected` selection flags
+/// ("true"/"false" as aria2 serialises them).
 async fn wait_for_bt_selection(
     client: &reqwest::Client,
     rpc_url: &str,
     gid: &str,
-    expected: (&str, &str),
+    expected: &[&str],
 ) -> Vec<serde_json::Value> {
     let deadline = std::time::Instant::now() + Duration::from_secs(20);
     loop {
         let resp = rpc_call(client, rpc_url, "aria2.getFiles", serde_json::json!([gid])).await;
         if let Some(files) = resp["result"].as_array()
-            && files.len() == 2
-            && files[0]["selected"] == expected.0
-            && files[1]["selected"] == expected.1
+            && files.len() == expected.len()
+            && files
+                .iter()
+                .zip(expected)
+                .all(|(file, wanted)| file["selected"] == *wanted)
         {
             return files.clone();
         }
@@ -1719,7 +1721,7 @@ async fn aria2_add_torrent_serves_bt_files_and_options() {
     )
     .await;
     assert_eq!(resp["result"], "OK", "select-file must be accepted: {resp}");
-    let files = wait_for_bt_selection(&client, &rpc_url, &gid, ("false", "true")).await;
+    let files = wait_for_bt_selection(&client, &rpc_url, &gid, &["false", "true"]).await;
     assert_eq!(files[0]["selected"], "false", "{files:?}");
     assert_eq!(files[1]["selected"], "true", "{files:?}");
 
@@ -2106,6 +2108,73 @@ async fn aria2_change_global_option_applies_default_dir_and_validates() {
         test_server.blake3_hash,
         "on-disk bytes must match what the server served"
     );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// A single-file `.torrent` has no per-file entries in its metadata; aria2
+/// still expects one entry in `files`, synthesized from `name`/`length`.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_add_torrent_single_file_reports_one_entry() {
+    let fixture = crate::bt_backend::tests::single_file_torrent_bytes();
+    let expected_hash = irontide::core::torrent_from_bytes(&fixture)
+        .expect("the single-file fixture must parse")
+        .info_hash
+        .to_hex();
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&fixture);
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addTorrent",
+        serde_json::json!([encoded, {"dir": dest_dir.to_string_lossy()}]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addTorrent failed: {resp}"))
+        .to_string();
+
+    let status = wait_for_bt_files(&client, &rpc_url, &gid).await;
+    assert_eq!(
+        status["bittorrent"]["infoHash"]
+            .as_str()
+            .map(str::to_ascii_lowercase),
+        Some(expected_hash),
+        "tellStatus must report the fixture's info hash: {status}"
+    );
+    let files = status["files"].as_array().expect("files array");
+    assert_eq!(
+        files.len(),
+        1,
+        "a single-file torrent reports exactly one entry: {status}"
+    );
+    assert_eq!(files[0]["index"], "1");
+    assert_eq!(files[0]["path"], "single.bin");
+    assert_eq!(files[0]["length"], "30");
+    assert_eq!(files[0]["selected"], "true");
+
+    // aria2's empty `select-file` deselects everything; the synthesized entry
+    // must follow it like any other file.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"select-file": ""}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "empty select-file: {resp}");
+    let files = wait_for_bt_selection(&client, &rpc_url, &gid, &["false"]).await;
+    assert_eq!(files[0]["selected"], "false", "{files:?}");
+
+    // Cleanup: stop the torrent before the fake DHT lookup goes anywhere.
+    let resp = rpc_call(&client, &rpc_url, "aria2.remove", serde_json::json!([gid])).await;
+    assert_eq!(resp["result"].as_str(), Some(gid.as_str()), "{resp}");
 
     let _ = shutdown_tx.send(true);
 }

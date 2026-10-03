@@ -103,6 +103,7 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 - `stats_to_snapshot` 是状态转换的核心桥梁。使用 `downloaded`（所有 payload 字节）而非 `total_done`（仅已验证 piece）以提供平滑进度显示。
 - `get_pieces()` 优先使用 `session.get_piece_states()` 获取精确的 per-piece 完成位图（支持乱序下载如 rarest-first）。回退到 `torrent_stats` 的 `pieces_total`/`pieces_have` 统计值（仅适用于顺序下载场景）。
 - `get_torrent_files()` 的 `included`（→ aria2 `selected`、桌面 inspector 的文件勾选）取自 `session.file_priorities()`（`Skip` = 未选），**不要**用 `file_status` 的 open/closed mode 推断：mode 只反映磁盘后端是否打开文件，暂停 torrent 时每个文件都会变成 `Closed`，会把整组文件错误地标记为未选。
+- `get_torrent_files()` 对单文件种子（元数据只有 `name`/`length`、没有 `files` 列表）合成一条 0 起索引的条目，与预览路径 `snapshot::v1_file_entries()` 一致；否则 aria2 `getFiles` 和桌面 inspector 会把单文件种子显示成空列表。
 
 ### 并发控制
 

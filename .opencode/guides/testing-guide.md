@@ -287,7 +287,7 @@ cargo run -p limedl-native --features slint/mcp
 
 `bt_backend/tests/` 用 `make_backend()`（关掉 DHT/LSD/UPnP/PEX/uTP，端口 0）起真实 irontide session，按场景拆文件：
 
-- `queries.rs` — 预览/peers/trackers/pieces/file 列表、文件选择、限速、runtime status、pending summary。所有走 `block_in_place` 的用例必须用 `#[tokio::test(flavor = "multi_thread")]`（current-thread 下 `block_in_place` panic）。torrent fixture 是 `tests/mod.rs` 里手写的 bencode（`multi_file_torrent_bytes()`，piece hash 全零：解析只需要结构），用来覆盖“有 metadata”那条路；magnet 覆盖“没 metadata”那条路。
+- `queries.rs` — 预览/peers/trackers/pieces/file 列表、文件选择、限速、runtime status、pending summary。所有走 `block_in_place` 的用例必须用 `#[tokio::test(flavor = "multi_thread")]`（current-thread 下 `block_in_place` panic）。torrent fixture 是 `tests/mod.rs` 里手写的 bencode（`multi_file_torrent_bytes()`，piece hash 全零：解析只需要结构），用来覆盖“有 metadata”那条路；`single_file_torrent_bytes()` 覆盖没有 `files` 列表的单文件形状（依赖 `get_torrent_files()` 自己合成条目）；magnet 覆盖“没 metadata”那条路。
 - `alerts.rs` — `handle_alert`（从 `alert_bridge_loop` 抽出的映射本体，`pub(super)`）直接喂合成 `AlertKind`，逐条断言映射表（aria2 通知名、gid、Updated/Progress 形状）；只打日志的告警必须不发事件。`setup_alert_bridge()` 在 return 前就 `session.subscribe()`，所以“setup 后立刻 start torrent”不会丢 `TorrentAdded`——最后一个用例就靠这个顺序做端到端断言。
 - `anti_leech.rs` / `uploads.rs` — 后台循环用 `spawn_*_loop()` + “interval 第一次 tick 立即触发”跑一轮 sweep：断言 ban/slot-state 的清理、过期 ban 的 sweep、限制清零后的 unpause；需要真实上传量才能命中的 pause/ban-leecher 分支离线覆盖不到（`get_peer_info` 为空时循环提前 return）。
 - 循环类测试的同步方式：能等事件就等事件（`rx.recv()` + timeout），否则 `wait_until()` 轮询状态；不要靠 sleep 猜时长。

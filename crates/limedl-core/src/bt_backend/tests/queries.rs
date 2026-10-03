@@ -196,6 +196,46 @@ async fn queries_use_metadata_when_the_torrent_has_it() {
     backend.shutdown().await;
 }
 
+/// A single-file torrent has no `files` list; the one entry must be
+/// synthesized from `name`/`length` (mirroring the preview path), and
+/// selection must still flip it.
+#[tokio::test(flavor = "multi_thread")]
+async fn single_file_torrent_reports_one_selectable_entry() {
+    let (tmp, backend) = make_backend().await;
+    let path = write_single_file_torrent_fixture(tmp.path());
+    let info_hash = backend
+        .start(StartDownloadRequest {
+            url: path.to_string_lossy().into_owned(),
+            ..Default::default()
+        })
+        .await
+        .expect("start single-file fixture");
+
+    let files = backend.get_torrent_files(info_hash).expect("files");
+    assert_eq!(
+        files.len(),
+        1,
+        "a single-file torrent reports exactly one entry: {files:?}"
+    );
+    assert_eq!(files[0].index, 0);
+    assert_eq!(files[0].path, "single.bin");
+    assert_eq!(files[0].size, 30);
+    assert_eq!(files[0].downloaded_bytes, 0);
+    assert!(files[0].included, "a fresh file is selected: {files:?}");
+
+    backend
+        .update_torrent_files(info_hash, vec![])
+        .await
+        .expect("deselect the only file");
+    let files = backend.get_torrent_files(info_hash).expect("files");
+    assert!(
+        !files[0].included,
+        "selection must apply to single-file torrents: {files:?}"
+    );
+
+    backend.shutdown().await;
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn update_torrent_files_sets_skip_priorities() {
     use irontide::core::FilePriority;
