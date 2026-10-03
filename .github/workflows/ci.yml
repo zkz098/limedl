@@ -38,6 +38,33 @@ concurrency:
 # resulting LRU evictions are what turned every tagged release into a cold
 # 16-minute rebuild of Slint/Skia: the release caches never survived.
 #
+# Job-scoped keys were the other half of that problem. rust-cache's default key
+# embeds the job id, so `check-windows`, `test-windows-core` and
+# `test-windows-native` each kept a private 0.4-1.3 GB copy of the same
+# dependency graph — their env and lockfile hashes are byte-identical (measured
+# `fc9b2beb`/`b0be5515` in run 37110796328), only the job name differed. The
+# duplicates pushed the repository to 11.7 GB against GitHub's 10 GB ceiling,
+# and the LRU eviction that followed deleted every Linux entry, `check-rust`
+# included — so the coverage leg rebuilt the llvm-cov workspace cold.
+#
+# The Rust jobs now share one `ci-debug` key per OS: `shared-key` replaces the
+# job-id portion, and rust-cache still appends the runner OS/arch, so Windows,
+# Linux and macOS keep separate entries. Contract for every shared cache key:
+# - Exactly one job writes a shared key; the others pass `save-if: false`.
+#   Several writers would race in `saveCache` after each lockfile bump
+#   (actions/cache reserves a key once) and recreate one duplicate generation
+#   per job. Writers today: test-windows-native (Windows), check-rust (Linux),
+#   check-macos (macOS).
+# - Every writer also gates on `github.ref == 'refs/heads/main'`: a cache saved
+#   on a PR branch is scoped to that branch and still counts against the same
+#   10 GB ceiling.
+# - `bench-rust` is a restore-only reader of check-rust's entry. That is safe
+#   because cargo-llvm-cov's rustc wrapper instruments only the crates in
+#   `__CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES` (workspace members plus any
+#   `--dep-coverage` argument, of which this repo passes none), and rust-cache
+#   strips workspace artifacts before saving — the cached dependencies are the
+#   plain ones the benchmark build reuses.
+#
 # `rustflags: ""` leaves RUSTFLAGS unset so `.cargo/config.toml` stays the single
 # source of truth for codegen/linker flags (x86-64-v3, and rust-lld +
 # /FORCE:MULTIPLE on Windows). The action's old default (`RUSTFLAGS=-D warnings`)
@@ -155,6 +182,11 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # Shares one Windows debug entry with test-windows-core and
+          # test-windows-native (writer contract at the top).
+          shared-key: ci-debug
+          save-if: false
       - name: Restore bundled MiSans VF font
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
@@ -189,6 +221,11 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # Restore-only reader of test-windows-native's shared Windows entry
+          # (writer contract at the top).
+          shared-key: ci-debug
+          save-if: false
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: nextest@0.9.144
@@ -227,6 +264,14 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # The single writer of the Windows `ci-debug` entry: this job compiles
+          # the largest dependency superset (limedl-core's graph plus Slint), so
+          # check-windows and test-windows-core reuse its artifacts. Main-only
+          # saves keep PR branches out of the 10 GB ceiling (writer contract at
+          # the top).
+          shared-key: ci-debug
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: nextest@0.9.144
@@ -263,6 +308,13 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # The only macOS Rust job, so it is its own writer. `shared-key` keeps
+          # the name aligned with the other OSes' entries (rust-cache appends
+          # the OS/arch, so they never collide) and main-only saves keep PR
+          # branches out of the ceiling.
+          shared-key: ci-debug
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: nextest@0.9.144
@@ -315,6 +367,11 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # The single writer of the Linux `ci-debug` entry; bench-rust reads it
+          # (writer contract at the top).
+          shared-key: ci-debug
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       # Slint's font stack probes pkg-config for fontconfig
       # (`yeslogic-fontconfig-sys`); the tray no longer needs any GTK package.
       - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
@@ -481,6 +538,12 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # Restore-only reader of check-rust's shared Linux entry — see the
+          # writer contract at the top for why the llvm-cov wrapper does not
+          # contaminate the cached dependencies.
+          shared-key: ci-debug
+          save-if: false
       - name: Restore main baseline
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -539,6 +602,10 @@ jobs:
         with:
           # These tools never compile the workspace — the registry is all they need.
           cache-targets: false
+          # Its env hash differs from check-rust's (this job sets no
+          # CARGO_BUILD_WARNINGS), so it keeps its own small registry entry;
+          # still main-only.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:

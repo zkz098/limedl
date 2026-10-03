@@ -85,6 +85,20 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
   tag 作用域的条目（`refs/heads/refs/tags/vX.Y.Z`）只有同一 tag 重跑才读得到，等于每次发版白写
   2.3 GB 进 10 GB 的仓库上限（GitHub 按 last access 淘汰，7 天未访问直接删）。代价：同一 tag 的
   **重跑**会冷启动，首次发版由 main 的预热条目覆盖。
+- **CI 的 Rust job 每个 OS 共用一个 `ci-debug` 缓存**（`shared-key: ci-debug`）：`shared-key`
+  取代 job id 那一段，而 rust-cache 仍会追加 runner 的 OS/arch，所以 Windows / Linux / macOS
+  各一条条目、互不串味。合并的依据是 envHash 与 lockHash 完全一致（实测 Windows 三个 job 都是
+  `fc9b2beb`/`b0be5515`，Linux 的 `check-rust`/`bench-rust` 都是 `357705c9`）——此前只有
+  rust-cache 默认的 job-id key 把它们分开，等于同一张依赖图存了三份。**每个 key 只有一个写入者**
+  （Windows = `test-windows-native`，Linux = `check-rust`，macOS = `check-macos`），其余 job 一律
+  `save-if: false`：多个写入者在每次 lockfile 变更后会抢同一个 key（actions/cache 只能 reserve
+  一次）并各自回写一代，重复条目正是把仓库顶到 11.7 GB、把 Linux 条目（含 `check-rust`）挤掉、
+  让覆盖率腿冷编译 llvm-cov 的元凶。写入者同时要求 `github.ref == 'refs/heads/main'`：PR 分支上
+  写的缓存只对该分支可见，却照样占 10 GB 配额。
+- **`bench-rust` 只读复用 `check-rust` 的条目是安全的**：cargo-llvm-cov 的 rustc wrapper 只给
+  `__CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES` 里的 crate（workspace 成员 + `--dep-coverage`
+  指定的依赖，本仓库没有）插桩，依赖本身不插桩；而 rust-cache 回写前会清掉 workspace 产物，所以
+  缓存里的依赖就是普通构建产物，bench 直接复用。
 - **job 级 env 会分裂 rust-cache 的 envHash**：`CARGO_BUILD_WARNINGS: deny` 这类 job 级变量
   （前缀命中上面那份列表）会让两个 job 无法共享同一 key（实测：`check-rust`/`bench-rust` 是
   `357705c9`，`supply-chain`/`release-native-linux-x86_64` 是 `df9a423c`）。要合并 key
