@@ -134,11 +134,10 @@ jobs:
       contents: write
     env:
       # minisign keypair for the self-update channel (verified by
-      # crates/limedl-native/src/update.rs). The TAURI_* names are the retired
-      # Tauri pipeline's secrets, still read so releases keep working until the
-      # secrets are renamed: `cargo xtask generate-key` prints the gh commands.
-      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      # crates/limedl-native/src/update/mod.rs). `cargo xtask generate-key` prints
+      # the `gh secret set` commands.
+      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
+      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -518,8 +517,8 @@ jobs:
     permissions:
       contents: write
     env:
-      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
+      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 

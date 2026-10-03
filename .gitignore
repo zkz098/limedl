@@ -2,15 +2,11 @@
 logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
+# Frontend workspace (website/ — Astro + pnpm)
 node_modules
 dist
-dist-ssr
-*.local
 .astro
 
 # Editor directories and files
@@ -24,14 +20,6 @@ dist-ssr
 *.sln
 *.sw?
 target/
-
-# Test coverage output
-coverage/
-playwright-report/
-test-results/
-
-# Playwright storage state (regenerated at test setup)
-e2e/storage-state.json
 
 # Large binary archives (OS images, datasets, etc.)
 *.tar.gz
@@ -49,9 +37,6 @@ e2e/storage-state.json
 *.qcow2
 *.exe
 *.msix
-
-# Deepwork state
-.slim/deepwork/
 
 # MiSans VF font — fetched by `cargo xtask fetch-font`, not committed to git
 # (MiSans font license forbids re-distributing the font file itself)

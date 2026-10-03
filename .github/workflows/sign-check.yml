@@ -20,10 +20,8 @@ jobs:
     name: Sign & guard (throwaway file)
     runs-on: ubuntu-latest
     env:
-      # Same fallback as release.yml: the retired Tauri secret names still work
-      # until they are deleted.
-      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
+      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
