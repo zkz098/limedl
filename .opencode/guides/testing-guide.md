@@ -28,7 +28,6 @@
   ├─ test-windows-native (Windows): limedl-native 测试（nextest）
   ├─ check-macos (macOS): clippy → core 测试 → native 测试（nextest）
   ├─ check-rust (Linux): coverage（core + native 两份 lcov）→ clippy → SonarQube 扫描 → limedl-native 测试（nextest）
-  ├─ bench-rust (Linux): cargo bench (aimd + rate_limiter)
   └─ supply-chain (Linux): cargo deny check + cargo audit
 ```
 
@@ -46,9 +45,8 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 是平台无关逻辑 + `i-slint-backend-testing` 的进程内 UI 测试（无窗口、无 display），三个平台跑
 同一套断言就是覆盖（路径分隔符、文件锁、临时目录）；而各平台的 `cfg(target_os = ...)` 分支只有
 对应平台会**执行** —— Linux 那批（`.desktop` 自启、tray 失败文案、xdg-open、AppImage 自更新
-守卫）只在这条腿上跑，所以它不能退化成只做 clippy。并进 `check-rust` 而不是单开 job 是缓存账：
-仓库已贴着 GitHub 10 GB 上限，新 job = 新 rust-cache key = 再多 0.6-0.9 GB 条目，而
-`check-rust` 的 242 s 远低于关键路径（1012 s）。
+守卫）只在这条腿上跑，所以它不能退化成只做 clippy。并进 `check-rust` 而不是单开 job 是因为
+`check-rust` 的 242 s 远低于关键路径（1012 s）：单开一条腿只多一份调度开销。
 
 ### CI job 命名规范
 
@@ -56,7 +54,7 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 
 - 平台永远是最后一个括号里的**第一个 token**，取值限定 `Linux` / `macOS` / `Windows` /
   `windows-x86_64`。
-- 动作词汇限定：Clippy / Tests / Coverage / Benchmarks / Supply chain / Release notes / Warm cache / Sign & guard。
+- 动作词汇限定：Clippy / Tests / Coverage / Supply chain / Release notes / Sign & guard。
 - **不要在 `name:` 里写 `: `**：YAML 中值里出现 `": "` 必须加引号；子限定用逗号（`Tests (Windows, limedl-core)`）。
 - **job id 不随显示名变化**，保持稳定，便于 `needs:`、`gh run view` 与文档引用。
 
@@ -64,8 +62,7 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 
 - **`setup-rust-toolchain` 必须带 `cache: false`**：该 action 默认（`cache: true`）
   内部会跑一遍 rust-cache，与工作流里显式的 `swatinem/rust-cache` 重复，等于每个 job
-  存两份 1-2 GB 缓存。仓库缓存上限 10 GB，重复条目把 release 缓存挤掉后，每次发版
-  都要冷编译 Slint 图形栈。
+  存两份 1-2 GB 缓存。仓库缓存上限 10 GB，重复条目会顶掉其他 job 的条目、触发 LRU 淘汰。
 - **`rustflags: ""`**：该 action 默认导出 `RUSTFLAGS=-D warnings`，而 RUSTFLAGS 一旦
   存在就会**整体覆盖** `.cargo/config.toml` 的 rustflags（target-cpu / rust-lld 全部失效）。留空后 config.toml 是唯一的 flag 来源，所有步骤共用
   同一份指纹，不再出现同 job 内反复全量重编。
@@ -78,32 +75,26 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 - rust-cache 的 key 由 rust 工具链 + 上述 RUST*/CARGO*/CC*/CFLAGS*/CXX*/CMAKE* 环境变量
   + `.cargo/config.toml` + 外部依赖 hash 组成，**不含源码**；只有恢复不完整（key 不
     完全匹配）时才会回写缓存，完整命中时不会覆盖。
-- 桌面 release 构建的缓存由 `.github/workflows/warm-release-cache.yml` 在 main 上预热
-  （`windows-x86_64` 与 `darwin-aarch64` 两条腿），与 `release.yml` 的 `build-native` /
-  `build-native-macos` 共用同一 key（`add-job-id-key: false`）。**预热 job 是这些 key 唯一的写入者**：
-  `release.yml` 三条腿都带 `save-if: ${{ github.ref_type == 'branch' }}`，tag run 只恢复不写——
-  tag 作用域的条目（`refs/heads/refs/tags/vX.Y.Z`）只有同一 tag 重跑才读得到，等于每次发版白写
-  2.3 GB 进 10 GB 的仓库上限（GitHub 按 last access 淘汰，7 天未访问直接删）。代价：同一 tag 的
-  **重跑**会冷启动，首次发版由 main 的预热条目覆盖。
+- **桌面 release 构建刻意不缓存**：它曾经由 `.github/workflows/warm-release-cache.yml` 在 main 上
+  预热 `release-native-*`，但该 workflow 每次 crates 改动 push 要花 ~50 min 跑两条腿，而实测 release
+  收益 Windows ≈ 0（13m05s 热 vs 13m16s 冷——这条腿瓶颈在链接而非依赖编译）、macOS 只有 4-9 min。
+  更关键的是 rust-cache 只缓存依赖、不缓存 workspace crate，源码-only push 根本改不了 key，等于白
+  重建一次二进制。workflow 已删除，`release.yml` 三条腿也不再带 rust-cache：tag release 现在付冷编译
+  （v0.4.0 全冷时 macOS 的 `cargo build --release -p limedl-native` 实测 1481 s）。
 - **CI 的 Rust job 每个 OS 共用一个 `ci-debug` 缓存**（`shared-key: ci-debug`）：`shared-key`
   取代 job id 那一段，而 rust-cache 仍会追加 runner 的 OS/arch，所以 Windows / Linux / macOS
-  各一条条目、互不串味。合并的依据是 envHash 与 lockHash 完全一致（实测 Windows 三个 job 都是
-  `fc9b2beb`/`b0be5515`，Linux 的 `check-rust`/`bench-rust` 都是 `357705c9`）——此前只有
-  rust-cache 默认的 job-id key 把它们分开，等于同一张依赖图存了三份。**每个 key 只有一个写入者**
-  （Windows = `test-windows-native`，Linux = `check-rust`，macOS = `check-macos`），其余 job 一律
-  `save-if: false`：多个写入者在每次 lockfile 变更后会抢同一个 key（actions/cache 只能 reserve
-  一次）并各自回写一代，重复条目正是把仓库顶到 11.7 GB、把 Linux 条目（含 `check-rust`）挤掉、
-  让覆盖率腿冷编译 llvm-cov 的元凶。写入者同时要求 `github.ref == 'refs/heads/main'`：PR 分支上
-  写的缓存只对该分支可见，却照样占 10 GB 配额。
-- **`bench-rust` 只读复用 `check-rust` 的条目是安全的**：cargo-llvm-cov 的 rustc wrapper 只给
-  `__CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES` 里的 crate（workspace 成员 + `--dep-coverage`
-  指定的依赖，本仓库没有）插桩，依赖本身不插桩；而 rust-cache 回写前会清掉 workspace 产物，所以
-  缓存里的依赖就是普通构建产物，bench 直接复用。
+  各一条条目、互不串味。真正的合并发生在 Windows：三个 job 的 envHash 与 lockHash 完全一致
+  （实测都是 `fc9b2beb`/`b0be5515`），此前只有 rust-cache 默认的 job-id key 把它们分开，等于同一张
+  依赖图存了三份；Linux / macOS 各只剩一个 job，`shared-key` 只是统一命名、将来加 job 时自动共享。
+  **每个 key 只有一个写入者**（Windows = `test-windows-native`，Linux = `check-rust`，macOS =
+  `check-macos`），其余 job 一律 `save-if: false`：多个写入者在每次 lockfile 变更后会抢同一个 key
+  （actions/cache 只能 reserve 一次）并各自回写一代，重复条目正是把仓库顶到 11.7 GB、把 Linux 条目
+  挤掉、让覆盖率腿冷编译 llvm-cov 的元凶。写入者同时要求 `github.ref == 'refs/heads/main'`：PR
+  分支上写的缓存只对该分支可见，却照样占 10 GB 配额。
 - **job 级 env 会分裂 rust-cache 的 envHash**：`CARGO_BUILD_WARNINGS: deny` 这类 job 级变量
-  （前缀命中上面那份列表）会让两个 job 无法共享同一 key（实测：`check-rust`/`bench-rust` 是
-  `357705c9`，`supply-chain`/`release-native-linux-x86_64` 是 `df9a423c`）。要合并 key
-  （`shared-key` 或 `add-job-id-key: false`）时，把这类变量挂到具体 step 的 `env:` 上，cache 步骤
-  就看不到它了。
+  （前缀命中上面那份列表）会让两个 job 无法共享同一 key（实测：`check-rust` 是 `357705c9`，
+  `supply-chain` 是 `df9a423c`）。要合并 key（`shared-key` 或 `add-job-id-key: false`）时，把这类
+  变量挂到具体 step 的 `env:` 上，cache 步骤就看不到它了。
 
 ### CI 测试执行 / 构建速度
 

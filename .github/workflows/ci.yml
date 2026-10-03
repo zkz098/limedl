@@ -58,12 +58,6 @@ concurrency:
 # - Every writer also gates on `github.ref == 'refs/heads/main'`: a cache saved
 #   on a PR branch is scoped to that branch and still counts against the same
 #   10 GB ceiling.
-# - `bench-rust` is a restore-only reader of check-rust's entry. That is safe
-#   because cargo-llvm-cov's rustc wrapper instruments only the crates in
-#   `__CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES` (workspace members plus any
-#   `--dep-coverage` argument, of which this repo passes none), and rust-cache
-#   strips workspace artifacts before saving — the cached dependencies are the
-#   plain ones the benchmark build reuses.
 #
 # `rustflags: ""` leaves RUSTFLAGS unset so `.cargo/config.toml` stays the single
 # source of truth for codegen/linker flags (x86-64-v3, and rust-lld +
@@ -120,9 +114,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       # `fetch-font` is part of xtask now, so the one job that talks to Xiaomi's
-      # CDN needs the Rust toolchain. No rust-cache here on purpose: a cache
-      # entry for this job would compete with the release-native entries under
-      # the repo's 10 GB ceiling (see warm-release-cache.yml).
+      # CDN needs the Rust toolchain. No rust-cache here on purpose: it would
+      # only cache the registry for the single xtask binary this job builds.
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           toolchain: stable
@@ -368,8 +361,9 @@ jobs:
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
-          # The single writer of the Linux `ci-debug` entry; bench-rust reads it
-          # (writer contract at the top).
+          # The Linux `ci-debug` entry (writer contract at the top). check-rust
+          # is the only Linux Rust job that builds the workspace, so it is its
+          # own writer; the key is shared for consistency with the other OSes.
           shared-key: ci-debug
           save-if: ${{ github.ref == 'refs/heads/main' }}
       # Slint's font stack probes pkg-config for fontconfig
@@ -508,10 +502,9 @@ jobs:
       # and this is the only leg that *executes* the `cfg(target_os = "linux")`
       # branches (`.desktop` autostart, the tray failure message, xdg-open, the
       # AppImage self-update guard). It deliberately rides in this job instead of
-      # getting its own: a separate job would add another rust-cache entry
-      # (~0.6-0.9 GB) to a 10 GB ceiling this repo already sits at, while this
-      # job's 242 s is nowhere near the critical path (test-windows-native,
-      # ~1012 s) — see the Windows section above.
+      # getting its own: this job's 242 s is nowhere near the critical path
+      # (test-windows-native, ~1012 s), so a separate leg would only add
+      # scheduling overhead — see the Windows section above.
       - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
       - name: Upload coverage reports
         if: always()
@@ -521,72 +514,6 @@ jobs:
           # Recursive: the report is written next to the crate it covers.
           path: '**/lcov-*.info'
           if-no-files-found: warn
-
-  bench-rust:
-    name: Benchmarks (Linux)
-    runs-on: ubuntu-latest
-    env:
-      CARGO_BUILD_WARNINGS: deny
-    permissions:
-      contents: read
-      actions: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
-        with:
-          toolchain: stable
-          cache: false
-          rustflags: ""
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          # Restore-only reader of check-rust's shared Linux entry — see the
-          # writer contract at the top for why the llvm-cov wrapper does not
-          # contaminate the cached dependencies.
-          shared-key: ci-debug
-          save-if: false
-      - name: Restore main baseline
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: criterion-baseline
-          key: criterion-${{ runner.os }}-main-ci
-
-      - name: Link baseline
-        run: |
-          if [ -d "criterion-baseline" ] && [ "$(ls -A criterion-baseline 2>/dev/null)" ]; then
-            mkdir -p target/criterion
-            cp -r criterion-baseline/* target/criterion/
-          fi
-
-      - name: Run benchmarks
-        run: cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils --bench aimd --bench rate_limiter
-
-      - name: Copy results to baseline
-        if: github.event_name == 'push'
-        run: |
-          rm -rf criterion-baseline
-          mkdir -p criterion-baseline
-          for bench in aimd rate_limiter; do
-            if [ -d "target/criterion/$bench" ]; then
-              cp -r "target/criterion/$bench" criterion-baseline/
-            fi
-          done
-          if [ -d "target/criterion/report" ]; then
-            cp -r target/criterion/report criterion-baseline/
-          fi
-
-      - name: Cache baseline
-        if: github.event_name == 'push'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: criterion-baseline
-          key: criterion-${{ runner.os }}-main-ci
-
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: criterion-report
-          path: criterion-baseline/report/
 
   supply-chain:
     name: Supply chain (cargo-deny, cargo-audit)
