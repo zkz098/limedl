@@ -46,11 +46,12 @@ pub fn tray_init_failure_message(err: &tray_icon::Error) -> String {
     {
         format!(
             "failed to create the system tray icon: {err}\n\
-             limedl requires a system tray. Install a StatusNotifier/appindicator host, e.g.\n\
-             \x20 Debian/Ubuntu: sudo apt install libayatana-appindicator3-1 gnome-shell-extension-appindicator\n\
-             \x20 Fedora:        sudo dnf install libappindicator-gtk3\n\
-             \x20 Arch:          sudo pacman -S libappindicator-gtk3\n\
-             On GNOME also enable the AppIndicator extension, then start limedl again."
+             limedl serves the tray as a StatusNotifierItem over the session D-Bus, so it needs\n\
+             a running D-Bus session and a StatusNotifier host:\n\
+             \x20 GNOME: install and enable the AppIndicator shell extension\n\
+             \x20 KDE/XFCE/waybar/swaybar: the host ships with the desktop or bar\n\
+             No GTK/appindicator package is involved anymore. If only the host is missing,\n\
+             limedl keeps running and the icon appears once the host shows up."
         )
     }
     #[cfg(not(target_os = "linux"))]

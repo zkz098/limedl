@@ -74,9 +74,8 @@ Run
   limedl-native --hidden   # start in the tray only
 
 Requirements
-  - A system tray (StatusNotifier / appindicator host). On GNOME install the
-    AppIndicator shell extension; Debian/Ubuntu also need
-    libayatana-appindicator3-1.
+  - A system tray (StatusNotifier host). On GNOME install the AppIndicator
+    shell extension; KDE/XFCE and most bars ship a host already.
   - xdg-desktop-portal (usually present) for the file and folder pickers.
 
 Autostart is enabled from Settings and writes

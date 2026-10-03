@@ -31,9 +31,9 @@ After cloning the repository, configure the necessary toolchains for your platfo
     cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
     ```
 - **Linux (Ubuntu / Debian)**:
-  - System tray and desktop integration require GTK-3 header packages:
+  - The build needs a C toolchain and pkg-config:
     ```bash
-    sudo apt install build-essential pkg-config libgtk-3-dev libayatana-appindicator3-dev
+    sudo apt install build-essential pkg-config
     ```
 - **macOS**:
   - Install Xcode Command Line Tools: `xcode-select --install`.

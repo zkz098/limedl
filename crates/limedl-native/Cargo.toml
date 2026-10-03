@@ -41,23 +41,31 @@ mimalloc = { workspace = true }
 foldhash = { workspace = true }
 uuid = { workspace = true }
 time = { workspace = true }
-# default-features = false drops `libxdo`, which `tray-icon` enables by default on
-# Linux only so `muda`'s predefined `Copy`/`Cut`/`Paste`/`SelectAll` items can
-# synthesize keystrokes through `xdotool` (`muda/src/lib.rs:1187`). limedl never
-# constructs a predefined item — `build_tray_menu` uses `separator()` only — so
-# the feature would cost a `libxdo-dev` build dependency and an `xdotool` runtime
-# dependency for code that is never reached. The `gtk` feature stays: it is what
-# provides the Linux tray itself (via `libappindicator`, needing `libgtk-3-dev` at
-# build time), and it is left implicit through the default set of the *other*
-# features, so only the xdo half is switched off here.
-tray-icon = { version = "0.24", default-features = false, features = ["gtk"] }
+# Linux uses tray-icon's `ksni` backend: a pure-Rust StatusNotifierItem served
+# over the session D-Bus (ksni + zbus), not the GTK3 `libappindicator` one. It
+# is what makes the Linux build GTK-free — `gtk`, `gtk-sys`, `libappindicator`
+# and `glib 0.18` (RUSTSEC-2024-0429, previously accepted) all leave the graph,
+# so neither `libgtk-3-dev`/`libappindicator3-dev` at build time nor
+# `libgtk-3-0`/`libayatana-appindicator3-1` at runtime are needed.
+# `default-features = false` also drops the `libxdo` half, which `muda` only
+# uses so its predefined `Copy`/`Cut`/`Paste`/`SelectAll` items can synthesize
+# keystrokes through `xdotool`; limedl builds its own items plus `separator()`
+# only, so that feature would cost a `libxdo-dev` build dependency for code
+# that is never reached. 0.26 moved `libappindicator` into the default set, so
+# it has to be switched off explicitly.
+tray-icon = { version = "0.26", default-features = false, features = ["ksni"] }
 # `muda` is a direct dependency (the tray menu items are built from it) AND a
-# transitive one through `tray-icon`. Features are unified across the whole graph,
-# so `default-features = false, features = ["gtk"]` has to be set on BOTH crates:
-# leaving it off here re-enables `libxdo` for the workspace and the `tray-icon`
-# entry above would have no effect (this is exactly how `libxdo` survived the
-# first attempt). Same reasoning as above — `gtk` is required, `libxdo` is not.
-muda = { version = "0.19", default-features = false, features = ["gtk"] }
+# transitive one through `tray-icon`. Features are unified across the whole
+# graph, so both crates have to agree on the backend: `tray-icon/ksni` turns on
+# `muda/snapshot`, which is how the ksni backend reads the menu as data
+# (`ContextMenu::snapshot_handle()`), and `default-features = false` keeps
+# muda's own `gtk3` backend out (on Linux without gtk3/gtk4 muda compiles its
+# `noop` platform, which is exactly the snapshot-only path). The menu code in
+# `tray.rs` is unchanged: the snapshot's activate closures still emit
+# `muda::MenuEvent`. Slint's winit backend pulls its own `muda 0.19` for its
+# menu handling; that is a separate semver line in Cargo.lock and unrelated to
+# the tray (the tray types come from this 0.21 entry).
+muda = { version = "0.21", default-features = false, features = ["snapshot"] }
 notify-rust = "4"
 # rfd's build script panics when both of its Linux backends (`gtk3` and
 # `xdg-portal`) are enabled for the same target, so exactly one has to be picked.

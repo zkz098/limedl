@@ -107,7 +107,7 @@ sudo dnf install xdg-desktop-portal xdg-desktop-portal-gtk
 
 On certain GNOME desktop versions, system tray icons are hidden by default:
 - Install the **AppIndicator and KStatusNotifierItem Support** GNOME Shell extension;
-- Ensure required libraries are installed: `sudo apt install libayatana-appindicator3-1` or `libappindicator3-1`.
+- No appindicator client library is needed anymore: make sure the session D-Bus is running and a StatusNotifier host (the extension, KDE, or your bar) is active.
 
 ---
 

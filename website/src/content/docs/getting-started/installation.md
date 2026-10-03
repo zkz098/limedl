@@ -19,7 +19,7 @@ limedl 为主流桌面操作系统提供了原生编译的发布版本。所有�
 | :--- | :--- | :--- | :--- |
 | **Windows** | x86_64 (64位) | Windows 10 (1809+) 或 Windows 11 | 系统默认自带 C++ 运行时，无需额外依赖 |
 | **macOS** | Apple Silicon (aarch64) | macOS Monterey 12.0 或更高版本 | 原生支持 M1 / M2 / M3 / M4 系列芯片 |
-| **Linux** | x86_64 (64位) | glibc ≥ 2.39 (如 Ubuntu 24.04+, Fedora 40+) | `xdg-desktop-portal` (文件对话框) · `libgtk-3` (托盘) |
+| **Linux** | x86_64 (64位) | glibc ≥ 2.39 (如 Ubuntu 24.04+, Fedora 40+) | `xdg-desktop-portal` (文件对话框) · StatusNotifier 宿主 (托盘) |
 
 ---
 
@@ -101,7 +101,7 @@ cd limedl-native
 
 ### Linux 运行依赖说明
 - **原生文件选择器**：limedl 使用标准 `xdg-desktop-portal`（通过 D-Bus 与宿主桌面通信，完美适配 Wayland 与沙箱环境）。主流桌面（GNOME、KDE Plasma、XFCE）均默认具备；如在平铺式窗口管理器（i3/Sway）下运行，请确保已安装 `xdg-desktop-portal` 及对应的后端实现（如 `xdg-desktop-portal-gtk`）。
-- **系统托盘**：系统托盘由 `libgtk-3` 提供支持，绝大多数现代发行版已默认预装。
+- **系统托盘**：托盘是走会话 D-Bus 的 StatusNotifierItem，不需要 GTK。GNOME 需安装并启用 **AppIndicator** 扩展；KDE/XFCE 等桌面自带宿主。
 
 ---
 

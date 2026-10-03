@@ -107,7 +107,7 @@ sudo dnf install xdg-desktop-portal xdg-desktop-portal-gtk
 
 在部分 GNOME 桌面环境中，系统托盘图标默认被隐藏。你可以通过安装 GNOME Shell 扩展恢复托盘图标：
 - 在扩展商店中搜索并安装 **AppIndicator and KStatusNotifierItem Support** 扩展；
-- 确保系统安装了基础库：`sudo apt install libayatana-appindicator3-1` 或 `libappindicator3-1`。
+- 托盘不再依赖 appindicator 客户端库，无需额外 apt 包；确认桌面会话在运行 D-Bus，且宿主（GNOME 扩展 / KDE / waybar）已启动。
 
 ---
 

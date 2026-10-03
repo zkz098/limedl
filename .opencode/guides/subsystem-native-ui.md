@@ -104,18 +104,18 @@ rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
 - **不需要**额外的 runtime feature：rfd 通过 `pollster::block_on` 驱动 ashpd，而 ashpd 的默认 feature 就是 `tokio`。
 - 这些 feature 只在 Linux 生效（gtk/ashpd 依赖都声明在 Linux 的 `target.'cfg(...)'.dependencies` 下），Windows/macOS 的依赖图与行为不变。
 
-注意：**托盘**仍需 GTK 构建依赖。`tray-icon` 在 Linux 上默认启用 `gtk` feature（→ `gtk` + `libappindicator`，dlopen 调用 appindicator 库），所以 Linux 构建 / CI 仍需 `libgtk-3-dev`；去掉的是 rfd 带来的那一份，不是全部。
+托盘同样已不需要 GTK：Linux 上 `tray-icon` 走 `ksni` 后端（纯 Rust 的 StatusNotifierItem，ksni + zbus 走会话 D-Bus），`gtk`/`libappindicator` 整条链已从依赖图移除，构建期不再需要 `libgtk-3-dev`。菜单代码不变——ksni 后端通过 `muda` 的 snapshot 读取同一棵 `muda::Menu`，snapshot 的 activate 闭包仍然发 `muda::MenuEvent`（细节见 `crates/limedl-native/Cargo.toml` 的注释）。
 
-- **已接受的上游告警（TODO：上游迁到 gtk-rs 0.20 后复查）**：这条 `gtk 0.18` 链会把 `glib 0.18.x` 带进来，而它带着一条 unsoundness 告警（GHSA-wrw7-89jp-8q8g / RUSTSEC-2024-0429：`glib::VariantStrIter` 的迭代器实现可能解引用 NULL ⇒ 崩溃）。已在 GitHub 上以 “Vulnerable code is not actually used” dismiss：limedl 从不直接调用 glib，触发它需要迭代 `VariantStrIter`，影响是崩溃而不是可控输入；`cargo audit` 对 unsound 类只 warn、`cargo deny` 的 `unsound` lint 默认也是 warn，所以 supply-chain job 一直是绿的。钉住它的是 `libappindicator 0.9.0`（2023-10，最后一个版本，硬依赖 `glib ^0.18`）：今天最新的 `tray-icon 0.26.0` / `muda 0.21.0` 仍要求 `gtk ^0.18`，`cargo update -p glib` 无可达版本。复查时机：`libappindicator` 发版，或改用 `tray-icon` 的可选 `ksni` 后端（会整条去掉 gtk/libappindicator，但托盘菜单要改写，且只能在 Linux 桌面上验证）。
+- **已移除的上游告警**：`gtk 0.18` → `glib 0.18.x` 的 unsoundness 告警（GHSA-wrw7-89jp-8q8g / RUSTSEC-2024-0429）随 ksni 切换整条消失——依赖图里已没有 `gtk`/`libappindicator`，不需要再 dismiss。若将来回退到 `libappindicator` 后端，这个告警会回来（钉住它的是最后一个 `libappindicator 0.9.0`，硬依赖 `glib ^0.18`）。
 
 ## Linux 桌面版
 
-- 仓库：`x86_64-unknown-linux-gnu`（`.cargo/config.toml` 已把该 target 定为 `x86-64-v3`，与 Windows 桌面一致，需 2013+ CPU）。选 gnu 而非 musl：Slint 已经链接系统库（GL/X11/Wayland、托盘 appindicator），静态 musl 买不到可移植性。代价是 glibc 下限 —— 构建机是 `ubuntu-latest`，因此二进制需要 glibc >= 2.39（Ubuntu 24.04+）。
+- 仓库：`x86_64-unknown-linux-gnu`（`.cargo/config.toml` 已把该 target 定为 `x86-64-v3`，与 Windows 桌面一致，需 2013+ CPU）。选 gnu 而非 musl：Slint 已经链接系统库（GL/X11/Wayland），静态 musl 买不到可移植性。代价是 glibc 下限 —— 构建机是 `ubuntu-latest`，因此二进制需要 glibc >= 2.39（Ubuntu 24.04+）。
 - 发布产物：
   - `limedl-native-v{V}-linux-x86_64-portable.tar.gz`：由 `scripts/package-linux.sh` 生成，含唯一顶层目录 `limedl-native/`（二进制 + README），便携解压运行。
   - `limedl-native-v{V}-linux-x86_64.deb`：由 `scripts/package-deb.sh` 生成，标准 Debian/Ubuntu 安装包，集成 `/usr/bin/limedl-native`、`.desktop` 与多尺寸应用图标。
   - `limedl-native-v{V}-linux-x86_64.AppImage`：由 `scripts/package-appimage.sh` 生成，跨发行版免安装单文件，内嵌 `AppRun`、桌面项与图标。
-- 运行时托盘依赖：缺失 appindicator 时 `TrayIconBuilder::build()` 会失败，而托盘是唯一常驻 UI（关闭到托盘、`--hidden` 自启都落在它上面），因此不降级而是报错退出，并在 `tray_init_failure_message` 中给出 apt/dnf/pacman 包名。
+- 运行时托盘依赖：托盘是会话 D-Bus 上的 StatusNotifierItem，需要 D-Bus session 与一个 StatusNotifier 宿主（GNOME 装 AppIndicator 扩展，KDE/XFCE/waybar 自带）。缺宿主时 ksni 不报错、继续等宿主出现；只有 D-Bus 连接失败才让 `TrayIconBuilder::build()` 失败——托盘是唯一常驻 UI（关闭到托盘、`--hidden` 自启都落在它上面），所以失败即报错退出，`tray_init_failure_message` 给出宿主与 D-Bus 的排查提示。
 - 自启：`~/.config/autostart/limedl-native.desktop`（XDG），带 `--hidden`。
 - 单实例：回环 TCP（`open:`/`show` 协议），文件管理器打开走 `xdg-open`。
 - 休眠抑制仍是空实现（`power.rs` 在非 Windows 不做任何事）—— 即 Linux/macOS 上不会阻止系统休眠。

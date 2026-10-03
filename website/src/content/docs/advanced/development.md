@@ -31,9 +31,9 @@ limedl 遵循 **GPL-3.0-or-later** 开源协议，欢迎所有开发者参与共
     cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
     ```
 - **Linux (Ubuntu / Debian)**:
-  - 托盘与系统集成需要 GTK-3 开发头文件：
+  - 构建需要 C 工具链与 pkg-config：
     ```bash
-    sudo apt install build-essential pkg-config libgtk-3-dev libayatana-appindicator3-dev
+    sudo apt install build-essential pkg-config
     ```
 - **macOS**:
   - 安装 Xcode 命令行工具：`xcode-select --install`。

@@ -19,7 +19,7 @@ You can always head over to the official [Download Page](/en/download/), which a
 | :--- | :--- | :--- | :--- |
 | **Windows** | x86_64 (64-bit) | Windows 10 (1809+) or Windows 11 | Bundled standard C++ runtimes, no extra install |
 | **macOS** | Apple Silicon (aarch64) | macOS Monterey 12.0 or later | Native M1 / M2 / M3 / M4 support |
-| **Linux** | x86_64 (64-bit) | glibc ≥ 2.39 (e.g. Ubuntu 24.04+, Fedora 40+) | `xdg-desktop-portal` (Dialogs) · `libgtk-3` (Tray) |
+| **Linux** | x86_64 (64-bit) | glibc ≥ 2.39 (e.g. Ubuntu 24.04+, Fedora 40+) | `xdg-desktop-portal` (Dialogs) · StatusNotifier host (Tray) |
 
 ---
 
@@ -99,7 +99,7 @@ cd limedl-native
 
 ### Linux Runtime Dependencies
 - **Native File Chooser**: limedl utilizes `xdg-desktop-portal` via D-Bus for Wayland-native and sandbox-friendly dialogs. Standard desktops (GNOME, KDE Plasma) include this out of the box. Minimal setups (i3, Sway) should install `xdg-desktop-portal` alongside a backend like `xdg-desktop-portal-gtk`.
-- **System Tray**: System tray functionality requires `libgtk-3`, pre-installed on virtually all modern desktop distributions.
+- **System Tray**: The tray is a StatusNotifierItem served over the session D-Bus; no GTK is required. GNOME needs the **AppIndicator** extension enabled, while KDE/XFCE and most bars ship a host already.
 
 ---
 

@@ -415,14 +415,15 @@ jobs:
   # Desktop (Slint) — Linux: plain binary in a tar.gz.
   #
   # `x86_64-unknown-linux-gnu`, not musl: the Slint build already links
-  # system libraries (GL/X11/Wayland via the winit backend) and the tray pulls
-  # `libappindicator`, so a static musl build would not buy portability. The
-  # trade-off is the usual glibc floor — the runner is `ubuntu-latest`, so the
-  # binary needs glibc >= 2.39 (Ubuntu 24.04+).
+  # system libraries (GL/X11/Wayland via the winit backend), so a static musl
+  # build would not buy portability. The trade-off is the usual glibc floor —
+  # the runner is `ubuntu-latest`, so the binary needs glibc >= 2.39
+  # (Ubuntu 24.04+).
   #
-  # This is the one desktop leg that still needs GTK headers at build time: the
-  # *tray* (`tray-icon` → `gtk`/`libappindicator`) is compiled-in, and only the
-  # file dialogs were moved off GTK (`rfd` now uses `xdg-portal`).
+  # No GTK headers at build time and no GTK at runtime: the tray uses
+  # tray-icon's `ksni` backend (pure-Rust StatusNotifierItem over D-Bus) and
+  # the file dialogs use `xdg-portal`. The runtime requirements are a session
+  # D-Bus plus a StatusNotifier host (GNOME: AppIndicator extension).
   # ═══════════════════════════════════════════════════════════════════════
   build-native-linux:
     name: Desktop app (linux-x86_64)
@@ -432,13 +433,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-      # GTK dev headers are a *build* requirement of the tray icon, not of the
-      # dialogs (rfd is on xdg-portal now). No runtime GTK is needed: the
-      # appindicator libraries are dlopen'd at runtime, per the error message in
-      # `main.rs::tray_init_failure_message`.
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev
 
       - name: Extract version from tag
         id: version
