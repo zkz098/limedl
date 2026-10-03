@@ -815,6 +815,7 @@ async fn dispatcher_bt_facade_reaches_a_registered_backend() -> TestResult {
         tmp.path().join("bt_state"),
         tmp.path().join("bt_out"),
         event_bus.clone(),
+        Arc::new(crate::database::Database::open_in_memory()?),
         Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         Arc::new(std::sync::atomic::AtomicUsize::new(2)),
     ));

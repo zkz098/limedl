@@ -283,6 +283,36 @@ impl IrontideBtBackend {
         }
     }
 
+    /// Whether any torrent still needs the engine running.
+    ///
+    /// Lightweight BT mode unloads the session when this returns `false`. A
+    /// torrent counts as work unless it is paused or stopped, so seeding keeps
+    /// the engine alive; a stats lookup that fails also counts as work, because
+    /// tearing down a session whose state is unknown is never safe.
+    pub async fn has_active_torrents(&self) -> Result<bool> {
+        let torrents = self
+            .session
+            .list_torrents()
+            .await
+            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+
+        for info_hash in torrents {
+            match self.session.torrent_stats(info_hash).await {
+                Ok(stats) => {
+                    if !matches!(
+                        stats.state,
+                        irontide::session::TorrentState::Paused
+                            | irontide::session::TorrentState::Stopped
+                    ) {
+                        return Ok(true);
+                    }
+                }
+                Err(_) => return Ok(true),
+            }
+        }
+        Ok(false)
+    }
+
     pub fn emit_pending_summary(&self, info_hash: Id20) {
         let id_hex = info_hash.to_hex();
         // Try to get stats; if not available yet, emit a minimal snapshot.

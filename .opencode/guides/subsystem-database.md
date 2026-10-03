@@ -8,7 +8,10 @@
 
 ## 涉及文件
 
-- `crates/limedl-core/src/database.rs` — Database 结构体、CRUD 方法、建表/迁移、PRAGMA 配置
+- `crates/limedl-core/src/database/connection.rs` — Database 结构体、连接/PRAGMA/迁移入口
+- `crates/limedl-core/src/database/schema.rs` — `CREATE_TABLES_SQL` + `MIGRATIONS`（版本化迁移列表）
+- `crates/limedl-core/src/database/manifest_repo.rs` — downloads / chunks CRUD
+- `crates/limedl-core/src/database/bt_task_repo.rs` — BT 任务索引（`bt_tasks`）读写，见 `subsystem-bt-backend.md`
 - `crates/limedl-core/src/manifest.rs` — Manifest / ChunkManifest 类型定义
 - `crates/limedl-core/src/migration/mod.rs` — 旧 JSON 文件 → SQLite 迁移逻辑（新安装不触发）
 - `crates/limedl-core/src/persistence.rs` — 从 SQLite 加载下载任务到内存（`load_downloads_from_db`）
@@ -38,6 +41,9 @@ RPC 历史回查 → get_download_header(id) / list_download_headers() / count_t
      直到 purgeDownloadResult 或 removeDownloadResult 删除数据库行
 
 删除任务 → Database::delete_download(id) → ON DELETE CASCADE 自动删除 chunks
+
+BT 任务索引 → Database::replace_bt_tasks(summaries) / list_bt_tasks() / delete_bt_task(id)
+  └─ bt_tasks(id, summary_json, created_at_ms)：轻量 BT 模式在引擎卸载时供 UI 读的任务缓存
 ```
 
 ## 设计决策与约定
@@ -50,3 +56,4 @@ RPC 历史回查 → get_download_header(id) / list_download_headers() / count_t
 - Migration 机制：用 `PRAGMA table_info` 检测列是否存在，按需 `ALTER TABLE` 添加。版本号通过 `PRAGMA user_version` 维护。
 - Manifest 的 Serialize/Deserialize 用于 JSON 序列化（aria2 RPC 响应），与 SQLite 列存储是两套映射。
 - 辅助函数 `insert_manifest_row` / `update_manifest_row` 使用 `prepare_cached` + `named_params!` 直接传引用，零 String 克隆。
+- `bt_tasks` 是**缓存表**：`summary_json` 存序列化的 `DownloadSummary`（新增字段不需要迁移），整表替换（单事务）保证与引擎视图一致；损坏的 JSON 行读取时跳过并 warn，不会连累其余行。

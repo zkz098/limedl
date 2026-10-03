@@ -343,6 +343,7 @@ fn apply_bt(settings: &mut AppSettings, form: &SettingsFormData) {
 /// DHT, listen port, tracker, transport toggles and encryption/prealloc modes.
 fn apply_bt_network(settings: &mut AppSettings, form: &SettingsFormData) {
     // ── BT ──
+    settings.bt.lightweight_mode = form.bt_lightweight_mode;
     settings.bt.dht_enabled = form.dht_enabled;
     let lp = form.listen_port.trim();
     if lp.is_empty() {

@@ -812,3 +812,28 @@ fn test_normalize_url_rewrite_drops_empty_and_renumbers() {
     assert_eq!(rule.targets[0].url_template, "https://target.com");
     assert_eq!(rule.targets[0].order, 0);
 }
+
+#[test]
+fn test_bt_lightweight_mode_defaults_off_for_legacy_json() {
+    // A settings.json written before the field existed must still deserialize,
+    // and must keep the previous always-on engine behaviour.
+    let mut value = serde_json::to_value(BtSettings::default()).unwrap();
+    value
+        .as_object_mut()
+        .expect("BtSettings serializes to an object")
+        .remove("lightweightMode");
+
+    let bt: BtSettings = serde_json::from_value(value).unwrap();
+    assert!(!bt.lightweight_mode);
+}
+
+#[test]
+fn test_bt_lightweight_mode_round_trips() {
+    let bt = BtSettings {
+        lightweight_mode: true,
+        ..BtSettings::default()
+    };
+    let json = serde_json::to_string(&bt).unwrap();
+    let restored: BtSettings = serde_json::from_str(&json).unwrap();
+    assert!(restored.lightweight_mode);
+}

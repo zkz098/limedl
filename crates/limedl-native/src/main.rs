@@ -199,12 +199,19 @@ async fn main() -> anyhow::Result<()> {
     // session existed and the torrents restored from resume data only become
     // visible once it is up. Re-publish them as `Updated` events (insert or
     // update, so a row added by a callback in the meantime is never dropped).
+    //
+    // `wait_for_warmup` (not `wait_ready`) is deliberate: in lightweight BT mode
+    // the engine may legitimately stay unloaded, and a read path must not turn
+    // that into a session startup. When it does stay down the persisted index
+    // already supplied the rows in the initial list above.
     {
         let bt_backend = core.bt_backend.clone();
         let dispatcher = core.dispatcher.clone();
         let event_bus = core.event_bus.clone();
         tokio::spawn(async move {
-            bt_backend.wait_ready().await;
+            if !bt_backend.wait_for_warmup().await {
+                return;
+            }
             let Ok(downloads) = dispatcher.list().await else {
                 return;
             };

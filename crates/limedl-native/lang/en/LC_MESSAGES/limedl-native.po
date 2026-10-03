@@ -350,6 +350,15 @@ msgstr "Enable DHT"
 msgid "Discover peers via DHT when no trackers are available"
 msgstr "Discover peers via DHT when no trackers are available"
 
+msgid "Lightweight BT mode"
+msgstr "Lightweight BT mode"
+
+msgid "Do not start the BT engine at launch or while idle"
+msgstr "Do not start the BT engine at launch or while idle"
+
+msgid "Loads the BT engine only when there is work and unloads it once every task is paused. Seeding keeps it alive. Takes effect on the next settings save."
+msgstr "Loads the BT engine only when there is work and unloads it once every task is paused. Seeding keeps it alive. Takes effect on the next settings save."
+
 msgid "Listen Port (empty for random):"
 msgstr "Listen Port (empty for random):"
 

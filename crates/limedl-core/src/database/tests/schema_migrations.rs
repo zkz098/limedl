@@ -58,8 +58,8 @@ fn migration_compat_v1_with_mirror_columns_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            9,
-            "expected user_version = 9 after migration"
+            10,
+            "expected user_version = 10 after migration"
         );
     }
 
@@ -97,8 +97,8 @@ fn migration_compat_v0_fully_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            9,
-            "expected user_version = 9 after migration"
+            10,
+            "expected user_version = 10 after migration"
         );
     }
 

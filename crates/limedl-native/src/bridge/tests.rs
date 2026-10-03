@@ -587,6 +587,7 @@ use crate::LabsFormData;
         settings.scheduler.traditional.max_parallel_tasks = 5;
         settings.global_speed_limit_bps = 1024 * 500;
         settings.bt.dht_enabled = true;
+        settings.bt.lightweight_mode = true;
         settings.bt.listen_port = Some(6882);
 
         let form = app_settings_to_form(&settings, true, false, "IO OK", "D: SSD", Language::ZhCn);
@@ -594,6 +595,7 @@ use crate::LabsFormData;
         assert_eq!(form.max_parallel_tasks.as_str(), "5");
         assert_eq!(form.global_speed_limit_kb.as_str(), "500");
         assert!(form.dht_enabled);
+        assert!(form.bt_lightweight_mode);
         assert_eq!(form.listen_port.as_str(), "6882");
         assert!(form.game_mode);
         assert!(!form.overclock_mode);
@@ -604,6 +606,7 @@ use crate::LabsFormData;
         assert_eq!(updated.download.default_download_dir, "/custom/downloads");
         assert_eq!(updated.scheduler.traditional.max_parallel_tasks, 5);
         assert_eq!(updated.global_speed_limit_bps, 1024 * 500);
+        assert!(updated.bt.lightweight_mode);
         assert_eq!(updated.bt.listen_port, Some(6882));
     }
 

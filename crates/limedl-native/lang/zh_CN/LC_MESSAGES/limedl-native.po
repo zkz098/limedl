@@ -350,6 +350,15 @@ msgstr "启用 DHT"
 msgid "Discover peers via DHT when no trackers are available"
 msgstr "无 Tracker 时通过 DHT 发现节点"
 
+msgid "Lightweight BT mode"
+msgstr "轻量 BT 模式"
+
+msgid "Do not start the BT engine at launch or while idle"
+msgstr "启动和待机时不加载 BT 引擎"
+
+msgid "Loads the BT engine only when there is work and unloads it once every task is paused. Seeding keeps it alive. Takes effect on the next settings save."
+msgstr "仅在存在任务时加载 BT 引擎，全部任务暂停后自动卸载；做种会保持引擎运行。下次保存设置后生效。"
+
 msgid "Listen Port (empty for random):"
 msgstr "监听端口 (空为随机):"
 

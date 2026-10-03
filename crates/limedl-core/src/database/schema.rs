@@ -187,4 +187,24 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        version: 10,
+        name: "add_bt_task_index",
+        up: |conn| {
+            // Cache of the running engine's BT task list, so the UI can show
+            // BT rows while the engine is unloaded (lightweight BT mode).
+            // `summary_json` is a serialized `DownloadSummary`; see
+            // `database::bt_task_repo`.
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS bt_tasks (
+                    id TEXT PRIMARY KEY,
+                    summary_json TEXT NOT NULL,
+                    created_at_ms INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_bt_tasks_created ON bt_tasks(created_at_ms DESC);",
+            )
+            .context("failed to create bt_tasks table")?;
+            Ok(())
+        },
+    },
 ];

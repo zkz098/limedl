@@ -12,7 +12,7 @@
 
 ## 涉及文件
 
-- `crates/limedl-core/src/bt_backend/lazy.rs` — LazyBtBackend：懒启动包装、就绪状态、DownloadBackend 转发、BT 专属方法转发
+- `crates/limedl-core/src/bt_backend/lazy.rs` — LazyBtBackend：懒启动包装、可重启引擎槽、轻量模式（空闲卸载 + 持久化索引）、就绪状态、DownloadBackend 转发、BT 专属方法转发
 - `crates/limedl-core/src/bt_backend/mod.rs` — IrontideBtBackend 结构体定义 + DownloadBackend trait 实现 + Clone impl
 - `crates/limedl-core/src/bt_backend/lifecycle.rs` — 生命周期方法（start/pause/resume/cancel/remove/purge） + `build_canceled_snapshot()`
 - `crates/limedl-core/src/bt_backend/session.rs` — irontide Session 初始化/关闭/设置热重载
@@ -77,11 +77,26 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 ### 懒启动（异步启动）
 
 - `bootstrap()` 不再等待 irontide session：`LazyBtBackend::new()` 只记录配置，`spawn_startup()` 把 session 创建（socket 绑定、DHT/LSD、resume 加载、黑名单解析）放到后台任务，桌面窗口不再被 BT 引擎启动阻塞。
+- 引擎槽是 `RwLock<Option<Arc<IrontideBtBackend>>>`（不是 `OnceCell`），因此 session **可以卸载后重建**；创建与销毁由 `lifecycle: tokio::sync::Mutex<()>` 串行化，避免“旧 session 正在关闭、新 session 同时 bind 同一监听端口”。
 - 就绪策略：任务操作（start/pause/resume/cancel/remove/purge/status/open_*）与 `preview_torrent`/`update_torrent_files` 会 await `engine()`；`list()` 和 peers/trackers/pieces/files/runtime_status 查询在未就绪时返回空/未连接，**不阻塞**（启动时的任务列表加载不能被 session 拖住）。
 - `update_settings` 未就绪时只更新内存中的启动配置，warm-up 建立 session 时会用最新快照；已就绪则转发给引擎热重载。
 - 启动失败的信息缓存在 `startup_error`，后续调用快速失败并发送 `DownloadEvent::Warning`（空 id → 桌面端显示纯文本 toast），不会偷偷重试（session 占用监听端口等独占资源）。
 - 关闭：`LazyBtBackend::shutdown()` 先置 shutting_down 标志，等在途 warm-up 结束（20s 上限），再一次性关闭已建好的引擎；warm-up 中途完成时若发现标志已置位会立即自我拆除，因此“启动中退出”不会泄漏 session。
 - resume 恢复的 torrent 在引擎创建时被写入 `task_map`/`torrent_created_at`，这样 2s 周期进度 tick、上传策略与反吸血循环都能覆盖它们。桌面端在 `wait_ready()` 后重新拉一次列表并按 `Updated` 事件补发 BT 任务行（`limedl-native/src/main.rs`），保证恢复的 torrent 在 UI 中立即可见。
+
+### 轻量 BT 模式（`bt.lightweight_mode`，默认关闭）
+
+- 开启后 `bootstrap()` 不再无条件 `spawn_startup()`：只有 `has_unfinished_tasks()` 为真（持久化索引里有 `downloading/queued/retrying/verifying` 的任务，或索引为空但 resume 目录仍有 `.resume` 文件——首次启用/升级的回退）才预热引擎。
+- `spawn_idle_supervisor()` 每 10s 检查一次：`IrontideBtBackend::has_active_torrents()` 为假（所有 torrent 都是 `Paused`/`Stopped`）时调用 `stop_idle_engine()` 卸载 session。“做种算活跃”，所以有做种时引擎保持运行；用户暂停全部任务后才会卸载。该循环两种模式下都启动，关闭轻量模式时它是空操作。
+- 卸载/关闭前会先把引擎的 `list()` 快照写入持久化索引，避免丢失最后一次状态。
+- 运行时把轻量模式从开改为关（`apply_settings` 只有 `&self`，无法 spawn warm-up）由 `spawn_index_sync_loop()` 自愈：每个 5s tick 发现 `!lightweight && !is_ready()` 就 `spawn_startup()`。
+
+### 持久化 BT 任务索引（`bt_tasks` 表）
+
+- 引擎关闭期间 UI 仍要显示 BT 任务行，因此 `LazyBtBackend` 把引擎的 `list()` 快照写到 SQLite `bt_tasks`（`database/bt_task_repo.rs`，行为 `id` + 序列化的 `DownloadSummary` JSON + `created_at_ms`）。
+- 写点：引擎就绪时（`refresh_index_and_publish`，同时补发 `Updated` 事件，因为 alert bridge 订阅晚于 resume 恢复）、`spawn_index_sync_loop()` 的 5s 周期、引擎卸载/进程退出前。`cancel`/`remove`/`purge` 直接删行。写入用整表替换（单事务 `DELETE` + `INSERT`），保证索引与引擎视图一致。
+- 读点：`LazyBtBackend::list()` 在引擎未就绪时返回索引行，并清零易变指标（speed/eta/peers/uploadStatus），避免显示“已停止 session 的旧速度”。
+- 索引是**缓存不是真相源**：真相在 irontide 的 `.resume` 文件；引擎一旦运行就以 `list()` 覆盖索引。JSON 载荷让 `DownloadSummary` 新增字段不需要迁移。
 
 ### 事件发射策略
 
@@ -156,6 +171,7 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 ### 关闭流程
 
 0. 若引擎尚未创建（warm-up 未完成）→ 置标志并等待 warm-up 自行退出，无需关闭 session
+0b. 轻量模式下断开：先 `abort_background_loops()`（索引同步 + 空闲监督），再把最终 `list()` 写入索引，然后走下面同一套引擎关闭流程
 1. 保存 session state（`save_session_state`）
 2. Abort 所有后台任务（upload_policy_task、alert_task）
 3. 逐个保存每个活跃 torrent 的 resume data

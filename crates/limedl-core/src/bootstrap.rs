@@ -62,10 +62,19 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
             bt_state_dir,
             bt_output_dir,
             context.event_bus.clone(),
+            context.db.clone(),
             context.concurrency.active_bt_count.clone(),
             context.concurrency.max_concurrent_bt.clone(),
         ));
-        bt.spawn_startup();
+        // Keep the persisted BT task index fresh whenever the engine runs, and
+        // unload an idle engine in lightweight mode (a no-op otherwise).
+        bt.spawn_index_sync_loop();
+        bt.spawn_idle_supervisor();
+        if !settings.bt.lightweight_mode || bt.has_unfinished_tasks() {
+            // Eager mode always warms up; lightweight mode only warms up when a
+            // previous session left unfinished work behind.
+            bt.spawn_startup();
+        }
         bt
     };
 

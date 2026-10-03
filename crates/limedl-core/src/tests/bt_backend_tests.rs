@@ -154,3 +154,38 @@ async fn bt_task_ops_await_the_background_warm_up() {
 
     core.registry.shutdown_all().await;
 }
+
+// ---------------------------------------------------------------------------
+// Test 7 – lightweight mode keeps the engine unloaded with no work
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn lightweight_mode_does_not_warm_the_engine_up_without_work() {
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+
+    // Persist lightweight mode before bootstrap so this is the launch config.
+    let mut settings = AppSettings::default();
+    settings.bt.lightweight_mode = true;
+    let settings_path = state_dir.parent().unwrap().join("settings.json");
+    std::fs::write(&settings_path, serde_json::to_string(&settings).unwrap()).unwrap();
+
+    let core = bootstrap(state_dir.clone()).await.unwrap();
+    assert!(core.settings.bt.lightweight_mode, "launch settings loaded");
+    assert!(
+        !core.bt_backend.has_unfinished_tasks(),
+        "no index and no resume files means no work"
+    );
+    assert!(
+        !core.bt_backend.is_ready(),
+        "lightweight mode must not warm the engine up without work"
+    );
+    // Crucially, the post-startup refresh must not turn the read into a start.
+    assert!(!core.bt_backend.wait_for_warmup().await);
+
+    // On-demand work still brings the engine up.
+    assert!(core.bt_backend.wait_ready().await);
+    assert!(core.bt_backend.is_ready());
+
+    core.registry.shutdown_all().await;
+}

@@ -135,6 +135,15 @@ pub enum BtChokingAlgorithm {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {
+    /// Lightweight BT mode: keep the irontide session unloaded while idle.
+    ///
+    /// When enabled the engine is not warmed up at launch and is shut down
+    /// again once every torrent is paused; it is started on demand when there
+    /// is an unfinished task or the user submits/resumes one. Seeding torrents
+    /// keep the engine alive (they are still work). When disabled the engine
+    /// warms up at launch and stays up for the whole process lifetime.
+    #[serde(default)]
+    pub lightweight_mode: bool,
     #[serde(default = "default_true")]
     pub dht_enabled: bool,
     #[serde(default)]
@@ -273,6 +282,7 @@ pub struct BtSettings {
 impl Default for BtSettings {
     fn default() -> Self {
         Self {
+            lightweight_mode: false,
             dht_enabled: true,
             tracker_list: String::new(),
             tracker_list_url: default_tracker_list_url(),

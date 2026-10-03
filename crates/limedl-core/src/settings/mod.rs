@@ -196,6 +196,7 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
     };
 
     Ok(BtSettings {
+        lightweight_mode: settings.lightweight_mode,
         dht_enabled: settings.dht_enabled,
         tracker_list,
         tracker_list_url,

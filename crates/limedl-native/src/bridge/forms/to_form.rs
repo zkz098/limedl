@@ -149,6 +149,7 @@ pub fn app_settings_to_form(
         scheduler_tail_sprint: settings.scheduler.tail_sprint_enabled,
         scheduler_connection_warmup: settings.scheduler.connection_warmup_enabled,
         // BT 基础 + 进阶
+        bt_lightweight_mode: settings.bt.lightweight_mode,
         dht_enabled: settings.bt.dht_enabled,
         listen_port: SharedString::from(
             settings

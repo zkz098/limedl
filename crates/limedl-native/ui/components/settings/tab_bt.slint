@@ -24,6 +24,23 @@ export component SettingsTabBt inherits ScrollView {
 
         Text { text: @tr("BitTorrent Network"); color: Theme.ca3e635; font-size: 13px; font-weight: 700; }
 
+        // 轻量模式
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Lightweight BT mode"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Loads the BT engine only when there is work and unloads it once every task is paused. Seeding keeps it alive. Takes effect on the next settings save."); }
+                    } }
+                Text { text: @tr("Do not start the BT engine at launch or while idle"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.settings_form.bt_lightweight_mode;
+                toggled => { root.settings_form.bt_lightweight_mode = !root.settings_form.bt_lightweight_mode; }
+            }
+        }
+
         // 基础
         HorizontalLayout {
             alignment: space-between;

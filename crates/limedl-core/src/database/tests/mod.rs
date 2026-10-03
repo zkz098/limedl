@@ -96,6 +96,7 @@ fn apply_v3(conn: &Connection) {
     .unwrap();
 }
 
+mod bt_task_repo;
 mod chunks;
 mod concurrency;
 mod connection;
