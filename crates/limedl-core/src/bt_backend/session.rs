@@ -80,8 +80,12 @@ impl IrontideBtBackend {
             tracing::warn!("irontide: failed to load resume state: {e}");
         }
 
-        // Build an HTTP client with proxy support for .torrent URL fetching
-        let http_client = build_http_client(settings).ok();
+        // Build an HTTP client with proxy support for .torrent URL fetching.
+        // `settings` is already normalized (the proxy URL was validated when the
+        // settings were loaded), so a failure here is a real configuration bug
+        // rather than a user input problem — surface it instead of silently
+        // falling back to a client that bypasses the proxy.
+        let http_client = build_http_client(settings)?;
 
         // Apply BT-specific engine tuning (choker algorithms, upload slots, peer
         // counts, ban duration, data-contribution timeout) and global rate limits.
@@ -132,7 +136,7 @@ impl IrontideBtBackend {
             banned_leechers: Arc::new(FastDashMap::default()),
             anti_leech_slot_state: Arc::new(FastDashMap::default()),
             applied_blocklist_key: Arc::new(Mutex::new(None)),
-            http_client,
+            http_client: Arc::new(parking_lot::RwLock::new(http_client)),
             global_speed_limit_bps: settings.global_speed_limit_bps,
             paused_by_limit: Arc::new(FastDashMap::default()),
             runtime_handle,
@@ -203,6 +207,17 @@ impl IrontideBtBackend {
     pub fn apply_settings(&self, settings: &AppSettings) {
         let bt = settings.bt.clone();
         *lock(&self.bt_settings) = bt.clone();
+
+        // Rebuild the `.torrent` HTTP client so a proxy / UA change takes effect
+        // without restarting the engine. Mirrors `DownloadManager::apply_settings`;
+        // on a rebuild failure keep the previous client rather than silently
+        // bypassing the configured proxy.
+        match build_http_client(settings) {
+            Ok(client) => *self.http_client.write() = client,
+            Err(error) => tracing::warn!(
+                "BT backend: keeping the previous HTTP client, rebuild failed: {error}"
+            ),
+        }
 
         // Apply engine tuning + rate limits and reload the blocklist. Scheduled
         // onto the captured runtime without blocking so this works whether we

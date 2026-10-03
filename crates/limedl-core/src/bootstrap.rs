@@ -82,12 +82,20 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
     download_manager.set_cdn_accelerator(cdn_service.accelerator().clone());
     cdn_service.init_from_settings(&settings).await;
 
-    let http_client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::limited(5))
-        .timeout(std::time::Duration::from_secs(15))
-        .user_agent(concat!("limedl/", env!("CARGO_PKG_VERSION")))
-        .build()
-        .map_err(|e| crate::error::DownloadError::Internal(format!("Failed to build HTTP client: {e}")))?;
+    // Dispatcher-side HTTP calls (tracker-list fetch, checksum probing) must
+    // follow the same proxy / UA configuration as the download engine; a bare
+    // `Client::builder()` here silently bypassed `settings.proxy`.
+    let http_client = crate::http_client_factory::configure_client_builder(
+        reqwest::Client::builder(),
+        &settings,
+    )?
+    .redirect(reqwest::redirect::Policy::limited(5))
+    .timeout(std::time::Duration::from_secs(15))
+    .user_agent(concat!("limedl/", env!("CARGO_PKG_VERSION")))
+    .build()
+    .map_err(|e| {
+        crate::error::DownloadError::Internal(format!("Failed to build HTTP client: {e}"))
+    })?;
 
     let dispatcher = Arc::new(Dispatcher::full(
         registry.clone(),

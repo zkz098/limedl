@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 use irontide::core::Id20;
 use irontide::prelude::*;
@@ -19,33 +18,20 @@ impl IrontideBtBackend {
 
     /// Fetch bytes from a URL using the configured HTTP client (with proxy support).
     pub(crate) async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>> {
-        if let Some(ref client) = self.http_client {
-            let resp = client.get(url).send().await.map_err(|e| {
-                DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}"))
-            })?;
-            resp.bytes()
-                .await
-                .map_err(|e| {
-                    DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
-                })
-                .map(|b| b.to_vec())
-        } else {
-            let client = reqwest::Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build()
-                .map_err(|e| {
-                    DownloadError::TorrentNetwork(format!("failed to build http client: {e}"))
-                })?;
-            let resp = client.get(url).send().await.map_err(|e| {
-                DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}"))
-            })?;
-            resp.bytes()
-                .await
-                .map_err(|e| {
-                    DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
-                })
-                .map(|b| b.to_vec())
-        }
+        // Clone the client out of the lock before awaiting: `parking_lot`'s guard
+        // is not `Send` and must not be held across the request.
+        let client = { self.http_client.read().clone() };
+        let resp = client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}")))?;
+        resp.bytes()
+            .await
+            .map(|b| b.to_vec())
+            .map_err(|e| {
+                DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
+            })
     }
     /// Try to acquire a BT download slot.
     /// Fails with `TooManyConcurrentDownloads` if at capacity.

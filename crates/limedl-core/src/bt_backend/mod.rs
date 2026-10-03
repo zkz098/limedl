@@ -22,7 +22,7 @@ use std::sync::atomic::AtomicUsize;
 
 use async_trait::async_trait;
 use irontide::core::Id20;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use crate::error::DownloadError;
 use crate::error::Result;
@@ -76,8 +76,12 @@ pub struct IrontideBtBackend {
     /// Blocklist: key (`enabled:path`) of the last successfully applied IP
     /// filter, so we don't reload/rewrite the filter on every settings save.
     pub(crate) applied_blocklist_key: Arc<Mutex<Option<String>>>,
-    /// Reusable HTTP client with proxy support for .torrent URL fetches.
-    pub(crate) http_client: Option<reqwest::Client>,
+    /// Reusable HTTP client with proxy support for `.torrent` URL fetches.
+    ///
+    /// Always present and rebuilt by `apply_settings` when proxy / UA settings
+    /// change, so torrent fetches follow the same proxy as the download engine.
+    /// The `RwLock` is shared across clones so a rebuild is visible everywhere.
+    pub(crate) http_client: Arc<RwLock<reqwest::Client>>,
     /// Global download speed limit (bytes/sec) from AppSettings.
     pub(crate) global_speed_limit_bps: u64,
     /// Set of info-hashes whose upload has been paused by the upload policy loop.

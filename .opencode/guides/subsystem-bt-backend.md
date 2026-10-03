@@ -133,6 +133,7 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
 ### 设置热重载
 
 - `apply_settings()` 复制 BtSettings 到 `Arc<Mutex<>>`，并通过 `build_engine_settings()` 把引擎调参 + 全局速率限制应用到 irontide session，无需重启 session。
+- `apply_settings()` 同时用 `build_http_client(settings)` 重建 `.torrent` URL 抓取客户端（`http_client: Arc<RwLock<reqwest::Client>>`）。该客户端**始终存在且必须经由 `http_client_factory` 构建**，所以它跟随 `settings.proxy`（含系统代理）；重建失败时保留旧客户端并记 warn，绝不退回裸客户端绕过代理。
 - 注意：热重载采用 **spawn 到运行时异步应用**（而非 `block_in_place`），因此既能在同步 handler 中使用，也能在 current-thread 测试运行时中安全调用。
 
 ### 引擎调参（透传）
