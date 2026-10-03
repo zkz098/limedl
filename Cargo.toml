@@ -9,18 +9,19 @@ license = "GPL-3.0-or-later"
 [workspace.dependencies]
 tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
 tokio-util = { version = "0.7" }
-reqwest = { version = "=0.13.4", default-features = false, features = [
+# Default features are kept ON deliberately: reqwest's `default` set includes
+# `system-proxy` (`hyper-util/client-proxy-system`), without which
+# `ProxyMode::System` silently ignores the Windows registry / macOS system
+# configuration, plus `charset`. Only the extras we need are listed here.
+# Guarded by `workspace_enables_reqwest_system_proxy` in
+# crates/limedl-core/src/http_client_factory/tests.rs.
+reqwest = { version = "=0.13.4", features = [
   "stream",
-  "rustls",
-  "http2",
-  # Required by `ProxyMode::System`. `default-features = false` drops reqwest's
-  # `system-proxy`, which is what turns on `hyper-util/client-proxy-system`; without
-  # it `ProxyMatcher::system()` only reads `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`
-  # and silently ignores the Windows registry / macOS system configuration. A user
-  # who sets the proxy in the OS UI (the normal case on Windows) then sees "System
-  # Proxy" do nothing. Guarded by `workspace_enables_reqwest_system_proxy` in
-  # crates/limedl-core/src/http_client_factory/tests.rs.
-  "system-proxy",
+  # HTTP/3 over QUIC: pulls in `h3` / `h3-quinn` / `quinn` and turns on `rustls`.
+  # Upstream marks this *unstable*: it additionally requires `--cfg
+  # reqwest_unstable`, which `.cargo/config.toml` adds to every supported
+  # target's rustflags (a missing cfg is a hard `compile_error!` in reqwest).
+  "http3",
 ] }
 futures-util = "0.3"
 blake3 = "1"

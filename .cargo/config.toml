@@ -1,6 +1,11 @@
 # limedl build configuration
 # See AGENTS.md for the MSVC environment setup required before building on Windows.
 #
+# Every target's rustflags also carry `--cfg reqwest_unstable`: reqwest's HTTP/3
+# support (the `http3` feature) is unstable upstream and refuses to compile
+# without it. It must be present for every target that builds, so add it whenever
+# a new `[target.*]` rustflags entry is introduced.
+#
 # Target CPU strategy:
 #   Desktop (Slint client) → x86-64-v3 (Haswell 2013+)
 #   NAS server targets (musl)    → x86-64-v2 (Nehalem 2008+, broad NAS HW compat)
@@ -13,18 +18,21 @@ rustflags = [
   "target-cpu=x86-64-v3",
   "-C",
   "linker=rust-lld",
+  "--cfg",
+  "reqwest_unstable",
 ]
 
 [target.x86_64-unknown-linux-gnu]
 # Desktop / CI tests: x86-64-v3
-rustflags = ["-C", "target-cpu=x86-64-v3"]
+rustflags = ["-C", "target-cpu=x86-64-v3", "--cfg", "reqwest_unstable"]
 
 [target.x86_64-unknown-linux-musl]
 # NAS server: x86-64-v2 for broad NAS hardware compatibility
-rustflags = ["-C", "target-cpu=x86-64-v2"]
+rustflags = ["-C", "target-cpu=x86-64-v2", "--cfg", "reqwest_unstable"]
 
 [target.aarch64-unknown-linux-musl]
 # NAS server (ARM): no x86 CPU flag needed
+rustflags = ["--cfg", "reqwest_unstable"]
 
 [target.aarch64-apple-darwin]
 # Desktop macOS ARM: apple-m1 baseline
@@ -51,7 +59,14 @@ rustflags = ["-C", "target-cpu=x86-64-v2"]
 #
 # Trade-off: a genuinely broken macOS linker warning is now only printed, never
 # fatally gated; every rustc/clippy warning stays fatal.
-rustflags = ["-C", "target-cpu=apple-m1", "-A", "linker_messages"]
+rustflags = [
+  "-C",
+  "target-cpu=apple-m1",
+  "-A",
+  "linker_messages",
+  "--cfg",
+  "reqwest_unstable",
+]
 
 [alias]
 # `cargo xtask <command>` — repository tooling (update-channel signing).
@@ -64,4 +79,11 @@ xtask = "run --quiet --package xtask --"
 # ld's `__eh_frame section too large` note vs cargo's fatal `build.warnings = deny`).
 # No macOS leg builds this target today; keeping both entries in sync avoids
 # rediscovering this on the first x86_64 release.
-rustflags = ["-C", "target-cpu=x86-64-v3", "-A", "linker_messages"]
+rustflags = [
+  "-C",
+  "target-cpu=x86-64-v3",
+  "-A",
+  "linker_messages",
+  "--cfg",
+  "reqwest_unstable",
+]

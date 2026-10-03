@@ -279,13 +279,11 @@ fn configure_builder_chainable_with_custom_dns() {
 // -----------------------------------------------------------------------
 /// `ProxyMode::System` delegates to reqwest's `auto_sys_proxy`, whose OS readers
 /// (Windows registry, macOS system configuration) only exist when reqwest's
-/// `system-proxy` feature is enabled. The workspace turns reqwest's default
-/// features off, so dropping that feature is easy and *silent*: the crate still
-/// compiles and every other proxy test below still passes because they only
-/// assert that a client builds.
-///
-/// Keep the feature pinned in the workspace manifest so "System Proxy" really
-/// reads the OS configuration instead of degenerating to `HTTP_PROXY` env vars.
+/// `system-proxy` feature is enabled. That feature lives in reqwest's default
+/// set, so it is only at risk if the workspace dependency re-introduces
+/// `default-features = false` without listing it — and that failure is silent:
+/// the crate still compiles and every other proxy test still passes because they
+/// only assert that a client builds.
 #[test]
 fn workspace_enables_reqwest_system_proxy() {
     use std::path::Path;
@@ -293,13 +291,40 @@ fn workspace_enables_reqwest_system_proxy() {
     let manifest_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Cargo.toml");
     let manifest = std::fs::read_to_string(&manifest_path)
         .unwrap_or_else(|e| panic!("read {}: {e}", manifest_path.display()));
+
+    // Slice out just the `reqwest = { ... }` declaration (it spans several lines
+    // because of the `features = [...]` list) so a `default-features` mention on
+    // another dependency cannot satisfy the check.
+    let mut block = String::new();
+    let mut in_reqwest = false;
+    for line in manifest.lines() {
+        if !in_reqwest && line.trim_start().starts_with("reqwest = {") {
+            in_reqwest = true;
+        }
+        if in_reqwest {
+            block.push_str(line);
+            block.push('\n');
+            if line.contains("] }") {
+                break;
+            }
+        }
+    }
     assert!(
-        manifest
-            .lines()
-            .map(str::trim)
-            .any(|line| line == "\"system-proxy\"," || line == "\"system-proxy\""),
-        "reqwest's `system-proxy` feature must stay enabled in the workspace 
-         Cargo.toml: without it `ProxyMode::System` ignores the Windows registry 
-         and the macOS system proxy entirely"
+        !block.is_empty(),
+        "no `reqwest = {{ ... }}` entry in the workspace Cargo.toml"
+    );
+
+    let defaults_off = block.contains("default-features = false");
+    let system_proxy = block
+        .lines()
+        .map(str::trim)
+        .any(|line| line == "\"system-proxy\"," || line == "\"system-proxy\"");
+
+    assert!(
+        !defaults_off || system_proxy,
+        "reqwest must keep `system-proxy` enabled: either leave its default features \
+         on (no `default-features = false`) or list `\"system-proxy\"` beside it. \
+         Without it `ProxyMode::System` ignores the Windows registry and the macOS \
+         system proxy entirely.\nreqwest entry was:\n{block}"
     );
 }
