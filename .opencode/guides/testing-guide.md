@@ -96,13 +96,15 @@ Windows 拆成**三个**并行 job 是因为它是最慢的平台：`cargo clipp
 - **Rust 测试统一用 `cargo nextest`**（由 `taiki-e/install-action` 安装，版本在 workflow 里
   pin）：nextest 为每个测试启动独立进程，既并行执行，也消除了 libtest 单进程共享全局状态
   带来的兄弟测试互扰。注意 `cargo nextest run` **不执行 doctest** —— 目前 workspace 没有 doctest；若将来新增，
-  需在 `check-rust` 补一个 `cargo test --doc` 步骤。覆盖率 job 仍走 `cargo llvm-cov`。
+  需在 `check-rust` 补一个 `cargo test --doc` 步骤。覆盖率 job 同样走 nextest（`cargo llvm-cov nextest`，
+  加 `--no-fail-fast` 保证有测试失败时覆盖率并集不被截断）。
 - **`[profile.test] debug = false`**（根 `Cargo.toml`）：CI 每个 job 都要编译并链接测试二进制，
   而依赖早已通过 `[profile.dev.package."*"]` 跳过 debug info，workspace 自己 crate 的
   line tables 只剩开销。本地要断点/行号：`cargo test --profile dev`；覆盖率的
-  `cargo llvm-cov --profile dev` 也是为了 lcov 的行号归属。release 产物用的是独立 profile，
+  `cargo llvm-cov nextest --cargo-profile dev` 也是为了 lcov 的行号归属（`--profile` 在 nextest 里
+  选的是 nextest profile，Cargo profile 要用 `--cargo-profile`）。release 产物用的是独立 profile，
   不受影响。
-- **覆盖率是硬门禁**：`check-rust` 里 `cargo llvm-cov ... --fail-under-lines 87` 跑 core，低于 87% 直接让 job 变红（Sonar 的质量门在 Free 计划里挂不上自定义条件，只是参考）。这个数只算**产品代码**：cargo-llvm-cov 从 0.6.22 起默认 ignore 掉 `tests/` 目录与 `tests.rs`/`*_tests.rs` 文件，而门禁引入时用的 88/21397 行是 0.6.21 含测试代码的量法；CI 曾因为 install-action 拉 `latest`（跳到 0.9.0）在代码没变的情况下变红，所以工具版本已固定为 `cargo-llvm-cov@0.9.0`，改数字前先看 ci.yml 里的测算注释。同一步再为 limedl-native 生成第二份 lcov，用 `--ignore-filename-regex 'crates.limedl-core'` 去掉 llvm-cov 顺带插桩的 core（否则 core 的行会被重复导入）。两步都带 `--no-cfg-coverage`：native 侧 `tiny-xlib` 会把 `cfg(coverage)` 变成 nightly-only 的 `#![feature(coverage_attribute)]`（stable 直接 E0554），而且两步 RUSTFLAGS 一致才能让第二步复用第一步插桩好的共享依赖。两份报告写在各自 crate 目录（`crates/limedl-core/lcov-core.info`、`crates/limedl-native/lcov-native.info`）：Sonar 的 Rust analyzer 按每个 Cargo manifest 一个模块解析 `sonar.rust.lcov.reportPaths`，只会到该模块自己的 base dir 找报告。`scripts/`、`website/`、`xtask` 在 `sonar.coverage.exclusions` 里排除——llvm-cov 无法插桩 PS1/Astro，计 0% 只会拉低分母。
+- **覆盖率是硬门禁**：`check-rust` 里 `cargo llvm-cov nextest ... --fail-under-lines 87` 跑 core，低于 87% 直接让 job 变红（Sonar 的质量门在 Free 计划里挂不上自定义条件，只是参考）。这个数只算**产品代码**：cargo-llvm-cov 从 0.6.22 起默认 ignore 掉 `tests/` 目录与 `tests.rs`/`*_tests.rs` 文件，而门禁引入时用的 88/21397 行是 0.6.21 含测试代码的量法；CI 曾因为 install-action 拉 `latest`（跳到 0.9.0）在代码没变的情况下变红，所以工具版本已固定为 `cargo-llvm-cov@0.9.0`，改数字前先看 ci.yml 里的测算注释。同一步再为 limedl-native 生成第二份 lcov，用 `--ignore-filename-regex 'crates.limedl-core'` 去掉 llvm-cov 顺带插桩的 core（否则 core 的行会被重复导入）。两步都带 `--no-cfg-coverage`：native 侧 `tiny-xlib` 会把 `cfg(coverage)` 变成 nightly-only 的 `#![feature(coverage_attribute)]`（stable 直接 E0554），而且两步 RUSTFLAGS 一致才能让第二步复用第一步插桩好的共享依赖。两份报告写在各自 crate 目录（`crates/limedl-core/lcov-core.info`、`crates/limedl-native/lcov-native.info`）：Sonar 的 Rust analyzer 按每个 Cargo manifest 一个模块解析 `sonar.rust.lcov.reportPaths`，只会到该模块自己的 base dir 找报告。`scripts/`、`website/`、`xtask` 在 `sonar.coverage.exclusions` 里排除——llvm-cov 无法插桩 PS1/Astro，计 0% 只会拉低分母。
 - **覆盖率目前只有行覆盖**：cargo-llvm-cov 的 `--branch` 是 unstable，stable 工具链直接拒绝（`--branch flag requires nightly toolchain`），所以 LCOV 没有 BRDA，Sonar 也没有条件覆盖。要分支覆盖得先把这两个 llvm-cov 步骤换成 pinned nightly，见 ci.yml 注释。
 - **Windows job 排除 Defender 实时扫描**（`Add-MpPreference -ExclusionPath`，best-effort、
   失败不挂 job）：Defender 会逐个扫描 cargo 写入 `target/` 的多 GB 文件，是 Windows 相对

@@ -65,7 +65,9 @@ concurrency:
 # - Tests run under `cargo nextest` (pinned through taiki-e/install-action):
 #   nextest executes each test in its own process, which parallelizes execution
 #   and removes the cross-test global-state interference a single libtest
-#   process per binary used to expose (see testing-guide.md). `cargo nextest run`
+#   process per binary used to expose (see testing-guide.md). The coverage runs
+#   use `cargo llvm-cov nextest` for the same reason, with `--no-fail-fast` so
+#   one failing test cannot shorten the coverage union. `cargo nextest run`
 #   does not run doctests — the workspace has none today; if a doctest is ever
 #   added, add a `cargo test --doc` step to check-rust.
 # ═══════════════════════════════════════════════════════════════════════════
@@ -338,8 +340,12 @@ jobs:
       # "No LCOV report files found" for all three crates).
       - name: Run tests with coverage
         run: |
-          # `--profile dev` keeps line tables for source attribution: the test
-          # profile drops debug info (see Cargo.toml) to cut CI link time.
+          # `--cargo-profile dev` keeps line tables for source attribution: the
+          # test profile drops debug info (see Cargo.toml) to cut CI link time.
+          # (`--profile` would select a *nextest* profile; the Cargo build
+          # profile is nextest's `--cargo-profile`.) `--no-fail-fast` keeps the
+          # coverage union complete when a test fails — nextest otherwise
+          # cancels the remaining tests, unlike the libtest default it replaced.
           #
           # `--fail-under-lines` is this repo's only hard coverage gate. Sonar's
           # quality gate stays advisory because the Free plan cannot attach the
@@ -370,7 +376,7 @@ jobs:
           # `-C instrument-coverage` instrumentation is unaffected, and neither
           # this repo nor core's dependency graph uses that cfg (measured
           # difference: 5 dependency lines).
-          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 87 --no-cfg-coverage
+          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 87 --no-cfg-coverage
           # Second report for the Sonar scan: the desktop crate is a workspace
           # path dependency of limedl-core's *sibling*, so without it every
           # limedl-native line was missing from the report and Sonar counted the
@@ -387,10 +393,10 @@ jobs:
           # `#![feature(coverage_attribute)]`, which stable rustc rejects
           # (`E0554`).
           #
-          # The report currently measures 76.3% (10101/13235 lines). There is no
-          # --fail-under-lines here yet: land a baseline gate once the number has
-          # settled in CI.
-          cargo llvm-cov --profile dev --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-core' --no-cfg-coverage
+          # The report currently measures 73.8% (8369/11337 lines) under the
+          # pinned tool and the nextest runner. There is no --fail-under-lines
+          # here yet: land a baseline gate once the number has settled in CI.
+          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-core' --no-cfg-coverage
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # ── SonarQube Cloud ────────────────────────────────────────────────
       # Rust is not available in Automatic Analysis, so the analysis runs from
