@@ -129,20 +129,26 @@ impl IrontideBtBackend {
     }
 
     pub fn get_torrent_files(&self, info_hash: Id20) -> Result<Vec<BtFileStatus>> {
-        // Use torrent_file + file_progress + file_status to build file status
+        // `included` is aria2's `selected` flag and the inspector's checkbox
+        // state, so it must come from the file *priorities* (`select-file`),
+        // not from `file_status`'s open/closed mode: mode only tracks whether
+        // the disk backend currently has the file open, which is false for
+        // every file of a paused torrent and true for every file of an active
+        // one. Deriving the selection from it flipped the whole list whenever
+        // the torrent changed run state.
         let meta_fut = self.session.torrent_file(info_hash);
         let progress_fut = self.session.file_progress(info_hash);
-        let status_fut = self.session.file_status(info_hash);
+        let priorities_fut = self.session.file_priorities(info_hash);
 
-        let (meta_result, progress_result, status_result) = tokio::task::block_in_place(|| {
+        let (meta_result, progress_result, priorities_result) = tokio::task::block_in_place(|| {
             self.runtime_handle
-                .block_on(async { tokio::join!(meta_fut, progress_fut, status_fut) })
+                .block_on(async { tokio::join!(meta_fut, progress_fut, priorities_fut) })
         });
 
         let file_progress = progress_result
             .map_err(|e| DownloadError::TorrentIo(format!("failed to get file progress: {e}")))?;
 
-        let file_statuses = status_result.ok();
+        let priorities = priorities_result.ok();
 
         match meta_result {
             Ok(Some(meta)) => {
@@ -152,11 +158,11 @@ impl IrontideBtBackend {
                     .enumerate()
                     .map(|(i, f)| {
                         let path: PathBuf = f.path.iter().collect();
-                        // Use file_status mode as a proxy for included/excluded.
-                        // Closed = skipped/excluded, ReadOnly/ReadWrite = included.
-                        let included = file_statuses.as_ref().is_none_or(|sts| {
-                            sts.get(i).is_none_or(|fs| {
-                                !matches!(fs.mode, irontide::session::FileMode::Closed)
+                        // Unknown priorities (engine not reporting them yet)
+                        // keep files selected rather than silently hiding them.
+                        let included = priorities.as_ref().is_none_or(|priorities| {
+                            priorities.get(i).is_none_or(|priority| {
+                                !matches!(priority, irontide::core::FilePriority::Skip)
                             })
                         });
                         BtFileStatus {

@@ -176,20 +176,21 @@ async fn queries_use_metadata_when_the_torrent_has_it() {
     assert_eq!(files[1].path, "b.txt");
     assert_eq!(files[1].size, 20);
     assert_eq!(files[1].downloaded_bytes, 0);
-    // An active torrent reports its files as open — the only value that maps to
-    // `included == true` (a paused/queued state reports `Closed`).
+    // `included` is the selection state, not the disk open/closed mode:
+    // a freshly started torrent keeps every file selected.
     assert!(
         files.iter().all(|f| f.included),
         "freshly started files are included: {files:?}"
     );
 
-    // Pausing closes the files, which the included/excluded proxy maps to
-    // `included == false`.
+    // Pausing closes the disk handles, but must not deselect the files —
+    // `included` is derived from file priorities, so the selection survives a
+    // run-state change.
     backend.pause(info_hash).await.expect("pause");
     let paused_files = backend.get_torrent_files(info_hash).expect("files");
     assert!(
-        paused_files.iter().all(|f| !f.included),
-        "a paused torrent reports every file excluded: {paused_files:?}"
+        paused_files.iter().all(|f| f.included),
+        "a paused torrent keeps its selection: {paused_files:?}"
     );
 
     backend.shutdown().await;
@@ -215,6 +216,13 @@ async fn update_torrent_files_sets_skip_priorities() {
         priorities,
         vec![FilePriority::Normal, FilePriority::Skip],
         "only the selected file stays normal"
+    );
+    // The aria2 `selected` flag / inspector checkbox reads the same source.
+    let files = backend.get_torrent_files(info_hash).expect("files");
+    assert_eq!(
+        files.iter().map(|f| f.included).collect::<Vec<_>>(),
+        vec![true, false],
+        "included must follow the file priorities: {files:?}"
     );
 
     backend
