@@ -221,21 +221,6 @@ pub fn format_toast_bt_files_failed(err: &str, lang: Language) -> String {
     }
 }
 
-/// Toast shown after migrating data from the Tauri edition.
-pub fn format_toast_tauri_migration(files: usize, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => {
-            format!("已从旧版 (Tauri) 导入 {files} 个文件：设置与任务记录已迁移")
-        }
-        Language::ZhTw => {
-            format!("已從舊版 (Tauri) 匯入 {files} 個檔案：設定與任務記錄已遷移")
-        }
-        Language::EnUs => format!(
-            "Imported {files} file(s) from the previous (Tauri) edition: settings and task history migrated"
-        ),
-    }
-}
-
 /// Toast shown after the "clear completed" action removed `count` records.
 pub fn format_toast_clear_completed(count: usize, lang: Language) -> String {
     match lang {

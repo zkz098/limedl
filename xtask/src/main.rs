@@ -23,15 +23,12 @@
 //! forgetting the embedded constant would ship a client that rejects every
 //! future update.
 //!
-//! Key sources (first match wins):
+//! Key sources:
 //!
 //! - `LIMEDL_SIGNING_KEY` — either a path to the key file or the base64 of the
 //!   key file text (what GitHub secrets hold)
-//! - `TAURI_SIGNING_PRIVATE_KEY` — the retired Tauri name, accepted so a
-//!   half-migrated environment can still release; drop once secrets are renamed
 //!
-//! The matching password comes from `LIMEDL_SIGNING_KEY_PASSWORD`
-//! (`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` as the fallback).
+//! The matching password comes from `LIMEDL_SIGNING_KEY_PASSWORD`.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -54,11 +51,6 @@ const BASE64: base64::engine::general_purpose::GeneralPurpose = base64::engine::
 const KEY_ENV: &str = "LIMEDL_SIGNING_KEY";
 const KEY_PASSWORD_ENV: &str = "LIMEDL_SIGNING_KEY_PASSWORD";
 const PUBKEY_ENV: &str = "LIMEDL_SIGNING_PUBKEY";
-
-/// Names from the retired Tauri pipeline. Accepted only so a partially migrated
-/// CI environment keeps releasing; they are removed in a follow-up commit.
-const LEGACY_KEY_ENV: &str = "TAURI_SIGNING_PRIVATE_KEY";
-const LEGACY_KEY_PASSWORD_ENV: &str = "TAURI_SIGNING_PRIVATE_KEY_PASSWORD";
 
 /// Where the client's embedded public key lives.
 ///
@@ -263,24 +255,21 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
 
 // ── Key handling ─────────────────────────────────────────────────────────────
 
-/// Load the signing secret from the environment: `LIMEDL_SIGNING_KEY` (path or
-/// base64) with the legacy Tauri name as a fallback.
+/// Load the signing secret from `LIMEDL_SIGNING_KEY` (path or base64).
 fn load_secret_key() -> Result<(SecretKey, String)> {
     let password = key_password();
-    for (name, kind) in [
-        (KEY_ENV, "current"),
-        (LEGACY_KEY_ENV, "legacy (rename the CI secret to LIMEDL_SIGNING_KEY)"),
-    ] {
-        let Some(value) = env_var(name) else { continue };
-        let sk = parse_secret_key(&value, password.clone())
-            .with_context(|| format!("load signing key from {name} — {kind}"))?;
-        return Ok((sk, format!("{name} [{kind}]")));
-    }
-    bail!("no signing key found: set {KEY_ENV} to the key file path or to base64 of the key file text")
+    let Some(value) = env_var(KEY_ENV) else {
+        bail!(
+            "no signing key found: set {KEY_ENV} to the key file path or to base64 of the key file text"
+        );
+    };
+    let sk = parse_secret_key(&value, password)
+        .with_context(|| format!("load signing key from {KEY_ENV}"))?;
+    Ok((sk, KEY_ENV.to_string()))
 }
 
 fn key_password() -> Option<String> {
-    env_var(KEY_PASSWORD_ENV).or_else(|| env_var(LEGACY_KEY_PASSWORD_ENV))
+    env_var(KEY_PASSWORD_ENV)
 }
 
 fn env_var(name: &str) -> Option<String> {
@@ -291,7 +280,7 @@ fn env_var(name: &str) -> Option<String> {
 }
 
 /// Accepts a path to a key file (the local/dev form) or base64 of the key file
-/// text (the CI secret form), mirroring what the previous tooling accepted.
+/// text (the CI secret form).
 fn parse_secret_key(value: &str, password: Option<String>) -> Result<SecretKey> {
     let trimmed = value.trim();
     let path = Path::new(trimmed);

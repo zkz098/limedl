@@ -46,6 +46,7 @@ use limedl_core::types::{
     AppSettings, DownloadState, DownloadSummary, Priority, TaskKind, ThreadMode,
 };
 use limedl_core::{BackendRegistry, Dispatcher, EventBus};
+use limedl_core::services::SettingsService;
 
 use crate::context::AppContext;
 use crate::i18n::Language;
@@ -220,7 +221,7 @@ pub(crate) struct TestUi {
 }
 
 impl TestUi {
-    fn new(settings: AppSettings, language: Language) -> Self {
+    fn new(mut settings: AppSettings, language: Language) -> Self {
         let data_dir = tempfile::tempdir().expect("temp data dir");
         let base_dir = data_dir.path().to_path_buf();
         // Mirrors `main()`: the state directory is `<root>/downloads` and the
@@ -228,18 +229,35 @@ impl TestUi {
         let state_dir = base_dir.join("downloads");
         std::fs::create_dir_all(&state_dir).expect("create state dir");
 
+        // OS notifications must not fire during headless tests; the real app
+        // reads this from the persisted settings.
+        settings.notifications.enabled = false;
+        let settings_path = base_dir.join("settings.json");
+        std::fs::write(
+            &settings_path,
+            serde_json::to_vec_pretty(&settings).expect("settings serialize"),
+        )
+        .expect("write settings.json");
+        let settings_service =
+            Arc::new(SettingsService::new(settings_path).expect("settings service"));
+
         // A real (if minimal) core: the recording backend answers `list()` with
         // the fixtures a test seeded and records every task action, so the UI
         // tests can assert on what the UI *asked for* instead of on a mock of
-        // its own. Everything else stays absent on purpose (no SQLite, no
-        // scheduler, no BT session) and every accessor the UI reaches degrades
-        // gracefully: `get_io_status()` returns Err and the settings dialog
-        // formats the "not ready" text.
+        // its own. The settings service is real too, so the UI reads and writes
+        // through the same single source of truth as production. Everything
+        // else stays absent on purpose (no SQLite, no scheduler, no BT session)
+        // and every accessor the UI reaches degrades gracefully: `get_io_status()`
+        // returns Err and the settings dialog formats the "not ready" text.
         let core = RecordingBackend::new();
         let mut registry = BackendRegistry::new();
         registry.register_arc(TaskKind::Http, core.clone());
         let event_bus = Arc::new(EventBus::new(64));
-        let dispatcher = Arc::new(Dispatcher::new(Arc::new(registry), event_bus.clone()));
+        let dispatcher = Arc::new(Dispatcher::with_settings_service(
+            Arc::new(registry),
+            event_bus.clone(),
+            settings_service,
+        ));
 
         let default_download_dir = ui_boot::default_download_dir(&settings, None, &state_dir);
 

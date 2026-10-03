@@ -3,7 +3,6 @@ use std::path::Path;
 
 #[cfg(feature = "bt")]
 use irontide::core::Id20;
-use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -34,10 +33,11 @@ pub enum DownloadState {
 
 /// Strongly-typed task identifier. Variants hold validated inner types.
 ///
-/// Wire format (serialization) emits `{ kind, id }` struct.
-/// Deserialization accepts BOTH:
-///   - New: `{ "kind": "http"|"bt", "id": "..." }`
-///   - Legacy: `"http:uuid"` or `"bt:hex"` strings
+/// The wire string form is `"http:uuid"` / `"bt:hex"` (see
+/// [`TaskId::from_wire_string`]); the desktop UI and the Aria2 RPC layer both
+/// speak it. `TaskId` is deliberately **not** `Serialize`/`Deserialize`: nothing
+/// stores it directly (summaries carry a `String` id, the Aria2 GID map is
+/// in-memory), so the old WebSocket-era wire-format impls were removed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskId {
     Http(Uuid),
@@ -100,60 +100,6 @@ impl From<Uuid> for TaskId {
 impl From<Id20> for TaskId {
     fn from(i: Id20) -> Self {
         TaskId::Bt(i)
-    }
-}
-
-impl Serialize for TaskId {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
-        let mut st = s.serialize_struct("TaskId", 2)?;
-        st.serialize_field("kind", &self.kind())?;
-        st.serialize_field("id", &self.raw_id())?;
-        st.end()
-    }
-}
-
-struct TaskIdVisitor;
-impl<'de> Visitor<'de> for TaskIdVisitor {
-    type Value = TaskId;
-
-    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str("a TaskId object {kind, id} or legacy string \"http:uuid\"/\"bt:hex\"")
-    }
-
-    fn visit_str<E: de::Error>(self, v: &str) -> Result<TaskId, E> {
-        TaskId::from_wire_string(v).map_err(|e| de::Error::custom(e))
-    }
-
-    fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<TaskId, M::Error> {
-        let mut kind: Option<TaskKind> = None;
-        let mut id: Option<String> = None;
-        while let Some(key) = map.next_key::<String>()? {
-            match key.as_str() {
-                "kind" => kind = Some(map.next_value()?),
-                "id" => id = Some(map.next_value()?),
-                _ => {
-                    let _: de::IgnoredAny = map.next_value()?;
-                }
-            }
-        }
-        match (kind, id) {
-            (Some(TaskKind::Http), Some(id)) => Uuid::parse_str(&id)
-                .map(TaskId::Http)
-                .map_err(|e| de::Error::custom(format!("invalid UUID: {e}"))),
-            #[cfg(feature = "bt")]
-            (Some(TaskKind::Bt), Some(id)) => Id20::from_hex(&id)
-                .map(TaskId::Bt)
-                .map_err(|e| de::Error::custom(format!("invalid info hash: {e}"))),
-            (None, _) => Err(de::Error::missing_field("kind")),
-            (_, None) => Err(de::Error::missing_field("id")),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for TaskId {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        d.deserialize_any(TaskIdVisitor)
     }
 }
 

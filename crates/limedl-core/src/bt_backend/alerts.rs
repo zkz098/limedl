@@ -1,16 +1,13 @@
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use irontide::core::Id20;
 use tokio::sync::broadcast;
 
-use crate::types::FastDashMap;
-
 use super::IrontideBtBackend;
-use super::snapshot::{StateHelpers, estimate_eta, map_state};
-use crate::event_bus::{DownloadEvent, EventBus};
+use crate::event_bus::DownloadEvent;
 use crate::lock;
-use crate::types::DownloadState;
+use crate::types::{DownloadProgress, DownloadState, DownloadSummary};
 
 impl IrontideBtBackend {
     /// Spawn the alert bridge that listens for irontide alerts and forwards
@@ -24,18 +21,19 @@ impl IrontideBtBackend {
             }
         }
 
-        let session = self.session.clone();
-        let event_bus = self.event_bus.clone();
-        let task_map = self.task_map.clone();
         // Subscribe here rather than inside the spawned task: alerts emitted
         // between this function returning and the task's first poll would be
         // lost (a broadcast channel has no history for receivers that do not
         // exist yet), so a caller that starts a torrent right after setup would
         // miss its `TorrentAdded`.
-        let rx = session.subscribe();
+        let rx = self.session.subscribe();
 
+        // The loop holds a `Weak`, not an `Arc`: it is stored in `self.alert_task`,
+        // so a strong reference would keep the backend (and its session)
+        // immortal. It ends when the session's alert sender is dropped.
+        let weak = Arc::downgrade(self);
         let handle = tokio::spawn(async move {
-            alert_bridge_loop(rx, session, event_bus, task_map).await;
+            alert_bridge_loop(rx, weak).await;
         });
 
         *lock(&self.alert_task) = Some(handle);
@@ -109,229 +107,184 @@ pub(crate) fn extract_info_hash(kind: &irontide::session::AlertKind) -> Option<&
 /// |                      | `Aria2Notification(onBtDownloadComplete)` +          |
 /// |                      | `Progress` + `Updated`                               |
 /// | `TorrentError`       | `Aria2Notification(onDownloadError)` + `Updated`     |
-/// | `TrackerReply`       | `Updated` (only when peers > 0)                      |
 ///
-/// The `MetadataReceived` alert only logs; the frontend learns metadata via
-/// the next periodic `Progress` tick.
+/// The `MetadataReceived` and `TrackerReply` alerts only log; tracker and peer
+/// counts reach the UI through the periodic `Progress` tick and the inspector's
+/// query path, not through a partial summary event.
 ///
 /// The `Updated` events from lifecycle operations (start, cancel, remove,
 /// purge) are emitted by the Dispatcher layer, not this bridge.
 ///
-/// Handle one alert. Extracted from [`alert_bridge_loop`] so the mapping above
-/// is testable without waiting for a live engine to emit each variant; alerts
-/// that carry no info hash are ignored.
-pub(super) async fn handle_alert(
-    session: &irontide::session::SessionHandle,
-    event_bus: &EventBus,
-    task_map: &FastDashMap<Id20, Id20>,
-    kind: &irontide::session::AlertKind,
-) {
-    use irontide::session::AlertKind;
+impl IrontideBtBackend {
+    /// Handle one alert. Extracted from [`alert_bridge_loop`] so the mapping above
+    /// is testable without waiting for a live engine to emit each variant; alerts
+    /// that carry no info hash are ignored.
+    pub(super) async fn handle_alert(&self, kind: &irontide::session::AlertKind) {
+        use irontide::session::AlertKind;
 
-    let Some(info_hash) = extract_info_hash(kind).copied() else {
-        return;
-    };
+        let Some(info_hash) = extract_info_hash(kind).copied() else {
+            return;
+        };
 
-    let task_id = info_hash.to_hex();
+        let task_id = info_hash.to_hex();
 
-    match kind {
-        AlertKind::TorrentAdded { .. } => {
-            if !task_map.contains_key(&info_hash) {
-                task_map.insert(info_hash, info_hash);
-            }
-            event_bus.publish(DownloadEvent::Aria2Notification {
-                event_name: "aria2.onDownloadStart".into(),
-                gid: super::internal_id_to_gid(&info_hash),
-            });
-        }
-        AlertKind::TorrentRemoved { .. } => {
-            task_map.remove(&info_hash);
-        }
-        AlertKind::TorrentPaused { .. } => {
-            event_bus.publish(DownloadEvent::Aria2Notification {
-                event_name: "aria2.onDownloadPause".into(),
-                gid: super::internal_id_to_gid(&info_hash),
-            });
-        }
-        AlertKind::TorrentResumed { .. } => {
-            event_bus.publish(DownloadEvent::Aria2Notification {
-                event_name: "aria2.onDownloadStart".into(),
-                gid: super::internal_id_to_gid(&info_hash),
-            });
-        }
-        AlertKind::TorrentFinished { .. } => {
-            event_bus.publish(DownloadEvent::Aria2Notification {
-                event_name: "aria2.onDownloadComplete".into(),
-                gid: super::internal_id_to_gid(&info_hash),
-            });
-            event_bus.publish(DownloadEvent::Aria2Notification {
-                event_name: "aria2.onBtDownloadComplete".into(),
-                gid: super::internal_id_to_gid(&info_hash),
-            });
-
-            // Fetch stats
-            let stats = session.torrent_stats(info_hash).await.ok();
-
-            // Emit progress with final stats
-            if let Some(ref s) = stats {
-                let progress = serde_json::json!({
-                    "id": task_id,
-                    "state": "completed",
-                    "downloadedBytes": s.total_done,
-                    "totalBytes": s.total,
-                    "speedBytesPerSecond": 0,
-                    "connectionCount": s.peers_connected,
-                    "uploadedBytes": s.uploaded,
-                    "uploadSpeedBytesPerSecond": 0,
-                    "peerCount": s.peers_connected,
-                    "uploadStatus": "idle",
-                });
-                event_bus.publish(DownloadEvent::Progress {
-                    id: task_id.clone(),
-                    progress_json: progress,
+        match kind {
+            AlertKind::TorrentAdded { .. } => {
+                if !self.task_map.contains_key(&info_hash) {
+                    self.task_map.insert(info_hash, info_hash);
+                }
+                self.event_bus.publish(DownloadEvent::Aria2Notification {
+                    event_name: "aria2.onDownloadStart".into(),
+                    gid: super::internal_id_to_gid(&info_hash),
                 });
             }
+            AlertKind::TorrentRemoved { .. } => {
+                self.task_map.remove(&info_hash);
+            }
+            AlertKind::TorrentPaused { .. } => {
+                self.event_bus.publish(DownloadEvent::Aria2Notification {
+                    event_name: "aria2.onDownloadPause".into(),
+                    gid: super::internal_id_to_gid(&info_hash),
+                });
+            }
+            AlertKind::TorrentResumed { .. } => {
+                self.event_bus.publish(DownloadEvent::Aria2Notification {
+                    event_name: "aria2.onDownloadStart".into(),
+                    gid: super::internal_id_to_gid(&info_hash),
+                });
+            }
+            AlertKind::TorrentFinished { .. } => {
+                self.event_bus.publish(DownloadEvent::Aria2Notification {
+                    event_name: "aria2.onDownloadComplete".into(),
+                    gid: super::internal_id_to_gid(&info_hash),
+                });
+                self.event_bus.publish(DownloadEvent::Aria2Notification {
+                    event_name: "aria2.onBtDownloadComplete".into(),
+                    gid: super::internal_id_to_gid(&info_hash),
+                });
 
-            // Emit download-updated so the frontend gets the full summary update
-            let updated = serde_json::json!({
-                "id": task_id,
-                "state": "completed",
-                "downloadedBytes": stats.as_ref().map(|s| s.total_done),
-                "totalBytes": stats.as_ref().map(|s| s.total),
-                "uploadedBytes": stats.as_ref().and_then(|s| if s.uploaded > 0 { Some(s.uploaded) } else { None }),
-                "uploadStatus": "idle",
-                "connectionCount": stats.as_ref().map(|s| s.peers_connected).unwrap_or(0),
-                "peerCount": stats.as_ref().map(|s| s.peers_connected),
-            });
-            event_bus.publish(DownloadEvent::Updated {
-                id: task_id,
-                summary_json: updated,
-            });
+                match self.session.torrent_stats(info_hash).await {
+                    Ok(stats) => {
+                        let mut snapshot = self.stats_to_snapshot(&info_hash, &stats);
+                        // `TorrentFinished` is authoritative even if the engine's
+                        // state lags a tick behind.
+                        snapshot.state = DownloadState::Completed;
+                        snapshot.speed_bytes_per_second = None;
+                        snapshot.upload_speed_bytes_per_second = None;
+                        snapshot.eta_seconds = None;
+                        self.event_bus.publish(DownloadEvent::Progress {
+                            progress: DownloadProgress::from(&snapshot),
+                        });
+                        self.event_bus.publish(DownloadEvent::Updated {
+                            summary: Box::new(DownloadSummary::from(&snapshot)),
+                        });
+                    }
+                    Err(_) => {
+                        self.event_bus.publish(DownloadEvent::Updated {
+                            summary: Box::new(super::queries::fallback_summary(
+                                &task_id,
+                                &self.default_output_dir,
+                                DownloadState::Completed,
+                                &task_id,
+                                "irontide reported completion before stats were available",
+                                None,
+                            )),
+                        });
+                    }
+                }
+            }
+            AlertKind::MetadataReceived { name, .. } => {
+                tracing::debug!("irontide: metadata received for {info_hash} ({name})");
+            }
+            AlertKind::TorrentError { message, .. } => {
+                self.event_bus.publish(DownloadEvent::Aria2Notification {
+                    event_name: "aria2.onDownloadError".into(),
+                    gid: super::internal_id_to_gid(&info_hash),
+                });
+                let summary = match self.session.torrent_stats(info_hash).await {
+                    Ok(stats) => {
+                        let mut snapshot = self.stats_to_snapshot(&info_hash, &stats);
+                        snapshot.state = DownloadState::Failed;
+                        snapshot.error = Some(message.clone());
+                        DownloadSummary::from(&snapshot)
+                    }
+                    Err(_) => super::queries::fallback_summary(
+                        &task_id,
+                        &self.default_output_dir,
+                        DownloadState::Failed,
+                        &task_id,
+                        "irontide reported an error before stats were available",
+                        Some(message.clone()),
+                    ),
+                };
+                self.event_bus
+                    .publish(DownloadEvent::Updated {
+                        summary: Box::new(summary),
+                    });
+            }
+            AlertKind::StateChanged { prev_state, new_state, .. } => {
+                tracing::trace!(
+                    "irontide: state change for {info_hash}: {prev_state:?} -> {new_state:?}"
+                );
+            }
+            AlertKind::TorrentChecked { pieces_have, pieces_total, .. } => {
+                tracing::debug!("irontide: check complete for {info_hash} ({pieces_have}/{pieces_total})");
+            }
+            AlertKind::FileCompleted { file_index, .. } => {
+                tracing::debug!("irontide: file #{file_index} complete for {info_hash}");
+            }
+            AlertKind::TrackerReply { num_peers, url, .. } => {
+                // Tracker replies carry no summary fields the UI model reads;
+                // the inspector fetches trackers/peers on its own poll.
+                tracing::trace!("irontide: tracker {url} replied {num_peers} peers for {info_hash}");
+            }
+            AlertKind::TrackerError { message, url, .. } => {
+                tracing::warn!("irontide: tracker error for {url}: {message}");
+            }
+            AlertKind::TrackerWarning { message, url, .. } => {
+                tracing::warn!("irontide: tracker warning for {url}: {message}");
+            }
+            AlertKind::HashFailed { piece, .. } => {
+                tracing::warn!("irontide: hash check failed for {info_hash} piece {piece}");
+            }
+            AlertKind::PeerConnected { addr, .. } => {
+                tracing::trace!("irontide: peer connected {addr}");
+            }
+            AlertKind::PeerDisconnected { addr, .. } => {
+                tracing::trace!("irontide: peer disconnected {addr}");
+            }
+            AlertKind::StorageMoved { new_path, .. } => {
+                tracing::info!("irontide: storage moved to {}", new_path.display());
+            }
+            AlertKind::FileError { path, message, .. } => {
+                tracing::warn!("irontide: file error at {}: {message}", path.display());
+            }
+            // Session stats / non-torrent alerts — ignore.
+            _ => {}
         }
-        AlertKind::MetadataReceived { name, .. } => {
-            tracing::debug!("irontide: metadata received for {info_hash} ({name})");
-        }
-        AlertKind::TorrentError { message, .. } => {
-            event_bus.publish(DownloadEvent::Aria2Notification {
-                event_name: "aria2.onDownloadError".into(),
-                gid: super::internal_id_to_gid(&info_hash),
-            });
-            event_bus.publish(DownloadEvent::Updated {
-                id: task_id.clone(),
-                summary_json: serde_json::json!({"id": task_id, "state": "error", "error": message}),
-            });
-        }
-        AlertKind::StateChanged { prev_state, new_state, .. } => {
-            tracing::trace!(
-                "irontide: state change for {info_hash}: {prev_state:?} -> {new_state:?}"
-            );
-        }
-        AlertKind::TorrentChecked { pieces_have, pieces_total, .. } => {
-            tracing::debug!("irontide: check complete for {info_hash} ({pieces_have}/{pieces_total})");
-        }
-        AlertKind::FileCompleted { file_index, .. } => {
-            tracing::debug!("irontide: file #{file_index} complete for {info_hash}");
-        }
-        AlertKind::TrackerReply { num_peers, url, .. } if *num_peers > 0 => {
-            event_bus.publish(DownloadEvent::Updated {
-                id: task_id.clone(),
-                summary_json: serde_json::json!({"id": task_id, "tracker": url, "peers": num_peers}),
-            });
-        }
-        AlertKind::TrackerError { message, url, .. } => {
-            tracing::warn!("irontide: tracker error for {url}: {message}");
-        }
-        AlertKind::TrackerWarning { message, url, .. } => {
-            tracing::warn!("irontide: tracker warning for {url}: {message}");
-        }
-        AlertKind::HashFailed { piece, .. } => {
-            tracing::warn!("irontide: hash check failed for {info_hash} piece {piece}");
-        }
-        AlertKind::PeerConnected { addr, .. } => {
-            tracing::trace!("irontide: peer connected {addr}");
-        }
-        AlertKind::PeerDisconnected { addr, .. } => {
-            tracing::trace!("irontide: peer disconnected {addr}");
-        }
-        AlertKind::StorageMoved { new_path, .. } => {
-            tracing::info!("irontide: storage moved to {}", new_path.display());
-        }
-        AlertKind::FileError { path, message, .. } => {
-            tracing::warn!("irontide: file error at {}: {message}", path.display());
-        }
-        // Session stats / non-torrent alerts — ignore.
-        _ => {}
     }
-}
 
-/// Emit a `Progress` event for every torrent in the task map.
-///
-/// Runs on the alert bridge's 2-second tick (and is called directly by tests).
-pub(super) async fn emit_progress_for_all_torrents(
-    session: &irontide::session::SessionHandle,
-    event_bus: &EventBus,
-    task_map: &FastDashMap<Id20, Id20>,
-) {
-    let hashes: Vec<Id20> = task_map.iter().map(|e| *e.key()).collect();
-    for info_hash in hashes {
-        if let Ok(stats) = session.torrent_stats(info_hash).await {
-            let task_id = info_hash.to_hex();
-
-            // Build a DownloadProgress-compatible JSON for the frontend.
-            let dl_state = map_state(&stats.state);
-            let total = stats.total_wanted;
-            // Use `downloaded` (payload bytes) for smooth progress.
-            let downloaded = stats.downloaded;
-            let terminal = dl_state.is_terminal();
-            let speed = if terminal {
-                0.0
-            } else {
-                stats.download_payload_rate as f64
-            };
-            let upload_speed = if terminal {
-                0.0
-            } else {
-                stats.upload_payload_rate as f64
-            };
-            let eta = if terminal || speed <= 0.0 {
-                None
-            } else {
-                estimate_eta(total, downloaded, Some(speed))
-            };
-            let upload_status: &str = match dl_state {
-                DownloadState::Paused => "paused",
-                _ if stats.upload_payload_rate > 0 => "uploading",
-                _ => "idle",
-            };
-            let progress = serde_json::json!({
-                "id": task_id,
-                "state": dl_state,
-                "downloadedBytes": downloaded,
-                "totalBytes": total,
-                "speedBytesPerSecond": speed,
-                "connectionCount": stats.peers_connected,
-                "uploadedBytes": stats.uploaded,
-                "uploadSpeedBytesPerSecond": upload_speed,
-                "peerCount": stats.peers_connected,
-                "uploadStatus": upload_status,
-                "etaSeconds": eta,
-            });
-
-            event_bus.publish(DownloadEvent::Progress {
-                id: task_id,
-                progress_json: progress,
-            });
+    /// Emit a `Progress` event for every torrent in the task map.
+    ///
+    /// Runs on the alert bridge's 2-second tick (and is called directly by tests).
+    pub(super) async fn emit_progress_for_all_torrents(&self) {
+        let hashes: Vec<Id20> = self.task_map.iter().map(|e| *e.key()).collect();
+        for info_hash in hashes {
+            if let Ok(stats) = self.session.torrent_stats(info_hash).await {
+                let snapshot = self.stats_to_snapshot(&info_hash, &stats);
+                self.event_bus.publish(DownloadEvent::Progress {
+                    progress: DownloadProgress::from(&snapshot),
+                });
+            }
         }
     }
 }
 
-/// Background loop that forwards irontide alerts (see [`handle_alert`]) and
-/// emits a periodic `Progress` tick for all active torrents every 2 seconds.
+/// Background loop that forwards irontide alerts (see [`IrontideBtBackend::handle_alert`])
+/// and emits a periodic `Progress` tick for all active torrents every 2 seconds.
 async fn alert_bridge_loop(
     mut rx: broadcast::Receiver<irontide::session::Alert>,
-    session: irontide::session::SessionHandle,
-    event_bus: Arc<EventBus>,
-    task_map: Arc<FastDashMap<Id20, Id20>>,
+    weak: Weak<IrontideBtBackend>,
 ) {
     let mut progress_timer = tokio::time::interval(Duration::from_secs(2));
     progress_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -353,10 +306,14 @@ async fn alert_bridge_loop(
                     }
                 };
 
-                handle_alert(&session, &event_bus, &task_map, &alert.kind).await;
+                if let Some(backend) = weak.upgrade() {
+                    backend.handle_alert(&alert.kind).await;
+                }
             }
             _ = progress_timer.tick() => {
-                emit_progress_for_all_torrents(&session, &event_bus, &task_map).await;
+                if let Some(backend) = weak.upgrade() {
+                    backend.emit_progress_for_all_torrents().await;
+                }
             }
         }
     }

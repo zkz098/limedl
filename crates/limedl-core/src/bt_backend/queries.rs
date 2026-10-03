@@ -324,13 +324,18 @@ impl IrontideBtBackend {
                 let snapshot = self.stats_to_snapshot(&info_hash, &stats);
                 DownloadSummary::from(&snapshot)
             }
-            Err(_) => fallback_pending_summary(&id_hex, &self.default_output_dir),
+            Err(_) => fallback_summary(
+                &id_hex,
+                &self.default_output_dir,
+                DownloadState::Queued,
+                "Pending torrent",
+                "Adding torrent to irontide session",
+                None,
+            ),
         };
 
-        let summary_json = serde_json::to_value(&summary).unwrap_or_default();
         self.event_bus.publish(DownloadEvent::Updated {
-            id: id_hex,
-            summary_json,
+            summary: Box::new(summary),
         });
     }
 }
@@ -345,17 +350,23 @@ pub(crate) fn sanitize_peer_client(client: &str) -> String {
         .to_string()
 }
 
-/// Build a queued-state summary for a pending torrent.
-fn fallback_pending_summary(
-    pending_id: &str,
+/// Build a minimal summary for a BT task the engine has no stats for yet (or
+/// whose stats lookup failed). `file_name`/`thread_note`/`error` let the caller
+/// describe why the fallback was used.
+pub(super) fn fallback_summary(
+    id: &str,
     default_output_dir: &std::path::Path,
+    state: DownloadState,
+    file_name: &str,
+    thread_note: &str,
+    error: Option<String>,
 ) -> DownloadSummary {
     DownloadSummary {
-        id: pending_id.to_string(),
+        id: id.to_string(),
         kind: TaskKind::Bt,
-        state: DownloadState::Queued,
+        state,
         url: String::new(),
-        file_name: String::from("Pending torrent"),
+        file_name: file_name.to_string(),
         destination_path: default_output_dir.to_string_lossy().to_string(),
         total_bytes: None,
         downloaded_bytes: 0,
@@ -365,7 +376,7 @@ fn fallback_pending_summary(
         desired_thread_count: None,
         allocated_thread_count: None,
         adaptive_profile: None,
-        thread_note: Some(String::from("Adding torrent to irontide session")),
+        thread_note: Some(thread_note.to_string()),
         speed_bytes_per_second: None,
         eta_seconds: None,
         uploaded_bytes: Some(0),
@@ -374,7 +385,7 @@ fn fallback_pending_summary(
         upload_status: Some(BtUploadStatus::Idle),
         info_hash: None,
         expected_checksum: None,
-        error: None,
+        error,
         cdn_accelerated: false,
         cdn_node_ip: None,
         created_at_ms: now_ms(),

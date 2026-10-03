@@ -16,7 +16,7 @@ pub struct TaskStore {
 }
 
 impl TaskStore {
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::with_language(Language::default())
     }
@@ -44,11 +44,6 @@ impl TaskStore {
 
     pub fn set_category(&mut self, cat: i32) {
         self.current_category = cat;
-    }
-
-    #[allow(dead_code)]
-    pub fn category(&self) -> i32 {
-        self.current_category
     }
 
     /// Overwrite the sort field/direction (used to apply persisted settings).

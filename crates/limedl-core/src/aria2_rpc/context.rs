@@ -1,6 +1,6 @@
 //! Shared RPC context: token checks, gid resolution and event broadcast.
 
-use super::{Arc, Aria2AuthMode, Aria2RpcSettings, BackendRegistry, ClientToken, Dispatcher, DownloadEvent, DownloadManager, EventBus, HashMap, JsonRpcError, Mutex, PathBuf, PerClientAuth, TaskId, Value, constant_time_eq, make_error};
+use super::{Arc, Aria2AuthMode, Aria2RpcSettings, BackendRegistry, ClientToken, Dispatcher, DownloadEvent, DownloadManager, EventBus, HashMap, JsonRpcError, LazyBtBackend, Mutex, PathBuf, PerClientAuth, TaskId, Value, constant_time_eq, make_error};
 
 /// Authentication scheme derived from [`Aria2RpcSettings`] at server start.
 ///
@@ -51,9 +51,24 @@ pub(crate) struct RpcContext {
 }
 
 impl RpcContext {
+    /// The HTTP backend, if registered.
+    ///
+    /// This and [`RpcContext::bt`] are the **only** sanctioned `get_typed`
+    /// downcasts in the aria2 layer: the RPC surface is inherently
+    /// protocol-specific (`getOption` reads the HTTP manifest, `tellStatus.files`
+    /// asks the BT engine), so the downcasts are centralized here instead of
+    /// being scattered across the handlers.
+    pub(crate) fn http(&self) -> Option<&DownloadManager> {
+        self.registry.get_typed::<DownloadManager>()
+    }
+
+    /// The BT backend, if registered. See [`RpcContext::http`].
+    pub(crate) fn bt(&self) -> Option<&LazyBtBackend> {
+        self.registry.get_typed::<LazyBtBackend>()
+    }
+
     pub(crate) fn settings_default_download_dir(&self) -> String {
-        self.registry
-            .get_typed::<DownloadManager>()
+        self.http()
             .and_then(|dm| dm.settings_default_download_dir())
             .unwrap_or_else(|| dirs_next().unwrap_or_else(default_downloads_dir))
     }

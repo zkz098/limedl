@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};

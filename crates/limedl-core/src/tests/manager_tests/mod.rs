@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    fs,
     sync::{Arc, atomic::Ordering},
     time::Duration,
 };
@@ -29,7 +28,6 @@ use crate::download::{
 use crate::download::{DownloadCore, ManagedDownload};
 use crate::manifest::CHUNK_SIZE;
 use crate::manifest::{ChunkManifest, Manifest};
-use crate::settings::load_settings;
 use crate::types::TaskKind;
 use crate::types::{
     AdaptiveProfile, AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,

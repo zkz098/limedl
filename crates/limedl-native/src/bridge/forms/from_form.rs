@@ -15,7 +15,7 @@ use super::enums::{str_to_aria2_auth_mode, str_to_background_opacity, str_to_che
 /// Returns `Err` with a human-readable message if any field contains
 /// non-empty but unparsable content (e.g. "abc" in a numeric field or
 /// an invalid proxy URL). Empty strings retain the previous value for
-/// numeric fields (mirroring the previous desktop shell) but mandatory string fields
+/// numeric fields, but mandatory string fields
 /// like proxy manual URL are validated eagerly so the user gets immediate
 /// feedback instead of a silent no-op or a later `normalize_settings` error.
 pub fn update_app_settings_from_form(
@@ -237,7 +237,7 @@ fn apply_appearance(settings: &mut AppSettings, form: &SettingsFormData) {
     settings.appearance.compact_view = form.appearance_compact_view;
     // Column visibility: rebuild the persisted key list in canonical order.
     // An all-false selection would hide every column, so the file column is
-    // always kept (mirroring the web client's guard).
+    // always kept.
     let column_enabled = |key: &str| -> bool {
         match key {
             "file" => true,

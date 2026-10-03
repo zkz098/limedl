@@ -10,7 +10,8 @@ use parking_lot::Mutex;
 use slint::SharedString;
 
 use limedl_core::dispatcher::Dispatcher;
-use limedl_core::types::{AppSettings, ColorMode, ThemeColor};
+use limedl_core::error::DownloadError;
+use limedl_core::types::{ColorMode, ThemeColor};
 
 use crate::MainWindow;
 use crate::SetupFormData;
@@ -51,23 +52,15 @@ pub fn register(ctx: &AppContext) {
     let ui_weak = ctx.ui_weak.clone();
     let dispatcher = ctx.dispatcher.clone();
     let store = ctx.store.clone();
-    let current_settings = ctx.current_settings.clone();
     let sync = SettingsSync::new(ctx);
 
     // Interrupted close: persist the current step so the wizard reopens there.
     {
         let ui_weak = ui_weak.clone();
         let dispatcher = dispatcher.clone();
-        let current_settings = current_settings.clone();
         let store = store.clone();
         ui.on_close_setup_wizard(move |step| {
-            close_setup_wizard(
-                ui_weak.clone(),
-                dispatcher.clone(),
-                current_settings.clone(),
-                store.clone(),
-                step,
-            );
+            close_setup_wizard(ui_weak.clone(), dispatcher.clone(), store.clone(), step);
         });
     }
 
@@ -131,62 +124,37 @@ pub fn register(ctx: &AppContext) {
     // effects as saving the settings dialog.
     {
         let dispatcher = dispatcher.clone();
-        let current_settings = current_settings.clone();
         let sync = sync.clone();
         ui.on_finish_setup(move |form| {
-            finish_setup(
-                dispatcher.clone(),
-                current_settings.clone(),
-                sync.clone(),
-                form,
-            );
+            finish_setup(dispatcher.clone(), sync.clone(), form);
         });
     }
 }
 
 /// Persist the wizard settings and run the shared save side effects.
-fn finish_setup(
-    dispatcher: Arc<Dispatcher>,
-    current_settings: Arc<Mutex<AppSettings>>,
-    sync: SettingsSync,
-    form: SetupFormData,
-) {
+fn finish_setup(dispatcher: Arc<Dispatcher>, sync: SettingsSync, form: SetupFormData) {
     let dispatcher = dispatcher.clone();
-    let current_settings = current_settings.clone();
     let sync = sync.clone();
 
     tokio::spawn(async move {
-        let old_settings = current_settings.lock().clone();
-        let mut settings = old_settings.clone();
+        let old_settings = dispatcher.get_settings_blocking().unwrap_or_default();
         let lang = sync.lang();
 
-        if let Err(msg) = update_app_settings_from_setup_form(&mut settings, &form, lang) {
-            tracing::error!("设置向导表单校验失败: {msg}");
-            sync.toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 6);
-            return;
-        }
-
-        settings.setup_completed = true;
-        settings.last_setup_step = Some(8);
-
-        match dispatcher.save_settings(&settings).await {
-            Ok(saved) => {
-                sync.sync_autostart(&saved, &old_settings, lang);
-                sync.sync_aria2_rpc(&saved, &old_settings, lang);
-                sync.commit(&saved);
-                sync.toast(
-                    i18n::format_toast_setup_finished(lang).to_string(),
-                    "success",
-                    5,
-                );
-                sync.push_ui(
-                    &saved,
-                    PushOptions {
-                        sync_new_task_dir: true,
-                        close_wizard: true,
-                        ..Default::default()
-                    },
-                );
+        let saved = match dispatcher
+            .save_settings_with(|settings| {
+                update_app_settings_from_setup_form(settings, &form, lang)
+                    .map_err(DownloadError::InvalidRequest)?;
+                settings.setup_completed = true;
+                settings.last_setup_step = Some(8);
+                Ok(())
+            })
+            .await
+        {
+            Ok(saved) => saved,
+            Err(DownloadError::InvalidRequest(msg)) => {
+                tracing::error!("设置向导表单校验失败: {msg}");
+                sync.toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 6);
+                return;
             }
             Err(err) => {
                 tracing::error!("设置向导保存失败: {err:#}");
@@ -196,8 +164,26 @@ fn finish_setup(
                     "error",
                     6,
                 );
+                return;
             }
-        }
+        };
+
+        sync.sync_autostart(&saved, &old_settings, lang);
+        sync.sync_aria2_rpc(&saved, &old_settings, lang);
+        sync.commit(&saved);
+        sync.toast(
+            i18n::format_toast_setup_finished(lang).to_string(),
+            "success",
+            5,
+        );
+        sync.push_ui(
+            &saved,
+            PushOptions {
+                sync_new_task_dir: true,
+                close_wizard: true,
+                ..Default::default()
+            },
+        );
     });
 }
 
@@ -205,7 +191,6 @@ fn finish_setup(
 fn close_setup_wizard(
     ui_weak: slint::Weak<MainWindow>,
     dispatcher: Arc<Dispatcher>,
-    current_settings: Arc<Mutex<AppSettings>>,
     store: Arc<Mutex<TaskStore>>,
     step: i32,
 ) {
@@ -221,13 +206,15 @@ fn close_setup_wizard(
 
     let ui_weak = ui_weak.clone();
     let dispatcher = dispatcher.clone();
-    let current_settings = current_settings.clone();
     tokio::spawn(async move {
-        let mut settings = current_settings.lock().clone();
-        settings.last_setup_step = Some(step.max(0) as u32);
-        match dispatcher.save_settings(&settings).await {
-            Ok(saved) => *current_settings.lock() = saved,
-            Err(err) => tracing::warn!("保存设置向导进度失败: {err:#}"),
+        if let Err(err) = dispatcher
+            .save_settings_with(|settings| {
+                settings.last_setup_step = Some(step.max(0) as u32);
+                Ok(())
+            })
+            .await
+        {
+            tracing::warn!("保存设置向导进度失败: {err:#}");
         }
         let _ = slint::invoke_from_event_loop(move || {
             with_ui(&ui_weak, |ui| ui.set_show_setup_wizard(false));

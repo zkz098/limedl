@@ -12,10 +12,9 @@ pub fn parse_batch_urls(text: &str) -> Vec<String> {
     urls
 }
 
-/// Expand the first `[start-end]` numeric range in a URL (same semantics as
-/// the Vue composer's `expandUrlRanges`: first occurrence only, zero-padded
-/// to the width of the start token). A safety cap of 1000 expansions guards
-/// against accidental giant ranges.
+/// Expand the first `[start-end]` numeric range in a URL (first occurrence
+/// only, zero-padded to the width of the start token). A safety cap of 1000
+/// expansions guards against accidental giant ranges.
 pub fn expand_url_ranges(url: &str) -> Vec<String> {
     let Some(open) = url.find('[') else {
         return vec![url.to_string()];
@@ -58,7 +57,7 @@ pub fn expand_url_ranges(url: &str) -> Vec<String> {
 }
 
 /// Best-effort filename for a batch entry: the last percent-decoded path
-/// segment of an HTTP(S) URL (matching the Vue composer's per-entry fileName).
+/// segment of an HTTP(S) URL.
 pub fn extract_batch_file_name(url: &str) -> Option<String> {
     let trimmed = url.trim();
     let lower = trimmed.to_ascii_lowercase();
@@ -114,7 +113,7 @@ mod tests {
             expand_url_ranges("https://host/file[1-2].zip"),
             vec!["https://host/file1.zip", "https://host/file2.zip"]
         );
-        // Only the first range expands (mirrors the Vue composer)
+        // Only the first range expands
         assert_eq!(
             expand_url_ranges("https://host/a[1-2]b[3-4].zip"),
             vec!["https://host/a1b[3-4].zip", "https://host/a2b[3-4].zip"]

@@ -1,25 +1,6 @@
-//! Startup and settings-migration behaviour.
+//! Startup behaviour.
 
 use super::*;
-
-#[tokio::test]
-#[timeout(30_000)]
-async fn loads_legacy_proxy_settings() -> TestResult {
-    let temp = tempdir()?;
-    let settings_path = temp.path().join("settings.json");
-    fs::write(
-        &settings_path,
-        serde_json::to_vec_pretty(&ProxySettings {
-            mode: ProxyMode::System,
-            manual_url: String::new(),
-        })?,
-    )?;
-
-    let settings = load_settings(&settings_path)?;
-    assert_eq!(settings.proxy.mode, ProxyMode::System);
-    assert_eq!(settings.scheduler.mode, SchedulerMode::Automatic);
-    Ok(())
-}
 
 #[tokio::test]
 #[timeout(30_000)]

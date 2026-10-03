@@ -11,7 +11,6 @@ mod context;
 mod event_stream;
 mod handlers;
 mod i18n;
-mod migrate;
 mod paths;
 mod platform_adapter;
 mod platform_win;
@@ -76,9 +75,6 @@ async fn main() -> anyhow::Result<()> {
     update::clean_update_work_dir(&base_dir);
     tokio::fs::create_dir_all(&state_dir).await?;
 
-    // First Native run: migrate data from Tauri
-    let migration_report = migrate::migrate_tauri_data_if_needed(&base_dir, &state_dir);
-
     // Bootstrap download core
     let core = bootstrap(state_dir.clone())
         .await
@@ -96,15 +92,6 @@ async fn main() -> anyhow::Result<()> {
         "启动 limedl Native 桌面客户端 ({})...",
         renderer::NAME
     );
-
-    if let Some(report) = migration_report.as_ref() {
-        tracing::info!(
-            "Tauri 数据迁移完成：{} 个文件 / {} 字节（来源 {}）",
-            report.copied_files,
-            report.copied_bytes,
-            report.source.display()
-        );
-    }
 
     autostart::sync_from_settings(initial_settings.autostart);
 
@@ -162,9 +149,6 @@ async fn main() -> anyhow::Result<()> {
         initial_settings.appearance.color_mode == limedl_core::types::ColorMode::Dark,
     );
     ui_sync::schedule_window_placement_restore(&main_window, &base_dir);
-    if let Some(report) = migration_report.as_ref() {
-        ui_sync::announce_migration(report, &ctx.ui_weak, &ctx.toast_queue, initial_lang);
-    }
 
     // System Tray Icon
     let tray_icon = TrayIconBuilder::new()
@@ -219,10 +203,8 @@ async fn main() -> anyhow::Result<()> {
                 if !matches!(summary.kind, limedl_core::types::TaskKind::Bt) {
                     continue;
                 }
-                let summary_json = serde_json::to_value(&summary).unwrap_or_default();
                 event_bus.publish(DownloadEvent::Updated {
-                    id: summary.id.clone(),
-                    summary_json,
+                    summary: Box::new(summary),
                 });
             }
         });

@@ -20,7 +20,7 @@ use super::{
     buffer_pool::{BufferPool, IoWorker},
     database::Database,
     error::{DownloadError, Result, io_error_with_path},
-    event_bus::{DownloadEvent, EventBus},
+    event_bus::EventBus,
     http_executor::HttpExecutor,
     logging::apply_logging_settings,
     manifest::{CHUNK_SIZE, Manifest, snapshot_from_manifest},
@@ -47,38 +47,6 @@ pub use crate::download::{DownloadCore, ManagedDownload};
 
 /// Maximum number of cached CDN clients before eviction.
 const MAX_CDN_CLIENT_CACHE_SIZE: usize = 50;
-
-#[derive(Clone)]
-pub struct AppState {
-    pub registry: Arc<super::backend_registry::BackendRegistry>,
-    pub event_bus: Arc<EventBus>,
-    pub dispatcher: Arc<super::dispatcher::Dispatcher>,
-    pub cdn_service: Arc<super::cdn::CdnService>,
-    pub rpc_shutdown: Arc<parking_lot::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
-    pub settings: Arc<ParkingRwLock<AppSettings>>,
-    pub settings_service: Arc<super::services::SettingsService>,
-    /// Cancelled during shutdown to stop the periodic emit task gracefully
-    /// before backends are torn down.
-    pub emit_cancel: CancellationToken,
-    /// Shared HTTP client for one-off requests (tracker list fetch, etc.).
-    /// reqwest::Client is cheap to clone — it uses Arc internally.
-    pub http_client: reqwest::Client,
-}
-
-impl AppState {
-    pub async fn emit_all_downloads(&self) {
-        for backend in self.registry.iter() {
-            if let Ok(summaries) = backend.list().await {
-                for summary in summaries {
-                    let summary_json = serde_json::to_value(&summary).unwrap_or_default();
-                    let id = summary.id.clone();
-                    self.event_bus
-                        .publish(DownloadEvent::Updated { id, summary_json });
-                }
-            }
-        }
-    }
-}
 
 // ── Sub-structures for field grouping ──────────────────────────────────
 

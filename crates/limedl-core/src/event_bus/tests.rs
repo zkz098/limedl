@@ -1,19 +1,79 @@
 use super::*;
 use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 
+use crate::types::{DownloadProgress, DownloadState, DownloadSummary, TaskKind, ThreadMode};
+
 // ── Sample event helpers ──────────────────────────────────────────────
+
+fn sample_summary() -> DownloadSummary {
+    DownloadSummary {
+        id: "t1".into(),
+        kind: TaskKind::Http,
+        state: DownloadState::Downloading,
+        url: "https://example.com/file.bin".into(),
+        file_name: "file.bin".into(),
+        destination_path: "/tmp/file.bin".into(),
+        total_bytes: Some(100),
+        downloaded_bytes: 10,
+        connection_count: 1,
+        thread_mode: ThreadMode::Fixed,
+        requested_thread_count: None,
+        desired_thread_count: None,
+        allocated_thread_count: None,
+        adaptive_profile: None,
+        thread_note: None,
+        speed_bytes_per_second: None,
+        eta_seconds: None,
+        uploaded_bytes: None,
+        upload_speed_bytes_per_second: None,
+        peer_count: None,
+        upload_status: None,
+        info_hash: None,
+        expected_checksum: None,
+        error: None,
+        cdn_accelerated: false,
+        cdn_node_ip: None,
+        created_at_ms: 0,
+        priority: Default::default(),
+        seed_count: None,
+        leech_count: None,
+        download_limit_bps: None,
+        upload_limit_bps: None,
+        chunks: Vec::new(),
+        mirror_url: None,
+    }
+}
+
+fn sample_progress() -> DownloadProgress {
+    DownloadProgress {
+        id: "t1".into(),
+        state: DownloadState::Downloading,
+        downloaded_bytes: 10,
+        total_bytes: Some(100),
+        speed_bytes_per_second: None,
+        eta_seconds: None,
+        connection_count: 1,
+        allocated_thread_count: None,
+        error: None,
+        uploaded_bytes: None,
+        upload_speed_bytes_per_second: None,
+        peer_count: None,
+        upload_status: None,
+        degraded: false,
+        disk_type: None,
+        flushing: false,
+    }
+}
 
 fn ev_updated() -> DownloadEvent {
     DownloadEvent::Updated {
-        id: "t1".into(),
-        summary_json: serde_json::Value::Null,
+        summary: Box::new(sample_summary()),
     }
 }
 
 fn ev_progress() -> DownloadEvent {
     DownloadEvent::Progress {
-        id: "t1".into(),
-        progress_json: serde_json::Value::Null,
+        progress: sample_progress(),
     }
 }
 
@@ -70,7 +130,9 @@ fn publish_delivers_to_all_active_subscribers() {
 
     for (i, rx) in [&mut rx1, &mut rx2, &mut rx3].iter_mut().enumerate() {
         match rx.try_recv().unwrap() {
-            DownloadEvent::Updated { id, .. } => assert_eq!(id, "t1", "subscriber {i}"),
+            DownloadEvent::Updated { summary } => {
+                assert_eq!(summary.id, "t1", "subscriber {i}")
+            }
             other => panic!("subscriber {i} expected Updated, got {other:?}"),
         }
     }
@@ -83,7 +145,7 @@ fn publish_with_capacity_one_does_not_crash() {
     let mut rx = bus.subscribe();
     bus.publish(ev_updated());
     match rx.try_recv().unwrap() {
-        DownloadEvent::Updated { id, .. } => assert_eq!(id, "t1"),
+        DownloadEvent::Updated { summary } => assert_eq!(summary.id, "t1"),
         other => panic!("expected Updated, got {other:?}"),
     }
 }
@@ -140,7 +202,7 @@ fn clone_is_cheap_and_shares_underlying_channel() {
     bus2.publish(ev_updated());
 
     match rx.try_recv().unwrap() {
-        DownloadEvent::Updated { id, .. } => assert_eq!(id, "t1"),
+        DownloadEvent::Updated { summary } => assert_eq!(summary.id, "t1"),
         other => panic!("expected Updated, got {other:?}"),
     }
 }

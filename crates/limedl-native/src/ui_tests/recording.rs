@@ -135,6 +135,64 @@ impl RecordingBackend {
         *self.tasks.lock() = tasks;
     }
 
+    /// The snapshot `status()` answers with: a seeded task is "alive", anything
+    /// else is `NotFound`. This is what lets the event listener tell a normal
+    /// update from a task that was removed elsewhere, exactly like a real backend.
+    fn snapshot_for(&self, task_id: &TaskId) -> CoreResult<DownloadSnapshot> {
+        let wire_id = wire(task_id);
+        let tasks = self.tasks.lock();
+        let Some(s) = tasks.iter().find(|task| task.id == wire_id) else {
+            return Err(DownloadError::NotFound);
+        };
+        Ok(DownloadSnapshot {
+            id: s.id.clone(),
+            kind: s.kind,
+            state: s.state,
+            url: s.url.clone(),
+            final_url: s.url.clone(),
+            file_name: s.file_name.clone(),
+            destination_path: s.destination_path.clone(),
+            temp_path: String::new(),
+            total_bytes: s.total_bytes,
+            downloaded_bytes: s.downloaded_bytes,
+            supports_ranges: false,
+            connection_count: s.connection_count,
+            thread_mode: s.thread_mode,
+            requested_thread_count: s.requested_thread_count,
+            desired_thread_count: s.desired_thread_count,
+            allocated_thread_count: s.allocated_thread_count,
+            adaptive_profile: s.adaptive_profile,
+            thread_note: s.thread_note.clone(),
+            checksum: None,
+            expected_checksum: s.expected_checksum.clone(),
+            checksum_mode: ChecksumMode::None,
+            etag: None,
+            last_modified: None,
+            error: s.error.clone(),
+            speed_bytes_per_second: s.speed_bytes_per_second,
+            eta_seconds: s.eta_seconds,
+            uploaded_bytes: s.uploaded_bytes,
+            upload_speed_bytes_per_second: s.upload_speed_bytes_per_second,
+            peer_count: s.peer_count,
+            upload_status: s.upload_status,
+            info_hash: s.info_hash.clone(),
+            created_at_ms: s.created_at_ms,
+            updated_at_ms: s.created_at_ms,
+            priority: s.priority,
+            cdn_accelerated: s.cdn_accelerated,
+            cdn_node_ip: s.cdn_node_ip.clone(),
+            chunks: Vec::new(),
+            seed_count: s.seed_count,
+            leech_count: s.leech_count,
+            download_limit_bps: s.download_limit_bps,
+            upload_limit_bps: s.upload_limit_bps,
+            mirror_url: s.mirror_url.clone(),
+            degraded: false,
+            disk_type: None,
+            flushing: false,
+        })
+    }
+
     fn named(calls: &[CoreCall], pick: impl Fn(&CoreCall) -> Option<&String>) -> Vec<String> {
         calls.iter().filter_map(pick).cloned().collect()
     }
@@ -200,9 +258,9 @@ impl RecordingBackend {
             .collect()
     }
 
-    /// Task ids the UI asked the engine about. `status()` answers `NotFound`
-    /// here, which is what the event listener uses to tell "still alive" from
-    /// "removed elsewhere" (see `async_contracts/bus.rs`).
+    /// Task ids the UI asked the engine about. The listener uses the answer to
+    /// tell "still alive" from "removed elsewhere": seeded tasks are alive,
+    /// anything else is `NotFound` (see `async_contracts/bus.rs`).
     pub fn statuses(&self) -> Vec<String> {
         Self::named(&self.calls(), |call| match call {
             CoreCall::Status(id) => Some(id),
@@ -278,7 +336,8 @@ impl DownloadBackend for RecordingBackend {
     }
 
     async fn status(&self, task_id: &TaskId) -> CoreResult<DownloadSnapshot> {
-        self.record(CoreCall::Status(wire(task_id)))
+        self.calls.lock().push(CoreCall::Status(wire(task_id)));
+        self.snapshot_for(task_id)
     }
 
     async fn list(&self) -> CoreResult<Vec<DownloadSummary>> {

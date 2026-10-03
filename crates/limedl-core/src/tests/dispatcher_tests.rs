@@ -203,8 +203,8 @@ async fn dispatcher_cancel_emits_updated() -> TestResult {
     // Consume the event (should arrive immediately, no timeout needed)
     let event = rx.try_recv()?;
     match event {
-        DownloadEvent::Updated { id, .. } => {
-            assert_eq!(id, id_str, "cancel: Updated event id must match task id");
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, id_str, "cancel: Updated event id must match task id");
         }
         other => panic!("cancel: expected Updated, got {other:?}"),
     }
@@ -233,8 +233,8 @@ async fn dispatcher_remove_emits_updated() -> TestResult {
 
     let event = rx.try_recv()?;
     match event {
-        DownloadEvent::Updated { id, .. } => {
-            assert_eq!(id, id_str, "remove: Updated event id must match task id");
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, id_str, "remove: Updated event id must match task id");
         }
         other => panic!("remove: expected Updated, got {other:?}"),
     }
@@ -263,8 +263,8 @@ async fn dispatcher_purge_emits_updated() -> TestResult {
 
     let event = rx.try_recv()?;
     match event {
-        DownloadEvent::Updated { id, .. } => {
-            assert_eq!(id, id_str, "purge: Updated event id must match task id");
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, id_str, "purge: Updated event id must match task id");
         }
         other => panic!("purge: expected Updated, got {other:?}"),
     }
@@ -293,8 +293,8 @@ async fn dispatcher_pause_emits_updated() -> TestResult {
 
     let event = rx.try_recv()?;
     match event {
-        DownloadEvent::Updated { id, .. } => {
-            assert_eq!(id, id_str, "pause: Updated event id must match task id");
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, id_str, "pause: Updated event id must match task id");
         }
         other => panic!("pause: expected Updated, got {other:?}"),
     }
@@ -464,8 +464,8 @@ async fn dispatcher_resume_emits_updated() -> TestResult {
 
     let event = rx.try_recv()?;
     match event {
-        DownloadEvent::Updated { id, .. } => {
-            assert_eq!(id, id_str, "resume: Updated event id must match task id");
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, id_str, "resume: Updated event id must match task id");
         }
         other => panic!("resume: expected Updated, got {other:?}"),
     }
@@ -489,8 +489,8 @@ async fn dispatcher_set_priority_emits_updated() -> TestResult {
 
     let event = rx.try_recv()?;
     match event {
-        DownloadEvent::Updated { id, .. } => {
-            assert_eq!(id, id_str, "set_priority: Updated event id must match task id");
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, id_str, "set_priority: Updated event id must match task id");
         }
         other => panic!("set_priority: expected Updated, got {other:?}"),
     }

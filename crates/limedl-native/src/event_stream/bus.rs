@@ -10,7 +10,7 @@ use slint::SharedString;
 
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::DownloadEvent;
-use limedl_core::types::{AppSettings, DownloadProgress, DownloadState, DownloadSummary, TaskId};
+use limedl_core::types::{DownloadProgress, DownloadState, DownloadSummary, TaskId};
 
 use crate::bridge::{TaskStore, summary_to_inspector_info};
 use crate::context::AppContext;
@@ -28,7 +28,6 @@ struct BusCtx {
     store: Arc<Mutex<TaskStore>>,
     active_inspector_id: Arc<Mutex<Option<String>>>,
     toast_queue: ToastQueue,
-    current_settings: Arc<Mutex<AppSettings>>,
     dispatcher: Arc<Dispatcher>,
 }
 
@@ -114,9 +113,11 @@ fn notify_state_change(
 
 /// A task was added, changed state or removed.
 ///
-/// Returns `false` when the task no longer exists in the backend: the caller
-/// must then skip the rest of the event (it was removed elsewhere).
-async fn on_updated(ctx: &BusCtx, id: String, summary_json: serde_json::Value) -> bool {
+/// The engine keeps `Updated` as the only "the row changed" event, so removal is
+/// detected by asking the backend about the task: a snapshot for a task it no
+/// longer knows about means the row is stale.
+async fn on_updated(ctx: &BusCtx, summary: DownloadSummary) {
+    let id = summary.id.clone();
     if let Ok(task_id) = TaskId::from_wire_string(&id)
         && ctx.dispatcher.status(&task_id).await.is_err()
     {
@@ -136,15 +137,15 @@ async fn on_updated(ctx: &BusCtx, id: String, summary_json: serde_json::Value) -
                 }
             });
         });
-        return false;
+        return;
     }
 
-    let Ok(summary) = serde_json::from_value::<DownloadSummary>(summary_json) else {
-        return true;
-    };
-
     let lang = ctx.lang();
-    let notifications_enabled = ctx.current_settings.lock().notifications.enabled;
+    let notifications_enabled = ctx
+        .dispatcher
+        .get_settings_blocking()
+        .map(|settings| settings.notifications.enabled)
+        .unwrap_or(true);
     notify_state_change(ctx, &summary, notifications_enabled, lang);
 
     let inspector_id = summary.id.clone();
@@ -153,14 +154,10 @@ async fn on_updated(ctx: &BusCtx, id: String, summary_json: serde_json::Value) -
         move |store| store.insert_or_update(summary),
         Some(inspector_id),
     );
-    true
 }
 
 /// High-frequency progress tick.
-fn on_progress(ctx: &BusCtx, progress_json: serde_json::Value) {
-    let Ok(progress) = serde_json::from_value::<DownloadProgress>(progress_json) else {
-        return;
-    };
+fn on_progress(ctx: &BusCtx, progress: DownloadProgress) {
     let inspector_id = progress.id.clone();
     push_store_update(
         ctx,
@@ -169,7 +166,9 @@ fn on_progress(ctx: &BusCtx, progress_json: serde_json::Value) {
     );
 }
 
-/// Full state recovery after a subscriber lagged.
+/// Replace the whole list from the engine after the subscriber lagged: the
+/// broadcast channel dropped an unknown number of events, so partial replay is
+/// impossible and a snapshot is the only correct recovery.
 fn on_full_state(ctx: &BusCtx, downloads: Vec<DownloadSummary>) {
     push_store_update(ctx, move |store| store.replace_all(downloads), None);
 }
@@ -297,36 +296,47 @@ pub fn start_event_bus_listener(
         store: ctx.store.clone(),
         active_inspector_id: ctx.active_inspector_id.clone(),
         toast_queue: ctx.toast_queue.clone(),
-        current_settings: ctx.current_settings.clone(),
         dispatcher: ctx.dispatcher.clone(),
     };
 
     tokio::spawn(async move {
         let mut warning_dedup = WarningDedup::new();
-        while let Ok(event) = rx.recv().await {
-            match event {
-                DownloadEvent::Updated { id, summary_json } => {
-                    on_updated(&bus, id, summary_json).await;
-                }
-                DownloadEvent::Progress { progress_json, .. } => on_progress(&bus, progress_json),
-                DownloadEvent::FullState { downloads } => on_full_state(&bus, downloads),
-                DownloadEvent::CdnProgress {
+        loop {
+            match rx.recv().await {
+                Ok(DownloadEvent::Updated { summary }) => on_updated(&bus, *summary).await,
+                Ok(DownloadEvent::Progress { progress }) => on_progress(&bus, progress),
+                Ok(DownloadEvent::CdnProgress {
                     phase,
                     current,
                     total,
-                } => on_cdn_progress(&bus, phase, current, total),
-                DownloadEvent::CdnComplete {
+                }) => on_cdn_progress(&bus, phase, current, total),
+                Ok(DownloadEvent::CdnComplete {
                     state,
                     active_ip,
                     active_speed_mbps,
-                } => on_cdn_complete(&bus, state, active_ip, active_speed_mbps),
-                DownloadEvent::Warning { id, message } => {
+                }) => on_cdn_complete(&bus, state, active_ip, active_speed_mbps),
+                Ok(DownloadEvent::Warning { id, message }) => {
                     on_warning(&bus, &mut warning_dedup, id, message);
                 }
                 // Aria2 compatibility notifications are pushed by the Aria2 RPC
                 // server straight to connected aria2 clients (AriaNg / Motrix);
                 // the native UI has no surface for them.
-                DownloadEvent::Aria2Notification { .. } => {}
+                Ok(DownloadEvent::Aria2Notification { .. }) => {}
+                // The broadcast channel dropped events faster than this task could
+                // drain them. There is no partial replay, so resynchronize the whole
+                // list from the engine instead of leaving the UI stuck on old state.
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!(
+                        "UI event listener lagged by {n} events; resyncing from the engine"
+                    );
+                    match bus.dispatcher.list().await {
+                        Ok(downloads) => on_full_state(&bus, downloads),
+                        Err(error) => {
+                            tracing::warn!("UI resync after lag failed: {error:#}");
+                        }
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             }
         }
     });

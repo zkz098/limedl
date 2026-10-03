@@ -1,9 +1,7 @@
 use std::collections::HashSet;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::time::Duration;
 
-use parking_lot::Mutex;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use limedl_core::dispatcher::Dispatcher;
@@ -20,9 +18,8 @@ use crate::bridge::{
     speed_limit_slots_to_slint, url_rewrite_rules_to_slint,
 };
 use crate::i18n::{self, Language};
-use crate::toast::{ToastQueue, push_toast};
 use crate::{
-    ColorModePref, MainWindow, Theme, ThemeAccent, UpdateState, migrate, platform_win,
+    ColorModePref, MainWindow, Theme, ThemeAccent, UpdateState, platform_win,
     POWER_GUARD,
 };
 
@@ -44,30 +41,28 @@ pub fn apply_view_preferences(ui: &MainWindow, settings: &AppSettings) {
 }
 
 /// Persist a user sort change into `appearance.sortKey` / `sortDirection`.
-pub fn persist_sort_preference(
-    dispatcher: &Dispatcher,
-    current_settings: &Arc<Mutex<AppSettings>>,
-    field: i32,
-    asc: bool,
-) {
+pub fn persist_sort_preference(dispatcher: &Dispatcher, field: i32, asc: bool) {
     let dispatcher = dispatcher.clone();
-    let current_settings = current_settings.clone();
     tokio::spawn(async move {
-        let mut settings = current_settings.lock().clone();
         let key = field_to_sort_key(field);
         let dir = if asc {
             SortDirection::Asc
         } else {
             SortDirection::Desc
         };
-        if settings.appearance.sort_key == key && settings.appearance.sort_direction == dir {
+        let current = dispatcher.get_settings_blocking().unwrap_or_default();
+        if current.appearance.sort_key == key && current.appearance.sort_direction == dir {
             return;
         }
-        settings.appearance.sort_key = key;
-        settings.appearance.sort_direction = dir;
-        match dispatcher.save_settings(&settings).await {
-            Ok(saved) => *current_settings.lock() = saved,
-            Err(e) => tracing::debug!("persisting sort preference failed: {e:#}"),
+        if let Err(error) = dispatcher
+            .save_settings_with(|settings| {
+                settings.appearance.sort_key = key;
+                settings.appearance.sort_direction = dir;
+                Ok(())
+            })
+            .await
+        {
+            tracing::debug!("persisting sort preference failed: {error:#}");
         }
     });
 }
@@ -321,16 +316,4 @@ pub fn apply_appearance(ui: &MainWindow, mode: ColorMode, theme_color: ThemeColo
     ui.global::<Theme>().set_accent(accent);
     let is_dark = ui.global::<Theme>().get_dark();
     platform_win::sync_window_theme(ui.window(), is_dark);
-}
-
-/// Push a one-shot toast telling the user that data was migrated from the
-/// Tauri edition (shown once, right after the window exists).
-pub fn announce_migration(
-    report: &migrate::MigrationReport,
-    ui_weak: &slint::Weak<MainWindow>,
-    queue: &ToastQueue,
-    lang: Language,
-) {
-    let msg = i18n::format_toast_tauri_migration(report.copied_files, lang);
-    push_toast(ui_weak, queue, msg, "info", Duration::from_secs(8));
 }

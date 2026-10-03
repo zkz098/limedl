@@ -1,29 +1,33 @@
 //! EventBus — unified publish/subscribe event bus for all download subsystems.
 //!
-//! Pure broadcast channel. UI emission is handled by independent subscriber
-//! tasks in the application layer (desktop client / WebSocket RPC adapter).
+//! Pure broadcast channel carrying the engine's own typed payloads. UI emission
+//! is handled by an independent subscriber task in the application layer (the
+//! Slint desktop client); the Aria2 RPC adapter subscribes for its own event
+//! notifications.
 
 use tokio::sync::broadcast;
+
+use crate::types::{DownloadProgress, DownloadSummary};
 
 // ── Event types ──────────────────────────────────────────────────────────
 
 /// Events published by download subsystems.
-/// All payloads implement Serialize for IPC/wire compatibility.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", content = "payload", rename_all = "camelCase")]
+///
+/// Payloads are strongly-typed engine summaries, not wire JSON: the only
+/// consumers are in-process (the desktop client and the Aria2 RPC bridge), so
+/// the old `serde_json::Value` envelopes were removed. Serialize the payload at
+/// the boundary that actually needs JSON (aria2 conversion, SQLite columns).
+#[derive(Debug, Clone)]
 pub enum DownloadEvent {
-    /// A download task state changed (started/paused/resumed/completed/error/removed).
-    /// Payload is a DownloadSummary serialized as JSON value.
-    Updated {
-        id: String,
-        summary_json: serde_json::Value,
-    },
+    /// A download task was added, changed state or removed.
+    ///
+    /// Boxed: `DownloadSummary` is the largest payload carried on the bus and
+    /// the enum is cloned per receiver, so keeping it inline inflates every
+    /// event (and the 8192-slot channel).
+    Updated { summary: Box<DownloadSummary> },
     /// High-frequency progress update (bytes/speed).
-    Progress {
-        id: String,
-        progress_json: serde_json::Value,
-    },
-    /// BT-specific: aria2-compatible event notifications.
+    Progress { progress: DownloadProgress },
+    /// Aria2-compatible event notification, consumed by the Aria2 RPC server.
     Aria2Notification { event_name: String, gid: String },
     /// CDN speed test progress update.
     CdnProgress {
@@ -39,11 +43,6 @@ pub enum DownloadEvent {
     },
     /// A warning or informational message for a specific download.
     Warning { id: String, message: String },
-    /// Full state recovery — sent when a subscriber recovers from lag.
-    /// Contains all current download summaries for atomic frontend state replacement.
-    FullState {
-        downloads: Vec<crate::types::DownloadSummary>,
-    },
 }
 
 // ── EventBus ──────────────────────────────────────────────────────────────

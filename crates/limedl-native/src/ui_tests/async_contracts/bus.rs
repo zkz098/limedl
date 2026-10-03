@@ -11,7 +11,7 @@
 //! just the store mutation behind it.
 
 use limedl_core::event_bus::DownloadEvent;
-use limedl_core::types::{DownloadState, DownloadSummary};
+use limedl_core::types::{DownloadProgress, DownloadState};
 
 use slint::Model;
 
@@ -36,16 +36,9 @@ fn row_speed(ui: &TestUi, row: usize) -> String {
         .to_string()
 }
 
-/// Start the subscriber the way `main()` does and silence the OS notification
-/// that a terminal state change would otherwise raise on the test machine.
+/// Start the subscriber the way `main()` does.
 fn start_listener(ui: &TestUi) {
-    ui.ctx.current_settings.lock().notifications.enabled = false;
     crate::event_stream::start_event_bus_listener(&ui.ctx, ui.ctx.event_bus.subscribe());
-}
-
-/// A `DownloadSummary` as the engine would serialize it into an event payload.
-fn summary_json(summary: &DownloadSummary) -> serde_json::Value {
-    serde_json::to_value(summary).expect("a summary serializes")
 }
 
 /// Progress ticks are the only event that fires ~3×/s during a download; they
@@ -61,16 +54,24 @@ pub(super) async fn a_progress_tick_repaints_only_the_row_it_names() {
     assert!((row_progress(&ui, 0) - 0.1).abs() < 1e-6, "seeded at 10%");
 
     ui.ctx.event_bus.publish(DownloadEvent::Progress {
-        id: http_wire(1),
-        progress_json: serde_json::json!({
-            "id": http_wire(1),
-            "state": "downloading",
-            "downloadedBytes": 55_u64,
-            "totalBytes": 100_u64,
-            "speedBytesPerSecond": 1_048_576.0_f64,
-            "etaSeconds": 3_u64,
-            "connectionCount": 2_usize,
-        }),
+        progress: DownloadProgress {
+            id: http_wire(1),
+            state: DownloadState::Downloading,
+            downloaded_bytes: 55,
+            total_bytes: Some(100),
+            speed_bytes_per_second: Some(1_048_576.0),
+            eta_seconds: Some(3),
+            connection_count: 2,
+            allocated_thread_count: None,
+            error: None,
+            uploaded_bytes: None,
+            upload_speed_bytes_per_second: None,
+            peer_count: None,
+            upload_status: None,
+            degraded: false,
+            disk_type: None,
+            flushing: false,
+        },
     });
     ui.pump_until("the tick to reach the row", || row_progress(&ui, 0) > 0.5)
         .await;
@@ -114,12 +115,7 @@ pub(super) async fn a_terminal_state_event_toasts_and_repaints_the_row() {
 
     let finished = http_task(1, "alpha-renamed.bin", DownloadState::Completed, 100, 100);
     ui.ctx.event_bus.publish(DownloadEvent::Updated {
-        // Deliberately not a wire id: the listener only inserts/updates when
-        // `status()` confirms the task is still alive, and the recording backend
-        // answers `NotFound` for everything (see the removal scenario below).
-        // The payload carries the real id, which is what the store indexes by.
-        id: "envelope-id-that-is-not-a-task-id".into(),
-        summary_json: summary_json(&finished),
+        summary: Box::new(finished),
     });
     ui.pump_until("the update to reach the row", || {
         row_progress(&ui, 0) > 0.99
@@ -166,11 +162,22 @@ pub(super) async fn an_event_for_a_task_the_backend_forgot_drops_the_row_and_clo
     ui.window.invoke_open_inspector(http_wire(1).into());
     assert!(ui.window.get_show_inspector());
 
+    // The backend no longer knows task 1: it is not in `list()`/`status()`
+    // anymore, only the UI still shows it.
+    ui.core.set_tasks(vec![http_task(
+        2,
+        "bravo.bin",
+        DownloadState::Downloading,
+        10,
+        100,
+    )]);
+
     let stale = http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100);
-    ui.ctx.event_bus.publish(DownloadEvent::Updated {
-        id: http_wire(1),
-        summary_json: summary_json(&stale),
-    });
+    ui.ctx
+        .event_bus
+        .publish(DownloadEvent::Updated {
+            summary: Box::new(stale),
+        });
     ui.pump_until("the row to be dropped", || ui.visible_rows() == 1)
         .await;
 
@@ -198,8 +205,13 @@ pub(super) async fn an_event_for_a_task_the_backend_forgot_drops_the_row_and_clo
     );
 }
 
-/// A subscriber that lagged gets the whole list in one `FullState` event and has
-/// to replace what it shows, not append to it.
+/// A subscriber that lagged gets the whole engine list back and has to replace
+/// what it shows, not append to it.
+///
+/// The lag is forced for real: the fixture's bus has capacity 64, the listener
+/// task cannot run until the test yields, and the backend list changes between
+/// the seed and the flood. Recovery is therefore only correct if the listener
+/// asks the engine (`list()`) rather than replaying events.
 pub(super) async fn a_lagged_subscriber_gets_the_whole_list_back() {
     let ui = new_window();
     ui.seed(vec![http_task(
@@ -211,12 +223,23 @@ pub(super) async fn a_lagged_subscriber_gets_the_whole_list_back() {
     )]);
     start_listener(&ui);
 
-    ui.ctx.event_bus.publish(DownloadEvent::FullState {
-        downloads: vec![
-            http_task(2, "bravo.bin", DownloadState::Paused, 20, 100),
-            http_task(3, "charlie.bin", DownloadState::Completed, 100, 100),
-        ],
-    });
+    // The engine now reports a different list than the UI store holds.
+    ui.core.set_tasks(vec![
+        http_task(2, "bravo.bin", DownloadState::Paused, 20, 100),
+        http_task(3, "charlie.bin", DownloadState::Completed, 100, 100),
+    ]);
+
+    // Publish past the capacity (64) without awaiting: the listener task has not
+    // been polled yet, so its next `recv()` must return `Lagged`.
+    for _ in 0..100 {
+        ui.ctx
+            .event_bus
+            .publish(DownloadEvent::Warning {
+                id: http_wire(1),
+                message: "flood".into(),
+            });
+    }
+
     ui.pump_until("the list to be replaced", || ui.visible_rows() == 2)
         .await;
 

@@ -32,8 +32,6 @@ pub fn register(ctx: &AppContext) {
     let ui_weak = ctx.ui_weak.clone();
     let store = ctx.store.clone();
     let dispatcher = ctx.dispatcher.clone();
-    let current_settings = ctx.current_settings.clone();
-
     // Category filter
     {
         let ui_weak = ui_weak.clone();
@@ -59,14 +57,13 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
         let dispatcher = dispatcher.clone();
-        let current_settings = current_settings.clone();
         ui.on_set_sort_field(move |field_idx| {
             let Some((field, asc)) =
                 mutate_sort(&ui_weak, &store, |store| store.set_sort_field(SortField::from(field_idx)))
             else {
                 return;
             };
-            persist_sort_preference(&dispatcher, &current_settings, field, asc);
+            persist_sort_preference(&dispatcher, field, asc);
         });
     }
 
@@ -75,7 +72,6 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
         let dispatcher = dispatcher.clone();
-        let current_settings = current_settings.clone();
         ui.on_toggle_sort_asc(move || {
             let Some((field, asc)) =
                 mutate_sort(&ui_weak, &store, |store| {
@@ -84,7 +80,7 @@ pub fn register(ctx: &AppContext) {
             else {
                 return;
             };
-            persist_sort_preference(&dispatcher, &current_settings, field, asc);
+            persist_sort_preference(&dispatcher, field, asc);
         });
     }
 

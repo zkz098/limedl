@@ -109,7 +109,7 @@ pub(super) async fn saving_media_overrides_persists_the_rows() {
     .await;
 
     {
-        let settings = ui.ctx.current_settings.lock();
+        let settings = ui.ctx.settings();
         let overrides = &settings.io_baseline.disk_type_overrides;
         assert_eq!(overrides.len(), 2, "both rows must be persisted");
         assert_eq!(
@@ -160,7 +160,7 @@ pub(super) async fn saving_aria2_clients_persists_hashes_not_plaintext() {
     .await;
 
     {
-        let settings = ui.ctx.current_settings.lock();
+        let settings = ui.ctx.settings();
         assert_eq!(settings.aria2_rpc.auth_mode, Aria2AuthMode::PerClient);
         assert_eq!(settings.aria2_rpc.clients.len(), 1);
         let client = &settings.aria2_rpc.clients[0];
@@ -218,7 +218,8 @@ pub(super) async fn saving_settings_persists_the_edited_form() {
     // save configures (service restart, registry write) and this test is about
     // the form → settings → engine path.
     let mut form = ui.window.get_settings_form();
-    form.default_download_dir = "C:\\limedl-saved".into();
+    let saved_dir = absolute_dir("limedl-saved");
+    form.default_download_dir = saved_dir.clone().into();
     // Appearance is the one section whose effect is a *global* instead of a
     // dialog property: the saved mode and accent are what the whole UI is
     // painted with, so they get asserted below.
@@ -232,8 +233,8 @@ pub(super) async fn saving_settings_persists_the_edited_form() {
     })
     .await;
     assert_eq!(
-        ui.ctx.current_settings.lock().download.default_download_dir,
-        "C:\\limedl-saved",
+        ui.ctx.settings().download.default_download_dir,
+        saved_dir,
         "the edited field must land in the shared settings"
     );
 
@@ -286,7 +287,7 @@ pub(super) async fn saving_labs_persists_the_rules() {
     })
     .await;
     {
-        let settings = ui.ctx.current_settings.lock();
+        let settings = ui.ctx.settings();
         assert_eq!(
             settings.url_rewrite.rules.len(),
             1,
@@ -329,7 +330,7 @@ pub(super) async fn the_setup_wizard_persists_its_form_and_remembers_where_it_wa
     })
     .await;
     {
-        let settings = ui.ctx.current_settings.lock();
+        let settings = ui.ctx.settings();
         assert!(
             settings.setup_completed,
             "finishing marks the setup as done"
@@ -365,7 +366,7 @@ pub(super) async fn the_setup_wizard_persists_its_form_and_remembers_where_it_wa
 
     ui.click("SetupWizard::wizard_close_btn");
     ui.pump_until("the step to be persisted", || {
-        ui.ctx.current_settings.lock().last_setup_step == Some(1)
+        ui.ctx.settings().last_setup_step == Some(1)
     })
     .await;
     assert_eq!(
@@ -376,18 +377,25 @@ pub(super) async fn the_setup_wizard_persists_its_form_and_remembers_where_it_wa
     ui.pump_until("the wizard to close", || !ui.window.get_show_setup_wizard())
         .await;
     assert!(
-        !ui.ctx.current_settings.lock().setup_completed,
+        !ui.ctx.settings().setup_completed,
         "closing the wizard is not finishing it"
     );
 
     // Phase 3: “Re-run Setup Wizard” (the About tab's button calls exactly this
     // callback) resets both wizard flags and reopens the first step.
     let ui = new_window();
-    {
-        let mut settings = ui.ctx.current_settings.lock();
-        settings.setup_completed = true;
-        settings.last_setup_step = Some(5);
-    }
+    ui.ctx
+        .dispatcher
+        .save_settings_with(|settings| {
+            settings.setup_completed = true;
+            settings.last_setup_step = Some(5);
+            Ok(())
+        })
+        .await
+        .expect("seed the wizard flags");
+    // The seed itself broadcast an `update_settings`; the pump below must wait
+    // for the restart's own push.
+    ui.core.clear();
     ui.window.set_show_settings(true);
 
     ui.window.invoke_restart_setup();
@@ -396,7 +404,7 @@ pub(super) async fn the_setup_wizard_persists_its_form_and_remembers_where_it_wa
     })
     .await;
     {
-        let settings = ui.ctx.current_settings.lock();
+        let settings = ui.ctx.settings();
         assert!(!settings.setup_completed, "the wizard has to run again");
         assert_eq!(settings.last_setup_step, None, "…from the first step");
     }

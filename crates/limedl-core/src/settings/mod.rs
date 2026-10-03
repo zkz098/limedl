@@ -10,8 +10,7 @@ use super::{
     http_client_factory::normalize_user_agent,
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        CdnAccelerationSettings, DoubleClickSettings, DownloadDefaultsSettings,
-        IoBaselineSettings, LogSettings, NotificationSettings, ProxyMode, ProxySettings,
+        DownloadDefaultsSettings, IoBaselineSettings, LogSettings, ProxyMode, ProxySettings,
         RewriteTarget, SchedulerSettings, TraditionalSchedulerSettings, UrlRewriteRule,
         UrlRewriteSettings, default_tracker_list_url,
     },
@@ -377,27 +376,6 @@ fn normalize_url_rewrite_settings(settings: UrlRewriteSettings) -> UrlRewriteSet
     }
 }
 
-/// Rewrite a `download.defaultChecksum` that names a mode the enum no longer
-/// has (`sha1`, `xxh3_128`) to the default.
-///
-/// Serde would otherwise reject the whole document — and every setting in it —
-/// over one unknown enum value. Kept out of [`load_settings`] so that function
-/// stays under the analyzer's cognitive-complexity threshold (rust:S3776).
-fn migrate_legacy_checksum_setting(value: &mut serde_json::Value) {
-    let Some(checksum) = value
-        .get_mut("download")
-        .and_then(|download| download.get_mut("defaultChecksum"))
-    else {
-        return;
-    };
-    let supported = checksum
-        .as_str()
-        .is_some_and(|s| matches!(s, "none" | "blake3" | "sha256" | "sha512"));
-    if !supported {
-        *checksum = serde_json::Value::String(String::from("blake3"));
-    }
-}
-
 pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     let content = match fs::read_to_string(settings_path) {
         Ok(content) => content,
@@ -407,98 +385,10 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
         Err(error) => return Err(error.into()),
     };
 
-    if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&content)
-        && (value.get("appearance").is_some()
-            || value.get("proxy").is_some()
-            || value.get("scheduler").is_some()
-            || value.get("download").is_some()
-            || value.get("bt").is_some()
-            || value.get("logging").is_some()
-            || value.get("cdnAcceleration").is_some()
-            || value.get("notifications").is_some()
-            || value.get("ioBaseline").is_some()
-            || value.get("urlRewrite").is_some()
-            || value.get("githubMirror").is_some())
-    {
-        // Smooth migration: if legacy githubMirror exists and urlRewrite has no rules, migrate it.
-        if let Some(gh_val) = value.get("githubMirror") {
-            let gh_enabled = gh_val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
-            let mirrors = gh_val.get("mirrors").and_then(|v| v.as_array());
-            let has_rules = value
-                .get("urlRewrite")
-                .and_then(|ur| ur.get("rules"))
-                .and_then(|r| r.as_array())
-                .is_some_and(|arr| !arr.is_empty());
-            if !has_rules
-                && let Some(mirrors) = mirrors
-                && (gh_enabled || !mirrors.is_empty())
-            {
-                let targets: Vec<serde_json::Value> = mirrors
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(idx, m)| {
-                        let url = m.get("url").and_then(|u| u.as_str())?.trim();
-                        if url.is_empty() {
-                            return None;
-                        }
-                        let enabled = m.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
-                        Some(serde_json::json!({
-                            "urlTemplate": url,
-                            "enabled": enabled,
-                            "order": idx as u32
-                        }))
-                    })
-                    .collect();
-                if !targets.is_empty() {
-                    let rule = serde_json::json!({
-                        "id": "preset-github",
-                        "name": "GitHub 镜像",
-                        "enabled": true,
-                        "matchType": "host",
-                        "pattern": "*.github.com",
-                        "replacementMode": "prefix_proxy",
-                        "targets": targets,
-                        "encodeUrl": true,
-                        "fallbackToOriginal": true,
-                        "order": 0
-                    });
-                    if value.get("urlRewrite").is_none() {
-                        value["urlRewrite"] = serde_json::json!({ "enabled": gh_enabled, "rules": [rule] });
-                    } else {
-                        value["urlRewrite"]["enabled"] = serde_json::Value::Bool(gh_enabled);
-                        value["urlRewrite"]["rules"] = serde_json::json!([rule]);
-                    }
-                }
-            }
-        }
-
-        migrate_legacy_checksum_setting(&mut value);
-
-        let parsed = serde_json::from_value::<AppSettings>(value)?;
-        return normalize_settings(parsed);
-    }
-
-    let legacy_proxy = serde_json::from_str::<ProxySettings>(&content)?;
-    normalize_settings(AppSettings {
-        appearance: Default::default(),
-        proxy: legacy_proxy,
-        scheduler: SchedulerSettings::default(),
-        download: DownloadDefaultsSettings::default(),
-        bt: BtSettings::default(),
-        logging: LogSettings::default(),
-        aria2_rpc: Aria2RpcSettings::default(),
-        cdn_acceleration: CdnAccelerationSettings::default(),
-        url_rewrite: UrlRewriteSettings::default(),
-        global_speed_limit_bps: 0,
-        speed_limit_schedule: Vec::new(),
-        notifications: NotificationSettings::default(),
-        io_baseline: IoBaselineSettings::default(),
-        autostart: false,
-        setup_completed: false,
-        last_setup_step: None,
-        double_click: DoubleClickSettings::default(),
-        max_in_memory_downloads: 200,
-    })
+    // Every `AppSettings` field is `#[serde(default)]`, so a partial or
+    // hand-edited file still loads. Unknown keys are ignored: the old
+    // `githubMirror` / `sha1` checksum settings are no longer migrated.
+    normalize_settings(serde_json::from_str::<AppSettings>(&content)?)
 }
 
 pub async fn persist_settings(settings_path: &Path, settings: &AppSettings) -> Result<()> {

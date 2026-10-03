@@ -6,7 +6,7 @@ fn normalize_windows_path(path: &Path) -> String {
     normalize_windows_path_str(&path.to_string_lossy())
 }
 
-#[allow(dead_code)]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn normalize_windows_path_str(s: &str) -> String {
     let s = s.strip_prefix(r"\\?\").unwrap_or(s);
     s.replace('/', "\\")

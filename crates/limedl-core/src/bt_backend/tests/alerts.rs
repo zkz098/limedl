@@ -3,6 +3,7 @@
 use super::*;
 
 use crate::event_bus::DownloadEvent;
+use crate::types::{BtUploadStatus, DownloadState};
 
 #[test]
 fn test_extract_info_hash_torrent_added() {
@@ -339,10 +340,7 @@ async fn alert_bridge_torrent_added_registers_task_and_notifies() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([1u8; 20]);
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentAdded {
             info_hash,
             name: "test".into(),
@@ -367,10 +365,7 @@ async fn alert_bridge_torrent_added_registers_task_and_notifies() {
     // overwrite the existing entry.
     let sentinel = Id20::from([0xFF; 20]);
     backend.task_map.insert(info_hash, sentinel);
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentAdded {
             info_hash,
             name: "test".into(),
@@ -394,10 +389,7 @@ async fn alert_bridge_torrent_removed_drops_task() {
     let info_hash = Id20::from([2u8; 20]);
     backend.task_map.insert(info_hash, info_hash);
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentRemoved { info_hash },
     )
     .await;
@@ -417,10 +409,7 @@ async fn alert_bridge_pause_and_resume_notifications() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([3u8; 20]);
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentPaused { info_hash },
     )
     .await;
@@ -429,10 +418,7 @@ async fn alert_bridge_pause_and_resume_notifications() {
         vec!["aria2.onDownloadPause"]
     );
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentResumed { info_hash },
     )
     .await;
@@ -458,10 +444,7 @@ async fn alert_bridge_torrent_finished_emits_complete_progress_and_updated() {
         .expect("start fixture");
     let mut rx = backend.event_bus.subscribe();
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentFinished { info_hash },
     )
     .await;
@@ -475,16 +458,16 @@ async fn alert_bridge_torrent_finished_emits_complete_progress_and_updated() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            DownloadEvent::Progress { id, progress_json }
-                if id == &task_id && progress_json["state"] == "completed"
+            DownloadEvent::Progress { progress }
+                if progress.id == task_id && progress.state == DownloadState::Completed
         )),
         "finished torrents get a final progress tick: {events:?}"
     );
     assert!(
         events.iter().any(|event| matches!(
             event,
-            DownloadEvent::Updated { id, summary_json }
-                if id == &task_id && summary_json["state"] == "completed"
+            DownloadEvent::Updated { summary }
+                if summary.id == task_id && summary.state == DownloadState::Completed
         )),
         "finished torrents get a full summary update: {events:?}"
     );
@@ -498,10 +481,7 @@ async fn alert_bridge_torrent_finished_without_stats_still_updates() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([0xAB; 20]);
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentFinished { info_hash },
     )
     .await;
@@ -520,8 +500,9 @@ async fn alert_bridge_torrent_finished_without_stats_still_updates() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            DownloadEvent::Updated { id, summary_json }
-                if id == &info_hash.to_hex() && summary_json["state"] == "completed"
+            DownloadEvent::Updated { summary }
+                if summary.id == info_hash.to_hex()
+                    && summary.state == DownloadState::Completed
         )),
         "the summary update must still be emitted: {events:?}"
     );
@@ -535,10 +516,7 @@ async fn alert_bridge_torrent_error_notifies_and_updates() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([4u8; 20]);
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::TorrentError {
             info_hash,
             message: "disk full".into(),
@@ -551,8 +529,9 @@ async fn alert_bridge_torrent_error_notifies_and_updates() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            DownloadEvent::Updated { summary_json, .. }
-                if summary_json["state"] == "error" && summary_json["error"] == "disk full"
+            DownloadEvent::Updated { summary }
+                if summary.state == DownloadState::Failed
+                    && summary.error.as_deref() == Some("disk full")
         )),
         "the error message must reach the frontend: {events:?}"
     );
@@ -561,47 +540,26 @@ async fn alert_bridge_torrent_error_notifies_and_updates() {
 }
 
 #[tokio::test]
-async fn alert_bridge_tracker_reply_only_updates_with_peers() {
+async fn alert_bridge_tracker_reply_publishes_nothing() {
     let (_tmp, backend) = make_backend().await;
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([5u8; 20]);
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
-        &irontide::session::AlertKind::TrackerReply {
-            info_hash,
-            url: "http://tracker.example.com/announce".into(),
-            num_peers: 3,
-        },
-    )
-    .await;
-    let events = drain_events(&mut rx);
-    assert_eq!(events.len(), 1, "a useful tracker reply updates the row");
-    match &events[0] {
-        DownloadEvent::Updated { id, summary_json } => {
-            assert_eq!(id, &info_hash.to_hex());
-            assert_eq!(summary_json["peers"], 3);
-        }
-        other => panic!("unexpected event: {other:?}"),
+    // Tracker replies carry no summary field the UI model reads (the inspector
+    // fetches trackers on its own poll), so neither a useful nor an empty reply
+    // may repaint the list.
+    for num_peers in [3usize, 0] {
+        backend
+            .handle_alert(&irontide::session::AlertKind::TrackerReply {
+                info_hash,
+                url: "http://tracker.example.com/announce".into(),
+                num_peers,
+            })
+            .await;
     }
-
-    // A reply with no peers carries no information worth a repaint.
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
-        &irontide::session::AlertKind::TrackerReply {
-            info_hash,
-            url: "http://tracker.example.com/announce".into(),
-            num_peers: 0,
-        },
-    )
-    .await;
     assert!(
         drain_events(&mut rx).is_empty(),
-        "zero peers must not publish anything"
+        "tracker replies must not publish a partial summary"
     );
 
     backend.shutdown().await;
@@ -612,10 +570,7 @@ async fn alert_bridge_ignores_alerts_without_an_info_hash() {
     let (_tmp, backend) = make_backend().await;
     let mut rx = backend.event_bus.subscribe();
 
-    handle_alert(
-        &backend.session,
-        &backend.event_bus,
-        &backend.task_map,
+    backend.handle_alert(
         &irontide::session::AlertKind::SettingsChanged,
     )
     .await;
@@ -685,7 +640,7 @@ async fn alert_bridge_log_only_alerts_publish_nothing() {
     ];
 
     for kind in &log_only {
-        handle_alert(&backend.session, &backend.event_bus, &backend.task_map, kind).await;
+        backend.handle_alert(kind).await;
     }
 
     assert!(
@@ -709,16 +664,16 @@ async fn alert_bridge_periodic_tick_emits_progress_for_active_torrents() {
         .expect("start fixture");
     let mut rx = backend.event_bus.subscribe();
 
-    emit_progress_for_all_torrents(&backend.session, &backend.event_bus, &backend.task_map).await;
+    backend.emit_progress_for_all_torrents().await;
 
     let events = drain_events(&mut rx);
     assert_eq!(events.len(), 1, "one torrent, one progress tick");
     match &events[0] {
-        DownloadEvent::Progress { id, progress_json } => {
-            assert_eq!(id, &info_hash.to_hex());
-            assert_eq!(progress_json["totalBytes"], 30, "fixture payload size");
-            assert_eq!(progress_json["downloadedBytes"], 0);
-            assert_eq!(progress_json["uploadStatus"], "idle");
+        DownloadEvent::Progress { progress } => {
+            assert_eq!(progress.id, info_hash.to_hex());
+            assert_eq!(progress.total_bytes, Some(30), "fixture payload size");
+            assert_eq!(progress.downloaded_bytes, 0);
+            assert_eq!(progress.upload_status, Some(BtUploadStatus::Idle));
         }
         other => panic!("unexpected event: {other:?}"),
     }
@@ -733,7 +688,7 @@ async fn alert_bridge_periodic_tick_skips_unknown_torrents() {
     let unknown = Id20::from([0xCD; 20]);
     backend.task_map.insert(unknown, unknown);
 
-    emit_progress_for_all_torrents(&backend.session, &backend.event_bus, &backend.task_map).await;
+    backend.emit_progress_for_all_torrents().await;
 
     assert!(
         drain_events(&mut rx).is_empty(),

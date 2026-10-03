@@ -4,7 +4,7 @@ use std::path::Path;
 
 use base64::Engine;
 
-use super::{ChecksumMode, DownloadManager, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, TaskId, Value, extract_gid, get_all_summaries, has_header, make_error, resolve_gid};
+use super::{ChecksumMode, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, TaskId, Value, extract_gid, get_all_summaries, has_header, make_error, resolve_gid};
 
 pub(crate) fn extract_option_str(
     options: Option<&serde_json::Map<String, Value>>,
@@ -208,7 +208,7 @@ pub(crate) fn find_header_value(headers: &[String], name: &str) -> Option<String
 /// Read a task's effective User-Agent and extra headers from the in-memory
 /// download map (all persisted downloads are loaded there at startup).
 pub(crate) async fn task_request_headers(ctx: &RpcContext, id: &str) -> (String, Vec<String>) {
-    let Some(dm) = ctx.registry.get_typed::<DownloadManager>() else {
+    let Some(dm) = ctx.http() else {
         return (String::new(), Vec::new());
     };
     let managed = dm.downloads.read().await.get(id).cloned();
@@ -225,9 +225,7 @@ pub(crate) async fn task_request_headers(ctx: &RpcContext, id: &str) -> (String,
 }
 
 pub(crate) async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
-    let dm = ctx
-        .registry
-        .get_typed::<DownloadManager>()
+    let dm = ctx.http()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
     let settings = dm
         .settings()
@@ -253,9 +251,7 @@ pub(crate) async fn handle_change_global_option(
         .and_then(|v| v.as_object())
         .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing options object"))?;
 
-    let dm = ctx
-        .registry
-        .get_typed::<DownloadManager>()
+    let dm = ctx.http()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
     let mut settings = dm
         .settings()

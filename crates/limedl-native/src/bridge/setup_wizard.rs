@@ -11,8 +11,7 @@ use crate::SetupFormData;
 
 // ── First-run setup wizard ───────────────────────────────────────────
 
-/// Scheduler preset matching (mirrors the web client's PRESETS table in
-/// `useSetupWizard.ts`): 0=energySaver, 1=balanced, 2=maxSpeed, 3=custom.
+/// Scheduler preset matching: 0=energySaver, 1=balanced, 2=maxSpeed, 3=custom.
 fn detect_scheduler_preset(settings: &AppSettings) -> i32 {
     let s = &settings.scheduler;
     if s.mode != SchedulerMode::Automatic {

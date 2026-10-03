@@ -1,8 +1,5 @@
 use super::*;
-use crate::types::{
-    BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, ChecksumMode, MatchType,
-    ReplacementMode,
-};
+use crate::types::{BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, MatchType, ReplacementMode};
 use std::io::Write;
 use tempfile::tempdir;
 
@@ -557,51 +554,6 @@ fn test_load_settings_valid_json_full_fields() {
     assert_eq!(result.proxy.manual_url, "http://proxy:8080");
 }
 
-#[test]
-fn test_load_settings_legacy_proxy_only() {
-    let dir = tempdir().unwrap();
-    let path = dir.path().join("legacy.json");
-    let json = r#"{"mode": "manual", "manualUrl": "http://legacy-proxy:3128"}"#;
-    let mut file = fs::File::create(&path).unwrap();
-    file.write_all(json.as_bytes()).unwrap();
-    drop(file);
-
-    let result = load_settings(&path).unwrap();
-    assert_eq!(result.proxy.mode, ProxyMode::Manual);
-    assert_eq!(result.proxy.manual_url, "http://legacy-proxy:3128");
-}
-
-#[test]
-fn test_load_settings_legacy_checksum_mode_falls_back_to_default() {
-    let dir = tempdir().unwrap();
-    let path = dir.path().join("legacy-checksum.json");
-
-    let write_with_mode = |mode: &str| {
-        let mut value = serde_json::to_value(AppSettings::default()).unwrap();
-        value["download"]["defaultChecksum"] = serde_json::json!(mode);
-        let mut file = fs::File::create(&path).unwrap();
-        file.write_all(value.to_string().as_bytes()).unwrap();
-        drop(file);
-    };
-
-    // Modes dropped from the enum must not take the whole document down with
-    // them — they fall back to the default algorithm instead.
-    for legacy in ["sha1", "xxh3_128"] {
-        write_with_mode(legacy);
-        let result = load_settings(&path).unwrap();
-        assert_eq!(
-            result.download.default_checksum,
-            ChecksumMode::Blake3,
-            "legacy mode {legacy} should fall back to the default"
-        );
-    }
-
-    // Supported values are still honoured.
-    write_with_mode("sha512");
-    let result = load_settings(&path).unwrap();
-    assert_eq!(result.download.default_checksum, ChecksumMode::Sha512);
-}
-
 // -----------------------------------------------------------------------
 // persist_settings roundtrip
 // -----------------------------------------------------------------------
@@ -730,33 +682,6 @@ fn test_normalize_settings_last_setup_step_none_preserved() {
     };
     let result = normalize_settings(settings).unwrap();
     assert_eq!(result.last_setup_step, None);
-}
-
-#[test]
-fn test_legacy_github_mirror_migrates_to_url_rewrite() {
-    let temp = tempfile::tempdir().unwrap();
-    let settings_path = temp.path().join("settings.json");
-    let json_content = r#"{
-            "githubMirror": {
-                "enabled": true,
-                "mirrors": [
-                    { "url": "https://ghproxy.com", "enabled": true, "order": 0 }
-                ]
-            }
-        }"#;
-    std::fs::write(&settings_path, json_content).unwrap();
-    let loaded = load_settings(&settings_path).unwrap();
-    assert!(loaded.url_rewrite.enabled);
-    assert_eq!(loaded.url_rewrite.rules.len(), 1);
-    let rule = &loaded.url_rewrite.rules[0];
-    assert_eq!(rule.name, "GitHub 镜像");
-    assert_eq!(rule.match_type, MatchType::Host);
-    assert_eq!(rule.pattern, "*.github.com");
-    assert_eq!(rule.replacement_mode, ReplacementMode::PrefixProxy);
-    assert_eq!(rule.targets.len(), 1);
-    assert_eq!(rule.targets[0].url_template, "https://ghproxy.com");
-    assert!(rule.encode_url);
-    assert!(rule.fallback_to_original);
 }
 
 #[test]

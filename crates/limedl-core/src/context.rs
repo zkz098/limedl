@@ -59,8 +59,6 @@ impl SystemContext {
         let db_path = state_dir.join("downloads.db");
         let db = Arc::new(Database::open(&db_path)?);
 
-        crate::migration::migrate_json_manifests(&db, &state_dir)?;
-
         let io = &initial_settings.io_baseline;
         let buffer_pool = Arc::new(BufferPool::new(
             io.buffer_limit_mb,

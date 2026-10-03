@@ -9,7 +9,7 @@ use std::time::Duration;
 use irontide::core::{FileTreeNode, Id20, Id32, InfoDictV2, InfoHashes};
 
 use super::IrontideBtBackend;
-use super::alerts::{emit_progress_for_all_torrents, extract_info_hash, handle_alert};
+use super::alerts::extract_info_hash;
 use super::anti_leech::peer_is_leecher;
 use super::internal_id_to_gid;
 use super::queries::sanitize_peer_client;

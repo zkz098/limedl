@@ -9,7 +9,7 @@ pub fn register(ctx: &AppContext) {
     let main_window = &ctx.ui;
     let ui_weak = ctx.ui_weak.clone();
     let toast_queue = ctx.toast_queue.clone();
-    let current_settings = ctx.current_settings.clone();
+    let dispatcher = ctx.dispatcher.clone();
     let base_dir = ctx.base_dir.clone();
 
     // In-app toast dismiss (close button)
@@ -24,14 +24,17 @@ pub fn register(ctx: &AppContext) {
     // Window close behavior
     {
         let ui_weak = ui_weak.clone();
-        let current_settings_clone = current_settings.clone();
+        let dispatcher = dispatcher.clone();
         let base_dir_for_close = base_dir.clone();
         main_window.window().on_close_requested(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 platform_win::save_current_window_geometry(ui.window(), &base_dir_for_close);
             }
             let minimize_to_tray = matches!(
-                current_settings_clone.lock().appearance.close_behavior,
+                dispatcher
+                    .get_settings_blocking()
+                    .map(|settings| settings.appearance.close_behavior)
+                    .unwrap_or_default(),
                 CloseBehavior::MinimizeToTray
             );
             if minimize_to_tray {

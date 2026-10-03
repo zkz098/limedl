@@ -10,9 +10,13 @@
 //! - Overclock mode toggle and query
 //! - Multi-protocol aggregation (active download detection across all backends)
 //!
-//! Both the desktop client and the NAS WebSocket JSON-RPC handler delegate
-//! to this layer, eliminating duplicated dispatch and `get_typed::<DownloadManager>`
-//! downcasting throughout the codebase.
+//! **Scope of the facade.** Cross-protocol operations (lifecycle, settings,
+//! disk/IO, aggregation, the BT queries below) must go through this layer. The
+//! aria2 RPC surface is deliberately *not* fully generic — `getOption` reads the
+//! HTTP manifest, `tellStatus.files` asks the BT engine — so the aria2 layer
+//! reaches the concrete backends through [`RpcContext`](crate::aria2_rpc)'s
+//! `http()` / `bt()` accessors, which are the only sanctioned downcasts in that
+//! module. Do not add new `get_typed` calls anywhere else.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -53,6 +57,25 @@ impl Dispatcher {
             registry,
             event_bus,
             settings_service: None,
+            disk_io: None,
+            concurrency: None,
+            cdn_service: None,
+            http_client: None,
+        }
+    }
+
+    /// Construct a Dispatcher backed by a real [`SettingsService`] but without the
+    /// disk/CDN/concurrency services. Used by the UI test fixture, which needs the
+    /// real settings read/write path without a full `bootstrap()`.
+    pub fn with_settings_service(
+        registry: Arc<BackendRegistry>,
+        event_bus: Arc<EventBus>,
+        settings_service: Arc<SettingsService>,
+    ) -> Self {
+        Self {
+            registry,
+            event_bus,
+            settings_service: Some(settings_service),
             disk_io: None,
             concurrency: None,
             cdn_service: None,
@@ -114,10 +137,10 @@ impl Dispatcher {
     /// Publish a `DownloadEvent::Updated` for the given snapshot.
     pub fn emit_updated(&self, snapshot: &DownloadSnapshot) {
         let summary = DownloadSummary::from(snapshot);
-        let summary_json = serde_json::to_value(&summary).unwrap_or_default();
-        let id = summary.id.clone();
         self.event_bus
-            .publish(DownloadEvent::Updated { id, summary_json });
+            .publish(DownloadEvent::Updated {
+                summary: Box::new(summary),
+            });
     }
 
     // ── Core download lifecycle ──────────────────────────────────────
@@ -202,6 +225,18 @@ impl Dispatcher {
         backend.open_in_explorer(task_id).await
     }
 
+    /// Open the downloaded file with the OS default handler.
+    pub async fn open_file(&self, task_id: &TaskId) -> Result<()> {
+        let backend = self.registry.dispatch(task_id)?;
+        backend.open_file(task_id).await
+    }
+
+    /// Open the task's download directory in the system file manager.
+    pub async fn open_dir(&self, task_id: &TaskId) -> Result<()> {
+        let backend = self.registry.dispatch(task_id)?;
+        backend.open_dir(task_id).await
+    }
+
     /// Get the current status (read-only, no emit).
     pub async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let backend = self.registry.dispatch(task_id)?;
@@ -244,10 +279,28 @@ impl Dispatcher {
     /// Save new application settings: updates SettingsService (single source of truth),
     /// broadcasts to all backends, and syncs CDN and Concurrency limits.
     pub async fn save_settings(&self, new_settings: &AppSettings) -> Result<AppSettings> {
+        let replacement = new_settings.clone();
+        self.save_settings_with(move |settings| {
+            *settings = replacement.clone();
+            Ok(())
+        })
+        .await
+    }
+
+    /// Transactional save: `mutate` edits the *current* settings in place before
+    /// they are normalized, persisted and broadcast. Prefer this over
+    /// read-clone-mutate-save, which can clobber a concurrent update.
+    pub async fn save_settings_with<F>(&self, mutate: F) -> Result<AppSettings>
+    where
+        F: FnOnce(&mut AppSettings) -> Result<()>,
+    {
         let saved = if let Some(s) = &self.settings_service {
-            s.update(new_settings).await?
+            s.update_with(mutate).await?
         } else {
-            new_settings.clone()
+            // Minimal dispatcher (tests): no persistence, apply to a default.
+            let mut candidate = AppSettings::default();
+            mutate(&mut candidate)?;
+            candidate
         };
 
         // Broadcast settings to all backends

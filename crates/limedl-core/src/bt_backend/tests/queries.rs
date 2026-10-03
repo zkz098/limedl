@@ -9,6 +9,7 @@ use super::*;
 
 use crate::error::DownloadError;
 use crate::event_bus::DownloadEvent;
+use crate::types::DownloadState;
 
 /// A valid, metadata-less magnet request.
 fn magnet_request(dn: &str) -> StartDownloadRequest {
@@ -316,11 +317,11 @@ async fn emit_pending_summary_falls_back_without_stats() {
 
     let event = rx.try_recv().expect("pending summary event");
     match event {
-        DownloadEvent::Updated { id, summary_json } => {
-            assert_eq!(id, unknown.to_hex());
-            assert_eq!(summary_json["state"], "queued");
-            assert_eq!(summary_json["fileName"], "Pending torrent");
-            assert_eq!(summary_json["downloadedBytes"], 0);
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, unknown.to_hex());
+            assert_eq!(summary.state, DownloadState::Queued);
+            assert_eq!(summary.file_name, "Pending torrent");
+            assert_eq!(summary.downloaded_bytes, 0);
         }
         other => panic!("unexpected event: {other:?}"),
     }
@@ -338,11 +339,10 @@ async fn emit_pending_summary_uses_stats_when_available() {
 
     let event = rx.try_recv().expect("pending summary event");
     match event {
-        DownloadEvent::Updated { id, summary_json } => {
-            assert_eq!(id, info_hash.to_hex());
-            assert_eq!(summary_json["id"], info_hash.to_hex());
+        DownloadEvent::Updated { summary } => {
+            assert_eq!(summary.id, info_hash.to_hex());
             assert_ne!(
-                summary_json["fileName"], "Pending torrent",
+                summary.file_name, "Pending torrent",
                 "stats are available, so the fallback must not be used"
             );
         }

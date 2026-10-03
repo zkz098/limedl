@@ -114,8 +114,7 @@ fn spawn_bt_status_poller(ctx: &AppContext) {
                         )));
                         ui.set_bt_peers_text(SharedString::from(status.peer_count.to_string()));
                     }
-                    // No BT session yet (or the backend is gone): hide the pills
-                    // exactly like the web client does with a null status payload.
+                    // No BT session yet (or the backend is gone): hide the pills.
                     _ => ui.set_bt_status_visible(false),
                 }
             });

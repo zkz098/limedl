@@ -2,7 +2,7 @@
 
 use base64::Engine;
 
-use super::{DownloadManager, DownloadState, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, RpcContext, StartDownloadRequest, TaskId, TaskKind, Uuid, Value, broadcast_event, cleanup_old_aria2_temp_files, collect_request_headers, extract_gid, extract_option_str, extract_option_u32, extract_option_usize, get_all_summaries, internal_id_to_gid, make_error, option_is_true, parse_checksum_option, parse_select_file, resolve_gid};
+use super::{DownloadState, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, RpcContext, StartDownloadRequest, TaskId, TaskKind, Uuid, Value, broadcast_event, cleanup_old_aria2_temp_files, collect_request_headers, extract_gid, extract_option_str, extract_option_u32, extract_option_usize, get_all_summaries, internal_id_to_gid, make_error, option_is_true, parse_checksum_option, parse_select_file, resolve_gid};
 
 /// Which backend `aria2.addUri` must route a URI to.
 ///
@@ -81,9 +81,7 @@ pub(crate) async fn handle_add_uri(
     // Dedup: if a non-terminal download for this URL already exists, return its GID.
     // Magnets are deduplicated by the BT session itself.
     if kind == TaskKind::Http {
-        let dm = ctx
-            .registry
-            .get_typed::<DownloadManager>()
+        let dm = ctx.http()
             .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
         if let Some(existing_id) = dm.find_active_by_url(&request.url).await {
             let gid = internal_id_to_gid(&existing_id);
@@ -330,7 +328,7 @@ pub(crate) async fn handle_remove_download_result(
 
     // A stopped result may have been evicted from memory by
     // `max_in_memory_downloads`; remove the database row directly.
-    let Some(dm) = ctx.registry.get_typed::<DownloadManager>() else {
+    let Some(dm) = ctx.http() else {
         return Err(make_error(1, format!("GID not found: {gid}")));
     };
     let db = dm.db.clone();
@@ -408,7 +406,7 @@ pub(crate) async fn handle_purge_download_result(ctx: &RpcContext) -> Result<Val
 
     // Terminal rows evicted from memory are not in `all`; purge them too,
     // otherwise they would keep showing up in `tellStopped`.
-    if let Some(dm) = ctx.registry.get_typed::<DownloadManager>() {
+    if let Some(dm) = ctx.http() {
         let in_memory: std::collections::HashSet<String> =
             terminal.iter().map(|(_, raw_id)| raw_id.clone()).collect();
         let db = dm.db.clone();

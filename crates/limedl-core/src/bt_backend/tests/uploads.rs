@@ -6,8 +6,6 @@
 
 use super::*;
 
-use crate::event_bus::DownloadEvent;
-
 #[tokio::test]
 async fn upload_policy_unpauses_when_limits_are_cleared() {
     let (_tmp, backend) = make_backend().await;
@@ -24,21 +22,20 @@ async fn upload_policy_unpauses_when_limits_are_cleared() {
     Arc::clone(&backend).spawn_upload_policy_loop();
 
     // The first interval tick fires immediately: with both limits cleared the
-    // loop must un-cap any previously paused torrents and say so.
-    let event = tokio::time::timeout(Duration::from_secs(2), rx.recv())
-        .await
-        .expect("unpause event within timeout")
-        .expect("event bus stays open");
-    match event {
-        DownloadEvent::Updated { id, summary_json } => {
-            assert_eq!(id, info_hash.to_hex());
-            assert_eq!(summary_json["uploadStatus"], "idle");
-        }
-        other => panic!("unexpected event: {other:?}"),
+    // loop must un-cap any previously paused torrent. It no longer publishes a
+    // partial summary (the periodic progress tick carries the upload status),
+    // so the observable effect is the cleared set.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    while !backend.paused_by_limit.is_empty() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "clearing the limits must clear the paused set"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
     }
     assert!(
-        backend.paused_by_limit.is_empty(),
-        "clearing the limits must clear the paused set"
+        rx.try_recv().is_err(),
+        "clearing the limits must not publish a partial summary event"
     );
 
     backend.shutdown().await;

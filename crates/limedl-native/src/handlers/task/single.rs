@@ -102,21 +102,17 @@ pub fn register(ctx: &AppContext) {
     }
 
     // Double-click behavior (Settings → General: double_click on_completed /
-    // on_uncompleted). Mirrors the web client: completed tasks open the file /
-    // explorer / download dir; uncompleted tasks toggle pause/resume.
+    // on_uncompleted). Completed tasks open the file / explorer / download dir;
+    // uncompleted tasks toggle pause/resume.
     {
         let dispatcher = ctx.dispatcher.clone();
         let store = ctx.store.clone();
-        let current_settings = ctx.current_settings.clone();
         ui.on_task_double_clicked(move |id_str| {
             let dispatcher = dispatcher.clone();
             let store = store.clone();
-            let current_settings = current_settings.clone();
             let id_str = id_str.to_string();
             tokio::spawn(async move {
-                if let Err(err) =
-                    handle_task_double_click(&dispatcher, &store, &current_settings, &id_str).await
-                {
+                if let Err(err) = handle_task_double_click(&dispatcher, &store, &id_str).await {
                     tracing::error!("双击任务操作失败: {err:#}");
                 }
             });

@@ -46,7 +46,6 @@ pub struct SettingsSync {
     ui_weak: slint::Weak<MainWindow>,
     dispatcher: Arc<Dispatcher>,
     store: Arc<Mutex<TaskStore>>,
-    current_settings: Arc<Mutex<AppSettings>>,
     toast_queue: ToastQueue,
     rpc_shutdown: Arc<Mutex<Option<watch::Sender<bool>>>>,
     tray_speed_limit_active: Arc<AtomicBool>,
@@ -59,7 +58,6 @@ impl SettingsSync {
             ui_weak: ctx.ui_weak.clone(),
             dispatcher: ctx.dispatcher.clone(),
             store: ctx.store.clone(),
-            current_settings: ctx.current_settings.clone(),
             toast_queue: ctx.toast_queue.clone(),
             rpc_shutdown: ctx.rpc_shutdown.clone(),
             tray_speed_limit_active: ctx.tray_speed_limit_active.clone(),
@@ -81,9 +79,8 @@ impl SettingsSync {
         );
     }
 
-    /// Record the saved settings in memory and sync the tray limit checkmark.
+    /// Sync the tray limit checkmark with the committed settings.
     pub fn commit(&self, saved: &AppSettings) {
-        *self.current_settings.lock() = saved.clone();
         self.tray_speed_limit_active
             .store(saved.global_speed_limit_bps > 0, Ordering::Relaxed);
     }

@@ -13,16 +13,16 @@ use crate::toast::ToastQueue;
 use crate::toast::push_toast;
 use crate::ui_sync::refresh_labs_state;
 use limedl_core::dispatcher::Dispatcher;
-use limedl_core::types::{AppSettings, UrlRewriteRule};
+use limedl_core::types::UrlRewriteRule;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
 pub fn register(ctx: &AppContext) {
     let ui = &ctx.ui;
 
-    // Open: repaint the whole Labs state from the cached settings and rules.
+    // Open: repaint the whole Labs state from the current settings and rules.
     {
-        let current_settings = ctx.current_settings.clone();
+        let dispatcher = ctx.dispatcher.clone();
         let rewrite_rules = ctx.rewrite_rules.clone();
         let expanded = ctx.labs_expanded_ids.clone();
         let sandbox_test_url = ctx.sandbox_test_url.clone();
@@ -31,7 +31,7 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ctx.ui_weak.clone();
         ui.on_open_labs(move || {
             with_ui(&ui_weak, |ui| {
-                let settings = current_settings.lock().clone();
+                let settings = dispatcher.get_settings_blocking().unwrap_or_default();
                 let rules = rewrite_rules.lock().clone();
                 let expanded = expanded.lock().clone();
                 let url = sandbox_test_url.lock().clone();
@@ -66,11 +66,10 @@ pub fn register(ctx: &AppContext) {
         });
     }
 
-    // Save: merge the form back into the cached settings, persist, then close
-    // the dialog on success.
+    // Save: merge the form back into the settings, persist, then close the
+    // dialog on success.
     {
         let dispatcher = ctx.dispatcher.clone();
-        let current_settings = ctx.current_settings.clone();
         let rewrite_rules = ctx.rewrite_rules.clone();
         let store = ctx.store.clone();
         let toast_queue = ctx.toast_queue.clone();
@@ -79,7 +78,6 @@ pub fn register(ctx: &AppContext) {
             save_labs(
                 ui_weak.clone(),
                 dispatcher.clone(),
-                current_settings.clone(),
                 rewrite_rules.clone(),
                 store.clone(),
                 toast_queue.clone(),
@@ -89,33 +87,33 @@ pub fn register(ctx: &AppContext) {
     }
 }
 
-/// Merge the labs form into the cached settings, persist and close on success.
+/// Merge the labs form into the settings, persist and close on success.
 fn save_labs(
     ui_weak: slint::Weak<MainWindow>,
     dispatcher: Arc<Dispatcher>,
-    current_settings: Arc<Mutex<AppSettings>>,
     rewrite_rules: Arc<Mutex<Vec<UrlRewriteRule>>>,
     store: Arc<Mutex<TaskStore>>,
     toast_queue: ToastQueue,
     form_data: LabsFormData,
 ) {
     let dispatcher = dispatcher.clone();
-    let current_settings = current_settings.clone();
     let rewrite_rules = rewrite_rules.clone();
     let store = store.clone();
     let toast_queue = toast_queue.clone();
     let ui_weak = ui_weak.clone();
 
     tokio::spawn(async move {
-        let mut settings = current_settings.lock().clone();
         let lang = store.lock().language();
 
-        update_app_settings_from_labs_form(&mut settings, &form_data);
-        settings.url_rewrite.rules = rewrite_rules.lock().clone();
-
-        match dispatcher.save_settings(&settings).await {
-            Ok(saved) => {
-                *current_settings.lock() = saved;
+        match dispatcher
+            .save_settings_with(|settings| {
+                update_app_settings_from_labs_form(settings, &form_data);
+                settings.url_rewrite.rules = rewrite_rules.lock().clone();
+                Ok(())
+            })
+            .await
+        {
+            Ok(_saved) => {
                 push_toast(
                     &ui_weak,
                     &toast_queue,

@@ -13,7 +13,6 @@ use limedl_core::cdn::accelerator::AccelState;
 use limedl_core::cdn::speed_test::SpeedTestResult;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::event_bus::EventBus;
-use limedl_core::types::AppSettings;
 
 use crate::MainWindow;
 use crate::bridge::{
@@ -32,7 +31,6 @@ struct Cdn {
     dispatcher: Arc<Dispatcher>,
     event_bus: Arc<EventBus>,
     store: Arc<Mutex<TaskStore>>,
-    current_settings: Arc<Mutex<AppSettings>>,
     candidates: Arc<Mutex<Vec<SpeedTestResult>>>,
     toast_queue: ToastQueue,
 }
@@ -96,7 +94,6 @@ impl Cdn {
             dispatcher: ctx.dispatcher.clone(),
             event_bus: ctx.event_bus.clone(),
             store: ctx.store.clone(),
-            current_settings: ctx.current_settings.clone(),
             candidates: ctx.labs_candidates.clone(),
             toast_queue: ctx.toast_queue.clone(),
         }
@@ -118,7 +115,7 @@ impl Cdn {
         };
         let service = service.clone();
 
-        let settings = self.current_settings.lock().clone();
+        let settings = self.dispatcher.get_settings_blocking().unwrap_or_default();
         if service
             .apply_ip(ip, speed.unwrap_or(0.0), &settings)
             .await
@@ -127,13 +124,18 @@ impl Cdn {
             return;
         }
 
-        let mut updated = settings.clone();
-        updated.cdn_acceleration.active_ip = Some(ip.to_string());
-        if let Some(speed) = speed {
-            updated.cdn_acceleration.active_speed_mbps = Some(speed);
-        }
-        if let Ok(saved) = self.dispatcher.save_settings(&updated).await {
-            *self.current_settings.lock() = saved;
+        if let Err(error) = self
+            .dispatcher
+            .save_settings_with(|updated| {
+                updated.cdn_acceleration.active_ip = Some(ip.to_string());
+                if let Some(speed) = speed {
+                    updated.cdn_acceleration.active_speed_mbps = Some(speed);
+                }
+                Ok(())
+            })
+            .await
+        {
+            tracing::warn!("persisting the applied CDN node failed: {error:#}");
         }
 
         push_toast(
@@ -169,23 +171,28 @@ impl Cdn {
     async fn finish_test(self, outcome: CdnTestOutcome) {
         let now_ms = limedl_core::now_ms();
 
-        if let Ok(mut current) = self.dispatcher.get_settings().await {
-            match &outcome.state {
-                AccelState::Ready => {
-                    current.cdn_acceleration.active_ip = outcome.active_ip.map(|ip| ip.to_string());
-                    current.cdn_acceleration.active_speed_mbps = outcome.active_speed_mbps;
-                    current.cdn_acceleration.last_test_at_ms = Some(now_ms);
-                    current.cdn_acceleration.last_error = None;
+        if let Err(error) = self
+            .dispatcher
+            .save_settings_with(|current| {
+                match &outcome.state {
+                    AccelState::Ready => {
+                        current.cdn_acceleration.active_ip =
+                            outcome.active_ip.map(|ip| ip.to_string());
+                        current.cdn_acceleration.active_speed_mbps = outcome.active_speed_mbps;
+                        current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+                        current.cdn_acceleration.last_error = None;
+                    }
+                    AccelState::Error(msg) => {
+                        current.cdn_acceleration.last_error = Some(msg.clone());
+                        current.cdn_acceleration.last_test_at_ms = Some(now_ms);
+                    }
+                    _ => {}
                 }
-                AccelState::Error(msg) => {
-                    current.cdn_acceleration.last_error = Some(msg.clone());
-                    current.cdn_acceleration.last_test_at_ms = Some(now_ms);
-                }
-                _ => {}
-            }
-            if let Ok(saved) = self.dispatcher.save_settings(&current).await {
-                *self.current_settings.lock() = saved;
-            }
+                Ok(())
+            })
+            .await
+        {
+            tracing::warn!("persisting the CDN test outcome failed: {error:#}");
         }
 
         *self.candidates.lock() = outcome.candidates.clone();
@@ -324,7 +331,7 @@ fn start_cdn_test(cdn: Cdn) {
         form.cdn_last_error = SharedString::default();
         ui.set_labs_form(form.clone());
 
-        let mut settings = cdn.current_settings.lock().clone();
+        let mut settings = cdn.dispatcher.get_settings_blocking().unwrap_or_default();
         update_app_settings_from_labs_form(&mut settings, &form);
         settings
     }) else {
@@ -382,13 +389,18 @@ fn clear_cdn_test(cdn: Cdn) {
         cdn.candidates.lock().clear();
 
         let lang = cdn.lang();
-        let mut settings = cdn.current_settings.lock().clone();
-        settings.cdn_acceleration.active_ip = None;
-        settings.cdn_acceleration.active_speed_mbps = None;
-        settings.cdn_acceleration.last_test_at_ms = None;
-        settings.cdn_acceleration.last_error = None;
-        if let Ok(saved) = cdn.dispatcher.save_settings(&settings).await {
-            *cdn.current_settings.lock() = saved;
+        if let Err(error) = cdn
+            .dispatcher
+            .save_settings_with(|settings| {
+                settings.cdn_acceleration.active_ip = None;
+                settings.cdn_acceleration.active_speed_mbps = None;
+                settings.cdn_acceleration.last_test_at_ms = None;
+                settings.cdn_acceleration.last_error = None;
+                Ok(())
+            })
+            .await
+        {
+            tracing::warn!("clearing the CDN settings failed: {error:#}");
         }
 
         push_toast(

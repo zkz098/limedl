@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use notify_rust::Notification;
 use parking_lot::Mutex;
 
-use limedl_core::types::AppSettings;
+use limedl_core::dispatcher::Dispatcher;
 
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
@@ -27,7 +27,7 @@ struct UpdateCtx {
     ui_weak: slint::Weak<MainWindow>,
     base_dir: PathBuf,
     store: Arc<Mutex<TaskStore>>,
-    current_settings: Arc<Mutex<AppSettings>>,
+    dispatcher: Arc<Dispatcher>,
     toast_queue: ToastQueue,
     available: Arc<Mutex<Option<AvailableUpdate>>>,
 }
@@ -157,7 +157,7 @@ fn check_store(ctx: UpdateCtx, lang: Language) {
 fn check_github(ctx: UpdateCtx, lang: Language) {
     // Snapshot so the check uses the proxy the user had configured when the
     // request left, not whatever a later settings save happens to be.
-    let settings = ctx.current_settings.lock().clone();
+    let settings = ctx.dispatcher.get_settings_blocking().unwrap_or_default();
     tokio::spawn(async move {
         update::record_update_check(&ctx.base_dir);
         match update::check_for_update(&settings).await {
@@ -240,7 +240,7 @@ fn download_and_install(ctx: UpdateCtx, update: AvailableUpdate, lang: Language)
         4,
     );
 
-    let settings = ctx.current_settings.lock().clone();
+    let settings = ctx.dispatcher.get_settings_blocking().unwrap_or_default();
     tokio::spawn(async move {
         let progress = progress_reporter(&ctx.ui_weak);
         let verified =
@@ -305,7 +305,7 @@ fn spawn_background_check(ctx: UpdateCtx, lang: Language) {
         update::record_update_check(&ctx.base_dir);
         // Snapshot after the 45 s wait so a proxy change made at startup is
         // already in effect for the first background check.
-        let settings = ctx.current_settings.lock().clone();
+        let settings = ctx.dispatcher.get_settings_blocking().unwrap_or_default();
         match update::check_for_update(&settings).await {
             Ok(Some(update)) => {
                 let version = update.version.clone();
@@ -320,7 +320,12 @@ fn spawn_background_check(ctx: UpdateCtx, lang: Language) {
                     });
                 });
 
-                if ctx.current_settings.lock().notifications.enabled {
+                if ctx
+                    .dispatcher
+                    .get_settings_blocking()
+                    .map(|settings| settings.notifications.enabled)
+                    .unwrap_or(true)
+                {
                     let (title, body) = i18n::format_notification_update(&version, lang);
                     let mut notification = Notification::new();
                     notification.appname("limedl").summary(&title).body(&body);
@@ -343,7 +348,7 @@ pub fn register(ctx: &AppContext) {
         ui_weak: ctx.ui_weak.clone(),
         base_dir: ctx.base_dir.clone(),
         store: ctx.store.clone(),
-        current_settings: ctx.current_settings.clone(),
+        dispatcher: ctx.dispatcher.clone(),
         toast_queue: ctx.toast_queue.clone(),
         available: Arc::new(Mutex::new(None)),
     };

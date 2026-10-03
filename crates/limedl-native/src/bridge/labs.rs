@@ -4,7 +4,7 @@ use limedl_core::cdn::speed_test::SpeedTestResult;
 use limedl_core::types::{
     AppSettings, MatchType, ReplacementMode, RewriteTarget, UrlRewriteRule, UrlRewriteSettings,
 };
-use slint::{Model, ModelRc, SharedString, VecModel};
+use slint::{ModelRc, SharedString, VecModel};
 
 use crate::i18n::{self, Language};
 use crate::{CdnCandidateItem, LabsFormData, UrlRewriteRuleItem, UrlRewriteTargetItem};
@@ -188,38 +188,6 @@ pub fn url_rewrite_rules_to_slint(
         .collect();
 
     ModelRc::new(VecModel::from(items))
-}
-
-#[allow(dead_code)]
-pub fn slint_to_url_rewrite_rules(models: &[UrlRewriteRuleItem]) -> Vec<UrlRewriteRule> {
-    models
-        .iter()
-        .map(|m| {
-            let mut targets = Vec::new();
-            for i in 0..m.targets.row_count() {
-                if let Some(t) = m.targets.row_data(i) {
-                    targets.push(RewriteTarget {
-                        url_template: t.url_template.to_string(),
-                        enabled: t.enabled,
-                        order: t.order as u32,
-                    });
-                }
-            }
-
-            UrlRewriteRule {
-                id: m.id.to_string(),
-                name: m.name.to_string(),
-                enabled: m.enabled,
-                match_type: str_to_match_type(m.match_type.as_str()),
-                pattern: m.pattern.to_string(),
-                replacement_mode: str_to_replacement_mode(m.replacement_mode.as_str()),
-                encode_url: m.encode_url,
-                fallback_to_original: m.fallback_to_original,
-                order: m.order as u32,
-                targets,
-            }
-        })
-        .collect()
 }
 
 pub fn evaluate_url_rewrite(rules: &[UrlRewriteRule], test_url: &str) -> (String, Vec<String>) {

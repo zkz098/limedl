@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use limedl_core::backend_registry::BackendRegistry;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::error::Result as CoreResult;
-use limedl_core::types::AppSettings;
+use limedl_core::error::DownloadError;
 
 use crate::bridge::TaskStore;
 use crate::bridge::{
@@ -20,7 +20,7 @@ use crate::bridge::{
 };
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
-use crate::i18n::{self, Language};
+use crate::i18n;
 use crate::settings_sync::{PushOptions, SettingsSync};
 use crate::task_ops::open_url_in_browser;
 use crate::toast::{ToastQueue, push_toast};
@@ -34,101 +34,72 @@ use crate::{MainWindow, POWER_GUARD, SettingsFormData};
 struct SaveCtx {
     ui_weak: slint::Weak<MainWindow>,
     dispatcher: Arc<Dispatcher>,
-    current_settings: Arc<Mutex<AppSettings>>,
     sync: SettingsSync,
-}
-
-impl SaveCtx {
-    /// Validate the schedule rows and the form, and produce the settings to
-    /// save. `None` means a validation error was already surfaced as a toast.
-    fn collect_settings(
-        &self,
-        form_data: &SettingsFormData,
-        lang: Language,
-    ) -> Option<AppSettings> {
-        let mut settings = self.current_settings.lock().clone();
-
-        // Speed limit schedule rows live in the UI model until Save, so
-        // validate them here (a mistyped hour must not silently disable the
-        // schedule).
-        let schedule_rows = read_ui(&self.ui_weak, read_schedule_rows).unwrap_or_default();
-        let parsed_schedule = match parse_speed_limit_slots(&schedule_rows, lang) {
-            Ok(slots) => slots,
-            Err(msg) => {
-                self.sync
-                    .toast(i18n::format_toast_schedule_invalid(&msg, lang), "error", 8);
-                return None;
-            }
-        };
-
-        // Media override rows live in the UI model for the same reason, so a
-        // half-typed or relative path has to be caught here instead of being
-        // persisted as a key that can never match a download destination.
-        let override_rows = read_ui(&self.ui_weak, read_disk_override_rows).unwrap_or_default();
-        let parsed_overrides = match parse_disk_type_overrides(&override_rows, lang) {
-            Ok(overrides) => overrides,
-            Err(msg) => {
-                self.sync
-                    .toast(i18n::format_toast_disk_override_invalid(&msg, lang), "error", 8);
-                return None;
-            }
-        };
-
-        if let Err(msg) = update_app_settings_from_form(&mut settings, form_data, lang) {
-            tracing::error!("设置表单校验失败: {msg}");
-            self.sync
-                .toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 6);
-            return None;
-        }
-
-        // Aria2 per-client token rows also live in the UI model until Save.
-        // Names must be usable and every row must carry a hash; the plaintext is
-        // never persisted (the add/regenerate handler hashed it already).
-        let client_rows = read_ui(&self.ui_weak, read_aria2_client_rows).unwrap_or_default();
-        let parsed_clients = match parse_aria2_clients(&client_rows, lang) {
-            Ok(clients) => clients,
-            Err(msg) => {
-                self.sync
-                    .toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 8);
-                return None;
-            }
-        };
-        settings.aria2_rpc.clients = parsed_clients;
-
-        settings.speed_limit_schedule = parsed_schedule;
-        // The engine's map is declared with foldhash's hasher, so convert here
-        // rather than naming that hasher in the UI crate.
-        settings.io_baseline.disk_type_overrides = parsed_overrides.into_iter().collect();
-        Some(settings)
-    }
 }
 
 /// Persist the dialog form and apply every side effect of the change.
 async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData) {
-    let old_settings = ctx.current_settings.lock().clone();
     let lang = ctx.sync.lang();
-    let Some(settings) = ctx.collect_settings(&form_data, lang) else {
-        return;
+    let old_settings = ctx.dispatcher.get_settings_blocking().unwrap_or_default();
+
+    // Speed limit schedule rows live in the UI model until Save, so validate
+    // them here (a mistyped hour must not silently disable the schedule).
+    let schedule_rows = read_ui(&ctx.ui_weak, read_schedule_rows).unwrap_or_default();
+    let parsed_schedule = match parse_speed_limit_slots(&schedule_rows, lang) {
+        Ok(slots) => slots,
+        Err(msg) => {
+            ctx.sync
+                .toast(i18n::format_toast_schedule_invalid(&msg, lang), "error", 8);
+            return;
+        }
     };
 
-    match ctx.dispatcher.save_settings(&settings).await {
-        Ok(saved) => {
-            ctx.sync.sync_autostart(&saved, &old_settings, lang);
-            ctx.sync.sync_aria2_rpc(&saved, &old_settings, lang);
-            ctx.sync.commit(&saved);
-            ctx.sync.toast(
-                i18n::format_toast_settings_saved(lang).to_string(),
-                "success",
-                4,
-            );
-            ctx.sync.push_ui(
-                &saved,
-                PushOptions {
-                    refresh_inspector: true,
-                    close_settings: true,
-                    ..Default::default()
-                },
-            );
+    // Media override rows live in the UI model for the same reason, so a
+    // half-typed or relative path has to be caught here instead of being
+    // persisted as a key that can never match a download destination.
+    let override_rows = read_ui(&ctx.ui_weak, read_disk_override_rows).unwrap_or_default();
+    let parsed_overrides = match parse_disk_type_overrides(&override_rows, lang) {
+        Ok(overrides) => overrides,
+        Err(msg) => {
+            ctx.sync
+                .toast(i18n::format_toast_disk_override_invalid(&msg, lang), "error", 8);
+            return;
+        }
+    };
+
+    // Aria2 per-client token rows also live in the UI model until Save. Names
+    // must be usable and every row must carry a hash; the plaintext is never
+    // persisted (the add/regenerate handler hashed it already).
+    let client_rows = read_ui(&ctx.ui_weak, read_aria2_client_rows).unwrap_or_default();
+    let parsed_clients = match parse_aria2_clients(&client_rows, lang) {
+        Ok(clients) => clients,
+        Err(msg) => {
+            ctx.sync
+                .toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 8);
+            return;
+        }
+    };
+
+    let saved = match ctx
+        .dispatcher
+        .save_settings_with(|settings| {
+            update_app_settings_from_form(settings, &form_data, lang)
+                .map_err(DownloadError::InvalidRequest)?;
+            settings.speed_limit_schedule = parsed_schedule;
+            // The engine's map is declared with foldhash's hasher, so convert here
+            // rather than naming that hasher in the UI crate.
+            settings.io_baseline.disk_type_overrides = parsed_overrides.into_iter().collect();
+            settings.aria2_rpc.clients = parsed_clients;
+            Ok(())
+        })
+        .await
+    {
+        Ok(saved) => saved,
+        Err(DownloadError::InvalidRequest(msg)) => {
+            tracing::error!("设置表单校验失败: {msg}");
+            ctx.sync
+                .toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 6);
+            return;
         }
         Err(err) => {
             tracing::error!("保存设置失败: {err:#}");
@@ -143,8 +114,26 @@ async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData) {
                 "error",
                 6,
             );
+            return;
         }
-    }
+    };
+
+    ctx.sync.sync_autostart(&saved, &old_settings, lang);
+    ctx.sync.sync_aria2_rpc(&saved, &old_settings, lang);
+    ctx.sync.commit(&saved);
+    ctx.sync.toast(
+        i18n::format_toast_settings_saved(lang).to_string(),
+        "success",
+        4,
+    );
+    ctx.sync.push_ui(
+        &saved,
+        PushOptions {
+            refresh_inspector: true,
+            close_settings: true,
+            ..Default::default()
+        },
+    );
 }
 
 /// Toggle a performance mode: run the backend switch, then mirror the result
@@ -174,20 +163,18 @@ pub fn register(ctx: &AppContext) {
     let ui_weak = ctx.ui_weak.clone();
     let dispatcher = ctx.dispatcher.clone();
     let store = ctx.store.clone();
-    let current_settings = ctx.current_settings.clone();
     let sync = SettingsSync::new(ctx);
 
     // Open / close / tab switch
     {
         let ui_weak = ui_weak.clone();
         let dispatcher = dispatcher.clone();
-        let current_settings = current_settings.clone();
         let store = store.clone();
         let game_mode = ctx.game_mode_active.clone();
         let overclock_mode = ctx.is_overclock_mode.clone();
         ui.on_open_settings(move || {
             with_ui(&ui_weak, |ui| {
-                let settings = current_settings.lock().clone();
+                let settings = dispatcher.get_settings_blocking().unwrap_or_default();
                 let game_mode = *game_mode.lock();
                 let overclock = *overclock_mode.lock();
                 let lang = store.lock().language();
@@ -223,7 +210,6 @@ pub fn register(ctx: &AppContext) {
         let save_ctx = SaveCtx {
             ui_weak: ui_weak.clone(),
             dispatcher: dispatcher.clone(),
-            current_settings: current_settings.clone(),
             sync: sync.clone(),
         };
         ui.on_save_settings(move |form_data| {
@@ -274,15 +260,9 @@ pub fn register(ctx: &AppContext) {
     {
         let ui_weak = ui_weak.clone();
         let dispatcher = dispatcher.clone();
-        let current_settings = current_settings.clone();
         let store = store.clone();
         ui.on_restart_setup(move || {
-            restart_setup(
-                ui_weak.clone(),
-                dispatcher.clone(),
-                current_settings.clone(),
-                store.clone(),
-            );
+            restart_setup(ui_weak.clone(), dispatcher.clone(), store.clone());
         });
     }
 
@@ -332,22 +312,24 @@ async fn remove_data_dir(data_dir: &std::path::Path) -> Option<std::io::Error> {
 fn restart_setup(
     ui_weak: slint::Weak<MainWindow>,
     dispatcher: Arc<Dispatcher>,
-    current_settings: Arc<Mutex<AppSettings>>,
     store: Arc<Mutex<TaskStore>>,
 ) {
     let dispatcher = dispatcher.clone();
-    let current_settings = current_settings.clone();
     let store = store.clone();
     let ui_weak = ui_weak.clone();
     tokio::spawn(async move {
-        let mut settings = current_settings.lock().clone();
-        settings.setup_completed = false;
-        settings.last_setup_step = None;
+        let settings = dispatcher.get_settings_blocking().unwrap_or_default();
         let lang = store.lock().language();
         let form = app_settings_to_setup_form(&settings, lang);
-        match dispatcher.save_settings(&settings).await {
-            Ok(saved) => *current_settings.lock() = saved,
-            Err(err) => tracing::warn!("保存设置向导重置状态失败: {err:#}"),
+        if let Err(err) = dispatcher
+            .save_settings_with(|settings| {
+                settings.setup_completed = false;
+                settings.last_setup_step = None;
+                Ok(())
+            })
+            .await
+        {
+            tracing::warn!("保存设置向导重置状态失败: {err:#}");
         }
         let _ = slint::invoke_from_event_loop(move || {
             with_ui(&ui_weak, |ui| {

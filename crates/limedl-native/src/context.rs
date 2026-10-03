@@ -20,7 +20,6 @@ pub struct AppContext {
     pub dispatcher: Arc<Dispatcher>,
     pub event_bus: Arc<EventBus>,
     pub store: Arc<Mutex<TaskStore>>,
-    pub current_settings: Arc<Mutex<AppSettings>>,
     pub toast_queue: ToastQueue,
     pub rpc_shutdown: Arc<Mutex<Option<watch::Sender<bool>>>>,
     pub new_task_torrent_entries: Arc<Mutex<Vec<TorrentFileEntry>>>,
@@ -34,4 +33,20 @@ pub struct AppContext {
     pub is_overclock_mode: Arc<Mutex<bool>>,
     pub tray_speed_limit_active: Arc<AtomicBool>,
     pub base_dir: PathBuf,
+}
+
+impl AppContext {
+    /// Current persisted settings.
+    ///
+    /// The single source of truth is the core [`SettingsService`] behind the
+    /// dispatcher; this is a convenience read, not a cache. Writers must use
+    /// `Dispatcher::save_settings_with` so a concurrent update is never clobbered.
+    pub fn settings(&self) -> AppSettings {
+        self.dispatcher
+            .get_settings_blocking()
+            .unwrap_or_else(|error| {
+                tracing::warn!("settings unavailable, using defaults: {error}");
+                AppSettings::default()
+            })
+    }
 }

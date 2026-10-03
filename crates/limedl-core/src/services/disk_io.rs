@@ -13,7 +13,7 @@ use crate::types::DiskType;
 /// Service for disk type detection, per-device caching, I/O baseline status, and game mode coordination.
 #[derive(Clone)]
 pub struct DiskIoService {
-    #[allow(dead_code)]
+    #[cfg(unix)]
     disk_type_cache: Arc<Mutex<HashMap<u64, DiskType>>>,
     buffer_pool: Arc<BufferPool>,
     settings_service: Arc<SettingsService>,
@@ -23,6 +23,7 @@ pub struct DiskIoService {
 impl DiskIoService {
     pub fn new(buffer_pool: Arc<BufferPool>, settings_service: Arc<SettingsService>) -> Self {
         Self {
+            #[cfg(unix)]
             disk_type_cache: Arc::new(Mutex::new(HashMap::default())),
             buffer_pool,
             settings_service,
@@ -36,6 +37,7 @@ impl DiskIoService {
         device_manager: Arc<DiskDeviceManager>,
     ) -> Self {
         Self {
+            #[cfg(unix)]
             disk_type_cache: Arc::new(Mutex::new(HashMap::default())),
             buffer_pool,
             settings_service,

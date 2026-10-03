@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 // Native autostart integration — OS-specific implementation.
 // Windows portable/NSIS: HKCU\Software\Microsoft\Windows\CurrentVersion\Run (registry)
 // Windows MSIX/Store:    windows.startupTask manifest extension + StartupTask API
@@ -174,19 +173,6 @@ mod windows_impl {
     }
 }
 
-#[cfg(not(windows))]
-mod windows_impl {
-    pub fn is_enabled() -> bool {
-        false
-    }
-    pub fn enable() -> anyhow::Result<()> {
-        anyhow::bail!("autostart enable only implemented on Windows")
-    }
-    pub fn disable() -> anyhow::Result<()> {
-        anyhow::bail!("autostart disable only implemented on Windows")
-    }
-}
-
 #[cfg(target_os = "linux")]
 mod linux_impl {
     use std::path::PathBuf;
@@ -228,22 +214,6 @@ mod linux_impl {
             std::fs::remove_file(p)?;
         }
         Ok(())
-    }
-}
-
-#[cfg(all(not(target_os = "linux"), not(windows)))]
-mod linux_impl {
-    pub fn is_enabled() -> bool {
-        false
-    }
-    pub fn enable() -> anyhow::Result<()> {
-        Ok(())
-    }
-    pub fn disable() -> anyhow::Result<()> {
-        Ok(())
-    }
-    pub fn registered_for_current_exe() -> bool {
-        true
     }
 }
 
@@ -296,22 +266,6 @@ mod macos_impl {
             std::fs::remove_file(p)?;
         }
         Ok(())
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-mod macos_impl {
-    pub fn is_enabled() -> bool {
-        false
-    }
-    pub fn enable() -> anyhow::Result<()> {
-        Ok(())
-    }
-    pub fn disable() -> anyhow::Result<()> {
-        Ok(())
-    }
-    pub fn registered_for_current_exe() -> bool {
-        true
     }
 }
 

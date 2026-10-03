@@ -523,10 +523,8 @@ impl TaskLifecycle {
     ) {
         let snapshot = self.build_snapshot(dm, managed.clone());
         let summary = DownloadSummary::from(&snapshot);
-        let json = serde_json::to_value(&summary).unwrap_or_default();
         dm.event_bus.publish(DownloadEvent::Updated {
-            id: summary.id.clone(),
-            summary_json: json,
+            summary: Box::new(summary),
         });
     }
 
@@ -538,11 +536,7 @@ impl TaskLifecycle {
     ) {
         let snapshot = self.build_snapshot(dm, managed.clone());
         let progress = DownloadProgress::from(&snapshot);
-        let json = serde_json::to_value(&progress).unwrap_or_default();
-        dm.event_bus.publish(DownloadEvent::Progress {
-            id: progress.id.clone(),
-            progress_json: json,
-        });
+        dm.event_bus.publish(DownloadEvent::Progress { progress });
     }
 
     /// Record downloaded bytes on a managed download (chunk index optional).

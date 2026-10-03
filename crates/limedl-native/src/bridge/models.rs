@@ -64,9 +64,11 @@ pub fn field_to_sort_key(field: i32) -> limedl_core::types::SortKey {
     }
 }
 
-/// Ordered list of table column keys the native UI can show/hide. Mirrors the
-/// web client's `VALID_COLUMN_KEYS` (minus the fields the native list does not
-/// render) so a settings file stays portable between both editions.
+/// Ordered list of table column keys the UI can show/hide.
+///
+/// The key strings are a stable part of `settings.json`
+/// (`appearance.visibleColumns`): keep them unchanged so an existing settings
+/// file keeps its column layout.
 pub const COLUMN_KEYS: [&str; 10] = [
     "file",
     "size",

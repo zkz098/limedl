@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 pub fn dirs_or_temp_dir() -> PathBuf {
-    // Explicit override (same env var the headless server honors) — makes it
-    // possible to run a throwaway instance against a temp data dir.
+    // Explicit override — makes it possible to run a throwaway instance against
+    // a temp data dir (settings.json, downloads.db and torrent state all move).
     if let Some(dir) = std::env::var_os("LIMEDL_DATA_DIR") {
         return PathBuf::from(dir);
     }

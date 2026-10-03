@@ -12,7 +12,7 @@ use slint::SharedString;
 use tray_icon::{MouseButton, MouseButtonState, TrayIconEvent};
 
 use limedl_core::dispatcher::Dispatcher;
-use limedl_core::types::{AppSettings, DownloadState};
+use limedl_core::types::DownloadState;
 
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
@@ -30,7 +30,6 @@ struct TrayCtx {
     ui_weak: slint::Weak<MainWindow>,
     dispatcher: Arc<Dispatcher>,
     store: Arc<Mutex<TaskStore>>,
-    current_settings: Arc<Mutex<AppSettings>>,
     game_mode_active: Arc<Mutex<bool>>,
     tray_speed_limit_active: Arc<AtomicBool>,
     toast_queue: ToastQueue,
@@ -43,16 +42,10 @@ impl TrayCtx {
             ui_weak: ctx.ui_weak.clone(),
             dispatcher: ctx.dispatcher.clone(),
             store: ctx.store.clone(),
-            current_settings: ctx.current_settings.clone(),
             game_mode_active: ctx.game_mode_active.clone(),
             tray_speed_limit_active: ctx.tray_speed_limit_active.clone(),
             toast_queue: ctx.toast_queue.clone(),
-            default_dir: ctx
-                .current_settings
-                .lock()
-                .download
-                .default_download_dir
-                .clone(),
+            default_dir: ctx.settings().download.default_download_dir.clone(),
         }
     }
 
@@ -72,14 +65,20 @@ impl TrayCtx {
 
     /// Quick global speed limit shortcut: unlimited ↔ 1 MB/s.
     async fn toggle_speed_limit(&self) {
-        let mut settings = self.current_settings.lock().clone();
-        let enabling = settings.global_speed_limit_bps == 0;
-        settings.global_speed_limit_bps = if enabling { TRAY_SPEED_LIMIT_BPS } else { 0 };
+        let current = self.dispatcher.get_settings_blocking().unwrap_or_default();
+        let enabling = current.global_speed_limit_bps == 0;
+        let new_limit = if enabling { TRAY_SPEED_LIMIT_BPS } else { 0 };
         let lang = self.lang();
 
-        match self.dispatcher.save_settings(&settings).await {
+        match self
+            .dispatcher
+            .save_settings_with(|settings| {
+                settings.global_speed_limit_bps = new_limit;
+                Ok(())
+            })
+            .await
+        {
             Ok(saved) => {
-                *self.current_settings.lock() = saved.clone();
                 self.tray_speed_limit_active
                     .store(saved.global_speed_limit_bps > 0, Ordering::Relaxed);
                 push_toast(

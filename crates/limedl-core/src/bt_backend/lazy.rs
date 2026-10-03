@@ -670,10 +670,8 @@ impl LazyBtBackend {
             }
         };
         for summary in &summaries {
-            let summary_json = serde_json::to_value(summary).unwrap_or_default();
             self.event_bus.publish(DownloadEvent::Updated {
-                id: summary.id.clone(),
-                summary_json,
+                summary: Box::new(summary.clone()),
             });
         }
         self.store_index(summaries).await;

@@ -65,16 +65,6 @@ impl Language {
             Language::EnUs => "en-US",
         }
     }
-
-    /// Human-readable label for UI selection.
-    #[allow(dead_code)]
-    pub fn as_label(&self) -> &'static str {
-        match self {
-            Language::ZhCn => "简体中文 (zh-CN)",
-            Language::ZhTw => "繁體中文 (zh-TW)",
-            Language::EnUs => "English (en-US)",
-        }
-    }
 }
 
 /// Activate bundled translation catalog in Slint runtime.

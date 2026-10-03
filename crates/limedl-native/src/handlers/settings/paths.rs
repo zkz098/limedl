@@ -110,9 +110,9 @@ pub fn register(ctx: &AppContext) {
 
     // Reveal the log file's folder in the OS file manager.
     {
-        let current_settings = ctx.current_settings.clone();
+        let dispatcher = ctx.dispatcher.clone();
         ui.on_open_log_folder(move || {
-            let settings = current_settings.lock().clone();
+            let settings = dispatcher.get_settings_blocking().unwrap_or_default();
             let log_path = if !settings.logging.file_path.trim().is_empty() {
                 PathBuf::from(&settings.logging.file_path)
             } else {

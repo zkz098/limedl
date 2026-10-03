@@ -1,6 +1,6 @@
 //! Read-only query methods: tellStatus/tellActive/getFiles/getPeers/session listing.
 
-use super::{BtPeerInfo, DownloadManager, DownloadState, DownloadSummary, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, LazyBtBackend, RpcContext, TaskId, Value, bt_files_to_aria2, build_file_list, filter_status_keys, make_error, resolve_gid, summary_to_aria2_status};
+use super::{BtPeerInfo, DownloadState, DownloadSummary, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, RpcContext, TaskId, Value, bt_files_to_aria2, build_file_list, filter_status_keys, make_error, resolve_gid, summary_to_aria2_status};
 
 fn is_terminal(state: DownloadState) -> bool {
     matches!(
@@ -25,7 +25,7 @@ fn file_list_for(ctx: &RpcContext, task_id: &TaskId, summary: &DownloadSummary) 
     let TaskId::Bt(info_hash) = task_id else {
         return build_file_list(summary);
     };
-    match ctx.registry.get_typed::<LazyBtBackend>() {
+    match ctx.bt() {
         Some(backend) => match backend.get_torrent_files(*info_hash) {
             Ok(files) if !files.is_empty() => bt_files_to_aria2(&files),
             Ok(_) => Value::Array(Vec::new()),
@@ -39,7 +39,7 @@ fn file_list_for(ctx: &RpcContext, task_id: &TaskId, summary: &DownloadSummary) 
 /// in-memory map by `max_in_memory_downloads`: aria2 keeps stopped results
 /// queryable until `purgeDownloadResult`/`removeDownloadResult`.
 async fn summary_for_raw_id(ctx: &RpcContext, raw_id: &str) -> Option<DownloadSummary> {
-    if let Some(dm) = ctx.registry.get_typed::<DownloadManager>() {
+    if let Some(dm) = ctx.http() {
         if let Some(summary) = dm.get_summary(raw_id).await {
             return Some(summary);
         }
@@ -146,7 +146,7 @@ pub(crate) async fn handle_tell_stopped(
 
     // Terminal downloads evicted from memory still exist in the database and
     // must stay visible until they are purged or individually removed.
-    if let Some(dm) = ctx.registry.get_typed::<DownloadManager>() {
+    if let Some(dm) = ctx.http() {
         let db = dm.db.clone();
         if let Ok(Ok(manifests)) = tokio::task::spawn_blocking(move || db.list_download_headers()).await {
             for manifest in manifests {
@@ -196,7 +196,7 @@ pub(crate) async fn handle_global_stat(ctx: &RpcContext) -> Result<Value, JsonRp
     // (`numStoppedTotal` mirrors the current count — we do not keep a lifetime
     // cumulative counter, unlike aria2.)
     let mut num_stopped = all.iter().filter(|s| is_terminal(s.state)).count();
-    if let Some(dm) = ctx.registry.get_typed::<DownloadManager>() {
+    if let Some(dm) = ctx.http() {
         let db = dm.db.clone();
         if let Ok(Ok(count)) =
             tokio::task::spawn_blocking(move || db.count_terminal_downloads()).await
@@ -259,7 +259,7 @@ pub(crate) async fn handle_get_uris(
 
     // The manifest holds the full candidate list (primary + mirrors); the
     // summary only carries the primary URL.
-    let manifest = if let Some(dm) = ctx.registry.get_typed::<DownloadManager>() {
+    let manifest = if let Some(dm) = ctx.http() {
         let downloads = dm.downloads.read().await;
         downloads
             .get(&raw_id)
@@ -317,9 +317,7 @@ pub(crate) async fn handle_get_peers(
         return Ok(Value::Array(vec![]));
     };
 
-    let peers = ctx
-        .registry
-        .get_typed::<LazyBtBackend>()
+    let peers = ctx.bt()
         .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?
         .get_peers(*info_hash)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;

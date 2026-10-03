@@ -154,8 +154,14 @@ pub(super) async fn double_click_follows_the_configured_behavior() {
         http_task(2, "bravo.bin", DownloadState::Paused, 20, 100),
         http_task(3, "charlie.bin", DownloadState::Completed, 100, 100),
     ]);
-    let settings = &ui.ctx.current_settings;
-    settings.lock().double_click.on_uncompleted = DoubleClickOnUncompleted::TogglePauseResume;
+    ui.ctx
+        .dispatcher
+        .save_settings_with(|settings| {
+            settings.double_click.on_uncompleted = DoubleClickOnUncompleted::TogglePauseResume;
+            Ok(())
+        })
+        .await
+        .expect("persist double-click behavior");
 
     // Unfinished: pause for a running task, resume for a paused one.
     ui.window.invoke_task_double_clicked(http_wire(1).into());
@@ -178,7 +184,14 @@ pub(super) async fn double_click_follows_the_configured_behavior() {
     // Completed: the three open actions are three different backend calls, so the
     // setting has to select between them rather than always fall back to one.
     ui.core.clear();
-    settings.lock().double_click.on_completed = DoubleClickOnCompleted::OpenFile;
+    ui.ctx
+        .dispatcher
+        .save_settings_with(|settings| {
+            settings.double_click.on_completed = DoubleClickOnCompleted::OpenFile;
+            Ok(())
+        })
+        .await
+        .expect("persist double-click behavior");
     ui.window.invoke_task_double_clicked(http_wire(3).into());
     ui.pump_until("the file open", || !ui.core.files_opened().is_empty())
         .await;
@@ -186,7 +199,14 @@ pub(super) async fn double_click_follows_the_configured_behavior() {
     assert!(ui.core.dirs_opened().is_empty() && ui.core.explorer().is_empty());
 
     ui.core.clear();
-    settings.lock().double_click.on_completed = DoubleClickOnCompleted::OpenInExplorer;
+    ui.ctx
+        .dispatcher
+        .save_settings_with(|settings| {
+            settings.double_click.on_completed = DoubleClickOnCompleted::OpenInExplorer;
+            Ok(())
+        })
+        .await
+        .expect("persist double-click behavior");
     ui.window.invoke_task_double_clicked(http_wire(3).into());
     ui.pump_until("the explorer open", || !ui.core.explorer().is_empty())
         .await;
@@ -194,7 +214,14 @@ pub(super) async fn double_click_follows_the_configured_behavior() {
     assert!(ui.core.files_opened().is_empty() && ui.core.dirs_opened().is_empty());
 
     ui.core.clear();
-    settings.lock().double_click.on_completed = DoubleClickOnCompleted::OpenDownloadDir;
+    ui.ctx
+        .dispatcher
+        .save_settings_with(|settings| {
+            settings.double_click.on_completed = DoubleClickOnCompleted::OpenDownloadDir;
+            Ok(())
+        })
+        .await
+        .expect("persist double-click behavior");
     ui.window.invoke_task_double_clicked(http_wire(3).into());
     ui.pump_until("the directory open", || !ui.core.dirs_opened().is_empty())
         .await;
@@ -202,9 +229,16 @@ pub(super) async fn double_click_follows_the_configured_behavior() {
     assert!(ui.core.files_opened().is_empty() && ui.core.explorer().is_empty());
 
     // “Do nothing” must stay silent for both kinds of task.
+    ui.ctx
+        .dispatcher
+        .save_settings_with(|settings| {
+            settings.double_click.on_completed = DoubleClickOnCompleted::None;
+            settings.double_click.on_uncompleted = DoubleClickOnUncompleted::None;
+            Ok(())
+        })
+        .await
+        .expect("persist double-click behavior");
     ui.core.clear();
-    settings.lock().double_click.on_completed = DoubleClickOnCompleted::None;
-    settings.lock().double_click.on_uncompleted = DoubleClickOnUncompleted::None;
     ui.window.invoke_task_double_clicked(http_wire(1).into());
     ui.window.invoke_task_double_clicked(http_wire(3).into());
     ui.pump(2).await;

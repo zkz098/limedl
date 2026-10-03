@@ -109,86 +109,41 @@ fn test_settings_round_trip_with_cdn() {
     assert_eq!(deserialized.cdn_acceleration.active_speed_mbps, Some(88.3));
 }
 
-// ── TaskId serde round-trip ────────────────────────────────────────
+// ── TaskId wire-string parsing ─────────────────────────────────────
 
 #[test]
-fn task_id_http_round_trip() {
+fn task_id_http_wire_round_trip() {
     let uuid = uuid::Uuid::new_v4();
     let original = TaskId::Http(uuid);
-    let json = serde_json::to_string(&original).unwrap();
-    let deserialized: TaskId = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized, original);
-    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(parsed["kind"], "http");
-    assert_eq!(parsed["id"], uuid.to_string());
+    assert_eq!(TaskId::from_wire_string(&original.raw_id()).unwrap(), original);
+    let prefixed = format!("http:{}", original.raw_id());
+    assert_eq!(TaskId::from_wire_string(&prefixed).unwrap(), original);
+    assert_eq!(original.to_string(), uuid.to_string());
 }
 
 #[cfg(feature = "bt")]
 #[test]
-fn task_id_bt_round_trip() {
+fn task_id_bt_wire_round_trip() {
     let hash = irontide::core::Id20::from([0xab; 20]);
     let original = TaskId::Bt(hash);
-    let json = serde_json::to_string(&original).unwrap();
-    let deserialized: TaskId = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized, original);
-    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(parsed["kind"], "bt");
-    assert_eq!(parsed["id"], "abababababababababababababababababababab");
-}
-
-#[cfg(feature = "bt")]
-#[test]
-fn task_id_legacy_bt_string() {
-    let json = "\"bt:abcdef0123456789abcdef0123456789abcdef01\"";
-    let deserialized: TaskId = serde_json::from_str(json).unwrap();
-    assert!(matches!(deserialized, TaskId::Bt(_)));
-    assert_eq!(
-        deserialized.raw_id(),
-        "abcdef0123456789abcdef0123456789abcdef01"
-    );
+    let prefixed = format!("bt:{}", original.raw_id());
+    assert_eq!(TaskId::from_wire_string(&prefixed).unwrap(), original);
+    assert_eq!(original.raw_id(), "abababababababababababababababababababab");
 }
 
 #[test]
-fn task_id_legacy_http_string() {
+fn task_id_from_wire_string_accepts_bare_uuid() {
     let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
-    let json = format!("\"http:{uuid_str}\"");
-    let deserialized: TaskId = serde_json::from_str(&json).unwrap();
     assert_eq!(
-        deserialized,
+        TaskId::from_wire_string(uuid_str).unwrap(),
         TaskId::Http(uuid::Uuid::parse_str(uuid_str).unwrap())
     );
 }
 
 #[test]
-fn task_id_legacy_bare_uuid() {
-    let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
-    let json = format!("\"{uuid_str}\"");
-    let deserialized: TaskId = serde_json::from_str(&json).unwrap();
-    assert_eq!(
-        deserialized,
-        TaskId::Http(uuid::Uuid::parse_str(uuid_str).unwrap())
-    );
-}
-
-#[test]
-fn task_id_malformed_uuid_returns_error() {
-    let json = "\"http:not-a-uuid\"";
-    let result: Result<TaskId, _> = serde_json::from_str(json);
-    assert!(result.is_err(), "malformed UUID should fail");
-}
-
-#[test]
-fn task_id_missing_kind_field_returns_error() {
-    let json = r#"{"id": "550e8400-e29b-41d4-a716-446655440000"}"#;
-    let result: Result<TaskId, _> = serde_json::from_str(json);
-    assert!(result.is_err(), "missing kind should fail");
-}
-
-#[test]
-fn task_id_missing_id_field_returns_error() {
-    let json = r#"{"kind": "http"}"#;
-    let result: Result<TaskId, _> = serde_json::from_str(json);
-    assert!(result.is_err(), "missing id should fail");
+fn task_id_from_wire_string_rejects_malformed() {
+    assert!(TaskId::from_wire_string("http:not-a-uuid").is_err());
+    assert!(TaskId::from_wire_string("not a task id").is_err());
 }
 
 // ── classify_kind ──────────────────────────────────────────────────

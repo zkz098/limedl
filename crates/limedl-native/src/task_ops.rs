@@ -2,7 +2,7 @@ use parking_lot::Mutex;
 
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::{
-    AppSettings, DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadState, TaskId,
+    DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadState, TaskId,
 };
 
 use crate::bridge::TaskStore;
@@ -11,16 +11,16 @@ pub fn open_path_in_explorer(path: &str) -> std::io::Result<()> {
     limedl_core::platform::open_in_file_manager(std::path::Path::new(path))
 }
 
-/// Open a task's downloaded file with the OS default handler (via backend).
+/// Open a task's downloaded file with the OS default handler (via the Dispatcher).
 pub async fn open_task_file(dispatcher: &Dispatcher, task_id: &TaskId) -> anyhow::Result<()> {
-    let backend = dispatcher.registry().dispatch(task_id)?;
-    Ok(backend.open_file(task_id).await?)
+    dispatcher.open_file(task_id).await?;
+    Ok(())
 }
 
-/// Open a task's download directory in the file explorer (via backend).
+/// Open a task's download directory in the file explorer (via the Dispatcher).
 pub async fn open_task_dir(dispatcher: &Dispatcher, task_id: &TaskId) -> anyhow::Result<()> {
-    let backend = dispatcher.registry().dispatch(task_id)?;
-    Ok(backend.open_dir(task_id).await?)
+    dispatcher.open_dir(task_id).await?;
+    Ok(())
 }
 
 /// Execute the configured double-click behavior for a task. Mirrors the web
@@ -30,7 +30,6 @@ pub async fn open_task_dir(dispatcher: &Dispatcher, task_id: &TaskId) -> anyhow:
 pub async fn handle_task_double_click(
     dispatcher: &Dispatcher,
     store: &Mutex<TaskStore>,
-    current_settings: &Mutex<AppSettings>,
     id_str: &str,
 ) -> anyhow::Result<()> {
     // Snapshot the task state + configured behavior.
@@ -39,7 +38,7 @@ pub async fn handle_task_double_click(
         let Some(summary) = store.get_summary(id_str) else {
             return Ok(());
         };
-        let settings = current_settings.lock();
+        let settings = dispatcher.get_settings_blocking()?;
         (summary.state, settings.double_click.clone())
     };
     let task_id = TaskId::from_wire_string(id_str)?;

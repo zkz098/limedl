@@ -54,8 +54,7 @@ fn delete_selected(
     });
 }
 
-/// Drop the records of every finished task; the files stay on disk, matching
-/// the web client's "clear completed" action.
+/// Drop the records of every finished task; the files stay on disk.
 fn clear_completed(
     ui: &slint::Weak<MainWindow>,
     store: &Arc<Mutex<TaskStore>>,

@@ -67,7 +67,7 @@ impl PowerGuard {
     }
 
     /// Check if sleep prevention is currently active.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn is_preventing(&self) -> bool {
         self.is_preventing.load(Ordering::SeqCst)
     }

@@ -1,7 +1,7 @@
 //! UI assembly, shared by `main()` and the in-process UI tests.
 //!
 //! `main()` owns everything that touches the operating system: single-instance
-//! claim, tray icon, logging, data migration, window hooks and the event loop.
+//! claim, tray icon, logging, window hooks and the event loop.
 //! This module owns the part that is pure UI — build the window, seed it from
 //! the settings, publish the shared [`AppContext`] and register every callback.
 //!
@@ -90,9 +90,9 @@ pub fn default_download_dir(
 /// Build the main window, apply the initial settings and register all UI
 /// callbacks.
 ///
-/// Deliberately not `async` and free of timers: window geometry restore, theme
-/// sync and the migration toast all belong to `main()` because they query the
-/// OS or need the event loop to do anything at all. A timer registered here
+/// Deliberately not `async` and free of timers: window geometry restore and
+/// theme sync belong to `main()` because they query the OS or need the event
+/// loop to do anything at all. A timer registered here
 /// would be invisible to the tests (the testing backend mocks time and never
 /// fires it), which is exactly the kind of silent no-op the seam avoids.
 pub fn build_ui(inputs: UiBootInputs) -> anyhow::Result<UiState> {
@@ -106,8 +106,6 @@ pub fn build_ui(inputs: UiBootInputs) -> anyhow::Result<UiState> {
         rpc_shutdown,
         install_kind,
     } = inputs;
-
-    let current_settings = Arc::new(Mutex::new(settings.clone()));
 
     let store = Arc::new(Mutex::new(TaskStore::with_language(language)));
     {
@@ -156,7 +154,6 @@ pub fn build_ui(inputs: UiBootInputs) -> anyhow::Result<UiState> {
         dispatcher,
         event_bus,
         store,
-        current_settings,
         toast_queue,
         rpc_shutdown,
         new_task_torrent_entries: Arc::new(Mutex::new(Vec::new())),
