@@ -8,7 +8,7 @@ fn main() {
         panic!(
             "MiSans VF font missing at crates/limedl-native/assets/fonts/MiSansVF.ttf.\n\
              Fetch it from the official source (one-time, about 15 MB):\n\
-             \x20   pwsh scripts/fetch-misans.ps1"
+             \x20   cargo xtask fetch-font"
         );
     }
     println!("cargo:rerun-if-changed=assets/fonts/MiSansVF.ttf");

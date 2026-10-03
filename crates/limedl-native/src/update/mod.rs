@@ -50,8 +50,8 @@ use serde::Deserialize;
 const PUBKEY_B64: &str =
     "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUwQ0I4MjY5M0NFQ0Q0OUUKUldTZTFPdzhhWUxMNEl5MGVSRk4rNDB1bXF4ZDJreGxQb3lnMUFxSmRQQmJsQk1TTURPaEt3KzcK";
 
-/// Repo hosting the release assets; must match `$Repo` in
-/// `scripts/gen-native-manifest.ps1` and the release workflow.
+/// Repo hosting the release assets; must match the `--repo` default of
+/// `cargo xtask manifest` and the release workflow.
 const RELEASE_REPO: &str = "zkz098/limedl";
 
 /// Permanent URLs that always resolve to the newest stable manifest assets

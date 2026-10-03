@@ -15,9 +15,9 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Purpose         | Command                                                                                                                                                                |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Test (Rust)     | `cargo nextest run --manifest-path crates/limedl-<crate>/Cargo.toml` per crate (see the gate below)                                                                    |
-| Version bump    | `pwsh scripts/bump-version.ps1 patch`                                                                                                                                  |
+| Version bump    | `cargo xtask bump-version patch`                                                                                                                                       |
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                          |
-| Fetch UI font   | `pwsh scripts/fetch-misans.ps1 [-Verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                |
+| Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                      |
 | Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (MCP server — see “UI testing” below)              |
 | Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `.opencode/guides/subsystem-self-update.md`) |
 
@@ -25,9 +25,9 @@ The font is fetched **once** per CI run by the `font` job and handed to every jo
 compiles the UI crate as the `misans-vf` artifact — a cold cache used to mean four runners
 hitting Xiaomi's CDN at once, and a CDN hiccup then read like four unrelated failures. The
 cache key plus the pinned size/sha256 live in exactly two places: `.github/actions/fetch-misans/action.yml`
-(the only caller of the script) and the script's header, which documents the transport
-ladder, the chunked range fetch and the escape hatches (`-Verify`, `-FromPath`,
-`LIMEDL_MISANS_TTF`, `-ZipUrl`) for when the CDN is down or blocked.
+(the cache key and the only caller) and `xtask/src/fetch_font.rs` (the constants plus the
+transport ladder, the chunked range fetch and the escape hatches (`--verify`, `--from-path`,
+`LIMEDL_MISANS_TTF`, `--zip-url`) for when the CDN is down or blocked).
 
 ## Releases
 
@@ -78,7 +78,7 @@ All Rust crates use edition 2024.
 
 | Target                | Frontend            | Backend                 | Build                                                                                                          |
 | --------------------- | ------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Native Desktop (Win)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `pwsh scripts/fetch-misans.ps1` once)                                      |
+| Native Desktop (Win)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `cargo xtask fetch-font` once)                                            |
 | Native Desktop (mac)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native`; release bundle via `bash scripts/package-macos.sh` (macOS host required)         |
 | Native Desktop (Linux)| Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `libfontconfig1-dev`; tray is D-Bus SNI, no GTK); release tarball via `bash scripts/package-linux.sh` |
 

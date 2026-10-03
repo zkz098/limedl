@@ -39,9 +39,9 @@ limedl 遵循 **GPL-3.0-or-later** 开源协议，欢迎所有开发者参与共
   - 安装 Xcode 命令行工具：`xcode-select --install`。
 
 ### 3. 一键获取 Slint 编译字体（关键步骤）
-由于 MiSans 字体许可限制，字体未签入 Git 仓库。在首次编译 `limedl-native` 前，必须通过 PowerShell 脚本下载字体：
-```powershell
-pwsh scripts/fetch-misans.ps1
+由于 MiSans 字体许可限制，字体未签入 Git 仓库。在首次编译 `limedl-native` 前，必须通过 xtask 下载字体：
+```bash
+cargo xtask fetch-font
 ```
 
 ---

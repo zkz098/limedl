@@ -55,6 +55,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # `fetch-font` is part of xtask now, so the one job that talks to Xiaomi's
+      # CDN needs the Rust toolchain. No rust-cache here on purpose: a cache
+      # entry for this job would compete with the release-native entries under
+      # the repo's 10 GB ceiling (see warm-release-cache.yml).
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
       - uses: ./.github/actions/fetch-misans
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -581,7 +590,7 @@ jobs:
           path: dist
 
       # ── Minisign: the update trust chain ───────────────────────────────
-      # `sign` writes <file>.sig for each artifact; `gen-native-manifest.ps1`
+      # `sign` writes <file>.sig for each artifact; `cargo xtask manifest`
       # inlines those signatures into the manifest; `guard` then re-verifies
       # everything AND refuses to continue unless LIMEDL_SIGNING_KEY matches the
       # PUBKEY_B64 embedded in the client (a rotated secret with a stale
@@ -614,13 +623,13 @@ jobs:
           cargo xtask sign @files
           if ($LASTEXITCODE -ne 0) { throw "signing failed" }
 
-          pwsh scripts/gen-native-manifest.ps1 `
-            -Version "${{ steps.version.outputs.VERSION }}" `
-            -AssetsJson dist/native-assets.json `
-            -Notes @'
+          cargo xtask manifest `
+            --version "${{ steps.version.outputs.VERSION }}" `
+            --assets-json dist/native-assets.json `
+            --notes @'
           ${{ needs.changelog.outputs.body }}
           '@ `
-            -OutFile dist/latest-native.json
+            --out-file dist/latest-native.json
 
           cargo xtask sign dist/latest-native.json
           if ($LASTEXITCODE -ne 0) { throw "signing the manifest failed" }

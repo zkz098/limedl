@@ -4,7 +4,7 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 license.workspace = true
-description = "Repository tooling: minisign key generation, artifact signing, pubkey guards"
+description = "Repository tooling: signing/guards, update manifest, MiSans font fetch, version bump"
 
 [[bin]]
 name = "xtask"
@@ -14,7 +14,17 @@ path = "src/main.rs"
 anyhow = { workspace = true }
 base64 = { workspace = true }
 clap = { workspace = true }
+# Raw deflate decode for the MiSans zip entry; same version limedl-native uses,
+# so the shared build graph does not gain a second compression backend.
+flate2 = "1"
 minisign = "0.9"
+# Version bumping edits Cargo.toml/Cargo.lock/website with the same anchored
+# patterns the retired scripts used; regex keeps that contract legible.
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# SHA-256 for the update manifest (and the pinned font hash check).
+sha2 = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]

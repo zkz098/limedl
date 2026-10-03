@@ -53,7 +53,7 @@ fn manifest_keys_follow_install_kind() {
 /// `platform_base()` derives the OS half of the key from `consts::OS`, which
 /// spells macOS as `macos`, while the manifest key (and the release asset
 /// name) uses `darwin`. The mapping only ever runs on the platform it names,
-/// so the concordance with `scripts/gen-native-manifest.ps1` cannot be
+/// so the concordance with `cargo xtask manifest` cannot be
 /// asserted by calling it here — the URL contract is covered by
 /// `asset_urls_must_point_at_this_repos_release` instead.
 #[test]

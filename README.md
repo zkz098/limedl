@@ -52,7 +52,7 @@ NAS build (`limedl daemon` + browser) today.
 
 ```powershell
 # MiSans VF is embedded at compile time and is not in git (font license)
-pwsh scripts/fetch-misans.ps1
+cargo xtask fetch-font
 cargo run -p limedl-native
 ```
 

@@ -12,6 +12,9 @@
 //! cargo xtask sign <files...>                # write <file>.sig
 //! cargo xtask verify <files...>              # verify <file>.sig against a public key
 //! cargo xtask guard <files...>               # release guard (see below)
+//! cargo xtask manifest --version ...        # generate latest-native.json
+//! cargo xtask fetch-font [--verify]          # pinned MiSans VF (build prerequisite)
+//! cargo xtask bump-version <patch|minor|major>
 //! ```
 //!
 //! `guard` is the release safety net: it derives the public key from the CI
@@ -30,6 +33,7 @@
 //! The matching password comes from `LIMEDL_SIGNING_KEY_PASSWORD`
 //! (`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` as the fallback).
 
+use std::fmt::Write as _;
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -38,6 +42,10 @@ use anyhow::{bail, Context, Result};
 use base64::Engine as _;
 use clap::{Parser, Subcommand};
 use minisign::{KeyPair, PublicKey, SecretKey, SecretKeyBox, SignatureBox};
+
+mod bump_version;
+mod fetch_font;
+mod manifest;
 
 /// base64 of the key file text — the form stored in CI secrets and embedded in
 /// `update.rs`.
@@ -65,7 +73,7 @@ const DEFAULT_UPDATE_RS: &str = "crates/limedl-native/src/update/mod.rs";
 #[derive(Parser)]
 #[command(
     name = "xtask",
-    about = "limedl repository tooling (update-channel signing)",
+    about = "limedl repository tooling (signing, release manifest, font fetch, version bump)",
     version
 )]
 struct Cli {
@@ -116,6 +124,55 @@ enum Command {
         #[arg(long, default_value = DEFAULT_UPDATE_RS)]
         update_rs: PathBuf,
     },
+    /// Generate `latest-native.json`, the self-update manifest.
+    Manifest {
+        /// Released version, without the leading `v`.
+        #[arg(long)]
+        version: String,
+        /// Asset map produced by the release job: `{ key: { kind, path } }`.
+        #[arg(long)]
+        assets_json: PathBuf,
+        /// Release notes (the changelog body) embedded in the manifest.
+        #[arg(long)]
+        notes: String,
+        /// Where to write the manifest.
+        #[arg(long)]
+        out_file: PathBuf,
+        /// `owner/repo` used for the release download URLs.
+        #[arg(long, default_value = "zkz098/limedl")]
+        repo: String,
+    },
+    /// Fetch the pinned MiSans VF font into `crates/limedl-native/assets/fonts/`.
+    FetchFont {
+        /// Re-download even when the local copy already matches the pinned
+        /// size/hash.
+        #[arg(long)]
+        force: bool,
+        /// Check the local copy only; never touch the network. The CI jobs that
+        /// receive the font as an artifact run this.
+        #[arg(long)]
+        verify: bool,
+        /// Take the extracted `MiSansVF.ttf` from this local file or URL
+        /// instead of Xiaomi's CDN (the pinned hash is still enforced).
+        /// Defaults to `$LIMEDL_MISANS_TTF`.
+        #[arg(long)]
+        from_path: Option<String>,
+        /// Alternate URL for the `MiSans.zip` archive (a mirror).
+        #[arg(long, default_value = fetch_font::DEFAULT_ZIP_URL)]
+        zip_url: String,
+    },
+    /// Bump the workspace version in Cargo.toml, Cargo.lock and website/.
+    BumpVersion {
+        /// Which version component to increment.
+        #[arg(value_enum)]
+        level: bump_version::Level,
+        /// Edit the files but skip commit/tag/push.
+        #[arg(long)]
+        no_push: bool,
+        /// Print what would change and exit without touching any file.
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -150,7 +207,58 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::Guard { files, update_rs } => guard(&files, &update_rs),
+        Command::Manifest {
+            version,
+            assets_json,
+            notes,
+            out_file,
+            repo,
+        } => manifest::run(&version, &assets_json, &notes, &out_file, &repo),
+        Command::FetchFont {
+            force,
+            verify,
+            from_path,
+            zip_url,
+        } => fetch_font::run(
+            &repo_root()?,
+            &fetch_font::Options {
+                force,
+                verify,
+                from_path,
+                zip_url,
+            },
+        ),
+        Command::BumpVersion {
+            level,
+            no_push,
+            dry_run,
+        } => bump_version::run(
+            &repo_root()?,
+            level,
+            &bump_version::Options { dry_run, no_push },
+        ),
     }
+}
+
+/// The workspace root: `xtask` lives one level below it.
+fn repo_root() -> Result<PathBuf> {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .map(Path::to_path_buf)
+        .context("xtask sits one level below the repo root")
+}
+
+/// Lowercase hex SHA-256 — the form the update manifest stores and the font
+/// check compares against.
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest as _, Sha256};
+    let digest = Sha256::digest(bytes);
+    let mut out = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        // Writing into a String cannot fail.
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
 }
 
 // ── Key handling ─────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { Theme, ColorModePref } from "theme.slint";
 // into the binary at compile time and auto-registered at startup, so every
 // platform renders with the same typeface. The .ttf is NOT in git (MiSans
 // license forbids re-distributing the font file itself); fetch it with
-// scripts/fetch-misans.ps1 — build.rs fails with the same instruction if missing.
+// `cargo xtask fetch-font` — build.rs fails with the same instruction if missing.
 import "../assets/fonts/MiSansVF.ttf";
 
 export { Theme, ColorModePref }

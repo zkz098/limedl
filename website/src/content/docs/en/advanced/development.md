@@ -39,9 +39,9 @@ After cloning the repository, configure the necessary toolchains for your platfo
   - Install Xcode Command Line Tools: `xcode-select --install`.
 
 ### 3. Fetch UI Font (Mandatory Step)
-Due to licensing constraints, the MiSans Variable Font is not stored in Git. Before building `limedl-native`, download the font via PowerShell:
-```powershell
-pwsh scripts/fetch-misans.ps1
+Due to licensing constraints, the MiSans Variable Font is not stored in Git. Before building `limedl-native`, download the font via xtask:
+```bash
+cargo xtask fetch-font
 ```
 
 ---

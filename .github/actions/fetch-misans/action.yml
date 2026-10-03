@@ -3,12 +3,16 @@ description: >
   Provides crates/limedl-native/assets/fonts/MiSansVF.ttf, which the Slint UI
   embeds at compile time. The font is not in git (the MiSans license forbids
   redistributing the file itself, only works embedding it), so it comes from
-  Xiaomi's CDN via scripts/fetch-misans.ps1.
+  Xiaomi's CDN via `cargo xtask fetch-font`.
 
   `mode: fetch` restores the pinned font from the Actions cache and downloads it
   on a miss; `mode: verify` only checks a file that another job supplied (as an
-  artifact). All the retrying, chunking and protocol fallbacks live in the
-  script — see its header for why.
+  artifact). The transport ladder, chunked range fetch and escape hatches live
+  in xtask/src/fetch_font.rs — see its header for why.
+
+  Callers must set up the Rust toolchain first: the `font` jobs in ci.yml and
+  release.yml do that explicitly, every other caller already builds the
+  workspace.
 
 inputs:
   mode:
@@ -34,9 +38,9 @@ runs:
     - name: Fetch bundled MiSans VF font
       if: inputs.mode == 'fetch'
       shell: pwsh
-      run: ./scripts/fetch-misans.ps1
+      run: cargo xtask fetch-font
 
     - name: Verify bundled MiSans VF font
       if: inputs.mode == 'verify'
       shell: pwsh
-      run: ./scripts/fetch-misans.ps1 -Verify
+      run: cargo xtask fetch-font --verify
