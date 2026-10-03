@@ -49,7 +49,7 @@ UI 事件（callback）
 
 ## 关键约定
 
-- **列表类编辑器（限速计划 / 目录介质覆盖 / Aria2 客户端令牌）的编辑态在 UI model**：与限速计划同构（行文本保存在 UI model，Save 时由 Rust 解析）。Aria2 客户端令牌编辑器（`tab_aria2` + `handlers/settings/aria2_clients.rs` + `bridge/forms/aria2_clients.rs`）额外约定：**添加/重新生成时**在 Rust 侧立即生成 32 字节令牌并用 Argon2id 哈希，明文只在该行 `token` 字段中展示一次（`row.token != ""` 时显示复制按钮与警告），**保存时只写 `token_hash`**，绝不落盘明文；`parse_aria2_clients` 只校验名称非空且唯一、`token_hash` 非空，不在保存路径跑 Argon2。名称行内编辑走 `set_row_data` 保留光标，增删/重新生成重建整个 model。
+- **列表类编辑器（限速计划 / 目录介质覆盖 / Aria2 客户端令牌）的编辑态在 UI model**：与限速计划同构（行文本保存在 UI model，Save 时由 Rust 解析）。Aria2 客户端令牌编辑器（`tab_aria2` + `handlers/settings/aria2_clients.rs` + `bridge/forms/aria2_clients.rs`）额外约定：**添加/重新生成时**在 Rust 侧立即生成 32 字节令牌并用 Argon2id 哈希，明文只在该行 `token` 字段中展示一次（`row.token != ""` 时显示复制按钮与警告），**保存时只写 `token_hash`**，绝不落盘明文；`parse_aria2_clients` 只校验名称非空且唯一、`token_hash` 非空，不在保存路径跑 Argon2。名称行内编辑走 `set_row_data` 保留光标，增删/重新生成重建整个 model；名称输入框同时绑定 `edited`（逐键写回）与 `accepted`（回车/IME 提交），保证回车不是空操作。
 - **i18n 双轨**：`.slint` 内文案用 `@tr(...)`（`lang/{en,zh_CN,zh_TW}/LC_MESSAGES`）；Rust 侧动态文案必须走 `i18n::format_*`，禁止硬编码中文——否则英文界面会泄漏中文（设置校验、托盘、通知首当其冲）。新增任何 `@tr` 字符串都必须同步写入三份 `.po`，否则 `i18n::tests::test_all_slint_tr_strings_in_po_catalogs` 会失败。
 - **EventBus 事件必须显式处理**：`DownloadEvent` 匹配是穷尽的（无 `_ => {}`），新增变体会在编译期报错。`Warning` → 警告 toast（5s 去重窗口，因为反吸血按 peer 触发）。新增事件变体时在 `event_stream/bus.rs` 里加一个 `on_*` 函数，不要在 match 里内联长逻辑。
 - **回调绑定样板走 `handlers/common.rs`**：不要再写 `main_window.as_weak()` + `if let Some(ui) = ui_weak.upgrade()`；用 `with_ui` / `read_ui`（需读值）/ `mutate_store` / `reload_tasks` / `refresh_after_removal` / `spawn_action` / `spawn_batch_action`。每个子系统模块只负责“这个回调做什么”，样板不进业务代码。

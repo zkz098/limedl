@@ -139,7 +139,13 @@ export component SettingsTabAria2 inherits ScrollView {
                             ta_client_name := CustomTextInput {
                                 text: row.name;
                                 placeholder: @tr("Client name");
+                                // `edited` commits every keystroke into the Rust
+                                // model, so the name survives Save even without an
+                                // explicit confirm. `accepted` (Enter) re-sends the
+                                // same value so pressing Enter is never a no-op for
+                                // an IME commit that bypassed `edited`.
                                 edited(value) => { root.aria2_client_name_edited(idx, value); }
+                                accepted(value) => { root.aria2_client_name_edited(idx, value); }
                             }
                         }
 

@@ -87,6 +87,33 @@ fn the_aria2_client_editor_generates_reveals_and_removes_rows() {
     });
 }
 
+/// The per-client name field has no per-row Save button: typing must land in
+/// the model (so the dialog's Save persists it) and Enter must not be a no-op.
+/// This clicks the real `CustomTextInput` instead of invoking the callback,
+/// which is what pins the `edited`/`accepted` wiring in `tab_aria2.slint`.
+#[test]
+fn typing_and_enter_in_the_aria2_client_name_field_reach_the_model() {
+    with_ui(|ui| {
+        // The client row is the last section of the tab, so at the minimum
+        // window size it starts below the ScrollView's fold and element queries
+        // prune it. The app's preferred size keeps it on screen.
+        ui.set_window_size(1280.0, 800.0);
+        ui.window.invoke_open_settings();
+        ui.window.invoke_set_settings_tab(7);
+        let mut form = ui.window.get_settings_form();
+        form.aria2_auth_mode_idx = 1;
+        ui.window.set_settings_form(form);
+        ui.window.invoke_aria2_client_add();
+
+        ui.click("SettingsTabAria2::ta-client-name");
+        ui.press_keys(&[slint::platform::Key::Control.into(), 'a']);
+        ui.type_text("Phone");
+        ui.press_keys(&[slint::platform::Key::Return.into()]);
+
+        assert_eq!(client_rows(ui)[0].name.as_str(), "Phone");
+    });
+}
+
 #[test]
 fn the_schedule_editor_edits_rows_in_place_and_removes_only_the_one_asked_for() {
     with_ui(|ui| {

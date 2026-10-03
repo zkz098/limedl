@@ -402,3 +402,64 @@ async fn websocket_bt_add_pushes_exactly_one_start() {
 
     let _ = shutdown_tx.send(true);
 }
+
+/// Regression: hot-reloading the RPC server (every settings save restarts it)
+/// must not leave the endpoint dead. The predecessor with `with_graceful_shutdown`
+/// drops its listener on a *different* task from the one that receives the
+/// shutdown signal — and only after the signal propagates — while an aria2
+/// client may still hold a WebSocket open. A replacement that binds once loses
+/// that race with `AddrInUse`, `serve` returns, and AriaNg can no longer talk
+/// to limedl. The replacement must wait the predecessor out and win the port.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn the_replacement_server_waits_out_the_predecessor_and_wins_the_port() {
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+    let dest_dir = tmp.path().join("output");
+    std::fs::create_dir_all(&dest_dir).unwrap();
+    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+
+    // Stand in for the predecessor: it owns the port while the replacement
+    // starts, and releases it only afterwards (as the real accept loop does).
+    let holder = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = holder.local_addr().unwrap().port();
+
+    let settings = Aria2RpcSettings {
+        enabled: true,
+        port,
+        secret: None,
+        cors_allowed_origins: vec![],
+        ..Aria2RpcSettings::default()
+    };
+    let rpc = Aria2RpcServer::new(core.registry.clone(), &settings, core.event_bus.clone());
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    tokio::spawn(async move {
+        let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await;
+    });
+
+    // The replacement has already tried (and must have failed) to bind by now.
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    drop(holder);
+
+    // Only the retry can make this succeed; a plain bind already gave up.
+    let port_open = {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+                break true;
+            }
+            if Instant::now() >= deadline {
+                break false;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    };
+    assert!(port_open, "the replacement never won port {port}");
+
+    // It is the replacement answering, not a lucky connect to a dying listener.
+    let mut ws = WsClient::connect(&format!("ws://127.0.0.1:{port}/jsonrpc")).await;
+    let version = ws.rpc("aria2.getVersion", json!([])).await;
+    assert!(version["result"]["version"].is_string(), "{version}");
+
+    let _ = shutdown_tx.send(true);
+}
