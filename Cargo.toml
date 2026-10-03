@@ -13,6 +13,14 @@ reqwest = { version = "=0.13.4", default-features = false, features = [
   "stream",
   "rustls",
   "http2",
+  # Required by `ProxyMode::System`. `default-features = false` drops reqwest's
+  # `system-proxy`, which is what turns on `hyper-util/client-proxy-system`; without
+  # it `ProxyMatcher::system()` only reads `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`
+  # and silently ignores the Windows registry / macOS system configuration. A user
+  # who sets the proxy in the OS UI (the normal case on Windows) then sees "System
+  # Proxy" do nothing. Guarded by `workspace_enables_reqwest_system_proxy` in
+  # crates/limedl-core/src/http_client_factory/tests.rs.
+  "system-proxy",
 ] }
 futures-util = "0.3"
 blake3 = "1"

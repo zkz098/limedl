@@ -273,3 +273,33 @@ fn configure_builder_chainable_with_custom_dns() {
     let client = builder.build();
     assert!(client.is_ok());
 }
+
+// -----------------------------------------------------------------------
+// configure_client_builder — ProxyMode::System prerequisite
+// -----------------------------------------------------------------------
+/// `ProxyMode::System` delegates to reqwest's `auto_sys_proxy`, whose OS readers
+/// (Windows registry, macOS system configuration) only exist when reqwest's
+/// `system-proxy` feature is enabled. The workspace turns reqwest's default
+/// features off, so dropping that feature is easy and *silent*: the crate still
+/// compiles and every other proxy test below still passes because they only
+/// assert that a client builds.
+///
+/// Keep the feature pinned in the workspace manifest so "System Proxy" really
+/// reads the OS configuration instead of degenerating to `HTTP_PROXY` env vars.
+#[test]
+fn workspace_enables_reqwest_system_proxy() {
+    use std::path::Path;
+
+    let manifest_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Cargo.toml");
+    let manifest = std::fs::read_to_string(&manifest_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", manifest_path.display()));
+    assert!(
+        manifest
+            .lines()
+            .map(str::trim)
+            .any(|line| line == "\"system-proxy\"," || line == "\"system-proxy\""),
+        "reqwest's `system-proxy` feature must stay enabled in the workspace 
+         Cargo.toml: without it `ProxyMode::System` ignores the Windows registry 
+         and the macOS system proxy entirely"
+    );
+}

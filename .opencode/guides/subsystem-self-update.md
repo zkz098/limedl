@@ -112,7 +112,7 @@ The update channel must honour the same proxy setting as the download engine.
 | `settings.proxy.mode` | Effect on update checks and downloads |
 | --------------------- | ------------------------------------- |
 | `Disabled`            | `builder.no_proxy()` — the automatic system/env proxy is switched off |
-| `System`              | nothing added; reqwest's `auto_sys_proxy` detection stays active      |
+| `System`              | nothing added; reqwest's `auto_sys_proxy` detection stays active — this reads the Windows registry / macOS system configuration only because the workspace enables reqwest's `system-proxy` feature (see `.opencode/guides/subsystem-http-client-factory.md`) |
 | `Manual`              | `Proxy::all(settings.proxy.manual_url)`                                |
 
 The caller snapshots `AppSettings` when the request starts
