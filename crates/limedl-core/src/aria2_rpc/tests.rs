@@ -1100,3 +1100,39 @@ fn take_aria2_events(
     }
     names
 }
+
+// ── aria2 temp-file cleanup ───────────────────────────────────────────
+
+/// Only `.torrent` files older than an hour may be cleaned from the aria2
+/// temp directory; fresh torrents and unrelated files must survive.
+#[test]
+#[timeout(10_000)]
+fn cleanup_old_aria2_temp_files_removes_only_stale_torrents() {
+    let dir = std::env::temp_dir().join("limedl_aria2");
+    std::fs::create_dir_all(&dir).expect("create aria2 temp dir");
+
+    let unique = uuid::Uuid::new_v4();
+    let stale = dir.join(format!("stale-{unique}.torrent"));
+    let fresh = dir.join(format!("fresh-{unique}.torrent"));
+    let other = dir.join(format!("other-{unique}.txt"));
+    std::fs::write(&stale, b"stale").expect("write stale torrent");
+    std::fs::write(&fresh, b"fresh").expect("write fresh torrent");
+    std::fs::write(&other, b"other").expect("write unrelated file");
+
+    let two_hours_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 3600);
+    std::fs::File::options()
+        .write(true)
+        .open(&stale)
+        .expect("open stale torrent")
+        .set_modified(two_hours_ago)
+        .expect("age the stale torrent");
+
+    cleanup_old_aria2_temp_files();
+
+    assert!(!stale.exists(), "a >1h old .torrent must be removed");
+    assert!(fresh.exists(), "a fresh .torrent must survive");
+    assert!(other.exists(), "non-torrent files must survive");
+
+    let _ = std::fs::remove_file(&fresh);
+    let _ = std::fs::remove_file(&other);
+}

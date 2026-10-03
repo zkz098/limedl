@@ -10,11 +10,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use base64::Engine;
 use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::aria2_rpc::Aria2RpcServer;
-use crate::event_bus::EventBus;
+use crate::event_bus::{DownloadEvent, EventBus};
 use crate::types::Aria2RpcSettings;
 
 /// Bootstrap subsystems, start an Aria2RpcServer on a random port, and return
@@ -34,7 +35,22 @@ async fn start_rpc_server_with(
     tokio::fs::create_dir_all(&dest_dir).await.unwrap();
 
     let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+    let (base_url, shutdown_tx) = spawn_rpc_server(&core, secret, cors_allowed_origins).await;
+    (base_url, shutdown_tx, tmp, core)
+}
 
+/// Spawn an [`Aria2RpcServer`] over an already-bootstrapped core on a random
+/// port and poll until it accepts connections.
+///
+/// Split out of [`start_rpc_server_with`] so a test can serve the *same* live
+/// core from a second server: each `Aria2RpcServer` owns a fresh `RpcContext`,
+/// hence a fresh (empty) GID cache — the cheapest faithful stand-in for an app
+/// restart when the test needs a GID that only the database can resolve.
+async fn spawn_rpc_server(
+    core: &crate::bootstrap::CoreSystems,
+    secret: Option<&str>,
+    cors_allowed_origins: Vec<String>,
+) -> (String, tokio::sync::watch::Sender<bool>) {
     // Reserve a random port
     let probe = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = probe.local_addr().unwrap().port();
@@ -64,8 +80,7 @@ async fn start_rpc_server_with(
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 
-    let base_url = format!("http://127.0.0.1:{port}/jsonrpc");
-    (base_url, shutdown_tx, tmp, core)
+    (format!("http://127.0.0.1:{port}/jsonrpc"), shutdown_tx)
 }
 
 /// Start an RPC server without a secret (the settings a desktop install uses
@@ -355,6 +370,15 @@ async fn aria2_add_uri_missing_uris_returns_error() {
     let resp = rpc_call(&client, &rpc_url, "aria2.addUri", serde_json::json!([])).await;
 
     assert!(resp["error"].is_object(), "Missing URIs must return error");
+    assert_eq!(resp["error"]["code"], -32602);
+
+    // An explicitly empty URI array is a different code path from a missing
+    // array entirely, and must be rejected just as loudly.
+    let resp = rpc_call(&client, &rpc_url, "aria2.addUri", serde_json::json!([[]])).await;
+    assert!(
+        resp["error"].is_object(),
+        "An empty uris array must return error: {resp}"
+    );
     assert_eq!(resp["error"]["code"], -32602);
 
     let _ = shutdown_tx.send(true);
@@ -1560,6 +1584,528 @@ async fn aria2_add_torrent_rejects_invalid_base64() {
     )
     .await;
     assert_eq!(resp["error"]["code"], -32602, "{resp}");
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// Poll `aria2.tellStatus` until the BitTorrent engine reports file metadata.
+///
+/// The fixture's metadata comes from the `.torrent` itself, so this converges
+/// as soon as the engine has picked the torrent up — no peers involved.
+async fn wait_for_bt_files(
+    client: &reqwest::Client,
+    rpc_url: &str,
+    gid: &str,
+) -> serde_json::Value {
+    let deadline = std::time::Instant::now() + Duration::from_secs(20);
+    loop {
+        let resp = rpc_call(client, rpc_url, "aria2.tellStatus", serde_json::json!([gid])).await;
+        let files_ready = resp["result"]["files"]
+            .as_array()
+            .is_some_and(|files| !files.is_empty());
+        if files_ready {
+            return resp["result"].clone();
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "BT metadata never produced a file list: {resp}"
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// Poll `aria2.getFiles` until the two fixture files carry `expected`
+/// selection flags ("true"/"false" as aria2 serialises them).
+async fn wait_for_bt_selection(
+    client: &reqwest::Client,
+    rpc_url: &str,
+    gid: &str,
+    expected: (&str, &str),
+) -> Vec<serde_json::Value> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(20);
+    loop {
+        let resp = rpc_call(client, rpc_url, "aria2.getFiles", serde_json::json!([gid])).await;
+        if let Some(files) = resp["result"].as_array()
+            && files.len() == 2
+            && files[0]["selected"] == expected.0
+            && files[1]["selected"] == expected.1
+        {
+            return files.clone();
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "file selection never became {expected:?}: {resp}"
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// `aria2.addTorrent` must add a real `.torrent`, expose the BitTorrent file
+/// list through `getFiles`/`tellStatus`, and apply the options the engine can
+/// actually change at runtime (`select-file`, per-torrent speed limits).
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_add_torrent_serves_bt_files_and_options() {
+    let fixture = crate::bt_backend::tests::multi_file_torrent_bytes();
+    let expected_hash = irontide::core::torrent_from_bytes(&fixture)
+        .expect("the shared BT fixture must parse")
+        .info_hash
+        .to_hex();
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&fixture);
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addTorrent",
+        serde_json::json!([encoded, {"dir": dest_dir.to_string_lossy()}]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addTorrent failed: {resp}"))
+        .to_string();
+
+    // tellStatus: the real info hash and one aria2 entry per torrent file,
+    // with 1-based string indices like aria2 itself emits.
+    let status = wait_for_bt_files(&client, &rpc_url, &gid).await;
+    assert_eq!(
+        status["bittorrent"]["infoHash"]
+            .as_str()
+            .map(str::to_ascii_lowercase),
+        Some(expected_hash.clone()),
+        "tellStatus must report the fixture's info hash: {status}"
+    );
+    let files = status["files"].as_array().expect("files array");
+    assert_eq!(files.len(), 2, "fixture has two files: {status}");
+    assert_eq!(files[0]["index"], "1");
+    assert_eq!(files[0]["length"], "10");
+    assert!(
+        files[0]["path"].as_str().is_some_and(|p| p.ends_with("a.txt")),
+        "{status}"
+    );
+    assert_eq!(files[1]["index"], "2");
+    assert_eq!(files[1]["length"], "20");
+    assert!(
+        files[1]["path"].as_str().is_some_and(|p| p.ends_with("b.txt")),
+        "{status}"
+    );
+    assert_eq!(files[0]["selected"], "true", "{status}");
+
+    // getFiles must agree with tellStatus.files.
+    let resp = rpc_call(&client, &rpc_url, "aria2.getFiles", serde_json::json!([gid])).await;
+    assert_eq!(
+        resp["result"], status["files"],
+        "getFiles and tellStatus.files must agree: {resp}"
+    );
+
+    // BitTorrent peers exist as a method; an offline fixture has none.
+    let resp = rpc_call(&client, &rpc_url, "aria2.getPeers", serde_json::json!([gid])).await;
+    assert_eq!(
+        resp["result"],
+        serde_json::json!([]),
+        "an offline torrent has no peers: {resp}"
+    );
+
+    // select-file is 1-based and flips which files are wanted.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"select-file": "2"}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "select-file must be accepted: {resp}");
+    let files = wait_for_bt_selection(&client, &rpc_url, &gid, ("false", "true")).await;
+    assert_eq!(files[0]["selected"], "false", "{files:?}");
+    assert_eq!(files[1]["selected"], "true", "{files:?}");
+
+    // Speed limits accept aria2's string form; "0" means unlimited.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"max-download-limit": "0"}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "max-download-limit: {resp}");
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"max-upload-limit": "1024"}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "max-upload-limit: {resp}");
+
+    // Malformed values and a 0 index are invalid params, not silent no-ops.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"max-download-limit": "fast"}]),
+    )
+    .await;
+    assert_eq!(resp["error"]["code"], -32602, "invalid limit: {resp}");
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeOption",
+        serde_json::json!([gid, {"select-file": "0"}]),
+    )
+    .await;
+    assert_eq!(
+        resp["error"]["code"], -32602,
+        "0 is not a valid file index: {resp}"
+    );
+
+    // Cleanup: stop the torrent before the fake DHT lookup goes anywhere.
+    let resp = rpc_call(&client, &rpc_url, "aria2.remove", serde_json::json!([gid])).await;
+    assert_eq!(resp["result"].as_str(), Some(gid.as_str()), "{resp}");
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid]),
+    )
+    .await;
+    assert!(
+        resp["error"].is_object(),
+        "a removed torrent must not resolve: {resp}"
+    );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// Terminal rows evicted from memory stay in the database. A server whose GID
+/// cache does not know them must still list them in `tellStopped`, remove them
+/// individually and sweep them with `purgeDownloadResult`.
+///
+/// Starting a second `Aria2RpcServer` over the *same* live core is the minimal
+/// restart simulation: only the cache (and the port) is new. Without it every
+/// GID would be a cache hit and the database fallbacks in `remove_download_result`
+/// / `purge_download_result` would never run.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(180_000)]
+async fn aria2_evicted_results_are_removable_without_a_cached_gid() {
+    let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
+
+    let (rpc_url, shutdown_tx, tmp, core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    // `max_in_memory_downloads` normalises to at least 10, so twelve completed
+    // tasks leave at least two rows in the database but not in memory.
+    let mut settings = core.dispatcher.get_settings().await.expect("settings");
+    settings.max_in_memory_downloads = 10;
+    core.dispatcher
+        .save_settings(&settings)
+        .await
+        .expect("save settings");
+
+    let mut gids = Vec::new();
+    for index in 0..12 {
+        let resp = rpc_call(
+            &client,
+            &rpc_url,
+            "aria2.addUri",
+            serde_json::json!([
+                [test_server.file_url_range()],
+                {
+                    "dir": dest_dir.to_string_lossy(),
+                    "out": format!("evict2-{index}.bin")
+                }
+            ]),
+        )
+        .await;
+        let gid = resp["result"]
+            .as_str()
+            .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+            .to_string();
+        wait_for_status(&client, &rpc_url, &gid, &["complete"]).await;
+        gids.push(gid);
+    }
+
+    // Eviction happens after the lifecycle event; wait for the map to settle
+    // before deciding which rows the second server can no longer resolve.
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let in_memory = loop {
+        let list = core.dispatcher.list().await.expect("list downloads");
+        if list.len() <= 10 {
+            break list;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "in-memory map never shrank to the limit: {} entries",
+            list.len()
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
+    let in_memory_gids: Vec<String> = in_memory
+        .iter()
+        .map(|summary| crate::aria2_rpc::internal_id_to_gid(&summary.id))
+        .collect();
+    let evicted: Vec<String> = gids
+        .iter()
+        .filter(|gid| !in_memory_gids.contains(gid))
+        .cloned()
+        .collect();
+    assert!(
+        evicted.len() >= 2,
+        "fixture must evict at least two rows (in memory: {}, added: {})",
+        in_memory_gids.len(),
+        gids.len()
+    );
+
+    // Fresh server over the same core: new `RpcContext`, empty GID cache.
+    let _ = shutdown_tx.send(true);
+    let (fresh_url, fresh_shutdown) = spawn_rpc_server(&core, None, vec![]).await;
+
+    // tellStopped lists the evicted rows straight from the database.
+    let resp = rpc_call(
+        &client,
+        &fresh_url,
+        "aria2.tellStopped",
+        serde_json::json!([0, 100]),
+    )
+    .await;
+    let stopped = resp["result"].as_array().expect("tellStopped array");
+    for gid in &evicted {
+        assert!(
+            stopped
+                .iter()
+                .any(|entry| entry["gid"].as_str() == Some(gid.as_str())),
+            "evicted GID {gid} must stay visible: {resp}"
+        );
+    }
+
+    // removeDownloadResult finds the evicted row through its DB fallback.
+    let resp = rpc_call(
+        &client,
+        &fresh_url,
+        "aria2.removeDownloadResult",
+        serde_json::json!([evicted[0]]),
+    )
+    .await;
+    assert_eq!(
+        resp["result"], "OK",
+        "DB-fallback removal of an evicted row: {resp}"
+    );
+
+    // purgeDownloadResult sweeps the remaining evicted database rows too.
+    let resp = rpc_call(
+        &client,
+        &fresh_url,
+        "aria2.purgeDownloadResult",
+        serde_json::json!([]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "purgeDownloadResult: {resp}");
+    let resp = rpc_call(
+        &client,
+        &fresh_url,
+        "aria2.tellStopped",
+        serde_json::json!([0, 100]),
+    )
+    .await;
+    let remaining = resp["result"].as_array().expect("tellStopped array");
+    assert!(
+        remaining.iter().all(|entry| entry["gid"]
+            .as_str()
+            .is_none_or(|gid| !evicted.iter().any(|e| e == gid))),
+        "purgeDownloadResult must clear the evicted rows: {resp}"
+    );
+
+    let _ = fresh_shutdown.send(true);
+}
+
+/// `aria2.shutdown` cannot stop a managed subsystem, but it must answer the
+/// client and warn the UI instead of looking like a no-op; the notification
+/// list is part of the client handshake and must be complete.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn aria2_shutdown_warns_the_ui_and_notifications_are_listed() {
+    let (rpc_url, shutdown_tx, _tmp, core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let mut events = core.event_bus.subscribe();
+
+    let resp = rpc_call(&client, &rpc_url, "aria2.shutdown", serde_json::json!([])).await;
+    assert!(
+        resp["result"]
+            .as_str()
+            .is_some_and(|result| result.contains("application UI")),
+        "shutdown must acknowledge the request: {resp}"
+    );
+
+    let event = tokio::time::timeout(Duration::from_secs(5), events.recv())
+        .await
+        .expect("shutdown must publish a warning")
+        .expect("event bus stays open");
+    assert!(
+        matches!(&event, DownloadEvent::Warning { id, .. } if id == "system"),
+        "shutdown must warn the UI: {event:?}"
+    );
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "system.listNotifications",
+        serde_json::json!([]),
+    )
+    .await;
+    let names: Vec<&str> = resp["result"]
+        .as_array()
+        .expect("listNotifications array")
+        .iter()
+        .filter_map(|value| value.as_str())
+        .collect();
+    assert_eq!(
+        names,
+        [
+            "aria2.onDownloadStart",
+            "aria2.onDownloadPause",
+            "aria2.onDownloadStop",
+            "aria2.onDownloadComplete",
+            "aria2.onBtDownloadComplete",
+            "aria2.onDownloadError",
+        ],
+        "the notification handshake must stay complete: {resp}"
+    );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// `changeGlobalOption` validates its inputs, and the `dir` it applies becomes
+/// the destination of an `addUri` that omits `dir` — the file must land there
+/// with exactly the bytes the server served.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_change_global_option_applies_default_dir_and_validates() {
+    let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let default_dir = tmp.path().join("global-default");
+    tokio::fs::create_dir_all(&default_dir).await.unwrap();
+    let default_dir = default_dir.to_string_lossy().to_string();
+
+    // A missing options object is invalid params.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeGlobalOption",
+        serde_json::json!([]),
+    )
+    .await;
+    assert_eq!(resp["error"]["code"], -32602, "missing options: {resp}");
+
+    // Empty and relative directories are refused.
+    for bad_dir in ["", "relative/path"] {
+        let resp = rpc_call(
+            &client,
+            &rpc_url,
+            "aria2.changeGlobalOption",
+            serde_json::json!([{"dir": bad_dir}]),
+        )
+        .await;
+        assert_eq!(
+            resp["error"]["code"], -32602,
+            "dir {bad_dir:?} must be rejected: {resp}"
+        );
+    }
+
+    // A valid directory applies and is reflected back.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeGlobalOption",
+        serde_json::json!([{"dir": default_dir}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "valid dir: {resp}");
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getGlobalOption",
+        serde_json::json!([]),
+    )
+    .await;
+    assert_eq!(
+        resp["result"]["dir"], default_dir,
+        "applied dir must be visible: {resp}"
+    );
+
+    // Unparsable values for the other recognised keys are ignored, not fatal.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeGlobalOption",
+        serde_json::json!([{
+            "max-overall-download-limit": "1024",
+            "max-concurrent-downloads": "not-a-number"
+        }]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "lenient limit parsing: {resp}");
+
+    // addUri without a `dir` option uses the global default end to end.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([[test_server.file_url()], {"out": "default.bin"}]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+        .to_string();
+    wait_for_status(&client, &rpc_url, &gid, &["complete"]).await;
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getOption",
+        serde_json::json!([gid]),
+    )
+    .await;
+    assert_eq!(
+        resp["result"]["dir"], default_dir,
+        "getOption must report the global default dir: {resp}"
+    );
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid]),
+    )
+    .await;
+    let written_path = std::path::PathBuf::from(
+        resp["result"]["dir"]
+            .as_str()
+            .unwrap_or_else(|| panic!("tellStatus has no dir: {resp}")),
+    );
+    assert!(
+        written_path.starts_with(&default_dir),
+        "the file must land under the global default: {resp}"
+    );
+
+    let bytes = tokio::fs::read(&written_path)
+        .await
+        .unwrap_or_else(|e| panic!("read {}: {e}", written_path.display()));
+    assert_eq!(
+        bytes.len() as u64,
+        test_server.file_size,
+        "on-disk size must match the served file"
+    );
+    assert_eq!(
+        blake3::hash(&bytes).to_hex().to_string(),
+        test_server.blake3_hash,
+        "on-disk bytes must match what the server served"
+    );
 
     let _ = shutdown_tx.send(true);
 }
