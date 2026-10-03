@@ -157,6 +157,22 @@ pub fn format_toast_aria2_rpc_stopped(lang: Language) -> &'static str {
     }
 }
 
+pub fn format_toast_aria2_token_copied(lang: Language) -> &'static str {
+    match lang {
+        Language::ZhCn => "令牌已复制",
+        Language::ZhTw => "權杖已複製",
+        Language::EnUs => "Token copied",
+    }
+}
+
+pub fn format_toast_aria2_token_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("生成令牌失败: {err}"),
+        Language::ZhTw => format!("產生權杖失敗: {err}"),
+        Language::EnUs => format!("Failed to generate token: {err}"),
+    }
+}
+
 pub fn format_toast_autostart_failed(err: &str, lang: Language) -> String {
     match lang {
         Language::ZhCn => format!("自启动设置失败: {err}"),

@@ -802,7 +802,7 @@ fn make_ctx_with(registry: Arc<BackendRegistry>, event_bus: Arc<EventBus>) -> Rp
     RpcContext {
         registry,
         dispatcher,
-        secret: None,
+        auth: AuthConfig::Disabled,
         event_bus,
         gid_cache: Mutex::new(HashMap::default()),
         session_id: "test-session".to_string(),
@@ -864,7 +864,7 @@ async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
     let ctx = RpcContext {
         registry,
         dispatcher,
-        secret: None,
+        auth: AuthConfig::Disabled,
         event_bus,
         gid_cache: Mutex::new(HashMap::default()),
         session_id: "test-session".to_string(),

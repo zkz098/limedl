@@ -323,6 +323,37 @@ fn default_max_in_memory_downloads() -> usize {
 fn default_aria2_port() -> u16 {
     6800
 }
+
+/// How the Aria2 RPC endpoint authenticates its clients.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Aria2AuthMode {
+    /// One shared secret for every client (the historical behaviour).
+    #[default]
+    Single,
+    /// One independent token per client, each stored as an Argon2id hash.
+    /// A client is authenticated by matching its token against every stored
+    /// hash; the plaintext token is never persisted.
+    PerClient,
+}
+
+/// One client allowed to call the Aria2 RPC endpoint in `PerClient` mode.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Aria2Client {
+    /// Stable identity so the UI can keep a row's hash across name edits.
+    #[serde(default)]
+    pub id: String,
+    /// Human label shown in the UI; not used for authentication.
+    #[serde(default)]
+    pub name: String,
+    /// Argon2id PHC string of the client's token. Never the plaintext token.
+    pub token_hash: String,
+    /// Unix milliseconds when the token was generated (display only).
+    #[serde(default)]
+    pub created_at_ms: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Aria2RpcSettings {
@@ -332,6 +363,13 @@ pub struct Aria2RpcSettings {
     pub port: u16,
     #[serde(default)]
     pub secret: Option<String>,
+    /// Which authentication scheme is active. Defaults to the shared-secret
+    /// mode so existing settings keep working after an upgrade.
+    #[serde(default)]
+    pub auth_mode: Aria2AuthMode,
+    /// Per-client tokens, only consulted when `auth_mode == PerClient`.
+    #[serde(default)]
+    pub clients: Vec<Aria2Client>,
     /// Allowed CORS origins for the Aria2 RPC HTTP endpoint.
     /// If empty, defaults to ["http://localhost", "http://127.0.0.1"].
     /// If empty AND allow_any_origin is true, allows all origins (insecure).
@@ -345,6 +383,8 @@ impl Default for Aria2RpcSettings {
             enabled: true,
             port: 6800,
             secret: None,
+            auth_mode: Aria2AuthMode::Single,
+            clients: Vec::new(),
             cors_allowed_origins: Vec::new(),
         }
     }

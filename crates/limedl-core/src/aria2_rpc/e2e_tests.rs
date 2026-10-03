@@ -16,7 +16,7 @@ use tempfile::TempDir;
 
 use crate::aria2_rpc::Aria2RpcServer;
 use crate::event_bus::{DownloadEvent, EventBus};
-use crate::types::Aria2RpcSettings;
+use crate::types::{Aria2AuthMode, Aria2Client, Aria2RpcSettings};
 
 /// Bootstrap subsystems, start an Aria2RpcServer on a random port, and return
 /// the HTTP base URL, shutdown channel and live core systems.
@@ -51,17 +51,32 @@ async fn spawn_rpc_server(
     secret: Option<&str>,
     cors_allowed_origins: Vec<String>,
 ) -> (String, tokio::sync::watch::Sender<bool>) {
+    let settings = Aria2RpcSettings {
+        enabled: true,
+        port: 0,
+        secret: secret.map(str::to_string),
+        cors_allowed_origins,
+        ..Aria2RpcSettings::default()
+    };
+    spawn_rpc_server_with_settings(core, settings).await
+}
+
+/// Spawn an [`Aria2RpcServer`] from a full settings value on a random port and
+/// poll until it accepts connections.
+///
+/// Split out of [`spawn_rpc_server`] so a test can exercise non-secret auth
+/// modes (`auth_mode` / `clients`) without threading more parameters through
+/// every call site.
+async fn spawn_rpc_server_with_settings(
+    core: &crate::bootstrap::CoreSystems,
+    settings: Aria2RpcSettings,
+) -> (String, tokio::sync::watch::Sender<bool>) {
     // Reserve a random port
     let probe = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = probe.local_addr().unwrap().port();
     drop(probe);
 
-    let settings = Aria2RpcSettings {
-        enabled: true,
-        port,
-        secret: secret.map(str::to_string),
-        cors_allowed_origins,
-    };
+    let settings = Aria2RpcSettings { port, ..settings };
     let rpc = Aria2RpcServer::new(core.registry.clone(), &settings, core.event_bus.clone());
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
@@ -102,6 +117,32 @@ async fn start_rpc_server_with_secret(secret: Option<&str>) -> (
     crate::bootstrap::CoreSystems,
 ) {
     start_rpc_server_with(secret, vec![]).await
+}
+
+/// Start an RPC server in per-client token mode with the given clients.
+async fn start_rpc_server_with_clients(
+    clients: Vec<Aria2Client>,
+) -> (
+    String,
+    tokio::sync::watch::Sender<bool>,
+    TempDir,
+    crate::bootstrap::CoreSystems,
+) {
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+    let dest_dir = tmp.path().join("output");
+    tokio::fs::create_dir_all(&dest_dir).await.unwrap();
+
+    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+    let settings = Aria2RpcSettings {
+        enabled: true,
+        port: 0,
+        auth_mode: Aria2AuthMode::PerClient,
+        clients,
+        ..Aria2RpcSettings::default()
+    };
+    let (base_url, shutdown_tx) = spawn_rpc_server_with_settings(&core, settings).await;
+    (base_url, shutdown_tx, tmp, core)
 }
 
 /// Poll `aria2.tellStatus` until the aria2 status string is one of `expected`.
@@ -1009,6 +1050,117 @@ async fn aria2_secret_token_gates_every_method() {
     let _ = shutdown_tx.send(true);
 }
 
+/// Per-client mode: every client authenticates with its own token, the shared
+/// `secret` is ignored, and a valid token still reaches the handler with its
+/// arguments intact (the `token:` element is stripped before dispatch).
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn aria2_per_client_tokens_authenticate_independently() {
+    let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
+    let file_url = test_server.file_url_bandwidth(32 * 1024);
+
+    let token_a = "client-a-token";
+    let token_b = "client-b-token";
+    let clients = vec![
+        Aria2Client {
+            id: "a".to_string(),
+            name: "AriaNg".to_string(),
+            token_hash: crate::aria2_rpc::hash_token(token_a).expect("hash a"),
+            created_at_ms: 1,
+        },
+        Aria2Client {
+            id: "b".to_string(),
+            name: "Motrix".to_string(),
+            token_hash: crate::aria2_rpc::hash_token(token_b).expect("hash b"),
+            created_at_ms: 2,
+        },
+    ];
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server_with_clients(clients).await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    // A missing or unknown token is rejected, and a bare value without the
+    // aria2 `token:` prefix is rejected too.
+    for params in [
+        serde_json::json!([]),
+        serde_json::json!(["token:nope"]),
+        serde_json::json!(["nope"]),
+    ] {
+        let resp = rpc_call(&client, &rpc_url, "aria2.getVersion", params).await;
+        assert_eq!(resp["error"]["code"], 1, "must be rejected: {resp}");
+    }
+
+    // A real download with the token proves the parameter was stripped.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        serde_json::json!([
+            format!("token:{token_a}"),
+            [file_url],
+            {"dir": dest_dir.to_string_lossy(), "out": "per-client.bin"}
+        ]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("per-client addUri failed: {resp}"))
+        .to_string();
+
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([format!("token:{token_b}"), gid]),
+    )
+    .await;
+    assert_eq!(
+        resp["result"]["gid"].as_str(),
+        Some(gid.as_str()),
+        "the other client's token must work too: {resp}"
+    );
+
+    // Multicall carries authentication once at the outer level.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "system.multicall",
+        serde_json::json!([
+            format!("token:{token_a}"),
+            [{"methodName": "aria2.getVersion", "params": [format!("token:{token_a}")]}],
+        ]),
+    )
+    .await;
+    assert_eq!(
+        resp["result"][0][0]["version"], "0.1.0",
+        "multicall with a per-client token must succeed: {resp}"
+    );
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// Per-client mode with no configured clients must reject everyone rather than
+/// silently degrading to anonymous access.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn aria2_per_client_mode_without_clients_fails_closed() {
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server_with_clients(Vec::new()).await;
+    let client = reqwest::Client::new();
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getVersion",
+        serde_json::json!(["token:anything"]),
+    )
+    .await;
+    assert_eq!(
+        resp["error"]["code"], 1,
+        "an empty client list must reject every token: {resp}"
+    );
+    let _ = shutdown_tx.send(true);
+}
+
 /// Malformed JSON and a wrong `jsonrpc` version must come back as JSON-RPC
 /// errors (`-32700` / `-32600`) over HTTP, not as a dropped connection or a
 /// 500.
@@ -1129,6 +1281,7 @@ async fn aria2_server_reports_a_port_conflict() {
         port,
         secret: None,
         cors_allowed_origins: vec![],
+        ..Aria2RpcSettings::default()
     };
     let server = Aria2RpcServer::new(
         std::sync::Arc::new(crate::backend_registry::BackendRegistry::new()),

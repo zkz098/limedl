@@ -3,7 +3,7 @@
 //! wizard and the factory-reset gate that guards the About tab's one destructive
 //! action.
 
-use limedl_core::types::{DiskType, MatchType, ReplacementMode};
+use limedl_core::types::{Aria2AuthMode, DiskType, MatchType, ReplacementMode};
 
 use crate::{ColorModePref, Theme, ThemeAccent};
 
@@ -128,6 +128,80 @@ pub(super) async fn saving_media_overrides_persists_the_rows() {
     assert_eq!(rows.row_count(), 2);
     assert_eq!(rows.row_data(0).expect("row 0").path.as_str(), nas.as_str());
     assert_eq!(rows.row_data(1).expect("row 1").media_idx, 0);
+}
+
+/// Saving per-client Aria2 tokens: the editor's model holds the plaintext until
+/// Save, but only the Argon2 hash may reach `AppSettings` — the plaintext must
+/// be dropped, not persisted.
+pub(super) async fn saving_aria2_clients_persists_hashes_not_plaintext() {
+    let ui = new_window();
+    ui.click("MainWindow::ta_set");
+
+    // Switch the dialog to per-client mode.
+    let mut form = ui.window.get_settings_form();
+    form.aria2_auth_mode_idx = 1;
+    ui.window.set_settings_form(form);
+
+    ui.window.invoke_aria2_client_add();
+    ui.window
+        .invoke_aria2_client_name_edited(0, "Phone".into());
+    let token = ui
+        .window
+        .get_aria2_clients()
+        .row_data(0)
+        .expect("row 0")
+        .token
+        .to_string();
+
+    ui.click("SettingsDialog::save_btn");
+    ui.pump_until("the save to reach the engine", || {
+        ui.core.settings_pushes() == 1
+    })
+    .await;
+
+    {
+        let settings = ui.ctx.current_settings.lock();
+        assert_eq!(settings.aria2_rpc.auth_mode, Aria2AuthMode::PerClient);
+        assert_eq!(settings.aria2_rpc.clients.len(), 1);
+        let client = &settings.aria2_rpc.clients[0];
+        assert_eq!(client.name, "Phone");
+        assert!(client.token_hash.starts_with("$argon2id$"));
+        assert!(
+            !client.token_hash.contains(&token),
+            "the plaintext token must never be persisted"
+        );
+    }
+}
+
+/// A duplicate client name is rejected before the engine is asked, and the
+/// dialog stays open so the user can fix the row.
+pub(super) async fn duplicate_aria2_client_names_are_rejected() {
+    let ui = new_window();
+    ui.click("MainWindow::ta_set");
+    ui.window.invoke_aria2_client_add();
+    ui.window.invoke_aria2_client_add();
+    // Duplicate the first row's name (the default label is localized, so read it
+    // back instead of hard-coding an English one).
+    let first_name = ui
+        .window
+        .get_aria2_clients()
+        .row_data(0)
+        .expect("row 0")
+        .name
+        .to_string();
+    ui.window
+        .invoke_aria2_client_name_edited(1, first_name.into());
+
+    ui.window
+        .invoke_save_settings(ui.window.get_settings_form());
+    ui.pump_until("the client validation to surface a toast", || {
+        !ui.toasts().is_empty()
+    })
+    .await;
+
+    assert_eq!(ui.toasts()[0].0, "error");
+    assert_eq!(ui.core.settings_pushes(), 0, "nothing may be persisted");
+    assert!(ui.window.get_show_settings());
 }
 
 /// Saving the settings dialog: the edited form has to reach `AppSettings`, the

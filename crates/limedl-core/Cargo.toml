@@ -38,6 +38,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 fs4 = { workspace = true }
 rand = { workspace = true, optional = true }
+argon2 = { workspace = true, optional = true }
+subtle = { workspace = true, optional = true }
 irontide = { workspace = true, optional = true }
 libc = { workspace = true }
 open = { workspace = true }
@@ -45,8 +47,15 @@ open = { workspace = true }
 [features]
 bt = ["dep:irontide"]
 default = ["bt"]
-aria2-rpc = ["dep:axum", "dep:tower-http", "bt"]
-test-utils = ["rand", "dep:axum", "dep:tower-http"]
+aria2-rpc = [
+    "dep:axum",
+    "dep:tower-http",
+    "dep:rand",
+    "dep:argon2",
+    "dep:subtle",
+    "bt",
+]
+test-utils = ["dep:rand", "dep:axum", "dep:tower-http"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

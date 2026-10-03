@@ -7,6 +7,7 @@
 
 use crate::SpeedLimitSlotItem;
 use crate::DiskTypeOverrideItem;
+use crate::Aria2ClientItem;
 use slint::Model;
 
 use super::{TestUi, absolute_dir, with_ui};
@@ -23,6 +24,67 @@ fn override_rows(ui: &TestUi) -> Vec<DiskTypeOverrideItem> {
     (0..model.row_count())
         .filter_map(|i| model.row_data(i))
         .collect()
+}
+
+fn client_rows(ui: &TestUi) -> Vec<Aria2ClientItem> {
+    let model = ui.window.get_aria2_clients();
+    (0..model.row_count())
+        .filter_map(|i| model.row_data(i))
+        .collect()
+}
+
+/// The per-client token editor mints a token in the add/regenerate handler (the
+/// only place Argon2 runs) and reveals the plaintext until Save. This pins that
+/// the plaintext and its hash always move together, and that removal only drops
+/// the row it was asked for.
+#[test]
+fn the_aria2_client_editor_generates_reveals_and_removes_rows() {
+    with_ui(|ui| {
+        ui.window.invoke_open_settings();
+        assert!(client_rows(ui).is_empty());
+
+        ui.window.invoke_aria2_client_add();
+        let rows = client_rows(ui);
+        assert_eq!(rows.len(), 1);
+        assert!(
+            !rows[0].name.is_empty(),
+            "a new row gets a localized default name"
+        );
+        assert_eq!(rows[0].token.len(), 43, "the plaintext is revealed once");
+        assert!(rows[0].token_hash.starts_with("$argon2id$"));
+        assert!(!rows[0].created_text.is_empty());
+        let first_token = rows[0].token.clone();
+        let first_hash = rows[0].token_hash.clone();
+
+        // Regenerate replaces both the plaintext and its hash.
+        ui.window.invoke_aria2_client_regenerate(0);
+        let rows = client_rows(ui);
+        assert_ne!(rows[0].token, first_token);
+        assert_ne!(rows[0].token_hash, first_hash);
+
+        // A second row, then removing the first must keep the second's data.
+        ui.window.invoke_aria2_client_add();
+        ui.window
+            .invoke_aria2_client_name_edited(1, "Phone".into());
+        assert_eq!(client_rows(ui).len(), 2);
+        assert_eq!(client_rows(ui)[1].name.as_str(), "Phone");
+
+        ui.window.invoke_aria2_client_remove(0);
+        let rows = client_rows(ui);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name.as_str(), "Phone");
+        assert!(
+            !rows[0].token.is_empty(),
+            "the surviving row keeps its revealed token"
+        );
+
+        // Out-of-range indices are no-ops, not panics.
+        ui.window.invoke_aria2_client_remove(9);
+        ui.window.invoke_aria2_client_regenerate(9);
+        ui.window
+            .invoke_aria2_client_name_edited(9, "nope".into());
+        assert_eq!(client_rows(ui).len(), 1);
+    });
 }
 
 #[test]

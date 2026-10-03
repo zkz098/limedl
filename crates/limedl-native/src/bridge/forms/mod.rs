@@ -7,8 +7,10 @@
 //!   applier per settings section)
 //! - `speed_limit.rs` — speed-limit schedule row parsing/serialization
 //! - `disk_override.rs` — per-directory media override row parsing/serialization
+//! - `aria2_clients.rs` — per-client Aria2 token row parsing/serialization
 
 pub mod combo;
+mod aria2_clients;
 mod disk_override;
 mod enums;
 mod from_form;
@@ -16,6 +18,7 @@ mod speed_limit;
 mod to_form;
 
 pub(crate) use enums::*;
+pub use aria2_clients::*;
 pub use disk_override::*;
 pub use from_form::*;
 pub use speed_limit::*;

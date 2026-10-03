@@ -52,3 +52,4 @@
 - disk_type_overrides 允许用户强制指定某个目录的磁盘类型，覆盖自动检测结果。键是目录，查找是规范化路径的**前缀**匹配（最长键优先），所以 `D:\dl` 也会命中 `D:\dl\sub\a.bin`；匹配规则与分类器在 `file_ops/media.rs`（`normalize_media_path` / `MediaOverrides` / `is_network_filesystem`）。
 - 编辑器在 **设置 → IO 实验室 → 目录介质覆盖**（`tab_io.slint`，行状态与限速计划同构：保存在 UI model，Save 时由 `parse_disk_type_overrides` 解析），校验拒绝空、非绝对与重复路径；保存后 `DownloadManager::apply_settings` 把覆盖推给 `DiskDeviceManager`，所以设备队列的写线程数也会跟着变。
 - 序列化约定：所有 struct 用 `#[serde(rename_all = "camelCase")]`，枚举用 `#[serde(rename_all = "snake_case")]`。
+- **Aria2 RPC 鉴权设置**：`aria2Rpc.authMode`（`single` / `per_client`，默认 `single` 保证升级向后兼容）与 `aria2Rpc.clients`（`Vec<Aria2Client>`：`id` / `name` / `tokenHash` / `createdAtMs`）。`tokenHash` 是 Argon2id PHC 串，**绝不存明文令牌**。`normalize_aria2_rpc_settings` 会裁掉 `tokenHash` 为空的条目（永远无法验证通过，只会成为无效 UI 行）并 trim 名称/哈希。旧的仅含 `secret` 的 settings.json 反序列化后仍是 `single` 模式。详见 `subsystem-aria2-rpc.md`。

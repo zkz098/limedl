@@ -1,12 +1,26 @@
 //! Enum <-> persisted-string conversions for the settings form.
 
 use limedl_core::types::{
-    AdaptiveProfile, BackgroundOpacityPreset, BtAntiLeechAction, BtChokingAlgorithm,
+    AdaptiveProfile, Aria2AuthMode, BackgroundOpacityPreset, BtAntiLeechAction, BtChokingAlgorithm,
     BtEncryptionMode, BtPreallocateMode, BtSeedChokingAlgorithm, ChecksumMode, ChunkSizeStrategy,
-    CloseBehavior, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted, LogLevel,
-    ProxyMode, SchedulerMode, ThemeColor,
+    CloseBehavior, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted, LogLevel, ProxyMode,
+    SchedulerMode, ThemeColor,
 };
 use slint::SharedString;
+
+pub(crate) fn aria2_auth_mode_to_str(m: Aria2AuthMode) -> SharedString {
+    SharedString::from(match m {
+        Aria2AuthMode::Single => "single",
+        Aria2AuthMode::PerClient => "per_client",
+    })
+}
+pub(crate) fn str_to_aria2_auth_mode(s: &str) -> Option<Aria2AuthMode> {
+    match s.trim() {
+        "single" => Some(Aria2AuthMode::Single),
+        "per_client" => Some(Aria2AuthMode::PerClient),
+        _ => None,
+    }
+}
 
 pub(crate) fn proxy_mode_to_str(m: ProxyMode) -> SharedString {
     SharedString::from(match m {

@@ -15,8 +15,8 @@ use limedl_core::types::AppSettings;
 
 use crate::bridge::TaskStore;
 use crate::bridge::{
-    app_settings_to_setup_form, parse_disk_type_overrides, parse_speed_limit_slots,
-    update_app_settings_from_form,
+    app_settings_to_setup_form, parse_aria2_clients, parse_disk_type_overrides,
+    parse_speed_limit_slots, update_app_settings_from_form,
 };
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
@@ -24,7 +24,7 @@ use crate::i18n::{self, Language};
 use crate::settings_sync::{PushOptions, SettingsSync};
 use crate::task_ops::open_url_in_browser;
 use crate::toast::{ToastQueue, push_toast};
-use crate::ui_sync::{read_disk_override_rows, read_schedule_rows, refresh_settings_state};
+use crate::ui_sync::{read_aria2_client_rows, read_disk_override_rows, read_schedule_rows, refresh_settings_state};
 use crate::{MainWindow, POWER_GUARD, SettingsFormData};
 
 /// Validation + persistence of the settings form. Everything that has to happen
@@ -80,6 +80,20 @@ impl SaveCtx {
                 .toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 6);
             return None;
         }
+
+        // Aria2 per-client token rows also live in the UI model until Save.
+        // Names must be usable and every row must carry a hash; the plaintext is
+        // never persisted (the add/regenerate handler hashed it already).
+        let client_rows = read_ui(&self.ui_weak, read_aria2_client_rows).unwrap_or_default();
+        let parsed_clients = match parse_aria2_clients(&client_rows, lang) {
+            Ok(clients) => clients,
+            Err(msg) => {
+                self.sync
+                    .toast(i18n::format_toast_settings_invalid(&msg, lang), "error", 8);
+                return None;
+            }
+        };
+        settings.aria2_rpc.clients = parsed_clients;
 
         settings.speed_limit_schedule = parsed_schedule;
         // The engine's map is declared with foldhash's hasher, so convert here

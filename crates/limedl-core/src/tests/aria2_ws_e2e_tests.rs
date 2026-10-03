@@ -30,6 +30,7 @@ async fn start_ws_server() -> (String, tokio::sync::watch::Sender<bool>, TempDir
         port,
         secret: None,
         cors_allowed_origins: vec![],
+        ..Aria2RpcSettings::default()
     };
     let rpc = Aria2RpcServer::new(core.registry.clone(), &settings, core.event_bus.clone());
 

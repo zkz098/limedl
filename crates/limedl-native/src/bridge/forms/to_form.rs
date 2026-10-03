@@ -6,7 +6,7 @@ use crate::bridge::models::column_is_visible;
 use crate::i18n::{self, Language};
 
 use super::combo;
-use super::enums::{adaptive_profile_to_str, anti_leech_action_to_str, background_opacity_to_str, checksum_to_str, choking_to_str, chunk_strategy_to_str, close_behavior_to_str, color_mode_to_str, double_click_completed_to_str, double_click_uncompleted_to_str, encryption_to_str, log_level_to_str, preallocate_to_str, proxy_mode_to_str, scheduler_mode_to_str, seed_choking_to_str, theme_color_to_str};
+use super::enums::{adaptive_profile_to_str, anti_leech_action_to_str, aria2_auth_mode_to_str, background_opacity_to_str, checksum_to_str, choking_to_str, chunk_strategy_to_str, close_behavior_to_str, color_mode_to_str, double_click_completed_to_str, double_click_uncompleted_to_str, encryption_to_str, log_level_to_str, preallocate_to_str, proxy_mode_to_str, scheduler_mode_to_str, seed_choking_to_str, theme_color_to_str};
 
 /// Convert `AppSettings` and runtime modes to `SettingsFormData`.
 pub fn app_settings_to_form(
@@ -276,6 +276,10 @@ pub fn app_settings_to_form(
         aria2_enabled: settings.aria2_rpc.enabled,
         aria2_port: SharedString::from(settings.aria2_rpc.port.to_string()),
         aria2_secret: SharedString::from(settings.aria2_rpc.secret.clone().unwrap_or_default()),
+        aria2_auth_mode_idx: combo::idx_of(
+            combo::ARIA2_AUTH_MODES,
+            &aria2_auth_mode_to_str(settings.aria2_rpc.auth_mode),
+        ),
         // 运行态
         game_mode,
         overclock_mode,

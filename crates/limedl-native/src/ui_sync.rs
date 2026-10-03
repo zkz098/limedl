@@ -12,11 +12,12 @@ use limedl_core::types::{
 };
 
 use crate::bridge::{
-    DiskTypeOverrideText, SpeedLimitSlotText, TaskStore, app_settings_to_form,
-    app_settings_to_labs_form, cdn_candidates_to_slint, column_is_visible,
-    disk_override_rows_from_settings, disk_override_rows_to_slint, evaluate_url_rewrite,
-    field_to_sort_key, format_disk_types_map, format_io_status_json, format_speed, index_is_hdd,
-    speed_limit_slots_from_settings, speed_limit_slots_to_slint, url_rewrite_rules_to_slint,
+    Aria2ClientText, DiskTypeOverrideText, SpeedLimitSlotText, TaskStore, app_settings_to_form,
+    app_settings_to_labs_form, aria2_clients_from_settings, aria2_clients_to_slint,
+    cdn_candidates_to_slint, column_is_visible, disk_override_rows_from_settings,
+    disk_override_rows_to_slint, evaluate_url_rewrite, field_to_sort_key, format_disk_types_map,
+    format_io_status_json, format_speed, index_is_hdd, speed_limit_slots_from_settings,
+    speed_limit_slots_to_slint, url_rewrite_rules_to_slint,
 };
 use crate::i18n::{self, Language};
 use crate::toast::{ToastQueue, push_toast};
@@ -103,6 +104,26 @@ pub fn push_disk_override_rows(ui: &MainWindow, rows: &[DiskTypeOverrideText], l
     ))));
 }
 
+/// Read the Aria2 client rows out of the UI model (the model is authoritative
+/// until Save, like the schedule and media-override editors).
+pub fn read_aria2_client_rows(ui: &MainWindow) -> Vec<Aria2ClientText> {
+    ui.get_aria2_clients()
+        .iter()
+        .map(|item| Aria2ClientText {
+            id: item.id.to_string(),
+            name: item.name.to_string(),
+            token: item.token.to_string(),
+            token_hash: item.token_hash.to_string(),
+            created_at_ms: item.created_at_ms.parse::<i64>().unwrap_or(0),
+        })
+        .collect()
+}
+
+/// Push Aria2 client rows into the UI model.
+pub fn push_aria2_client_rows(ui: &MainWindow, rows: &[Aria2ClientText]) {
+    ui.set_aria2_clients(ModelRc::new(VecModel::from(aria2_clients_to_slint(rows))));
+}
+
 /// Decide whether the main window must stay hidden for this launch.
 pub fn should_start_hidden(requested_hidden: bool, login_launch: bool, setup_completed: bool) -> bool {
     (requested_hidden || login_launch) && setup_completed
@@ -156,6 +177,7 @@ pub fn refresh_settings_state(
         lang,
     ))));
     push_disk_override_rows(ui, &disk_override_rows_from_settings(settings), lang);
+    push_aria2_client_rows(ui, &aria2_clients_from_settings(settings));
 
     let form_data = app_settings_to_form(
         settings,

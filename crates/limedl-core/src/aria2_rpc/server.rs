@@ -1,6 +1,6 @@
 //! Aria2RpcServer: router assembly, bind address and lifecycle.
 
-use super::{Arc, Aria2RpcSettings, BackendRegistry, CorsLayer, Dispatcher, Duration, EventBus, HashMap, HeaderValue, Method, Mutex, Router, RpcContext, handle_jsonrpc_http, handle_websocket_upgrade, header, post};
+use super::{Arc, Aria2RpcSettings, AuthConfig, BackendRegistry, CorsLayer, Dispatcher, Duration, EventBus, HashMap, HeaderValue, Method, Mutex, Router, RpcContext, handle_jsonrpc_http, handle_websocket_upgrade, header, post};
 
 pub struct Aria2RpcServer {
     ctx: Arc<RpcContext>,
@@ -13,12 +13,12 @@ impl Aria2RpcServer {
         settings: &Aria2RpcSettings,
         event_bus: Arc<EventBus>,
     ) -> Self {
-        let secret = settings.secret.clone().filter(|s| !s.is_empty());
+        let auth = AuthConfig::from_settings(settings);
 
         let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
         let ctx = Arc::new(RpcContext {
             registry,
-            secret,
+            auth,
             event_bus,
             dispatcher,
             gid_cache: Mutex::new(HashMap::default()),

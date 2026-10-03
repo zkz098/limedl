@@ -42,6 +42,7 @@ import {
     SetupFormData,
     DiskTypeOverrideItem,
     SpeedLimitSlotItem,
+    Aria2ClientItem,
     ToastItem,
     UpdateState,
 } from "types.slint";
@@ -202,6 +203,9 @@ export component MainWindow inherits Window {
 
     // Per-directory media override rows (same contract as the schedule rows).
     in-out property <[DiskTypeOverrideItem]> disk_type_overrides: [];
+
+    // Per-client Aria2 RPC token rows (same contract as the schedule rows).
+    in-out property <[Aria2ClientItem]> aria2_clients: [];
 
     // Priority popup menu (opened from the table badge or task context menu)
     in-out property <bool> priority_menu_visible: false;
@@ -389,6 +393,12 @@ export component MainWindow inherits Window {
     callback disk_override_remove(int);
     callback disk_override_path_edited(int, string); // index, typed path
     callback disk_override_media_selected(int, int); // index, media combo index
+    // Per-client Aria2 token editing
+    callback aria2_client_add();
+    callback aria2_client_remove(int);
+    callback aria2_client_name_edited(int, string); // index, typed name
+    callback aria2_client_regenerate(int);
+    callback aria2_client_copy_token(int);
 
     // Setup wizard callbacks
     callback close_setup_wizard(int);
@@ -1309,6 +1319,7 @@ export component MainWindow inherits Window {
         settings_form <=> root.settings_form;
         speed_limit_slots <=> root.speed_limit_slots;
         disk_type_overrides <=> root.disk_type_overrides;
+        aria2_clients <=> root.aria2_clients;
         update_state <=> root.update_state;
         reset_confirm <=> root.reset_confirm;
         close => { root.close_settings(); }
@@ -1334,6 +1345,11 @@ export component MainWindow inherits Window {
         disk_override_remove(idx) => { root.disk_override_remove(idx); }
         disk_override_path_edited(idx, path) => { root.disk_override_path_edited(idx, path); }
         disk_override_media_selected(idx, media) => { root.disk_override_media_selected(idx, media); }
+        aria2_client_add => { root.aria2_client_add(); }
+        aria2_client_remove(idx) => { root.aria2_client_remove(idx); }
+        aria2_client_name_edited(idx, name) => { root.aria2_client_name_edited(idx, name); }
+        aria2_client_regenerate(idx) => { root.aria2_client_regenerate(idx); }
+        aria2_client_copy_token(idx) => { root.aria2_client_copy_token(idx); }
     }
 
     // Dialog: Labs (CDN Acceleration & URL Rewrite)

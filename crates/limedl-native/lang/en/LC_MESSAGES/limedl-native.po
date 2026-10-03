@@ -1843,3 +1843,48 @@ msgstr "SSD"
 
 msgid "HDD"
 msgstr "HDD"
+
+msgid "Authentication Mode:"
+msgstr "Authentication Mode:"
+
+msgid "Single Secret"
+msgstr "Single Secret"
+
+msgid "Per-client Tokens"
+msgstr "Per-client Tokens"
+
+msgid "Single secret: every client shares one token. Per-client: each client gets its own token, stored only as an Argon2 hash and revocable individually."
+msgstr "Single secret: every client shares one token. Per-client: each client gets its own token, stored only as an Argon2 hash and revocable individually."
+
+msgid "Client Tokens"
+msgstr "Client Tokens"
+
+msgid "Each client authenticates with its own token. Only an Argon2 hash is stored, so a token is shown once here — copy it before saving."
+msgstr "Each client authenticates with its own token. Only an Argon2 hash is stored, so a token is shown once here — copy it before saving."
+
+msgid "Add Client"
+msgstr "Add Client"
+
+msgid "No clients yet. Add one, then paste its token into AriaNg / Motrix as the RPC secret."
+msgstr "No clients yet. Add one, then paste its token into AriaNg / Motrix as the RPC secret."
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Client name"
+msgstr "Client name"
+
+msgid "Created"
+msgstr "Created"
+
+msgid "Regenerate"
+msgstr "Regenerate"
+
+msgid "Copy"
+msgstr "Copy"
+
+msgid "Shown only once. Paste it into the client now; if you lose it, regenerate."
+msgstr "Shown only once. Paste it into the client now; if you lose it, regenerate."
+
+msgid "Token configured (hidden). Regenerate to reveal a new one."
+msgstr "Token configured (hidden). Regenerate to reveal a new one."

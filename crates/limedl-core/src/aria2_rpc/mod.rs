@@ -28,8 +28,8 @@ use crate::{
     http::has_header,
     manager::DownloadManager,
     types::{
-        Aria2RpcSettings, BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState, DownloadSummary,
-        StartDownloadRequest, TaskId, TaskKind,
+        Aria2AuthMode, Aria2RpcSettings, BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState,
+        DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
     },
 };
 
@@ -41,6 +41,7 @@ mod protocol;
 mod query;
 mod server;
 mod system;
+mod token;
 mod transport;
 
 pub(crate) use context::*;
@@ -50,11 +51,16 @@ pub(crate) use options::*;
 pub(crate) use protocol::*;
 pub(crate) use query::*;
 pub(crate) use system::*;
+pub(crate) use token::*;
 pub(crate) use transport::*;
 
 pub use protocol::internal_id_to_gid;
 pub use server::Aria2RpcServer;
 pub use system::cleanup_old_aria2_temp_files;
+// Token generation/hashing is public for the desktop settings UI, which mints a
+// plaintext token once, persists only `token::hash_token`, and shows the
+// plaintext to the user exactly once.
+pub use token::{generate_token, hash_token};
 
 #[cfg(test)]
 mod tests;

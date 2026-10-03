@@ -19,6 +19,8 @@ pub const ANTI_LEECH_ACTIONS: [&str; 2] = ["ban", "limit_slots"];
 pub const SEED_CHOKING: [&str; 3] = ["fastest_upload", "round_robin", "anti_leech"];
 pub const CHOKING_ALGOS: [&str; 2] = ["fixed_slots", "rate_based"];
 pub const LOG_LEVELS: [&str; 5] = ["trace", "debug", "info", "warn", "error"];
+/// Aria2 RPC authentication schemes; index order matches the settings combo.
+pub const ARIA2_AUTH_MODES: [&str; 2] = ["single", "per_client"];
 
 /// Index of `value` in `list`; `0` when missing (Slint ComboBox default).
 pub fn idx_of(list: impl AsRef<[&'static str]>, value: &str) -> i32 {

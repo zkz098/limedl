@@ -4,13 +4,13 @@
 
 提供 aria2 JSON-RPC 2.0 兼容的 HTTP + WebSocket 服务器（默认端口 6800），使本下载器能被 AriaNg、Motrix 等 aria2 客户端连接和控制。内部下载任务被映射为 aria2 GID。
 
-核心类型：Aria2RpcServer（Axum WebSocket + HTTP JSON-RPC 服务器）、RpcContext（内部上下文，含 registry、dispatcher、secret、event_bus、gid_cache、session_id）。
+核心类型：Aria2RpcServer（Axum WebSocket + HTTP JSON-RPC 服务器）、RpcContext（内部上下文，含 registry、dispatcher、auth、event_bus、gid_cache、session_id）、AuthConfig（Disabled / Shared / PerClient 三态鉴权）。
 
 位于 `aria2-rpc` feature 下，可选编译。
 
 ## 涉及文件
 
-- `crates/limedl-core/src/aria2_rpc/` — Aria2RpcServer 完整实现，按职责拆分：`mod.rs`（装配 + `pub use` 导出）、`protocol.rs`（JSON-RPC 线格式与 aria2 状态映射）、`context.rs`（RpcContext / token / gid 缓存 / 事件广播）、`dispatch.rs`（方法路由 + 集中的 token 校验）、`download.rs`（addUri/addTorrent/pause/unpause/remove/purge）、`query.rs`（tellStatus/tellActive/getFiles/getPeers/session）、`options.rs`（getOption/changeGlobalOption + aria2 option 解析）、`system.rs`（shutdown/multicall/listMethods/临时文件清理）、`transport.rs`（HTTP + WebSocket）、`server.rs`（Router 与生命周期）；单测 `tests.rs`，E2E `e2e_tests.rs`（handler 矩阵、system.multicall、secret 鉴权）
+- `crates/limedl-core/src/aria2_rpc/` — Aria2RpcServer 完整实现，按职责拆分：`mod.rs`（装配 + `pub use` 导出）、`protocol.rs`（JSON-RPC 线格式与 aria2 状态映射）、`context.rs`（RpcContext / AuthConfig / 集中的 token 校验 / gid 缓存 / 事件广播）、`token.rs`（令牌生成、Argon2id 哈希、恒定时间校验、验证缓存）、`dispatch.rs`（方法路由 + 集中的 token 校验）、`download.rs`（addUri/addTorrent/pause/unpause/remove/purge）、`query.rs`（tellStatus/tellActive/getFiles/getPeers/session）、`options.rs`（getOption/changeGlobalOption + aria2 option 解析）、`system.rs`（shutdown/multicall/listMethods/临时文件清理）、`transport.rs`（HTTP + WebSocket）、`server.rs`（Router 与生命周期）；单测 `tests.rs`，E2E `e2e_tests.rs`（handler 矩阵、system.multicall、单密钥与 per-client 鉴权）
 - `crates/limedl-native/src/main.rs` — 桌面接线：`settings.aria2_rpc.enabled` → `Aria2RpcServer::new(core.registry, &settings.aria2_rpc, event_bus)` → `serve(rx, vec![])`；启动失败仅 log 不阻塞。
 - `crates/limedl-server/src/main.rs` — NAS/守护进程接线（`run_daemon`，bootstrap 之后）：与桌面相同的模式，CORS 传 `settings.aria2_rpc.cors_allowed_origins`（NAS 需要真实 CORS 源），watch Sender 接入 shutdown_signal 实现优雅停机。limedl-server 通过 `limedl-core` 的 `aria2-rpc` feature 编译。
 
@@ -35,6 +35,8 @@ Axum Router → dispatch_method(method, params)
 
 - GID 由 XXH3(TaskId) 计算得出。HTTP 下载的 TaskId 为 UUID（持久化在 SQLite 中），BT 下载的 TaskId 为 info hash（从种子/磁力链接提取，确定性）。两者重启后均保持稳定，因此 GID 在重启后不变。`gid_cache` 仅作为反向查找缓存优化性能，重启后通过扫描所有任务重建。**生命周期**：`addUri` 与 `resolve_gid` 的扫描路径写入缓存，`aria2.remove` 与 `purgeDownloadResult` 必须删除对应条目——否则长会话里缓存只增不减。新增删除类 handler 时同步清理缓存。
 - secret 令牌若配置，**所有**方法都必须携带 `token:` 参数。校验集中在 `dispatch.rs::dispatch_method`（先 `check_token` 再 `strip_token`），handler 只拿剥完的参数；新增方法自动受保护。`system.multicall` 的嵌套调用走 `dispatch_authorized`（外层已验证，只剥离不复查）。历史 bug 有两个：每个 handler 各写一份且顺序写反（先 strip 后 check，secret 一配就拒绝所有合法请求），而 `pauseAll`/`getVersion` 等根本不检查（匿名可调用）——所以校验必须留在路由层，不要下放回 handler。
+- **鉴权模式**（`Aria2AuthMode`，默认 `single`）：`single` 沿用 `settings.secret` 单一共享密钥；`per_client` 使用 `settings.clients`（`Aria2Client { id, name, token_hash, created_at_ms }`），每个客户端独立令牌，`secret` 在该模式下被忽略。`RpcContext` 由 `AuthConfig::from_settings` 构造三态：`Disabled`（无密钥，放行）/ `Shared{secret}` / `PerClient(PerClientAuth)`。校验只接受 `token:` 前缀（与 aria2 线格式一致），`Shared` 走 `subtle::ConstantTimeEq`，`PerClient` 对每个客户端用 Argon2 验证。`check_token` 集中在 `context.rs`，`dispatch_method` 调用它，改动模式不影响 handler。
+- **令牌存储**：settings.json 只保存 `token_hash`（Argon2id PHC 串），明文由 UI 生成后仅展示一次。`token.rs::generate_token` 产出 32 字节 URL-safe base64；`hash_token` 用 `rand` 生成盐 + `SaltString::encode_b64`（不启用 argon2 的 `rand` feature，避免引入第二个 rand_core 大版本）；`verify_token` 对畸形 PHC 串返回 false 而非报错。**验证缓存**：`PerClientAuth` 用 BLAKE3(令牌) 作为内存键缓存已验证结果（首次 Argon2 约 20-40ms，之后 O(1) 恒定时间比对）；缓存只在 Argon2 成功后写入、从不落盘、也从不单独作为凭据，因此 settings.json 泄漏无法直接重放。客户端列表为空时 **fail closed**（拒绝全部），不会退化为匿名访问。
 - `system.multicall` 每个结果按 aria2 规范包成**单元素数组**：成功 `[value]`，失败 `[{"code","message"}]`。AriaNg/Motrix 取 `entry[0]`，写成 `[null, value]` 会被当成失败。
 - WebSocket 和 HTTP POST 共用同一套 handler 逻辑。
 - 此实现经过 AriaNg / Motrix 实际测试验证兼容性。

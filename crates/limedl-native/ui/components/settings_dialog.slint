@@ -2,7 +2,7 @@
 //! Each tab lives in `settings/tab_*.slint`.
 
 import { Theme } from "../theme.slint";
-import { SettingsFormData, DiskTypeOverrideItem, SpeedLimitSlotItem, UpdateState } from "../types.slint";
+import { SettingsFormData, DiskTypeOverrideItem, SpeedLimitSlotItem, Aria2ClientItem, UpdateState } from "../types.slint";
 import {
     IconButton,
     PrimaryButton,
@@ -29,6 +29,7 @@ export component SettingsDialog inherits Rectangle {
     in-out property <SettingsFormData> settings_form;
     in-out property <[SpeedLimitSlotItem]> speed_limit_slots: [];
     in-out property <[DiskTypeOverrideItem]> disk_type_overrides: [];
+    in-out property <[Aria2ClientItem]> aria2_clients: [];
     in-out property <UpdateState> update_state;
 
     callback close();
@@ -56,6 +57,12 @@ export component SettingsDialog inherits Rectangle {
     callback disk_override_remove(int);
     callback disk_override_path_edited(int, string); // index, typed path
     callback disk_override_media_selected(int, int); // index, media combo index
+    // Per-client Aria2 token editing (authoritative text state lives in Rust).
+    callback aria2_client_add();
+    callback aria2_client_remove(int);
+    callback aria2_client_name_edited(int, string); // index, typed name
+    callback aria2_client_regenerate(int);
+    callback aria2_client_copy_token(int);
 
     in property <bool> is_open: false;
 
@@ -264,6 +271,12 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 7: Aria2 RPC ──
                 if root.settings_tab == 7 : SettingsTabAria2 {
                     settings_form <=> root.settings_form;
+                    aria2_clients <=> root.aria2_clients;
+                    aria2_client_add => { root.aria2_client_add(); }
+                    aria2_client_remove(index) => { root.aria2_client_remove(index); }
+                    aria2_client_name_edited(index, name) => { root.aria2_client_name_edited(index, name); }
+                    aria2_client_regenerate(index) => { root.aria2_client_regenerate(index); }
+                    aria2_client_copy_token(index) => { root.aria2_client_copy_token(index); }
                 }
 
                 // ── Tab 8: 关于 ──

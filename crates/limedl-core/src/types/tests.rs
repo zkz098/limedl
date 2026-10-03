@@ -48,6 +48,41 @@ fn test_app_settings_backward_compat() {
     assert!(!settings.cdn_acceleration.enabled);
 }
 
+/// A settings file written before per-client tokens existed must load as the
+/// legacy single-secret mode, and per-client mode must round-trip through JSON
+/// with camelCase keys.
+#[test]
+fn test_aria2_auth_mode_backward_compat_and_round_trip() {
+    let legacy: AppSettings =
+        serde_json::from_str(r#"{"aria2Rpc": {"enabled": true, "port": 6800, "secret": "abc"}}"#)
+            .unwrap();
+    assert_eq!(legacy.aria2_rpc.auth_mode, Aria2AuthMode::Single);
+    assert!(legacy.aria2_rpc.clients.is_empty());
+
+    let per_client = AppSettings {
+        aria2_rpc: Aria2RpcSettings {
+            enabled: true,
+            port: 6800,
+            secret: None,
+            auth_mode: Aria2AuthMode::PerClient,
+            clients: vec![Aria2Client {
+                id: "a".into(),
+                name: "AriaNg".into(),
+                token_hash: "$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$aGFzaA".into(),
+                created_at_ms: 42,
+            }],
+            cors_allowed_origins: vec!["http://localhost".into()],
+        },
+        ..AppSettings::default()
+    };
+    let json = serde_json::to_string(&per_client).unwrap();
+    let decoded: AppSettings = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded.aria2_rpc, per_client.aria2_rpc);
+    assert_eq!(decoded.aria2_rpc.auth_mode, Aria2AuthMode::PerClient);
+    assert!(json.contains("\"authMode\":\"per_client\""));
+    assert!(json.contains("\"tokenHash\""));
+}
+
 #[test]
 fn test_settings_round_trip_with_cdn() {
     let original = AppSettings {

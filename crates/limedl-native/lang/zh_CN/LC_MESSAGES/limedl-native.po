@@ -1790,3 +1790,48 @@ msgstr "SSD"
 
 msgid "HDD"
 msgstr "HDD"
+
+msgid "Authentication Mode:"
+msgstr "认证模式:"
+
+msgid "Single Secret"
+msgstr "单一密钥"
+
+msgid "Per-client Tokens"
+msgstr "每客户端令牌"
+
+msgid "Single secret: every client shares one token. Per-client: each client gets its own token, stored only as an Argon2 hash and revocable individually."
+msgstr "单一密钥：所有客户端共用同一个令牌。每客户端令牌：每个客户端拥有独立令牌，仅以 Argon2 哈希存储，可单独吊销。"
+
+msgid "Client Tokens"
+msgstr "客户端令牌"
+
+msgid "Each client authenticates with its own token. Only an Argon2 hash is stored, so a token is shown once here — copy it before saving."
+msgstr "每个客户端使用各自的令牌认证。仅存储 Argon2 哈希，因此令牌在此只显示一次——请在保存前复制。"
+
+msgid "Add Client"
+msgstr "添加客户端"
+
+msgid "No clients yet. Add one, then paste its token into AriaNg / Motrix as the RPC secret."
+msgstr "暂无客户端。添加一个，然后把它的令牌粘贴到 AriaNg / Motrix 的 RPC 密钥中。"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Client name"
+msgstr "客户端名称"
+
+msgid "Created"
+msgstr "创建时间"
+
+msgid "Regenerate"
+msgstr "重新生成"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Shown only once. Paste it into the client now; if you lose it, regenerate."
+msgstr "仅显示一次。请立即粘贴到客户端；若丢失，请重新生成。"
+
+msgid "Token configured (hidden). Regenerate to reveal a new one."
+msgstr "令牌已配置（隐藏）。点击重新生成以显示新令牌。"

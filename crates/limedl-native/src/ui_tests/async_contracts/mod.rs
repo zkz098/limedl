@@ -86,6 +86,8 @@ fn event_loop_contracts() {
         dialogs::an_invalid_media_override_row_is_reported().await;
         dialogs::saving_settings_persists_the_edited_form().await;
         dialogs::saving_media_overrides_persists_the_rows().await;
+        dialogs::saving_aria2_clients_persists_hashes_not_plaintext().await;
+        dialogs::duplicate_aria2_client_names_are_rejected().await;
         dialogs::saving_labs_persists_the_rules().await;
         dialogs::the_setup_wizard_persists_its_form_and_remembers_where_it_was().await;
         dialogs::the_factory_reset_gate_disarms_when_the_dialog_closes().await;

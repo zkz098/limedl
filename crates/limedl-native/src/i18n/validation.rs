@@ -280,3 +280,40 @@ pub fn format_invalid_ip(lang: Language) -> &'static str {
         Language::EnUs => "Invalid IP address format",
     }
 }
+
+/// A per-client Aria2 token row was left without a name.
+pub fn format_validation_client_name_empty(lang: Language) -> String {
+    match lang {
+        Language::ZhCn => "客户端名称不能为空".to_string(),
+        Language::ZhTw => "用戶端名稱不能為空".to_string(),
+        Language::EnUs => "Client name cannot be empty".to_string(),
+    }
+}
+
+/// Two per-client Aria2 rows share a name.
+pub fn format_validation_client_name_duplicate(lang: Language, name: &str) -> String {
+    match lang {
+        Language::ZhCn => format!("客户端名称重复: '{name}'"),
+        Language::ZhTw => format!("用戶端名稱重複: '{name}'"),
+        Language::EnUs => format!("Duplicate client name: '{name}'"),
+    }
+}
+
+/// A per-client Aria2 row has no token (its generation failed or it was
+/// hand-edited).
+pub fn format_validation_client_token_missing(lang: Language, name: &str) -> String {
+    match lang {
+        Language::ZhCn => format!("客户端 '{name}' 缺少令牌，请重新生成"),
+        Language::ZhTw => format!("用戶端 '{name}' 缺少權杖，請重新產生"),
+        Language::EnUs => format!("Client '{name}' has no token — regenerate it"),
+    }
+}
+
+/// Default label for a freshly added Aria2 client row.
+pub fn format_aria2_client_default_name(index: usize, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("客户端 {index}"),
+        Language::ZhTw => format!("用戶端 {index}"),
+        Language::EnUs => format!("Client {index}"),
+    }
+}

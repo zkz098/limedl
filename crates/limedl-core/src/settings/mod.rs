@@ -66,6 +66,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
     let default_download_dir = normalize_download_dir(&settings.download.default_download_dir);
 
     let url_rewrite = normalize_url_rewrite_settings(settings.url_rewrite);
+    let aria2_rpc = normalize_aria2_rpc_settings(settings.aria2_rpc.clone());
     let io_baseline = IoBaselineSettings {
         buffer_limit_mb: settings.io_baseline.buffer_limit_mb.clamp(64, 32768),
         game_mode_buffer_mb: settings.io_baseline.game_mode_buffer_mb.clamp(16, 4096),
@@ -105,7 +106,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         },
         bt,
         logging,
-        aria2_rpc: settings.aria2_rpc.clone(),
+        aria2_rpc,
         cdn_acceleration: settings.cdn_acceleration.clone(),
         url_rewrite,
         global_speed_limit_bps: settings.global_speed_limit_bps,
@@ -118,6 +119,20 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
         double_click: settings.double_click,
         max_in_memory_downloads: clamp_max_in_memory(settings.max_in_memory_downloads),
     })
+}
+
+/// Trim per-client tokens and drop entries a hand-edit left without a hash:
+/// a malformed/empty PHC string can never verify, so it would only add a dead
+/// row to the UI. The plaintext token is never present here — settings.json
+/// only carries the Argon2 hash.
+fn normalize_aria2_rpc_settings(mut rpc: Aria2RpcSettings) -> Aria2RpcSettings {
+    rpc.clients
+        .retain(|client| !client.token_hash.trim().is_empty());
+    for client in &mut rpc.clients {
+        client.name = client.name.trim().to_string();
+        client.token_hash = client.token_hash.trim().to_string();
+    }
+    rpc
 }
 
 fn normalize_min_threads(raw: usize, max_per_task: usize) -> usize {

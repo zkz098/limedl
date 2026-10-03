@@ -1,9 +1,11 @@
 import { ScrollView } from "std-widgets.slint";
 
 import { Theme } from "../../theme.slint";
-import { SettingsFormData } from "../../types.slint";
+import { SettingsFormData, Aria2ClientItem } from "../../types.slint";
 import {
+    CustomSelect,
     CustomTextInput,
+    IconButton,
     ToggleSwitch,
     UnitInput,
 } from "../common.slint";
@@ -11,6 +13,15 @@ import { FormTip } from "shared.slint";
 
 export component SettingsTabAria2 inherits ScrollView {
     in-out property <SettingsFormData> settings_form;
+    // Per-client token rows (same contract as the schedule / media-override
+    // editors: the model is authoritative until Save).
+    in-out property <[Aria2ClientItem]> aria2_clients: [];
+
+    callback aria2_client_add();
+    callback aria2_client_remove(int);
+    callback aria2_client_name_edited(int, string); // index, typed name
+    callback aria2_client_regenerate(int);
+    callback aria2_client_copy_token(int);
 
     VerticalLayout {
         alignment: start;
@@ -27,7 +38,7 @@ export component SettingsTabAria2 inherits ScrollView {
                     Tooltip {
                         FormTip { text: @tr("Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."); }
                     } }
-                Text { text: @tr("Allows browser extensions (such as Aria2 Explorer) to intercept downloads"); color: #6b7280; font-size: 11px; }
+                Text { text: @tr("Allows browser extensions (such as Aria2 Explorer) to intercept downloads"); color: Theme.c6b7280; font-size: 11px; }
             }
             ToggleSwitch {
                 checked: root.settings_form.aria2_enabled;
@@ -48,7 +59,24 @@ export component SettingsTabAria2 inherits ScrollView {
             }
         }
 
+        Rectangle { height: 1px; background: Theme.c1a1e26; }
+
+        // ── Authentication mode ──
         VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Authentication Mode:"); color: Theme.c9ca3af; font-size: 12px;
+                Tooltip {
+                    FormTip { text: @tr("Single secret: every client shares one token. Per-client: each client gets its own token, stored only as an Argon2 hash and revocable individually."); }
+                } }
+            ta_auth_mode := CustomSelect {
+                model: [@tr("Single Secret"), @tr("Per-client Tokens")];
+                current-index <=> root.settings_form.aria2_auth_mode_idx;
+                height: 36px;
+            }
+        }
+
+        // ── Single secret ──
+        if root.settings_form.aria2_auth_mode_idx == 0 : VerticalLayout {
             spacing: 4px;
             Text { text: @tr("RPC Secret (empty for no authentication):"); color: Theme.c9ca3af; font-size: 12px;
                 Tooltip {
@@ -60,7 +88,139 @@ export component SettingsTabAria2 inherits ScrollView {
             }
         }
 
+        // ── Per-client tokens ──
+        if root.settings_form.aria2_auth_mode_idx == 1 : VerticalLayout {
+            spacing: 8px;
+
+            HorizontalLayout {
+                alignment: space-between;
+                VerticalLayout {
+                    spacing: 2px;
+                    Text { text: @tr("Client Tokens"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                    Text {
+                        text: @tr("Each client authenticates with its own token. Only an Argon2 hash is stored, so a token is shown once here — copy it before saving.");
+                        color: Theme.c6b7280;
+                        font-size: 11px;
+                        wrap: word-wrap;
+                    }
+                }
+                ta_client_add := IconButton {
+                    text: @tr("Add Client");
+                    icon: @image-url("../../assets/icons/add-line.svg");
+                    clicked => { root.aria2_client_add(); }
+                }
+            }
+
+            if root.aria2_clients.length == 0 : Text {
+                text: @tr("No clients yet. Add one, then paste its token into AriaNg / Motrix as the RPC secret.");
+                color: Theme.c6b7280;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+
+            for row[idx] in root.aria2_clients : ta_client_row := Rectangle {
+                background: Theme.c14171d;
+                border-color: Theme.c232832;
+                border-width: 1px;
+                border-radius: 6px;
+                height: self.preferred-height;
+
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 6px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            spacing: 3px;
+                            horizontal-stretch: 3;
+                            Text { text: @tr("Name"); color: Theme.c9ca3af; font-size: 11px; }
+                            ta_client_name := CustomTextInput {
+                                text: row.name;
+                                placeholder: @tr("Client name");
+                                edited(value) => { root.aria2_client_name_edited(idx, value); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 3px;
+                            horizontal-stretch: 2;
+                            Text { text: @tr("Created"); color: Theme.c9ca3af; font-size: 11px; }
+                            Text {
+                                text: row.created_text;
+                                color: Theme.c9ca3af;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: end;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                ta_client_regenerate := IconButton {
+                                    text: @tr("Regenerate");
+                                    icon: @image-url("../../assets/icons/refresh-line.svg");
+                                    clicked => { root.aria2_client_regenerate(idx); }
+                                }
+                                ta_client_remove := IconButton {
+                                    text: @tr("Remove");
+                                    icon: @image-url("../../assets/icons/delete-bin-line.svg");
+                                    text_color: Theme.cf87171;
+                                    clicked => { root.aria2_client_remove(idx); }
+                                }
+                            }
+                        }
+                    }
+
+                    // Freshly generated plaintext: the only time it is visible.
+                    if row.token != "" : Rectangle {
+                        background: Theme.c26331a;
+                        border-color: Theme.ca3e635;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        height: self.preferred-height;
+
+                        VerticalLayout {
+                            padding: 8px;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                ta_client_token := Text {
+                                    text: row.token;
+                                    color: Theme.cf3f4f6;
+                                    font-size: 12px;
+                                    font-family: "monospace";
+                                    vertical-alignment: center;
+                                    wrap: word-wrap;
+                                    horizontal-stretch: 1;
+                                }
+                                ta_client_copy := IconButton {
+                                    text: @tr("Copy");
+                                    icon: @image-url("../../assets/icons/file-copy-line.svg");
+                                    clicked => { root.aria2_client_copy_token(idx); }
+                                }
+                            }
+                            Text {
+                                text: @tr("Shown only once. Paste it into the client now; if you lose it, regenerate.");
+                                color: Theme.c6b7280;
+                                font-size: 11px;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                    if row.token == "" : Text {
+                        text: @tr("Token configured (hidden). Regenerate to reveal a new one.");
+                        color: Theme.c6b7280;
+                        font-size: 11px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+
         Rectangle { height: 1px; background: Theme.c1a1e26; }
-        Text { text: @tr("Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."); color: #6b7280; font-size: 11px; wrap: word-wrap; }
+        Text { text: @tr("Tip: Install Aria2 Explorer from Chrome/Edge/Firefox webstore and set host to http://127.0.0.1:{{port}} with your secret."); color: Theme.c6b7280; font-size: 11px; wrap: word-wrap; }
     }
 }

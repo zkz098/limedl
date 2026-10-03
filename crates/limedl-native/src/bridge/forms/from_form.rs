@@ -9,7 +9,7 @@ use crate::bridge::models::COLUMN_KEYS;
 use crate::i18n::{self, Language};
 
 use super::combo;
-use super::enums::{str_to_background_opacity, str_to_checksum, str_to_log_level, str_to_proxy_mode};
+use super::enums::{str_to_aria2_auth_mode, str_to_background_opacity, str_to_checksum, str_to_log_level, str_to_proxy_mode};
 
 /// Update `AppSettings` from `SettingsFormData`.
 /// Returns `Err` with a human-readable message if any field contains
@@ -534,6 +534,11 @@ fn apply_aria2(settings: &mut AppSettings, form: &SettingsFormData) {
     } else {
         settings.aria2_rpc.secret = Some(sec.to_string());
     }
+    settings.aria2_rpc.auth_mode = str_to_aria2_auth_mode(combo::value_at(
+        combo::ARIA2_AUTH_MODES,
+        form.aria2_auth_mode_idx,
+    ))
+    .unwrap_or_default();
 }
 
 fn apply_advanced(settings: &mut AppSettings, form: &SettingsFormData) {

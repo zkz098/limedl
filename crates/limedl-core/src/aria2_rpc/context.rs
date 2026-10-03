@@ -1,11 +1,50 @@
 //! Shared RPC context: token checks, gid resolution and event broadcast.
 
-use super::{Arc, BackendRegistry, Dispatcher, DownloadEvent, DownloadManager, EventBus, HashMap, JsonRpcError, Mutex, PathBuf, TaskId, Value, make_error};
+use super::{Arc, Aria2AuthMode, Aria2RpcSettings, BackendRegistry, ClientToken, Dispatcher, DownloadEvent, DownloadManager, EventBus, HashMap, JsonRpcError, Mutex, PathBuf, PerClientAuth, TaskId, Value, constant_time_eq, make_error};
+
+/// Authentication scheme derived from [`Aria2RpcSettings`] at server start.
+///
+/// `Disabled` accepts every request; `Shared` is the legacy single-secret mode;
+/// `PerClient` matches an Argon2-hashed token against the configured clients.
+pub(crate) enum AuthConfig {
+    Disabled,
+    Shared { secret: String },
+    PerClient(PerClientAuth),
+}
+
+impl AuthConfig {
+    pub(crate) fn from_settings(settings: &Aria2RpcSettings) -> Self {
+        match settings.auth_mode {
+            Aria2AuthMode::Single => match settings.secret.clone().filter(|s| !s.is_empty()) {
+                Some(secret) => AuthConfig::Shared { secret },
+                None => AuthConfig::Disabled,
+            },
+            // An empty client list intentionally fails closed: enabling
+            // per-client mode is an explicit opt-in, and silently falling back
+            // to anonymous access would be the opposite of what it promises.
+            Aria2AuthMode::PerClient => AuthConfig::PerClient(PerClientAuth::new(
+                settings
+                    .clients
+                    .iter()
+                    .map(|client| ClientToken {
+                        id: client.id.clone(),
+                        name: client.name.clone(),
+                        token_hash: client.token_hash.clone(),
+                    })
+                    .collect(),
+            )),
+        }
+    }
+
+    fn is_enabled(&self) -> bool {
+        !matches!(self, AuthConfig::Disabled)
+    }
+}
 
 pub(crate) struct RpcContext {
     pub(crate) registry: Arc<BackendRegistry>,
     pub(crate) dispatcher: Dispatcher,
-    pub(crate) secret: Option<String>,
+    pub(crate) auth: AuthConfig,
     pub(crate) event_bus: Arc<EventBus>,
     pub(crate) gid_cache: Mutex<HashMap<String, TaskId>>,
     pub(crate) session_id: String,
@@ -20,19 +59,42 @@ impl RpcContext {
     }
 }
 
+/// Enforce the configured authentication scheme.
+///
+/// Runs on every routed method (see `dispatch_method`), so a new handler is
+/// protected automatically. Only the `token:`-prefixed first parameter is
+/// accepted, matching aria2's wire format.
 pub(crate) fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
-    let Some(secret) = &ctx.secret else {
+    if !ctx.auth.is_enabled() {
         return Ok(());
-    };
-    let expected = format!("token:{secret}");
-    if params
-        .first()
-        .and_then(|v| v.as_str())
-        .is_none_or(|s| s != expected)
-    {
-        return Err(make_error(1, "Unauthorized"));
     }
-    Ok(())
+    let Some(provided) = params.first().and_then(|v| v.as_str()) else {
+        return Err(unauthorized());
+    };
+    let Some(token) = provided.strip_prefix("token:") else {
+        return Err(unauthorized());
+    };
+    match &ctx.auth {
+        AuthConfig::Disabled => Ok(()),
+        AuthConfig::Shared { secret } => {
+            if constant_time_eq(token, secret) {
+                Ok(())
+            } else {
+                Err(unauthorized())
+            }
+        }
+        AuthConfig::PerClient(auth) => match auth.verify(token) {
+            Some(client) => {
+                tracing::debug!(client = %client.name, id = %client.id, "aria2 rpc: per-client token accepted");
+                Ok(())
+            }
+            None => Err(unauthorized()),
+        },
+    }
+}
+
+fn unauthorized() -> JsonRpcError {
+    make_error(1, "Unauthorized")
 }
 
 pub(crate) fn strip_token(params: Vec<Value>) -> Vec<Value> {

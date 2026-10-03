@@ -16,8 +16,8 @@ Tauri/Vue desktop shell was retired).
 | `src/ui_boot.rs`         | UI 装配：窗口构造、初始外观/视图偏好、`AppContext` 组装与回调注册；由 `main()` 与进程内 UI 测试共用（OS/事件循环相关的部分留在 `main()`）              |
 | `src/ui_tests/`          | 进程内 UI 测试（L1）：`mod.rs` fixture（建窗口/找元素/点击/按键/断言助手/录制式 backend），`shell.rs`、`list.rs`、`labs.rs`、`settings.rs`、`new_task.rs`、`inspector.rs`、`toast.rs`、`layout.rs`，以及需要事件循环的 `async_contracts.rs`（详见 `.opencode/guides/testing-guide.md`） |
 | `src/platform_adapter.rs`| 平台集成：跨平台单实例激活监听 + Windows 专属拖拽/WM_COPYDATA 窗口子类化与重试挂载                                                                      |
-| `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`（`forms/` 按设置分区拆分：`combo`/`enums`/`to_form`/`from_form`/`speed_limit`）、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
-| `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/目录介质覆盖/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs`；每个 `register()` 只做绑定编排，回调体（超过 ~25 行的一律）提取为同模块的命名 `fn`（如 `submit_single`、`finish_setup`、`factory_reset`） |
+| `src/bridge/`            | 纯映射层：`DownloadSummary` → `TaskItem`/`InspectorInfo`、`AppSettings` ↔ `SettingsFormData`（`forms/` 按设置分区拆分：`combo`/`enums`/`to_form`/`from_form`/`speed_limit`/`disk_override`/`aria2_clients`）、`TaskStore`（筛选/排序/多选）、排序与列/限速计划工具函数 |
+| `src/handlers/`          | 业务事件回调处理器，每个子系统一个目录：`task/`（列表/多选/批量/单任务/剪贴板）、`settings/`（对话框/限速计划/目录介质覆盖/Aria2 客户端令牌/路径）、`labs/`（对话框/CDN/重写规则）、`new_task/`（对话框/提交/载荷入口）、以及 `inspector.rs`、`updater.rs`、`setup_wizard.rs`、`window.rs`。共享的绑定样板在 `handlers/common.rs`；每个 `register()` 只做绑定编排，回调体（超过 ~25 行的一律）提取为同模块的命名 `fn`（如 `submit_single`、`finish_setup`、`factory_reset`） |
 | `src/event_stream/`      | 后台监听：`bus.rs`（`DownloadEvent` 每个变体一个函数）、`pollers.rs`（剪贴板 + BT 状态 + Inspector 轮询）、`tray.rs`（托盘菜单/左键激活）                                                      |
 | `src/settings_sync.rs`   | 保存设置后的共享副作用：OS 自启同步、Aria2 RPC 热重载、把设置推入 UI（设置对话框与首启向导共用）                                                                                     |
 | `src/i18n/`             | 语言枚举（`language.rs`）与 `format_*` 本地化辅助，按域拆分：`task.rs`（列表/状态）、`dialogs.rs`（新建任务/批量）、`tray.rs`（托盘/通知）、`toast.rs`（全部 toast）、`validation.rs`（设置校验）、`cdn.rs`、`rewrite.rs`、`schedule.rs`；全部在 `mod.rs` 重新导出，调用点仍是 `i18n::format_*` |
@@ -50,7 +50,8 @@ UI 事件（callback）
 
 ## 关键约定
 
-- **i18n 双轨**：`.slint` 内文案用 `@tr(...)`（`lang/{en,zh_CN,zh_TW}/LC_MESSAGES`）；Rust 侧动态文案必须走 `i18n::format_*`，禁止硬编码中文——否则英文界面会泄漏中文（设置校验、托盘、通知首当其冲）。
+- **列表类编辑器（限速计划 / 目录介质覆盖 / Aria2 客户端令牌）的编辑态在 UI model**：与限速计划同构（行文本保存在 UI model，Save 时由 Rust 解析）。Aria2 客户端令牌编辑器（`tab_aria2` + `handlers/settings/aria2_clients.rs` + `bridge/forms/aria2_clients.rs`）额外约定：**添加/重新生成时**在 Rust 侧立即生成 32 字节令牌并用 Argon2id 哈希，明文只在该行 `token` 字段中展示一次（`row.token != ""` 时显示复制按钮与警告），**保存时只写 `token_hash`**，绝不落盘明文；`parse_aria2_clients` 只校验名称非空且唯一、`token_hash` 非空，不在保存路径跑 Argon2。名称行内编辑走 `set_row_data` 保留光标，增删/重新生成重建整个 model。
+- **i18n 双轨**：`.slint` 内文案用 `@tr(...)`（`lang/{en,zh_CN,zh_TW}/LC_MESSAGES`）；Rust 侧动态文案必须走 `i18n::format_*`，禁止硬编码中文——否则英文界面会泄漏中文（设置校验、托盘、通知首当其冲）。新增任何 `@tr` 字符串都必须同步写入三份 `.po`，否则 `i18n::tests::test_all_slint_tr_strings_in_po_catalogs` 会失败。
 - **EventBus 事件必须显式处理**：`DownloadEvent` 匹配是穷尽的（无 `_ => {}`），新增变体会在编译期报错。`Warning` → 警告 toast（5s 去重窗口，因为反吸血按 peer 触发）。新增事件变体时在 `event_stream/bus.rs` 里加一个 `on_*` 函数，不要在 match 里内联长逻辑。
 - **回调绑定样板走 `handlers/common.rs`**：不要再写 `main_window.as_weak()` + `if let Some(ui) = ui_weak.upgrade()`；用 `with_ui` / `read_ui`（需读值）/ `mutate_store` / `reload_tasks` / `refresh_after_removal` / `spawn_action` / `spawn_batch_action`。每个子系统模块只负责“这个回调做什么”，样板不进业务代码。
 - **一个回调一个函数**：`register()` 只做编排（各子模块的 `register` 列表）；跨回调共享的流程（如批量删除、torrent 预览、校验和探测、CDN 应用节点）必须提成命名函数，历史上它们曾以 2–4 份拷贝散在同一个 800 行函数里。

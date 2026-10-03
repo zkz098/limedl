@@ -154,6 +154,18 @@ export struct DiskTypeOverrideItem {
     detected_text: string, // what auto-detection currently says for `path`
 }
 
+/// One per-client Aria2 RPC token row (`aria2_rpc.clients`). Rows live in the UI
+/// model until Save, like the media overrides. `token` carries the plaintext
+/// only right after Generate/Regenerate — it is shown once and never persisted.
+export struct Aria2ClientItem {
+    id: string, // stable uuid; assigned in Rust when the row is created
+    name: string,
+    token: string, // plaintext, non-empty only until Save (shown once)
+    token_hash: string, // Argon2 PHC of the current token
+    created_at_ms: string, // creation time in unix ms (round-tripped; display uses created_text)
+    created_text: string, // formatted creation time (display only)
+}
+
 export struct SettingsFormData {
     // ── 常规下载 ──
     default_download_dir: string,
@@ -258,6 +270,7 @@ export struct SettingsFormData {
     aria2_enabled: bool,
     aria2_port: string,
     aria2_secret: string,
+    aria2_auth_mode_idx: int, // index into combo::ARIA2_AUTH_MODES (single/per_client)
     // ── 运行态只读展示（不落盘） ──
     game_mode: bool,
     overclock_mode: bool,
