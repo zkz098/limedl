@@ -305,9 +305,13 @@ jobs:
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libappindicator3-dev
+      # Pinned, not `cargo-llvm-cov@latest`: the 0.6.21 -> 0.9.0 jump changed the
+      # default ignore regex (test files dropped from the report), which silently
+      # re-baselined the `--fail-under-lines` metric and turned the gate red
+      # without a code change. Pin `nextest` for the same reason.
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
-          tool: cargo-llvm-cov
+          tool: cargo-llvm-cov@0.9.0
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: nextest@0.9.144
@@ -341,10 +345,18 @@ jobs:
           # quality gate stays advisory because the Free plan cannot attach the
           # prepared custom condition to the project (see
           # sonar-project.properties), so without this flag the number could
-          # silently rot. 88 is the 2026-10-02 measurement minus a small round:
-          # 88.59% of 21397 lines (that total includes the test code llvm-cov
-          # instruments and Sonar excludes). Ratchet it up when the number moves
-          # — do not lower it to make a red run green.
+          # silently rot. 87 is the 2026-10-03 product-only measurement minus a
+          # small round: 87.37% of 14561 lines. "Product-only" is what the tool
+          # has always measured for the gate: since cargo-llvm-cov 0.6.22 the
+          # default ignore regex drops `tests/` directories and
+          # `tests.rs`/`*_tests.rs` files, so test code is not in the
+          # denominator (Sonar excludes it too). The gate was introduced as 88
+          # against a 0.6.21 measurement that *did* count test code (88.59% of
+          # 21397 lines); the install step below pulled the action's `latest`,
+          # the tool moved to 0.9.0, the denominator changed and the gate went
+          # red without a code change. cargo-llvm-cov is pinned now, so the
+          # number can only move with the code. Ratchet it up when coverage
+          # grows — do not lower it to make a red run green.
           #
           # Coverage stays on stable: cargo-llvm-cov's `--branch` is unstable
           # and refuses to run on a stable toolchain, so this is line coverage
@@ -358,7 +370,7 @@ jobs:
           # `-C instrument-coverage` instrumentation is unaffected, and neither
           # this repo nor core's dependency graph uses that cfg (measured
           # difference: 5 dependency lines).
-          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 88 --no-cfg-coverage
+          cargo llvm-cov --profile dev --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 87 --no-cfg-coverage
           # Second report for the Sonar scan: the desktop crate is a workspace
           # path dependency of limedl-core's *sibling*, so without it every
           # limedl-native line was missing from the report and Sonar counted the
