@@ -36,6 +36,8 @@ use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
 use base64::Engine as _;
+use limedl_core::http_client_factory::configure_client_builder;
+use limedl_core::types::AppSettings;
 use serde::Deserialize;
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -232,13 +234,18 @@ fn manifest_key(kind: InstallKind) -> String {
 
 /// Fetch the latest manifest and return a newer update usable by this
 /// install kind, or `None` when already up to date / no matching asset.
-pub async fn check_for_update() -> Result<Option<AvailableUpdate>> {
+///
+/// `settings` supplies the proxy configuration for the request (see
+/// [`http_client`]): the update channel used to ignore the user's proxy
+/// entirely, which made checks fail behind a proxy that the download engine
+/// itself could reach.
+pub async fn check_for_update(settings: &AppSettings) -> Result<Option<AvailableUpdate>> {
     let kind = detect_install_kind();
     if kind == InstallKind::Store {
         bail!("store installs update via Microsoft Store; use store::check_update_available");
     }
 
-    let manifest = fetch_manifest().await?;
+    let manifest = fetch_manifest(settings).await?;
     let current = env!("CARGO_PKG_VERSION");
     if !is_newer_version(&manifest.version, current) {
         return Ok(None);
@@ -294,8 +301,8 @@ pub async fn check_for_update() -> Result<Option<AvailableUpdate>> {
 /// The signature is a separate release asset (`latest-native.json.sig`, written
 /// by `cargo xtask sign`). Verifying it first means a tampered or truncated
 /// manifest is rejected without ever influencing a download URL.
-async fn fetch_manifest() -> Result<UpdateManifest> {
-    let client = http_client()?;
+async fn fetch_manifest(settings: &AppSettings) -> Result<UpdateManifest> {
+    let client = http_client(settings)?;
     let bytes = fetch_asset(&client, MANIFEST_URL, "update manifest").await?;
     let sig_text = fetch_text(&client, MANIFEST_SIG_URL)
         .await
@@ -333,8 +340,20 @@ async fn fetch_text(client: &reqwest::Client, url: &str) -> Result<String> {
     String::from_utf8(bytes).context("asset is not UTF-8")
 }
 
-fn http_client() -> Result<reqwest::Client> {
-    reqwest::Client::builder()
+/// Build the HTTP client used for every update request (manifest, signature,
+/// artifact).
+///
+/// It goes through limedl-core's [`configure_client_builder`] so the user's
+/// proxy setting applies to updates exactly as it does to downloads:
+/// `Manual` uses `proxy.manual_url`, `Disabled` clears the client's system
+/// proxy (`auto_sys_proxy`), and `System` leaves reqwest's system detection in
+/// place. The rest of the shared configuration (redirect policy, timeouts,
+/// pooling) comes along too; only the User-Agent is overridden so the update
+/// traffic identifies itself instead of posing as the browser UA the download
+/// engine uses.
+fn http_client(settings: &AppSettings) -> Result<reqwest::Client> {
+    configure_client_builder(reqwest::Client::builder(), settings)
+        .context("configure update http client")?
         .user_agent(format!("limedl-native/{}", env!("CARGO_PKG_VERSION")))
         .build()
         .context("build update http client")
@@ -348,6 +367,7 @@ fn http_client() -> Result<reqwest::Client> {
 /// `progress` receives `(bytes_downloaded, total_bytes_if_known)`.
 pub async fn download_and_verify(
     update: &AvailableUpdate,
+    settings: &AppSettings,
     state_dir: &Path,
     progress: &(dyn Fn(u64, Option<u64>) + Send + Sync),
 ) -> Result<PathBuf> {
@@ -365,7 +385,7 @@ pub async fn download_and_verify(
         .unwrap_or("limedl-update.bin");
     let dest = work_dir.join(file_name);
 
-    let client = http_client()?;
+    let client = http_client(settings)?;
     let mut resp = client
         .get(&update.asset.url)
         .send()

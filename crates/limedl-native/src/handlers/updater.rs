@@ -155,9 +155,12 @@ fn check_store(ctx: UpdateCtx, lang: Language) {
 
 /// GitHub channel: query the release manifest in the background.
 fn check_github(ctx: UpdateCtx, lang: Language) {
+    // Snapshot so the check uses the proxy the user had configured when the
+    // request left, not whatever a later settings save happens to be.
+    let settings = ctx.current_settings.lock().clone();
     tokio::spawn(async move {
         update::record_update_check(&ctx.base_dir);
-        match update::check_for_update().await {
+        match update::check_for_update(&settings).await {
             Ok(Some(update)) => {
                 let version = update.version.clone();
                 let notes = update.notes.clone();
@@ -237,16 +240,18 @@ fn download_and_install(ctx: UpdateCtx, update: AvailableUpdate, lang: Language)
         4,
     );
 
+    let settings = ctx.current_settings.lock().clone();
     tokio::spawn(async move {
         let progress = progress_reporter(&ctx.ui_weak);
-        let verified = match update::download_and_verify(&update, &ctx.base_dir, &progress).await {
-            Ok(file) => file,
-            Err(err) => {
-                let msg = format!("{err:#}");
-                ctx.report_failure(&msg, lang, 6);
-                return;
-            }
-        };
+        let verified =
+            match update::download_and_verify(&update, &settings, &ctx.base_dir, &progress).await {
+                Ok(file) => file,
+                Err(err) => {
+                    let msg = format!("{err:#}");
+                    ctx.report_failure(&msg, lang, 6);
+                    return;
+                }
+            };
         finish_install(ctx, &update, &verified, lang).await;
     });
 }
@@ -298,7 +303,10 @@ fn spawn_background_check(ctx: UpdateCtx, lang: Language) {
             return;
         }
         update::record_update_check(&ctx.base_dir);
-        match update::check_for_update().await {
+        // Snapshot after the 45 s wait so a proxy change made at startup is
+        // already in effect for the first background check.
+        let settings = ctx.current_settings.lock().clone();
+        match update::check_for_update(&settings).await {
             Ok(Some(update)) => {
                 let version = update.version.clone();
                 *ctx.available.lock() = Some(update);

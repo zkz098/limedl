@@ -251,3 +251,40 @@ fn unsigned_manifest_bytes_are_rejected() {
         );
     }
 }
+
+// ── HTTP client / proxy ──────────────────────────────────────────────────────
+
+/// The update client must be built from the app settings, so the user's proxy
+/// choice reaches the update channel the same way it reaches downloads.
+///
+/// A manual proxy with an empty URL is rejected while configuring the builder,
+/// so reaching that error proves `http_client` consulted `settings.proxy`; the
+/// previous bare `reqwest::Client::builder()` built successfully and silently
+/// ignored the setting.
+#[test]
+fn update_http_client_applies_proxy_settings() {
+    let with_manual_proxy = |manual_url: &str| AppSettings {
+        proxy: limedl_core::types::ProxySettings {
+            mode: limedl_core::types::ProxyMode::Manual,
+            manual_url: manual_url.to_string(),
+        },
+        ..Default::default()
+    };
+
+    assert!(http_client(&with_manual_proxy("")).is_err());
+    assert!(http_client(&with_manual_proxy("http://127.0.0.1:7890")).is_ok());
+
+    for mode in [
+        limedl_core::types::ProxyMode::Disabled,
+        limedl_core::types::ProxyMode::System,
+    ] {
+        let settings = AppSettings {
+            proxy: limedl_core::types::ProxySettings {
+                mode,
+                manual_url: String::new(),
+            },
+            ..Default::default()
+        };
+        assert!(http_client(&settings).is_ok());
+    }
+}

@@ -102,6 +102,34 @@ The `native-manifest` job in release.yml builds that map from the artifacts the
 platform legs actually produced, so a skipped leg removes its keys instead of
 advertising a URL that 404s.
 
+## Proxy / HTTP client
+
+The update channel must honour the same proxy setting as the download engine.
+`update::http_client` therefore builds its client through limedl-core's
+`http_client_factory::configure_client_builder` instead of a bare
+`reqwest::Client::builder()`:
+
+| `settings.proxy.mode` | Effect on update checks and downloads |
+| --------------------- | ------------------------------------- |
+| `Disabled`            | `builder.no_proxy()` — the automatic system/env proxy is switched off |
+| `System`              | nothing added; reqwest's `auto_sys_proxy` detection stays active      |
+| `Manual`              | `Proxy::all(settings.proxy.manual_url)`                                |
+
+The caller snapshots `AppSettings` when the request starts
+(`handlers/updater.rs`: `check_github`, `download_and_install`,
+`spawn_background_check`) and passes it in; the store channel is untouched
+because the OS owns its transport. Only the User-Agent is overridden afterwards
+(`limedl-native/{version}`), so update traffic still identifies itself rather
+than reusing the browser UA configured for downloads. Everything else from the
+shared builder — redirect limit 10, connect/read timeouts, pooling — applies to
+updates too; the 15 s read timeout is per-read (idle) and aborting a stalled
+download is the intended behaviour.
+
+The regression test `update_http_client_applies_proxy_settings`
+(`update/tests.rs`) builds a client with `ProxyMode::Manual` + empty URL and
+expects an error: that can only come from the proxy branch, so it fails if the
+updater ever goes back to ignoring the setting.
+
 ## Signature chain
 
 Everything is signed with **minisign** by in-repo tooling (`cargo xtask`,
