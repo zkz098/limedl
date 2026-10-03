@@ -106,6 +106,8 @@ rfd = { version = "0.16", default-features = false, features = ["xdg-portal"] }
 
 托盘同样已不需要 GTK：Linux 上 `tray-icon` 走 `ksni` 后端（纯 Rust 的 StatusNotifierItem，ksni + zbus 走会话 D-Bus），`gtk`/`libappindicator` 整条链已从依赖图移除，构建期不再需要 `libgtk-3-dev`。菜单代码不变——ksni 后端通过 `muda` 的 snapshot 读取同一棵 `muda::Menu`，snapshot 的 activate 闭包仍然发 `muda::MenuEvent`（细节见 `crates/limedl-native/Cargo.toml` 的注释）。
 
+注意：去掉 GTK 后**仍然需要** `libfontconfig1-dev`——Slint 的字体栈（`fontdb` → `yeslogic-fontconfig-sys`）在构建脚本里 `pkg-config` 探 fontconfig，链接产物也动态依赖 `libfontconfig.so.1`。这是 GTK 之前顺带提供的依赖，CI 的 Linux job / release Linux leg 都必须显式安装，否则 native 构建会在 fontconfig 的 build script 处 panic。
+
 - **已移除的上游告警**：`gtk 0.18` → `glib 0.18.x` 的 unsoundness 告警（GHSA-wrw7-89jp-8q8g / RUSTSEC-2024-0429）随 ksni 切换整条消失——依赖图里已没有 `gtk`/`libappindicator`，不需要再 dismiss。若将来回退到 `libappindicator` 后端，这个告警会回来（钉住它的是最后一个 `libappindicator 0.9.0`，硬依赖 `glib ^0.18`）。
 
 ## Linux 桌面版

@@ -31,9 +31,9 @@ limedl 遵循 **GPL-3.0-or-later** 开源协议，欢迎所有开发者参与共
     cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
     ```
 - **Linux (Ubuntu / Debian)**:
-  - 构建需要 C 工具链与 pkg-config：
+  - 构建需要 C 工具链、pkg-config 与 fontconfig 开发头文件（Slint 字体栈）：
     ```bash
-    sudo apt install build-essential pkg-config
+    sudo apt install build-essential pkg-config libfontconfig1-dev
     ```
 - **macOS**:
   - 安装 Xcode 命令行工具：`xcode-select --install`。

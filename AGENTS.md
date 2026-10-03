@@ -80,7 +80,7 @@ All Rust crates use edition 2024.
 | --------------------- | ------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Native Desktop (Win)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `pwsh scripts/fetch-misans.ps1` once)                                      |
 | Native Desktop (mac)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native`; release bundle via `bash scripts/package-macos.sh` (macOS host required)         |
-| Native Desktop (Linux)| Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (tray is D-Bus SNI, no GTK); release tarball via `bash scripts/package-linux.sh` |
+| Native Desktop (Linux)| Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `libfontconfig1-dev`; tray is D-Bus SNI, no GTK); release tarball via `bash scripts/package-linux.sh` |
 
 ### Event system
 

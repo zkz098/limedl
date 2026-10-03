@@ -131,7 +131,7 @@ Priority: optional
 Architecture: ${DEB_ARCH}
 Maintainer: zkz098 <https://github.com/zkz098/limedl>
 Installed-Size: ${INSTALLED_SIZE}
-Depends: libc6, xdg-desktop-portal
+Depends: libc6, libfontconfig1, xdg-desktop-portal
 Recommends: gnome-shell-extension-appindicator
 Homepage: https://github.com/zkz098/limedl
 Description: Lightweight native desktop download manager based on Slint

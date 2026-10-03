@@ -77,6 +77,7 @@ Requirements
   - A system tray (StatusNotifier host). On GNOME install the AppIndicator
     shell extension; KDE/XFCE and most bars ship a host already.
   - xdg-desktop-portal (usually present) for the file and folder pickers.
+  - libfontconfig1 (usually present) for system font lookup.
 
 Autostart is enabled from Settings and writes
 ~/.config/autostart/limedl-native.desktop

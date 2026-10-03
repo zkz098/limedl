@@ -31,9 +31,9 @@ After cloning the repository, configure the necessary toolchains for your platfo
     cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
     ```
 - **Linux (Ubuntu / Debian)**:
-  - The build needs a C toolchain and pkg-config:
+  - The build needs a C toolchain, pkg-config and the fontconfig dev headers (Slint font stack):
     ```bash
-    sudo apt install build-essential pkg-config
+    sudo apt install build-essential pkg-config libfontconfig1-dev
     ```
 - **macOS**:
   - Install Xcode Command Line Tools: `xcode-select --install`.

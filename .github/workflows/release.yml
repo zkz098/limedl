@@ -422,8 +422,11 @@ jobs:
   #
   # No GTK headers at build time and no GTK at runtime: the tray uses
   # tray-icon's `ksni` backend (pure-Rust StatusNotifierItem over D-Bus) and
-  # the file dialogs use `xdg-portal`. The runtime requirements are a session
-  # D-Bus plus a StatusNotifier host (GNOME: AppIndicator extension).
+  # the file dialogs use `xdg-portal`. What remains is `libfontconfig1-dev`:
+  # Slint's font stack probes pkg-config for fontconfig
+  # (`yeslogic-fontconfig-sys`), and the binary links `libfontconfig.so.1`.
+  # The runtime requirements are that plus a session D-Bus and a
+  # StatusNotifier host (GNOME: AppIndicator extension).
   # ═══════════════════════════════════════════════════════════════════════
   build-native-linux:
     name: Desktop app (linux-x86_64)
@@ -433,6 +436,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # Slint's font stack probes pkg-config for fontconfig
+      # (`yeslogic-fontconfig-sys`); no GTK package is involved.
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
 
       - name: Extract version from tag
         id: version

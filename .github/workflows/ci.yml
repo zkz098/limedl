@@ -306,6 +306,9 @@ jobs:
           cache: false
           rustflags: ""
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      # Slint's font stack probes pkg-config for fontconfig
+      # (`yeslogic-fontconfig-sys`); the tray no longer needs any GTK package.
+      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
       # Pinned, not `cargo-llvm-cov@latest`: the 0.6.21 -> 0.9.0 jump changed the
       # default ignore regex (test files dropped from the report), which silently
       # re-baselined the `--fail-under-lines` metric and turned the gate red
