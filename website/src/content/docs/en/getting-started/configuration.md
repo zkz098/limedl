@@ -28,7 +28,7 @@ To open the settings panel in the desktop application, click the **Settings** ge
 
 | Option | Values / Types | Default | Details |
 | :--- | :--- | :--- | :--- |
-| **Proxy Mode** | Direct / System / Manual | System Proxy | **Direct**: No proxy.<br>**System**: Auto-detects OS PAC or system proxy settings.<br>**Manual**: User-specified custom proxy host and port. |
+| **Proxy Mode** | Direct / System / Manual | System Proxy | **Direct**: No proxy.<br>**System**: Reads the OS static proxy configuration (Windows Internet Options / macOS network settings, including the bypass list). PAC/WPAD auto-config scripts are not supported — use **Manual** for those.<br>**Manual**: User-specified custom proxy host and port. |
 | **Manual Protocol** | HTTP / SOCKS5 | HTTP | Supports forwarding traffic through local or LAN proxies (e.g., `127.0.0.1:7890`). |
 | **Default User-Agent** | String | Modern Chrome UA | Identifies the client during HTTP transfers. Useful when University or open-source mirrors reject unrecognized or outdated user-agents with HTTP 403. |
 | **Connection Timeout** | Seconds (10 ~ 120s) | 30s | Handshake and idle read/write socket timeout thresholds. |
