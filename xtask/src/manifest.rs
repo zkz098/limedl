@@ -233,6 +233,14 @@ mod tests {
         dir
     }
 
+    /// JSON string escaping for paths embedded in test fixtures: on Windows a
+    /// `C:\Users\...` path is full of invalid JSON escapes, so the backslashes
+    /// have to be doubled. The real release job builds the asset map with
+    /// `ConvertTo-Json`, which escapes correctly — this is a fixture concern.
+    fn json_path(path: &Path) -> String {
+        path.display().to_string().replace('\\', "\\\\")
+    }
+
     struct Fixture {
         dir: PathBuf,
         assets: PathBuf,
@@ -257,12 +265,23 @@ mod tests {
                   "windows-x86_64": {{ "kind": "installer", "path": "{}" }},
                   "darwin-aarch64-portable": {{ "kind": "portable", "path": "{}" }}
                 }}"#,
-                setup.display(),
-                app.display()
+                json_path(&setup),
+                json_path(&app)
             ),
         )
         .unwrap();
         Fixture { dir, assets }
+    }
+
+    #[test]
+    fn json_path_escapes_windows_separators() {
+        // The bug this guards: `C:\Users\...` interpolated into a JSON fixture
+        // fails to parse on Windows ("invalid escape") and only that runner
+        // ever sees a backslash.
+        assert_eq!(
+            json_path(Path::new(r"C:\Users\runneradmin\app.zip")),
+            r"C:\\Users\\runneradmin\\app.zip"
+        );
     }
 
     #[test]
@@ -313,7 +332,7 @@ mod tests {
         let assets = dir.join("assets.json");
         fs::write(
             &assets,
-            format!(r#"{{"k": {{"kind": "squirrel", "path": "{}"}}}}"#, artifact.display()),
+            format!(r#"{{"k": {{"kind": "squirrel", "path": "{}"}}}}"#, json_path(&artifact)),
         )
         .unwrap();
         let err = run("0.4.1", &assets, "", &dir.join("out.json"), "r").unwrap_err();
@@ -328,7 +347,7 @@ mod tests {
         let assets = dir.join("assets.json");
         fs::write(
             &assets,
-            format!(r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#, artifact.display()),
+            format!(r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#, json_path(&artifact)),
         )
         .unwrap();
         let err = run("0.4.1", &assets, "", &dir.join("out.json"), "r").unwrap_err();
@@ -337,7 +356,7 @@ mod tests {
         let absent = dir.join("absent.zip");
         fs::write(
             &assets,
-            format!(r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#, absent.display()),
+            format!(r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#, json_path(&absent)),
         )
         .unwrap();
         let err = run("0.4.1", &assets, "", &dir.join("out.json"), "r").unwrap_err();
