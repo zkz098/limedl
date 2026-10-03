@@ -22,7 +22,6 @@ Tauri/Vue desktop shell was retired).
 | `src/settings_sync.rs`   | 保存设置后的共享副作用：OS 自启同步、Aria2 RPC 热重载、把设置推入 UI（设置对话框与首启向导共用）                                                                                     |
 | `src/i18n/`             | 语言枚举（`language.rs`）与 `format_*` 本地化辅助，按域拆分：`task.rs`（列表/状态）、`dialogs.rs`（新建任务/批量）、`tray.rs`（托盘/通知）、`toast.rs`（全部 toast）、`validation.rs`（设置校验）、`cdn.rs`、`rewrite.rs`、`schedule.rs`；全部在 `mod.rs` 重新导出，调用点仍是 `i18n::format_*` |
 | `src/update/`            | minisign 校验的多通道自更新（见 `subsystem-self-update.md`；`mod.rs` + `tests.rs`）                                                                                           |
-| `src/migrate/`           | Tauri → Native 数据迁移（`mod.rs` + `tests.rs`）                                                                                                       |
 | `src/autostart.rs`       | 开机自启（Win 注册表 / MSIX StartupTask / XDG .desktop / LaunchAgent）                                                                                 |
 | `src/single_instance.rs` | 单实例（Win mutex + WM_COPYDATA；其他平台回环 TCP）                                                                                                    |
 | `src/platform_win.rs`    | 窗口子类化（`WM_DROPFILES`、`WM_COPYDATA`）+ 窗口几何持久化（全平台）+ OS 描述文案；`subclass_proc` 只做消息分发，处理体在 `on_dropfiles` / `on_showwindow` / `on_copydata` / `on_size`（仅 Windows 编译，改完靠 `check-windows` 验证） |
@@ -56,20 +55,17 @@ UI 事件（callback）
 - **回调绑定样板走 `handlers/common.rs`**：不要再写 `main_window.as_weak()` + `if let Some(ui) = ui_weak.upgrade()`；用 `with_ui` / `read_ui`（需读值）/ `mutate_store` / `reload_tasks` / `refresh_after_removal` / `spawn_action` / `spawn_batch_action`。每个子系统模块只负责“这个回调做什么”，样板不进业务代码。
 - **一个回调一个函数**：`register()` 只做编排（各子模块的 `register` 列表）；跨回调共享的流程（如批量删除、torrent 预览、校验和探测、CDN 应用节点）必须提成命名函数，历史上它们曾以 2–4 份拷贝散在同一个 800 行函数里。
 - **保存设置的副作用走 `settings_sync.rs`**：自启同步、Aria2 RPC 热重载、推设置到 UI（语言/托盘/外观/默认目录）只有一份实现，设置对话框与首启向导共用；新增“保存后要做的事”请加在这里，不要在两处各写一遍。
-- **新属性/新列**：视图偏好（`compactView`、`visibleColumns`、`sortKey`、`sortDirection`）持久化在 `AppSettings.appearance`；列 key 使用 Web 端同一套字符串（`file/size/downloaded/status/progress/speed/priority/uploadSpeed/seeds/eta`），保证 settings.json 两端互通。`file` 列始终可见。
+- **新属性/新列**：视图偏好（`compactView`、`visibleColumns`、`sortKey`、`sortDirection`）持久化在 `AppSettings.appearance`；列 key 使用固定的字符串集合（`file/size/downloaded/status/progress/speed/priority/uploadSpeed/seeds/eta`），旧设置文件里的 key 仍能解析。`file` 列始终可见。
 - **破坏性动作两段式，且关闭对话框就解除武装**：关于页的 “Factory Reset” 用 `reset_confirm` 做二次确认，该属性挂在 `MainWindow`（不是对话框）上，并在 `on_close_settings` 与 `settings_sync::push_ui(close_settings)` 里重置。只靠 Cancel/Confirm 清除的话，Escape 关掉再打开会直接停在 “Confirm Reset” 上，离清空数据目录只差一次点击（`ui_tests/async_contracts/dialogs.rs` 钉住这个生命周期）。
 - **自定义控件声明 a11y**：`ToggleSwitch`、`PrimaryButton`/`SecondaryButton`/`DangerButton` 都写了 `accessible-role` + `accessible-label`/`accessible-enabled`（`Text` 的 `accessible-label` 默认就是它的 `text`）。这既是屏幕阅读器需要的，也是 L1 测试读“用户看到什么”（文案、禁用态）的唯一抓手。
 - **任务优先级**：`Priority::{High,Normal,Low}` ↔ `"high"/"normal"/"low"`；表格徽标点击或右键菜单“Set Priority”打开 `PriorityMenu`，经 `Dispatcher::set_priority` 落库。
-- **数据目录**：默认 `%LOCALAPPDATA%\limedl`（macOS/Linux 同规范），可用 `LIMEDL_DATA_DIR` 覆盖（与 `limedl-server` 一致，便于隔离测试）。首次启动会从 Tauri 的 `com.zkz20.limedl` 目录迁移 `settings.json`。
+- **数据目录**：默认 `%LOCALAPPDATA%\limedl`（macOS/Linux 同规范），可用 `LIMEDL_DATA_DIR` 覆盖（便于隔离测试）。
 - **窗口钩子安装时机**：Slint 的 OS 窗口在事件循环启动后才存在，`platform_win::try_install_window_hooks` 必须由 UI 线程定时器重试挂载（一次性调用会静默失败，导致拖拽与磁链 IPC 失效）。
 
-## 数据迁移与数据目录
+## 数据目录
 
-- 默认数据根目录：`%LOCALAPPDATA%\limedl`（macOS/Linux 同规范）；`LIMEDL_DATA_DIR` 可覆盖（与 `limedl-server` 一致）。
-- 启动时 `migrate::migrate_tauri_data_if_needed(base_dir, state_dir)` 会从 Tauri 版数据目录（`com.zkz20.limedl`，可用 `LIMEDL_TAURI_DATA_DIR` 覆盖）一次性导入：`settings.json`、`downloads.db`（含 `-wal`/`-shm`）、`torrents/`、`bt_files/`。
-- 规则：只拷贝不移动；已存在的目标文件绝不覆盖；进度记录在 `<base_dir>/.migrated-from-tauri.json`（部分失败下次重试）。
-- 实现上按工件拆成 `migrate_settings` / `migrate_database` / `migrate_state_subdirs` 三个步骤，每步只检查并回写自己的 stamp 标志；torrents/bt_files 由 `StateSubdir` 枚举配对（不要再按数组下标区分）。
-- **启动安全网**：拷贝后校验 `settings.json` 可解析、`downloads.db` 可被 `limedl_core::database::Database::open` 打开；不合格的文件会被隔离为 `*.rejected-<ts>` 并以默认值启动，避免迁移反而把应用钉死在启动失败。
+- 默认数据根目录：`%LOCALAPPDATA%\limedl`（macOS/Linux 同规范）；`LIMEDL_DATA_DIR` 可覆盖，`settings.json`、`downloads/`（含 SQLite 数据库与 torrent 状态）均在其下。
+- `state_dir` 为 `<base_dir>/downloads`，由 `bootstrap()` 首次创建。
 
 ## 窗口几何持久化（全平台）
 

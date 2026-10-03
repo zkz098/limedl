@@ -13,7 +13,6 @@
 - `crates/limedl-core/src/database/manifest_repo.rs` — downloads / chunks CRUD
 - `crates/limedl-core/src/database/bt_task_repo.rs` — BT 任务索引（`bt_tasks`）读写，见 `subsystem-bt-backend.md`
 - `crates/limedl-core/src/manifest.rs` — Manifest / ChunkManifest 类型定义
-- `crates/limedl-core/src/migration/mod.rs` — 旧 JSON 文件 → SQLite 迁移逻辑（新安装不触发）
 - `crates/limedl-core/src/persistence.rs` — 从 SQLite 加载下载任务到内存（`load_downloads_from_db`）
 
 ## 数据流向

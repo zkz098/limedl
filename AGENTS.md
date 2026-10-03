@@ -58,8 +58,6 @@ and Linux x86_64 desktop users get the Slint client.
 macOS builds are ad-hoc signed and **not notarized** (no Apple Developer account in CI),
 so a browser-downloaded copy needs right-click → Open once. The Linux build targets
 `x86_64-unknown-linux-gnu`, so it needs glibc >= 2.39 (Ubuntu 24.04 / its derivatives).
-Existing legacy installs migrate their data on first run of the Slint client
-(`crates/limedl-native/src/migrate/mod.rs`).
 
 ## Architecture
 

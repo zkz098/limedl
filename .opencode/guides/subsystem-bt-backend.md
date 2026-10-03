@@ -141,7 +141,7 @@ Alert 桥接循环（setup_alert_bridge，唯一 Aria2 事件源）：
   3. 信号 B：即使未 choke，回传/取用比例低于 `ratio` → 吸血（`ratio=0` 时关闭此判断）。
 - `banned_leechers: DashMap<IpAddr, u64>` 记录 ban 到期时间戳；每轮 sweep 到期自动 `unban_peer` 宽容处理（避免误伤共享 NAT/VPN）。
 - `anti_leech_slot_state: DashMap<Id20, usize>` 记录 LimitSlots 前的原槽位数以便恢复。
-- 动作通过 `DownloadEvent::Warning` 通知前端（复用现有事件，不改 ws_manifest）。
+- 动作通过 `DownloadEvent::Warning` 通知前端（复用现有事件）。
 - 后台任务句柄保存在 `anti_leech_task`，shutdown 时 abort（与 alert/upload 一致）；bootstrap 中 `spawn_anti_leech_loop()` 启动。
 - 相关 BtSettings 字段：`anti_leech_enabled/action/grace_secs/ratio/ban_secs/max_upload_slots`。
 

@@ -14,14 +14,12 @@ updater manifest, produced by `tauri-action`) is gone. Consequences:
 - Existing Tauri installs keep working but their in-app updater now gets a 404
   from `releases/latest/download/latest.json` and reports a check failure.
   There is no in-app migration path; users install the Slint build manually (or
-  via the Store/MSIX channel). The Slint client imports their data on first run
-  (`crates/limedl-native/src/migrate/mod.rs`).
+  via the Store/MSIX channel).
 - `src-tauri/` and its `tauri.conf.json` were **deleted**; nothing in the tree
   references the old update endpoint.
-- The minisign keypair is still the same one the Tauri shell used
-  (`TAURI_SIGNING_PRIVATE_KEY` CI secret); `cargo xtask guard` now enforces that
-  whatever key signs a release matches `PUBKEY_B64` in the client, so the secret
-  can be renamed/rotated freely (see _Rotating the signing key_).
+- The minisign keypair is still the same one the Tauri shell used; `cargo xtask
+  guard` now enforces that whatever key signs a release matches `PUBKEY_B64` in
+  the client, so the secret can be renamed/rotated freely (see _Rotating the signing key_).
 - `update.rs`'s `PUBKEY_B64` is the single copy of the update public key in the
   tree — the retired Tauri config that used to duplicate it is gone.
 
@@ -142,9 +140,7 @@ pipeline and matches what `minisign_verify` accepts.
 | each artifact        | `cargo xtask sign` → `<file>.sig` (also inlined as `signature`) | `update::verify_signature` over the exact downloaded bytes      |
 
 - Key: CI secret `LIMEDL_SIGNING_KEY` (base64 of the minisign key file text, or
-  a path locally) plus `LIMEDL_SIGNING_KEY_PASSWORD`. `LIMEDL_SIGNING_KEY_PASSWORD`
-  and the old `TAURI_SIGNING_PRIVATE_KEY[_PASSWORD]` names are still read as
-  fallbacks so an un-rotated CI keeps releasing.
+  a path locally) plus `LIMEDL_SIGNING_KEY_PASSWORD`.
 - The client trusts exactly one key: `PUBKEY_B64` in `update/mod.rs`.
 - `cargo xtask guard <artifacts...>` (run by the release job) derives the public
   key from the CI secret and **fails the release** unless it equals `PUBKEY_B64`,
@@ -172,8 +168,7 @@ Get-Content $env:TEMP\limedl-signing\limedl-signing.password | gh secret set LIM
 gh workflow run sign-check
 gh run watch
 
-# 4. Delete the key files (and, once a release has gone through, the retired
-#    TAURI_SIGNING_PRIVATE_KEY[_PASSWORD] secrets).
+# 4. Delete the key files.
 ```
 
 Rotate **before** the first release that ships the new `PUBKEY_B64`: clients

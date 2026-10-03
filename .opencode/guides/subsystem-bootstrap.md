@@ -2,9 +2,9 @@
 
 ## 模块职责
 
-**所有核心子系统的唯一初始化入口**。桌面客户端（Slint）和 NAS 服务端都调用同一个 `bootstrap()` 函数，按正确依赖顺序初始化全部子系统，返回统一的 `CoreSystems` 句柄集合。
+**所有核心子系统的唯一初始化入口**。桌面客户端（Slint）调用 `bootstrap()`，按正确依赖顺序初始化全部子系统，返回统一的 `CoreSystems` 句柄集合。
 
-> 新增子系统时，在此处添加初始化逻辑。不要在两处（桌面·`limedl-native/src/main.rs` 和 NAS·`limedl-server/src/main.rs`）分别写——两个入口各只用 ~10 行调用 `bootstrap()` 并传递返回的 Arc 句柄。
+> 新增子系统时，在此处添加初始化逻辑，不要在 `limedl-native/src/main.rs` 里单独写——入口只调用 `bootstrap()` 并传递返回的 Arc 句柄。
 
 核心类型：CoreSystems（聚合所有 Arc<子系统> 句柄的扁平结构体）。
 
@@ -12,7 +12,6 @@
 
 - `crates/limedl-core/src/bootstrap.rs` — 唯一实现文件（84 行）
 - 调用方：`crates/limedl-native/src/main.rs`（桌面客户端）
-- 调用方：`crates/limedl-server/src/main.rs`（NAS daemon + CLI single download）
 
 ## 初始化顺序（强依赖链）
 
@@ -48,6 +47,5 @@ bootstrap(state_dir)
 
 - **单例初始化**：`bootstrap()` 是整个应用中唯一创建核心子系统的地方。桌面客户端和 NAS 均调用此函数，确保初始化逻辑一致。
 - **Arc 共享**：`BackendRegistry::register_arc()` 直接存储调用方传入的 `Arc`，而非克隆新 Arc——保证 `CoreSystems.download_manager` 和 registry 内部的 DownloadManager 指向同一对象。
-- **Bootstrap 不创建 Aria2RpcServer**：Aria2 RPC 为可选功能（`aria2-rpc` feature），由调用方在 `bootstrap()` 返回后按需构建。
-- **NAS daemon 额外构建**：axum router（WebSocket RPC + 静态文件 + 认证中间件 + 安全头）在 `run_daemon()` 中构建，不在此处。
+- **Bootstrap 不创建 Aria2RpcServer**：Aria2 RPC 为可选功能（`aria2-rpc` feature），由 `limedl-native/src/main.rs` 在 `bootstrap()` 返回后按需构建。
 - **state_dir 目录**：首次调用自动创建，下载数据、数据库、torrent 状态均在其子目录下。

@@ -1,6 +1,6 @@
 # limedl
 
-Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration. Runs as a desktop app (Windows / macOS / Linux) or a headless daemon (NAS / server).
+Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration. Native desktop app for Windows, macOS and Linux.
 
 ## Features
 
@@ -33,82 +33,40 @@ deliberately — the engine is frozen, so those options stay open rather than de
 
 ## Platforms
 
-| Target       | Frontend                | Backend                 | Build                                                 |
-| ------------ | ----------------------- | ----------------------- | ----------------------------------------------------- |
-| Desktop      | Slint (native, Windows) | `crates/limedl-native/` | `cargo build -p limedl-native` (see below)            |
-| NAS / Server | Vue 3 via WebSocket     | `limedl-server`         | `pnpm run build:nas` + `cargo build -p limedl-server` |
-| CLI          | N/A                     | `limedl-server`         | `limedl download <url>` / `limedl daemon`             |
+| Target   | Frontend                | Backend                 | Build                                                              |
+| -------- | ----------------------- | ----------------------- | ------------------------------------------------------------------ |
+| Windows  | Slint (native)          | `crates/limedl-native/` | `cargo build -p limedl-native` (see below)                         |
+| macOS    | Slint (native)          | `crates/limedl-native/` | `cargo run -p limedl-native`; bundle via `scripts/package-macos.sh` |
+| Linux    | Slint (native)          | `crates/limedl-native/` | `cargo run -p limedl-native`; bundle via `scripts/package-linux.sh` |
 
-The download engine (`limedl-core`) is pure Rust with zero UI dependencies and powers every
-target. Releases ship the Slint desktop client (Windows) plus the headless NAS build with the
-WebUI embedded. The Tauri desktop shell was retired and its code removed, so `latest.json`
-(its updater manifest) is gone and existing Tauri installs stay on their last version; the
-Slint client imports their settings/history on first run. macOS/Linux users are served by the
-NAS build (`limedl daemon` + browser) today.
+The download engine (`limedl-core`) is pure Rust with zero UI dependencies. Releases ship the
+Slint desktop client for all three platforms.
 
 ## Quick Start
 
-### Desktop (Slint, Windows)
+### Desktop (Slint)
 
-```powershell
+All platforms:
+
+```bash
 # MiSans VF is embedded at compile time and is not in git (font license)
 cargo xtask fetch-font
 cargo run -p limedl-native
 ```
 
-The app keeps everything in `%LOCALAPPDATA%\limedl` (override with `LIMEDL_DATA_DIR`), imports
-settings/history from a previous Tauri install on first run, and updates itself in-app
-(portable / NSIS / MSIX channels — see `crates/limedl-native/src/update/mod.rs`).
-
-### NAS / Headless Server
-
-```bash
-cargo build --release -p limedl-server
-./target/release/limedl daemon --addr 0.0.0.0:8080 --data-dir /var/lib/limedl
-```
-
-Build the WebUI first (`pnpm run build:nas`) or build the server with `--features embed-frontend`
-to bake `dist/` into the binary. Open `http://<server-ip>:8080` in a browser; use `--auth-user` /
-`--auth-pass` for HTTP Basic Auth.
-
-#### TLS (HTTPS)
-
-Enable TLS with the `tls` feature:
-
-```bash
-cargo build --release -p limedl-server --features tls
-```
-
-Configure in `settings.json`:
-
-```json
-{
-  "tls": {
-    "enabled": true,
-    "certPath": "/etc/limedl/cert.pem",
-    "keyPath": "/etc/limedl/key.pem"
-  }
-}
-```
-
-Without TLS, run behind a reverse proxy (nginx, Caddy) for production deployments.
-
-### CLI
-
-```bash
-limedl download "https://example.com/file.zip"
-limedl download --output ./downloads "https://example.com/file.iso"
-```
+The app keeps everything in the OS local data directory (Windows `%LOCALAPPDATA%\limedl`;
+override with `LIMEDL_DATA_DIR`) and updates itself in-app (portable / NSIS / MSIX channels —
+see `crates/limedl-native/src/update/mod.rs`).
 
 ## Configuration
 
 limedl stores settings as JSON. The default location depends on the platform:
 
-| Platform | Path                                                 |
-| -------- | ---------------------------------------------------- |
-| Windows  | `%APPDATA%\limedl\settings.json`                     |
-| macOS    | `~/Library/Application Support/limedl/settings.json` |
-| Linux    | `~/.local/share/limedl/settings.json`                |
+| Platform | Path                                                    |
+| -------- | ------------------------------------------------------- |
+| Windows  | `%LOCALAPPDATA%\limedl\settings.json`                    |
+| macOS    | `~/Library/Application Support/limedl/settings.json`     |
+| Linux    | `~/.local/share/limedl/settings.json`                    |
 
 Override with `LIMEDL_DATA_DIR` environment variable.
 
@@ -117,7 +75,7 @@ Key settings:
 ```json
 {
   "download": {
-    "defaultDownloadDir": "~/Downloads",
+    "defaultDownloadDir": "/absolute/path/to/Downloads",
     "defaultMaxRetries": 3,
     "defaultChecksum": "none"
   },
@@ -132,20 +90,16 @@ Key settings:
 }
 ```
 
+Paths in `settings.json` must be absolute — the loader drops a relative `defaultDownloadDir`.
+
 ## Development
 
 ```bash
-# Frontend
-pnpm install --frozen-lockfile
-pnpm run lint          # oxlint
-pnpm exec vue-tsc --noEmit  # type-check
-pnpm run test          # vitest
-
-# Rust
 cargo check --workspace
-cargo clippy --workspace -- -D warnings
-cargo test --workspace
-cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
+cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
+cargo nextest run --manifest-path xtask/Cargo.toml
 ```
 
 See [`.opencode/guides/`](.opencode/guides/) for architecture and subsystem documentation.

@@ -19,7 +19,7 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 - `crates/limedl-core/src/checksum/mod.rs` — 校验和（Blake3 / SHA-256 / SHA-512）
 - `crates/limedl-core/src/rate_limiter/mod.rs` — 全局令牌桶速率限制器
 - `crates/limedl-core/src/speed_tracker.rs` — 实时下载速度滑动窗口采样器 (SpeedTracker)
-- 前端入口：`src/lib/ipc/download-api.ts` → `crates/limedl-server/src/rpc.rs`（WebSocket RPC；桌面客户端直接调 `crates/limedl-core/src/dispatcher.rs`）
+- 前端入口：Slint 桌面（`crates/limedl-native`）与 aria2 RPC（`crates/limedl-core/src/aria2_rpc/`）都直接调用 `crates/limedl-core/src/dispatcher.rs`，不各自下钻到 DownloadManager。
 
 ## 数据流向
 
@@ -27,8 +27,8 @@ HTTP 下载的完整生命周期编排：接收下载请求 → 探测远程文�
 
 ```
 用户提交下载 → StartDownloadRequest (JSON, camelCase)
-  → download-api.ts → invoke("download_start")
-  → commands.rs → classify_kind() → BackendRegistry.by_kind()
+  → limedl-native 新建任务对话框 → dispatcher.start()
+  → classify_kind() → BackendRegistry.by_kind()
   → HTTP URL → DownloadManager::start() → TaskId::Http(uuid)
 ```
 
@@ -89,10 +89,10 @@ Scheduler 后台循环（SCHEDULER_TICK = 2s）:
 
 - DownloadManager 拆分为 3 个 ZST actor（HttpExecutor / Scheduler / TaskLifecycle），不持有 DownloadManager 引用，通过方法参数接收，避免循环引用。
 - CRUD 方法（start/pause/resume/cancel/remove/purge）委托 actor 完成具体工作。
-- 所有事件通过 EventBus::publish() 统一发布，前端发射由 lib.rs 的独立订阅任务完成。
+- 所有事件通过 EventBus::publish() 统一发布，前端发射由各 adapter 的独立订阅任务完成（`crates/limedl-native/src/event_stream/bus.rs`、`crates/limedl-core/src/aria2_rpc/transport.rs`）。
 - AIMD 状态变更在 scheduler.rs 中，worker 只报告下载字节数。
 - AIMD 不依赖 `proxy.mode`：早期版本与已移除的“网络学习”功能耦合，代理启用时会直接跳过 `update_adaptive_targets`（并连带禁用超频模式）；该遗留门槛已移除，回归测试 `tests/scheduler_tests.rs::adaptive_targets_apply_when_proxy_is_enabled`。
-- `update_adaptive_targets` 变更 `desired_thread_count` 时必须同步 snapshot（升/降分支及超频分支均调用 `sync_snapshot_with_manifest`），否则 API/WebUI 的“目标线程数”会滞回到下一次 `rebalance_allocations`。
+- `update_adaptive_targets` 变更 `desired_thread_count` 时必须同步 snapshot（升/降分支及超频分支均调用 `sync_snapshot_with_manifest`），否则前端看到的“目标线程数”会滞回到下一次 `rebalance_allocations`。
 - 重构 `scheduler/mod.rs` 时的两个不变量：AIMD 决策体 `update_one_adaptive` 必须保持 `lock_core` → `lock_aimd` 的锁序；`rebalance_allocations` 的两条模式分支分别由 `rebalance_traditional` / `rebalance_automatic` 承担，per-host 上限统一走 `HostCapTracker`，不要在分支里再写一份。
 
 ### http_executor 公共件
