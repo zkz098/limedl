@@ -351,18 +351,30 @@ jobs:
           # quality gate stays advisory because the Free plan cannot attach the
           # prepared custom condition to the project (see
           # sonar-project.properties), so without this flag the number could
-          # silently rot. 87 is the 2026-10-03 product-only measurement minus a
-          # small round: 87.37% of 14561 lines. "Product-only" is what the tool
-          # has always measured for the gate: since cargo-llvm-cov 0.6.22 the
-          # default ignore regex drops `tests/` directories and
-          # `tests.rs`/`*_tests.rs` files, so test code is not in the
-          # denominator (Sonar excludes it too). The gate was introduced as 88
-          # against a 0.6.21 measurement that *did* count test code (88.59% of
-          # 21397 lines); the install step below pulled the action's `latest`,
-          # the tool moved to 0.9.0, the denominator changed and the gate went
-          # red without a code change. cargo-llvm-cov is pinned now, so the
-          # number can only move with the code. Ratchet it up when coverage
-          # grows — do not lower it to make a red run green.
+          # silently rot. 85 is the pinned-0.9.0 Linux measurement (86.90% of
+          # 15376 product lines, run 37088319623 on 2026-10-03) minus ~2 pp of
+          # margin. The margin is for the numerator, not for a future tool
+          # move: the covered-line count wobbles by ~20 lines between runs (CI
+          # 13362, local 13343) because timing-dependent paths (retry/backoff,
+          # eviction) are not deterministic under the instrumented build.
+          #
+          # "Product-only" is what the tool has always measured for the gate:
+          # since cargo-llvm-cov 0.6.22 the default ignore regex drops `tests/`
+          # directories and `tests.rs`/`*_tests.rs` files, so test code is not
+          # in the denominator (Sonar excludes it too).
+          #
+          # Do not re-baseline this number from a local run alone. The 87 this
+          # gate originally shipped with was "87.37% of 14561 lines", and 14561
+          # is the *0.6.21* report, not 0.9.0's: 0.6.x injected
+          # `-C instrument-coverage` into the whole graph via RUSTFLAGS, while
+          # 0.7.0+ applies it only to the crates that need it through a rustc
+          # wrapper (PR #471). A fresh 0.6.21 build reproduces 14561; a fresh
+          # 0.9.0 build of the same tree measures 15376, and the wrapper's flags
+          # are invisible to cargo's fingerprints, so a re-check run after a
+          # 0.6.21 build can silently report the old artifacts. Measure from
+          # `cargo llvm-cov clean` with the pinned tool, or trust the number CI
+          # prints. Ratchet the gate up when the measured value grows; lowering
+          # it again needs the same clean-run evidence.
           #
           # Coverage stays on stable: cargo-llvm-cov's `--branch` is unstable
           # and refuses to run on a stable toolchain, so this is line coverage
@@ -376,7 +388,7 @@ jobs:
           # `-C instrument-coverage` instrumentation is unaffected, and neither
           # this repo nor core's dependency graph uses that cfg (measured
           # difference: 5 dependency lines).
-          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 87 --no-cfg-coverage
+          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 85 --no-cfg-coverage
           # Second report for the Sonar scan: the desktop crate is a workspace
           # path dependency of limedl-core's *sibling*, so without it every
           # limedl-native line was missing from the report and Sonar counted the
@@ -393,9 +405,10 @@ jobs:
           # `#![feature(coverage_attribute)]`, which stable rustc rejects
           # (`E0554`).
           #
-          # The report currently measures 73.8% (8369/11337 lines) under the
-          # pinned tool and the nextest runner. There is no --fail-under-lines
-          # here yet: land a baseline gate once the number has settled in CI.
+          # The report measures 73.7% (8855/12021 lines) under the pinned tool
+          # and the nextest runner (CI-equivalent local run, 2026-10-03). There
+          # is no --fail-under-lines here yet: land a baseline gate once the
+          # number has settled in CI.
           cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-core' --no-cfg-coverage
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # ── SonarQube Cloud ────────────────────────────────────────────────
