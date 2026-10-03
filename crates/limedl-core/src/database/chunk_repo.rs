@@ -53,6 +53,14 @@ pub(crate) fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest>
 
 impl Database {
     /// Incremental update for the 300 ms persist cycle.
+    ///
+    /// The `state NOT IN (…)` guard is load-bearing: this writer runs
+    /// concurrently with finalize's full upsert, and a snapshot taken just
+    /// before the terminal transition could otherwise land after it and
+    /// rewind the row to `downloading`. The next startup would then treat a
+    /// finished download as resumable. Full upserts (`insert_download`) are
+    /// deliberately *not* guarded — they are the only writer allowed to move a
+    /// row into (or out of) a terminal state.
     pub fn update_download_progress(
         &self,
         id: &str,
@@ -68,7 +76,8 @@ impl Database {
 
         let result = (|| -> Result<()> {
             conn.prepare_cached(
-                "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 WHERE id = ?4",
+                "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 \
+                 WHERE id = ?4 AND state NOT IN ('completed', 'failed', 'canceled')",
             )
             .context("failed to prepare download progress update")?
             .execute(params![downloaded_bytes as i64, state, updated_at_ms as i64, id])
@@ -106,6 +115,9 @@ impl Database {
     }
 
     /// Incremental update for multiple downloads in a single transaction.
+    ///
+    /// Same terminal-state guard as [`Self::update_download_progress`]: the
+    /// scheduler's batch must never rewind a row finalize already completed.
     pub fn update_downloads_progress_batch(&self, entries: &[ProgressBatchEntry]) -> Result<()> {
         if entries.is_empty() {
             return Ok(());
@@ -118,7 +130,8 @@ impl Database {
         let result = (|| -> Result<()> {
             for entry in entries {
                 conn.prepare_cached(
-                    "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 WHERE id = ?4",
+                    "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 \
+                     WHERE id = ?4 AND state NOT IN ('completed', 'failed', 'canceled')",
                 )
                 .context("failed to prepare progress update in batch")?
                 .execute(params![entry.downloaded_bytes as i64, entry.state.as_str(), entry.updated_at_ms as i64, entry.id.as_str()])

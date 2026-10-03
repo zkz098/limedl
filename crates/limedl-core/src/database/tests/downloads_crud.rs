@@ -344,3 +344,85 @@ fn null_optionals_roundtrip() {
     assert!(loaded.thread_note.is_none());
     assert!(loaded.chunks.is_empty());
 }
+
+/// A stale progress flush must never downgrade a terminal row.
+///
+/// The executor's 500 ms tick and the scheduler's batch both snapshot
+/// `downloading` just before finalize upserts `completed`; their queued
+/// `UPDATE` could land afterwards and rewind the row, which makes the next
+/// startup treat a finished download as resumable (and hides the row from
+/// `aria2.tellStopped` once it is evicted from memory).
+#[timeout(30_000)]
+#[test]
+fn progress_update_cannot_downgrade_a_terminal_row() {
+    let db = Database::open_in_memory().unwrap();
+    let mut manifest = new_test_manifest("done-1", "https://example.com/f", "f.bin");
+    manifest.state = DownloadState::Completed;
+    manifest.downloaded_bytes = 1024;
+    manifest.updated_at_ms = 2000;
+    db.insert_download(&manifest).unwrap();
+
+    db.update_download_progress("done-1", 512, &[], "downloading", 3000)
+        .unwrap();
+
+    let loaded = db.get_download_header("done-1").unwrap().expect("row");
+    assert_eq!(
+        loaded.state,
+        DownloadState::Completed,
+        "a stale progress write must not downgrade the row"
+    );
+    assert_eq!(
+        loaded.downloaded_bytes, 1024,
+        "the terminal snapshot must win wholesale"
+    );
+    assert_eq!(loaded.updated_at_ms, 2000);
+}
+
+/// The scheduler's batch shares the guard, and non-terminal rows still take
+/// their progress in the same transaction.
+#[timeout(30_000)]
+#[test]
+fn batch_progress_update_cannot_downgrade_terminal_rows() {
+    use crate::database::ProgressBatchEntry;
+
+    let db = Database::open_in_memory().unwrap();
+
+    let mut done = new_test_manifest("done-b", "https://example.com/done", "done.bin");
+    done.state = DownloadState::Completed;
+    done.downloaded_bytes = 1024;
+    let mut active = new_test_manifest("active-b", "https://example.com/active", "active.bin");
+    active.state = DownloadState::Downloading;
+    db.insert_download(&done).unwrap();
+    db.insert_download(&active).unwrap();
+
+    db.update_downloads_progress_batch(&[
+        ProgressBatchEntry {
+            id: "done-b".into(),
+            downloaded_bytes: 10,
+            dirty_chunks: vec![],
+            state: "downloading".into(),
+            updated_at_ms: 3000,
+        },
+        ProgressBatchEntry {
+            id: "active-b".into(),
+            downloaded_bytes: 700,
+            dirty_chunks: vec![],
+            state: "downloading".into(),
+            updated_at_ms: 3000,
+        },
+    ])
+    .unwrap();
+
+    let done = db.get_download_header("done-b").unwrap().expect("row");
+    assert_eq!(
+        done.state,
+        DownloadState::Completed,
+        "the batch must not downgrade a terminal row"
+    );
+    let active = db.get_download_header("active-b").unwrap().expect("row");
+    assert_eq!(active.state, DownloadState::Downloading);
+    assert_eq!(
+        active.downloaded_bytes, 700,
+        "non-terminal rows still take their progress in the same batch"
+    );
+}
