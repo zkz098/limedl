@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:932728165c1d68621eb59d8762509a34b564c66c63f69bd25f2bea30c7c06d47",
+  "pageVersion": "sha256:f6b9856e255277affcf439acd203a9ca26fb2dfdc63203a45b534cc176fb4bc1",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
@@ -8,7 +8,7 @@
       "evidence": [
         {
           "resource": "repo://Cargo.toml#L1-L11",
-          "version": "repo-lines-v1:sha256:c4a6f022046d035773dc91a6bc515dff7c7d8904cb875f982f9646e0eda1aaae:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+          "version": "repo-lines-v1:sha256:8ebc320192cb4703b769d6628266c9befda0c904264d93d05a7809fcf77bbac9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/lib.rs#L1-L34",
@@ -31,8 +31,8 @@
       "statement": "On Windows the MSVC environment must be initialized before any Rust command, and Linux additionally needs libfontconfig1-dev; the app stores data in the OS local data directory and honours LIMEDL_DATA_DIR.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L3-L21",
-          "version": "repo-lines-v1:sha256:4d580b193d8099fe5a85c7c2361ff312c6c20179c4bed4b55c5ef6bcc455af16:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1NGRhNWZhYzhjNTkwOTA4YzQxMWQxYzk3ZjJjMTE5NjY3M2U1NjlkZWY3MjE4YTNjZTMwZDBmYzU4NDA5YTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZTkwMTNjZDY0YjRmN2VmMzVlNTY1ZTU0MjI0ZjEwZTJmMDAxZTFlMzM1MzA3YWJlNTI1YzQzNGJiOTAxNTIifQ"
+          "resource": "repo://AGENTS.md#L3-L23",
+          "version": "repo-lines-v1:sha256:3066aaa82b67f709bae5b739cf6c505a4b759771e820ba92c05fa152833bfd02:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1NGRhNWZhYzhjNTkwOTA4YzQxMWQxYzk3ZjJjMTE5NjY3M2U1NjlkZWY3MjE4YTNjZTMwZDBmYzU4NDA5YTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZTkwMTNjZDY0YjRmN2VmMzVlNTY1ZTU0MjI0ZjEwZTJmMDAxZTFlMzM1MzA3YWJlNTI1YzQzNGJiOTAxNTIifQ"
         },
         {
           "resource": "repo://README.md#L56-L72",
@@ -45,7 +45,7 @@
       "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native) under CARGO_BUILD_WARNINGS=deny, and it cannot compile non-Windows code from a Windows host.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L82-L125",
+          "resource": "repo://AGENTS.md#L85-L128",
           "version": "repo-lines-v1:sha256:4c5ac37cbd5d7e11d6341eba32311a34adb245d7e270c13704e63dbbd2133125:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxNjgwODAxNmY5MjgzZTRlMmE1ZjQ0OTZhMWVhMjkzYjA2YjAwZTNlZTJjMjdjOGE3MmI2ZDY3NjNlZDFjY2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5NDgxZjg1MzFkOWUyZTc2OGU3NmFlMmZjYzExZGRjM2UyZjk2OGEwMDU0NTdlODcyMzdlZDgwNzAwY2VkMjUifQ"
         }
       ]
@@ -179,14 +179,28 @@
       "statement": "Dependency changes must have their Cargo.lock updates committed, or CI cache misses and stale dependency resolution follow.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L126-L133",
+          "resource": "repo://AGENTS.md#L129-L136",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_b7235d35fcd44682b4e221dc3cac9747",
+      "statement": "Aria2 RPC request arguments are parsed by JSON type rather than position (AriaNg sends addTorrent([torrent, [], options])), so a new RPC method must add a Tier 1 fixture in the real client's request shape.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60",
+          "version": "repo-lines-v1:sha256:ca020dd21413e291241876df9c99aed9e0627044d72604f19e604601402826e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYjE1ZDE3NDk1MmUzYjkxMWEzNGIxM2JjNTEyODRjYzIwMDhlNDdkMGI0NGM4ZTNlOTA1ZDQyNmY4MGEzMWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmMWVmNzhkMDZhMTQzMjc5Mzc4MzMxNzQ0NjY1NWJmODRhOWZiOWQwZmQ4MzNhMGQyZTY0Y2ZkMDE3N2ZjMTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4OGRjYzJiZjE5MzY2YTVkOWY1NDcyMTJlNzIwMGQyYWY5ZTk3ODVhNGY4ODBiZDNhNzI3M2MwYzRhZjdiZjAifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142",
+          "version": "repo-lines-v1:sha256:61d472e472c83c902cbd448d1c3883ff2e7fcd020ae9e936fc4347ac3700ec1f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjZmUzZmZmOWM1YjRkNjg2NWQ1YWJiMGM4Y2QwODZhMDZmNjUyNGY5NGE5NDYyODE4M2EzNjc2MDI2MWZlODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2Yzc0ZjZhNmM3YzgzOTJjY2U1MGFmYTBhNDdkY2E2YmExZTVhNmIwYTJiZTUwMmVhNGEwNWZlMzI0N2ZiMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyNGZmMDM4ZWM4N2ZjNThlOWE1MzE0MmYwMWFiOGExMGYyNTBkYWZlNmVhY2JjNzRiZWEyOTNjMzJkYjJkMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NGNiY2IzNjMzZThhYjM2YjA0ZmY5OGRiODMxMTYyNWI1ODU5ZTk0NDk2ZmY2ZTM5MTZmMTJjMTlhMWNkZTIifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T07:31:34.204Z"
+    "at": "2026-10-04T10:20:09.270Z"
   }
 }

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:b82ce96e9bfd4e982c88c6968cf9faaab9ea1df523097fff19f2addbbfed1e05",
+  "pageVersion": "sha256:3b438dcbf2bd17220f5f48006620a554b6143a926063a7ad0ccf0178cf2f23cd",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
       "statement": "Building requires MSVC initialization on Windows, a one-time cargo xtask fetch-font, libfontconfig1-dev on Linux, and a cargo-nextest version pinned to what CI installs.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L3-L21",
-          "version": "repo-lines-v1:sha256:4d580b193d8099fe5a85c7c2361ff312c6c20179c4bed4b55c5ef6bcc455af16:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1NGRhNWZhYzhjNTkwOTA4YzQxMWQxYzk3ZjJjMTE5NjY3M2U1NjlkZWY3MjE4YTNjZTMwZDBmYzU4NDA5YTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZTkwMTNjZDY0YjRmN2VmMzVlNTY1ZTU0MjI0ZjEwZTJmMDAxZTFlMzM1MzA3YWJlNTI1YzQzNGJiOTAxNTIifQ"
+          "resource": "repo://AGENTS.md#L3-L23",
+          "version": "repo-lines-v1:sha256:3066aaa82b67f709bae5b739cf6c505a4b759771e820ba92c05fa152833bfd02:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1NGRhNWZhYzhjNTkwOTA4YzQxMWQxYzk3ZjJjMTE5NjY3M2U1NjlkZWY3MjE4YTNjZTMwZDBmYzU4NDA5YTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZTkwMTNjZDY0YjRmN2VmMzVlNTY1ZTU0MjI0ZjEwZTJmMDAxZTFlMzM1MzA3YWJlNTI1YzQzNGJiOTAxNTIifQ"
         }
       ]
     },
@@ -27,7 +27,7 @@
       "statement": "cargo xtask provides generate-key, sign, verify, guard, manifest, fetch-font and bump-version subcommands for the update channel, release manifest and font.",
       "evidence": [
         {
-          "resource": "repo://xtask/src/main.rs#L71-L140",
+          "resource": "repo://xtask/src/main.rs#L73-L142",
           "version": "repo-lines-v1:sha256:e536982f8a530d1823841867f2c4cbe8197b98c108574bb28076cc9baad36667:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjYTgwZTJlYmI3ZTBlZTkwMDM2Njc4NThkNjk1YzhmZDY1MDJjMWM1NTExMGRjZGMwOTUwMTdjZjQ4OGY2NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYjY3YjFlNDc0NTM5ZDNkNjU3YTI2Mjc0ZGY3YzNiNzhjODgxNTBlM2IxZjhkOTIwNDI5YzEzOWY0MDAyNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA4NDBlZWE4NjZlOTI2NzEwZTU4ZmY4YTVmZGM1YzVlMWQzNmMyNjY1NDhjNjIxY2NhMDgxNWJkMGE3ZTMxNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzY2I4ODdmOWE4YWIxMTRhYzQ0OWVhYjcwOTNjZDA5NGYyNTZjNGU5MTg1ODlmZmJkNzgyYTQ1Y2NhNTIzYTgifQ"
         }
       ]
@@ -75,7 +75,7 @@
       "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native) with CARGO_BUILD_WARNINGS=deny, not RUSTFLAGS, so .cargo/config.toml's flags stay authoritative.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L82-L105",
+          "resource": "repo://AGENTS.md#L85-L108",
           "version": "repo-lines-v1:sha256:5d4f549bd5dc82df6a611968c30b269861506c87a47edc512fbb6a16ad2f8a00:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxNjgwODAxNmY5MjgzZTRlMmE1ZjQ0OTZhMWVhMjkzYjA2YjAwZTNlZTJjMjdjOGE3MmI2ZDY3NjNlZDFjY2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlYTQ1Y2ViNGQyY2UzOTU5MzAxMjRlMzI2ZmQ0NTAwYTFiYjIxNzllNWRhNTI3ZTA3ZWM4YzEwZTM2ZmE0MzAifQ"
         }
       ]
@@ -95,7 +95,7 @@
       "statement": "On a Windows host the gate never compiles cfg(not(windows)) code, so non-Windows-only unused imports, Windows-only build.rs dependencies, missing dependency features and missing -dev packages can only be caught by the first tagged release; the project mitigates this by preferring #[cfg] over runtime target checks.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L106-L125",
+          "resource": "repo://AGENTS.md#L109-L128",
           "version": "repo-lines-v1:sha256:bfe2bd0cccc2c1d00dac3f446b5f00cbb488b8bdb8d69d5cadb8d676359f4635:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMTUzYjFlNTAzZDMyMDhlOTc3NGMxZmYzNGRjNDIyYzg1ZjM4MDY5YjFkNTdmYjQ5ZGZmYzg1N2JiMTJjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExMTdlYjgxOTRhZTAyNWFjYWM5ZWE1YzE1ZDNlNTM1NjU3YjM2ZTAyMDVhMjUwYmJjZDMzMzZmZmY0ZWQ2MzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5NDgxZjg1MzFkOWUyZTc2OGU3NmFlMmZjYzExZGRjM2UyZjk2OGEwMDU0NTdlODcyMzdlZDgwNzAwY2VkMjUifQ"
         }
       ]
@@ -157,7 +157,7 @@
       "statement": "Lockfile changes after cargo update/add/remove must be committed, and irontide is pinned exactly to =1.7.0 because the BT backend depends on a wide engine API and upstream's git repository was removed, making crates.io the only source of truth.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L126-L133",
+          "resource": "repo://AGENTS.md#L129-L136",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         },
         {
@@ -169,6 +169,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T03:21:09.297Z"
+    "at": "2026-10-04T10:20:09.270Z"
   }
 }

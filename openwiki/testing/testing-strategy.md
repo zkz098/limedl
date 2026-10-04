@@ -8,6 +8,8 @@ sources:
     resource: repo://.github/workflows/ci.yml
   - id: openwiki-source-c8ca1e3187dacc725ff333e9
     resource: repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs
+  - id: openwiki-source-3659606b404344d4dd4d1487
+    resource: repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs
   - id: openwiki-source-1c0eea0988a8be3129ce2126
     resource: repo://crates/limedl-core/src/bt_backend/tests/alerts.rs
   - id: openwiki-source-8a802dd79d30f7920922a1e7
@@ -44,10 +46,12 @@ sources:
     resource: repo://crates/limedl-core/src/tests/resume_corruption_tests.rs
   - id: openwiki-source-1a1d4b50d244dfdbcf190f3a
     resource: repo://crates/limedl-core/tests/logging_reload_repro.rs
-generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+  - id: openwiki-source-3fe9812b75a7522e89f74344
+    resource: repo://docs/aria2-interop-testing.md
+generated: { by: "pi", at: "2026-10-04T10:20:09.270Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+    at: 2026-10-04T10:20:09.270Z
 ---
 
 # Testing Strategy
@@ -55,8 +59,7 @@ verified:
 limedl's engine tests live beside the code (unit tests) or in
 `crates/limedl-core/src/tests/` (cross-module integration), with two dedicated
 integration binaries under `crates/limedl-core/tests/`. The UI layer has its own
-<!-- openwiki: broken internal link [/openwiki/testing/slint-ui-testing.md] link "/openwiki/testing/slint-ui-testing.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-in-process suite, documented on [Slint UI Testing](/openwiki/testing/slint-ui-testing.md).
+in-process suite, documented on [Slint UI Testing](../testing/slint-ui-testing.md).
 
 ## Test layout conventions
 
@@ -234,6 +237,38 @@ every method, CORS fallback, magnet-to-BT routing, `changeOption` matrices, `key
 filtering, `getUris`, and the terminal-task eviction scenario.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1-L20`.
+
+### Aria2 interoperability fixtures (Tier 1)
+
+`aria2_rpc/interop_tests.rs` is the client-contract layer: rather than the
+hand-written request shapes in `e2e_tests.rs`, it encodes the shapes real clients
+send. It exists because a shape mismatch can pass limedl's own tests while
+breaking a real client — `addTorrent` used to read `params[1]` as the options
+object, so AriaNg's `[torrent, [], options]` silently dropped
+`dir`/`out`/`pause`/`select-file` while the `[torrent, options]` tests stayed
+green.
+
+The suite asserts:
+
+- `system.listMethods` equals the routed handler set exactly (36 entries), and
+  every advertised method is reachable (never `-32601`).
+- AriaNg's multicall shape (no outer token, per-call tokens) yields the
+  single-element `[value]` wrapper.
+- `addTorrent([torrent, [], options])` and `[torrent, options]` both keep the
+  options, and `addUri([urls, options])` keeps `dir`/`out`.
+- `tellStatus` carries aria2's always-present keys plus the HTTP piece map and
+  the BT metadata object, and stays silent about `errorCode` until terminal.
+- `getServers`, `changeUri` (`[deleted, added]`) and `changePosition` (the real
+  resulting index) match their aria2 reply shapes.
+
+It is pure Rust with no external binary, so it runs inside the normal
+`cargo nextest run --features "test-utils,aria2-rpc"` core gate. The Tier 2
+(real `aria2c` oracle) and Tier 3 (AriaNg smoke test) layers, together with the
+list of intentional deviations, live in `docs/aria2-interop-testing.md`.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`,
+`repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L81-L214`,
+`repo://docs/aria2-interop-testing.md#L1-L120`.
 
 ### BT backend tests
 

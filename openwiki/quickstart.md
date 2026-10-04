@@ -10,6 +10,10 @@ sources:
     resource: repo://AGENTS.md
   - id: openwiki-source-651d1fb6c9e49916a916ab51
     resource: repo://Cargo.toml
+  - id: openwiki-source-3659606b404344d4dd4d1487
+    resource: repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs
+  - id: openwiki-source-9529b707cb48393fd5c5dcfb
+    resource: repo://crates/limedl-core/src/aria2_rpc/options.rs
   - id: openwiki-source-2262be0eb4e0dcf867247c95
     resource: repo://crates/limedl-core/src/backend_registry/mod.rs
   - id: openwiki-source-093388d09b520118fa26ce32
@@ -36,10 +40,10 @@ sources:
     resource: repo://README.md
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
-generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+generated: { by: "pi", at: "2026-10-04T10:20:09.270Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T07:31:34.204Z
+    at: 2026-10-04T10:20:09.270Z
 ---
 
 # limedl Wiki Quickstart
@@ -66,7 +70,7 @@ Evidence: `repo://Cargo.toml#L1-L11`, `repo://crates/limedl-core/src/lib.rs#L1-L
 | Change settings | [Settings and Configuration](systems/settings-and-configuration.md) | `crates/limedl-core/src/settings/`, `services/settings_service.rs` |
 | Work on disk I/O / buffers | [Disk I/O, Buffer Pool and Storage Detection](systems/disk-io-and-storage.md) | `crates/limedl-core/src/buffer_pool/`, `file_ops/` |
 | Change networking / proxy / UA | [Networking, HTTP Clients and Rate Control](systems/networking-and-rate-control.md) | `crates/limedl-core/src/http_client_factory/mod.rs` |
-| Work on the Aria2 RPC API | [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md) | `crates/limedl-core/src/aria2_rpc/` |
+| Work on the Aria2 RPC API | [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md) | `crates/limedl-core/src/aria2_rpc/`; interop fixtures in `aria2_rpc/interop_tests.rs`, runbook `docs/aria2-interop-testing.md` |
 | Work on the desktop UI | [Native Desktop UI (Slint)](desktop/native-ui-architecture.md) | `crates/limedl-native/src/main.rs`, `ui_boot.rs`, `handlers/` |
 | Change the updater / packaging | [Self-Update and Distribution Channels](desktop/self-update-and-distribution.md) | `crates/limedl-native/src/update/mod.rs` |
 | Build / CI / release | [Build, Tooling, CI and Release Operations](operations/build-release-and-ci.md) | `.github/workflows/`, `xtask/` |
@@ -125,6 +129,11 @@ Evidence: `repo://AGENTS.md#L82-L125`.
 - **The BT alert bridge is the sole source of BT Aria2 notifications**; the RPC
   handler broadcasts only for HTTP.
   `repo://crates/limedl-core/src/bt_backend/alerts.rs#L100-L200`
+- **Aria2 RPC arguments are parsed by JSON type, not position** (AriaNg sends
+  `addTorrent([torrent, [], options])`); a new method must add a Tier 1 fixture in
+  the real client's request shape.
+  `repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142`,
+  `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`
 - **Never guess a filesystem from a size or an unrelated error**; single-file
   limits are only decided in `reservation_error`.
   `repo://crates/limedl-core/src/file_ops/mod.rs#L586-L618`

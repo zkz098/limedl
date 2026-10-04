@@ -54,10 +54,10 @@ sources:
     resource: repo://crates/limedl-native/ui/components/toast_stack.slint
   - id: openwiki-source-90185777dff572d79a3b452d
     resource: repo://crates/limedl-native/ui/theme.slint
-generated: { by: "pi", at: "2026-10-04T07:31:34.204Z" }
+generated: { by: "pi", at: "2026-10-04T10:20:09.270Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T07:31:34.204Z
+    at: 2026-10-04T10:20:09.270Z
 ---
 
 # Native Desktop UI (Slint)
@@ -378,7 +378,7 @@ with `mode` (from `appearance.color_mode`) and `accent` (from
 hardcoded hex; `apply_appearance` translates settings into the `Theme` global and
 the OS window theme.
 
-Evidence: `repo://crates/limedl-native/ui/theme.slint#L1-L26`,
+Evidence: `repo://crates/limedl-native/ui/theme.slint#L15-L30`,
 `repo://crates/limedl-native/src/ui_sync.rs#L304-L319`.
 
 Related pages: [Workspace and System Architecture](../architecture/overview.md),

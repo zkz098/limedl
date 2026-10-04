@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:6dace9590dae7b1444067069805b8109eac7d6d57e9c73bea7aa4ab622ad102b",
+  "pageVersion": "sha256:9fbb06af9b19e8a1d8edeec5c48bf971b7b2747133d04cb76871b7a37569d236",
   "claims": [
     {
       "id": "claim_50e14f0840f8483a9aa585a5b612f644",
-      "statement": "The workspace has exactly three members — crates/limedl-core, crates/limedl-native and xtask — inherits version 0.4.5 from the root manifest, and uses Rust edition 2024 in every crate.",
+      "statement": "The workspace has exactly three members — crates/limedl-core, crates/limedl-native and xtask — inherits version 0.4.6 from the root manifest, and uses Rust edition 2024 in every crate.",
       "evidence": [
         {
           "resource": "repo://Cargo.toml#L1-L11",
-          "version": "repo-lines-v1:sha256:c4a6f022046d035773dc91a6bc515dff7c7d8904cb875f982f9646e0eda1aaae:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+          "version": "repo-lines-v1:sha256:8ebc320192cb4703b769d6628266c9befda0c904264d93d05a7809fcf77bbac9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
         }
       ]
     },
@@ -171,6 +171,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T07:31:34.204Z"
+    "at": "2026-10-04T10:20:09.270Z"
   }
 }

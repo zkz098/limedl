@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e40898c8e64b9a741925cbfa29248286d88a16b49f38cfa1be06ff1a021ce085",
+  "pageVersion": "sha256:a630f03ffa33ff08e1782bb4f6401421e16901c893c100e6ac8320ac7de6cd18",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -199,10 +199,38 @@
           "version": "repo-lines-v1:sha256:e03bc14575e11fbd52bf90f00da81a8cf98c49ef75e49516bf88155f2b2df5e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YWUwMzUzZmZjZjI1YTIyNzE2OTdiY2E3NjM5ZGI1NmUyYmNjNzc5NjUzZjU1ZjljMjQ4MjIwMWIxM2Y2MTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiMWRiYjM2NzQwNTZmYmRiZTczZDAyNzEzYzYzMDU4ZmE5NzEwMzIwMzAwNjI4ZTFhZTc0NGU2NTFhOTAzMmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjYmU3NTgwZGJiM2E3ZGI3ODViMWE1NTU5NDQyYWE5OGEzOWZmMTYzY2VlNjVjMzQ0MmQ3NzJiMmUwYWUzODIifQ"
         }
       ]
+    },
+    {
+      "id": "claim_78733ab8941545979611ef3fb9b3a314",
+      "statement": "aria2_rpc/interop_tests.rs is a pure-Rust Tier 1 client-contract suite that runs in the normal cargo nextest core gate; it asserts system.listMethods equals the 36-entry routed handler set and that every advertised method is reachable, and encodes real client request/reply shapes (AriaNg addTorrent/addUri/multicall, tellStatus key schema, getServers/changeUri/changePosition).",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L81-L214",
+          "version": "repo-lines-v1:sha256:4dc9ab04f7fd449f7e5bbbeaec5116c05ce54ea687b068f77113c8e4ed0cc388:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI0OTA3MTFmOTM1YzQyYmNiYjhjMjY5MmVmOTY4NjMyMWIxMzRmZjlmY2U4MGVjZTBlYmQyMjJkMTZlMDBkMTU0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlZjk1ZGVmYTY3Nzg5ODZiMWRkOWIwMDg0MGRkYjRmMGExZTNhMDdjMjM4MDgyNmY4NjljNDE1ZTJkYzA4NDI2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1M2NlNjM5ZDg2MmNlNzZlYTg4Mzk2YTM4NjQ1ZDQ0ZDFkYWFkNDBmZDY0NDA3OTEyMzE5NDIyM2Q2YjU4ZDliIn0"
+        },
+        {
+          "resource": "repo://docs/aria2-interop-testing.md#L1-L120",
+          "version": "repo-lines-v1:sha256:fb1db55828020172d5637554b45e303e2c96263c23e38800c23225160e93acbe:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI1ZTRlYTcwOTI1ZGJkMTFlYzIxOTllNGE0MmY0NGYxOTk3MzMwODkzNTczMjlkY2UwN2ZkMGI0MTQ1NTdhZTdkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjMTQ3M2M2MTBjZDdlODlmMWZkNWQ4ODQ5NmNmYTFkNGNmYTBlZmJhN2Y4NmMyMzc5NTMwYjFhNTVjYjA5NWE0IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3N2ZkOWI2MjA3MzkzNjI5MGVmYzRiNTljYTllMGU1NDNjNzkzNjY1MTdjMTY5NDEwODg3ZmUwOGM1YWU5MTljIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_20f9550ce8934ed18ba43740034a035c",
+      "statement": "Because the earlier Aria2 E2E suite sent hand-written request shapes such as addTorrent([torrent, options]), the bug that dropped AriaNg's [torrent, [], options] options stayed invisible; the fixture-based Tier 1 interop suite was introduced specifically as the regression guard for that class of shape mismatch.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:bd752ab896eb77a3fb333f29f9f173214b251d2349fabe38acce9832706c1c97:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzNjEwNWY0Zjg3ZjU3ZWM1YTQ2NDA0ZmVmYjNmMDk1NzUwYzg0ZjlkN2UxZTJlMDNmMTg0YTAxMDc4ODM2MjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFmM2IzNjFmNDg4M2E5NmFmYWY0OGNiNDI4MTYxZjJiYTJkNTJjNDEyNDgzZmFmZTM2OTc4YzNhZmI0NDY0NmMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L162-L214",
+          "version": "repo-lines-v1:sha256:0369d05d693a600ab2bea6568654b358e47cf9ae293b293c82d1da2e552607e3:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5Y2EzZjI5YzQ4YjdmMGVhODY2ZDMwZmY0NTg3NjdlNjIyYTJhNmFmOTE1MDhhNzJhYjc5Mjg2ZTYwZWQyNmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU4MmE3MjVlNGJmNTA2MDFlNmQ1ODQyZTQzNTNiY2E2MDRiYjNlNGFlZTc2ZmUzOWI3OThjNTkwMGY1NDYwYTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUzY2U2MzlkODYyY2U3NmVhODgzOTZhMzg2NDVkNDRkMWRhYWQ0MGZkNjQ0MDc5MTIzMTk0MjIzZDZiNThkOWIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T05:35:23.596Z"
+    "at": "2026-10-04T10:20:09.270Z"
   }
 }
