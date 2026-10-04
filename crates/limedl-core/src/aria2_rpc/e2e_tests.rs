@@ -393,8 +393,8 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
         "Unknown method must return error"
     );
     assert_eq!(
-        resp["error"]["code"], -32601,
-        "Unknown method error code must be -32601"
+        resp["error"]["code"], 1,
+        "Unknown method error code must be 1"
     );
 
     // ── Cleanup ──
@@ -411,7 +411,7 @@ async fn aria2_add_uri_missing_uris_returns_error() {
     let resp = rpc_call(&client, &rpc_url, "aria2.addUri", serde_json::json!([])).await;
 
     assert!(resp["error"].is_object(), "Missing URIs must return error");
-    assert_eq!(resp["error"]["code"], -32602);
+    assert_eq!(resp["error"]["code"], 1);
 
     // An explicitly empty URI array is a different code path from a missing
     // array entirely, and must be rejected just as loudly.
@@ -420,7 +420,7 @@ async fn aria2_add_uri_missing_uris_returns_error() {
         resp["error"].is_object(),
         "An empty uris array must return error: {resp}"
     );
-    assert_eq!(resp["error"]["code"], -32602);
+    assert_eq!(resp["error"]["code"], 1);
 
     let _ = shutdown_tx.send(true);
 }
@@ -773,7 +773,7 @@ async fn aria2_query_methods_return_aria2_shapes() {
     )
     .await;
     assert_eq!(
-        resp["error"]["code"], -32602,
+        resp["error"]["code"], 1,
         "a relative dir must be rejected: {resp}"
     );
 
@@ -935,7 +935,7 @@ async fn aria2_multicall_batches_calls_and_wraps_errors() {
     assert_eq!(results[1][0]["gid"].as_str(), Some(gid.as_str()));
     // Failures carry the error object where the value would be.
     assert_eq!(results[2].as_array().map(Vec::len), Some(1));
-    assert_eq!(results[2][0]["code"], -32601);
+    assert_eq!(results[2][0]["code"], 1);
 
     // Missing methods array is an invalid-params error.
     let resp = rpc_call(
@@ -945,7 +945,7 @@ async fn aria2_multicall_batches_calls_and_wraps_errors() {
         serde_json::json!([]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], -32602);
+    assert_eq!(resp["error"]["code"], 1);
 
     let _ = shutdown_tx.send(true);
 }
@@ -1505,7 +1505,7 @@ async fn aria2_change_option_pause_and_rejections() {
         serde_json::json!([gid, {"split": "4"}]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], -32602, "unsupported option: {resp}");
+    assert_eq!(resp["error"]["code"], 1, "unsupported option: {resp}");
     assert!(
         resp["error"]["message"]
             .as_str()
@@ -1781,7 +1781,7 @@ async fn aria2_add_torrent_rejects_invalid_base64() {
         serde_json::json!(["not base64 !!!"]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], -32602, "{resp}");
+    assert_eq!(resp["error"]["code"], 1, "{resp}");
 
     let _ = shutdown_tx.send(true);
 }
@@ -1949,7 +1949,7 @@ async fn aria2_add_torrent_serves_bt_files_and_options() {
         serde_json::json!([gid, {"max-download-limit": "fast"}]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], -32602, "invalid limit: {resp}");
+    assert_eq!(resp["error"]["code"], 1, "invalid limit: {resp}");
     let resp = rpc_call(
         &client,
         &rpc_url,
@@ -1958,7 +1958,7 @@ async fn aria2_add_torrent_serves_bt_files_and_options() {
     )
     .await;
     assert_eq!(
-        resp["error"]["code"], -32602,
+        resp["error"]["code"], 1,
         "0 is not a valid file index: {resp}"
     );
 
@@ -2200,7 +2200,7 @@ async fn aria2_change_global_option_applies_default_dir_and_validates() {
         serde_json::json!([]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], -32602, "missing options: {resp}");
+    assert_eq!(resp["error"]["code"], 1, "missing options: {resp}");
 
     // Empty and relative directories are refused.
     for bad_dir in ["", "relative/path"] {
@@ -2212,7 +2212,7 @@ async fn aria2_change_global_option_applies_default_dir_and_validates() {
         )
         .await;
         assert_eq!(
-            resp["error"]["code"], -32602,
+            resp["error"]["code"], 1,
             "dir {bad_dir:?} must be rejected: {resp}"
         );
     }
@@ -2238,13 +2238,35 @@ async fn aria2_change_global_option_applies_default_dir_and_validates() {
         "applied dir must be visible: {resp}"
     );
 
-    // Unparsable values for the other recognised keys are ignored, not fatal.
+    // A valid global download limit is applied and reflected; 0 resets it so
+    // the download below is not throttled.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.changeGlobalOption",
+        serde_json::json!([{"max-overall-download-limit": "1024"}]),
+    )
+    .await;
+    assert_eq!(resp["result"], "OK", "valid limit: {resp}");
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getGlobalOption",
+        serde_json::json!([]),
+    )
+    .await;
+    assert_eq!(
+        resp["result"]["max-overall-download-limit"], "1024",
+        "the applied global download limit must be visible: {resp}"
+    );
+
+    // Unparsable values for recognised keys are ignored, not fatal.
     let resp = rpc_call(
         &client,
         &rpc_url,
         "aria2.changeGlobalOption",
         serde_json::json!([{
-            "max-overall-download-limit": "1024",
+            "max-overall-download-limit": "0",
             "max-concurrent-downloads": "not-a-number"
         }]),
     )

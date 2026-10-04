@@ -94,10 +94,14 @@ When `ARIA2_ORACLE_BIN` is unset every oracle test returns early, so the normal
 core gate never needs aria2. A set-but-unusable path panics, so the job cannot
 pass by accident.
 
-**Policy: gaps are reported, not asserted.** A run only fails when the oracle
-cannot start or a server stops answering; the gap report is printed by
-`--success-output=final`. Flip individual entries to hard assertions once the
-report has been stable (the plan's M3).
+**Policy: allowlisted gaps only.** The oracle asserts the client-facing
+contract: limedl must answer every AriaNg option key (`aria2Options.js`), the
+always-present `tellStatus` keys, and `system.listMethods`/`listNotifications`
+must differ from aria2 only by the documented entries. Anything outside those
+allowlists fails the run; the remaining aria2-only differences are printed as
+allowlisted notes by `--success-output=final`. The `ARIA2_ORACLE_BIN` opt-in is
+unchanged: unset, every test returns early, so the normal gate needs no aria2
+binary.
 
 `Aria2Oracle` owns the operational contract: a free port, `--no-conf`,
 `--enable-dht=false`, a `TempDir` for `--dir`, a `getVersion` readiness poll with
@@ -135,10 +139,13 @@ Captured by the first oracle run; a change here shows up in the report diff:
 - `tellStatus` (paused HTTP): limedl omits `numPieces` / `pieceLength` /
   `bitfield` until chunks are planned; aria2 always emits the first two.
 - Error responses: aria2 returns `code: 1` for **every** failure (unauthorized,
-  unknown method, missing params, bad GID); limedl returns JSON-RPC
-  `-32601`/`-32602`/`1`. AriaNg keys off `message`, so this is tolerated.
-- `getOption` / `getGlobalOption`: limedl returns a fixed subset (52 and 126 key
-  differences today) — the largest reported gap.
+  unknown method, missing params, bad GID); limedl now matches on the wire and
+  only keeps `-32700`/`-32600` for wire-level parse/version failures.
+  `oracle_error_objects` asserts the code is 1 on both servers.
+- `getOption` / `getGlobalOption`: limedl answers AriaNg's complete global and
+task key sets. The values are real where the engine has an equivalent and
+documented aria2 defaults otherwise; the remaining aria2-only global keys are
+the largest allowlisted difference (reported, not failing).
 - Transports: aria2 accepts HTTP GET/JSONP and a top-level JSON-RPC batch;
   limedl rejects both (GET → 400 from the WebSocket-only route).
 
@@ -176,18 +183,17 @@ choices, not bugs; each one is documented where it is implemented.
 | BT `tellStatus.dir` / `getOption.dir` | report the BT backend's default output dir, not the per-task `dir` | the BT backend does not track a per-task output dir yet |
 | `addTorrent` `out` / `select-file` | parsed but not applied at start for BT | use `aria2.changeOption` after metadata; `select-file` at start needs a BT-backend change |
 | `errorCode` | `"0"` (no error) or `"1"` (failure) | limedl does not persist aria2 exit-status codes; the reason stays in `errorMessage` |
-| JSON-RPC error codes | `-32601` / `-32602` / `1` | aria2 returns `code: 1` for every failure (confirmed against 1.37.0); AriaNg keys off `message`, so the JSON-RPC codes are tolerated. The oracle reports the difference. |
 | `tellStatus` piece map | `numPieces` / `pieceLength` / `bitfield` appear once chunks are planned | aria2 always emits `numPieces`/`pieceLength`; limedl only has them after the range probe |
 | `numStoppedTotal` | mirrors the current stopped count | no lifetime counter |
 | `getVersion.enabledFeatures` | truthful: `Async DNS`, `BitTorrent`, `GZip`, `Brotli`, `Zstd`, `HTTPS`, `Message Digest` | aria2's `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie` are not advertised because limedl does not implement them; `Brotli`/`Zstd` are truthful non-standard additions. Locked by `interop_get_version_is_truthful`. |
 | HTTP response compression | gzip/brotli/zstd are decompressed only on the plain single-stream GET; probes and every `Range` request force `Accept-Encoding: identity` | transparently decompressing a `206` destroys byte offsets, `Content-Length` and the checksum. See `http::identity_encoding` and `tests/http_executor_tests/compression.rs`. |
-| `getGlobalOption` / `changeGlobalOption` | a fixed subset (`dir`, `max-concurrent-downloads`, …); `max-overall-download-limit` is accepted but ignored | engine settings model |
-| `getOption` | several fields are fixed placeholders (`min-split-size`, `max-tries`, …) | not surfaced by the engine |
-| `aria2.shutdown` / `forceShutdown` | acknowledge + warn; do not exit | limedl is a managed subsystem; the UI owns exit |
+| `getGlobalOption` / `changeGlobalOption` | answers AriaNg's full global key set; `dir`, `max-concurrent-downloads`, `split`, `max-tries`, `user-agent`, `max-overall-*-limit`, and the mappable `bt-*`/`enable-*` keys are real, the rest are documented aria2 defaults | engine settings model; aria2-only keys AriaNg never reads are omitted |
+| `getOption` | answers AriaNg's full task key set; several fields stay fixed placeholders (`min-split-size`, `max-tries`, …) | not all surfaced by the engine |
+| `aria2.shutdown` / `forceShutdown` | acknowledge + warn; exit the process when `exit_on_shutdown` is set (the headless daemon) | the desktop is a managed subsystem and the UI owns exit |
 | `addMetalink`, `changeUri` for BT | unsupported | Metalink is out of scope for now; torrent sources come from trackers/DHT |
-| HTTP GET / JSONP / Batch transports | not served (POST + WebSocket only) | deliberate scope; add if browser/userscript clients need it |
-| HTTPS RPC, Basic auth, `--rpc-listen-all` | not served (loopback + token only) | security posture |
-| GID prefix matching | exact GID only | not needed by current clients |
+| HTTP GET / JSONP transports | not served (POST, including a top-level JSON-RPC batch, + WebSocket only) | deliberate scope; add if browser/userscript clients need it |
+| HTTPS RPC, HTTP Basic auth | not served; use a reverse proxy for TLS. A configurable bind address (aria2's `--rpc-listen-all`) *is* supported, but a non-loopback bind requires authentication | security posture |
+| GID prefix matching | a unique prefix resolves; an ambiguous one is refused | aria2 accepts abbreviated GIDs; refusing an ambiguous prefix is safer than guessing |
 
 ## Tier 3 — real client smoke test
 

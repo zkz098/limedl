@@ -32,10 +32,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
+generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T13:24:31.562Z
+    at: 2026-10-04T14:09:40.431Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -191,15 +191,20 @@ job on purpose: a `schedule` on `ci.yml` would run the whole Windows/macOS/Linux
 matrix nightly, and the oracle needs a third-party `aria2` binary whose output
 drifts with its release. It is a **reader** of the Linux `ci-debug` cache entry
 (`save-if: false`), so it reuses `check-rust`'s artifacts instead of a cold build.
-Most oracle tests report gaps rather than fail; a red run means the oracle could
-not start or a server stopped answering.
+The oracle now asserts the client-facing contract against allowlists (AriaNg
+option keys, always-present `tellStatus` keys, the documented
+`listMethods`/`listNotifications` delta, code 1 error objects and JSON-RPC
+batch); it fails on anything outside them, when the oracle cannot start, or when
+a server stops answering. The remaining aria2-only differences are printed as
+allowlisted notes.
 
 Windows is split into three parallel jobs because its native job is the critical
 path and clippy cannot share build artifacts with test builds.
 
 Evidence: `repo://.github/workflows/ci.yml#L148-L336`,
 `repo://.github/workflows/ci.yml#L336-L522`,
-`repo://.github/workflows/aria2-oracle.yml#L1-L45`.
+`repo://.github/workflows/aria2-oracle.yml#L1-L45`,
+`repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70`.
 
 ### Cache and RUSTFLAGS contract
 

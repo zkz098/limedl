@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:44ac8590b168fd27e9b912aebf3bbe421c90206956f33df8952148d8578d19cf",
+  "pageVersion": "sha256:a91954f4169318e4cdfd6b1d149e459283f9128603c4262a773cf7ec1968e745",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
@@ -45,7 +45,7 @@
       "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native; limedl-server) under CARGO_BUILD_WARNINGS=deny, and it cannot compile non-Windows code from a Windows host.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L101-L133",
+          "resource": "repo://AGENTS.md#L105-L137",
           "version": "repo-lines-v1:sha256:198b24932e772845e2aa0c4bfc9953598faa535c19bead2dff7788577827b162:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5YjEyNGMxOThmZWVmNzUxZjNmOTcwNGU1NThhOWI0MDMyOGU2MmU0ODllZWM0NWFmM2IzNjQ0OWRkNTdjNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNmZjVkZTBkNjc5ZjEyYzE0NzM4YWRjZGFkNjM2ODA3YTA3MjU3NTg4NWMxYjgwN2NiM2E3NDFmYzMyN2ExY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5ZjhjMjI1N2MzOGYwNWYzYjdmZjQ0MGZhNjBiMWE3NmY1NGQ0MTU1MmU4MTBiMjlhYTQyMzgzY2NlMDYzOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYwODViMDMwMTMyYzRmODcxZDEyNDE1YWI5YTU5MzkyMDFjZGQ5NTQwN2FmZDQ4MjhiN2Y1YjZiNDZiNWU5NWEifQ"
         }
       ]
@@ -179,7 +179,7 @@
       "statement": "Dependency changes must have their Cargo.lock updates committed, or CI cache misses and stale dependency resolution follow.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L136-L143",
+          "resource": "repo://AGENTS.md#L140-L147",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         }
       ]
@@ -193,22 +193,22 @@
           "version": "repo-lines-v1:sha256:ca020dd21413e291241876df9c99aed9e0627044d72604f19e604601402826e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYjE1ZDE3NDk1MmUzYjkxMWEzNGIxM2JjNTEyODRjYzIwMDhlNDdkMGI0NGM4ZTNlOTA1ZDQyNmY4MGEzMWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmMWVmNzhkMDZhMTQzMjc5Mzc4MzMxNzQ0NjY1NWJmODRhOWZiOWQwZmQ4MzNhMGQyZTY0Y2ZkMDE3N2ZjMTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4OGRjYzJiZjE5MzY2YTVkOWY1NDcyMTJlNzIwMGQyYWY5ZTk3ODVhNGY4ODBiZDNhNzI3M2MwYzRhZjdiZjAifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L301-L354",
           "version": "repo-lines-v1:sha256:61d472e472c83c902cbd448d1c3883ff2e7fcd020ae9e936fc4347ac3700ec1f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjZmUzZmZmOWM1YjRkNjg2NWQ1YWJiMGM4Y2QwODZhMDZmNjUyNGY5NGE5NDYyODE4M2EzNjc2MDI2MWZlODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2Yzc0ZjZhNmM3YzgzOTJjY2U1MGFmYTBhNDdkY2E2YmExZTVhNmIwYTJiZTUwMmVhNGEwNWZlMzI0N2ZiMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyNGZmMDM4ZWM4N2ZjNThlOWE1MzE0MmYwMWFiOGExMGYyNTBkYWZlNmVhY2JjNzRiZWEyOTNjMzJkYjJkMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NGNiY2IzNjMzZThhYjM2YjA0ZmY5OGRiODMxMTYyNWI1ODU5ZTk0NDk2ZmY2ZTM5MTZmMTJjMTlhMWNkZTIifQ"
         }
       ]
     },
     {
       "id": "claim_871fb9c15b804f598d807c7c22bb0ca5",
-      "statement": "Aria2 RPC interoperability has a Tier 2 live-aria2c oracle in aria2_rpc/oracle_tests.rs, run by the nightly/manual .github/workflows/aria2-oracle.yml.",
+      "statement": "Aria2 RPC interoperability has a Tier 2 live-aria2c oracle in aria2_rpc/oracle_tests.rs, run by the nightly/manual .github/workflows/aria2-oracle.yml, which asserts the client-facing contract against allowlists.",
       "evidence": [
         {
           "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
           "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60",
-          "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
+          "version": "repo-lines-v1:sha256:c598104d93dcdeb27dd9ad728142a9bf45812a70282561a2c26d2791a75f879b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1YzVjNmIxNWJmYmU4Yjg1ZDAwZjA3MGQ5YWZhMjFkODg1YzJkNGRlNGY3NTE5YTczZjAyODVmZGQzYWVmYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiM2FmZDY3MmQyYTkxNWZhMGEyODdmNjhkYjFlMDEwZDVlMDcyZmEyY2RlZDgwNDdlYWVjMjk0YjU3NzVlNmUifQ"
         }
       ]
     },
@@ -267,6 +267,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T12:58:25.182Z"
+    "at": "2026-10-04T14:09:40.431Z"
   }
 }

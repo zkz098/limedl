@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:1f401a1df7a0f7b82a325ce1e29d22e0d04b901c12227f180bd95153f9aad70f",
+  "pageVersion": "sha256:63bb2c51d9aae5ba070fe4ccf8ef15d8230b3ec3514030d8793ad817b64062aa",
   "claims": [
     {
       "id": "claim_9069efa9e70847f4afdb9194ea98ad55",
@@ -72,11 +72,11 @@
     },
     {
       "id": "claim_8a716a4294a5428f981f05b3ebacf0c9",
-      "statement": "A GID is xxh3_64 of the internal task id formatted as 16 hex digits, and resolve_gid checks the cache then scans every backend's list() and populates the cache on a hit.",
+      "statement": "A GID is xxh3_64 of the internal task id formatted as 16 hex digits; resolve_gid checks the cache then scans every backend's list(), resolving an exact match or a unique prefix (an ambiguous prefix is refused), and caches only full GIDs.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L74-L105",
-          "version": "repo-lines-v1:sha256:82770f91d8236f705c7ba8e0a579934e8a45b226b604f39fc9ba89dd5f1963f8:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlYjNlNDQ0NDJmNWYwOWZhOTZjZWU0NmNlMmQxZGU3M2I1MzE2ZjQwMzRjY2U5ZDc5M2NkNzg5NmFiMGU1Y2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjYzI1NGQ3ODhkOTVkYmQwMThhYTZhNWRlNzg2YWNhYTdmOTRkNmVkMWQyNmNlZmVkMmEyNWI2ZDI0ZjhjNGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMwMGMwMDkwMTQ5OTA5NmFjOTgzODJjZDk1YTdkN2E1MjQ2YWZmY2U5OWYxMTY3NTk1NzI4ODQwZmUwNmZiNTcifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L94-L150",
+          "version": "repo-lines-v1:sha256:3fc9ed53eeffa8a2c21c31d6dbfeae3aaa9752b971e9930a58fe92f1b5416ce0:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiYTFlMGNiZGE0MDBjMjAzZDA4ZDUyZTE0ZTU0ZjY1MjNmOGZhMjZjYzk4OWNhZWRjNDY4Y2U0NmY0ODc5OGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1YzY5NTBjYmNmMWU1NTFkM2YyNTg3ZDc3OTZhNmJlNDI3MjI0N2I4M2RkM2I3MGQwMmJkMTAwYTA5MjYzZGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg1NDUwOTM2MjYzZTNmNDljMGUxN2I1MjRmY2RjN2Y2MDgwZjhkOGMyM2FhZWYyMzVjN2MyMzE2ODM2YjdhY2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUifQ"
         }
       ]
     },
@@ -96,15 +96,15 @@
     },
     {
       "id": "claim_9a22c43055dd4efe8f730d017d377078",
-      "statement": "dispatch_authorized maps the implemented aria2 methods and system.listMethods advertises exactly that set — 36 entries including getServers, changeUri, changePosition and forceShutdown; addMetalink is the only aria2 method intentionally absent, and the Tier 1 contract test asserts both the equality and that every advertised method is reachable.",
+      "statement": "dispatch_authorized maps the implemented aria2 methods and system.listMethods advertises exactly that set — 36 entries including getServers, changeUri, changePosition and forceShutdown; addMetalink is the only aria2 method intentionally absent, and the Tier 1 contract test asserts both the equality and that every advertised method is reachable (recognized by its error message, since every domain error is code 1).",
       "evidence": [
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L44-L86",
-          "version": "repo-lines-v1:sha256:7e2cdaeda91147008235f72d63e31aa4c78172d9f38a9e56f776048b2bb84727:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmNWY5NGVhZmE3ZWU4MzkwZTFhYjVlZjNjYTZhMjFmNjVkOTNiMmM1MTVhZTBlZjE3MDMzNzBjMDk2NDQ1NjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMzNWM0ZGYzNDRkMmY1NTMyNGNiNmY5ZTNiYzQ4YzE1ZjBlMjA3NGZmYmIzZWI2ZDQ1YjJjMmY2Y2NmOWExYTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "version": "repo-lines-v1:sha256:7e2cdaeda91147008235f72d63e31aa4c78172d9f38a9e56f776048b2bb84727:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmNWY5NGVhZmE3ZWU4MzkwZTFhYjVlZjNjYTZhMjFmNjVkOTNiMmM1MTVhZTBlZjE3MDMzNzBjMDk2NDQ1NjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZlNGIzZTU5ZmQ0NDI1ZTZjODJjNWNkNmJlNDQ0ZDcyMGNjNWE4YTI3ODM4NDUyZGEzZWUyZWU3NTQ0MWM3YjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L81-L121",
-          "version": "repo-lines-v1:sha256:f03ad442d95c988865c530147360f4238d5ade6f083e800254fdcffe3efe8ffd:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5MDcxMWY5MzVjNDJiY2JiOGMyNjkyZWY5Njg2MzIxYjEzNGZmOWZjZTgwZWNlMGViZDIyMmQxNmUwMGQxNTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwZDg1NDdkNjk0MGE0NzRjMGNjMzdkYWUyOWFiMDIxOTBiM2U0ZWUzNmNjZjFlNTgxNTEwNWJkYzdmYWEwOGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmOTVkZWZhNjc3ODk4NmIxZGQ5YjAwODQwZGRiNGYwYTFlM2EwN2MyMzgwODI2Zjg2OWM0MTVlMmRjMDg0MjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiZDQ0OGVjMzJmZGNlN2I5MGRiODlkMWIzZTMzZTFkMjE5ZWM4MjQyMzFlMjU3YjMyMTUyOTZlNjRkMmI0YjAifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L78-L125",
+          "version": "repo-lines-v1:sha256:89ed1ab2de5c61bb504f273a1deb4f440f9427888047a1599b1d912c67cdfd6c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0MGYyOTRkODY3YWE0NzYxZTY0NmY0ZmJhYmU0ZGM5ZTA5NThiOTZlMDI5MDA3MjYyMjhlOTVhYzAzYjEwOTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJkZDNjOWIwNDlkMDdmMmMyNGMxZDExODZhYjkyZTljNGI5NjA5ZWVmYWVmMjVjZDIwYjBkMzg3MjY0ZWQzZWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxNTU2NzhmZmNkOTNiZjY1Zjc0NWQ2ZGIwMzQ2OTUzMzUwY2ExNDgwNGM5MDE2Y2E5ZDFkZTg2OTgzMTA1OWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZmOTBjMmFkYTczZjM5ZGViOTE1ZmFhZmM5ZTYyODMzNmY4NzRiMjA1MzljZWU0ZTUyZDhmYTkxZDM1MjNlNDEifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/query.rs#L572-L616",
@@ -141,7 +141,7 @@
           "version": "repo-lines-v1:sha256:4560f8af58e9942b8a82b269eb2cfc8a2a2c4940ec0415074dd66e2f4af4fc9b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMTVhZjQ5MWMzYjFmYzJiNzU3MmIyMjhlYTljZDdlZjNjYzA0NTJjYjA1MjIyYTNmZWQwZGMwMGRjYjEyMTRlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlNDY2OTRkMzcyZjE3MzU4OWRjODI1NzlhNjEyNzUwM2E1MDcwY2IwODFmYzIwOGI1Yzk4NDU4NTBiOTYzNWY2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIwNTUxNTM0NDg3OGMxNmNiNjZhODE0MjYwM2IwOGMxZmZlMDYyM2JmNWM0OTRlYmQwMzgyMzhlODg0MjZlZWI4In0"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L301-L354",
           "version": "repo-lines-v1:sha256:61d472e472c83c902cbd448d1c3883ff2e7fcd020ae9e936fc4347ac3700ec1f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjZmUzZmZmOWM1YjRkNjg2NWQ1YWJiMGM4Y2QwODZhMDZmNjUyNGY5NGE5NDYyODE4M2EzNjc2MDI2MWZlODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2Yzc0ZjZhNmM3YzgzOTJjY2U1MGFmYTBhNDdkY2E2YmExZTVhNmIwYTJiZTUwMmVhNGEwNWZlMzI0N2ZiMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyNGZmMDM4ZWM4N2ZjNThlOWE1MzE0MmYwMWFiOGExMGYyNTBkYWZlNmVhY2JjNzRiZWEyOTNjMzJkYjJkMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NGNiY2IzNjMzZThhYjM2YjA0ZmY5OGRiODMxMTYyNWI1ODU5ZTk0NDk2ZmY2ZTM5MTZmMTJjMTlhMWNkZTIifQ"
         }
       ]
@@ -151,11 +151,11 @@
       "statement": "changeOption supports only pause, select-file (1-based BT indices) and max-download-limit/max-upload-limit (BT), errors with the key name for any other option, and preserves the untouched direction when setting one BT limit.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L344-L429",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L852-L937",
           "version": "repo-lines-v1:sha256:638c7afa025b6460959c806eab8316fe452ec6204448ac97b5e52f31e97c5a66:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1NTNiZDc1MmUxMjZiY2FiMTEzODY3YTQxNDM2M2VjMjUxMzhiZWY2MmM2MTVlYWQyMTExYWQ2MjFkZjNiMDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhYzg0ODE5ZjQxMDRiMDBhNGI3MzAwMWUyZDc3ODQ2Yjk1ZDE4NTZkNmRkOTIzNTc0NjYyNzc0ZGEwMWU3ZmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5MmEzNjIxN2U1OWYwMGE1MThjOWIwMWJlZjNjNDBiNmM2OGY2ZGM3MDhjY2VjZjBhOTdlNjEwYzMwNmE2ODciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUyYTdiNWM3NGVhYTZhNjZhNDFiNDNiYzk5Y2FkNzlkZDJjNjI5ODRjYmE5OWYyYmFkMzljNGE2NjIxZjRkZmYifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L128-L159",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L340-L371",
           "version": "repo-lines-v1:sha256:b1fe3974f714c0d1f9eda2e7851881cfd814f2cbbd08e5864a47dba250ba52e0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhZjczZDNlNmVhYTc0NzMyNzA1NGZlMzMxYTA2MjQ5YzJkMjZjNDhkOWJiMThlNWZkNmU2OTNjZTVkNDYyMDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI5YTNhYWQ0MmI1MjE4OWI2MTRjNzQ2NTA5YzczMmM5YzVmMzNhYWJhYjdkMTUxYTM4ZTYwMWEyM2U0NGRiYTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNlMjY3ZTJlNTI3YTk5NjY4ZDJlYzkyYmI5YjYxZDBjNjhkYzZlN2ZhMDUxOTMzMmRmYTA1YmMzZWNkNTNhNzYifQ"
         }
       ]
@@ -231,7 +231,7 @@
       "statement": "summary_to_aria2_status emits aria2’s always-present status keys plus BT top-level infoHash/numSeeders/seeder and terminal-only errorCode/errorMessage (0 for no error, 1 for failure), while enrich_status adds HTTP bitfield/numPieces/pieceLength from the live manifest chunk map and the BT bittorrent object (mode/info.name/announceList) plus BT bitfield/numPieces.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L146-L245",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L180-L279",
           "version": "repo-lines-v1:sha256:10d363e17ed67c51c10fc2589957a889be8c37d521d8fd357cc2bfcee4fdbfff:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIyNzdhMzMzOTU0ZTliYWE3NDMwMzc1NjY0ZTFiZmRiMTEzMzc3ZmU3MjZhOGUxNmJlNDY5NmFiNTkwMzM0ZTJmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIxNWNlZTcxOTYyMjUyMjQ5YWZkNzRmMGE5ODFhOWU2MWE3YzE2ZGZjOTRlNjBkODg0Mjg4MDNlOTJlYzlmNjkxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJjZjIzYWY2MTAzMzk1YWE3OWMxMDk2N2EwOWFlMzQ2OTlhYmU5ZDI0YTY3NTU2MjdiOTBjY2NlZDMzZTcyYjc5IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjOGY4MWQxODA1ZTczNTZlZWEyMzc1M2JiZWJiODEzODlhODJiNzY1NjRkYjkyYjhlYTk2YzYzZmYwZmU5MmNhIn0"
         },
         {
@@ -263,30 +263,30 @@
       "statement": "Trailing RPC arguments are parsed by JSON type via split_aria2_tail so both AriaNg’s addTorrent([torrent, [], options]) and the legacy [torrent, options] shape keep dir/out/pause/select-file, and the Tier 1 interop suite encodes those real client shapes as a regression guard.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L162-L214",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L164-L216",
           "version": "repo-lines-v1:sha256:0369d05d693a600ab2bea6568654b358e47cf9ae293b293c82d1da2e552607e3:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5Y2EzZjI5YzQ4YjdmMGVhODY2ZDMwZmY0NTg3NjdlNjIyYTJhNmFmOTE1MDhhNzJhYjc5Mjg2ZTYwZWQyNmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU4MmE3MjVlNGJmNTA2MDFlNmQ1ODQyZTQzNTNiY2E2MDRiYjNlNGFlZTc2ZmUzOWI3OThjNTkwMGY1NDYwYTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUzY2U2MzlkODYyY2U3NmVhODgzOTZhMzg2NDVkNDRkMWRhYWQ0MGZkNjQ0MDc5MTIzMTk0MjIzZDZiNThkOWIifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L301-L354",
           "version": "repo-lines-v1:sha256:61d472e472c83c902cbd448d1c3883ff2e7fcd020ae9e936fc4347ac3700ec1f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjZmUzZmZmOWM1YjRkNjg2NWQ1YWJiMGM4Y2QwODZhMDZmNjUyNGY5NGE5NDYyODE4M2EzNjc2MDI2MWZlODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2Yzc0ZjZhNmM3YzgzOTJjY2U1MGFmYTBhNDdkY2E2YmExZTVhNmIwYTJiZTUwMmVhNGEwNWZlMzI0N2ZiMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyNGZmMDM4ZWM4N2ZjNThlOWE1MzE0MmYwMWFiOGExMGYyNTBkYWZlNmVhY2JjNzRiZWEyOTNjMzJkYjJkMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NGNiY2IzNjMzZThhYjM2YjA0ZmY5OGRiODMxMTYyNWI1ODU5ZTk0NDk2ZmY2ZTM5MTZmMTJjMTlhMWNkZTIifQ"
         }
       ]
     },
     {
       "id": "claim_ef4584fa4548438c8892d45d54bfa076",
-      "statement": "aria2_rpc/oracle_tests.rs is a Tier 2 live-aria2c oracle: a real aria2c --enable-rpc is started beside limedl (opt-in via ARIA2_ORACLE_BIN, nightly/manual Linux workflow), response gaps are reported rather than asserted, and the job only fails on oracle-startup or transport failures.",
+      "statement": "aria2_rpc/oracle_tests.rs is a Tier 2 live-aria2c oracle (opt-in via ARIA2_ORACLE_BIN, nightly/manual Linux workflow) that asserts the client-facing contract against allowlists — AriaNg option keys, always-present tellStatus keys, the listMethods/listNotifications delta, code 1 error objects and JSON-RPC batch — and fails on anything outside them.",
       "evidence": [
         {
           "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
           "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60",
-          "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
+          "version": "repo-lines-v1:sha256:c598104d93dcdeb27dd9ad728142a9bf45812a70282561a2c26d2791a75f879b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1YzVjNmIxNWJmYmU4Yjg1ZDAwZjA3MGQ5YWZhMjFkODg1YzJkNGRlNGY3NTE5YTczZjAyODVmZGQzYWVmYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiM2FmZDY3MmQyYTkxNWZhMGEyODdmNjhkYjFlMDEwZDVlMDcyZmEyY2RlZDgwNDdlYWVjMjk0YjU3NzVlNmUifQ"
         },
         {
-          "resource": "repo://docs/aria2-interop-testing.md#L77-L156",
-          "version": "repo-lines-v1:sha256:3fad3c3dbadae085cf629b957947daad49163487785eb04626bd9ce09077df67:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0MzhmMmU1OGJiZGYwMjdlZjMzODMxMTkwNjcyNmUzODIwOWU4ZWVjN2I5MzgzZTBlNDcyOGI2Yjc5M2QyMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlN2VlMGI4YTBlMmEwMDRjYTgyYzRjN2Y3ZjAwMjNkNzA5YjFmMzc1NWFlMDM0MzM5OGVhMTEyZTAwYzVlY2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3ZmJiN2Y5YmNlMjE3MzRkMmNlNzcwNTYxYjNiOGI4ZDdlMGY1OWFjNDFjYjkwNDZiYjg0ODJmMzhkZjU3MTQifQ"
+          "resource": "repo://docs/aria2-interop-testing.md#L77-L170",
+          "version": "repo-lines-v1:sha256:7577209849b2c6e1c35f0320fb1997aae95bdd93731e76785976f71b2d7826f0:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0MzhmMmU1OGJiZGYwMjdlZjMzODMxMTkwNjcyNmUzODIwOWU4ZWVjN2I5MzgzZTBlNDcyOGI2Yjc5M2QyMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3OTU3MDcxN2MzZmM0Y2M4NjhjNjczYzdhMDEyY2RmODUwNGZjNGY5OWJkZDMzMjAwNWNmN2U5NDY5NGRmYjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlN2VlMGI4YTBlMmEwMDRjYTgyYzRjN2Y3ZjAwMjNkNzA5YjFmMzc1NWFlMDM0MzM5OGVhMTEyZTAwYzVlY2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJjOTlhZTZlY2IzZTdlYzI5M2U3NGI2NWEwZWMwYTBkNTBjNjkxYzdiZDE0NDk4ZWY5NWZmYTczZDY1YmRkYmQifQ"
         }
       ]
     },
@@ -347,10 +347,52 @@
           "version": "repo-lines-v1:sha256:07bd5c501dc68c80906d59aefe79af21bd416faa97222892278c80971ac0bff6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFjMmI5OGZmNzc3OTI0MTI1YWYyYmRjMTkxMWY2ZjMyZjBiYTgxYmYxODA2MDBiMjU0MTI4ZTE3N2RhNjRmNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4NWNjYzdmNTQxNDg2NDg5MzY2OWE3YjZmNjU3MjA5OTJhMDIwNzQ3NzdhOTVjMzdkMDVjOGY0MjE5MDQ2ZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJkYTA1MGYxODg1YjhiMzdjYTk4NmMxNTUxMGRlMmQ0MmM2OGVhMTA2OTYzZWY2NWJjYTcyMjkyNWE2MjE3NjcifQ"
         }
       ]
+    },
+    {
+      "id": "claim_18f3437daf9b4be3822901332b985266",
+      "statement": "Domain failures (unknown method, invalid params, unknown GID, unauthorized, internal) answer aria2's code: 1; only wire-level parse and version failures keep -32700/-32600.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L39-L55",
+          "version": "repo-lines-v1:sha256:b3b9317911f3385749ec1afdaae32a4dad7d68d0da577abb0f8fe5f9249a889d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NDRmODNiMGU5NGUyMjYxMTlmNWU3NDZjYTkyOTdhZThiZmJhYmI3MWQ3ZjkyZDNjYzMwODlmYTlmYmFmMGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5M2VjNTFmYTM1YzMwMjdkYzkzNDFiYWQ3YmIwZTI2NTJkYmVkZjE3NTViMWU5NjA2YjA5NzNlZDAxYjUwYzgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwNWRlZjYzMzI0OGJmNzQxZDE3MzhiZTZjMDJlZjc1YWQ4ZjUyYmZjZGM4OTc0M2UxOGM5NGVlNjczY2E0OWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1ZDI3ZTViZGZkZTFlZGJmNWQ1ZGI1YjI2YzAyMjkxMzZiNTY3M2E2NjliN2YxOWM2ZDViMmRlYmQ0MGViMDYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/transport.rs#L151-L172",
+          "version": "repo-lines-v1:sha256:c9ca47e2c6c6c7bdd863e916b5e8c7b43e33bf485d516ebf4687ccd5fe3e4a37:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFjNTUyODg2NWY5NTM5YWM0NjllMjkxZmE1ZDAzOWMwZGUwYTdjMDhiYWNhOTFiMTBkZGM1NzA4YzJiMjFmN2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM2YWNkYjliMGQ2YmJhNjIwZGIxYzJhMTQzOWIwZWM5MjE3YzJkN2RiYzJhNGRhYzZkMjgyYjNiOTVhYmE2YzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg3OTg1YjdiNWQ4ODc4ODY1MTQ5N2IwMDhmNDMwZjZlN2EyNDVlYzU3MjkzNDU0N2ZjY2Y1ODA5M2FkMDM0YWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_84deab01bc33421ca2b8993ac2d4f213",
+      "statement": "A POST or WebSocket body may be a top-level JSON-RPC 2.0 batch; each element is dispatched, notifications execute without a response entry, an all-notification batch returns no body, and an empty array is a single Invalid Request.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/transport.rs#L99-L149",
+          "version": "repo-lines-v1:sha256:82d03170bd0acbe19374fef75ec4b9238ddfffff4554cbffc9edd8228f3c00ee:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRhMzNkNTM2MmZhZmNlYTVlNWQzZmQ0YWUwOTZlOTU4ZmJhMzBlZmI2Mzg0NGNlNmMwNDU0NmZjZGZmY2RiMDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVkZmE5MTVhYWRlYTU2Mjc5NmY2M2YwZmJjZjk2YmU0ODQ1MjBkYjg4NDZhYzE1ZjZmMjQyYTM1MjIwZjVhMDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0YmNlNWVlZGMwYWNhNzJjMmI4ZGFjZjEzNjg4NjBhZTBmMGFiYTBkYTk2N2NkYWIxZmE1ZjBiZTU3YTYzOTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhMGNhNzUwN2IzYjQ2NTJjOWY1YWM0YTEwYzBiMTIyNWJmNDgzZjUxOWJkMmFiNmY4NjBhZjlkNTc5NjcwZWQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_70578dfbada74291826969121589bc55",
+      "statement": "getGlobalOption and getOption answer AriaNg's complete global and task option key sets (pinned by Tier 1 and the Tier 2 oracle), using real limedl settings where an equivalent exists and aria2 defaults otherwise; changeGlobalOption applies the mappable subset and ignores unrecognized keys.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L491-L731",
+          "version": "repo-lines-v1:sha256:ff94c2ad486cbcda610f0fe8822e5236b1947c61e6427d89d6984b1fa7280273:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiNDUxNWI3MGMzMWJkZjM4N2UxZTczMjc5NTBjMzgyYTMzYzMyZmZlYTk0NjU4OGRiZjI0NzVkZTIyOTUwZDBmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI3Y2E4Mzc3Y2FkNzU2OTcxZjU1NjYwNjNkYzYxZDUxN2EwNGUyNzQxNWEwYThiNTAzZGMwYTkxN2QxZDk2ZWFkIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI2YzY3OTlmMWIyM2ZmNzBlZmIyZTdhZmQ5ZDdhYzY2NDk2YWUxYTg3ZmZmZGMwYWRlY2VjZWM1NDI5ZGIyOTRmIn0"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L9-L182",
+          "version": "repo-lines-v1:sha256:0a17b1317937295e0ec822e5bbfd15a2aaced751d43b668d233b288c064dd102:eyJzZWxlY3RlZExpbmVDb3VudCI6MTc0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwODBkOWM4NGI3ZmQ0N2Y4MWY5MDUzNjg3ODc3ZTIzNjQ0ZjUxOWU4MmFmMmY5YWViOTBkODJjYjRjNzlkMWM2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJiMDJkMmMwZDZkYzVlNzRkOTJmYTE0YjkxZGJlYTI2NDA5MGJlYjM1ZmRiOTE4OGQ5YjM0MTE4MWRjZTlmNGNlIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0NTMwMjM1ZGNjNTMwZDM1NmUwMjZjZTg1YzJjZjUyNzc5NjYxOWNjYzMzMDAzYzE2NDI2MDYyYWQ3NGJkMjJjIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI4NGI3MTE3MDNlYjk2ZDdjYTY1ZTRmZWFjMTk0ZTc4NTE3Y2VmYzAxNTRkMWRiZTYxYmQ4NjJlODU2ZjA1OWJhIn0"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L935-L1245",
+          "version": "repo-lines-v1:sha256:2d9fda10440fbd3893966c6d2c24d37941bde3bf83bc2c4609d3d54e4079dd2e:eyJzZWxlY3RlZExpbmVDb3VudCI6MzExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI3YzJmNzIwNzA3ZjJiMzQ3NDUxNjAwZDY1ODczOGI4NDg2NWE0Mjg3YjdlMTMwYTg1NDk1NmYwYWM2YTc1YWM1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIyMTc1MTRmYTkyZGYzMThlNTZkMmYxYmQ4ZmI1ZGM5ZmVjNWEzODM2NzQ1ZDc3NWI3ODZiOGI1ZWZjZmE0N2NjIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI2ODI3NWIzMGZhMjRjZDJlZjg2ZjdmY2VkY2YyNDI1ZjNmNDk1NzU1YTNlNmJmYzUzNGI2MGYxZjgzODQ4Y2JkIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJhMjY0Y2FkNGQ4NDVlYTAxNzZhYzc4NzFkODdkNzFlODBhNzJiNTdkMjkxMWU1NjAxOThjNzM1MjVlODg0ZmEyIn0"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T12:36:56.946Z"
+    "at": "2026-10-04T14:09:40.431Z"
   }
 }

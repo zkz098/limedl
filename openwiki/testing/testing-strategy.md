@@ -3,9 +3,6 @@ type: testing
 title: Testing Strategy
 description: How limedl is tested — the test layout conventions, nextest process isolation, the mock-server integration corpus, byte-level corruption oracles and adversarial servers, BT and Aria2 harnesses, the headless daemon end-to-end test, and the coverage gate.
 tags: [testing, nextest, integration-tests, corruption, coverage]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-06de9eea8068258882d65c0b
     resource: repo://.github/workflows/aria2-oracle.yml
@@ -61,7 +58,10 @@ sources:
     resource: repo://docs/aria2-interop-testing.md
   - id: openwiki-source-feafbe9db788653e845840b8
     resource: repo://sonar-project.properties
-generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
+generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T14:09:40.431Z
 ---
 
 # Testing Strategy
@@ -286,7 +286,9 @@ green.
 The suite asserts:
 
 - `system.listMethods` equals the routed handler set exactly (36 entries), and
-  every advertised method is reachable (never `-32601`).
+  every advertised method is reachable (a routed method's error must not be
+  method-not-found; since every domain error is code 1, that is recognized by
+  its message).
 - AriaNg's multicall shape (no outer token, per-call tokens) yields the
   single-element `[value]` wrapper.
 - `addTorrent([torrent, [], options])` and `[torrent, options]` both keep the
@@ -295,6 +297,14 @@ The suite asserts:
   the BT metadata object, and stays silent about `errorCode` until terminal.
 - `getServers`, `changeUri` (`[deleted, added]`) and `changePosition` (the real
   resulting index) match their aria2 reply shapes.
+- `getGlobalOption` and `getOption` answer AriaNg's complete global and task key
+  sets (`interop_get_global_option_covers_ariang_keys` /
+  `interop_get_option_covers_ariang_task_keys`).
+- A top-level JSON-RPC batch returns one response per element; an
+  all-notification batch returns nothing and an empty array is Invalid Request
+  (`batch_request_returns_one_response_per_element` and friends in `tests.rs`).
+- An abbreviated GID resolves only when its prefix is unique
+  (`resolve_gid_accepts_a_unique_prefix_and_refuses_an_ambiguous_one`).
 
 It is pure Rust with no external binary, so it runs inside the normal
 `cargo nextest run --features "test-utils,aria2-rpc"` core gate. The Tier 2
@@ -305,7 +315,7 @@ real version and the truthful feature list (no XML-RPC/Firefox3 Cookie/Metalink/
 SFTP; GZip/Brotli/Zstd present).
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`,
-`repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L81-L214`,
+`repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L78-L380`,
 `repo://docs/aria2-interop-testing.md#L1-L76`.
 
 ### Aria2 oracle (Tier 2, opt-in)
@@ -319,10 +329,13 @@ so the normal gate never needs a third-party binary; set but unusable, it panics
 so a job cannot pass by accident. A separate nightly/manual workflow
 (`.github/workflows/aria2-oracle.yml`) sets it on Linux.
 
-Per the agreed rollout, differences are **reported, not asserted**: `GapReport`
-collects key/type/transport diffs and prints them (nextest needs
-`--success-output=final` to show captured output from passing tests). The job
-only fails when the oracle cannot start or a server stops answering. The
+Differences are **allowlisted**: `GapReport` fails the run on an aria2 key limedl
+is required to answer (AriaNg's option keys, the always-present `tellStatus`
+keys), a `listMethods`/`listNotifications` regression, an error object that is not
+code 1, or a batch that is not an array; the remaining aria2-only differences are
+printed as allowlisted notes (nextest needs `--success-output=final` to show
+captured output from passing tests). The job also fails when the oracle cannot
+start or a server stops answering. The
 `Aria2Oracle` guard handles the operational contract — free port, `--no-conf`,
 `--enable-dht=false`, a `TempDir`, a readiness poll and a `Drop` that kills the
 child. The readiness poll tolerates the connection-refused state that is expected
@@ -331,7 +344,7 @@ until `aria2c` binds its port: it calls a non-panicking `rpc_try` (returning
 `child.try_wait()` each round so an early child exit fails with the real status
 instead of a readiness timeout.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60`,
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70`,
 `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L94-L170`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`,
 `repo://docs/aria2-interop-testing.md#L77-L154`.

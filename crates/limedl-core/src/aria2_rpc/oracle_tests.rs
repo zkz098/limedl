@@ -33,11 +33,25 @@ const SECRET: &str = "oracle";
 /// exercises (a paused download before the range probe): limedl only reports the
 /// piece map once chunks are planned, while aria2 always includes it. See
 /// "Known, intentional deviations" in the runbook.
-const TELL_STATUS_ALLOWED_MISSING: &[&str] = &["bitfield", "numPieces", "pieceLength"];
+/// The `tellStatus` keys aria2 always emits. A paused download that has not
+/// probed for ranges yet is allowed to omit `bitfield`/`numPieces`/`pieceLength`.
+const TELL_STATUS_REQUIRED: &[&str] = &[
+    "gid",
+    "status",
+    "totalLength",
+    "completedLength",
+    "uploadLength",
+    "downloadSpeed",
+    "uploadSpeed",
+    "connections",
+    "dir",
+    "files",
+];
 
-/// `getOption`/`getGlobalOption` are a fixed subset in limedl; their key sets are
-/// reported but never asserted.
-const GET_OPTION_KEYS_ALLOWED_MISSING: &[&str] = &[];
+/// `system.listMethods` may lack exactly these aria2 methods (Metalink is out
+/// of scope) and may add these non-aria2 aliases.
+const LIST_METHODS_ALLOWED_MISSING: &[&str] = &["aria2.addMetalink"];
+const LIST_METHODS_ALLOWED_EXTRA: &[&str] = &["aria2.multicall"];
 
 /// A live `aria2c --enable-rpc` child process.
 struct Aria2Oracle {
@@ -178,10 +192,15 @@ async fn limedl_call(
     rpc_call(client, url, method, Value::Array(params)).await
 }
 
-/// Collects the differences found across methods and prints them at the end.
+/// Collects the differences found across methods.
+///
+/// `errors` are unexpected differences and fail the run (an AriaNg-required key
+/// went missing, an aria2 method regressed); `entries` are documented,
+/// allowlisted differences printed for visibility only.
 #[derive(Default)]
 struct GapReport {
     entries: Vec<String>,
+    errors: Vec<String>,
 }
 
 impl GapReport {
@@ -189,17 +208,22 @@ impl GapReport {
         self.entries.push(message.into());
     }
 
-    /// Report keys limedl lacks, excluding the documented allowlist.
-    fn missing_keys(&mut self, method: &str, limedl: &Value, aria2: &Value, allowed: &[&str]) {
+    fn error(&mut self, message: impl Into<String>) {
+        self.errors.push(message.into());
+    }
+
+    /// Compare key sets. An aria2 key limedl lacks is an error when it is in
+    /// `required` (a client-facing contract key) and a reported allowlisted gap
+    /// otherwise; limedl-only extra keys are always reported.
+    fn missing_keys(&mut self, method: &str, limedl: &Value, aria2: &Value, required: &[&str]) {
         let l = keys(limedl);
         let a = keys(aria2);
         for key in a.difference(&l) {
-            let marker = if allowed.contains(&key.as_str()) {
-                " (allowed)"
+            if required.contains(&key.as_str()) {
+                self.error(format!("{method}: limedl missing required `{key}`"));
             } else {
-                ""
-            };
-            self.note(format!("{method}: limedl missing `{key}`{marker}"));
+                self.note(format!("{method}: limedl missing `{key}` (allowed)"));
+            }
         }
         for key in l.difference(&a) {
             self.note(format!("{method}: limedl extra `{key}`"));
@@ -207,15 +231,20 @@ impl GapReport {
     }
 
     fn finish(&self) {
-        if self.entries.is_empty() {
-            eprintln!("\n=== aria2 oracle: no new gaps ===\n");
-            return;
+        if !self.entries.is_empty() {
+            eprintln!(
+                "\n=== aria2 oracle: {} allowlisted difference(s) ===\n{}\n",
+                self.entries.len(),
+                self.entries.join("\n")
+            );
         }
-        eprintln!(
-            "\n=== aria2 oracle gaps ({} — report-only, not failing) ===\n{}\n",
-            self.entries.len(),
-            self.entries.join("\n")
+        assert!(
+            self.errors.is_empty(),
+            "aria2 oracle found {} unexpected difference(s):\n{}",
+            self.errors.len(),
+            self.errors.join("\n")
         );
+        eprintln!("\n=== aria2 oracle: no unexpected gaps ===\n");
     }
 }
 
@@ -285,10 +314,18 @@ async fn oracle_list_methods_diff() {
     let l = set_of(&limedl["result"]);
     let a = set_of(&aria2["result"]);
     for method in a.difference(&l) {
-        report.note(format!("limedl does not implement `{method}`"));
+        if LIST_METHODS_ALLOWED_MISSING.contains(&method.as_str()) {
+            report.note(format!("limedl does not implement `{method}` (allowed)"));
+        } else {
+            report.error(format!("limedl does not implement aria2 method `{method}`"));
+        }
     }
     for method in l.difference(&a) {
-        report.note(format!("limedl implements non-aria2 method `{method}`"));
+        if LIST_METHODS_ALLOWED_EXTRA.contains(&method.as_str()) {
+            report.note(format!("limedl adds `{method}` (allowed)"));
+        } else {
+            report.error(format!("limedl implements non-aria2 method `{method}`"));
+        }
     }
     report.finish();
 
@@ -315,10 +352,10 @@ async fn oracle_list_notifications_diff() {
     let l = set_of(&limedl["result"]);
     let a = set_of(&aria2["result"]);
     for method in a.difference(&l) {
-        report.note(format!("limedl does not emit `{method}`"));
+        report.error(format!("limedl does not emit `{method}`"));
     }
     for method in l.difference(&a) {
-        report.note(format!("limedl emits non-aria2 notification `{method}`"));
+        report.error(format!("limedl emits non-aria2 notification `{method}`"));
     }
     report.finish();
 
@@ -368,8 +405,9 @@ async fn oracle_get_version_shape() {
     let _ = shutdown_tx.send(true);
 }
 
-/// Error responses: aria2 uses code 1 for everything; limedl uses JSON-RPC codes.
-/// Only "both returned an error object" is asserted; the codes are reported.
+/// Error responses: aria2 answers `code: 1` for every domain failure, and
+/// limedl now matches on the wire. Both the object shape and the code are
+/// asserted.
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(120_000)]
 async fn oracle_error_objects() {
@@ -380,8 +418,7 @@ async fn oracle_error_objects() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server_with_secret(Some(SECRET)).await;
     let client = oracle_client();
 
-    let mut report = GapReport::default();
-    // Each case: (method, params excluding the token, expected aria2 message shape).
+    // Each case: (method, params excluding the token).
     let cases: [(&str, Vec<Value>); 3] = [
         ("no.such.method", vec![]),
         ("aria2.tellStatus", vec![]),
@@ -398,12 +435,15 @@ async fn oracle_error_objects() {
             aria2["error"].is_object(),
             "aria2 must error for {method}: {aria2}"
         );
-        report.note(format!(
-            "{method}: error codes limedl={} aria2={}",
-            limedl["error"]["code"], aria2["error"]["code"]
-        ));
+        assert_eq!(
+            limedl["error"]["code"], 1,
+            "limedl must answer aria2's code 1 for {method}: {limedl}"
+        );
+        assert_eq!(
+            aria2["error"]["code"], 1,
+            "aria2 is expected to answer code 1 for {method}: {aria2}"
+        );
     }
-    report.finish();
 
     let _ = shutdown_tx.send(true);
 }
@@ -457,7 +497,7 @@ async fn oracle_tell_status_keys() {
         "tellStatus",
         &limedl["result"],
         &aria2["result"],
-        TELL_STATUS_ALLOWED_MISSING,
+        TELL_STATUS_REQUIRED,
     );
     // Value types are part of the aria2 contract (everything is a string here).
     let limedl_kinds = value_kinds(&limedl["result"]);
@@ -514,7 +554,7 @@ async fn oracle_get_option_keys() {
         "getOption",
         &limedl["result"],
         &aria2["result"],
-        GET_OPTION_KEYS_ALLOWED_MISSING,
+        super::ARIA2NG_TASK_OPTION_KEYS,
     );
     report.finish();
 
@@ -542,7 +582,7 @@ async fn oracle_get_global_option_keys() {
         "getGlobalOption",
         &limedl["result"],
         &aria2["result"],
-        GET_OPTION_KEYS_ALLOWED_MISSING,
+        super::ARIA2NG_GLOBAL_OPTION_KEYS,
     );
     report.finish();
 
@@ -600,8 +640,9 @@ async fn oracle_change_position_returns_integer() {
     let _ = shutdown_tx.send(true);
 }
 
-/// Transport-level gaps (aria2 serves HTTP GET/JSONP and JSON-RPC batch; limedl
-/// serves POST + WebSocket). Reported, never asserted.
+/// Transport-level differences: aria2 serves HTTP GET/JSONP, limedl serves POST
+/// (including JSON-RPC batch) + WebSocket. Batch is asserted on both servers;
+/// the GET/JSONP gap is reported because limedl deliberately does not serve it.
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(120_000)]
 async fn oracle_transport_gaps() {
@@ -652,9 +693,10 @@ async fn oracle_transport_gaps() {
             }
         };
         let parsed: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
-        if !parsed.is_array() {
-            report.note(format!("{label} batch POST unsupported"));
-        }
+        assert!(
+            parsed.is_array(),
+            "{label} must answer a JSON-RPC batch with an array: {text}"
+        );
     }
 
     report.finish();

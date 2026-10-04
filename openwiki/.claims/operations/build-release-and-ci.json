@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:c4f03afc4b4038be539694c11ef419637df14a0a2e0f6c8aaf26a2a36cae8c10",
+  "pageVersion": "sha256:5572794fb4fcf6e158aed059f116000e41bd5397a462b46bb876d442a55c9b10",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
@@ -176,15 +176,15 @@
     },
     {
       "id": "claim_02c4febf9d2644e982de01e82410298f",
-      "statement": "A standalone .github/workflows/aria2-oracle.yml runs the Tier 2 aria2 oracle on a nightly schedule and workflow_dispatch (never on push/PR), reading the Linux ci-debug cache entry with save-if false; it fails only when the oracle cannot start or a server stops answering, while gaps are reported.",
+      "statement": "A standalone .github/workflows/aria2-oracle.yml runs the Tier 2 aria2 oracle on a nightly schedule and workflow_dispatch (never on push/PR), reading the Linux ci-debug cache entry with save-if false; the oracle asserts the client-facing contract against allowlists and fails on any difference outside them, or when the oracle cannot start or a server stops answering.",
       "evidence": [
         {
           "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
           "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60",
-          "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
+          "version": "repo-lines-v1:sha256:c598104d93dcdeb27dd9ad728142a9bf45812a70282561a2c26d2791a75f879b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1YzVjNmIxNWJmYmU4Yjg1ZDAwZjA3MGQ5YWZhMjFkODg1YzJkNGRlNGY3NTE5YTczZjAyODVmZGQzYWVmYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiM2FmZDY3MmQyYTkxNWZhMGEyODdmNjhkYjFlMDEwZDVlMDcyZmEyY2RlZDgwNDdlYWVjMjk0YjU3NzVlNmUifQ"
         }
       ]
     },
@@ -251,6 +251,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T13:24:31.562Z"
+    "at": "2026-10-04T14:09:40.431Z"
   }
 }

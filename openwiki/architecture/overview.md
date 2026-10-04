@@ -5,7 +5,7 @@ description: Repository layout and runtime topology of limedl — the core engin
 tags: [architecture, workspace, crates, routing, event-bus, conventions]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T13:24:31.562Z
+    at: 2026-10-04T14:09:40.431Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -43,7 +43,7 @@ sources:
     resource: repo://crates/limedl-server/Cargo.toml
   - id: openwiki-source-2d1753b77bfe7d551752205e
     resource: repo://crates/limedl-server/src/lib.rs
-generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
+generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
 ---
 
 # Workspace and System Architecture
@@ -162,7 +162,7 @@ continues.
 
 Evidence: `repo://crates/limedl-native/src/main.rs#L176-L179`,
 `repo://crates/limedl-native/src/event_stream/bus.rs#L1-L18`,
-`repo://crates/limedl-core/src/aria2_rpc/transport.rs#L63-L88`.
+`repo://crates/limedl-core/src/aria2_rpc/transport.rs#L25-L55`.
 
 ## Cross-cutting conventions
 

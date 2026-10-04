@@ -47,7 +47,7 @@ fn error_response_serializes_correctly() {
         id: Some(Value::Number(1.into())),
         result: None,
         error: Some(JsonRpcError {
-            code: -32601,
+            code: 1,
             message: "Not found".into(),
         }),
     };
@@ -60,7 +60,7 @@ fn error_response_serializes_correctly() {
         parsed.get("result").is_none(),
         "error response must not have result field"
     );
-    assert_eq!(parsed["error"]["code"], -32601);
+    assert_eq!(parsed["error"]["code"], 1);
     assert_eq!(parsed["error"]["message"], "Not found");
 }
 
@@ -134,21 +134,21 @@ fn error_response_invalid_request() {
 #[timeout(10_000)]
 fn error_response_method_not_found() {
     let resp = error_response(None, ERR_METHOD_NOT_FOUND, "Method not found: foo");
-    assert_eq!(resp.error.as_ref().unwrap().code, -32601);
+    assert_eq!(resp.error.as_ref().unwrap().code, 1);
 }
 
 #[test]
 #[timeout(10_000)]
 fn error_response_invalid_params() {
     let resp = error_response(None, ERR_INVALID_PARAMS, "Missing GID parameter");
-    assert_eq!(resp.error.as_ref().unwrap().code, -32602);
+    assert_eq!(resp.error.as_ref().unwrap().code, 1);
 }
 
 #[test]
 #[timeout(10_000)]
 fn error_response_internal_error() {
     let resp = error_response(None, ERR_INTERNAL, "Something went wrong");
-    assert_eq!(resp.error.as_ref().unwrap().code, -32603);
+    assert_eq!(resp.error.as_ref().unwrap().code, 1);
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn error_response_serializes_to_valid_json() {
     let parsed: Value = serde_json::from_str(&json_str).expect("valid JSON");
 
     assert_eq!(parsed["id"], 42);
-    assert_eq!(parsed["error"]["code"], -32601);
+    assert_eq!(parsed["error"]["code"], 1);
     assert_eq!(parsed["error"]["message"], "Not found");
     assert!(parsed.get("result").is_none());
 }
@@ -870,13 +870,55 @@ async fn process_jsonrpc_message_covers_errors_and_success() {
     let body = json!({"jsonrpc": "2.0", "id": 8, "method": "no.such.method", "params": []});
     let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body.to_string()).await)
         .expect("valid JSON response");
-    assert_eq!(resp["error"]["code"], -32601, "unknown method: {resp}");
+    assert_eq!(resp["error"]["code"], 1, "unknown method: {resp}");
 
     let body = json!({"jsonrpc": "2.0", "id": 9, "method": "aria2.getVersion", "params": []});
     let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body.to_string()).await)
         .expect("valid JSON response");
     assert_eq!(resp["result"]["version"], env!("CARGO_PKG_VERSION"), "success: {resp}");
     assert_eq!(resp["id"], 9);
+}
+
+/// A top-level JSON-RPC array is a batch: one response per request element.
+#[tokio::test]
+#[timeout(10_000)]
+async fn batch_request_returns_one_response_per_element() {
+    let ctx = make_ctx();
+    let body = json!([
+        {"jsonrpc": "2.0", "id": 1, "method": "aria2.getVersion", "params": []},
+        {"jsonrpc": "2.0", "id": 2, "method": "no.such.method", "params": []}
+    ])
+    .to_string();
+
+    let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body).await)
+        .expect("batch must answer valid JSON");
+    let responses = resp.as_array().expect("a batch must return an array");
+    assert_eq!(responses.len(), 2, "{resp}");
+    assert_eq!(responses[0]["id"], 1);
+    assert!(responses[0]["result"]["version"].is_string(), "{resp}");
+    assert_eq!(responses[1]["error"]["code"], 1, "{resp}");
+}
+
+/// A batch of notifications executes but produces no response at all.
+#[tokio::test]
+#[timeout(10_000)]
+async fn batch_of_notifications_produces_no_response() {
+    let ctx = make_ctx();
+    let body = json!([{"jsonrpc": "2.0", "method": "aria2.pauseAll", "params": []}]).to_string();
+    assert!(
+        process_jsonrpc_message(&ctx, &body).await.is_empty(),
+        "an all-notification batch must not be answered"
+    );
+}
+
+/// An empty array is a single Invalid Request error per the JSON-RPC 2.0 spec.
+#[tokio::test]
+#[timeout(10_000)]
+async fn empty_batch_is_an_invalid_request() {
+    let ctx = make_ctx();
+    let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, "[]").await)
+        .expect("valid JSON response");
+    assert_eq!(resp["error"]["code"], -32600, "{resp}");
 }
 
 /// `resolve_gid` scans the registered backends on a cache miss and caches the
@@ -928,6 +970,50 @@ async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
     assert!(
         resolve_gid(&ctx, &gid).await.is_none(),
         "a removed task must not resolve any more"
+    );
+}
+
+/// aria2 accepts an abbreviated GID when the prefix is unambiguous; limedl must
+/// refuse an ambiguous one rather than guess which task the client meant.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn resolve_gid_accepts_a_unique_prefix_and_refuses_an_ambiguous_one() {
+    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    // 17 GIDs over 16 leading hex digits guarantees two share the first digit.
+    let mut gids = Vec::new();
+    for n in 0u128..17 {
+        let id = uuid::Uuid::from_u128(0x1000 + n).to_string();
+        crate::tests::dispatcher_tests::inject_download(&dm, &id, DownloadState::Completed).await;
+        gids.push(internal_id_to_gid(&id));
+    }
+
+    let mut registry = BackendRegistry::new();
+    registry.register_arc(TaskKind::Http, dm.clone());
+    let ctx = make_ctx_with(Arc::new(registry), Arc::new(EventBus::new(64)));
+
+    // A unique prefix resolves to the full task.
+    assert_eq!(
+        resolve_gid(&ctx, &gids[0][..8]).await,
+        Some(TaskId::Http(uuid::Uuid::from_u128(0x1000))),
+        "an unambiguous prefix must resolve"
+    );
+
+    // A prefix shared by two tasks is refused.
+    let mut counts: HashMap<char, usize> = HashMap::default();
+    for gid in &gids {
+        *counts
+            .entry(gid.chars().next().expect("non-empty gid"))
+            .or_default() += 1;
+    }
+    let shared = counts
+        .into_iter()
+        .find(|(_, count)| *count >= 2)
+        .map(|(ch, _)| ch.to_string())
+        .expect("17 gids over 16 prefixes must collide");
+    assert_eq!(
+        resolve_gid(&ctx, &shared).await,
+        None,
+        "an ambiguous prefix must not resolve"
     );
 }
 

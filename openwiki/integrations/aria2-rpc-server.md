@@ -3,9 +3,6 @@ type: integration
 title: Aria2 JSON-RPC Compatibility Server
 description: The aria2-compatible HTTP and WebSocket server of limedl — method routing, GID derivation and caching, three auth modes with Argon2 token storage, the configurable bind address with a fail-closed auth gate, CORS wildcard mode, type-driven request parsing and aria2 option translation, the tellStatus/getServers/changeUri/changePosition surface, notification ownership, exit_on_shutdown and the graceful hot-reload port handoff.
 tags: [aria2, rpc, integration, authentication, json-rpc, websocket]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-06de9eea8068258882d65c0b
     resource: repo://.github/workflows/aria2-oracle.yml
@@ -33,6 +30,8 @@ sources:
     resource: repo://crates/limedl-core/src/aria2_rpc/system.rs
   - id: openwiki-source-f8a658e29a23b144a8733e19
     resource: repo://crates/limedl-core/src/aria2_rpc/token.rs
+  - id: openwiki-source-1ad782a385f3efd488e8d368
+    resource: repo://crates/limedl-core/src/aria2_rpc/transport.rs
   - id: openwiki-source-093388d09b520118fa26ce32
     resource: repo://crates/limedl-core/src/bt_backend/alerts.rs
   - id: openwiki-source-0c4cd5f8953750852a1f4d6d
@@ -41,7 +40,10 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
+generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T14:09:40.431Z
 ---
 
 # Aria2 JSON-RPC Compatibility Server
@@ -216,13 +218,17 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L14-L42`,
 digits. The underlying task id is a UUID for HTTP and the info hash for BT, both
 of which are stable across restarts, so a GID is stable too. `resolve_gid` checks
 the cache first, then scans all backends' `list()` and populates the cache on a
-hit. The cache is an optimization, not the source of truth.
+hit. The cache is an optimization, not the source of truth. `resolve_gid` also
+accepts an **abbreviated GID**: it prefers an exact match and otherwise resolves a
+prefix that identifies exactly one task. A prefix shared by two tasks is refused
+rather than guessed, and only full GIDs are cached because a prefix mapping could
+go stale when a new task appears.
 
 Lifecycle correctness: `addUri` and `resolve_gid`'s scan insert entries, and
 `aria2.remove`, `aria2.removeDownloadResult` and `purgeDownloadResult` evict
 them — otherwise the cache would grow without bound in a long session.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L74-L105`,
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L94-L150`,
 `repo://crates/limedl-core/src/aria2_rpc/download.rs#L112-L132`,
 `repo://crates/limedl-core/src/aria2_rpc/download.rs#L298-L345`,
 `repo://crates/limedl-core/src/aria2_rpc/download.rs#L393-L460`.
@@ -243,8 +249,8 @@ method-not-found error code.
 test `interop_list_methods_matches_the_routed_surface` asserts that equality and
 that every advertised method is reachable, so a handler added without a listing
 (or vice versa) fails the suite. `aria2.addMetalink` is the one aria2 method
-still deliberately absent (Metalink is out of scope); the HTTP GET/JSONP/Batch
-transports are also not served.
+still deliberately absent (Metalink is out of scope). A top-level JSON-RPC batch
+is served; the HTTP GET/JSONP transports are not.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L44-L86`,
 `repo://crates/limedl-core/src/aria2_rpc/query.rs#L568-L612`.
@@ -317,8 +323,8 @@ with the key name for anything else, instead of silently ignoring it:
 - `max-download-limit` / `max-upload-limit` (BT only) — the status is read first
   so the other direction is preserved, then `bt_set_speed_limit` is called.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/options.rs#L130-L160`,
-`repo://crates/limedl-core/src/aria2_rpc/options.rs#L351-L426`.
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/options.rs#L342-L420`,
+`repo://crates/limedl-core/src/aria2_rpc/options.rs#L859-L935`.
 
 ## Status fields (`tellStatus` and the list methods)
 
@@ -377,28 +383,71 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/query.rs#L427-L490`,
 `repo://crates/limedl-core/src/aria2_rpc/system.rs#L38-L56`,
 `repo://crates/limedl-core/src/manager.rs#L845-L935`.
 
+## AriaNg option coverage
+
+`getGlobalOption` answers the complete key set AriaNg's Settings pages read
+(`aria2GlobalAvailableOptions` in its `aria2Options.js`, plus the quick-settings
+speed limits), and `getOption` does the same for the task dialog
+(`aria2TaskAvailableOptions`). Values come from limedl's real settings where the
+engine has an equivalent (`dir`, `max-concurrent-downloads`, `split`,
+`max-tries`, `user-agent`, `max-overall-*-limit`, the proxy and the mappable
+`bt-*` / `enable-*` / `rpc-*` keys) and are documented aria2 defaults otherwise;
+every value is a string, as aria2 serialises them. `changeGlobalOption` applies
+the subset it can map (`dir`, `max-concurrent-downloads`, `split`,
+`max-connection-per-server`, `max-tries`, `user-agent`, the global speed limits,
+`enable-dht`, `enable-peer-exchange`, `bt-max-peers`, `seed-ratio`, `bt-tracker`,
+`listen-port`) and ignores unrecognised keys, as aria2 clients expect.
+
+The key sets are pinned by Tier 1 (`interop_get_global_option_covers_ariang_keys`,
+`interop_get_option_covers_ariang_task_keys`) and by the Tier 2 oracle.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/options.rs#L9-L182`,
+`repo://crates/limedl-core/src/aria2_rpc/options.rs#L491-L731`,
+`repo://crates/limedl-core/src/aria2_rpc/options.rs#L935-L1245`.
+
+## Transports and error codes
+
+The endpoint serves `POST /jsonrpc` and `GET /jsonrpc` (WebSocket upgrade). A
+POST body may be a single request object or a **JSON-RPC 2.0 batch** (a top-level
+array): each element is dispatched and answered, notifications (elements without
+an `id`) execute without a response entry, an all-notification batch returns no
+body, and an empty array is a single Invalid Request. The WebSocket transport
+accepts the same shapes.
+
+Error objects follow aria2 rather than the JSON-RPC-specific codes: unknown
+method, missing/invalid params, unknown GID, unauthorized and internal failures
+all use `code: 1`, so the method-not-found case is recognized by its message.
+Only wire-level parse and version failures keep `-32700`/`-32600`, because they
+never reach a method. `ERR_METHOD_NOT_FOUND`/`ERR_INVALID_PARAMS`/`ERR_INTERNAL`
+are kept as named constants but all equal 1.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/transport.rs#L9-L172`,
+`repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L39-L55`,
+`repo://crates/limedl-core/src/tests/aria2_ws_e2e_tests.rs`.
+
 ## Known, intentional deviations
 
 These are documented choices, not bugs, and are tracked alongside the Tier 1/Tier
 2 plan in `docs/aria2-interop-testing.md`:
 
-- `aria2.addMetalink` is not implemented, and HTTP GET/JSONP/Batch transports are
-  not served (POST + WebSocket only).
+- `aria2.addMetalink` is not implemented (Metalink is out of scope), and HTTP
+  GET/JSONP transports are not served — POST (including a JSON-RPC batch) and
+  WebSocket are. HTTPS RPC and HTTP Basic auth are likewise not served, so a LAN
+  deployment needs a reverse proxy for TLS; a configurable bind address (aria2's
+  `--rpc-listen-all`) *is* supported, but a non-loopback bind requires
+  authentication.
 - `changePosition` collapses onto the priority model (above).
 - BitTorrent `tellStatus.dir`/`getOption.dir` report the BT backend's default
   output dir, not a per-task `dir`, because the BT backend does not track one;
   `addTorrent`'s `out`/`select-file` are parsed but not applied at start (use
   `aria2.changeOption` after metadata).
-- `getOption` returns several fixed placeholder values and `getGlobalOption` only
-  a subset. `getVersion` is now truthful: `Async DNS`, `BitTorrent`, `GZip`,
-  `Brotli`, `Zstd`, `HTTPS`, `Message Digest`, and it deliberately omits aria2's
-  `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie`. `interop_get_version_is_truthful`
-  locks the set, and `http-accept-gzip` reports `true` because the engine now
-  negotiates compression on the single-stream GET.
-- GID prefix matching is not supported (exact GID only); HTTPS RPC and HTTP Basic
-  auth are not served, so a LAN deployment needs a reverse proxy for TLS. A
-  configurable bind address (aria2's `--rpc-listen-all`) *is* supported, but a
-  non-loopback bind requires authentication.
+- `getOption`/`getGlobalOption` answer AriaNg's full key sets, but several values
+  are documented aria2 defaults because the engine has no equivalent. `getVersion`
+  is truthful: `Async DNS`, `BitTorrent`, `GZip`, `Brotli`, `Zstd`, `HTTPS`,
+  `Message Digest`, and it deliberately omits aria2's
+  `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie`.
+- Error codes match aria2 (`1` for every domain failure); GID prefix matching is
+  supported (a unique prefix resolves, an ambiguous one is refused).
 
 ## Tier 2 oracle (live `aria2c`)
 
@@ -408,13 +457,13 @@ server and reports how the same requests differ. It is opted in by
 no aria2; set but unusable, it panics. `.github/workflows/aria2-oracle.yml` sets
 it on a nightly `schedule` and `workflow_dispatch` (never on PRs, Linux only).
 
-Gaps are **reported, not asserted** for now: the report is printed by nextest's
-`--success-output=final`, and a run only fails when the oracle cannot start or a
-server stops answering. The first aria2 1.37.0 run reported the deviations above
-plus the option-key and GET/JSONP/Batch transport gaps; individual entries are
-promoted to hard assertions once the report is stable. After response
-compression landed, `GZip` is shared with aria2 and `Brotli`/`Zstd` show up as
-truthful limedl-only additions.
+Differences are **allowlisted, not open-ended**: the oracle asserts that limedl
+answers every AriaNg option key, the always-present `tellStatus` keys, and the
+documented `listMethods`/`listNotifications` delta, and that both servers answer
+a JSON-RPC batch with an array; a run fails on anything outside those allowlists
+(and when the oracle cannot start or a server stops answering). The remaining
+aria2-only differences are printed as allowlisted notes by
+`--success-output=final`.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60`,
 `repo://docs/aria2-interop-testing.md#L77-L156`,

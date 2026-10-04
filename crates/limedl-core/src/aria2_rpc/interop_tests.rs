@@ -75,7 +75,7 @@ fn index_in_waiting(resp: &serde_json::Value, gid: &str) -> Option<usize> {
 // ── Contract ──────────────────────────────────────────────────────────────
 
 /// `system.listMethods` must be exactly the implemented set, and every
-/// advertised method must route (never `-32601`).
+/// advertised method must route (its error must not be method-not-found).
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(60_000)]
 async fn interop_list_methods_matches_the_routed_surface() {
@@ -102,13 +102,15 @@ async fn interop_list_methods_matches_the_routed_surface() {
         if method == "system.listMethods" {
             continue;
         }
-        // Empty params are enough: any routed method answers with invalid
-        // params (-32602) or a result. Only method-not-found (-32601) means it
-        // is advertised but not wired up.
+        // Empty params are enough: a routed method answers with a result, or an
+        // invalid-params error whose message names the missing argument. aria2
+        // (and now limedl) return `code: 1` for both invalid params and an
+        // unknown method, so the method-not-found case has to be recognized by
+        // its message instead of its code.
         let resp = rpc_call(&client, &rpc_url, method, json!([])).await;
-        assert_ne!(
-            resp["error"]["code"].as_i64(),
-            Some(-32601),
+        let message = resp["error"]["message"].as_str().unwrap_or_default();
+        assert!(
+            !message.contains("Method not found"),
             "{method} is advertised but not routed: {resp}"
         );
     }
@@ -478,7 +480,7 @@ async fn interop_get_servers_and_change_uri() {
         json!([gid, 2, [], [third]]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], -32602, "{resp}");
+    assert_eq!(resp["error"]["code"], 1, "{resp}");
 
     let _ = rpc_call(&client, &rpc_url, "aria2.remove", json!([gid])).await;
     let _ = shutdown_tx.send(true);
@@ -545,7 +547,7 @@ async fn interop_change_position_returns_the_real_index() {
         json!([last, 0, "POS_SIDEWAYS"]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], -32602, "{resp}");
+    assert_eq!(resp["error"]["code"], 1, "{resp}");
 
     let _ = shutdown_tx.send(true);
 }
@@ -611,6 +613,83 @@ async fn interop_get_version_is_truthful() {
             "getVersion is missing supported feature {real}: {resp}"
         );
     }
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// AriaNg's Settings pages read `getGlobalOption` and render every field they
+/// know about; the response must therefore answer AriaNg's whole key set (from
+/// its `aria2Options.js`) with aria2-style string values.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn interop_get_global_option_covers_ariang_keys() {
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = rpc_call(&client, &rpc_url, "aria2.getGlobalOption", json!([])).await;
+    let result = resp["result"]
+        .as_object()
+        .unwrap_or_else(|| panic!("getGlobalOption must return an object: {resp}"));
+
+    let missing: Vec<&str> = super::ARIA2NG_GLOBAL_OPTION_KEYS
+        .iter()
+        .copied()
+        .filter(|key| !result.contains_key(*key))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "getGlobalOption is missing AriaNg keys: {missing:?}"
+    );
+    for (key, value) in result {
+        assert!(
+            value.is_string(),
+            "{key} must be a string like aria2's options: {value}"
+        );
+    }
+
+    let _ = shutdown_tx.send(true);
+}
+
+/// The same contract for a single task: `getOption` answers every key AriaNg's
+/// task dialog reads (`aria2TaskAvailableOptions`).
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn interop_get_option_covers_ariang_task_keys() {
+    let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest = tmp.path().join("output");
+
+    // Started paused so the test never waits for a download to run.
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addUri",
+        json!([
+            [test_server.file_url()],
+            {"dir": dest.to_string_lossy(), "pause": "true"}
+        ]),
+    )
+    .await;
+    let gid = resp["result"]
+        .as_str()
+        .unwrap_or_else(|| panic!("addUri failed: {resp}"))
+        .to_string();
+
+    let resp = rpc_call(&client, &rpc_url, "aria2.getOption", json!([gid])).await;
+    let result = resp["result"]
+        .as_object()
+        .unwrap_or_else(|| panic!("getOption must return an object: {resp}"));
+
+    let missing: Vec<&str> = super::ARIA2NG_TASK_OPTION_KEYS
+        .iter()
+        .copied()
+        .filter(|key| !result.contains_key(*key))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "getOption is missing AriaNg task keys: {missing:?}"
+    );
 
     let _ = shutdown_tx.send(true);
 }

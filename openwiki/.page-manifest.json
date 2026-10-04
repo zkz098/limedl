@@ -9,11 +9,11 @@
       "completedRunId": "fb6c0f8f-f8a1-441e-9cca-b378bb353133"
     },
     "/openwiki/architecture/overview.md": {
-      "pageVersion": "sha256:d807176d07da7d10bf9ae6a5d8d5843ed8464359d58fecc1bab5474aa036da63",
+      "pageVersion": "sha256:8322e49ba1eb301d9a4f506b6cf0b205dbbb9e089f83c55dcf4600e7cc327108",
       "completedBy": "pi",
-      "completedRunId": "e1de2158-8d9e-41e6-beba-d295a6bc4214",
-      "gitHead": "8538b9b57ee90ce64bd41b73721996fa0315dc27",
-      "sourceFingerprint": "sha256:cd81887eb9ecf906f753e18155d735bb7836114e1b5c4863a4254f44a7f39e2f"
+      "completedRunId": "2927bb34-2b7b-47b7-82e8-9de31b9acb47",
+      "gitHead": "93b0623d965410aa87d1231344a234338a2c522b",
+      "sourceFingerprint": "sha256:b9df0b2e1e99ccda18d36cbbdab60a874bc5be57f2332b62ccd25d17244acce1"
     },
     "/openwiki/architecture/protocol-routing-and-dispatcher.md": {
       "gitHead": "1e0b3b9485bae0d91d2e43e51b09a417cbb1a492",
@@ -30,18 +30,18 @@
       "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072"
     },
     "/openwiki/desktop/self-update-and-distribution.md": {
+      "gitHead": "8538b9b57ee90ce64bd41b73721996fa0315dc27",
+      "sourceFingerprint": "sha256:cd81887eb9ecf906f753e18155d735bb7836114e1b5c4863a4254f44a7f39e2f",
       "pageVersion": "sha256:064c82b75f361970f0c0bce7a81931b3c818952dbd13eeb45e2d47765dae1976",
       "completedBy": "pi",
-      "completedRunId": "e1de2158-8d9e-41e6-beba-d295a6bc4214",
-      "gitHead": "8538b9b57ee90ce64bd41b73721996fa0315dc27",
-      "sourceFingerprint": "sha256:cd81887eb9ecf906f753e18155d735bb7836114e1b5c4863a4254f44a7f39e2f"
+      "completedRunId": "e1de2158-8d9e-41e6-beba-d295a6bc4214"
     },
     "/openwiki/integrations/aria2-rpc-server.md": {
-      "gitHead": "77812fbe6ee8b7c95abf09a0a47b75674af0a247",
-      "sourceFingerprint": "sha256:15824d7c9555eed7fff0d06d47bb05aab19a465b5b7556d22c5d03c611b54192",
-      "pageVersion": "sha256:1f401a1df7a0f7b82a325ce1e29d22e0d04b901c12227f180bd95153f9aad70f",
+      "pageVersion": "sha256:63bb2c51d9aae5ba070fe4ccf8ef15d8230b3ec3514030d8793ad817b64062aa",
       "completedBy": "pi",
-      "completedRunId": "fb6c0f8f-f8a1-441e-9cca-b378bb353133"
+      "completedRunId": "2927bb34-2b7b-47b7-82e8-9de31b9acb47",
+      "gitHead": "93b0623d965410aa87d1231344a234338a2c522b",
+      "sourceFingerprint": "sha256:b9df0b2e1e99ccda18d36cbbdab60a874bc5be57f2332b62ccd25d17244acce1"
     },
     "/openwiki/integrations/headless-server-daemon.md": {
       "gitHead": "77812fbe6ee8b7c95abf09a0a47b75674af0a247",
@@ -51,11 +51,11 @@
       "completedRunId": "03c48a0e-a911-44c9-ac5e-ea4bedeb1eea"
     },
     "/openwiki/operations/build-release-and-ci.md": {
-      "pageVersion": "sha256:c4f03afc4b4038be539694c11ef419637df14a0a2e0f6c8aaf26a2a36cae8c10",
+      "pageVersion": "sha256:5572794fb4fcf6e158aed059f116000e41bd5397a462b46bb876d442a55c9b10",
       "completedBy": "pi",
-      "completedRunId": "e1de2158-8d9e-41e6-beba-d295a6bc4214",
-      "gitHead": "8538b9b57ee90ce64bd41b73721996fa0315dc27",
-      "sourceFingerprint": "sha256:cd81887eb9ecf906f753e18155d735bb7836114e1b5c4863a4254f44a7f39e2f"
+      "completedRunId": "2927bb34-2b7b-47b7-82e8-9de31b9acb47",
+      "gitHead": "93b0623d965410aa87d1231344a234338a2c522b",
+      "sourceFingerprint": "sha256:b9df0b2e1e99ccda18d36cbbdab60a874bc5be57f2332b62ccd25d17244acce1"
     },
     "/openwiki/operations/server-deployment-and-packaging.md": {
       "gitHead": "77812fbe6ee8b7c95abf09a0a47b75674af0a247",
@@ -65,11 +65,11 @@
       "completedRunId": "03c48a0e-a911-44c9-ac5e-ea4bedeb1eea"
     },
     "/openwiki/quickstart.md": {
-      "gitHead": "77812fbe6ee8b7c95abf09a0a47b75674af0a247",
-      "sourceFingerprint": "sha256:0aba30270bc737a68625ffb16fc6d0de3770714121476d9be64289f84204b157",
-      "pageVersion": "sha256:44ac8590b168fd27e9b912aebf3bbe421c90206956f33df8952148d8578d19cf",
+      "pageVersion": "sha256:a91954f4169318e4cdfd6b1d149e459283f9128603c4262a773cf7ec1968e745",
       "completedBy": "pi",
-      "completedRunId": "03c48a0e-a911-44c9-ac5e-ea4bedeb1eea"
+      "completedRunId": "2927bb34-2b7b-47b7-82e8-9de31b9acb47",
+      "gitHead": "93b0623d965410aa87d1231344a234338a2c522b",
+      "sourceFingerprint": "sha256:b9df0b2e1e99ccda18d36cbbdab60a874bc5be57f2332b62ccd25d17244acce1"
     },
     "/openwiki/systems/disk-io-and-storage.md": {
       "gitHead": "9c4e9d28d5b0df8487bc5a0254b565ee47beabfa",
@@ -79,11 +79,11 @@
       "completedRunId": "e166833d-eb4e-4774-81ab-b38e35c2dde5"
     },
     "/openwiki/systems/networking-and-rate-control.md": {
+      "gitHead": "8538b9b57ee90ce64bd41b73721996fa0315dc27",
+      "sourceFingerprint": "sha256:cd81887eb9ecf906f753e18155d735bb7836114e1b5c4863a4254f44a7f39e2f",
       "pageVersion": "sha256:c83d4cb7aab684dd32983a9c5b16bf708afd6951a62be6187be8e080acbf3b5b",
       "completedBy": "pi",
-      "completedRunId": "e1de2158-8d9e-41e6-beba-d295a6bc4214",
-      "gitHead": "8538b9b57ee90ce64bd41b73721996fa0315dc27",
-      "sourceFingerprint": "sha256:cd81887eb9ecf906f753e18155d735bb7836114e1b5c4863a4254f44a7f39e2f"
+      "completedRunId": "e1de2158-8d9e-41e6-beba-d295a6bc4214"
     },
     "/openwiki/systems/persistence-and-recovery.md": {
       "gitHead": "9c4e9d28d5b0df8487bc5a0254b565ee47beabfa",
@@ -107,11 +107,11 @@
       "completedRunId": "e0bbc9d2-9731-4534-994a-df7c0a55aaf2"
     },
     "/openwiki/testing/testing-strategy.md": {
-      "gitHead": "77812fbe6ee8b7c95abf09a0a47b75674af0a247",
-      "sourceFingerprint": "sha256:15824d7c9555eed7fff0d06d47bb05aab19a465b5b7556d22c5d03c611b54192",
-      "pageVersion": "sha256:106455f92fd557afc03cfdcdb5f81f62b9eab09f63e7528695698a2b5a71ac6e",
+      "pageVersion": "sha256:ef25c4fdf6b964827e07fbcdc78de964c171adaa0ae3915eb4c00da5364f11ef",
       "completedBy": "pi",
-      "completedRunId": "fb6c0f8f-f8a1-441e-9cca-b378bb353133"
+      "completedRunId": "2927bb34-2b7b-47b7-82e8-9de31b9acb47",
+      "gitHead": "93b0623d965410aa87d1231344a234338a2c522b",
+      "sourceFingerprint": "sha256:b9df0b2e1e99ccda18d36cbbdab60a874bc5be57f2332b62ccd25d17244acce1"
     },
     "/openwiki/workflows/bit-torrent-backend.md": {
       "gitHead": "1e0b3b9485bae0d91d2e43e51b09a417cbb1a492",

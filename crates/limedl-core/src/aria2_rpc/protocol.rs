@@ -38,9 +38,17 @@ pub(crate) struct JsonRpcNotification {
 
 pub(crate) const ERR_PARSE: i32 = -32700;
 pub(crate) const ERR_INVALID_REQUEST: i32 = -32600;
-pub(crate) const ERR_METHOD_NOT_FOUND: i32 = -32601;
-pub(crate) const ERR_INVALID_PARAMS: i32 = -32602;
-pub(crate) const ERR_INTERNAL: i32 = -32603;
+/// aria2 answers `code: 1` for **every** domain failure — unauthorized, unknown
+/// method, missing/invalid params, unknown GID, internal error — rather than the
+/// JSON-RPC-specific codes. limedl matches aria2 on the wire (AriaNg and other
+/// clients key off `message`); the separate constants are kept for readability
+/// at the call sites. `ERR_PARSE`/`ERR_INVALID_REQUEST` stay standard because
+/// they are wire-level failures that never reach a method.
+///
+/// Verified against aria2 1.37.0 by the Tier 2 oracle (`oracle_error_objects`).
+pub(crate) const ERR_METHOD_NOT_FOUND: i32 = 1;
+pub(crate) const ERR_INVALID_PARAMS: i32 = 1;
+pub(crate) const ERR_INTERNAL: i32 = 1;
 
 pub(crate) fn make_error(code: i32, message: impl Into<String>) -> JsonRpcError {
     JsonRpcError {
@@ -76,8 +84,15 @@ pub fn internal_id_to_gid(internal_id: &str) -> String {
     format!("{:016x}", hash)
 }
 
+/// Resolve a wire GID (or an unambiguous GID prefix) to a task.
+///
+/// aria2 accepts an abbreviated GID as long as the prefix identifies exactly one
+/// task. An exact match always wins; otherwise a prefix shared by two tasks is
+/// refused rather than resolved to an arbitrary one, so a client can never
+/// silently control the wrong download. Only full GIDs are cached, because a
+/// prefix mapping could go stale when a new task appears.
 pub(crate) async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
-    // Check cache first
+    // Exact cache hit first (the common case).
     {
         let cache = ctx.gid_cache.lock().await;
         if let Some(task_id) = cache.get(gid) {
@@ -85,24 +100,43 @@ pub(crate) async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
         }
     }
 
-    // Cache miss — scan all backends
-    for backend in ctx.registry.iter() {
-        if let Ok(list) = backend.list().await {
-            for s in &list {
-                if internal_id_to_gid(&s.id) == gid {
-                    let task_id = match s.kind {
-                        TaskKind::Http => TaskId::Http(Uuid::parse_str(&s.id).ok()?),
-                        TaskKind::Bt => TaskId::Bt(Id20::from_hex(&s.id).ok()?),
-                    };
-                    let mut cache = ctx.gid_cache.lock().await;
-                    cache.insert(gid.to_string(), task_id);
-                    return Some(task_id);
-                }
+    let mut exact: Option<(String, TaskId)> = None;
+    let mut prefix: std::collections::BTreeMap<String, TaskId> = std::collections::BTreeMap::new();
+
+    'backends: for backend in ctx.registry.iter() {
+        let Ok(list) = backend.list().await else {
+            continue;
+        };
+        for s in &list {
+            let candidate = internal_id_to_gid(&s.id);
+            let task_id = match s.kind {
+                TaskKind::Http => Uuid::parse_str(&s.id).ok().map(TaskId::Http),
+                TaskKind::Bt => Id20::from_hex(&s.id).ok().map(TaskId::Bt),
+            };
+            // Skip a summary whose internal id cannot be parsed instead of
+            // aborting the whole lookup.
+            let Some(task_id) = task_id else {
+                continue;
+            };
+            if candidate == gid {
+                exact = Some((candidate, task_id));
+                break 'backends;
+            }
+            if !gid.is_empty() && candidate.starts_with(gid) {
+                prefix.insert(candidate, task_id);
             }
         }
     }
 
-    None
+    let (full_gid, task_id) = match exact {
+        Some(hit) => hit,
+        None if prefix.len() == 1 => prefix.into_iter().next()?,
+        None => return None,
+    };
+
+    let mut cache = ctx.gid_cache.lock().await;
+    cache.insert(full_gid, task_id);
+    Some(task_id)
 }
 
 pub(crate) fn state_to_aria2(state: &DownloadState) -> &'static str {
