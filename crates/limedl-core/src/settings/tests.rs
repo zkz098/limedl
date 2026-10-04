@@ -555,6 +555,44 @@ fn test_load_settings_valid_json_full_fields() {
 }
 
 // -----------------------------------------------------------------------
+// load_settings recovery
+// -----------------------------------------------------------------------
+#[test]
+fn test_load_settings_corrupt_json_quarantines_and_uses_defaults() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    fs::write(&path, b"{ this is not json").unwrap();
+
+    let loaded = load_settings(&path).expect("a corrupt file must not fail the load");
+
+    assert_eq!(loaded.proxy.mode, AppSettings::default().proxy.mode);
+    let quarantined = path.with_extension("json.corrupt");
+    assert!(
+        quarantined.exists(),
+        "the unreadable file must be kept for inspection"
+    );
+    assert!(!path.exists(), "the bad file must be moved out of the way");
+}
+
+#[test]
+fn test_load_settings_corrupt_json_recovers_the_backup() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    fs::write(
+        path.with_extension("json.bak"),
+        br#"{"proxy": {"mode": "manual", "manualUrl": "http://backup:1234"}}"#,
+    )
+    .unwrap();
+    fs::write(&path, b"not json").unwrap();
+
+    let loaded = load_settings(&path).expect("the backup must be used");
+
+    assert_eq!(loaded.proxy.mode, ProxyMode::Manual);
+    assert_eq!(loaded.proxy.manual_url, "http://backup:1234");
+    assert!(path.with_extension("json.corrupt").exists());
+}
+
+// -----------------------------------------------------------------------
 // persist_settings roundtrip
 // -----------------------------------------------------------------------
 #[tokio::test]
@@ -580,6 +618,41 @@ async fn test_persist_and_load_roundtrip() {
     assert_eq!(loaded.proxy.mode, original.proxy.mode);
     assert_eq!(loaded.proxy.manual_url, original.proxy.manual_url);
     assert!(path.exists());
+}
+
+#[tokio::test]
+async fn test_persist_settings_snapshots_the_previous_file() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+
+    let first = AppSettings {
+        proxy: ProxySettings {
+            mode: ProxyMode::Manual,
+            manual_url: "http://first:1".into(),
+        },
+        ..AppSettings::default()
+    };
+    persist_settings(&path, &first).await.unwrap();
+    assert!(
+        !path.with_extension("json.bak").exists(),
+        "the first save has nothing to snapshot"
+    );
+
+    let second = AppSettings {
+        proxy: ProxySettings {
+            mode: ProxyMode::Manual,
+            manual_url: "http://second:2".into(),
+        },
+        ..AppSettings::default()
+    };
+    persist_settings(&path, &second).await.unwrap();
+
+    let backup = load_settings(&path.with_extension("json.bak")).unwrap();
+    assert_eq!(backup.proxy.manual_url, "http://first:1");
+    assert_eq!(
+        load_settings(&path).unwrap().proxy.manual_url,
+        "http://second:2"
+    );
 }
 
 // -----------------------------------------------------------------------

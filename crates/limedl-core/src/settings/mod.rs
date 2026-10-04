@@ -4,6 +4,7 @@ use std::{
 };
 
 use reqwest::Url;
+use tokio::io::AsyncWriteExt as _;
 
 use super::{
     error::{DownloadError, Result},
@@ -388,7 +389,64 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     // Every `AppSettings` field is `#[serde(default)]`, so a partial or
     // hand-edited file still loads. Unknown keys are ignored: the old
     // `githubMirror` / `sha1` checksum settings are no longer migrated.
-    normalize_settings(serde_json::from_str::<AppSettings>(&content)?)
+    //
+    // Unparseable content must not brick the application. Passing the error up
+    // used to abort every start (the GUI has nowhere to show it), so instead the
+    // bad file is moved aside, the previous save is tried, and only then do the
+    // built-in defaults apply.
+    match serde_json::from_str::<AppSettings>(&content)
+        .map_err(DownloadError::from)
+        .and_then(normalize_settings)
+    {
+        Ok(settings) => Ok(settings),
+        Err(error) => {
+            let quarantined = quarantine_unreadable_settings(settings_path);
+            let where_kept = match &quarantined {
+                Some(path) => format!(" (kept at {})", path.display()),
+                None => String::new(),
+            };
+
+            if let Some(recovered) = read_settings_backup(settings_path) {
+                tracing::error!(
+                    "settings at {} are unreadable ({error}){where_kept}; recovered the previous \
+                     settings from the backup",
+                    settings_path.display()
+                );
+                return Ok(recovered);
+            }
+
+            tracing::error!(
+                "settings at {} are unreadable ({error}){where_kept}; starting from defaults",
+                settings_path.display()
+            );
+            Ok(AppSettings::default())
+        }
+    }
+}
+
+/// Move an unreadable settings file aside so the next save can create a fresh
+/// one and the user can still inspect what was there.
+fn quarantine_unreadable_settings(settings_path: &Path) -> Option<PathBuf> {
+    let quarantine = settings_path.with_extension("json.corrupt");
+    match fs::rename(settings_path, &quarantine) {
+        Ok(()) => Some(quarantine),
+        Err(error) => {
+            tracing::error!(
+                "could not move the unreadable settings file {} aside: {error}",
+                settings_path.display()
+            );
+            None
+        }
+    }
+}
+
+/// Parse the previous `settings.json.bak` snapshot, if there is a usable one.
+fn read_settings_backup(settings_path: &Path) -> Option<AppSettings> {
+    let backup = settings_path.with_extension("json.bak");
+    let content = fs::read_to_string(&backup).ok()?;
+    serde_json::from_str::<AppSettings>(&content)
+        .ok()
+        .and_then(|settings| normalize_settings(settings).ok())
 }
 
 pub async fn persist_settings(settings_path: &Path, settings: &AppSettings) -> Result<()> {
@@ -396,10 +454,37 @@ pub async fn persist_settings(settings_path: &Path, settings: &AppSettings) -> R
         tokio::fs::create_dir_all(parent).await?;
     }
 
+    let serialized = serde_json::to_vec_pretty(settings)?;
     let temp_path = settings_path.with_extension("json.tmp");
-    tokio::fs::write(&temp_path, serde_json::to_vec_pretty(settings)?).await?;
+    // Flush and fsync the temp file *before* the rename. Without it a power loss
+    // can make the rename durable while the data is not, leaving an empty
+    // settings.json behind — which is exactly the unreadable-file case above.
+    {
+        let mut file = tokio::fs::File::create(&temp_path).await?;
+        file.write_all(&serialized).await?;
+        file.flush().await?;
+        file.sync_all().await?;
+    }
+
+    // Snapshot the outgoing file so a bad save has a way back.
+    back_up_settings(settings_path).await;
+
     tokio::fs::rename(&temp_path, settings_path).await?;
     Ok(())
+}
+
+/// Best-effort copy of the current settings to `<name>.json.bak`.
+async fn back_up_settings(settings_path: &Path) {
+    if !tokio::fs::try_exists(settings_path).await.unwrap_or(false) {
+        return;
+    }
+    let backup = settings_path.with_extension("json.bak");
+    if let Err(error) = tokio::fs::copy(settings_path, &backup).await {
+        tracing::warn!(
+            "could not back up settings to {}: {error}",
+            backup.display()
+        );
+    }
 }
 
 #[cfg(test)]
