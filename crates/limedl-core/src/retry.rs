@@ -3,7 +3,8 @@
 //! Extracted from `manager.rs` to reduce the god object. Contains:
 //! - `request_with_retry()` — wraps HTTP requests with retry logic and exponential backoff
 //! - `register_retry_penalty()` — records a penalty in the AIMD state after a retry failure
-//! - `backoff_delay()` — computes the delay duration for retry attempts
+//! - `backoff_delay()` — computes the base delay for retry attempts
+//! - `jittered_backoff_delay()` — the delay actually slept, spread by up to 25%
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -147,7 +148,7 @@ fn rate_limit_aborts(managed: &Arc<ManagedDownload>, status: Option<StatusCode>)
 async fn backoff_or_cancel(token: &CancellationToken, attempt: u32) -> Result<()> {
     tokio::select! {
         _ = token.cancelled() => Err(DownloadError::Interrupted),
-        _ = sleep(backoff_delay(attempt)) => Ok(()),
+        _ = sleep(jittered_backoff_delay(attempt)) => Ok(()),
     }
 }
 
@@ -175,6 +176,28 @@ fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: String) {
 ///
 /// Formula: `250ms * 2^min(attempt, 4)`, capped at a 4-second delay
 /// (attempt 4+). This gives: 500ms, 1s, 2s, 4s, 4s, ...
+///
+/// Deterministic on purpose: it is the base [`jittered_backoff_delay`] spreads,
+/// and it is what the unit tests pin.
 pub fn backoff_delay(attempt: u32) -> Duration {
     Duration::from_millis((250_u64).saturating_mul(2_u64.saturating_pow(attempt.min(4))))
+}
+
+/// Upper bound of the random jitter added on top of [`backoff_delay`], as a
+/// percentage of the base delay.
+const BACKOFF_JITTER_PERCENT: u64 = 25;
+
+/// [`backoff_delay`] plus uniform jitter in `[base, base * 1.25]`.
+///
+/// Every chunk of every task retries against the same host, so an unjittered
+/// schedule puts them all back on the wire at the same instant — exactly in the
+/// 429/5xx case where the extra load is least welcome. The delay never drops
+/// below the base value, so the retry policy stays as gentle as before.
+pub fn jittered_backoff_delay(attempt: u32) -> Duration {
+    let base = backoff_delay(attempt).as_millis() as u64;
+    let span = base * BACKOFF_JITTER_PERCENT / 100;
+    if span == 0 {
+        return Duration::from_millis(base);
+    }
+    Duration::from_millis(base + rand::random_range(0..=span))
 }
